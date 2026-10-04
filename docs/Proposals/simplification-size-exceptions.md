@@ -110,17 +110,17 @@ The following existing declaration spans include their signatures and internal c
 
 | File:line | Declaration | Lines | Why retained |
 | --- | --- | ---: | --- |
-| `lib/main.dart:36` | `main` | 151 | Ordered native, DEK and provider startup. |
+| `lib/main.dart:38` | `main` | 152 | Ordered native, DEK and provider startup. |
 | `lib/src/features/conversation/attachment_card.dart:60` | `AttachmentCard.build` | 78 | Existing declarative widget subtree. |
 | `lib/src/features/conversation/attachment_card.dart:186` | `_buildBar` | 79 | Existing declarative widget subtree. |
 | `lib/src/features/conversation/attachment_card_branches.dart:26` | `_MediaPreviewCard.build` | 128 | Existing declarative widget subtree. |
-| `lib/src/features/conversation/conversation_composer.dart:27` | `ConversationComposer` | 212 | One controlled composer subtree. |
-| `lib/src/features/conversation/conversation_composer.dart:96` | `ConversationComposer.build` | 142 | Existing declarative widget subtree. |
-| `lib/src/features/conversation/conversation_controller.dart:53` | `ConversationController` | 319 | One action, busy and invalidation owner. |
+| `lib/src/features/conversation/conversation_composer.dart:29` | `ConversationComposer` | 209 | One controlled composer subtree. |
+| `lib/src/features/conversation/conversation_composer.dart:92` | `ConversationComposer.build` | 145 | Existing declarative widget subtree. |
+| `lib/src/features/conversation/conversation_controller.dart:55` | `ConversationController` | 291 | Existing action and invalidation owner; text admission extracted into a separate notifier. |
 | `lib/src/features/conversation/conversation_helpers.dart:104` | `DeliveryTicks.build` | 57 | Existing declarative widget subtree. |
-| `lib/src/features/conversation/conversation_screen.dart:53` | `_ConversationScreenState` | 241 | Composer/search/pending-open lifetime. |
-| `lib/src/features/conversation/conversation_screen.dart:219` | `_ConversationScreenState.build` | 57 | Existing declarative widget subtree. |
-| `lib/src/features/conversation/conversation_screen_body.dart:78` | `ConversationScreenBody.build` | 57 | Existing declarative widget subtree. |
+| `lib/src/features/conversation/conversation_screen.dart:54` | `_ConversationScreenState` | 255 | Composer/search/pending-open lifetime, including draft revision protection. |
+| `lib/src/features/conversation/conversation_screen.dart:234` | `_ConversationScreenState.build` | 57 | Existing declarative widget subtree. |
+| `lib/src/features/conversation/conversation_screen_body.dart:80` | `ConversationScreenBody.build` | 62 | Existing declarative widget subtree. |
 | `lib/src/features/conversation/conversation_search_box.dart:80` | `_ConversationSearchBoxState.build` | 51 | Existing declarative widget subtree. |
 | `lib/src/features/conversation/voice_message_card.dart:187` | `_VoiceMessageCardState.build` | 80 | Existing declarative widget subtree. |
 | `lib/src/features/diagnostics/diagnostics_summary.dart:84` | `diagnosticsSummary` | 111 | Pure localized snapshot summary. |

@@ -9,7 +9,9 @@ import 'package:mosh/src/features/onboarding/first_run_transition.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/locale_preference_store.dart';
 
+import 'locale.dart';
 import 'scriptable_bridge.dart';
 import 'scriptable_device_link.dart';
 import 'scriptable_gateway.dart';
@@ -45,14 +47,17 @@ class FirstRunHarness {
   FirstRunHarness(
       {FirstRunProfile? profile,
       ScriptableBridge? bridge,
-      ScriptableDeviceLink? link})
+      ScriptableDeviceLink? link,
+      LocalePreferenceStore? localeStore})
       : store = MemoryFirstRunStore(profile),
         bridge = bridge ?? ScriptableBridge(),
-        link = link ?? ScriptableDeviceLink();
+        link = link ?? ScriptableDeviceLink(),
+        localeStore = localeStore ?? MemoryLocalePreferenceStore();
 
   final MemoryFirstRunStore store;
   final ScriptableBridge bridge;
   final ScriptableDeviceLink link;
+  final LocalePreferenceStore localeStore;
   late ProviderContainer container;
 
   Future<void> pump(
@@ -70,6 +75,7 @@ class FirstRunHarness {
     container = ProviderContainer(retry: (_, __) => null, overrides: [
       firstRunEnabledProvider.overrideWithValue(true),
       firstRunStoreProvider.overrideWithValue(store),
+      localePreferenceStoreProvider.overrideWithValue(localeStore),
       bridgeFacadeProvider.overrideWithValue(bridge),
       gatewayProvider.overrideWithValue(
           ScriptableGateway(conversations: bridge.conversations)),

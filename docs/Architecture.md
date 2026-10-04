@@ -234,6 +234,15 @@ access. See [ADR 0034](ADR/0034-android-linked-text-dm.md).
 
 ## Setup, settings and voice
 
+Interface language defaults to Flutter's system resolution, including changes
+to the OS's preferred locales. Profile settings can persist an explicit English
+or Russian choice in `interface-language`, a non-secret Dart preference independent
+of setup and encrypted history. A refused atomic save retains the previous choice;
+missing/invalid data returns to System, with English as the unsupported-locale
+fallback. Both the unlocked app and the startup lock surface read this preference.
+The macOS runner updates existing menu item labels by stable XIB identifiers;
+Cocoa retains their actions, shortcuts and OS-owned submenu contents.
+
 `FirstRunGate` delays router mounting and conversation polling until setup saves
 completion. Existing conversation/device history bypasses the wizard. Buffered
 invites survive setup. `FirstRunStore` keeps versioned non-secret profile and step

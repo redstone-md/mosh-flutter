@@ -27,5 +27,91 @@ video calls remain separate requests.
   development host is Linux. Verify Dart channel payloads and native menu mappings.
 - Keep dependencies, Rust bridge and existing persistence schemas unchanged.
 
-Use one verified Conventional Commit per issue. Publication requires a separate
+Use verified Conventional Commits per issue. Publication requires a separate
 reviewable handoff; no GitHub mutations are part of this local implementation.
+
+## Verification (2026-10-04)
+
+- `dart format lib test integration_test`: 520 Dart files formatted.
+- `flutter analyze --no-pub`: no issues.
+- `flutter test --no-pub --branch-coverage`: 1370 passed, 5 existing native-library
+  tests skipped on this host. Keyboard submission cases run for Windows, Linux,
+  macOS, Android and iOS using Flutter platform variants.
+- The four updated onboarding test files were rerun after their final formatting
+  and async-call updates: 100 passed.
+- Changed executable Dart code against `956ff5f`: 239/244 lines (98.0%) and 84/89
+  branches (94.4%) covered. Generated localization code is outside this diff.
+- `git diff --check` and `actionlint .github/workflows/build-macos.yml`: passed.
+- Swift compilation, XIB decoding and RunnerTests cannot run on this Linux host.
+  The host-architecture macOS CI lane now runs the existing Runner test target:
+  `xcodebuild test -workspace macos/Runner.xcworkspace -scheme Runner
+  -configuration Debug -destination 'platform=macOS' -only-testing:RunnerTests
+  ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO`. RunnerTests exercises compiled
+  menu identifiers, translation, fullscreen labels and preserved commands.
+- Existing large Flutter declarations remain documented in
+  [the size exceptions](simplification-size-exceptions.md). New production modules
+  fit the file, type and function limits.
+
+The implementation reuses native delivery status, the existing selector, ARB
+generation and the original Cocoa menu. It separates text admission from
+file/voice busy state and interface-language storage from onboarding storage.
+No dependencies, Rust contracts, bridge bindings or database schemas changed.
+The remaining verification risk is the unrun macOS build and native test lane.
+
+## Changed files
+
+Application and native code:
+
+```text
+lib/main.dart
+lib/l10n/app_en.arb
+lib/l10n/app_ru.arb
+lib/src/features/conversation/clipboard_paste_handler.dart
+lib/src/features/conversation/conversation_composer.dart
+lib/src/features/conversation/conversation_controller.dart
+lib/src/features/conversation/conversation_screen.dart
+lib/src/features/conversation/conversation_screen_body.dart
+lib/src/features/conversation/conversation_state.dart
+lib/src/features/conversation/conversation_text_sends.dart
+lib/src/features/lock/mosh_lock_app.dart
+lib/src/features/settings/language_settings_card.dart
+lib/src/features/settings/profile_settings_section.dart
+lib/src/platform/native_menu_labels.dart
+lib/src/platform/native_menu_localization.dart
+lib/src/state/locale_preference_store.dart
+lib/src/state/locale_provider.dart
+macos/Runner/Base.lproj/MainMenu.xib
+macos/Runner/MainFlutterWindow.swift
+macos/RunnerTests/RunnerTests.swift
+.github/workflows/build-macos.yml
+```
+
+Tests and support:
+
+```text
+test/features/conversation/conversation_composer_test.dart
+test/features/conversation/conversation_keyboard_send_test.dart
+test/features/conversation/conversation_send_test.dart
+test/features/conversation/conversation_text_sends_test.dart
+test/features/lock/lock_language_test.dart
+test/features/onboarding/first_run_hierarchy_test.dart
+test/features/onboarding/first_run_responsive_test.dart
+test/features/onboarding/first_run_viewports_test.dart
+test/features/onboarding/first_run_wizard_test.dart
+test/features/settings/language_settings_test.dart
+test/features/shared/conversation_action_error_test.dart
+test/platform/native_menu_localization_test.dart
+test/state/locale_preference_test.dart
+test/support/first_run.dart
+test/support/locale.dart
+```
+
+Documentation:
+
+```text
+docs/Architecture.md
+docs/Features/chat-redesign.md
+docs/Features/settings-redesign.md
+docs/Proposals/issues-45-48.plan.md
+docs/Proposals/simplification-size-exceptions.md
+```
