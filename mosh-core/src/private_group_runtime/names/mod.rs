@@ -65,7 +65,7 @@ impl GroupSession {
         if !self.joined || !self.crypto.is_ready() {
             return Err(PrivateGroupError::NotReady);
         }
-        if !self.acting_admin() {
+        if !self.try_acting_admin()? {
             return Err(PrivateGroupError::RenameDenied);
         }
         if self.label.as_deref() == Some(&name) {

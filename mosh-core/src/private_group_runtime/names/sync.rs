@@ -14,7 +14,8 @@ impl GroupSession {
         if !self.joined || !self.crypto.is_ready() {
             return Ok(());
         }
-        if self.names.pending && !self.acting_admin() {
+        let is_admin = self.try_acting_admin()?;
+        if self.names.pending && !is_admin {
             self.finish_pending_name(true)?;
         }
         if self.crypto.member_count() < 2 {
@@ -27,12 +28,12 @@ impl GroupSession {
             return Ok(());
         }
         self.names_last_sync = Some(Instant::now());
-        if self.acting_admin() {
+        if is_admin {
             if let Some(certificate) = self.names.current.clone() {
                 self.publish_name_message(NameOperation::State, &NameMessage::State(certificate))?;
             }
         }
-        if !self.acting_admin() {
+        if !is_admin {
             self.publish_control(&ControlEnvelope::ResyncRequest {
                 group_id: self.group_id.clone(),
                 from_fingerprint: self.crypto.fingerprint(),
@@ -114,7 +115,7 @@ impl GroupSession {
                         .as_ref()
                         .is_some_and(|c| c.change.revision == revision)
                 {
-                    let rejected = !self.acting_admin();
+                    let rejected = !self.try_acting_admin()?;
                     self.finish_pending_name(rejected)?;
                 }
             }

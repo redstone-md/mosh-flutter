@@ -18,6 +18,8 @@ mod names;
 #[path = "durability_tests/name_wire.rs"]
 mod name_wire;
 
+#[path = "durability_tests/names_authority.rs"]
+mod names_authority;
 #[path = "durability_tests/names_handoff.rs"]
 mod names_handoff;
 

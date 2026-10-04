@@ -172,7 +172,7 @@ pub(super) fn create_org_group(fixture: &mut Fixture, org: &str, display_name: &
         .group_id;
 }
 
-fn delayed_org_ack(
+pub(super) fn delayed_org_ack(
     fixture: &Fixture,
     snapshot: &GroupSnapshot,
     member: &MlsSessionCrypto,
