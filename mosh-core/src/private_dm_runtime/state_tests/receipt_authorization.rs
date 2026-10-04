@@ -1,5 +1,40 @@
 use super::*;
 
+#[test]
+fn receipt_cleanup_uses_the_effective_app_directory() {
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "private_dm_runtime::state_tests::receipt_authorization::receipt_directory_process",
+            "--ignored",
+            "--nocapture",
+        ])
+        .status()
+        .unwrap();
+    assert!(status.success());
+}
+
+#[test]
+#[ignore = "Isolated startup state worker invoked by the receipt fixture regression."]
+fn receipt_directory_process() {
+    let _guard = crate::moss_ffi::MOSS_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let prior = crate::test_temp_directory::TempDirectory::new("mosh-receipts-prior-app-dir");
+    crate::api::shared_runtime::set_app_data_dir(prior.path().to_string_lossy().into_owned())
+        .unwrap();
+    let (_, mut runtime, _) = memory_pair();
+    runtime.set_read_receipts_enabled(true).unwrap();
+    assert!(runtime.read_receipts_enabled());
+    let dir = point_data_dir_once();
+    clear_toggle(&dir);
+    assert!(
+        !runtime.read_receipts_enabled(),
+        "cleanup must clear the active setting even when a different app directory was injected first"
+    );
+    assert_eq!(dir, prior.path().join("mosh"));
+}
+
 // A relayed counterpart is reachable too, and the snapshot says how.
 
 #[test]
