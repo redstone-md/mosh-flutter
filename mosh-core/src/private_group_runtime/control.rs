@@ -2,6 +2,10 @@
 
 use super::*;
 
+#[cfg(test)]
+#[path = "manifest_author_tests.rs"]
+mod manifest_author_tests;
+
 impl GroupSession {
     pub(super) fn handle_control(
         &mut self,
@@ -164,6 +168,7 @@ impl GroupSession {
         self.crypto
             .join_welcome(&decode(welcome_b64)?, &decode(tree_b64)?)?;
         self.joined = true;
+        self.pending_join_package = None;
         // The Welcome already carries the admission commit's state. The
         // admin also broadcasts that same commit on the control channel
         // for existing members, so mark it processed to skip re-applying
@@ -268,7 +273,10 @@ impl GroupSession {
     ) -> Result<(), PrivateGroupError> {
         let manifest_json = self.crypto.decrypt(&decode(manifest_ciphertext_b64)?)?;
         let manifest: AttachmentManifest = decode_json(&manifest_json)?;
-        self.accept_incoming_manifest(from_device, from_fingerprint, manifest)
+        if from_fingerprint != manifest.from_fingerprint {
+            return Ok(());
+        }
+        self.accept_incoming_manifest(from_device, manifest.from_fingerprint.clone(), manifest)
     }
     fn accept_typing_control(
         &mut self,
