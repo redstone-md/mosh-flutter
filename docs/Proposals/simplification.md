@@ -2,7 +2,7 @@
 
 Scope: Flutter UI and state, Rust runtime and storage, native probes, build
 tooling and architecture documentation. Preserve product behavior, bridge
-contracts, persistence schemas, dependency versions and cryptographic checks.
+contracts, database tables, dependency versions and cryptographic checks.
 Do not modify Moss.
 
 The baseline is commit `6195121`. The reproducible tracked-source count includes
@@ -40,28 +40,30 @@ checkout preparation requirement; CI and Flutter native builds own it.
 
 One PR groups atomic build, persistence, transport, runtime, MLS, probe, Flutter
 and documentation commits. The code remains behind its existing bridge and
-storage contracts. Dependency versions and schemas are unchanged.
+storage contracts. Dependency versions and database tables are unchanged.
+Review fixes add backwards-compatible metadata to encrypted organization records
+to remember dismissed offers and recover unfinished accepted joins.
 
 | Scope | Before | After | Reduction |
 | --- | ---: | ---: | ---: |
-| All tracked source, including local patches | 223,340 | 142,720 | 36.1% |
+| All tracked source, including local patches | 223,340 | 146,052 | 34.61% |
 | Dependency source and patches | 83,795 | 6,127 | 92.69% |
-| Application and tooling | 70,866 | 65,560 | 7.49% |
-| Tests | 45,170 | 47,531 | +2,361 lines |
-| First-party source and tests together | 116,036 | 113,091 | 2.54% |
+| Application and tooling | 70,866 | 66,730 | 5.84% |
+| Tests | 45,170 | 49,693 | +4,523 lines |
+| First-party source and tests together | 116,036 | 116,423 | +387 lines (0.33%) |
 | Generated bridge | 23,509 | 23,502 | 7 comment lines |
-| All tracked UTF-8 text, including docs/manifests | 262,151 | 176,257 | 32.77% |
+| All tracked UTF-8 text, including docs/manifests | 262,151 | 179,646 | 31.47% |
 
 The overall reduction exceeds 30%. Most of it replaces an upstream mirror with
-reproducible preparation; it does not shrink OpenMLS at runtime. The authored
-reduction is smaller. Comment cleanup also contributes: Flutter production
-physical lines dropped about 9%, while executable nonblank/comment lines
-dropped about 2.5%. No feature, test case or cryptographic check was removed to
+reproducible preparation; it does not shrink OpenMLS at runtime. Application and
+tooling shrink less; added recovery and review regressions increase the authored
+test count. These totals include comments and blank lines. No feature, test case
+or cryptographic check was removed to
 reach the target. Inline Rust tests moved into named files, explaining why the
 separate application and test categories should not be interpreted in isolation.
 
-Largest runtime roots: DM 1,072 → 372; group 1,045 → 363; channel 468 → 342;
-organization 963 → 341; MLS adapter 871 → 91; probe main 1,429 → 50.
+Largest runtime roots: DM 1,072 → 373; group 1,045 → 364; channel 468 → 342;
+organization 963 → 350; MLS adapter 871 → 91; probe main 1,429 → 50.
 All authored application and test files fit 400 lines. Retained type/function
 exceptions are [listed explicitly](simplification-size-exceptions.md).
 
@@ -84,17 +86,44 @@ Simplifications:
 - Architecture documentation becomes a current module/flow map, with ADRs
   retaining the decision history.
 
+## PR review follow-up
+
+All 18 inline CodeAnt findings and the general comment's eight nitpicks were
+validated. Thirteen inline findings and seven nitpicks have complete fixes:
+retained scripted bridge state, one initial viewed command, native admission
+cleanup, attachment dimensions, MLS tree serialization before merge, bounded
+probe retries and real-receiver receipt/typing proofs with restored global test
+state.
+
+Organization acceptance now prepares a native join, durably registers its
+original keys and offer, then publishes and polls. A refused registration
+publishes nothing. Failed publication and restart retain an offer that can retry
+the inviter's cached Welcome. Native record and MLS snapshot writes atomically
+retire the matching recovery backup; cached org writes preserve that resolution.
+No second organization write follows successful native admission. Group creation
+validates targets first and returns the created group while attempting every
+invitation, so one publication failure does not hide a durable group.
+
+Five inline threads remain open. Two suggestions are disproved by the pinned
+OpenMLS implementation and the passing Windows corrupt-cache test. Three
+identity findings need a protocol migration: plain-group DM offers lack sender
+authentication, and attachment/typing Moss identity claims are not bound to the
+authenticated MLS member. Matching outer and inner attachment identities rejects
+inconsistent claims but cannot stop a member forging both. Resolving these fully
+requires a Moss-to-MLS identity binding and compatible wire migration; the
+existing public contracts are preserved here.
+
 ## Verification
 
-- Flutter analysis and formatting pass; the final full suite passes 1,311 tests
+- Flutter analysis and formatting pass; the final full suite passes 1,323 tests
   with five existing skips. Held/modified Escape regression cases failed before
   the fix and pass after it.
 - Core build, formatting, strict all-target Clippy and full real-Moss Cargo tests
-  pass: 497 top-level tests and 21 existing ignores, plus subprocess workers.
+  pass: 547 top-level tests and 21 existing ignores, plus subprocess workers.
   The same complete suite passes under LLVM coverage. Probe unit tests pass
-  (three cases) and strict all-target Clippy passes. Thirty-two real local probe
+  (four cases) and strict all-target Clippy passes. Thirty-one fresh real local probe
   CLI checks cover DM, simultaneous DMs, groups, admin succession, doctor,
-  argument errors and timeouts; changed probe lines cover 861/872 (98.74%).
+  argument errors and timeouts; changed probe lines cover 857/875 (97.94%).
 - Fresh bridge regeneration followed by Rust formatting has zero drift; Rust
   signatures and generated wire code stay unchanged.
 - All 254 OpenMLS files reconstruct byte-for-byte. Twelve preparation/locking
@@ -106,9 +135,9 @@ Simplifications:
   readers can briefly block claim replacement; bounded retries preserve the
   choosing claim until publication succeeds. Cleanup waits for every test worker.
 - Changed instrumented executable lines, including moved source: Flutter
-  267/300 (89.0%); core Rust 4,147/4,843 (85.6%). Comment/blank lines, generated
+  272/305 (89.18%); core Rust 5,016/5,671 (88.45%). Comment/blank lines, generated
   bindings and tests are excluded. Preparation/locking coverage is 90.18% lines
-  and 82.89% branches. Flutter changed branches cover 47/52 (90.4%); Rust branch
+  and 82.89% branches. Flutter changed branches cover 48/53 (90.57%); Rust branch
   coverage requires nightly, unavailable in the installed stable toolchain.
 - Independent standards and requirements reviews found two Escape parity
   regressions and source-preparation recovery/edit-protection issues. Regression

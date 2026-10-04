@@ -5,10 +5,11 @@ Scope: invite create -> paste -> accept -> send ->
 snapshot poll. Reference: [ADR 0013](../ADR/0013-fork-topology-and-temporary-fake-gateway.md),
 [Architecture](../Architecture.md).
 
-The flow runs through the `Gateway` seam. The app always runs
-`RealBridgeGateway` (real `mosh_core` via `flutter_rust_bridge`); widget tests
-override the provider with `ScriptableGateway` from `test/support/`. The
-sequence below is the real path.
+Invite setup uses `BridgeFacade`; conversation actions and polls use `Gateway`
+through `RealBridgeGateway`. Both call real `mosh_core` via
+`flutter_rust_bridge`. Widget tests use `ScriptableBridge` and
+`ScriptableGateway` from `test/support/`, sharing conversation state. See
+[ADR 0025](../ADR/0025-the-gateway-is-the-conversation-seam.md).
 
 ## Invite -> send (Real path)
 
@@ -16,21 +17,22 @@ sequence below is the real path.
 sequenceDiagram
     autonumber
     participant Alice as Alice (Dart UI)
+    participant BF as BridgeFacade
     participant GW as Gateway / RealBridgeGateway
-    participant Api as api::private_dm (Rust)
+    participant Api as Rust bridge API
     participant Bob as Bob (Dart UI)
 
-    Alice->>GW: createInvite(StartSessionRequest)
-    GW->>Api: create_invite(request)
-    Api-->>GW: InviteCreated { inviteUri, fingerprint }
-    GW-->>Alice: InviteCreated
+    Alice->>BF: createInvite(StartSessionRequest)
+    BF->>Api: private_dm::create_invite(request)
+    Api-->>BF: InviteCreated { inviteUri, fingerprint }
+    BF-->>Alice: InviteCreated
     Note over Alice: share invite URI out-of-band
     Bob->>Bob: parse mosh://invite?...#fp= via invite_uri.dart
     Note over Bob: invite_detection.dart watches clipboard
-    Bob->>GW: acceptInvite(AcceptInviteRequest)
-    GW->>Api: accept_invite(request)
-    Api-->>GW: SessionSnapshot { fingerprint }
-    GW-->>Bob: SessionSnapshot
+    Bob->>BF: acceptInvite(AcceptInviteRequest)
+    BF->>Api: private_dm::accept_invite(request)
+    Api-->>BF: SessionSnapshot { fingerprint }
+    BF-->>Bob: SessionSnapshot
     Note over Bob: fingerprint readable via the header lock<br/>(no gate — see below)
     Bob->>GW: send(DmTarget(sessionId), body)
     GW->>Api: conversation::send(BridgeConversationRef { Dm, session_id }, body)
@@ -65,11 +67,12 @@ stateDiagram-v2
 
 ## A text on its way out
 
-A DM text is filed as `Queued` before the transport is asked anything, so it
-survives a restart. The runtime's tick sends queued texts oldest first while
-the contact is reachable; a refusal leaves the text queued. The row shows a
+A DM text first persists its admission as `Pending`. Refused admission returns
+`Persistence`, settles `Failed`, and does not publish. Accepted admission becomes
+`Queued`. The runtime's tick sends queued texts oldest first while
+the contact is reachable; a transport refusal leaves the text queued. The row shows a
 clock while queued, one tick once the transport took it, two once the contact
-acknowledged it. Only an attachment can fail and offer Retry.
+acknowledged it. See [ADR 0037](../ADR/0037-conversation-write-acceptance.md).
 
 ```mermaid
 sequenceDiagram
@@ -78,7 +81,8 @@ sequenceDiagram
     participant T as DmTransport
     participant Peer
     UI->>RT: send(body)
-    RT->>RT: message + attempt rows as Queued (one transaction)
+    RT->>RT: message + attempt rows as Pending (one transaction)
+    RT->>RT: accepted admission becomes Queued
     loop every tick while the contact is reachable
         RT->>RT: encrypt oldest queued at the current epoch
         RT->>T: publish
@@ -237,4 +241,5 @@ For a live public-network probe, run
 The Real path is proven end-to-end by
 `integration_test/slice_one_test.dart` against a real `mosh_core.dll`:
 `appDiagnostics`, `nativeRuntimeStatus`, `listSessions`, and `createInvite`
-all run through `RealBridgeGateway`. See ADR 0013 Final Status.
+all run through `BridgeFacade`. Conversation actions and polls run through
+`RealBridgeGateway`. See ADR 0025.

@@ -2,7 +2,7 @@
 
 Inventory of changed/new authored files after simplification. Every authored application and test file remains within 400 lines. These exceptions retain existing state ownership, declarative trees, ordered transactions and complete test proofs; they do not authorize larger future helpers. Counts include signatures, body lines, comments and blank lines, excluding preceding attributes/doc comments. Function bodies labeled unchanged match baseline modulo whitespace; moved tests retain their full proof.
 
-15 production functions exceed 50 lines. No struct, enum or trait declaration exceeds 200 lines.
+12 production functions exceed 50 lines. No struct, enum or trait declaration exceeds 200 lines.
 
 ## Production
 
@@ -14,19 +14,16 @@ Inventory of changed/new authored files after simplification. Every authored app
 | `mosh-core/src/private_dm_runtime/devices/admission.rs:7` | `receive_device_offer` | 51 | Body unchanged; retained authenticated offer validation and pending installation creation. |
 | `mosh-core/src/private_dm_runtime/devices/admission.rs:59` | `pending_device_session` | 54 | Body unchanged; retained complete pending-session initialization. |
 | `mosh-core/src/private_dm_runtime/devices/runtime.rs:103` | `receive_device_packet` | 70 | Body unchanged; retained signed-packet verification before variant dispatch. |
-| `mosh-core/src/private_dm_runtime/lifecycle.rs:8` | `rehydrate` | 91 | Body unchanged, moved from runtime root; retained best-effort MLS snapshot/room/history restoration. |
-| `mosh-core/src/private_dm_runtime/lifecycle.rs:148` | `create_invite` | 56 | Body unchanged, moved from runtime root; retained MLS setup, room acquisition, record persistence and invite result ordering. |
-| `mosh-core/src/private_dm_runtime/lifecycle.rs:205` | `accept_invite` | 68 | Body unchanged, moved from runtime root; retained fingerprint-bound join handshake and delayed joiner persistence. |
+| `mosh-core/src/private_dm_runtime/lifecycle.rs:18` | `rehydrate` | 91 | Body unchanged, moved from runtime root; retained best-effort MLS snapshot/room/history restoration. |
+| `mosh-core/src/private_dm_runtime/lifecycle.rs:158` | `create_invite` | 54 | MLS setup and room acquisition; atomic record/snapshot persistence before insertion with failure cleanup. |
 | `mosh-core/src/private_dm_runtime/resend.rs:51` | `pump_unacked_resends` | 71 | Body unchanged, moved from session; retained epoch-aware retransmission and budget updates only after transport acceptance. |
 | `mosh-core/src/private_dm_runtime/session.rs:7` | `new` | 68 | Body unchanged, retained existing PrivateDmSession aggregate initialization. |
-| `mosh-core/src/private_group_runtime/close.rs:6` | `close` | 61 | Body unchanged, moved from runtime root; retained self-removal publication before room/session/storage release. |
 | `mosh-core/src/private_group_runtime/data.rs:88` | `send_attachment` | 52 | Existing prepare/encrypt/publish/record ordering retained; repeated serialization/encryption replaced by encrypt_json. |
 | `mosh-core/src/private_group_runtime/lifecycle.rs:10` | `create_group` | 81 | Ordered MLS/org credential setup, room acquisition/public-key rollback and durable creation retained; GroupSession initializer unified. |
-| `mosh-core/src/private_group_runtime/lifecycle.rs:109` | `join_group` | 94 | Ordered invite/org checks, room acquisition/rollback, staged persistence and admission publication retained; GroupSession initializer unified. |
 
 ## Test proofs
 
-All 45 functions below are unchanged existing caller-visible behavior/security proofs relocated into focused test modules. Their setup, exercise, restart/recovery sequence and assertions remain together; none was expanded by this refactor.
+These 46 retained caller-visible behavior/security proofs exceed 50 lines. Their setup, exercise, restart/recovery sequence and assertions remain together. Receipt and typing proofs now deliver to the intended receiver and check refusal before their positive controls.
 
 | Path:line | Test | Lines |
 | --- | --- | ---: |
@@ -60,8 +57,9 @@ All 45 functions below are unchanged existing caller-visible behavior/security p
 | `mosh-core/src/private_dm_runtime/state_tests/calls.rs:207` | `a_ring_whose_subscribe_failed_is_retried_by_the_next_offer` | 84 |
 | `mosh-core/src/private_dm_runtime/state_tests/connection.rs:129` | `duplicate_inbound_data_reacks_without_decrypt` | 51 |
 | `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:6` | `a_message_settles_from_sent_to_delivered_to_read` | 71 |
-| `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:82` | `a_disabled_toggle_sends_nothing_and_ignores_inbound_receipts` | 73 |
-| `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:161` | `a_forged_receipt_never_colors_a_message` | 76 |
+| `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:82` | `a_disabled_toggle_sends_nothing_and_ignores_inbound_receipts` | 69 |
+| `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:157` | `a_forged_receipt_never_colors_a_message` | 80 |
+| `mosh-core/src/private_dm_runtime/state_tests/typing.rs:159` | `forged_typing_indicator_does_not_set_the_hint` | 54 |
 | `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:241` | `a_receipt_travels_encrypted_per_message` | 58 |
 | `mosh-core/src/private_dm_runtime/state_tests/receipt_recovery.rs:7` | `read_state_survives_a_restart` | 93 |
 | `mosh-core/src/private_dm_runtime/state_tests/receipt_recovery.rs:131` | `a_refused_receipt_is_resent_on_the_next_viewed` | 63 |
@@ -82,12 +80,12 @@ If the 200-line/type rule counts each impl block rather than the type declaratio
 
 | Path:line | Impl | Lines | Concern |
 | --- | --- | ---: | --- |
-| `mosh-core/src/org_runtime/session.rs:5` | `OrgSession` | 255 | Verified roster, offer routing and snapshot |
+| `mosh-core/src/org_runtime/session.rs:5` | `OrgSession` | 257 | Verified roster, offer routing and snapshot |
 | `mosh-core/src/private_dm_runtime/control.rs:5` | `PrivateDmSession` | 337 | Named DM control protocol handlers |
 | `mosh-core/src/private_dm_runtime/devices/admission.rs:6` | `PrivateDmRuntime` | 291 | Linked-device admission workflow |
-| `mosh-core/src/private_dm_runtime/lifecycle.rs:5` | `PrivateDmRuntime` | 269 | Creation, joining and restoration |
+| `mosh-core/src/private_dm_runtime/lifecycle.rs:9` | `PrivateDmRuntime` | 229 | Creation, joining and restoration |
 | `mosh-core/src/private_dm_runtime/session_transport.rs:5` | `PrivateDmSession` | 315 | Routing, handshakes and media transport |
-| `mosh-core/src/private_group_runtime/control.rs:5` | `GroupSession` | 300 | Named group control protocol handlers |
+| `mosh-core/src/private_group_runtime/control.rs:9` | `GroupSession` | 304 | Named group control protocol handlers |
 
 ## Untouched production functions in the owned scope
 
@@ -95,7 +93,7 @@ These exceed 50 lines but their files are unchanged, so they are outside the cha
 
 ## Adapter and probe exceptions
 
-The storage, attachment, Moss FFI, diagnostics, secure-storage and stream-transport changes have no production function over 50 lines or type declaration over 200. The MLS roster implementation block in `mosh-core/src/mls_crypto/roster.rs` is 209 lines: membership inspection/removal/replacement share the existing cryptographic state owner.
+The storage, attachment, Moss FFI, diagnostics, secure-storage and stream-transport changes have no production function over 50 lines or type declaration over 200. The MLS roster implementation block in `mosh-core/src/mls_crypto/roster.rs` is 214 lines: membership inspection/removal/replacement share the existing cryptographic state owner.
 
 | File | Function | Lines | Why retained |
 | --- | --- | ---: | --- |
@@ -120,8 +118,8 @@ The following existing declaration spans include their signatures and internal c
 | `lib/src/features/conversation/conversation_composer.dart:96` | `ConversationComposer.build` | 142 | Existing declarative widget subtree. |
 | `lib/src/features/conversation/conversation_controller.dart:53` | `ConversationController` | 319 | One action, busy and invalidation owner. |
 | `lib/src/features/conversation/conversation_helpers.dart:104` | `DeliveryTicks.build` | 57 | Existing declarative widget subtree. |
-| `lib/src/features/conversation/conversation_screen.dart:53` | `_ConversationScreenState` | 233 | Composer/search/pending-open lifetime. |
-| `lib/src/features/conversation/conversation_screen.dart:216` | `_ConversationScreenState.build` | 57 | Existing declarative widget subtree. |
+| `lib/src/features/conversation/conversation_screen.dart:53` | `_ConversationScreenState` | 241 | Composer/search/pending-open lifetime. |
+| `lib/src/features/conversation/conversation_screen.dart:219` | `_ConversationScreenState.build` | 57 | Existing declarative widget subtree. |
 | `lib/src/features/conversation/conversation_screen_body.dart:78` | `ConversationScreenBody.build` | 57 | Existing declarative widget subtree. |
 | `lib/src/features/conversation/conversation_search_box.dart:80` | `_ConversationSearchBoxState.build` | 51 | Existing declarative widget subtree. |
 | `lib/src/features/conversation/voice_message_card.dart:187` | `_VoiceMessageCardState.build` | 80 | Existing declarative widget subtree. |
