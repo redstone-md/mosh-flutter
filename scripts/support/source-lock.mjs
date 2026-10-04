@@ -25,13 +25,16 @@ export async function withSourceLock(directory, action) {
 async function publish(claim, state) {
   const pending = `${claim}.pending`;
   await writeFile(pending, JSON.stringify(state));
+  await retryClaimAccess(() => rename(pending, claim));
+}
+
+async function retryClaimAccess(operation) {
   const deadline = Date.now() + 5_000;
   while (true) {
     try {
-      await rename(pending, claim);
-      return;
+      return await operation();
     } catch (error) {
-      // Windows readers can briefly deny replacement until their handles close.
+      // Windows handles can briefly deny claim reads or replacement.
       if (!["EPERM", "EACCES", "EBUSY"].includes(error.code) || Date.now() >= deadline) throw error;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
@@ -43,7 +46,7 @@ async function liveClaims(directory) {
   for (const name of await readdir(directory)) {
     if (!name.endsWith(".json")) continue;
     const claim = path.join(directory, name);
-    const state = await readFile(claim, "utf8").then(JSON.parse).catch((error) => {
+    const state = await retryClaimAccess(() => readFile(claim, "utf8")).then(JSON.parse).catch((error) => {
       if (error.code !== "ENOENT") throw error;
       return null;
     });

@@ -1,11 +1,81 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import fs, { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { withSourceLock } from "./support/source-lock.mjs";
+
+test("transient claim read errors retry without bypassing a live holder", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "mosh-source-lock-"));
+  let releaseHolder, holderEntered, readRecovered, waiter;
+  let waiterEntered = false;
+  const held = new Promise((resolve) => { releaseHolder = resolve; });
+  const entered = new Promise((resolve) => { holderEntered = resolve; });
+  const recovered = new Promise((resolve) => { readRecovered = resolve; });
+  const holder = withSourceLock(directory, () => { holderEntered(); return held; });
+  try {
+    await entered;
+    const claim = path.join(directory, (await readdir(directory)).find((name) => name.endsWith(".json")));
+    const originalRead = readFile;
+    const errors = ["EPERM", "EACCES", "EBUSY"];
+    t.mock.method(fs, "readFile", async (...args) => {
+      if (args[0] === claim) {
+        assert.equal(waiterEntered, false);
+        const code = errors.shift();
+        if (code) throw Object.assign(new Error(`transient ${code}`), { code });
+        const contents = await originalRead(...args);
+        readRecovered();
+        return contents;
+      }
+      return originalRead(...args);
+    });
+    syncBuiltinESMExports();
+    waiter = withSourceLock(directory, () => { waiterEntered = true; });
+    await Promise.race([recovered, waiter.then(() => assert.fail("waiter bypassed a live holder"))]);
+    assert.deepEqual(errors, []);
+    assert.equal(waiterEntered, false);
+    releaseHolder();
+    await Promise.all([holder, waiter]);
+    assert.equal(waiterEntered, true);
+    assert.deepEqual(await readdir(directory), []);
+  } finally {
+    releaseHolder();
+    await Promise.allSettled([holder, waiter]);
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+for (const code of ["EIO", "EPERM"]) {
+  test(`${code} claim read refusal never bypasses a live owner`, async (t) => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "mosh-source-lock-"));
+    const claim = path.join(directory, "holder.json");
+    await writeFile(claim, JSON.stringify({ pid: process.pid, choosing: false, ticket: 1 }));
+    const originalRead = readFile;
+    const error = Object.assign(new Error(`persistent ${code}`), { code });
+    let entered = false, now = Date.now();
+    t.mock.method(Date, "now", () => now);
+    t.mock.method(fs, "readFile", async (...args) => {
+      if (args[0] !== claim) return originalRead(...args);
+      now += 5_001;
+      throw error;
+    });
+    syncBuiltinESMExports();
+    try {
+      await assert.rejects(withSourceLock(directory, () => { entered = true; }), (reason) => reason === error);
+      assert.equal(entered, false);
+      assert.deepEqual(await readdir(directory), ["holder.json"]);
+    } finally {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+}
 
 test("concurrent processes recover dead claims without sharing the critical section", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "mosh-source-lock-"));
