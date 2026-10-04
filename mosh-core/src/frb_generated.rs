@@ -3482,9 +3482,11 @@ impl SseDecode for crate::chat_names::types::ChatNameSnapshot {
         let mut var_entries =
             <Vec<crate::chat_names::types::ChatNameEntry>>::sse_decode(deserializer);
         let mut var_pending = <bool>::sse_decode(deserializer);
+        let mut var_canRename = <bool>::sse_decode(deserializer);
         return crate::chat_names::types::ChatNameSnapshot {
             entries: var_entries,
             pending: var_pending,
+            can_rename: var_canRename,
         };
     }
 }
@@ -5902,6 +5904,7 @@ impl flutter_rust_bridge::IntoDart for crate::chat_names::types::ChatNameSnapsho
         [
             self.entries.into_into_dart().into_dart(),
             self.pending.into_into_dart().into_dart(),
+            self.can_rename.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -7588,6 +7591,7 @@ impl SseEncode for crate::chat_names::types::ChatNameSnapshot {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<crate::chat_names::types::ChatNameEntry>>::sse_encode(self.entries, serializer);
         <bool>::sse_encode(self.pending, serializer);
+        <bool>::sse_encode(self.can_rename, serializer);
     }
 }
 

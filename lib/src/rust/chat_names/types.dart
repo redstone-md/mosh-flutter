@@ -30,14 +30,16 @@ class ChatNameEntry {
 class ChatNameSnapshot {
   final List<ChatNameEntry> entries;
   final bool pending;
+  final bool canRename;
 
   const ChatNameSnapshot({
     required this.entries,
     required this.pending,
+    required this.canRename,
   });
 
   @override
-  int get hashCode => entries.hashCode ^ pending.hashCode;
+  int get hashCode => entries.hashCode ^ pending.hashCode ^ canRename.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -45,5 +47,6 @@ class ChatNameSnapshot {
       other is ChatNameSnapshot &&
           runtimeType == other.runtimeType &&
           entries == other.entries &&
-          pending == other.pending;
+          pending == other.pending &&
+          canRename == other.canRename;
 }

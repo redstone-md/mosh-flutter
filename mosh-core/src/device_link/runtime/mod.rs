@@ -36,6 +36,8 @@ pub struct DeviceLinkRuntime {
     names: crate::chat_names::ChatNames,
     names_last_pull: Option<Instant>,
     names_peer_digests: std::collections::HashMap<String, String>,
+    names_initial_pulls: std::collections::HashMap<String, String>,
+    names_pending_pages: std::collections::HashMap<String, names::NamePageRequest>,
 }
 
 impl DeviceLinkRuntime {
@@ -70,6 +72,8 @@ impl DeviceLinkRuntime {
             names,
             names_last_pull: None,
             names_peer_digests: std::collections::HashMap::new(),
+            names_initial_pulls: std::collections::HashMap::new(),
+            names_pending_pages: std::collections::HashMap::new(),
         };
         runtime.expire()?;
         Ok(runtime)

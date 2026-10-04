@@ -8,7 +8,7 @@ mixin _BridgeConversations on _ScriptableBridgeState {
       () => ChatNameSnapshot(entries: [
             for (final entry in conversations.names.entries)
               ChatNameEntry(conversationKey: entry.key, name: entry.value)
-          ], pending: false));
+          ], pending: false, canRename: true));
 
   @override
   Future<InviteCreated> createInvite({required StartSessionRequest request}) =>

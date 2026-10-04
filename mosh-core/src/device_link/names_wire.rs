@@ -6,16 +6,18 @@ use crate::chat_names::NameRecord;
 use ed25519_dalek::{Signature, Signer};
 use serde::{Deserialize, Serialize};
 
-pub(crate) const PREFIX: &[u8] = b"mosh-chat-names-v1\0";
+pub(crate) const PREFIX: &[u8] = b"mosh-chat-names-v2\0";
 
 #[derive(Serialize, Deserialize)]
 pub(super) enum NameMessage {
     Request {
         after: Option<String>,
+        request_id: [u8; 16],
     },
     Batch {
         records: Vec<NameRecord>,
         next: Option<String>,
+        request_id: [u8; 16],
     },
     Saved {
         digest: String,

@@ -1,4 +1,6 @@
 //! Durable personal names. Network authentication belongs to the device-link owner.
+#[cfg(test)]
+mod tests;
 pub(crate) mod types;
 pub use types::{
     validate_chat_name, ChatNameEntry, ChatNameError, ChatNameErrorKind, ChatNameSnapshot,
@@ -60,7 +62,7 @@ impl ChatNames {
         self.register.initial_sync_complete
     }
 
-    pub fn snapshot(&self, pending: bool) -> ChatNameSnapshot {
+    pub fn snapshot(&self, pending: bool, can_rename: bool) -> ChatNameSnapshot {
         ChatNameSnapshot {
             entries: self
                 .register
@@ -74,6 +76,7 @@ impl ChatNames {
                 })
                 .collect(),
             pending,
+            can_rename,
         }
     }
 
@@ -94,7 +97,6 @@ impl ChatNames {
             .register
             .clock
             .checked_add(1)
-            .filter(|n| *n < u64::MAX)
             .ok_or_else(ChatNameError::invalid)?;
         self.merge(
             &[NameRecord {

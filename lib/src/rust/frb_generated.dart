@@ -3147,11 +3147,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ChatNameSnapshot dco_decode_chat_name_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return ChatNameSnapshot(
       entries: dco_decode_list_chat_name_entry(arr[0]),
       pending: dco_decode_bool(arr[1]),
+      canRename: dco_decode_bool(arr[2]),
     );
   }
 
@@ -4862,7 +4863,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_entries = sse_decode_list_chat_name_entry(deserializer);
     var var_pending = sse_decode_bool(deserializer);
-    return ChatNameSnapshot(entries: var_entries, pending: var_pending);
+    var var_canRename = sse_decode_bool(deserializer);
+    return ChatNameSnapshot(
+        entries: var_entries, pending: var_pending, canRename: var_canRename);
   }
 
   @protected
@@ -6827,6 +6830,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_chat_name_entry(self.entries, serializer);
     sse_encode_bool(self.pending, serializer);
+    sse_encode_bool(self.canRename, serializer);
   }
 
   @protected

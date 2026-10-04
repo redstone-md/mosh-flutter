@@ -16,6 +16,21 @@ fn identity(dir: &TempDirectory, name: &str, seed: u8) -> DeviceIdentity {
     DeviceIdentity::open(store, &peer).unwrap()
 }
 
+fn assert_tampering_rejected(
+    recipient: &DeviceIdentity,
+    packet: &[u8],
+    field: &str,
+    value: serde_json::Value,
+) {
+    let mut body: serde_json::Value =
+        serde_json::from_slice(packet.strip_prefix(names_wire::PREFIX).unwrap()).unwrap();
+    body["message"]["Request"][field] = value;
+    assert!(serde_json::from_value::<NameMessage>(body["message"].clone()).is_ok());
+    let mut forged = names_wire::PREFIX.to_vec();
+    forged.extend(serde_json::to_vec(&body).unwrap());
+    assert!(names_wire::open(recipient, &forged).is_err());
+}
+
 #[test]
 fn personal_metadata_requires_current_account_recipient_roster_and_signature() {
     let dir = TempDirectory::new("mosh-name-auth");
@@ -33,19 +48,22 @@ fn personal_metadata_requires_current_account_recipient_roster_and_signature() {
     let packet = names_wire::seal(
         &root,
         &second.device().device_id,
-        NameMessage::Request { after: None },
+        NameMessage::Request {
+            after: None,
+            request_id: [7; 16],
+        },
     )
     .unwrap();
     assert!(names_wire::open(&second, &packet).is_ok());
     assert!(names_wire::open(&root, &packet).is_err());
     assert!(names_wire::open(&outsider, &packet).is_err());
-    let mut body: serde_json::Value =
-        serde_json::from_slice(packet.strip_prefix(names_wire::PREFIX).unwrap()).unwrap();
-    body["message"]["Request"]["after"] = "channel:tampered".into();
-    assert!(serde_json::from_value::<NameMessage>(body["message"].clone()).is_ok());
-    let mut forged = names_wire::PREFIX.to_vec();
-    forged.extend(serde_json::to_vec(&body).unwrap());
-    assert!(names_wire::open(&second, &forged).is_err());
+    assert_tampering_rejected(&second, &packet, "after", "channel:tampered".into());
+    assert_tampering_rejected(
+        &second,
+        &packet,
+        "request_id",
+        serde_json::to_value([8u8; 16]).unwrap(),
+    );
     let revoked = root
         .roster()
         .revoke(&second.device().device_id, &root.key())
@@ -56,7 +74,10 @@ fn personal_metadata_requires_current_account_recipient_roster_and_signature() {
     assert!(names_wire::seal(
         &second,
         &root.device().device_id,
-        NameMessage::Request { after: None }
+        NameMessage::Request {
+            after: None,
+            request_id: [7; 16]
+        }
     )
     .is_err());
 }

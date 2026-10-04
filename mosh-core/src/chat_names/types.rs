@@ -10,6 +10,7 @@ pub struct ChatNameEntry {
 pub struct ChatNameSnapshot {
     pub entries: Vec<ChatNameEntry>,
     pub pending: bool,
+    pub can_rename: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -111,7 +112,6 @@ impl NameRecord {
     pub(crate) fn validate(&self) -> Result<()> {
         validate_key(&self.key)?;
         if self.version.counter == 0
-            || self.version.counter == u64::MAX
             || self.version.actor.is_empty()
             || self.version.actor.len() > 128
         {

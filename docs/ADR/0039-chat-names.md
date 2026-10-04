@@ -18,9 +18,10 @@ The user chose personal channel names and admin-only shared group names.
 ## Ownership and persistence
 
 `ChatNames` owns an account-scoped encrypted register in the additive `chat_names`
-table. Lamport counters and stable writer ids establish a total order. Reset
-records remain in the register, so an offline stale replica cannot resurrect a
-name. The existing device-link runtime is the sole owner of stream 3 and its
+table. Lamport counters and stable writer ids establish a total order.
+The counter uses the full `u64` range and rejects overflow without wrapping.
+Reset records remain in the register, so an offline stale replica cannot
+resurrect a name. The existing device-link runtime is the sole owner of stream 3 and its
 inbox. It exchanges pages of at most 16 records through Moss's encrypted directed
 stream, pinned to the recipient's trusted roster peer id. Signatures bind the
 account, sender, recipient, exact roster digest and payload. Removed devices and
@@ -29,12 +30,24 @@ installation rebinds the register to the adopted account; old-account names do
 not migrate. Unknown channel names remain stored without joining a channel.
 
 A newly linked installation rejects personal-name writes until it durably
-imports every page of an initial register pull. The encrypted register retains
-that readiness across restart, including an empty initial pull. The imported
-Lamport clock then orders its first rename after the received names. Existing
-registers without the readiness field need one initial pull when other devices
+imports every page from every other active device in the current roster.
+Completed peer pulls count only for the authenticated roster that supplied them;
+a final page from one peer cannot enable writes while another peer is pending.
+Name protocol v2 gives every page request a random 128-bit id that its batch
+echoes. Only the currently requested page under the current roster can advance
+the pull; retries reuse its id. Replies from before restart or a roster change
+cannot complete a fresh pull. The previous name wire format cannot acknowledge
+v2 pulls; ordinary messaging and existing display names remain unaffected.
+An unfinished round restarts its peer pulls after restart. The encrypted register
+retains readiness only after the entire round is saved, including empty pulls.
+The imported Lamport clock then orders its first rename after the received names.
+Existing registers without the readiness field need one initial pull when other devices
 are linked. A sole installation can write immediately. Later offline writes
 remain available and concurrent edits use the existing total order.
+An offline active device delays initial readiness until it responds or is revoked.
+The native `can_rename` snapshot flag keeps personal-name menu actions disabled
+until initial readiness and authority allow a write. Pending delivery of a later
+offline edit does not disable another edit.
 
 Matching durable-save digests stop periodic full-register pulls. A local write
 changes the digest and starts another pull. A first-page response also
@@ -81,6 +94,8 @@ valid departure. A valid state's persistence failure prevents removal until
 the state can be saved on redelivery. If admin rights disappear before
 acknowledgement, pending
 changes roll back and their local history events show rejection.
+Unavailable or unverifiable org authority defers synchronization without changing
+the pending name; only a verified loss of admin authority rolls it back.
 
 ## UI and compatibility
 

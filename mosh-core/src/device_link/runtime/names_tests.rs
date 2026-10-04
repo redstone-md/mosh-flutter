@@ -5,6 +5,8 @@ use crate::moss_ffi::{MossFfiRuntime, MOSS_TEST_LOCK};
 use crate::test_temp_directory::TempDirectory;
 use ed25519_dalek::SigningKey;
 
+#[path = "names_bootstrap_tests.rs"]
+mod bootstrap;
 #[path = "names_sync_tests.rs"]
 mod sync;
 
@@ -46,7 +48,30 @@ impl Fixture {
         }
     }
 
-    fn receive(&mut self, message: NameMessage) -> Result<()> {
+    fn prepare_reply(&mut self, peer: &str, message: &mut NameMessage) {
+        if let NameMessage::Batch { request_id, .. } = message {
+            let roster_hash = self.runtime.identity.roster().digest().unwrap();
+            if self
+                .runtime
+                .names_pending_pages
+                .get(peer)
+                .is_none_or(|page| page.roster_hash != roster_hash)
+            {
+                self.runtime.names_peer_digests.remove(peer);
+                self.runtime.names_last_pull = None;
+                self.runtime.sync_names().unwrap();
+            }
+            *request_id = self
+                .runtime
+                .names_pending_pages
+                .get(peer)
+                .unwrap()
+                .request_id;
+        }
+    }
+
+    fn receive(&mut self, mut message: NameMessage) -> Result<()> {
+        self.prepare_reply(&self.peer.device().device_id.clone(), &mut message);
         let packet = names_wire::seal(
             &self.peer,
             &self.runtime.identity.device().device_id,
@@ -58,6 +83,7 @@ impl Fixture {
 
     fn batch(&mut self, counter: u64, next: Option<String>) {
         self.receive(NameMessage::Batch {
+            request_id: [0; 16],
             records: vec![NameRecord {
                 key: "channel:general".into(),
                 name: Some("Existing".into()),
@@ -106,7 +132,10 @@ fn matching_saved_names_stop_full_pulls_until_a_local_write() {
         })
         .unwrap();
     fixture
-        .receive(NameMessage::Request { after: None })
+        .receive(NameMessage::Request {
+            after: None,
+            request_id: [0; 16],
+        })
         .unwrap();
     assert!(!fixture.runtime.chat_names_snapshot().unwrap().pending);
     fixture.sync();
@@ -135,6 +164,7 @@ fn a_new_linked_writer_waits_for_all_pages_then_uses_the_imported_clock() {
     );
     fixture
         .receive(NameMessage::Batch {
+            request_id: [0; 16],
             records: vec![],
             next: None,
         })
@@ -165,6 +195,7 @@ fn an_empty_initial_pull_enables_offline_writes_across_restart() {
     let mut fixture = Fixture::new();
     fixture
         .receive(NameMessage::Batch {
+            request_id: [0; 16],
             records: vec![],
             next: None,
         })
@@ -194,6 +225,7 @@ fn a_saved_digest_cannot_replace_the_initial_pull() {
     assert_eq!(fixture.runtime.transport.sent_packets.len(), 1);
     fixture
         .receive(NameMessage::Batch {
+            request_id: [0; 16],
             records: vec![],
             next: None,
         })
@@ -207,9 +239,11 @@ fn a_saved_digest_cannot_replace_the_initial_pull() {
 fn a_refused_initial_save_neither_acknowledges_nor_enables_writes() {
     let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let mut fixture = Fixture::new();
+    fixture.sync();
     let fault = fixture.store.refuse_chat_name_writes();
     fixture.runtime.transport.sent_packets.clear();
     let result = fixture.receive(NameMessage::Batch {
+        request_id: [0; 16],
         records: vec![],
         next: None,
     });
@@ -227,6 +261,7 @@ fn a_refused_initial_save_neither_acknowledges_nor_enables_writes() {
     );
     fixture
         .receive(NameMessage::Batch {
+            request_id: [0; 16],
             records: vec![],
             next: None,
         })

@@ -24,7 +24,8 @@ void main() {
     await container.read(chatNamesProvider.future);
     stale.complete(const ChatNameSnapshot(
         entries: [ChatNameEntry(conversationKey: 'dm:session', name: 'Old')],
-        pending: false));
+        pending: false,
+        canRename: true));
     await refreshing;
     expect(container.read(chatNamesProvider).requireValue.entries.single.name,
         'New');

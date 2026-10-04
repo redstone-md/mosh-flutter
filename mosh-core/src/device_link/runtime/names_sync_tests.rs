@@ -26,6 +26,8 @@ impl Pair {
             roster_last_send: None,
             names_last_pull: None,
             names_peer_digests: Default::default(),
+            names_initial_pulls: Default::default(),
+            names_pending_pages: Default::default(),
         };
         Self {
             left: fixture.runtime,
