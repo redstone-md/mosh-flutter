@@ -1,9 +1,19 @@
 import Cocoa
+import Darwin
 import FlutterMacOS
 import XCTest
 @testable import mosh
 
 class RunnerTests: XCTestCase {
+
+  func testLaunchCallbackIgnoresBrokenPipeWithoutThrowing() throws {
+    let delegate = try XCTUnwrap(NSApp.delegate as? AppDelegate)
+    let previous = signal(SIGPIPE, SIG_DFL)
+    defer { signal(SIGPIPE, previous) }
+    delegate.applicationDidFinishLaunching(
+      Notification(name: NSApplication.didFinishLaunchingNotification, object: NSApp))
+    XCTAssertEqual(raise(SIGPIPE), 0)
+  }
 
   func testLocalizationPreservesCommandsAndSubmenus() {
     let menu = NSMenu(title: "Main")
