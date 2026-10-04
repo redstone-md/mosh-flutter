@@ -1,23 +1,3 @@
-// Org-roster rail actions -- one action per callback that SessionsScreen
-// wires into [OrgSection] (leaveOrg, openMemberDm, acceptDmOffer, ...).
-//
-// Each action is reduced to its own bridge-facade call and the route it
-// lands on
-// (an [_OrgLanding]); [_runOrgAction] owns everything else: the busy flag,
-// the refresh, the mounted check, the error toast and the navigation. One
-// action jumps instead of landing -- a member who already has a linked DM
-// needs no call, so it needs no refresh and cannot be stopped by a re-read
-// it never needed.
-//
-// Two things fall out of the envelope owning the refresh, both deliberate:
-// the two dismisses re-read every rail list (they used to re-read only the
-// orgs), and the linked-DM jump re-reads nothing.
-//
-// The invite settings (displayName/listenPort/staticPeer) come from
-// inviteFlowProvider, the same settings source onboarding uses (ADR 0010
-// DRY), and reach an action as an [_OrgInvite].
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

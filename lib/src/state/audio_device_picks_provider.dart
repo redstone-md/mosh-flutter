@@ -1,20 +1,3 @@
-// Audio-device picks: the app-level state for which input (mic) and
-// output (speaker) the voice paths use, backed by mosh-core's
-// `audio-devices.json` store (frb get/set) and two device enumerators.
-//
-// The Rust store is the single source of truth — the same file
-// `voice_call_playback_start` / `voice_call_ringtone_start` resolve their
-// output device from, and the input pick Dart hands to `record`'s
-// `RecordConfig.device`. This provider is the Riverpod-facing cache:
-// a Notifier holding the current picks (sync-loaded from the frb
-// getters, which are `#[frb(sync)]` file reads), a setter that persists
-// both picks in one write, and two enumerators exposed as injectable
-// functions so tests stub the seams without a native plugin.
-//
-// Server state (device lists) is NOT held here: lists are read at
-// settings-screen open (FutureProvider below), because device sets
-// change with hardware, not with app state.
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/rust/api/audio_devices.dart' as api
     show

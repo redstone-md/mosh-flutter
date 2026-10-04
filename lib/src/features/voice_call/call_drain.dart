@@ -1,11 +1,3 @@
-/// Poll-loop glue for voice-call frame draining. Pulls raw wire
-/// frames for a call from the bridge, decrypts each
-/// (skipping any that fail auth), pushes the survivors into the
-/// [JitterBuffer], then drains the ready (reordered) frames to the
-/// [CallFrameSink] playback handle. Pure of Flutter so the poll loop can
-/// guard it and so it is unit-testable.
-library;
-
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';

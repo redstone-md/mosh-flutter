@@ -1,7 +1,3 @@
-// Persistence warning banner: a warn-tinted card with an icon plate, a
-// title and a body. Screen readers hear "title. body" once, as one region.
-//
-// Radii are concentric: the card's 20 = the icon plate's 8 + the 12px inset.
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

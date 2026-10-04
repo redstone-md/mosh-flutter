@@ -13,6 +13,8 @@ import 'package:mosh/src/rust/channel_runtime/types.dart'
     show ChannelMessage, ChannelSnapshot;
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
+import 'package:mosh/src/rust/conversation/mesh.dart'
+    show MeshInfo, SnapshotEvent;
 import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
@@ -123,6 +125,29 @@ class TestMessages {
 class TestSnapshots {
   TestSnapshots._();
 
+  static MeshInfo mesh({
+    String meshId = 'testmesh',
+    int peerCount = 2,
+    List<String> channels = const [],
+  }) =>
+      MeshInfo(
+        meshId: meshId,
+        listenPort: 4242,
+        advertisedAddr: '203.0.113.7:4242',
+        peerCount: peerCount,
+        directPeerCount: peerCount,
+        relayedPeerCount: 0,
+        relayCapablePeerCount: 0,
+        relaySessionCount: 0,
+        relayRouteCount: 0,
+        knownPeerCount: peerCount,
+        channels: channels,
+        natType: 'full-cone',
+        supernodeReady: false,
+        publicKey: 'test-public-key',
+        peerDetails: const [],
+      );
+
   /// Private-DM `SessionSnapshot`. Defaults mirror the DM tests' old
   /// private `_snapshot` helper (connected direct session, `inviter`
   /// role, placeholder fingerprint).
@@ -190,6 +215,8 @@ class TestSnapshots {
     String? orgPubkey,
     List<String> memberPeerIds = const [],
     List<TypingMember> typingMembers = const [],
+    MeshInfo? mesh,
+    List<SnapshotEvent> events = const [],
   }) =>
       GroupSnapshot(
         groupId: groupId,
@@ -205,8 +232,8 @@ class TestSnapshots {
         messages: messages,
         attachments: const [],
         dmOffers: const [],
-        mesh: null,
-        events: const [],
+        mesh: mesh,
+        events: events,
         needsRejoin: needsRejoin,
         orgPubkey: orgPubkey,
         memberPeerIds: memberPeerIds,
@@ -223,6 +250,8 @@ class TestSnapshots {
     String topic = '',
     String meshId = 'testmesh',
     String displayName = 'me',
+    MeshInfo? mesh,
+    List<SnapshotEvent> events = const [],
   }) =>
       ChannelSnapshot(
         name: name,
@@ -233,8 +262,8 @@ class TestSnapshots {
         messages: messages,
         attachments: const [],
         dmOffers: const [],
-        mesh: null,
-        events: const [],
+        mesh: mesh,
+        events: events,
       );
 }
 

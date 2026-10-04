@@ -1,6 +1,3 @@
-// Inline media_kit voice player with waveform seeking and download-on-play.
-library;
-
 import 'dart:async' show unawaited;
 import 'dart:convert' show base64Decode;
 import 'dart:math' as math;

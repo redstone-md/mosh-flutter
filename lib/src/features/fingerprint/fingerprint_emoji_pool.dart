@@ -1,13 +1,3 @@
-// Emoji fingerprint pool -- the same pool Telegram Desktop uses for its
-// call "emoji fingerprint" (tdesktop calls_emoji_fingerprint.cpp, the
-// `Data` + `Offsets` arrays: 333 emoji, every one distinct). Extracted
-// mechanically from the upstream source, not by hand: see
-// fingerprint-lock.plan.md step 2.
-//
-// These are `\uXXXX` escapes on purpose: every Telegram emoji here is a
-// UTF-16 surrogate pair (0xd83d.. high surrogate), and an escape keeps the
-// file ASCII-safe under any editor/toolchain round-trip.
-/// The 333-emoji Telegram fingerprint pool.
 const List<String> fingerprintEmojiPool = <String>[
   '\ud83d\ude09',
   '\ud83d\ude0d',

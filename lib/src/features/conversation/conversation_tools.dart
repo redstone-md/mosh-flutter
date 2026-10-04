@@ -1,15 +1,3 @@
-// The message search box and the All/Files filter, plus the pure filter the
-// message list runs before it groups rows.
-//
-// Shared by every conversation kind. The search text and the filter are
-// widget state on the conversation screen: two values that live and die with
-// the screen need no store.
-//
-// The mobile variants of the search box and the filter notice live in
-// conversation_search_box.dart and mobile_conversation_search.dart, and are
-// re-exported here so a screen needs one import.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

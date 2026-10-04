@@ -2,7 +2,6 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/conversation/peer_label.dart';
-import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/util/format.dart';
 
 typedef ConversationParticipant = ({String identity, String name});
@@ -25,32 +24,6 @@ class ConversationDetailsModel {
         GroupConversation(:final source) =>
           l.membersCount(source.memberCount.toInt()),
         ChannelConversation() => l.channelNoticeTitle,
-      };
-
-  String get protection => switch (snapshot) {
-        DmConversation(revoked: true) => l.dmDeviceRevokedTitle,
-        GroupConversation(:final source) when source.needsRejoin =>
-          l.orgRejoinNeededTitle,
-        DmConversation(:final source) =>
-          'OpenMLS · ${dmStateLabel(l, source.state)}',
-        GroupConversation(:final source) =>
-          'OpenMLS · ${stateLabel(l, source.state)}',
-        ChannelConversation() => l.channelNoticeTitle,
-      };
-
-  String get protectionBody => switch (snapshot) {
-        DmConversation(revoked: true) => l.dmDeviceRevokedBody,
-        DmConversation(:final source) =>
-          dmStateSentence(l, source.state, source.transport),
-        GroupConversation(:final source) =>
-          source.needsRejoin ? l.orgRejoinNeededBody : l.groupNoticeBody,
-        ChannelConversation() => l.channelNoticeBody,
-      };
-
-  bool get needsAttention => switch (snapshot) {
-        DmConversation(:final revoked) => revoked,
-        GroupConversation(:final source) => source.needsRejoin,
-        ChannelConversation() => false,
       };
 
   bool get knownAuthorsOnly => switch (snapshot) {

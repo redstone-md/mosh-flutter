@@ -1,17 +1,3 @@
-// Invite-result card: a "ready" note row (check icon + note), the invite
-// URI in a monospace selectable block (so the user can select + copy
-// manually too), and a Copy button whose label + icon flip with the
-// [copied] flag. An Open button lands in the conversation just created,
-// so sharing the link and entering the chat do not need a detour via the
-// rail.
-//
-// Extracted as its own widget so the chat-create step AND the future
-// group-create step render the invite the same way (DRY: one result
-// card). Stateless by design -- the parent owns the `copied` flag and the
-// clipboard call, so the parent can reset `copied` when a new invite is
-// created.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

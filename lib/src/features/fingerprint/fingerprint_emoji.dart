@@ -1,14 +1,3 @@
-/// Maps a fingerprint string to its emoji form -- 4 emoji from the
-/// Telegram pool, deterministic for the same input.
-///
-/// A DM shows the creator's fingerprint and so does every group member
-/// (`creator_fingerprint`), so both sides read the same string and
-/// derive the same emoji: comparing them over a call catches a swapped
-/// invite, the same idea as Telegram's call emoji fingerprint. Nothing
-/// here touches the runtime -- it is a pure client-side view of a
-/// value the runtime already gives us.
-library;
-
 import 'package:mosh/src/features/fingerprint/fingerprint_emoji_pool.dart';
 
 /// How many emoji a fingerprint renders as. Telegram shows 4.

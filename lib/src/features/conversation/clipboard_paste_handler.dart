@@ -1,21 +1,3 @@
-/// Paste-to-attach clipboard image. When the composer has focus and the
-/// system clipboard holds an image (png/jpeg/gif/webp/tiff), synthesize
-/// a [PickedAttachment] and forward it to the composer's existing `onAttach`.
-/// Plain-text pastes fall through to the default text insertion (only file
-/// items are forwarded; text pastes normally).
-///
-/// Interception point: Flutter 3.44 `TextField` has NO `onPaste` callback
-/// (neither `bool Function()?` nor a `TextEditablePasteState` variant exists
-/// in this SDK). Paste is dispatched as a [PasteTextIntent] via
-/// `DefaultTextEditingShortcuts` (Ctrl/Cmd+V, Shift+Insert) and handled by an
-/// overridable `Action` registered on the `EditableTextState`
-/// (`Action.overridable`, editable_text.dart:5709). An ancestor `Actions`
-/// widget mapping `PasteTextIntent` -> a custom [Action] fully intercepts
-/// the intent: `_visitActionsAncestors` stops at the first matching ancestor,
-/// so the default text-inserting action runs ONLY if the override calls
-/// `callingAction?.invoke(...)`.
-library;
-
 import 'dart:async' show Completer;
 import 'dart:convert' show base64Encode;
 import 'dart:typed_data' show Uint8List;

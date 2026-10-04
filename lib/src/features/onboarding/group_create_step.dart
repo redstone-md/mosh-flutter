@@ -1,21 +1,3 @@
-// Embeddable group-create step body: body, OPTIONAL label input,
-// Create/Recreate button (label flips once an invite exists),
-// InlineError, InviteResult. No frame, back affordance, or title -- the
-// caller wraps this in [OnboardStepFrame] (full screen) or OnboardStepBody
-// (inline, atomic #8).
-//
-// State split (ADR 0010): the group label + GroupCreated result are
-// per-step widget-local, NOT in the DM inviteFlowProvider. Only
-// `_busy`/`_copied`/`_error` are also ephemeral UI. The
-// displayName/listenPort/staticPeer come from [inviteFlowProvider] -- the
-// same settings source createInvite uses.
-//
-// `onBack` is injected: the step renders no back affordance itself; the
-// framing widget owns the Back button. The step does NOT context.go
-// itself; the caller decides routing (route for GroupCreateScreen,
-// inline step-switch for the chat-pane in atomic #8).
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,22 +16,8 @@ import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 
-/// Embeddable group-create step body -- the step CONTENT only: body,
-/// OPTIONAL label TextField, Create/Recreate button (label flips once
-/// `_created` is set), persistent [InlineError], and [InviteResult] card
-/// shown after the first successful create. Caller wraps this in
-/// [OnboardStepFrame] (full-screen route, e.g. GroupCreateScreen) or
-/// OnboardStepBody (inline, atomic #8). State stays in this widget (label,
-/// GroupCreated, busy/copied/error are ephemeral UI); the
-/// displayName/listenPort/staticPeer settings come from
-/// [inviteFlowProvider].
 class GroupCreateStep extends ConsumerStatefulWidget {
-  const GroupCreateStep({super.key, required this.onBack});
-
-  /// Back-navigation callback. The step body does not render a back
-  /// affordance itself; the framing widget owns the Back button and
-  /// wires it to this callback.
-  final VoidCallback onBack;
+  const GroupCreateStep({super.key});
 
   @override
   ConsumerState<GroupCreateStep> createState() => _GroupCreateStepState();

@@ -1,8 +1,3 @@
-// OrgSection -- the org-roster rail section. All 7 callbacks pass through
-// unchanged so the host wires them to the bridge-facade seam (ADR 0025).
-
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

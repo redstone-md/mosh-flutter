@@ -14,6 +14,9 @@ import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import os from "node:os";
+import { prepareOpenMls } from "./openmls-prepare.mjs";
+
+await prepareOpenMls();
 
 const OUTPUT_DIR = path.resolve("android", "app", "src", "main", "jniLibs", "arm64-v8a");
 const OUTPUT_NAME = "libmoss.so";

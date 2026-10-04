@@ -24,7 +24,7 @@ continue to treat persistence as successful.
 Snapshot reads retry pending writes and return the current in-memory view even
 when storage refuses. They log the refusal while retaining the write for retry,
 so one failed save cannot hide conversations. Text sends still return
-Persistence on refused admission before publishing. Group creation returns
+Persistence on refused admission before publishing. DM and group creation return
 Persistence before exposing its new session.
 
 DM and group MLS snapshots and their restoring records share one encrypted redb
@@ -37,7 +37,7 @@ for retry. Ordinary pre-Welcome DM snapshots retain their existing placeholder
 policy. This reuses the atomic writer used by DM device transitions without
 changing public contracts or database tables.
 
-Creating a group saves only its own atomic pair before inserting the session.
+Creating a DM or group saves only its own atomic pair before inserting the session.
 A refused save closes the provisional room and leaves no session or retry that
 can silently create it later. Unrelated pending history cannot refuse creation.
 

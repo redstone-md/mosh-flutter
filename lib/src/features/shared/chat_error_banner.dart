@@ -1,10 +1,3 @@
-// ChatErrorBanner: the inline error banner shown at the top of the
-// chat pane when there is a send error AND the conversation is not on the
-// welcome/empty state. A single-row banner: an error-tinted
-// Container, the message text, and an OPTIONAL Retry button (only when
-// `onRetry` is non-null). The Retry label is localized via ARB
-// (`chatErrorRetry`) so the banner matches the rest of the localized UI.
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

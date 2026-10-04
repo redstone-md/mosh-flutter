@@ -1,19 +1,3 @@
-// The window-focus seam: a `Provider<Future<bool> Function()>` the
-// unread-lifecycle provider reads instead of calling `windowManager`
-// directly. Awaits `windowManager.isFocused()` and degrades to `true`
-// (focused) on any error so a test without a window_manager platform impl
-// keeps the badge clear.
-//
-// Why a seam instead of `windowManager.isFocused()` inline: the precedent
-// (voice_call_layer.dart) calls `windowManager.isFocused()` directly and
-// tests mock the 'window_manager' method channel. That works but is noisy
-// for a pure provider test. A `Provider<Future<bool> Function()>` is the
-// same seam convention as gatewayProvider / notificationsReadyProvider:
-// the lifecycle provider depends on it, tests override it with a plain
-// `() async => false`/`() async => true` and the focus check becomes
-// deterministic without a method-channel mock.
-library;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:window_manager/window_manager.dart' show windowManager;

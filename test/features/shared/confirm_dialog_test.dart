@@ -166,6 +166,37 @@ void main() {
     expect(confirmed, isFalse);
   });
 
+  testWidgets('Escape cancels once per press with or without modifiers',
+      (tester) async {
+    var cancellations = 0;
+    var confirmations = 0;
+    await _pumpDialog(
+      tester,
+      onCancel: () => cancellations++,
+      onConfirm: () => confirmations++,
+    );
+
+    var presses = 0;
+    for (final modifier in <LogicalKeyboardKey?>[
+      null,
+      LogicalKeyboardKey.controlLeft,
+      LogicalKeyboardKey.shiftLeft,
+    ]) {
+      if (modifier != null) await tester.sendKeyDownEvent(modifier);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+      presses++;
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.escape);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.escape);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+      if (modifier != null) await tester.sendKeyUpEvent(modifier);
+      expect(cancellations, presses);
+    }
+    expect(confirmations, 0);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    expect(cancellations, presses + 1);
+  });
+
   // Pins the close-X cancel path: the corner IconButton fires onCancel.
   testWidgets('tapping the close-X calls onCancel', (tester) async {
     var confirmed = false;

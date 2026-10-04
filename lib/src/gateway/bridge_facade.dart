@@ -1,24 +1,3 @@
-// The direct bridge facade: every call that only mirrors one generated
-// frb function, with no seam around it (ADR 0025).
-//
-// `Gateway` is deliberately narrow -- the conversation seam, the surface
-// widgets and controllers share and the only surface a test scripts. These
-// These calls mirror one `mosh_core::api` function 1:1 and hide no decision:
-// no target parameter, no kind branch, no shaping. Faking them wholesale
-// in tests is what made the scripted double mirror 42 methods, so they
-// moved out of the interface; a caller reaches this class through
-// `bridgeFacadeProvider` instead. (The one argument alias happens here:
-// the DM-offer sends take `peerFingerprint`, the generated function's
-// `targetFingerprint` -- a parameter name, not behaviour.)
-//
-// Like the Gateway, every method assumes `RustLib.init()` has run
-// (main.dart calls it on startup; the integration test calls it
-// explicitly). The frb free functions come in prefixed because their
-// names collide with the facade's method names.
-//
-// Size exception: one-line mirrors over `type_max_loc: 200`; reason,
-// scope and removal plan in ADR 0025.
-
 import 'dart:typed_data' show Uint8List;
 
 import 'package:mosh/src/rust/channel_runtime.dart' show JoinChannelRequest;

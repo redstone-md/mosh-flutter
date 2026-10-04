@@ -13,7 +13,7 @@ import '../private_dm_runtime/transport.dart';
 import 'conversation_bridge.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_runtime`, `call_media`, `construct_runtime`, `ensure_runtime`, `start_service_thread`
+// These functions are ignored because they are not marked as `pub`: `call_media`, `construct_runtime`, `ensure_runtime`, `start_service_thread`
 
 /// Inject the at-rest history DEK from the mobile platform channel (ADR
 /// 0011). See `api::shared_runtime::set_history_dek` for the full

@@ -1,26 +1,3 @@
-// VoicePlayback -- the seam between the call orchestrator and an actual
-// audio playback pipeline (decoded Opus frames scheduled for playback
-// with drift-resync). To keep the orchestrator unit-testable without a
-// native audio backend, the orchestrator takes a [VoicePlaybackFactory]
-// and calls `start()` to get a [VoicePlaybackHandle] it feeds via
-// `pushFrame` and `stop()`s on detach.
-//
-// Note: [VoicePlaybackHandle.pushFrame] is signature-identical to
-// [CallFrameSink.pushFrame] (call_drain.dart), so the orchestrator passes
-// the playback handle straight into [drainCallFrames] as the sink -- no
-// adapter needed.
-//
-// Dart interfaces are nominal, not structural, so the orchestrator can
-// only pass a [VoicePlaybackHandle]-typed value where a [CallFrameSink]
-// is expected if [VoicePlaybackHandle] itself declares `implements
-// CallFrameSink` (the factory returns [VoicePlaybackHandle], not the
-// private [_NoopHandle]). The lint ignore below reconciles the inevitable
-// parameter-name divergence between [VoicePlaybackHandle] (`opusFrame`)
-// and [CallFrameSink] (`payload`) -- the method signature is identical,
-// only the parameter name differs.
-// ignore_for_file: avoid_renaming_method_parameters
-library;
-
 import 'dart:typed_data';
 
 import 'call_drain.dart';

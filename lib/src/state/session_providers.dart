@@ -1,16 +1,3 @@
-// S4.0: Riverpod server-state providers for the slice-one Gateway surface.
-//
-// The DM LIST is not one of them: [conversationListProvider] serves all
-// three kinds, so the kind branch lives in one module
-// (`conversation_providers.dart`).
-//
-// Per ADR 0010: server/async state lives in AsyncNotifierProvider / FutureProvider
-// (the TanStack-Query analogue — loading/data/error via AsyncValue<T>). The
-// diagnostics reads and the invite mint are 1:1 bridge mirrors, so they go
-// through `bridgeFacadeProvider` (ADR 0025); the conversation seam (the DM
-// poll below) goes through `gatewayProvider` (ADR 0013). Ephemeral
-// cross-screen UI state (the invite-create flow) lives in a sync Notifier here
-// because it spans onboarding + invite-paste screens.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart';

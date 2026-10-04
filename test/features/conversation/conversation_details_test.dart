@@ -22,7 +22,7 @@ import '../../support/scriptable_gateway.dart';
 final l = lookupAppLocalizations(const Locale('en'));
 
 void main() {
-  test('DM protection follows runtime state and device revocation', () {
+  test('DM details use runtime name, state and participants', () {
     final snapshot = DmConversation(
         const DmTarget('dm'),
         TestSnapshots.dm(
@@ -34,8 +34,6 @@ void main() {
     final model = ConversationDetailsModel(snapshot, l);
     expect(model.title, 'Alice');
     expect(model.subtitle, contains('Waiting'));
-    expect(model.protection, l.dmDeviceRevokedTitle);
-    expect(model.protectionBody, l.dmDeviceRevokedBody);
     expect(model.participants.map((p) => p.name), ['me', 'Alice']);
     expect(model.knownAuthorsOnly, isFalse);
   });
@@ -57,8 +55,6 @@ void main() {
             ]));
     final model = ConversationDetailsModel(snapshot, l);
     expect(model.title, '#general');
-    expect(model.protectionBody, l.channelNoticeBody);
-    expect(model.protection, isNot(contains('MLS')));
     expect(model.knownAuthorsOnly, isTrue);
     expect(model.participants.map((p) => p.name), ['Alice', 'Bob']);
   });
@@ -89,8 +85,6 @@ void main() {
     expect(model.participants.map((p) => p.identity),
         ['alice', 'unidentified-member']);
     expect(model.participants.first.name, 'Alice');
-    expect(model.protectionBody, l.orgRejoinNeededBody);
-    expect(model.protection, l.orgRejoinNeededTitle);
   });
 
   testWidgets('files reuse download actions; diagnostics expand on demand',
@@ -185,7 +179,7 @@ void main() {
   }
   testWidgets('conversation banners warn about revocation and group rejoin',
       (tester) async {
-    final cases = <(ConversationSnapshot, String)>[
+    final cases = <(ConversationSnapshot, String, String)>[
       (
         DmConversation(
             const DmTarget('revoked'),
@@ -193,7 +187,8 @@ void main() {
               sessionId: 'revoked',
               deviceRevocation: DmDeviceRevocationState.revoked,
             )),
-        l.dmDeviceRevokedTitle
+        l.dmDeviceRevokedTitle,
+        l.dmDeviceRevokedBody
       ),
       (
         GroupConversation(
@@ -204,10 +199,11 @@ void main() {
               needsRejoin: true,
               messages: [],
             )),
-        l.orgRejoinNeededTitle
+        l.orgRejoinNeededTitle,
+        l.orgRejoinNeededBody
       ),
     ];
-    for (final (snapshot, warning) in cases) {
+    for (final (snapshot, warning, body) in cases) {
       final gateway = ScriptableGateway();
       await pumpScreen(
         tester,
@@ -222,6 +218,7 @@ void main() {
         ],
       );
       expect(find.textContaining(warning), findsOneWidget);
+      expect(find.textContaining(body), findsOneWidget);
     }
   });
 }

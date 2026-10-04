@@ -1,13 +1,3 @@
-/// Resolves the human-readable label for a private-DM session's peer,
-/// displayed in the DM screen AppBar title and the sessions rail row.
-///
-/// Resolution order: when the runtime has already learned the remote
-/// peer's display name (populated from inbound frames), it is returned
-/// immediately without scanning the message log. Otherwise the message
-/// scan below is the fallback for snapshots whose `peerDisplayName` has
-/// not been populated yet.
-library;
-
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 

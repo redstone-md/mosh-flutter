@@ -1,48 +1,32 @@
-use std::collections::{BTreeMap, HashMap};
-use std::time::{Duration, Instant};
-
-use serde::{Deserialize, Serialize};
-
+//! Attachment transfer owner. Serving, admission, scheduling, and playback are feature-local modules.
 use crate::attachment_crypto::{
     decrypt_chunk, encrypt_chunk, random_key, random_nonce_prefix, sha256_hex,
     AttachmentCryptoError, ATTACHMENT_KEY_LEN, ATTACHMENT_NONCE_PREFIX_LEN,
 };
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
+use std::time::{Duration, Instant};
 
-// Moss sends every frame as ONE UDP datagram, and macOS refuses to send a
-// datagram over 9216 bytes by default (`net.inet.udp.maxdgram`). A plaintext
-// chunk grows by the 16-byte GCM tag, ~33% for base64 and the JSON envelope,
-// and the stream carrier base64s it once more: 4 KB ends near 7.5 KB on the
-// wire. At 32 KB (0.9.5 and older) every Mac-sent chunk failed and a 5 s voice
-// note took a minute of re-requests to arrive. Receivers read the chunk size
-// from the manifest, so older peers still decode these transfers.
+mod incoming;
+mod outgoing;
+mod requests;
+mod stream_range;
+#[cfg(test)]
+mod tests;
+
+// Chunk envelopes fit macOS's default 9216-byte UDP datagram limit.
 pub const CHUNK_SIZE: u32 = 4 * 1024;
 pub const MAX_ATTACHMENT_SIZE: u64 = 50 * 1024 * 1024;
-// The manifest rides a single control-channel publish, so it faces the same
-// 64KB gossipsub cap as a chunk. Everything but the thumbnail is small and
-// bounded; a thumbnail past this budget pushes the encrypted+base64 envelope
-// over the cap and the peer silently never receives the attachment. Drop it
-// instead — the receiver can still download the full file.
-// ponytail: hard cap. If big-image previews matter, ship the thumbnail as its
-// own chunked transfer rather than inline in the manifest.
+// Inline thumbnails must leave room for the encrypted gossipsub envelope.
 const MAX_THUMBNAIL_B64: usize = 32 * 1024;
-// A request asks for about this many bytes at once: the same 2 MB the old
-// 64 x 32 KB batch moved, so a big file is not slower with small chunks.
 const REQUEST_WINDOW_BYTES: u64 = 2 * 1024 * 1024;
-// Moss queues hold 256 frames per peer; a larger burst would be dropped.
+// Moss's queue holds 256 frames per peer, across all active downloads.
 const MAX_REQUEST_BATCH: usize = 256;
-
-/// How many chunks of `chunk_size` one request may ask for. A 32 KB
-/// manifest from an older sender gets the 64 that sender serves at most.
+const CHUNK_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 fn request_batch(chunk_size: u32) -> usize {
     let per_window = REQUEST_WINDOW_BYTES / u64::from(chunk_size.max(1));
     (per_window as usize).clamp(1, MAX_REQUEST_BATCH)
 }
-// How long a requested chunk counts as in flight. The receiver pumps roughly
-// once a second, and without this every pump re-asks for chunks that are still
-// on the wire — one batch is sent again on every pump. Long enough for a slow link
-// to deliver a full batch, short enough that a genuinely lost chunk is asked
-// for again while the user is still watching the progress bar.
-const CHUNK_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug)]
 pub enum AttachmentRuntimeError {
@@ -84,12 +68,7 @@ impl From<AttachmentCryptoError> for AttachmentRuntimeError {
     }
 }
 
-/// Carries the secret material and metadata for one attachment. Hosts send
-/// this over their confidential control path (MLS-encrypted for DM and
-/// groups, plaintext broadcast for public channels).
-/// Voice-message metadata carried alongside an audio attachment. Its presence
-/// is the sole marker that an attachment is a recorded voice message rather
-/// than a user-picked audio file.
+/// Marks a recorded voice message, with duration and waveform.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VoiceMeta {
     /// Recording length in milliseconds.
@@ -98,6 +77,7 @@ pub struct VoiceMeta {
     pub peaks_b64: String,
 }
 
+/// Secret material and metadata sent through the conversation control path.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttachmentManifest {
     pub attachment_id: String,
@@ -174,34 +154,6 @@ pub enum ChunkOutcome {
     Unknown,
 }
 
-struct OutgoingTransfer {
-    manifest: AttachmentManifest,
-    plaintext: Vec<u8>,
-    key: [u8; ATTACHMENT_KEY_LEN],
-    nonce_prefix: [u8; ATTACHMENT_NONCE_PREFIX_LEN],
-    /// How many times each chunk has been encrypted and handed out. A count,
-    /// not a set: re-serving is the whole recovery mechanism, so "was it served
-    /// again after the receiver asked again" is the thing worth observing.
-    served_chunks: BTreeMap<u64, u32>,
-    state: TransferState,
-}
-
-struct IncomingTransfer {
-    manifest: AttachmentManifest,
-    key: [u8; ATTACHMENT_KEY_LEN],
-    nonce_prefix: [u8; ATTACHMENT_NONCE_PREFIX_LEN],
-    chunks: BTreeMap<u64, Vec<u8>>,
-    state: TransferState,
-    download_started: bool,
-    request_cursor: u64,
-    /// When each outstanding chunk was last asked for, so a request that is
-    /// still in flight is not asked for again on the next pump.
-    requested_at: HashMap<u64, Instant>,
-    /// When a streaming player asks for bytes the receiver does not have
-    /// yet, this chunk index is fetched ahead of the sequential cursor.
-    priority_chunk: Option<u64>,
-}
-
 /// Result of asking an incoming transfer for a byte range.
 #[derive(Debug)]
 pub enum StreamRange {
@@ -219,6 +171,31 @@ pub enum StreamRange {
     Unknown,
 }
 
+struct OutgoingTransfer {
+    manifest: AttachmentManifest,
+    plaintext: Vec<u8>,
+    key: [u8; ATTACHMENT_KEY_LEN],
+    nonce_prefix: [u8; ATTACHMENT_NONCE_PREFIX_LEN],
+    /// Re-serving the same chunk is the transfer recovery mechanism.
+    served_chunks: BTreeMap<u64, u32>,
+    state: TransferState,
+}
+
+struct IncomingTransfer {
+    manifest: AttachmentManifest,
+    key: [u8; ATTACHMENT_KEY_LEN],
+    nonce_prefix: [u8; ATTACHMENT_NONCE_PREFIX_LEN],
+    chunks: BTreeMap<u64, Vec<u8>>,
+    state: TransferState,
+    download_started: bool,
+    request_cursor: u64,
+    /// Recent requests remain in flight until their timeout.
+    requested_at: HashMap<u64, Instant>,
+    /// When a streaming player asks for bytes the receiver does not have
+    /// yet, this chunk index is fetched ahead of the sequential cursor.
+    priority_chunk: Option<u64>,
+}
+
 pub struct AttachmentRuntime {
     outgoing: HashMap<String, OutgoingTransfer>,
     incoming: HashMap<String, IncomingTransfer>,
@@ -230,139 +207,6 @@ impl AttachmentRuntime {
             outgoing: HashMap::new(),
             incoming: HashMap::new(),
         }
-    }
-
-    /// Registers a file for sending and returns the manifest the host must
-    /// deliver over its control path. The plaintext is kept in memory so the
-    /// runtime can answer chunk requests on demand.
-    pub fn prepare_outgoing(
-        &mut self,
-        request: OutgoingAttachment,
-    ) -> Result<AttachmentManifest, AttachmentRuntimeError> {
-        let OutgoingAttachment {
-            attachment_id,
-            file_name,
-            mime,
-            from_fingerprint,
-            bytes,
-            thumbnail_b64,
-            voice,
-        } = request;
-        if bytes.is_empty() {
-            return Err(AttachmentRuntimeError::Empty);
-        }
-        let total_size = bytes.len() as u64;
-        if total_size > MAX_ATTACHMENT_SIZE {
-            return Err(AttachmentRuntimeError::TooLarge { size: total_size });
-        }
-        if self.outgoing.contains_key(&attachment_id) {
-            return Err(AttachmentRuntimeError::DuplicateTransfer(attachment_id));
-        }
-        // Keep the manifest under the gossipsub cap so the peer actually
-        // receives it (see MAX_THUMBNAIL_B64).
-        let thumbnail_b64 = thumbnail_b64.filter(|thumb| thumb.len() <= MAX_THUMBNAIL_B64);
-        let key = random_key();
-        let nonce_prefix = random_nonce_prefix();
-        let chunk_count = total_size.div_ceil(u64::from(CHUNK_SIZE));
-        let manifest = AttachmentManifest {
-            attachment_id: attachment_id.clone(),
-            content_hash: sha256_hex(&bytes),
-            file_name,
-            mime,
-            total_size,
-            chunk_size: CHUNK_SIZE,
-            chunk_count,
-            key_b64: encode(&key),
-            nonce_prefix_b64: encode(&nonce_prefix),
-            thumbnail_b64,
-            voice,
-            from_fingerprint,
-        };
-        self.outgoing.insert(
-            attachment_id,
-            OutgoingTransfer {
-                manifest: manifest.clone(),
-                plaintext: bytes,
-                key,
-                nonce_prefix,
-                served_chunks: BTreeMap::new(),
-                state: TransferState::Active,
-            },
-        );
-        Ok(manifest)
-    }
-
-    /// Encrypts and returns the requested chunks. Indices outside the file or
-    /// belonging to a cancelled transfer are skipped.
-    pub fn serve_chunks(
-        &mut self,
-        request: &ChunkRequest,
-    ) -> Result<Vec<ChunkFrame>, AttachmentRuntimeError> {
-        let transfer = self
-            .outgoing
-            .get_mut(&request.attachment_id)
-            .ok_or_else(|| {
-                AttachmentRuntimeError::UnknownTransfer(request.attachment_id.clone())
-            })?;
-        if transfer.state != TransferState::Active {
-            return Ok(Vec::new());
-        }
-        let mut frames = Vec::new();
-        let chunk_size = transfer.manifest.chunk_size;
-        for &index in request.chunk_indices.iter().take(request_batch(chunk_size)) {
-            let Some(slice) = chunk_slice(&transfer.plaintext, index, chunk_size) else {
-                continue;
-            };
-            let ciphertext = encrypt_chunk(&transfer.key, &transfer.nonce_prefix, index, slice)?;
-            *transfer.served_chunks.entry(index).or_insert(0) += 1;
-            frames.push(ChunkFrame {
-                attachment_id: request.attachment_id.clone(),
-                chunk_index: index,
-                ciphertext_b64: encode(&ciphertext),
-            });
-        }
-        // The outgoing transfer is never auto-completed: there is no receiver
-        // ack, so it must stay Active to keep re-serving chunks that were
-        // dropped in transit. It is dropped when the host session closes.
-        Ok(frames)
-    }
-
-    /// Restores the original chunk key for a sent file after a restart.
-    pub fn restore_outgoing(
-        &mut self,
-        manifest: AttachmentManifest,
-        bytes: Vec<u8>,
-    ) -> Result<(), AttachmentRuntimeError> {
-        if self.outgoing.contains_key(&manifest.attachment_id) {
-            return Err(AttachmentRuntimeError::DuplicateTransfer(
-                manifest.attachment_id,
-            ));
-        }
-        if bytes.len() as u64 != manifest.total_size
-            || sha256_hex(&bytes) != manifest.content_hash
-            || manifest.chunk_size == 0
-            || manifest.total_size.div_ceil(u64::from(manifest.chunk_size)) != manifest.chunk_count
-        {
-            return Err(AttachmentRuntimeError::ManifestMismatch(
-                "restored outgoing file".to_string(),
-            ));
-        }
-        let key = decode_fixed::<ATTACHMENT_KEY_LEN>(&manifest.key_b64)
-            .ok_or_else(|| AttachmentRuntimeError::ManifestMismatch("key".to_string()))?;
-        let nonce_prefix = decode_fixed::<ATTACHMENT_NONCE_PREFIX_LEN>(&manifest.nonce_prefix_b64)
-            .ok_or_else(|| AttachmentRuntimeError::ManifestMismatch("nonce prefix".to_string()))?;
-        self.outgoing.insert(
-            manifest.attachment_id.clone(),
-            OutgoingTransfer {
-                manifest,
-                plaintext: bytes,
-                key,
-                nonce_prefix,
-                served_chunks: BTreeMap::new(),
-                state: TransferState::Active,
-            },
-        );
-        Ok(())
     }
 
     pub fn manifest_of(&self, attachment_id: &str) -> Option<AttachmentManifest> {
@@ -377,231 +221,6 @@ impl AttachmentRuntime {
             .cloned()
     }
 
-    /// Records an inbound manifest so the host can later request its chunks.
-    pub fn register_incoming(
-        &mut self,
-        manifest: AttachmentManifest,
-    ) -> Result<(), AttachmentRuntimeError> {
-        if self.incoming.contains_key(&manifest.attachment_id) {
-            return Err(AttachmentRuntimeError::DuplicateTransfer(
-                manifest.attachment_id,
-            ));
-        }
-        let key = decode_fixed::<ATTACHMENT_KEY_LEN>(&manifest.key_b64)
-            .ok_or_else(|| AttachmentRuntimeError::ManifestMismatch("key".to_string()))?;
-        let nonce_prefix = decode_fixed::<ATTACHMENT_NONCE_PREFIX_LEN>(&manifest.nonce_prefix_b64)
-            .ok_or_else(|| AttachmentRuntimeError::ManifestMismatch("nonce prefix".to_string()))?;
-        if manifest.chunk_size == 0 || manifest.total_size > MAX_ATTACHMENT_SIZE {
-            return Err(AttachmentRuntimeError::ManifestMismatch(
-                "size or chunk_size".to_string(),
-            ));
-        }
-        let expected_count = manifest.total_size.div_ceil(u64::from(manifest.chunk_size));
-        if expected_count != manifest.chunk_count {
-            return Err(AttachmentRuntimeError::ManifestMismatch(
-                "chunk_count".to_string(),
-            ));
-        }
-        self.incoming.insert(
-            manifest.attachment_id.clone(),
-            IncomingTransfer {
-                manifest,
-                key,
-                nonce_prefix,
-                chunks: BTreeMap::new(),
-                state: TransferState::Active,
-                download_started: false,
-                request_cursor: 0,
-                requested_at: HashMap::new(),
-                priority_chunk: None,
-            },
-        );
-        Ok(())
-    }
-
-    /// Returns decrypted bytes for [start, end) when every covering chunk is
-    /// in. Otherwise records a priority so the missing region is fetched
-    /// ahead of the sequential cursor and reports Pending.
-    pub fn stream_range(&mut self, attachment_id: &str, start: u64, end: u64) -> StreamRange {
-        let Some(transfer) = self.incoming.get_mut(attachment_id) else {
-            return StreamRange::Unknown;
-        };
-        transfer.download_started = true;
-        let total = transfer.manifest.total_size;
-        let mime = transfer.manifest.mime.clone();
-        if total == 0 || start >= total {
-            return StreamRange::Ready {
-                bytes: Vec::new(),
-                total_size: total,
-                mime,
-            };
-        }
-        let end = end.min(total).max(start);
-        let chunk = u64::from(transfer.manifest.chunk_size);
-        let first = start / chunk;
-        let last = if end > start {
-            (end - 1) / chunk
-        } else {
-            first
-        };
-
-        let mut missing = None;
-        for index in first..=last {
-            if !transfer.chunks.contains_key(&index) {
-                missing = Some(index);
-                break;
-            }
-        }
-        if let Some(index) = missing {
-            transfer.priority_chunk = Some(index);
-            return StreamRange::Pending { total_size: total };
-        }
-
-        let mut assembled = Vec::new();
-        for index in first..=last {
-            assembled.extend_from_slice(&transfer.chunks[&index]);
-        }
-        let offset = (start - first * chunk) as usize;
-        let span = (end - start) as usize;
-        let slice = assembled
-            .get(offset..(offset + span).min(assembled.len()))
-            .unwrap_or(&[])
-            .to_vec();
-        StreamRange::Ready {
-            bytes: slice,
-            total_size: total,
-            mime,
-        }
-    }
-
-    /// Marks an incoming transfer as actively downloading. Until this is
-    /// called the receiver only holds the manifest (manual-download model).
-    pub fn start_download(&mut self, attachment_id: &str) -> Result<(), AttachmentRuntimeError> {
-        let transfer = self
-            .incoming
-            .get_mut(attachment_id)
-            .ok_or_else(|| AttachmentRuntimeError::UnknownTransfer(attachment_id.to_string()))?;
-        transfer.download_started = true;
-        Ok(())
-    }
-
-    /// Returns the next chunk request the receiver should publish, or None
-    /// when the transfer is idle, finished, or fully in flight. Gaps below
-    /// the sliding cursor are re-requested first so a dropped connection
-    /// resumes; otherwise the cursor advances by one window.
-    pub fn next_chunk_request(&mut self, attachment_id: &str) -> Option<ChunkRequest> {
-        self.next_chunk_request_at(attachment_id, Instant::now())
-    }
-
-    /// `next_chunk_request` with the clock passed in, so the in-flight window
-    /// can be exercised without sleeping.
-    pub fn next_chunk_request_at(
-        &mut self,
-        attachment_id: &str,
-        now: Instant,
-    ) -> Option<ChunkRequest> {
-        self.next_chunk_request_with_budget_at(attachment_id, now, MAX_REQUEST_BATCH)
-    }
-
-    /// Space left in the peer's chunk queue across all active downloads.
-    pub(crate) fn available_request_slots_at(&self, now: Instant) -> usize {
-        let in_flight = self
-            .incoming
-            .values()
-            .filter(|transfer| transfer.download_started && transfer.state == TransferState::Active)
-            .flat_map(|transfer| {
-                transfer.requested_at.iter().filter(|(index, sent)| {
-                    !transfer.chunks.contains_key(index)
-                        && now.saturating_duration_since(**sent) < CHUNK_REQUEST_TIMEOUT
-                })
-            })
-            .count();
-        MAX_REQUEST_BATCH.saturating_sub(in_flight)
-    }
-
-    pub(crate) fn next_chunk_request_with_budget_at(
-        &mut self,
-        attachment_id: &str,
-        now: Instant,
-        budget: usize,
-    ) -> Option<ChunkRequest> {
-        let budget = budget.min(self.available_request_slots_at(now));
-        if budget == 0 {
-            return None;
-        }
-        let transfer = self.incoming.get_mut(attachment_id)?;
-        if !transfer.download_started || transfer.state != TransferState::Active {
-            return None;
-        }
-        // A chunk that is missing but was asked for moments ago is still on the
-        // wire, not lost. Asking again every pump sends one batch many times
-        // and buries the link that was already struggling.
-        let wanted = |transfer: &IncomingTransfer, index: u64| {
-            !transfer.chunks.contains_key(&index)
-                && transfer.requested_at.get(&index).is_none_or(|sent| {
-                    now.saturating_duration_since(*sent) >= CHUNK_REQUEST_TIMEOUT
-                })
-        };
-        let batch = budget.min(request_batch(transfer.manifest.chunk_size));
-        let mut indices = Vec::new();
-        // A streaming player's requested region jumps the queue so playback
-        // is not blocked behind the sequential cursor.
-        if let Some(priority) = transfer.priority_chunk {
-            for index in priority..transfer.manifest.chunk_count {
-                if wanted(transfer, index) {
-                    indices.push(index);
-                    if indices.len() >= batch {
-                        break;
-                    }
-                }
-            }
-            // The priority region is only satisfied once every chunk in it has
-            // arrived — chunks merely in flight must keep it pinned, or the
-            // player's region loses its place in the queue on the next pump.
-            if (priority..transfer.manifest.chunk_count)
-                .all(|index| transfer.chunks.contains_key(&index))
-            {
-                transfer.priority_chunk = None;
-            }
-            if !indices.is_empty() {
-                for &index in &indices {
-                    transfer.requested_at.insert(index, now);
-                }
-                return Some(ChunkRequest {
-                    attachment_id: attachment_id.to_string(),
-                    chunk_indices: indices,
-                });
-            }
-        }
-        for index in 0..transfer.request_cursor {
-            if wanted(transfer, index) {
-                indices.push(index);
-                if indices.len() >= batch {
-                    break;
-                }
-            }
-        }
-        if indices.is_empty() {
-            while transfer.request_cursor < transfer.manifest.chunk_count && indices.len() < batch {
-                indices.push(transfer.request_cursor);
-                transfer.request_cursor += 1;
-            }
-        }
-        if indices.is_empty() {
-            return None;
-        }
-        for &index in &indices {
-            transfer.requested_at.insert(index, now);
-        }
-        Some(ChunkRequest {
-            attachment_id: attachment_id.to_string(),
-            chunk_indices: indices,
-        })
-    }
-
-    /// How many times the sender has encrypted and handed out a chunk. The
-    /// receiver only asks again for what it never got, so a second serve is
-    /// the recovery working.
     pub fn served_count(&self, attachment_id: &str, chunk_index: u64) -> u32 {
         self.outgoing
             .get(attachment_id)
@@ -609,96 +228,18 @@ impl AttachmentRuntime {
             .unwrap_or(0)
     }
 
-    /// Returns the next batch of chunk indices the receiver still needs.
-    pub fn pending_chunk_indices(
-        &self,
-        attachment_id: &str,
-    ) -> Result<Vec<u64>, AttachmentRuntimeError> {
-        let transfer = self
-            .incoming
-            .get(attachment_id)
-            .ok_or_else(|| AttachmentRuntimeError::UnknownTransfer(attachment_id.to_string()))?;
-        if transfer.state != TransferState::Active {
-            return Ok(Vec::new());
-        }
-        let batch = request_batch(transfer.manifest.chunk_size);
-        let mut pending = Vec::new();
-        for index in 0..transfer.manifest.chunk_count {
-            if !transfer.chunks.contains_key(&index) {
-                pending.push(index);
-                if pending.len() >= batch {
-                    break;
-                }
-            }
-        }
-        Ok(pending)
-    }
-
-    /// Decrypts and stores one chunk. Once every chunk has arrived the
-    /// reassembled bytes are verified against the manifest content hash.
-    pub fn ingest_chunk(
-        &mut self,
-        frame: &ChunkFrame,
-    ) -> Result<ChunkOutcome, AttachmentRuntimeError> {
-        let Some(transfer) = self.incoming.get_mut(&frame.attachment_id) else {
-            return Ok(ChunkOutcome::Unknown);
-        };
-        if transfer.state != TransferState::Active {
-            return Ok(ChunkOutcome::Duplicate);
-        }
-        if frame.chunk_index >= transfer.manifest.chunk_count {
-            return Ok(ChunkOutcome::Unknown);
-        }
-        if transfer.chunks.contains_key(&frame.chunk_index) {
-            return Ok(ChunkOutcome::Duplicate);
-        }
-        let ciphertext = decode(&frame.ciphertext_b64)
-            .ok_or_else(|| AttachmentRuntimeError::Codec("chunk base64".to_string()))?;
-        let plaintext = decrypt_chunk(
-            &transfer.key,
-            &transfer.nonce_prefix,
-            frame.chunk_index,
-            &ciphertext,
-        )?;
-        transfer.chunks.insert(frame.chunk_index, plaintext);
-
-        if transfer.chunks.len() as u64 != transfer.manifest.chunk_count {
-            return Ok(ChunkOutcome::Progress(progress_of(
-                &transfer.manifest,
-                transfer.chunks.len() as u64,
-                TransferState::Active,
-            )));
-        }
-
-        let mut assembled = Vec::with_capacity(transfer.manifest.total_size as usize);
-        for chunk in transfer.chunks.values() {
-            assembled.extend_from_slice(chunk);
-        }
-        let actual_hash = sha256_hex(&assembled);
-        if actual_hash != transfer.manifest.content_hash {
-            transfer.state = TransferState::Failed;
-            return Err(AttachmentRuntimeError::ManifestMismatch(format!(
-                "content hash {actual_hash} != {}",
-                transfer.manifest.content_hash
-            )));
-        }
-        transfer.state = TransferState::Complete;
-        Ok(ChunkOutcome::Complete {
-            attachment_id: frame.attachment_id.clone(),
-            content_hash: actual_hash,
-            bytes: assembled,
-        })
-    }
-
     pub fn cancel(&mut self, attachment_id: &str) {
-        if let Some(transfer) = self.outgoing.get_mut(attachment_id) {
-            if transfer.state == TransferState::Active {
-                transfer.state = TransferState::Cancelled;
-            }
-        }
-        if let Some(transfer) = self.incoming.get_mut(attachment_id) {
-            if transfer.state == TransferState::Active {
-                transfer.state = TransferState::Cancelled;
+        let outgoing = self
+            .outgoing
+            .get_mut(attachment_id)
+            .map(|transfer| &mut transfer.state);
+        let incoming = self
+            .incoming
+            .get_mut(attachment_id)
+            .map(|transfer| &mut transfer.state);
+        for state in outgoing.into_iter().chain(incoming) {
+            if *state == TransferState::Active {
+                *state = TransferState::Cancelled;
             }
         }
     }
@@ -768,532 +309,15 @@ fn decode(encoded: &str) -> Option<Vec<u8>> {
 }
 
 fn decode_fixed<const N: usize>(encoded: &str) -> Option<[u8; N]> {
-    let bytes = decode(encoded)?;
-    if bytes.len() != N {
-        return None;
-    }
-    let mut out = [0u8; N];
-    out.copy_from_slice(&bytes);
-    Some(out)
+    decode(encoded)?.try_into().ok()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn payload(size: usize) -> Vec<u8> {
-        (0..size).map(|index| (index % 251) as u8).collect()
-    }
-
-    fn drive_transfer(bytes: Vec<u8>) -> Vec<u8> {
-        let mut sender = AttachmentRuntime::new();
-        let mut receiver = AttachmentRuntime::new();
-        let manifest = sender
-            .prepare_outgoing(OutgoingAttachment {
-                attachment_id: "att-1".to_string(),
-                file_name: "file.bin".to_string(),
-                mime: "application/octet-stream".to_string(),
-                from_fingerprint: "AABB".to_string(),
-                bytes: bytes.clone(),
-                thumbnail_b64: None,
-                voice: None,
-            })
-            .unwrap();
-        receiver.register_incoming(manifest).unwrap();
-        receiver.start_download("att-1").unwrap();
-
-        for _ in 0..10_000 {
-            let Some(request) = receiver.next_chunk_request("att-1") else {
-                break;
-            };
-            let frames = sender.serve_chunks(&request).unwrap();
-            assert!(!frames.is_empty());
-            for frame in frames {
-                match receiver.ingest_chunk(&frame).unwrap() {
-                    ChunkOutcome::Complete { bytes, .. } => return bytes,
-                    ChunkOutcome::Progress(_) => {}
-                    other => panic!("unexpected outcome {other:?}"),
-                }
-            }
-        }
-        panic!("transfer never completed");
-    }
-
-    /// A full chunk frame, base64'd once more by the stream carrier and
-    /// wrapped by moss, must still fit one macOS UDP datagram (9216 bytes by
-    /// default). 32 KB chunks did not, and Mac-to-Mac voice notes crawled.
-    #[test]
-    fn a_full_chunk_frame_fits_a_macos_datagram() {
-        const MACOS_MAX_DATAGRAM: usize = 9216;
-        const MOSS_OVERHEAD_BUDGET: usize = 1024;
-        let mut sender = AttachmentRuntime::new();
-        let manifest = sender
-            .prepare_outgoing(OutgoingAttachment {
-                attachment_id: "att-size".to_string(),
-                file_name: "clip.m4a".to_string(),
-                mime: "audio/mp4".to_string(),
-                from_fingerprint: "AABB".to_string(),
-                bytes: payload(CHUNK_SIZE as usize),
-                thumbnail_b64: None,
-                voice: None,
-            })
-            .unwrap();
-        let frames = sender
-            .serve_chunks(&ChunkRequest {
-                attachment_id: manifest.attachment_id,
-                chunk_indices: vec![0],
-            })
-            .unwrap();
-
-        let json = serde_json::to_vec(&frames[0]).unwrap().len();
-        let on_the_wire = json.div_ceil(3) * 4 + MOSS_OVERHEAD_BUDGET;
-        assert!(on_the_wire <= MACOS_MAX_DATAGRAM, "{on_the_wire} bytes");
-    }
-
-    /// An older sender serves at most 64 chunks per request. Asking it for
-    /// more would leave the rest waiting out the 10 s request timeout.
-    #[test]
-    fn a_32k_manifest_is_requested_in_batches_an_old_sender_serves() {
-        assert_eq!(request_batch(32 * 1024), 64);
-        assert_eq!(request_batch(CHUNK_SIZE), MAX_REQUEST_BATCH);
-    }
-
-    #[test]
-    fn single_chunk_round_trip() {
-        let bytes = payload(1024);
-        assert_eq!(drive_transfer(bytes.clone()), bytes);
-    }
-
-    #[test]
-    fn multi_chunk_round_trip() {
-        let bytes = payload((CHUNK_SIZE as usize) * 3 + 17);
-        assert_eq!(drive_transfer(bytes.clone()), bytes);
-    }
-
-    #[test]
-    fn rejects_oversized_attachment() {
-        let mut runtime = AttachmentRuntime::new();
-        let huge = vec![0u8; (MAX_ATTACHMENT_SIZE + 1) as usize];
-        assert!(matches!(
-            runtime.prepare_outgoing(OutgoingAttachment {
-                attachment_id: "x".to_string(),
-                file_name: "x".to_string(),
-                mime: "x".to_string(),
-                from_fingerprint: "x".to_string(),
-                bytes: huge,
-                thumbnail_b64: None,
-                voice: None,
-            }),
-            Err(AttachmentRuntimeError::TooLarge { .. })
-        ));
-    }
-
-    #[test]
-    fn rejects_empty_attachment() {
-        let mut runtime = AttachmentRuntime::new();
-        assert!(matches!(
-            runtime.prepare_outgoing(OutgoingAttachment {
-                attachment_id: "x".to_string(),
-                file_name: "x".to_string(),
-                mime: "x".to_string(),
-                from_fingerprint: "x".to_string(),
-                bytes: Vec::new(),
-                thumbnail_b64: None,
-                voice: None,
-            }),
-            Err(AttachmentRuntimeError::Empty)
-        ));
-    }
-
-    #[test]
-    fn drops_thumbnail_that_would_blow_the_gossipsub_cap() {
-        let mut runtime = AttachmentRuntime::new();
-        let manifest = runtime
-            .prepare_outgoing(OutgoingAttachment {
-                attachment_id: "a".to_string(),
-                file_name: "photo.jpg".to_string(),
-                mime: "image/jpeg".to_string(),
-                from_fingerprint: "fp".to_string(),
-                bytes: payload(1024),
-                thumbnail_b64: Some("A".repeat(MAX_THUMBNAIL_B64 + 1)),
-                voice: None,
-            })
-            .unwrap();
-        assert!(manifest.thumbnail_b64.is_none());
-        // Manifest must stay well under Moss's 64KB gossipsub payload cap.
-        let json = serde_json::to_vec(&manifest).unwrap();
-        assert!(json.len() < 64 * 1024, "manifest is {} bytes", json.len());
-    }
-
-    #[test]
-    fn keeps_thumbnail_within_budget() {
-        let mut runtime = AttachmentRuntime::new();
-        let manifest = runtime
-            .prepare_outgoing(OutgoingAttachment {
-                attachment_id: "a".to_string(),
-                file_name: "photo.jpg".to_string(),
-                mime: "image/jpeg".to_string(),
-                from_fingerprint: "fp".to_string(),
-                bytes: payload(1024),
-                thumbnail_b64: Some("A".repeat(MAX_THUMBNAIL_B64)),
-                voice: None,
-            })
-            .unwrap();
-        assert_eq!(
-            manifest.thumbnail_b64.as_deref().map(str::len),
-            Some(MAX_THUMBNAIL_B64)
-        );
-    }
-
-    #[test]
-    fn duplicate_chunk_is_idempotent() {
-        let mut sender = AttachmentRuntime::new();
-        let mut receiver = AttachmentRuntime::new();
-        let manifest = sender
-            .prepare_outgoing(OutgoingAttachment {
-                attachment_id: "a".to_string(),
-                file_name: "f".to_string(),
-                mime: "m".to_string(),
-                from_fingerprint: "fp".to_string(),
-                bytes: payload(2048),
-                thumbnail_b64: None,
-                voice: None,
-            })
-            .unwrap();
-        receiver.register_incoming(manifest).unwrap();
-        let request = ChunkRequest {
-            attachment_id: "a".to_string(),
-            chunk_indices: vec![0],
-        };
-        let frames = sender.serve_chunks(&request).unwrap();
-        let frame = frames.into_iter().next().unwrap();
-        receiver.ingest_chunk(&frame).unwrap();
-        assert!(matches!(
-            receiver.ingest_chunk(&frame).unwrap(),
-            ChunkOutcome::Duplicate
-        ));
-    }
-
-    #[test]
-    fn corrupted_chunk_is_rejected() {
-        let mut sender = AttachmentRuntime::new();
-        let mut receiver = AttachmentRuntime::new();
-        let manifest = sender
-            .prepare_outgoing(OutgoingAttachment {
-                attachment_id: "a".to_string(),
-                file_name: "f".to_string(),
-                mime: "m".to_string(),
-                from_fingerprint: "fp".to_string(),
-                bytes: payload(512),
-                thumbnail_b64: None,
-                voice: None,
-            })
-            .unwrap();
-        receiver.register_incoming(manifest).unwrap();
-        let request = ChunkRequest {
-            attachment_id: "a".to_string(),
-            chunk_indices: vec![0],
-        };
-        let mut frame = sender.serve_chunks(&request).unwrap().remove(0);
-        frame.ciphertext_b64 = encode(b"tampered ciphertext bytes here padding");
-        assert!(receiver.ingest_chunk(&frame).is_err());
-    }
-
-    #[test]
-    fn cancel_stops_serving_chunks() {
-        let mut sender = AttachmentRuntime::new();
-        sender
-            .prepare_outgoing(OutgoingAttachment {
-                attachment_id: "a".to_string(),
-                file_name: "f".to_string(),
-                mime: "m".to_string(),
-                from_fingerprint: "fp".to_string(),
-                bytes: payload(4096),
-                thumbnail_b64: None,
-                voice: None,
-            })
-            .unwrap();
-        sender.cancel("a");
-        let frames = sender
-            .serve_chunks(&ChunkRequest {
-                attachment_id: "a".to_string(),
-                chunk_indices: vec![0],
-            })
-            .unwrap();
-        assert!(frames.is_empty());
-    }
-
-    #[test]
-    fn next_chunk_request_is_idle_until_download_starts() {
-        let mut sender = AttachmentRuntime::new();
-        let mut receiver = AttachmentRuntime::new();
-        let manifest = sender
-            .prepare_outgoing(OutgoingAttachment {
-                attachment_id: "a".to_string(),
-                file_name: "f".to_string(),
-                mime: "m".to_string(),
-                from_fingerprint: "fp".to_string(),
-                bytes: payload(4096),
-                thumbnail_b64: None,
-                voice: None,
-            })
-            .unwrap();
-        receiver.register_incoming(manifest).unwrap();
-        assert!(receiver.next_chunk_request("a").is_none());
-        receiver.start_download("a").unwrap();
-        assert!(receiver.next_chunk_request("a").is_some());
-    }
-
-    #[test]
-    fn next_chunk_request_resumes_gaps_before_advancing() {
-        let mut sender = AttachmentRuntime::new();
-        let mut receiver = AttachmentRuntime::new();
-        let manifest = sender
-            .prepare_outgoing(OutgoingAttachment {
-                attachment_id: "a".to_string(),
-                file_name: "f".to_string(),
-                mime: "m".to_string(),
-                from_fingerprint: "fp".to_string(),
-                bytes: payload((CHUNK_SIZE as usize) * 3),
-                thumbnail_b64: None,
-                voice: None,
-            })
-            .unwrap();
-        receiver.register_incoming(manifest).unwrap();
-        receiver.start_download("a").unwrap();
-
-        let first = receiver.next_chunk_request("a").unwrap();
-        assert_eq!(first.chunk_indices, vec![0, 1, 2]);
-        // Deliver only chunk 1, leaving 0 and 2 as gaps.
-        let frames = sender
-            .serve_chunks(&ChunkRequest {
-                attachment_id: "a".to_string(),
-                chunk_indices: vec![1],
-            })
-            .unwrap();
-        receiver.ingest_chunk(&frames[0]).unwrap();
-        // 0 and 2 were asked for a moment ago and count as in flight, so the
-        // gap is re-requested only once the window has passed.
-        assert!(receiver.next_chunk_request("a").is_none());
-        let later = Instant::now() + CHUNK_REQUEST_TIMEOUT;
-        let resume = receiver.next_chunk_request_at("a", later).unwrap();
-        assert_eq!(resume.chunk_indices, vec![0, 2]);
-    }
-
-    // One lost chunk used to hang a transfer forever: the receiver asked again,
-    // the request was byte-identical, and the sender's payload-hash dedup
-    // dropped it. The dedup exemption lives in the DM runtime; this covers the
-    // half that must not turn the retry into a flood — and that the retry
-    // happens at all.
-    #[test]
-    fn a_lost_chunk_is_asked_for_again_once_the_window_passes() {
-        let mut sender = AttachmentRuntime::new();
-        let mut receiver = AttachmentRuntime::new();
-        let manifest = sender
-            .prepare_outgoing(OutgoingAttachment {
-                attachment_id: "a".to_string(),
-                file_name: "f".to_string(),
-                mime: "m".to_string(),
-                from_fingerprint: "fp".to_string(),
-                bytes: payload((CHUNK_SIZE as usize) * 2),
-                thumbnail_b64: None,
-                voice: None,
-            })
-            .unwrap();
-        receiver.register_incoming(manifest).unwrap();
-        receiver.start_download("a").unwrap();
-
-        let first = receiver.next_chunk_request("a").unwrap();
-        assert_eq!(first.chunk_indices, vec![0, 1]);
-        // Chunk 1 is lost in transit; chunk 0 arrives.
-        let frames = sender.serve_chunks(&first).unwrap();
-        receiver.ingest_chunk(&frames[0]).unwrap();
-
-        // Pumping every second must not re-ask while the chunk may still be
-        // on the wire.
-        let now = Instant::now();
-        for tick in 1..5 {
-            assert!(
-                receiver
-                    .next_chunk_request_at("a", now + Duration::from_secs(tick))
-                    .is_none(),
-                "re-asked at {tick}s — an in-flight batch would be requested \
-                 once per pump"
-            );
-        }
-
-        let retry = receiver
-            .next_chunk_request_at("a", now + CHUNK_REQUEST_TIMEOUT)
-            .expect("a chunk that never arrived must be asked for again");
-        assert_eq!(retry.chunk_indices, vec![1]);
-        for frame in sender.serve_chunks(&retry).unwrap() {
-            receiver.ingest_chunk(&frame).unwrap();
-        }
-        assert_eq!(
-            sender.served_count("a", 1),
-            2,
-            "the sender must re-serve the chunk the receiver never got"
-        );
-    }
-
-    #[test]
-    fn a_new_batch_waits_for_room_in_the_inflight_window() {
-        let mut sender = AttachmentRuntime::new();
-        let manifest = sender
-            .prepare_outgoing(OutgoingAttachment {
-                attachment_id: "window".to_string(),
-                file_name: "window.bin".to_string(),
-                mime: "application/octet-stream".to_string(),
-                from_fingerprint: "sender".to_string(),
-                bytes: payload(CHUNK_SIZE as usize * (MAX_REQUEST_BATCH + 1)),
-                thumbnail_b64: None,
-                voice: None,
-            })
-            .expect("prepare");
-        let mut receiver = AttachmentRuntime::new();
-        receiver.register_incoming(manifest).expect("offer");
-        receiver.start_download("window").expect("start");
-        let now = Instant::now();
-        let first = receiver
-            .next_chunk_request_at("window", now)
-            .expect("first batch");
-        assert_eq!(first.chunk_indices.len(), MAX_REQUEST_BATCH);
-        assert!(
-            receiver
-                .next_chunk_request_at("window", now + Duration::from_millis(1))
-                .is_none(),
-            "one receiver must not queue more chunks than the peer's 256-frame buffer"
-        );
-        let first_frame = sender.serve_chunks(&first).unwrap().remove(0);
-        receiver.ingest_chunk(&first_frame).unwrap();
-        let next = receiver
-            .next_chunk_request_at("window", now + Duration::from_millis(2))
-            .expect("a received chunk frees one request slot");
-        assert_eq!(next.chunk_indices, vec![MAX_REQUEST_BATCH as u64]);
-    }
-
-    #[test]
-    fn stream_range_returns_pending_then_ready() {
-        let mut sender = AttachmentRuntime::new();
-        let mut receiver = AttachmentRuntime::new();
-        let bytes = payload((CHUNK_SIZE as usize) * 3 + 40);
-        let manifest = sender
-            .prepare_outgoing(OutgoingAttachment {
-                attachment_id: "a".to_string(),
-                file_name: "v.bin".to_string(),
-                mime: "video/mp4".to_string(),
-                from_fingerprint: "fp".to_string(),
-                bytes: bytes.clone(),
-                thumbnail_b64: None,
-                voice: None,
-            })
-            .unwrap();
-        receiver.register_incoming(manifest).unwrap();
-
-        // Nothing downloaded yet: a range read is pending and arms a priority.
-        let start = (CHUNK_SIZE as u64) * 2;
-        let end = start + 100;
-        assert!(matches!(
-            receiver.stream_range("a", start, end),
-            StreamRange::Pending { .. }
-        ));
-        let request = receiver.next_chunk_request("a").unwrap();
-        assert_eq!(request.chunk_indices.first().copied(), Some(2));
-
-        // Deliver every chunk, then the same range reads back exactly.
-        while let Some(request) = receiver.next_chunk_request("a") {
-            for frame in sender.serve_chunks(&request).unwrap() {
-                let _ = receiver.ingest_chunk(&frame).unwrap();
-            }
-        }
-        match receiver.stream_range("a", start, end) {
-            StreamRange::Ready {
-                bytes: slice,
-                total_size,
-                mime,
-            } => {
-                assert_eq!(total_size, bytes.len() as u64);
-                assert_eq!(mime, "video/mp4");
-                assert_eq!(slice, &bytes[start as usize..end as usize]);
-            }
-            other => panic!("expected Ready, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn register_incoming_rejects_bad_chunk_count() {
-        let mut runtime = AttachmentRuntime::new();
-        let manifest = AttachmentManifest {
-            attachment_id: "a".to_string(),
-            content_hash: "0".repeat(64),
-            file_name: "f".to_string(),
-            mime: "m".to_string(),
-            total_size: 1024,
-            chunk_size: CHUNK_SIZE,
-            chunk_count: 99,
-            key_b64: encode(&[0u8; ATTACHMENT_KEY_LEN]),
-            nonce_prefix_b64: encode(&[0u8; ATTACHMENT_NONCE_PREFIX_LEN]),
-            thumbnail_b64: None,
-            voice: None,
-            from_fingerprint: "fp".to_string(),
-        };
-        assert!(matches!(
-            runtime.register_incoming(manifest),
-            Err(AttachmentRuntimeError::ManifestMismatch(_))
-        ));
-    }
-
-    #[test]
-    fn prepare_outgoing_stamps_voice_onto_the_manifest() {
-        let mut runtime = AttachmentRuntime::new();
-        let voice = VoiceMeta {
-            duration_ms: 1000,
-            peaks_b64: "AAA=".to_string(),
-        };
-        let manifest = runtime
-            .prepare_outgoing(OutgoingAttachment {
-                attachment_id: "att-1".into(),
-                file_name: "voice-message.webm".into(),
-                mime: "audio/webm".into(),
-                from_fingerprint: "fp".into(),
-                bytes: vec![1, 2, 3, 4],
-                thumbnail_b64: None,
-                voice: Some(voice),
-            })
-            .expect("prepare");
-        let stamped = manifest.voice.expect("voice present");
-        assert_eq!(stamped.duration_ms, 1000);
-    }
-
-    #[test]
-    fn voice_meta_roundtrips_through_json() {
-        let meta = VoiceMeta {
-            duration_ms: 4200,
-            peaks_b64: "AAECAwQF".to_string(),
-        };
-        let json = serde_json::to_string(&meta).expect("serialize");
-        let back: VoiceMeta = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(back.duration_ms, 4200);
-        assert_eq!(back.peaks_b64, "AAECAwQF");
-    }
-
-    #[test]
-    fn manifest_without_voice_omits_the_field() {
-        let manifest = AttachmentManifest {
-            attachment_id: "a".into(),
-            content_hash: "h".into(),
-            file_name: "f".into(),
-            mime: "audio/webm".into(),
-            total_size: 1,
-            chunk_size: 1,
-            chunk_count: 1,
-            key_b64: "k".into(),
-            nonce_prefix_b64: "n".into(),
-            thumbnail_b64: None,
-            voice: None,
-            from_fingerprint: "fp".into(),
-        };
-        let json = serde_json::to_string(&manifest).expect("serialize");
-        assert!(!json.contains("voice"), "voice must be omitted when None");
-    }
+fn manifest_keys(
+    manifest: &AttachmentManifest,
+) -> Result<([u8; ATTACHMENT_KEY_LEN], [u8; ATTACHMENT_NONCE_PREFIX_LEN]), AttachmentRuntimeError> {
+    let key = decode_fixed(&manifest.key_b64)
+        .ok_or_else(|| AttachmentRuntimeError::ManifestMismatch("key".into()))?;
+    let nonce = decode_fixed(&manifest.nonce_prefix_b64)
+        .ok_or_else(|| AttachmentRuntimeError::ManifestMismatch("nonce prefix".into()))?;
+    Ok((key, nonce))
 }

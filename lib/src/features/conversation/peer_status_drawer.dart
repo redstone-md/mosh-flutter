@@ -1,20 +1,3 @@
-// Peer-status modal drawer. The drawer branches the content:
-//   `session ? SessionDiagnostics : channel ? ChannelDiagnostics
-//    : group ? GroupDiagnostics : NoActiveSession`
-// Callers pass whichever of `session` / `channel` / `group` is active for
-// their screen (DM -> session, ChannelScreen -> channel, GroupScreen ->
-// group); the other two stay null. The `diagnosticsSummary` and the
-// `ChannelDiagnostics` / `GroupDiagnostics` section widgets are reused here
-// without re-implementing them -- DRY + orthogonality. This widget only
-// owns the overlay chrome (backdrop + right aside + header + scrollable
-// content column) and the localized copy seam (`AppLocalizations`).
-//
-// The DM/Channel/Group screens surface the trigger as an AppBar action.
-// The overlay is rendered by the host screen as a `Positioned.fill` child
-// of a `Stack` over the body, so the composer + message list stay
-// interactive when the drawer is closed and are covered while it is open.
-library;
-
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -165,8 +148,6 @@ class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
         scopesRoute: true,
         child: widget.panel ??
             Material(
-              // bg-0 panel with a hairline left border: it drops below the
-              // bg-1 window, it does not match it.
               color: MoshColors.bg0,
               elevation: 0,
               shape: const Border(left: BorderSide(color: MoshColors.line)),

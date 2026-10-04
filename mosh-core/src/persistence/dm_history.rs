@@ -29,19 +29,14 @@ impl Persistence {
             let key = Self::history_message_key(session, message.sent_at_ms, &message.message_id);
             rows.push((key, encrypt_blob(&self.dek, &json)?));
         }
-        let tx = self.db.begin_write().map_err(dm_devices::db_error)?;
-        {
-            let mut table = tx.open_table(MESSAGES).map_err(dm_devices::db_error)?;
+        self.write(|tx| {
+            let mut table = tx.open_table(MESSAGES).map_err(db_error)?;
             for (key, value) in &rows {
                 table
                     .insert(key.as_str(), value.as_slice())
-                    .map_err(dm_devices::db_error)?;
+                    .map_err(db_error)?;
             }
-            tx.open_table(SESSIONS)
-                .map_err(dm_devices::db_error)?
-                .insert(session, record.as_slice())
-                .map_err(dm_devices::db_error)?;
-        }
-        tx.commit().map_err(dm_devices::db_error)
+            Self::update_row(tx, SESSIONS, session, Some(&record))
+        })
     }
 }

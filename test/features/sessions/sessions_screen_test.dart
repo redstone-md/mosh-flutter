@@ -1,14 +1,3 @@
-// Widget tests for the SessionsScreen (DM sessions list). Mirrors the
-// established slice-one pattern: ProviderScope overrides of the two bridge
-// surfaces with scripted doubles + a localized MaterialApp. The lists and
-// the offer accept run on the bridge double (exact mirrors, ADR 0025); the
-// offer dismiss runs on the gateway double (the conversation seam), sharing
-// the bridge's conversation state so the accept -> poll flow resolves. Test
-// 3 (error/retry) uses scripted failures so we can assert `listSessions` ran
-// a second time after tapping Retry. Test 2 wraps the screen in the real
-// `appRouter` via `MaterialApp.router` so `context.go(AppRoutes.dmFor(...))`
-// resolves and pushes DmScreen, which the test asserts by the DM screen's
-// composer.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -31,71 +20,7 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 import '../../support/pump.dart';
 
-/// The pair of doubles the rail flow crosses: the bridge serves the lists
-/// and the accept; the gateway answers the dismiss and the DM poll. Both see
-/// one conversation state.
-(ScriptableGateway, ScriptableBridge) _scriptedPair() {
-  final gateway = ScriptableGateway();
-  final bridge = ScriptableBridge(conversations: gateway.conversations);
-  return (gateway, bridge);
-}
-
-/// A bridge holding one channel that carries a DM offer, so the sessions
-/// rail renders an offer row (pendingDmOffersProvider derives from
-/// channel.dmOffers). Returns the pair so the dismiss (seam) and the accept
-/// + lists (facade) both have a double.
-(ScriptableGateway, ScriptableBridge) _channelOfferBridge() {
-  final (gateway, bridge) = _scriptedPair();
-  bridge.seedChannels([
-    ChannelSnapshot(
-      name: 'drift-room',
-      topic: '',
-      meshId: 'm',
-      displayName: '',
-      deviceFingerprint: 'SELF',
-      messages: const [],
-      attachments: const [],
-      dmOffers: [
-        DmOffer(
-          offerId: 'offer-1',
-          fromDevice: 'alpha-peer',
-          fromFingerprint: 'PEERFP',
-          targetFingerprint: 'SELF',
-          inviteUri: 'mosh://invite?mesh=m&session=drift-41#fp=91A4-D2C8-77B0',
-        ),
-      ],
-      mesh: null,
-      events: const [],
-    ),
-  ]);
-
-  return (gateway, bridge);
-}
-
-SessionSnapshot _session({
-  required String sessionId,
-  required String displayName,
-  required String peerDisplayName,
-  required DmSessionState state,
-}) =>
-    SessionSnapshot(
-      sessionId: sessionId,
-      meshId: 'm',
-      role: 'inviter',
-      displayName: displayName,
-      peerDisplayName: peerDisplayName,
-      state: state,
-      transport: PeerTransport.none,
-      inviteUri: null,
-      fingerprint: 'AABB',
-      messages: const [],
-      attachments: const [],
-      mesh: null,
-      events: const [],
-      pendingCall: null,
-      outgoingCall: null,
-      activeCall: null,
-    );
+part 'sessions_screen_support.dart';
 
 void main() {
   // Mounts SessionsScreen with the seeded doubles. Pass useRouter when the

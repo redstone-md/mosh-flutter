@@ -1,10 +1,3 @@
-/// The row above the message list that narrows what it shows.
-///
-/// Opening search on a wide window puts the search box and the All/Files toggle side by side.
-/// A narrow one moves the search into a panel the header opens, and leaves a
-/// strip saying the filter is on.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

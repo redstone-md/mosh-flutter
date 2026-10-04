@@ -1,10 +1,3 @@
-// CallButton -- the shared 48x48 round call action button: a white icon
-// on a colored circular background. Shared by the incoming/outgoing/
-// active-call surfaces so all three render the same affordance (DRY --
-// avoids three private copies of the button).
-
-library;
-
 import 'package:flutter/material.dart';
 
 /// A 48x48 round call action button.

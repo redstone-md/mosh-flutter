@@ -1,23 +1,3 @@
-/// Desktop drag-and-drop file attach. Wraps the message list so a dropped
-/// file ingests through the SAME `onAttach`/`onError` contract the paperclip
-/// picker uses (DRY via [ingestAttachment]).
-//
-// Behavior: `onDragEntered` sets `dragging`; `onDragExited`/`onDragDone`
-// clear it; `onDragDone` reads the first `DropItem` (a `cross_file`
-// `XFile`), reads its bytes, runs them through [ingestAttachment]
-// (50 MB ceiling), and hands a ready-to-send [PickedAttachment] to
-// `onAttach` (or fires `onError(tooLarge)` -- same path the paperclip
-// uses). `disabled` (while a send is in flight) makes every handler a
-// no-op so no overlay shows. The overlay is a `Stack` layer over `child`
-// shown only while `dragging`: an 82%-opaque backdrop with a 2px dashed
-// `--moss` border and centered `l.chatDropHint` text.
-//
-// Dashed border: Flutter has
-// no built-in dashed border; rather than pull a `dotted_border` package dep
-// (not currently a dep), a tiny `CustomPainter` strokes the dashes.
-// `--moss` is `#B7D84A` (summary_card.dart).
-library;
-
 import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
 

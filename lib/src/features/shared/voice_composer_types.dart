@@ -1,5 +1,3 @@
-library;
-
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart'
     show MoshColors, kLiveNumberFontFeatures;

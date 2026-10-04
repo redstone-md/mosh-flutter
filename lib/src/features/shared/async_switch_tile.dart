@@ -1,12 +1,3 @@
-/// A settings switch whose value lives behind an async read and write
-/// (the Rust-side setting files).
-///
-/// The row stays disabled until the read lands, so a default-value flicker
-/// cannot fire a write the user never asked for, and again while a write is
-/// in flight, so overlapping writes cannot land out of order. A failed write
-/// rolls the switch back and shows the error inline.
-library;
-
 import 'package:flutter/material.dart';
 
 class AsyncSwitchTile extends StatefulWidget {

@@ -1,9 +1,3 @@
-// The Telegram-style fingerprint surface: a small lock next to the chat
-// title, and the dialog it opens. There is no confirm state anywhere --
-// the fingerprint is a value both sides of a chat share, so the dialog
-// just shows it: the emoji quartet, the hex, and how to compare them.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

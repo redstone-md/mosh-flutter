@@ -1,5 +1,5 @@
-/// This is copied from Cargokit (which is the official way to use it currently)
-/// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
+// This is copied from Cargokit (which is the official way to use it currently)
+// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
 
 import 'package:collection/collection.dart';
 import 'package:logging/logging.dart';
@@ -89,6 +89,9 @@ class BuildEnvironment {
     final buildConfiguration =
         parseBuildConfiguration(Environment.configuration);
     final manifestDir = Environment.manifestDir;
+    runCommand('node', [
+      path.join(manifestDir, '..', 'scripts', 'openmls-prepare.mjs'),
+    ]);
     final crateOptions = CargokitCrateOptions.load(
       manifestDir: manifestDir,
     );

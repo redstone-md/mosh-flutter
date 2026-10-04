@@ -1,20 +1,3 @@
-// One row of the sessions rail: which conversation it opens, and the chrome
-// that conversation's kind wants.
-//
-// The rail used to hold one near-identical block per kind, and each block
-// wrote the `kind:id` key by hand three times -- once for the unread lookup,
-// once for the active highlight and once for the clear-on-tap. A typo in a
-// prefix was a silent bug, not a compile error. Here the key is written
-// once, in [RailEntry.ref], and the rail loops over entries instead of over
-// kinds: it asks an entry which conversation it opens, then hands the row
-// back the three things it computed from that answer. A new kind adds one
-// subclass; the rail's loop does not change.
-//
-// Every row renders through [RailItem], the shared rail-row widget -- the
-// pending-DM-offer row included, which used to hand-roll its own `ListTile`
-// shape.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 

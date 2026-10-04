@@ -1,11 +1,3 @@
-/// The message list, for any kind of conversation.
-///
-/// It groups the messages, then renders them newest-at-the-bottom. Grouping
-/// follows the sender: consecutive messages from the same sender within five
-/// minutes become one block, and only the first row of a block shows the
-/// sender meta.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
