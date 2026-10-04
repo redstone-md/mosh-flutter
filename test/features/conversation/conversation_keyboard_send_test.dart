@@ -47,7 +47,7 @@ void main() {
       expect(gateway.argValues<String>(GatewayMethod.send, 'body'),
           ['first', 'second']);
       expect(_editable(tester).focusNode.hasFocus, isTrue);
-    });
+    }, variant: TargetPlatformVariant.all(excluding: {TargetPlatform.fuchsia}));
 
     testWidgets(
         '${testCase.label}: completion preserves an identical new draft',
