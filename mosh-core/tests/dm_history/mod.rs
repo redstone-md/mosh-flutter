@@ -130,7 +130,11 @@ fn interrupted_history_waits_for_source_resumes_and_keeps_live_text_once() {
     linked.ask(json!({"action":"dm_poll","argument":session}));
     original.ask(json!({"action":"dm_poll","argument":session}));
     let partial = linked.wait_dm_text(session, "Before pairing");
-    assert_eq!(partial["history_sync"], "importing");
+    // The activity notice can expire while the partial history stays durable.
+    assert!(matches!(
+        partial["history_sync"].as_str(),
+        Some("importing" | "waiting_for_source")
+    ));
     assert!(partial["messages"].as_array().unwrap().len() < 42);
     original.stop();
     linked.restart();
