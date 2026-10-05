@@ -55,6 +55,13 @@ jobs:
         # crash reporting; without it the build cannot report at all.
         run: flutter build windows --release --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }}
 
+      - name: Test native Windows window icons
+        shell: pwsh
+        run: |
+          cmake --build build/windows/x64 --config Release --target mosh_window_icon_test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & .\build\windows\x64\runner\tests\Release\mosh_window_icon_test.exe
+
       # ADR 0035: upload the separate debug files (Rust PDB/dSYM, runner)
       # so Sentry symbolicates native crashes and Rust panics. Release tags
       # only; a fork without the token skips it.

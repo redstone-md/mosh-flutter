@@ -4,6 +4,13 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.1] - 2026-10-05
+
+### Fixed
+
+- The running Windows app supplies the Mosh icon to its taskbar and Alt-Tab
+  entries.
+
 ## [0.16.0] - 2026-10-05
 
 ### Added
