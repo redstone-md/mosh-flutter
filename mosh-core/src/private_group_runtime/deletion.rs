@@ -74,12 +74,7 @@ impl GroupSession {
     pub(super) fn deletion_authority(&mut self) -> Result<DeletionAuthority, PrivateGroupError> {
         let local = DeletionActor {
             key: hex::encode(self.crypto.signer_public()),
-            name: self
-                .display_name
-                .chars()
-                .take(64)
-                .filter(|c| !c.is_control())
-                .collect(),
+            name: self.display_name.clone(),
             epoch: self.crypto.epoch().unwrap_or_default(),
             ownership: crate::message_deletion::ownership::create(
                 self.deletions.store.as_ref(),

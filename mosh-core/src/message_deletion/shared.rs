@@ -77,7 +77,12 @@ fn request_for<M: ConversationMessage>(
         operation: crate::message_id::occurrence_id("delete"),
         target,
         actor: actor.key.clone(),
-        actor_name: actor.name.clone(),
+        actor_name: actor
+            .name
+            .chars()
+            .take(64)
+            .filter(|c| !c.is_control())
+            .collect(),
         moderated,
         epoch: actor.epoch,
         signature: String::new(),

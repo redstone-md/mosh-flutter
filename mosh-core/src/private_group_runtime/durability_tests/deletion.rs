@@ -2,6 +2,44 @@ use super::*;
 use crate::message_deletion::{cipher, fragments, shared, DeleteScope, DeletionStatus};
 
 #[test]
+fn one_unavailable_deletion_journal_does_not_block_other_groups() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let healthy = fixture
+        .runtime
+        .create_group(CreateGroupRequest {
+            label: Some("Healthy".into()),
+            display_name: "Alice".into(),
+            listen_port: 0,
+            static_peer: None,
+            org_pubkey: None,
+        })
+        .unwrap()
+        .group_id;
+    let journal = Arc::new(
+        Persistence::open_with_dek(&fixture.directory.path().join("bad-journal"), [58; 32])
+            .unwrap(),
+    );
+    fixture
+        .runtime
+        .groups
+        .get_mut(&fixture.id)
+        .unwrap()
+        .deletions
+        .store = Some(journal.clone());
+    let fault = journal.refuse_deletion_reads();
+    fixture
+        .runtime
+        .send(&healthy, "still works".into())
+        .unwrap();
+    let snapshot = fixture.runtime.rename_group(&healthy, "Working").unwrap();
+    assert_eq!(snapshot.label.as_deref(), Some("Working"));
+    assert!(snapshot.messages.iter().any(|m| m.body == "still works"));
+    drop(fault);
+    assert_eq!(fixture.runtime.list().unwrap().groups.len(), 2);
+}
+
+#[test]
 fn linking_accounts_does_not_turn_a_pending_deletion_into_another_account_receipt() {
     let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let (mut root, mut linked) = names::admitted_pair();

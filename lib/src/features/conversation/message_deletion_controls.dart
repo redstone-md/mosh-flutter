@@ -29,13 +29,16 @@ class _MessageDeletionControlsState
   final _selected = <String>{};
   bool _selecting = false;
   bool _busy = false;
+  int _targetGeneration = 0;
 
   @override
   void didUpdateWidget(covariant MessageDeletionControls oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.snapshot.target != widget.snapshot.target) {
+      _targetGeneration++;
       _selected.clear();
       _selecting = false;
+      _busy = false;
     }
     final available = widget.snapshot.messages.map((m) => m.messageId).toSet();
     _selected.removeWhere((id) => !available.contains(id));
@@ -55,11 +58,12 @@ class _MessageDeletionControlsState
     if (_busy || messages.isEmpty) return;
     final l = AppLocalizations.of(context)!;
     final target = widget.snapshot.target;
+    final generation = _targetGeneration;
     final ids = messages.map((m) => m.messageId!).toList();
     final scope = await showDialog<DeleteScope>(
         context: context,
         builder: (context) => _DeletionPrompt(messages: messages));
-    if (!mounted || scope == null || widget.snapshot.target != target) return;
+    if (!mounted || scope == null || _targetGeneration != generation) return;
     setState(() => _busy = true);
     try {
       await ref
@@ -67,18 +71,20 @@ class _MessageDeletionControlsState
           .deleteMessages(target, messageIds: ids, scope: scope);
       if (!mounted) return;
       refreshConversation(ref.invalidate, target.ref);
-      if (widget.snapshot.target != target) return;
+      if (_targetGeneration != generation) return;
       setState(() {
         _selected.clear();
         _selecting = false;
       });
     } catch (_) {
-      if (mounted) {
+      if (mounted && _targetGeneration == generation) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(l.messageDeletionFailed)));
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted && _targetGeneration == generation) {
+        setState(() => _busy = false);
+      }
     }
   }
 

@@ -5,6 +5,9 @@ use crate::message_deletion::{
 use crate::test_temp_directory::TempDirectory;
 
 const ROOM: &str = "deletion-test";
+#[path = "deletion_names.rs"]
+mod names;
+
 struct Fixture {
     runtime: ChannelRuntime,
     store: Arc<Persistence>,

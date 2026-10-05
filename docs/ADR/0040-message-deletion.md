@@ -30,6 +30,8 @@ including chunk encryption parameters. MLS reception compares the proof's author
 with the actual staged MLS signer before committing ratchet advancement.
 Channels verify the signature and compare the claimed fingerprint with its key.
 Sender labels never grant deletion rights.
+Deletion requests limit actor labels to 64 scalars and remove control characters
+before signing, independently of the profile's display name.
 
 Text IDs retain the local timestamp/counter prefix for queue ordering and add
 randomness to avoid reuse after a restart or repeated clock value.
@@ -149,6 +151,8 @@ conversation AAD, epoch binding and author signature. It does not consume normal
 application generations. Channels carry signed public metadata. Existing native
 services exchange digests and request missing journal pages every two seconds.
 Empty journals remain silent until another participant advertises deletions.
+An unavailable group journal defers that group's service work, logs the error
+and leaves other groups operational.
 Personal and rejected records alone do not start shared advertisements. A ready
 participant with an empty journal requests state in response to a peer's digest.
 Pages contain at most 16 records and normally at most 24 KB. Authenticated 3 KB

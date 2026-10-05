@@ -28,7 +28,15 @@ impl PrivateGroupRuntime {
             }
         }
         for session in self.groups.values_mut() {
-            session.apply_deletions()?;
+            if let Err(error) = session.apply_deletions() {
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::PERSIST,
+                    &session.group_id,
+                    &format!("group deletion sync deferred: {error}"),
+                );
+                continue;
+            }
             let _ = session.sync_deletions(now_ms());
             session.pump_attachment_requests();
             // ADR 0005: a roster change may legitimize lag-buffered commits.

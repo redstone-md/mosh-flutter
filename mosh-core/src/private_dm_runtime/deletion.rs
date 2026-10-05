@@ -76,12 +76,7 @@ impl PrivateDmSession {
     ) -> Result<DeletionAuthority, PrivateDmRuntimeError> {
         let local = DeletionActor {
             key: hex::encode(self.crypto.signer_public()),
-            name: self
-                .device_id
-                .chars()
-                .take(64)
-                .filter(|c| !c.is_control())
-                .collect(),
+            name: self.device_id.clone(),
             epoch: self.crypto.epoch().unwrap_or_default(),
             ownership: crate::message_deletion::ownership::create(
                 self.deletions.store.as_ref(),
