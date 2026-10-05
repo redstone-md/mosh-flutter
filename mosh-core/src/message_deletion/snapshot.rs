@@ -27,7 +27,7 @@ pub(crate) fn messages<M: ConversationMessage>(
                         && authority.is_some_and(|a| a.permitted(o).is_some())
                 });
             if let Some(origin) = &metadata.origin {
-                metadata.is_own = authority.map(|a| a.permitted(origin) == Some(false));
+                metadata.is_own = authority.map(|a| a.is_author(origin));
             }
             message
         })

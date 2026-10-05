@@ -162,7 +162,7 @@ impl PrivateDmSession {
     }
 
     pub(super) fn sync_deletions(&mut self, now: u64) -> Result<(), PrivateDmRuntimeError> {
-        if self.deletions.records.is_empty() {
+        if !self.deletions.has_shared_records() {
             return Ok(());
         }
         if !(self.crypto.is_ready()) || now.saturating_sub(self.deletions.last_sync) < 2000 {

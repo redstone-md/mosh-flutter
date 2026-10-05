@@ -64,30 +64,23 @@ impl Persistence {
         personal_correlation: Option<&str>,
         owner: &str,
     ) -> Result<Option<DeletionRecord>, PersistenceError> {
-        let range = Self::prefix_range(context);
-        let table = tx.open_table(MESSAGE_DELETIONS).map_err(db_error)?;
-        let mut matching = Vec::new();
-        for row in table
-            .range(range.start.as_str()..range.end.as_str())
-            .map_err(db_error)?
-        {
-            let (_, value) = row.map_err(db_error)?;
-            let record: DeletionRecord =
-                serde_json::from_slice(&decrypt_blob(&self.dek, value.value())?)
-                    .map_err(|e| PersistenceError::Json(e.to_string()))?;
-            if record.matches(target, personal_correlation)
-                && (record.scope == DeleteScope::ForEveryone || record.owner == owner)
-            {
-                matching.push(record);
-            }
+        let mut matching = self.deletion_target_records(tx, context, target)?;
+        if let Some(alias) = personal_correlation.filter(|alias| *alias != target) {
+            matching.extend(self.deletion_target_records(tx, context, alias)?);
         }
-        Ok(matching.into_iter().max_by_key(|r| {
-            (
-                r.scope == DeleteScope::ForMe,
-                r.status == crate::message_deletion::DeletionStatus::Confirmed,
-                r.storage_key(),
-            )
-        }))
+        Ok(matching
+            .into_iter()
+            .filter(|record| {
+                record.matches(target, personal_correlation)
+                    && (record.scope == DeleteScope::ForEveryone || record.owner == owner)
+            })
+            .max_by_key(|r| {
+                (
+                    r.scope == DeleteScope::ForMe,
+                    r.status == crate::message_deletion::DeletionStatus::Confirmed,
+                    r.storage_key(),
+                )
+            }))
     }
 }
 

@@ -2,6 +2,31 @@ use super::*;
 use crate::message_deletion::DeleteScope;
 
 #[test]
+fn personal_and_rejected_deletions_do_not_publish_empty_requests() {
+    use crate::message_deletion::DeletionStatus;
+    use crate::private_dm_runtime::transport::DmTransport;
+    let mut pair = Pair::new("quiet-personal-deletion");
+    let sent = pair
+        .alice
+        .send_message(&pair.session_id, "hide locally".into())
+        .unwrap();
+    pair.alice
+        .delete_messages(&pair.session_id, &[sent.message_id], DeleteScope::ForMe)
+        .unwrap();
+    let endpoint = pair.net.endpoint(BOB_ID);
+    endpoint.drain();
+    let session = pair.alice.sessions.get_mut(&pair.session_id).unwrap();
+    session.sync_deletions(2000).unwrap();
+    assert!(endpoint.drain().is_empty());
+    for record in session.deletions.records.values_mut() {
+        record.scope = DeleteScope::ForEveryone;
+        record.status = DeletionStatus::Rejected;
+    }
+    session.sync_deletions(4000).unwrap();
+    assert!(endpoint.drain().is_empty());
+}
+
+#[test]
 fn deleting_a_queued_text_cancels_delivery_after_restart() {
     let mut pair = Pair::new("delete-queued");
     pair.net.link_both(ALICE_ID, BOB_ID, PeerTransport::None);

@@ -2,6 +2,56 @@ use super::*;
 use crate::persistence::{Persistence, DM_HISTORY};
 
 #[test]
+fn rejected_manifests_do_not_pin_the_cached_file() {
+    let scratch = Scratch::open("rejected-manifest-lease");
+    let mut sender = scratch.transfer();
+    let mut manifest = send(&mut sender, "file", vec![42; 32]);
+    let descriptor = descriptor_of(&manifest);
+    sender.forget("file");
+    manifest.chunk_count += 1;
+    let mut receiver = scratch.transfer();
+    assert!(receiver.accept_manifest(manifest).is_err());
+    assert!(receiver.views().is_empty());
+    assert!(receiver.clean_erased(&descriptor, None).unwrap());
+}
+
+#[test]
+fn failed_cache_writes_do_not_keep_a_lease() {
+    let scratch = Scratch::open("failed-write-lease");
+    let mut transfer = scratch.transfer();
+    let manifest = send(&mut transfer, "first", vec![42; 32]);
+    transfer.forget("first");
+    let path = scratch
+        .store
+        .path_for(&manifest.content_hash, FILE)
+        .unwrap();
+    std::fs::remove_file(&path).unwrap();
+    std::fs::create_dir(&path).unwrap();
+    assert!(transfer
+        .prepare_outgoing(outgoing("second", vec![42; 32]))
+        .is_err());
+    std::fs::remove_dir(&path).unwrap();
+    assert!(transfer
+        .clean_erased(&descriptor_of(&manifest), None)
+        .unwrap());
+}
+
+#[test]
+fn a_rejected_manifest_preserves_an_existing_outgoing_lease() {
+    let scratch = Scratch::open("existing-outgoing-lease");
+    let mut transfer = scratch.transfer();
+    let outgoing = transfer
+        .prepare_outgoing(outgoing("file", vec![42; 32]))
+        .unwrap();
+    let mut invalid = outgoing.manifest.clone();
+    invalid.chunk_count += 1;
+    assert!(transfer.accept_manifest(invalid).is_err());
+    assert!(!transfer.clean_erased(&outgoing.descriptor, None).unwrap());
+    transfer.record_sent(outgoing);
+    assert!(transfer.holds("file"));
+}
+
+#[test]
 fn a_shared_cached_file_is_removed_only_after_its_last_message() {
     let scratch = Scratch::open("deletion-shared-file");
     let mut transfer = scratch.transfer();

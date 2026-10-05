@@ -15,16 +15,7 @@ impl Persistence {
                     .map_err(|e| PersistenceError::Json(e.to_string()))
             })
             .filter_map(|result| match result {
-                Ok(record)
-                    if (record.scope == crate::message_deletion::DeleteScope::ForMe
-                        && record.owner == user
-                        && !record.local_only)
-                        || (record.scope == crate::message_deletion::DeleteScope::ForEveryone
-                            && record.status
-                                != crate::message_deletion::DeletionStatus::Rejected) =>
-                {
-                    Some(Ok(record))
-                }
+                Ok(record) if record.visible_to_account(user) => Some(Ok(record)),
                 Ok(_) => None,
                 Err(error) => Some(Err(error)),
             })

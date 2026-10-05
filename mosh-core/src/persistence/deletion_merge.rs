@@ -25,6 +25,7 @@ impl Persistence {
             &self.dek,
             &serde_json::to_vec(&record).map_err(|e| PersistenceError::Json(e.to_string()))?,
         )?;
-        Self::update_row(tx, MESSAGE_DELETIONS, &key, Some(&blob))
+        Self::update_row(tx, MESSAGE_DELETIONS, &key, Some(&blob))?;
+        self.index_deletion(tx, &record)
     }
 }

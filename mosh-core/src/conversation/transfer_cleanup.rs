@@ -2,6 +2,19 @@ use super::*;
 use crate::persistence::Persistence;
 
 impl Transfer {
+    pub(super) fn with_lease<T>(
+        &mut self,
+        descriptor: &AttachmentDescriptor,
+        operation: impl FnOnce(&mut Self) -> Result<T, TransferError>,
+    ) -> Result<T, TransferError> {
+        let retained = self.retain_lease(descriptor)?;
+        let result = operation(self);
+        if result.is_err() && retained {
+            self.release_lease(&descriptor.attachment_id);
+        }
+        result
+    }
+
     pub(crate) fn collect_erased_cache(&mut self, store: &Persistence) {
         let Ok(records) = store.attachment_gc(self.gc_after.as_deref()) else {
             return;
@@ -19,7 +32,7 @@ impl Transfer {
     pub(super) fn retain_lease(
         &mut self,
         descriptor: &AttachmentDescriptor,
-    ) -> Result<(), TransferError> {
+    ) -> Result<bool, TransferError> {
         if !self.leases.contains_key(&descriptor.attachment_id) {
             self.store
                 .retain(&descriptor.content_hash, &descriptor.file_name)?;
@@ -30,8 +43,9 @@ impl Transfer {
                     descriptor.file_name.clone(),
                 ),
             );
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
     }
 
     pub(super) fn release_lease(&mut self, id: &str) {

@@ -70,6 +70,7 @@ impl std::error::Error for LogError {}
 pub struct MessageLog<M> {
     messages: Vec<M>,
     ids: MessageIdGen,
+    erased_ids: std::collections::HashSet<String>,
 }
 
 // Written out rather than derived: a derived `Default` would demand `M:
@@ -79,6 +80,7 @@ impl<M> Default for MessageLog<M> {
         Self {
             messages: Vec::new(),
             ids: MessageIdGen::default(),
+            erased_ids: Default::default(),
         }
     }
 }
@@ -110,13 +112,13 @@ impl<M: ConversationMessage> MessageLog<M> {
 
     /// Appends a message that is already stamped.
     pub fn push(&mut self, message: M) {
-        if message.message_id().is_some_and(|id| {
-            self.messages.iter().any(|old| {
-                old.message_id() == Some(id) && old.metadata().is_some_and(|m| m.deletion.is_some())
-            })
-        }) {
+        if message
+            .message_id()
+            .is_some_and(|id| self.erased_ids.contains(id))
+        {
             return;
         }
+        self.remember_erasure(&message);
         self.messages.push(message);
     }
 
@@ -128,6 +130,7 @@ impl<M: ConversationMessage> MessageLog<M> {
 
     /// Replaces the message with the same id, or appends it.
     pub fn upsert(&mut self, message: M) {
+        self.remember_erasure(&message);
         if let Some(message_id) = message.message_id() {
             if let Some(existing) = self
                 .messages
@@ -145,7 +148,16 @@ impl<M: ConversationMessage> MessageLog<M> {
     }
 
     pub(crate) fn replace(&mut self, index: usize, message: M) {
+        self.remember_erasure(&message);
         self.messages[index] = message;
+    }
+
+    fn remember_erasure(&mut self, message: &M) {
+        if message.metadata().is_some_and(|m| m.deletion.is_some()) {
+            if let Some(id) = message.message_id() {
+                self.erased_ids.insert(id.into());
+            }
+        }
     }
 
     pub(crate) fn visible(&self) -> Vec<M> {
@@ -233,6 +245,34 @@ pub fn delivery_meta(
 mod tests {
     use super::*;
     use crate::conversation::test_message::TestMessage;
+
+    #[test]
+    fn an_erased_message_cannot_return_through_append_or_upsert() {
+        use crate::message_deletion::{
+            DeleteScope, DeletionMarker, DeletionStatus, MessageMetadata,
+        };
+        let original = TestMessage::new("alice", "secret").with_id("message");
+        let mut erased = original.clone();
+        erased.body.clear();
+        erased.metadata = Some(MessageMetadata {
+            deletion: Some(DeletionMarker {
+                scope: DeleteScope::ForMe,
+                status: DeletionStatus::Confirmed,
+                administrator: None,
+            }),
+            ..Default::default()
+        });
+        let mut log = MessageLog::default();
+        log.push(original.clone());
+        log.replace(0, erased.clone());
+        log.push(original.clone());
+        log.upsert(original.clone());
+        assert_eq!(&*log, &[erased.clone()]);
+        let mut restored = MessageLog::default();
+        restored.upsert(erased.clone());
+        restored.push(original);
+        assert_eq!(&*restored, &[erased]);
+    }
 
     #[test]
     fn stamping_gives_every_message_its_own_id() {

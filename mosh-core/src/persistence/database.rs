@@ -57,6 +57,7 @@ impl Persistence {
             for table in ALL_TABLES {
                 tx.open_table(table).map_err(db_error)?;
             }
+            store.initialize_deletion_index(tx)?;
             Ok(())
         })?;
         Ok(store)

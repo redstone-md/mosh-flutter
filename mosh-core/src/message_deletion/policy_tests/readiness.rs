@@ -1,6 +1,20 @@
 use super::*;
 
 #[test]
+fn missing_account_certificate_does_not_make_own_messages_incoming() {
+    let author = SigningKey::from_bytes(&[31; 32]);
+    let reader = SigningKey::from_bytes(&[32; 32]);
+    let f = Fixture::new(&author);
+    let mut policy = authority(&author, &reader);
+    policy.local.ownership = None;
+    let messages =
+        crate::message_deletion::snapshot::messages(&f.log, &f.transfer, &f.book, Some(&policy));
+    let metadata = messages[0].metadata.as_ref().unwrap();
+    assert_eq!(metadata.is_own, Some(true));
+    assert!(!metadata.can_delete_for_everyone);
+}
+
+#[test]
 fn a_receiver_waiting_for_its_certificate_does_not_echo_pull_requests() {
     let author = SigningKey::from_bytes(&[31; 32]);
     let reader = SigningKey::from_bytes(&[32; 32]);

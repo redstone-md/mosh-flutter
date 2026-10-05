@@ -37,17 +37,20 @@ impl DeletionAuthority {
         {
             return None;
         }
-        if self.same_account(&self.local.key, &origin.author)
+        if self.is_author(origin) {
+            return Some(false);
+        }
+        self.admins.contains(&self.local.key).then_some(true)
+    }
+
+    pub fn is_author(&self, origin: &MessageOrigin) -> bool {
+        self.same_account(&self.local.key, &origin.author)
             || super::ownership::same_account(
                 &self.local.key,
                 self.local.ownership.as_deref(),
                 &origin.author,
                 origin.ownership.as_deref(),
             )
-        {
-            return Some(false);
-        }
-        self.admins.contains(&self.local.key).then_some(true)
     }
 
     pub fn may_ack(&self, request: &DeleteRequest, key: &str) -> bool {

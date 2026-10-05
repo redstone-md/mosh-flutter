@@ -169,7 +169,7 @@ impl GroupSession {
     }
 
     pub(super) fn sync_deletions(&mut self, now: u64) -> Result<(), PrivateGroupError> {
-        if self.deletions.records.is_empty() {
+        if !self.deletions.has_shared_records() {
             return Ok(());
         }
         if !(self.joined && self.crypto.is_ready())

@@ -164,7 +164,7 @@ impl ChannelSession {
     }
 
     pub(super) fn sync_deletions(&mut self, now: u64) -> Result<(), ChannelRuntimeError> {
-        if self.deletions.records.is_empty() {
+        if !self.deletions.has_shared_records() {
             return Ok(());
         }
         if now.saturating_sub(self.deletions.last_sync) < 2000 {

@@ -126,12 +126,15 @@ impl Transfer {
     ) -> Result<Outgoing, TransferError> {
         let bytes = outgoing.bytes.clone();
         let manifest = self.runtime.prepare_outgoing(outgoing)?;
-        self.retain_lease(&descriptor_of(&manifest))?;
-        let stored = self
-            .store
-            .write_blob(&manifest.content_hash, &manifest.file_name, &bytes)?;
+        let descriptor = descriptor_of(&manifest);
+        let stored = self.with_lease(&descriptor, |transfer| {
+            transfer
+                .store
+                .write_blob(&manifest.content_hash, &manifest.file_name, &bytes)
+                .map_err(Into::into)
+        })?;
         Ok(Outgoing {
-            descriptor: descriptor_of(&manifest),
+            descriptor,
             manifest,
             stored_path: stored.to_string_lossy().into_owned(),
         })
@@ -156,8 +159,12 @@ impl Transfer {
             return Ok(None);
         }
         let descriptor = descriptor_of(&manifest);
-        self.retain_lease(&descriptor)?;
-        self.runtime.register_incoming(manifest)?;
+        self.with_lease(&descriptor, |transfer| {
+            transfer
+                .runtime
+                .register_incoming(manifest)
+                .map_err(Into::into)
+        })?;
         self.slots.offer(descriptor.clone());
         Ok(Some(descriptor))
     }

@@ -43,24 +43,16 @@ impl PrivateDmSession {
     }
     pub(super) fn accept_peer_announce(
         &mut self,
-        from_device: &str,
-        moss_peer_id: String,
+        _from_device: &str,
+        _moss_peer_id: String,
     ) -> Result<(), PrivateDmRuntimeError> {
         // Verified rosters own linked-client addresses; plaintext hints do not.
         if self.devices_live() {
             return Ok(());
         }
-        let was_unknown = self.peer_moss_id.is_none();
-        self.note_peer_name(from_device);
-        self.note_peer_moss_id(Some(moss_peer_id));
-        // Answer once, and only to an announce that told us something
-        // new: the peer announces because IT is missing our id, and
-        // without this reply a pair that both restarted would each wait
-        // for the other. Answering unconditionally would instead ping-
-        // pong forever between two sides that already know each other.
-        if was_unknown {
-            let _ = self.publish_peer_announce();
-        }
+        // Plaintext only wakes the existing throttled, encrypted Hello exchange.
+        // Its authenticated reply supplies the peer address.
+        self.hello_answer_due = true;
         Ok(())
     }
 }

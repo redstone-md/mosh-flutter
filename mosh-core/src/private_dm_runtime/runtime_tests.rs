@@ -187,6 +187,9 @@ mod handshake;
 #[path = "runtime_tests/peer_discovery.rs"]
 mod peer_discovery;
 
+#[path = "runtime_tests/address_auth.rs"]
+mod address_auth;
+
 #[path = "runtime_tests/restore.rs"]
 mod restore;
 

@@ -122,6 +122,11 @@ A transaction saves the journal, replaces matching history rows with empty rows,
 cancels eligible outbound attempts and queues attachment cleanup. Empty rows
 retain IDs and timestamps so frozen history cursors remain usable. Personal rows
 are filtered from snapshots; shared rows render a localized placeholder.
+An encrypted derived index maps native targets and personal aliases to journal
+rows. Journal and index writes share the erasure transaction; opening an older
+journal builds the index once before history writes. Appending a message reads
+only its matching tombstones. Linked-device pages seek after their storage cursor
+instead of loading the entire journal for each page.
 
 A never-published outgoing message is cancelled. A personal deletion of an
 already-published DM retains its original delivery buffer until the counterpart
@@ -144,6 +149,8 @@ conversation AAD, epoch binding and author signature. It does not consume normal
 application generations. Channels carry signed public metadata. Existing native
 services exchange digests and request missing journal pages every two seconds.
 Empty journals remain silent until another participant advertises deletions.
+Personal and rejected records alone do not start shared advertisements. A ready
+participant with an empty journal requests state in response to a peer's digest.
 Pages contain at most 16 records and normally at most 24 KB. Authenticated 3 KB
 fragments fit the existing Moss transport wrappers; reassembly verifies the full
 digest, bounds memory and separates carriers.
@@ -175,6 +182,8 @@ nor acknowledge it.
 State recovery requires another reachable updated replica retaining the journal.
 Loss of all encrypted copies cannot be repaired. No mechanism retracts screenshots
 or externally saved files.
+Legacy DM address hints only wake the existing throttled encrypted Hello exchange;
+the authenticated Hello supplies the address. Plaintext hints cannot replace it.
 
 Generated bridge files retain their existing source-budget exception. Existing
 runtime constructors, protocol dispatchers and broad platform integration

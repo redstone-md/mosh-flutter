@@ -26,6 +26,11 @@ pub(crate) struct DeletionRecord {
 }
 
 impl DeletionRecord {
+    pub(crate) fn visible_to_account(&self, user: &str) -> bool {
+        (self.scope == DeleteScope::ForMe && self.owner == user && !self.local_only)
+            || (self.scope == DeleteScope::ForEveryone && self.status != DeletionStatus::Rejected)
+    }
+
     pub(crate) fn merged(&self, incoming: &Self) -> Self {
         if self.scope == DeleteScope::ForMe
             && self.personal_correlation.is_none()
@@ -99,6 +104,12 @@ pub(crate) struct DeletionBook {
 }
 
 impl DeletionBook {
+    pub fn has_shared_records(&self) -> bool {
+        self.records.values().any(|record| {
+            record.scope == DeleteScope::ForEveryone && record.status != DeletionStatus::Rejected
+        })
+    }
+
     pub fn summary(&self) -> Option<super::types::DeletionSummary> {
         let pending_count = self
             .records

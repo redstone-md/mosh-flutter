@@ -120,23 +120,10 @@ impl DeviceLinkRuntime {
     }
 
     fn deletion_page(&self, after: Option<&str>) -> Result<(Vec<DeletionRecord>, Option<String>)> {
-        let mut page: Vec<DeletionRecord> = Vec::new();
-        let mut bytes = 0;
-        let mut next = None;
-        for record in self
-            .deletion_records()?
-            .into_iter()
-            .filter(|r| after.is_none_or(|a| r.storage_key().as_str() > a))
-        {
-            let size = serde_json::to_vec(&record).map_err(storage_error)?.len();
-            if !page.is_empty() && (page.len() == 16 || bytes + size > 24000) {
-                next = page.last().map(DeletionRecord::storage_key);
-                break;
-            }
-            bytes += size;
-            page.push(record);
-        }
-        Ok((page, next))
+        self.identity
+            .persistence()
+            .account_deletion_page(&self.identity.roster().user_id(), after)
+            .map_err(storage_error)
     }
 
     fn save_deletion_page(

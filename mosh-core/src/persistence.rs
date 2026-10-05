@@ -11,7 +11,9 @@ mod crypto;
 mod database;
 mod deletion_acceptance;
 mod deletion_guard;
+mod deletion_index;
 mod deletion_merge;
+mod deletion_paging;
 #[cfg(test)]
 mod deletion_tests;
 mod dm_devices;

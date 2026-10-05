@@ -21,6 +21,7 @@ pub(super) const DEVICE_LINK: TableDefinition<&str, &[u8]> = TableDefinition::ne
 pub(super) const DEVICE_LINK_KEY: &str = "local-device-v1";
 pub(super) const CHAT_NAMES: Rows = TableDefinition::new("chat_names");
 pub(super) const MESSAGE_DELETIONS: Rows = TableDefinition::new("message_deletions");
+pub(super) const MESSAGE_DELETION_TARGETS: Rows = TableDefinition::new("message_deletion_targets");
 pub(super) const ATTACHMENT_GC: Rows = TableDefinition::new("attachment_gc");
 pub(super) const DELETION_ACCEPTANCE: Rows = TableDefinition::new("deletion_acceptance");
 // Key: org pubkey hex -> latest verified roster bytes (multi-org).
@@ -72,10 +73,11 @@ pub const CHANNEL_HISTORY: HistoryTables = HistoryTables {
     label: "channel",
 };
 
-pub(super) const ALL_TABLES: [Rows; 18] = [
+pub(super) const ALL_TABLES: [Rows; 19] = [
     ATTACHMENT_GC,
     DELETION_ACCEPTANCE,
     MESSAGE_DELETIONS,
+    MESSAGE_DELETION_TARGETS,
     MLS_SNAPSHOT,
     MESSAGES,
     SESSIONS,
