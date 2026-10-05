@@ -90,7 +90,11 @@ impl ChannelSession {
             members: Default::default(),
             admins: Default::default(),
             accepted: self.deletions.accepted.clone(),
-            accounts: Default::default(),
+            accounts: crate::message_deletion::ownership::moss_accounts(
+                self.deletions.store.as_ref(),
+                Some(self.device_fingerprint.as_str()),
+            )
+            .map_err(ChannelRuntimeError::Deletion)?,
             public_channel: true,
         })
     }

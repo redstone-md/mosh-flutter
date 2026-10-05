@@ -139,7 +139,11 @@ pub(crate) fn history_text_key(context: &str, message: &serde_json::Value) -> Op
         id: message.get("message_id").and_then(|v| v.as_str()),
         sent_at: message.get("sent_at_ms").and_then(|v| v.as_u64()),
         author: message
-            .get("from_device")
+            .get(if context.starts_with("dm:") {
+                "from_device"
+            } else {
+                "from_fingerprint"
+            })
             .or_else(|| message.get("from"))?
             .as_str()?,
         content_hash: origin.map_or_else(

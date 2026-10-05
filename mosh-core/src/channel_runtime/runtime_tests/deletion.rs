@@ -49,6 +49,16 @@ impl Fixture {
         inbox::deliver(message);
         self.runtime.poll(ROOM).unwrap();
     }
+    fn deletion_status(&mut self) -> DeletionStatus {
+        self.runtime.poll(ROOM).unwrap().messages[0]
+            .metadata
+            .as_ref()
+            .unwrap()
+            .deletion
+            .as_ref()
+            .unwrap()
+            .status
+    }
 }
 
 fn text(sender: &mut Fixture, receiver: &mut Fixture) -> String {
@@ -311,4 +321,34 @@ fn personal_attachment_erasure_matches_an_older_own_copy_even_after_shared_erasu
         legacy.restart();
         assert!(legacy.runtime.poll(ROOM).unwrap().messages.is_empty());
     }
+}
+
+#[test]
+fn own_linked_channel_device_cannot_confirm_a_request_before_its_certificate_arrives() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let (mut root, mut linked) = (Fixture::new(), Fixture::new());
+    link_accounts(&root, &linked);
+    let id = text(&mut linked, &mut root);
+    linked
+        .runtime
+        .delete_messages(ROOM, &[id], DeleteScope::ForEveryone)
+        .unwrap();
+    let record = linked
+        .runtime
+        .channels
+        .get(ROOM)
+        .unwrap()
+        .deletions
+        .records
+        .values()
+        .next()
+        .unwrap();
+    assert!(record.request.as_ref().unwrap().ownership.is_none());
+    state(&mut linked, &mut root);
+    state(&mut root, &mut linked);
+    assert_eq!(linked.deletion_status(), DeletionStatus::Pending);
+    let mut external = Fixture::new();
+    state(&mut linked, &mut external);
+    state(&mut external, &mut linked);
+    assert_eq!(linked.deletion_status(), DeletionStatus::Confirmed);
 }

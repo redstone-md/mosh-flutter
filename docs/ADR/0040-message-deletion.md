@@ -42,6 +42,9 @@ encrypted storage; local roster checks prevent revoked devices from writing or
 receiving account synchronization. Remote channel proofs establish account
 attribution, without claiming an authoritative current remote-device roster.
 An author's other device cannot acknowledge that author's deletion as a recipient.
+Channels also compare locally verified own-device Moss keys, including removed
+keys, before issuing a receipt. This local account map works while a linked
+device waits for its compact certificate and never travels in public metadata.
 
 The sender validates the entire selection before saving. Reception validates
 the carrier, exact target, original author, request signature and current rights.
@@ -81,6 +84,8 @@ Personal tombstones retain a second exact correlation key for authenticated
 legacy copies of new messages. This key is frozen before body or manifest erasure,
 including when a shared placeholder is later erased personally. Shared deletion
 never uses that legacy key to grant authority over an unverified message.
+History writes compute this correlation even without metadata and use the same
+author field as the native message, so late legacy replay is erased atomically.
 
 ## Atomic erasure and recovery
 

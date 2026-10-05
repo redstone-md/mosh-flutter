@@ -20,12 +20,14 @@ impl Persistence {
             return Ok(bytes.to_vec());
         };
         let context = format!("{kind}:{id}");
-        let Some(target) = history_target(value.pointer("/message/metadata"), &context) else {
+        let correlation =
+            crate::message_deletion::correlation::history_message_key(&context, &value);
+        let Some(target) = history_target(value.pointer("/message/metadata"), &context)
+            .or_else(|| correlation.clone())
+        else {
             return Ok(bytes.to_vec());
         };
         let owner = self.deletion_owner(tx)?;
-        let correlation =
-            crate::message_deletion::correlation::history_message_key(&context, &value);
         let Some(record) =
             self.matching_deletion(tx, &context, &target, correlation.as_deref(), &owner)?
         else {

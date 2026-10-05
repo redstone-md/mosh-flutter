@@ -35,13 +35,9 @@ pub(crate) fn create(
     peer: Option<&str>,
     subject: &str,
 ) -> Result<Option<String>, DeletionError> {
-    let (Some(store), Some(peer)) = (store, peer) else {
+    let Some(identity) = local_identity(store, peer)? else {
         return Ok(None);
     };
-    let identity = DeviceIdentity::open(store.clone(), peer).map_err(identity_error)?;
-    if identity.revoked().map_err(identity_error)? {
-        return Err(DeletionError::Revoked);
-    }
     let Some(certificate) = identity.account_certificate().map_err(identity_error)? else {
         return Ok(None);
     };
@@ -59,6 +55,39 @@ pub(crate) fn create(
     serde_json::to_string(&proof)
         .map(Some)
         .map_err(|e| DeletionError::Internal(e.to_string()))
+}
+
+/// Own Moss keys are known locally even before post-link certificates arrive.
+pub(crate) fn moss_accounts(
+    store: Option<&Arc<Persistence>>,
+    peer: Option<&str>,
+) -> Result<std::collections::BTreeMap<String, String>, DeletionError> {
+    let Some(identity) = local_identity(store, peer)? else {
+        return Ok(Default::default());
+    };
+    let roster = identity.roster();
+    let user = roster.user_id();
+    let devices = roster.devices().map_err(identity_error)?;
+    let removed = roster.removal_targets().map_err(identity_error)?;
+    Ok(devices
+        .into_iter()
+        .chain(removed)
+        .map(|device| (device.moss_peer_id, user.clone()))
+        .collect())
+}
+
+fn local_identity(
+    store: Option<&Arc<Persistence>>,
+    peer: Option<&str>,
+) -> Result<Option<DeviceIdentity>, DeletionError> {
+    let (Some(store), Some(peer)) = (store, peer) else {
+        return Ok(None);
+    };
+    let identity = DeviceIdentity::open(store.clone(), peer).map_err(identity_error)?;
+    if identity.revoked().map_err(identity_error)? {
+        return Err(DeletionError::Revoked);
+    }
+    Ok(Some(identity))
 }
 
 fn identity_error(error: crate::device_link::types::DeviceLinkError) -> DeletionError {
