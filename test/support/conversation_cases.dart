@@ -27,6 +27,7 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 import 'pump.dart';
+import 'package:mosh/src/rust/message_deletion/types.dart';
 import 'scriptable_bridge.dart';
 import 'scriptable_gateway.dart';
 
@@ -38,6 +39,7 @@ const String ownFingerprint = 'fp-me';
 /// kind needs. The defaults make a message from someone else.
 class TestMessage {
   const TestMessage({
+    this.metadata,
     this.fromDevice = 'peer',
     this.fromFingerprint = 'fp-peer',
     this.body = '',
@@ -75,6 +77,7 @@ class TestMessage {
   final String fromDevice;
   final String fromFingerprint;
   final String body;
+  final MessageMetadata? metadata;
   final String? messageId;
   final BigInt? sentAtMs;
   final AttachmentDescriptor? attachment;
@@ -89,6 +92,7 @@ class TestMessage {
   final bool? retryable;
 
   ChatMessage toDm() => ChatMessage(
+        metadata: metadata,
         fromDevice: fromDevice,
         body: body,
         messageId: messageId,
@@ -101,6 +105,7 @@ class TestMessage {
       );
 
   ChannelMessage toChannel() => ChannelMessage(
+        metadata: metadata,
         fromDevice: fromDevice,
         fromFingerprint: fromFingerprint,
         body: body,
@@ -113,6 +118,7 @@ class TestMessage {
       );
 
   GroupMessage toGroup() => GroupMessage(
+        metadata: metadata,
         fromDevice: fromDevice,
         fromFingerprint: fromFingerprint,
         body: body,

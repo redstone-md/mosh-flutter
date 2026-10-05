@@ -34,25 +34,33 @@ class _MessageSelectionAreaState extends State<MessageSelectionArea> {
   /// Set by a [CopyableMessage] on pointer down. The row sees the event
   /// before this area does, so the area's own pointer-down handler can tell
   /// a press on a message from a press on the space between them.
-  String? _pressedBody;
+  CopyableMessage? _pressedMessage;
 
   /// The body of the message the last pointer went down on, if any.
-  String? _pointedBody;
+  CopyableMessage? _pointedMessage;
 
   bool _hasSelection = false;
 
   void _onPointerDown(PointerDownEvent _) {
-    _pointedBody = _pressedBody;
-    _pressedBody = null;
+    _pointedMessage = _pressedMessage;
+    _pressedMessage = null;
   }
 
   Widget _contextMenu(BuildContext context, SelectableRegionState region) {
-    final body = _pointedBody;
+    final message = _pointedMessage;
+    final body = message?.body;
+    void action(VoidCallback callback) {
+      region
+        ..clearSelection()
+        ..hideToolbar();
+      callback();
+    }
+
     return AdaptiveTextSelectionToolbar.buttonItems(
       anchors: region.contextMenuAnchors,
       buttonItems: [
         ...region.contextMenuButtonItems,
-        if (body != null)
+        if (body != null && body.isNotEmpty)
           ContextMenuButtonItem(
             label: AppLocalizations.of(context)!.messageCopyText,
             onPressed: () {
@@ -62,6 +70,14 @@ class _MessageSelectionAreaState extends State<MessageSelectionArea> {
               unawaited(_copyMessageText(this.context, body));
             },
           ),
+        if (message?.onDelete case final callback?)
+          ContextMenuButtonItem(
+              label: AppLocalizations.of(context)!.messageDelete,
+              onPressed: () => action(callback)),
+        if (message?.onSelect case final callback?)
+          ContextMenuButtonItem(
+              label: AppLocalizations.of(context)!.messageSelect,
+              onPressed: () => action(callback)),
       ],
     );
   }
@@ -80,10 +96,34 @@ class _MessageSelectionAreaState extends State<MessageSelectionArea> {
 
 /// One message row whose whole [body] can be copied.
 class CopyableMessage extends StatelessWidget {
-  const CopyableMessage({super.key, required this.body, required this.child});
+  const CopyableMessage(
+      {super.key,
+      required this.body,
+      required this.child,
+      this.onDelete,
+      this.onSelect});
 
   final String body;
   final Widget child;
+  final VoidCallback? onDelete;
+  final VoidCallback? onSelect;
+
+  Future<void> _menu(BuildContext context, Offset position) async {
+    final l = AppLocalizations.of(context)!;
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final action = await showMenu<VoidCallback>(
+        context: context,
+        position: RelativeRect.fromRect(
+            position & const Size(1, 1), Offset.zero & overlay.size),
+        items: [
+          if (onDelete != null)
+            PopupMenuItem(value: onDelete, child: Text(l.messageDelete)),
+          if (onSelect != null)
+            PopupMenuItem(value: onSelect, child: Text(l.messageSelect)),
+        ]);
+    action?.call();
+  }
 
   _MessageSelectionAreaState? _area(BuildContext context) =>
       context.findAncestorStateOfType<_MessageSelectionAreaState>();
@@ -98,7 +138,8 @@ class CopyableMessage extends StatelessWidget {
       control: !apple,
       meta: apple,
     );
-    if (event is! KeyDownEvent ||
+    if (body.isEmpty ||
+        event is! KeyDownEvent ||
         !copy.accepts(event, HardwareKeyboard.instance) ||
         (_area(context)?._hasSelection ?? false)) {
       return KeyEventResult.ignored;
@@ -109,17 +150,36 @@ class CopyableMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Listener(
-        onPointerDown: (_) => _area(context)?._pressedBody = body,
+        onPointerDown: (_) => _area(context)?._pressedMessage = this,
         child: Semantics(
           container: true,
           customSemanticsActions: {
-            CustomSemanticsAction(
-              label: AppLocalizations.of(context)!.messageCopyText,
-            ): () => unawaited(_copyMessageText(context, body)),
+            if (body.isNotEmpty)
+              CustomSemanticsAction(
+                label: AppLocalizations.of(context)!.messageCopyText,
+              ): () => unawaited(_copyMessageText(context, body)),
+            if (onDelete != null)
+              CustomSemanticsAction(
+                      label: AppLocalizations.of(context)!.messageDelete):
+                  onDelete!,
+            if (onSelect != null)
+              CustomSemanticsAction(
+                      label: AppLocalizations.of(context)!.messageSelect):
+                  onSelect!,
           },
           child: Focus(
             onKeyEvent: (_, event) => _onKey(context, event),
-            child: FocusRing(radius: _focusRadius, child: child),
+            child: FocusRing(
+                radius: _focusRadius,
+                child: body.isNotEmpty || onDelete == null
+                    ? child
+                    : GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onSecondaryTapUp: (details) =>
+                            _menu(context, details.globalPosition),
+                        onLongPressStart: (details) =>
+                            _menu(context, details.globalPosition),
+                        child: child)),
           ),
         ),
       );

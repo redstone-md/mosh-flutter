@@ -1,4 +1,5 @@
 import 'package:mosh/src/gateway/conversation_target.dart';
+import 'package:mosh/src/rust/message_deletion/types.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 
 /// Abstraction over the conversation seam.
@@ -8,6 +9,8 @@ import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 /// Widgets consume this interface, never a concrete class, so the wired
 /// backend is a single Riverpod provider swap.
 abstract interface class Gateway {
+  Future<DeleteMessagesResult> deleteMessages(AnyConversationTarget target,
+      {required List<String> messageIds, required DeleteScope scope});
   Future<void> rename(AnyConversationTarget target, {required String name});
   Future<void> resetName(AnyConversationTarget target);
 
