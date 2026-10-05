@@ -4,6 +4,7 @@ use crate::conversation::history::StoredMessage;
 #[test]
 fn persisted_message_round_trips_attachment_and_call() {
     let msg = ChatMessage {
+        metadata: None,
         from_device: "alice".into(),
         body: String::new(),
         message_id: Some("123-000000".into()),

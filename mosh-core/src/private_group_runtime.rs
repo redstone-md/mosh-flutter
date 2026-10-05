@@ -90,6 +90,8 @@ pub struct GroupCreated {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroupMessage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<crate::message_deletion::MessageMetadata>,
     pub from_device: String,
     pub from_fingerprint: String,
     pub body: String,
@@ -123,6 +125,25 @@ pub struct GroupNameStatus {
 }
 
 impl ConversationMessage for GroupMessage {
+    fn metadata(&self) -> Option<&crate::message_deletion::MessageMetadata> {
+        self.metadata.as_ref()
+    }
+    fn metadata_mut(&mut self) -> &mut Option<crate::message_deletion::MessageMetadata> {
+        &mut self.metadata
+    }
+    fn erase_content(&mut self) {
+        self.body.clear();
+        self.attachment = None;
+        self.name_change = None;
+        self.delivery_status = None;
+        self.delivery_error = None;
+        self.retryable = None;
+        self.retry_count = None;
+    }
+    fn is_service(&self) -> bool {
+        self.name_change.is_some()
+    }
+
     fn message_id(&self) -> Option<&str> {
         self.message_id.as_deref()
     }
@@ -165,6 +186,8 @@ impl ConversationMessage for GroupMessage {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GroupSnapshot {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deletion_summary: Option<crate::message_deletion::types::DeletionSummary>,
     pub group_id: String,
     pub mesh_id: String,
     pub label: Option<String>,
@@ -308,46 +331,6 @@ impl PrivateGroupRuntime {
         groups.sort_by(|a, b| a.group_id.cmp(&b.group_id));
         Ok(GroupListSnapshot { groups })
     }
-
-    fn drain_inbound(&mut self) -> Result<(), PrivateGroupError> {
-        let inbound = group_inbox().drain();
-        for message in inbound {
-            let group_id = match channel_group_id(&message.channel) {
-                Some(gid) => gid.to_string(),
-                None => continue,
-            };
-            if let Some(session) = self.groups.get_mut(&group_id) {
-                // A single bad inbound frame must never abort the drain — it
-                // would also fail the caller (send/poll/list drain first). After
-                // a restart the in-memory dedup set is empty, so the mesh
-                // re-delivers already-consumed MLS messages whose decrypt fails
-                // ("secret deleted for forward secrecy"); drop and keep going,
-                // mirroring the DM runtime.
-                if let Err(error) = session.handle_moss_message(message) {
-                    dlog::write(
-                        LogLevel::Warn,
-                        kinds::FRAME,
-                        &group_id,
-                        &format!("dropping inbound group frame: {error}"),
-                    );
-                }
-            }
-        }
-        for session in self.groups.values_mut() {
-            session.pump_attachment_requests();
-            // ADR 0005: a roster change may legitimize lag-buffered commits.
-            session.sync_roster_state();
-            if let Err(error) = session.sync_names() {
-                dlog::write(
-                    LogLevel::Warn,
-                    kinds::FRAME,
-                    &session.group_id,
-                    &format!("group name sync failed: {error}"),
-                );
-            }
-        }
-        Ok(())
-    }
 }
 
 // The session's own machinery, split by concern: publishing, org authority,
@@ -355,6 +338,7 @@ impl PrivateGroupRuntime {
 mod commits;
 mod control;
 mod data;
+mod deletion;
 mod lifecycle;
 mod org_gate;
 mod pending_join;
@@ -383,6 +367,7 @@ mod invite;
 mod names;
 mod outbound;
 mod sequencing;
+mod service;
 mod session;
 mod text;
 

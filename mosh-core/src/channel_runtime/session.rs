@@ -26,8 +26,28 @@ impl ChannelSession {
             return Ok(());
         }
         if message.channel == self.topic {
-            let envelope: ChannelMessage = serde_json::from_slice(&message.payload)
+            let mut envelope: ChannelMessage = serde_json::from_slice(&message.payload)
                 .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;
+            let origin = envelope.metadata.as_ref().and_then(|m| m.origin.clone());
+            envelope.metadata = None;
+            if let Some(origin) = origin {
+                origin
+                    .verify(
+                        &format!("channel:{}", self.name),
+                        envelope.message_id.as_deref().unwrap_or_default(),
+                        envelope.body.as_bytes(),
+                    )
+                    .map_err(ChannelRuntimeError::Codec)?;
+                if origin.author != envelope.from_fingerprint.to_lowercase() {
+                    return Err(ChannelRuntimeError::Codec(
+                        "channel origin author mismatch".into(),
+                    ));
+                }
+                envelope.metadata = Some(crate::message_deletion::MessageMetadata {
+                    origin: Some(origin),
+                    ..Default::default()
+                });
+            }
             if self.messages.holds_copy_of(&envelope) {
                 return Ok(());
             }

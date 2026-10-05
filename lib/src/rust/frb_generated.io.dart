@@ -7,6 +7,7 @@ import 'api/attachment_stream.dart';
 import 'api/audio_devices.dart';
 import 'api/channel.dart';
 import 'api/conversation.dart';
+import 'api/conversation/deletion.dart';
 import 'api/conversation/names.dart';
 import 'api/conversation_bridge.dart';
 import 'api/device_link.dart';
@@ -32,6 +33,8 @@ import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'device_link/types.dart';
 import 'frb_generated.dart';
+import 'message_deletion/origin.dart';
+import 'message_deletion/types.dart';
 import 'moss_runtime.dart';
 import 'network_inventory.dart';
 import 'openmls_crypto.dart';
@@ -198,6 +201,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CreateGroupRequest dco_decode_box_autoadd_create_group_request(dynamic raw);
 
   @protected
+  DeletionMarker dco_decode_box_autoadd_deletion_marker(dynamic raw);
+
+  @protected
+  DeletionSummary dco_decode_box_autoadd_deletion_summary(dynamic raw);
+
+  @protected
   DeviceDescriptor dco_decode_box_autoadd_device_descriptor(dynamic raw);
 
   @protected
@@ -235,6 +244,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   MessageDeliveryStatus dco_decode_box_autoadd_message_delivery_status(
       dynamic raw);
+
+  @protected
+  MessageMetadata dco_decode_box_autoadd_message_metadata(dynamic raw);
+
+  @protected
+  MessageOrigin dco_decode_box_autoadd_message_origin(dynamic raw);
 
   @protected
   OpenMlsRoundTripStatus dco_decode_box_autoadd_open_mls_round_trip_status(
@@ -309,6 +324,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CreateGroupRequest dco_decode_create_group_request(dynamic raw);
+
+  @protected
+  DeleteMessagesResult dco_decode_delete_messages_result(dynamic raw);
+
+  @protected
+  DeleteScope dco_decode_delete_scope(dynamic raw);
+
+  @protected
+  DeletionMarker dco_decode_deletion_marker(dynamic raw);
+
+  @protected
+  DeletionStatus dco_decode_deletion_status(dynamic raw);
+
+  @protected
+  DeletionSummary dco_decode_deletion_summary(dynamic raw);
 
   @protected
   DeviceDescriptor dco_decode_device_descriptor(dynamic raw);
@@ -463,6 +493,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MessageDeliveryStatus dco_decode_message_delivery_status(dynamic raw);
 
   @protected
+  MessageMetadata dco_decode_message_metadata(dynamic raw);
+
+  @protected
+  MessageOrigin dco_decode_message_origin(dynamic raw);
+
+  @protected
   MossLibraryInfo dco_decode_moss_library_info(dynamic raw);
 
   @protected
@@ -508,6 +544,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ConnectOutcome? dco_decode_opt_box_autoadd_connect_outcome(dynamic raw);
 
   @protected
+  DeletionMarker? dco_decode_opt_box_autoadd_deletion_marker(dynamic raw);
+
+  @protected
+  DeletionSummary? dco_decode_opt_box_autoadd_deletion_summary(dynamic raw);
+
+  @protected
   DeviceDescriptor? dco_decode_opt_box_autoadd_device_descriptor(dynamic raw);
 
   @protected
@@ -537,6 +579,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   MessageDeliveryStatus? dco_decode_opt_box_autoadd_message_delivery_status(
       dynamic raw);
+
+  @protected
+  MessageMetadata? dco_decode_opt_box_autoadd_message_metadata(dynamic raw);
+
+  @protected
+  MessageOrigin? dco_decode_opt_box_autoadd_message_origin(dynamic raw);
 
   @protected
   OpenMlsRoundTripStatus? dco_decode_opt_box_autoadd_open_mls_round_trip_status(
@@ -775,6 +823,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  DeletionMarker sse_decode_box_autoadd_deletion_marker(
+      SseDeserializer deserializer);
+
+  @protected
+  DeletionSummary sse_decode_box_autoadd_deletion_summary(
+      SseDeserializer deserializer);
+
+  @protected
   DeviceDescriptor sse_decode_box_autoadd_device_descriptor(
       SseDeserializer deserializer);
 
@@ -819,6 +875,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MessageDeliveryStatus sse_decode_box_autoadd_message_delivery_status(
+      SseDeserializer deserializer);
+
+  @protected
+  MessageMetadata sse_decode_box_autoadd_message_metadata(
+      SseDeserializer deserializer);
+
+  @protected
+  MessageOrigin sse_decode_box_autoadd_message_origin(
       SseDeserializer deserializer);
 
   @protected
@@ -904,6 +968,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   CreateGroupRequest sse_decode_create_group_request(
       SseDeserializer deserializer);
+
+  @protected
+  DeleteMessagesResult sse_decode_delete_messages_result(
+      SseDeserializer deserializer);
+
+  @protected
+  DeleteScope sse_decode_delete_scope(SseDeserializer deserializer);
+
+  @protected
+  DeletionMarker sse_decode_deletion_marker(SseDeserializer deserializer);
+
+  @protected
+  DeletionStatus sse_decode_deletion_status(SseDeserializer deserializer);
+
+  @protected
+  DeletionSummary sse_decode_deletion_summary(SseDeserializer deserializer);
 
   @protected
   DeviceDescriptor sse_decode_device_descriptor(SseDeserializer deserializer);
@@ -1082,6 +1162,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  MessageMetadata sse_decode_message_metadata(SseDeserializer deserializer);
+
+  @protected
+  MessageOrigin sse_decode_message_origin(SseDeserializer deserializer);
+
+  @protected
   MossLibraryInfo sse_decode_moss_library_info(SseDeserializer deserializer);
 
   @protected
@@ -1135,6 +1221,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  DeletionMarker? sse_decode_opt_box_autoadd_deletion_marker(
+      SseDeserializer deserializer);
+
+  @protected
+  DeletionSummary? sse_decode_opt_box_autoadd_deletion_summary(
+      SseDeserializer deserializer);
+
+  @protected
   DeviceDescriptor? sse_decode_opt_box_autoadd_device_descriptor(
       SseDeserializer deserializer);
 
@@ -1168,6 +1262,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MessageDeliveryStatus? sse_decode_opt_box_autoadd_message_delivery_status(
+      SseDeserializer deserializer);
+
+  @protected
+  MessageMetadata? sse_decode_opt_box_autoadd_message_metadata(
+      SseDeserializer deserializer);
+
+  @protected
+  MessageOrigin? sse_decode_opt_box_autoadd_message_origin(
       SseDeserializer deserializer);
 
   @protected
@@ -1423,6 +1525,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       CreateGroupRequest self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_deletion_marker(
+      DeletionMarker self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_deletion_summary(
+      DeletionSummary self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_device_descriptor(
       DeviceDescriptor self, SseSerializer serializer);
 
@@ -1469,6 +1579,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_message_delivery_status(
       MessageDeliveryStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_message_metadata(
+      MessageMetadata self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_message_origin(
+      MessageOrigin self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_open_mls_round_trip_status(
@@ -1559,6 +1677,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_create_group_request(
       CreateGroupRequest self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_delete_messages_result(
+      DeleteMessagesResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_delete_scope(DeleteScope self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_deletion_marker(
+      DeletionMarker self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_deletion_status(
+      DeletionStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_deletion_summary(
+      DeletionSummary self, SseSerializer serializer);
 
   @protected
   void sse_encode_device_descriptor(
@@ -1751,6 +1888,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       MessageDeliveryStatus self, SseSerializer serializer);
 
   @protected
+  void sse_encode_message_metadata(
+      MessageMetadata self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_message_origin(MessageOrigin self, SseSerializer serializer);
+
+  @protected
   void sse_encode_moss_library_info(
       MossLibraryInfo self, SseSerializer serializer);
 
@@ -1805,6 +1949,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       ConnectOutcome? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_deletion_marker(
+      DeletionMarker? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_deletion_summary(
+      DeletionSummary? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_device_descriptor(
       DeviceDescriptor? self, SseSerializer serializer);
 
@@ -1839,6 +1991,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_message_delivery_status(
       MessageDeliveryStatus? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_message_metadata(
+      MessageMetadata? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_message_origin(
+      MessageOrigin? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_open_mls_round_trip_status(

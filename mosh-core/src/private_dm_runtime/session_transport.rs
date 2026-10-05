@@ -281,9 +281,8 @@ impl PrivateDmSession {
     }
 
     /// Tell a joined counterpart our moss peer id while we do not know theirs.
-    /// Symmetric by construction: whichever side is missing the id keeps
-    /// announcing, the other side answers with its own announce on receipt, and
-    /// both stop as soon as they know.
+    /// The counterpart answers with an encrypted Hello, which authenticates
+    /// its address. Announcements stop once that address is known.
     pub(super) fn pump_peer_announce(&mut self, now_ms: u64) {
         if !self.peer_joined || self.peer_moss_id.is_some() {
             return;

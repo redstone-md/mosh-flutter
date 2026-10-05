@@ -65,11 +65,13 @@ impl PrivateDmSession {
         store.commit_dm_history_import::<ChatMessage>(&self.session_id, &json, &rows)?;
         self.membership = Some(membership);
         for row in rows {
-            if !self
+            if let Some(index) = self
                 .messages
                 .iter()
-                .any(|message| message.message_id.as_ref() == Some(&row.message_id))
+                .position(|message| message.message_id.as_ref() == Some(&row.message_id))
             {
+                self.messages.replace(index, row.message);
+            } else {
                 self.messages.push_stamped(row.message);
             }
         }
@@ -98,6 +100,7 @@ impl PrivateDmSession {
         let mut ids = HashSet::new();
         for record in records {
             record.validate()?;
+            record.validate_content(&format!("dm:{}", self.session_id))?;
             if !ids.insert(record.message_id.clone()) {
                 return Err(invalid());
             }
@@ -106,15 +109,34 @@ impl PrivateDmSession {
                 .iter()
                 .find(|message| message.message_id.as_ref() == Some(&record.message_id));
             if let Some(existing) = existing {
-                if TextRecord::from_message(existing).as_ref() != Some(&record) {
+                if existing
+                    .metadata
+                    .as_ref()
+                    .is_none_or(|m| m.deletion.is_none())
+                    && TextRecord::from_message(existing)
+                        .is_none_or(|old| !old.same_content(&record))
+                {
                     return Err(invalid());
                 }
             }
+            let mut message = existing
+                .cloned()
+                .unwrap_or_else(|| record.clone().into_message());
+            if message.metadata.as_ref().is_none_or(|m| m.origin.is_none()) {
+                if let Some(origin) = record.metadata.as_ref().and_then(|m| m.origin.clone()) {
+                    message.metadata.get_or_insert_with(Default::default).origin = Some(origin);
+                }
+            }
+            crate::message_deletion::correlate_history_text(
+                &format!("dm:{}", self.session_id),
+                &mut message,
+            )
+            .map_err(|_| invalid())?;
             rows.push(StoredMessage {
                 conversation_id: self.session_id.clone(),
                 sent_at_ms: record.sent_at_ms,
                 message_id: record.message_id.clone(),
-                message: existing.cloned().unwrap_or_else(|| record.into_message()),
+                message,
                 attachment_manifest: None,
             });
         }

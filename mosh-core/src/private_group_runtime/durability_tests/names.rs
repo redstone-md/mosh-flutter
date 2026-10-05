@@ -153,11 +153,16 @@ fn refused_name_transaction_preserves_name_history_and_restart() {
 }
 
 pub(super) fn create_org_group(fixture: &mut Fixture, org: &str, display_name: &str) {
+    let _identity = crate::moss_ffi::replace_test_keystore(Some(fixture.store.clone()));
     let transport = SigningKey::from_bytes(&[17; 32]);
     let mut blob = vec![1];
     blob.extend_from_slice(&transport.to_bytes());
     blob.extend_from_slice(transport.verifying_key().as_bytes());
-    blob.extend_from_slice(&[0; 64]);
+    // Valid X25519 pair for the fixed test secret; Moss rejects zero Noise keys.
+    blob.extend_from_slice(&[17; 32]);
+    blob.extend_from_slice(
+        &hex::decode("7b4e909bbe7ffe44c465a220037d608ee35897d31ef972f07f74892cb0f73f13").unwrap(),
+    );
     fixture.store.put_moss_identity(&blob).unwrap();
     fixture.id = fixture
         .runtime

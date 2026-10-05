@@ -1,5 +1,7 @@
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/gateway.dart';
+import 'package:mosh/src/rust/message_deletion/types.dart';
+import 'package:mosh/src/rust/api/conversation/deletion.dart' as deletion_api;
 import 'package:mosh/src/rust/api/conversation/names.dart' as names_api;
 // The six shared conversation actions (ADR 0024): functions are prefixed
 // (they collide with the interface method names); the ref/payload types
@@ -33,6 +35,11 @@ import 'package:mosh/src/rust/private_group_runtime.dart';
 /// Real `mosh_core`-backed conversation seam. See file doc for the lifecycle
 /// contract.
 class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
+  @override
+  Future<DeleteMessagesResult> deleteMessages(AnyConversationTarget target,
+          {required List<String> messageIds, required DeleteScope scope}) =>
+      deletion_api.deleteMessages(
+          reference: _bridgeRef(target), messageIds: messageIds, scope: scope);
   // --------------------------------------------------------------------
   // The conversation seam. Typed polls keep one read per kind; the six
   // shared actions convert the target to a typed ref once and call the one

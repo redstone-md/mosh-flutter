@@ -59,6 +59,10 @@ impl MessageDeliveryMeta {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OutboundAttemptRecord {
+    /// None means legacy publication history is unknown. A failed retry must
+    /// not turn an already published message into a cancellable first send.
+    #[serde(default)]
+    pub ever_published: Option<bool>,
     pub conversation_id: String,
     pub message_id: String,
     pub sent_at_ms: u64,

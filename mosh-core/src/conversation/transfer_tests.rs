@@ -8,6 +8,9 @@ use super::*;
 use crate::attachment_runtime::VoiceMeta;
 use crate::conversation::attachments::AttachmentState;
 
+#[path = "transfer_cleanup_tests.rs"]
+mod deletion;
+
 const FILE: &str = "clip.bin";
 
 /// An attachment root of this test's own, removed when the test ends.

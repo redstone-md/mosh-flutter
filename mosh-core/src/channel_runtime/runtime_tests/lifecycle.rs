@@ -222,6 +222,7 @@ fn a_malformed_frame_does_not_discard_the_valid_frames_behind_it() {
     let peer_message = |body: &str| MossReceivedMessage {
         channel: "public-channel/drain-channel".to_string(),
         payload: serde_json::to_vec(&ChannelMessage {
+            metadata: None,
             from_device: "Peer".to_string(),
             from_fingerprint: "peer-fingerprint".to_string(),
             body: body.to_string(),

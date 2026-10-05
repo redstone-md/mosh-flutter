@@ -22,6 +22,11 @@ impl PrivateDmSession {
         let data_channel = data_channel(&session_id);
         let blob_channel = blob_channel(&session_id);
         Self {
+            deletions: crate::message_deletion::DeletionBook::new(
+                format!("dm:{session_id}"),
+                DM_HISTORY,
+                None,
+            ),
             history_last_rx_ms: 0,
             recovery_boot_ms: 0,
             recovery_pull_ms: 0,

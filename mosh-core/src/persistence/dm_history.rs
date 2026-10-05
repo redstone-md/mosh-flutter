@@ -30,11 +30,8 @@ impl Persistence {
             rows.push((key, encrypt_blob(&self.dek, &json)?));
         }
         self.write(|tx| {
-            let mut table = tx.open_table(MESSAGES).map_err(db_error)?;
             for (key, value) in &rows {
-                table
-                    .insert(key.as_str(), value.as_slice())
-                    .map_err(db_error)?;
+                self.write_history_row(tx, DM_HISTORY, key, value)?;
             }
             Self::update_row(tx, SESSIONS, session, Some(&record))
         })

@@ -172,6 +172,7 @@ fn a_torn_send_row_rehydrates_as_a_plain_failure() {
         sent_at_ms: 100,
         message_id: "torn-1".to_string(),
         message: ChannelMessage {
+            metadata: None,
             from_device: "Alice".to_string(),
             from_fingerprint: "alice-fingerprint".to_string(),
             body: "cut off mid-send".to_string(),

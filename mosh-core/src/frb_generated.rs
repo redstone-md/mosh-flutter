@@ -52,7 +52,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1741080435;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1740237837;
 
 // Section: executor
 
@@ -796,6 +796,49 @@ fn wire__crate__api__private_dm__create_invite_impl(
                 transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
                     (move || {
                         let output_ok = crate::api::private_dm::create_invite(api_request)?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__conversation__deletion__delete_messages_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "delete_messages",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_reference =
+                <crate::api::conversation::BridgeConversationRef>::sse_decode(&mut deserializer);
+            let api_message_ids = <Vec<String>>::sse_decode(&mut deserializer);
+            let api_scope =
+                <crate::message_deletion::types::DeleteScope>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::conversation::deletion::delete_messages(
+                            api_reference,
+                            api_message_ids,
+                            api_scope,
+                        )?;
                         Ok(output_ok)
                     })(),
                 )
@@ -3368,6 +3411,8 @@ impl SseDecode for crate::channel_runtime::types::ChannelListSnapshot {
 impl SseDecode for crate::channel_runtime::types::ChannelMessage {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_metadata =
+            <Option<crate::message_deletion::types::MessageMetadata>>::sse_decode(deserializer);
         let mut var_fromDevice = <String>::sse_decode(deserializer);
         let mut var_fromFingerprint = <String>::sse_decode(deserializer);
         let mut var_body = <String>::sse_decode(deserializer);
@@ -3383,6 +3428,7 @@ impl SseDecode for crate::channel_runtime::types::ChannelMessage {
         let mut var_retryable = <Option<bool>>::sse_decode(deserializer);
         let mut var_retryCount = <Option<u32>>::sse_decode(deserializer);
         return crate::channel_runtime::types::ChannelMessage {
+            metadata: var_metadata,
             from_device: var_fromDevice,
             from_fingerprint: var_fromFingerprint,
             body: var_body,
@@ -3400,6 +3446,8 @@ impl SseDecode for crate::channel_runtime::types::ChannelMessage {
 impl SseDecode for crate::channel_runtime::types::ChannelSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_deletionSummary =
+            <Option<crate::message_deletion::types::DeletionSummary>>::sse_decode(deserializer);
         let mut var_name = <String>::sse_decode(deserializer);
         let mut var_topic = <String>::sse_decode(deserializer);
         let mut var_meshId = <String>::sse_decode(deserializer);
@@ -3415,6 +3463,7 @@ impl SseDecode for crate::channel_runtime::types::ChannelSnapshot {
         let mut var_events =
             <Vec<crate::conversation::mesh::SnapshotEvent>>::sse_decode(deserializer);
         return crate::channel_runtime::types::ChannelSnapshot {
+            deletion_summary: var_deletionSummary,
             name: var_name,
             topic: var_topic,
             mesh_id: var_meshId,
@@ -3432,6 +3481,8 @@ impl SseDecode for crate::channel_runtime::types::ChannelSnapshot {
 impl SseDecode for crate::private_dm_runtime::contracts::ChatMessage {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_metadata =
+            <Option<crate::message_deletion::types::MessageMetadata>>::sse_decode(deserializer);
         let mut var_fromDevice = <String>::sse_decode(deserializer);
         let mut var_body = <String>::sse_decode(deserializer);
         let mut var_messageId = <Option<String>>::sse_decode(deserializer);
@@ -3449,6 +3500,7 @@ impl SseDecode for crate::private_dm_runtime::contracts::ChatMessage {
         let mut var_retryCount = <Option<u32>>::sse_decode(deserializer);
         let mut var_read = <Option<bool>>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::ChatMessage {
+            metadata: var_metadata,
             from_device: var_fromDevice,
             body: var_body,
             message_id: var_messageId,
@@ -3554,6 +3606,72 @@ impl SseDecode for crate::private_group_runtime::CreateGroupRequest {
             listen_port: var_listenPort,
             static_peer: var_staticPeer,
             org_pubkey: var_orgPubkey,
+        };
+    }
+}
+
+impl SseDecode for crate::message_deletion::types::DeleteMessagesResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_deletedCount = <usize>::sse_decode(deserializer);
+        let mut var_localOnlyCount = <usize>::sse_decode(deserializer);
+        let mut var_pendingCount = <usize>::sse_decode(deserializer);
+        return crate::message_deletion::types::DeleteMessagesResult {
+            deleted_count: var_deletedCount,
+            local_only_count: var_localOnlyCount,
+            pending_count: var_pendingCount,
+        };
+    }
+}
+
+impl SseDecode for crate::message_deletion::types::DeleteScope {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::message_deletion::types::DeleteScope::ForMe,
+            1 => crate::message_deletion::types::DeleteScope::ForEveryone,
+            _ => unreachable!("Invalid variant for DeleteScope: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::message_deletion::types::DeletionMarker {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_scope = <crate::message_deletion::types::DeleteScope>::sse_decode(deserializer);
+        let mut var_status =
+            <crate::message_deletion::types::DeletionStatus>::sse_decode(deserializer);
+        let mut var_administrator = <Option<String>>::sse_decode(deserializer);
+        return crate::message_deletion::types::DeletionMarker {
+            scope: var_scope,
+            status: var_status,
+            administrator: var_administrator,
+        };
+    }
+}
+
+impl SseDecode for crate::message_deletion::types::DeletionStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::message_deletion::types::DeletionStatus::Pending,
+            1 => crate::message_deletion::types::DeletionStatus::Confirmed,
+            2 => crate::message_deletion::types::DeletionStatus::Rejected,
+            _ => unreachable!("Invalid variant for DeletionStatus: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::message_deletion::types::DeletionSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_pendingCount = <usize>::sse_decode(deserializer);
+        let mut var_rejectedCount = <usize>::sse_decode(deserializer);
+        return crate::message_deletion::types::DeletionSummary {
+            pending_count: var_pendingCount,
+            rejected_count: var_rejectedCount,
         };
     }
 }
@@ -3789,6 +3907,8 @@ impl SseDecode for crate::private_group_runtime::GroupListSnapshot {
 impl SseDecode for crate::private_group_runtime::GroupMessage {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_metadata =
+            <Option<crate::message_deletion::types::MessageMetadata>>::sse_decode(deserializer);
         let mut var_fromDevice = <String>::sse_decode(deserializer);
         let mut var_fromFingerprint = <String>::sse_decode(deserializer);
         let mut var_body = <String>::sse_decode(deserializer);
@@ -3806,6 +3926,7 @@ impl SseDecode for crate::private_group_runtime::GroupMessage {
         let mut var_nameChange =
             <Option<crate::private_group_runtime::GroupNameChanged>>::sse_decode(deserializer);
         return crate::private_group_runtime::GroupMessage {
+            metadata: var_metadata,
             from_device: var_fromDevice,
             from_fingerprint: var_fromFingerprint,
             body: var_body,
@@ -3844,6 +3965,8 @@ impl SseDecode for crate::private_group_runtime::GroupNameStatus {
 impl SseDecode for crate::private_group_runtime::GroupSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_deletionSummary =
+            <Option<crate::message_deletion::types::DeletionSummary>>::sse_decode(deserializer);
         let mut var_groupId = <String>::sse_decode(deserializer);
         let mut var_meshId = <String>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
@@ -3871,6 +3994,7 @@ impl SseDecode for crate::private_group_runtime::GroupSnapshot {
         let mut var_typingMembers =
             <Vec<crate::private_group_runtime::wire_types::TypingMember>>::sse_decode(deserializer);
         return crate::private_group_runtime::GroupSnapshot {
+            deletion_summary: var_deletionSummary,
             group_id: var_groupId,
             mesh_id: var_meshId,
             label: var_label,
@@ -4344,6 +4468,50 @@ impl SseDecode for crate::outbound_delivery::MessageDeliveryStatus {
     }
 }
 
+impl SseDecode for crate::message_deletion::types::MessageMetadata {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_origin =
+            <Option<crate::message_deletion::origin::MessageOrigin>>::sse_decode(deserializer);
+        let mut var_deletion =
+            <Option<crate::message_deletion::types::DeletionMarker>>::sse_decode(deserializer);
+        let mut var_deletionKey = <Option<String>>::sse_decode(deserializer);
+        let mut var_personalCorrelation = <Option<String>>::sse_decode(deserializer);
+        let mut var_canDeleteForEveryone = <bool>::sse_decode(deserializer);
+        let mut var_localOnly = <bool>::sse_decode(deserializer);
+        let mut var_isOwn = <Option<bool>>::sse_decode(deserializer);
+        return crate::message_deletion::types::MessageMetadata {
+            origin: var_origin,
+            deletion: var_deletion,
+            deletion_key: var_deletionKey,
+            personal_correlation: var_personalCorrelation,
+            can_delete_for_everyone: var_canDeleteForEveryone,
+            local_only: var_localOnly,
+            is_own: var_isOwn,
+        };
+    }
+}
+
+impl SseDecode for crate::message_deletion::origin::MessageOrigin {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_conversation = <String>::sse_decode(deserializer);
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_contentHash = <String>::sse_decode(deserializer);
+        let mut var_author = <String>::sse_decode(deserializer);
+        let mut var_signature = <String>::sse_decode(deserializer);
+        let mut var_ownership = <Option<String>>::sse_decode(deserializer);
+        return crate::message_deletion::origin::MessageOrigin {
+            conversation: var_conversation,
+            id: var_id,
+            content_hash: var_contentHash,
+            author: var_author,
+            signature: var_signature,
+            ownership: var_ownership,
+        };
+    }
+}
+
 impl SseDecode for crate::api::diagnostics::MossLibraryInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4554,6 +4722,32 @@ impl SseDecode for Option<crate::private_dm_runtime::contracts::ConnectOutcome> 
     }
 }
 
+impl SseDecode for Option<crate::message_deletion::types::DeletionMarker> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::message_deletion::types::DeletionMarker>::sse_decode(deserializer),
+            );
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::message_deletion::types::DeletionSummary> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::message_deletion::types::DeletionSummary>::sse_decode(deserializer),
+            );
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::device_link::types::DeviceDescriptor> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4668,6 +4862,32 @@ impl SseDecode for Option<crate::outbound_delivery::MessageDeliveryStatus> {
         if (<bool>::sse_decode(deserializer)) {
             return Some(
                 <crate::outbound_delivery::MessageDeliveryStatus>::sse_decode(deserializer),
+            );
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::message_deletion::types::MessageMetadata> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::message_deletion::types::MessageMetadata>::sse_decode(deserializer),
+            );
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::message_deletion::origin::MessageOrigin> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::message_deletion::origin::MessageOrigin>::sse_decode(deserializer),
             );
         } else {
             return None;
@@ -4963,6 +5183,8 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionListSnapshot {
 impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_deletionSummary =
+            <Option<crate::message_deletion::types::DeletionSummary>>::sse_decode(deserializer);
         let mut var_deviceRevocation = <Option<
             crate::private_dm_runtime::contracts::DmDeviceRevocationState,
         >>::sse_decode(deserializer);
@@ -5000,6 +5222,7 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
         let mut var_activeCall =
             <Option<crate::private_dm_runtime::contracts::ActiveCall>>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::SessionSnapshot {
+            deletion_summary: var_deletionSummary,
             device_revocation: var_deviceRevocation,
             history_sync: var_historySync,
             session_id: var_sessionId,
@@ -5186,141 +5409,147 @@ fn pde_ffi_dispatcher_primary_impl(
         18 => wire__crate__api__org__create_group_impl(port, ptr, rust_vec_len, data_len),
         19 => wire__crate__api__private_group__create_group_impl(port, ptr, rust_vec_len, data_len),
         20 => wire__crate__api__private_dm__create_invite_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__vpn__detect_vpn_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__diagnostics__disable_crash_reporting_impl(
+        21 => wire__crate__api__conversation__deletion__delete_messages_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        23 => wire__crate__api__channel__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__org__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__private_group__dismiss_dm_offer_impl(
+        22 => wire__crate__api__vpn__detect_vpn_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__diagnostics__disable_crash_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        26 => wire__crate__api__org__dismiss_group_offer_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__conversation__download_attachment_impl(
+        24 => wire__crate__api__channel__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__org__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__private_group__dismiss_dm_offer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        28 => wire__crate__api__diagnostics__enable_crash_reporting_impl(
+        27 => wire__crate__api__org__dismiss_group_offer_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__conversation__download_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        29 => wire__crate__api__shared_runtime__ensure_shared_resources_impl(
+        29 => wire__crate__api__diagnostics__enable_crash_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        30 => wire__crate__api__vpn__get_bind_interface_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__vpn__get_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__org__group_invite_members_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__device_link__join_link_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__org__join_org_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__conversation__leave_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__org__leave_org_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__channel__list_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__org__list_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__private_group__list_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__network__list_interfaces_impl(port, ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__private_dm__list_sessions_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__conversation__mark_viewed_impl(port, ptr, rust_vec_len, data_len),
-        46 => {
+        30 => wire__crate__api__shared_runtime__ensure_shared_resources_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        31 => wire__crate__api__vpn__get_bind_interface_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__vpn__get_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__org__group_invite_members_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__device_link__join_link_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__org__join_org_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__conversation__leave_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__org__leave_org_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__channel__list_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__org__list_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__private_group__list_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__network__list_interfaces_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__private_dm__list_sessions_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__conversation__mark_viewed_impl(port, ptr, rust_vec_len, data_len),
+        47 => {
             wire__crate__api__diagnostics__moss_library_info_impl(port, ptr, rust_vec_len, data_len)
         }
-        47 => wire__crate__api__diagnostics__native_runtime_status_impl(
+        48 => wire__crate__api__diagnostics__native_runtime_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        48 => wire__crate__api__conversation__names__personal_names_impl(
+        49 => wire__crate__api__conversation__names__personal_names_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        49 => wire__crate__api__channel__poll_impl(port, ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__org__poll_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__private_group__poll_impl(port, ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__private_dm__poll_session_impl(port, ptr, rust_vec_len, data_len),
-        53 => wire__crate__api__private_dm__read_receipts_enabled_impl(
+        50 => wire__crate__api__channel__poll_impl(port, ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__org__poll_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__private_group__poll_impl(port, ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__private_dm__poll_session_impl(port, ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__private_dm__read_receipts_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        54 => wire__crate__api__conversation__names__rename_impl(port, ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__conversation__names__reset_name_impl(
+        55 => wire__crate__api__conversation__names__rename_impl(port, ptr, rust_vec_len, data_len),
+        56 => wire__crate__api__conversation__names__reset_name_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        56 => wire__crate__api__conversation__retry_impl(port, ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__device_link__revoke_impl(port, ptr, rust_vec_len, data_len),
-        58 => wire__crate__api__conversation__send_impl(port, ptr, rust_vec_len, data_len),
-        59 => {
+        57 => wire__crate__api__conversation__retry_impl(port, ptr, rust_vec_len, data_len),
+        58 => wire__crate__api__device_link__revoke_impl(port, ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__conversation__send_impl(port, ptr, rust_vec_len, data_len),
+        60 => {
             wire__crate__api__conversation__send_attachment_impl(port, ptr, rust_vec_len, data_len)
         }
-        60 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        61 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        62 => {
+        61 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        62 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        63 => {
             wire__crate__api__private_group__send_dm_offer_impl(port, ptr, rust_vec_len, data_len)
         }
-        63 => {
+        64 => {
             wire__crate__api__private_dm__set_app_data_dir_impl(port, ptr, rust_vec_len, data_len)
         }
-        64 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
+        65 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        66 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
-        67 => wire__crate__api__shared_runtime__set_history_dek_impl(
+        67 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
+        68 => wire__crate__api__shared_runtime__set_history_dek_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        68 => wire__crate__api__private_dm__set_read_receipts_enabled_impl(
+        69 => wire__crate__api__private_dm__set_read_receipts_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        69 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
-        70 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__diagnostics__start_panic_reporting_impl(
+        70 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        71 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__diagnostics__start_panic_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        72 => wire__crate__api__diagnostics__stop_panic_reporting_impl(
+        73 => wire__crate__api__diagnostics__stop_panic_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        73 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
+        74 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        74 => wire__crate__api__conversation__typing_signal_impl(port, ptr, rust_vec_len, data_len),
+        75 => wire__crate__api__conversation__typing_signal_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -5341,41 +5570,41 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        43 => {
+        44 => {
             wire__crate__api__audio_devices__list_output_devices_impl(ptr, rust_vec_len, data_len)
         }
-        65 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
-        75 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
+        66 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
+        76 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        76 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
+        77 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        77 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
+        78 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        78 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
+        79 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        79 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
+        80 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        80 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
+        81 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        81 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
+        82 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
@@ -5793,6 +6022,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::channel_runtime::types::ChannelLis
 impl flutter_rust_bridge::IntoDart for crate::channel_runtime::types::ChannelMessage {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.metadata.into_into_dart().into_dart(),
             self.from_device.into_into_dart().into_dart(),
             self.from_fingerprint.into_into_dart().into_dart(),
             self.body.into_into_dart().into_dart(),
@@ -5822,6 +6052,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::channel_runtime::types::ChannelMes
 impl flutter_rust_bridge::IntoDart for crate::channel_runtime::types::ChannelSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.deletion_summary.into_into_dart().into_dart(),
             self.name.into_into_dart().into_dart(),
             self.topic.into_into_dart().into_dart(),
             self.mesh_id.into_into_dart().into_dart(),
@@ -5851,6 +6082,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::channel_runtime::types::ChannelSna
 impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::ChatMessage {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.metadata.into_into_dart().into_dart(),
             self.from_device.into_into_dart().into_dart(),
             self.body.into_into_dart().into_dart(),
             self.message_id.into_into_dart().into_dart(),
@@ -6016,6 +6248,114 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_group_runtime::CreateGroup
     for crate::private_group_runtime::CreateGroupRequest
 {
     fn into_into_dart(self) -> crate::private_group_runtime::CreateGroupRequest {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::message_deletion::types::DeleteMessagesResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.deleted_count.into_into_dart().into_dart(),
+            self.local_only_count.into_into_dart().into_dart(),
+            self.pending_count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::message_deletion::types::DeleteMessagesResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::message_deletion::types::DeleteMessagesResult>
+    for crate::message_deletion::types::DeleteMessagesResult
+{
+    fn into_into_dart(self) -> crate::message_deletion::types::DeleteMessagesResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::message_deletion::types::DeleteScope {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::ForMe => 0.into_dart(),
+            Self::ForEveryone => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::message_deletion::types::DeleteScope
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::message_deletion::types::DeleteScope>
+    for crate::message_deletion::types::DeleteScope
+{
+    fn into_into_dart(self) -> crate::message_deletion::types::DeleteScope {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::message_deletion::types::DeletionMarker {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.scope.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.administrator.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::message_deletion::types::DeletionMarker
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::message_deletion::types::DeletionMarker>
+    for crate::message_deletion::types::DeletionMarker
+{
+    fn into_into_dart(self) -> crate::message_deletion::types::DeletionMarker {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::message_deletion::types::DeletionStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Pending => 0.into_dart(),
+            Self::Confirmed => 1.into_dart(),
+            Self::Rejected => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::message_deletion::types::DeletionStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::message_deletion::types::DeletionStatus>
+    for crate::message_deletion::types::DeletionStatus
+{
+    fn into_into_dart(self) -> crate::message_deletion::types::DeletionStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::message_deletion::types::DeletionSummary {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.pending_count.into_into_dart().into_dart(),
+            self.rejected_count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::message_deletion::types::DeletionSummary
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::message_deletion::types::DeletionSummary>
+    for crate::message_deletion::types::DeletionSummary
+{
+    fn into_into_dart(self) -> crate::message_deletion::types::DeletionSummary {
         self
     }
 }
@@ -6352,6 +6692,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_group_runtime::GroupListSn
 impl flutter_rust_bridge::IntoDart for crate::private_group_runtime::GroupMessage {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.metadata.into_into_dart().into_dart(),
             self.from_device.into_into_dart().into_dart(),
             self.from_fingerprint.into_into_dart().into_dart(),
             self.body.into_into_dart().into_dart(),
@@ -6420,6 +6761,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_group_runtime::GroupNameSt
 impl flutter_rust_bridge::IntoDart for crate::private_group_runtime::GroupSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.deletion_summary.into_into_dart().into_dart(),
             self.group_id.into_into_dart().into_dart(),
             self.mesh_id.into_into_dart().into_dart(),
             self.label.into_into_dart().into_dart(),
@@ -6604,6 +6946,57 @@ impl flutter_rust_bridge::IntoIntoDart<crate::outbound_delivery::MessageDelivery
     for crate::outbound_delivery::MessageDeliveryStatus
 {
     fn into_into_dart(self) -> crate::outbound_delivery::MessageDeliveryStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::message_deletion::types::MessageMetadata {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.origin.into_into_dart().into_dart(),
+            self.deletion.into_into_dart().into_dart(),
+            self.deletion_key.into_into_dart().into_dart(),
+            self.personal_correlation.into_into_dart().into_dart(),
+            self.can_delete_for_everyone.into_into_dart().into_dart(),
+            self.local_only.into_into_dart().into_dart(),
+            self.is_own.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::message_deletion::types::MessageMetadata
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::message_deletion::types::MessageMetadata>
+    for crate::message_deletion::types::MessageMetadata
+{
+    fn into_into_dart(self) -> crate::message_deletion::types::MessageMetadata {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::message_deletion::origin::MessageOrigin {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.conversation.into_into_dart().into_dart(),
+            self.id.into_into_dart().into_dart(),
+            self.content_hash.into_into_dart().into_dart(),
+            self.author.into_into_dart().into_dart(),
+            self.signature.into_into_dart().into_dart(),
+            self.ownership.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::message_deletion::origin::MessageOrigin
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::message_deletion::origin::MessageOrigin>
+    for crate::message_deletion::origin::MessageOrigin
+{
+    fn into_into_dart(self) -> crate::message_deletion::origin::MessageOrigin {
         self
     }
 }
@@ -7059,6 +7452,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::Ses
 impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::SessionSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.deletion_summary.into_into_dart().into_dart(),
             self.device_revocation.into_into_dart().into_dart(),
             self.history_sync.into_into_dart().into_dart(),
             self.session_id.into_into_dart().into_dart(),
@@ -7514,6 +7908,10 @@ impl SseEncode for crate::channel_runtime::types::ChannelListSnapshot {
 impl SseEncode for crate::channel_runtime::types::ChannelMessage {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::message_deletion::types::MessageMetadata>>::sse_encode(
+            self.metadata,
+            serializer,
+        );
         <String>::sse_encode(self.from_device, serializer);
         <String>::sse_encode(self.from_fingerprint, serializer);
         <String>::sse_encode(self.body, serializer);
@@ -7536,6 +7934,10 @@ impl SseEncode for crate::channel_runtime::types::ChannelMessage {
 impl SseEncode for crate::channel_runtime::types::ChannelSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::message_deletion::types::DeletionSummary>>::sse_encode(
+            self.deletion_summary,
+            serializer,
+        );
         <String>::sse_encode(self.name, serializer);
         <String>::sse_encode(self.topic, serializer);
         <String>::sse_encode(self.mesh_id, serializer);
@@ -7555,6 +7957,10 @@ impl SseEncode for crate::channel_runtime::types::ChannelSnapshot {
 impl SseEncode for crate::private_dm_runtime::contracts::ChatMessage {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::message_deletion::types::MessageMetadata>>::sse_encode(
+            self.metadata,
+            serializer,
+        );
         <String>::sse_encode(self.from_device, serializer);
         <String>::sse_encode(self.body, serializer);
         <Option<String>>::sse_encode(self.message_id, serializer);
@@ -7648,6 +8054,65 @@ impl SseEncode for crate::private_group_runtime::CreateGroupRequest {
         <u16>::sse_encode(self.listen_port, serializer);
         <Option<String>>::sse_encode(self.static_peer, serializer);
         <Option<String>>::sse_encode(self.org_pubkey, serializer);
+    }
+}
+
+impl SseEncode for crate::message_deletion::types::DeleteMessagesResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <usize>::sse_encode(self.deleted_count, serializer);
+        <usize>::sse_encode(self.local_only_count, serializer);
+        <usize>::sse_encode(self.pending_count, serializer);
+    }
+}
+
+impl SseEncode for crate::message_deletion::types::DeleteScope {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::message_deletion::types::DeleteScope::ForMe => 0,
+                crate::message_deletion::types::DeleteScope::ForEveryone => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::message_deletion::types::DeletionMarker {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::message_deletion::types::DeleteScope>::sse_encode(self.scope, serializer);
+        <crate::message_deletion::types::DeletionStatus>::sse_encode(self.status, serializer);
+        <Option<String>>::sse_encode(self.administrator, serializer);
+    }
+}
+
+impl SseEncode for crate::message_deletion::types::DeletionStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::message_deletion::types::DeletionStatus::Pending => 0,
+                crate::message_deletion::types::DeletionStatus::Confirmed => 1,
+                crate::message_deletion::types::DeletionStatus::Rejected => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::message_deletion::types::DeletionSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <usize>::sse_encode(self.pending_count, serializer);
+        <usize>::sse_encode(self.rejected_count, serializer);
     }
 }
 
@@ -7865,6 +8330,10 @@ impl SseEncode for crate::private_group_runtime::GroupListSnapshot {
 impl SseEncode for crate::private_group_runtime::GroupMessage {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::message_deletion::types::MessageMetadata>>::sse_encode(
+            self.metadata,
+            serializer,
+        );
         <String>::sse_encode(self.from_device, serializer);
         <String>::sse_encode(self.from_fingerprint, serializer);
         <String>::sse_encode(self.body, serializer);
@@ -7906,6 +8375,10 @@ impl SseEncode for crate::private_group_runtime::GroupNameStatus {
 impl SseEncode for crate::private_group_runtime::GroupSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::message_deletion::types::DeletionSummary>>::sse_encode(
+            self.deletion_summary,
+            serializer,
+        );
         <String>::sse_encode(self.group_id, serializer);
         <String>::sse_encode(self.mesh_id, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
@@ -8267,6 +8740,37 @@ impl SseEncode for crate::outbound_delivery::MessageDeliveryStatus {
     }
 }
 
+impl SseEncode for crate::message_deletion::types::MessageMetadata {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::message_deletion::origin::MessageOrigin>>::sse_encode(
+            self.origin,
+            serializer,
+        );
+        <Option<crate::message_deletion::types::DeletionMarker>>::sse_encode(
+            self.deletion,
+            serializer,
+        );
+        <Option<String>>::sse_encode(self.deletion_key, serializer);
+        <Option<String>>::sse_encode(self.personal_correlation, serializer);
+        <bool>::sse_encode(self.can_delete_for_everyone, serializer);
+        <bool>::sse_encode(self.local_only, serializer);
+        <Option<bool>>::sse_encode(self.is_own, serializer);
+    }
+}
+
+impl SseEncode for crate::message_deletion::origin::MessageOrigin {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.conversation, serializer);
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.content_hash, serializer);
+        <String>::sse_encode(self.author, serializer);
+        <String>::sse_encode(self.signature, serializer);
+        <Option<String>>::sse_encode(self.ownership, serializer);
+    }
+}
+
 impl SseEncode for crate::api::diagnostics::MossLibraryInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -8414,6 +8918,26 @@ impl SseEncode for Option<crate::private_dm_runtime::contracts::ConnectOutcome> 
     }
 }
 
+impl SseEncode for Option<crate::message_deletion::types::DeletionMarker> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::message_deletion::types::DeletionMarker>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::message_deletion::types::DeletionSummary> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::message_deletion::types::DeletionSummary>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::device_link::types::DeviceDescriptor> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -8504,6 +9028,26 @@ impl SseEncode for Option<crate::outbound_delivery::MessageDeliveryStatus> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::outbound_delivery::MessageDeliveryStatus>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::message_deletion::types::MessageMetadata> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::message_deletion::types::MessageMetadata>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::message_deletion::origin::MessageOrigin> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::message_deletion::origin::MessageOrigin>::sse_encode(value, serializer);
         }
     }
 }
@@ -8718,6 +9262,10 @@ impl SseEncode for crate::private_dm_runtime::contracts::SessionListSnapshot {
 impl SseEncode for crate::private_dm_runtime::contracts::SessionSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::message_deletion::types::DeletionSummary>>::sse_encode(
+            self.deletion_summary,
+            serializer,
+        );
         <Option<crate::private_dm_runtime::contracts::DmDeviceRevocationState>>::sse_encode(
             self.device_revocation,
             serializer,

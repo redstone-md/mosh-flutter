@@ -28,6 +28,7 @@ impl DeviceLinkRuntime {
         self.retry_delivery();
         self.retry_roster();
         self.sync_names()?;
+        self.sync_deletions()?;
         Ok(())
     }
 

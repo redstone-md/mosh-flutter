@@ -8,6 +8,7 @@ impl GroupSession {
     ) -> Result<(Vec<u8>, usize), PrivateGroupError> {
         let ciphertext = self.crypto.encrypt(message.body.as_bytes())?;
         let envelope = DataEnvelope {
+            origin: message.metadata.as_ref().and_then(|m| m.origin.clone()),
             group_id: self.group_id.clone(),
             participant_id: self.participant_id.clone(),
             from_device: message.from_device.clone(),

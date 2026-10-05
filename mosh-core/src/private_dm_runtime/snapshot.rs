@@ -7,21 +7,27 @@ impl PrivateDmSession {
         // The poll is the heartbeat: a hint past its deadline stops being
         // carried (and files its lapse into the event ring) from here.
         self.expire_peer_typing(now_ms());
-        let mut messages: Vec<ChatMessage> = self
-            .messages
-            .iter()
-            .map(|message| {
-                let mut stamped = message.clone();
-                stamped.read = self.own_message_read(message);
-                stamped
-            })
-            .collect();
+        let authority = self.deletion_authority().ok();
+        let mut messages: Vec<ChatMessage> = crate::message_deletion::snapshot::messages(
+            &self.messages,
+            &self.transfer,
+            &self.deletions,
+            authority.as_ref(),
+        )
+        .iter()
+        .map(|message| {
+            let mut stamped = message.clone();
+            stamped.read = self.own_message_read(message);
+            stamped
+        })
+        .collect();
         let history_sync = self.history_sync_state(now_ms());
         if history_sync.is_some() {
             messages
                 .sort_by(|a, b| (a.sent_at_ms, &a.message_id).cmp(&(b.sent_at_ms, &b.message_id)));
         }
         SessionSnapshot {
+            deletion_summary: self.deletions.summary(),
             device_revocation: self.device_revocation_state(),
             history_sync,
             session_id: self.session_id.clone(),

@@ -31,6 +31,23 @@ impl MlsSessionCrypto {
         ciphertext: &[u8],
         expected: &[u8],
     ) -> Result<Vec<u8>, MlsCryptoError> {
+        self.decrypt_checked(ciphertext, |_, signer| {
+            if signer == expected {
+                Ok(())
+            } else {
+                Err("ciphertext signer differs from sender proof".into())
+            }
+        })
+        .map(|(body, _)| body)
+    }
+
+    /// Commit the receive ratchet only after application identity and content
+    /// validation. Invalid additive metadata cannot consume genuine traffic.
+    pub(crate) fn decrypt_checked(
+        &mut self,
+        ciphertext: &[u8],
+        validate: impl FnOnce(&[u8], &[u8]) -> Result<(), String>,
+    ) -> Result<(Vec<u8>, Vec<u8>), MlsCryptoError> {
         let identity = Self::credential_identity(&self.credential.credential)
             .ok_or(MlsCryptoError::NotReady)?;
         let group_id = self.group_id_bytes().ok_or(MlsCryptoError::NotReady)?;
@@ -41,13 +58,9 @@ impl MlsSessionCrypto {
             &group_id,
         )?;
         let (body, signer) = candidate.decrypt_with_signer(ciphertext)?;
-        if signer != expected {
-            return Err(MlsCryptoError::OpenMls(
-                "ciphertext signer differs from sender proof".into(),
-            ));
-        }
+        validate(&body, &signer).map_err(MlsCryptoError::OpenMls)?;
         *self = candidate;
-        Ok(body)
+        Ok((body, signer))
     }
 
     /// Return the verified leaf signer with its application plaintext.

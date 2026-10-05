@@ -25,6 +25,11 @@ impl ChannelRuntime {
                 }
             };
             let mut session = ChannelSession {
+                deletions: crate::message_deletion::DeletionBook::new(
+                    format!("channel:{}", rec.name),
+                    CHANNEL_HISTORY,
+                    self.channels.persistence().cloned(),
+                ),
                 name: rec.name.clone(),
                 topic: rec.topic.clone(),
                 blob_topic: rec.blob_topic.clone(),
@@ -95,6 +100,11 @@ impl ChannelRuntime {
         };
 
         let session = ChannelSession {
+            deletions: crate::message_deletion::DeletionBook::new(
+                format!("channel:{normalized}"),
+                CHANNEL_HISTORY,
+                self.channels.persistence().cloned(),
+            ),
             name: normalized.clone(),
             topic,
             blob_topic,

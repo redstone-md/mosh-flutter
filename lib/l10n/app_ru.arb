@@ -1019,5 +1019,41 @@
       }
     }
   },
-  "chatNameSuperseded": "Изменение названия заменено более поздним."
+  "chatNameSuperseded": "Изменение названия заменено более поздним.",
+  "messageDelete": "Удалить…",
+  "messageSelect": "Выделить сообщение",
+  "messageDeleteForMe": "Удалить у меня",
+  "messageDeleteForEveryone": "Удалить у всех",
+  "messageDeleteTitle": "Удалить сообщения ({count})?",
+  "@messageDeleteTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageDeleteExplanation": "Удаление у меня уберёт сообщения из вашей истории и связанных устройств. Удаление у всех отправит запрос другим участникам. Неотправленные сообщения будут отменены.",
+  "messageDeleteLocalOnly": "Часть старых сообщений удалится только на этом устройстве.",
+  "messageDeleteMixed": "Уберите из выбора сообщения, которые нельзя удалить у всех, чтобы включить это действие.",
+  "messageDeleted": "Сообщение удалено",
+  "messageDeletedByAdmin": "Сообщение удалено администратором {name}",
+  "@messageDeletedByAdmin": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageDeletionPending": "Ожидает доставки",
+  "messageDeletionConfirmed": "Запрос подтверждён",
+  "messageDeletionRejected": "Часть запросов удаления отклонена из-за изменения прав. У вас эти сообщения остались удалены.",
+  "messagesSelected": "Выбрано: {count}",
+  "@messagesSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageDeletionFailed": "Не удалось удалить сообщения. Выбор сохранён, попробуйте ещё раз."
 }

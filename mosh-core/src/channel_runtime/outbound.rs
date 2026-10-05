@@ -15,7 +15,8 @@ impl ChannelRuntime {
         let normalized = normalize_name(name)?;
         let (channel_name, topic, prepared) = {
             let session = self.channel_mut(&normalized)?;
-            let message = session.messages.stamp(ChannelMessage {
+            let mut message = session.messages.stamp(ChannelMessage {
+                metadata: None,
                 from_device: session.display_name.clone(),
                 from_fingerprint: session.device_fingerprint.clone(),
                 body,
@@ -27,6 +28,7 @@ impl ChannelRuntime {
                 retryable: None,
                 retry_count: None,
             });
+            session.sign_text_origin(&mut message)?;
             // A channel is public, so the frame is the message itself, minus
             // the delivery fields that only mean something to the sender.
             let payload = serde_json::to_vec(&session.publishable_message(&message))
@@ -130,5 +132,25 @@ impl ChannelRuntime {
             delivery_status: settled.status,
             delivery_error: settled.error,
         })
+    }
+}
+
+impl ChannelSession {
+    fn sign_text_origin(&self, message: &mut ChannelMessage) -> Result<(), ChannelRuntimeError> {
+        let origin = crate::message_deletion::MessageOrigin::sign(
+            &format!("channel:{}", self.name),
+            message.message_id.as_deref().unwrap_or_default(),
+            message.body.as_bytes(),
+            self.node
+                .identity_signer()
+                .map_err(|e| ChannelRuntimeError::Moss(e.to_string()))?,
+            self.deletions.store.as_ref(),
+        )
+        .map_err(ChannelRuntimeError::Codec)?;
+        message.metadata = Some(crate::message_deletion::MessageMetadata {
+            origin: Some(origin),
+            ..Default::default()
+        });
+        Ok(())
     }
 }

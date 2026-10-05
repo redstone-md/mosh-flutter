@@ -21,6 +21,7 @@
 
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/gateway.dart';
+import 'package:mosh/src/rust/message_deletion/types.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelSnapshot;
@@ -35,6 +36,7 @@ import 'scripted_conversations.dart';
 /// Every method on [Gateway]. Tests name a method through this enum, so a
 /// typo is a compile error instead of a call that is never scripted.
 enum GatewayMethod {
+  deleteMessages,
   rename,
   resetName,
   poll,
@@ -56,6 +58,18 @@ typedef GatewayCall = ScriptedCall<GatewayMethod>;
 class ScriptableGateway
     with ScriptedEngine<GatewayMethod>
     implements Gateway, ConversationSnapshotReader {
+  @override
+  Future<DeleteMessagesResult> deleteMessages(AnyConversationTarget target,
+          {required List<String> messageIds, required DeleteScope scope}) =>
+      runScripted(
+          GatewayMethod.deleteMessages,
+          {'target': target, 'messageIds': messageIds, 'scope': scope},
+          () => DeleteMessagesResult(
+              deletedCount: BigInt.from(messageIds.length),
+              localOnlyCount: BigInt.zero,
+              pendingCount: scope == DeleteScope.forEveryone
+                  ? BigInt.from(messageIds.length)
+                  : BigInt.zero));
   ScriptableGateway({ScriptedConversations? conversations})
       : conversations = conversations ?? ScriptedConversations();
 

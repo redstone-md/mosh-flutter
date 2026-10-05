@@ -7,6 +7,8 @@ import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
 import 'package:mosh/src/features/conversation/message_copy.dart';
+import 'package:mosh/src/features/conversation/message_deletion_controls.dart';
+import 'package:mosh/src/features/conversation/selectable_message_row.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/rust/conversation/attachments.dart'
@@ -175,26 +177,36 @@ class _ConversationMessageListViewState
     final l = AppLocalizations.of(context)!;
     final kind = widget.snapshot.target.kind;
     final rows = groupConversationMessages(widget.messages).reversed.toList();
-    return MessageSelectionArea(
-      child: ListView.builder(
-        padding: kChatScrollPadding,
-        reverse: true,
-        itemCount: rows.length,
-        itemBuilder: (context, index) {
-          final date = messageDate(rows[index].message.sentAtMs);
-          final previous = index + 1 < rows.length
-              ? messageDate(rows[index + 1].message.sentAtMs)
-              : null;
-          return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (date != null && !DateUtils.isSameDay(date, previous))
-                  ConversationDateDivider(date: date),
-                _buildRow(context, rows[index], kind, l),
-              ]);
-        },
-      ),
-    );
+    return MessageDeletionControls(
+        snapshot: widget.snapshot,
+        builder: (context, selected, selecting, select, delete) =>
+            MessageSelectionArea(
+              child: ListView.builder(
+                padding: kChatScrollPadding,
+                reverse: true,
+                itemCount: rows.length,
+                itemBuilder: (context, index) {
+                  final date = messageDate(rows[index].message.sentAtMs);
+                  final previous = index + 1 < rows.length
+                      ? messageDate(rows[index + 1].message.sentAtMs)
+                      : null;
+                  return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (date != null &&
+                            !DateUtils.isSameDay(date, previous))
+                          ConversationDateDivider(date: date),
+                        SelectableMessageRow(
+                            message: rows[index].message,
+                            selected: selected,
+                            selecting: selecting,
+                            onSelect: select,
+                            onDelete: delete,
+                            child: _buildRow(context, rows[index], kind, l)),
+                      ]);
+                },
+              ),
+            ));
   }
 
   Widget _buildRow(
@@ -220,7 +232,6 @@ class _ConversationMessageListViewState
         ? null
         : widget.snapshot.attachmentView(attachment.attachmentId);
     final callbacks = widget.attachmentCallbacks(view, own: row.message.own);
-    final body = row.message.body;
     final messageRow = ConversationMessageRow(
       message: row.message,
       kind: kind,
@@ -235,15 +246,12 @@ class _ConversationMessageListViewState
       onRetry: widget.onRetryMessage,
       l: l,
     );
-    final wrapped = body.isEmpty
-        ? messageRow
-        : CopyableMessage(body: body, child: messageRow);
 
     final id = _messageKey(row.message);
     return _AnimatedMessageRow(
       key: ValueKey(id),
       animate: _newIncomingIds.contains(id),
-      child: wrapped,
+      child: messageRow,
     );
   }
 

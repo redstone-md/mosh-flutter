@@ -38,6 +38,7 @@ fn bodies_from(runtime: &mut PrivateDmRuntime, session_id: &str, author: &str) -
 fn queued_messages_come_out_oldest_first() {
     let attempt =
         |id: &str, sent_at_ms: u64, status: MessageDeliveryStatus| OutboundAttemptRecord {
+            ever_published: None,
             conversation_id: "s".to_string(),
             message_id: id.to_string(),
             sent_at_ms,

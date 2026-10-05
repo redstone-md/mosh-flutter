@@ -17,6 +17,13 @@ impl MessageIdGen {
         format!("{sent_at_ms}-{seq:06}")
     }
 }
+/// A wire identity names one send, independently of its content or process clock.
+pub(crate) fn occurrence_id(prefix: &str) -> String {
+    use rand::RngCore;
+    let mut bytes = [0; 16];
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    format!("{prefix}-{}", hex::encode(bytes))
+}
 
 #[cfg(test)]
 mod tests {

@@ -3,7 +3,8 @@
 Mosh is a desktop-first decentralized messenger built with Flutter, Riverpod,
 Rust, OpenMLS and Moss. Windows and macOS are the primary desktop targets;
 Android uses the same linked-device and DM runtime. Private DMs and groups use
-MLS encryption. Public channels carry plaintext and self-claimed sender IDs.
+MLS encryption. Public channels carry plaintext; new messages retain signed
+author proofs while legacy messages can still have self-claimed sender IDs.
 Discovery is automatic through Moss. Public trackers limit metadata privacy.
 
 ## Read the system
@@ -143,6 +144,7 @@ authorization and publication.
 | `runtime_writes` | Refused writes retained until durable acceptance |
 | `transfer` / `attachments` | Blob preparation, chunk scheduling and transfer slots |
 | `dm_offers` | Private-DM invitations offered in channels and groups |
+| `message_deletion` | Signed message targets, durable erasure, receipts and recovery |
 | `mesh`, `typing`, `read_events` | Shared diagnostics and presence interpretation |
 
 History table names are `HistoryTables` data, so DM/group/channel storage shares
@@ -196,6 +198,14 @@ Attachment streams use direct routes and fall back to room publication on refusa
 blob subscriptions remain active. Restored encrypted manifests preserve offered
 attachments after restart. See [ADR 0027](ADR/0027-attachments-ride-moss-streams.md)
 and [ADR 0028](ADR/0028-durable-attachment-offers.md).
+
+Message deletion preserves empty cursor rows and an encrypted monotonic journal.
+Personal deletions hide rows and synchronize through the existing device-link
+owner. Shared deletions require verified authorship or current group admin rights;
+only a durable receipt from another participant confirms delivery. Existing
+services recover missing deletion pages without advancing MLS application
+ratchets. Tombstones also guard history/outbox writes and queue app-owned cache
+cleanup after the last reference. See [ADR 0040](ADR/0040-message-deletion.md).
 
 ## Device linking and recovery
 

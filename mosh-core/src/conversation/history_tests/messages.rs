@@ -44,6 +44,7 @@ fn an_offered_file_can_be_downloaded_after_both_peers_restart() {
     for (scratch, transfer) in [(&sender, &sending), (&receiver, &receiving)] {
         let mut log = MessageLog::default();
         log.push(ChatMessage {
+            metadata: None,
             from_device: "alice".to_string(),
             body: String::new(),
             message_id: Some("message-1".to_string()),

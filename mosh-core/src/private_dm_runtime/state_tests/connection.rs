@@ -139,6 +139,7 @@ fn duplicate_inbound_data_reacks_without_decrypt() {
         .expect("Alice session should exist");
     // Seed the already-received inbound message.
     session.messages.push(ChatMessage {
+        metadata: None,
         from_device: "Peer".to_string(),
         body: "hi".to_string(),
         message_id: Some("m-dup".to_string()),
@@ -152,6 +153,7 @@ fn duplicate_inbound_data_reacks_without_decrypt() {
         read: None,
     });
     let dup = serde_json::to_vec(&DataEnvelope {
+        origin: None,
         device_signature: None,
         session_id: invite.session_id.clone(),
         participant_id: "peer-participant".to_string(),
@@ -206,6 +208,7 @@ fn a_decrypted_inbound_frame_proves_the_connection() {
         .encrypt(b"hello after flag loss")
         .expect("Bob should encrypt");
     let payload = serde_json::to_vec(&DataEnvelope {
+        origin: None,
         device_signature: None,
         session_id: invite.session_id.clone(),
         participant_id: "bob-participant".to_string(),

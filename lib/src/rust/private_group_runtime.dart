@@ -8,6 +8,8 @@ import 'conversation/attachments.dart';
 import 'conversation/dm_offers.dart';
 import 'conversation/mesh.dart';
 import 'frb_generated.dart';
+import 'message_deletion/origin.dart';
+import 'message_deletion/types.dart';
 import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'private_group_runtime/wire_types.dart';
@@ -104,6 +106,7 @@ class GroupListSnapshot {
 }
 
 class GroupMessage {
+  final MessageMetadata? metadata;
   final String fromDevice;
   final String fromFingerprint;
   final String body;
@@ -117,6 +120,7 @@ class GroupMessage {
   final GroupNameChanged? nameChange;
 
   const GroupMessage({
+    this.metadata,
     required this.fromDevice,
     required this.fromFingerprint,
     required this.body,
@@ -132,6 +136,7 @@ class GroupMessage {
 
   @override
   int get hashCode =>
+      metadata.hashCode ^
       fromDevice.hashCode ^
       fromFingerprint.hashCode ^
       body.hashCode ^
@@ -149,6 +154,7 @@ class GroupMessage {
       identical(this, other) ||
       other is GroupMessage &&
           runtimeType == other.runtimeType &&
+          metadata == other.metadata &&
           fromDevice == other.fromDevice &&
           fromFingerprint == other.fromFingerprint &&
           body == other.body &&
@@ -202,6 +208,7 @@ class GroupNameStatus {
 }
 
 class GroupSnapshot {
+  final DeletionSummary? deletionSummary;
   final String groupId;
   final String meshId;
   final String? label;
@@ -234,6 +241,7 @@ class GroupSnapshot {
   final List<TypingMember> typingMembers;
 
   const GroupSnapshot({
+    this.deletionSummary,
     required this.groupId,
     required this.meshId,
     this.label,
@@ -258,6 +266,7 @@ class GroupSnapshot {
 
   @override
   int get hashCode =>
+      deletionSummary.hashCode ^
       groupId.hashCode ^
       meshId.hashCode ^
       label.hashCode ^
@@ -284,6 +293,7 @@ class GroupSnapshot {
       identical(this, other) ||
       other is GroupSnapshot &&
           runtimeType == other.runtimeType &&
+          deletionSummary == other.deletionSummary &&
           groupId == other.groupId &&
           meshId == other.meshId &&
           label == other.label &&

@@ -13,6 +13,10 @@ use crate::shared_node::SharedMossNode;
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub(super) enum ControlEnvelope {
+    MessageDeletion {
+        group_id: String,
+        frame: crate::message_deletion::protocol::DeletionFrame,
+    },
     NameMetadata {
         group_id: String,
         operation: super::names::NameOperation,
@@ -102,6 +106,7 @@ impl ControlEnvelope {
         matches!(
             self,
             Self::AttachmentManifest { .. }
+                | Self::MessageDeletion { .. }
                 | Self::DmOffer { .. }
                 | Self::TypingIndicator { .. }
                 | Self::NameMetadata { .. }
@@ -109,6 +114,7 @@ impl ControlEnvelope {
     }
     pub(super) fn group_id(&self) -> &str {
         match self {
+            Self::MessageDeletion { group_id, .. } => group_id,
             Self::NameMetadata { group_id, .. } => group_id,
             Self::KeyPackage { group_id, .. }
             | Self::Welcome { group_id, .. }
@@ -150,6 +156,8 @@ pub(super) struct ResyncCommit {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct DataEnvelope {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<crate::message_deletion::MessageOrigin>,
     pub(super) group_id: String,
     pub(super) participant_id: String,
     pub(super) from_device: String,

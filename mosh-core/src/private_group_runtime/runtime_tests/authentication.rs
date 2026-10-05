@@ -11,6 +11,7 @@ fn peer_id(seed: u8) -> String {
 
 fn text(view: &mut MemberView) -> DataEnvelope {
     DataEnvelope {
+        origin: None,
         group_id: view.group_id.clone(),
         participant_id: "cleo-participant".into(),
         from_device: "cleo".into(),
