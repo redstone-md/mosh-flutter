@@ -132,7 +132,7 @@ impl<M: ConversationMessage> DeletionContext<'_, M> {
             return Ok(Vec::new());
         }
         let mut replies = vec![shared::page(self.book, after.as_deref(), authority)];
-        if after.is_none() && digest.is_some() {
+        if after.is_none() && digest.is_some() && authority.local.ownership.is_some() {
             replies.push(DeletionMessage::Request {
                 after: None,
                 digest: Some(local_digest),

@@ -355,3 +355,6 @@ fn a_fresh_ack_cannot_confirm_an_unaccepted_request_after_admin_demotion() {
 
 #[path = "policy_tests/recovery.rs"]
 mod recovery;
+
+#[path = "policy_tests/readiness.rs"]
+mod readiness;

@@ -31,6 +31,9 @@ with the actual staged MLS signer before committing ratchet advancement.
 Channels verify the signature and compare the claimed fingerprint with its key.
 Sender labels never grant deletion rights.
 
+Text IDs retain the local timestamp/counter prefix for queue ordering and add
+randomness to avoid reuse after a restart or repeated clock value.
+
 Optional account proofs bind the MLS or Moss signing key to a device signing key
 and a compact account certificate. The certificate contains a root public key
 and signed key delegations; it never exposes device names or Moss addresses.
@@ -62,6 +65,9 @@ receipt from another account.
 A recipient waiting for its initial certificate defers unconfirmed requests
 without changing its journal digest. The existing exchange retries admission
 after readiness; already verified confirmed state remains recoverable immediately.
+Unready recipients do not echo reciprocal initial pulls, preventing a request
+cycle while their digests cannot converge. Periodic peer advertisements resume
+the pull after certificate readiness.
 
 The sender validates the entire selection before saving. Reception validates
 the carrier, exact target, original author, request signature and current rights.
