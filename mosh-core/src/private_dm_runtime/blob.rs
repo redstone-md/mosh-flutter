@@ -79,11 +79,13 @@ impl PrivateDmSession {
     pub(super) fn accept_incoming_manifest(
         &mut self,
         from_device: String,
-        manifest: AttachmentManifest,
+        manifest: impl Into<AttachmentOffer>,
     ) -> Result<(), PrivateDmRuntimeError> {
+        let offer = manifest.into();
+        let manifest = &offer.manifest;
         let origin = manifest.origin.clone();
         let message_id = origin.as_ref().map(|o| o.id.clone());
-        let Some(descriptor) = self.transfer.accept_manifest(manifest)? else {
+        let Some(descriptor) = self.transfer.accept_offer(offer)? else {
             return Ok(());
         };
         let message = self.messages.stamp(ChatMessage {
@@ -109,49 +111,55 @@ impl PrivateDmSession {
 
     pub(super) fn send_attachment(
         &mut self,
-        file_name: String,
-        mime: String,
-        bytes: Vec<u8>,
-        thumbnail: Option<String>,
-        voice: Option<VoiceMeta>,
+        input: AttachmentInput,
     ) -> Result<AttachmentSendResult, PrivateDmRuntimeError> {
+        let AttachmentInput {
+            file_name,
+            mime,
+            bytes,
+            thumbnail,
+            preview,
+            voice,
+        } = input;
         if !self.ready_for_user_actions() {
             return Err(PrivateDmRuntimeError::NotReady);
         }
         let attachment_id = self.crypto.random_token("attachment")?;
-        let mut outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
-            attachment_id: attachment_id.clone(),
-            file_name,
-            mime,
-            from_fingerprint: self.fingerprint.clone(),
-            bytes,
-            thumbnail_b64: thumbnail,
-            voice,
-        })?;
-        let origin = crate::message_deletion::MessageOrigin::sign_mls(
-            &format!("dm:{}", self.session_id),
-            &attachment_id,
-            &crate::message_deletion::MessageOrigin::manifest_bytes(&outgoing.manifest)
-                .map_err(PrivateDmRuntimeError::Codec)?,
-            &self.crypto,
-            self.deletions.store.as_ref(),
-            self.transport.local_peer_id().as_deref(),
-        )
-        .map_err(PrivateDmRuntimeError::Codec)?;
-        outgoing.manifest.origin = Some(origin.clone());
+        let mut outgoing = self.transfer.prepare_offer(
+            OutgoingAttachment {
+                attachment_id: attachment_id.clone(),
+                file_name,
+                mime,
+                from_fingerprint: self.fingerprint.clone(),
+                bytes,
+                thumbnail_b64: thumbnail,
+                voice,
+            },
+            preview,
+        )?;
         let content_hash = outgoing.manifest.content_hash.clone();
-        let manifest_ciphertext_b64 = self.crypto.encrypt_json(&outgoing.manifest)?;
-        let envelope = ControlEnvelope::AttachmentManifest {
-            session_id: self.session_id.clone(),
-            participant_id: self.participant_id.clone(),
-            from_device: self.device_id.clone(),
-            manifest_ciphertext_b64,
-        };
-        let payload = serde_json::to_vec(&envelope)
-            .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-        self.route_send(ChannelKind::Control, &payload)?;
-
-        let descriptor = self.transfer.record_sent(outgoing);
+        let publication = (|| -> Result<_, PrivateDmRuntimeError> {
+            let origin = outgoing
+                .sign_mls(
+                    &format!("dm:{}", self.session_id),
+                    &self.crypto,
+                    self.deletions.store.as_ref(),
+                    self.transport.local_peer_id().as_deref(),
+                )
+                .map_err(PrivateDmRuntimeError::Codec)?;
+            let manifest_ciphertext_b64 = self.crypto.encrypt_json(&outgoing.offer())?;
+            let envelope = ControlEnvelope::AttachmentManifest {
+                session_id: self.session_id.clone(),
+                participant_id: self.participant_id.clone(),
+                from_device: self.device_id.clone(),
+                manifest_ciphertext_b64,
+            };
+            let payload = serde_json::to_vec(&envelope)
+                .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
+            self.route_send(ChannelKind::Control, &payload)?;
+            Ok(origin)
+        })();
+        let (descriptor, origin) = self.transfer.record_published(outgoing, publication)?;
         let message = self.messages.stamp(ChatMessage {
             metadata: Some(crate::message_deletion::MessageMetadata {
                 origin: Some(origin),

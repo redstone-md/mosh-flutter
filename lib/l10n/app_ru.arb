@@ -80,6 +80,8 @@
   "chatAttachLabel": "Прикрепить файл",
   "chatDropHint": "Перетащите файл, чтобы поделиться им",
   "attachmentTooLargeMessage": "Размер вложения превышает 50 МБ",
+  "attachmentPreviewUnavailable": "Не удалось создать превью изображения. Попробуйте другой формат картинки.",
+  "chatActionErrorPayloadTooLarge": "Это сообщение слишком большое для отправки.",
   "chatSearchPlaceholder": "Поиск сообщений",
  "chatFilterAll": "Все",
  "chatFilterAttachments": "Файлы",

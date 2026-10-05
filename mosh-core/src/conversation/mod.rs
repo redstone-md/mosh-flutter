@@ -17,6 +17,7 @@ pub mod history;
 pub mod mesh;
 pub mod message_log;
 pub mod outbound;
+pub mod previews;
 pub mod read_events;
 pub mod runtime;
 #[cfg(test)]
@@ -25,6 +26,9 @@ pub mod transfer;
 pub mod typing;
 
 use message_log::LogError;
+
+/// The pinned Moss node uses its default application-payload ceiling.
+pub(crate) const MAX_PUBLISH_BYTES: usize = 65_536;
 
 /// Wall-clock milliseconds. Zero if the system clock is set before the epoch,
 /// which only a badly set machine reports.

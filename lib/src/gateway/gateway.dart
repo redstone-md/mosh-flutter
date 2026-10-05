@@ -44,6 +44,7 @@ abstract interface class Gateway {
     required String mime,
     required String dataBase64,
     String? thumbnailBase64,
+    String? previewBase64,
     VoiceMeta? voice,
   });
 

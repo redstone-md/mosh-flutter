@@ -69,6 +69,7 @@ pub struct BridgeAttachmentPayload {
     pub mime: String,
     pub data_base64: String,
     pub thumbnail_base64: Option<String>,
+    pub preview_base64: Option<String>,
     pub voice: Option<VoiceMeta>,
 }
 
@@ -120,39 +121,35 @@ pub fn send_attachment(
     reference: BridgeConversationRef,
     payload: BridgeAttachmentPayload,
 ) -> Result<(), ConversationBridgeError> {
-    let bytes = decode_base64(&payload.data_base64)?;
+    let input = crate::conversation::previews::AttachmentInput {
+        file_name: payload.file_name,
+        mime: payload.mime,
+        bytes: decode_base64(&payload.data_base64)?,
+        thumbnail: payload.thumbnail_base64,
+        preview: payload
+            .preview_base64
+            .as_deref()
+            .map(decode_base64)
+            .transpose()?,
+        voice: payload.voice,
+    };
+    if input.mime.starts_with("image/") && (input.preview.is_none() || input.thumbnail.is_none()) {
+        return Err(ConversationBridgeError::new(
+            ConversationBridgeErrorKind::InvalidInput,
+            "An image requires a miniature and a clear preview",
+        ));
+    }
     match reference.kind {
         BridgeConversationKind::Dm => super::private_dm::ensure_runtime()?
-            .send_attachment(
-                &reference.id,
-                payload.file_name,
-                payload.mime,
-                bytes,
-                payload.thumbnail_base64,
-                payload.voice,
-            )
+            .send_attachment_with_preview(&reference.id, input)
             .map(|_| ())
             .map_err(Into::into),
         BridgeConversationKind::Channel => super::channel::ensure_runtime()?
-            .send_attachment(
-                &reference.id,
-                payload.file_name,
-                payload.mime,
-                bytes,
-                payload.thumbnail_base64,
-                payload.voice,
-            )
+            .send_attachment_with_preview(&reference.id, input)
             .map(|_| ())
             .map_err(Into::into),
         BridgeConversationKind::Group => super::private_group::ensure_runtime()?
-            .send_attachment(
-                &reference.id,
-                payload.file_name,
-                payload.mime,
-                bytes,
-                payload.thumbnail_base64,
-                payload.voice,
-            )
+            .send_attachment_with_preview(&reference.id, input)
             .map(|_| ())
             .map_err(Into::into),
     }

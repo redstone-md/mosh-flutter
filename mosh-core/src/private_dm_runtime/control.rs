@@ -143,14 +143,12 @@ impl PrivateDmSession {
         let (body, _) = self
             .crypto
             .decrypt_checked(&decode(ciphertext)?, |body, signer| {
-                let manifest: AttachmentManifest =
+                let manifest: AttachmentOffer =
                     serde_json::from_slice(body).map_err(|e| e.to_string())?;
-                if let Some(origin) = &manifest.origin {
-                    origin.verify_manifest_from_signer(&context, &manifest, signer)?;
-                }
+                manifest.verify(&context, Some(signer))?;
                 Ok(())
             })?;
-        let manifest = decode_json(&body)?;
+        let manifest: AttachmentOffer = decode_json(&body)?;
         self.note_authenticated_frame(&from_device);
         self.accept_incoming_manifest(from_device, manifest)
     }

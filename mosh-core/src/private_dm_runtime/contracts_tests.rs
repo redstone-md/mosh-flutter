@@ -35,6 +35,7 @@ fn persisted_message_round_trips_attachment_and_call() {
         message_id: "123-000000".into(),
         message: msg,
         attachment_manifest: None,
+        preview_manifest: None,
     };
     let bytes = serde_json::to_vec(&pm).unwrap();
     let back: StoredMessage<ChatMessage> = serde_json::from_slice(&bytes).unwrap();

@@ -40,8 +40,19 @@ class ConversationAttachment {
         : null;
   }
 
-  String? get localImagePreview =>
-      descriptor.mime.startsWith('image/') ? localPath : null;
+  String? get localImagePreview {
+    if (descriptor.mime.startsWith('image/') && localPath != null) {
+      return localPath;
+    }
+    return clearPreviewPath;
+  }
+
+  String? get clearPreviewPath {
+    final preview = _view?.previewPath;
+    final media = descriptor.mime.startsWith('image/') ||
+        descriptor.mime.startsWith('video/');
+    return media && preview != null && preview.isNotEmpty ? preview : null;
+  }
 
   bool get hasMediaPreview {
     if (localImagePreview != null) return true;

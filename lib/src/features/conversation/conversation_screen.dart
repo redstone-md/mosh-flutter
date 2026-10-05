@@ -170,8 +170,13 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     if (sessionId != null) context.go(AppRoutes.dmFor(sessionId));
   }
 
-  void _onAttachmentPickError(AttachmentPickError error) =>
-      _showSnackBar(AppLocalizations.of(context)!.attachmentTooLargeMessage);
+  void _onAttachmentPickError(AttachmentPickError error) {
+    final l = AppLocalizations.of(context)!;
+    _showSnackBar(switch (error) {
+      AttachmentPickError.tooLarge => l.attachmentTooLargeMessage,
+      AttachmentPickError.previewUnavailable => l.attachmentPreviewUnavailable,
+    });
+  }
 
   void _showSnackBar(String message) {
     if (!mounted) return;

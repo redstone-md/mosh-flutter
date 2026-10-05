@@ -23,6 +23,7 @@ use super::message_log::{delivery_meta, ConversationMessage, MessageLog};
 use super::now_ms;
 use super::transfer::Transfer;
 use crate::attachment_runtime::AttachmentManifest;
+use crate::conversation::previews::AttachmentOffer;
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::{HistoryTables, Persistence, PersistenceError};
@@ -40,6 +41,8 @@ pub struct StoredMessage<M> {
     pub message: M,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attachment_manifest: Option<AttachmentManifest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview_manifest: Option<AttachmentManifest>,
 }
 
 /// Where a replayed conversation's rows land.
@@ -110,7 +113,13 @@ impl History {
                 };
                 let mut message = stored.message;
                 fill_in(&mut message, &stored.message_id, stored.sent_at_ms);
-                restore_attachment(&message, local_author, transfer, stored.attachment_manifest);
+                restore_attachment(
+                    &message,
+                    local_author,
+                    transfer,
+                    stored.attachment_manifest,
+                    stored.preview_manifest,
+                );
                 log.upsert(message);
             }
         }
@@ -174,9 +183,15 @@ impl History {
             let mut stored = message.clone();
             fill_in(&mut stored, &message_id, sent_at_ms);
             let manifest = transfer.and_then(|transfer| {
-                message
-                    .attachment()
-                    .and_then(|attachment| transfer.manifest_for(&attachment.attachment_id))
+                message.attachment().and_then(|attachment| {
+                    transfer
+                        .manifest_for(&attachment.attachment_id)
+                        .map(|manifest| AttachmentOffer {
+                            manifest,
+                            preview_manifest: transfer
+                                .preview_manifest_for(&attachment.attachment_id),
+                        })
+                })
             });
             self.append(
                 p,
@@ -260,7 +275,7 @@ impl History {
         sent_at_ms: u64,
         message_id: &str,
         message: M,
-        manifest: Option<AttachmentManifest>,
+        manifest: Option<AttachmentOffer>,
     ) -> Result<(), PersistenceError> {
         let row = stored_row(conversation_id, sent_at_ms, message_id, message, manifest)?;
         p.append_history_message(self.tables, conversation_id, sent_at_ms, message_id, &row)
@@ -273,14 +288,19 @@ fn stored_row<M: ConversationMessage>(
     sent_at_ms: u64,
     message_id: &str,
     message: M,
-    manifest: Option<AttachmentManifest>,
+    manifest: Option<AttachmentOffer>,
 ) -> Result<Vec<u8>, PersistenceError> {
+    let (attachment_manifest, preview_manifest) = match manifest {
+        Some(offer) => (Some(offer.manifest), offer.preview_manifest),
+        None => (None, None),
+    };
     let record = StoredMessage {
         conversation_id: conversation_id.to_string(),
         sent_at_ms,
         message_id: message_id.to_string(),
         message,
-        attachment_manifest: manifest,
+        attachment_manifest,
+        preview_manifest,
     };
     serde_json::to_vec(&record).map_err(|error| PersistenceError::Json(error.to_string()))
 }
@@ -335,6 +355,7 @@ fn restore_attachment<M: ConversationMessage>(
     local_author: &str,
     transfer: &mut Transfer,
     manifest: Option<AttachmentManifest>,
+    preview_manifest: Option<AttachmentManifest>,
 ) {
     let Some(descriptor) = message.attachment() else {
         return;
@@ -344,7 +365,14 @@ fn restore_attachment<M: ConversationMessage>(
     } else {
         AttachmentDirection::Incoming
     };
+    let offer = manifest.clone().map(|manifest| AttachmentOffer {
+        manifest,
+        preview_manifest,
+    });
     transfer.restore_stored(descriptor, direction, manifest);
+    if let Some(offer) = offer {
+        transfer.restore_preview(offer, direction);
+    }
 }
 
 #[cfg(test)]

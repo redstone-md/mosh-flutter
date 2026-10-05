@@ -47,6 +47,7 @@ fn payload(data_base64: &str) -> BridgeAttachmentPayload {
         mime: "text/plain".to_string(),
         data_base64: data_base64.to_string(),
         thumbnail_base64: None,
+        preview_base64: None,
         voice: None,
     }
 }

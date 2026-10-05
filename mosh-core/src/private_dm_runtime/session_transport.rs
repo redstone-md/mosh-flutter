@@ -126,6 +126,9 @@ impl PrivateDmSession {
         payload: &[u8],
     ) -> Result<(), PrivateDmRuntimeError> {
         let channel = kind.channel_for(&self.session_id);
+        if payload.len() > crate::conversation::MAX_PUBLISH_BYTES {
+            return Err(PrivateDmRuntimeError::PayloadTooLarge);
+        }
         if self.devices_live() {
             return self.route_device_frame(&channel, payload);
         }

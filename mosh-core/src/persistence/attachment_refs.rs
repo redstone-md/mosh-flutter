@@ -20,7 +20,9 @@ impl Persistence {
             for (_, bytes) in self.list_rows(table)? {
                 let row: serde_json::Value = serde_json::from_slice(&bytes)
                     .map_err(|e| PersistenceError::Json(e.to_string()))?;
-                if row.pointer("/message/attachment").is_some_and(&matches) {
+                if row.pointer("/message/attachment").is_some_and(&matches)
+                    || row.get("preview_manifest").is_some_and(&matches)
+                {
                     return Ok(true);
                 }
             }

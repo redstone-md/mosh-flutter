@@ -63,10 +63,27 @@ impl PrivateDmRuntime {
         thumbnail: Option<String>,
         voice: Option<VoiceMeta>,
     ) -> Result<AttachmentSendResult, PrivateDmRuntimeError> {
+        self.send_attachment_with_preview(
+            session_id,
+            crate::conversation::previews::AttachmentInput {
+                file_name,
+                mime,
+                bytes,
+                thumbnail,
+                voice,
+                preview: None,
+            },
+        )
+    }
+
+    /// Sends the main file with an optional auxiliary preview.
+    pub fn send_attachment_with_preview(
+        &mut self,
+        session_id: &str,
+        input: crate::conversation::previews::AttachmentInput,
+    ) -> Result<AttachmentSendResult, PrivateDmRuntimeError> {
         self.drain_inbound();
-        let result = self
-            .session_mut(session_id)?
-            .send_attachment(file_name, mime, bytes, thumbnail, voice)?;
+        let result = self.session_mut(session_id)?.send_attachment(input)?;
         if let Err(error) = self.sessions.persist_tail() {
             self.log_persistence_failure(session_id, &error);
         }

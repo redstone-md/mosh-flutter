@@ -13,8 +13,6 @@
 //! here hand back the frames to publish instead of publishing them.
 
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -30,6 +28,10 @@ use crate::attachment_store::AttachmentStore;
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 #[path = "transfer_cleanup.rs"]
 mod cleanup;
+#[path = "preview_transfer.rs"]
+mod previews;
+#[path = "transfer_restore.rs"]
+mod restore;
 
 /// What went wrong moving an attachment's bytes. Each runtime maps this onto
 /// its own error, so the messages the app shows do not change.
@@ -79,6 +81,7 @@ pub struct Outgoing {
     /// What the kind stamps on the message log, once the manifest is out.
     pub descriptor: AttachmentDescriptor,
     stored_path: String,
+    pub(crate) preview: Option<Box<Outgoing>>,
 }
 
 /// Every attachment one conversation knows about: the transfers in flight, the
@@ -90,10 +93,14 @@ pub struct Transfer {
     restored_outgoing: HashMap<String, AttachmentManifest>,
     leases: HashMap<String, (String, String)>,
     gc_after: Option<String>,
+    previews: HashMap<String, AttachmentManifest>,
+    pending_previews: std::collections::VecDeque<String>,
+    preview_retry_after: HashMap<String, Instant>,
 }
 
 impl Transfer {
     pub(crate) fn forget(&mut self, id: &str) {
+        self.forget_preview(id);
         self.runtime.forget(id);
         self.restored_outgoing.remove(id);
         self.slots.forget(id);
@@ -107,6 +114,9 @@ impl Transfer {
             restored_outgoing: HashMap::new(),
             leases: HashMap::new(),
             gc_after: None,
+            previews: HashMap::new(),
+            pending_previews: Default::default(),
+            preview_retry_after: Default::default(),
         }
     }
 
@@ -127,25 +137,54 @@ impl Transfer {
         let bytes = outgoing.bytes.clone();
         let manifest = self.runtime.prepare_outgoing(outgoing)?;
         let descriptor = descriptor_of(&manifest);
-        let stored = self.with_lease(&descriptor, |transfer| {
-            transfer
-                .store
-                .write_blob(&manifest.content_hash, &manifest.file_name, &bytes)
-                .map_err(Into::into)
-        })?;
+        let stored = self
+            .with_lease(&descriptor, |transfer| {
+                transfer
+                    .store
+                    .write_blob(&manifest.content_hash, &manifest.file_name, &bytes)
+                    .map_err(Into::into)
+            })
+            .inspect_err(|_| self.runtime.forget(&manifest.attachment_id))?;
         Ok(Outgoing {
             descriptor,
             manifest,
             stored_path: stored.to_string_lossy().into_owned(),
+            preview: None,
         })
     }
 
     /// Opens the slot for a manifest that is now on the wire, and hands back
     /// the descriptor to stamp on the message log.
     pub fn record_sent(&mut self, outgoing: Outgoing) -> AttachmentDescriptor {
+        self.runtime.update_origin(&outgoing.manifest);
+        if let Some(preview) = outgoing.preview {
+            self.previews.insert(
+                outgoing.manifest.attachment_id.clone(),
+                preview.manifest.clone(),
+            );
+            self.record_sent(*preview);
+        }
         self.slots
             .record_sent(outgoing.descriptor.clone(), outgoing.stored_path);
         outgoing.descriptor
+    }
+
+    /// A refused publication releases both prepared blobs' transfer leases.
+    pub(crate) fn record_published<T, E>(
+        &mut self,
+        outgoing: Outgoing,
+        publication: Result<T, E>,
+    ) -> Result<(AttachmentDescriptor, T), E> {
+        match publication {
+            Ok(value) => Ok((self.record_sent(outgoing), value)),
+            Err(error) => {
+                if let Some(preview) = &outgoing.preview {
+                    self.forget(&preview.manifest.attachment_id);
+                }
+                self.forget(&outgoing.manifest.attachment_id);
+                Err(error)
+            }
+        }
     }
 
     /// Takes in a manifest somebody else published. `None` when the
@@ -216,12 +255,23 @@ impl Transfer {
                 bytes,
                 ..
             }) => {
-                let path = self.store.write_blob(&content_hash, &file_name, &bytes)?;
+                let path = match self.store.write_blob(&content_hash, &file_name, &bytes) {
+                    Ok(path) => path,
+                    Err(_) if self.is_preview(&attachment_id) => {
+                        self.slots.fail(&attachment_id);
+                        self.retry_preview(&attachment_id);
+                        return Ok(());
+                    }
+                    Err(error) => return Err(error.into()),
+                };
                 self.slots
                     .complete_download(&attachment_id, path.to_string_lossy().into_owned());
             }
             Ok(_) => {}
-            Err(_) => self.slots.fail(&attachment_id),
+            Err(_) => {
+                self.slots.fail(&attachment_id);
+                self.retry_preview(&attachment_id);
+            }
         }
         Ok(())
     }
@@ -229,9 +279,14 @@ impl Transfer {
     /// Divide the shared peer queue between downloads so a large file cannot
     /// keep a voice note waiting for its first chunk.
     pub fn next_requests(&mut self) -> Vec<ChunkRequest> {
+        self.next_requests_at(Instant::now())
+    }
+
+    pub(crate) fn next_requests_at(&mut self, now: Instant) -> Vec<ChunkRequest> {
+        self.schedule_previews(now);
         let mut requests = Vec::new();
-        let awaiting = self.slots.awaiting_chunks();
-        let now = Instant::now();
+        let mut awaiting = self.slots.awaiting_chunks();
+        awaiting.sort_by_key(|id| self.request_priority(id));
         for (position, attachment_id) in awaiting.iter().enumerate() {
             let remaining = awaiting.len() - position;
             let available = self.runtime.available_request_slots_at(now);
@@ -257,113 +312,17 @@ impl Transfer {
         Ok(self.slots.cancel(attachment_id, &mut self.runtime)?)
     }
 
-    /// Serves a byte range for playback, pulling the attachment in whether or
-    /// not the user ever pressed download.
-    pub fn stream_range(&mut self, attachment_id: &str, start: u64, end: u64) -> StreamRange {
-        self.slots
-            .resume_for_stream(attachment_id, &mut self.runtime);
-        let range = self.runtime.stream_range(attachment_id, start, end);
-        if !matches!(range, StreamRange::Unknown) {
-            return range;
-        }
-        let Some(descriptor) = self.slots.cached_descriptor(attachment_id) else {
-            return StreamRange::Unknown;
-        };
-        let Ok(path) = self
-            .store
-            .path_for(&descriptor.content_hash, &descriptor.file_name)
-        else {
-            return StreamRange::Unknown;
-        };
-        let Ok(mut file) = File::open(path) else {
-            return StreamRange::Unknown;
-        };
-        let Ok(metadata) = file.metadata() else {
-            return StreamRange::Unknown;
-        };
-        if metadata.len() != descriptor.total_size {
-            return StreamRange::Unknown;
-        }
-        let start = start.min(descriptor.total_size);
-        let end = end.min(descriptor.total_size).max(start);
-        let Ok(length) = usize::try_from(end - start) else {
-            return StreamRange::Unknown;
-        };
-        let mut bytes = vec![0; length];
-        if file.seek(SeekFrom::Start(start)).is_err() || file.read_exact(&mut bytes).is_err() {
-            return StreamRange::Unknown;
-        }
-        StreamRange::Ready {
-            bytes,
-            total_size: descriptor.total_size,
-            mime: descriptor.mime.clone(),
-        }
-    }
-
-    /// Puts back an attachment whose bytes are still in the store. Used by
-    /// older history rows that do not carry a chunk-crypto manifest.
-    pub fn restore_cached(
-        &mut self,
-        descriptor: &AttachmentDescriptor,
-        direction: AttachmentDirection,
-    ) {
-        let _ = self.retain_lease(descriptor);
-        if !self
-            .store
-            .exists(&descriptor.content_hash, &descriptor.file_name)
-            .unwrap_or(false)
-        {
-            return;
-        }
-        let Ok(path) = self
-            .store
-            .path_for(&descriptor.content_hash, &descriptor.file_name)
-        else {
-            return;
-        };
-        self.slots.restore(
-            descriptor.clone(),
-            direction,
-            path.to_string_lossy().into_owned(),
-        );
-    }
-
-    /// Restores a saved offer or sender after restart. Older history rows have
-    /// no manifest and can only restore files that are already cached.
-    pub fn restore_stored(
-        &mut self,
-        descriptor: &AttachmentDescriptor,
-        direction: AttachmentDirection,
-        manifest: Option<AttachmentManifest>,
-    ) {
-        if self.holds(&descriptor.attachment_id) {
-            return;
-        }
-        let manifest = manifest.filter(|value| {
-            value.attachment_id == descriptor.attachment_id
-                && value.content_hash == descriptor.content_hash
-                && value.file_name == descriptor.file_name
-                && value.mime == descriptor.mime
-                && value.total_size == descriptor.total_size
-        });
-        self.restore_cached(descriptor, direction);
-        if self.holds(&descriptor.attachment_id) {
-            if direction == AttachmentDirection::Outgoing {
-                if let Some(manifest) = manifest {
-                    self.restored_outgoing
-                        .insert(descriptor.attachment_id.clone(), manifest);
-                }
-            }
-        } else if direction == AttachmentDirection::Incoming {
-            if let Some(manifest) = manifest {
-                let _ = self.accept_manifest(manifest);
-            }
-        }
-    }
-
     /// What the UI shows for every attachment in this conversation.
     pub fn views(&self) -> Vec<AttachmentView> {
-        self.slots.views(&self.runtime)
+        self.slots
+            .views(&self.runtime)
+            .into_iter()
+            .filter(|view| !self.is_preview(&view.attachment_id))
+            .map(|mut view| {
+                view.preview_path = self.preview_path(&view.attachment_id);
+                view
+            })
+            .collect()
     }
 
     /// How many times this device has handed out one chunk. The receiver only

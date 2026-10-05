@@ -11,6 +11,12 @@ use crate::conversation::attachments::AttachmentState;
 #[path = "transfer_cleanup_tests.rs"]
 mod deletion;
 
+#[path = "preview_transfer_tests.rs"]
+mod previews;
+
+#[path = "preview_authentication_tests.rs"]
+mod preview_authentication;
+
 const FILE: &str = "clip.bin";
 
 /// An attachment root of this test's own, removed when the test ends.

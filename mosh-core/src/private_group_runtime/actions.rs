@@ -14,9 +14,28 @@ impl PrivateGroupRuntime {
         thumbnail: Option<String>,
         voice: Option<VoiceMeta>,
     ) -> Result<AttachmentSendResult, PrivateGroupError> {
+        self.send_attachment_with_preview(
+            group_id,
+            crate::conversation::previews::AttachmentInput {
+                file_name,
+                mime,
+                bytes,
+                thumbnail,
+                voice,
+                preview: None,
+            },
+        )
+    }
+
+    /// Sends the main file with an optional auxiliary preview.
+    pub fn send_attachment_with_preview(
+        &mut self,
+        group_id: &str,
+        input: crate::conversation::previews::AttachmentInput,
+    ) -> Result<AttachmentSendResult, PrivateGroupError> {
         self.drain_inbound()?;
         let session = self.group_mut(group_id)?;
-        let result = session.send_attachment(file_name, mime, bytes, thumbnail, voice)?;
+        let result = session.send_attachment(input)?;
         self.groups.persist_tail_logged(KIND);
         Ok(result)
     }
