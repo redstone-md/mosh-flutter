@@ -1,6 +1,41 @@
 use super::*;
 
 #[test]
+fn pending_deletion_retries_after_the_recipient_acquires_its_certificate() {
+    let author = SigningKey::from_bytes(&[31; 32]);
+    let reader = SigningKey::from_bytes(&[32; 32]);
+    let mut f = Fixture::new(&author);
+    let record = f.request(&author, false);
+    let mut policy = authority(&reader, &author);
+    let ownership = policy.local.ownership.take();
+    let state = DeletionMessage::State {
+        records: vec![record],
+        next: None,
+    };
+    let replies = f
+        .context()
+        .receive(state.clone(), &key(&author), &policy, |bytes| {
+            Ok(sign(&reader, bytes))
+        })
+        .unwrap();
+    assert!(replies.is_empty());
+    assert_eq!(f.log[0].body, "content");
+    f.book.reload().unwrap();
+    assert!(f.book.records.is_empty());
+    policy.local.ownership = ownership;
+    let replies = f
+        .context()
+        .receive(state, &key(&author), &policy, |bytes| {
+            Ok(sign(&reader, bytes))
+        })
+        .unwrap();
+    assert!(matches!(&replies[..], [DeletionMessage::Ack { .. }]));
+    assert_eq!(f.log[0].body, "");
+    f.book.reload().unwrap();
+    assert_eq!(f.book.accepted.len(), 1);
+}
+
+#[test]
 fn unknown_author_deletion_is_freshly_acknowledged_after_earlier_recipient_leaves() {
     let author = SigningKey::from_bytes(&[31; 32]);
     let reader = SigningKey::from_bytes(&[32; 32]);
@@ -269,4 +304,61 @@ fn author_departure_refuses_a_late_receipt_and_retains_personal_erasure() {
     assert!(f.log.visible().is_empty());
     assert!(f.book.accepted.is_empty());
     assert_eq!(f.book.summary().unwrap().rejected_count, 1);
+}
+
+#[test]
+fn an_admin_carrier_cannot_confirm_an_own_account_or_unverified_receipt() {
+    let author = SigningKey::from_bytes(&[31; 32]);
+    let admin = SigningKey::from_bytes(&[32; 32]);
+    for missing in [false, true] {
+        let mut f = Fixture::new(&author);
+        let mut record = confirmed(&f.request(&author, false), &admin);
+        let receipt = record.acknowledgement.as_mut().unwrap();
+        receipt.ownership =
+            (!missing).then(|| super::super::ownership::test_linked_proof(&author, &admin));
+        receipt.signature = sign(&admin, &receipt.input().unwrap());
+        let policy = authority(&admin, &author);
+        assert!(f
+            .context()
+            .receive(
+                DeletionMessage::State {
+                    records: vec![record],
+                    next: None
+                },
+                &key(&admin),
+                &policy,
+                |bytes| Ok(sign(&admin, bytes)),
+            )
+            .is_err());
+        assert_eq!(f.log[0].body, "content");
+        assert!(f.book.records.is_empty());
+    }
+}
+
+#[test]
+fn admin_endorsement_cannot_override_verified_same_account_membership() {
+    let author = SigningKey::from_bytes(&[31; 32]);
+    let admin = SigningKey::from_bytes(&[32; 32]);
+    let mut f = Fixture::new(&author);
+    let record = confirmed(&f.request(&author, false), &admin);
+    let origin = record.request.as_ref().unwrap().target.clone();
+    let mut policy = authority(&admin, &author);
+    policy.own.accounts = [(key(&author), "own".into()), (key(&admin), "own".into())].into();
+    policy.public_channel = true;
+    let replies = f
+        .context()
+        .receive(
+            DeletionMessage::State {
+                records: vec![record],
+                next: None,
+            },
+            &key(&admin),
+            &policy,
+            |bytes| Ok(sign(&admin, bytes)),
+        )
+        .unwrap();
+    assert!(replies.is_empty());
+    assert!(f.book.accepted.is_empty());
+    policy.admins.clear();
+    assert_eq!(policy.permitted(&origin), None);
 }

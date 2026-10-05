@@ -89,12 +89,21 @@ impl GroupSession {
             .map_err(PrivateGroupError::Deletion)?,
         };
         let members = self.crypto.member_signers().into_iter().collect();
+        let mut own = crate::message_deletion::ownership::moss_accounts(
+            self.deletions.store.as_ref(),
+            Some(self.device_fingerprint.as_str()),
+        )
+        .map_err(PrivateGroupError::Deletion)?;
+        if self.org_pubkey.is_some() {
+            own = own.for_mls(&self.crypto);
+        }
         let mut authority = DeletionAuthority {
             local,
             members,
             admins: Default::default(),
             accepted: self.deletions.accepted.clone(),
             accounts: Default::default(),
+            own,
             public_channel: false,
         };
         self.fill_deletion_admins(&mut authority)?;

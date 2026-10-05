@@ -76,6 +76,12 @@ impl<M: ConversationMessage> DeletionContext<'_, M> {
         let mut replies = Vec::new();
         for record in records {
             let record = self.currently_admissible(record, carrier, authority)?;
+            // Leave the digest different so certificate readiness retries admission.
+            if record.status == super::DeletionStatus::Pending
+                && authority.local.ownership.is_none()
+            {
+                continue;
+            }
             let may_ack = authority.may_ack(
                 record.request.as_ref().ok_or("missing request")?,
                 &authority.local.key,

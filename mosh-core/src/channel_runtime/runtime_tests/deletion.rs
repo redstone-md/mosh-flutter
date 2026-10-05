@@ -59,6 +59,10 @@ impl Fixture {
             .unwrap()
             .status
     }
+    fn identity(&self) -> crate::device_link::identity::DeviceIdentity {
+        let peer = &self.runtime.channels.get(ROOM).unwrap().device_fingerprint;
+        crate::device_link::identity::DeviceIdentity::open(self.store.clone(), peer).unwrap()
+    }
 }
 
 fn text(sender: &mut Fixture, receiver: &mut Fixture) -> String {
@@ -227,40 +231,7 @@ fn a_revoked_installation_reports_the_revoked_bridge_category() {
 }
 
 fn link_accounts(source: &Fixture, destination: &Fixture) -> String {
-    use crate::device_link::identity::DeviceIdentity;
-    let source_peer = &source
-        .runtime
-        .channels
-        .get(ROOM)
-        .unwrap()
-        .device_fingerprint;
-    let destination_peer = &destination
-        .runtime
-        .channels
-        .get(ROOM)
-        .unwrap()
-        .device_fingerprint;
-    let mut source_identity = DeviceIdentity::open(source.store.clone(), source_peer).unwrap();
-    let mut destination_identity =
-        DeviceIdentity::open(destination.store.clone(), destination_peer).unwrap();
-    let roster = source_identity
-        .roster()
-        .extend(
-            destination_identity.device().clone(),
-            &source_identity.key(),
-        )
-        .unwrap();
-    source_identity.record.roster = roster.clone();
-    destination_identity.record.roster = roster;
-    source
-        .store
-        .put_device_link(&serde_json::to_vec(&source_identity.record).unwrap())
-        .unwrap();
-    destination
-        .store
-        .put_device_link(&serde_json::to_vec(&destination_identity.record).unwrap())
-        .unwrap();
-    source_identity.roster().user_id()
+    crate::device_link::test_support::link_accounts(source.identity(), destination.identity())
 }
 
 #[test]
@@ -324,26 +295,27 @@ fn personal_attachment_erasure_matches_an_older_own_copy_even_after_shared_erasu
 }
 
 #[test]
-fn own_linked_channel_device_cannot_confirm_a_request_before_its_certificate_arrives() {
+fn linked_channel_deletion_waits_for_a_certificate_and_another_account() {
     let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let (mut root, mut linked) = (Fixture::new(), Fixture::new());
     link_accounts(&root, &linked);
     let id = text(&mut linked, &mut root);
+    assert!(
+        !linked.runtime.poll(ROOM).unwrap().messages[0]
+            .metadata
+            .as_ref()
+            .unwrap()
+            .can_delete_for_everyone
+    );
+    assert!(linked
+        .runtime
+        .delete_messages(ROOM, std::slice::from_ref(&id), DeleteScope::ForEveryone)
+        .is_err());
+    crate::device_link::test_support::certify_device(root.identity(), linked.identity());
     linked
         .runtime
         .delete_messages(ROOM, &[id], DeleteScope::ForEveryone)
         .unwrap();
-    let record = linked
-        .runtime
-        .channels
-        .get(ROOM)
-        .unwrap()
-        .deletions
-        .records
-        .values()
-        .next()
-        .unwrap();
-    assert!(record.request.as_ref().unwrap().ownership.is_none());
     state(&mut linked, &mut root);
     state(&mut root, &mut linked);
     assert_eq!(linked.deletion_status(), DeletionStatus::Pending);
@@ -351,4 +323,74 @@ fn own_linked_channel_device_cannot_confirm_a_request_before_its_certificate_arr
     state(&mut linked, &mut external);
     state(&mut external, &mut linked);
     assert_eq!(linked.deletion_status(), DeletionStatus::Confirmed);
+}
+
+#[test]
+fn a_locally_revoked_channel_device_cannot_delete_an_active_own_devices_message() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let (mut root, mut retired) = (Fixture::new(), Fixture::new());
+    link_accounts(&root, &retired);
+    crate::device_link::test_support::certify_device(root.identity(), retired.identity());
+    text(&mut root, &mut retired);
+    let target = root.runtime.poll(ROOM).unwrap().messages[0]
+        .metadata
+        .as_ref()
+        .unwrap()
+        .origin
+        .clone()
+        .unwrap();
+    let mut identity = root.identity();
+    identity.record.roster = identity
+        .roster()
+        .revoke(&retired.identity().device().device_id, &identity.key())
+        .unwrap();
+    root.store
+        .put_device_link(&serde_json::to_vec(&identity.record).unwrap())
+        .unwrap();
+    let record = forged_deletion(&retired, target);
+    deletion(
+        &mut retired,
+        &mut root,
+        DeletionMessage::State {
+            records: vec![record],
+            next: None,
+        },
+    );
+    assert_eq!(
+        root.runtime.poll(ROOM).unwrap().messages[0].body,
+        "delete this"
+    );
+}
+
+fn forged_deletion(
+    sender: &Fixture,
+    target: crate::message_deletion::MessageOrigin,
+) -> crate::message_deletion::DeletionRecord {
+    use ed25519_dalek::Signer;
+    let key = sender
+        .runtime
+        .channels
+        .get(ROOM)
+        .unwrap()
+        .node
+        .identity_signer()
+        .unwrap();
+    let actor = hex::encode(key.verifying_key().as_bytes());
+    let mut request = crate::message_deletion::protocol::DeleteRequest {
+        operation: crate::message_id::occurrence_id("delete"),
+        target,
+        actor: actor.clone(),
+        actor_name: "Retired".into(),
+        moderated: false,
+        epoch: 0,
+        signature: String::new(),
+        ownership: crate::message_deletion::ownership::create(
+            Some(&sender.store),
+            Some(&actor),
+            &actor,
+        )
+        .unwrap(),
+    };
+    request.signature = hex::encode(key.sign(&request.input().unwrap()).to_bytes());
+    shared::canonical(request, DeletionStatus::Pending, None).unwrap()
 }

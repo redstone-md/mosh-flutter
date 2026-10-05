@@ -75,6 +75,11 @@ impl ChannelSession {
             .node
             .identity_signer()
             .map_err(|e| ChannelRuntimeError::Moss(e.to_string()))?;
+        let own = crate::message_deletion::ownership::moss_accounts(
+            self.deletions.store.as_ref(),
+            Some(self.device_fingerprint.as_str()),
+        )
+        .map_err(ChannelRuntimeError::Deletion)?;
         Ok(DeletionAuthority {
             local: DeletionActor {
                 key: hex::encode(key.verifying_key().as_bytes()),
@@ -90,11 +95,8 @@ impl ChannelSession {
             members: Default::default(),
             admins: Default::default(),
             accepted: self.deletions.accepted.clone(),
-            accounts: crate::message_deletion::ownership::moss_accounts(
-                self.deletions.store.as_ref(),
-                Some(self.device_fingerprint.as_str()),
-            )
-            .map_err(ChannelRuntimeError::Deletion)?,
+            accounts: Default::default(),
+            own,
             public_channel: true,
         })
     }

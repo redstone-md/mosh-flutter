@@ -45,6 +45,23 @@ An author's other device cannot acknowledge that author's deletion as a recipien
 Channels also compare locally verified own-device Moss keys, including removed
 keys, before issuing a receipt. This local account map works while a linked
 device waits for its compact certificate and never travels in public metadata.
+Org groups map those identities to their authenticated MLS signers; display-name
+credentials in plain groups never supply account authority. Known revoked
+signers are excluded from current membership independently of historical account
+attribution; remembering an old own key cannot authorize its new requests.
+Shared requests and receipts require verified compact account proofs. A new
+linked installation enables shared deletion after acquiring its certificate;
+personal deletion is available immediately. The certificate persists, so later
+offline writes need no linked peer online. Even a current admin's endorsement
+cannot confirm a receipt from the requester's own account.
+Private own-device attribution only excludes self-receipts and revoked signers;
+it never grants author permission to recipients who cannot verify that mapping.
+It also matches the certificate's verified device signing key against the local
+roster, so adopting an account after creating a request cannot create a false
+receipt from another account.
+A recipient waiting for its initial certificate defers unconfirmed requests
+without changing its journal digest. The existing exchange retries admission
+after readiness; already verified confirmed state remains recoverable immediately.
 
 The sender validates the entire selection before saving. Reception validates
 the carrier, exact target, original author, request signature and current rights.

@@ -3,7 +3,56 @@ use crate::device_link::{account_certificate::AccountCertificate, identity::Devi
 use crate::persistence::Persistence;
 use ed25519_dalek::Signer;
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
+
+#[derive(Default)]
+pub(crate) struct OwnAccounts {
+    pub accounts: BTreeMap<String, String>,
+    pub revoked: BTreeSet<String>,
+}
+
+impl OwnAccounts {
+    pub fn same_account(
+        &self,
+        left: &str,
+        left_proof: Option<&str>,
+        right: &str,
+        right_proof: Option<&str>,
+    ) -> bool {
+        self.account(left, left_proof)
+            .is_some_and(|user| self.account(right, right_proof) == Some(user))
+    }
+
+    fn account(&self, key: &str, proof: Option<&str>) -> Option<&String> {
+        self.accounts.get(key).or_else(|| {
+            let signer = verified_proof(proof?, key)
+                .ok()?
+                .certificate
+                .subject()
+                .to_owned();
+            self.accounts.get(&signer)
+        })
+    }
+
+    pub fn for_mls(self, crypto: &crate::mls_crypto::MlsSessionCrypto) -> Self {
+        let mut mapped = self;
+        for signer in crypto.member_signers() {
+            let identity = hex::decode(&signer)
+                .ok()
+                .and_then(|key| crypto.member_identity_for_signer(&key));
+            let Some(identity) = identity else { continue };
+            let Some(user) = mapped.accounts.get(&identity).cloned() else {
+                continue;
+            };
+            mapped.accounts.insert(signer.clone(), user);
+            if mapped.revoked.contains(&identity) {
+                mapped.revoked.insert(signer);
+            }
+        }
+        mapped
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 struct AccountProof {
@@ -61,7 +110,7 @@ pub(crate) fn create(
 pub(crate) fn moss_accounts(
     store: Option<&Arc<Persistence>>,
     peer: Option<&str>,
-) -> Result<std::collections::BTreeMap<String, String>, DeletionError> {
+) -> Result<OwnAccounts, DeletionError> {
     let Some(identity) = local_identity(store, peer)? else {
         return Ok(Default::default());
     };
@@ -69,11 +118,22 @@ pub(crate) fn moss_accounts(
     let user = roster.user_id();
     let devices = roster.devices().map_err(identity_error)?;
     let removed = roster.removal_targets().map_err(identity_error)?;
-    Ok(devices
-        .into_iter()
-        .chain(removed)
-        .map(|device| (device.moss_peer_id, user.clone()))
-        .collect())
+    Ok(OwnAccounts {
+        revoked: removed
+            .iter()
+            .flat_map(|d| [d.moss_peer_id.clone(), d.signing_public_key.clone()])
+            .collect(),
+        accounts: devices
+            .into_iter()
+            .chain(removed)
+            .flat_map(|device| {
+                [
+                    (device.moss_peer_id, user.clone()),
+                    (device.signing_public_key, user.clone()),
+                ]
+            })
+            .collect(),
+    })
 }
 
 fn local_identity(
@@ -100,13 +160,46 @@ fn identity_error(error: crate::device_link::types::DeviceLinkError) -> Deletion
     }
 }
 
+#[cfg(test)]
+pub(crate) fn test_proof(key: &ed25519_dalek::SigningKey) -> String {
+    signed_test_proof(AccountCertificate::root(key), key)
+}
+
+#[cfg(test)]
+pub(crate) fn test_linked_proof(
+    root: &ed25519_dalek::SigningKey,
+    linked: &ed25519_dalek::SigningKey,
+) -> String {
+    signed_test_proof(
+        AccountCertificate::root(root)
+            .issue(&hex::encode(linked.verifying_key().as_bytes()), root)
+            .unwrap(),
+        linked,
+    )
+}
+
+#[cfg(test)]
+fn signed_test_proof(certificate: AccountCertificate, key: &ed25519_dalek::SigningKey) -> String {
+    let mut proof = AccountProof {
+        certificate,
+        subject: hex::encode(key.verifying_key().as_bytes()),
+        signature: String::new(),
+    };
+    proof.signature = hex::encode(key.sign(&proof.input().unwrap()).to_bytes());
+    serde_json::to_string(&proof).unwrap()
+}
+
 pub(crate) fn verify(proof: &str, subject: &str) -> Result<String, String> {
+    Ok(verified_proof(proof, subject)?.certificate.root)
+}
+
+fn verified_proof(proof: &str, subject: &str) -> Result<AccountProof, String> {
     if proof.len() > 16000 {
         return Err("account proof too large".into());
     }
     let proof: AccountProof = serde_json::from_str(proof).map_err(|e| e.to_string())?;
     proof.verify(subject)?;
-    Ok(proof.certificate.root)
+    Ok(proof)
 }
 
 pub(crate) fn same_account(
@@ -119,12 +212,8 @@ pub(crate) fn same_account(
         return false;
     };
     let verified = || -> Result<bool, String> {
-        let actor_proof: AccountProof =
-            serde_json::from_str(actor_proof).map_err(|e| e.to_string())?;
-        let author_proof: AccountProof =
-            serde_json::from_str(author_proof).map_err(|e| e.to_string())?;
-        actor_proof.verify(actor)?;
-        author_proof.verify(author)?;
+        let actor_proof = verified_proof(actor_proof, actor)?;
+        let author_proof = verified_proof(author_proof, author)?;
         Ok(actor_proof.certificate.root == author_proof.certificate.root)
     };
     verified().unwrap_or(false)

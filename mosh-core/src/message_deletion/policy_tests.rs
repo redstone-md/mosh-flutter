@@ -69,7 +69,7 @@ impl Fixture {
             moderated,
             epoch: 0,
             signature: String::new(),
-            ownership: None,
+            ownership: Some(super::ownership::test_proof(actor)),
         };
         request.signature = sign(actor, &request.input().unwrap());
         shared::canonical(request, DeletionStatus::Pending, None).unwrap()
@@ -87,12 +87,13 @@ fn authority(local: &SigningKey, other: &SigningKey) -> DeletionAuthority {
             key: key(local),
             name: "Admin".into(),
             epoch: 0,
-            ownership: None,
+            ownership: Some(super::ownership::test_proof(local)),
         },
         members: [key(local), key(other)].into(),
         admins: [key(local)].into(),
         accepted: Default::default(),
         accounts: Default::default(),
+        own: Default::default(),
         public_channel: false,
     }
 }
@@ -215,7 +216,7 @@ fn confirmed_moderation_survives_admin_handoff_and_stale_pending_replay() {
         request_digest: request.digest().unwrap(),
         actor: key(&current),
         signature: String::new(),
-        ownership: None,
+        ownership: Some(super::ownership::test_proof(&current)),
     };
     ack.signature = sign(&current, &ack.input().unwrap());
     let confirmed =
@@ -253,7 +254,7 @@ fn confirmed(record: &DeletionRecord, signer: &SigningKey) -> DeletionRecord {
         request_digest: request.digest().unwrap(),
         actor: key(signer),
         signature: String::new(),
-        ownership: None,
+        ownership: Some(super::ownership::test_proof(signer)),
     };
     ack.signature = sign(signer, &ack.input().unwrap());
     shared::canonical(request.clone(), DeletionStatus::Confirmed, Some(ack)).unwrap()

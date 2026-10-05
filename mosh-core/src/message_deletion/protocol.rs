@@ -31,9 +31,12 @@ impl DeleteRequest {
     }
 
     pub fn verify(&self, context: &str) -> Result<(), String> {
-        if let Some(proof) = &self.ownership {
-            super::ownership::verify(proof, &self.actor)?;
-        }
+        super::ownership::verify(
+            self.ownership
+                .as_deref()
+                .ok_or("deletion account is not verified")?,
+            &self.actor,
+        )?;
         if self.target.conversation != context
             || self.operation.len() != 39
             || self.actor_name.chars().count() > 64
@@ -69,11 +72,22 @@ impl DeleteAck {
     }
 
     pub fn verify(&self, request: &DeleteRequest) -> Result<(), String> {
-        if let Some(proof) = &self.ownership {
-            super::ownership::verify(proof, &self.actor)?;
-        }
+        super::ownership::verify(
+            self.ownership
+                .as_deref()
+                .ok_or("recipient account is not verified")?,
+            &self.actor,
+        )?;
         if self.request_digest != request.digest()? || self.actor == request.actor {
             return Err("invalid deletion acknowledgement".into());
+        }
+        if super::ownership::same_account(
+            &self.actor,
+            self.ownership.as_deref(),
+            &request.actor,
+            request.ownership.as_deref(),
+        ) {
+            return Err("deletion receipt must be from another account".into());
         }
         verify_signature(&self.actor, &self.signature, &self.input()?)
     }

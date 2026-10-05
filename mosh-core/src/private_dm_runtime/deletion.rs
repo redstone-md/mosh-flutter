@@ -97,6 +97,7 @@ impl PrivateDmSession {
             admins: Default::default(),
             accepted: self.deletions.accepted.clone(),
             accounts: Default::default(),
+            own: Default::default(),
             public_channel: false,
         };
         self.fill_deletion_accounts(&mut authority);

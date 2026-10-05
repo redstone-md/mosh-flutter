@@ -10,12 +10,13 @@ pub(crate) struct DeletionAuthority {
     pub admins: BTreeSet<String>,
     pub accepted: BTreeSet<String>,
     pub accounts: BTreeMap<String, String>,
+    pub own: super::ownership::OwnAccounts,
     pub public_channel: bool,
 }
 
 impl DeletionAuthority {
     pub fn member(&self, key: &str) -> bool {
-        self.public_channel || self.members.contains(key)
+        !self.own.revoked.contains(key) && (self.public_channel || self.members.contains(key))
     }
 
     pub fn same_account(&self, left: &str, right: &str) -> bool {
@@ -27,7 +28,7 @@ impl DeletionAuthority {
     }
 
     pub fn permitted(&self, origin: &MessageOrigin) -> Option<bool> {
-        if !self.member(&self.local.key) {
+        if !self.member(&self.local.key) || self.local.ownership.is_none() {
             return None;
         }
         if self.same_account(&self.local.key, &origin.author)
@@ -59,9 +60,16 @@ impl DeletionAuthority {
         key: &str,
         proof: Option<&str>,
     ) -> bool {
-        self.member(key)
-            && (request.ownership.is_none() || proof.is_some())
+        self.member(key) && self.other_account(request, key, proof)
+    }
+
+    fn other_account(&self, request: &DeleteRequest, key: &str, proof: Option<&str>) -> bool {
+        request.ownership.is_some()
+            && proof.is_some()
             && !self.same_account(key, &request.actor)
+            && !self
+                .own
+                .same_account(key, proof, &request.actor, request.ownership.as_deref())
             && !super::ownership::same_account(
                 key,
                 proof,
@@ -103,7 +111,8 @@ impl DeletionAuthority {
             return Err("deletion permission denied".into());
         }
         if let Some(ack) = &record.acknowledgement {
-            if !(self.may_ack_with_proof(request, &ack.actor, ack.ownership.as_deref()) || endorsed)
+            if !self.other_account(request, &ack.actor, ack.ownership.as_deref())
+                || (!self.member(&ack.actor) && !endorsed)
             {
                 return Err("ineligible deletion acknowledgement".into());
             }

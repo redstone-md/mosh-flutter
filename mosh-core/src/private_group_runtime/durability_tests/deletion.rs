@@ -1,6 +1,91 @@
 use super::*;
 use crate::message_deletion::{cipher, fragments, shared, DeleteScope, DeletionStatus};
 
+#[test]
+fn linking_accounts_does_not_turn_a_pending_deletion_into_another_account_receipt() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let (mut root, mut linked) = names::admitted_pair();
+    let id = send_text(&mut linked, &mut root, "before linking");
+    linked
+        .runtime
+        .delete_messages(&linked.id, &[id], DeleteScope::ForEveryone)
+        .unwrap();
+    crate::device_link::test_support::link_accounts(
+        device_identity(&root),
+        device_identity(&linked),
+    );
+    crate::device_link::test_support::certify_device(
+        device_identity(&root),
+        device_identity(&linked),
+    );
+    deliver_state(&mut linked, &mut root);
+    deliver_state(&mut root, &mut linked);
+    assert_eq!(
+        linked
+            .runtime
+            .poll(&linked.id)
+            .unwrap()
+            .deletion_summary
+            .map(|s| s.pending_count),
+        Some(1)
+    );
+}
+
+#[test]
+fn linked_group_deletion_waits_for_a_certificate_and_another_account() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let (mut root, mut linked) = names::admitted_pair();
+    crate::device_link::test_support::link_accounts(
+        device_identity(&root),
+        device_identity(&linked),
+    );
+    let id = send_text(&mut linked, &mut root, "own account");
+    assert!(
+        !linked.runtime.poll(&linked.id).unwrap().messages[0]
+            .metadata
+            .as_ref()
+            .unwrap()
+            .can_delete_for_everyone
+    );
+    assert!(linked
+        .runtime
+        .delete_messages(
+            &linked.id,
+            std::slice::from_ref(&id),
+            DeleteScope::ForEveryone
+        )
+        .is_err());
+    crate::device_link::test_support::certify_device(
+        device_identity(&root),
+        device_identity(&linked),
+    );
+    linked
+        .runtime
+        .delete_messages(&linked.id, &[id], DeleteScope::ForEveryone)
+        .unwrap();
+    deliver_state(&mut linked, &mut root);
+    deliver_state(&mut root, &mut linked);
+    assert_eq!(
+        linked
+            .runtime
+            .poll(&linked.id)
+            .unwrap()
+            .deletion_summary
+            .map(|summary| summary.pending_count),
+        Some(1)
+    );
+}
+
+fn device_identity(fixture: &Fixture) -> crate::device_link::identity::DeviceIdentity {
+    let peer = &fixture
+        .runtime
+        .groups
+        .get(&fixture.id)
+        .unwrap()
+        .device_fingerprint;
+    crate::device_link::identity::DeviceIdentity::open(fixture.store.clone(), peer).unwrap()
+}
+
 fn send_text(sender: &mut Fixture, receiver: &mut Fixture, body: &str) -> String {
     let _deferred = sender.refuse_data_publication("capture text");
     let sent = sender.runtime.send(&sender.id, body.into()).unwrap();
