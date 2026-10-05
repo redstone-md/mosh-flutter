@@ -358,3 +358,6 @@ mod recovery;
 
 #[path = "policy_tests/readiness.rs"]
 mod readiness;
+
+#[path = "policy_tests/revocation.rs"]
+mod revocation;

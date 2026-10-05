@@ -52,6 +52,9 @@ Org groups map those identities to their authenticated MLS signers; display-name
 credentials in plain groups never supply account authority. Known revoked
 signers are excluded from current membership independently of historical account
 attribution; remembering an old own key cannot authorize its new requests.
+Plain groups also check the verified device signing key in an account proof
+against local revocations. Unknown certificates cannot bypass a revoked issuer
+by delegating to another key; existing active roster devices retain their grants.
 Shared requests and receipts require verified compact account proofs. A new
 linked installation enables shared deletion after acquiring its certificate;
 personal deletion is available immediately. The certificate persists, so later

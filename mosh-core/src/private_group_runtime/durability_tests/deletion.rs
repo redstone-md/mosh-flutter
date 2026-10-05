@@ -86,6 +86,41 @@ fn device_identity(fixture: &Fixture) -> crate::device_link::identity::DeviceIde
     crate::device_link::identity::DeviceIdentity::open(fixture.store.clone(), peer).unwrap()
 }
 
+#[test]
+fn revoked_linked_device_cannot_delete_its_accounts_group_message() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let (mut root, mut linked) = names::admitted_pair();
+    crate::device_link::test_support::link_accounts(
+        device_identity(&root),
+        device_identity(&linked),
+    );
+    crate::device_link::test_support::certify_device(
+        device_identity(&root),
+        device_identity(&linked),
+    );
+    let id = send_text(&mut root, &mut linked, "keep this message");
+    let mut identity = device_identity(&root);
+    identity.record.roster = identity
+        .roster()
+        .revoke(
+            &device_identity(&linked).device().device_id,
+            &identity.key(),
+        )
+        .unwrap();
+    root.store
+        .put_device_link(&serde_json::to_vec(&identity.record).unwrap())
+        .unwrap();
+    linked
+        .runtime
+        .delete_messages(&linked.id, &[id], DeleteScope::ForEveryone)
+        .unwrap();
+    deliver_state(&mut linked, &mut root);
+    assert_eq!(
+        root.runtime.poll(&root.id).unwrap().messages[0].body,
+        "keep this message"
+    );
+}
+
 fn send_text(sender: &mut Fixture, receiver: &mut Fixture, body: &str) -> String {
     let _deferred = sender.refuse_data_publication("capture text");
     let sent = sender.runtime.send(&sender.id, body.into()).unwrap();

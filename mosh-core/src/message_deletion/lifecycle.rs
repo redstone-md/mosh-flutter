@@ -11,7 +11,7 @@ impl<M: ConversationMessage> DeletionContext<'_, M> {
     ) -> Result<(), String> {
         self.reject_local_pending(&authority.local.key, |request| {
             !leaving
-                && authority.member(&request.actor)
+                && authority.member_with_proof(&request.actor, request.ownership.as_deref())
                 && (!request.moderated || authority.admins.contains(&request.actor))
         })
     }

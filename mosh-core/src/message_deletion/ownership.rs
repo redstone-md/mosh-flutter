@@ -13,6 +13,25 @@ pub(crate) struct OwnAccounts {
 }
 
 impl OwnAccounts {
+    pub fn is_revoked(&self, key: &str, proof: Option<&str>) -> bool {
+        if self.revoked.contains(key) {
+            return true;
+        }
+        let Some(proof) = proof.and_then(|p| verified_proof(p, key).ok()) else {
+            return false;
+        };
+        let subject = proof.certificate.subject();
+        if self.accounts.contains_key(subject) {
+            // An active roster device retains grants issued before its issuer left.
+            return self.revoked.contains(subject);
+        }
+        let revoked = proof
+            .certificate
+            .keys()
+            .any(|key| self.revoked.contains(key));
+        revoked
+    }
+
     pub fn same_account(
         &self,
         left: &str,

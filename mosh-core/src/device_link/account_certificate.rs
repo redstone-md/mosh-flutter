@@ -34,6 +34,10 @@ impl AccountCertificate {
         self.delegations.last().map_or(&self.root, |d| &d.key)
     }
 
+    pub fn keys(&self) -> impl Iterator<Item = &str> {
+        std::iter::once(self.root.as_str()).chain(self.delegations.iter().map(|d| d.key.as_str()))
+    }
+
     pub fn issuer(&self) -> Option<&str> {
         self.delegations.last().map(|_| {
             self.delegations

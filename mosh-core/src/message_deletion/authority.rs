@@ -19,6 +19,10 @@ impl DeletionAuthority {
         !self.own.revoked.contains(key) && (self.public_channel || self.members.contains(key))
     }
 
+    pub fn member_with_proof(&self, key: &str, proof: Option<&str>) -> bool {
+        self.member(key) && !self.own.is_revoked(key, proof)
+    }
+
     pub fn same_account(&self, left: &str, right: &str) -> bool {
         left == right
             || self
@@ -28,7 +32,9 @@ impl DeletionAuthority {
     }
 
     pub fn permitted(&self, origin: &MessageOrigin) -> Option<bool> {
-        if !self.member(&self.local.key) || self.local.ownership.is_none() {
+        if !self.member_with_proof(&self.local.key, self.local.ownership.as_deref())
+            || self.local.ownership.is_none()
+        {
             return None;
         }
         if self.same_account(&self.local.key, &origin.author)
@@ -60,7 +66,7 @@ impl DeletionAuthority {
         key: &str,
         proof: Option<&str>,
     ) -> bool {
-        self.member(key) && self.other_account(request, key, proof)
+        self.member_with_proof(key, proof) && self.other_account(request, key, proof)
     }
 
     fn other_account(&self, request: &DeleteRequest, key: &str, proof: Option<&str>) -> bool {
@@ -93,7 +99,8 @@ impl DeletionAuthority {
                     self.admins.contains(&ack.actor)
                         && self.may_ack_with_proof(request, &ack.actor, ack.ownership.as_deref())
                 }));
-        if request.epoch > self.local.epoch || (!self.member(&request.actor) && !endorsed) {
+        let member = self.member_with_proof(&request.actor, request.ownership.as_deref());
+        if request.epoch > self.local.epoch || (!member && !endorsed) {
             return Err("deletion author left or epoch is ahead".into());
         }
         let authorized = if request.moderated {
@@ -112,7 +119,7 @@ impl DeletionAuthority {
         }
         if let Some(ack) = &record.acknowledgement {
             if !self.other_account(request, &ack.actor, ack.ownership.as_deref())
-                || (!self.member(&ack.actor) && !endorsed)
+                || (!self.member_with_proof(&ack.actor, ack.ownership.as_deref()) && !endorsed)
             {
                 return Err("ineligible deletion acknowledgement".into());
             }
