@@ -135,6 +135,9 @@ already-published DM retains its original delivery buffer until the counterpart
 acknowledges it. Replay, import and outbox writes consult the tombstone under the
 same redb transaction and cannot restore content or a cancelled send. History
 imports verify complete origin proofs after text fragments have assembled.
+History export derives correlation keys before the first fragment, including
+signed messages. A concurrent recovery checkpoint therefore cannot change
+fragment metadata and leave the importer waiting for an acceptable continuation.
 Deletion receives inbound control without ticking queued publication, so a route
 becoming reachable cannot publish a message before cancellation is saved.
 Native command errors distinguish invalid input, permission, revocation and

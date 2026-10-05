@@ -129,13 +129,15 @@ impl PrivateDmSession {
     }
 
     fn correlate_exported_history(&mut self, store: &Persistence) -> Result<()> {
+        // Freeze correlation metadata before the first fragment, including
+        // signed messages that a later recovery checkpoint would backfill.
         let records: Vec<_> = self
             .messages
             .iter()
             .filter(|m| {
-                m.metadata.as_ref().is_none_or(|meta| {
-                    meta.origin.is_none() && meta.deletion.is_none() && meta.deletion_key.is_none()
-                })
+                m.metadata
+                    .as_ref()
+                    .is_none_or(|meta| meta.deletion.is_none() && meta.deletion_key.is_none())
             })
             .filter_map(TextRecord::from_message)
             .collect();
