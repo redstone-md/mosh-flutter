@@ -148,7 +148,7 @@ runtime constructors, protocol dispatchers and broad platform integration
 fixtures retain their established lengths: these exercise complete wire/state
 transitions and separating them would obscure the admission sequence. The group
 authenticated-control dispatcher is 51 lines with the additive deletion arm;
-new deletion integration scenarios may reach 56 lines to keep their durable
-send/receipt/restart assertions together. New production logic stays within
+new deletion integration scenarios may reach 58 lines to keep their durable
+send/legacy-admission/receipt/restart assertions together. New production logic stays within
 feature-local modules and the normal budgets. Checks use encrypted redb, real MLS
 and Moss, the existing independent-process harness, and Flutter `test/support`.
