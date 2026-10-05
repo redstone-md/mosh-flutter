@@ -17,6 +17,11 @@ icon mask. The macOS icon has padding matching the existing app-icon layout.
 Linux loads the bundled PNG when creating its window. No new dependency is
 required.
 
+The Windows runner assigns the embedded icon to both the large and small window
+icons before showing the window. The installer lane runs a native regression
+that compares window-icon pixels with the embedded mark, including after window
+recreation. The test executable stays outside the installer bundle.
+
 ## Desktop screenshot
 
 `chat-desktop.png` renders the real `MoshApp` at 1440 × 900 logical pixels,

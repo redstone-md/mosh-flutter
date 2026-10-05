@@ -38,3 +38,20 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+# Built explicitly by CI; kept outside the installer bundle.
+add_executable(mosh_window_icon_test EXCLUDE_FROM_ALL
+  "tests/window_icon_test.cpp"
+  "win32_window.cpp"
+  "Runner.rc"
+)
+apply_standard_settings(mosh_window_icon_test)
+target_compile_definitions(mosh_window_icon_test PRIVATE "NOMINMAX")
+target_link_libraries(mosh_window_icon_test PRIVATE flutter "dwmapi.lib")
+set_target_properties(mosh_window_icon_test PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests"
+)
+add_custom_command(TARGET mosh_window_icon_test POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${FLUTTER_LIBRARY}" "$<TARGET_FILE_DIR:mosh_window_icon_test>"
+)
