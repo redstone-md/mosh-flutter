@@ -93,13 +93,17 @@ impl<M> Deref for MessageLog<M> {
 
 impl<M: ConversationMessage> MessageLog<M> {
     /// Gives a message its send time and, if it has none, an id. Ids come from
-    /// a running counter, so two messages stamped in the same millisecond
-    /// cannot collide.
+    /// a running counter for same-millisecond ordering and a random suffix
+    /// to prevent reuse after a restart or repeated clock value.
     pub fn stamp(&self, mut message: M) -> M {
         let sent_at_ms = message.sent_at_ms().unwrap_or_else(now_ms);
         message.set_sent_at_ms(sent_at_ms);
         if message.message_id().unwrap_or_default().is_empty() {
-            message.set_message_id(self.ids.next(sent_at_ms));
+            message.set_message_id(format!(
+                "{}-{}",
+                self.ids.next(sent_at_ms),
+                crate::message_id::occurrence_id("message")
+            ));
         }
         message
     }
@@ -238,6 +242,16 @@ mod tests {
 
         assert_eq!(first.sent_at_ms, Some(1000));
         assert_ne!(first.message_id, second.message_id);
+        assert!(first.message_id < second.message_id);
+    }
+
+    #[test]
+    fn a_new_log_does_not_reuse_an_old_occurrence_at_the_same_timestamp() {
+        let old: MessageLog<TestMessage> = MessageLog::default();
+        let new: MessageLog<TestMessage> = MessageLog::default();
+        let first = old.stamp(TestMessage::new("alice", "one").at(1000));
+        let after_restart = new.stamp(TestMessage::new("alice", "one").at(1000));
+        assert_ne!(first.message_id, after_restart.message_id);
     }
 
     #[test]

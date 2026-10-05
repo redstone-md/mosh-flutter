@@ -20,7 +20,7 @@ impl ChannelRuntime {
                 from_device: session.display_name.clone(),
                 from_fingerprint: session.device_fingerprint.clone(),
                 body,
-                message_id: Some(crate::message_id::occurrence_id("message")),
+                message_id: None,
                 sent_at_ms: None,
                 attachment: None,
                 delivery_status: None,

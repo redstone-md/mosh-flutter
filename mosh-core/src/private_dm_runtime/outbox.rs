@@ -148,7 +148,7 @@ impl PrivateDmSession {
             metadata: None,
             from_device: self.device_id.clone(),
             body,
-            message_id: Some(crate::message_id::occurrence_id("message")),
+            message_id: None,
             sent_at_ms: None,
             attachment: None,
             call_event: None,
