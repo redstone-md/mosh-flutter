@@ -81,13 +81,19 @@ impl PrivateDmSession {
         from_device: String,
         manifest: AttachmentManifest,
     ) -> Result<(), PrivateDmRuntimeError> {
+        let origin = manifest.origin.clone();
+        let message_id = origin.as_ref().map(|o| o.id.clone());
         let Some(descriptor) = self.transfer.accept_manifest(manifest)? else {
             return Ok(());
         };
         let message = self.messages.stamp(ChatMessage {
+            metadata: origin.map(|origin| crate::message_deletion::MessageMetadata {
+                origin: Some(origin),
+                ..Default::default()
+            }),
             from_device,
             body: String::new(),
-            message_id: None,
+            message_id,
             sent_at_ms: None,
             attachment: Some(descriptor),
             call_event: None,
@@ -113,7 +119,7 @@ impl PrivateDmSession {
             return Err(PrivateDmRuntimeError::NotReady);
         }
         let attachment_id = self.crypto.random_token("attachment")?;
-        let outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
+        let mut outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
             attachment_id: attachment_id.clone(),
             file_name,
             mime,
@@ -122,6 +128,17 @@ impl PrivateDmSession {
             thumbnail_b64: thumbnail,
             voice,
         })?;
+        let origin = crate::message_deletion::MessageOrigin::sign_mls(
+            &format!("dm:{}", self.session_id),
+            &attachment_id,
+            &crate::message_deletion::MessageOrigin::manifest_bytes(&outgoing.manifest)
+                .map_err(PrivateDmRuntimeError::Codec)?,
+            &self.crypto,
+            self.deletions.store.as_ref(),
+            self.transport.local_peer_id().as_deref(),
+        )
+        .map_err(PrivateDmRuntimeError::Codec)?;
+        outgoing.manifest.origin = Some(origin.clone());
         let content_hash = outgoing.manifest.content_hash.clone();
         let manifest_ciphertext_b64 = self.crypto.encrypt_json(&outgoing.manifest)?;
         let envelope = ControlEnvelope::AttachmentManifest {
@@ -136,9 +153,14 @@ impl PrivateDmSession {
 
         let descriptor = self.transfer.record_sent(outgoing);
         let message = self.messages.stamp(ChatMessage {
+            metadata: Some(crate::message_deletion::MessageMetadata {
+                origin: Some(origin),
+                is_own: Some(true),
+                ..Default::default()
+            }),
             from_device: self.device_id.clone(),
             body: String::new(),
-            message_id: None,
+            message_id: Some(attachment_id.clone()),
             sent_at_ms: None,
             attachment: Some(descriptor),
             call_event: None,

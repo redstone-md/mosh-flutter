@@ -98,6 +98,7 @@ impl PrivateDmSession {
         let mut ids = HashSet::new();
         for record in records {
             record.validate()?;
+            record.validate_content(&format!("dm:{}", self.session_id))?;
             if !ids.insert(record.message_id.clone()) {
                 return Err(invalid());
             }
@@ -106,7 +107,12 @@ impl PrivateDmSession {
                 .iter()
                 .find(|message| message.message_id.as_ref() == Some(&record.message_id));
             if let Some(existing) = existing {
-                if TextRecord::from_message(existing).as_ref() != Some(&record) {
+                if existing
+                    .metadata
+                    .as_ref()
+                    .is_none_or(|m| m.deletion.is_none())
+                    && TextRecord::from_message(existing).as_ref() != Some(&record)
+                {
                     return Err(invalid());
                 }
             }

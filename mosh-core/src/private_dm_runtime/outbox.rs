@@ -144,16 +144,11 @@ impl PrivateDmRuntime {
 impl PrivateDmSession {
     fn file_text(&mut self, body: String) -> Result<String, PrivateDmRuntimeError> {
         self.ensure_device_authorized()?;
-        let message = self.messages.stamp(ChatMessage {
+        let mut message = self.messages.stamp(ChatMessage {
+            metadata: None,
             from_device: self.device_id.clone(),
             body,
-            message_id: self
-                .devices_live()
-                .then(|| {
-                    self.crypto
-                        .random_token(&hex::encode(self.crypto.signer_public()))
-                })
-                .transpose()?,
+            message_id: Some(crate::message_id::occurrence_id("message")),
             sent_at_ms: None,
             attachment: None,
             call_event: None,
@@ -162,6 +157,21 @@ impl PrivateDmSession {
             retryable: None,
             retry_count: None,
             read: None,
+        });
+        message.metadata = Some(crate::message_deletion::MessageMetadata {
+            origin: Some(
+                crate::message_deletion::MessageOrigin::sign_mls(
+                    &format!("dm:{}", self.session_id),
+                    message.message_id.as_deref().unwrap_or_default(),
+                    message.body.as_bytes(),
+                    &self.crypto,
+                    self.deletions.store.as_ref(),
+                    self.transport.local_peer_id().as_deref(),
+                )
+                .map_err(PrivateDmRuntimeError::Codec)?,
+            ),
+            is_own: Some(true),
+            ..Default::default()
         });
         let session_id = self.session_id.clone();
         Ok(self

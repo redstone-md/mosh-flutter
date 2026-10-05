@@ -15,6 +15,10 @@ impl Pair {
     fn new() -> Self {
         let fixture = Fixture::new();
         let right = DeviceLinkRuntime {
+            deletion_last_pull: None,
+            deletion_digests: Default::default(),
+            deletion_pages: Default::default(),
+            deletion_fragments: Default::default(),
             names: fixture.peer.chat_names().unwrap(),
             identity: fixture.peer,
             transport: LinkTransport::new(fixture.shared.clone()).unwrap(),

@@ -363,6 +363,7 @@ impl PrivateDmSession {
         call_id: &str,
     ) {
         let message = self.messages.stamp(ChatMessage {
+            metadata: None,
             from_device: remote_device.to_string(),
             body: String::new(),
             message_id: None,

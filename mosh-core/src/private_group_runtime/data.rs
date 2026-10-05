@@ -11,11 +11,36 @@ impl GroupSession {
             return Ok(());
         }
         self.require_author(&envelope.from_fingerprint, &sender)?;
-        let plaintext = self.decrypt_application(&envelope.ciphertext_b64, &sender)?;
+        let context = format!("group:{}", self.group_id);
+        let (plaintext, _) =
+            self.crypto
+                .decrypt_checked(&decode(&envelope.ciphertext_b64)?, |body, signer| {
+                    if signer != sender.mls_signer {
+                        return Err("group sender mismatch".into());
+                    }
+                    if let Some(origin) = &envelope.origin {
+                        origin.verify(
+                            &context,
+                            envelope.message_id.as_deref().unwrap_or_default(),
+                            body,
+                        )?;
+                        if origin.author != hex::encode(signer) {
+                            return Err("group origin signer mismatch".into());
+                        }
+                    }
+                    Ok(())
+                })?;
         // A delivered message contradicts "typing": the author's hint dies at
         // once, whatever its deadline said.
         self.clear_member_typing(&envelope.from_fingerprint);
         let message = self.messages.stamp(GroupMessage {
+            metadata: envelope
+                .origin
+                .map(|origin| crate::message_deletion::MessageMetadata {
+                    origin: Some(origin),
+                    is_own: Some(false),
+                    ..Default::default()
+                }),
             from_device: envelope.from_device,
             from_fingerprint: envelope.from_fingerprint,
             body: String::from_utf8_lossy(&plaintext).into_owned(),
@@ -70,14 +95,20 @@ impl GroupSession {
         from_fingerprint: String,
         manifest: AttachmentManifest,
     ) -> Result<(), PrivateGroupError> {
+        let origin = manifest.origin.clone();
+        let message_id = origin.as_ref().map(|o| o.id.clone());
         let Some(descriptor) = self.transfer.accept_manifest(manifest)? else {
             return Ok(());
         };
         let message = self.messages.stamp(GroupMessage {
+            metadata: origin.map(|origin| crate::message_deletion::MessageMetadata {
+                origin: Some(origin),
+                ..Default::default()
+            }),
             from_device,
             from_fingerprint,
             body: String::new(),
-            message_id: None,
+            message_id,
             sent_at_ms: None,
             attachment: Some(descriptor),
             delivery_status: None,
@@ -102,7 +133,7 @@ impl GroupSession {
             return Err(PrivateGroupError::NotReady);
         }
         let attachment_id = self.crypto.random_token("attachment")?;
-        let outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
+        let mut outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
             attachment_id: attachment_id.clone(),
             file_name,
             mime,
@@ -111,6 +142,17 @@ impl GroupSession {
             thumbnail_b64: thumbnail,
             voice,
         })?;
+        let origin = crate::message_deletion::MessageOrigin::sign_mls(
+            &format!("group:{}", self.group_id),
+            &attachment_id,
+            &crate::message_deletion::MessageOrigin::manifest_bytes(&outgoing.manifest)
+                .map_err(PrivateGroupError::Codec)?,
+            &self.crypto,
+            self.deletions.store.as_ref(),
+            Some(self.device_fingerprint.as_str()),
+        )
+        .map_err(PrivateGroupError::Codec)?;
+        outgoing.manifest.origin = Some(origin.clone());
         let content_hash = outgoing.manifest.content_hash.clone();
         let manifest_ciphertext_b64 = self.crypto.encrypt_json(&outgoing.manifest)?;
         let envelope = ControlEnvelope::AttachmentManifest {
@@ -124,10 +166,15 @@ impl GroupSession {
 
         let descriptor = self.transfer.record_sent(outgoing);
         let message = self.messages.stamp(GroupMessage {
+            metadata: Some(crate::message_deletion::MessageMetadata {
+                origin: Some(origin),
+                is_own: Some(true),
+                ..Default::default()
+            }),
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
             body: String::new(),
-            message_id: None,
+            message_id: Some(attachment_id.clone()),
             sent_at_ms: None,
             attachment: Some(descriptor),
             delivery_status: None,

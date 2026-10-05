@@ -202,6 +202,7 @@ impl Drop for Fixture {
 
 fn record(id: &str, body: &str) -> TextRecord {
     TextRecord {
+        metadata: None,
         message_id: id.into(),
         sent_at_ms: 42,
         from_device: "Counterpart".into(),

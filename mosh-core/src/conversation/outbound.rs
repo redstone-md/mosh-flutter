@@ -116,6 +116,7 @@ impl<'a, M: ConversationMessage> Outbox<'a, M> {
         self.attempts.insert(
             message_id.clone(),
             OutboundAttemptRecord {
+                ever_published: Some(false),
                 conversation_id,
                 message_id: message_id.clone(),
                 sent_at_ms,
@@ -208,6 +209,7 @@ impl<'a, M: ConversationMessage> Outbox<'a, M> {
                     }
                     OnSent::Retain => {
                         if let Some(attempt) = self.attempts.get_mut(message_id) {
+                            attempt.ever_published = Some(true);
                             attempt.delivery_status = MessageDeliveryStatus::Sent;
                             attempt.delivery_error = None;
                             attempt.last_send_ms = now_ms();
@@ -260,6 +262,20 @@ impl<'a, M: ConversationMessage> Outbox<'a, M> {
     /// Copies the message's current JSON into its attempt record, so a restart
     /// rebuilds the message with the delivery status it ended on.
     pub fn sync_message_json(&mut self, message_id: &str) -> Result<(), LogError> {
+        if self
+            .log
+            .iter()
+            .find(|m| m.message_id() == Some(message_id))
+            .and_then(ConversationMessage::metadata)
+            .and_then(|m| m.deletion.as_ref())
+            .is_some_and(|d| d.scope == crate::message_deletion::DeleteScope::ForMe)
+            && self
+                .attempts
+                .get(message_id)
+                .is_some_and(|a| a.ever_published != Some(false))
+        {
+            return Ok(());
+        }
         let message_json = self.log.json_for(message_id)?;
         if let Some(attempt) = self.attempts.get_mut(message_id) {
             attempt.message_json = message_json;

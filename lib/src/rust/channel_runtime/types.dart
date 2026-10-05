@@ -8,6 +8,8 @@ import '../conversation/attachments.dart';
 import '../conversation/dm_offers.dart';
 import '../conversation/mesh.dart';
 import '../frb_generated.dart';
+import '../message_deletion/origin.dart';
+import '../message_deletion/types.dart';
 import '../outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
@@ -30,6 +32,7 @@ class ChannelListSnapshot {
 }
 
 class ChannelMessage {
+  final MessageMetadata? metadata;
   final String fromDevice;
   final String fromFingerprint;
   final String body;
@@ -42,6 +45,7 @@ class ChannelMessage {
   final int? retryCount;
 
   const ChannelMessage({
+    this.metadata,
     required this.fromDevice,
     required this.fromFingerprint,
     required this.body,
@@ -56,6 +60,7 @@ class ChannelMessage {
 
   @override
   int get hashCode =>
+      metadata.hashCode ^
       fromDevice.hashCode ^
       fromFingerprint.hashCode ^
       body.hashCode ^
@@ -72,6 +77,7 @@ class ChannelMessage {
       identical(this, other) ||
       other is ChannelMessage &&
           runtimeType == other.runtimeType &&
+          metadata == other.metadata &&
           fromDevice == other.fromDevice &&
           fromFingerprint == other.fromFingerprint &&
           body == other.body &&
@@ -85,6 +91,7 @@ class ChannelMessage {
 }
 
 class ChannelSnapshot {
+  final DeletionSummary? deletionSummary;
   final String name;
   final String topic;
   final String meshId;
@@ -97,6 +104,7 @@ class ChannelSnapshot {
   final List<SnapshotEvent> events;
 
   const ChannelSnapshot({
+    this.deletionSummary,
     required this.name,
     required this.topic,
     required this.meshId,
@@ -111,6 +119,7 @@ class ChannelSnapshot {
 
   @override
   int get hashCode =>
+      deletionSummary.hashCode ^
       name.hashCode ^
       topic.hashCode ^
       meshId.hashCode ^
@@ -127,6 +136,7 @@ class ChannelSnapshot {
       identical(this, other) ||
       other is ChannelSnapshot &&
           runtimeType == other.runtimeType &&
+          deletionSummary == other.deletionSummary &&
           name == other.name &&
           topic == other.topic &&
           meshId == other.meshId &&

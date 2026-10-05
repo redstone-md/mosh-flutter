@@ -4,7 +4,9 @@ use super::*;
 
 impl GroupSession {
     pub(super) fn snapshot(&mut self) -> GroupSnapshot {
+        let authority = self.deletion_authority().ok();
         GroupSnapshot {
+            deletion_summary: self.deletions.summary(),
             group_id: self.group_id.clone(),
             mesh_id: self.mesh_id.clone(),
             label: self.label.clone(),
@@ -19,7 +21,12 @@ impl GroupSession {
             state: self.state(),
             member_count: self.crypto.member_count(),
             invite_uri: self.invite_uri.clone(),
-            messages: self.messages.to_vec(),
+            messages: crate::message_deletion::snapshot::messages(
+                &self.messages,
+                &self.transfer,
+                &self.deletions,
+                authority.as_ref(),
+            ),
             attachments: self.transfer.views(),
             dm_offers: self.dm_offers.to_vec(),
             mesh: mesh::mesh_info(&self.node),

@@ -128,7 +128,21 @@ impl DeviceLinkRuntime {
         Ok(())
     }
 
-    fn send_names(&mut self, device: &DeviceDescriptor, message: NameMessage) {
+    pub(super) fn send_names(&mut self, device: &DeviceDescriptor, message: NameMessage) {
+        if matches!(message, NameMessage::DeletionBatch { .. }) {
+            if let Ok(bytes) = serde_json::to_vec(&message) {
+                if bytes.len() > 24000 {
+                    if let Ok(fragments) =
+                        crate::message_deletion::fragment_buffer::split_bytes(&bytes)
+                    {
+                        for fragment in fragments {
+                            self.send_names(device, NameMessage::DeletionFragment { fragment });
+                        }
+                    }
+                    return;
+                }
+            }
+        }
         if let Ok(packet) = names_wire::seal(&self.identity, &device.device_id, message) {
             let _ = self.transport.send(&device.moss_peer_id, &packet);
         }
@@ -204,6 +218,12 @@ impl DeviceLinkRuntime {
         self.reload_names()?;
         let (sender, message) = names_wire::open(&self.identity, packet)?;
         match message {
+            message @ (NameMessage::DeletionRequest { .. }
+            | NameMessage::DeletionBatch { .. }
+            | NameMessage::DeletionSaved { .. }
+            | NameMessage::DeletionFragment { .. }) => {
+                self.receive_deletions(&sender, message)?;
+            }
             NameMessage::Request { after, request_id } => {
                 // Advertise our durable state so a restarting initiator can
                 // stop pulling without forcing a reciprocal request loop.

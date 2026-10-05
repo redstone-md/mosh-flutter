@@ -30,9 +30,28 @@ impl PrivateDmSession {
             }
         }
 
-        let (plaintext, signer) = self
-            .crypto
-            .decrypt_with_signer(&decode(&envelope.ciphertext_b64)?)?;
+        let context = format!("dm:{}", self.session_id);
+        let (plaintext, signer) =
+            self.crypto
+                .decrypt_checked(&decode(&envelope.ciphertext_b64)?, |body, signer| {
+                    if let Some(origin) = &envelope.origin {
+                        origin.verify(
+                            &context,
+                            envelope.message_id.as_deref().unwrap_or_default(),
+                            body,
+                        )?;
+                        if origin.author != hex::encode(signer) {
+                            return Err("DM origin signer mismatch".into());
+                        }
+                    }
+                    if expected_signer
+                        .as_ref()
+                        .is_some_and(|key| *key != hex::encode(signer))
+                    {
+                        return Err("DM device signer mismatch".into());
+                    }
+                    Ok(())
+                })?;
         if expected_signer
             .as_ref()
             .is_some_and(|expected| *expected != hex::encode(&signer))
@@ -54,6 +73,13 @@ impl PrivateDmSession {
         }
         let ack_id = envelope.message_id.clone();
         let message = self.messages.stamp(ChatMessage {
+            metadata: envelope
+                .origin
+                .map(|origin| crate::message_deletion::MessageMetadata {
+                    origin: Some(origin),
+                    is_own: Some(own),
+                    ..Default::default()
+                }),
             from_device: author,
             body: String::from_utf8_lossy(&plaintext).into_owned(),
             message_id: envelope.message_id,

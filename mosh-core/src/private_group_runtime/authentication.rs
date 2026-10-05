@@ -76,6 +76,12 @@ impl GroupSession {
             return Ok(());
         }
         match envelope {
+            ControlEnvelope::MessageDeletion { frame, .. } => {
+                if frame.author != hex::encode(&sender.mls_signer) {
+                    return Err(PrivateGroupError::Codec("deletion carrier mismatch".into()));
+                }
+                self.receive_deletion_frame(frame)
+            }
             ControlEnvelope::NameMetadata {
                 operation,
                 epoch,
@@ -123,8 +129,27 @@ impl GroupSession {
         sender: VerifiedSender,
     ) -> Result<(), PrivateGroupError> {
         self.require_author(&fingerprint, &sender)?;
-        let manifest: AttachmentManifest =
-            decode_json(&self.decrypt_application(ciphertext, &sender)?)?;
+        let context = format!("group:{}", self.group_id);
+        let (body, _) = self
+            .crypto
+            .decrypt_checked(&decode(ciphertext)?, |body, signer| {
+                if signer != sender.mls_signer {
+                    return Err("group attachment signer mismatch".into());
+                }
+                let manifest: AttachmentManifest =
+                    serde_json::from_slice(body).map_err(|e| e.to_string())?;
+                if let Some(origin) = &manifest.origin {
+                    origin.verify_manifest(&context, &manifest)?;
+                    if origin.author != hex::encode(signer) {
+                        return Err("attachment origin mismatch".into());
+                    }
+                }
+                if manifest.from_fingerprint != sender.peer_id {
+                    return Err("attachment author mismatch".into());
+                }
+                Ok(())
+            })?;
+        let manifest: AttachmentManifest = decode_json(&body)?;
         self.require_author(&manifest.from_fingerprint, &sender)?;
         self.accept_incoming_manifest(name, sender.peer_id, manifest)
     }

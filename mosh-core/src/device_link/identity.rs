@@ -99,6 +99,9 @@ pub(crate) fn storage_error(_: impl std::fmt::Display) -> DeviceLinkError {
 }
 
 impl DeviceIdentity {
+    pub(crate) fn persistence(&self) -> &Arc<Persistence> {
+        &self.store
+    }
     pub fn open(store: Arc<Persistence>, peer_id: &str) -> Result<Self> {
         let persisted = match store.get_device_link().map_err(storage_error)? {
             Some(bytes) => bytes,

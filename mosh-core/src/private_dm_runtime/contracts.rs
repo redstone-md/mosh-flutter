@@ -117,6 +117,8 @@ pub struct ReadReceiptBody {
 #[derive(Debug, Clone, Serialize)]
 pub struct SessionSnapshot {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deletion_summary: Option<crate::message_deletion::types::DeletionSummary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub device_revocation: Option<DmDeviceRevocationState>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub history_sync: Option<DmHistorySyncState>,
@@ -173,6 +175,8 @@ pub struct CloseSessionResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<crate::message_deletion::MessageMetadata>,
     pub from_device: String,
     pub body: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -201,6 +205,28 @@ pub struct ChatMessage {
 }
 
 impl ConversationMessage for ChatMessage {
+    fn metadata(&self) -> Option<&crate::message_deletion::MessageMetadata> {
+        self.metadata.as_ref()
+    }
+    fn metadata_mut(&mut self) -> &mut Option<crate::message_deletion::MessageMetadata> {
+        &mut self.metadata
+    }
+    fn erase_content(&mut self) {
+        self.body.clear();
+        self.attachment = None;
+        self.call_event = None;
+        self.delivery_status = None;
+        self.delivery_error = None;
+        self.retryable = None;
+        self.retry_count = None;
+    }
+    fn is_service(&self) -> bool {
+        self.call_event.is_some()
+    }
+    fn call_id(&self) -> Option<&str> {
+        self.call_event.as_ref().map(|c| c.call_id.as_str())
+    }
+
     fn message_id(&self) -> Option<&str> {
         self.message_id.as_deref()
     }

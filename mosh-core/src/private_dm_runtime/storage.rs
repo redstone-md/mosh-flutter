@@ -3,6 +3,9 @@
 use super::*;
 
 impl ConversationSession for PrivateDmSession {
+    fn attach_persistence(&mut self, store: Option<Arc<Persistence>>) {
+        self.deletions.store = store;
+    }
     type Message = ChatMessage;
     type Record = contracts::PersistedSession;
 

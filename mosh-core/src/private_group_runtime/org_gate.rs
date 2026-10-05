@@ -30,7 +30,7 @@ impl GroupSession {
         self.org_roster_checked().ok()
     }
 
-    fn org_roster_checked(&mut self) -> Result<Roster, PrivateGroupError> {
+    pub(super) fn org_roster_checked(&mut self) -> Result<Roster, PrivateGroupError> {
         let org_pubkey = self
             .org_pubkey
             .as_deref()

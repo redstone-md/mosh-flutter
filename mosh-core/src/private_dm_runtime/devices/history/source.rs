@@ -76,7 +76,12 @@ impl HistoryExport {
             records,
             fragment: None,
         };
-        if request.body_offset > 0 {
+        if request.body_offset > 0
+            && batch
+                .records
+                .first()
+                .is_none_or(|r| r.metadata.as_ref().is_none_or(|m| m.deletion.is_none()))
+        {
             batch.fragment_first(request.body_offset)?;
         }
         Ok(batch)

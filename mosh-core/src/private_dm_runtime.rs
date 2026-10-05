@@ -125,6 +125,7 @@ pub struct PrivateDmRuntime {
 }
 
 struct PrivateDmSession {
+    deletions: crate::message_deletion::DeletionBook,
     history_last_rx_ms: u64,
     recovery_boot_ms: u64,
     /// When the last immediate recovery pull went out; the pump waits a
@@ -307,6 +308,7 @@ mod blob;
 mod calls;
 mod control;
 mod data;
+mod deletion;
 mod liveness;
 mod session;
 mod snapshot;

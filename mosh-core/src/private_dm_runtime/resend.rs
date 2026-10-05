@@ -11,7 +11,21 @@ impl PrivateDmSession {
             .messages
             .iter()
             .find(|message| message.message_id.as_deref() == Some(message_id))
-            .map(|message| message.body.clone())
+            .map(|message| {
+                if message
+                    .metadata
+                    .as_ref()
+                    .is_some_and(|m| m.deletion.is_some())
+                {
+                    self.outbound_attempts
+                        .get(message_id)
+                        .and_then(|a| serde_json::from_str::<ChatMessage>(&a.message_json).ok())
+                        .map(|m| m.body)
+                        .unwrap_or_else(|| message.body.clone())
+                } else {
+                    message.body.clone()
+                }
+            })
             .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
         let sent_at_ms = self
             .outbound_attempts
@@ -20,6 +34,12 @@ impl PrivateDmSession {
             .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
         let ciphertext = self.crypto.encrypt(body.as_bytes())?;
         let mut envelope = DataEnvelope {
+            origin: self
+                .messages
+                .iter()
+                .find(|m| m.message_id.as_deref() == Some(message_id))
+                .and_then(|m| m.metadata.as_ref())
+                .and_then(|m| m.origin.clone()),
             device_signature: None,
             session_id: self.session_id.clone(),
             participant_id: self.participant_id.clone(),

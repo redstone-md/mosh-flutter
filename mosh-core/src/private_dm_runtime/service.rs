@@ -72,7 +72,17 @@ impl PrivateDmRuntime {
             if session.ensure_device_authorized().is_err() {
                 continue;
             }
+            if let Err(error) = session.apply_deletions() {
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::PERSIST,
+                    session_id,
+                    &error.to_string(),
+                );
+                continue;
+            }
             session.pump_attachment_requests();
+            let _ = session.sync_deletions(now);
             session.pump_peer_connect();
             session.pump_liveness(now, lost_window);
             session.pump_reach_log();

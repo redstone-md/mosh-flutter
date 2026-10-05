@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::attachment_crypto::sha256_hex;
 use crate::attachment_runtime::{
     AttachmentManifest, ChunkFrame, ChunkRequest, OutgoingAttachment, StreamRange, VoiceMeta,
 };
@@ -45,6 +44,7 @@ pub struct JoinChannelRequest {
 pub(crate) mod types;
 pub use types::*;
 struct ChannelSession {
+    pub(super) deletions: crate::message_deletion::DeletionBook,
     pub(super) name: String,
     pub(super) topic: String,
     pub(super) blob_topic: String,
@@ -232,6 +232,8 @@ impl ChannelRuntime {
             }
         }
         for session in self.channels.values_mut() {
+            session.apply_deletions()?;
+            let _ = session.sync_deletions(crate::conversation::now_ms());
             session.pump_attachment_requests();
         }
         Ok(())
@@ -239,6 +241,9 @@ impl ChannelRuntime {
 }
 
 impl ConversationSession for ChannelSession {
+    fn attach_persistence(&mut self, store: Option<Arc<Persistence>>) {
+        self.deletions.store = store;
+    }
     type Message = ChannelMessage;
     type Record = PersistedChannelSession;
 
@@ -275,6 +280,7 @@ impl ConversationSession for ChannelSession {
 // The session's own machinery: message handling and the blob topic.
 // Both are `impl ChannelSession` on the same struct.
 mod blob;
+mod deletion;
 mod lifecycle;
 mod session;
 

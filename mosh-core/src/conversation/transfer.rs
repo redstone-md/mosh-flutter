@@ -28,6 +28,8 @@ use crate::attachment_runtime::{
 };
 use crate::attachment_store::AttachmentStore;
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
+#[path = "transfer_cleanup.rs"]
+mod cleanup;
 
 /// What went wrong moving an attachment's bytes. Each runtime maps this onto
 /// its own error, so the messages the app shows do not change.
@@ -86,15 +88,25 @@ pub struct Transfer {
     slots: AttachmentSlots,
     store: Arc<AttachmentStore>,
     restored_outgoing: HashMap<String, AttachmentManifest>,
+    leases: HashMap<String, (String, String)>,
+    gc_after: Option<String>,
 }
 
 impl Transfer {
+    pub(crate) fn forget(&mut self, id: &str) {
+        self.runtime.forget(id);
+        self.restored_outgoing.remove(id);
+        self.slots.forget(id);
+        self.release_lease(id);
+    }
     pub fn new(store: Arc<AttachmentStore>) -> Self {
         Self {
             runtime: AttachmentRuntime::new(),
             slots: AttachmentSlots::default(),
             store,
             restored_outgoing: HashMap::new(),
+            leases: HashMap::new(),
+            gc_after: None,
         }
     }
 
@@ -114,6 +126,7 @@ impl Transfer {
     ) -> Result<Outgoing, TransferError> {
         let bytes = outgoing.bytes.clone();
         let manifest = self.runtime.prepare_outgoing(outgoing)?;
+        self.retain_lease(&descriptor_of(&manifest))?;
         let stored = self
             .store
             .write_blob(&manifest.content_hash, &manifest.file_name, &bytes)?;
@@ -143,6 +156,7 @@ impl Transfer {
             return Ok(None);
         }
         let descriptor = descriptor_of(&manifest);
+        self.retain_lease(&descriptor)?;
         self.runtime.register_incoming(manifest)?;
         self.slots.offer(descriptor.clone());
         Ok(Some(descriptor))
@@ -286,6 +300,7 @@ impl Transfer {
         descriptor: &AttachmentDescriptor,
         direction: AttachmentDirection,
     ) {
+        let _ = self.retain_lease(descriptor);
         if !self
             .store
             .exists(&descriptor.content_hash, &descriptor.file_name)

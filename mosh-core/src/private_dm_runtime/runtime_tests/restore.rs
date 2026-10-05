@@ -90,6 +90,7 @@ fn restored_inbound_history_waits_for_live_peer() {
         let message_id = "inbound-000001";
         let sent_at_ms = 1;
         let message = ChatMessage {
+            metadata: None,
             from_device: "Bob".to_string(),
             body: "hello from bob".to_string(),
             message_id: Some(message_id.to_string()),

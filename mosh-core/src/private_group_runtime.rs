@@ -90,6 +90,8 @@ pub struct GroupCreated {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroupMessage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<crate::message_deletion::MessageMetadata>,
     pub from_device: String,
     pub from_fingerprint: String,
     pub body: String,
@@ -123,6 +125,25 @@ pub struct GroupNameStatus {
 }
 
 impl ConversationMessage for GroupMessage {
+    fn metadata(&self) -> Option<&crate::message_deletion::MessageMetadata> {
+        self.metadata.as_ref()
+    }
+    fn metadata_mut(&mut self) -> &mut Option<crate::message_deletion::MessageMetadata> {
+        &mut self.metadata
+    }
+    fn erase_content(&mut self) {
+        self.body.clear();
+        self.attachment = None;
+        self.name_change = None;
+        self.delivery_status = None;
+        self.delivery_error = None;
+        self.retryable = None;
+        self.retry_count = None;
+    }
+    fn is_service(&self) -> bool {
+        self.name_change.is_some()
+    }
+
     fn message_id(&self) -> Option<&str> {
         self.message_id.as_deref()
     }
@@ -165,6 +186,8 @@ impl ConversationMessage for GroupMessage {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GroupSnapshot {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deletion_summary: Option<crate::message_deletion::types::DeletionSummary>,
     pub group_id: String,
     pub mesh_id: String,
     pub label: Option<String>,
@@ -334,6 +357,8 @@ impl PrivateGroupRuntime {
             }
         }
         for session in self.groups.values_mut() {
+            session.apply_deletions()?;
+            let _ = session.sync_deletions(now_ms());
             session.pump_attachment_requests();
             // ADR 0005: a roster change may legitimize lag-buffered commits.
             session.sync_roster_state();
@@ -355,6 +380,7 @@ impl PrivateGroupRuntime {
 mod commits;
 mod control;
 mod data;
+mod deletion;
 mod lifecycle;
 mod org_gate;
 mod pending_join;

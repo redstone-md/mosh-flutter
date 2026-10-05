@@ -6,6 +6,7 @@ use crate::attachment_crypto::{sha256_hex, Sha256Builder};
 
 const ATTACHMENT_DIR_NAME: &str = "attachments";
 const MAX_FILE_NAME_LEN: usize = 200;
+mod cleanup;
 
 #[derive(Debug)]
 pub enum AttachmentStoreError {
@@ -42,13 +43,17 @@ impl From<std::io::Error> for AttachmentStoreError {
 /// (and therefore extension) so the OS can open it with the right app.
 pub struct AttachmentStore {
     root: PathBuf,
+    leases: std::sync::Mutex<std::collections::HashMap<PathBuf, usize>>,
 }
 
 impl AttachmentStore {
     pub fn new(app_data_dir: impl AsRef<Path>) -> Result<Self, AttachmentStoreError> {
         let root = app_data_dir.as_ref().join(ATTACHMENT_DIR_NAME);
         fs::create_dir_all(&root)?;
-        Ok(Self { root })
+        Ok(Self {
+            root,
+            leases: Default::default(),
+        })
     }
 
     pub fn root(&self) -> &Path {
@@ -177,7 +182,7 @@ fn validate_hash(hash: &str) -> Result<(), AttachmentStoreError> {
 
 /// Strips path separators, control characters, and leading/trailing dots so a
 /// peer-supplied file name can never escape its attachment directory.
-fn sanitize_file_name(raw: &str) -> String {
+pub(crate) fn sanitize_file_name(raw: &str) -> String {
     let cleaned: String = raw
         .chars()
         .map(|c| {

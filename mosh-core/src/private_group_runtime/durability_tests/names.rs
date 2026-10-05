@@ -153,6 +153,7 @@ fn refused_name_transaction_preserves_name_history_and_restart() {
 }
 
 pub(super) fn create_org_group(fixture: &mut Fixture, org: &str, display_name: &str) {
+    let _identity = crate::moss_ffi::replace_test_keystore(Some(fixture.store.clone()));
     let transport = SigningKey::from_bytes(&[17; 32]);
     let mut blob = vec![1];
     blob.extend_from_slice(&transport.to_bytes());

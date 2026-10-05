@@ -18,6 +18,7 @@ impl PrivateGroupRuntime {
         let session = self.group_mut(group_id)?;
 
         if session.joined {
+            session.cancel_pending_deletions()?;
             let own_fp = session.crypto.fingerprint();
             // Everyone leaves the same way: MLS forbids committing your own
             // removal, so a self-Remove proposal goes out and a member who

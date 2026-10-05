@@ -139,6 +139,7 @@ fn member_ciphertext_cannot_impersonate_a_text_author() {
     let ciphertext_b64 = encode(&fixture.peer.encrypt(b"forged author").unwrap());
     let session = fixture.runtime.groups.get_mut(&fixture.id).unwrap();
     let envelope = DataEnvelope {
+        origin: None,
         group_id: fixture.id.clone(),
         participant_id: "bob".into(),
         from_device: "Alice".into(),

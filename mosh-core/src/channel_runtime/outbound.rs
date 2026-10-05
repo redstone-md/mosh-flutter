@@ -15,17 +15,33 @@ impl ChannelRuntime {
         let normalized = normalize_name(name)?;
         let (channel_name, topic, prepared) = {
             let session = self.channel_mut(&normalized)?;
-            let message = session.messages.stamp(ChannelMessage {
+            let mut message = session.messages.stamp(ChannelMessage {
+                metadata: None,
                 from_device: session.display_name.clone(),
                 from_fingerprint: session.device_fingerprint.clone(),
                 body,
-                message_id: None,
+                message_id: Some(crate::message_id::occurrence_id("message")),
                 sent_at_ms: None,
                 attachment: None,
                 delivery_status: None,
                 delivery_error: None,
                 retryable: None,
                 retry_count: None,
+            });
+            let origin = crate::message_deletion::MessageOrigin::sign(
+                &format!("channel:{}", session.name),
+                message.message_id.as_deref().unwrap_or_default(),
+                message.body.as_bytes(),
+                session
+                    .node
+                    .identity_signer()
+                    .map_err(|e| ChannelRuntimeError::Moss(e.to_string()))?,
+                session.deletions.store.as_ref(),
+            )
+            .map_err(ChannelRuntimeError::Codec)?;
+            message.metadata = Some(crate::message_deletion::MessageMetadata {
+                origin: Some(origin),
+                ..Default::default()
             });
             // A channel is public, so the frame is the message itself, minus
             // the delivery fields that only mean something to the sender.

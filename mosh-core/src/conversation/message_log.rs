@@ -20,6 +20,15 @@ use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus};
 
 /// What a conversation runtime needs from a message to keep a log of them.
 pub trait ConversationMessage: Clone + Serialize {
+    fn metadata(&self) -> Option<&crate::message_deletion::MessageMetadata>;
+    fn metadata_mut(&mut self) -> &mut Option<crate::message_deletion::MessageMetadata>;
+    fn erase_content(&mut self);
+    fn is_service(&self) -> bool {
+        false
+    }
+    fn call_id(&self) -> Option<&str> {
+        None
+    }
     fn message_id(&self) -> Option<&str>;
     fn set_message_id(&mut self, message_id: String);
     fn sent_at_ms(&self) -> Option<u64>;
@@ -97,13 +106,20 @@ impl<M: ConversationMessage> MessageLog<M> {
 
     /// Appends a message that is already stamped.
     pub fn push(&mut self, message: M) {
+        if message.message_id().is_some_and(|id| {
+            self.messages.iter().any(|old| {
+                old.message_id() == Some(id) && old.metadata().is_some_and(|m| m.deletion.is_some())
+            })
+        }) {
+            return;
+        }
         self.messages.push(message);
     }
 
     /// Stamps a message and appends it.
     pub fn push_stamped(&mut self, message: M) {
         let stamped = self.stamp(message);
-        self.messages.push(stamped);
+        self.push(stamped);
     }
 
     /// Replaces the message with the same id, or appends it.
@@ -114,11 +130,31 @@ impl<M: ConversationMessage> MessageLog<M> {
                 .iter_mut()
                 .find(|existing| existing.message_id() == Some(message_id))
             {
+                if existing.metadata().is_some_and(|m| m.deletion.is_some()) {
+                    return;
+                }
                 *existing = message;
                 return;
             }
         }
         self.messages.push(message);
+    }
+
+    pub(crate) fn replace(&mut self, index: usize, message: M) {
+        self.messages[index] = message;
+    }
+
+    pub(crate) fn visible(&self) -> Vec<M> {
+        self.messages
+            .iter()
+            .filter(|message| {
+                !message
+                    .metadata()
+                    .and_then(|m| m.deletion.as_ref())
+                    .is_some_and(|d| d.scope == crate::message_deletion::DeleteScope::ForMe)
+            })
+            .cloned()
+            .collect()
     }
 
     pub fn find_mut(&mut self, message_id: &str) -> Option<&mut M> {

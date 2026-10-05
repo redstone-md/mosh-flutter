@@ -4,6 +4,8 @@ use super::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChannelMessage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<crate::message_deletion::MessageMetadata>,
     pub from_device: String,
     pub from_fingerprint: String,
     pub body: String,
@@ -24,6 +26,21 @@ pub struct ChannelMessage {
 }
 
 impl ConversationMessage for ChannelMessage {
+    fn metadata(&self) -> Option<&crate::message_deletion::MessageMetadata> {
+        self.metadata.as_ref()
+    }
+    fn metadata_mut(&mut self) -> &mut Option<crate::message_deletion::MessageMetadata> {
+        &mut self.metadata
+    }
+    fn erase_content(&mut self) {
+        self.body.clear();
+        self.attachment = None;
+        self.delivery_status = None;
+        self.delivery_error = None;
+        self.retryable = None;
+        self.retry_count = None;
+    }
+
     fn message_id(&self) -> Option<&str> {
         self.message_id.as_deref()
     }
@@ -66,6 +83,8 @@ impl ConversationMessage for ChannelMessage {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ChannelSnapshot {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deletion_summary: Option<crate::message_deletion::types::DeletionSummary>,
     pub name: String,
     pub topic: String,
     pub mesh_id: String,
@@ -85,10 +104,13 @@ pub struct ChannelSnapshot {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub(super) enum ChannelBlobEnvelope {
+    MessageDeletion {
+        frame: crate::message_deletion::protocol::DeletionFrame,
+    },
     Manifest {
         from_device: String,
         from_fingerprint: String,
-        manifest: AttachmentManifest,
+        manifest: Box<AttachmentManifest>,
     },
     Request {
         from_fingerprint: String,

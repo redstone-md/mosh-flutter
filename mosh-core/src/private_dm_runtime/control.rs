@@ -18,6 +18,11 @@ impl PrivateDmSession {
         envelope: ControlEnvelope,
     ) -> Result<(), PrivateDmRuntimeError> {
         match envelope {
+            ControlEnvelope::MessageDeletion { session_id, frame }
+                if session_id == self.session_id =>
+            {
+                self.receive_deletion_frame(frame)
+            }
             ControlEnvelope::AuthenticatedKeyPackage {
                 session_id,
                 proof_b64,
@@ -104,7 +109,21 @@ impl PrivateDmSession {
                 from_device,
                 manifest_ciphertext_b64,
             } if self.is_from_counterpart(&session_id, &participant_id) => {
-                let manifest_json = self.crypto.decrypt(&decode(&manifest_ciphertext_b64)?)?;
+                let context = format!("dm:{}", self.session_id);
+                let (manifest_json, _) = self.crypto.decrypt_checked(
+                    &decode(&manifest_ciphertext_b64)?,
+                    |body, signer| {
+                        let manifest: AttachmentManifest =
+                            serde_json::from_slice(body).map_err(|e| e.to_string())?;
+                        if let Some(origin) = &manifest.origin {
+                            origin.verify_manifest(&context, &manifest)?;
+                            if origin.author != hex::encode(signer) {
+                                return Err("DM attachment signer mismatch".into());
+                            }
+                        }
+                        Ok(())
+                    },
+                )?;
                 let manifest: AttachmentManifest = decode_json(&manifest_json)?;
                 self.note_authenticated_frame(&from_device);
                 self.accept_incoming_manifest(from_device, manifest)

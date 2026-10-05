@@ -25,6 +25,7 @@ impl AttachmentRuntime {
         let nonce_prefix = random_nonce_prefix();
         let chunk_count = total_size.div_ceil(u64::from(CHUNK_SIZE));
         let manifest = AttachmentManifest {
+            origin: None,
             attachment_id: request.attachment_id.clone(),
             content_hash: sha256_hex(&request.bytes),
             file_name: request.file_name,

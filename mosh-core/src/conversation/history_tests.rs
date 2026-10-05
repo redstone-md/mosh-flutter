@@ -69,6 +69,7 @@ type Attempts = HashMap<String, OutboundAttemptRecord>;
 
 fn attempt(message: &TestMessage, status: MessageDeliveryStatus) -> OutboundAttemptRecord {
     OutboundAttemptRecord {
+        ever_published: None,
         conversation_id: CONVERSATION.to_string(),
         message_id: message.message_id.clone().expect("stamped message"),
         sent_at_ms: message.sent_at_ms.expect("stamped message"),
