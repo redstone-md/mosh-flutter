@@ -4,6 +4,49 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-10-05
+
+### Added
+
+- Delete individual messages or a selection in personal chats, groups and
+  channels. Delete your own or received messages from your history; delete
+  messages for everyone when verified authorship or group admin rights allow it.
+- Deletions survive restarts, retry after reconnecting and synchronize between
+  linked devices. Shared deletions leave a placeholder; group moderation shows
+  the administrator's name. Unused app-owned attachment copies are cleaned up.
+- Rename chats from the chat menu or conversation list. Personal chats and
+  channels use your private name, synchronized between linked devices; groups
+  share a name that current admins can change, with an entry in group history.
+- Choose System, Russian or English in Profile settings. The preference survives
+  restarts and also translates the macOS application menu.
+
+### Fixed
+
+- Consecutive text sends preserve composer focus and allow another message while
+  earlier messages are still being sent. Failed submissions remain retryable.
+- macOS no longer terminates on SIGPIPE during native network operations.
+- Group messages and targeted private-chat invitations verify their real sender
+  and intended recipient. Membership is rechecked when accepting invitations.
+- History transfer between linked devices keeps message metadata stable while
+  recovery saves run, including messages larger than one transfer packet.
+- Personal-name synchronization waits for every active linked device before
+  enabling the first rename and rejects replies from an earlier synchronization.
+- Conversation writes retain refused data, and Windows source preparation
+  tolerates concurrent readers and interrupted builds.
+
+### Upgrade notes
+
+- Update all group participants together: unsigned group message frames from
+  earlier versions are rejected. Existing encrypted history remains readable.
+- Shared deletion and name synchronization require updated clients. A deletion
+  confirmation means another participant saved the request; it does not prove
+  delivery to every participant. Older messages with unverifiable authorship
+  support personal deletion, with a device-only label when copies cannot match.
+- A newly linked device waits for all active devices before its first personal
+  rename. Later offline renames remain available.
+- This release ships a Windows x64 installer and a universal macOS disk image
+  for Apple Silicon and Intel.
+
 ## [0.15.0] - 2026-10-03
 
 First launch now guides you through your name, device linking and network
