@@ -38,6 +38,25 @@ fn deleting_a_queued_text_cancels_delivery_after_restart() {
 }
 
 #[test]
+fn deleting_a_queued_text_before_the_next_tick_does_not_publish_it() {
+    let mut pair = Pair::new("delete-before-reconnected-tick");
+    pair.net.link_both(ALICE_ID, BOB_ID, PeerTransport::None);
+    let sent = pair
+        .alice
+        .send_message(&pair.session_id, "cancel before pumping".into())
+        .unwrap();
+    pair.net.link_both(ALICE_ID, BOB_ID, PeerTransport::Direct);
+    pair.alice
+        .delete_messages(&pair.session_id, &[sent.message_id], DeleteScope::ForMe)
+        .unwrap();
+    for _ in 0..4 {
+        pair.alice.poll_session(&pair.session_id).unwrap();
+        pair.bob.poll_session(&pair.session_id).unwrap();
+    }
+    pair.assert_bob_received_nothing();
+}
+
+#[test]
 fn global_deletion_waits_for_the_counterparts_saved_acknowledgement() {
     let mut pair = Pair::new("global-deletion");
     let sent = pair
@@ -102,7 +121,10 @@ fn mixed_or_missing_bulk_targets_leave_the_entire_selection_unchanged() {
         &[sent.message_id, "missing".into()],
         DeleteScope::ForMe,
     );
-    assert!(result.is_err());
+    assert_eq!(
+        crate::api::conversation_bridge::ConversationBridgeError::from(result.unwrap_err()).kind,
+        crate::api::conversation_bridge::ConversationBridgeErrorKind::InvalidInput
+    );
     assert_eq!(
         pair.alice.poll_session(&pair.session_id).unwrap().messages[0].body,
         "keep me"
@@ -117,14 +139,18 @@ fn a_counterpart_cannot_delete_somebody_elses_text_for_everyone() {
         .send_message(&pair.session_id, "only Alice may delete this".into())
         .unwrap();
     pair.bob.poll_session(&pair.session_id).unwrap();
-    assert!(pair
+    let denied = pair
         .bob
         .delete_messages(
             &pair.session_id,
             &[sent.message_id],
-            DeleteScope::ForEveryone
+            DeleteScope::ForEveryone,
         )
-        .is_err());
+        .unwrap_err();
+    assert_eq!(
+        crate::api::conversation_bridge::ConversationBridgeError::from(denied).kind,
+        crate::api::conversation_bridge::ConversationBridgeErrorKind::PermissionDenied
+    );
     assert_eq!(
         pair.bob.poll_session(&pair.session_id).unwrap().messages[0].body,
         "only Alice may delete this"

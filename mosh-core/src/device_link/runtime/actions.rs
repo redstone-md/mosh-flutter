@@ -69,6 +69,7 @@ impl DeviceLinkRuntime {
         if !revoked {
             record.device.name = name.into();
             record.roster = DeviceRoster::genesis(record.device.clone(), &self.identity.key())?;
+            record.account_certificate = None;
         }
         record.pending = None;
         self.identity.update(record)

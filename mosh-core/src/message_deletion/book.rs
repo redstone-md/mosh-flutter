@@ -4,18 +4,16 @@ use std::{
     sync::Arc,
 };
 
-use super::{types::DeleteMessagesResult, DeleteScope, DeletionMarker, DeletionStatus};
-use crate::conversation::{
-    message_log::{ConversationMessage, MessageLog},
-    transfer::Transfer,
-};
-use crate::outbound_delivery::OutboundAttemptRecord;
+use super::{DeleteScope, DeletionError, DeletionMarker, DeletionStatus};
+use crate::conversation::message_log::{ConversationMessage, MessageLog};
 use crate::persistence::{HistoryTables, Persistence};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct DeletionRecord {
     pub context: String,
     pub key: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub personal_correlation: Option<String>,
     pub scope: DeleteScope,
     pub owner: String,
     pub local_only: bool,
@@ -29,6 +27,12 @@ pub(crate) struct DeletionRecord {
 
 impl DeletionRecord {
     pub(crate) fn merged(&self, incoming: &Self) -> Self {
+        if self.scope == DeleteScope::ForMe
+            && self.personal_correlation.is_none()
+            && incoming.personal_correlation.is_some()
+        {
+            return incoming.clone();
+        }
         if self.status == DeletionStatus::Confirmed {
             if incoming.status != DeletionStatus::Confirmed {
                 return self.clone();
@@ -60,6 +64,15 @@ impl DeletionRecord {
         )
     }
 
+    pub(crate) fn matches(&self, target: &str, personal_correlation: Option<&str>) -> bool {
+        self.key == target
+            || (self.scope == DeleteScope::ForMe
+                && (self.personal_correlation.as_deref() == Some(target)
+                    || personal_correlation.is_some_and(|key| {
+                        self.key == key || self.personal_correlation.as_deref() == Some(key)
+                    })))
+    }
+
     pub(crate) fn marker(&self) -> DeletionMarker {
         DeletionMarker {
             scope: if self.status == DeletionStatus::Rejected {
@@ -80,6 +93,7 @@ pub(crate) struct DeletionBook {
     pub store: Option<Arc<Persistence>>,
     pub tables: HistoryTables,
     pub records: BTreeMap<String, DeletionRecord>,
+    pub accepted: std::collections::BTreeSet<String>,
     pub last_sync: u64,
     pub(super) fragments: super::fragment_buffer::FragmentBuffer,
 }
@@ -107,33 +121,40 @@ impl DeletionBook {
             tables,
             store,
             records: BTreeMap::new(),
+            accepted: Default::default(),
             last_sync: 0,
             fragments: Default::default(),
         }
     }
 
-    pub fn user(&self) -> Result<String, String> {
+    pub fn user(&self) -> Result<String, DeletionError> {
         let Some(store) = &self.store else {
             return Ok("local".into());
         };
-        let Some(bytes) = store.get_device_link().map_err(|e| e.to_string())? else {
+        let Some(bytes) = store
+            .get_device_link()
+            .map_err(|e| DeletionError::Persistence(e.to_string()))?
+        else {
             return Ok("local".into());
         };
-        let identity: crate::device_link::identity::LocalIdentity =
-            serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+        let identity: crate::device_link::identity::LocalIdentity = serde_json::from_slice(&bytes)
+            .map_err(|e| DeletionError::Persistence(e.to_string()))?;
         if !identity
             .roster
             .devices()
-            .map_err(|e| e.to_string())?
+            .map_err(|e| DeletionError::Persistence(e.to_string()))?
             .contains(&identity.device)
         {
-            return Err("revoked device cannot delete messages".into());
+            return Err(DeletionError::Revoked);
         }
         Ok(identity.roster.user_id())
     }
 
     pub fn reload(&mut self) -> Result<(), String> {
         if let Some(store) = &self.store {
+            self.accepted = store
+                .accepted_deletions(&self.context)
+                .map_err(|e| e.to_string())?;
             for record in store
                 .deletion_records(&self.context)
                 .map_err(|e| e.to_string())?
@@ -143,79 +164,23 @@ impl DeletionBook {
         }
         Ok(())
     }
-
-    pub fn delete_for_me<M: ConversationMessage>(
-        &mut self,
-        log: &mut MessageLog<M>,
-        attempts: &mut std::collections::HashMap<String, OutboundAttemptRecord>,
-        transfer: &mut Transfer,
-        ids: &[String],
-    ) -> Result<DeleteMessagesResult, String> {
-        self.reload()?;
-        let ids = validate_selection(log, ids)?;
-        let owner = self.user()?;
-        let mut records = Vec::new();
-        for message in log
-            .iter()
-            .filter(|m| m.message_id().is_some_and(|id| ids.contains(id)))
-        {
-            let (key, local_only) = super::target::target(&self.context, message, transfer)?;
-            records.push(DeletionRecord {
-                context: self.context.clone(),
-                key,
-                scope: DeleteScope::ForMe,
-                owner: owner.clone(),
-                local_only,
-                status: DeletionStatus::Confirmed,
-                administrator: None,
-                request: None,
-                acknowledgement: None,
-            });
-        }
-        let result = DeleteMessagesResult {
-            deleted_count: records.len(),
-            local_only_count: records.iter().filter(|r| r.local_only).count(),
-            pending_count: 0,
-        };
-        self.install(log, attempts, transfer, &records)?;
-        Ok(result)
-    }
-
-    pub fn apply<M: ConversationMessage>(
-        &mut self,
-        log: &mut MessageLog<M>,
-        attempts: &mut std::collections::HashMap<String, OutboundAttemptRecord>,
-        transfer: &mut Transfer,
-    ) -> Result<(), String> {
-        if let Some(store) = &self.store {
-            transfer.collect_erased_cache(store);
-        }
-        self.reload()?;
-        if self.records.is_empty() {
-            return Ok(());
-        }
-        let user = self.user()?;
-        let records: Vec<_> = self
-            .records
-            .values()
-            .filter(|r| r.owner == user || r.scope == DeleteScope::ForEveryone)
-            .cloned()
-            .collect();
-        self.install(log, attempts, transfer, &records)
-    }
 }
 
 pub(super) fn validate_selection<M: ConversationMessage>(
     log: &MessageLog<M>,
     ids: &[String],
-) -> Result<HashSet<String>, String> {
+) -> Result<HashSet<String>, DeletionError> {
     if ids.is_empty() || ids.len() > 1000 {
-        return Err("select between 1 and 1000 messages".into());
+        return Err(DeletionError::InvalidInput(
+            "select between 1 and 1000 messages".into(),
+        ));
     }
     let ids: HashSet<_> = ids.iter().cloned().collect();
     for id in &ids {
         if log.iter().filter(|m| m.message_id() == Some(id)).count() != 1 {
-            return Err("selected message is missing or ambiguous".into());
+            return Err(DeletionError::InvalidInput(
+                "selected message is missing or ambiguous".into(),
+            ));
         }
     }
     Ok(ids)

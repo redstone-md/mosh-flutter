@@ -15,7 +15,7 @@ impl PrivateDmRuntime {
         messages: &[String],
         scope: DeleteScope,
     ) -> Result<DeleteMessagesResult, PrivateDmRuntimeError> {
-        self.drain_inbound();
+        self.receive_inbound();
         self.sessions.persist_tail()?;
         let session = self.session_mut(id)?;
         session.delete_messages(messages, scope)
@@ -29,29 +29,27 @@ impl PrivateDmSession {
         scope: DeleteScope,
     ) -> Result<DeleteMessagesResult, PrivateDmRuntimeError> {
         if scope == DeleteScope::ForMe {
-            let _ = crate::message_deletion::ownership::create(
-                self.deletions.store.as_ref(),
+            return crate::message_deletion::delete_for_me(
+                &mut DeletionContext {
+                    book: &mut self.deletions,
+                    log: &mut self.messages,
+                    attempts: &mut self.outbound_attempts,
+                    transfer: &mut self.transfer,
+                },
+                ids,
                 self.transport.local_peer_id().as_deref(),
-                &hex::encode(self.crypto.signer_public()),
             )
-            .map_err(PrivateDmRuntimeError::Codec)?;
-            return self
-                .deletions
-                .delete_for_me(
-                    &mut self.messages,
-                    &mut self.outbound_attempts,
-                    &mut self.transfer,
-                    ids,
-                )
-                .map_err(PrivateDmRuntimeError::Persistence);
+            .map_err(PrivateDmRuntimeError::Deletion);
         }
         let authority = self.deletion_authority()?;
 
         let result = shared::admit(
-            &mut self.deletions,
-            &mut self.messages,
-            &mut self.outbound_attempts,
-            &mut self.transfer,
+            &mut DeletionContext {
+                book: &mut self.deletions,
+                log: &mut self.messages,
+                attempts: &mut self.outbound_attempts,
+                transfer: &mut self.transfer,
+            },
             ids,
             &authority.local,
             |m| {
@@ -67,7 +65,7 @@ impl PrivateDmSession {
                     .map_err(|e| e.to_string())
             },
         )
-        .map_err(PrivateDmRuntimeError::Codec)?;
+        .map_err(PrivateDmRuntimeError::Deletion)?;
         self.deletions.last_sync = 0;
         let _ = self.publish_deletion(&shared::page(&self.deletions, None, &authority));
         Ok(result)
@@ -90,14 +88,14 @@ impl PrivateDmSession {
                 self.transport.local_peer_id().as_deref(),
                 &hex::encode(self.crypto.signer_public()),
             )
-            .map_err(PrivateDmRuntimeError::Codec)?,
+            .map_err(PrivateDmRuntimeError::Deletion)?,
         };
         let members = self.crypto.member_signers().into_iter().collect();
         let mut authority = DeletionAuthority {
             local,
             members,
             admins: Default::default(),
-            past_admins: Default::default(),
+            accepted: self.deletions.accepted.clone(),
             accounts: Default::default(),
             public_channel: false,
         };
@@ -106,13 +104,13 @@ impl PrivateDmSession {
     }
 
     pub(super) fn apply_deletions(&mut self) -> Result<(), PrivateDmRuntimeError> {
-        self.deletions
-            .apply(
-                &mut self.messages,
-                &mut self.outbound_attempts,
-                &mut self.transfer,
-            )
-            .map_err(PrivateDmRuntimeError::Persistence)
+        crate::message_deletion::apply(&mut DeletionContext {
+            book: &mut self.deletions,
+            log: &mut self.messages,
+            attempts: &mut self.outbound_attempts,
+            transfer: &mut self.transfer,
+        })
+        .map_err(PrivateDmRuntimeError::Persistence)
     }
 
     pub(super) fn receive_deletion_frame(

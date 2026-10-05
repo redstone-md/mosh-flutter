@@ -4,6 +4,7 @@ use super::*;
 
 #[derive(Debug)]
 pub enum PrivateGroupError {
+    Deletion(crate::message_deletion::DeletionError),
     Moss(String),
     Codec(String),
     Persistence(String),
@@ -23,6 +24,7 @@ pub enum PrivateGroupError {
 impl std::fmt::Display for PrivateGroupError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Deletion(error) => error.fmt(formatter),
             Self::Moss(error) => write!(formatter, "Moss error: {error}"),
             Self::Codec(error) => write!(formatter, "codec error: {error}"),
             Self::Persistence(error) => write!(formatter, "persistence error: {error}"),

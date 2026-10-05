@@ -7,26 +7,7 @@ impl PrivateDmSession {
     /// it `Sent`. The bytes are recorded on the attempt so the auto re-sends
     /// replay the same ciphertext the counterpart dedups on.
     pub(super) fn publish_queued(&mut self, message_id: &str) -> Result<(), PrivateDmRuntimeError> {
-        let body = self
-            .messages
-            .iter()
-            .find(|message| message.message_id.as_deref() == Some(message_id))
-            .map(|message| {
-                if message
-                    .metadata
-                    .as_ref()
-                    .is_some_and(|m| m.deletion.is_some())
-                {
-                    self.outbound_attempts
-                        .get(message_id)
-                        .and_then(|a| serde_json::from_str::<ChatMessage>(&a.message_json).ok())
-                        .map(|m| m.body)
-                        .unwrap_or_else(|| message.body.clone())
-                } else {
-                    message.body.clone()
-                }
-            })
-            .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
+        let body = self.queued_body(message_id)?;
         let sent_at_ms = self
             .outbound_attempts
             .get(message_id)
@@ -60,6 +41,29 @@ impl PrivateDmSession {
         }
         self.outbox().settle(message_id, Ok(()), OnSent::Retain)?;
         Ok(())
+    }
+
+    /// Personal erasure keeps the delivery copy of an already published DM.
+    fn queued_body(&self, message_id: &str) -> Result<String, PrivateDmRuntimeError> {
+        self.messages
+            .iter()
+            .find(|message| message.message_id.as_deref() == Some(message_id))
+            .map(|message| {
+                if message
+                    .metadata
+                    .as_ref()
+                    .is_some_and(|m| m.deletion.is_some())
+                {
+                    self.outbound_attempts
+                        .get(message_id)
+                        .and_then(|a| serde_json::from_str::<ChatMessage>(&a.message_json).ok())
+                        .map(|m| m.body)
+                        .unwrap_or_else(|| message.body.clone())
+                } else {
+                    message.body.clone()
+                }
+            })
+            .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))
     }
 
     /// Re-send user messages the peer has not acknowledged. Moss pubsub has

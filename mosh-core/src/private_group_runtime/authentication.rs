@@ -77,10 +77,7 @@ impl GroupSession {
         }
         match envelope {
             ControlEnvelope::MessageDeletion { frame, .. } => {
-                if frame.author != hex::encode(&sender.mls_signer) {
-                    return Err(PrivateGroupError::Codec("deletion carrier mismatch".into()));
-                }
-                self.receive_deletion_frame(frame)
+                self.receive_deletion_frame(frame, &sender)
             }
             ControlEnvelope::NameMetadata {
                 operation,
@@ -139,10 +136,7 @@ impl GroupSession {
                 let manifest: AttachmentManifest =
                     serde_json::from_slice(body).map_err(|e| e.to_string())?;
                 if let Some(origin) = &manifest.origin {
-                    origin.verify_manifest(&context, &manifest)?;
-                    if origin.author != hex::encode(signer) {
-                        return Err("attachment origin mismatch".into());
-                    }
+                    origin.verify_manifest_from_signer(&context, &manifest, signer)?;
                 }
                 if manifest.from_fingerprint != sender.peer_id {
                     return Err("attachment author mismatch".into());

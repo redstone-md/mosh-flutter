@@ -29,29 +29,27 @@ impl GroupSession {
         scope: DeleteScope,
     ) -> Result<DeleteMessagesResult, PrivateGroupError> {
         if scope == DeleteScope::ForMe {
-            let _ = crate::message_deletion::ownership::create(
-                self.deletions.store.as_ref(),
+            return crate::message_deletion::delete_for_me(
+                &mut DeletionContext {
+                    book: &mut self.deletions,
+                    log: &mut self.messages,
+                    attempts: &mut self.outbound_attempts,
+                    transfer: &mut self.transfer,
+                },
+                ids,
                 Some(self.device_fingerprint.as_str()),
-                &hex::encode(self.crypto.signer_public()),
             )
-            .map_err(PrivateGroupError::Codec)?;
-            return self
-                .deletions
-                .delete_for_me(
-                    &mut self.messages,
-                    &mut self.outbound_attempts,
-                    &mut self.transfer,
-                    ids,
-                )
-                .map_err(PrivateGroupError::Persistence);
+            .map_err(PrivateGroupError::Deletion);
         }
         let authority = self.deletion_authority()?;
 
         let result = shared::admit(
-            &mut self.deletions,
-            &mut self.messages,
-            &mut self.outbound_attempts,
-            &mut self.transfer,
+            &mut DeletionContext {
+                book: &mut self.deletions,
+                log: &mut self.messages,
+                attempts: &mut self.outbound_attempts,
+                transfer: &mut self.transfer,
+            },
             ids,
             &authority.local,
             |m| {
@@ -67,7 +65,7 @@ impl GroupSession {
                     .map_err(|e| e.to_string())
             },
         )
-        .map_err(PrivateGroupError::Codec)?;
+        .map_err(PrivateGroupError::Deletion)?;
         self.deletions.last_sync = 0;
         let _ = self.publish_deletion(&shared::page(&self.deletions, None, &authority));
         Ok(result)
@@ -88,14 +86,14 @@ impl GroupSession {
                 Some(self.device_fingerprint.as_str()),
                 &hex::encode(self.crypto.signer_public()),
             )
-            .map_err(PrivateGroupError::Codec)?,
+            .map_err(PrivateGroupError::Deletion)?,
         };
         let members = self.crypto.member_signers().into_iter().collect();
         let mut authority = DeletionAuthority {
             local,
             members,
             admins: Default::default(),
-            past_admins: Default::default(),
+            accepted: self.deletions.accepted.clone(),
             accounts: Default::default(),
             public_channel: false,
         };
@@ -104,19 +102,23 @@ impl GroupSession {
     }
 
     pub(super) fn apply_deletions(&mut self) -> Result<(), PrivateGroupError> {
-        self.deletions
-            .apply(
-                &mut self.messages,
-                &mut self.outbound_attempts,
-                &mut self.transfer,
-            )
-            .map_err(PrivateGroupError::Persistence)
+        crate::message_deletion::apply(&mut DeletionContext {
+            book: &mut self.deletions,
+            log: &mut self.messages,
+            attempts: &mut self.outbound_attempts,
+            transfer: &mut self.transfer,
+        })
+        .map_err(PrivateGroupError::Persistence)
     }
 
     pub(super) fn receive_deletion_frame(
         &mut self,
         frame: DeletionFrame,
+        sender: &crate::sender_auth::VerifiedSender,
     ) -> Result<(), PrivateGroupError> {
+        if frame.author != hex::encode(&sender.mls_signer) {
+            return Err(PrivateGroupError::Codec("deletion carrier mismatch".into()));
+        }
         let authority = self.deletion_authority()?;
         if frame.author == authority.local.key {
             return Ok(());
@@ -213,24 +215,20 @@ impl GroupSession {
                 authority.admins.insert(signer.clone());
             }
         }
-        if let Some(store) = &self.deletions.store {
-            authority.past_admins =
-                store.remember_deletion_admins(&self.deletions.context, &authority.admins)?;
-        }
         Ok(())
     }
 }
 
 impl GroupSession {
     pub(super) fn cancel_pending_deletions(&mut self) -> Result<(), PrivateGroupError> {
-        let authority = self.deletion_authority()?;
+        let local_key = hex::encode(self.crypto.signer_public());
         DeletionContext {
             book: &mut self.deletions,
             log: &mut self.messages,
             attempts: &mut self.outbound_attempts,
             transfer: &mut self.transfer,
         }
-        .reconcile(&authority, true)
+        .cancel_pending(&local_key)
         .map_err(PrivateGroupError::Persistence)
     }
 }

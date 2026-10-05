@@ -8,7 +8,7 @@ pub(crate) struct DeletionAuthority {
     pub local: DeletionActor,
     pub members: BTreeSet<String>,
     pub admins: BTreeSet<String>,
-    pub past_admins: BTreeSet<String>,
+    pub accepted: BTreeSet<String>,
     pub accounts: BTreeMap<String, String>,
     pub public_channel: bool,
 }
@@ -76,13 +76,20 @@ impl DeletionAuthority {
         }
         let request = record.request.as_ref().ok_or("missing deletion request")?;
         let confirmed = record.status == DeletionStatus::Confirmed;
-        if !confirmed && (!self.member(&request.actor) || request.epoch > self.local.epoch) {
+        if confirmed && self.accepted.contains(&request.digest()?) {
+            return Ok(());
+        }
+        let endorsed = confirmed
+            && (self.admins.contains(carrier)
+                || record.acknowledgement.as_ref().is_some_and(|ack| {
+                    self.admins.contains(&ack.actor)
+                        && self.may_ack_with_proof(request, &ack.actor, ack.ownership.as_deref())
+                }));
+        if request.epoch > self.local.epoch || (!self.member(&request.actor) && !endorsed) {
             return Err("deletion author left or epoch is ahead".into());
         }
         let authorized = if request.moderated {
-            self.admins.contains(&request.actor)
-                || (confirmed
-                    && (self.admins.contains(carrier) || self.past_admins.contains(&request.actor)))
+            self.admins.contains(&request.actor) || endorsed
         } else {
             self.same_account(&request.actor, &request.target.author)
                 || super::ownership::same_account(
@@ -96,8 +103,7 @@ impl DeletionAuthority {
             return Err("deletion permission denied".into());
         }
         if let Some(ack) = &record.acknowledgement {
-            if !(self.may_ack_with_proof(request, &ack.actor, ack.ownership.as_deref())
-                || confirmed && self.admins.contains(carrier))
+            if !(self.may_ack_with_proof(request, &ack.actor, ack.ownership.as_deref()) || endorsed)
             {
                 return Err("ineligible deletion acknowledgement".into());
             }

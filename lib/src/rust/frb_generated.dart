@@ -3787,15 +3787,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MessageMetadata dco_decode_message_metadata(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return MessageMetadata(
       origin: dco_decode_opt_box_autoadd_message_origin(arr[0]),
       deletion: dco_decode_opt_box_autoadd_deletion_marker(arr[1]),
       deletionKey: dco_decode_opt_String(arr[2]),
-      canDeleteForEveryone: dco_decode_bool(arr[3]),
-      localOnly: dco_decode_bool(arr[4]),
-      isOwn: dco_decode_opt_box_autoadd_bool(arr[5]),
+      personalCorrelation: dco_decode_opt_String(arr[3]),
+      canDeleteForEveryone: dco_decode_bool(arr[4]),
+      localOnly: dco_decode_bool(arr[5]),
+      isOwn: dco_decode_opt_box_autoadd_bool(arr[6]),
     );
   }
 
@@ -5849,6 +5850,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_origin = sse_decode_opt_box_autoadd_message_origin(deserializer);
     var var_deletion = sse_decode_opt_box_autoadd_deletion_marker(deserializer);
     var var_deletionKey = sse_decode_opt_String(deserializer);
+    var var_personalCorrelation = sse_decode_opt_String(deserializer);
     var var_canDeleteForEveryone = sse_decode_bool(deserializer);
     var var_localOnly = sse_decode_bool(deserializer);
     var var_isOwn = sse_decode_opt_box_autoadd_bool(deserializer);
@@ -5856,6 +5858,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         origin: var_origin,
         deletion: var_deletion,
         deletionKey: var_deletionKey,
+        personalCorrelation: var_personalCorrelation,
         canDeleteForEveryone: var_canDeleteForEveryone,
         localOnly: var_localOnly,
         isOwn: var_isOwn);
@@ -7796,6 +7799,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_message_origin(self.origin, serializer);
     sse_encode_opt_box_autoadd_deletion_marker(self.deletion, serializer);
     sse_encode_opt_String(self.deletionKey, serializer);
+    sse_encode_opt_String(self.personalCorrelation, serializer);
     sse_encode_bool(self.canDeleteForEveryone, serializer);
     sse_encode_bool(self.localOnly, serializer);
     sse_encode_opt_box_autoadd_bool(self.isOwn, serializer);

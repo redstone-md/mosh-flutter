@@ -115,6 +115,8 @@ pub(super) struct DevicePacket {
     pub recipient: String,
     pub message: DeviceMessage,
     signature: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    history_metadata: Option<super::history_metadata::HistoryMetadata>,
 }
 
 impl DevicePacket {
@@ -130,16 +132,22 @@ impl DevicePacket {
     pub fn seal(
         identity: &DeviceIdentity,
         recipient: &str,
-        message: DeviceMessage,
+        mut message: DeviceMessage,
     ) -> Result<Vec<u8>> {
+        let metadata = super::history_metadata::HistoryMetadata::detach(&mut message);
         let mut packet = Self {
             roster: identity.roster().clone(),
             sender: identity.device().device_id.clone(),
             recipient: recipient.into(),
             message,
             signature: String::new(),
+            history_metadata: None,
         };
         packet.signature = hex::encode(identity.key().sign(&packet.bytes()?).to_bytes());
+        if let Some(mut metadata) = metadata {
+            metadata.sign(identity, &packet.signature)?;
+            packet.history_metadata = Some(metadata);
+        }
         let bytes = serde_json::to_vec(&packet).map_err(|_| invalid())?;
         if bytes.len() > MAX_PACKET_BYTES {
             return Err(invalid());
@@ -151,7 +159,7 @@ impl DevicePacket {
         if bytes.len() > MAX_PACKET_BYTES {
             return Err(invalid());
         }
-        let packet: Self = serde_json::from_slice(bytes).map_err(|_| invalid())?;
+        let mut packet: Self = serde_json::from_slice(bytes).map_err(|_| invalid())?;
         if packet.recipient != recipient {
             return Err(invalid());
         }
@@ -160,6 +168,10 @@ impl DevicePacket {
             &packet.signature,
             &packet.bytes()?,
         )?;
+        if let Some(metadata) = packet.history_metadata.take() {
+            let key = packet.device()?.signing_public_key;
+            metadata.restore(&mut packet.message, &key, &packet.signature)?;
+        }
         Ok(packet)
     }
 

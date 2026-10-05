@@ -109,7 +109,11 @@ impl DeviceLinkRuntime {
         self.names_last_pull = Some(Instant::now());
         let digest = self.names.digest();
         let roster_hash = self.identity.roster().digest()?;
+        let needs_certificate = self.identity.account_certificate()?.is_none();
         for device in self.identity.roster().devices()? {
+            if needs_certificate && device.device_id != self.identity.device().device_id {
+                self.send_names(&device, NameMessage::CertificateRequest);
+            }
             if device.device_id != self.identity.device().device_id
                 && (!self.names.initial_sync_complete()
                     || self.names_peer_digests.get(&device.device_id) != Some(&digest))
@@ -218,6 +222,9 @@ impl DeviceLinkRuntime {
         self.reload_names()?;
         let (sender, message) = names_wire::open(&self.identity, packet)?;
         match message {
+            NameMessage::CertificateRequest | NameMessage::Certificate { .. } => {
+                self.receive_certificate(&sender, message)?;
+            }
             message @ (NameMessage::DeletionRequest { .. }
             | NameMessage::DeletionBatch { .. }
             | NameMessage::DeletionSaved { .. }
@@ -225,26 +232,7 @@ impl DeviceLinkRuntime {
                 self.receive_deletions(&sender, message)?;
             }
             NameMessage::Request { after, request_id } => {
-                // Advertise our durable state so a restarting initiator can
-                // stop pulling without forcing a reciprocal request loop.
-                if after.is_none() {
-                    self.send_names(
-                        &sender,
-                        NameMessage::Saved {
-                            digest: self.names.digest(),
-                        },
-                    );
-                }
-                let records = self.names.page(after.as_deref());
-                let next = (records.len() == 16).then(|| records.last().unwrap().key.clone());
-                self.send_names(
-                    &sender,
-                    NameMessage::Batch {
-                        records,
-                        next,
-                        request_id,
-                    },
-                );
+                self.reply_name_page(&sender, after, request_id);
             }
             NameMessage::Batch {
                 records,
@@ -259,5 +247,32 @@ impl DeviceLinkRuntime {
             _ => {}
         }
         Ok(true)
+    }
+
+    fn reply_name_page(
+        &mut self,
+        sender: &DeviceDescriptor,
+        after: Option<String>,
+        request_id: [u8; 16],
+    ) {
+        // A restarting initiator can stop pulling without a reciprocal loop.
+        if after.is_none() {
+            self.send_names(
+                sender,
+                NameMessage::Saved {
+                    digest: self.names.digest(),
+                },
+            );
+        }
+        let records = self.names.page(after.as_deref());
+        let next = (records.len() == 16).then(|| records.last().unwrap().key.clone());
+        self.send_names(
+            sender,
+            NameMessage::Batch {
+                records,
+                next,
+                request_id,
+            },
+        );
     }
 }

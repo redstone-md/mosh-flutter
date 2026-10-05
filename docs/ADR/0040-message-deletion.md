@@ -31,25 +31,56 @@ with the actual staged MLS signer before committing ratchet advancement.
 Channels verify the signature and compare the claimed fingerprint with its key.
 Sender labels never grant deletion rights.
 
-Optional account proofs bind the MLS or Moss signing key to an active device in
-its certified roster. The original message, request and acknowledgement each
-countersign their account proof. Private device keys stay in encrypted storage.
-Compatible roster extensions let linked devices recognize the same author;
-revoked devices cannot create new requests or receive account synchronization.
+Optional account proofs bind the MLS or Moss signing key to a device signing key
+and a compact account certificate. The certificate contains a root public key
+and signed key delegations; it never exposes device names or Moss addresses.
+The original message, request and acknowledgement each countersign their proof.
+Certificates are obtained after linking through the existing authenticated,
+encrypted directed stream, including for previously linked installations.
+Pairing messages retain their existing signed shape. Private keys stay in
+encrypted storage; local roster checks prevent revoked devices from writing or
+receiving account synchronization. Remote channel proofs establish account
+attribution, without claiming an authoritative current remote-device roster.
 An author's other device cannot acknowledge that author's deletion as a recipient.
 
 The sender validates the entire selection before saving. Reception validates
 the carrier, exact target, original author, request signature and current rights.
 DMs and channels permit authors; groups also permit verified current admins.
 Unknown org authority defers work. Verified loss of membership or moderation
-rights rejects unaccepted local work and retains a personal tombstone. Accepted
-moderation can be forwarded by a current admin; members also retain the verified
-admin keys they observed so accepted state survives subsequent demotion.
+rights rejects unaccepted local work and retains a personal tombstone. A separate
+encrypted acceptance table stores the actual receipt admitted by conversation
+policy and indexes its exact request digest; importing an own-device journal
+cannot populate that table. Already
+accepted requests survive subsequent role changes and departure of their receipt
+signer. Remembering former admin keys alone never grants authority to new requests.
+
+Previously unknown deletions are admitted under current membership and rights.
+An obsolete recipient receipt can be replaced by a fresh durable receipt while
+the requester remains authorized. For moderation, a verified receipt from a
+current admin supplies endorsement independently of the participant forwarding
+it; that admin need not be online. A current admin forwarding an authenticated
+record also endorses it. Protected local acceptance survives both departures.
+
+Unknown historical requests from a departed author or former admin without
+current endorsement remain a pending product decision. External org role
+snapshots contain no authenticated deletion cutoff: a new receiver cannot
+distinguish an old accepted request from the same former member and an ordinary
+participant signing a new request and receipt after departure or demotion. The
+implementation rejects that forgery. Choosing whether to trust a participant's
+historical attestation changes the approved recovery/authority contract and must
+be settled before publishing the PR.
 
 Legacy text with no stored correlation evidence is explicitly device-local.
+An authenticated frozen own-device history exchange can establish exact text
+correlation from its context, occurrence ID, timestamp, sender and original body.
+An overlapping legacy history page preserves a locally verified live origin.
 Legacy attachments with complete manifests, call IDs and signed group event IDs
 can correlate personal deletions. A legacy row without a verified origin never
 gains permission to delete for everyone after an update.
+Personal tombstones retain a second exact correlation key for authenticated
+legacy copies of new messages. This key is frozen before body or manifest erasure,
+including when a shared placeholder is later erased personally. Shared deletion
+never uses that legacy key to grant authority over an unverified message.
 
 ## Atomic erasure and recovery
 
@@ -64,6 +95,10 @@ already-published DM retains its original delivery buffer until the counterpart
 acknowledges it. Replay, import and outbox writes consult the tombstone under the
 same redb transaction and cannot restore content or a cancelled send. History
 imports verify complete origin proofs after text fragments have assembled.
+Deletion receives inbound control without ticking queued publication, so a route
+becoming reachable cannot publish a message before cancellation is saved.
+Native command errors distinguish invalid input, permission, revocation and
+persistence failures for the existing bridge error mapping.
 
 Confirmed shared state wins over pending or rejected state. Multiple valid
 acknowledgements choose one deterministic signer so replicas converge. A receipt
@@ -96,13 +131,24 @@ from all conversations and retained outbound attempts. Filenames are compared
 after sanitization. A durable GC queue retries busy files and advances past
 still-referenced entries. User-saved external copies remain intact.
 
-New wire fields and encrypted tables are additive. Previous clients continue
-ordinary messaging but neither apply deletion metadata nor acknowledge it.
+New wire fields and encrypted tables are additive. Own-device history keeps the
+old signed primary payload unchanged. Metadata travels in an optional outer
+extension signed by the same device key over the primary packet signature and
+complete metadata. Verification restores it before fragment assembly. Old
+clients ignore the extension and still verify the primary history packet;
+page sizes, retries and atomic cursors use the existing history protocol.
+Previous clients continue ordinary messaging but neither apply deletion metadata
+nor acknowledge it.
 State recovery requires another reachable updated replica retaining the journal.
 Loss of all encrypted copies cannot be repaired. No mechanism retracts screenshots
 or externally saved files.
 
 Generated bridge files retain their existing source-budget exception. Existing
-runtime constructors and broad platform test fixtures keep their prior lengths;
-new logic belongs in feature-local modules. Checks use encrypted redb, real MLS
+runtime constructors, protocol dispatchers and broad platform integration
+fixtures retain their established lengths: these exercise complete wire/state
+transitions and separating them would obscure the admission sequence. The group
+authenticated-control dispatcher is 51 lines with the additive deletion arm;
+new deletion integration scenarios may reach 56 lines to keep their durable
+send/receipt/restart assertions together. New production logic stays within
+feature-local modules and the normal budgets. Checks use encrypted redb, real MLS
 and Moss, the existing independent-process harness, and Flutter `test/support`.

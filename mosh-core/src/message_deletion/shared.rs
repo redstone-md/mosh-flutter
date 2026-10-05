@@ -2,14 +2,9 @@ use super::{
     book::validate_selection,
     protocol::{DeleteAck, DeleteRequest, DeletionMessage},
     types::DeleteMessagesResult,
-    DeleteScope, DeletionBook, DeletionRecord, DeletionStatus,
+    DeleteScope, DeletionBook, DeletionContext, DeletionError, DeletionRecord, DeletionStatus,
 };
-use crate::conversation::{
-    message_log::{ConversationMessage, MessageLog},
-    transfer::Transfer,
-};
-use crate::outbound_delivery::OutboundAttemptRecord;
-use std::collections::HashMap;
+use crate::conversation::message_log::ConversationMessage;
 
 pub(crate) struct DeletionActor {
     pub key: String,
@@ -18,59 +13,80 @@ pub(crate) struct DeletionActor {
     pub ownership: Option<String>,
 }
 
-#[allow(clippy::too_many_arguments)] // All borrows belong to one existing conversation owner.
 pub(crate) fn admit<M: ConversationMessage>(
-    book: &mut DeletionBook,
-    log: &mut MessageLog<M>,
-    attempts: &mut HashMap<String, OutboundAttemptRecord>,
-    transfer: &mut Transfer,
+    context: &mut DeletionContext<'_, M>,
     ids: &[String],
     actor: &DeletionActor,
     permitted: impl Fn(&M) -> Option<bool>,
     sign: impl Fn(&[u8]) -> Result<String, String>,
-) -> Result<DeleteMessagesResult, String> {
-    if book.store.is_none() {
-        return Err("shared deletion requires encrypted storage".into());
+) -> Result<DeleteMessagesResult, DeletionError> {
+    if context.book.store.is_none() {
+        return Err(DeletionError::Persistence(
+            "shared deletion requires encrypted storage".into(),
+        ));
     }
-    let selected = validate_selection(log, ids)?;
+    let selected = validate_selection(context.log, ids)?;
     let mut records = Vec::new();
-    for message in log
+    for message in context
+        .log
         .iter()
         .filter(|m| m.message_id().is_some_and(|id| selected.contains(id)))
     {
-        let moderated = permitted(message).ok_or("deletion permission denied")?;
-        if message.is_service()
-            || message
-                .metadata()
-                .and_then(|m| m.deletion.as_ref())
-                .is_some()
-        {
-            return Err("message cannot be deleted for everyone".into());
-        }
-        let origin = message
-            .metadata()
-            .and_then(|m| m.origin.clone())
-            .ok_or("unverified original author")?;
-        let mut request = DeleteRequest {
-            operation: crate::message_id::occurrence_id("delete"),
-            target: origin,
-            actor: actor.key.clone(),
-            actor_name: actor.name.clone(),
-            moderated,
-            epoch: actor.epoch,
-            signature: String::new(),
-            ownership: actor.ownership.clone(),
-        };
-        request.signature = sign(&request.input()?)?;
-        request.verify(&book.context)?;
-        records.push(canonical(request, DeletionStatus::Pending, None)?);
+        let request = request_for(
+            message,
+            &context.book.context,
+            actor,
+            permitted(message),
+            &sign,
+        )?;
+        records.push(
+            canonical(request, DeletionStatus::Pending, None).map_err(DeletionError::Internal)?,
+        );
     }
-    book.install(log, attempts, transfer, &records)?;
+    super::application::install(context, &records, false).map_err(DeletionError::Persistence)?;
     Ok(DeleteMessagesResult {
         deleted_count: records.len(),
         local_only_count: 0,
         pending_count: records.len(),
     })
+}
+
+fn request_for<M: ConversationMessage>(
+    message: &M,
+    context: &str,
+    actor: &DeletionActor,
+    moderated: Option<bool>,
+    sign: impl Fn(&[u8]) -> Result<String, String>,
+) -> Result<DeleteRequest, DeletionError> {
+    let moderated = moderated.ok_or(DeletionError::PermissionDenied)?;
+    if message.is_service()
+        || message
+            .metadata()
+            .and_then(|m| m.deletion.as_ref())
+            .is_some()
+    {
+        return Err(DeletionError::InvalidInput(
+            "message cannot be deleted for everyone".into(),
+        ));
+    }
+    let target = message
+        .metadata()
+        .and_then(|m| m.origin.clone())
+        .ok_or(DeletionError::PermissionDenied)?;
+    let mut request = DeleteRequest {
+        operation: crate::message_id::occurrence_id("delete"),
+        target,
+        actor: actor.key.clone(),
+        actor_name: actor.name.clone(),
+        moderated,
+        epoch: actor.epoch,
+        signature: String::new(),
+        ownership: actor.ownership.clone(),
+    };
+    request.signature = sign(&request.input().map_err(DeletionError::Internal)?)
+        .map_err(DeletionError::Internal)?;
+    request.verify(context).map_err(DeletionError::Internal)?;
+    Ok(request)
 }
 
 pub(crate) fn canonical(
@@ -79,6 +95,7 @@ pub(crate) fn canonical(
     acknowledgement: Option<DeleteAck>,
 ) -> Result<DeletionRecord, String> {
     Ok(DeletionRecord {
+        personal_correlation: None,
         context: request.target.conversation.clone(),
         key: request.target.key()?,
         scope: DeleteScope::ForEveryone,
@@ -122,19 +139,15 @@ pub(crate) fn verify_record<'a>(
     Ok(request)
 }
 
-#[allow(clippy::too_many_arguments)] // Saved state and the authenticated signing callback are separate concerns.
 pub(crate) fn accept<M: ConversationMessage>(
-    book: &mut DeletionBook,
-    log: &mut MessageLog<M>,
-    attempts: &mut HashMap<String, OutboundAttemptRecord>,
-    transfer: &mut Transfer,
+    context: &mut DeletionContext<'_, M>,
     record: &DeletionRecord,
     actor: &DeletionActor,
     may_ack: bool,
     sign: impl Fn(&[u8]) -> Result<String, String>,
 ) -> Result<Option<DeletionMessage>, String> {
-    let request = verify_record(record, &book.context)?;
-    if book.store.is_none() {
+    let request = verify_record(record, &context.book.context)?;
+    if context.book.store.is_none() {
         return Err("cannot acknowledge unsaved deletion".into());
     }
     let mut accepted = record.clone();
@@ -149,7 +162,7 @@ pub(crate) fn accept<M: ConversationMessage>(
         accepted.acknowledgement = Some(acknowledgement);
         accepted.status = DeletionStatus::Confirmed;
     }
-    book.install(log, attempts, transfer, &[accepted.clone()])?;
+    super::application::install(context, &[accepted.clone()], true)?;
     Ok(accepted
         .acknowledgement
         .filter(|ack| ack.actor == actor.key)
@@ -160,14 +173,12 @@ pub(crate) fn accept<M: ConversationMessage>(
 }
 
 pub(crate) fn acknowledge<M: ConversationMessage>(
-    book: &mut DeletionBook,
-    log: &mut MessageLog<M>,
-    attempts: &mut HashMap<String, OutboundAttemptRecord>,
-    transfer: &mut Transfer,
+    context: &mut DeletionContext<'_, M>,
     key: &str,
     acknowledgement: DeleteAck,
 ) -> Result<(), String> {
-    let Some(mut record) = book
+    let Some(mut record) = context
+        .book
         .records
         .values()
         .find(|r| {
@@ -186,7 +197,7 @@ pub(crate) fn acknowledge<M: ConversationMessage>(
     acknowledgement.verify(record.request.as_ref().ok_or("missing request")?)?;
     record.status = DeletionStatus::Confirmed;
     record.acknowledgement = Some(acknowledgement);
-    book.install(log, attempts, transfer, &[record])
+    super::application::install(context, &[record], true)
 }
 
 pub(crate) fn page(

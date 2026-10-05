@@ -56,6 +56,7 @@ fn blocked_cache_entries_do_not_starve_later_cleanup() {
             &[],
             &Default::default(),
             &descriptors,
+            false,
         )
         .unwrap();
     transfer.forget(&last.attachment_id);

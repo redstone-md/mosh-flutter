@@ -9,7 +9,7 @@ mod chat_names;
 mod conversation_records;
 mod crypto;
 mod database;
-mod deletion_admins;
+mod deletion_acceptance;
 mod deletion_guard;
 mod deletion_merge;
 #[cfg(test)]

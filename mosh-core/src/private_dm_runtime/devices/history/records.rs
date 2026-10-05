@@ -14,6 +14,14 @@ pub(in crate::private_dm_runtime) struct TextRecord {
 }
 
 impl TextRecord {
+    pub(super) fn same_content(&self, other: &Self) -> bool {
+        let origin = |record: &Self| record.metadata.as_ref().and_then(|m| m.origin.clone());
+        self.message_id == other.message_id
+            && self.sent_at_ms == other.sent_at_ms
+            && self.from_device == other.from_device
+            && self.body == other.body
+            && (origin(self).is_none() || origin(other).is_none() || origin(self) == origin(other))
+    }
     pub fn from_message(message: &ChatMessage) -> Option<Self> {
         if message.attachment.is_some() || message.call_event.is_some() {
             return None;

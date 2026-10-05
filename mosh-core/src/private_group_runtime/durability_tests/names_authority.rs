@@ -58,3 +58,69 @@ fn unavailable_org_authority_preserves_pending_name_across_restart_and_retry() {
         Some(MessageDeliveryStatus::Sent)
     );
 }
+
+#[test]
+fn unavailable_org_authority_defers_pending_deletion_without_rejecting_it() {
+    use crate::message_deletion::DeleteScope;
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let (mut fixture, org, roster, _) = org_pair();
+    let sent = fixture
+        .runtime
+        .send(&fixture.id, "Erase me".into())
+        .unwrap();
+    fixture
+        .runtime
+        .delete_messages(&fixture.id, &[sent.message_id], DeleteScope::ForEveryone)
+        .unwrap();
+    fixture
+        .store
+        .put_org_roster(&org, b"invalid roster")
+        .unwrap();
+    for restarted in [false, true] {
+        if restarted {
+            fixture.restart();
+        }
+        let snapshot = fixture.runtime.poll(&fixture.id).unwrap();
+        let summary = snapshot.deletion_summary.unwrap();
+        assert_eq!(summary.pending_count, 1);
+        assert_eq!(summary.rejected_count, 0);
+        assert_eq!(snapshot.messages[0].body, "");
+    }
+    fixture.store.put_org_roster(&org, &roster).unwrap();
+    let snapshot = fixture.runtime.poll(&fixture.id).unwrap();
+    let summary = snapshot.deletion_summary.unwrap();
+    assert_eq!(summary.pending_count, 1);
+    assert_eq!(summary.rejected_count, 0);
+    assert!(snapshot.is_admin);
+}
+
+#[test]
+fn unavailable_org_authority_does_not_prevent_explicit_departure() {
+    use crate::message_deletion::{DeleteScope, DeletionStatus};
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    for pending in [false, true] {
+        let (mut fixture, org, _, _) = org_pair();
+        if pending {
+            let sent = fixture.runtime.send(&fixture.id, "Pending".into()).unwrap();
+            fixture
+                .runtime
+                .delete_messages(&fixture.id, &[sent.message_id], DeleteScope::ForEveryone)
+                .unwrap();
+        }
+        fixture
+            .store
+            .put_org_roster(&org, b"invalid roster")
+            .unwrap();
+        assert!(fixture.runtime.close(&fixture.id).unwrap().closed);
+        let records = fixture
+            .store
+            .deletion_records(&format!("group:{}", fixture.id))
+            .unwrap();
+        if pending {
+            assert!(records.iter().any(|r| r.status == DeletionStatus::Rejected));
+            assert!(records.iter().any(|r| r.scope == DeleteScope::ForMe));
+        } else {
+            assert!(records.is_empty());
+        }
+    }
+}

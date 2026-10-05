@@ -115,3 +115,33 @@ fn either_acknowledged_writer_can_rename_without_endless_reciprocal_pulls() {
     pair.settle();
     assert_eq!(pair.right.names.name("channel:general"), None);
 }
+
+#[test]
+fn an_existing_linked_device_obtains_and_persists_a_private_account_certificate() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut pair = Pair::new();
+    assert!(pair.right.identity.account_certificate().unwrap().is_none());
+    pair.settle();
+    let certificate = pair.right.identity.account_certificate().unwrap().unwrap();
+    assert_eq!(certificate.root, pair.left.identity.roster().user_id());
+    assert_eq!(
+        certificate.subject(),
+        pair.right.identity.device().signing_public_key
+    );
+    pair.right.identity.reload().unwrap();
+    assert!(pair.right.identity.account_certificate().unwrap().is_some());
+    let subject = pair.right.identity.device().signing_public_key.clone();
+    let proof = crate::message_deletion::ownership::create(
+        Some(pair.right.identity.persistence()),
+        Some(&pair.right.identity.device().moss_peer_id),
+        &subject,
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(
+        crate::message_deletion::ownership::verify(&proof, &subject).unwrap(),
+        certificate.root
+    );
+    assert!(!proof.contains(&pair.right.identity.device().moss_peer_id));
+    assert!(!proof.contains(&pair.left.identity.device().moss_peer_id));
+}

@@ -20,6 +20,33 @@ pub struct MessageOrigin {
 }
 
 impl MessageOrigin {
+    pub(crate) fn verify_from_signer(
+        &self,
+        conversation: &str,
+        id: &str,
+        content: &[u8],
+        signer: &[u8],
+    ) -> Result<(), String> {
+        self.verify(conversation, id, content)?;
+        if self.author != hex::encode(signer) {
+            return Err("message origin signer mismatch".into());
+        }
+        Ok(())
+    }
+
+    pub(crate) fn verify_manifest_from_signer(
+        &self,
+        conversation: &str,
+        manifest: &crate::attachment_runtime::AttachmentManifest,
+        signer: &[u8],
+    ) -> Result<(), String> {
+        self.verify_from_signer(
+            conversation,
+            &manifest.attachment_id,
+            &Self::manifest_bytes(manifest)?,
+            signer,
+        )
+    }
     pub(crate) fn manifest_bytes(
         manifest: &crate::attachment_runtime::AttachmentManifest,
     ) -> Result<Vec<u8>, String> {
@@ -48,7 +75,8 @@ impl MessageOrigin {
     ) -> Result<Self, String> {
         let mut origin = Self::unsigned(conversation, id, content, key.verifying_key().as_bytes());
         let peer = hex::encode(key.verifying_key().as_bytes());
-        origin.ownership = super::ownership::create(store, Some(&peer), &origin.author)?;
+        origin.ownership = super::ownership::create(store, Some(&peer), &origin.author)
+            .map_err(|e| e.to_string())?;
         origin.signature = hex::encode(key.sign(&origin.signing_input()?).to_bytes());
         Ok(origin)
     }
@@ -62,7 +90,8 @@ impl MessageOrigin {
         peer: Option<&str>,
     ) -> Result<Self, String> {
         let mut origin = Self::unsigned(conversation, id, content, &crypto.signer_public());
-        origin.ownership = super::ownership::create(store, peer, &origin.author)?;
+        origin.ownership =
+            super::ownership::create(store, peer, &origin.author).map_err(|e| e.to_string())?;
         origin.signature = hex::encode(
             crypto
                 .sign_sender_proof(&origin.signing_input()?)

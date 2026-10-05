@@ -30,21 +30,17 @@ impl ChannelSession {
         scope: DeleteScope,
     ) -> Result<DeleteMessagesResult, ChannelRuntimeError> {
         if scope == DeleteScope::ForMe {
-            let _ = crate::message_deletion::ownership::create(
-                self.deletions.store.as_ref(),
+            return crate::message_deletion::delete_for_me(
+                &mut DeletionContext {
+                    book: &mut self.deletions,
+                    log: &mut self.messages,
+                    attempts: &mut self.outbound_attempts,
+                    transfer: &mut self.transfer,
+                },
+                ids,
                 Some(self.device_fingerprint.as_str()),
-                &self.device_fingerprint,
             )
-            .map_err(ChannelRuntimeError::Codec)?;
-            return self
-                .deletions
-                .delete_for_me(
-                    &mut self.messages,
-                    &mut self.outbound_attempts,
-                    &mut self.transfer,
-                    ids,
-                )
-                .map_err(ChannelRuntimeError::Persistence);
+            .map_err(ChannelRuntimeError::Deletion);
         }
         let authority = self.deletion_authority()?;
         let key = self
@@ -52,10 +48,12 @@ impl ChannelSession {
             .identity_signer()
             .map_err(|e| ChannelRuntimeError::Moss(e.to_string()))?;
         let result = shared::admit(
-            &mut self.deletions,
-            &mut self.messages,
-            &mut self.outbound_attempts,
-            &mut self.transfer,
+            &mut DeletionContext {
+                book: &mut self.deletions,
+                log: &mut self.messages,
+                attempts: &mut self.outbound_attempts,
+                transfer: &mut self.transfer,
+            },
             ids,
             &authority.local,
             |m| {
@@ -66,7 +64,7 @@ impl ChannelSession {
             },
             |bytes| Ok(hex::encode(key.sign(bytes).to_bytes())),
         )
-        .map_err(ChannelRuntimeError::Codec)?;
+        .map_err(ChannelRuntimeError::Deletion)?;
         self.deletions.last_sync = 0;
         let _ = self.publish_deletion(&shared::page(&self.deletions, None, &authority));
         Ok(result)
@@ -87,24 +85,24 @@ impl ChannelSession {
                     Some(self.device_fingerprint.as_str()),
                     &hex::encode(key.verifying_key().as_bytes()),
                 )
-                .map_err(ChannelRuntimeError::Codec)?,
+                .map_err(ChannelRuntimeError::Deletion)?,
             },
             members: Default::default(),
             admins: Default::default(),
-            past_admins: Default::default(),
+            accepted: self.deletions.accepted.clone(),
             accounts: Default::default(),
             public_channel: true,
         })
     }
 
     pub(super) fn apply_deletions(&mut self) -> Result<(), ChannelRuntimeError> {
-        self.deletions
-            .apply(
-                &mut self.messages,
-                &mut self.outbound_attempts,
-                &mut self.transfer,
-            )
-            .map_err(ChannelRuntimeError::Persistence)
+        crate::message_deletion::apply(&mut DeletionContext {
+            book: &mut self.deletions,
+            log: &mut self.messages,
+            attempts: &mut self.outbound_attempts,
+            transfer: &mut self.transfer,
+        })
+        .map_err(ChannelRuntimeError::Persistence)
     }
 
     pub(super) fn receive_deletion_frame(

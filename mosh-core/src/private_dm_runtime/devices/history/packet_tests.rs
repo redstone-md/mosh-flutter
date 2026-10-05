@@ -191,6 +191,7 @@ impl Fixture {
     }
 }
 
+mod deletion;
 mod recovery;
 mod revocation;
 
@@ -352,4 +353,6 @@ fn history_packet_process() {
     conflicting_and_incomplete_batches(&mut Fixture::new());
     roster_refusals(&mut Fixture::new());
     fragments_survive_restart_and_refuse_wrong_continuations(&mut Fixture::new());
+    deletion::authenticated_legacy_history_can_be_erased_across_own_devices(&mut Fixture::new());
+    deletion::legacy_source_preserves_verified_live_origins(&mut Fixture::new());
 }

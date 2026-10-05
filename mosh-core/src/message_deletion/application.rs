@@ -1,78 +1,124 @@
-use super::{DeleteScope, DeletionBook, DeletionRecord, DeletionStatus};
-use crate::conversation::{
-    history::StoredMessage,
-    message_log::{ConversationMessage, MessageLog},
-    transfer::Transfer,
-};
-use crate::outbound_delivery::OutboundAttemptRecord;
-use std::collections::HashSet;
+use super::{DeleteScope, DeletionContext, DeletionRecord, DeletionStatus};
+use crate::conversation::{history::StoredMessage, message_log::ConversationMessage};
+use std::collections::{BTreeMap, HashSet};
+
 struct Erasure<M> {
     index: usize,
     message: M,
     row: StoredMessage<M>,
 }
 
-impl DeletionBook {
-    fn prepare<M: ConversationMessage>(
-        &self,
-        log: &MessageLog<M>,
-        transfer: &Transfer,
-        records: &[DeletionRecord],
-    ) -> Result<Vec<Erasure<M>>, String> {
-        let mut changes = Vec::new();
-        for (index, original) in log.iter().enumerate() {
-            let (key, local_only) = super::target::target(&self.context, original, transfer)?;
-            let record = records.iter().filter(|r| r.key == key).max_by_key(|r| {
-                (
-                    r.scope == DeleteScope::ForMe || r.status == DeletionStatus::Rejected,
-                    r.status == DeletionStatus::Confirmed,
-                    r.storage_key(),
-                )
-            });
-            let Some(record) = record else {
-                continue;
-            };
-            let marker = record.marker();
-            if original.metadata().and_then(|m| m.deletion.as_ref()) == Some(&marker) {
-                continue;
-            }
-            let mut message = original.clone();
-            let metadata = message.metadata_mut().get_or_insert_with(Default::default);
-            metadata.deletion_key = Some(key);
-            metadata.local_only = local_only;
-            metadata.deletion = Some(marker);
-            metadata.can_delete_for_everyone = false;
-            message.erase_content();
-            let row = StoredMessage {
-                conversation_id: self.conversation_id().into(),
-                sent_at_ms: message.sent_at_ms().unwrap_or_default(),
-                message_id: message.message_id().unwrap_or_default().into(),
-                message: message.clone(),
-                attachment_manifest: None,
-            };
-            changes.push(Erasure {
-                index,
-                message,
-                row,
-            });
+impl<M: ConversationMessage> Erasure<M> {
+    fn new(index: usize, message: M, context: &str) -> Self {
+        let row = StoredMessage {
+            conversation_id: context.split_once(':').map_or(context, |(_, id)| id).into(),
+            sent_at_ms: message.sent_at_ms().unwrap_or_default(),
+            message_id: message.message_id().unwrap_or_default().into(),
+            message: message.clone(),
+            attachment_manifest: None,
+        };
+        Self {
+            index,
+            message,
+            row,
         }
-        Ok(changes)
     }
+}
 
-    fn conversation_id(&self) -> &str {
-        self.context
-            .split_once(':')
-            .map_or(self.context.as_str(), |(_, id)| id)
+struct ErasurePlan<M> {
+    merged: BTreeMap<String, DeletionRecord>,
+    changes: Vec<Erasure<M>>,
+    cancelled: HashSet<String>,
+    attachments: Vec<crate::conversation::attachments::AttachmentDescriptor>,
+}
+
+pub(crate) fn apply<M: ConversationMessage>(
+    context: &mut DeletionContext<'_, M>,
+) -> Result<(), String> {
+    if let Some(store) = &context.book.store {
+        context.transfer.collect_erased_cache(store);
     }
+    context.book.reload()?;
+    if context.book.records.is_empty() {
+        return Ok(());
+    }
+    let user = context.book.user().map_err(|e| e.to_string())?;
+    let records = context
+        .book
+        .records
+        .values()
+        .filter(|r| r.owner == user || r.scope == DeleteScope::ForEveryone)
+        .cloned()
+        .collect::<Vec<_>>();
+    install(context, &records, false)
+}
 
-    pub(super) fn install<M: ConversationMessage>(
-        &mut self,
-        log: &mut MessageLog<M>,
-        attempts: &mut std::collections::HashMap<String, OutboundAttemptRecord>,
-        transfer: &mut Transfer,
+pub(super) fn install<M: ConversationMessage>(
+    context: &mut DeletionContext<'_, M>,
+    records: &[DeletionRecord],
+    accepted: bool,
+) -> Result<(), String> {
+    let mut plan = ErasurePlan::new(context, records)?;
+    if plan.unchanged(context, records, accepted) {
+        return Ok(());
+    }
+    if let Some(store) = &context.book.store {
+        let rows = plan.changes.iter().map(|c| &c.row).collect::<Vec<_>>();
+        let markers = store
+            .commit_message_deletions(
+                context.book.tables,
+                records,
+                &rows,
+                &plan.cancelled,
+                &plan.attachments,
+                accepted,
+            )
+            .map_err(|e| e.to_string())?;
+        for change in &mut plan.changes {
+            if let Some(marker) = markers.get(&change.row.message_id) {
+                change.message.metadata_mut().as_mut().unwrap().deletion = Some(marker.clone());
+            }
+        }
+    }
+    if accepted {
+        for record in records
+            .iter()
+            .filter(|r| r.status == DeletionStatus::Confirmed && r.acknowledgement.is_some())
+        {
+            context
+                .book
+                .accepted
+                .insert(record.request.as_ref().ok_or("missing request")?.digest()?);
+        }
+    }
+    plan.apply(context);
+    Ok(())
+}
+
+impl<M: ConversationMessage> ErasurePlan<M> {
+    fn unchanged(
+        &self,
+        context: &DeletionContext<'_, M>,
         records: &[DeletionRecord],
-    ) -> Result<(), String> {
-        let mut merged = self.records.clone();
+        accepted: bool,
+    ) -> bool {
+        self.changes.is_empty()
+            && records.iter().all(|r| {
+                self.merged.get(&r.storage_key()) == context.book.records.get(&r.storage_key())
+            })
+            && (!accepted
+                || records
+                    .iter()
+                    .filter(|r| r.status == DeletionStatus::Confirmed)
+                    .all(|r| {
+                        r.request
+                            .as_ref()
+                            .and_then(|q| q.digest().ok())
+                            .is_some_and(|d| context.book.accepted.contains(&d))
+                    }))
+    }
+    fn new(context: &DeletionContext<'_, M>, records: &[DeletionRecord]) -> Result<Self, String> {
+        let mut merged = context.book.records.clone();
         for record in records {
             let key = record.storage_key();
             let next = merged
@@ -80,70 +126,105 @@ impl DeletionBook {
                 .map_or_else(|| record.clone(), |old| old.merged(record));
             merged.insert(key, next);
         }
-        let owner = self.user()?;
-        let relevant: Vec<_> = merged
+        let owner = context.book.user().map_err(|e| e.to_string())?;
+        let relevant = merged
             .values()
             .filter(|r| r.scope == DeleteScope::ForEveryone || r.owner == owner)
             .cloned()
-            .collect();
-        let changes = self.prepare(log, transfer, &relevant)?;
-        if changes.is_empty()
-            && records
-                .iter()
-                .all(|r| self.records.get(&r.storage_key()) == Some(r))
-        {
-            return Ok(());
-        }
-        let cancelled: HashSet<_> = changes
+            .collect::<Vec<_>>();
+        let changes = prepare(context, &relevant)?;
+        let cancelled = changes
             .iter()
             .filter(|c| {
                 c.message
                     .metadata()
                     .and_then(|m| m.deletion.as_ref())
                     .is_some_and(|d| d.scope == DeleteScope::ForEveryone)
-                    || attempts
+                    || context
+                        .attempts
                         .get(&c.row.message_id)
                         .is_none_or(|a| a.ever_published == Some(false))
             })
             .map(|c| c.row.message_id.clone())
             .collect();
-        let saved: Vec<_> = records
+        let attachments = changes
             .iter()
-            .filter_map(|r| merged.get(&r.storage_key()).cloned())
+            .filter_map(|c| context.log[c.index].attachment().cloned())
             .collect();
-        let attachments: Vec<_> = changes
-            .iter()
-            .filter_map(|c| log[c.index].attachment().cloned())
-            .collect();
-        if let Some(store) = &self.store {
-            let rows: Vec<_> = changes.iter().map(|c| &c.row).collect();
-            store
-                .commit_message_deletions(self.tables, &saved, &rows, &cancelled, &attachments)
-                .map_err(|e| e.to_string())?;
-        }
-        self.records = merged;
-        for change in changes {
-            if cancelled.contains(&change.row.message_id) {
-                attempts.remove(&change.row.message_id);
+        Ok(Self {
+            merged,
+            changes,
+            cancelled,
+            attachments,
+        })
+    }
+
+    fn apply(self, context: &mut DeletionContext<'_, M>) {
+        context.book.records = self.merged;
+        for change in self.changes {
+            if self.cancelled.contains(&change.row.message_id) {
+                context.attempts.remove(&change.row.message_id);
             }
-            log.replace(change.index, change.message);
+            context.log.replace(change.index, change.message);
         }
-        for attachment in attachments {
-            if !log.iter().any(|m| {
+        for attachment in self.attachments {
+            if !context.log.iter().any(|m| {
                 m.attachment()
                     .is_some_and(|a| a.attachment_id == attachment.attachment_id)
             }) {
-                transfer.forget(&attachment.attachment_id);
+                context.transfer.forget(&attachment.attachment_id);
             }
-            if let Err(error) = transfer.clean_erased(&attachment, self.store.as_deref()) {
+            if let Err(error) = context
+                .transfer
+                .clean_erased(&attachment, context.book.store.as_deref())
+            {
                 crate::diagnostics_log::write(
                     crate::diagnostics_log::LogLevel::Warn,
                     crate::diagnostics_log::kinds::PERSIST,
-                    &self.context,
+                    &context.book.context,
                     &format!("attachment cleanup deferred: {error}"),
                 );
             }
         }
-        Ok(())
     }
+}
+
+fn prepare<M: ConversationMessage>(
+    context: &DeletionContext<'_, M>,
+    records: &[DeletionRecord],
+) -> Result<Vec<Erasure<M>>, String> {
+    let mut changes = Vec::new();
+    for (index, original) in context.log.iter().enumerate() {
+        let (key, local_only) =
+            super::target::target(&context.book.context, original, context.transfer)?;
+        let correlation =
+            super::correlation::message_key(&context.book.context, original, context.transfer)?;
+        let Some(record) = records
+            .iter()
+            .filter(|r| r.matches(&key, correlation.as_deref()))
+            .max_by_key(|r| {
+                (
+                    r.scope == DeleteScope::ForMe || r.status == DeletionStatus::Rejected,
+                    r.status == DeletionStatus::Confirmed,
+                    r.storage_key(),
+                )
+            })
+        else {
+            continue;
+        };
+        let marker = record.marker();
+        if original.metadata().and_then(|m| m.deletion.as_ref()) == Some(&marker) {
+            continue;
+        }
+        let mut message = original.clone();
+        let metadata = message.metadata_mut().get_or_insert_with(Default::default);
+        metadata.personal_correlation = correlation.filter(|alias| alias != &key);
+        metadata.deletion_key = Some(key);
+        metadata.local_only = local_only;
+        metadata.deletion = Some(marker);
+        metadata.can_delete_for_everyone = false;
+        message.erase_content();
+        changes.push(Erasure::new(index, message, &context.book.context));
+    }
+    Ok(changes)
 }

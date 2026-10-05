@@ -3,6 +3,7 @@ use crate::message_deletion::{DeleteScope, DeletionRecord, DeletionStatus};
 
 fn personal(f: &Fixture, key: &str) -> DeletionRecord {
     DeletionRecord {
+        personal_correlation: None,
         context: "channel:general".into(),
         key: key.into(),
         scope: DeleteScope::ForMe,

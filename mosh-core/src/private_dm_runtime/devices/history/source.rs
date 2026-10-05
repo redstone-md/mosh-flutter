@@ -95,6 +95,7 @@ impl PrivateDmSession {
         sender: &DeviceDescriptor,
         request: &HistoryRequest,
     ) -> Result<HistoryExport> {
+        self.correlate_exported_history(store)?;
         let membership = self.membership.as_ref().ok_or_else(invalid)?;
         if let Some(export) = membership
             .history_exports
@@ -125,6 +126,25 @@ impl PrivateDmSession {
         )?;
         self.membership = Some(next);
         Ok(export)
+    }
+
+    fn correlate_exported_history(&mut self, store: &Persistence) -> Result<()> {
+        let records: Vec<_> = self
+            .messages
+            .iter()
+            .filter(|m| {
+                m.metadata.as_ref().is_none_or(|meta| {
+                    meta.origin.is_none() && meta.deletion.is_none() && meta.deletion_key.is_none()
+                })
+            })
+            .filter_map(TextRecord::from_message)
+            .collect();
+        if records.is_empty() {
+            return Ok(());
+        }
+        let rows = self.history_rows(records)?;
+        let membership = self.membership.clone().ok_or_else(invalid)?;
+        self.commit_history_rows(store, membership, rows)
     }
 }
 

@@ -96,6 +96,9 @@ class MessageMetadata {
   final MessageOrigin? origin;
   final DeletionMarker? deletion;
   final String? deletionKey;
+
+  /// Locally derived alias survives erasure for older own-device copies.
+  final String? personalCorrelation;
   final bool canDeleteForEveryone;
   final bool localOnly;
   final bool? isOwn;
@@ -104,6 +107,7 @@ class MessageMetadata {
     this.origin,
     this.deletion,
     this.deletionKey,
+    this.personalCorrelation,
     required this.canDeleteForEveryone,
     required this.localOnly,
     this.isOwn,
@@ -114,6 +118,7 @@ class MessageMetadata {
       origin.hashCode ^
       deletion.hashCode ^
       deletionKey.hashCode ^
+      personalCorrelation.hashCode ^
       canDeleteForEveryone.hashCode ^
       localOnly.hashCode ^
       isOwn.hashCode;
@@ -126,6 +131,7 @@ class MessageMetadata {
           origin == other.origin &&
           deletion == other.deletion &&
           deletionKey == other.deletionKey &&
+          personalCorrelation == other.personalCorrelation &&
           canDeleteForEveryone == other.canDeleteForEveryone &&
           localOnly == other.localOnly &&
           isOwn == other.isOwn;

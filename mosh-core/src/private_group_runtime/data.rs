@@ -19,21 +19,28 @@ impl GroupSession {
                         return Err("group sender mismatch".into());
                     }
                     if let Some(origin) = &envelope.origin {
-                        origin.verify(
+                        origin.verify_from_signer(
                             &context,
                             envelope.message_id.as_deref().unwrap_or_default(),
                             body,
+                            signer,
                         )?;
-                        if origin.author != hex::encode(signer) {
-                            return Err("group origin signer mismatch".into());
-                        }
                     }
                     Ok(())
                 })?;
         // A delivered message contradicts "typing": the author's hint dies at
         // once, whatever its deadline said.
         self.clear_member_typing(&envelope.from_fingerprint);
-        let message = self.messages.stamp(GroupMessage {
+        let message = self.received_text(envelope, &plaintext);
+        if self.messages.holds_copy_of(&message) {
+            return Ok(());
+        }
+        self.messages.push(message);
+        Ok(())
+    }
+
+    fn received_text(&self, envelope: DataEnvelope, plaintext: &[u8]) -> GroupMessage {
+        self.messages.stamp(GroupMessage {
             metadata: envelope
                 .origin
                 .map(|origin| crate::message_deletion::MessageMetadata {
@@ -43,7 +50,7 @@ impl GroupSession {
                 }),
             from_device: envelope.from_device,
             from_fingerprint: envelope.from_fingerprint,
-            body: String::from_utf8_lossy(&plaintext).into_owned(),
+            body: String::from_utf8_lossy(plaintext).into_owned(),
             message_id: envelope.message_id,
             sent_at_ms: envelope.sent_at_ms,
             attachment: None,
@@ -52,12 +59,7 @@ impl GroupSession {
             retryable: None,
             retry_count: None,
             name_change: None,
-        });
-        if self.messages.holds_copy_of(&message) {
-            return Ok(());
-        }
-        self.messages.push(message);
-        Ok(())
+        })
     }
 
     // Blob traffic stays on the room wire (spec #8, this slice): a group has

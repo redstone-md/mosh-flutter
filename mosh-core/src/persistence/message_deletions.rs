@@ -1,5 +1,7 @@
 use super::*;
 use crate::{conversation::history::StoredMessage, message_deletion::DeletionRecord};
+type DeletionMarkers = std::collections::BTreeMap<String, crate::message_deletion::DeletionMarker>;
+type ErasedRow = (String, Vec<u8>, Option<String>);
 
 impl Persistence {
     pub(crate) fn account_deletions(
@@ -54,6 +56,10 @@ impl Persistence {
                 continue;
             }
             if record.owner != user
+                || record
+                    .personal_correlation
+                    .as_ref()
+                    .is_some_and(|alias| alias.len() != 64 || hex::decode(alias).is_err())
                 || record.scope != DeleteScope::ForMe
                 || record.local_only
                 || record.status != DeletionStatus::Confirmed
@@ -93,17 +99,14 @@ impl Persistence {
         rows: &[&StoredMessage<M>],
         cancelled: &std::collections::HashSet<String>,
         attachments: &[crate::conversation::attachments::AttachmentDescriptor],
-    ) -> Result<(), PersistenceError> {
+        accepted: bool,
+    ) -> Result<DeletionMarkers, PersistenceError> {
         let messages = rows
             .iter()
             .map(|r| {
                 Ok((
                     Self::history_message_key(&r.conversation_id, r.sent_at_ms, &r.message_id),
-                    encrypt_blob(
-                        &self.dek,
-                        &serde_json::to_vec(r)
-                            .map_err(|e| PersistenceError::Json(e.to_string()))?,
-                    )?,
+                    serde_json::to_vec(r).map_err(|e| PersistenceError::Json(e.to_string()))?,
                     cancelled.contains(&r.message_id).then(|| {
                         Self::outbound_attempt_key(
                             tables.outbound_scope,
@@ -115,19 +118,55 @@ impl Persistence {
             })
             .collect::<Result<Vec<_>, PersistenceError>>()?;
         self.write(|tx| {
+            let mut markers = std::collections::BTreeMap::new();
             for attachment in attachments {
                 self.enqueue_attachment_gc(tx, attachment)?;
             }
             for record in records {
                 self.merge_deletion_row(tx, record)?;
-            }
-            for (key, value, attempt_key) in &messages {
-                Self::update_row(tx, tables.messages, key, Some(value))?;
-                if let Some(attempt_key) = attempt_key {
-                    Self::update_row(tx, OUTBOUND_ATTEMPTS, attempt_key, None)?;
+                if accepted {
+                    self.save_deletion_acceptance(tx, record)?;
                 }
             }
-            Ok(())
+            for row in &messages {
+                if let Some((id, marker)) = self.commit_erased_row(tx, tables, row)? {
+                    markers.insert(id, marker);
+                }
+            }
+            Ok(markers)
         })
+    }
+
+    fn commit_erased_row(
+        &self,
+        tx: &redb::WriteTransaction,
+        tables: HistoryTables,
+        row: &ErasedRow,
+    ) -> Result<Option<(String, crate::message_deletion::DeletionMarker)>, PersistenceError> {
+        let (key, value, attempt_key) = row;
+        let bytes = self.erase_known_target(tx, tables, value)?;
+        let row: serde_json::Value =
+            serde_json::from_slice(&bytes).map_err(|e| PersistenceError::Json(e.to_string()))?;
+        let marker = match (
+            row.get("message_id").and_then(|v| v.as_str()),
+            row.pointer("/message/metadata/deletion"),
+        ) {
+            (Some(id), Some(marker)) => Some((
+                id.to_string(),
+                serde_json::from_value(marker.clone())
+                    .map_err(|e| PersistenceError::Json(e.to_string()))?,
+            )),
+            _ => None,
+        };
+        Self::update_row(
+            tx,
+            tables.messages,
+            key,
+            Some(&encrypt_blob(&self.dek, &bytes)?),
+        )?;
+        if let Some(attempt_key) = attempt_key {
+            Self::update_row(tx, OUTBOUND_ATTEMPTS, attempt_key, None)?;
+        }
+        Ok(marker)
     }
 }

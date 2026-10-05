@@ -49,6 +49,9 @@ pub struct MessageMetadata {
     pub deletion: Option<DeletionMarker>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deletion_key: Option<String>,
+    /// Locally derived alias survives erasure for older own-device copies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub personal_correlation: Option<String>,
     #[serde(default)]
     pub can_delete_for_everyone: bool,
     #[serde(default)]

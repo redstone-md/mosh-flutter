@@ -13,5 +13,6 @@ mod identity_tests;
 #[cfg(test)]
 mod protocol_tests;
 
+pub(crate) mod account_certificate;
 #[cfg(test)]
 mod names_wire_tests;

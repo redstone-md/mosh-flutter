@@ -4476,6 +4476,7 @@ impl SseDecode for crate::message_deletion::types::MessageMetadata {
         let mut var_deletion =
             <Option<crate::message_deletion::types::DeletionMarker>>::sse_decode(deserializer);
         let mut var_deletionKey = <Option<String>>::sse_decode(deserializer);
+        let mut var_personalCorrelation = <Option<String>>::sse_decode(deserializer);
         let mut var_canDeleteForEveryone = <bool>::sse_decode(deserializer);
         let mut var_localOnly = <bool>::sse_decode(deserializer);
         let mut var_isOwn = <Option<bool>>::sse_decode(deserializer);
@@ -4483,6 +4484,7 @@ impl SseDecode for crate::message_deletion::types::MessageMetadata {
             origin: var_origin,
             deletion: var_deletion,
             deletion_key: var_deletionKey,
+            personal_correlation: var_personalCorrelation,
             can_delete_for_everyone: var_canDeleteForEveryone,
             local_only: var_localOnly,
             is_own: var_isOwn,
@@ -6954,6 +6956,7 @@ impl flutter_rust_bridge::IntoDart for crate::message_deletion::types::MessageMe
             self.origin.into_into_dart().into_dart(),
             self.deletion.into_into_dart().into_dart(),
             self.deletion_key.into_into_dart().into_dart(),
+            self.personal_correlation.into_into_dart().into_dart(),
             self.can_delete_for_everyone.into_into_dart().into_dart(),
             self.local_only.into_into_dart().into_dart(),
             self.is_own.into_into_dart().into_dart(),
@@ -8749,6 +8752,7 @@ impl SseEncode for crate::message_deletion::types::MessageMetadata {
             serializer,
         );
         <Option<String>>::sse_encode(self.deletion_key, serializer);
+        <Option<String>>::sse_encode(self.personal_correlation, serializer);
         <bool>::sse_encode(self.can_delete_for_everyone, serializer);
         <bool>::sse_encode(self.local_only, serializer);
         <Option<bool>>::sse_encode(self.is_own, serializer);

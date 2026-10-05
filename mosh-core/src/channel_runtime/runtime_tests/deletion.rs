@@ -173,3 +173,142 @@ fn identical_attachment_copies_survive_until_the_last_row_is_deleted() {
     assert!(!path.unwrap().exists());
     assert!(f.runtime.poll(ROOM).unwrap().messages.is_empty());
 }
+
+#[test]
+fn a_revoked_installation_reports_the_revoked_bridge_category() {
+    use crate::device_link::{identity::DeviceIdentity, types::DeviceDescriptor};
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut f = Fixture::new();
+    let sent = f.runtime.send(ROOM, "retain me".into()).unwrap();
+    let peer = f
+        .runtime
+        .channels
+        .get(ROOM)
+        .unwrap()
+        .device_fingerprint
+        .clone();
+    let mut identity = DeviceIdentity::open(f.store.clone(), &peer).unwrap();
+    let other = ed25519_dalek::SigningKey::from_bytes(&[8; 32]);
+    identity.record.roster = identity
+        .roster()
+        .extend(
+            DeviceDescriptor::new(&other, &"ef".repeat(32)),
+            &identity.key(),
+        )
+        .unwrap()
+        .revoke(&identity.device().device_id, &other)
+        .unwrap();
+    f.store
+        .put_device_link(&serde_json::to_vec(&identity.record).unwrap())
+        .unwrap();
+    let error = f
+        .runtime
+        .delete_messages(ROOM, &[sent.message_id], DeleteScope::ForEveryone)
+        .expect_err("revocation must refuse deletion");
+    let error = crate::api::conversation_bridge::ConversationBridgeError::from(error);
+    assert_eq!(
+        error.kind,
+        crate::api::conversation_bridge::ConversationBridgeErrorKind::Revoked
+    );
+    assert_eq!(
+        f.runtime.channels.get(ROOM).unwrap().messages[0].body,
+        "retain me"
+    );
+}
+
+fn link_accounts(source: &Fixture, destination: &Fixture) -> String {
+    use crate::device_link::identity::DeviceIdentity;
+    let source_peer = &source
+        .runtime
+        .channels
+        .get(ROOM)
+        .unwrap()
+        .device_fingerprint;
+    let destination_peer = &destination
+        .runtime
+        .channels
+        .get(ROOM)
+        .unwrap()
+        .device_fingerprint;
+    let mut source_identity = DeviceIdentity::open(source.store.clone(), source_peer).unwrap();
+    let mut destination_identity =
+        DeviceIdentity::open(destination.store.clone(), destination_peer).unwrap();
+    let roster = source_identity
+        .roster()
+        .extend(
+            destination_identity.device().clone(),
+            &source_identity.key(),
+        )
+        .unwrap();
+    source_identity.record.roster = roster.clone();
+    destination_identity.record.roster = roster;
+    source
+        .store
+        .put_device_link(&serde_json::to_vec(&source_identity.record).unwrap())
+        .unwrap();
+    destination
+        .store
+        .put_device_link(&serde_json::to_vec(&destination_identity.record).unwrap())
+        .unwrap();
+    source_identity.roster().user_id()
+}
+
+#[test]
+fn personal_attachment_erasure_matches_an_older_own_copy_even_after_shared_erasure() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    for shared_first in [false, true] {
+        let (mut source, mut legacy) = (Fixture::new(), Fixture::new());
+        let sent = source
+            .runtime
+            .send_attachment(
+                ROOM,
+                "file.bin".into(),
+                "application/octet-stream".into(),
+                vec![42; 32],
+                None,
+                None,
+            )
+            .unwrap();
+        let session = source.runtime.channels.get(ROOM).unwrap();
+        let mut manifest = session.transfer.manifest_for(&sent.attachment_id).unwrap();
+        manifest.origin = None;
+        let envelope = ChannelBlobEnvelope::Manifest {
+            from_device: session.display_name.clone(),
+            from_fingerprint: session.device_fingerprint.clone(),
+            manifest: Box::new(manifest),
+        };
+        legacy.deliver(MossReceivedMessage {
+            channel: session.blob_topic.clone(),
+            payload: serde_json::to_vec(&envelope).unwrap(),
+        });
+        let user = link_accounts(&source, &legacy);
+        if shared_first {
+            source
+                .runtime
+                .delete_messages(
+                    ROOM,
+                    std::slice::from_ref(&sent.attachment_id),
+                    DeleteScope::ForEveryone,
+                )
+                .unwrap();
+        }
+        source
+            .runtime
+            .delete_messages(ROOM, &[sent.attachment_id], DeleteScope::ForMe)
+            .unwrap();
+        let records: Vec<_> = source
+            .store
+            .account_deletions(&user)
+            .unwrap()
+            .into_iter()
+            .filter(|r| r.scope == DeleteScope::ForMe)
+            .collect();
+        legacy
+            .store
+            .save_account_deletions(&user, &records)
+            .unwrap();
+        assert!(legacy.runtime.poll(ROOM).unwrap().messages.is_empty());
+        legacy.restart();
+        assert!(legacy.runtime.poll(ROOM).unwrap().messages.is_empty());
+    }
+}
