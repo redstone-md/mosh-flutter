@@ -20,11 +20,17 @@ impl PrivateDmRuntime {
     /// [`Self::drain_inbound`] on a given clock: the frames drained here are
     /// stamped with `now` when the tick records the counterpart's proof.
     pub(super) fn drain_inbound_at(&mut self, now: u64) {
+        self.receive_inbound();
+        self.tick(now);
+    }
+
+    /// Receive membership/control updates without publishing queued messages.
+    /// Deletion must persist cancellation before the next outbox tick.
+    pub(super) fn receive_inbound(&mut self) {
         self.prepare_devices();
         for message in self.transport.drain() {
             self.route_frame(message);
         }
-        self.tick(now);
     }
 
     /// Hand one frame to the session it names. Voice-call media never comes
@@ -69,17 +75,9 @@ impl PrivateDmRuntime {
         let mut dirty: Vec<(String, String)> = Vec::new();
         let mut ready = Vec::new();
         for (session_id, session) in self.sessions.iter_mut() {
-            if session.ensure_device_authorized().is_err() {
+            if !session.service_protocols(now, lost_window) {
                 continue;
             }
-            session.pump_attachment_requests();
-            session.pump_peer_connect();
-            session.pump_liveness(now, lost_window);
-            session.pump_reach_log();
-            session.pump_handshake(now);
-            session.pump_hello(now);
-            session.pump_peer_announce(now);
-            session.pump_call_signaling(now);
             ready.push(session_id.clone());
             let changed = session
                 .pump_unacked_resends(now)
@@ -140,5 +138,33 @@ impl PrivateDmRuntime {
             .collect();
         self.media.sync(live);
         self.media.collect();
+    }
+}
+
+impl PrivateDmSession {
+    /// Refresh admission and run session protocols before the runtime outbox.
+    fn service_protocols(&mut self, now: u64, lost_window: u64) -> bool {
+        if self.ensure_device_authorized().is_err() {
+            return false;
+        }
+        if let Err(error) = self.apply_deletions() {
+            dlog::write(
+                LogLevel::Warn,
+                kinds::PERSIST,
+                &self.session_id,
+                &error.to_string(),
+            );
+            return false;
+        }
+        self.pump_attachment_requests();
+        let _ = self.sync_deletions(now);
+        self.pump_peer_connect();
+        self.pump_liveness(now, lost_window);
+        self.pump_reach_log();
+        self.pump_handshake(now);
+        self.pump_hello(now);
+        self.pump_peer_announce(now);
+        self.pump_call_signaling(now);
+        true
     }
 }

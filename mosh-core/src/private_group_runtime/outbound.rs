@@ -17,7 +17,8 @@ impl PrivateGroupRuntime {
             if !session.joined {
                 return Err(PrivateGroupError::NotReady);
             }
-            let message = session.messages.stamp(GroupMessage {
+            let mut message = session.messages.stamp(GroupMessage {
+                metadata: None,
                 from_device: session.display_name.clone(),
                 from_fingerprint: session.device_fingerprint.clone(),
                 body,
@@ -30,6 +31,7 @@ impl PrivateGroupRuntime {
                 retry_count: None,
                 name_change: None,
             });
+            session.sign_text_origin(&mut message)?;
             let (payload, ciphertext_bytes) = session.encode_text(&message)?;
             let owned_group_id = session.group_id.clone();
             session
@@ -149,5 +151,26 @@ impl PrivateGroupRuntime {
             delivery_status: settled.status,
             delivery_error: settled.error,
         })
+    }
+}
+
+impl GroupSession {
+    fn sign_text_origin(&self, message: &mut GroupMessage) -> Result<(), PrivateGroupError> {
+        message.metadata = Some(crate::message_deletion::MessageMetadata {
+            origin: Some(
+                crate::message_deletion::MessageOrigin::sign_mls(
+                    &format!("group:{}", self.group_id),
+                    message.message_id.as_deref().unwrap_or_default(),
+                    message.body.as_bytes(),
+                    &self.crypto,
+                    self.deletions.store.as_ref(),
+                    Some(self.device_fingerprint.as_str()),
+                )
+                .map_err(PrivateGroupError::Codec)?,
+            ),
+            is_own: Some(true),
+            ..Default::default()
+        });
+        Ok(())
     }
 }

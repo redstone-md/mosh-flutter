@@ -27,4 +27,7 @@ pub(super) fn invalid() -> super::PrivateDmRuntimeError {
     super::PrivateDmRuntimeError::Codec(INVALID.into())
 }
 
+mod history_metadata;
+#[cfg(test)]
+mod history_metadata_tests;
 mod identity_session;

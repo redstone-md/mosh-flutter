@@ -96,6 +96,7 @@ impl std::error::Error for ConversationBridgeError {}
 impl From<PrivateDmRuntimeError> for ConversationBridgeError {
     fn from(error: PrivateDmRuntimeError) -> Self {
         let kind = match &error {
+            PrivateDmRuntimeError::Deletion(error) => return deletion_error(error),
             PrivateDmRuntimeError::Revoked => ConversationBridgeErrorKind::Revoked,
             PrivateDmRuntimeError::Moss(_) => ConversationBridgeErrorKind::Unavailable,
             PrivateDmRuntimeError::OpenMls(_) => ConversationBridgeErrorKind::Internal,
@@ -120,6 +121,7 @@ impl From<PrivateDmRuntimeError> for ConversationBridgeError {
 impl From<ChannelRuntimeError> for ConversationBridgeError {
     fn from(error: ChannelRuntimeError) -> Self {
         let kind = match &error {
+            ChannelRuntimeError::Deletion(error) => return deletion_error(error),
             ChannelRuntimeError::Moss(_) => ConversationBridgeErrorKind::Unavailable,
             ChannelRuntimeError::Codec(_) => ConversationBridgeErrorKind::Internal,
             ChannelRuntimeError::Persistence(_) => ConversationBridgeErrorKind::Persistence,
@@ -142,6 +144,7 @@ impl From<ChannelRuntimeError> for ConversationBridgeError {
 impl From<PrivateGroupError> for ConversationBridgeError {
     fn from(error: PrivateGroupError) -> Self {
         let kind = match &error {
+            PrivateGroupError::Deletion(error) => return deletion_error(error),
             PrivateGroupError::Moss(_) => ConversationBridgeErrorKind::Unavailable,
             PrivateGroupError::Codec(_) => ConversationBridgeErrorKind::Internal,
             PrivateGroupError::Persistence(_) => ConversationBridgeErrorKind::Persistence,
@@ -161,6 +164,18 @@ impl From<PrivateGroupError> for ConversationBridgeError {
         };
         Self::new(kind, error.to_string())
     }
+}
+
+fn deletion_error(error: &crate::message_deletion::DeletionError) -> ConversationBridgeError {
+    use crate::message_deletion::DeletionError;
+    let kind = match error {
+        DeletionError::InvalidInput(_) => ConversationBridgeErrorKind::InvalidInput,
+        DeletionError::PermissionDenied => ConversationBridgeErrorKind::PermissionDenied,
+        DeletionError::Revoked => ConversationBridgeErrorKind::Revoked,
+        DeletionError::Persistence(_) => ConversationBridgeErrorKind::Persistence,
+        DeletionError::Internal(_) => ConversationBridgeErrorKind::Internal,
+    };
+    ConversationBridgeError::new(kind, error.to_string())
 }
 
 impl From<OrgError> for ConversationBridgeError {

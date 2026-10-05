@@ -1,4 +1,5 @@
 mod actions;
+mod deletion;
 mod exchange;
 #[cfg(test)]
 mod legacy_tests;
@@ -38,6 +39,10 @@ pub struct DeviceLinkRuntime {
     names_peer_digests: std::collections::HashMap<String, String>,
     names_initial_pulls: std::collections::HashMap<String, String>,
     names_pending_pages: std::collections::HashMap<String, names::NamePageRequest>,
+    deletion_last_pull: Option<Instant>,
+    deletion_digests: std::collections::HashMap<String, String>,
+    deletion_pages: std::collections::HashMap<String, deletion::DeletionPage>,
+    deletion_fragments: crate::message_deletion::fragment_buffer::FragmentBuffer,
 }
 
 impl DeviceLinkRuntime {
@@ -74,6 +79,10 @@ impl DeviceLinkRuntime {
             names_peer_digests: std::collections::HashMap::new(),
             names_initial_pulls: std::collections::HashMap::new(),
             names_pending_pages: std::collections::HashMap::new(),
+            deletion_last_pull: None,
+            deletion_digests: Default::default(),
+            deletion_pages: Default::default(),
+            deletion_fragments: Default::default(),
         };
         runtime.expire()?;
         Ok(runtime)
@@ -147,3 +156,4 @@ fn now() -> u64 {
         .unwrap_or_default()
         .as_secs()
 }
+mod certificate;

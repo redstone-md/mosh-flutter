@@ -63,6 +63,11 @@ sealed class RailEntry {
   String searchText(AppLocalizations l) => ref?.id ?? '';
 
   String? preview(AppLocalizations l) {
+    if (activity.deletion case final deleted?) {
+      return deleted.administrator == null
+          ? l.messageDeleted
+          : l.messageDeletedByAdmin(deleted.administrator!);
+    }
     final text = activity.text;
     if (text == null) return null;
     final prefix = activity.own

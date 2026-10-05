@@ -1,4 +1,4 @@
-use super::state_tests::{accept, connect, invite, runtime_on, ALICE_ID, BOB_ID};
+use super::state_tests::{accept, connect, invite, ALICE_ID, BOB_ID};
 use super::transport::memory::MemoryNet;
 use super::wire::DATA_CHANNEL_PREFIX;
 use super::*;
@@ -28,7 +28,14 @@ impl Pair {
             attachments.clone(),
             Some(store.clone()),
         );
-        let mut bob = runtime_on(&net, BOB_ID);
+        let bob_store = Arc::new(
+            Persistence::open_with_dek(&directory.path().join("bob.redb"), [42; 32]).unwrap(),
+        );
+        let mut bob = PrivateDmRuntime::with_transport(
+            net.endpoint(BOB_ID),
+            attachments.clone(),
+            Some(bob_store),
+        );
         let invitation = invite(&mut alice);
         accept(&mut bob, &invitation);
         connect(&mut alice, &mut bob, &invitation.session_id);
@@ -263,3 +270,4 @@ fn publishing_a_saved_queue_retains_the_advanced_mls_snapshot() {
 
 #[path = "durability_tests/attachments.rs"]
 mod attachments;
+mod deletion;

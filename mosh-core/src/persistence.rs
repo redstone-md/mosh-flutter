@@ -3,20 +3,32 @@ use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use flutter_rust_bridge::frb;
 use redb::{Database, ReadableTable};
 
+mod attachment_gc;
+mod attachment_refs;
 mod chat_names;
 mod conversation_records;
 mod crypto;
 mod database;
+mod deletion_acceptance;
+mod deletion_guard;
+mod deletion_index;
+mod deletion_merge;
+mod deletion_paging;
+#[cfg(test)]
+mod deletion_tests;
 mod dm_devices;
 mod dm_history;
 mod group_commits;
 mod group_names;
 mod history;
+mod history_erasure;
+mod message_deletions;
 mod mls_state;
 mod org_acceptances;
 #[cfg(test)]
 mod org_acceptances_tests;
 mod outbound;
+mod outbound_guard;
 mod records;
 mod schema;
 #[cfg(test)]

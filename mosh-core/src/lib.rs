@@ -44,6 +44,7 @@ mod sender_auth;
 #[cfg(test)]
 extern crate self as mosh_core;
 
+pub mod message_deletion;
 #[cfg(test)]
 #[path = "../tests/support/temp_directory.rs"]
 mod test_temp_directory;

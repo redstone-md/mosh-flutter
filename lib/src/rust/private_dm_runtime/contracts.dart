@@ -7,6 +7,8 @@ import '../attachment_runtime.dart';
 import '../conversation/attachments.dart';
 import '../conversation/mesh.dart';
 import '../frb_generated.dart';
+import '../message_deletion/origin.dart';
+import '../message_deletion/types.dart';
 import '../outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'transport.dart';
@@ -139,6 +141,7 @@ class CallStarted {
 }
 
 class ChatMessage {
+  final MessageMetadata? metadata;
   final String fromDevice;
   final String body;
   final String? messageId;
@@ -158,6 +161,7 @@ class ChatMessage {
   final bool? read;
 
   const ChatMessage({
+    this.metadata,
     required this.fromDevice,
     required this.body,
     this.messageId,
@@ -173,6 +177,7 @@ class ChatMessage {
 
   @override
   int get hashCode =>
+      metadata.hashCode ^
       fromDevice.hashCode ^
       body.hashCode ^
       messageId.hashCode ^
@@ -190,6 +195,7 @@ class ChatMessage {
       identical(this, other) ||
       other is ChatMessage &&
           runtimeType == other.runtimeType &&
+          metadata == other.metadata &&
           fromDevice == other.fromDevice &&
           body == other.body &&
           messageId == other.messageId &&
@@ -338,6 +344,7 @@ class SessionListSnapshot {
 }
 
 class SessionSnapshot {
+  final DeletionSummary? deletionSummary;
   final DmDeviceRevocationState? deviceRevocation;
   final DmHistorySyncState? historySync;
   final String sessionId;
@@ -379,6 +386,7 @@ class SessionSnapshot {
   final ActiveCall? activeCall;
 
   const SessionSnapshot({
+    this.deletionSummary,
     this.deviceRevocation,
     this.historySync,
     required this.sessionId,
@@ -404,6 +412,7 @@ class SessionSnapshot {
 
   @override
   int get hashCode =>
+      deletionSummary.hashCode ^
       deviceRevocation.hashCode ^
       historySync.hashCode ^
       sessionId.hashCode ^
@@ -431,6 +440,7 @@ class SessionSnapshot {
       identical(this, other) ||
       other is SessionSnapshot &&
           runtimeType == other.runtimeType &&
+          deletionSummary == other.deletionSummary &&
           deviceRevocation == other.deviceRevocation &&
           historySync == other.historySync &&
           sessionId == other.sessionId &&

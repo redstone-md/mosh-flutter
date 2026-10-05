@@ -3,6 +3,9 @@
 use super::*;
 
 impl ConversationSession for GroupSession {
+    fn attach_persistence(&mut self, store: Option<Arc<Persistence>>) {
+        self.deletions.store = store;
+    }
     type Message = GroupMessage;
     type Record = PersistedGroupSession;
 
@@ -45,6 +48,7 @@ impl ConversationSession for GroupSession {
 }
 
 pub(super) struct GroupSession {
+    pub(super) deletions: crate::message_deletion::DeletionBook,
     pub(super) pending_join_package: Option<Vec<u8>>,
     pub(super) group_id: String,
     pub(super) mesh_id: String,
@@ -119,6 +123,11 @@ impl GroupSession {
         org_signer: Option<SigningKey>,
     ) -> Self {
         Self {
+            deletions: crate::message_deletion::DeletionBook::new(
+                format!("group:{}", record.group_id),
+                GROUP_HISTORY,
+                persistence.clone(),
+            ),
             pending_join_package: None,
             control_channel: format!("{CONTROL_CHANNEL_PREFIX}{}", record.group_id),
             data_channel: format!("{DATA_CHANNEL_PREFIX}{}", record.group_id),

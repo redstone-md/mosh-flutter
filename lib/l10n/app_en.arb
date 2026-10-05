@@ -1917,5 +1917,41 @@
       }
     }
   },
-  "chatNameSuperseded": "Name change superseded by a later name."
+  "chatNameSuperseded": "Name change superseded by a later name.",
+  "messageDelete": "Delete…",
+  "messageSelect": "Select message",
+  "messageDeleteForMe": "Delete for me",
+  "messageDeleteForEveryone": "Delete for everyone",
+  "messageDeleteTitle": "Delete messages ({count})?",
+  "@messageDeleteTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageDeleteExplanation": "Deleting for me removes these messages from your history and linked devices. Deleting for everyone sends a request to other participants. Unsent messages will be cancelled.",
+  "messageDeleteLocalOnly": "Some old messages will be deleted only on this device.",
+  "messageDeleteMixed": "Remove messages that cannot be deleted for everyone from the selection to enable this action.",
+  "messageDeleted": "Message deleted",
+  "messageDeletedByAdmin": "Message deleted by administrator {name}",
+  "@messageDeletedByAdmin": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageDeletionPending": "Awaiting delivery",
+  "messageDeletionConfirmed": "Request confirmed",
+  "messageDeletionRejected": "Some deletion requests were refused because permissions changed. These messages remain deleted for you.",
+  "messagesSelected": "Selected: {count}",
+  "@messagesSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageDeletionFailed": "Could not delete messages. Your selection is kept; try again."
 }

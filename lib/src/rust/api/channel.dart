@@ -10,6 +10,8 @@ import '../conversation/attachments.dart';
 import '../conversation/dm_offers.dart';
 import '../conversation/mesh.dart';
 import '../frb_generated.dart';
+import '../message_deletion/origin.dart';
+import '../message_deletion/types.dart';
 import '../outbound_delivery.dart';
 import 'conversation_bridge.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';

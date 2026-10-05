@@ -16,6 +16,7 @@ import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
+import 'package:mosh/src/rust/message_deletion/types.dart';
 
 class ConversationMessageRow extends StatelessWidget {
   const ConversationMessageRow({
@@ -127,6 +128,26 @@ class ConversationMessageRow extends StatelessWidget {
   }
 
   Widget _body(BuildContext context) {
+    if (message.deletion case final deleted?) {
+      return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+                deleted.administrator == null
+                    ? l.messageDeleted
+                    : l.messageDeletedByAdmin(deleted.administrator!),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(fontStyle: FontStyle.italic)),
+            Text(
+                deleted.status == DeletionStatus.pending
+                    ? l.messageDeletionPending
+                    : l.messageDeletionConfirmed,
+                style: Theme.of(context).textTheme.bodySmall),
+          ]);
+    }
     final footer = ConversationMessageFooter(message: message, kind: kind);
     final hasFooter = footer.measure(context).height > 0;
     final textOnly = message.body.isNotEmpty &&

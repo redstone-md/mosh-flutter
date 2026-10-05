@@ -38,6 +38,10 @@ pub fn channel_call_id(channel: &str) -> Option<&str> {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ControlEnvelope {
+    MessageDeletion {
+        session_id: String,
+        frame: crate::message_deletion::protocol::DeletionFrame,
+    },
     AuthenticatedKeyPackage {
         session_id: String,
         proof_b64: String,
@@ -167,6 +171,8 @@ pub enum ControlEnvelope {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DataEnvelope {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<crate::message_deletion::MessageOrigin>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub device_signature: Option<super::devices::DeviceSignature>,
     pub session_id: String,

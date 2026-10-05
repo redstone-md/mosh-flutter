@@ -203,6 +203,7 @@ impl DeviceLinkRuntime {
         )?;
         let mut record = self.identity.record.clone();
         record.roster = roster;
+        record.account_certificate = None;
         record.pending = None;
         record.consume(&e.qr, now());
         record.receipt = Some(LinkReceipt {

@@ -12,6 +12,7 @@ use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TestMessage {
+    pub metadata: Option<crate::message_deletion::MessageMetadata>,
     pub from: String,
     pub body: String,
     pub message_id: Option<String>,
@@ -25,6 +26,7 @@ pub struct TestMessage {
 impl TestMessage {
     pub fn new(from: &str, body: &str) -> Self {
         Self {
+            metadata: None,
             from: from.to_string(),
             body: body.to_string(),
             message_id: None,
@@ -48,6 +50,20 @@ impl TestMessage {
 }
 
 impl ConversationMessage for TestMessage {
+    fn metadata(&self) -> Option<&crate::message_deletion::MessageMetadata> {
+        self.metadata.as_ref()
+    }
+    fn metadata_mut(&mut self) -> &mut Option<crate::message_deletion::MessageMetadata> {
+        &mut self.metadata
+    }
+    fn erase_content(&mut self) {
+        self.body.clear();
+        self.delivery_status = None;
+        self.delivery_error = None;
+        self.retryable = None;
+        self.retry_count = None;
+    }
+
     fn message_id(&self) -> Option<&str> {
         self.message_id.as_deref()
     }

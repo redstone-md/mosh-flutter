@@ -261,3 +261,13 @@ pub(super) enum DeviceMessage {
         epoch: u64,
     },
 }
+
+impl DeviceMembership {
+    pub(crate) fn deletion_accounts(&self) -> std::collections::BTreeMap<String, String> {
+        self.topology
+            .clients
+            .iter()
+            .map(|client| (client.mls_signer.clone(), client.roster.user_id()))
+            .collect()
+    }
+}

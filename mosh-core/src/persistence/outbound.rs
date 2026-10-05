@@ -24,8 +24,15 @@ impl Persistence {
         message_id: &str,
         json: &[u8],
     ) -> Result<(), PersistenceError> {
-        let key = Self::outbound_attempt_key(scope, conversation_id, message_id);
-        self.put(OUTBOUND_ATTEMPTS, &key, json)
+        let tables = match scope {
+            "private_dm" => DM_HISTORY,
+            "private_group" => GROUP_HISTORY,
+            "channel" => CHANNEL_HISTORY,
+            _ => return Err(PersistenceError::Db("invalid outbound scope".into())),
+        };
+        self.write(|tx| {
+            self.write_outbound_row(tx, tables, conversation_id, message_id, Some(json))
+        })
     }
 
     pub fn get_outbound_attempt(
@@ -70,15 +77,10 @@ impl Persistence {
         attempt_json: Option<&[u8]>,
     ) -> Result<(), PersistenceError> {
         let message_key = Self::history_message_key(conversation_id, sent_at_ms, message_id);
-        let attempt_key =
-            Self::outbound_attempt_key(tables.outbound_scope, conversation_id, message_id);
         let message = encrypt_blob(&self.dek, message_json)?;
-        let attempt = attempt_json
-            .map(|json| encrypt_blob(&self.dek, json))
-            .transpose()?;
         self.write(|tx| {
-            Self::update_row(tx, tables.messages, &message_key, Some(&message))?;
-            Self::update_row(tx, OUTBOUND_ATTEMPTS, &attempt_key, attempt.as_deref())
+            self.write_history_row(tx, tables, &message_key, &message)?;
+            self.write_outbound_row(tx, tables, conversation_id, message_id, attempt_json)
         })
     }
 }

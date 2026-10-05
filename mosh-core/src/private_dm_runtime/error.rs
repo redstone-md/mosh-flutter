@@ -5,6 +5,7 @@ use super::*;
 impl std::fmt::Display for PrivateDmRuntimeError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Deletion(error) => error.fmt(formatter),
             Self::Revoked => write!(formatter, "this installation's DM membership was revoked"),
             Self::Moss(error) => write!(formatter, "Moss error: {error}"),
             Self::OpenMls(error) => write!(formatter, "OpenMLS error: {error}"),

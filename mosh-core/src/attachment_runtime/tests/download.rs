@@ -167,6 +167,7 @@ fn stream_range_returns_pending_then_ready() {
 fn register_incoming_rejects_bad_chunk_count() {
     let mut runtime = AttachmentRuntime::new();
     let manifest = AttachmentManifest {
+        origin: None,
         attachment_id: "a".to_string(),
         content_hash: "0".repeat(64),
         file_name: "f".to_string(),
@@ -218,6 +219,7 @@ fn voice_meta_roundtrips_through_json() {
 #[test]
 fn manifest_without_voice_omits_the_field() {
     let manifest = AttachmentManifest {
+        origin: None,
         attachment_id: "a".into(),
         content_hash: "h".into(),
         file_name: "f".into(),

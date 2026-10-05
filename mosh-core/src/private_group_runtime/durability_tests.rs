@@ -23,6 +23,9 @@ mod names_authority;
 #[path = "durability_tests/names_handoff.rs"]
 mod names_handoff;
 
+#[path = "durability_tests/deletion.rs"]
+mod deletion;
+
 struct Fixture {
     store: Arc<Persistence>,
     runtime: PrivateGroupRuntime,
@@ -55,6 +58,7 @@ impl Fixture {
 
     fn new() -> Self {
         let mut fixture = Self::empty();
+        let _identity = crate::moss_ffi::replace_test_keystore(Some(fixture.store.clone()));
         fixture.id = fixture
             .runtime
             .create_group(CreateGroupRequest {
@@ -70,6 +74,7 @@ impl Fixture {
     }
 
     fn join(&mut self, invite: &str, display_name: &str) {
+        let _identity = crate::moss_ffi::replace_test_keystore(Some(self.store.clone()));
         self.id = self
             .runtime
             .join_group(JoinGroupRequest {
@@ -102,6 +107,7 @@ impl Fixture {
     }
 
     fn restart(&mut self) {
+        let _identity = crate::moss_ffi::replace_test_keystore(Some(self.store.clone()));
         let attachments = Arc::new(AttachmentStore::new(self.directory.path()).unwrap());
         let moss = Arc::new(MossFfiRuntime::load_default().unwrap());
         self.runtime =

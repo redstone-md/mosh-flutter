@@ -166,6 +166,9 @@ pub struct AttachmentSlots {
 }
 
 impl AttachmentSlots {
+    pub(crate) fn forget(&mut self, id: &str) {
+        self.slots.remove(id);
+    }
     pub fn contains(&self, attachment_id: &str) -> bool {
         self.slots.contains_key(attachment_id)
     }

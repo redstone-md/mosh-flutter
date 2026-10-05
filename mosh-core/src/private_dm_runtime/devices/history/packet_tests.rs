@@ -191,6 +191,8 @@ impl Fixture {
     }
 }
 
+mod deletion;
+mod export;
 mod recovery;
 mod revocation;
 
@@ -202,6 +204,7 @@ impl Drop for Fixture {
 
 fn record(id: &str, body: &str) -> TextRecord {
     TextRecord {
+        metadata: None,
         message_id: id.into(),
         sent_at_ms: 42,
         from_device: "Counterpart".into(),
@@ -347,8 +350,11 @@ fn signed_history_boundary_refuses_outsiders_tampering_conflicts_and_stale_roste
 #[test]
 #[ignore = "Independent installation worker, invoked by the signed boundary test."]
 fn history_packet_process() {
+    export::frozen_metadata_survives_a_recovery_checkpoint(&mut Fixture::new());
     signed_refusals(&mut Fixture::new());
     conflicting_and_incomplete_batches(&mut Fixture::new());
     roster_refusals(&mut Fixture::new());
     fragments_survive_restart_and_refuse_wrong_continuations(&mut Fixture::new());
+    deletion::authenticated_legacy_history_can_be_erased_across_own_devices(&mut Fixture::new());
+    deletion::legacy_source_preserves_verified_live_origins(&mut Fixture::new());
 }

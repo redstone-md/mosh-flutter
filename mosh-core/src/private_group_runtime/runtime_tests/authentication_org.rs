@@ -20,6 +20,7 @@ fn admit(runtime: &mut PrivateGroupRuntime, id: &str, name: &str) -> MlsSessionC
 
 fn frame(session: &GroupSession, member: &mut MlsSessionCrypto, identity: &SigningKey) -> Vec<u8> {
     let envelope = DataEnvelope {
+        origin: None,
         group_id: session.group_id.clone(),
         participant_id: "org member".into(),
         from_device: "Bob".into(),

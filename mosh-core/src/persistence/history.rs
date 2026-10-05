@@ -46,7 +46,8 @@ impl Persistence {
         json: &[u8],
     ) -> Result<(), PersistenceError> {
         let key = Self::history_message_key(conversation_id, sent_at_ms, message_id);
-        self.put(tables.messages, &key, json)
+        let blob = encrypt_blob(&self.dek, json)?;
+        self.write(|tx| self.write_history_row(tx, tables, &key, &blob))
     }
 
     pub(super) fn history_message_key(

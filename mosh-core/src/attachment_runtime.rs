@@ -80,6 +80,8 @@ pub struct VoiceMeta {
 /// Secret material and metadata sent through the conversation control path.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttachmentManifest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<crate::message_deletion::MessageOrigin>,
     pub attachment_id: String,
     pub content_hash: String,
     pub file_name: String,

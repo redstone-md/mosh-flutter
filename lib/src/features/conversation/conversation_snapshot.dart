@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show immutable;
+import 'package:mosh/src/rust/message_deletion/types.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart';
@@ -23,6 +24,7 @@ import 'package:mosh/src/rust/private_group_runtime/wire_types.dart'
 @immutable
 class ConversationMessage {
   const ConversationMessage({
+    this.metadata,
     required this.fromDevice,
     required this.body,
     required this.own,
@@ -40,6 +42,10 @@ class ConversationMessage {
 
   final String fromDevice;
   final String body;
+  final MessageMetadata? metadata;
+  bool get canDeleteForEveryone => metadata?.canDeleteForEveryone ?? false;
+  bool get localOnly => metadata?.localOnly ?? true;
+  DeletionMarker? get deletion => metadata?.deletion;
 
   /// Whether the local device sent this message.
   final bool own;
@@ -84,6 +90,7 @@ class ConversationMessage {
           runtimeType == other.runtimeType &&
           fromDevice == other.fromDevice &&
           body == other.body &&
+          metadata == other.metadata &&
           own == other.own &&
           fromFingerprint == other.fromFingerprint &&
           messageId == other.messageId &&
@@ -100,6 +107,7 @@ class ConversationMessage {
   int get hashCode => Object.hash(
         fromDevice,
         body,
+        metadata,
         own,
         fromFingerprint,
         messageId,
@@ -142,6 +150,11 @@ sealed class ConversationSnapshot {
   /// sources are, which keeps a poll that changed nothing from rebuilding
   /// the conversation.
   Object get source;
+  DeletionSummary? get deletionSummary => switch (this) {
+        DmConversation(:final source) => source.deletionSummary,
+        ChannelConversation(:final source) => source.deletionSummary,
+        GroupConversation(:final source) => source.deletionSummary,
+      };
 
   /// The attachment transfer state for [attachmentId], or null when the
   /// snapshot carries none. Attachment lists are short, so a scan is enough.
@@ -240,7 +253,8 @@ ConversationMessage _fromDm(ChatMessage m, String ownDeviceName) =>
     ConversationMessage(
       fromDevice: m.fromDevice,
       body: m.body,
-      own: m.fromDevice == ownDeviceName,
+      metadata: m.metadata,
+      own: m.metadata?.isOwn ?? (m.fromDevice == ownDeviceName),
       messageId: m.messageId,
       sentAtMs: m.sentAtMs,
       attachment: m.attachment,
@@ -269,11 +283,13 @@ ConversationMessage _fromMultiParty({
   MessageDeliveryStatus? deliveryStatus,
   String? deliveryError,
   bool? retryable,
+  MessageMetadata? metadata,
 }) =>
     ConversationMessage(
       fromDevice: fromDevice,
       body: body,
-      own: fromFingerprint == ownFingerprint,
+      metadata: metadata,
+      own: metadata?.isOwn ?? (fromFingerprint == ownFingerprint),
       nameChange: nameChange,
       fromFingerprint: fromFingerprint,
       messageId: messageId,
@@ -286,6 +302,7 @@ ConversationMessage _fromMultiParty({
 
 ConversationMessage _fromChannel(ChannelMessage m, String ownFingerprint) =>
     _fromMultiParty(
+      metadata: m.metadata,
       fromDevice: m.fromDevice,
       fromFingerprint: m.fromFingerprint,
       body: m.body,
@@ -300,6 +317,7 @@ ConversationMessage _fromChannel(ChannelMessage m, String ownFingerprint) =>
 
 ConversationMessage _fromGroup(GroupMessage m, String ownFingerprint) =>
     _fromMultiParty(
+      metadata: m.metadata,
       fromDevice: m.fromDevice,
       fromFingerprint: m.fromFingerprint,
       body: m.body,

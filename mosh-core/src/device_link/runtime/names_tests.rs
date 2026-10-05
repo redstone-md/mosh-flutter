@@ -7,6 +7,8 @@ use ed25519_dalek::SigningKey;
 
 #[path = "names_bootstrap_tests.rs"]
 mod bootstrap;
+#[path = "deletion_tests.rs"]
+mod deletion;
 #[path = "names_sync_tests.rs"]
 mod sync;
 

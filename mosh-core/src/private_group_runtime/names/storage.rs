@@ -132,6 +132,7 @@ impl NameChange {
 
     fn event(&self, peer_id: String, pending: bool) -> GroupMessage {
         GroupMessage {
+            metadata: None,
             from_device: self.from_device.clone(),
             from_fingerprint: peer_id,
             body: String::new(),

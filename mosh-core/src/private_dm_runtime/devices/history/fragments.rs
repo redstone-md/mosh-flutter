@@ -7,7 +7,17 @@ impl HistoryImport {
     ) -> Result<Vec<super::records::TextRecord>> {
         let Some(fragment) = &batch.fragment else {
             if self.partial.is_some() {
-                return Err(invalid());
+                let erased = batch.records.first().is_some_and(|r| {
+                    r.metadata.as_ref().is_some_and(|m| m.deletion.is_some())
+                        && self
+                            .partial
+                            .as_ref()
+                            .is_some_and(|p| p.record.message_id == r.message_id)
+                });
+                if !erased {
+                    return Err(invalid());
+                }
+                self.partial = None;
             }
             return Ok(batch.records.clone());
         };
@@ -38,6 +48,7 @@ impl HistoryImport {
 impl PartialText {
     fn append(&mut self, fragment: &TextFragment) -> Result<()> {
         if self.record.message_id != fragment.record.message_id
+            || self.record.metadata != fragment.record.metadata
             || self.record.sent_at_ms != fragment.record.sent_at_ms
             || self.record.from_device != fragment.record.from_device
             || self.body_length != fragment.body_length

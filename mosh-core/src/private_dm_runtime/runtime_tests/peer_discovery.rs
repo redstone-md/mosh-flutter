@@ -182,11 +182,9 @@ fn forged_delivery_ack_does_not_upgrade() {
     );
 }
 
-// Sessions restored from a record written before peer_moss_id was persisted
-// carry None and nothing else recovers it, so the peer must be able to
-// re-announce out of band. Repairs history rather than requiring a new DM.
+// A plaintext repair hint cannot authenticate the counterpart's address.
 #[test]
-fn a_peer_announce_restores_a_lost_peer_id() {
+fn a_peer_announce_cannot_pin_an_unverified_peer_id() {
     let _guard = MOSS_TEST_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -215,12 +213,12 @@ fn a_peer_announce_restores_a_lost_peer_id() {
         .expect("announce should be accepted");
     assert_eq!(
         session.peer_moss_id.as_deref(),
-        Some(peer_id.as_str()),
-        "the announce is what relearns the counterpart"
+        None,
+        "only an authenticated Hello can relearn the counterpart"
     );
     assert!(
-        session.record_dirty,
-        "the relearned id must be written back, or the next restart loses it again"
+        !session.record_dirty,
+        "an unverified hint must not alter persisted identity"
     );
 }
 

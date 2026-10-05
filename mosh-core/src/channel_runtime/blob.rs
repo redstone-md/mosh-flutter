@@ -7,12 +7,13 @@ impl ChannelSession {
         let envelope: ChannelBlobEnvelope = serde_json::from_slice(&payload)
             .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;
         match envelope {
+            ChannelBlobEnvelope::MessageDeletion { frame } => self.receive_deletion_frame(frame),
             ChannelBlobEnvelope::Manifest {
                 from_device,
                 from_fingerprint,
                 manifest,
             } if from_fingerprint != self.device_fingerprint => {
-                self.accept_incoming_manifest(from_device, from_fingerprint, manifest)
+                self.accept_incoming_manifest(from_device, from_fingerprint, *manifest)
             }
             ChannelBlobEnvelope::Request {
                 from_fingerprint,
@@ -45,14 +46,30 @@ impl ChannelSession {
         from_fingerprint: String,
         manifest: AttachmentManifest,
     ) -> Result<(), ChannelRuntimeError> {
+        let origin = manifest.origin.clone();
+        if let Some(origin) = &origin {
+            origin
+                .verify_manifest(&format!("channel:{}", self.name), &manifest)
+                .map_err(ChannelRuntimeError::Codec)?;
+            if origin.author != from_fingerprint.to_lowercase() {
+                return Err(ChannelRuntimeError::Codec(
+                    "channel attachment signer mismatch".into(),
+                ));
+            }
+        }
+        let message_id = origin.as_ref().map(|o| o.id.clone());
         let Some(descriptor) = self.transfer.accept_manifest(manifest)? else {
             return Ok(());
         };
         let message = self.messages.stamp(ChannelMessage {
+            metadata: origin.map(|origin| crate::message_deletion::MessageMetadata {
+                origin: Some(origin),
+                ..Default::default()
+            }),
             from_device,
             from_fingerprint,
             body: String::new(),
-            message_id: None,
+            message_id,
             sent_at_ms: None,
             attachment: Some(descriptor),
             delivery_status: None,
@@ -72,13 +89,8 @@ impl ChannelSession {
         thumbnail: Option<String>,
         voice: Option<VoiceMeta>,
     ) -> Result<AttachmentSendResult, ChannelRuntimeError> {
-        let attachment_id = format!("attachment-{}", &sha256_hex(&bytes)[..16]);
-        if self.transfer.holds(&attachment_id) {
-            return Err(ChannelRuntimeError::Attachment(
-                "attachment already shared on this channel".to_string(),
-            ));
-        }
-        let outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
+        let attachment_id = crate::message_id::occurrence_id("attachment");
+        let mut outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
             attachment_id: attachment_id.clone(),
             file_name,
             mime,
@@ -87,20 +99,37 @@ impl ChannelSession {
             thumbnail_b64: thumbnail,
             voice,
         })?;
+        let origin = crate::message_deletion::MessageOrigin::sign(
+            &format!("channel:{}", self.name),
+            &attachment_id,
+            &crate::message_deletion::MessageOrigin::manifest_bytes(&outgoing.manifest)
+                .map_err(ChannelRuntimeError::Codec)?,
+            self.node
+                .identity_signer()
+                .map_err(|e| ChannelRuntimeError::Moss(e.to_string()))?,
+            self.deletions.store.as_ref(),
+        )
+        .map_err(ChannelRuntimeError::Codec)?;
+        outgoing.manifest.origin = Some(origin.clone());
         let content_hash = outgoing.manifest.content_hash.clone();
         let envelope = ChannelBlobEnvelope::Manifest {
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
-            manifest: outgoing.manifest.clone(),
+            manifest: Box::new(outgoing.manifest.clone()),
         };
         publish_json(&self.node, &self.mesh_id, &self.blob_topic, &envelope)?;
 
         let descriptor = self.transfer.record_sent(outgoing);
         let message = self.messages.stamp(ChannelMessage {
+            metadata: Some(crate::message_deletion::MessageMetadata {
+                origin: Some(origin),
+                is_own: Some(true),
+                ..Default::default()
+            }),
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
             body: String::new(),
-            message_id: None,
+            message_id: Some(attachment_id.clone()),
             sent_at_ms: None,
             attachment: Some(descriptor),
             delivery_status: None,
@@ -127,13 +156,20 @@ impl ChannelSession {
     }
 
     pub(super) fn snapshot(&self) -> ChannelSnapshot {
+        let authority = self.deletion_authority().ok();
         ChannelSnapshot {
+            deletion_summary: self.deletions.summary(),
             name: self.name.clone(),
             topic: self.topic.clone(),
             mesh_id: self.mesh_id.clone(),
             display_name: self.display_name.clone(),
             device_fingerprint: self.device_fingerprint.clone(),
-            messages: self.messages.to_vec(),
+            messages: crate::message_deletion::snapshot::messages(
+                &self.messages,
+                &self.transfer,
+                &self.deletions,
+                authority.as_ref(),
+            ),
             attachments: self.transfer.views(),
             dm_offers: self.dm_offers.to_vec(),
             mesh: mesh::mesh_info(&self.node),

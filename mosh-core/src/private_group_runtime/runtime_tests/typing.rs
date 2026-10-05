@@ -33,6 +33,7 @@ fn group_typing_identifies_the_member_and_stops_on_their_message() {
     let body = b"cleo is done typing".to_vec();
     let ciphertext = view.cleo.encrypt(&body).unwrap();
     let data = DataEnvelope {
+        origin: None,
         group_id: view.group_id.clone(),
         participant_id: "cleo-participant".to_string(),
         from_device: "cleo".to_string(),

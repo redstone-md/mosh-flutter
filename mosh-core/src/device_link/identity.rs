@@ -58,6 +58,8 @@ pub(crate) struct LocalIdentity {
     pub seed: [u8; 32],
     pub device: DeviceDescriptor,
     pub roster: DeviceRoster,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_certificate: Option<super::account_certificate::AccountCertificate>,
     #[serde(default)]
     pub delivery: Option<LinkDelivery>,
     #[serde(default)]
@@ -99,6 +101,9 @@ pub(crate) fn storage_error(_: impl std::fmt::Display) -> DeviceLinkError {
 }
 
 impl DeviceIdentity {
+    pub(crate) fn persistence(&self) -> &Arc<Persistence> {
+        &self.store
+    }
     pub fn open(store: Arc<Persistence>, peer_id: &str) -> Result<Self> {
         let persisted = match store.get_device_link().map_err(storage_error)? {
             Some(bytes) => bytes,
@@ -110,6 +115,7 @@ impl DeviceIdentity {
                     seed: key.to_bytes(),
                     device,
                     roster,
+                    account_certificate: None,
                     delivery: None,
                     receipt: None,
                     pending: None,
@@ -133,6 +139,14 @@ impl DeviceIdentity {
     }
 
     fn validate(&self, peer_id: &str) -> Result<()> {
+        if let Some(certificate) = &self.record.account_certificate {
+            certificate.verify()?;
+            if certificate.root != self.roster().user_id()
+                || certificate.subject() != self.device().signing_public_key
+            {
+                return Err(invalid());
+            }
+        }
         let device = self.device();
         if device.moss_peer_id != peer_id
             || hex::encode(self.key().verifying_key().as_bytes()) != device.signing_public_key
@@ -179,6 +193,20 @@ impl DeviceIdentity {
     }
     pub(crate) fn key(&self) -> SigningKey {
         SigningKey::from_bytes(&self.record.seed)
+    }
+
+    pub(crate) fn account_certificate(
+        &self,
+    ) -> Result<Option<super::account_certificate::AccountCertificate>> {
+        if self.revoked()? {
+            return Err(invalid());
+        }
+        if self.device().signing_public_key == self.roster().user_id() {
+            return Ok(Some(super::account_certificate::AccountCertificate::root(
+                &self.key(),
+            )));
+        }
+        Ok(self.record.account_certificate.clone())
     }
 
     pub(crate) fn chat_names(

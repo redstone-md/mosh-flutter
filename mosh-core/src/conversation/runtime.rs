@@ -35,6 +35,7 @@ use crate::shared_node::SharedMossNode;
 
 /// What the shell needs from one conversation, whatever kind it is.
 pub trait ConversationSession {
+    fn attach_persistence(&mut self, _store: Option<Arc<Persistence>>) {}
     /// The message this kind keeps a log of.
     type Message: ConversationMessage + DeserializeOwned;
     /// What this conversation is rebuilt from at startup.
@@ -130,7 +131,8 @@ impl<S: ConversationSession> ConversationRuntime<S> {
         self.sessions.contains_key(conversation_id)
     }
 
-    pub fn insert(&mut self, conversation_id: String, session: S) {
+    pub fn insert(&mut self, conversation_id: String, mut session: S) {
+        session.attach_persistence(self.persistence.clone());
         self.sessions.insert(conversation_id, session);
     }
 
