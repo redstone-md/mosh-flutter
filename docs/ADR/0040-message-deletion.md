@@ -90,14 +90,16 @@ current admin supplies endorsement independently of the participant forwarding
 it; that admin need not be online. A current admin forwarding an authenticated
 record also endorses it. Protected local acceptance survives both departures.
 
-Unknown historical requests from a departed author or former admin without
-current endorsement remain a pending product decision. External org role
-snapshots contain no authenticated deletion cutoff: a new receiver cannot
-distinguish an old accepted request from the same former member and an ordinary
-participant signing a new request and receipt after departure or demotion. The
-implementation rejects that forgery. Choosing whether to trust a participant's
-historical attestation changes the approved recovery/authority contract and must
-be settled before publishing the PR.
+Unknown historical requests from a departed author or former admin require
+verified current endorsement. Without it, the receiver leaves its history
+unchanged; a participant's historical attestation does not grant deletion rights.
+The user chose this policy because trusting that attestation permits forgery.
+External org role snapshots contain no authenticated deletion cutoff: a new
+receiver cannot distinguish an old accepted request from the same former member
+and an ordinary participant signing a new request and receipt after departure or
+demotion. Protected prior acceptance still survives role changes. Recovery never
+requires a current admin to approve a dialog or remain online; existing verified
+endorsement can be forwarded by another participant.
 
 Legacy text with no stored correlation evidence is explicitly device-local.
 An authenticated frozen own-device history exchange can establish exact text
