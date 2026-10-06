@@ -173,9 +173,13 @@
   "@chatSendLabel": {
     "description": "Label for the send button"
   },
-  "messageCopyText": "Copy text",
+  "messageCopyText": "Copy message",
   "@messageCopyText": {
     "description": "Menu item and screen-reader action that copies one whole message's text"
+  },
+  "messageCopySelectedText": "Copy selected text",
+  "@messageCopySelectedText": {
+    "description": "Context menu action that copies only the selected text"
   },
   "messageCopied": "Copied",
   "@messageCopied": {
