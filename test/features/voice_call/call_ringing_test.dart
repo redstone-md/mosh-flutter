@@ -34,7 +34,7 @@ void main() {
   });
 
   testWidgets(
-      'no answer fires once and a failed decline cannot restart ringing',
+      'no answer fires once and an unchanged pending snapshot stays silent',
       (tester) async {
     final player = RecordingRingtone();
     final expired = <String>[];

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
@@ -12,38 +11,26 @@ import 'call_view.dart';
 import 'call_view_state.dart';
 import 'call_window_pipe.dart';
 
-/// Returns before the normal app startup in a call-only child engine.
-Future<bool> launchCallWindow() async {
-  final current = await WindowController.fromCurrentEngine();
-  if (current.arguments.isEmpty) return false;
-  final args = jsonDecode(current.arguments) as Map<String, Object?>;
-  if (args['type'] != 'voice-call') return false;
-  final parent = WindowController.fromWindowId(args['parent'] as String);
-  final token = args['token'] as String;
-  final controller = _CallWindowController((command) => parent
-      .invokeMethod<void>(
-          'call-command', {...command.toMap(), 'token': token}));
-  await controller.initialize();
-  await current.setWindowMethodHandler(controller.handle);
-  runApp(_CallWindowApp(controller));
-  await parent.invokeMethod<void>('call-ready', {'token': token});
-  return true;
-}
-
 /// A call-only process starts no Rust, storage, capture or playback runtime.
 Future<void> launchProcessCallWindow() async {
   final pipe = CallWindowPipe(
       stdin.transform(utf8.decoder).transform(const LineSplitter()),
       stdout.writeln,
       outputDone: stdout.done);
-  final controller = _CallWindowController((command) async {
+  pipe.onClosed = () => unawaited(windowManager.destroy());
+  pipe.onMethod = await startCallWindowView((command) async {
     await pipe.invoke('call-command', command.toMap());
   });
-  pipe.onMethod = controller.handle;
-  pipe.onClosed = () => unawaited(windowManager.destroy());
+  await pipe.invoke('call-ready');
+}
+
+/// The shared view is independent of the process transport and owns no audio.
+Future<Future<Object?> Function(MethodCall)> startCallWindowView(
+    Future<void> Function(CallViewCommand) sendCommand) async {
+  final controller = _CallWindowController(sendCommand);
   await controller.initialize();
   runApp(_CallWindowApp(controller));
-  await pipe.invoke('call-ready');
+  return controller.handle;
 }
 
 class _CallWindowController extends ValueNotifier<CallViewState?>
@@ -77,6 +64,8 @@ class _CallWindowController extends ValueNotifier<CallViewState?>
         }
       case 'call-show':
         await show();
+      case 'call-is-focused':
+        return windowManager.isFocused();
       case 'call-close':
         _closing = true;
         value = null;

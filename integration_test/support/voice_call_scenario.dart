@@ -84,6 +84,11 @@ class VoiceCallScenario {
       final probe = await remote('call_probe');
       return (probe['received'] as int) > 0 && audio.playedFrames > 0;
     });
+    final before = await remote('call_probe');
+    await remote('call_end', '$id-obsolete');
+    final after = await remote('call_probe');
+    expect(after['sent'] as int, greaterThan(before['sent'] as int),
+        reason: 'A stale end cannot reset live AES-GCM nonce counters');
     expect(audio.rings, 3);
     expect(audio.ringStops, 3);
     return id;

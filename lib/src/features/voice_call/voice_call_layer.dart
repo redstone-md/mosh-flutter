@@ -23,6 +23,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
     this.onVoiceCallError,
     this.onOpenConversation,
     this.onShowWindow,
+    this.isCallWindowFocused,
   });
 
   final String sessionId;
@@ -30,6 +31,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
   final void Function(String? message)? onVoiceCallError;
   final VoidCallback? onOpenConversation;
   final VoidCallback? onShowWindow;
+  final Future<bool> Function()? isCallWindowFocused;
 
   @override
   ConsumerState<VoiceCallLayer> createState() => _VoiceCallLayerState();
@@ -104,16 +106,20 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
   }
 
   Future<void> _notify(IncomingCallDialog dialog) async {
-    if (!(ref.read(notificationsReadyProvider).value ?? false)) return;
-    final plugin = ref.read(flutterLocalNotificationsPluginProvider);
-    final peer =
-        dialog.peerName.isEmpty ? widget.l.callPeerFallback : dialog.peerName;
-    final body = widget.l.callIncomingNotification(peer);
     try {
-      if (Platform.isWindows || Platform.isMacOS) {
-        if (await windowManager.isFocused()) return;
+      if (!await ref.read(notificationsReadyProvider.future) || !mounted) {
+        return;
       }
-      if (!mounted || _notifiedCall != dialog.callId) return;
+      if (!_isIncoming(dialog.callId)) return;
+      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        if (await windowManager.isFocused()) return;
+        if (await widget.isCallWindowFocused?.call() ?? false) return;
+      }
+      if (!mounted || !_isIncoming(dialog.callId)) return;
+      final plugin = ref.read(flutterLocalNotificationsPluginProvider);
+      final peer =
+          dialog.peerName.isEmpty ? widget.l.callPeerFallback : dialog.peerName;
+      final body = widget.l.callIncomingNotification(peer);
       await plugin.show(
           id: peer.hashCode.abs(),
           title: 'Mosh',
@@ -122,6 +128,14 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
     } catch (_) {
       // The nonmodal call controls remain available without notifications.
     }
+  }
+
+  bool _isIncoming(String id) {
+    final current =
+        ref.read(voiceCallOrchestratorProvider(widget.sessionId)).dialog;
+    return _notifiedCall == id &&
+        current is IncomingCallDialog &&
+        current.callId == id;
   }
 }
 

@@ -29,15 +29,10 @@ import 'support/desktop_window_actions.dart';
 
 Future<void> main(List<String> args) async {
   // Child engines run presentation directly, without starting a test suite.
-  if (args.contains(callWindowProcessArgument) ||
-      (args.isNotEmpty && args.first == 'multi_window')) {
+  if (args.contains(callWindowProcessArgument) || isCallWindowProcess) {
     WidgetsFlutterBinding.ensureInitialized();
     await windowManager.ensureInitialized();
-    if (args.contains(callWindowProcessArgument)) {
-      await launchProcessCallWindow();
-    } else {
-      await launchCallWindow();
-    }
+    await launchProcessCallWindow();
     return;
   }
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

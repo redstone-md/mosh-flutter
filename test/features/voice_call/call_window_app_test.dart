@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,20 +53,19 @@ void main() {
   testWidgets(
       'child renders metadata and routes controls and OS close to its parent',
       (tester) async {
-    final platform = CallWindowPlatform()..windowId = 'child';
-    platform.install();
+    final platform = CallWindowPlatform();
     _installWindowManager(platform);
-    expect(await launchCallWindow(), isFalse);
-    platform.arguments = jsonEncode(
-        {'type': 'voice-call', 'parent': 'parent', 'token': 'token'});
-    expect(await launchCallWindow(), isTrue);
+    final commands = <Map<String, Object?>>[];
+    final handle = await startCallWindowView((command) async {
+      commands.add(command.toMap());
+    });
     await tester.pump();
     const incoming = CallViewState(
         sessionId: 'origin',
         callId: 'incoming',
         peer: 'Alice',
         phase: CallViewPhase.incoming);
-    await platform.deliver('child', 'call-present', incoming.toMap());
+    await handle(MethodCall('call-present', incoming.toMap()));
     await tester.pump();
     expect(find.text('Alice'), findsOneWidget);
     await tester.tap(find.text('Alice'));
@@ -84,39 +81,30 @@ void main() {
         phase: CallViewPhase.active,
         audioReady: true);
     final oldView = tester.widget<CallView>(find.byType(CallView));
-    await platform.deliver('child', 'call-present', active.toMap());
+    await handle(MethodCall('call-present', active.toMap()));
     oldView.onAction(CallViewAction.end);
     await tester.pump();
     await tester.tap(find.byTooltip('Mute'));
     await tester.pump();
     await _osClose(platform);
     await tester.pump();
-    await platform.deliver('child', 'call-show');
-    final commands = platform.calls
-        .where((call) => call.method == 'invokeMethod')
-        .map((call) => call.arguments as Map)
-        .where((args) => args['method'] == 'call-command')
-        .map((args) => args['arguments'] as Map)
-        .toList();
+    await handle(const MethodCall('call-show'));
+    expect(await handle(const MethodCall('call-is-focused')), isFalse);
     expect(commands.map((args) => args['action']),
         ['openConversation', 'accept', 'decline', 'mute', 'end']);
     expect(commands.map((args) => args['sessionId']).toSet(), {'origin'});
     expect(commands.map((args) => args['callId']),
         ['incoming', 'incoming', 'incoming', 'active', 'active']);
-    expect(commands.every((args) => args['token'] == 'token'), isTrue);
-    await platform.deliver('child', 'call-close');
+    await handle(const MethodCall('call-close'));
     await tester.pump(const Duration(milliseconds: 20));
     expect(
         platform.calls.where((call) => call.method == 'close'), hasLength(1));
     await _osClose(platform);
     await tester.pumpWidget(const SizedBox.shrink());
-    await (await WindowController.fromCurrentEngine())
-        .setWindowMethodHandler(null);
     for (final listener in windowManager.listeners) {
       windowManager.removeListener(listener);
     }
     platform.messenger.setMockMethodCallHandler(_manager, null);
     platform.messenger.setMockMethodCallHandler(_screen, null);
-    platform.uninstall();
   });
 }

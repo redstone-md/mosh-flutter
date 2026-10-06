@@ -77,5 +77,7 @@ class RecordingCallWindow implements CallWindowHandle {
   @override
   Future<void> show() async => shows++;
   @override
+  Future<bool> isFocused() async => false;
+  @override
   Future<void> close() async => closes++;
 }

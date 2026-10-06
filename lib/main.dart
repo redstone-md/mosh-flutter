@@ -50,11 +50,10 @@ void main(List<String> args) async {
   // hosts; the later `isFocused()` callers are themselves desktop-gated.
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
     await windowManager.ensureInitialized();
-    if (args.contains(callWindowProcessArgument)) {
+    if (args.contains(callWindowProcessArgument) || isCallWindowProcess) {
       await launchProcessCallWindow();
       return;
     }
-    if (await launchCallWindow()) return;
   }
   // Load intl date symbols once so non-en locales (e.g. ru) format dates
   // in-locale via `DateFormat` (`formatClock`/`formatClockFull`). en ships

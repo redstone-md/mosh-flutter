@@ -55,12 +55,20 @@ jobs:
         # crash reporting; without it the build cannot report at all.
         run: flutter build windows --release --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }}
 
-      - name: Test native Windows window icons
+      - name: Test native Windows icons and call window classes
         shell: pwsh
         run: |
           cmake --build build/windows/x64 --config Release --target mosh_window_icon_test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & .\build\windows\x64\runner\tests\Release\mosh_window_icon_test.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:MOSH_CALL_WINDOW = '1'
+          try {
+            & .\build\windows\x64\runner\tests\Release\mosh_window_icon_test.exe
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            Remove-Item Env:MOSH_CALL_WINDOW
+          }
 
       # ADR 0035: upload the separate debug files (Rust PDB/dSYM, runner)
       # so Sentry symbolicates native crashes and Rust panics. Release tags

@@ -7,8 +7,12 @@ import 'call_window_coordinator.dart';
 import 'call_window_pipe.dart';
 
 const callWindowProcessArgument = '--mosh-call-window';
+const _callWindowEnvironment = 'MOSH_CALL_WINDOW';
 
-/// Linux keeps GTK/EGL renderer ownership in a separate process. Audio and
+bool get isCallWindowProcess =>
+    Platform.environment[_callWindowEnvironment] == '1';
+
+/// Each desktop keeps renderer ownership in a separate process. Audio and
 /// signaling stay in the main process, behind the same call-window boundary.
 class ProcessCallWindow implements CallWindowHandle {
   ProcessCallWindow._(this._process, this._pipe);
@@ -17,9 +21,11 @@ class ProcessCallWindow implements CallWindowHandle {
   bool _closed = false;
 
   static Future<CallWindowHandle> open(
-      Future<void> Function(CallViewCommand) onCommand) async {
-    final process = await Process.start(
-        Platform.resolvedExecutable, [callWindowProcessArgument]);
+      Future<void> Function(CallViewCommand) onCommand,
+      {Future<Process> Function()? startProcess}) async {
+    final process = await (startProcess?.call() ??
+        Process.start(Platform.resolvedExecutable, [callWindowProcessArgument],
+            environment: {_callWindowEnvironment: '1'}));
     unawaited(process.stderr.drain<void>().catchError((Object _) {}));
     final ready = Completer<void>();
     final pipe = CallWindowPipe(
@@ -63,6 +69,10 @@ class ProcessCallWindow implements CallWindowHandle {
   }
 
   @override
+  Future<bool> isFocused() async =>
+      !_closed && await _pipe.invoke('call-is-focused') == true;
+
+  @override
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
@@ -78,8 +88,14 @@ class ProcessCallWindow implements CallWindowHandle {
         await _process.exitCode.timeout(const Duration(seconds: 2));
       }
     } finally {
-      await _pipe.dispose();
-      await _process.stdin.close();
+      // A terminated child can leave a broken input pipe. Release both handles
+      // without replacing the process exit result with a cleanup error.
+      try {
+        await _pipe.dispose();
+      } catch (_) {}
+      try {
+        await _process.stdin.close();
+      } catch (_) {}
     }
   }
 }

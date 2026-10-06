@@ -2,10 +2,9 @@
 
 ## Agreed scope
 
-- An independent desktop call window on Windows, macOS and Linux, using
-  `desktop_multi_window`. All call phases remain nonmodal.
+- An independent desktop call window on Windows, macOS and Linux. All call phases remain nonmodal.
 - Main-engine Riverpod state owns signaling, capture, playback and ringtone.
-  The child engine receives display data and sends call-id-bound commands.
+  The child receives display data and sends call-id-bound commands.
 - Navigation through DMs, groups, channels and Settings preserves the call.
   A compact application-level strip provides controls and reopens the window.
 - Minimize preserves the call. Close declines an incoming call, cancels an
@@ -21,7 +20,7 @@
 2. Centralize ringtone and timeout lifetime in call state. Serialize audio
    replacement and discard old setup/control completions.
 3. Add the native-window adapter, safe display protocol, child entrypoint and
-   runner registration. Reuse existing call controls and localization.
+   startup. Reuse existing call controls and localization.
 4. Replace the tone with embedded PCM from the supplied WAV. Check sample-rate
    adaptation, channel conversion, looping and timeout behavior.
 5. Exercise two native clients through public app actions and the existing
@@ -35,13 +34,16 @@ checks use real Moss and independent installation processes.
 
 ## Implementation decisions
 
-- Windows and macOS retain `desktop_multi_window`. Linux uses a separate Flutter
-  process behind the same window interface. On Flutter 3.44.7, a second GTK engine
-  crashed with GLX `BadAccess` when opening or destroying windows under the default
-  OpenGL renderer. Software rendering passed the media scenario but is unsuitable
-  as a product requirement. Process isolation lets each renderer own its EGL
-  resources; audio remains in the main process. Stdio carries only display data
-  and call-bound commands.
+- All desktops use a separate Flutter process behind the same window interface.
+  On Flutter 3.44.7, a second GTK engine crashed with GLX `BadAccess` when opening
+  or destroying windows under the default OpenGL renderer. Software rendering
+  passed the media scenario but is unsuitable as a product requirement. Linux
+  process isolation passed the complete scenario. CodeAnt review then identified
+  that desktop_multi_window cannot force-close a hung child engine on Windows or
+  macOS. The same process adapter now covers all desktops and guarantees cleanup
+  through an owned process handle. The added plugin dependency was removed.
+  Stdio carries only display data and call-bound commands; audio stays in the
+  parent. An environment marker supports hosts that omit Dart entrypoint args.
 - Reuse GoRouter's provided stateful shell rather than constructing a second
   shell with the same key. Settings remain pushed above the chat. Remembering
   their default section after declarative route removal runs outside widget build.

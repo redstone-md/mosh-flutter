@@ -28,15 +28,23 @@ work immediately; startup and teardown must finish before another capture or
 player opens. Delayed controls, setup failures and drain responses are tied to
 their call ID and cannot affect a replacement call.
 
-Windows and macOS use a `desktop_multi_window` child engine. Linux starts the
-same executable with `--mosh-call-window` in a separate process, keeping GTK/EGL
-ownership independent. The same presentation view receives only display metadata
-and returns commands containing both session and call IDs. Linux exchanges these
-messages over inherited stdio, without a listening port. Neither child initializes
-the Rust runtime, database or audio owner. The main process validates commands
-against the current call. Window startup or renderer failure leaves the main strip
-usable; its restore button recreates the window. Android and iOS use the strip
-without a native child window.
+Every desktop starts the same executable with `--mosh-call-window` in a separate
+process. `MOSH_CALL_WINDOW=1` also identifies child startup on hosts that omit Dart
+entrypoint arguments. GTK/EGL ownership stays independent on Linux. Stdio carries
+only display metadata and commands with session and call IDs, without a listening
+port. The child initializes no Rust runtime, database or audio owner. The parent
+validates commands against the current call, waits for child exit on closure and
+terminates an unresponsive child. A window failure leaves the main strip usable;
+its restore button recreates the window. No additional window plugin is required.
+Android and iOS use the strip inside system safe insets.
+
+On Windows, the environment marker bypasses app_links' duplicate-instance handoff.
+The child uses the separate `MOSH_CALL_WINDOW` Win32 class, so new `mosh://` links
+still target the main application's `FLUTTER_RUNNER_WIN32_WINDOW` class.
+
+Incoming notifications await initialization and recheck the current incoming call
+before posting. A completed initialization cannot notify about an ended call.
+Notifications are suppressed while either the main window or call window is focused.
 
 ## Checks
 
@@ -80,17 +88,23 @@ functions remain within the limit.
   OS close in all phases and minimize/restore. Audio used real record/CPAL streams
   connected to PulseAudio's sine source and null output rather than physical
   microphone/speaker hardware.
-- Final focused Flutter suite: 142 tests passed. Analyze and format passed.
-- Full Flutter suite: 1483 passed, four skipped. One unchanged test,
+- 156 focused Flutter tests passed, including system insets, delayed notification
+  readiness, focused-window suppression and forced process termination with a
+  broken input pipe. Analyze and format passed.
+- Full Flutter suite: 1490 passed, four skipped. One unchanged test,
   `media_kit_tracer_test.dart`, also fails when run alone because headless libmpv
   returns no screenshot. It imports no voice-call implementation.
 - Rust runtime unit/integration tests passed; doc tests, fmt and clippy passed.
   All seven ringtone tests passed, including explicit selected-output stream
   start/stop/repeat on PulseAudio.
-- Changed executable-line coverage exceeds 80% in Dart and Rust. Ringtone source
+- Changed lines represented in LCOV: Dart 93.7% (743/793), Rust 97.7% (126/129).
+  Application entrypoints are additionally exercised by the native scenario. Ringtone source
   coverage is 100% for recording conversion and 96.9% for CPAL playback. The
   available LCOV output contains no branch counters. Linux process startup and
   desktop window behavior are additionally exercised by the native scenario.
-- Windows/macOS runner registration and plugin transport have not been executed
-  on those hosts. Headless CPAL occasionally logs an xrun while streams close;
+- Windows/macOS child process behavior has not been executed locally on those
+  hosts. Headless CPAL occasionally logs an xrun while streams close;
   the scenario still verifies audio progress and resource release.
+
+The CodeAnt findings and decisions are recorded in
+[the IVO-23 review notes](../Proposals/ivo-23-codeant-review.md).
