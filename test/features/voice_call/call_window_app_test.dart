@@ -81,6 +81,8 @@ void main() {
                 phase: CallViewPhase.incoming,
                 busy: true)
             .toMap()));
+    await tester.tap(find.text('Alice'));
+    await tester.pump();
     await _osClose(platform);
     await tester.pump();
     const active = CallViewState(
@@ -99,11 +101,17 @@ void main() {
     await tester.pump();
     await handle(const MethodCall('call-show'));
     expect(await handle(const MethodCall('call-is-focused')), isFalse);
-    expect(commands.map((args) => args['action']),
-        ['openConversation', 'accept', 'end', 'mute', 'end']);
+    expect(commands.map((args) => args['action']), [
+      'openConversation',
+      'accept',
+      'openConversation',
+      'end',
+      'mute',
+      'end'
+    ]);
     expect(commands.map((args) => args['sessionId']).toSet(), {'origin'});
     expect(commands.map((args) => args['callId']),
-        ['incoming', 'incoming', 'incoming', 'active', 'active']);
+        ['incoming', 'incoming', 'incoming', 'incoming', 'active', 'active']);
     await handle(const MethodCall('call-close'));
     await tester.pump(const Duration(milliseconds: 20));
     expect(

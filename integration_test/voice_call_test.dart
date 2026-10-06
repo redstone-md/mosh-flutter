@@ -46,10 +46,12 @@ Future<void> main(List<String> args) async {
     }
     final dir = Directory(storagePath);
     await RustLib.init();
+    addTearDown(RustLib.dispose);
     await setup.setAppDataDir(path: dir.path);
     await setup.setHistoryDek(dek: List.filled(32, 61));
     MediaKit.ensureInitialized();
     final peer = await NativePeer.start(api: true);
+    addTearDown(peer.close);
     final invite = await peer.ask({'action': 'dm_invite'});
     final local = await BridgeFacade().acceptInvite(
         request: AcceptInviteRequest(
@@ -67,31 +69,28 @@ Future<void> main(List<String> args) async {
       voicePlaybackFactoryProvider.overrideWithValue(audio.playback),
       ringtonePlayerProvider.overrideWithValue(audio.ringtone),
     ]);
+    addTearDown(container.dispose);
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 1));
+    });
     container.read(firstRunShownProvider.notifier).mark();
     await tester.pumpWidget(UncontrolledProviderScope(
         container: container, child: const MoshApp()));
     final flow = VoiceCallScenario(
         tester, peer, local.sessionId, invite['session_id'] as String, audio);
-    try {
-      await LinkedDmUi(tester, local.sessionId).eventually(() async =>
-          (await setup.pollSession(sessionId: local.sessionId)).state ==
-          DmSessionState.connected);
-      debugPrint("voice-ui: outgoing decline and cancel");
-      await flow.outgoingDeclineAndCancel();
-      debugPrint("voice-ui: incoming and bidirectional media");
-      final callId = await flow.incomingAndMedia();
-      debugPrint("voice-ui: navigation and messaging");
-      await flow.navigationAndMessaging();
-      debugPrint("voice-ui: remote end and repeat");
-      await flow.remoteEndAndRepeat(callId);
-      debugPrint("voice-ui: native window actions");
-      await DesktopCallWindowScenario(flow).run();
-    } finally {
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump(const Duration(seconds: 1));
-      container.dispose();
-      await peer.close();
-      RustLib.dispose();
-    }
+    await LinkedDmUi(tester, local.sessionId).eventually(() async =>
+        (await setup.pollSession(sessionId: local.sessionId)).state ==
+        DmSessionState.connected);
+    debugPrint("voice-ui: outgoing decline and cancel");
+    await flow.outgoingDeclineAndCancel();
+    debugPrint("voice-ui: incoming and bidirectional media");
+    final callId = await flow.incomingAndMedia();
+    debugPrint("voice-ui: navigation and messaging");
+    await flow.navigationAndMessaging();
+    debugPrint("voice-ui: remote end and repeat");
+    await flow.remoteEndAndRepeat(callId);
+    debugPrint("voice-ui: native window actions");
+    await DesktopCallWindowScenario(flow).run();
   }, timeout: const Timeout(Duration(minutes: 5)));
 }

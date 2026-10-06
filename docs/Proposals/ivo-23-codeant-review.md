@@ -55,3 +55,12 @@ The final spec and standards reviews also reproduced setup failure while accept
 was still pending. Both terminal paths now wait for that call's control gate;
 the regression changed from zero ends to exactly one `setup_failed` end after
 accept completes. Replacement calls retain independent gates.
+
+## Follow-up review of `e243c3db`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| Test teardown mutates its listener collection during iteration | Do not accept | The pinned window_manager 0.5.2 getter returns `List<WindowListener>.from(_listeners)`. Teardown iterates this snapshot while removing internal listeners. The unchanged widget test and the complete Flutter CI job pass. |
+| Other sessions cannot replace the selected call | Do not accept | Retaining the originating session preserves the agreed single audio owner. Once its call disappears, selection promotes another session that still has a call. Call waiting needs a separate product policy. |
+| Invite setup or mounting failure skips native test cleanup | Accept | Register independent Flutter teardown callbacks immediately after acquiring Rust, the peer and the provider container. Their reverse order unmounts the view before disposing providers, the peer and Rust. Real invalid-invite fault injection before mounting left one peer directory before the fix and none after it. |
+| Busy controls also block opening the original DM | Accept | Keep navigation and terminal intent available during control operations. One action policy is shared by the strip, host and child. Failing-then-passing tests check the peer click in all three paths while accept is held. |
