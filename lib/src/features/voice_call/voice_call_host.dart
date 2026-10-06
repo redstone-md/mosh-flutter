@@ -85,12 +85,20 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
             error: state.error?.cause.describe(l),
           );
     _window.update(call);
+    final content = Column(children: [
+      Expanded(child: widget.child),
+      if (selected != null)
+        SafeArea(top: false, child: _strip(selected.sessionId, l)),
+    ]);
     return _CallHostOverlay(
-      child: Column(children: [
-        Expanded(child: widget.child),
-        if (selected != null)
-          SafeArea(top: false, child: _strip(selected.sessionId, l)),
-      ]),
+      child: Padding(
+        padding: EdgeInsets.only(
+            bottom:
+                selected == null ? 0 : MediaQuery.viewInsetsOf(context).bottom),
+        // Keep the route mounted and consume the IME once while a call is shown.
+        child: MediaQuery.removeViewInsets(
+            context: context, removeBottom: selected != null, child: content),
+      ),
     );
   }
 
