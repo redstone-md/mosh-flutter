@@ -104,3 +104,28 @@ application-router test checks the visible case; minimized restore still passes.
 | Cached admission misses a call in another DM | Accept | Refresh the DM list before starting and require a successful fresh read. Two failing-then-passing tests cover a newly pending call and a read failure behind an older empty cache. |
 | Old DM cleanup can stop a reused call ID in another DM | Accept | Scoped detach compares the `(sessionId, callId)` record. Both notifier cleanup paths pass the pair; only application disposal detaches unconditionally. Two failing-then-passing tests preserve a replacement that is already active or still starting. |
 | Escape in the main window does not end the call | Do not accept | Escape belongs to the dedicated call window. The compact strip shares the main window with navigation, message editing and dialogs. Settings uses Escape as Back, and dialogs use it for dismissal; global terminal handling would add an unintended hang-up path. The native scenario already checks Escape in the call window. The review thread remains open with this explanation. |
+
+## Follow-up review of `847f6256`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| The phone keyboard covers the application call strip | Accept | Consume the bottom keyboard inset at the host and remove it from the nested Scaffold. The widget test changed from a covered strip at y=600 to its expected y=350 above the IME. Tests cover keyboard show/hide with and without calls, no double composer inset and preserving the draft across call admission/termination. The wrapper structure stays stable. |
+
+## Accepted inline thread references
+
+| Provider thread | File |
+| --- | --- |
+| [PRRT_kwDOTpdkls6pUhGP](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4191576089) | `lib/src/features/voice_call/desktop_call_window.dart` |
+| [PRRT_kwDOTpdkls6pUhGR](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4191576094) | `lib/src/features/voice_call/voice_call_host.dart` |
+| [PRRT_kwDOTpdkls6pVEoM](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4191807985) | `lib/src/features/voice_call/call_window_app.dart` |
+| [PRRT_kwDOTpdkls6pVG3Q](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4191823536) | `lib/src/features/voice_call/voice_call_host.dart` |
+| [PRRT_kwDOTpdkls6pVkdk](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4192013134) | `lib/main.dart` |
+| [PRRT_kwDOTpdkls6pVmF1](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4192023474) | `lib/src/state/voice_call_start_provider.dart` |
+| [PRRT_kwDOTpdkls6pXpXv](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4192853018) | `lib/src/features/voice_call/call_audio_session.dart` |
+| [PRRT_kwDOTpdkls6pXqzo](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4192862265) | `lib/src/features/voice_call/voice_call_layer.dart` |
+| [PRRT_kwDOTpdkls6pYLSp](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193068633) | `lib/src/features/voice_call/call_view.dart` |
+| [PRRT_kwDOTpdkls6pYMBp](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193073254) | `lib/src/features/voice_call/voice_call_layer.dart` |
+| [PRRT_kwDOTpdkls6pYzQS](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193323113) | `lib/src/state/voice_call_session_provider.dart` |
+| [PRRT_kwDOTpdkls6pZDjm](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193426152) | `lib/src/state/voice_call_start_provider.dart` |
+| [PRRT_kwDOTpdkls6pZE8P](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193435008) | `lib/src/features/voice_call/voice_call_orchestrator.dart` |
+| [PRRT_kwDOTpdkls6pZaRd](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193570089) | `lib/src/features/voice_call/voice_call_host.dart` |

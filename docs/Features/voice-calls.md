@@ -51,7 +51,10 @@ port. The child initializes no Rust runtime, database or audio owner. The parent
 validates commands against the current call, waits for child exit on closure and
 terminates an unresponsive child. A window failure leaves the main strip usable;
 its restore button recreates the window. No additional window plugin is required.
-Android and iOS use the strip inside system safe insets.
+Android and iOS use the strip inside system safe insets. While a call is shown,
+the host consumes the keyboard inset for both the route and strip, removing it
+from the nested Scaffold so the composer does not reserve the inset twice.
+The wrapper stays mounted across call admission and termination to retain drafts.
 
 On Windows, the environment marker bypasses app_links' duplicate-instance handoff.
 The child uses the separate `MOSH_CALL_WINDOW` Win32 class, so new `mosh://` links
@@ -127,19 +130,19 @@ functions remain within the limit.
   OS close in all phases and minimize/restore. Audio used real record/CPAL streams
   connected to PulseAudio's sine source and null output rather than physical
   microphone/speaker hardware.
-- 190 focused Flutter tests passed, covering system insets, delayed notification
+- 193 focused Flutter tests passed, covering system insets, delayed notification
   readiness, focused-window suppression and forced process termination with a
   broken input pipe, plus accept/close races, notification cancellation,
   admission confirmation, main-window restore, setup/control serialization and
   failed window-start retry, terminal buttons during acceptance and alerts after
   either window loses focus. Analyze and format passed.
-- Full Flutter suite: 1530 passed, four skipped. One unchanged test,
+- Full Flutter suite: 1533 passed, four skipped. One unchanged test,
   `media_kit_tracer_test.dart`, also fails when run alone because headless libmpv
   returns no screenshot. It imports no voice-call implementation.
 - Rust runtime unit/integration tests passed; doc tests, fmt and clippy passed.
   All seven ringtone tests passed, including explicit selected-output stream
   start/stop/repeat on PulseAudio.
-- Changed lines represented in LCOV: Dart 95.5% (849/889), Rust 97.7% (126/129).
+- Changed lines represented in LCOV: Dart 95.5% (853/893), Rust 97.7% (126/129).
   Application entrypoints are additionally exercised by the native scenario. Ringtone source
   coverage is 100% for recording conversion and 96.9% for CPAL playback. The
   available LCOV output contains no branch counters. Linux process startup and
@@ -147,6 +150,8 @@ functions remain within the limit.
 - Windows/macOS child process behavior has not been executed locally on those
   hosts. Headless CPAL occasionally logs an xrun while streams close;
   the scenario still verifies audio progress and resource release.
+  One run alongside the full Flutter suite reported ALSA I/O errors and timed out
+  waiting for ringtone teardown. The unchanged scenario passed when rerun alone.
 
 The CodeAnt findings and decisions are recorded in
 [the IVO-23 review notes](../Proposals/ivo-23-codeant-review.md).
