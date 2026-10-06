@@ -7,9 +7,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/conversation/message_selection.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'message_context_menu.dart';
 
+part 'message_drag_selection.dart';
 part 'message_selection_area.dart';
 part 'message_selection_delegate.dart';
 
@@ -29,11 +31,23 @@ class CopyableMessage extends StatefulWidget {
     required this.child,
     this.onDelete,
     this.onSelect,
+    this.selectionId,
+    this.selecting = false,
+    this.selected,
   });
   final String body;
   final Widget child;
   final VoidCallback? onDelete;
   final VoidCallback? onSelect;
+
+  /// The message a drag across rows picks here; null when it cannot be.
+  final String? selectionId;
+
+  /// Whether rows are being picked; the row menu and copy step aside.
+  final bool selecting;
+
+  /// The picked state reported to assistive technology, while picking.
+  final bool? selected;
 
   @override
   State<CopyableMessage> createState() => _CopyableMessageState();
@@ -47,13 +61,18 @@ class _CopyableMessageState extends State<CopyableMessage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _owner = context.findAncestorStateOfType<_MessageSelectionAreaState>();
+    final owner = context.findAncestorStateOfType<_MessageSelectionAreaState>();
+    if (owner != _owner) _owner?._unregister(this);
+    _owner = owner?.._register(widget.selectionId, this);
   }
 
   @override
   void didUpdateWidget(CopyableMessage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.body != widget.body) _owner?.retire(this);
+    if (oldWidget.selectionId != widget.selectionId) {
+      _owner?._register(widget.selectionId, this);
+    }
   }
 
   void _menu(Offset position, {bool fromKeyboard = false}) =>
@@ -76,7 +95,9 @@ class _CopyableMessageState extends State<CopyableMessage> {
       };
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event is! KeyDownEvent || widget.selecting) {
+      return KeyEventResult.ignored;
+    }
     if (event.logicalKey == LogicalKeyboardKey.contextMenu ||
         const SingleActivator(LogicalKeyboardKey.f10, shift: true)
             .accepts(event, HardwareKeyboard.instance)) {
@@ -96,6 +117,7 @@ class _CopyableMessageState extends State<CopyableMessage> {
   @override
   void dispose() {
     _owner?.retire(this);
+    _owner?._unregister(this);
     _selection.dispose();
     _focus.dispose();
     super.dispose();
@@ -106,7 +128,8 @@ class _CopyableMessageState extends State<CopyableMessage> {
         onPointerDown: (_) => _owner?._pressedMessage = this,
         child: Semantics(
           container: true,
-          onLongPress: _semanticLongPress,
+          selected: widget.selected,
+          onLongPress: widget.selecting ? null : _semanticLongPress,
           customSemanticsActions: {
             if (widget.body.isNotEmpty)
               CustomSemanticsAction(
@@ -129,19 +152,21 @@ class _CopyableMessageState extends State<CopyableMessage> {
               child: RawGestureDetector(
                 behavior: HitTestBehavior.translucent,
                 gestures: {
-                  TapGestureRecognizer: GestureRecognizerFactoryWithHandlers<
-                      TapGestureRecognizer>(
-                    () => TapGestureRecognizer(),
-                    (recognizer) => recognizer.onSecondaryTapDown =
-                        (details) => _menu(details.globalPosition),
-                  ),
-                  _NonTextLongPressRecognizer:
-                      GestureRecognizerFactoryWithHandlers<
-                          _NonTextLongPressRecognizer>(
-                    () => _NonTextLongPressRecognizer(_selection),
-                    (recognizer) => recognizer.onLongPressStart =
-                        (details) => _menu(details.globalPosition),
-                  ),
+                  if (!widget.selecting) ...{
+                    TapGestureRecognizer: GestureRecognizerFactoryWithHandlers<
+                        TapGestureRecognizer>(
+                      () => TapGestureRecognizer(),
+                      (recognizer) => recognizer.onSecondaryTapDown =
+                          (details) => _menu(details.globalPosition),
+                    ),
+                    _NonTextLongPressRecognizer:
+                        GestureRecognizerFactoryWithHandlers<
+                            _NonTextLongPressRecognizer>(
+                      () => _NonTextLongPressRecognizer(_selection),
+                      (recognizer) => recognizer.onLongPressStart =
+                          (details) => _menu(details.globalPosition),
+                    ),
+                  },
                 },
                 child: SelectionContainer(
                     delegate: _selection, child: widget.child),

@@ -2,10 +2,19 @@ import 'package:flutter/gestures.dart'
     show PointerDeviceKind, kSecondaryMouseButton;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/conversation/message_selection_bar.dart';
 import 'package:mosh/src/rust/message_deletion/types.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 import '../../support/conversation_cases.dart';
 import '../../support/scriptable_gateway.dart';
+
+/// The selection bar's count, or null when nothing is being picked.
+int? _picked(WidgetTester tester) {
+  final bar = find.byType(MessageSelectionBar);
+  return bar.evaluate().isEmpty
+      ? null
+      : tester.widget<MessageSelectionBar>(bar).count;
+}
 
 void main() {
   for (final c in conversationCases()) {
@@ -53,11 +62,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Select message'));
       await tester.pumpAndSettle();
-      await tester.tap(
-          find.byWidgetPredicate((w) => w is Checkbox && w.value == false));
+      await tester.tap(find.text('personal only'));
       await tester.pumpAndSettle();
-      expect(find.text('Selected: 2'), findsOneWidget);
-      await tester.tap(find.byTooltip('Delete…'));
+      expect(_picked(tester), 2);
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
       await tester.pumpAndSettle();
       expect(
           tester
@@ -72,7 +80,7 @@ void main() {
               .lastCall(GatewayMethod.deleteMessages)!
               .arg<List<String>>('messageIds'),
           ['m1', 'm2']);
-      expect(find.text('Selected: 2'), findsNothing);
+      expect(_picked(tester), isNull);
     });
     testWidgets('${c.label}: a qualifying message can be deleted for everyone',
         (tester) async {
@@ -111,11 +119,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Select message'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Delete…'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete for me'));
       await tester.pumpAndSettle();
-      expect(find.text('Selected: 1'), findsOneWidget);
+      expect(_picked(tester), 1);
       expect(find.textContaining('Could not delete messages'), findsOneWidget);
       expect(find.text('keep selection'), findsOneWidget);
     });

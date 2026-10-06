@@ -1,123 +1,168 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/message_selection.dart';
+import 'package:mosh/src/features/conversation/message_selection_bar.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/message_deletion/types.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/conversation_providers.dart';
 
-typedef MessageSelectionBuilder = Widget Function(
-    BuildContext context,
-    Set<String> selected,
-    bool selecting,
-    ValueChanged<ConversationMessage> select,
-    ValueChanged<ConversationMessage> delete);
+/// Builds the chat around [header], which is the selection bar while
+/// messages are selected.
+typedef MessageSelectionChatBuilder = Widget Function(
+    BuildContext context, Widget header);
 
-/// Selection belongs to the list; durable deletion belongs to the native owner.
-class MessageDeletionControls extends ConsumerStatefulWidget {
-  const MessageDeletionControls(
-      {super.key, required this.snapshot, required this.builder});
-  final ConversationSnapshot snapshot;
-  final MessageSelectionBuilder builder;
+/// Selection belongs to the screen; durable deletion belongs to the native
+/// owner. Only messages the search and filter show stay selectable.
+class MessageSelectionHost extends ConsumerStatefulWidget {
+  const MessageSelectionHost({
+    super.key,
+    required this.target,
+    required this.search,
+    required this.filter,
+    required this.header,
+    required this.builder,
+  });
+  final AnyConversationTarget target;
+  final String search;
+  final ConversationFilter filter;
+  final Widget header;
+  final MessageSelectionChatBuilder builder;
+
   @override
-  ConsumerState<MessageDeletionControls> createState() =>
-      _MessageDeletionControlsState();
+  ConsumerState<MessageSelectionHost> createState() =>
+      _MessageSelectionHostState();
 }
 
-class _MessageDeletionControlsState
-    extends ConsumerState<MessageDeletionControls> {
-  final _selected = <String>{};
-  bool _selecting = false;
-  bool _busy = false;
-  int _targetGeneration = 0;
+class _MessageSelectionHostState extends ConsumerState<MessageSelectionHost> {
+  final _selection = MessageSelection();
+
+  ConversationSnapshot? get _snapshot =>
+      ref.read(conversationSnapshotProvider(widget.target)).value;
+
+  List<ConversationMessage> get _visible => filterConversationMessages(
+      _snapshot?.messages ?? const [], widget.search, widget.filter);
 
   @override
-  void didUpdateWidget(covariant MessageDeletionControls oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.snapshot.target != widget.snapshot.target) {
-      _targetGeneration++;
-      _selected.clear();
-      _selecting = false;
-      _busy = false;
-    }
-    final available = widget.snapshot.messages.map((m) => m.messageId).toSet();
-    _selected.removeWhere((id) => !available.contains(id));
+  void initState() {
+    super.initState();
+    _retainVisible(notify: false);
   }
 
-  void _select(ConversationMessage message) {
-    if (_busy || message.messageId == null) return;
-    setState(() {
-      _selecting = true;
-      if (!_selected.add(message.messageId!)) {
-        _selected.remove(message.messageId!);
-      }
-    });
+  @override
+  void didUpdateWidget(covariant MessageSelectionHost oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // This build rebuilds the whole chat, so the rows need no notification.
+    if (oldWidget.target != widget.target) {
+      _selection.reset();
+    }
+    _retainVisible(notify: false);
   }
+
+  void _retainVisible({bool notify = true}) => _selection.retain([
+        for (final m in _visible)
+          if (m.messageId case final id?) id
+      ], notify: notify);
+
+  List<ConversationMessage> get _selected {
+    final byId = {for (final m in _visible) m.messageId: m};
+    return [
+      for (final id in _selection.selectedIds)
+        if (byId[id] case final message?) message
+    ];
+  }
+
+  String _selectedText() => _selected
+      .map((m) => m.body)
+      .where((body) => body.isNotEmpty)
+      .join('\n\n');
 
   Future<void> _delete(List<ConversationMessage> messages) async {
-    if (_busy || messages.isEmpty) return;
+    if (_selection.busy || messages.isEmpty) return;
     final l = AppLocalizations.of(context)!;
-    final target = widget.snapshot.target;
-    final generation = _targetGeneration;
+    final target = widget.target;
+    final generation = _selection.generation;
     final ids = messages.map((m) => m.messageId!).toList();
     final scope = await showDialog<DeleteScope>(
         context: context,
         builder: (context) => _DeletionPrompt(messages: messages));
-    if (!mounted || scope == null || _targetGeneration != generation) return;
-    setState(() => _busy = true);
+    if (!mounted || scope == null || _selection.generation != generation) {
+      return;
+    }
+    _selection.busy = true;
     try {
       await ref
           .read(gatewayProvider)
           .deleteMessages(target, messageIds: ids, scope: scope);
       if (!mounted) return;
       refreshConversation(ref.invalidate, target.ref);
-      if (_targetGeneration != generation) return;
-      setState(() {
-        _selected.clear();
-        _selecting = false;
-      });
+      if (_selection.generation != generation) return;
+      _selection
+        ..busy = false
+        ..exit();
     } catch (_) {
-      if (mounted && _targetGeneration == generation) {
+      if (mounted && _selection.generation == generation) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(l.messageDeletionFailed)));
       }
     } finally {
-      if (mounted && _targetGeneration == generation) {
-        setState(() => _busy = false);
+      if (mounted && _selection.generation == generation) {
+        _selection.busy = false;
       }
     }
   }
 
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.escape ||
+        !_selection.active) {
+      return KeyEventResult.ignored;
+    }
+    _selection.exit();
+    return KeyEventResult.handled;
+  }
+
+  @override
+  void dispose() {
+    _selection.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final messages = widget.snapshot.messages
-        .where((m) => _selected.contains(m.messageId))
-        .toList();
-    return Column(children: [
-      if (_selecting)
-        SelectionContainer.disabled(
-            child: Row(children: [
-          IconButton(
-              tooltip: l.dialogCancel,
-              onPressed: _busy
-                  ? null
-                  : () => setState(() {
-                        _selected.clear();
-                        _selecting = false;
-                      }),
-              icon: const Icon(Icons.close)),
-          Expanded(child: Text(l.messagesSelected(messages.length))),
-          IconButton(
-              tooltip: l.messageDelete,
-              onPressed:
-                  _busy || messages.isEmpty ? null : () => _delete(messages),
-              icon: const Icon(Icons.delete_outline)),
-        ])),
-      Expanded(
-          child: widget.builder(context, _selected, _selecting, _select,
-              (message) => _delete([message]))),
-    ]);
+    ref.listen(conversationSnapshotProvider(widget.target),
+        (_, __) => _retainVisible());
+    final header = ListenableBuilder(
+        listenable: _selection,
+        builder: (context, _) => _selection.active
+            ? MessageSelectionBar(
+                count: _selection.count,
+                busy: _selection.busy,
+                onDelete: () => _delete(_selected),
+                onCancel: _selection.exit)
+            : widget.header);
+    return MessageSelectionScope(
+        selection: _selection,
+        onDelete: (message) => _delete([message]),
+        selectedText: _selectedText,
+        child: ListenableBuilder(
+            listenable: _selection,
+            // System back leaves the mode before it leaves the chat.
+            builder: (context, chat) => PopScope(
+                canPop: !_selection.active,
+                onPopInvokedWithResult: (didPop, _) {
+                  if (!didPop) _selection.exit();
+                },
+                child: chat!),
+            child: Focus(
+                canRequestFocus: false,
+                skipTraversal: true,
+                onKeyEvent: _onKey,
+                child: widget.builder(context, header))));
   }
 }
 
