@@ -94,6 +94,19 @@ void main() {
     expect(selection.active, isFalse);
   });
 
+  test('rows hidden mid-drag never return when the filter widens', () {
+    final selection = _selection()
+      ..toggle('a')
+      ..beginDrag('c')
+      ..dragTo('c');
+    selection
+      ..retain(const ['b', 'c', 'd'])
+      ..dragTo('d')
+      ..endDrag()
+      ..retain(const ['a', 'b', 'c', 'd']);
+    expect(selection.selectedIds, ['c', 'd']);
+  });
+
   test('a hidden drag anchor ends the drag', () {
     final selection = _selection()
       ..beginDrag('a')

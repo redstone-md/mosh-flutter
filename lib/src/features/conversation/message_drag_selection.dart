@@ -97,12 +97,20 @@ mixin _MessageDragSelection on State<MessageSelectionArea> {
   /// The auto-scroller measures its target once per step, so each step
   /// hands it the pointer again.
   void _followPoint() {
+    if (!mounted) return;
     final point = _dragPoint;
     final selection = _model;
     if (point == null || selection == null || !selection.dragging) return;
     if (_rowAt(point) case final row?) selection.dragTo(row);
     _scroller?.startAutoScrollIfNecessary(Rect.fromCenter(
         center: point, width: _edgeZone * 2, height: _edgeZone * 2));
+  }
+
+  @override
+  void dispose() {
+    _scroller?.stopAutoScroll();
+    _scroller = null;
+    super.dispose();
   }
 
   void _finishDrag() {

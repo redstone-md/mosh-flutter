@@ -150,6 +150,21 @@ void main() {
     expect(_scrolled(tester), stopped);
   });
 
+  testWidgets('leaving the chat mid auto-scroll stops it cleanly',
+      (tester) async {
+    await pumpConversation(tester, _dm, messages: _notes(60));
+    await _startSelecting(tester, 'note 59');
+    final list = tester.getRect(find.byType(ListView));
+    final gesture = await tester.startGesture(_at(tester, 'note 58'));
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+    await gesture.moveTo(Offset(list.center.dx, list.top + 4));
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
+    expect(tester.takeException(), isNull);
+    await gesture.cancel();
+  });
+
   testWidgets('a mouse drag past the list edge scrolls and keeps picking',
       (tester) async {
     await pumpConversation(tester, _dm, messages: _notes(60));
