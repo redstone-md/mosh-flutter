@@ -155,10 +155,12 @@ const double kAttachmentPreviewFallbackHeight = 200;
 
 /// The preview height is fixed before decoding so miniature, clear preview
 /// and original swap without moving the message list.
-double attachmentPreviewHeight(Size? media) => media == null
-    ? kAttachmentPreviewFallbackHeight
-    : (kAttachmentMediaWidth * media.height / media.width)
-        .clamp(kAttachmentPreviewMinHeight, kAttachmentPreviewMaxHeight);
+double attachmentPreviewHeight(Size? media,
+        {double width = kAttachmentMediaWidth}) =>
+    media == null
+        ? kAttachmentPreviewFallbackHeight
+        : (width * media.height / media.width)
+            .clamp(kAttachmentPreviewMinHeight, kAttachmentPreviewMaxHeight);
 
 /// Embedded content shares the message surface. Files are flat rows;
 /// media clips to the shared attachment corners. Failed transfers keep an edge.
