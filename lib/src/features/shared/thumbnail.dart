@@ -51,7 +51,7 @@ AttachmentPreviews? _decodeImagePreviews((Uint8List, String) input) {
     final decoded = img.decodeNamedImage(fileName, bytes, frame: 0) ??
         img.decodeImage(bytes, frame: 0);
     if (decoded == null) return null;
-    return encodeImagePreviews(decoded);
+    return encodeImagePreviews(decoded, original: bytes);
   } catch (_) {
     // Never fatal -- resolve null on any decode failure. `catch (_)` on
     // purpose: a corrupt or oversized bitmap throws a RangeError, an Error,

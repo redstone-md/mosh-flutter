@@ -72,8 +72,11 @@ impl Transfer {
         manifest: AttachmentManifest,
         direction: AttachmentDirection,
     ) -> Result<(), TransferError> {
+        if self.previews.contains_key(parent) {
+            return Ok(());
+        }
         let descriptor = descriptor_of(&manifest);
-        let cached = self.cached_preview_valid(&manifest);
+        let cached = self.cached_valid(&descriptor);
         if cached {
             self.restore_stored(&descriptor, direction, Some(manifest.clone()));
         } else if direction == AttachmentDirection::Incoming {
@@ -155,25 +158,5 @@ impl Transfer {
             self.preview_retry_after.remove(&preview.attachment_id);
             self.forget(&preview.attachment_id);
         }
-    }
-
-    fn cached_preview_valid(&self, manifest: &AttachmentManifest) -> bool {
-        let Ok(path) = self
-            .store
-            .path_for(&manifest.content_hash, &manifest.file_name)
-        else {
-            return false;
-        };
-        if !path
-            .metadata()
-            .is_ok_and(|metadata| metadata.len() == manifest.total_size)
-        {
-            return false;
-        }
-        self.store
-            .read_blob(&manifest.content_hash, &manifest.file_name)
-            .is_ok_and(|bytes| {
-                crate::attachment_crypto::sha256_hex(&bytes) == manifest.content_hash
-            })
     }
 }

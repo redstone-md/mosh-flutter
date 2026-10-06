@@ -56,11 +56,7 @@ impl Transfer {
         direction: AttachmentDirection,
     ) {
         let _ = self.retain_lease(descriptor);
-        if !self
-            .store
-            .exists(&descriptor.content_hash, &descriptor.file_name)
-            .unwrap_or(false)
-        {
+        if !self.cached_valid(descriptor) {
             return;
         }
         let Ok(path) = self
@@ -74,6 +70,34 @@ impl Transfer {
             direction,
             path.to_string_lossy().into_owned(),
         );
+    }
+
+    /// Validate cached originals and previews without loading whole files into memory.
+    pub(super) fn cached_valid(&self, descriptor: &AttachmentDescriptor) -> bool {
+        let Ok(path) = self
+            .store
+            .path_for(&descriptor.content_hash, &descriptor.file_name)
+        else {
+            return false;
+        };
+        let Ok(mut file) = File::open(path) else {
+            return false;
+        };
+        if !file
+            .metadata()
+            .is_ok_and(|metadata| metadata.len() == descriptor.total_size)
+        {
+            return false;
+        }
+        let mut hasher = crate::attachment_crypto::Sha256Builder::new();
+        let mut buffer = [0; 32 * 1024];
+        loop {
+            match file.read(&mut buffer) {
+                Ok(0) => return hasher.finish_hex() == descriptor.content_hash,
+                Ok(length) => hasher.update(&buffer[..length]),
+                Err(_) => return false,
+            }
+        }
     }
 
     /// Restores a saved offer or sender after restart. Older history rows have

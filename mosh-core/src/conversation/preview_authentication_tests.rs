@@ -133,3 +133,28 @@ fn restarting_revalidates_cached_previews_and_resumes_missing_ones() {
     assert!(restarted.preview_path("photo").is_none());
     assert_eq!(restarted.next_requests()[0].attachment_id, "photo/preview");
 }
+
+#[test]
+fn repeated_history_rows_do_not_consume_distinct_preview_download_slots() {
+    let sent = Scratch::open("preview-duplicate-sender");
+    let received = Scratch::open("preview-duplicate-receiver");
+    let mut sender = sent.transfer();
+    let mut receiver = received.transfer();
+    for index in 0..4 {
+        let offer = signed_offer(&mut sender, &format!("photo-{index}"));
+        for _ in 0..4 {
+            receiver.restore_preview(offer.clone(), AttachmentDirection::Incoming);
+        }
+    }
+    let requests = receiver.next_requests();
+    assert_eq!(requests.len(), 4, "four distinct previews must start");
+    let active = requests[0].attachment_id.trim_end_matches("/preview");
+    let offer = signed_offer(&mut sender, "later");
+    receiver.restore_preview(offer, AttachmentDirection::Incoming);
+    // Replaying an already active preview must not restart its download.
+    receiver.restore_preview(
+        signed_offer(&mut sent.transfer(), active),
+        AttachmentDirection::Incoming,
+    );
+    assert!(receiver.next_requests().is_empty());
+}

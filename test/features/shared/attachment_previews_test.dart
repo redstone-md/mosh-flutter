@@ -17,6 +17,25 @@ Uint8List _detailedPng() {
 }
 
 void main() {
+  test(
+      'large image metadata does not prevent either preview or change the original',
+      () async {
+    final image = img.Image(width: 320, height: 240)
+      ..exif.imageIfd['ImageDescription'] = 'x' * (192 * 1024);
+    final original = Uint8List.fromList(img.encodePng(image));
+    final picked = await ingestAttachment(
+        bytes: original, fileName: 'metadata.png', maxBytes: 50 * 1024 * 1024);
+    expect(base64Decode(picked!.dataBase64), original);
+    expect(picked.thumbnailBase64!.length, lessThanOrEqualTo(2048));
+    final bytes = base64Decode(picked.previewBase64!);
+    expect(bytes.length, lessThanOrEqualTo(128 * 1024));
+    final preview = img.decodeJpg(bytes)!;
+    expect(preview.width, 320);
+    expect(preview.height, 240);
+    expect(preview.iccProfile, isNull);
+    expect(preview.exif.isEmpty, isTrue);
+  });
+
   test('small images retain their dimensions and both decodable previews', () {
     final image = img.Image(width: 16, height: 10, numChannels: 4);
     img.fill(image, color: img.ColorRgba8(30, 90, 150, 180));

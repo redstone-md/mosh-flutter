@@ -171,6 +171,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   }
 
   void _onAttachmentPickError(AttachmentPickError error) {
+    if (!mounted) return;
     final l = AppLocalizations.of(context)!;
     _showSnackBar(switch (error) {
       AttachmentPickError.tooLarge => l.attachmentTooLargeMessage,

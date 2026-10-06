@@ -19,6 +19,13 @@ an edge of at most 48 pixels, reducing that edge until its base64 fits 2,048 byt
 Also produce the existing 320-pixel JPEG preview at quality 70. Picker, drop and
 clipboard use the same ingest. An unreadable image reports a localized preview
 error and is refused. Existing best-effort video capture remains supported.
+Bake EXIF orientation before resizing and omit the remaining EXIF. Retain valid
+RGB ICC profiles, with a 64 KiB extraction/inflation cap, in standard JPEG APP2
+chunks. The pinned image encoder's ICC headers are incompatible with native
+readers, so a small metadata helper handles that container while reusing its
+pixel codec. Miniatures omit the profile only if it cannot fit their byte budget.
+The clear JPEG must fit 128 KiB before ingest hands it to the bridge; unsupported
+or oversized color profiles report the preview error. Original metadata stays intact.
 
 The miniature stays inline. Transfer the clear JPEG as an auxiliary attachment
 through the existing encrypted chunk engine. `AttachmentOffer` flattens the
@@ -50,6 +57,12 @@ The bridge adds optional `preview_base64` to sends and `preview_path` to transfe
 views. A local preview path never means the original is downloaded. Cards show
 the cached original when available, otherwise the clear preview, otherwise the
 miniature. A missing or undecodable clear file falls back to the miniature.
+Cards bound cached images to 640×520 pixels using Flutter's aspect-preserving
+resize policy. Automatic clear previews additionally reject intrinsic dimensions
+above 320 pixels before codec instantiation. Inline miniatures have a 1,024-pixel
+edge allowance for legacy portraits produced before the EXIF sizing fix. Both
+limits bound the source bitmap before decode; a byte limit alone cannot do that.
+Invalid clear previews keep the miniature visible.
 
 Check final serialized control packets against Moss's application ceiling.
 `PayloadTooLarge` crosses the existing typed error boundary and displays a size
@@ -61,7 +74,9 @@ prepared transfers' cache leases. Moss sources and limits are unchanged.
 Old clients show the miniature and can still download originals. Old history
 without auxiliary descriptors remains readable. A clear preview that has not
 been cached requires an available sender, as other attachment blobs do.
-No new dependency or persistence table is needed.
+No new dependency or persistence table is needed. Cached originals also verify
+size and SHA-256 on restart using a fixed-size read buffer. Repeated history rows
+keep one preview installation and do not consume another download slot.
 
 Tests cover detailed PNG ingest, paperclip and drop callbacks, miniature-to-file
 rendering, protocol compatibility, signer/parent binding, limits, corrupt chunks,
@@ -82,3 +97,6 @@ delivery assertions together. New production modules stay below 400 lines.
 
 Pattern references: [Telegram stripped thumbnails](https://core.telegram.org/api/files#stripped-thumbnails)
 and [Matrix encrypted thumbnail files](https://spec.matrix.org/unstable/client-server-api/).
+ICC chunks follow the [ICC embedding convention](https://archive.color.org/files/technotes/ICC-Technote-ProfileEmbedding.pdf).
+The 568-byte color-test fixture is a synthetic RGB ICC profile generated with
+LCMS using D65, P3 primaries and gamma 2.2; tests need only the committed bytes.

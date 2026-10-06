@@ -129,8 +129,8 @@ class _MediaPreviewCard extends StatelessWidget {
 
 /// Try the original, then its clear JPEG, then the inline miniature.
 Widget _previewImage(ConversationAttachment attachment, Uint8List bytes) {
-  Widget preview = Image.memory(
-    bytes,
+  Widget preview = Image(
+    image: _boundedPreview(AttachmentMiniatureImage(bytes)),
     width: double.infinity,
     fit: BoxFit.cover,
     errorBuilder: (context, _, __) => const SizedBox(
@@ -144,7 +144,7 @@ Widget _previewImage(ConversationAttachment attachment, Uint8List bytes) {
     ),
   );
   if (attachment.clearPreviewPath case final path?) {
-    preview = _localPreview(path, preview);
+    preview = _localPreview(path, preview, auxiliary: true);
   }
   if (attachment.descriptor.mime.startsWith('image/') &&
       attachment.localPath != null) {
@@ -153,12 +153,23 @@ Widget _previewImage(ConversationAttachment attachment, Uint8List bytes) {
   return preview;
 }
 
-Widget _localPreview(String path, Widget fallback) => Image(
-      image: ResizeImage.resizeIfNeeded(640, null, FileImage(File(path))),
+Widget _localPreview(String path, Widget fallback, {bool auxiliary = false}) =>
+    Image(
+      image: _boundedPreview(auxiliary
+          ? AttachmentPreviewFileImage(File(path))
+          : FileImage(File(path))),
       width: double.infinity,
       fit: BoxFit.cover,
       gaplessPlayback: true,
       frameBuilder: (context, child, frame, synchronous) =>
           synchronous || frame != null ? child : fallback,
       errorBuilder: (context, _, __) => fallback,
+    );
+
+/// Bound both decoded axes, including remote images with extreme aspect ratios.
+ResizeImage _boundedPreview(ImageProvider<Object> provider) => ResizeImage(
+      provider,
+      width: (kAttachmentMediaWidth * 2).toInt(),
+      height: (kAttachmentPreviewMaxHeight * 2).toInt(),
+      policy: ResizeImagePolicy.fit,
     );
