@@ -1,185 +1,152 @@
 import 'dart:async' show unawaited;
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart' show CustomSemanticsAction;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
+import 'message_context_menu.dart';
+
+part 'message_selection_area.dart';
+part 'message_selection_delegate.dart';
 
 const BorderRadius _focusRadius = BorderRadius.all(Radius.circular(6));
 
-/// Puts one message's [body] on the clipboard and confirms with a snackbar.
-Future<void> _copyMessageText(BuildContext context, String body) async {
-  final messenger = ScaffoldMessenger.maybeOf(context);
-  final copied = AppLocalizations.of(context)!.messageCopied;
-  await Clipboard.setData(ClipboardData(text: body));
-  messenger
-    ?..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(copied)));
+SingleActivator get _copyShortcut {
+  final apple = defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+  return SingleActivator(LogicalKeyboardKey.keyC, control: !apple, meta: apple);
 }
 
-/// Makes the message text under [child] selectable and copyable.
-class MessageSelectionArea extends StatefulWidget {
-  const MessageSelectionArea({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  State<MessageSelectionArea> createState() => _MessageSelectionAreaState();
-}
-
-class _MessageSelectionAreaState extends State<MessageSelectionArea> {
-  /// Set by a [CopyableMessage] on pointer down. The row sees the event
-  /// before this area does, so the area's own pointer-down handler can tell
-  /// a press on a message from a press on the space between them.
-  CopyableMessage? _pressedMessage;
-
-  /// The body of the message the last pointer went down on, if any.
-  CopyableMessage? _pointedMessage;
-
-  bool _hasSelection = false;
-
-  void _onPointerDown(PointerDownEvent _) {
-    _pointedMessage = _pressedMessage;
-    _pressedMessage = null;
-  }
-
-  Widget _contextMenu(BuildContext context, SelectableRegionState region) {
-    final message = _pointedMessage;
-    final body = message?.body;
-    void action(VoidCallback callback) {
-      region
-        ..clearSelection()
-        ..hideToolbar();
-      callback();
-    }
-
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      anchors: region.contextMenuAnchors,
-      buttonItems: [
-        ...region.contextMenuButtonItems,
-        if (body != null && body.isNotEmpty)
-          ContextMenuButtonItem(
-            label: AppLocalizations.of(context)!.messageCopyText,
-            onPressed: () {
-              region
-                ..clearSelection()
-                ..hideToolbar();
-              unawaited(_copyMessageText(this.context, body));
-            },
-          ),
-        if (message?.onDelete case final callback?)
-          ContextMenuButtonItem(
-              label: AppLocalizations.of(context)!.messageDelete,
-              onPressed: () => action(callback)),
-        if (message?.onSelect case final callback?)
-          ContextMenuButtonItem(
-              label: AppLocalizations.of(context)!.messageSelect,
-              onPressed: () => action(callback)),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) => Listener(
-        onPointerDown: _onPointerDown,
-        child: SelectionArea(
-          onSelectionChanged: (content) =>
-              _hasSelection = content?.plainText.isNotEmpty ?? false,
-          contextMenuBuilder: _contextMenu,
-          child: widget.child,
-        ),
-      );
-}
-
-/// One message row whose whole [body] can be copied.
-class CopyableMessage extends StatelessWidget {
-  const CopyableMessage(
-      {super.key,
-      required this.body,
-      required this.child,
-      this.onDelete,
-      this.onSelect});
-
+/// One row's copy shortcut and semantic actions, within the shared selection.
+class CopyableMessage extends StatefulWidget {
+  const CopyableMessage({
+    super.key,
+    required this.body,
+    required this.child,
+    this.onDelete,
+    this.onSelect,
+  });
   final String body;
   final Widget child;
   final VoidCallback? onDelete;
   final VoidCallback? onSelect;
 
-  Future<void> _menu(BuildContext context, Offset position) async {
-    final l = AppLocalizations.of(context)!;
-    final overlay =
-        Overlay.of(context).context.findRenderObject()! as RenderBox;
-    final action = await showMenu<VoidCallback>(
-        context: context,
-        position: RelativeRect.fromRect(
-            position & const Size(1, 1), Offset.zero & overlay.size),
-        items: [
-          if (onDelete != null)
-            PopupMenuItem(value: onDelete, child: Text(l.messageDelete)),
-          if (onSelect != null)
-            PopupMenuItem(value: onSelect, child: Text(l.messageSelect)),
-        ]);
-    action?.call();
+  @override
+  State<CopyableMessage> createState() => _CopyableMessageState();
+}
+
+class _CopyableMessageState extends State<CopyableMessage> {
+  final _selection = _MessageSelectionDelegate();
+  final _focus = FocusNode(debugLabel: 'Message');
+  _MessageSelectionAreaState? _owner;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _owner = context.findAncestorStateOfType<_MessageSelectionAreaState>();
   }
 
-  _MessageSelectionAreaState? _area(BuildContext context) =>
-      context.findAncestorStateOfType<_MessageSelectionAreaState>();
+  @override
+  void didUpdateWidget(CopyableMessage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.body != widget.body) _owner?.retire(this);
+  }
 
-  /// Ctrl+C, or Cmd+C on Apple platforms, copies the focused message. A
-  /// selection in the list wins: the key then falls through to the area.
-  KeyEventResult _onKey(BuildContext context, KeyEvent event) {
-    final apple = defaultTargetPlatform == TargetPlatform.macOS ||
-        defaultTargetPlatform == TargetPlatform.iOS;
-    final copy = SingleActivator(
-      LogicalKeyboardKey.keyC,
-      control: !apple,
-      meta: apple,
-    );
-    if (body.isEmpty ||
-        event is! KeyDownEvent ||
-        !copy.accepts(event, HardwareKeyboard.instance) ||
-        (_area(context)?._hasSelection ?? false)) {
+  void _menu(Offset position, {bool fromKeyboard = false}) =>
+      _owner?.showMenu(this, position, fromKeyboard: fromKeyboard);
+
+  void _semanticMenu() {
+    final box = context.findRenderObject()! as RenderBox;
+    _menu(box.localToGlobal(box.size.center(Offset.zero)));
+  }
+
+  VoidCallback? get _semanticLongPress => widget.body.isEmpty &&
+          (widget.onDelete != null || widget.onSelect != null)
+      ? _semanticMenu
+      : null;
+
+  // Match the menu: row-level actions drop any text selection first.
+  VoidCallback _clearingSelection(VoidCallback callback) => () {
+        _owner?._clear();
+        callback();
+      };
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.contextMenu ||
+        const SingleActivator(LogicalKeyboardKey.f10, shift: true)
+            .accepts(event, HardwareKeyboard.instance)) {
+      final box = context.findRenderObject()! as RenderBox;
+      _menu(box.localToGlobal(Offset.zero), fromKeyboard: true);
+      return KeyEventResult.handled;
+    }
+    if (widget.body.isEmpty ||
+        !_copyShortcut.accepts(event, HardwareKeyboard.instance) ||
+        (_owner?.hasSelection ?? false)) {
       return KeyEventResult.ignored;
     }
-    unawaited(_copyMessageText(context, body));
+    unawaited(_owner?.copy(widget.body));
     return KeyEventResult.handled;
   }
 
   @override
+  void dispose() {
+    _owner?.retire(this);
+    _selection.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => Listener(
-        onPointerDown: (_) => _area(context)?._pressedMessage = this,
+        onPointerDown: (_) => _owner?._pressedMessage = this,
         child: Semantics(
           container: true,
+          onLongPress: _semanticLongPress,
           customSemanticsActions: {
-            if (body.isNotEmpty)
+            if (widget.body.isNotEmpty)
               CustomSemanticsAction(
                 label: AppLocalizations.of(context)!.messageCopyText,
-              ): () => unawaited(_copyMessageText(context, body)),
-            if (onDelete != null)
+              ): () => unawaited(_owner?.copy(widget.body)),
+            if (widget.onDelete case final callback?)
               CustomSemanticsAction(
-                      label: AppLocalizations.of(context)!.messageDelete):
-                  onDelete!,
-            if (onSelect != null)
+                label: AppLocalizations.of(context)!.messageDelete,
+              ): _clearingSelection(callback),
+            if (widget.onSelect case final callback?)
               CustomSemanticsAction(
-                      label: AppLocalizations.of(context)!.messageSelect):
-                  onSelect!,
+                label: AppLocalizations.of(context)!.messageSelect,
+              ): _clearingSelection(callback),
           },
           child: Focus(
-            onKeyEvent: (_, event) => _onKey(context, event),
+            focusNode: _focus,
+            onKeyEvent: _onKey,
             child: FocusRing(
-                radius: _focusRadius,
-                child: body.isNotEmpty || onDelete == null
-                    ? child
-                    : GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        onSecondaryTapUp: (details) =>
-                            _menu(context, details.globalPosition),
-                        onLongPressStart: (details) =>
-                            _menu(context, details.globalPosition),
-                        child: child)),
+              radius: _focusRadius,
+              child: RawGestureDetector(
+                behavior: HitTestBehavior.translucent,
+                gestures: {
+                  TapGestureRecognizer: GestureRecognizerFactoryWithHandlers<
+                      TapGestureRecognizer>(
+                    () => TapGestureRecognizer(),
+                    (recognizer) => recognizer.onSecondaryTapDown =
+                        (details) => _menu(details.globalPosition),
+                  ),
+                  _NonTextLongPressRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                          _NonTextLongPressRecognizer>(
+                    () => _NonTextLongPressRecognizer(_selection),
+                    (recognizer) => recognizer.onLongPressStart =
+                        (details) => _menu(details.globalPosition),
+                  ),
+                },
+                child: SelectionContainer(
+                    delegate: _selection, child: widget.child),
+              ),
+            ),
           ),
         ),
       );
