@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -50,10 +50,20 @@ try {
     const trackerUrl = `http://127.0.0.1:${tracker.http.address().port}/announce`;
     console.log(`Moss test discovery: ${trackerUrl}`);
     const test = testCommand();
-    const status = await run(test.command, test.args, {
-      ...process.env, MOSH_TEST_TRACKER_URL: trackerUrl,
-    });
-    process.exitCode = process.exitCode || status;
+    const voiceUiDataDir = process.argv[2] === "--voice-ui"
+      ? await mkdtemp(path.join(os.tmpdir(), "mosh-call-ui-")) : null;
+    try {
+      const status = await run(test.command, test.args, {
+        ...process.env, MOSH_TEST_TRACKER_URL: trackerUrl,
+        ...(voiceUiDataDir ? { MOSH_CALL_UI_TEST_DATA_DIR: voiceUiDataDir } : {}),
+      });
+      process.exitCode = process.exitCode || status;
+    } finally {
+      // The desktop process has exited, so Windows storage handles are closed.
+      if (voiceUiDataDir) await rm(voiceUiDataDir, {
+        recursive: true, force: true, maxRetries: 10, retryDelay: 100,
+      });
+    }
   } finally {
     tracker.http?.closeIdleConnections?.();
     await new Promise((resolve) => tracker.close(resolve));

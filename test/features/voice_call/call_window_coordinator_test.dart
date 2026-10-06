@@ -21,6 +21,27 @@ const _second = CallViewState(
     phase: CallViewPhase.incoming);
 
 void main() {
+  test('restore requested during startup retries that startup failure',
+      () async {
+    final first = Completer<CallWindowHandle>();
+    final replacement = RecordingCallWindow();
+    var opens = 0;
+    final failures = <Object>[];
+    final coordinator = CallWindowCoordinator(
+        (_) => ++opens == 1 ? first.future : Future.value(replacement),
+        (_) async {},
+        failures.add);
+    coordinator.update(_first);
+    final showing = coordinator.show();
+    first.completeError(StateError('startup failed'));
+    await showing;
+    expect(opens, 2);
+    expect(failures, hasLength(1));
+    expect(replacement.views.single.callId, 'first');
+    expect(replacement.shows, 1);
+    await coordinator.dispose();
+  });
+
   test('a late restore failure cannot close a replacement window', () async {
     final old = _DelayedWindow();
     final next = RecordingCallWindow();

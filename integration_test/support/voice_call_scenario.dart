@@ -89,6 +89,15 @@ class VoiceCallScenario {
     final after = await remote('call_probe');
     expect(after['sent'] as int, greaterThan(before['sent'] as int),
         reason: 'A stale end cannot reset live AES-GCM nonce counters');
+    final idle = await tester.runAsync(() => peer.ask({'action': 'dm_invite'}));
+    await tester.runAsync(() => peer.ask({
+          'action': 'call_end',
+          'argument': idle!['session_id'],
+          'call_id': id,
+        }));
+    final scoped = await remote('call_probe');
+    expect(scoped['sent'] as int, greaterThan(after['sent'] as int),
+        reason: 'An end in another session cannot reset this probe');
     expect(audio.rings, 3);
     expect(audio.ringStops, 3);
     return id;
@@ -152,12 +161,14 @@ class VoiceCallScenario {
     final repeated = await pendingRemote();
     await remote('call_accept', repeated);
     await ui.eventually(() async => audio.captures == 2 && audio.players == 2);
+    expect((await remote('call_probe'))['sent'], greaterThan(0));
     await ui.visible(find.byTooltip('Hang up'));
     await ui.tap(find.byTooltip('Hang up'));
     await ui.eventually(
         () async => audio.captureStops == 2 && audio.playerStops == 2);
     await ui.eventually(
         () async => (await remote('dm_poll'))['active_call'] == null);
+    expect((await remote('call_probe_status'))['active'], isFalse);
     expect(audio.rings, audio.ringStops);
   }
 }

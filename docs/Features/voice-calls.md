@@ -12,6 +12,7 @@ Navigation to another DM, group, channel or Settings keeps the audio running.
   Closing during acceptance waits for that same call's control operation, then
   declines on failure or ends the accepted call. Replacement calls do not wait
   for an older call's control.
+  Automatic setup-failure completion uses the same serialized terminal path.
 - The microphone button becomes available after capture and playback start.
   Muting suppresses outgoing frames. A setup error retains hang-up controls when
   signaling also fails.
@@ -66,6 +67,8 @@ The native UI test uses a real independent installation process, Moss discovery,
 AES-GCM, Opus, `record` capture and CPAL playback. It covers decline, cancel,
 incoming acceptance, bidirectional audio, navigation, message delivery, mute,
 remote end and a repeated call.
+The peer probe releases its audio when its originating session no longer contains
+the call. Stale controls from another session cannot reset its media sequence.
 
 Prepare Moss, compile the native peer fixture, then run on a desktop with usable
 input/output devices:
@@ -76,6 +79,11 @@ cargo test --manifest-path mosh-core/Cargo.toml --test device_link_flow --no-run
 node scripts/moss-test.mjs --voice-ui
 ```
 
+The Node runner creates the test data directory and passes it through
+`MOSH_CALL_UI_TEST_DATA_DIR`. It removes the directory after the desktop process
+exits, so Windows database handles cannot prevent normal cleanup. Run this
+scenario through the runner rather than invoking its Flutter target directly.
+
 `flutter drive --debug --no-start-paused` builds this integration target and starts
 its main entrypoint directly in each engine or process. `flutter test` inserts a suite launcher that
 leaves child engines waiting for a separate test connection. Linux builds also
@@ -85,8 +93,9 @@ source, Xvfb and Openbox. With `MOSH_TEST_WINDOW_ACTIONS=1`, the scenario additi
 uses `xdotool` and `xprop` to check OS close in all phases and audio while minimized.
 The normal scenario does not require those window-manager tools.
 
-Behavioral test bodies may exceed the 50-line function limit to keep their setup,
-actions and assertions together. The native peer's command dispatcher retains
+Behavioral test bodies and end-to-end scenario methods may exceed the 50-line
+function limit to keep their setup, actions and assertions together.
+The native peer's command dispatcher retains
 the same exception so its public-action routing stays in one place. Production
 functions remain within the limit.
 
@@ -97,17 +106,18 @@ functions remain within the limit.
   OS close in all phases and minimize/restore. Audio used real record/CPAL streams
   connected to PulseAudio's sine source and null output rather than physical
   microphone/speaker hardware.
-- 166 focused Flutter tests passed, covering system insets, delayed notification
+- 173 focused Flutter tests passed, covering system insets, delayed notification
   readiness, focused-window suppression and forced process termination with a
-  broken input pipe, plus accept/close races and notification cancellation.
-  Analyze and format passed.
-- Full Flutter suite: 1501 passed, four skipped. One unchanged test,
+  broken input pipe, plus accept/close races, notification cancellation,
+  admission confirmation, main-window restore, setup/control serialization and
+  failed window-start retry. Analyze and format passed.
+- Full Flutter suite: 1508 passed, four skipped. One unchanged test,
   `media_kit_tracer_test.dart`, also fails when run alone because headless libmpv
   returns no screenshot. It imports no voice-call implementation.
 - Rust runtime unit/integration tests passed; doc tests, fmt and clippy passed.
   All seven ringtone tests passed, including explicit selected-output stream
   start/stop/repeat on PulseAudio.
-- Changed lines represented in LCOV: Dart 94.5% (789/835), Rust 97.7% (126/129).
+- Changed lines represented in LCOV: Dart 94.9% (814/858), Rust 97.7% (126/129).
   Application entrypoints are additionally exercised by the native scenario. Ringtone source
   coverage is 100% for recording conversion and 96.9% for CPAL playback. The
   available LCOV output contains no branch counters. Linux process startup and

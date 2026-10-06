@@ -39,3 +39,19 @@ Verification details, commands and platform limitations are in
 The spec review also found that closing replacement B could wait for accept A.
 The wait now applies only when the control's call ID matches; a failing-then-passing
 test checks that B's decline is sent before A completes.
+
+## Follow-up review of `c897f3ea`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| Clicking the peer leaves the main window minimized | Accept | Restore the main window before show/focus. A widget test uses the application router and a minimized native-window fixture. |
+| A background DM read releases admission during call start | Accept | Keep admission while start is running and until a fresh successful confirmation. A controlled test checks a late pre-start read and failed confirmation. |
+| Windows voice UI test storage is never removed | Accept | The Node runner owns the temporary directory and deletes it after the desktop process exits, when Rust storage handles have closed. Cleanup retries transient Windows handle errors. |
+| Restore loses a click when pending window startup fails | Accept | Wait for pending startup, recheck the desired call and retry once if no window exists. A controlled startup-failure test verifies the new attempt. |
+| Automatic setup failure races manual hang-up | Accept | Serialize controls per call ID. Manual and automatic end share the wait/recheck path, preserving audio errors. Tests check one end during concurrent close and during a held accept. |
+| Native test probe retains its CPAL player after app hang-up | Accept | Reconcile the probe against its originating session before each public peer command. The real scenario starts probe audio, hangs up in the app and checks that the probe is released. Reset commands match both session and call IDs. |
+
+The final spec and standards reviews also reproduced setup failure while accept
+was still pending. Both terminal paths now wait for that call's control gate;
+the regression changed from zero ends to exactly one `setup_failed` end after
+accept completes. Replacement calls retain independent gates.

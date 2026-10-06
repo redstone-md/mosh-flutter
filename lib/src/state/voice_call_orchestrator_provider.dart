@@ -5,6 +5,7 @@ import 'package:mosh/src/state/chat_names_provider.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
+import 'package:mosh/src/features/voice_call/call_control_gate.dart';
 import 'package:mosh/src/features/voice_call/call_ringing.dart';
 import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
 import 'package:mosh/src/features/voice_call/voice_call_orchestrator.dart';
@@ -103,8 +104,7 @@ class VoiceCallOrchestratorNotifier
   String? _attachedCallId;
   String? _dismissedCallId;
   String? _acceptedCallId;
-  String? _controlId;
-  Completer<void>? _controlDone;
+  final _controls = CallControlGate();
   CallError? _error;
   String? _failedCallId;
   bool _appOwned = false;
@@ -152,7 +152,7 @@ class VoiceCallOrchestratorNotifier
     if (dialog.callId == _dismissedCallId) dialog = const NoCallDialog();
     if (dialog.callId != _failedCallId) _failedCallId = null;
     if (dialog is! IncomingCallDialog) _acceptedCallId = null;
-    final busy = _controlId == dialog.callId ||
+    final busy = _controls.isBusy(dialog.callId) ||
         (_acceptedCallId != null && _acceptedCallId == dialog.callId);
     _ringing.update(dialog, busy: busy);
     _attach(dialog is ActiveCallDialog ? dialog.active : null);
@@ -191,14 +191,7 @@ class VoiceCallOrchestratorNotifier
         _failedCallId = id;
         _fail(message, CallErrorSource.audioSetup);
       },
-      endCall: (s, c, reason) async {
-        if (!ref.mounted || _snapshot?.activeCall?.callId != c) return;
-        await bridge.callEnd(sessionId: s, callId: c, reason: reason);
-        if (!ref.mounted || _snapshot?.activeCall?.callId != c) return;
-        _dismissedCallId = c;
-        state = _stateFor(_snapshot);
-        _refresh();
-      },
+      endCall: (_, c, reason) => _endCall(c, reason, preserveError: true),
     ));
   }
 
@@ -220,9 +213,12 @@ class VoiceCallOrchestratorNotifier
 
   /// Closing is terminal intent even while accept is pending. Recheck the same
   /// call after that operation, then choose decline or hang-up from current state.
-  Future<void> endCall(String id, String reason) async {
+  Future<void> endCall(String id, String reason) => _endCall(id, reason);
+
+  Future<void> _endCall(String id, String reason,
+      {bool preserveError = false}) async {
     if (state.dialog.callId != id) return;
-    if (_controlId == id) await _controlDone?.future;
+    await _controls.wait(id);
     if (!ref.mounted || state.dialog.callId != id) return;
     final incoming =
         state.dialog is IncomingCallDialog && _acceptedCallId != id;
@@ -234,39 +230,38 @@ class VoiceCallOrchestratorNotifier
                 callId: id,
                 reason: kCallDeclineReasonUser)
             : b.callEnd(sessionId: sessionId, callId: id, reason: reason),
-        closing: true);
+        closing: true,
+        preserveError: preserveError);
   }
 
   Future<void> _control(String id, Future<void> Function(BridgeFacade) action,
-      {bool terminal = true, bool closing = false}) async {
+      {bool terminal = true,
+      bool closing = false,
+      bool preserveError = false}) async {
     if (state.dialog.callId != id ||
-        _controlId == id ||
+        _controls.isBusy(id) ||
         (state.busy && !closing)) {
       return;
     }
-    final done = _controlDone = Completer<void>();
-    _controlId = id;
-    _error = null;
-    state = _stateFor(_snapshot);
-    try {
-      await action(ref.read(bridgeFacadeProvider));
-      if (!ref.mounted || state.dialog.callId != id) return;
-      _controlId = null;
-      if (terminal) {
-        _dismissedCallId = id;
-      } else {
-        _acceptedCallId = id;
-      }
+    await _controls.run(id, () async {
+      if (!preserveError) _error = null;
       state = _stateFor(_snapshot);
-      _refresh();
-    } catch (error) {
-      if (!ref.mounted || state.dialog.callId != id) return;
-      _controlId = null;
-      _fail(error, CallErrorSource.callControl);
-    } finally {
-      if (identical(_controlDone, done)) _controlDone = null;
-      done.complete();
-    }
+      try {
+        await action(ref.read(bridgeFacadeProvider));
+        if (!ref.mounted || state.dialog.callId != id) return;
+        if (terminal) {
+          _dismissedCallId = id;
+        } else {
+          _acceptedCallId = id;
+        }
+        state = _stateFor(_snapshot);
+        _refresh();
+      } catch (error) {
+        if (!ref.mounted || state.dialog.callId != id) return;
+        if (!preserveError) _fail(error, CallErrorSource.callControl);
+      }
+    });
+    if (ref.mounted && state.dialog.callId == id) state = _stateFor(_snapshot);
   }
 
   void _refresh() {
