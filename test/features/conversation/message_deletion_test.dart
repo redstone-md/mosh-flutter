@@ -147,25 +147,41 @@ void main() {
           ['file']);
     });
 
-    testWidgets(
-        '${c.label}: moderated placeholders show author and delivery state',
-        (tester) async {
-      await pumpConversation(tester, c,
-          gateway: ScriptableGateway(),
-          messages: [
-            const TestMessage(
-                messageId: 'deleted',
-                metadata: MessageMetadata(
-                    canDeleteForEveryone: false,
-                    localOnly: false,
-                    deletion: DeletionMarker(
-                        scope: DeleteScope.forEveryone,
-                        status: DeletionStatus.pending,
-                        administrator: 'Alice'))),
-          ]);
-      expect(
-          find.text('Message deleted by administrator Alice'), findsOneWidget);
-      expect(find.text('Awaiting delivery'), findsOneWidget);
-    });
+    // IVO-26: a confirmed deletion is one line; only a pending or refused
+    // request adds a status line under it.
+    for (final (status, line) in [
+      (DeletionStatus.pending, 'Awaiting deletion'),
+      (DeletionStatus.confirmed, null),
+      (DeletionStatus.rejected, 'Deleted only for you'),
+    ]) {
+      testWidgets(
+          '${c.label}: a ${status.name} moderated deletion shows '
+          '${line ?? 'no status line'}', (tester) async {
+        await pumpConversation(tester, c,
+            gateway: ScriptableGateway(),
+            messages: [
+              TestMessage(
+                  messageId: 'deleted',
+                  metadata: MessageMetadata(
+                      canDeleteForEveryone: false,
+                      localOnly: false,
+                      deletion: DeletionMarker(
+                          scope: DeleteScope.forEveryone,
+                          status: status,
+                          administrator: 'Alice'))),
+            ]);
+        expect(find.text('Message deleted by administrator Alice'),
+            findsOneWidget);
+        for (final other in [
+          'Awaiting deletion',
+          'Deleted only for you',
+          'Awaiting delivery',
+          'Request confirmed',
+        ]) {
+          expect(
+              find.text(other), other == line ? findsOneWidget : findsNothing);
+        }
+      });
+    }
   }
 }

@@ -1956,8 +1956,8 @@
       }
     }
   },
-  "messageDeletionPending": "Awaiting delivery",
-  "messageDeletionConfirmed": "Request confirmed",
+  "messageDeletionPending": "Awaiting deletion",
+  "messageDeletionLocalOnly": "Deleted only for you",
   "messageDeletionRejected": "Some deletion requests were refused because permissions changed. These messages remain deleted for you.",
   "messagesSelected": "Selected: {count}",
   "@messagesSelected": {
