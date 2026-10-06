@@ -59,23 +59,22 @@ class _MediaPreviewCard extends StatelessWidget {
               // The bubble supplies the surface beneath transparent images.
               child: Container(
                 width: double.infinity,
+                height: attachmentPreviewHeight(encodedImageSize(bytes)),
                 clipBehavior: Clip.antiAlias,
-                constraints: const BoxConstraints(
-                  minHeight: kAttachmentPreviewMinHeight,
-                  maxHeight: kAttachmentPreviewMaxHeight,
-                ),
                 decoration: const BoxDecoration(
                   color: MoshColors.line,
                   borderRadius: MoshShapes.attachment,
                 ),
                 child: Stack(
                   alignment: Alignment.center,
+                  fit: StackFit.expand,
                   children: [
-                    _previewImage(attachment, bytes),
+                    _previewImage(attachment, bytes, thumb ?? ''),
                     if (isVideo)
                       // 48px round dark play badge -- decorative, so no
                       // semantics.
-                      Semantics(
+                      Center(
+                          child: Semantics(
                         excludeSemantics: true,
                         child: Container(
                           width: 48,
@@ -93,7 +92,7 @@ class _MediaPreviewCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                      ),
+                      )),
                   ],
                 ),
               ),
@@ -128,14 +127,13 @@ class _MediaPreviewCard extends StatelessWidget {
 }
 
 /// Try the original, then its clear JPEG, then the inline miniature.
-Widget _previewImage(ConversationAttachment attachment, Uint8List bytes) {
+Widget _previewImage(
+    ConversationAttachment attachment, Uint8List bytes, String source) {
   Widget preview = Image(
-    image: _boundedPreview(AttachmentMiniatureImage(bytes)),
-    width: double.infinity,
+    image: _boundedPreview(AttachmentMiniatureImage(bytes, source: source)),
     fit: BoxFit.cover,
-    errorBuilder: (context, _, __) => const SizedBox(
-      height: kAttachmentPreviewMinHeight,
-      width: double.infinity,
+    gaplessPlayback: true,
+    errorBuilder: (context, _, __) => const SizedBox.expand(
       child: ColoredBox(
         color: MoshColors.line,
         child:
@@ -158,7 +156,6 @@ Widget _localPreview(String path, Widget fallback, {bool auxiliary = false}) =>
       image: _boundedPreview(auxiliary
           ? AttachmentPreviewFileImage(File(path))
           : FileImage(File(path))),
-      width: double.infinity,
       fit: BoxFit.cover,
       gaplessPlayback: true,
       frameBuilder: (context, child, frame, synchronous) =>
