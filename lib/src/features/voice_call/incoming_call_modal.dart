@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/voice_call/call_modal_card.dart';
-import 'package:mosh/src/features/voice_call/call_button.dart';
+import 'package:mosh/src/features/voice_call/call_view.dart';
+import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
@@ -108,24 +108,19 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
   }
 
   @override
-  Widget build(BuildContext context) => CallModalCard(
-        label: widget.l.callIncomingAriaLabel,
-        peer: widget.peerLabel,
-        status: widget.l.callIncomingStatus,
-        onEscape: () => _decline(kCallDeclineReasonUser),
-        actions: [
-          CallButton(
-            icon: Icons.phone_disabled,
-            tooltip: widget.l.callIncomingDecline,
-            color: const Color(0xFFE5484D),
-            onPressed: () => _decline(kCallDeclineReasonUser),
-          ),
-          CallButton(
-            icon: Icons.phone,
-            tooltip: widget.l.callIncomingAccept,
-            color: const Color(0xFF2EA043),
-            onPressed: widget.onAccept,
-          ),
-        ],
+  Widget build(BuildContext context) => CallView(
+        call: CallViewState(
+            sessionId: '',
+            callId: widget.pending.callId,
+            peer: widget.peerLabel,
+            phase: CallViewPhase.incoming),
+        l: widget.l,
+        onAction: (action) {
+          if (action == CallViewAction.accept) widget.onAccept();
+          if (action == CallViewAction.decline ||
+              action == CallViewAction.end) {
+            _decline(kCallDeclineReasonUser);
+          }
+        },
       );
 }

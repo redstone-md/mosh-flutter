@@ -74,6 +74,41 @@ Future<void> _pumpLayer(
 
 void main() {
   testWidgets(
+      'failed setup and failed signaling retain a usable hang-up control',
+      (tester) async {
+    const sessionId = 'failed-audio';
+    final capture = _DelayedCaptureFactory();
+    final bridge = ScriptableBridge()
+      ..failAlways(BridgeMethod.callEnd,
+          error: StateError('signaling unavailable'));
+    final container = ProviderContainer(overrides: [
+      gatewayProvider.overrideWithValue(ScriptableGateway()),
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      activeSessionProvider(sessionId)
+          .overrideWith((ref) async => _activeSnapshot(sessionId)),
+      voiceCaptureFactoryProvider.overrideWithValue(capture),
+    ]);
+    final l = await AppLocalizations.delegate.load(const Locale('en'));
+    await _pumpLayer(tester,
+        container: container, sessionId: sessionId, l: l, onError: (_) {});
+    capture.starts.single.completeError(StateError('microphone unavailable'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(find.text(l.callAudioFailed), findsOneWidget);
+    final mic = find.descendant(
+        of: find.byTooltip(l.callActiveMute),
+        matching: find.byType(IconButton));
+    expect(tester.widget<IconButton>(mic).onPressed, isNull);
+    await tester.tap(find.byTooltip(l.callActiveHangUp));
+    await tester.pump();
+    expect(bridge.countOf(BridgeMethod.callEnd), 2);
+    expect(find.byTooltip(l.callActiveHangUp), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
+    await tester.pump();
+  });
+
+  testWidgets(
       'audio-setup failure surfaces via onVoiceCallError and tears the call down',
       (tester) async {
     const sessionId = 'sess-a';

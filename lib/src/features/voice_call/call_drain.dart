@@ -23,12 +23,14 @@ Future<void> drainCallFrames({
   required String noncePrefix,
   required JitterBuffer jitter,
   required CallFrameSink playback,
+  bool Function()? isCurrent,
 }) async {
   final frames =
       await bridge.callDrainFrames(sessionId: sessionId, callId: callId);
-  if (frames.isEmpty) return;
+  if (frames.isEmpty || isCurrent?.call() == false) return;
   for (final frame in frames) {
     final opened = await openFrame(key, noncePrefix, frame);
+    if (isCurrent?.call() == false) return;
     if (opened != null) {
       jitter.push(BufferedFrame(seq: opened.seq, payload: opened.payload));
     }

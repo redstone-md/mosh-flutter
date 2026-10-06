@@ -34,4 +34,8 @@ class SettingsSectionNotifier extends Notifier<SettingsSection?> {
   SettingsSection? build() => null;
 
   void select(SettingsSection section) => state = section;
+
+  void rememberDefault() {
+    if (ref.mounted && state == null) state = SettingsSection.sound;
+  }
 }

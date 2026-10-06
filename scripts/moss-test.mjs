@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -50,10 +50,20 @@ try {
     const trackerUrl = `http://127.0.0.1:${tracker.http.address().port}/announce`;
     console.log(`Moss test discovery: ${trackerUrl}`);
     const test = testCommand();
-    const status = await run(test.command, test.args, {
-      ...process.env, MOSH_TEST_TRACKER_URL: trackerUrl,
-    });
-    process.exitCode = process.exitCode || status;
+    const voiceUiDataDir = process.argv[2] === "--voice-ui"
+      ? await mkdtemp(path.join(os.tmpdir(), "mosh-call-ui-")) : null;
+    try {
+      const status = await run(test.command, test.args, {
+        ...process.env, MOSH_TEST_TRACKER_URL: trackerUrl,
+        ...(voiceUiDataDir ? { MOSH_CALL_UI_TEST_DATA_DIR: voiceUiDataDir } : {}),
+      });
+      process.exitCode = process.exitCode || status;
+    } finally {
+      // The desktop process has exited, so Windows storage handles are closed.
+      if (voiceUiDataDir) await rm(voiceUiDataDir, {
+        recursive: true, force: true, maxRetries: 10, retryDelay: 100,
+      });
+    }
   } finally {
     tracker.http?.closeIdleConnections?.();
     await new Promise((resolve) => tracker.close(resolve));
@@ -65,6 +75,15 @@ try {
 
 function testCommand() {
   const args = process.argv.slice(2);
+  if (args[0] === "--voice-ui") {
+    if (args.length !== 1) throw new Error("--voice-ui does not accept additional arguments");
+    const platform = { win32: "windows", darwin: "macos", linux: "linux" }[process.platform];
+    if (!platform) throw new Error("Voice UI tests require a desktop host");
+    const testArgs = ["drive", "--target", "integration_test/voice_call_test.dart", "--driver", "test_driver/integration.dart", "-d", platform, "--debug", "--no-start-paused"];
+    return process.platform === "win32"
+      ? { command: "cmd.exe", args: ["/d", "/s", "/c", `flutter ${testArgs.join(" ")}`] }
+      : { command: "flutter", args: testArgs };
+  }
   if (args[0] === "--native-ui") {
     if (args.length !== 1) throw new Error("--native-ui does not accept additional arguments");
     if (process.platform === "win32") {

@@ -46,11 +46,9 @@ void main() {
       await orchestrator.detach();
     });
 
-    test('toggleMute flips isMuted', () {
+    test('toggleMute does not claim an unattached microphone is muted', () {
       final orchestrator = _orchestrator();
       expect(orchestrator.isMuted, isFalse);
-      orchestrator.toggleMute();
-      expect(orchestrator.isMuted, isTrue);
       orchestrator.toggleMute();
       expect(orchestrator.isMuted, isFalse);
     });

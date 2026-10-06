@@ -1955,5 +1955,17 @@
       }
     }
   },
-  "messageDeletionFailed": "Could not delete messages. Your selection is kept; try again."
+  "messageDeletionFailed": "Could not delete messages. Your selection is kept; try again.",
+  "callAlreadyInProgress": "Finish the current call before starting another one.",
+  "callAudioFailed": "Audio unavailable",
+  "callAudioConnecting": "Connecting audio…",
+  "callShowWindow": "Show call window",
+  "callIncomingNotification": "Incoming call from {peer}",
+  "@callIncomingNotification": {
+    "placeholders": {
+      "peer": {
+        "type": "String"
+      }
+    }
+  }
 }

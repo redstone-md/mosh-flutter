@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cwchar>
 #include <vector>
 
 #include "../resource.h"
@@ -56,6 +57,17 @@ int main() {
   for (int creation = 0; creation < 2; ++creation) {
     if (!window.Create(L"Mosh window icon test", {0, 0}, {100, 100})) {
       std::puts("Cannot create the runner window.");
+      return 1;
+    }
+    wchar_t marker[2]{};
+    const bool call_window = GetEnvironmentVariableW(L"MOSH_CALL_WINDOW", marker, 2) == 1 &&
+                             marker[0] == L'1';
+    const wchar_t* expected_class = call_window ? L"MOSH_CALL_WINDOW"
+                                              : L"FLUTTER_RUNNER_WIN32_WINDOW";
+    wchar_t actual_class[64]{};
+    GetClassNameW(window.GetHandle(), actual_class, 64);
+    if (std::wcscmp(actual_class, expected_class) != 0) {
+      std::puts("The call child must not use the app-links main window class.");
       return 1;
     }
     for (WPARAM kind : {ICON_BIG, ICON_SMALL, ICON_SMALL2}) {

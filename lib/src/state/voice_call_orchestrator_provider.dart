@@ -1,79 +1,76 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/state/chat_names_provider.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
-
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
-import 'package:mosh/src/features/voice_call/call_dialog.dart'
-    show CallDialog, NoCallDialog, callDialogFor;
-import 'package:mosh/src/features/voice_call/voice_call_orchestrator.dart'
-    show VoiceCallOrchestrator;
-import 'package:mosh/src/features/voice_call/voice_capture.dart'
-    show NoopVoiceCaptureFactory, VoiceCaptureFactory;
-import 'package:mosh/src/features/voice_call/voice_playback.dart'
-    show NoopVoicePlaybackFactory, VoicePlaybackFactory;
-import 'package:mosh/src/features/voice_call/ringtone_player.dart'
-    show NoopRingtonePlayer, RingtonePlayer;
-import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show ActiveCall, SessionSnapshot;
-import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
-import 'package:mosh/src/state/session_providers.dart'
-    show activeSessionProvider;
+import 'package:mosh/src/features/voice_call/call_dialog.dart';
+import 'package:mosh/src/features/voice_call/call_control_gate.dart';
+import 'package:mosh/src/features/voice_call/call_ringing.dart';
+import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
+import 'package:mosh/src/features/voice_call/voice_call_orchestrator.dart';
+import 'package:mosh/src/features/voice_call/voice_capture.dart';
+import 'package:mosh/src/features/voice_call/voice_playback.dart';
+import 'package:mosh/src/features/voice_call/ringtone_player.dart';
+import 'package:mosh/src/gateway/bridge_facade.dart';
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/state/conversation_providers.dart';
+import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/session_providers.dart';
+import 'package:mosh/src/state/voice_call_session_provider.dart';
+import 'package:mosh/src/state/voice_call_start_provider.dart';
 
-/// Where a call failure came from. The orchestrator owns the failure; the
-/// UI only decides how to show it, and that decision is made here.
-enum CallErrorSource {
-  /// A call-control action (accept / decline / hang up) failed. The call is
-  /// otherwise fine, so this is transient feedback (a snack bar).
-  callControl,
+enum CallErrorSource { callControl, audioSetup }
 
-  /// Bringing up the audio pipeline failed: the call is dead, so the
-  /// message lands in the host conversation's error banner.
-  audioSetup,
-}
-
-/// A failure the call UI must show, and where it belongs. The cause is
-/// already classified, so the layer picks the wording from the bridge kind
-/// like every other screen.
 class CallError {
   const CallError({required this.cause, required this.source});
   final ConversationActionError cause;
   final CallErrorSource source;
 }
 
-/// The orchestrator state the call UI reads. Nothing here is owned by the
-/// widget that renders it: the dialog comes from the session snapshot, and
-/// the mute flag and the error from the orchestrator itself.
 class VoiceCallOrchestratorState {
   const VoiceCallOrchestratorState({
     this.dialog = const NoCallDialog(),
     this.muted = false,
+    this.audioReady = false,
+    this.audioFailed = false,
+    this.busy = false,
     this.error,
   });
 
   final CallDialog dialog;
   final bool muted;
+  final bool audioReady;
+  final bool audioFailed;
+  final bool busy;
   final CallError? error;
 
   VoiceCallOrchestratorState copyWith({
     CallDialog? dialog,
     bool? muted,
+    bool? audioReady,
+    bool? audioFailed,
+    bool? busy,
     CallError? error,
   }) =>
       VoiceCallOrchestratorState(
         dialog: dialog ?? this.dialog,
         muted: muted ?? this.muted,
+        audioReady: audioReady ?? this.audioReady,
+        audioFailed: audioFailed ?? this.audioFailed,
+        busy: busy ?? this.busy,
         error: error ?? this.error,
       );
 
-  /// A new state with no error -- used after the layer has shown one.
-  VoiceCallOrchestratorState copyWithoutError() =>
-      VoiceCallOrchestratorState(dialog: dialog, muted: muted);
+  VoiceCallOrchestratorState copyWithoutError() => VoiceCallOrchestratorState(
+        dialog: dialog,
+        muted: muted,
+        audioReady: audioReady,
+        audioFailed: audioFailed,
+        busy: busy,
+      );
 }
 
-/// The capture/playback factory providers. Noop defaults keep isolated
-/// provider containers inert; the production root binds the real record/cpal
-/// implementations, while tests can override these with fakes.
 final voiceCaptureFactoryProvider = Provider<VoiceCaptureFactory>(
   (ref) => const NoopVoiceCaptureFactory(),
 );
@@ -84,179 +81,210 @@ final ringtonePlayerProvider = Provider<RingtonePlayer>(
   (ref) => const NoopRingtonePlayer(),
 );
 
-/// Family by sessionId. Riverpod v3 passes the family arg to the Notifier's
-/// constructor (Notifier.build takes no arg) -- so the class extends plain
-/// Notifier and stores the arg in a field. The constructor-fn below
-/// receives the arg from NotifierProvider.family's builder.
-final voiceCallOrchestratorProvider = NotifierProvider.family<
-    VoiceCallOrchestratorNotifier, VoiceCallOrchestratorState, String>(
+final _callAudioProvider = Provider<VoiceCallOrchestrator>((ref) {
+  final audio = VoiceCallOrchestrator();
+  ref.onDispose(() => unawaited(audio.detach()));
+  return audio;
+});
+
+final voiceCallOrchestratorProvider = NotifierProvider.autoDispose
+    .family<VoiceCallOrchestratorNotifier, VoiceCallOrchestratorState, String>(
   VoiceCallOrchestratorNotifier.new,
 );
 
+/// One selected DM's call state. Audio replacement is serialized by the
+/// application-level audio owner; ringtone lifetime is independent of widgets.
 class VoiceCallOrchestratorNotifier
     extends Notifier<VoiceCallOrchestratorState> {
   VoiceCallOrchestratorNotifier(this.sessionId);
   final String sessionId;
-
-  VoiceCallOrchestrator? _orchestrator;
-  // The call the orchestrator is currently attached to (or null when
-  // detached). Used to detect a call-id change and re-attach.
+  late VoiceCallOrchestrator _audio;
+  late CallRinging _ringing;
+  SessionSnapshot? _snapshot;
   String? _attachedCallId;
-  // The call a hang-up has already been sent for. A snapshot re-poll can
-  // land before the runtime clears the call; without this the second tap
-  // (or the re-poll) would end the same call twice. Reset when the call is
-  // gone or the hang-up failed, so the action stays retryable.
-  String? _endedCallId;
-  // The failure the layer has not yet surfaced. Held as a field (not
-  // reconstructed from the snapshot) so a re-poll cannot wipe an unshown
-  // error; the layer clears it once it has drawn it.
+  String? _dismissedCallId;
+  String? _acceptedCallId;
+  final _controls = CallControlGate();
   CallError? _error;
+  String? _failedCallId;
+  bool _appOwned = false;
 
   @override
   VoiceCallOrchestratorState build() {
-    // Riverpod runs `onDispose` on every rebuild, not only on disposal. The
-    // session is therefore listened to rather than watched: build never
-    // re-runs on the 1 s poll, and the detach below fires only when the
-    // provider really goes away. (Watching it detached the audio one poll
-    // after attach while the call stayed up.)
-    ref.onDispose(() {
-      _orchestrator?.detach(); // fire-and-forget; onDispose is sync.
-      _orchestrator = null;
-      _attachedCallId = null;
+    _audio = ref.read(_callAudioProvider);
+    _ringing = CallRinging(ref.read(ringtonePlayerProvider), (id) {
+      if (ref.mounted) unawaited(declineCall(id, kCallDeclineReasonNoAnswer));
     });
-    ref.listen(personalChatNameProvider(DmTarget(sessionId).ref), (_, next) {
-      state = _stateFor(ref.read(activeSessionProvider(sessionId)).value);
+    ref.onDispose(() {
+      _ringing.dispose();
+      final id = _attachedCallId;
+      if (id != null) unawaited(_audio.detach(call: (sessionId, id)));
+    });
+    ref.listen(personalChatNameProvider(DmTarget(sessionId).ref), (_, __) {
+      state = _stateFor(_snapshot);
+    });
+    final selected = ref.read(voiceCallSessionProvider);
+    _appOwned = selected?.sessionId == sessionId;
+    ref.listen(voiceCallSessionProvider, (_, next) {
+      if (next?.sessionId == sessionId) {
+        _appOwned = true;
+        state = _stateFor(next);
+      } else if (_appOwned) {
+        state = _stateFor(null);
+      }
     });
     ref.listen(activeSessionProvider(sessionId), (_, next) {
-      state = _stateFor(next.value);
+      if (!_appOwned && next is AsyncData<SessionSnapshot>) {
+        state = _stateFor(next.value);
+      }
     });
-    return _stateFor(ref.read(activeSessionProvider(sessionId)).value);
+    return _stateFor(_appOwned
+        ? selected
+        : ref.read(activeSessionProvider(sessionId)).value);
   }
 
-  /// Reconciles the audio transport with [session] and derives the state
-  /// the call UI reads from it.
   VoiceCallOrchestratorState _stateFor(SessionSnapshot? session) {
-    _maybeReattach(session?.activeCall);
+    _snapshot = session;
+    var dialog = callDialogFor(session,
+        personalName:
+            ref.read(personalChatNameProvider(DmTarget(sessionId).ref)));
+    if (dialog.callId != _dismissedCallId) _dismissedCallId = null;
+    if (dialog.callId == _dismissedCallId) dialog = const NoCallDialog();
+    if (dialog.callId != _failedCallId) _failedCallId = null;
+    if (dialog is! IncomingCallDialog) _acceptedCallId = null;
+    final busy = _controls.isBusy(dialog.callId) ||
+        (_acceptedCallId != null && _acceptedCallId == dialog.callId);
+    _ringing.update(dialog, busy: busy);
+    _attach(dialog is ActiveCallDialog ? dialog.active : null);
     return VoiceCallOrchestratorState(
-      dialog: callDialogFor(session,
-          personalName:
-              ref.read(personalChatNameProvider(DmTarget(sessionId).ref))),
-      muted: _orchestrator?.isMuted ?? false,
+      dialog: dialog,
+      muted: _attachedCallId == null ? false : _audio.isMuted,
+      audioReady: _attachedCallId != null && _audio.isAttached,
+      audioFailed: _failedCallId != null,
+      busy: busy,
       error: _error,
     );
   }
 
-  void _maybeReattach(ActiveCall? activeCall) {
-    if (activeCall == null) {
-      final o = _orchestrator;
-      if (o != null) {
-        o.detach();
-        _orchestrator = null;
-        _attachedCallId = null;
-      }
-      _endedCallId = null;
-      return;
-    }
-    if (_attachedCallId == activeCall.callId && _orchestrator != null) {
-      return; // same call already attached -- nothing to do.
-    }
-    _orchestrator?.detach();
-    _orchestrator = VoiceCallOrchestrator();
-    _attachedCallId = activeCall.callId;
-    _endedCallId = null;
-    final orchestrator = _orchestrator!;
-    final sid = sessionId;
+  void _attach(ActiveCall? active) {
+    if (active?.callId == _attachedCallId) return;
+    final old = _attachedCallId;
+    _attachedCallId = active?.callId;
+    if (old != null) unawaited(_audio.detach(call: (sessionId, old)));
+    if (active == null) return;
+    final id = active.callId;
     final bridge = ref.read(bridgeFacadeProvider);
-    orchestrator.attach(
-      sessionId: sid,
-      callId: activeCall.callId,
-      keyB64: activeCall.keyB64,
-      noncePrefixB64: activeCall.noncePrefixB64,
-      direction: activeCall.direction,
+    unawaited(_audio.attach(
+      sessionId: sessionId,
+      callId: id,
+      keyB64: active.keyB64,
+      noncePrefixB64: active.noncePrefixB64,
+      direction: active.direction,
       bridge: bridge,
       captureFactory: ref.read(voiceCaptureFactoryProvider),
       playbackFactory: ref.read(voicePlaybackFactoryProvider),
-      onError: (message) => _fail(message, CallErrorSource.audioSetup),
-      endCall: (s, c, reason) async {
-        if (!ref.mounted) return;
-        await bridge.callEnd(sessionId: s, callId: c, reason: reason);
-        ref.invalidate(activeSessionProvider(sid));
+      onReady: () {
+        if (ref.mounted && _attachedCallId == id) state = _stateFor(_snapshot);
       },
-    );
+      onError: (message) {
+        if (!ref.mounted || _attachedCallId != id) return;
+        _failedCallId = id;
+        _fail(message, CallErrorSource.audioSetup);
+      },
+      endCall: (_, c, reason) => _endCall(c, reason, preserveError: true),
+    ));
   }
 
-  /// Places a call. Resolves to the error to surface, or to null when the
-  /// call went out. Not routed through [CallError]: a call that never
-  /// started has no layer to surface it, so the caller keeps the error.
-  Future<Object?> startCall() async {
-    try {
-      await ref.read(bridgeFacadeProvider).callStart(sessionId: sessionId);
-      if (ref.mounted) ref.invalidate(activeSessionProvider(sessionId));
-      return null;
-    } catch (e) {
-      return e;
+  Future<Object?> startCall() =>
+      ref.read(voiceCallStartProvider.notifier).start(sessionId);
+
+  Future<void> acceptCall(String id) => state.dialog is IncomingCallDialog
+      ? _control(id, (b) => b.callAccept(sessionId: sessionId, callId: id),
+          terminal: false)
+      : Future.value();
+
+  Future<void> declineCall(String id, String reason) =>
+      state.dialog is IncomingCallDialog && _acceptedCallId != id
+          ? _control(
+              id,
+              (b) => b.callDecline(
+                  sessionId: sessionId, callId: id, reason: reason))
+          : Future.value();
+
+  /// Closing is terminal intent even while accept is pending. Recheck the same
+  /// call after that operation, then choose decline or hang-up from current state.
+  Future<void> endCall(String id, String reason) => _endCall(id, reason);
+
+  Future<void> _endCall(String id, String reason,
+      {bool preserveError = false}) async {
+    if (state.dialog.callId != id) return;
+    await _controls.wait(id);
+    if (!ref.mounted || state.dialog.callId != id) return;
+    final incoming =
+        state.dialog is IncomingCallDialog && _acceptedCallId != id;
+    await _control(
+        id,
+        (b) => incoming
+            ? b.callDecline(
+                sessionId: sessionId,
+                callId: id,
+                reason: kCallDeclineReasonUser)
+            : b.callEnd(sessionId: sessionId, callId: id, reason: reason),
+        closing: true,
+        preserveError: preserveError);
+  }
+
+  Future<void> _control(String id, Future<void> Function(BridgeFacade) action,
+      {bool terminal = true,
+      bool closing = false,
+      bool preserveError = false}) async {
+    if (state.dialog.callId != id ||
+        _controls.isBusy(id) ||
+        (state.busy && !closing)) {
+      return;
     }
+    await _controls.run(id, () async {
+      if (!preserveError) _error = null;
+      state = _stateFor(_snapshot);
+      try {
+        await action(ref.read(bridgeFacadeProvider));
+        if (!ref.mounted || state.dialog.callId != id) return;
+        if (terminal) {
+          _dismissedCallId = id;
+        } else {
+          _acceptedCallId = id;
+        }
+        state = _stateFor(_snapshot);
+        _refresh();
+      } catch (error) {
+        if (!ref.mounted || state.dialog.callId != id) return;
+        if (!preserveError) _fail(error, CallErrorSource.callControl);
+      }
+    });
+    if (ref.mounted && state.dialog.callId == id) state = _stateFor(_snapshot);
   }
 
-  /// Accepts the inbound call [callId] and refreshes the session.
-  Future<void> acceptCall(String callId) =>
-      _control((b) => b.callAccept(sessionId: sessionId, callId: callId));
-
-  /// Declines the inbound call [callId] for [reason] and refreshes.
-  Future<void> declineCall(String callId, String reason) => _control(
-        (b) =>
-            b.callDecline(sessionId: sessionId, callId: callId, reason: reason),
-      );
-
-  /// Hangs up the active call [callId] for [reason] and refreshes. A second
-  /// call for the same [callId] before the first clears is a no-op; a failed
-  /// hang-up lets a retry through.
-  Future<void> endCall(String callId, String reason) async {
-    if (_endedCallId == callId) return;
-    _endedCallId = callId;
-    final ended = await _control(
-      (b) => b.callEnd(sessionId: sessionId, callId: callId, reason: reason),
-    );
-    if (!ended && _endedCallId == callId) _endedCallId = null;
+  void _refresh() {
+    if (!ref.mounted) return;
+    if (!_appOwned) ref.invalidate(activeSessionProvider(sessionId));
+    ref.invalidate(conversationListProvider(ConversationKind.dm));
   }
 
-  /// Toggles mute. Mirrors the orchestrator's own flag;
-  /// bumps state so the CallOverlay re-renders the mic icon.
   void toggleMute() {
-    _orchestrator?.toggleMute();
-    if (ref.mounted) {
-      state = state.copyWith(muted: _orchestrator?.isMuted ?? false);
-    }
+    if (!state.audioReady || state.busy) return;
+    _audio.toggleMute();
+    state = state.copyWith(muted: _audio.isMuted);
   }
 
-  /// Clears the surfaced error once the layer has shown it.
   void clearError() {
-    if (_error == null) return;
     _error = null;
     if (ref.mounted) state = state.copyWithoutError();
   }
 
-  Future<bool> _control(
-    Future<void> Function(BridgeFacade bridge) action,
-  ) async {
-    try {
-      await action(ref.read(bridgeFacadeProvider));
-      if (ref.mounted) ref.invalidate(activeSessionProvider(sessionId));
-      return true;
-    } catch (e) {
-      _fail(e, CallErrorSource.callControl);
-      return false;
-    }
-  }
-
   void _fail(Object? error, CallErrorSource source) {
-    if (!ref.mounted) return;
     _error = CallError(
-      cause: error == null
-          ? const ConversationActionError.text('Call failed')
-          : ConversationActionError.of(error),
-      source: source,
-    );
-    state = state.copyWith(error: _error);
+        cause: ConversationActionError.of(error ?? 'Call failed'),
+        source: source);
+    state = _stateFor(_snapshot);
   }
 }

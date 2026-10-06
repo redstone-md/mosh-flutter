@@ -26,8 +26,8 @@ import '../../support/scriptable_bridge.dart';
 ActiveCall _active({required int startedAtMs}) => ActiveCall(
       callId: 'call-1',
       direction: 'caller',
-      keyB64: 'k',
-      noncePrefixB64: 'n',
+      keyB64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+      noncePrefixB64: 'AAAAAA==',
       startedAtMs: BigInt.from(startedAtMs),
     );
 
@@ -104,6 +104,9 @@ void main() {
         isTrue,
       );
       expect(find.byIcon(Icons.mic_off), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.pump();
     },
   );
 
@@ -126,6 +129,9 @@ void main() {
       );
       await tester.tap(find.byIcon(Icons.phone_disabled));
       expect(hangUpCount, 1);
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.pump();
     },
   );
 
@@ -148,6 +154,9 @@ void main() {
       );
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       expect(hangUpCount, 1);
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.pump();
     },
   );
 
@@ -170,6 +179,9 @@ void main() {
       );
       expect(find.text('Alice'), findsOneWidget);
       expect(find.text('0:00'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.pump();
     },
   );
 
@@ -191,6 +203,9 @@ void main() {
         container: container,
       );
       expect(find.text('1:05'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.pump();
     },
   );
 
@@ -218,6 +233,9 @@ void main() {
       await tester.pump();
       expect(find.byIcon(Icons.mic_off), findsOneWidget);
       expect(find.byIcon(Icons.mic), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.pump();
     },
   );
 

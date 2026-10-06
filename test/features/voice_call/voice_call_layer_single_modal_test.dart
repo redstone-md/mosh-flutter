@@ -11,9 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/voice_call/call_overlay.dart';
-import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
-import 'package:mosh/src/features/voice_call/outgoing_call_modal.dart';
+import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/voice_call_layer.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -104,15 +102,15 @@ void main() {
     session.snapshot =
         _snapshot(outgoingCall: const OutgoingCall(callId: 'call-1'));
     await pumpLayer(tester);
-    expect(find.byType(OutgoingCallModal), findsOneWidget);
+    expect(find.text('Calling...'), findsOneWidget);
 
     session.snapshot = _snapshot(activeCall: _active);
     await _poll(tester, container);
     await _poll(tester, container);
     await _poll(tester, container);
 
-    expect(find.byType(OutgoingCallModal), findsNothing);
-    expect(find.byType(CallOverlay), findsOneWidget);
+    expect(find.text('Calling...'), findsNothing);
+    expect(find.byType(CallView), findsOneWidget);
   });
 
   testWidgets('callee: ring -> accept -> active -> re-polls shows one overlay',
@@ -120,7 +118,7 @@ void main() {
     session.snapshot = _snapshot(
         pendingCall: const PendingCall(callId: 'call-1', fromDevice: 'Alice'));
     await pumpLayer(tester);
-    expect(find.byType(IncomingCallModal), findsOneWidget);
+    expect(find.text('Incoming voice call...'), findsOneWidget);
 
     session.snapshot = _snapshot(activeCall: _active);
     await tester.tap(find.byTooltip(
@@ -130,7 +128,7 @@ void main() {
     await _poll(tester, container);
     await _poll(tester, container);
 
-    expect(find.byType(IncomingCallModal), findsNothing);
-    expect(find.byType(CallOverlay), findsOneWidget);
+    expect(find.text('Incoming voice call...'), findsNothing);
+    expect(find.byType(CallView), findsOneWidget);
   });
 }

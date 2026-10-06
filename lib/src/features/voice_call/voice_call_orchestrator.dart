@@ -1,176 +1,96 @@
 import 'dart:async';
-import 'dart:typed_data';
 
-import 'package:cryptography/cryptography.dart' show SecretKey;
-import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
+import 'package:mosh/src/gateway/bridge_facade.dart';
+import 'call_audio_session.dart';
+import 'voice_capture.dart';
+import 'voice_playback.dart';
 
-import 'call_drain.dart' show drainCallFrames;
-import 'frame_codec.dart' show CALLER_DIRECTION_BIT, CALLEE_DIRECTION_BIT;
-import 'frame_crypto.dart' show importCallKey, sealFrame;
-import 'jitter_buffer.dart' show JitterBuffer;
-import 'voice_capture.dart' show VoiceCaptureFactory, VoiceCaptureHandle;
-import 'voice_playback.dart' show VoicePlaybackFactory, VoicePlaybackHandle;
-
-// The setup-failure reason passed to endCall when attach throws.
 const String kSetupFailedReason = 'setup_failed';
-
-// The 20ms frame-poll interval.
 const Duration kCallFramePollInterval = Duration(milliseconds: 20);
 
+/// Serializes audio replacement. A new call cannot open the microphone or
+/// player until the previous startup and teardown have finished.
 class VoiceCallOrchestrator {
-  VoiceCallOrchestrator();
+  Future<void> _transition = Future.value();
+  CallAudioSession? _session;
+  (String, String)? _requestedCall;
+  int _generation = 0;
 
-  SecretKey? _key;
-  BigInt _seq = BigInt.zero;
-  JitterBuffer? _jitter;
-  VoiceCaptureHandle? _capture;
-  VoicePlaybackHandle? _playback;
-  Timer? _poll;
-  bool _cancelled = false;
-  bool _draining = false;
-  bool _muted = false;
+  bool get isMuted => _session?.muted ?? false;
+  bool get isAttached => _session?.ready ?? false;
 
-  // Whether the local mic is muted.
-  bool get isMuted => _muted;
-
-  // Toggles mute. While muted the capture onFrame early-returns and no
-  // frame is sealed/sent.
   void toggleMute() {
-    _muted = !_muted;
+    final session = _session;
+    if (session?.ready == true) session!.muted = !session.muted;
   }
 
-  // Attaches to an active call and starts the audio-transport loops.
-  // Call detach() to tear down.
   Future<void> attach({
     required String sessionId,
     required String callId,
     required String keyB64,
     required String noncePrefixB64,
-    required String direction, // "caller" | "callee"
+    required String direction,
     required BridgeFacade bridge,
     required VoiceCaptureFactory captureFactory,
     required VoicePlaybackFactory playbackFactory,
     required void Function(String? message) onError,
-    required Future<void> Function(
-            String sessionId, String callId, String reason)
-        endCall,
-  }) async {
-    final directionBit =
-        direction == 'caller' ? CALLER_DIRECTION_BIT : CALLEE_DIRECTION_BIT;
-    _cancelled = false;
+    required Future<void> Function(String, String, String) endCall,
+    void Function()? onReady,
+  }) {
+    final generation = ++_generation;
+    _requestedCall = (sessionId, callId);
+    _session?.cancel();
+    final session = CallAudioSession(
+      sessionId: sessionId,
+      callId: callId,
+      keyB64: keyB64,
+      noncePrefix: noncePrefixB64,
+      direction: direction,
+      bridge: bridge,
+      captureFactory: captureFactory,
+      playbackFactory: playbackFactory,
+    );
+    return _transition = _transition.then((_) async {
+      await _session?.stop();
+      _session = null;
+      if (generation != _generation) return;
+      _session = session;
+      await _start(session, generation, onReady, onError, endCall);
+    });
+  }
+
+  Future<void> _start(
+    CallAudioSession session,
+    int generation,
+    void Function()? onReady,
+    void Function(String?) onError,
+    Future<void> Function(String, String, String) endCall,
+  ) async {
     try {
-      final key = await importCallKey(keyB64);
-      if (_cancelled) return;
-      _key = key;
-      _seq = BigInt.zero;
-      _muted = false;
-      _jitter = JitterBuffer();
-      final playback = await playbackFactory.start();
-      if (_cancelled) {
-        await playback.stop();
-        return;
+      await session.start();
+      if (generation == _generation && session.ready) onReady?.call();
+    } catch (error) {
+      await session.stop();
+      if (generation != _generation) return;
+      onError('Voice call setup failed: $error');
+      try {
+        await endCall(session.sessionId, session.callId, kSetupFailedReason);
+      } catch (_) {
+        // Keep the setup error visible even when signaling also fails.
       }
-      _playback = playback;
-      final capture = await captureFactory.start((frame) {
-        if (_cancelled || _muted) return;
-        final key = _key;
-        if (key == null) return;
-        // Snapshot+increment synchronously: sealFrame is async, so two
-        // frames in flight would otherwise reuse the AES-GCM nonce.
-        final seq = _seq;
-        _seq = _seq + BigInt.one;
-        _sealAndSend(
-          key: key,
-          noncePrefix: noncePrefixB64,
-          seq: seq,
-          directionBit: directionBit,
-          frame: frame,
-          bridge: bridge,
-          sessionId: sessionId,
-          callId: callId,
-        );
-      });
-      if (_cancelled) {
-        await capture.stop();
-        return;
-      }
-      _capture = capture;
-      _poll = Timer.periodic(kCallFramePollInterval, (_) {
-        final key = _key;
-        final jitter = _jitter;
-        final playback = _playback;
-        if (_draining || key == null || jitter == null || playback == null) {
-          return;
-        }
-        _draining = true;
-        // Swallow poll errors and always reset the draining guard so the
-        // next tick can fire.
-        drainCallFrames(
-          bridge: bridge,
-          sessionId: sessionId,
-          callId: callId,
-          key: key,
-          noncePrefix: noncePrefixB64,
-          jitter: jitter,
-          playback: playback,
-        ).then((_) {}, onError: (_) {}).whenComplete(() {
-          _draining = false;
-        });
-      });
-    } catch (err) {
-      // flutter_rust_bridge throws the Rust `Err(String)` as a bare String,
-      // so anything but `err.toString()` hides the real reason (this used to
-      // print a fixed "Voice call setup failed" for every non-Exception).
-      onError('Voice call setup failed: $err');
-      await endCall(sessionId, callId, kSetupFailedReason);
     }
   }
 
-  // Detaches from the active call and tears down all resources.
-  // Idempotent: safe to call when not attached or after a partial attach.
-  Future<void> detach() async {
-    _cancelled = true;
-    _poll?.cancel();
-    _poll = null;
-    final capture = _capture;
-    final playback = _playback;
-    _capture = null;
-    _playback = null;
-    _key = null;
-    _seq = BigInt.zero;
-    _jitter = null;
-    _muted = false;
-    if (capture != null) {
-      try {
-        await capture.stop();
-      } catch (_) {}
-    }
-    if (playback != null) {
-      try {
-        await playback.stop();
-      } catch (_) {}
-    }
-  }
-
-  // Seals + sends one captured frame. Fire-and-forget; the capture onFrame
-  // already snapshotted+incremented seq synchronously.
-  Future<void> _sealAndSend({
-    required SecretKey key,
-    required String noncePrefix,
-    required BigInt seq,
-    required BigInt directionBit,
-    required Uint8List frame,
-    required BridgeFacade bridge,
-    required String sessionId,
-    required String callId,
-  }) async {
-    try {
-      final seal = await sealFrame(key, noncePrefix, seq, directionBit, frame);
-      if (_cancelled || !identical(_key, key)) return;
-      await bridge.callSendFrame(
-          sessionId: sessionId, callId: callId, frame: seal);
-    } catch (_) {
-      // Send failure is non-fatal -- swallow here.
-    }
+  /// A disposed owner can only detach the call it owned. This prevents its
+  /// delayed cleanup from stopping a replacement call in another DM.
+  Future<void> detach({(String, String)? call}) {
+    if (call != null && call != _requestedCall) return Future.value();
+    ++_generation;
+    _requestedCall = null;
+    _session?.cancel();
+    return _transition = _transition.then((_) async {
+      await _session?.stop();
+      _session = null;
+    });
   }
 }
