@@ -1057,5 +1057,17 @@
       }
     }
   },
-  "messageDeletionFailed": "Не удалось удалить сообщения. Выбор сохранён, попробуйте ещё раз."
+  "messageDeletionFailed": "Не удалось удалить сообщения. Выбор сохранён, попробуйте ещё раз.",
+  "callAlreadyInProgress": "Завершите текущий звонок, прежде чем начать новый.",
+  "callAudioFailed": "Звук недоступен",
+  "callAudioConnecting": "Подключаем звук…",
+  "callShowWindow": "Открыть окно звонка",
+  "callIncomingNotification": "Входящий звонок от {peer}",
+  "@callIncomingNotification": {
+    "placeholders": {
+      "peer": {
+        "type": "String"
+      }
+    }
+  }
 }

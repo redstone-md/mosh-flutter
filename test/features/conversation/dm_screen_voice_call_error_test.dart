@@ -10,6 +10,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
     show conversationCallBindingProvider;
 import 'package:mosh/src/features/conversation/dm_screen.dart';
+import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import 'package:mosh/src/features/voice_call/voice_call_binding.dart'
     show voiceCallBinding;
@@ -55,13 +56,15 @@ SessionSnapshot _activeSnapshot(String sessionId) => SessionSnapshot(
 
 void main() {
   testWidgets(
-      'active-call audio setup failure renders inline error without Retry',
+      'active-call audio setup failure shows an app-level error without Retry',
       (tester) async {
     const sessionId = 'sess-voice-error';
     final gateway = ScriptableGateway();
+    gateway.seedSessions([_activeSnapshot(sessionId)]);
     final bridge = ScriptableBridge(conversations: gateway.conversations);
 
-    await pumpScreen(tester, const DmScreen(sessionId: sessionId),
+    await pumpScreen(
+        tester, const VoiceCallHost(child: DmScreen(sessionId: sessionId)),
         overrides: [
           gatewayProvider.overrideWithValue(gateway),
           bridgeFacadeProvider.overrideWithValue(bridge),
