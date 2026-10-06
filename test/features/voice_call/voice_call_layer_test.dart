@@ -1,7 +1,10 @@
 // Tests for the voice-call wiring seam: `startVoiceCall` routes through the
 // `Gateway.callStart` seam, and `VoiceCallLayer` shows the OutgoingCallModal
 // when the snapshot reflects an `outgoingCall`.
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:mosh/src/state/conversation_providers.dart';
+import 'package:mosh/src/state/session_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart' show MethodChannel;
@@ -85,6 +88,61 @@ SessionSnapshot _activeSnapshot(String sessionId) => TestSnapshots.dm(
     );
 
 void main() {
+  for (final (stale, focused) in [
+    (false, false),
+    (true, false),
+    (false, true)
+  ]) {
+    testWidgets(
+        'notification waits for readiness; obsolete: $stale, focused: $focused',
+        (tester) async {
+      final ready = Completer<bool>();
+      final gateway = ScriptableGateway()
+        ..seedSessions([_pendingSnapshot('sess-1', fromDevice: 'Alice')]);
+      final notifications = _RecordingNotifications();
+      final l = await AppLocalizations.delegate.load(const Locale('en'));
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(const MethodChannel('window_manager'),
+          (call) async => call.method == 'isFocused' ? false : null);
+      addTearDown(() => messenger.setMockMethodCallHandler(
+          const MethodChannel('window_manager'), null));
+      final container = ProviderContainer(overrides: [
+        gatewayProvider.overrideWithValue(gateway),
+        bridgeFacadeProvider.overrideWithValue(
+            ScriptableBridge(conversations: gateway.conversations)),
+        notificationsReadyProvider.overrideWith((_) => ready.future),
+        flutterLocalNotificationsPluginProvider
+            .overrideWithValue(notifications),
+      ]);
+      addTearDown(container.dispose);
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body: VoiceCallLayer(
+                  sessionId: 'sess-1',
+                  l: l,
+                  isCallWindowFocused: () async => focused)),
+          container: container,
+          settle: false);
+      await tester.pump();
+      expect(notifications.showCalls, 0);
+      if (stale) {
+        gateway.seedSessions([TestSnapshots.dm(sessionId: 'sess-1')]);
+        container.invalidate(conversationListProvider(ConversationKind.dm));
+        container.invalidate(activeSessionProvider('sess-1'));
+        await tester.pump();
+      }
+      ready.complete(true);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(notifications.showCalls, stale || focused ? 0 : 1);
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.pump();
+    });
+  }
+
   testWidgets('active call leaves the conversation controls usable',
       (tester) async {
     final gateway = ScriptableGateway();
@@ -244,8 +302,7 @@ void main() {
       // on Windows/macOS hosts. `flutter test` has no window_manager platform
       // impl, so mock the 'window_manager' method channel to report the
       // window as UNFOCUSED (so the gate passes and `show` runs). Harmless on
-      // Linux hosts (the channel is never called there -- the layer skips the
-      // focus check on Linux).
+      // Linux hosts, where the same focus gate applies.
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(const MethodChannel('window_manager'),
               (call) async {

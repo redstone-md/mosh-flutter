@@ -7,6 +7,7 @@ import 'call_view_state.dart';
 abstract interface class CallWindowHandle {
   Future<void> present(CallViewState state);
   Future<void> show();
+  Future<bool> isFocused();
   Future<void> close();
 }
 
@@ -105,6 +106,18 @@ class CallWindowCoordinator {
         _start();
         await _working;
       }
+    }
+  }
+
+  Future<bool> isFocused() async {
+    await _working;
+    final window = _window;
+    if (_disposed || window == null) return false;
+    try {
+      final focused = await window.isFocused();
+      return !_disposed && identical(_window, window) && focused;
+    } catch (_) {
+      return false;
     }
   }
 

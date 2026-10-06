@@ -85,7 +85,8 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
     return _CallHostOverlay(
       child: Column(children: [
         Expanded(child: widget.child),
-        if (selected != null) _strip(selected.sessionId, l),
+        if (selected != null)
+          SafeArea(top: false, child: _strip(selected.sessionId, l)),
       ]),
     );
   }
@@ -98,6 +99,7 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
         onShowWindow: ref.read(callWindowFactoryProvider) == null
             ? null
             : () => unawaited(_window.show()),
+        isCallWindowFocused: _window.isFocused,
         onVoiceCallError: (message) {
           if (message != null) {
             ScaffoldMessenger.maybeOf(context)

@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_stream`, `gain_at`, `next`, `ringtone_sample`, `write_f32`, `write_i16`, `write_u16`
+// These functions are ignored because they are not marked as `pub`: `build_stream`, `output_stream`, `sample`, `write`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SignalGenerator`
 
 VoiceCallRingtone voiceCallRingtoneStart({String? outputDeviceId}) =>

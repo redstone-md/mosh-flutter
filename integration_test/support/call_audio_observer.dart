@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:mosh/src/features/voice_call/cpal_ringtone.dart';
-import 'package:mosh/src/features/voice_call/desktop_call_window.dart';
+import 'package:mosh/src/features/voice_call/process_call_window.dart';
 import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/cpal_voice_playback.dart';
@@ -23,7 +23,7 @@ class CallAudioObserver {
 
   Future<CallWindowHandle> openWindow(
       Future<void> Function(CallViewCommand) onCommand) async {
-    final handle = await openDesktopCallWindow(onCommand);
+    final handle = await ProcessCallWindow.open(onCommand);
     windows++;
     return _ObservedWindow(this, handle);
   }
@@ -115,6 +115,8 @@ class _ObservedWindow implements CallWindowHandle {
   Future<void> present(CallViewState state) => inner.present(state);
   @override
   Future<void> show() => inner.show();
+  @override
+  Future<bool> isFocused() => inner.isFocused();
   @override
   Future<void> close() async {
     await inner.close();

@@ -18,6 +18,7 @@ pub(super) fn command(
     probe: &mut Option<CallProbe>,
 ) -> Value {
     let call = args["call_id"].as_str().unwrap_or_default().to_owned();
+    let matches_probe = probe.as_ref().is_some_and(|probe| probe.call_id == call);
     let result = match action {
         "call_start" => {
             return serde_json::to_value(private_dm::call_start(session.into()).unwrap()).unwrap()
@@ -28,7 +29,7 @@ pub(super) fn command(
         "call_probe" => return media(session, probe),
         _ => panic!("unknown call command"),
     };
-    if action == "call_end" || action == "call_decline" {
+    if result.is_ok() && matches_probe && matches!(action, "call_end" | "call_decline") {
         *probe = None;
     }
     match result {

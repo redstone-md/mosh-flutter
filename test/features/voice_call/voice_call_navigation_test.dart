@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
+import 'package:mosh/src/features/voice_call/call_modal_card.dart';
 import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
@@ -27,6 +28,34 @@ Future<void> _frames(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('the shared strip stays inside phone system insets',
+      (tester) async {
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding =
+        const FakeViewPadding(bottom: 34, left: 18, right: 16);
+    addTearDown(tester.view.reset);
+    final gateway = ScriptableGateway()
+      ..seedSessions([
+        TestSnapshots.dm(
+            sessionId: 'origin',
+            outgoingCall: const OutgoingCall(callId: 'call'))
+      ]);
+    await pumpScreen(tester, const VoiceCallHost(child: Scaffold()),
+        overrides: [
+          gatewayProvider.overrideWithValue(gateway),
+          bridgeFacadeProvider.overrideWithValue(
+              ScriptableBridge(conversations: gateway.conversations)),
+        ],
+        settle: false);
+    await _frames(tester);
+    final rect = tester.getRect(find.byType(CallModalCard));
+    expect(rect.left, greaterThanOrEqualTo(18));
+    expect(rect.right, lessThanOrEqualTo(800 - 16));
+    expect(rect.bottom, lessThanOrEqualTo(600 - 34));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets(
       'navigation preserves one audio owner and controls the original DM',
       (tester) async {
