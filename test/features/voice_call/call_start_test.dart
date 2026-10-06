@@ -11,6 +11,38 @@ import '../../support/message_builders.dart';
 import '../../support/scriptable_bridge.dart';
 
 void main() {
+  test('cached empty list cannot admit a start after another DM gets a call',
+      () async {
+    final bridge = ScriptableBridge();
+    final container = ProviderContainer(
+        overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
+    addTearDown(container.dispose);
+    await container.read(conversationListProvider(ConversationKind.dm).future);
+    bridge.seedSessions([
+      TestSnapshots.dm(
+          sessionId: 'other',
+          pendingCall: const PendingCall(callId: 'incoming', fromDevice: 'Bob'))
+    ]);
+    final result =
+        await container.read(voiceCallStartProvider.notifier).start('origin');
+    expect(result, isA<CallAlreadyInProgress>());
+    expect(bridge.countOf(BridgeMethod.callStart), 0);
+  });
+
+  test('failed fresh admission read blocks start even with cached empty data',
+      () async {
+    final bridge = ScriptableBridge();
+    final container = ProviderContainer(
+        overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
+    addTearDown(container.dispose);
+    await container.read(conversationListProvider(ConversationKind.dm).future);
+    bridge.failNext(BridgeMethod.listSessions);
+    expect(
+        await container.read(voiceCallStartProvider.notifier).start('origin'),
+        isNotNull);
+    expect(bridge.countOf(BridgeMethod.callStart), 0);
+  });
+
   test('a pre-start list result cannot release failed confirmation admission',
       () async {
     final bridge = ScriptableBridge()..hold(BridgeMethod.callStart);

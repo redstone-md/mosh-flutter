@@ -118,7 +118,7 @@ class VoiceCallOrchestratorNotifier
     ref.onDispose(() {
       _ringing.dispose();
       final id = _attachedCallId;
-      if (id != null) unawaited(_audio.detach(callId: id));
+      if (id != null) unawaited(_audio.detach(call: (sessionId, id)));
     });
     ref.listen(personalChatNameProvider(DmTarget(sessionId).ref), (_, __) {
       state = _stateFor(_snapshot);
@@ -170,7 +170,7 @@ class VoiceCallOrchestratorNotifier
     if (active?.callId == _attachedCallId) return;
     final old = _attachedCallId;
     _attachedCallId = active?.callId;
-    if (old != null) unawaited(_audio.detach(callId: old));
+    if (old != null) unawaited(_audio.detach(call: (sessionId, old)));
     if (active == null) return;
     final id = active.callId;
     final bridge = ref.read(bridgeFacadeProvider);

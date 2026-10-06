@@ -96,3 +96,11 @@ application-router test checks the visible case; minimized restore still passes.
 | Finding | Decision | Change and evidence |
 | --- | --- | --- |
 | An earlier incoming DM hides an already active call during initial selection | Accept | When there is no retained owner, prefer an active call before falling back to list order. Two failing-then-passing provider tests cover initial selection and promotion after the owner ends. A third test preserves the existing incoming owner when another active call appears. |
+
+## Follow-up review of `4d4752e2`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| Cached admission misses a call in another DM | Accept | Refresh the DM list before starting and require a successful fresh read. Two failing-then-passing tests cover a newly pending call and a read failure behind an older empty cache. |
+| Old DM cleanup can stop a reused call ID in another DM | Accept | Scoped detach compares the `(sessionId, callId)` record. Both notifier cleanup paths pass the pair; only application disposal detaches unconditionally. Two failing-then-passing tests preserve a replacement that is already active or still starting. |
+| Escape in the main window does not end the call | Do not accept | Escape belongs to the dedicated call window. The compact strip shares the main window with navigation, message editing and dialogs. Settings uses Escape as Back, and dialogs use it for dismissal; global terminal handling would add an unintended hang-up path. The native scenario already checks Escape in the call window. The review thread remains open with this explanation. |
