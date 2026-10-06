@@ -13,7 +13,7 @@ const Duration kCallFramePollInterval = Duration(milliseconds: 20);
 class VoiceCallOrchestrator {
   Future<void> _transition = Future.value();
   CallAudioSession? _session;
-  String? _requestedCallId;
+  (String, String)? _requestedCall;
   int _generation = 0;
 
   bool get isMuted => _session?.muted ?? false;
@@ -38,7 +38,7 @@ class VoiceCallOrchestrator {
     void Function()? onReady,
   }) {
     final generation = ++_generation;
-    _requestedCallId = callId;
+    _requestedCall = (sessionId, callId);
     _session?.cancel();
     final session = CallAudioSession(
       sessionId: sessionId,
@@ -83,10 +83,10 @@ class VoiceCallOrchestrator {
 
   /// A disposed owner can only detach the call it owned. This prevents its
   /// delayed cleanup from stopping a replacement call in another DM.
-  Future<void> detach({String? callId}) {
-    if (callId != null && callId != _requestedCallId) return Future.value();
+  Future<void> detach({(String, String)? call}) {
+    if (call != null && call != _requestedCall) return Future.value();
     ++_generation;
-    _requestedCallId = null;
+    _requestedCall = null;
     _session?.cancel();
     return _transition = _transition.then((_) async {
       await _session?.stop();

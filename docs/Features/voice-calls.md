@@ -8,12 +8,14 @@ Navigation to another DM, group, channel or Settings keeps the audio running.
 Opening the originating DM remains available while call controls are pending.
 
 - Minimize preserves the call. The restore button brings its window forward.
-- Close or Escape declines an incoming call, cancels an outgoing call or hangs up
+- Close or Escape in the call window declines an incoming call, cancels an
+  outgoing call or hangs up
   an active call. Remote termination closes the window and removes the strip.
   Closing during acceptance waits for that same call's control operation, then
   declines on failure or ends the accepted call. Replacement calls do not wait
   for an older call's control.
   Automatic setup-failure completion uses the same serialized terminal path.
+  The main window retains its navigation and dialog Escape shortcuts.
 - The microphone button becomes available after capture and playback start.
   Muting suppresses outgoing frames. A setup error retains hang-up controls when
   signaling also fails.
@@ -35,7 +37,9 @@ pending or outgoing calls, irrespective of the DM list order.
 One shared audio orchestrator serializes replacement. Cancellation stops frame
 work immediately; startup and teardown must finish before another capture or
 player opens. Delayed controls, setup failures and drain responses are tied to
-their call ID and cannot affect a replacement call.
+their session and call IDs and cannot affect a replacement call.
+Starting a call refreshes the DM list before admission; a failed fresh read
+blocks the start even if an older cached list contained no calls.
 Cancellation starts capture and playback teardown independently, so waiting for
 one handle cannot delay release of the other. Replacement still waits for both.
 
@@ -123,19 +127,19 @@ functions remain within the limit.
   OS close in all phases and minimize/restore. Audio used real record/CPAL streams
   connected to PulseAudio's sine source and null output rather than physical
   microphone/speaker hardware.
-- 186 focused Flutter tests passed, covering system insets, delayed notification
+- 190 focused Flutter tests passed, covering system insets, delayed notification
   readiness, focused-window suppression and forced process termination with a
   broken input pipe, plus accept/close races, notification cancellation,
   admission confirmation, main-window restore, setup/control serialization and
   failed window-start retry, terminal buttons during acceptance and alerts after
   either window loses focus. Analyze and format passed.
-- Full Flutter suite: 1526 passed, four skipped. One unchanged test,
+- Full Flutter suite: 1530 passed, four skipped. One unchanged test,
   `media_kit_tracer_test.dart`, also fails when run alone because headless libmpv
   returns no screenshot. It imports no voice-call implementation.
 - Rust runtime unit/integration tests passed; doc tests, fmt and clippy passed.
   All seven ringtone tests passed, including explicit selected-output stream
   start/stop/repeat on PulseAudio.
-- Changed lines represented in LCOV: Dart 95.5% (845/885), Rust 97.7% (126/129).
+- Changed lines represented in LCOV: Dart 95.5% (849/889), Rust 97.7% (126/129).
   Application entrypoints are additionally exercised by the native scenario. Ringtone source
   coverage is 100% for recording conversion and 96.9% for CPAL playback. The
   available LCOV output contains no branch counters. Linux process startup and

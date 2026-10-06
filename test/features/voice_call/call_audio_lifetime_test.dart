@@ -27,9 +27,11 @@ class _DelayedCapture implements VoiceCaptureFactory {
 
 Future<void> _attach(VoiceCallOrchestrator audio, String id,
         VoiceCaptureFactory capture, RecordingPlayback playback,
-        {ScriptableBridge? bridge, void Function(String?)? onError}) =>
+        {String sessionId = 'session',
+        ScriptableBridge? bridge,
+        void Function(String?)? onError}) =>
     audio.attach(
-      sessionId: 'session',
+      sessionId: sessionId,
       callId: id,
       keyB64: _key,
       noncePrefixB64: _nonce,
@@ -62,12 +64,42 @@ void main() {
     expect(playback.starts, 2);
     expect(capture.stops, 1);
     expect(playback.stops, 1);
-    await audio.detach(callId: 'first');
+    await audio.detach(call: ('session', 'first'));
     expect(audio.isAttached, isTrue);
-    await audio.detach(callId: 'second');
+    await audio.detach(call: ('session', 'second'));
     expect(capture.stops, 2);
     expect(playback.stops, 2);
   });
+
+  for (final pending in [false, true]) {
+    test('old DM cleanup cannot stop a reused call ID; pending: $pending',
+        () async {
+      final audio = VoiceCallOrchestrator();
+      addTearDown(audio.detach);
+      final playback = RecordingPlayback();
+      await _attach(audio, 'shared', RecordingCapture(), playback,
+          sessionId: 'old');
+      final delayed = _DelayedCapture();
+      final capture = RecordingCapture();
+      final replacement = _attach(
+          audio, 'shared', pending ? delayed : capture, playback,
+          sessionId: 'new');
+      if (pending) {
+        await delayed.started.future;
+      } else {
+        await replacement;
+      }
+      final obsolete = audio.detach(call: ('old', 'shared'));
+      if (pending) delayed.handle.complete(await capture.start((_) {}));
+      await Future.wait([replacement, obsolete]);
+      expect(audio.isAttached, isTrue);
+      expect(playback.stops, 1);
+      expect(capture.stops, 0);
+      await audio.detach(call: ('new', 'shared'));
+      expect(capture.stops, 1);
+      expect(playback.stops, 2);
+    });
+  }
 
   test('capture returned after cancellation is stopped before replacement',
       () async {

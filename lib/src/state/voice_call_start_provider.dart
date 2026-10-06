@@ -33,6 +33,10 @@ class VoiceCallStartNotifier extends Notifier<bool> {
     }
     state = true;
     try {
+      await ref
+          .read(conversationListProvider(ConversationKind.dm).notifier)
+          .refresh();
+      if (!ref.mounted) return null;
       await ref.read(conversationListProvider(ConversationKind.dm).future);
       if (!ref.mounted) return null;
       if (ref.read(voiceCallSessionProvider) != null) {
