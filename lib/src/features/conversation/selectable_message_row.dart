@@ -23,6 +23,7 @@ class SelectableMessageRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final available = message.messageId != null;
     final row = CopyableMessage(
+        key: ValueKey(message.messageId ?? message),
         body: message.body,
         onSelect: available ? () => onSelect(message) : null,
         onDelete: available ? () => onDelete(message) : null,

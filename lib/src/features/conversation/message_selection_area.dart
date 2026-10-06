@@ -126,10 +126,20 @@ class _MessageSelectionAreaState extends State<MessageSelectionArea> {
       ];
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
-    if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.escape) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
       _clear();
       _menuKey.currentState?.dismiss();
+      return KeyEventResult.handled;
+    }
+    final message = _pointedMessage;
+    if (hasSelection &&
+        (_menuKey.currentState?.isOpen ?? false) &&
+        _copyShortcut.accepts(event, HardwareKeyboard.instance) &&
+        message != null &&
+        message.mounted) {
+      // Overlay focus has no widget ancestor containing the native action.
+      Actions.invoke(message.context, CopySelectionTextIntent.copy);
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;

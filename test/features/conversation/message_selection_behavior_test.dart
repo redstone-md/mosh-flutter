@@ -10,6 +10,28 @@ import '../../support/scriptable_gateway.dart';
 
 void main() {
   for (final conversation in conversationCases()) {
+    testWidgets('${conversation.label}: captioned files open on long press',
+        (tester) async {
+      final gateway = ScriptableGateway();
+      await pumpConversation(tester, conversation, gateway: gateway, messages: [
+        TestMessage(
+            body: 'caption',
+            messageId: 'file',
+            attachment: testAttachment(attachmentId: 'file')),
+      ]);
+      await tester.longPress(find.text('report.pdf'));
+      await tester.pumpAndSettle();
+      expect(find.text('Copy message'), findsOneWidget);
+      expect(find.text('Select message'), findsOneWidget);
+      expect(find.text('Delete…'), findsOneWidget);
+      expect(gateway.lastCall(GatewayMethod.downloadAttachment), isNull);
+      await tester.tapAt(const Offset(700, 500));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.download));
+      await tester.pumpAndSettle();
+      expect(gateway.lastCall(GatewayMethod.downloadAttachment), isNotNull);
+    }, variant: TargetPlatformVariant.mobile());
+
     for (final caption in [false, true]) {
       testWidgets(
           '${conversation.label}: triple click copies the whole '
@@ -59,43 +81,52 @@ void main() {
     });
   }
 
-  testWidgets('mobile selection handles remain draggable with a Mosh menu',
-      (tester) async {
-    final copied = captureClipboard(tester);
-    await pumpConversation(tester, conversationCases().first, messages: [
-      const TestMessage(body: 'first word', messageId: 'm1'),
-    ]);
-    var paragraph = tester.renderObject<RenderParagraph>(find.descendant(
-        of: find.text('first word'), matching: find.byType(RichText)));
-    final point = paragraph.localToGlobal(const Offset(8, 8));
-    await tester.longPressAt(point);
-    await tester.pumpAndSettle();
-    expect(find.text('Copy selected text'), findsOneWidget);
-    paragraph = tester.renderObject<RenderParagraph>(find.descendant(
-        of: find.text('first word'), matching: find.byType(RichText)));
-    final selection = paragraph.selections.single;
-    expect(selection, const TextSelection(baseOffset: 0, extentOffset: 5));
-    final handle = paragraph.localToGlobal(
-        paragraph.getBoxesForSelection(selection).single.toRect().bottomRight);
-    final detectors = find.descendant(
-        of: find.byType(CompositedTransformFollower),
-        matching: find.byType(GestureDetector));
-    final handlePoint = detectors.evaluate().isEmpty
-        ? handle
-        : tester.getCenter(detectors.last);
-    final gesture = await tester.startGesture(handlePoint);
-    await tester.pump();
-    await gesture.moveBy(const Offset(40, 0));
-    await tester.pump();
-    await gesture.up();
-    await tester.pumpAndSettle();
-    paragraph = tester.renderObject<RenderParagraph>(find.descendant(
-        of: find.text('first word'), matching: find.byType(RichText)));
-    expect(paragraph.selections.single.extentOffset, greaterThan(5));
-    final selectedText = paragraph.selections.single.textInside('first word');
-    await tester.tap(find.text('Copy selected text'));
-    await tester.pumpAndSettle();
-    expect(copied, [selectedText]);
-    expect(tester.takeException(), isNull);
-  }, variant: TargetPlatformVariant.mobile());
+  for (final caption in [false, true]) {
+    testWidgets(
+        'mobile ${caption ? 'caption' : 'text'} selection handles remain draggable with a Mosh menu',
+        (tester) async {
+      final copied = captureClipboard(tester);
+      await pumpConversation(tester, conversationCases().first, messages: [
+        TestMessage(
+            body: 'first word',
+            messageId: 'm1',
+            attachment: caption ? testAttachment(attachmentId: 'file') : null),
+      ]);
+      var paragraph = tester.renderObject<RenderParagraph>(find.descendant(
+          of: find.text('first word'), matching: find.byType(RichText)));
+      final point = paragraph.localToGlobal(const Offset(8, 8));
+      await tester.longPressAt(point);
+      await tester.pumpAndSettle();
+      expect(find.text('Copy selected text'), findsOneWidget);
+      paragraph = tester.renderObject<RenderParagraph>(find.descendant(
+          of: find.text('first word'), matching: find.byType(RichText)));
+      final selection = paragraph.selections.single;
+      expect(selection, const TextSelection(baseOffset: 0, extentOffset: 5));
+      final handle = paragraph.localToGlobal(paragraph
+          .getBoxesForSelection(selection)
+          .single
+          .toRect()
+          .bottomRight);
+      final detectors = find.descendant(
+          of: find.byType(CompositedTransformFollower),
+          matching: find.byType(GestureDetector));
+      final handlePoint = detectors.evaluate().isEmpty
+          ? handle
+          : tester.getCenter(detectors.last);
+      final gesture = await tester.startGesture(handlePoint);
+      await tester.pump();
+      await gesture.moveBy(const Offset(40, 0));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+      paragraph = tester.renderObject<RenderParagraph>(find.descendant(
+          of: find.text('first word'), matching: find.byType(RichText)));
+      expect(paragraph.selections.single.extentOffset, greaterThan(5));
+      final selectedText = paragraph.selections.single.textInside('first word');
+      await tester.tap(find.text('Copy selected text'));
+      await tester.pumpAndSettle();
+      expect(copied, [selectedText]);
+      expect(tester.takeException(), isNull);
+    }, variant: TargetPlatformVariant.mobile());
+  }
 }

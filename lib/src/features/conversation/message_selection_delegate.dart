@@ -12,6 +12,13 @@ class _MessageSelectionDelegate
         MatrixUtils.transformRect(transform, rect).contains(globalPosition));
   }
 
+  bool containsText(Offset globalPosition) => selectables.any((selectable) {
+        final transform = selectable.getTransformTo(null);
+        return selectable.boundingBoxes.any((rect) =>
+            MatrixUtils.transformRect(transform, rect)
+                .contains(globalPosition));
+      });
+
   @override
   SelectionResult dispatchSelectionEventToChild(
           Selectable selectable, SelectionEvent event) =>
@@ -44,4 +51,14 @@ class _MessageSelectionDelegate
     if (_start case final event?) selectable.dispatchSelectionEvent(event);
     if (_end case final event?) selectable.dispatchSelectionEvent(event);
   }
+}
+
+/// Let the native selection recognizer own long presses over selectable text.
+class _NonTextLongPressRecognizer extends LongPressGestureRecognizer {
+  _NonTextLongPressRecognizer(this.selection);
+  final _MessageSelectionDelegate selection;
+
+  @override
+  bool isPointerAllowed(PointerDownEvent event) =>
+      !selection.containsText(event.position) && super.isPointerAllowed(event);
 }
