@@ -123,20 +123,12 @@ final GoRouter appRouter = GoRouter(
     // .sessions) Just Work without any screen edits -- the rail rows stay
     // mounted on desktop while the chat pane swaps, and on mobile the
     // active branch swaps (the rail hides when the chat opens).
-    StatefulShellRoute.indexedStack(
-      builder: (BuildContext context, GoRouterState state,
-          StatefulNavigationShell navigationShell) {
-        return StatefulNavigationShell(
-          shellRouteContext: navigationShell.shellRouteContext,
-          router: GoRouter.of(context),
-          containerBuilder: (BuildContext c, StatefulNavigationShell shell,
-                  List<Widget> children) =>
-              MoshShell(
-            currentIndex: shell.currentIndex,
-            children: children,
-          ),
-        );
-      },
+    StatefulShellRoute(
+      navigatorContainerBuilder: (context, shell, children) => MoshShell(
+        currentIndex: shell.currentIndex,
+        children: children,
+      ),
+      builder: (context, state, navigationShell) => navigationShell,
       branches: <StatefulShellBranch>[
         // Branch A (the rail). The SessionsScreen renders the combined
         // rail (DM sessions + groups + channels + orgs). On desktop this

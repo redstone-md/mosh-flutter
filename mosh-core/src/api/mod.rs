@@ -64,7 +64,7 @@ pub mod audio_devices;
 /// drift-resync). See `voice_call_playback`.
 pub mod voice_call_playback;
 
-/// Facade for the CPAL-backed two-tone voice-call ringtone.
+/// Facade for the CPAL-backed bundled voice-call ringtone.
 pub mod voice_call_ringtone;
 
 /// The one error the bridge speaks for every conversation kind. See ADR 0024:

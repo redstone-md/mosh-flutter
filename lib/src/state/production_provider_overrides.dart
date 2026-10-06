@@ -11,6 +11,9 @@ import 'package:mosh/src/features/voice_call/record_voice_capture.dart'
     show RecordVoiceCaptureFactory;
 import 'package:mosh/src/features/voice_call/voice_call_binding.dart'
     show voiceCallBinding;
+import 'dart:io' show Platform;
+import 'package:mosh/src/features/voice_call/desktop_call_window.dart';
+import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
 import 'package:mosh/src/state/auto_poll_provider.dart'
     show autoPollIntervalProvider, kAutoPollInterval;
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
@@ -30,6 +33,8 @@ final List<Override> productionOverrides = <Override>[
   voicePlaybackFactoryProvider
       .overrideWithValue(const CpalVoicePlaybackFactory()),
   ringtonePlayerProvider.overrideWithValue(const CpalRingtonePlayer()),
+  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux)
+    callWindowFactoryProvider.overrideWithValue(openDesktopCallWindow),
   autoPollIntervalProvider.overrideWithValue(kAutoPollInterval),
   // The one place the conversation module's call slots meet the module
   // that fills them.

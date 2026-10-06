@@ -85,6 +85,33 @@ SessionSnapshot _activeSnapshot(String sessionId) => TestSnapshots.dm(
     );
 
 void main() {
+  testWidgets('active call leaves the conversation controls usable',
+      (tester) async {
+    final gateway = ScriptableGateway();
+    gateway.seedSessions([_activeSnapshot('sess-1')]);
+    final bridge = ScriptableBridge(conversations: gateway.conversations);
+    final l = await AppLocalizations.delegate.load(const Locale('en'));
+    var sent = 0;
+    await pumpScreen(
+      tester,
+      Scaffold(
+        body: Column(children: [
+          TextButton(onPressed: () => sent++, child: const Text('Send text')),
+          VoiceCallLayer(sessionId: 'sess-1', l: l),
+        ]),
+      ),
+      overrides: [
+        gatewayProvider.overrideWithValue(gateway),
+        bridgeFacadeProvider.overrideWithValue(bridge),
+      ],
+      settle: false,
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('Send text'));
+    expect(sent, 1);
+    expect(find.byType(Dialog), findsNothing);
+  });
+
   testWidgets('resetting an alias updates an already open call modal',
       (tester) async {
     final gateway = ScriptableGateway();

@@ -1,28 +1,17 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/voice_call/call_modal_card.dart';
-import 'package:mosh/src/features/voice_call/call_button.dart';
+import 'package:mosh/src/features/voice_call/call_view.dart';
+import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
     show voiceCallOrchestratorProvider;
 
+export 'call_clock.dart' show formatCallClock;
+
 /// The active-call overlay tick interval.
 const Duration kCallOverlayTickInterval = Duration(milliseconds: 500);
-
-/// Formats an elapsed duration in milliseconds as `m:ss` with zero-padded
-/// seconds.
-String formatCallClock(BigInt elapsedMs) {
-  final total =
-      (elapsedMs <= BigInt.zero) ? 0 : (elapsedMs ~/ BigInt.from(1000)).toInt();
-  final clamped = total < 0 ? 0 : total;
-  final minutes = clamped ~/ 60;
-  final seconds = clamped % 60;
-  return '$minutes:${seconds.toString().padLeft(2, '0')}';
-}
 
 /// The active-call overlay.
 ///
@@ -72,62 +61,31 @@ class CallOverlay extends ConsumerStatefulWidget {
 }
 
 class _CallOverlayState extends ConsumerState<CallOverlay> {
-  Timer? _ticker;
-  late int _now;
-  @override
-  void initState() {
-    super.initState();
-    _now = widget.now();
-    _ticker = Timer.periodic(widget.tickInterval, (_) {
-      if (!mounted) return;
-      setState(() => _now = widget.now());
-    });
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
-  }
-
-  void _hangUp() {
-    if (!mounted) return;
-    widget.onHangUp();
-  }
-
-  void _toggleMute() {
-    if (!mounted) return;
-    ref
-        .read(voiceCallOrchestratorProvider(widget.sessionId).notifier)
-        .toggleMute();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final muted =
-        ref.watch(voiceCallOrchestratorProvider(widget.sessionId)).muted;
-    return CallModalCard(
-      label: widget.l.callActiveAriaLabel,
-      peer: widget.peerLabel,
-      status: formatCallClock(BigInt.from(_now) - widget.active.startedAtMs),
-      statusFontFeatures: const [FontFeature.tabularFigures()],
-      onEscape: _hangUp,
-      actions: [
-        CallButton(
-          icon: muted ? Icons.mic_off : Icons.mic,
-          tooltip: muted ? widget.l.callActiveUnmute : widget.l.callActiveMute,
-          color: muted ? const Color(0xFF4F8CFF) : const Color(0xFF2A2D33),
-          onPressed: _toggleMute,
-          iconSize: 18,
-        ),
-        CallButton(
-          icon: Icons.phone_disabled,
-          tooltip: widget.l.callActiveHangUp,
-          color: const Color(0xFFE5484D),
-          onPressed: _hangUp,
-          iconSize: 18,
-        ),
-      ],
+    final state = ref.watch(voiceCallOrchestratorProvider(widget.sessionId));
+    return CallView(
+      call: CallViewState(
+        sessionId: widget.sessionId,
+        callId: widget.active.callId,
+        peer: widget.peerLabel,
+        phase: CallViewPhase.active,
+        startedAtMs: widget.active.startedAtMs.toInt(),
+        muted: state.muted,
+        audioReady: state.audioReady,
+        busy: state.busy,
+      ),
+      l: widget.l,
+      tickInterval: widget.tickInterval,
+      now: widget.now,
+      onAction: (action) {
+        if (action == CallViewAction.end) widget.onHangUp();
+        if (action == CallViewAction.mute) {
+          ref
+              .read(voiceCallOrchestratorProvider(widget.sessionId).notifier)
+              .toggleMute();
+        }
+      },
     );
   }
 }

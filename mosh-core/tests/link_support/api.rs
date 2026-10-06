@@ -9,15 +9,26 @@ use super::OUTPUT_PREFIX;
 
 #[path = "attachments.rs"]
 mod attachments;
+#[path = "calls.rs"]
+mod calls;
 
 /// Exercise the public bridge facade with real shared resources and discovery.
 pub(super) fn run(dir: PathBuf) {
     private_dm::set_app_data_dir(dir.to_string_lossy().into_owned()).unwrap();
     private_dm::set_history_dek(std::fs::read(dir.join("storage-key.bin")).unwrap()).unwrap();
+    let mut call_probe = None;
     for line in std::io::stdin().lock().lines() {
         let command: Value = serde_json::from_str(&line.unwrap()).unwrap();
         let argument = command["argument"].as_str().unwrap_or_default().to_owned();
         let action = command["action"].as_str().unwrap();
+        if action.starts_with("call_") {
+            println!(
+                "{OUTPUT_PREFIX}{}",
+                calls::command(action, &argument, &command, &mut call_probe)
+            );
+            std::io::stdout().flush().unwrap();
+            continue;
+        }
         if action.starts_with("attachment_") || action.starts_with("chat_") {
             println!(
                 "{OUTPUT_PREFIX}{}",

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,9 +43,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  void _rememberDefault(bool wide) {
-    if (wide && ref.read(settingsSectionProvider) == null) {
-      ref.read(settingsSectionProvider.notifier).select(SettingsSection.sound);
+  void _rememberDefault(bool wide, {bool defer = false}) {
+    if (wide) {
+      final notifier = ref.read(settingsSectionProvider.notifier);
+      // Declarative navigation can remove this route during Navigator.build.
+      if (defer) {
+        scheduleMicrotask(notifier.rememberDefault);
+      } else {
+        notifier.rememberDefault();
+      }
     }
   }
 
@@ -63,7 +71,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return PopScope<Object?>(
         canPop: wide || !_showSection,
         onPopInvokedWithResult: (didPop, _) {
-          _rememberDefault(wide);
+          _rememberDefault(wide, defer: didPop);
           if (!didPop) _back(wide);
         },
         child: CallbackShortcuts(

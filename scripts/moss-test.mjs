@@ -65,6 +65,15 @@ try {
 
 function testCommand() {
   const args = process.argv.slice(2);
+  if (args[0] === "--voice-ui") {
+    if (args.length !== 1) throw new Error("--voice-ui does not accept additional arguments");
+    const platform = { win32: "windows", darwin: "macos", linux: "linux" }[process.platform];
+    if (!platform) throw new Error("Voice UI tests require a desktop host");
+    const testArgs = ["drive", "--target", "integration_test/voice_call_test.dart", "--driver", "test_driver/integration.dart", "-d", platform, "--debug", "--no-start-paused"];
+    return process.platform === "win32"
+      ? { command: "cmd.exe", args: ["/d", "/s", "/c", `flutter ${testArgs.join(" ")}`] }
+      : { command: "flutter", args: testArgs };
+  }
   if (args[0] === "--native-ui") {
     if (args.length !== 1) throw new Error("--native-ui does not accept additional arguments");
     if (process.platform === "win32") {

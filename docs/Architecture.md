@@ -286,10 +286,21 @@ Missing adapters fall back to default routing while retaining the saved choice.
 Audio picks persist independently and use system defaults for disconnected
 hardware. See [settings behavior](Features/settings-redesign.md).
 
-The conversation declares `ConversationCallBinding`; the voice feature supplies
-its adapter through `production_provider_overrides.dart`. `VoiceCallLayer` renders
-the orchestrator's dialog model. Capture, playback and ringtone have independent
-factory providers. Shared call cards and modal focus behavior serve all phases.
+The conversation declares `ConversationCallBinding`; production binds its start
+command. `VoiceCallHost` lives above the router, below the first-run gate. It
+selects the originating call from the app-wide DM list, so navigation does not
+replace or dispose the audio owner. Capture, playback and ringtone retain their
+independent factory providers. Audio replacement waits for the previous startup
+and teardown, and cancelled work cannot send or play frames.
+
+Desktop call controls open through `desktop_multi_window` on Windows and macOS.
+Linux launches the same executable in a separate process to isolate GTK/EGL
+renderer ownership and exchanges commands over inherited stdio. Each child starts
+only the shared call view and window plugins. Display metadata contains no call keys or audio handles;
+commands carry both session and call IDs. Main-engine state remains authoritative.
+An application-level strip keeps messaging usable and can restore the window.
+Ringtone and no-answer timeout belong to the call state. The supplied PCM recording
+uses CPAL's selected output device. See [voice calls](Features/voice-calls.md).
 
 Dart seals and opens call frames with the existing cryptography package and
 reorders playback with its jitter buffer. Raw bytes cross `BridgeFacade` every

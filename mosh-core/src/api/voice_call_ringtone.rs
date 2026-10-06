@@ -1,4 +1,4 @@
-//! CPAL-backed two-tone ringtone for incoming and outgoing voice calls.
+//! CPAL playback of the bundled call ringtone for incoming and outgoing voice calls.
 
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -8,72 +8,37 @@ use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::{OutputCallbackInfo, SampleFormat, Stream, StreamConfig};
 use flutter_rust_bridge::frb;
 
-const FIRST_FREQUENCY_HZ: f64 = 440.0;
-const SECOND_FREQUENCY_HZ: f64 = 480.0;
-const ATTACK_SECONDS: f64 = 0.05;
-const ON_SECONDS: f64 = 0.4;
-const RELEASE_SECONDS: f64 = 0.45;
-const PERIOD_SECONDS: f64 = 1.0;
-const MAX_SECONDS: f64 = 30.0;
-const MIN_GAIN: f64 = 0.0001;
-const PEAK_GAIN: f64 = 0.15;
+#[path = "ringtone_recording.rs"]
+mod recording;
 
-/// The mutable phase state lives only on CPAL's callback thread.
+const MAX_SECONDS: f64 = 30.0;
+
 struct SignalGenerator {
     sample_rate: f64,
     next_sample: u64,
 }
 
 impl SignalGenerator {
-    fn next(&mut self) -> f32 {
+    fn sample(&self, channel: usize, channels: usize) -> f32 {
         let elapsed = self.next_sample as f64 / self.sample_rate;
-        self.next_sample = self.next_sample.saturating_add(1);
-        ringtone_sample(elapsed)
+        if elapsed >= MAX_SECONDS {
+            0.0
+        } else {
+            recording::sample(elapsed, channel, channels)
+        }
     }
 }
 
-fn gain_at(phase: f64) -> f64 {
-    if phase < ATTACK_SECONDS {
-        MIN_GAIN * (PEAK_GAIN / MIN_GAIN).powf(phase / ATTACK_SECONDS)
-    } else if phase < ON_SECONDS {
-        PEAK_GAIN
-    } else if phase < RELEASE_SECONDS {
-        PEAK_GAIN
-            * (MIN_GAIN / PEAK_GAIN).powf((phase - ON_SECONDS) / (RELEASE_SECONDS - ON_SECONDS))
-    } else {
-        MIN_GAIN
-    }
-}
-
-fn ringtone_sample(elapsed: f64) -> f32 {
-    if !(0.0..MAX_SECONDS).contains(&elapsed) {
-        return 0.0;
-    }
-    let phase = elapsed % PERIOD_SECONDS;
-    let gain = gain_at(phase);
-    let angle = std::f64::consts::TAU * elapsed;
-    let tone = (angle * FIRST_FREQUENCY_HZ).sin() + (angle * SECOND_FREQUENCY_HZ).sin();
-    (gain * tone) as f32
-}
-
-fn write_f32(data: &mut [f32], channels: usize, generator: &mut SignalGenerator) {
+fn write<T: cpal::Sample + cpal::FromSample<f32>>(
+    data: &mut [T],
+    channels: usize,
+    generator: &mut SignalGenerator,
+) {
     for frame in data.chunks_mut(channels) {
-        let value = generator.next();
-        frame.fill(value);
-    }
-}
-
-fn write_i16(data: &mut [i16], channels: usize, generator: &mut SignalGenerator) {
-    for frame in data.chunks_mut(channels) {
-        let value = (generator.next().clamp(-1.0, 1.0) * i16::MAX as f32).round() as i16;
-        frame.fill(value);
-    }
-}
-
-fn write_u16(data: &mut [u16], channels: usize, generator: &mut SignalGenerator) {
-    for frame in data.chunks_mut(channels) {
-        let normalized = generator.next().clamp(-1.0, 1.0) * 0.5 + 0.5;
-        frame.fill((normalized * u16::MAX as f32).round() as u16);
+        for (channel, value) in frame.iter_mut().enumerate() {
+            *value = T::from_sample(generator.sample(channel, channels));
+        }
+        generator.next_sample = generator.next_sample.saturating_add(1);
     }
 }
 
@@ -92,39 +57,9 @@ fn build_stream(
     };
 
     let stream = match sample_format {
-        SampleFormat::F32 => {
-            let mut generator = generator;
-            device.build_output_stream(
-                *config,
-                move |data: &mut [f32], _info: &OutputCallbackInfo| {
-                    write_f32(data, channels, &mut generator);
-                },
-                |error| crate::audio_devices::log_stream_error("ringtone", &error),
-                None,
-            )
-        }
-        SampleFormat::I16 => {
-            let mut generator = generator;
-            device.build_output_stream(
-                *config,
-                move |data: &mut [i16], _info: &OutputCallbackInfo| {
-                    write_i16(data, channels, &mut generator);
-                },
-                |error| crate::audio_devices::log_stream_error("ringtone", &error),
-                None,
-            )
-        }
-        SampleFormat::U16 => {
-            let mut generator = generator;
-            device.build_output_stream(
-                *config,
-                move |data: &mut [u16], _info: &OutputCallbackInfo| {
-                    write_u16(data, channels, &mut generator);
-                },
-                |error| crate::audio_devices::log_stream_error("ringtone", &error),
-                None,
-            )
-        }
+        SampleFormat::F32 => output_stream::<f32>(device, config, generator),
+        SampleFormat::I16 => output_stream::<i16>(device, config, generator),
+        SampleFormat::U16 => output_stream::<u16>(device, config, generator),
         format => return Err(format!("cpal ringtone: unsupported sample format {format}")),
     }
     .map_err(|error| format!("cpal ringtone: build output stream: {error:?}"))?;
@@ -133,6 +68,20 @@ fn build_stream(
         .play()
         .map_err(|error| format!("cpal ringtone: stream.play: {error:?}"))?;
     Ok(stream)
+}
+
+fn output_stream<T: cpal::SizedSample + cpal::FromSample<f32>>(
+    device: &cpal::Device,
+    config: &StreamConfig,
+    mut generator: SignalGenerator,
+) -> Result<Stream, cpal::Error> {
+    let channels = config.channels as usize;
+    device.build_output_stream(
+        *config,
+        move |data: &mut [T], _info: &OutputCallbackInfo| write(data, channels, &mut generator),
+        |error| crate::audio_devices::log_stream_error("ringtone", &error),
+        None,
+    )
 }
 
 /// Opaque owner of the CPAL stream. The slot is shared with the 30-second
@@ -181,36 +130,56 @@ pub fn voice_call_ringtone_stop(ringtone: &VoiceCallRingtone) -> Result<(), Stri
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        gain_at, ringtone_sample, ATTACK_SECONDS, MAX_SECONDS, MIN_GAIN, ON_SECONDS, PEAK_GAIN,
-        RELEASE_SECONDS,
-    };
+    use super::*;
 
     #[test]
-    fn gain_matches_react_attack_hold_release_and_silence() {
-        assert!((gain_at(0.0) - MIN_GAIN).abs() < f64::EPSILON);
-        assert!((gain_at(ATTACK_SECONDS) - PEAK_GAIN).abs() < f64::EPSILON);
-        assert!((gain_at(ON_SECONDS) - PEAK_GAIN).abs() < f64::EPSILON);
-        assert!(gain_at((ON_SECONDS + RELEASE_SECONDS) / 2.0) < PEAK_GAIN);
-        assert_eq!(gain_at(RELEASE_SECONDS), MIN_GAIN);
-        assert_eq!(gain_at(0.9), MIN_GAIN);
+    #[ignore = "requires a running output device; run explicitly with PulseAudio or hardware"]
+    fn selected_output_releases_the_real_stream_on_repeated_stop() {
+        let device = crate::audio_devices::resolve_output_device(None).unwrap();
+        let id = device.id().unwrap().to_string();
+        for _ in 0..3 {
+            let ringtone = voice_call_ringtone_start(Some(id.clone())).unwrap();
+            assert!(ringtone.stream.lock().unwrap().is_some());
+            thread::sleep(Duration::from_millis(150));
+            voice_call_ringtone_stop(&ringtone).unwrap();
+            voice_call_ringtone_stop(&ringtone).unwrap();
+            assert!(ringtone.stream.lock().unwrap().is_none());
+        }
+        let supported = device.default_output_config().unwrap();
+        let mut invalid = supported.config();
+        invalid.channels = 0;
+        assert!(build_stream(&device, &invalid, SampleFormat::F32).is_err());
+        assert!(build_stream(&device, &supported.config(), SampleFormat::I8).is_err());
     }
 
     #[test]
-    fn tone_is_silent_during_off_period_and_after_timeout() {
-        assert!((ringtone_sample(0.5) as f64).abs() < MIN_GAIN);
-        assert_eq!(ringtone_sample(MAX_SECONDS), 0.0);
-        assert_eq!(ringtone_sample(MAX_SECONDS + 0.1), 0.0);
+    fn sample_rate_conversion_preserves_the_recording_time() {
+        let cd = SignalGenerator {
+            sample_rate: 44_100.0,
+            next_sample: 4_410,
+        };
+        let device = SignalGenerator {
+            sample_rate: 48_000.0,
+            next_sample: 4_800,
+        };
+        assert_eq!(cd.sample(0, 2), device.sample(0, 2));
+        assert_eq!(cd.sample(1, 2), device.sample(1, 2));
     }
 
     #[test]
-    fn tone_contains_both_oscillators_during_ring_on_period() {
-        let elapsed = 0.2005;
-        let sample = ringtone_sample(elapsed);
-        let expected = PEAK_GAIN
-            * ((std::f64::consts::TAU * elapsed * 440.0).sin()
-                + (std::f64::consts::TAU * elapsed * 480.0).sin());
-        assert!(expected.abs() > 0.01);
-        assert!((sample as f64 - expected).abs() < 1e-6);
+    fn timeout_outputs_silence_in_every_sample_format() {
+        let mut generator = SignalGenerator {
+            sample_rate: 48_000.0,
+            next_sample: 1_440_000,
+        };
+        let mut float = [1.0_f32; 4];
+        write(&mut float, 2, &mut generator);
+        assert_eq!(float, [0.0; 4]);
+        let mut signed = [1_i16; 4];
+        write(&mut signed, 2, &mut generator);
+        assert_eq!(signed, [0; 4]);
+        let mut unsigned = [1_u16; 4];
+        write(&mut unsigned, 2, &mut generator);
+        assert_eq!(unsigned, [32_768; 4]);
     }
 }

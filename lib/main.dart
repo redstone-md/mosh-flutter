@@ -23,6 +23,9 @@ import 'package:mosh/src/platform/app_data_dir.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
 import 'package:mosh/src/features/onboarding/first_run_gate.dart';
+import 'package:mosh/src/features/voice_call/call_window_app.dart';
+import 'package:mosh/src/features/voice_call/process_call_window.dart';
+import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 import 'package:mosh/src/platform/native_menu_localization.dart';
 import 'package:mosh/src/features/lock/mosh_lock_app.dart';
@@ -47,6 +50,11 @@ void main(List<String> args) async {
   // hosts; the later `isFocused()` callers are themselves desktop-gated.
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
     await windowManager.ensureInitialized();
+    if (args.contains(callWindowProcessArgument)) {
+      await launchProcessCallWindow();
+      return;
+    }
+    if (await launchCallWindow()) return;
   }
   // Load intl date symbols once so non-en locales (e.g. ru) format dates
   // in-locale via `DateFormat` (`formatClock`/`formatClockFull`). en ships
@@ -278,7 +286,12 @@ class MoshApp extends ConsumerWidget {
             ? Theme.of(context).copyWith(splashFactory: NoSplash.splashFactory)
             : Theme.of(context),
         child: NativeMenuLocalization(
-          child: FirstRunGate(child: child ?? const SizedBox()),
+          child: FirstRunGate(
+            child: VoiceCallHost(
+              onOpenConversation: _openCallConversation,
+              child: child ?? const SizedBox(),
+            ),
+          ),
         ),
       ),
     );
@@ -286,5 +299,12 @@ class MoshApp extends ConsumerWidget {
       relauncher: relauncher ?? DesktopAppRelauncher.unsupported(),
       child: app,
     );
+  }
+}
+
+void _openCallConversation(String sessionId) {
+  appRouter.go(AppRoutes.dmFor(sessionId));
+  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    unawaited(windowManager.show().then((_) => windowManager.focus()));
   }
 }
