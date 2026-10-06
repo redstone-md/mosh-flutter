@@ -62,8 +62,9 @@ Text and voice messages retain their optical insets and series joins.
 Text, files and media share a 12px trailing inset for time and delivery marks.
 Files add the remaining 4px inside their 8px bubble inset; media captions use
 that same 4px trailing inset. Preview geometry keeps its uniform 8px inset.
-Transfer controls precede time in the metadata row, preserving that inset
-while a download or retry action is visible.
+A transfer control keeps one trailing slot beside the file name and metadata,
+so time never moves it. Time ends the last line, as in text bubbles: the
+progress bar while downloading, otherwise the metadata.
 
 The message-search segment uses its outer 8px corner minus its 3px inset.
 Avatars and voice play remain circles because they are identity and transport
@@ -96,7 +97,11 @@ reserves 2px at each horizontal edge so that outline stays visible.
 
 Files use a flat row within the bubble instead of a second rounded card. Media
 previews clip to the embedded radius; failed transfers keep the existing error
-edge, label and action. Download, cancel, retry and open behavior is unchanged.
+edge, label and action. The preview height comes from the inline miniature's
+JPEG/PNG header before any decode: 320px wide, clamped to 120–260px, or 200px
+when unknown. Miniature, clear preview and original fill that box with cover
+fit, so their arrival never moves the list. Miniatures are cached by their
+encoded value and reappear in the first frame when a chat is reopened. Download, cancel, retry and open behavior is unchanged.
 
 Voice uses the same message surface. Play/pause is centered without an extra
 translation, including the recording preview. The button uses the theme's
