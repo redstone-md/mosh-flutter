@@ -2,6 +2,7 @@
 // `Gateway.callStart` seam, and `VoiceCallLayer` shows the OutgoingCallModal
 // when the snapshot reflects an `outgoingCall`.
 import 'dart:async';
+import '../../support/call_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
@@ -21,7 +22,6 @@ import 'package:mosh/src/state/notifications_provider.dart';
 import 'package:mosh/src/state/chat_names_provider.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 SessionSnapshot _outgoingSnapshot(String sessionId) => TestSnapshots.dm(
       sessionId: sessionId,
@@ -43,38 +43,6 @@ SessionSnapshot _pendingSnapshot(String sessionId,
       fingerprint: 'fp',
       pendingCall: PendingCall(callId: 'call-1', fromDevice: fromDevice),
     );
-
-/// A recording fake of the notifications plugin: `show` records (id, title,
-/// body) so the incoming-call notification test can assert the OS toast
-/// fired. `initialize` is not called here -- the test overrides the
-/// notificationsReadyProvider directly to `AsyncValue.data(true)` so the
-/// gate opens without running the real init (which needs a platform host).
-class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
-  int showCalls = 0;
-  int? lastId;
-  String? lastTitle;
-  String? lastBody;
-  NotificationDetails? lastDetails;
-
-  @override
-  Future<void> show({
-    required int id,
-    String? title,
-    String? body,
-    NotificationDetails? notificationDetails,
-    String? payload,
-  }) async {
-    showCalls++;
-    lastId = id;
-    lastTitle = title;
-    lastBody = body;
-    lastDetails = notificationDetails;
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError(' ${invocation.memberName}');
-}
 
 SessionSnapshot _activeSnapshot(String sessionId) => TestSnapshots.dm(
       sessionId: sessionId,
@@ -99,7 +67,7 @@ void main() {
       final ready = Completer<bool>();
       final gateway = ScriptableGateway()
         ..seedSessions([_pendingSnapshot('sess-1', fromDevice: 'Alice')]);
-      final notifications = _RecordingNotifications();
+      final notifications = RecordingCallNotifications();
       final l = await AppLocalizations.delegate.load(const Locale('en'));
       final messenger =
           TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
@@ -295,7 +263,7 @@ void main() {
       final gateway = ScriptableGateway();
       final bridge = ScriptableBridge(conversations: gateway.conversations);
       gateway.seedSessions([_pendingSnapshot('sess-1', fromDevice: 'Alice')]);
-      final notifications = _RecordingNotifications();
+      final notifications = RecordingCallNotifications();
       final l = await AppLocalizations.delegate.load(const Locale('en'));
 
       // The voice-call layer's focus check awaits `windowManager.isFocused()`
@@ -339,7 +307,8 @@ void main() {
       expect(notifications.showCalls, 1);
       expect(notifications.lastTitle, 'Mosh');
       expect(notifications.lastBody, 'Incoming call from Alice');
-      expect(notifications.lastId, 'Alice'.hashCode.abs());
+      expect(
+          notifications.lastId, Object.hash('sess-1', 'call-1') & 0x7fffffff);
       expect(
           notifications.lastDetails?.android?.channelId, 'mosh_notifications');
       expect(notifications.lastDetails?.android?.channelName,

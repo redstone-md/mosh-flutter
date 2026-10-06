@@ -70,9 +70,7 @@ class _CallViewState extends State<CallView> {
       peer: call.peer,
       status: _status(l),
       statusFontFeatures: active ? const [FontFeature.tabularFigures()] : null,
-      onEscape: () {
-        if (!call.busy) _end();
-      },
+      onEscape: () => widget.onAction(CallViewAction.end),
       onOpenConversation: () =>
           widget.onAction(CallViewAction.openConversation),
       actions: _actions(l),

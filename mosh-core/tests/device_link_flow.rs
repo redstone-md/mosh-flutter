@@ -1,3 +1,5 @@
+#[path = "link_support/call_controls_test.rs"]
+mod link_call_controls;
 mod link_names;
 mod link_revocation;
 mod link_support;

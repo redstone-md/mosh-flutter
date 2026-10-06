@@ -26,3 +26,16 @@ window. The Windows native fixture runs both classes in CI.
 
 Verification details, commands and platform limitations are in
 [voice calls](../Features/voice-calls.md).
+
+## Follow-up review of `dcb78abf`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| Native X is dropped while accepting | Accept | X and Escape express terminal intent. The notifier waits for the same call's control, then declines a failed accept or ends an accepted call. Tests cover success, failure and replacement. |
+| An incoming decline arrives after activation | Accept | Accept/decline validate the current incoming phase at the notifier boundary; decline also rejects an already accepted pending snapshot. A test uses stale child and inline callbacks for the same active call ID. |
+| Posted incoming notifications remain after the call | Accept | Serialize show/cancel with a call-specific ID. Tests cover acceptance, decline, remote end, delayed show and widget disposal. Windows cancellation remains limited by the existing plugin's requirement for MSIX package identity. |
+| Rejected native fixture call_start panics | Accept | Return the bridge error in the worker's JSON response. A real peer test checks MissingConversation followed by a successful snapshot request. |
+
+The spec review also found that closing replacement B could wait for accept A.
+The wait now applies only when the control's call ID matches; a failing-then-passing
+test checks that B's decline is sent before A completes.

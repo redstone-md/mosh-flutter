@@ -90,7 +90,7 @@ class _CallWindowController extends ValueNotifier<CallViewState?>
     final call = value;
     if (_closing ||
         call == null ||
-        call.busy ||
+        (call.busy && command.action != CallViewAction.end) ||
         call.sessionId != command.sessionId ||
         call.callId != command.callId) {
       return;
@@ -104,9 +104,7 @@ class _CallWindowController extends ValueNotifier<CallViewState?>
   @override
   void onWindowClose() {
     if (_closing || value == null) return;
-    act(value!.command(value!.phase == CallViewPhase.incoming
-        ? CallViewAction.decline
-        : CallViewAction.end));
+    act(value!.command(CallViewAction.end));
   }
 }
 

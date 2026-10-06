@@ -117,7 +117,8 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
         l: widget.l,
         onAction: (action) {
           if (action == CallViewAction.accept) widget.onAccept();
-          if (action == CallViewAction.decline) {
+          if (action == CallViewAction.decline ||
+              action == CallViewAction.end) {
             _decline(kCallDeclineReasonUser);
           }
         },
