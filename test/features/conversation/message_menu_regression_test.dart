@@ -66,6 +66,24 @@ double _menuScale(WidgetTester tester) {
 }
 
 void main() {
+  testWidgets('screen readers can long-press an attachment to open its menu',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await pumpConversation(tester, conversationCases().first, messages: [
+        TestMessage(
+            messageId: 'file',
+            attachment: testAttachment(attachmentId: 'file')),
+      ]);
+      tester.semantics.longPress(find.semantics.byLabel(RegExp('report.pdf')));
+      await tester.pumpAndSettle();
+      expect(find.text('Select message'), findsOneWidget);
+      expect(find.text('Delete…'), findsOneWidget);
+    } finally {
+      semantics.dispose();
+    }
+  });
+
   testWidgets('equal-body insertion dismisses the old deletion target',
       (tester) async {
     final snapshot = ValueNotifier(_snapshot('chat', ['original']));

@@ -30,6 +30,8 @@ the software keyboard. Large text and tall menus retain scrollable actions.
   state. Equal text cannot retarget an open menu after insertion or navigation.
 - Long press on an attachment opens its menu even when the message has a
   caption. Long press on selectable text retains native selection and handles.
+  Non-text rows retain the screen reader's long-press action when message
+  selection or deletion is available.
 
 ## Motion and ownership
 
@@ -62,13 +64,13 @@ exceed the 50-line function guideline.
 ## Verification results
 
 - Flutter analysis is clean; formatting checks 599 files without changes.
-- The applicable full suite passes 1617 tests, with 4 existing native-library
+- The applicable full suite passes 1618 tests, with 4 existing native-library
   skips. The unmodified `media_kit_tracer_test.dart` fails separately in this
   headless environment because `Player.screenshot()` returns null; it is the
   only test excluded from the final full run.
 - Menu, selection, clipboard and deletion checks pass, including regressions
   for all four review findings and native caption-handle dragging.
-- Review fixes cover 34/34 changed production lines and 14/14 branches.
+- Review fixes cover 41/41 changed production lines and 16/16 branches.
   Every changed module meets the repository's individual minimums.
 - A real Flutter render with bundled Inter and Material icons was inspected.
   Physical Windows/macOS/Android/iOS runtime interaction was not exercised.
