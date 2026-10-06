@@ -144,14 +144,23 @@ const double kAttachmentCardMaxWidth = 360;
 /// Fixed width of the media-preview card.
 const double kAttachmentMediaWidth = 320;
 
-/// Cap on the preview height -- the thumbnail keeps its intrinsic height
-/// under that cap.
+/// Cap on the preview height; taller media is cropped to cover the box.
 const double kAttachmentPreviewMaxHeight = 260;
 
-/// Floor for the same box. A Flutter `Image.memory` reports no height until
-/// it decodes, and none at all when it fails, so an unfloored preview
-/// collapses to a zero-height box that swallows the open tap.
+/// Floor for the same box, so panoramas keep a usable open target.
 const double kAttachmentPreviewMinHeight = 120;
+
+/// Height reserved when the miniature does not reveal the media's size.
+const double kAttachmentPreviewFallbackHeight = 200;
+
+/// The preview height is fixed before decoding so miniature, clear preview
+/// and original swap without moving the message list.
+double attachmentPreviewHeight(Size? media,
+        {double width = kAttachmentMediaWidth}) =>
+    media == null
+        ? kAttachmentPreviewFallbackHeight
+        : (width * media.height / media.width)
+            .clamp(kAttachmentPreviewMinHeight, kAttachmentPreviewMaxHeight);
 
 /// Embedded content shares the message surface. Files are flat rows;
 /// media clips to the shared attachment corners. Failed transfers keep an edge.
@@ -184,11 +193,11 @@ class _FileCardShell extends StatelessWidget {
   }
 }
 
-/// Shared name + meta + progress bar (DRY) used by both branches:
-/// `formatBytes(total_size)` plus (" \u00b7 " + stateLabel) when state !=
-/// "available", and a `LinearProgressIndicator` while downloading. A tight
-/// `Column` (no icon) so the file card wraps it in an icon `Row` and the
-/// media card stacks it.
+/// Shared name, metadata and progress for both card branches.
+///
+/// A transfer button keeps one trailing slot beside the name and metadata,
+/// so the message time never moves it. Like text bubbles, the time ends the
+/// last line: the progress bar while downloading, otherwise the metadata.
 Widget _buildBar({
   required AppLocalizations l,
   required String fileName,
@@ -197,70 +206,81 @@ Widget _buildBar({
   Widget? action,
   Widget? messageFooter,
 }) {
-  final size = formatBytes(totalSize);
-  final state = attachment.state;
   final progress = attachment.progress;
   final percent = progress?.percent ?? 0;
-  final stateLabel = _attachmentStateLabel(l, state, percent);
-  // The state label is omitted when state == "available" (size only);
-  // every other state appends " \u00b7 {label}".
-  final meta =
-      state == AttachmentState.available ? size : '$size \u00b7 $stateLabel';
-  final name = Text(
-    fileName,
-    maxLines: 1,
-    overflow: TextOverflow.ellipsis,
-    style: const TextStyle(fontSize: 12.5, color: MoshColors.fg1),
+  final details = Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        fileName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 12.5, color: MoshColors.fg1),
+      ),
+      const SizedBox(height: 2),
+      _trailing(
+        _attachmentMeta(l, totalSize, attachment.state, percent),
+        progress == null ? messageFooter : null,
+      ),
+    ],
   );
-  final metadata = Text(
-    meta,
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (action == null)
+        details
+      else
+        Row(children: [
+          Expanded(child: details),
+          const SizedBox(width: 8),
+          action,
+        ]),
+      if (progress != null) ...[
+        const SizedBox(height: 4),
+        _trailing(_progressBar(l, progress.fraction, percent), messageFooter),
+      ],
+    ],
+  );
+}
+
+/// 4px moss progress on bg-3; a null [fraction] is indeterminate.
+Widget _progressBar(AppLocalizations l, double? fraction, int percent) =>
+    ClipRRect(
+      borderRadius: BorderRadius.circular(2),
+      child: LinearProgressIndicator(
+        value: fraction,
+        minHeight: 4,
+        backgroundColor: MoshColors.bg3,
+        color: MoshColors.moss,
+        semanticsLabel: l.attachmentStateDownloading(percent),
+      ),
+    );
+
+/// [content] fills the line and [footer], when present, ends it.
+Widget _trailing(Widget content, Widget? footer) => footer == null
+    ? content
+    : Row(children: [
+        Expanded(child: content),
+        const SizedBox(width: 8),
+        footer,
+      ]);
+
+/// Size only when available; every other state appends " · {label}".
+Widget _attachmentMeta(
+    AppLocalizations l, BigInt totalSize, AttachmentState state, int percent) {
+  final size = formatBytes(totalSize);
+  return Text(
+    state == AttachmentState.available
+        ? size
+        : '$size \u00b7 ${_attachmentStateLabel(l, state, percent)}',
     maxLines: 1,
     overflow: TextOverflow.ellipsis,
     style: const TextStyle(
         fontSize: 11,
         color: MoshColors.fg3,
         fontFeatures: kLiveNumberFontFeatures),
-  );
-  // A transfer button shares the label's height instead of adding a tall
-  // second line beneath the filename.
-  final details = action == null
-      ? metadata
-      : Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [name, const SizedBox(height: 2), metadata],
-        );
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      if (action == null) ...[name, const SizedBox(height: 2)],
-      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Expanded(child: details),
-        if (action case final control?) ...[
-          const SizedBox(width: 8),
-          control,
-        ],
-        if (messageFooter case final footer?) ...[
-          const SizedBox(width: 8),
-          footer,
-        ],
-      ]),
-      // 4px tall moss progress bar on bg-3, shown while downloading.
-      if (progress != null) ...[
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(2),
-          child: LinearProgressIndicator(
-            value: progress.fraction,
-            minHeight: 4,
-            backgroundColor: MoshColors.bg3,
-            color: MoshColors.moss,
-            semanticsLabel: l.attachmentStateDownloading(percent),
-          ),
-        ),
-      ],
-    ],
   );
 }
 
