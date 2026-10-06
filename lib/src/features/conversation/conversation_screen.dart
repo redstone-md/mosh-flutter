@@ -13,6 +13,7 @@ import 'package:mosh/src/features/conversation/conversation_helpers.dart'
 import 'package:mosh/src/features/conversation/conversation_leave_prompt.dart';
 import 'package:mosh/src/features/conversation/conversation_screen_body.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
+import 'package:mosh/src/features/conversation/message_selection_host.dart';
 import 'package:mosh/src/features/conversation/conversation_state.dart';
 import 'package:mosh/src/features/conversation/conversation_text_sends.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
@@ -256,28 +257,34 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       _markViewed();
     }
     final chrome = _chrome;
-    final chat = Scaffold(
-      // The wrapper aligns the header's preferredSize with the toolbar the
-      // ConversationAppBar actually renders (54px under the 640px
-      // breakpoint, 70px above it). The kind headers report kToolbarHeight
-      // (56) while their AppBar draws 54 or 70: Scaffold clamps its slot to
-      // the reported height, so a 70px toolbar was clipped to 56 and a 54px
-      // one left a 2px band of app-bar background above the body.
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(chatHeaderHeight(context)),
-        child: widget.header(context, chrome),
-      ),
-      body: ConversationScreenBody(
-        target: _target,
-        detailsDocked: _detailsDocked,
-        chrome: chrome,
-        composer: _composer,
-        onSend: _send,
-        onRetrySend: _retryFailedSend,
-        onOpenAttachment: _openAttachment,
-        onPeerMessage: _onPeerMessage,
-        onVoiceError: _showSnackBar,
-        onAttachmentPickError: _onAttachmentPickError,
+    final chat = MessageSelectionHost(
+      target: _target,
+      search: _search,
+      filter: _filter,
+      header: widget.header(context, chrome),
+      builder: (context, header) => Scaffold(
+        // The wrapper aligns the header's preferredSize with the toolbar the
+        // ConversationAppBar actually renders (54px under the 640px
+        // breakpoint, 70px above it). The kind headers report kToolbarHeight
+        // (56) while their AppBar draws 54 or 70: Scaffold clamps its slot to
+        // the reported height, so a 70px toolbar was clipped to 56 and a 54px
+        // one left a 2px band of app-bar background above the body.
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(chatHeaderHeight(context)),
+          child: header,
+        ),
+        body: ConversationScreenBody(
+          target: _target,
+          detailsDocked: _detailsDocked,
+          chrome: chrome,
+          composer: _composer,
+          onSend: _send,
+          onRetrySend: _retryFailedSend,
+          onOpenAttachment: _openAttachment,
+          onPeerMessage: _onPeerMessage,
+          onVoiceError: _showSnackBar,
+          onAttachmentPickError: _onAttachmentPickError,
+        ),
       ),
     );
     if (!_detailsDocked || !_detailsOpen) return chat;

@@ -9,7 +9,8 @@ class MessageSelectionArea extends StatefulWidget {
   State<MessageSelectionArea> createState() => _MessageSelectionAreaState();
 }
 
-class _MessageSelectionAreaState extends State<MessageSelectionArea> {
+class _MessageSelectionAreaState extends State<MessageSelectionArea>
+    with _MessageDragSelection {
   final _selectionKey = GlobalKey<SelectionAreaState>();
   final _menuKey = GlobalKey<MessageContextMenuState>();
   final _focus = FocusNode(debugLabel: 'Message selection');
@@ -24,6 +25,7 @@ class _MessageSelectionAreaState extends State<MessageSelectionArea> {
   SelectableRegionState? get _region =>
       _selectionKey.currentState?.selectableRegion;
 
+  @override
   void _clear() {
     _selectionRequest++;
     _region?.clearSelection();
@@ -127,9 +129,18 @@ class _MessageSelectionAreaState extends State<MessageSelectionArea> {
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final scope = MessageSelectionScope.maybeOf(context);
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       _clear();
       _menuKey.currentState?.dismiss();
+      scope?.selection.exit();
+      return KeyEventResult.handled;
+    }
+    if (scope != null &&
+        scope.selection.active &&
+        _copyShortcut.accepts(event, HardwareKeyboard.instance)) {
+      final text = scope.selectedText();
+      if (text.isNotEmpty) unawaited(copy(text));
       return KeyEventResult.handled;
     }
     final message = _pointedMessage;
@@ -177,7 +188,7 @@ class _MessageSelectionAreaState extends State<MessageSelectionArea> {
                     _menuKey.currentState?.close();
                     return false;
                   },
-                  child: widget.child,
+                  child: _dragSelection(widget.child),
                 ),
               ),
             ),

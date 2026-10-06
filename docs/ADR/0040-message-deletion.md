@@ -7,8 +7,10 @@ in [the approved plan](../Proposals/issue-49-message-deletion.plan.md).
 
 DMs, groups and channels share one deletion command and one selection UI.
 An explicit scope distinguishes personal erasure from deletion for everyone.
-The message menu also starts bulk selection; a mixed selection cannot silently
-delete only its eligible subset for everyone. Calls and group system events
+The message menu, or a drag across messages, starts bulk selection; a mixed
+selection cannot silently delete only its eligible subset for everyone. Only
+messages the search and filter show stay selected, so a bulk deletion never
+includes rows the user cannot see. See [message selection](../Features/message-selection.md). Calls and group system events
 allow personal erasure. Their underlying conversation state remains intact.
 
 The interaction follows [Signal's message selection and scope choices](https://support.signal.org/hc/en-us/articles/360007320491-Delete-messages-alerts-or-chats).

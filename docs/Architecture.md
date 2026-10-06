@@ -72,6 +72,10 @@ The message list retains one text selection area. Row delegates expand a timed
 third mouse click to the whole body; one animated menu owner shares Mosh controls
 across text and attachments while retaining selection through menu focus.
 See [message menus](Features/message-context-menus.md) for targeting and gestures.
+`MessageSelectionHost` wraps the chat scaffold: it owns the picked messages,
+swaps the header for the selection bar and runs bulk deletion. Rows and the
+drag gesture read it through `MessageSelectionScope`; see
+[message selection](Features/message-selection.md).
 
 `ConversationTextSends` admits submitted drafts in FIFO order without blocking
 editing or waiting for delivery. It keeps refused submissions individually for
