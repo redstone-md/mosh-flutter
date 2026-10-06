@@ -29,6 +29,8 @@ session remains the call's origin until its snapshot no longer contains a call.
 Route snapshots cannot override this owner with older cached call data.
 Another session cannot replace a call that still exists. Once it ends, selection
 promotes another session that still contains a call; there is no call-waiting UI.
+When there is no retained owner, selection prefers an already active call over
+pending or outgoing calls, irrespective of the DM list order.
 
 One shared audio orchestrator serializes replacement. Cancellation stops frame
 work immediately; startup and teardown must finish before another capture or
@@ -121,19 +123,19 @@ functions remain within the limit.
   OS close in all phases and minimize/restore. Audio used real record/CPAL streams
   connected to PulseAudio's sine source and null output rather than physical
   microphone/speaker hardware.
-- 183 focused Flutter tests passed, covering system insets, delayed notification
+- 186 focused Flutter tests passed, covering system insets, delayed notification
   readiness, focused-window suppression and forced process termination with a
   broken input pipe, plus accept/close races, notification cancellation,
   admission confirmation, main-window restore, setup/control serialization and
   failed window-start retry, terminal buttons during acceptance and alerts after
   either window loses focus. Analyze and format passed.
-- Full Flutter suite: 1523 passed, four skipped. One unchanged test,
+- Full Flutter suite: 1526 passed, four skipped. One unchanged test,
   `media_kit_tracer_test.dart`, also fails when run alone because headless libmpv
   returns no screenshot. It imports no voice-call implementation.
 - Rust runtime unit/integration tests passed; doc tests, fmt and clippy passed.
   All seven ringtone tests passed, including explicit selected-output stream
   start/stop/repeat on PulseAudio.
-- Changed lines represented in LCOV: Dart 95.5% (844/884), Rust 97.7% (126/129).
+- Changed lines represented in LCOV: Dart 95.5% (845/885), Rust 97.7% (126/129).
   Application entrypoints are additionally exercised by the native scenario. Ringtone source
   coverage is 100% for recording conversion and 96.9% for CPAL playback. The
   available LCOV output contains no branch counters. Linux process startup and
