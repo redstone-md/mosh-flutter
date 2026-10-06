@@ -59,7 +59,7 @@ class SessionsRailList extends ConsumerWidget {
         ]);
       },
       child: ListView(
-          padding: const EdgeInsetsDirectional.only(end: 12),
+          padding: const EdgeInsets.symmetric(horizontal: kRailPadding),
           children: [
             if (status case final status?) status,
             ..._offers(context, ref, offers, l),
