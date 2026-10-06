@@ -127,6 +127,13 @@ class ConversationMessageRow extends StatelessWidget {
     return attachment != null && attachment.voice == null;
   }
 
+  /// A confirmed deletion needs no status line; a pending or refused one does.
+  String? _deletionStatus(DeletionStatus status) => switch (status) {
+        DeletionStatus.pending => l.messageDeletionPending,
+        DeletionStatus.confirmed => null,
+        DeletionStatus.rejected => l.messageDeletionLocalOnly,
+      };
+
   Widget _body(BuildContext context) {
     if (message.deletion case final deleted?) {
       return Column(
@@ -141,11 +148,8 @@ class ConversationMessageRow extends StatelessWidget {
                     .textTheme
                     .bodyMedium
                     ?.copyWith(fontStyle: FontStyle.italic)),
-            Text(
-                deleted.status == DeletionStatus.pending
-                    ? l.messageDeletionPending
-                    : l.messageDeletionConfirmed,
-                style: Theme.of(context).textTheme.bodySmall),
+            if (_deletionStatus(deleted.status) case final status?)
+              Text(status, style: Theme.of(context).textTheme.bodySmall),
           ]);
     }
     final footer = ConversationMessageFooter(message: message, kind: kind);

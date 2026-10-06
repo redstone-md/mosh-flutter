@@ -1049,8 +1049,8 @@
       }
     }
   },
-  "messageDeletionPending": "Ожидает доставки",
-  "messageDeletionConfirmed": "Запрос подтверждён",
+  "messageDeletionPending": "Ожидает удаления",
+  "messageDeletionLocalOnly": "Удалено только у вас",
   "messageDeletionRejected": "Часть запросов удаления отклонена из-за изменения прав. У вас эти сообщения остались удалены.",
   "messagesSelected": "Выбрано: {count}",
   "@messagesSelected": {
