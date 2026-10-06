@@ -18,8 +18,11 @@ the software keyboard. Large text and tall menus retain scrollable actions.
   message selection or deletion clears text selection before invoking the action.
 - Double mouse click selects a word. A timed third click selects all the text in
   the clicked body, including explicit newlines, without sender metadata or time.
-  Ordinary drag selection still spans messages. This is a mouse gesture;
-  touchscreen selection keeps Flutter's long press and draggable native handles.
+  A mouse drag selects text within one message; once it crosses into another
+  message it selects messages instead (IVO-25, see
+  [message selection](message-selection.md)). Copying several messages uses the
+  copy shortcut on picked messages. Touchscreen text selection keeps Flutter's
+  long press and draggable native handles.
 - Focused messages accept the menu key or Shift+F10. Arrow keys move through the
   menu; Enter/Space activate an action and Escape dismisses it. Closing restores
   the source row's focus. Ctrl/Cmd+C preserves normal selection copying,
@@ -37,7 +40,8 @@ the software keyboard. Large text and tall menus retain scrollable actions.
 
 The feature-local menu uses Flutter's `RawMenuAnchor` for overlay lifecycle and
 the existing `MoshMenuItem`/`MoshMenuTheme` for controls and surfaces. One
-`SelectionArea` retains native selection, including cross-message dragging. Row
+`SelectionArea` retains native selection. A drag that leaves its message keeps
+running natively but hidden, so its edge auto-scroll drives message picking. Row
 selection delegates customize paragraph selection without replacing Flutter's
 gesture recognizer. Menu focus remains under the selection's focus node.
 

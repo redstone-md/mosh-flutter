@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/message_copy.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
@@ -11,6 +10,7 @@ import 'package:mosh/src/state/gateway_provider.dart';
 
 import '../../support/conversation_cases.dart';
 import '../../support/message_builders.dart';
+import '../../support/hosted_message_list.dart';
 import '../../support/message_selection.dart';
 import '../../support/pump.dart';
 import '../../support/scriptable_gateway.dart';
@@ -24,26 +24,10 @@ DmConversation _snapshot(String target, List<String> ids) => DmConversation(
 
 Future<void> _pumpList(WidgetTester tester,
         ValueNotifier<DmConversation> snapshot, ScriptableGateway gateway) =>
-    pumpScreen(
-        tester,
-        Scaffold(
-          body: ValueListenableBuilder(
-            valueListenable: snapshot,
-            builder: (context, current, child) => ConversationMessageListView(
-              messages: current.messages,
-              snapshot: current,
-              attachmentCallbacks: (view, {required bool own}) =>
-                  ConversationAttachmentCallbacks(
-                busy: false,
-                onDownload: (_) {},
-                onCancel: (_) {},
-                onOpen: (_) {},
-              ),
-              onRetryMessage: (_) {},
-            ),
-          ),
-        ),
-        overrides: [gatewayProvider.overrideWithValue(gateway)]);
+    pumpScreen(tester, HostedMessageList(snapshot: snapshot), overrides: [
+      gatewayProvider.overrideWithValue(gateway),
+      hostedSnapshotOverride(snapshot),
+    ]);
 
 Future<void> _pumpText(WidgetTester tester) => pumpScreen(
     tester,

@@ -1926,6 +1926,10 @@
   "chatNameSuperseded": "Name change superseded by a later name.",
   "messageDelete": "Delete…",
   "messageSelect": "Select message",
+  "messageSelectionDelete": "Delete",
+  "@messageSelectionDelete": {
+    "description": "Bulk delete button in the selection header; the selected count follows it"
+  },
   "messageDeleteForMe": "Delete for me",
   "messageDeleteForEveryone": "Delete for everyone",
   "messageDeleteTitle": "Delete messages ({count})?",
