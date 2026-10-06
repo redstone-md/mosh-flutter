@@ -134,43 +134,51 @@ void main() {
     await tester.pump();
   });
 
-  for (final outcome in ['accepted', 'failed', 'replaced']) {
-    testWidgets('native close waits for accept: $outcome', (tester) async {
-      final f = _Fixture();
-      addTearDown(f.container.dispose);
-      final accepted = Completer<void>();
-      f.bridge.respondNext(BridgeMethod.callAccept, accepted.future);
-      await f.mount(tester);
-      final displayed = f.window.views.last;
-      final accepting = f.command(displayed.command(CallViewAction.accept));
-      await frames(tester);
-      final closing = f.command(displayed.command(CallViewAction.end));
-      await frames(tester);
-      expect(f.bridge.countOf(BridgeMethod.callEnd), 0);
-      if (outcome == 'replaced') {
-        f.seed(id: 'replacement');
+  for (final kind in ['native', 'button']) {
+    for (final outcome in ['accepted', 'failed', 'replaced']) {
+      testWidgets('$kind close waits for accept: $outcome', (tester) async {
+        final f = _Fixture();
+        addTearDown(f.container.dispose);
+        final accepted = Completer<void>();
+        f.bridge.respondNext(BridgeMethod.callAccept, accepted.future);
+        await f.mount(tester);
+        final displayed = f.window.views.last;
+        final accepting = f.command(displayed.command(CallViewAction.accept));
         await frames(tester);
-      }
-      if (outcome == 'failed') {
-        accepted.completeError(StateError('accept failed'));
-      } else {
-        accepted.complete();
-      }
-      await tester.pump();
-      await Future.wait([accepting, closing]);
-      await frames(tester);
-      expect(f.bridge.countOf(BridgeMethod.callEnd),
-          outcome == 'accepted' ? 1 : 0);
-      expect(f.bridge.countOf(BridgeMethod.callDecline),
-          outcome == 'failed' ? 1 : 0);
-      if (outcome == 'replaced') {
-        expect(f.window.views.last.callId, 'replacement');
-      } else {
-        expect(f.window.closes, 1);
-      }
-      await tester.pumpWidget(const SizedBox.shrink());
-      f.container.dispose();
-      await tester.pump();
-    });
+        final Future<void> closing;
+        if (kind == 'native') {
+          closing = f.command(displayed.command(CallViewAction.end));
+        } else {
+          await tester.tap(find.byTooltip('Cancel call'));
+          closing = Future.value();
+        }
+        await frames(tester);
+        expect(f.bridge.countOf(BridgeMethod.callEnd), 0);
+        if (outcome == 'replaced') {
+          f.seed(id: 'replacement');
+          await frames(tester);
+        }
+        if (outcome == 'failed') {
+          accepted.completeError(StateError('accept failed'));
+        } else {
+          accepted.complete();
+        }
+        await tester.pump();
+        await Future.wait([accepting, closing]);
+        await frames(tester);
+        expect(f.bridge.countOf(BridgeMethod.callEnd),
+            outcome == 'accepted' ? 1 : 0);
+        expect(f.bridge.countOf(BridgeMethod.callDecline),
+            outcome == 'failed' ? 1 : 0);
+        if (outcome == 'replaced') {
+          expect(f.window.views.last.callId, 'replacement');
+        } else {
+          expect(f.window.closes, 1);
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+        f.container.dispose();
+        await tester.pump();
+      });
+    }
   }
 }

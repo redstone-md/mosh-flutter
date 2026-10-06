@@ -54,6 +54,9 @@ still target the main application's `FLUTTER_RUNNER_WIN32_WINDOW` class.
 Incoming notifications await initialization and recheck the current incoming call
 before posting. A completed initialization cannot notify about an ended call.
 Notifications are suppressed while either the main window or call window is focused.
+While suppressed, a one-second retry rechecks both windows so an unanswered call
+can notify after focus moves away, without requiring a new session snapshot.
+The retry stops on acceptance, termination or widget disposal.
 Showing and cancelling are serialized; acceptance, decline, remote end and widget
 disposal remove the call's notification even if its show operation finishes late.
 Failed acceptance allows a fresh alert while the call remains incoming. An attempt
@@ -69,6 +72,9 @@ Widget tests use the existing scriptable gateway and bridge plus observable audi
 factories under `test/support/`. They cover messaging, navigation, call-ID binding,
 late accept, remote termination, audio replacement, setup failure, timeout and
 window startup after termination.
+Terminal buttons remain available during acceptance and wait for that call's
+control operation. Bringing either desktop window forward restores it only when
+minimized, preserving an already maximized window's geometry.
 
 The native UI test uses a real independent installation process, Moss discovery,
 AES-GCM, Opus, `record` capture and CPAL playback. It covers decline, cancel,
@@ -115,18 +121,19 @@ functions remain within the limit.
   OS close in all phases and minimize/restore. Audio used real record/CPAL streams
   connected to PulseAudio's sine source and null output rather than physical
   microphone/speaker hardware.
-- 180 focused Flutter tests passed, covering system insets, delayed notification
+- 183 focused Flutter tests passed, covering system insets, delayed notification
   readiness, focused-window suppression and forced process termination with a
   broken input pipe, plus accept/close races, notification cancellation,
   admission confirmation, main-window restore, setup/control serialization and
-  failed window-start retry. Analyze and format passed.
-- Full Flutter suite: 1515 passed, four skipped. One unchanged test,
+  failed window-start retry, terminal buttons during acceptance and alerts after
+  either window loses focus. Analyze and format passed.
+- Full Flutter suite: 1523 passed, four skipped. One unchanged test,
   `media_kit_tracer_test.dart`, also fails when run alone because headless libmpv
   returns no screenshot. It imports no voice-call implementation.
 - Rust runtime unit/integration tests passed; doc tests, fmt and clippy passed.
   All seven ringtone tests passed, including explicit selected-output stream
   start/stop/repeat on PulseAudio.
-- Changed lines represented in LCOV: Dart 95.3% (831/872), Rust 97.7% (126/129).
+- Changed lines represented in LCOV: Dart 95.5% (844/884), Rust 97.7% (126/129).
   Application entrypoints are additionally exercised by the native scenario. Ringtone source
   coverage is 100% for recording conversion and 96.9% for CPAL playback. The
   available LCOV output contains no branch counters. Linux process startup and

@@ -83,6 +83,8 @@ void main() {
             .toMap()));
     await tester.tap(find.text('Alice'));
     await tester.pump();
+    await tester.tap(find.byTooltip('Cancel call'));
+    await tester.pump();
     await _osClose(platform);
     await tester.pump();
     const active = CallViewState(
@@ -100,18 +102,27 @@ void main() {
     await _osClose(platform);
     await tester.pump();
     await handle(const MethodCall('call-show'));
+    expect(platform.calls.where((call) => call.method == 'restore'), isEmpty);
     expect(await handle(const MethodCall('call-is-focused')), isFalse);
     expect(commands.map((args) => args['action']), [
       'openConversation',
       'accept',
       'openConversation',
       'end',
+      'end',
       'mute',
       'end'
     ]);
     expect(commands.map((args) => args['sessionId']).toSet(), {'origin'});
-    expect(commands.map((args) => args['callId']),
-        ['incoming', 'incoming', 'incoming', 'incoming', 'active', 'active']);
+    expect(commands.map((args) => args['callId']), [
+      'incoming',
+      'incoming',
+      'incoming',
+      'incoming',
+      'incoming',
+      'active',
+      'active'
+    ]);
     await handle(const MethodCall('call-close'));
     await tester.pump(const Duration(milliseconds: 20));
     expect(

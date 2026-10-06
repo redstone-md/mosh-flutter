@@ -78,3 +78,15 @@ accept completes. Replacement calls retain independent gates.
 | A stalled capture stop delays playback release | Accept | Cancellation starts independent teardown for acquired handles. `stop` joins that work; the serialized audio owner still waits for startup and all teardown before replacement. Two failing-then-passing lifetime tests check stalled active and late capture teardown. |
 | Failed accept permanently suppresses a cancelled notification | Accept | Reset the notification attempt while busy and start a new attempt when the incoming call becomes retryable. A generation rejects old readiness/focus/show work even for the same call ID. Tests cover an already posted alert and pending initialization. |
 | The setup-control test has an unused incoming-call import | Do not accept | The test uses `kCallDeclineReasonHangup`, declared in that file. Analyze is clean; deleting the import would remove the constant's direct declaration from scope. |
+
+## Follow-up review of `a1d2e2f7`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| The terminal button is disabled while accepting | Accept | Keep the red button enabled and send terminal intent for busy incoming calls. Three failing-then-passing strip tests cover successful, failed and replaced acceptance; the child view also checks its button command. |
+| Initial focus permanently suppresses the incoming alert | Accept | Recheck both windows every second while the incoming call remains suppressed. Tests move focus away without changing the snapshot, verify exactly one alert and reject alerts after termination. |
+
+The local window check also found that unconditional `restore` unmaximizes a
+visible Windows window in window_manager 0.5.2. Both window paths now use one
+foreground helper that restores only a minimized window. A failing-then-passing
+application-router test checks the visible case; minimized restore still passes.

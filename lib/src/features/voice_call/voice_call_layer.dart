@@ -41,6 +41,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
 class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
   String? _notifiedCall;
   int _notificationGeneration = 0;
+  Timer? _notificationRetry;
   int? _notificationId;
   FlutterLocalNotificationsPlugin? _notificationPlugin;
   Future<void> _notificationWork = Future.value();
@@ -133,8 +134,11 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
       }
       if (!_isIncoming(dialog.callId, generation)) return;
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-        if (await windowManager.isFocused()) return;
-        if (await widget.isCallWindowFocused?.call() ?? false) return;
+        if (await windowManager.isFocused() ||
+            (await widget.isCallWindowFocused?.call() ?? false)) {
+          _retryNotification(dialog.callId, generation);
+          return;
+        }
       }
       if (!mounted || !_isIncoming(dialog.callId, generation)) return;
       final plugin = ref.read(flutterLocalNotificationsPluginProvider);
@@ -160,6 +164,8 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
 
   void _clearNotification() {
     ++_notificationGeneration;
+    _notificationRetry?.cancel();
+    _notificationRetry = null;
     final id = _notificationId;
     if (id == null) return;
     _notificationId = null;
@@ -178,6 +184,18 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         !state.busy &&
         current is IncomingCallDialog &&
         current.callId == id;
+  }
+
+  void _retryNotification(String id, int generation) {
+    if (!mounted || !_isIncoming(id, generation)) return;
+    _notificationRetry?.cancel();
+    _notificationRetry = Timer(const Duration(seconds: 1), () {
+      _notificationRetry = null;
+      if (!mounted || !_isIncoming(id, generation)) return;
+      final current =
+          ref.read(voiceCallOrchestratorProvider(widget.sessionId)).dialog;
+      if (current is IncomingCallDialog) unawaited(_notify(current));
+    });
   }
 }
 

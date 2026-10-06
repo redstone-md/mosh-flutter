@@ -10,6 +10,7 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'call_view.dart';
 import 'call_view_state.dart';
 import 'call_window_pipe.dart';
+import 'desktop_window_visibility.dart';
 
 /// A call-only process starts no Rust, storage, capture or playback runtime.
 Future<void> launchProcessCallWindow() async {
@@ -81,9 +82,7 @@ class _CallWindowController extends ValueNotifier<CallViewState?>
 
   Future<void> show() async {
     if (_closing) return;
-    await windowManager.restore();
-    await windowManager.show();
-    await windowManager.focus();
+    await bringDesktopWindowForward();
   }
 
   void act(CallViewCommand command) {
