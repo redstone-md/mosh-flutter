@@ -39,3 +39,12 @@ callbacks must not act on removed rows or disposed conversations. Test edge
 placement, mobile long press, keyboard use, controls under the menu, reversals,
 reduced motion, and ordinary/cross-message selection. Run Flutter analysis, the
 full widget suite, formatting, and changed-line/branch coverage.
+
+## Review follow-up
+
+Pin row state to message identity and selection/menu state to conversation
+identity. Route overlay copy shortcuts to the existing native selection action.
+Use Flutter's long-press recognizer outside selectable text, retaining native
+caption handles and attachment controls. Reset opening scale after a completed
+close while preserving unfinished reversals. Start with failing tests for all
+four review findings, then run the relevant suite, coverage and code review.

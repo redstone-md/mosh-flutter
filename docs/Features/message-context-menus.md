@@ -22,9 +22,14 @@ the software keyboard. Large text and tall menus retain scrollable actions.
   touchscreen selection keeps Flutter's long press and draggable native handles.
 - Focused messages accept the menu key or Shift+F10. Arrow keys move through the
   menu; Enter/Space activate an action and Escape dismisses it. Closing restores
-  the source row's focus. Ctrl/Cmd+C preserves normal selection copying.
+  the source row's focus. Ctrl/Cmd+C preserves normal selection copying,
+  including while the menu owns focus.
 - A removed or replaced source row dismisses its menu. Scrolling closes it.
   Deferred actions do not invoke a disposed source or conversation.
+- Message identity owns row state; conversation identity owns selection/menu
+  state. Equal text cannot retarget an open menu after insertion or navigation.
+- Long press on an attachment opens its menu even when the message has a
+  caption. Long press on selectable text retains native selection and handles.
 
 ## Motion and ownership
 
@@ -39,6 +44,7 @@ opening takes 250ms with scale 0.97 to 1; closing takes 150ms with scale 1 to 0.
 Both fade and use cubic-bezier(0.22, 1, 0.36, 1). Growth starts at the actual
 cursor-facing corner after placement. Reopening during closing preserves current
 opacity and scale. The system's reduced-motion setting disables this transition.
+After a completed close, the next opening starts at scale 0.97 again.
 
 ## Checks
 
@@ -55,13 +61,14 @@ exceed the 50-line function guideline.
 
 ## Verification results
 
-- Flutter analysis is clean; formatting checks 598 files without changes.
-- The applicable full suite passes 1599 tests, with 4 existing native-library
+- Flutter analysis is clean; formatting checks 599 files without changes.
+- The applicable full suite passes 1617 tests, with 4 existing native-library
   skips. The unmodified `media_kit_tracer_test.dart` fails separately in this
   headless environment because `Player.screenshot()` returns null; it is the
   only test excluded from the final full run.
-- All 97 focused menu, selection, clipboard and deletion checks pass.
-- Changed production lines have 302/308 coverage, 98.1%; branches have 90/105,
-  85.7%. Every changed module meets the repository's individual minimums.
+- Menu, selection, clipboard and deletion checks pass, including regressions
+  for all four review findings and native caption-handle dragging.
+- Review fixes cover 34/34 changed production lines and 14/14 branches.
+  Every changed module meets the repository's individual minimums.
 - A real Flutter render with bundled Inter and Material icons was inspected.
   Physical Windows/macOS/Android/iOS runtime interaction was not exercised.

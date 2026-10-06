@@ -99,6 +99,7 @@ class MessageContextMenuState extends State<MessageContextMenu>
     final hide = _hideOverlay;
     _hideOverlay = null;
     hide?.call();
+    _scale = const AlwaysStoppedAnimation(0.97);
   }
 
   void _open(Offset? position, VoidCallback showOverlay) {
