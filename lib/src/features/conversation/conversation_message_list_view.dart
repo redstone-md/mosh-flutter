@@ -181,6 +181,7 @@ class _ConversationMessageListViewState
         snapshot: widget.snapshot,
         builder: (context, selected, selecting, select, delete) =>
             MessageSelectionArea(
+              key: ValueKey(widget.snapshot.target),
               child: ListView.builder(
                 padding: kChatScrollPadding,
                 reverse: true,
