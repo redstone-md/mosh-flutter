@@ -59,6 +59,16 @@ class _CopyableMessageState extends State<CopyableMessage> {
   void _menu(Offset position, {bool fromKeyboard = false}) =>
       _owner?.showMenu(this, position, fromKeyboard: fromKeyboard);
 
+  void _semanticMenu() {
+    final box = context.findRenderObject()! as RenderBox;
+    _menu(box.localToGlobal(box.size.center(Offset.zero)));
+  }
+
+  VoidCallback? get _semanticLongPress => widget.body.isEmpty &&
+          (widget.onDelete != null || widget.onSelect != null)
+      ? _semanticMenu
+      : null;
+
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     if (event.logicalKey == LogicalKeyboardKey.contextMenu ||
@@ -90,6 +100,7 @@ class _CopyableMessageState extends State<CopyableMessage> {
         onPointerDown: (_) => _owner?._pressedMessage = this,
         child: Semantics(
           container: true,
+          onLongPress: _semanticLongPress,
           customSemanticsActions: {
             if (widget.body.isNotEmpty)
               CustomSemanticsAction(
