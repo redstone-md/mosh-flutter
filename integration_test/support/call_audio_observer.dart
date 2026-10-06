@@ -10,8 +10,16 @@ import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import 'package:mosh/src/features/voice_call/voice_playback.dart';
 
-/// Observes the real factories without replacing capture, Opus or CPAL.
+/// Tracks completed audio operations. Defaults to Record and CPAL.
 class CallAudioObserver {
+  CallAudioObserver({
+    VoiceCaptureFactory captureSource = const RecordVoiceCaptureFactory(),
+    VoicePlaybackFactory playbackSource = const CpalVoicePlaybackFactory(),
+  })  : _captureSource = captureSource,
+        _playbackSource = playbackSource;
+
+  final VoiceCaptureFactory _captureSource;
+  final VoicePlaybackFactory _playbackSource;
   int captures = 0;
   int captureStops = 0;
   int players = 0;
@@ -37,11 +45,11 @@ class _CaptureFactory implements VoiceCaptureFactory {
   _CaptureFactory(this.observer);
   final CallAudioObserver observer;
   @override
-  bool get isSupported => true;
+  bool get isSupported => observer._captureSource.isSupported;
   @override
   Future<VoiceCaptureHandle> start(void Function(Uint8List) onFrame) async {
+    final handle = await observer._captureSource.start(onFrame);
     observer.captures++;
-    final handle = await const RecordVoiceCaptureFactory().start(onFrame);
     return _CaptureHandle(observer, handle);
   }
 }
@@ -52,8 +60,8 @@ class _CaptureHandle implements VoiceCaptureHandle {
   final VoiceCaptureHandle inner;
   @override
   Future<void> stop() async {
-    observer.captureStops++;
     await inner.stop();
+    observer.captureStops++;
   }
 }
 
@@ -62,8 +70,8 @@ class _PlaybackFactory implements VoicePlaybackFactory {
   final CallAudioObserver observer;
   @override
   Future<VoicePlaybackHandle> start() async {
+    final handle = await observer._playbackSource.start();
     observer.players++;
-    final handle = await const CpalVoicePlaybackFactory().start();
     return _PlaybackHandle(observer, handle);
   }
 }
@@ -80,8 +88,8 @@ class _PlaybackHandle implements VoicePlaybackHandle {
 
   @override
   Future<void> stop() async {
-    observer.playerStops++;
     await inner.stop();
+    observer.playerStops++;
   }
 }
 
