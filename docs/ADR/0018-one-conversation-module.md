@@ -19,7 +19,7 @@ The three parts really are one conversation. What differs is small and
 nameable:
 
 - a DM shows a crypto footer, can carry a call, and shows delivery ticks;
-- a channel says its messages are public and hides the MLS badge;
+- a channel says its messages are public;
 - a group says its messages are encrypted, can warn that a rejoin is needed,
   and can offer an org admin the members who are missing from it.
 
@@ -124,9 +124,11 @@ Two details make the merge behave:
 - Conversation behaviour is tested once and run over all three targets, from
   `test/support/conversation_cases.dart`. Six tripled suites are gone.
 - A fourth conversation kind needs a target, a header and a mapper.
-- The kind still decides three small things in the shared row and body: the
-  fingerprint chip, the MLS badge and the delivery ticks. Those are `switch`
-  arms on `ConversationKind`, not separate widgets.
+- The kind still decides small things in the shared row and body: the
+  fingerprint chip and the delivery ticks. Those are `switch` arms on
+  `ConversationKind`, not separate widgets. The per-sender MLS badge was a
+  constant, not a runtime state, and was removed (IVO-26); the group header
+  shows the real MLS state.
 - The Rust side and the frb facade are untouched.
 - The screen now re-marks the active conversation when the router reuses it
   for a different one. The three old screens only did that in `initState`,

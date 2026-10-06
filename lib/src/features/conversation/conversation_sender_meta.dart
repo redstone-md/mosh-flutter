@@ -34,15 +34,11 @@ class DeviceFingerprintChip extends StatelessWidget {
 }
 
 /// The meta row above the first message of a group of messages: the sender
-/// name in bold, then the shortened fingerprint, the [MlsBadge] and the
-/// local HH:mm time. Hovering the time shows the full date.
+/// name in bold, then the shortened fingerprint and the local HH:mm time.
+/// Hovering the time shows the full date.
 ///
-/// The three kinds differ only in which parts show:
-///
-/// - a DM has no per-message fingerprint, so [fromFingerprint] is null and
-///   the chip is left out;
-/// - a channel hides the MLS badge ([showMlsBadge] false), a group and a DM
-///   show it.
+/// A DM has no per-message fingerprint, so [fromFingerprint] is null and the
+/// chip is left out.
 ///
 /// Callers render this only on non-grouped rows: a continuation row omits
 /// the whole meta.
@@ -53,7 +49,6 @@ class ConversationSenderMeta extends StatelessWidget {
     required this.sentAtMs,
     this.fromFingerprint,
     this.peer,
-    this.showMlsBadge = true,
     this.showTime = true,
   });
 
@@ -72,9 +67,6 @@ class ConversationSenderMeta extends StatelessWidget {
   /// name plain bold, and so does the user's own name.
   final PeerActions? peer;
 
-  /// Whether the [MlsBadge] follows the name. A channel hides it; a group
-  /// and a DM show it.
-  final bool showMlsBadge;
   final bool showTime;
 
   @override
@@ -96,10 +88,6 @@ class ConversationSenderMeta extends StatelessWidget {
           if (fingerprint != null) ...[
             const SizedBox(width: kMessageMetaGap),
             DeviceFingerprintChip(fingerprint: fingerprint),
-          ],
-          if (showMlsBadge) ...[
-            const SizedBox(width: kMessageMetaGap),
-            const MlsBadge(),
           ],
           if (showTime && clock != null && full != null) ...[
             const SizedBox(width: kMessageMetaGap),

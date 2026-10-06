@@ -219,14 +219,6 @@
       }
     }
   },
-  "mlsBadgeLabel": "Защищено OpenMLS",
-  "@mlsBadgeLabel": {
-    "description": "Screen-reader label for the MLS badge shown next to a message sender name, indicating OpenMLS end-to-end encryption"
-  },
-  "mlsBadgeTooltip": "Содержание сообщения защищено OpenMLS",
-  "@mlsBadgeTooltip": {
-    "description": "Tooltip shown when hovering the MLS badge next to a message sender name"
-  },
   "peerMessageAction": "Написать",
   "peerInviteSent": "Приглашение отправлено",
   "summaryDmKicker": "Личный диалог",
@@ -1049,8 +1041,8 @@
       }
     }
   },
-  "messageDeletionPending": "Ожидает доставки",
-  "messageDeletionConfirmed": "Запрос подтверждён",
+  "messageDeletionPending": "Ожидает удаления",
+  "messageDeletionLocalOnly": "Удалено только у вас",
   "messageDeletionRejected": "Часть запросов удаления отклонена из-за изменения прав. У вас эти сообщения остались удалены.",
   "messagesSelected": "Выбрано: {count}",
   "@messagesSelected": {
