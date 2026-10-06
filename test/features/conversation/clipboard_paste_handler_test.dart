@@ -11,7 +11,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
 import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart'
-    show PasteImageAction, extensionForFormat, mimeForFormat, pickImageFormat;
+    show
+        PasteAttachmentAction,
+        extensionForFormat,
+        mimeForFormat,
+        pickImageFormat;
 import 'package:mosh/src/features/shared/attachment_picker.dart'
     show AttachmentPickError, PickedAttachment;
 
@@ -118,13 +122,13 @@ void main() {
   // Under `flutter test` there is no platform clipboard, so the read throws
   // the same way a Windows clipboard the process cannot open does. That
   // failure is reported, not thrown: the composer must survive Ctrl+V.
-  group('PasteImageAction', () {
+  group('PasteAttachmentAction', () {
     test('a failed clipboard read is reported and does not throw', () async {
       final reported = <FlutterErrorDetails>[];
       final previous = FlutterError.onError;
       FlutterError.onError = reported.add;
       addTearDown(() => FlutterError.onError = previous);
-      final action = PasteImageAction(
+      final action = PasteAttachmentAction(
         onAttach: (_) => fail('nothing to attach'),
         onAttachmentPickError: (_) => fail('not a size error'),
         gate: () => true,
