@@ -98,8 +98,9 @@ reserves 2px at each horizontal edge so that outline stays visible.
 Files use a flat row within the bubble instead of a second rounded card. Media
 previews clip to the embedded radius; failed transfers keep the existing error
 edge, label and action. The preview height comes from the inline miniature's
-JPEG/PNG header before any decode: 320px wide, clamped to 120–260px, or 200px
-when unknown. Miniature, clear preview and original fill that box with cover
+JPEG/PNG header, including legacy EXIF orientation, before any decode. It
+scales with the available width (at most 320px), clamped to 120–260px, or is
+200px when unknown. Miniature, clear preview and original fill that box with cover
 fit, so their arrival never moves the list. Miniatures are cached by their
 encoded value and reappear in the first frame when a chat is reopened. Download, cancel, retry and open behavior is unchanged.
 

@@ -17,6 +17,18 @@ void main() {
     expect(encodedImageSize(padded), const Size(48, 32));
   });
 
+  test('EXIF orientations 5-8 swap the stored JPEG axes', () {
+    for (final (orientation, size) in [
+      (1, const Size(48, 32)),
+      (6, const Size(32, 48)),
+      (8, const Size(32, 48)),
+    ]) {
+      final image = img.Image(width: 48, height: 32)
+        ..exif.imageIfd.orientation = orientation;
+      expect(encodedImageSize(img.encodeJpg(image)), size);
+    }
+  });
+
   test('truncated, unknown or empty images reveal no size', () {
     final jpeg = img.encodeJpg(img.Image(width: 48, height: 32));
     expect(encodedImageSize(Uint8List(0)), isNull);
@@ -36,5 +48,6 @@ void main() {
     expect(attachmentPreviewHeight(const Size(100, 1)),
         kAttachmentPreviewMinHeight);
     expect(attachmentPreviewHeight(null), kAttachmentPreviewFallbackHeight);
+    expect(attachmentPreviewHeight(const Size(300, 200), width: 240), 160);
   });
 }

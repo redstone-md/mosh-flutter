@@ -93,6 +93,26 @@ void main() {
     expect(tester.getSize(_preview), reserved);
   });
 
+  testWidgets('a narrower bubble keeps the media aspect ratio', (tester) async {
+    await pumpScreen(
+        tester,
+        Scaffold(
+            body: Center(
+                child: SizedBox(
+                    width: 240,
+                    child: AttachmentCard(
+                      descriptor: _descriptor(_landscape),
+                      view: _view(AttachmentState.offered),
+                      own: false,
+                      busy: false,
+                      onDownload: (_) {},
+                      onCancel: (_) {},
+                      onOpen: (_) {},
+                    )))),
+        settle: false);
+    expect(tester.getSize(_preview), const Size(240, 160));
+  });
+
   testWidgets('portrait and unknown sizes stay within the preview bounds',
       (tester) async {
     final portrait =

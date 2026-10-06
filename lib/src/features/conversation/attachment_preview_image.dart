@@ -82,6 +82,7 @@ Size? _jpegSize(Uint8List bytes) {
   if (bytes.length < 4 || bytes[0] != 0xFF || bytes[1] != 0xD8) return null;
   final data = ByteData.sublistView(bytes);
   var offset = 2;
+  var orientation = 1;
   while (offset + 4 <= bytes.length) {
     if (bytes[offset] != 0xFF) return null;
     final marker = bytes[offset + 1];
@@ -90,14 +91,47 @@ Size? _jpegSize(Uint8List bytes) {
       continue;
     }
     final length = data.getUint16(offset + 2);
+    if (marker == 0xE1 && orientation == 1) {
+      orientation = _exifOrientation(data, offset + 4, offset + 2 + length);
+    }
     if (_isStartOfFrame(marker)) {
       if (offset + 9 > bytes.length) return null;
-      return _positive(data.getUint16(offset + 7), data.getUint16(offset + 5));
+      final (width, height) =
+          (data.getUint16(offset + 7), data.getUint16(offset + 5));
+      // Orientations 5-8 rotate by 90 degrees when Flutter displays them.
+      return orientation >= 5 && orientation <= 8
+          ? _positive(height, width)
+          : _positive(width, height);
     }
     if (length < 2) return null;
     offset += 2 + length;
   }
   return null;
+}
+
+/// Legacy miniatures kept the source EXIF orientation with unrotated pixels.
+/// Reads tag 0x0112 from IFD0 of an `Exif\0\0` APP1 payload, else 1.
+int _exifOrientation(ByteData data, int start, int end) {
+  try {
+    if (end > data.lengthInBytes ||
+        data.getUint32(start) != 0x45786966 ||
+        data.getUint16(start + 4) != 0) {
+      return 1;
+    }
+    final tiff = start + 6;
+    final endian = data.getUint16(tiff) == 0x4949 ? Endian.little : Endian.big;
+    final ifd = tiff + data.getUint32(tiff + 4, endian);
+    final count = data.getUint16(ifd, endian);
+    for (var entry = ifd + 2; entry < ifd + 2 + count * 12; entry += 12) {
+      if (entry + 12 > end) return 1;
+      if (data.getUint16(entry, endian) == 0x0112) {
+        return data.getUint16(entry + 8, endian);
+      }
+    }
+  } on RangeError {
+    // A truncated EXIF payload leaves the stored axes.
+  }
+  return 1;
 }
 
 /// SOF0-SOF15, excluding DHT (C4), JPG (C8) and DAC (CC).

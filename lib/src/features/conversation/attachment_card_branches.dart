@@ -39,6 +39,7 @@ class _MediaPreviewCard extends StatelessWidget {
     // Drives the centered play-overlay on top of the thumbnail image.
     final isVideo = descriptor.mime.startsWith('video/');
     final previewLabel = l.attachmentOpenAria(descriptor.fileName);
+    final mediaSize = encodedImageSize(bytes);
 
     return _FileCardShell(
       failed: attachment.failed,
@@ -57,45 +58,49 @@ class _MediaPreviewCard extends StatelessWidget {
             child: GestureDetector(
               onTap: () => onOpen(descriptor),
               // The bubble supplies the surface beneath transparent images.
-              child: Container(
-                width: double.infinity,
-                height: attachmentPreviewHeight(encodedImageSize(bytes)),
-                clipBehavior: Clip.antiAlias,
-                decoration: const BoxDecoration(
-                  color: MoshColors.line,
-                  borderRadius: MoshShapes.attachment,
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  fit: StackFit.expand,
-                  children: [
-                    _previewImage(attachment, bytes, thumb ?? ''),
-                    if (isVideo)
-                      // 48px round dark play badge -- decorative, so no
-                      // semantics.
-                      Center(
-                          child: Semantics(
-                        excludeSemantics: true,
-                        child: Container(
-                          width: 48,
-                          height: 48,
+              // A narrower bubble scales the reserved height with the width.
+              child: LayoutBuilder(
+                  builder: (context, constraints) => Container(
+                        width: double.infinity,
+                        height: attachmentPreviewHeight(mediaSize,
+                            width: constraints.maxWidth),
+                        clipBehavior: Clip.antiAlias,
+                        decoration: const BoxDecoration(
+                          color: MoshColors.line,
+                          borderRadius: MoshShapes.attachment,
+                        ),
+                        child: Stack(
                           alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: MoshColors.bg0.withValues(alpha: 0.62),
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.play_arrow,
-                              size: 24,
-                              color: Colors.white,
-                            ),
-                          ),
+                          fit: StackFit.expand,
+                          children: [
+                            _previewImage(attachment, bytes, thumb ?? ''),
+                            if (isVideo)
+                              // 48px round dark play badge -- decorative, so no
+                              // semantics.
+                              Center(
+                                  child: Semantics(
+                                excludeSemantics: true,
+                                child: Container(
+                                  width: 48,
+                                  height: 48,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color:
+                                        MoshColors.bg0.withValues(alpha: 0.62),
+                                  ),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.play_arrow,
+                                      size: 24,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              )),
+                          ],
                         ),
                       )),
-                  ],
-                ),
-              ),
             ),
           ),
           // Controls precede time in the metadata row so its trailing
