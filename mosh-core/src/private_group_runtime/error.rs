@@ -11,6 +11,7 @@ pub enum PrivateGroupError {
     OpenMls(String),
     InvalidInvite(String),
     BodyTooLarge,
+    PayloadTooLarge,
     MissingGroup(String),
     MissingMessage(String),
     DuplicateGroup(String),
@@ -31,6 +32,10 @@ impl std::fmt::Display for PrivateGroupError {
             Self::OpenMls(error) => write!(formatter, "OpenMLS error: {error}"),
             Self::InvalidInvite(error) => write!(formatter, "invalid group invite: {error}"),
             Self::BodyTooLarge => write!(formatter, "group message too large"),
+            Self::PayloadTooLarge => write!(
+                formatter,
+                "message metadata exceeds the network payload limit"
+            ),
             Self::MissingGroup(id) => write!(formatter, "group not joined: {id}"),
             Self::MissingMessage(id) => write!(formatter, "group message missing: {id}"),
             Self::DuplicateGroup(id) => write!(formatter, "already joined group: {id}"),

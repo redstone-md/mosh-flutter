@@ -1,5 +1,4 @@
 import 'dart:async' show Completer;
-import 'dart:convert' show base64Encode;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/foundation.dart'
@@ -8,7 +7,6 @@ import 'package:flutter/widgets.dart' show Action, Intent, PasteTextIntent;
 import 'package:super_clipboard/super_clipboard.dart';
 
 import 'package:mosh/src/features/shared/attachment_picker.dart';
-import 'package:mosh/src/features/shared/thumbnail.dart' show createThumbnail;
 
 /// Image formats we accept from the clipboard, in priority order (matches
 /// the spec: png, jpeg, gif, webp, tiff). Each is a [FileFormat], read as
@@ -78,7 +76,7 @@ Future<Uint8List?> readImageBytes(
 }
 
 /// Reads the clipboard, and if it holds an image, synthesizes a
-/// [PickedAttachment] (base64 bytes + 320px JPEG thumbnail) and forwards it to
+/// [PickedAttachment] with original bytes and both JPEG previews and forwards it to
 /// [onAttach]. Returns true when an image was attached (the paste is
 /// swallowed -- the default text insertion must NOT also run). Returns false
 /// when the clipboard holds no image (the caller lets the default text paste
@@ -106,15 +104,17 @@ Future<bool> handlePasteImage({
     return true; // swallow the paste (parity with the picker overflow path)
   }
   final ext = extensionForFormat(format);
-  final mime = mimeForFormat(format);
   final fileName = 'clipboard-${DateTime.now().millisecondsSinceEpoch}.$ext';
-  final thumbnail = await createThumbnail(bytes, fileName);
-  onAttach(PickedAttachment(
-    fileName: fileName,
-    mime: mime,
-    dataBase64: base64Encode(bytes),
-    thumbnailBase64: thumbnail,
-  ));
+  try {
+    final picked = await ingestAttachment(
+      bytes: bytes,
+      fileName: fileName,
+      maxBytes: maxBytes,
+    );
+    if (picked != null) onAttach(picked);
+  } on AttachmentPreviewException {
+    onAttachmentPickError(AttachmentPickError.previewUnavailable);
+  }
   return true;
 }
 

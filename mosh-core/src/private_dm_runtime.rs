@@ -12,12 +12,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 pub use crate::attachment_runtime::VoiceMeta;
-use crate::attachment_runtime::{AttachmentManifest, OutgoingAttachment, StreamRange};
+use crate::attachment_runtime::{OutgoingAttachment, StreamRange};
 use crate::attachment_store::AttachmentStore;
 use crate::conversation::dedup::SeenFrames;
 use crate::conversation::history::Restore;
 use crate::conversation::message_log::MessageLog;
 use crate::conversation::outbound::{OnSent, Outbox};
+use crate::conversation::previews::{AttachmentInput, AttachmentOffer};
 use crate::conversation::runtime::{ConversationRuntime, ConversationSession};
 use crate::conversation::transfer::Transfer;
 use crate::conversation::{decode, encode, now_ms};

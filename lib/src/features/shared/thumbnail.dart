@@ -1,20 +1,12 @@
 import 'dart:async' show Completer, StreamSubscription;
-import 'dart:convert' show base64Encode;
 import 'dart:typed_data' show Uint8List;
 
-import 'package:image/image.dart' as img
-    show Image, decodeImage, decodeNamedImage, copyResize, encodeJpg;
+import 'package:flutter/foundation.dart' show compute;
+import 'package:image/image.dart' as img show decodeImage, decodeNamedImage;
 import 'package:media_kit/media_kit.dart';
 import 'package:mime/mime.dart' show lookupMimeType;
 
-/// The max edge (px) for a thumbnail.
-const int _thumbnailMaxEdge = 320;
-
-/// JPEG quality (0-100); 70 of 100.
-const int _jpegQuality = 70;
-
-// The attachment manifest discards previews larger than this wire limit.
-const int _thumbnailMaxBase64 = 32 * 1024;
+import 'image_previews.dart';
 
 /// Generates a base64-encoded JPEG thumbnail for an image or video file, or
 /// null for other types / decode failures.
@@ -30,6 +22,12 @@ const int _thumbnailMaxBase64 = 32 * 1024;
 /// unavailable, it returns null rather than throwing. End-to-end video
 /// capture is verified via integration_test, not `flutter test`.
 Future<String?> createThumbnail(Uint8List bytes, String fileName) async {
+  return (await createAttachmentPreviews(bytes, fileName))?.previewBase64;
+}
+
+/// Decode once and generate both the inline miniature and the clear preview.
+Future<AttachmentPreviews?> createAttachmentPreviews(
+    Uint8List bytes, String fileName) async {
   final mime = lookupMimeType(fileName) ?? '';
   if (mime.startsWith('image/')) {
     return _createImageThumbnail(bytes, fileName);
@@ -42,30 +40,24 @@ Future<String?> createThumbnail(Uint8List bytes, String fileName) async {
 
 /// Image branch. Returns null for
 /// non-images / decode failures (never fatal).
-Future<String?> _createImageThumbnail(Uint8List bytes, String fileName) async {
+Future<AttachmentPreviews?> _createImageThumbnail(
+        Uint8List bytes, String fileName) =>
+    compute(_decodeImagePreviews, (bytes, fileName),
+        debugLabel: 'attachment-previews');
+
+AttachmentPreviews? _decodeImagePreviews((Uint8List, String) input) {
+  final (bytes, fileName) = input;
   try {
-    final decoded =
-        img.decodeNamedImage(fileName, bytes) ?? img.decodeImage(bytes);
+    final decoded = img.decodeNamedImage(fileName, bytes, frame: 0) ??
+        img.decodeImage(bytes, frame: 0);
     if (decoded == null) return null;
-    return _encodeThumbnail(decoded);
+    return encodeImagePreviews(decoded, original: bytes);
   } catch (_) {
     // Never fatal -- resolve null on any decode failure. `catch (_)` on
     // purpose: a corrupt or oversized bitmap throws a RangeError, an Error,
     // not an Exception, and that used to escape as an uncaught async error.
     return null;
   }
-}
-
-/// Keep detailed images within the manifest limit instead of losing the preview.
-String? _encodeThumbnail(img.Image decoded) {
-  for (final edge in [_thumbnailMaxEdge, 240, 160, 80]) {
-    final resized = decoded.width >= decoded.height
-        ? img.copyResize(decoded, width: edge)
-        : img.copyResize(decoded, height: edge);
-    final encoded = base64Encode(img.encodeJpg(resized, quality: _jpegQuality));
-    if (encoded.length <= _thumbnailMaxBase64) return encoded;
-  }
-  return null;
 }
 
 /// Video branch. Seeks to 10% of the
@@ -77,7 +69,7 @@ String? _encodeThumbnail(img.Image decoded) {
 /// (libmpv-2.dll) is a `flutter build windows` artifact and is absent from the
 /// `flutter test` isolate, so this resolves null there (the defensive
 /// contract). A real mp4 capture is exercised via integration_test.
-Future<String?> _createVideoThumbnail(Uint8List bytes) async {
+Future<AttachmentPreviews?> _createVideoThumbnail(Uint8List bytes) async {
   Player? player;
   StreamSubscription<Duration>? durSub;
   StreamSubscription<Duration>? posSub;
@@ -140,7 +132,7 @@ Future<String?> _createVideoThumbnail(Uint8List bytes) async {
     //    bytes returned by screenshot().
     final decoded = img.decodeImage(frame);
     if (decoded == null) return null;
-    return _encodeThumbnail(decoded);
+    return encodeImagePreviews(decoded);
   } on Exception {
     // media_kit native backend unavailable / decode failure -- never fatal.
     return null;

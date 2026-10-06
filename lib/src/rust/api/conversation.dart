@@ -82,6 +82,7 @@ class BridgeAttachmentPayload {
   final String mime;
   final String dataBase64;
   final String? thumbnailBase64;
+  final String? previewBase64;
   final VoiceMeta? voice;
 
   const BridgeAttachmentPayload({
@@ -89,6 +90,7 @@ class BridgeAttachmentPayload {
     required this.mime,
     required this.dataBase64,
     this.thumbnailBase64,
+    this.previewBase64,
     this.voice,
   });
 
@@ -98,6 +100,7 @@ class BridgeAttachmentPayload {
       mime.hashCode ^
       dataBase64.hashCode ^
       thumbnailBase64.hashCode ^
+      previewBase64.hashCode ^
       voice.hashCode;
 
   @override
@@ -109,6 +112,7 @@ class BridgeAttachmentPayload {
           mime == other.mime &&
           dataBase64 == other.dataBase64 &&
           thumbnailBase64 == other.thumbnailBase64 &&
+          previewBase64 == other.previewBase64 &&
           voice == other.voice;
 }
 

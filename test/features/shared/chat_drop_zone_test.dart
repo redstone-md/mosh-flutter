@@ -227,6 +227,32 @@ void main() {
       expect(attached!.mime, 'image/png');
       expect(base64Decode(attached!.dataBase64), expectedBytes);
       expect(attached!.thumbnailBase64, isNotNull);
+      expect(attached!.thumbnailBase64!.length, lessThanOrEqualTo(2048));
+      expect(img.decodeJpg(base64Decode(attached!.previewBase64!)), isNotNull);
+    });
+
+    testWidgets('an unreadable dropped image reports its preview failure',
+        (tester) async {
+      AttachmentPickError? error;
+      await pumpZone(
+        tester,
+        disabled: false,
+        onAttach: (_) => fail('unreadable image must not be sent'),
+        onError: (value) => error = value,
+      );
+      await _invokePlatformMethod(const MethodCall('entered', [400.0, 300.0]));
+      await tester.pump();
+      await tester.runAsync(() async {
+        await tempPng.writeAsBytes([1, 2, 3]);
+        await _invokePlatformMethod(
+            MethodCall('performOperation', [tempPng.path]));
+        for (var i = 0; i < 400 && error == null; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+      });
+      await tester.pump();
+      expect(error, AttachmentPickError.previewUnavailable);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('disabled: no overlay while dragging (no-op)', (tester) async {

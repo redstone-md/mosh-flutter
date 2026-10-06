@@ -110,7 +110,7 @@ pub(super) enum ChannelBlobEnvelope {
     Manifest {
         from_device: String,
         from_fingerprint: String,
-        manifest: Box<AttachmentManifest>,
+        manifest: Box<AttachmentOffer>,
     },
     Request {
         from_fingerprint: String,
@@ -166,6 +166,7 @@ pub enum ChannelRuntimeError {
     Persistence(String),
     InvalidName(String),
     BodyTooLarge,
+    PayloadTooLarge,
     MissingChannel(String),
     MissingMessage(String),
     DuplicateChannel(String),
@@ -182,6 +183,10 @@ impl std::fmt::Display for ChannelRuntimeError {
             Self::Persistence(error) => write!(formatter, "persistence error: {error}"),
             Self::InvalidName(name) => write!(formatter, "invalid channel name: {name}"),
             Self::BodyTooLarge => write!(formatter, "channel message too large"),
+            Self::PayloadTooLarge => write!(
+                formatter,
+                "message metadata exceeds the network payload limit"
+            ),
             Self::MissingChannel(name) => write!(formatter, "channel not joined: {name}"),
             Self::MissingMessage(id) => write!(formatter, "channel message missing: {id}"),
             Self::DuplicateChannel(name) => write!(formatter, "already joined channel: {name}"),

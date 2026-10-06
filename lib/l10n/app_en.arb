@@ -190,6 +190,8 @@
     "description": "Hint shown when dragging a file over the message list"
   },
   "attachmentTooLargeMessage": "Attachment exceeds the 50 MB limit",
+  "attachmentPreviewUnavailable": "Could not create an image preview. Try another image format.",
+  "chatActionErrorPayloadTooLarge": "This message is too large to send.",
   "@attachmentTooLargeMessage": {
     "description": "Shown when the picked attachment is rejected for exceeding the 50 MB ceiling (mirrors React use-chat-orchestration `onError(\"Attachment exceeds the 50 MB limit\")`)"
   },

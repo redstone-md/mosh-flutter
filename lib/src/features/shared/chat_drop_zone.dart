@@ -12,6 +12,8 @@ import 'package:mosh/src/features/shared/attachment_picker.dart'
         AttachmentPickError,
         AttachmentPickErrorCallback,
         AttachmentPickedCallback,
+        AttachmentPreviewException,
+        PickedAttachment,
         ingestAttachment;
 
 /// 50 MB attach ceiling -- the paperclip picker's default `maxBytes`.
@@ -71,11 +73,17 @@ class _ChatDropZoneState extends State<ChatDropZone> {
     } on Exception {
       return; // unreadable file -- drop silently ignored
     }
-    final picked = await ingestAttachment(
-      bytes: bytes,
-      fileName: xfile.name,
-      maxBytes: widget.maxBytes,
-    );
+    final PickedAttachment? picked;
+    try {
+      picked = await ingestAttachment(
+        bytes: bytes,
+        fileName: xfile.name,
+        maxBytes: widget.maxBytes,
+      );
+    } on AttachmentPreviewException {
+      widget.onError(AttachmentPickError.previewUnavailable);
+      return;
+    }
     if (picked != null) {
       widget.onAttach(picked);
     } else {

@@ -333,6 +333,7 @@ pub struct SendMessageResult {
 
 #[derive(Debug)]
 pub enum PrivateDmRuntimeError {
+    PayloadTooLarge,
     Deletion(crate::message_deletion::DeletionError),
     Revoked,
     Moss(String),

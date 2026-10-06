@@ -2816,8 +2816,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AttachmentView dco_decode_attachment_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return AttachmentView(
       attachmentId: dco_decode_String(arr[0]),
       direction: dco_decode_String(arr[1]),
@@ -2825,6 +2825,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       completedChunks: dco_decode_u_64(arr[3]),
       chunkCount: dco_decode_u_64(arr[4]),
       localPath: dco_decode_opt_String(arr[5]),
+      previewPath: dco_decode_opt_String(arr[6]),
     );
   }
 
@@ -3063,14 +3064,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BridgeAttachmentPayload dco_decode_bridge_attachment_payload(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return BridgeAttachmentPayload(
       fileName: dco_decode_String(arr[0]),
       mime: dco_decode_String(arr[1]),
       dataBase64: dco_decode_String(arr[2]),
       thumbnailBase64: dco_decode_opt_String(arr[3]),
-      voice: dco_decode_opt_box_autoadd_voice_meta(arr[4]),
+      previewBase64: dco_decode_opt_String(arr[4]),
+      voice: dco_decode_opt_box_autoadd_voice_meta(arr[5]),
     );
   }
 
@@ -4649,13 +4651,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_completedChunks = sse_decode_u_64(deserializer);
     var var_chunkCount = sse_decode_u_64(deserializer);
     var var_localPath = sse_decode_opt_String(deserializer);
+    var var_previewPath = sse_decode_opt_String(deserializer);
     return AttachmentView(
         attachmentId: var_attachmentId,
         direction: var_direction,
         state: var_state,
         completedChunks: var_completedChunks,
         chunkCount: var_chunkCount,
-        localPath: var_localPath);
+        localPath: var_localPath,
+        previewPath: var_previewPath);
   }
 
   @protected
@@ -4911,12 +4915,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_mime = sse_decode_String(deserializer);
     var var_dataBase64 = sse_decode_String(deserializer);
     var var_thumbnailBase64 = sse_decode_opt_String(deserializer);
+    var var_previewBase64 = sse_decode_opt_String(deserializer);
     var var_voice = sse_decode_opt_box_autoadd_voice_meta(deserializer);
     return BridgeAttachmentPayload(
         fileName: var_fileName,
         mime: var_mime,
         dataBase64: var_dataBase64,
         thumbnailBase64: var_thumbnailBase64,
+        previewBase64: var_previewBase64,
         voice: var_voice);
   }
 
@@ -6844,6 +6850,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_64(self.completedChunks, serializer);
     sse_encode_u_64(self.chunkCount, serializer);
     sse_encode_opt_String(self.localPath, serializer);
+    sse_encode_opt_String(self.previewPath, serializer);
   }
 
   @protected
@@ -7103,6 +7110,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.mime, serializer);
     sse_encode_String(self.dataBase64, serializer);
     sse_encode_opt_String(self.thumbnailBase64, serializer);
+    sse_encode_opt_String(self.previewBase64, serializer);
     sse_encode_opt_box_autoadd_voice_meta(self.voice, serializer);
   }
 

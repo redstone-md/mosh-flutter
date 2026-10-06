@@ -79,6 +79,9 @@ class AttachmentView {
   final BigInt chunkCount;
   final String? localPath;
 
+  /// A verified auxiliary JPEG; this does not make the original available.
+  final String? previewPath;
+
   const AttachmentView({
     required this.attachmentId,
     required this.direction,
@@ -86,6 +89,7 @@ class AttachmentView {
     required this.completedChunks,
     required this.chunkCount,
     this.localPath,
+    this.previewPath,
   });
 
   @override
@@ -95,7 +99,8 @@ class AttachmentView {
       state.hashCode ^
       completedChunks.hashCode ^
       chunkCount.hashCode ^
-      localPath.hashCode;
+      localPath.hashCode ^
+      previewPath.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -107,5 +112,6 @@ class AttachmentView {
           state == other.state &&
           completedChunks == other.completedChunks &&
           chunkCount == other.chunkCount &&
-          localPath == other.localPath;
+          localPath == other.localPath &&
+          previewPath == other.previewPath;
 }

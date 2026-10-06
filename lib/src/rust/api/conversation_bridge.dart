@@ -79,5 +79,8 @@ enum ConversationBridgeErrorKind {
 
   /// No caller-visible remedy exists for this failure.
   internal,
+
+  /// Serialized metadata exceeded the network limit; connectivity is unchanged.
+  payloadTooLarge,
   ;
 }

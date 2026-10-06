@@ -15,6 +15,7 @@ import 'package:mosh/src/util/format.dart';
 import 'package:mosh/src/features/conversation/attachment_actions.dart';
 import 'package:mosh/src/features/conversation/conversation_attachment.dart';
 import 'package:mosh/src/features/conversation/attachment_thumb.dart';
+import 'attachment_preview_image.dart';
 import 'package:mosh/src/features/conversation/voice_message_card.dart';
 
 part 'attachment_card_branches.dart';

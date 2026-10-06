@@ -138,6 +138,7 @@ impl PrivateDmSession {
                 message_id: record.message_id.clone(),
                 message,
                 attachment_manifest: None,
+                preview_manifest: None,
             });
         }
         Ok(rows)

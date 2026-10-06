@@ -95,11 +95,13 @@ impl GroupSession {
         &mut self,
         from_device: String,
         from_fingerprint: String,
-        manifest: AttachmentManifest,
+        manifest: impl Into<AttachmentOffer>,
     ) -> Result<(), PrivateGroupError> {
+        let offer = manifest.into();
+        let manifest = &offer.manifest;
         let origin = manifest.origin.clone();
         let message_id = origin.as_ref().map(|o| o.id.clone());
-        let Some(descriptor) = self.transfer.accept_manifest(manifest)? else {
+        let Some(descriptor) = self.transfer.accept_offer(offer)? else {
             return Ok(());
         };
         let message = self.messages.stamp(GroupMessage {
@@ -125,48 +127,54 @@ impl GroupSession {
 
     pub(super) fn send_attachment(
         &mut self,
-        file_name: String,
-        mime: String,
-        bytes: Vec<u8>,
-        thumbnail: Option<String>,
-        voice: Option<VoiceMeta>,
+        input: AttachmentInput,
     ) -> Result<AttachmentSendResult, PrivateGroupError> {
+        let AttachmentInput {
+            file_name,
+            mime,
+            bytes,
+            thumbnail,
+            preview,
+            voice,
+        } = input;
         if !self.joined || !self.crypto.is_ready() {
             return Err(PrivateGroupError::NotReady);
         }
         let attachment_id = self.crypto.random_token("attachment")?;
-        let mut outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
-            attachment_id: attachment_id.clone(),
-            file_name,
-            mime,
-            from_fingerprint: self.device_fingerprint.clone(),
-            bytes,
-            thumbnail_b64: thumbnail,
-            voice,
-        })?;
-        let origin = crate::message_deletion::MessageOrigin::sign_mls(
-            &format!("group:{}", self.group_id),
-            &attachment_id,
-            &crate::message_deletion::MessageOrigin::manifest_bytes(&outgoing.manifest)
-                .map_err(PrivateGroupError::Codec)?,
-            &self.crypto,
-            self.deletions.store.as_ref(),
-            Some(self.device_fingerprint.as_str()),
-        )
-        .map_err(PrivateGroupError::Codec)?;
-        outgoing.manifest.origin = Some(origin.clone());
+        let mut outgoing = self.transfer.prepare_offer(
+            OutgoingAttachment {
+                attachment_id: attachment_id.clone(),
+                file_name,
+                mime,
+                from_fingerprint: self.device_fingerprint.clone(),
+                bytes,
+                thumbnail_b64: thumbnail,
+                voice,
+            },
+            preview,
+        )?;
         let content_hash = outgoing.manifest.content_hash.clone();
-        let manifest_ciphertext_b64 = self.crypto.encrypt_json(&outgoing.manifest)?;
-        let envelope = ControlEnvelope::AttachmentManifest {
-            group_id: self.group_id.clone(),
-            participant_id: self.participant_id.clone(),
-            from_device: self.display_name.clone(),
-            from_fingerprint: self.device_fingerprint.clone(),
-            manifest_ciphertext_b64,
-        };
-        self.publish_control(&envelope)?;
-
-        let descriptor = self.transfer.record_sent(outgoing);
+        let publication = (|| -> Result<_, PrivateGroupError> {
+            let origin = outgoing
+                .sign_mls(
+                    &format!("group:{}", self.group_id),
+                    &self.crypto,
+                    self.deletions.store.as_ref(),
+                    Some(self.device_fingerprint.as_str()),
+                )
+                .map_err(PrivateGroupError::Codec)?;
+            let manifest_ciphertext_b64 = self.crypto.encrypt_json(&outgoing.offer())?;
+            let envelope = ControlEnvelope::AttachmentManifest {
+                group_id: self.group_id.clone(),
+                participant_id: self.participant_id.clone(),
+                from_device: self.display_name.clone(),
+                from_fingerprint: self.device_fingerprint.clone(),
+                manifest_ciphertext_b64,
+            };
+            self.publish_control(&envelope)?;
+            Ok(origin)
+        })();
+        let (descriptor, origin) = self.transfer.record_published(outgoing, publication)?;
         let message = self.messages.stamp(GroupMessage {
             metadata: Some(crate::message_deletion::MessageMetadata {
                 origin: Some(origin),

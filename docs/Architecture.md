@@ -199,6 +199,13 @@ blob subscriptions remain active. Restored encrypted manifests preserve offered
 attachments after restart. See [ADR 0027](ADR/0027-attachments-ride-moss-streams.md)
 and [ADR 0028](ADR/0028-durable-attachment-offers.md).
 
+Image offers include a JPEG miniature bounded to 2 KiB of base64 and a separate
+signed preview descriptor. The shared transfer owner automatically downloads
+clear previews with bounded concurrency, independently of original downloads.
+Both manifests restore from encrypted history and both cache references follow
+parent deletion. Flutter observes a preview path separately from original-file
+availability. See [ADR 0041](ADR/0041-attachment-previews.md).
+
 Message deletion preserves empty cursor rows and an encrypted monotonic journal.
 Personal deletions hide rows and synchronize through the existing device-link
 owner. Shared deletions require verified authorship or current group admin rights;

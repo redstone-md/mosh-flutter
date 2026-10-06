@@ -26,6 +26,9 @@ mod names_handoff;
 #[path = "durability_tests/deletion.rs"]
 mod deletion;
 
+#[path = "durability_tests/previews.rs"]
+mod previews;
+
 struct Fixture {
     store: Arc<Persistence>,
     runtime: PrivateGroupRuntime,

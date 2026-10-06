@@ -41,6 +41,18 @@ impl Persistence {
                 .map_err(|e| PersistenceError::Json(e.to_string()))?;
             self.enqueue_attachment_gc(tx, &descriptor)?;
         }
+        if let Some(preview) = value
+            .get("preview_manifest")
+            .filter(|value| !value.is_null())
+        {
+            let manifest: crate::attachment_runtime::AttachmentManifest =
+                serde_json::from_value(preview.clone())
+                    .map_err(|error| PersistenceError::Json(error.to_string()))?;
+            self.enqueue_attachment_gc(
+                tx,
+                &crate::conversation::attachments::descriptor_of(&manifest),
+            )?;
+        }
         erase_content(&mut value, &record, &target, correlation.as_deref())?;
         serde_json::to_vec(&value).map_err(|e| PersistenceError::Json(e.to_string()))
     }
@@ -136,5 +148,6 @@ fn erase_content(
         serde_json::to_value(record.marker()).map_err(|e| PersistenceError::Json(e.to_string()))?;
     metadata["can_delete_for_everyone"] = false.into();
     value["attachment_manifest"] = serde_json::Value::Null;
+    value["preview_manifest"] = serde_json::Value::Null;
     Ok(())
 }
