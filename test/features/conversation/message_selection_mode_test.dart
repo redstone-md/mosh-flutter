@@ -4,6 +4,7 @@
 import 'package:flutter/gestures.dart'
     show PointerDeviceKind, kSecondaryMouseButton;
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/conversation_app_bar.dart';
@@ -94,6 +95,23 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(_bar, findsNothing);
+  });
+
+  testWidgets('screen readers only get the pick action while picking',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await pumpConversation(tester, dm, messages: _messages);
+      await _startSelecting(tester, 'second note');
+      final labels = tester
+          .getSemantics(find.text('first note'))
+          .getSemanticsData()
+          .customSemanticsActionIds!
+          .map((id) => CustomSemanticsAction.getAction(id)!.label);
+      expect(labels, ['Select message']);
+    } finally {
+      semantics.dispose();
+    }
   });
 
   testWidgets('system back leaves the mode before the chat', (tester) async {

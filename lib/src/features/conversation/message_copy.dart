@@ -131,11 +131,12 @@ class _CopyableMessageState extends State<CopyableMessage> {
           selected: widget.selected,
           onLongPress: widget.selecting ? null : _semanticLongPress,
           customSemanticsActions: {
-            if (widget.body.isNotEmpty)
+            // Picking offers only the pick, like the resting row menu.
+            if (widget.body.isNotEmpty && !widget.selecting)
               CustomSemanticsAction(
                 label: AppLocalizations.of(context)!.messageCopyText,
               ): () => unawaited(_owner?.copy(widget.body)),
-            if (widget.onDelete case final callback?)
+            if (widget.onDelete case final callback? when !widget.selecting)
               CustomSemanticsAction(
                 label: AppLocalizations.of(context)!.messageDelete,
               ): _clearingSelection(callback),

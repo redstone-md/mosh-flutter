@@ -109,6 +109,7 @@ class MessageSelection extends ChangeNotifier {
     _order = List.unmodifiable(visible);
     final shown = visible.toSet();
     _selected.retainWhere(shown.contains);
+    _drag?.before.retainWhere(shown.contains);
     if (_drag case final drag? when !shown.contains(drag.anchor)) {
       _drag = null;
     }
