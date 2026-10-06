@@ -86,11 +86,13 @@ class CallWindowCoordinator {
 
   Future<void> show() async {
     if (_disposed || _desired == null) return;
-    if (_window == null && _working == null) {
+    await _working;
+    if (_disposed || _desired == null) return;
+    if (_window == null) {
       ++_revision;
       _start();
+      await _working;
     }
-    await _working;
     final attempted = _window;
     try {
       await attempted?.show();

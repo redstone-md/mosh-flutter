@@ -21,6 +21,7 @@ pub(super) fn run(dir: PathBuf) {
         let command: Value = serde_json::from_str(&line.unwrap()).unwrap();
         let argument = command["argument"].as_str().unwrap_or_default().to_owned();
         let action = command["action"].as_str().unwrap();
+        calls::reconcile(&mut call_probe);
         if action.starts_with("call_") {
             println!(
                 "{OUTPUT_PREFIX}{}",

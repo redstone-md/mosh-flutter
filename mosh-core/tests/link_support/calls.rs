@@ -4,6 +4,7 @@ use mosh_core::api::{private_dm, voice_call_opus_encode as opus, voice_call_play
 use serde_json::{json, Value};
 
 pub(super) struct CallProbe {
+    session: String,
     call_id: String,
     seq: u64,
     received: usize,
@@ -18,7 +19,9 @@ pub(super) fn command(
     probe: &mut Option<CallProbe>,
 ) -> Value {
     let call = args["call_id"].as_str().unwrap_or_default().to_owned();
-    let matches_probe = probe.as_ref().is_some_and(|probe| probe.call_id == call);
+    let matches_probe = probe
+        .as_ref()
+        .is_some_and(|probe| probe.session == session && probe.call_id == call);
     let result = match action {
         "call_start" => {
             return match private_dm::call_start(session.into()) {
@@ -30,6 +33,7 @@ pub(super) fn command(
         "call_decline" => private_dm::call_decline(session.into(), call, "declined".into()),
         "call_end" => private_dm::call_end(session.into(), call, "hangup".into()),
         "call_probe" => return media(session, probe),
+        "call_probe_status" => return json!({"active": probe.is_some()}),
         _ => panic!("unknown call command"),
     };
     if result.is_ok() && matches_probe && matches!(action, "call_end" | "call_decline") {
@@ -38,6 +42,20 @@ pub(super) fn command(
     match result {
         Ok(()) => json!({}),
         Err(error) => json!({"error": format!("{:?}", error.kind)}),
+    }
+}
+
+/// Polling applies remote controls before the fixture reports their state.
+pub(super) fn reconcile(probe: &mut Option<CallProbe>) {
+    let Some(current) = probe.as_ref() else {
+        return;
+    };
+    let alive = private_dm::poll_session(current.session.clone())
+        .ok()
+        .and_then(|snapshot| snapshot.active_call)
+        .is_some_and(|active| active.call_id == current.call_id);
+    if !alive {
+        *probe = None;
     }
 }
 
@@ -51,6 +69,7 @@ fn media(session: &str, slot: &mut Option<CallProbe>) -> Value {
         .is_none_or(|probe| probe.call_id != active.call_id)
     {
         *slot = Some(CallProbe {
+            session: session.into(),
             call_id: active.call_id.clone(),
             seq: 0,
             received: 0,

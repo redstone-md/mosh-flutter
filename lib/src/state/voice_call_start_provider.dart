@@ -18,7 +18,9 @@ class VoiceCallStartNotifier extends Notifier<bool> {
   @override
   bool build() {
     ref.listen(conversationListProvider(ConversationKind.dm), (_, next) {
-      if (next is AsyncData<ConversationList>) _awaitingSnapshot = null;
+      if (!state && next is AsyncData<ConversationList>) {
+        _awaitingSnapshot = null;
+      }
     });
     return false;
   }
@@ -43,6 +45,11 @@ class VoiceCallStartNotifier extends Notifier<bool> {
         await ref
             .read(conversationListProvider(ConversationKind.dm).notifier)
             .refresh();
+        if (ref.mounted &&
+            ref.read(conversationListProvider(ConversationKind.dm))
+                is AsyncData<ConversationList>) {
+          _awaitingSnapshot = null;
+        }
       } catch (_) {
         // Retain admission until polling confirms the accepted call's state.
       }

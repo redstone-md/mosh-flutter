@@ -40,7 +40,11 @@ Future<void> main(List<String> args) async {
       'two real desktop clients keep audio and controls across navigation',
       (tester) async {
     await windowManager.ensureInitialized();
-    final dir = await Directory.systemTemp.createTemp('mosh-call-ui-');
+    final storagePath = Platform.environment['MOSH_CALL_UI_TEST_DATA_DIR'];
+    if (storagePath == null) {
+      throw StateError('Use node scripts/moss-test.mjs --voice-ui');
+    }
+    final dir = Directory(storagePath);
     await RustLib.init();
     await setup.setAppDataDir(path: dir.path);
     await setup.setHistoryDek(dek: List.filled(32, 61));
@@ -88,7 +92,6 @@ Future<void> main(List<String> args) async {
       container.dispose();
       await peer.close();
       RustLib.dispose();
-      if (!Platform.isWindows) await dir.delete(recursive: true);
     }
   }, timeout: const Timeout(Duration(minutes: 5)));
 }

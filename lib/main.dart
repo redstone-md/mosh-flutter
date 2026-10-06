@@ -304,6 +304,9 @@ class MoshApp extends ConsumerWidget {
 void _openCallConversation(String sessionId) {
   appRouter.go(AppRoutes.dmFor(sessionId));
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-    unawaited(windowManager.show().then((_) => windowManager.focus()));
+    unawaited(windowManager
+        .restore()
+        .then((_) => windowManager.show())
+        .then((_) => windowManager.focus()));
   }
 }
