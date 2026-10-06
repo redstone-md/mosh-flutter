@@ -34,6 +34,8 @@ One shared audio orchestrator serializes replacement. Cancellation stops frame
 work immediately; startup and teardown must finish before another capture or
 player opens. Delayed controls, setup failures and drain responses are tied to
 their call ID and cannot affect a replacement call.
+Cancellation starts capture and playback teardown independently, so waiting for
+one handle cannot delay release of the other. Replacement still waits for both.
 
 Every desktop starts the same executable with `--mosh-call-window` in a separate
 process. `MOSH_CALL_WINDOW=1` also identifies child startup on hosts that omit Dart
@@ -54,6 +56,8 @@ before posting. A completed initialization cannot notify about an ended call.
 Notifications are suppressed while either the main window or call window is focused.
 Showing and cancelling are serialized; acceptance, decline, remote end and widget
 disposal remove the call's notification even if its show operation finishes late.
+Failed acceptance allows a fresh alert while the call remains incoming. An attempt
+generation rejects old notification work that resumes after that retry.
 The existing notification plugin cannot cancel Windows alerts without MSIX
 package identity; the current installer does not supply that identity. Other
 platforms use the plugin's cancellation support. See its
@@ -111,18 +115,18 @@ functions remain within the limit.
   OS close in all phases and minimize/restore. Audio used real record/CPAL streams
   connected to PulseAudio's sine source and null output rather than physical
   microphone/speaker hardware.
-- 178 focused Flutter tests passed, covering system insets, delayed notification
+- 180 focused Flutter tests passed, covering system insets, delayed notification
   readiness, focused-window suppression and forced process termination with a
   broken input pipe, plus accept/close races, notification cancellation,
   admission confirmation, main-window restore, setup/control serialization and
   failed window-start retry. Analyze and format passed.
-- Full Flutter suite: 1513 passed, four skipped. One unchanged test,
+- Full Flutter suite: 1515 passed, four skipped. One unchanged test,
   `media_kit_tracer_test.dart`, also fails when run alone because headless libmpv
   returns no screenshot. It imports no voice-call implementation.
 - Rust runtime unit/integration tests passed; doc tests, fmt and clippy passed.
   All seven ringtone tests passed, including explicit selected-output stream
   start/stop/repeat on PulseAudio.
-- Changed lines represented in LCOV: Dart 95.2% (818/859), Rust 97.7% (126/129).
+- Changed lines represented in LCOV: Dart 95.3% (831/872), Rust 97.7% (126/129).
   Application entrypoints are additionally exercised by the native scenario. Ringtone source
   coverage is 100% for recording conversion and 96.9% for CPAL playback. The
   available LCOV output contains no branch counters. Linux process startup and
