@@ -58,6 +58,7 @@ Future<GoRouter> pumpRoute(
   List<Override> overrides = const [],
   ProviderContainer? container,
   bool settle = true,
+  TransitionBuilder? builder,
 }) async {
   final router = GoRouter(
     initialLocation: location,
@@ -69,6 +70,7 @@ Future<GoRouter> pumpRoute(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: router,
+      builder: builder,
     ),
     overrides: overrides,
     container: container,

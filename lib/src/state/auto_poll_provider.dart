@@ -26,6 +26,7 @@ final autoPollProvider = Provider<void>((ref) {
   final interval = ref.watch(autoPollIntervalProvider);
   if (interval == null) return;
   late ForegroundPoller poller;
+  final pendingSnapshots = <ConversationKind>{};
 
   // The open conversation's snapshot follows its own kind's list read: it
   // never queues behind that read, and a stuck kind never piles up
@@ -40,7 +41,13 @@ final autoPollProvider = Provider<void>((ref) {
   for (final kind in ConversationKind.values) {
     ref.listen(conversationListProvider(kind), (before, next) {
       if (next is AsyncData<ConversationList> && before != next) {
-        refreshOpenSnapshot(kind);
+        if (!pendingSnapshots.add(kind)) return;
+        // A mutation may already have refreshed the snapshot in Riverpod's
+        // current batch. Wait for that batch to finish before invalidating.
+        scheduleMicrotask(() {
+          pendingSnapshots.remove(kind);
+          refreshOpenSnapshot(kind);
+        });
       }
     });
   }

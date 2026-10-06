@@ -1,0 +1,141 @@
+# IVO-23: CodeAnt review decisions
+
+PR: [#59](https://github.com/redstone-md/mosh-flutter/pull/59).
+Initial review examined `52d85b193815bbb05d24862c7d6d48464218c04d`.
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| An unresponsive plugin window can remain orphaned | Accept | Use one owned child process on every desktop. Wait for exit, then escalate TERM to KILL. Four process tests cover normal close, refused close, ignored termination and broken stdin after exit. The real Linux scenario checks OS close in every phase. |
+| Compact controls ignore phone system insets | Accept | Wrap the strip in `SafeArea(top: false)`. A widget test checks bottom and lateral insets. |
+| Failed coordinator close can retain a child | Accept | Process cleanup owns termination and independently releases both transport handles. Exit failures still propagate. |
+| Notification initialization can drop an incoming call | Accept | Await readiness, then recheck phase and call ID. Tests cover delayed readiness and a call that ends during initialization. |
+| A focused Linux call window still gets a notification | Accept | Query both main and child focus on all desktops. A test covers child focus; the coordinator rejects results from replaced windows. |
+| A stale native fixture command resets the live probe sequence | Accept | Reset only after successful matching decline/end. The real peer scenario checks that stale end preserves increasing media sequence numbers. |
+| Ringtone test name claims a decline failure it does not simulate | Accept | Rename it to describe the unchanged pending snapshot it actually tests. |
+| Stdio requires an explicit flush per RPC | Do not accept | Dart 3.12.2 immediately forwards IOSink events to its socket stream consumer; awaiting a reply gives that consumer execution time. Repeated real-process calls pass without explicit flush. Concurrent flush can bind the sink and reject another write. |
+
+The flush decision was checked against the installed Dart SDK's
+`lib/io/io_sink.dart` and `_internal/vm/bin/socket_patch.dart`, not inferred from a
+mock transport. Its review thread remains open because the proposed change is
+not appropriate for this transport.
+
+The unified process adapter also removes `desktop_multi_window` and its native
+runner callbacks. On Windows, the child marker bypasses app_links' existing-instance
+handoff and selects a distinct Win32 class; deep links continue to target the main
+window. The Windows native fixture runs both classes in CI.
+
+Verification details, commands and platform limitations are in
+[voice calls](../Features/voice-calls.md).
+
+## Follow-up review of `dcb78abf`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| Native X is dropped while accepting | Accept | X and Escape express terminal intent. The notifier waits for the same call's control, then declines a failed accept or ends an accepted call. Tests cover success, failure and replacement. |
+| An incoming decline arrives after activation | Accept | Accept/decline validate the current incoming phase at the notifier boundary; decline also rejects an already accepted pending snapshot. A test uses stale child and inline callbacks for the same active call ID. |
+| Posted incoming notifications remain after the call | Accept | Serialize show/cancel with a call-specific ID. Tests cover acceptance, decline, remote end, delayed show and widget disposal. Windows cancellation remains limited by the existing plugin's requirement for MSIX package identity. |
+| Rejected native fixture call_start panics | Accept | Return the bridge error in the worker's JSON response. A real peer test checks MissingConversation followed by a successful snapshot request. |
+
+The spec review also found that closing replacement B could wait for accept A.
+The wait now applies only when the control's call ID matches; a failing-then-passing
+test checks that B's decline is sent before A completes.
+
+## Follow-up review of `c897f3ea`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| Clicking the peer leaves the main window minimized | Accept | Restore the main window before show/focus. A widget test uses the application router and a minimized native-window fixture. |
+| A background DM read releases admission during call start | Accept | Keep admission while start is running and until a fresh successful confirmation. A controlled test checks a late pre-start read and failed confirmation. |
+| Windows voice UI test storage is never removed | Accept | The Node runner owns the temporary directory and deletes it after the desktop process exits, when Rust storage handles have closed. Cleanup retries transient Windows handle errors. |
+| Restore loses a click when pending window startup fails | Accept | Wait for pending startup, recheck the desired call and retry once if no window exists. A controlled startup-failure test verifies the new attempt. |
+| Automatic setup failure races manual hang-up | Accept | Serialize controls per call ID. Manual and automatic end share the wait/recheck path, preserving audio errors. Tests check one end during concurrent close and during a held accept. |
+| Native test probe retains its CPAL player after app hang-up | Accept | Reconcile the probe against its originating session before each public peer command. The real scenario starts probe audio, hangs up in the app and checks that the probe is released. Reset commands match both session and call IDs. |
+
+The final spec and standards reviews also reproduced setup failure while accept
+was still pending. Both terminal paths now wait for that call's control gate;
+the regression changed from zero ends to exactly one `setup_failed` end after
+accept completes. Replacement calls retain independent gates.
+
+## Follow-up review of `e243c3db`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| Test teardown mutates its listener collection during iteration | Do not accept | The pinned window_manager 0.5.2 getter returns `List<WindowListener>.from(_listeners)`. Teardown iterates this snapshot while removing internal listeners. The unchanged widget test and the complete Flutter CI job pass. |
+| Other sessions cannot replace the selected call | Do not accept | Retaining the originating session preserves the agreed single audio owner. Once its call disappears, selection promotes another session that still has a call. Call waiting needs a separate product policy. |
+| Invite setup or mounting failure skips native test cleanup | Accept | Register independent Flutter teardown callbacks immediately after acquiring Rust, the peer and the provider container. Their reverse order unmounts the view before disposing providers, the peer and Rust. Real invalid-invite fault injection before mounting left one peer directory before the fix and none after it. |
+| Busy controls also block opening the original DM | Accept | Keep navigation and terminal intent available during control operations. One action policy is shared by the strip, host and child. Failing-then-passing tests check the peer click in all three paths while accept is held. |
+
+## Follow-up review of `08fac9da`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| Native capture cleanup is counted before its real stop completes | Accept | Record successful capture/playback start and stop after the underlying operation completes. Four controlled tests cover pending, successful and failed stops for both backends. Native scenarios retain real Record/CPAL defaults. |
+
+## Follow-up review of `683c4cb7`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| A stalled capture stop delays playback release | Accept | Cancellation starts independent teardown for acquired handles. `stop` joins that work; the serialized audio owner still waits for startup and all teardown before replacement. Two failing-then-passing lifetime tests check stalled active and late capture teardown. |
+| Failed accept permanently suppresses a cancelled notification | Accept | Reset the notification attempt while busy and start a new attempt when the incoming call becomes retryable. A generation rejects old readiness/focus/show work even for the same call ID. Tests cover an already posted alert and pending initialization. |
+| The setup-control test has an unused incoming-call import | Do not accept | The test uses `kCallDeclineReasonHangup`, declared in that file. Analyze is clean; deleting the import would remove the constant's direct declaration from scope. |
+
+## Follow-up review of `a1d2e2f7`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| The terminal button is disabled while accepting | Accept | Keep the red button enabled and send terminal intent for busy incoming calls. Three failing-then-passing strip tests cover successful, failed and replaced acceptance; the child view also checks its button command. |
+| Initial focus permanently suppresses the incoming alert | Accept | Recheck both windows every second while the incoming call remains suppressed. Tests move focus away without changing the snapshot, verify exactly one alert and reject alerts after termination. |
+
+The local window check also found that unconditional `restore` unmaximizes a
+visible Windows window in window_manager 0.5.2. Both window paths now use one
+foreground helper that restores only a minimized window. A failing-then-passing
+application-router test checks the visible case; minimized restore still passes.
+
+## Follow-up review of `847108e0`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| An earlier incoming DM hides an already active call during initial selection | Accept | When there is no retained owner, prefer an active call before falling back to list order. Two failing-then-passing provider tests cover initial selection and promotion after the owner ends. A third test preserves the existing incoming owner when another active call appears. |
+
+## Follow-up review of `4d4752e2`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| Cached admission misses a call in another DM | Accept | Refresh the DM list before starting and require a successful fresh read. Two failing-then-passing tests cover a newly pending call and a read failure behind an older empty cache. |
+| Old DM cleanup can stop a reused call ID in another DM | Accept | Scoped detach compares the `(sessionId, callId)` record. Both notifier cleanup paths pass the pair; only application disposal detaches unconditionally. Two failing-then-passing tests preserve a replacement that is already active or still starting. |
+| Escape in the main window does not end the call | Do not accept | Escape belongs to the dedicated call window. The compact strip shares the main window with navigation, message editing and dialogs. Settings uses Escape as Back, and dialogs use it for dismissal; global terminal handling would add an unintended hang-up path. The native scenario already checks Escape in the call window. The review thread remains open with this explanation. |
+
+## Follow-up review of `847f6256`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| The phone keyboard covers the application call strip | Accept | Consume the bottom keyboard inset at the host and remove it from the nested Scaffold. The widget test changed from a covered strip at y=600 to its expected y=350 above the IME. Tests cover keyboard show/hide with and without calls, no double composer inset and preserving the draft across call admission/termination. The wrapper structure stays stable. |
+
+## Follow-up review of `5d34dda9`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| A failed desktop focus check suppresses the incoming alert | Accept | Handle each window's focus failure independently and continue the notification path when neither is known focused. Two failing-then-passing alert tests cover failed main and child probes; ended-call cases still reject alerts. |
+| The capture fake repeats stop callbacks | Accept | Memoize the stop future per handle, joining pending teardown and retaining inert completed cleanup. A failing-then-passing test checks pending/completed stop and independent replacement handles. |
+| The playback fake repeats stop callbacks | Accept | Memoize stop per handle; repeated cleanup leaves counts unchanged while a new handle stops independently. A failing-then-passing test exercises both lifetimes. |
+| An incoming call can arrive between the fresh global read and call_start | Do not accept | The agreed invariant is one audio owner. A later network offer may coexist in signaling, but cannot open a second microphone or replace that owner. An atomic global busy policy requires coordinated Rust start/incoming-offer behavior and call-waiting decisions beyond the agreed window/navigation scope. The fresh read blocks starts over already known calls; it does not claim atomic network admission. |
+
+## Accepted inline thread references
+
+| Provider thread | File |
+| --- | --- |
+| [PRRT_kwDOTpdkls6pUhGP](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4191576089) | `lib/src/features/voice_call/desktop_call_window.dart` |
+| [PRRT_kwDOTpdkls6pUhGR](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4191576094) | `lib/src/features/voice_call/voice_call_host.dart` |
+| [PRRT_kwDOTpdkls6pVEoM](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4191807985) | `lib/src/features/voice_call/call_window_app.dart` |
+| [PRRT_kwDOTpdkls6pVG3Q](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4191823536) | `lib/src/features/voice_call/voice_call_host.dart` |
+| [PRRT_kwDOTpdkls6pVkdk](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4192013134) | `lib/main.dart` |
+| [PRRT_kwDOTpdkls6pVmF1](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4192023474) | `lib/src/state/voice_call_start_provider.dart` |
+| [PRRT_kwDOTpdkls6pXpXv](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4192853018) | `lib/src/features/voice_call/call_audio_session.dart` |
+| [PRRT_kwDOTpdkls6pXqzo](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4192862265) | `lib/src/features/voice_call/voice_call_layer.dart` |
+| [PRRT_kwDOTpdkls6pYLSp](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193068633) | `lib/src/features/voice_call/call_view.dart` |
+| [PRRT_kwDOTpdkls6pYMBp](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193073254) | `lib/src/features/voice_call/voice_call_layer.dart` |
+| [PRRT_kwDOTpdkls6pYzQS](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193323113) | `lib/src/state/voice_call_session_provider.dart` |
+| [PRRT_kwDOTpdkls6pZDjm](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193426152) | `lib/src/state/voice_call_start_provider.dart` |
+| [PRRT_kwDOTpdkls6pZE8P](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193435008) | `lib/src/features/voice_call/voice_call_orchestrator.dart` |
+| [PRRT_kwDOTpdkls6pZaRd](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193570089) | `lib/src/features/voice_call/voice_call_host.dart` |
+| [PRRT_kwDOTpdkls6pZ1bE](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193743955) | `lib/src/features/voice_call/voice_call_layer.dart` |

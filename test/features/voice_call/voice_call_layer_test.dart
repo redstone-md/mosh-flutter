@@ -1,7 +1,11 @@
 // Tests for the voice-call wiring seam: `startVoiceCall` routes through the
 // `Gateway.callStart` seam, and `VoiceCallLayer` shows the OutgoingCallModal
 // when the snapshot reflects an `outgoingCall`.
+import 'dart:async';
+import '../../support/call_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:mosh/src/state/conversation_providers.dart';
+import 'package:mosh/src/state/session_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart' show MethodChannel;
@@ -18,7 +22,6 @@ import 'package:mosh/src/state/notifications_provider.dart';
 import 'package:mosh/src/state/chat_names_provider.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 SessionSnapshot _outgoingSnapshot(String sessionId) => TestSnapshots.dm(
       sessionId: sessionId,
@@ -41,38 +44,6 @@ SessionSnapshot _pendingSnapshot(String sessionId,
       pendingCall: PendingCall(callId: 'call-1', fromDevice: fromDevice),
     );
 
-/// A recording fake of the notifications plugin: `show` records (id, title,
-/// body) so the incoming-call notification test can assert the OS toast
-/// fired. `initialize` is not called here -- the test overrides the
-/// notificationsReadyProvider directly to `AsyncValue.data(true)` so the
-/// gate opens without running the real init (which needs a platform host).
-class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
-  int showCalls = 0;
-  int? lastId;
-  String? lastTitle;
-  String? lastBody;
-  NotificationDetails? lastDetails;
-
-  @override
-  Future<void> show({
-    required int id,
-    String? title,
-    String? body,
-    NotificationDetails? notificationDetails,
-    String? payload,
-  }) async {
-    showCalls++;
-    lastId = id;
-    lastTitle = title;
-    lastBody = body;
-    lastDetails = notificationDetails;
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError(' ${invocation.memberName}');
-}
-
 SessionSnapshot _activeSnapshot(String sessionId) => TestSnapshots.dm(
       sessionId: sessionId,
       meshId: 'm',
@@ -85,6 +56,88 @@ SessionSnapshot _activeSnapshot(String sessionId) => TestSnapshots.dm(
     );
 
 void main() {
+  for (final (stale, focused) in [
+    (false, false),
+    (true, false),
+    (false, true)
+  ]) {
+    testWidgets(
+        'notification waits for readiness; obsolete: $stale, focused: $focused',
+        (tester) async {
+      final ready = Completer<bool>();
+      final gateway = ScriptableGateway()
+        ..seedSessions([_pendingSnapshot('sess-1', fromDevice: 'Alice')]);
+      final notifications = RecordingCallNotifications();
+      final l = await AppLocalizations.delegate.load(const Locale('en'));
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(const MethodChannel('window_manager'),
+          (call) async => call.method == 'isFocused' ? false : null);
+      addTearDown(() => messenger.setMockMethodCallHandler(
+          const MethodChannel('window_manager'), null));
+      final container = ProviderContainer(overrides: [
+        gatewayProvider.overrideWithValue(gateway),
+        bridgeFacadeProvider.overrideWithValue(
+            ScriptableBridge(conversations: gateway.conversations)),
+        notificationsReadyProvider.overrideWith((_) => ready.future),
+        flutterLocalNotificationsPluginProvider
+            .overrideWithValue(notifications),
+      ]);
+      addTearDown(container.dispose);
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body: VoiceCallLayer(
+                  sessionId: 'sess-1',
+                  l: l,
+                  isCallWindowFocused: () async => focused)),
+          container: container,
+          settle: false);
+      await tester.pump();
+      expect(notifications.showCalls, 0);
+      if (stale) {
+        gateway.seedSessions([TestSnapshots.dm(sessionId: 'sess-1')]);
+        container.invalidate(conversationListProvider(ConversationKind.dm));
+        container.invalidate(activeSessionProvider('sess-1'));
+        await tester.pump();
+      }
+      ready.complete(true);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(notifications.showCalls, stale || focused ? 0 : 1);
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.pump();
+    });
+  }
+
+  testWidgets('active call leaves the conversation controls usable',
+      (tester) async {
+    final gateway = ScriptableGateway();
+    gateway.seedSessions([_activeSnapshot('sess-1')]);
+    final bridge = ScriptableBridge(conversations: gateway.conversations);
+    final l = await AppLocalizations.delegate.load(const Locale('en'));
+    var sent = 0;
+    await pumpScreen(
+      tester,
+      Scaffold(
+        body: Column(children: [
+          TextButton(onPressed: () => sent++, child: const Text('Send text')),
+          VoiceCallLayer(sessionId: 'sess-1', l: l),
+        ]),
+      ),
+      overrides: [
+        gatewayProvider.overrideWithValue(gateway),
+        bridgeFacadeProvider.overrideWithValue(bridge),
+      ],
+      settle: false,
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('Send text'));
+    expect(sent, 1);
+    expect(find.byType(Dialog), findsNothing);
+  });
+
   testWidgets('resetting an alias updates an already open call modal',
       (tester) async {
     final gateway = ScriptableGateway();
@@ -210,15 +263,14 @@ void main() {
       final gateway = ScriptableGateway();
       final bridge = ScriptableBridge(conversations: gateway.conversations);
       gateway.seedSessions([_pendingSnapshot('sess-1', fromDevice: 'Alice')]);
-      final notifications = _RecordingNotifications();
+      final notifications = RecordingCallNotifications();
       final l = await AppLocalizations.delegate.load(const Locale('en'));
 
       // The voice-call layer's focus check awaits `windowManager.isFocused()`
       // on Windows/macOS hosts. `flutter test` has no window_manager platform
       // impl, so mock the 'window_manager' method channel to report the
       // window as UNFOCUSED (so the gate passes and `show` runs). Harmless on
-      // Linux hosts (the channel is never called there -- the layer skips the
-      // focus check on Linux).
+      // Linux hosts, where the same focus gate applies.
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(const MethodChannel('window_manager'),
               (call) async {
@@ -255,7 +307,8 @@ void main() {
       expect(notifications.showCalls, 1);
       expect(notifications.lastTitle, 'Mosh');
       expect(notifications.lastBody, 'Incoming call from Alice');
-      expect(notifications.lastId, 'Alice'.hashCode.abs());
+      expect(
+          notifications.lastId, Object.hash('sess-1', 'call-1') & 0x7fffffff);
       expect(
           notifications.lastDetails?.android?.channelId, 'mosh_notifications');
       expect(notifications.lastDetails?.android?.channelName,

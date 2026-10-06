@@ -21,7 +21,7 @@ class CallButton extends StatelessWidget {
   final Color color;
 
   /// The press handler.
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   /// Icon size; 20 for the modal buttons, 18 for the active-call overlay.
   final double iconSize;

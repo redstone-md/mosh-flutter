@@ -1,18 +1,15 @@
-/// A handle to a started ringtone. The modal holds this from `start()` until
-/// `dispose()`, then calls `stop()`.
+/// A started ringtone. The call owner stops it on answer, rejection or end.
 abstract class RingtoneHandle {
   void stop();
 }
 
-/// The seam the call modals call. `start()` returns a [RingtoneHandle]
-/// that the modal `stop()`s on dispose; callers tolerate a failed
-/// `start()` (the modals wrap it in `try/catch`).
+/// Audio backend boundary. Calls tolerate a failed start or stop.
 abstract class RingtonePlayer {
   RingtoneHandle start();
 }
 
 /// A [RingtoneHandle] whose `stop()` is inert -- returned by
-/// [NoopRingtonePlayer] so the modals' `stop()` call is always safe.
+/// [NoopRingtonePlayer] so the owner's `stop()` call is always safe.
 class _NoopHandle implements RingtoneHandle {
   const _NoopHandle();
   @override

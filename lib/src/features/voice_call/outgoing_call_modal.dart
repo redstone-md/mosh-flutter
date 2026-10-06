@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/voice_call/call_modal_card.dart';
-import 'package:mosh/src/features/voice_call/call_button.dart';
+import 'package:mosh/src/features/voice_call/call_view.dart';
+import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
@@ -65,18 +65,15 @@ class _OutgoingCallModalState extends State<OutgoingCallModal> {
   }
 
   @override
-  Widget build(BuildContext context) => CallModalCard(
-        label: widget.l.callOutgoingAriaLabel,
-        peer: widget.peerLabel,
-        status: widget.l.callOutgoingStatus,
-        onEscape: _cancel,
-        actions: [
-          CallButton(
-            icon: Icons.phone_disabled,
-            tooltip: widget.l.callOutgoingCancel,
-            color: const Color(0xFFE5484D),
-            onPressed: _cancel,
-          ),
-        ],
+  Widget build(BuildContext context) => CallView(
+        call: CallViewState(
+            sessionId: '',
+            callId: widget.call.callId,
+            peer: widget.peerLabel,
+            phase: CallViewPhase.outgoing),
+        l: widget.l,
+        onAction: (action) {
+          if (action == CallViewAction.end) _cancel();
+        },
       );
 }
