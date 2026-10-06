@@ -1,6 +1,6 @@
 // The message row itself: the avatar slot, and the three small things that
-// follow the kind -- the fingerprint chip, the MLS badge, and the delivery
-// state.
+// follow the kind -- the fingerprint chip, the delivery state, and the
+// absence of a per-sender MLS badge (IVO-26).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -153,8 +153,8 @@ void main() {
         kind: ConversationKind.group,
       );
 
-      // Name -> chip, chip -> badge. Time lives in the bubble footer.
-      expect(_metaGaps(tester), 2);
+      // Name -> chip, with no badge after it. Time lives in the bubble footer.
+      expect(_metaGaps(tester), 1);
     });
 
     testWidgets('a DM shows the delivery state on an own message',
@@ -174,29 +174,15 @@ void main() {
       expect(find.byTooltip('✓✓ delivered'), findsOneWidget);
     });
 
-    testWidgets('a channel shows the fingerprint chip and no MLS badge',
-        (tester) async {
-      await _pumpRow(
-        tester,
-        message: _message(),
-        kind: ConversationKind.channel,
-      );
+    for (final kind in [ConversationKind.channel, ConversationKind.group]) {
+      testWidgets('a ${kind.name} shows the fingerprint chip and no MLS badge',
+          (tester) async {
+        await _pumpRow(tester, message: _message(), kind: kind);
 
-      expect(find.text(shorten('fp-bob-0123456789', 6)), findsOneWidget);
-      expect(find.text('MLS'), findsNothing);
-    });
-
-    testWidgets('a group shows both the fingerprint chip and the MLS badge',
-        (tester) async {
-      await _pumpRow(
-        tester,
-        message: _message(),
-        kind: ConversationKind.group,
-      );
-
-      expect(find.text(shorten('fp-bob-0123456789', 6)), findsOneWidget);
-      expect(find.text('MLS'), findsOneWidget);
-    });
+        expect(find.text(shorten('fp-bob-0123456789', 6)), findsOneWidget);
+        expect(find.text('MLS'), findsNothing);
+      });
+    }
 
     testWidgets('a channel and a group show no delivery state on own rows',
         (tester) async {

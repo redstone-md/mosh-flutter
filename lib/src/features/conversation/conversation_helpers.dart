@@ -247,26 +247,3 @@ class UnreadBadge extends StatelessWidget {
     );
   }
 }
-
-class MlsBadge extends StatelessWidget {
-  const MlsBadge({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    // Quiet protocol metadata beneath the sender's stronger name.
-    const style = TextStyle(
-      fontFamily: 'monospace',
-      fontSize: 11,
-      color: MoshColors.fg3,
-    );
-    return Semantics(
-      label: l.mlsBadgeLabel,
-      excludeSemantics: true,
-      child: Tooltip(
-        message: l.mlsBadgeTooltip,
-        child: Text('MLS', style: style),
-      ),
-    );
-  }
-}

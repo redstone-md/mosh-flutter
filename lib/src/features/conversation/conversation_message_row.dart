@@ -172,7 +172,6 @@ class ConversationMessageRow extends StatelessWidget {
                 fromFingerprint: message.fromFingerprint,
                 sentAtMs: message.sentAtMs,
                 showTime: false,
-                showMlsBadge: kind != ConversationKind.channel,
                 peer: peer,
               ),
             if (message.body.isNotEmpty)

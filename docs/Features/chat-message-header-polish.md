@@ -52,8 +52,9 @@ caller-visible cases. No dependency, Rust, bridge, storage or schema change.
   header explicitly labels the kind without implying encryption or membership.
 - The nickname lock uses a 12px glyph and a 24px hover/tap target with 4px
   corners. Its glyph follows the name line; the name/details target stays 41px.
-- DM rows use their header identity; group/channel sender names, fingerprint
-  actions and protection labels remain on the first message of each block.
+- DM rows use their header identity; group/channel sender names and
+  fingerprint actions remain on the first message of each block. The
+  per-sender MLS badge was removed in IVO-26.
 
 ## Design pre-flight
 
