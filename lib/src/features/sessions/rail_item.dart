@@ -7,6 +7,7 @@ import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'package:mosh/src/features/shared/press_scale.dart';
+import 'package:mosh/src/features/shared/resumed_ink.dart';
 
 /// Which rail-item variant a row is: the tint and the active ring both
 /// follow from it.
@@ -124,7 +125,9 @@ class RailItem extends StatelessWidget {
       // Excluding the children drops the InkWell's own tap action, so the
       // labelled row carries it here or a screen reader cannot activate it.
       onTap: semanticLabel == null ? null : onTap,
-      child: InkWell(
+      // On mobile the opened chat hides the rail and freezes the tap ink.
+      child: ResumedInk(
+          child: InkWell(
         onTap: onTap,
         // An overlay, not an opaque fill, so the channel and group tints
         // still show through on hover.
@@ -162,7 +165,7 @@ class RailItem extends StatelessWidget {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 }
@@ -260,7 +263,10 @@ class RailSettingsButton extends StatelessWidget {
         child: Material(
           color: MoshColors.bg2,
           borderRadius: radius,
-          child: InkWell(
+          // Settings covers the rail; a fresh InkWell drops the press ink
+          // that froze under it.
+          child: ResumedInk(
+              child: InkWell(
             borderRadius: radius,
             onTap: onTap,
             hoverColor: MoshColors.bg3,
@@ -296,7 +302,7 @@ class RailSettingsButton extends StatelessWidget {
                 ),
               ),
             ),
-          ),
+          )),
         ),
       ),
     );
@@ -317,7 +323,8 @@ class RailNewButton extends StatelessWidget {
     return Semantics(
       button: true,
       child: PressScale(
-        child: InkWell(
+        child: ResumedInk(
+            child: InkWell(
           borderRadius: radius,
           onTap: onTap,
           // `.rail-new:hover { background: var(--moss-glow) }`.
@@ -359,7 +366,7 @@ class RailNewButton extends StatelessWidget {
               ),
             ),
           ),
-        ),
+        )),
       ),
     );
   }
