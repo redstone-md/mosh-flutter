@@ -51,9 +51,10 @@ class _CallViewState extends State<CallView> {
     super.dispose();
   }
 
-  void _end() => widget.onAction(widget.call.phase == CallViewPhase.incoming
-      ? CallViewAction.decline
-      : CallViewAction.end);
+  void _end() => widget.onAction(
+      widget.call.phase == CallViewPhase.incoming && !widget.call.busy
+          ? CallViewAction.decline
+          : CallViewAction.end);
 
   @override
   Widget build(BuildContext context) {
@@ -111,12 +112,13 @@ class _CallViewState extends State<CallView> {
       CallButton(
         icon: Icons.phone_disabled,
         tooltip: switch (call.phase) {
+          CallViewPhase.incoming when call.busy => l.callOutgoingCancel,
           CallViewPhase.incoming => l.callIncomingDecline,
           CallViewPhase.outgoing => l.callOutgoingCancel,
           CallViewPhase.active => l.callActiveHangUp,
         },
         color: const Color(0xFFE5484D),
-        onPressed: call.busy ? null : _end,
+        onPressed: _end,
       ),
       if (call.phase == CallViewPhase.incoming)
         CallButton(

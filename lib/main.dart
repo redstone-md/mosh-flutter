@@ -24,6 +24,7 @@ import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
 import 'package:mosh/src/features/onboarding/first_run_gate.dart';
 import 'package:mosh/src/features/voice_call/call_window_app.dart';
+import 'package:mosh/src/features/voice_call/desktop_window_visibility.dart';
 import 'package:mosh/src/features/voice_call/process_call_window.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/state/locale_provider.dart';
@@ -304,9 +305,6 @@ class MoshApp extends ConsumerWidget {
 void _openCallConversation(String sessionId) {
   appRouter.go(AppRoutes.dmFor(sessionId));
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-    unawaited(windowManager
-        .restore()
-        .then((_) => windowManager.show())
-        .then((_) => windowManager.focus()));
+    unawaited(bringDesktopWindowForward());
   }
 }
