@@ -2,7 +2,15 @@ import 'package:mosh/src/features/voice_call/call_dialog.dart';
 
 enum CallViewPhase { incoming, outgoing, active }
 
-enum CallViewAction { accept, decline, end, mute, openConversation }
+enum CallViewAction {
+  accept,
+  decline,
+  end,
+  mute,
+  openConversation;
+
+  bool get availableWhileBusy => this == end || this == openConversation;
+}
 
 /// Display data for the child engine. Encryption keys and audio handles never
 /// cross this boundary. Every command identifies the displayed call.

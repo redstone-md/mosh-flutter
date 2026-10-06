@@ -45,7 +45,7 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
     final provider = voiceCallOrchestratorProvider(command.sessionId);
     final state = ref.read(provider);
     if (state.dialog.callId != command.callId ||
-        (state.busy && command.action != CallViewAction.end)) {
+        (state.busy && !command.action.availableWhileBusy)) {
       return;
     }
     final notifier = ref.read(provider.notifier);

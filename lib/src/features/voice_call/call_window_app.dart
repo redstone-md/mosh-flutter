@@ -90,7 +90,7 @@ class _CallWindowController extends ValueNotifier<CallViewState?>
     final call = value;
     if (_closing ||
         call == null ||
-        (call.busy && command.action != CallViewAction.end) ||
+        (call.busy && !command.action.availableWhileBusy) ||
         call.sessionId != command.sessionId ||
         call.callId != command.callId) {
       return;

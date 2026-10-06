@@ -102,7 +102,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
 
   void _act(CallViewCommand command) {
     final state = ref.read(voiceCallOrchestratorProvider(widget.sessionId));
-    if ((state.busy && command.action != CallViewAction.end) ||
+    if ((state.busy && !command.action.availableWhileBusy) ||
         state.dialog.callId != command.callId) {
       return;
     }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
+import 'package:mosh/src/features/voice_call/call_modal_card.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
@@ -21,6 +22,7 @@ class _Fixture {
   final gateway = ScriptableGateway();
   late final bridge = ScriptableBridge(conversations: gateway.conversations);
   final window = RecordingCallWindow();
+  var opened = 0;
   late Future<void> Function(CallViewCommand) command;
   late final container = ProviderContainer(overrides: [
     gatewayProvider.overrideWithValue(gateway),
@@ -45,8 +47,12 @@ class _Fixture {
 
   Future<void> mount(WidgetTester tester) async {
     seed();
-    await pumpScreen(tester, const VoiceCallHost(child: Scaffold()),
-        container: container, settle: false);
+    await pumpScreen(
+        tester,
+        VoiceCallHost(
+            onOpenConversation: (_) => opened++, child: const Scaffold()),
+        container: container,
+        settle: false);
     await frames(tester);
   }
 }
@@ -58,6 +64,32 @@ Future<void> frames(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('both call views open the origin while accept is pending',
+      (tester) async {
+    final f = _Fixture();
+    addTearDown(f.container.dispose);
+    f.bridge.hold(BridgeMethod.callAccept);
+    await f.mount(tester);
+    final accepting =
+        f.command(f.window.views.last.command(CallViewAction.accept));
+    await frames(tester);
+    expect(f.window.views.last.busy, isTrue);
+    await f
+        .command(f.window.views.last.command(CallViewAction.openConversation));
+    await tester.tap(find.descendant(
+        of: find.byType(CallModalCard),
+        matching: find.text(f.window.views.last.peer)));
+    await frames(tester);
+    expect(f.opened, 2);
+    expect(f.bridge.countOf(BridgeMethod.callEnd), 0);
+    expect(f.bridge.countOf(BridgeMethod.callDecline), 0);
+    f.bridge.release(BridgeMethod.callAccept);
+    await accepting;
+    await tester.pumpWidget(const SizedBox.shrink());
+    f.container.dispose();
+    await tester.pump();
+  });
+
   testWidgets('closing a replacement never waits for the old accept',
       (tester) async {
     final f = _Fixture();
