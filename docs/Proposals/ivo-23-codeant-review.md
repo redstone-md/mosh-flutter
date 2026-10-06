@@ -111,6 +111,15 @@ application-router test checks the visible case; minimized restore still passes.
 | --- | --- | --- |
 | The phone keyboard covers the application call strip | Accept | Consume the bottom keyboard inset at the host and remove it from the nested Scaffold. The widget test changed from a covered strip at y=600 to its expected y=350 above the IME. Tests cover keyboard show/hide with and without calls, no double composer inset and preserving the draft across call admission/termination. The wrapper structure stays stable. |
 
+## Follow-up review of `5d34dda9`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| A failed desktop focus check suppresses the incoming alert | Accept | Handle each window's focus failure independently and continue the notification path when neither is known focused. Two failing-then-passing alert tests cover failed main and child probes; ended-call cases still reject alerts. |
+| The capture fake repeats stop callbacks | Accept | Memoize the stop future per handle, joining pending teardown and retaining inert completed cleanup. A failing-then-passing test checks pending/completed stop and independent replacement handles. |
+| The playback fake repeats stop callbacks | Accept | Memoize stop per handle; repeated cleanup leaves counts unchanged while a new handle stops independently. A failing-then-passing test exercises both lifetimes. |
+| An incoming call can arrive between the fresh global read and call_start | Do not accept | The agreed invariant is one audio owner. A later network offer may coexist in signaling, but cannot open a second microphone or replace that owner. An atomic global busy policy requires coordinated Rust start/incoming-offer behavior and call-waiting decisions beyond the agreed window/navigation scope. The fresh read blocks starts over already known calls; it does not claim atomic network admission. |
+
 ## Accepted inline thread references
 
 | Provider thread | File |
@@ -129,3 +138,4 @@ application-router test checks the visible case; minimized restore still passes.
 | [PRRT_kwDOTpdkls6pZDjm](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193426152) | `lib/src/state/voice_call_start_provider.dart` |
 | [PRRT_kwDOTpdkls6pZE8P](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193435008) | `lib/src/features/voice_call/voice_call_orchestrator.dart` |
 | [PRRT_kwDOTpdkls6pZaRd](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193570089) | `lib/src/features/voice_call/voice_call_host.dart` |
+| [PRRT_kwDOTpdkls6pZ1bE](https://github.com/redstone-md/mosh-flutter/pull/59#discussion_r4193743955) | `lib/src/features/voice_call/voice_call_layer.dart` |

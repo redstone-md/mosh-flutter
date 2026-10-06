@@ -63,6 +63,8 @@ still target the main application's `FLUTTER_RUNNER_WIN32_WINDOW` class.
 Incoming notifications await initialization and recheck the current incoming call
 before posting. A completed initialization cannot notify about an ended call.
 Notifications are suppressed while either the main window or call window is focused.
+Each focus probe handles failure independently; an unavailable probe cannot
+prevent an alert, while a positive result from the other window still suppresses it.
 While suppressed, a one-second retry rechecks both windows so an unanswered call
 can notify after focus moves away, without requiring a new session snapshot.
 The retry stops on acceptance, termination or widget disposal.
@@ -130,19 +132,19 @@ functions remain within the limit.
   OS close in all phases and minimize/restore. Audio used real record/CPAL streams
   connected to PulseAudio's sine source and null output rather than physical
   microphone/speaker hardware.
-- 193 focused Flutter tests passed, covering system insets, delayed notification
+- 199 focused Flutter tests passed, covering system insets, delayed notification
   readiness, focused-window suppression and forced process termination with a
   broken input pipe, plus accept/close races, notification cancellation,
   admission confirmation, main-window restore, setup/control serialization and
   failed window-start retry, terminal buttons during acceptance and alerts after
   either window loses focus. Analyze and format passed.
-- Full Flutter suite: 1533 passed, four skipped. One unchanged test,
+- Full Flutter suite: 1539 passed, four skipped. One unchanged test,
   `media_kit_tracer_test.dart`, also fails when run alone because headless libmpv
   returns no screenshot. It imports no voice-call implementation.
 - Rust runtime unit/integration tests passed; doc tests, fmt and clippy passed.
   All seven ringtone tests passed, including explicit selected-output stream
   start/stop/repeat on PulseAudio.
-- Changed lines represented in LCOV: Dart 95.5% (853/893), Rust 97.7% (126/129).
+- Changed lines represented in LCOV: Dart 95.5% (855/895), Rust 97.7% (126/129).
   Application entrypoints are additionally exercised by the native scenario. Ringtone source
   coverage is 100% for recording conversion and 96.9% for CPAL playback. The
   available LCOV output contains no branch counters. Linux process startup and

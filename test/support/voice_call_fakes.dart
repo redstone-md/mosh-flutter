@@ -26,8 +26,9 @@ class RecordingCapture implements VoiceCaptureFactory {
 class _Capture implements VoiceCaptureHandle {
   _Capture(this.onStop);
   final Future<void> Function() onStop;
+  Future<void>? _stopping;
   @override
-  Future<void> stop() => onStop();
+  Future<void> stop() => _stopping ??= Future<void>.sync(onStop);
 }
 
 class RecordingPlayback implements VoicePlaybackFactory {
@@ -45,10 +46,11 @@ class _Playback implements VoicePlaybackHandle {
   _Playback(this.onStop, this.onFrame);
   final void Function() onStop;
   final void Function() onFrame;
+  Future<void>? _stopping;
   @override
   void pushFrame(BigInt seq, Uint8List opusFrame) => onFrame();
   @override
-  Future<void> stop() async => onStop();
+  Future<void> stop() => _stopping ??= Future<void>.sync(onStop);
 }
 
 class RecordingRingtone implements RingtonePlayer {

@@ -17,12 +17,13 @@ import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 
 void main() {
-  for (final window in ['main', 'call']) {
+  for (final window in ['main', 'call', 'main failure', 'call failure']) {
     for (final ended in [false, true]) {
       testWidgets('incoming alert follows $window blur; ended: $ended',
           (tester) async {
-        var mainFocused = window == 'main';
-        var callFocused = window == 'call';
+        var mainFocused = window.startsWith('main');
+        var callFocused = window.startsWith('call');
+        var failFocus = false;
         final gateway = ScriptableGateway()
           ..seedSessions([
             TestSnapshots.dm(
@@ -34,8 +35,13 @@ void main() {
         final messenger =
             TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
         const manager = MethodChannel('window_manager');
-        messenger.setMockMethodCallHandler(manager,
-            (call) async => call.method == 'isFocused' ? mainFocused : null);
+        messenger.setMockMethodCallHandler(manager, (call) async {
+          if (call.method != 'isFocused') return null;
+          if (failFocus && window == 'main failure') {
+            throw PlatformException(code: 'focus unavailable');
+          }
+          return mainFocused;
+        });
         addTearDown(() => messenger.setMockMethodCallHandler(manager, null));
         final container = ProviderContainer(overrides: [
           gatewayProvider.overrideWithValue(gateway),
@@ -53,7 +59,12 @@ void main() {
                 body: VoiceCallLayer(
               sessionId: 'origin',
               l: l,
-              isCallWindowFocused: () async => callFocused,
+              isCallWindowFocused: () async {
+                if (failFocus && window == 'call failure') {
+                  throw StateError('child focus unavailable');
+                }
+                return callFocused;
+              },
             )),
             container: container,
             settle: false);
@@ -67,6 +78,7 @@ void main() {
         }
         mainFocused = false;
         callFocused = false;
+        failFocus = true;
         await tester.pump(const Duration(milliseconds: 1100));
         await tester.pump(const Duration(milliseconds: 50));
         expect(notifications.showCalls, ended ? 0 : 1);

@@ -134,8 +134,8 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
       }
       if (!_isIncoming(dialog.callId, generation)) return;
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-        if (await windowManager.isFocused() ||
-            (await widget.isCallWindowFocused?.call() ?? false)) {
+        if (await _windowFocused(windowManager.isFocused) ||
+            await _windowFocused(widget.isCallWindowFocused)) {
           _retryNotification(dialog.callId, generation);
           return;
         }
@@ -159,6 +159,15 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
       await _notificationWork;
     } catch (_) {
       // The nonmodal call controls remain available without notifications.
+    }
+  }
+
+  Future<bool> _windowFocused(Future<bool> Function()? query) async {
+    try {
+      return await query?.call() ?? false;
+    } catch (_) {
+      // An unavailable focus probe must not hide the incoming-call alert.
+      return false;
     }
   }
 
