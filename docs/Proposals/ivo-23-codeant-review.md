@@ -64,3 +64,9 @@ accept completes. Replacement calls retain independent gates.
 | Other sessions cannot replace the selected call | Do not accept | Retaining the originating session preserves the agreed single audio owner. Once its call disappears, selection promotes another session that still has a call. Call waiting needs a separate product policy. |
 | Invite setup or mounting failure skips native test cleanup | Accept | Register independent Flutter teardown callbacks immediately after acquiring Rust, the peer and the provider container. Their reverse order unmounts the view before disposing providers, the peer and Rust. Real invalid-invite fault injection before mounting left one peer directory before the fix and none after it. |
 | Busy controls also block opening the original DM | Accept | Keep navigation and terminal intent available during control operations. One action policy is shared by the strip, host and child. Failing-then-passing tests check the peer click in all three paths while accept is held. |
+
+## Follow-up review of `08fac9da`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| Native capture cleanup is counted before its real stop completes | Accept | Record successful capture/playback start and stop after the underlying operation completes. Four controlled tests cover pending, successful and failed stops for both backends. Native scenarios retain real Record/CPAL defaults. |

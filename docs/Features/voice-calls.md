@@ -111,12 +111,12 @@ functions remain within the limit.
   OS close in all phases and minimize/restore. Audio used real record/CPAL streams
   connected to PulseAudio's sine source and null output rather than physical
   microphone/speaker hardware.
-- 174 focused Flutter tests passed, covering system insets, delayed notification
+- 178 focused Flutter tests passed, covering system insets, delayed notification
   readiness, focused-window suppression and forced process termination with a
   broken input pipe, plus accept/close races, notification cancellation,
   admission confirmation, main-window restore, setup/control serialization and
   failed window-start retry. Analyze and format passed.
-- Full Flutter suite: 1509 passed, four skipped. One unchanged test,
+- Full Flutter suite: 1513 passed, four skipped. One unchanged test,
   `media_kit_tracer_test.dart`, also fails when run alone because headless libmpv
   returns no screenshot. It imports no voice-call implementation.
 - Rust runtime unit/integration tests passed; doc tests, fmt and clippy passed.
