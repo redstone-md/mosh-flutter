@@ -39,6 +39,7 @@ class _MediaPreviewCard extends StatelessWidget {
     // Drives the centered play-overlay on top of the thumbnail image.
     final isVideo = descriptor.mime.startsWith('video/');
     final previewLabel = l.attachmentOpenAria(descriptor.fileName);
+    final mediaSize = encodedImageSize(bytes);
 
     return _FileCardShell(
       failed: attachment.failed,
@@ -57,46 +58,49 @@ class _MediaPreviewCard extends StatelessWidget {
             child: GestureDetector(
               onTap: () => onOpen(descriptor),
               // The bubble supplies the surface beneath transparent images.
-              child: Container(
-                width: double.infinity,
-                clipBehavior: Clip.antiAlias,
-                constraints: const BoxConstraints(
-                  minHeight: kAttachmentPreviewMinHeight,
-                  maxHeight: kAttachmentPreviewMaxHeight,
-                ),
-                decoration: const BoxDecoration(
-                  color: MoshColors.line,
-                  borderRadius: MoshShapes.attachment,
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    _previewImage(attachment, bytes),
-                    if (isVideo)
-                      // 48px round dark play badge -- decorative, so no
-                      // semantics.
-                      Semantics(
-                        excludeSemantics: true,
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: MoshColors.bg0.withValues(alpha: 0.62),
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.play_arrow,
-                              size: 24,
-                              color: Colors.white,
-                            ),
-                          ),
+              // A narrower bubble scales the reserved height with the width.
+              child: LayoutBuilder(
+                  builder: (context, constraints) => Container(
+                        width: double.infinity,
+                        height: attachmentPreviewHeight(mediaSize,
+                            width: constraints.maxWidth),
+                        clipBehavior: Clip.antiAlias,
+                        decoration: const BoxDecoration(
+                          color: MoshColors.line,
+                          borderRadius: MoshShapes.attachment,
                         ),
-                      ),
-                  ],
-                ),
-              ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          fit: StackFit.expand,
+                          children: [
+                            _previewImage(attachment, bytes, thumb ?? ''),
+                            if (isVideo)
+                              // 48px round dark play badge -- decorative, so no
+                              // semantics.
+                              Center(
+                                  child: Semantics(
+                                excludeSemantics: true,
+                                child: Container(
+                                  width: 48,
+                                  height: 48,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color:
+                                        MoshColors.bg0.withValues(alpha: 0.62),
+                                  ),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.play_arrow,
+                                      size: 24,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              )),
+                          ],
+                        ),
+                      )),
             ),
           ),
           // Controls precede time in the metadata row so its trailing
@@ -128,14 +132,13 @@ class _MediaPreviewCard extends StatelessWidget {
 }
 
 /// Try the original, then its clear JPEG, then the inline miniature.
-Widget _previewImage(ConversationAttachment attachment, Uint8List bytes) {
+Widget _previewImage(
+    ConversationAttachment attachment, Uint8List bytes, String source) {
   Widget preview = Image(
-    image: _boundedPreview(AttachmentMiniatureImage(bytes)),
-    width: double.infinity,
+    image: _boundedPreview(AttachmentMiniatureImage(bytes, source: source)),
     fit: BoxFit.cover,
-    errorBuilder: (context, _, __) => const SizedBox(
-      height: kAttachmentPreviewMinHeight,
-      width: double.infinity,
+    gaplessPlayback: true,
+    errorBuilder: (context, _, __) => const SizedBox.expand(
       child: ColoredBox(
         color: MoshColors.line,
         child:
@@ -158,7 +161,6 @@ Widget _localPreview(String path, Widget fallback, {bool auxiliary = false}) =>
       image: _boundedPreview(auxiliary
           ? AttachmentPreviewFileImage(File(path))
           : FileImage(File(path))),
-      width: double.infinity,
       fit: BoxFit.cover,
       gaplessPlayback: true,
       frameBuilder: (context, child, frame, synchronous) =>
