@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
@@ -55,6 +56,38 @@ Future<void> _pumpText(WidgetTester tester) => pumpScreen(
         ),
       ),
     ));
+
+Future<void> _pumpSelectable(WidgetTester tester, VoidCallback onSelect,
+        {EdgeInsets viewInsets = EdgeInsets.zero}) =>
+    pumpScreen(
+        tester,
+        Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(viewInsets: viewInsets),
+            child: Scaffold(
+              resizeToAvoidBottomInset: false,
+              body: MessageSelectionArea(
+                child: CopyableMessage(
+                  body: 'first word',
+                  onSelect: onSelect,
+                  child: const Padding(
+                      padding: EdgeInsets.all(24), child: Text('first word')),
+                ),
+              ),
+            ),
+          ),
+        ));
+
+void _performCustomAction(WidgetTester tester, Finder finder, String label) {
+  final id =
+      CustomSemanticsAction.getIdentifier(CustomSemanticsAction(label: label));
+  SemanticsNode? node = tester.getSemantics(finder);
+  while (!(node!.getSemanticsData().customSemanticsActionIds?.contains(id) ??
+      false)) {
+    node = node.parent;
+  }
+  node.owner!.performAction(node.id, SemanticsAction.customAction, id);
+}
 
 double _menuScale(WidgetTester tester) {
   final menu = tester.renderObject<RenderBox>(
@@ -154,5 +187,43 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
     }
+  });
+
+  testWidgets('screen-reader select action clears the text selection',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      var selected = 0;
+      await _pumpSelectable(tester, () => selected++);
+      final point =
+          tester.getTopLeft(find.text('first word')) + const Offset(8, 8);
+      await clickMessage(tester, point);
+      await clickMessage(tester, point);
+      _performCustomAction(tester, find.text('first word'), 'Select message');
+      await tester.pumpAndSettle();
+      expect(selected, 1);
+      Focus.of(tester.element(find.text('first word'))).requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+      await tester.pumpAndSettle();
+      expect(find.text('Copy message'), findsOneWidget);
+      expect(find.text('Copy selected text'), findsNothing);
+    } finally {
+      semantics.dispose();
+    }
+  }, variant: TargetPlatformVariant.desktop());
+
+  testWidgets('insets larger than the viewport still paint the menu',
+      (tester) async {
+    tester.view.viewInsets =
+        FakeViewPadding(bottom: 700 * tester.view.devicePixelRatio);
+    addTearDown(tester.view.resetViewInsets);
+    await _pumpSelectable(tester, () {},
+        viewInsets: const EdgeInsets.only(bottom: 700));
+    await clickMessage(tester, tester.getCenter(find.text('first word')),
+        buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('message-context-menu')), findsOneWidget);
   });
 }
