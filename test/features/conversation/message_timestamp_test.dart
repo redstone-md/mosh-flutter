@@ -95,7 +95,7 @@ void main() {
       expect(find.text(expectedClock()), findsOneWidget);
 
       // A Tooltip carrying the full locale-aware date-time is present.
-      // The DM meta row also has the MlsBadge Tooltip, so we match by
+      // The row can hold other Tooltips, so we match by
       // message rather than by type alone.
       final tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip));
       final expected = expectedFull();

@@ -124,6 +124,8 @@ A transaction saves the journal, replaces matching history rows with empty rows,
 cancels eligible outbound attempts and queues attachment cleanup. Empty rows
 retain IDs and timestamps so frozen history cursors remain usable. Personal rows
 are filtered from snapshots; shared rows render a localized placeholder.
+A confirmed placeholder is one line. A pending one adds "Awaiting deletion";
+a rejected one adds "Deleted only for you", since others still see it.
 An encrypted derived index maps native targets and personal aliases to journal
 rows. Journal and index writes share the erasure transaction; opening an older
 journal builds the index once before history writes. Appending a message reads
