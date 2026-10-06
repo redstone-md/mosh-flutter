@@ -90,3 +90,9 @@ The local window check also found that unconditional `restore` unmaximizes a
 visible Windows window in window_manager 0.5.2. Both window paths now use one
 foreground helper that restores only a minimized window. A failing-then-passing
 application-router test checks the visible case; minimized restore still passes.
+
+## Follow-up review of `847108e0`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| An earlier incoming DM hides an already active call during initial selection | Accept | When there is no retained owner, prefer an active call before falling back to list order. Two failing-then-passing provider tests cover initial selection and promotion after the owner ends. A third test preserves the existing incoming owner when another active call appears. |

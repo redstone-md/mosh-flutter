@@ -28,7 +28,9 @@ class VoiceCallSessionNotifier extends Notifier<SessionSnapshot?> {
     for (final session in calls) {
       if (session.sessionId == _selectedId) return session;
     }
-    final selected = calls.firstOrNull;
+    final selected =
+        calls.where((session) => session.activeCall != null).firstOrNull ??
+            calls.firstOrNull;
     _selectedId = selected?.sessionId;
     return selected;
   }
