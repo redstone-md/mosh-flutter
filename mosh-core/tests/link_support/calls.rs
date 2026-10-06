@@ -21,7 +21,10 @@ pub(super) fn command(
     let matches_probe = probe.as_ref().is_some_and(|probe| probe.call_id == call);
     let result = match action {
         "call_start" => {
-            return serde_json::to_value(private_dm::call_start(session.into()).unwrap()).unwrap()
+            return match private_dm::call_start(session.into()) {
+                Ok(started) => serde_json::to_value(started).unwrap(),
+                Err(error) => json!({"error": format!("{:?}", error.kind)}),
+            }
         }
         "call_accept" => private_dm::call_accept(session.into(), call),
         "call_decline" => private_dm::call_decline(session.into(), call, "declined".into()),

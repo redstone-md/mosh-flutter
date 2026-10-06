@@ -72,6 +72,15 @@ void main() {
     await tester.pump();
     await tester.tap(find.byTooltip('Accept call'));
     await tester.pump();
+    await handle(MethodCall(
+        'call-present',
+        const CallViewState(
+                sessionId: 'origin',
+                callId: 'incoming',
+                peer: 'Alice',
+                phase: CallViewPhase.incoming,
+                busy: true)
+            .toMap()));
     await _osClose(platform);
     await tester.pump();
     const active = CallViewState(
@@ -91,7 +100,7 @@ void main() {
     await handle(const MethodCall('call-show'));
     expect(await handle(const MethodCall('call-is-focused')), isFalse);
     expect(commands.map((args) => args['action']),
-        ['openConversation', 'accept', 'decline', 'mute', 'end']);
+        ['openConversation', 'accept', 'end', 'mute', 'end']);
     expect(commands.map((args) => args['sessionId']).toSet(), {'origin'});
     expect(commands.map((args) => args['callId']),
         ['incoming', 'incoming', 'incoming', 'active', 'active']);
