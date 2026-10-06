@@ -1019,6 +1019,7 @@
   "chatNameSuperseded": "Изменение названия заменено более поздним.",
   "messageDelete": "Удалить…",
   "messageSelect": "Выделить сообщение",
+  "messageSelectionDelete": "Удалить",
   "messageDeleteForMe": "Удалить у меня",
   "messageDeleteForEveryone": "Удалить у всех",
   "messageDeleteTitle": "Удалить сообщения ({count})?",
