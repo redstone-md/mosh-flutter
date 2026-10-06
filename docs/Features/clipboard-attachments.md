@@ -13,7 +13,8 @@ share one path (`clipboard_paste_handler.dart`):
 
 Files and images go through the shared ingest with the picker's and drop
 zone's 50 MB ceiling, original name, MIME by extension, miniature and clear
-preview. A copied file's size is checked before it is read, and nothing is
+preview. A copied file is streamed with a running size limit, so one that grows
+while being read is refused without loading it whole, and nothing is
 attached from a partial read. A folder reports `attachmentNotAFile`; a missing
 or unreadable file reports `attachmentUnreadable`.
 

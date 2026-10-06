@@ -1,7 +1,7 @@
 import 'dart:async' show Completer;
 import 'dart:io'
     show File, FileSystemEntity, FileSystemEntityType, FileSystemException;
-import 'dart:typed_data' show Uint8List;
+import 'dart:typed_data' show BytesBuilder, Uint8List;
 
 import 'package:flutter/foundation.dart'
     show ErrorDescription, FlutterError, FlutterErrorDetails;
@@ -109,10 +109,16 @@ Future<void> attachCopiedFile(
           ? AttachmentPickError.notAFile
           : AttachmentPickError.unreadable);
     }
-    if (await file.length() > maxBytes) {
-      return onAttachmentPickError(AttachmentPickError.tooLarge);
+    // Streamed with a running limit: a file that grows while being read is
+    // refused without loading more than [maxBytes] plus one chunk.
+    final read = BytesBuilder(copy: false);
+    await for (final chunk in file.openRead()) {
+      read.add(chunk);
+      if (read.length > maxBytes) {
+        return onAttachmentPickError(AttachmentPickError.tooLarge);
+      }
     }
-    bytes = await file.readAsBytes();
+    bytes = read.takeBytes();
   } on FileSystemException {
     return onAttachmentPickError(AttachmentPickError.unreadable);
   }
