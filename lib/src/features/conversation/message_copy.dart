@@ -69,6 +69,12 @@ class _CopyableMessageState extends State<CopyableMessage> {
       ? _semanticMenu
       : null;
 
+  // Match the menu: row-level actions drop any text selection first.
+  VoidCallback _clearingSelection(VoidCallback callback) => () {
+        _owner?._clear();
+        callback();
+      };
+
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     if (event.logicalKey == LogicalKeyboardKey.contextMenu ||
@@ -109,11 +115,11 @@ class _CopyableMessageState extends State<CopyableMessage> {
             if (widget.onDelete case final callback?)
               CustomSemanticsAction(
                 label: AppLocalizations.of(context)!.messageDelete,
-              ): callback,
+              ): _clearingSelection(callback),
             if (widget.onSelect case final callback?)
               CustomSemanticsAction(
                 label: AppLocalizations.of(context)!.messageSelect,
-              ): callback,
+              ): _clearingSelection(callback),
           },
           child: Focus(
             focusNode: _focus,
