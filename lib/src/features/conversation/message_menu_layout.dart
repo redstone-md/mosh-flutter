@@ -23,10 +23,11 @@ class _MessageMenuLayout extends FlowDelegate {
     final bottom = context.size.height - insets.bottom;
     final flipX = position.dx + child.width > right;
     final flipY = position.dy + child.height > bottom;
+    // Insets can exceed a tiny viewport; keep clamp bounds ordered.
     final x = (flipX ? position.dx - child.width : position.dx)
-        .clamp(insets.left, right - child.width);
+        .clamp(insets.left, math.max(insets.left, right - child.width));
     final y = (flipY ? position.dy - child.height : position.dy)
-        .clamp(insets.top, bottom - child.height);
+        .clamp(insets.top, math.max(insets.top, bottom - child.height));
     final origin = Offset(flipX ? child.width : 0, flipY ? child.height : 0);
     context.paintChild(0,
         opacity: opacity.value,
