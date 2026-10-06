@@ -49,23 +49,26 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       // edge behind the status bar and only the content is inset.
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(kRailPadding),
+          // Pinned controls inset themselves; the list insets its rows
+          // inside the scroller, so its scrollbar runs in the right gutter
+          // and both sides of a row stay [kRailPadding] from the edge.
+          padding: const EdgeInsets.symmetric(vertical: kRailPadding),
           child: Column(
             children: <Widget>[
               // The NewSession button + its divider are pinned above
               // `.rail-list`, outside the scroller and independent of whether
               // any conversation exists.
-              RailNewButton(
+              _inset(RailNewButton(
                 label: l.shellNewSession,
                 onTap: () => openNewSessionAction(context, ref),
-              ),
+              )),
               const SizedBox(height: kRailPadding),
-              SessionsListControls(
+              _inset(SessionsListControls(
                 focusNode: ref.watch(chatListSearchFocusProvider),
                 kind: _kind,
                 onSearch: (value) => setState(() => _query = value),
                 onKind: (value) => setState(() => _kind = value),
-              ),
+              )),
               SizedBox(height: isMobileBreakpoint(context) ? 4 : 8),
               Expanded(
                 child: SessionsRailList(
@@ -90,16 +93,20 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
               // the NewSession button holds above it) so it never scrolls
               // away — the Discord placement.
               const SizedBox(height: kRailPadding),
-              RailSettingsButton(
+              _inset(RailSettingsButton(
                 label: l.settingsGearLabel,
                 onTap: () => context.push(AppRoutes.settings),
-              ),
+              )),
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _inset(Widget child) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: kRailPadding),
+      child: child);
 }
 
 /// Error state with a Retry button that re-runs the DM entry's refresh.

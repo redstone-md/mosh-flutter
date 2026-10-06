@@ -47,13 +47,18 @@ class SessionsListControls extends StatelessWidget {
         _search(context, mobile, l.chatListSearch),
         // Native chip targets add 4px above the paint, or 8px on mobile.
         SizedBox(height: mobile ? 0 : 4),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: Row(
-            children: [
-              for (final entry in labels.entries) _filterChip(context, entry),
-            ],
+        // The chips line up with the search field; the clip reaches 2px
+        // past it on each side so their outside focus ring still shows.
+        ClipRect(
+          clipper: const _FocusRingClip(),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            child: Row(
+              children: [
+                for (final entry in labels.entries) _filterChip(context, entry),
+              ],
+            ),
           ),
         ),
       ],
@@ -139,4 +144,15 @@ class SessionsListControls extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The scroller's bounds widened by a chip's 2px outside focus ring.
+class _FocusRingClip extends CustomClipper<Rect> {
+  const _FocusRingClip();
+
+  @override
+  Rect getClip(Size size) => (Offset.zero & size).inflate(2);
+
+  @override
+  bool shouldReclip(_FocusRingClip oldClipper) => false;
 }
