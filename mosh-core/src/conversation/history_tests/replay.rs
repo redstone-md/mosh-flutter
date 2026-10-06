@@ -42,6 +42,7 @@ fn a_pending_message_with_no_attempt_row_comes_back_failed() {
         message_id: "m1".to_string(),
         message,
         attachment_manifest: None,
+        preview_manifest: None,
     };
     scratch
         .persistence

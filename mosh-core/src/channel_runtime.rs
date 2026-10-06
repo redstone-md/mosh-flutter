@@ -4,7 +4,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::attachment_runtime::{
-    AttachmentManifest, ChunkFrame, ChunkRequest, OutgoingAttachment, StreamRange, VoiceMeta,
+    ChunkFrame, ChunkRequest, OutgoingAttachment, StreamRange, VoiceMeta,
 };
 use crate::attachment_store::AttachmentStore;
 use crate::conversation::attachments::{
@@ -16,6 +16,7 @@ use crate::conversation::history::Restore;
 use crate::conversation::mesh::{self, MeshInfo, SnapshotEvent};
 use crate::conversation::message_log::{ConversationMessage, LogError, MessageLog};
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
+use crate::conversation::previews::{AttachmentInput, AttachmentOffer};
 use crate::conversation::runtime::{self, ConversationRuntime, ConversationSession};
 use crate::conversation::transfer::{Transfer, TransferError};
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
@@ -140,10 +141,29 @@ impl ChannelRuntime {
         thumbnail: Option<String>,
         voice: Option<VoiceMeta>,
     ) -> Result<AttachmentSendResult, ChannelRuntimeError> {
+        self.send_attachment_with_preview(
+            name,
+            crate::conversation::previews::AttachmentInput {
+                file_name,
+                mime,
+                bytes,
+                thumbnail,
+                voice,
+                preview: None,
+            },
+        )
+    }
+
+    /// Sends the main file with an optional auxiliary preview.
+    pub fn send_attachment_with_preview(
+        &mut self,
+        name: &str,
+        input: crate::conversation::previews::AttachmentInput,
+    ) -> Result<AttachmentSendResult, ChannelRuntimeError> {
         self.drain_inbound()?;
         let normalized = normalize_name(name)?;
         let session = self.channel_mut(&normalized)?;
-        let result = session.send_attachment(file_name, mime, bytes, thumbnail, voice)?;
+        let result = session.send_attachment(input)?;
         self.channels.persist_tail_logged(KIND);
         Ok(result)
     }
@@ -332,6 +352,9 @@ fn publish_json<T: Serialize>(
 ) -> Result<(), ChannelRuntimeError> {
     let payload =
         serde_json::to_vec(value).map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;
+    if payload.len() > crate::conversation::MAX_PUBLISH_BYTES {
+        return Err(ChannelRuntimeError::PayloadTooLarge);
+    }
     node.publish_room_best_effort(mesh_id, topic, &payload)
         .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))
 }

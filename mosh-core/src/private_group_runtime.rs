@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::attachment_runtime::{AttachmentManifest, OutgoingAttachment, StreamRange, VoiceMeta};
+use crate::attachment_runtime::{OutgoingAttachment, StreamRange, VoiceMeta};
 use crate::attachment_store::AttachmentStore;
 use crate::commit_sequencer::{CommitSequencer, Disposition};
 use crate::conversation::attachments::{
@@ -15,6 +15,7 @@ use crate::conversation::history::Restore;
 use crate::conversation::mesh::{self, MeshInfo, SnapshotEvent};
 use crate::conversation::message_log::{ConversationMessage, LogError, MessageLog};
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
+use crate::conversation::previews::{AttachmentInput, AttachmentOffer};
 use crate::conversation::runtime::{self, ConversationRuntime, ConversationSession};
 use crate::conversation::transfer::{Transfer, TransferError};
 use crate::conversation::{decode, encode, now_ms};

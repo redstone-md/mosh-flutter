@@ -44,13 +44,15 @@ impl ChannelSession {
         &mut self,
         from_device: String,
         from_fingerprint: String,
-        manifest: AttachmentManifest,
+        manifest: impl Into<AttachmentOffer>,
     ) -> Result<(), ChannelRuntimeError> {
+        let offer = manifest.into();
+        offer
+            .verify(&format!("channel:{}", self.name), None)
+            .map_err(ChannelRuntimeError::Codec)?;
+        let manifest = &offer.manifest;
         let origin = manifest.origin.clone();
         if let Some(origin) = &origin {
-            origin
-                .verify_manifest(&format!("channel:{}", self.name), &manifest)
-                .map_err(ChannelRuntimeError::Codec)?;
             if origin.author != from_fingerprint.to_lowercase() {
                 return Err(ChannelRuntimeError::Codec(
                     "channel attachment signer mismatch".into(),
@@ -58,7 +60,7 @@ impl ChannelSession {
             }
         }
         let message_id = origin.as_ref().map(|o| o.id.clone());
-        let Some(descriptor) = self.transfer.accept_manifest(manifest)? else {
+        let Some(descriptor) = self.transfer.accept_offer(offer)? else {
             return Ok(());
         };
         let message = self.messages.stamp(ChannelMessage {
@@ -83,43 +85,49 @@ impl ChannelSession {
 
     pub(super) fn send_attachment(
         &mut self,
-        file_name: String,
-        mime: String,
-        bytes: Vec<u8>,
-        thumbnail: Option<String>,
-        voice: Option<VoiceMeta>,
+        input: AttachmentInput,
     ) -> Result<AttachmentSendResult, ChannelRuntimeError> {
-        let attachment_id = crate::message_id::occurrence_id("attachment");
-        let mut outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
-            attachment_id: attachment_id.clone(),
+        let AttachmentInput {
             file_name,
             mime,
-            from_fingerprint: self.device_fingerprint.clone(),
             bytes,
-            thumbnail_b64: thumbnail,
+            thumbnail,
+            preview,
             voice,
-        })?;
-        let origin = crate::message_deletion::MessageOrigin::sign(
-            &format!("channel:{}", self.name),
-            &attachment_id,
-            &crate::message_deletion::MessageOrigin::manifest_bytes(&outgoing.manifest)
-                .map_err(ChannelRuntimeError::Codec)?,
-            self.node
-                .identity_signer()
-                .map_err(|e| ChannelRuntimeError::Moss(e.to_string()))?,
-            self.deletions.store.as_ref(),
-        )
-        .map_err(ChannelRuntimeError::Codec)?;
-        outgoing.manifest.origin = Some(origin.clone());
+        } = input;
+        let attachment_id = crate::message_id::occurrence_id("attachment");
+        let mut outgoing = self.transfer.prepare_offer(
+            OutgoingAttachment {
+                attachment_id: attachment_id.clone(),
+                file_name,
+                mime,
+                from_fingerprint: self.device_fingerprint.clone(),
+                bytes,
+                thumbnail_b64: thumbnail,
+                voice,
+            },
+            preview,
+        )?;
         let content_hash = outgoing.manifest.content_hash.clone();
-        let envelope = ChannelBlobEnvelope::Manifest {
-            from_device: self.display_name.clone(),
-            from_fingerprint: self.device_fingerprint.clone(),
-            manifest: Box::new(outgoing.manifest.clone()),
-        };
-        publish_json(&self.node, &self.mesh_id, &self.blob_topic, &envelope)?;
-
-        let descriptor = self.transfer.record_sent(outgoing);
+        let publication = (|| -> Result<_, ChannelRuntimeError> {
+            let origin = outgoing
+                .sign(
+                    &format!("channel:{}", self.name),
+                    self.node
+                        .identity_signer()
+                        .map_err(|e| ChannelRuntimeError::Moss(e.to_string()))?,
+                    self.deletions.store.as_ref(),
+                )
+                .map_err(ChannelRuntimeError::Codec)?;
+            let envelope = ChannelBlobEnvelope::Manifest {
+                from_device: self.display_name.clone(),
+                from_fingerprint: self.device_fingerprint.clone(),
+                manifest: Box::new(outgoing.offer()),
+            };
+            publish_json(&self.node, &self.mesh_id, &self.blob_topic, &envelope)?;
+            Ok(origin)
+        })();
+        let (descriptor, origin) = self.transfer.record_published(outgoing, publication)?;
         let message = self.messages.stamp(ChannelMessage {
             metadata: Some(crate::message_deletion::MessageMetadata {
                 origin: Some(origin),

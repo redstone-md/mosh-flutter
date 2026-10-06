@@ -259,7 +259,7 @@ fn personal_attachment_erasure_matches_an_older_own_copy_even_after_shared_erasu
         let envelope = ChannelBlobEnvelope::Manifest {
             from_device: session.display_name.clone(),
             from_fingerprint: session.device_fingerprint.clone(),
-            manifest: Box::new(manifest),
+            manifest: Box::new(manifest.into()),
         };
         legacy.deliver(MossReceivedMessage {
             channel: session.blob_topic.clone(),

@@ -1,8 +1,6 @@
 part of 'attachment_card.dart';
 
-/// Renders the image/video media preview: the decoded base64 thumbnail as
-/// a tappable `Image.memory` (rounded, height-constrained) above the
-/// shared name+meta+progress bar + actions row.
+/// Shows the cached preview or inline miniature above attachment controls.
 ///
 /// The preview opens media, with transfer controls alongside the caption.
 /// The video play-overlay is decorative; the wrapper labels the open action.
@@ -28,7 +26,6 @@ class _MediaPreviewCard extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final descriptor = attachment.descriptor;
     final thumb = descriptor.thumbnailB64;
-    final localPath = attachment.localImagePreview;
     // A malformed server thumbnail must never take the conversation down:
     // base64Decode throws during build, which errorBuilder cannot catch.
     // Empty bytes on decode failure -> Image.memory's decode fails ->
@@ -74,30 +71,7 @@ class _MediaPreviewCard extends StatelessWidget {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    Image(
-                      // Empty only when the base64 thumbnail was
-                      // malformed; the errorBuilder renders the
-                      // broken-image fallback in that case.
-                      image: localPath != null
-                          ? ResizeImage.resizeIfNeeded(
-                              640, null, FileImage(File(localPath)))
-                          : MemoryImage(bytes),
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
-                      errorBuilder: (context, _, __) => const SizedBox(
-                        height: kAttachmentPreviewMinHeight,
-                        width: double.infinity,
-                        child: ColoredBox(
-                          color: MoshColors.line,
-                          child: Icon(
-                            Icons.broken_image_outlined,
-                            size: 32,
-                            color: MoshColors.fg3,
-                          ),
-                        ),
-                      ),
-                    ),
+                    _previewImage(attachment, bytes),
                     if (isVideo)
                       // 48px round dark play badge -- decorative, so no
                       // semantics.
@@ -152,3 +126,50 @@ class _MediaPreviewCard extends StatelessWidget {
     );
   }
 }
+
+/// Try the original, then its clear JPEG, then the inline miniature.
+Widget _previewImage(ConversationAttachment attachment, Uint8List bytes) {
+  Widget preview = Image(
+    image: _boundedPreview(AttachmentMiniatureImage(bytes)),
+    width: double.infinity,
+    fit: BoxFit.cover,
+    errorBuilder: (context, _, __) => const SizedBox(
+      height: kAttachmentPreviewMinHeight,
+      width: double.infinity,
+      child: ColoredBox(
+        color: MoshColors.line,
+        child:
+            Icon(Icons.broken_image_outlined, size: 32, color: MoshColors.fg3),
+      ),
+    ),
+  );
+  if (attachment.clearPreviewPath case final path?) {
+    preview = _localPreview(path, preview, auxiliary: true);
+  }
+  if (attachment.descriptor.mime.startsWith('image/') &&
+      attachment.localPath != null) {
+    preview = _localPreview(attachment.localPath!, preview);
+  }
+  return preview;
+}
+
+Widget _localPreview(String path, Widget fallback, {bool auxiliary = false}) =>
+    Image(
+      image: _boundedPreview(auxiliary
+          ? AttachmentPreviewFileImage(File(path))
+          : FileImage(File(path))),
+      width: double.infinity,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      frameBuilder: (context, child, frame, synchronous) =>
+          synchronous || frame != null ? child : fallback,
+      errorBuilder: (context, _, __) => fallback,
+    );
+
+/// Bound both decoded axes, including remote images with extreme aspect ratios.
+ResizeImage _boundedPreview(ImageProvider<Object> provider) => ResizeImage(
+      provider,
+      width: (kAttachmentMediaWidth * 2).toInt(),
+      height: (kAttachmentPreviewMaxHeight * 2).toInt(),
+      policy: ResizeImagePolicy.fit,
+    );

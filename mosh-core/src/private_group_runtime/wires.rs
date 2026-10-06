@@ -136,6 +136,9 @@ pub(super) fn publish_json<T: Serialize>(
 ) -> Result<(), PrivateGroupError> {
     let payload =
         serde_json::to_vec(value).map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
+    if payload.len() > crate::conversation::MAX_PUBLISH_BYTES {
+        return Err(PrivateGroupError::PayloadTooLarge);
+    }
     node.publish_room_best_effort(mesh_id, channel, &payload)
         .map_err(|error| PrivateGroupError::Moss(error.to_string()))
 }

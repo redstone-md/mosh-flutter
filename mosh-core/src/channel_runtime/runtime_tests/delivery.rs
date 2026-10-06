@@ -185,6 +185,7 @@ fn a_torn_send_row_rehydrates_as_a_plain_failure() {
             retry_count: Some(0),
         },
         attachment_manifest: None,
+        preview_manifest: None,
     };
     persistence
         .append_history_message(

@@ -46,6 +46,8 @@ pub enum ConversationBridgeErrorKind {
     PermissionDenied,
     /// No caller-visible remedy exists for this failure.
     Internal,
+    /// Serialized metadata exceeded the network limit; connectivity is unchanged.
+    PayloadTooLarge,
 }
 
 /// One failed conversation action, as the seam reports it.
@@ -96,6 +98,7 @@ impl std::error::Error for ConversationBridgeError {}
 impl From<PrivateDmRuntimeError> for ConversationBridgeError {
     fn from(error: PrivateDmRuntimeError) -> Self {
         let kind = match &error {
+            PrivateDmRuntimeError::PayloadTooLarge => ConversationBridgeErrorKind::PayloadTooLarge,
             PrivateDmRuntimeError::Deletion(error) => return deletion_error(error),
             PrivateDmRuntimeError::Revoked => ConversationBridgeErrorKind::Revoked,
             PrivateDmRuntimeError::Moss(_) => ConversationBridgeErrorKind::Unavailable,
@@ -121,6 +124,7 @@ impl From<PrivateDmRuntimeError> for ConversationBridgeError {
 impl From<ChannelRuntimeError> for ConversationBridgeError {
     fn from(error: ChannelRuntimeError) -> Self {
         let kind = match &error {
+            ChannelRuntimeError::PayloadTooLarge => ConversationBridgeErrorKind::PayloadTooLarge,
             ChannelRuntimeError::Deletion(error) => return deletion_error(error),
             ChannelRuntimeError::Moss(_) => ConversationBridgeErrorKind::Unavailable,
             ChannelRuntimeError::Codec(_) => ConversationBridgeErrorKind::Internal,
@@ -144,6 +148,7 @@ impl From<ChannelRuntimeError> for ConversationBridgeError {
 impl From<PrivateGroupError> for ConversationBridgeError {
     fn from(error: PrivateGroupError) -> Self {
         let kind = match &error {
+            PrivateGroupError::PayloadTooLarge => ConversationBridgeErrorKind::PayloadTooLarge,
             PrivateGroupError::Deletion(error) => return deletion_error(error),
             PrivateGroupError::Moss(_) => ConversationBridgeErrorKind::Unavailable,
             PrivateGroupError::Codec(_) => ConversationBridgeErrorKind::Internal,
@@ -371,6 +376,16 @@ mod tests {
         assert_eq!(org.kind, Kind::Persistence);
         assert_ne!(dm.kind, Kind::Unavailable);
         assert_ne!(org.kind, Kind::Unavailable);
+    }
+
+    #[test]
+    fn oversized_metadata_never_reports_lost_connectivity() {
+        assert_maps(
+            PrivateDmRuntimeError::PayloadTooLarge,
+            Kind::PayloadTooLarge,
+        );
+        assert_maps(PrivateGroupError::PayloadTooLarge, Kind::PayloadTooLarge);
+        assert_maps(ChannelRuntimeError::PayloadTooLarge, Kind::PayloadTooLarge);
     }
 
     #[test]

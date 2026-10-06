@@ -38,6 +38,8 @@ class ConversationActionError {
         ConversationBridgeErrorKind.missingAttachment =>
           l.chatActionErrorMissingAttachment,
         ConversationBridgeErrorKind.transfer => l.chatActionErrorTransfer,
+        ConversationBridgeErrorKind.payloadTooLarge =>
+          l.chatActionErrorPayloadTooLarge,
         ConversationBridgeErrorKind.persistence => l.chatActionErrorPersistence,
         ConversationBridgeErrorKind.needsRejoin => l.chatActionErrorNeedsRejoin,
         ConversationBridgeErrorKind.revoked => l.chatActionErrorRevoked,

@@ -90,9 +90,13 @@ void main() {
   });
 
   group('AttachmentPickError', () {
-    test('tooLarge is the only variant (no new error enum added)', () {
-      expect(AttachmentPickError.values.length, 1);
-      expect(AttachmentPickError.values.single, AttachmentPickError.tooLarge);
+    test('distinguishes oversized files from unavailable image previews', () {
+      expect(
+          AttachmentPickError.values,
+          containsAll([
+            AttachmentPickError.tooLarge,
+            AttachmentPickError.previewUnavailable
+          ]));
     });
   });
 

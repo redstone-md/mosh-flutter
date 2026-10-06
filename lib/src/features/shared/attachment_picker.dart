@@ -5,44 +5,42 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mime/mime.dart' show lookupMimeType;
 
-import 'package:mosh/src/features/shared/thumbnail.dart' show createThumbnail;
+import 'package:mosh/src/features/shared/thumbnail.dart'
+    show createAttachmentPreviews;
 
 /// Why the picker rejected the picked file. Maps to the localized message the
 /// screen shows (the enum leaves room for future reasons without an API
 /// churn).
-enum AttachmentPickError { tooLarge }
+enum AttachmentPickError { tooLarge, previewUnavailable }
 
-/// A picked file ready to send: the bytes already base64-encoded (the gateway
-/// `Gateway.sendAttachment` `dataBase64` arg) plus the
-/// `fileName` and inferred `mime`. `thumbnailBase64` is the base64 of a
-/// 320px JPEG preview for image picks;
-/// null for non-images or decode failures (never fatal).
+class AttachmentPreviewException implements Exception {
+  const AttachmentPreviewException();
+}
+
+/// Original file bytes plus a bounded inline miniature and a separate JPEG.
+/// Non-media files carry neither preview; unreadable images are refused.
 class PickedAttachment {
   const PickedAttachment({
     required this.fileName,
     required this.mime,
     required this.dataBase64,
     this.thumbnailBase64,
+    this.previewBase64,
   });
 
   final String fileName;
   final String mime;
   final String dataBase64;
   final String? thumbnailBase64;
+  final String? previewBase64;
 }
 
 typedef AttachmentPickedCallback = void Function(PickedAttachment attachment);
 typedef AttachmentPickErrorCallback = void Function(AttachmentPickError error);
 
-/// Shared byte->PickedAttachment ingest path. Both the paperclip picker and
-/// [ChatDropZone] route through this (DRY): infer MIME via `package:mime`
-/// (file_picker / desktop_drop expose no MIME),
-/// generate the 320px image/video thumbnail, and base64-encode the payload.
-/// Returns null when the
-/// payload exceeds [maxBytes]; the caller decides whether to surface
-/// [AttachmentPickError.tooLarge] -- keeps the helper pure so the picker keeps
-/// its pre-read rejection (500 MB files never load into RAM) and the drop
-/// zone fires its own onError.
+/// Shared ingest for the paperclip, drop zone and clipboard.
+/// Returns null over [maxBytes], or throws [AttachmentPreviewException] when
+/// an image cannot produce both previews. The original bytes are unchanged.
 Future<PickedAttachment?> ingestAttachment({
   required Uint8List bytes,
   required String fileName,
@@ -50,12 +48,16 @@ Future<PickedAttachment?> ingestAttachment({
 }) async {
   if (bytes.length > maxBytes) return null;
   final mime = lookupMimeType(fileName) ?? '';
-  final thumbnail = await createThumbnail(bytes, fileName);
+  final previews = await createAttachmentPreviews(bytes, fileName);
+  if (mime.startsWith('image/') && previews == null) {
+    throw const AttachmentPreviewException();
+  }
   return PickedAttachment(
     fileName: fileName,
     mime: mime,
     dataBase64: base64Encode(bytes),
-    thumbnailBase64: thumbnail,
+    thumbnailBase64: previews?.miniatureBase64,
+    previewBase64: previews?.previewBase64,
   );
 }
 
@@ -94,11 +96,17 @@ class AttachmentPicker extends StatelessWidget {
       return;
     }
     final bytes = await result.readAsBytes();
-    final picked = await ingestAttachment(
-      bytes: bytes,
-      fileName: result.name,
-      maxBytes: maxBytes,
-    );
+    final PickedAttachment? picked;
+    try {
+      picked = await ingestAttachment(
+        bytes: bytes,
+        fileName: result.name,
+        maxBytes: maxBytes,
+      );
+    } on AttachmentPreviewException {
+      onError(AttachmentPickError.previewUnavailable);
+      return;
+    }
     // The pre-read size check above guarantees picked != null here; the
     // null branch is defensive against a picker that lies about size.
     if (picked != null) onPick(picked);

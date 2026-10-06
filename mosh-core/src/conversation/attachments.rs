@@ -57,6 +57,8 @@ pub struct AttachmentView {
     pub chunk_count: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub local_path: Option<String>,
+    /// A verified auxiliary JPEG; this does not make the original available.
+    pub preview_path: Option<String>,
 }
 
 /// What a kind answers when the user sends a file. The conversation is named
@@ -155,6 +157,7 @@ impl AttachmentSlot {
             completed_chunks,
             chunk_count,
             local_path: self.local_path.clone(),
+            preview_path: None,
         }
     }
 }
@@ -166,6 +169,13 @@ pub struct AttachmentSlots {
 }
 
 impl AttachmentSlots {
+    pub(crate) fn restore_metadata(
+        &mut self,
+        descriptor: AttachmentDescriptor,
+        direction: AttachmentDirection,
+    ) {
+        self.insert(descriptor, direction, None);
+    }
     pub(crate) fn forget(&mut self, id: &str) {
         self.slots.remove(id);
     }

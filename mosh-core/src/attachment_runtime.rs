@@ -204,6 +204,11 @@ pub struct AttachmentRuntime {
 }
 
 impl AttachmentRuntime {
+    pub(crate) fn update_origin(&mut self, manifest: &AttachmentManifest) {
+        if let Some(transfer) = self.outgoing.get_mut(&manifest.attachment_id) {
+            transfer.manifest.origin = manifest.origin.clone();
+        }
+    }
     pub fn new() -> Self {
         Self {
             outgoing: HashMap::new(),

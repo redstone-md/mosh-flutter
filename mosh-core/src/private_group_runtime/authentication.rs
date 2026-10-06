@@ -133,18 +133,16 @@ impl GroupSession {
                 if signer != sender.mls_signer {
                     return Err("group attachment signer mismatch".into());
                 }
-                let manifest: AttachmentManifest =
+                let offer: AttachmentOffer =
                     serde_json::from_slice(body).map_err(|e| e.to_string())?;
-                if let Some(origin) = &manifest.origin {
-                    origin.verify_manifest_from_signer(&context, &manifest, signer)?;
-                }
-                if manifest.from_fingerprint != sender.peer_id {
+                offer.verify(&context, Some(signer))?;
+                if offer.manifest.from_fingerprint != sender.peer_id {
                     return Err("attachment author mismatch".into());
                 }
                 Ok(())
             })?;
-        let manifest: AttachmentManifest = decode_json(&body)?;
-        self.require_author(&manifest.from_fingerprint, &sender)?;
+        let manifest: AttachmentOffer = decode_json(&body)?;
+        self.require_author(&manifest.manifest.from_fingerprint, &sender)?;
         self.accept_incoming_manifest(name, sender.peer_id, manifest)
     }
 

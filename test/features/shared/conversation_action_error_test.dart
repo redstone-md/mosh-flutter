@@ -66,6 +66,8 @@ Map<ConversationBridgeErrorKind, String> _wordingByKind(AppLocalizations l) => {
       ConversationBridgeErrorKind.invalidInput:
           l.chatActionErrorInvalidInput(_bridgeDetail),
       ConversationBridgeErrorKind.unavailable: l.chatActionErrorUnavailable,
+      ConversationBridgeErrorKind.payloadTooLarge:
+          l.chatActionErrorPayloadTooLarge,
       ConversationBridgeErrorKind.notReady: l.chatActionErrorNotReady,
       ConversationBridgeErrorKind.missingConversation:
           l.chatActionErrorMissingConversation,

@@ -172,6 +172,7 @@ class ScriptableGateway
     required String mime,
     required String dataBase64,
     String? thumbnailBase64,
+    String? previewBase64,
     VoiceMeta? voice,
   }) =>
       runScripted(
@@ -182,6 +183,7 @@ class ScriptableGateway
             'mime': mime,
             'dataBase64': dataBase64,
             'thumbnailBase64': thumbnailBase64,
+            'previewBase64': previewBase64,
             'voice': voice,
           },
           () {});

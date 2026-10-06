@@ -16,6 +16,7 @@ impl<M: ConversationMessage> Erasure<M> {
             message_id: message.message_id().unwrap_or_default().into(),
             message: message.clone(),
             attachment_manifest: None,
+            preview_manifest: None,
         };
         Self {
             index,
@@ -149,7 +150,8 @@ impl<M: ConversationMessage> ErasurePlan<M> {
             .collect();
         let attachments = changes
             .iter()
-            .filter_map(|c| context.log[c.index].attachment().cloned())
+            .filter_map(|c| context.log[c.index].attachment())
+            .flat_map(|attachment| context.transfer.erasure_descriptors(attachment))
             .collect();
         Ok(Self {
             merged,
@@ -168,9 +170,12 @@ impl<M: ConversationMessage> ErasurePlan<M> {
             context.log.replace(change.index, change.message);
         }
         for attachment in self.attachments {
+            let visible_id = context
+                .transfer
+                .visible_attachment_id(&attachment.attachment_id);
             if !context.log.iter().any(|m| {
                 m.attachment()
-                    .is_some_and(|a| a.attachment_id == attachment.attachment_id)
+                    .is_some_and(|a| a.attachment_id == visible_id)
             }) {
                 context.transfer.forget(&attachment.attachment_id);
             }

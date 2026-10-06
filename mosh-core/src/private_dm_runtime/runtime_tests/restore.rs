@@ -109,6 +109,7 @@ fn restored_inbound_history_waits_for_live_peer() {
             message_id: message_id.to_string(),
             message,
             attachment_manifest: None,
+            preview_manifest: None,
         };
         persistence
             .append_message(

@@ -137,6 +137,7 @@ class ConversationController extends Notifier<ConversationControllerState> {
           mime: attachment.mime,
           dataBase64: attachment.dataBase64,
           thumbnailBase64: attachment.thumbnailBase64,
+          previewBase64: attachment.previewBase64,
         ));
   }
 

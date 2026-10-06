@@ -3292,6 +3292,7 @@ impl SseDecode for crate::conversation::attachments::AttachmentView {
         let mut var_completedChunks = <u64>::sse_decode(deserializer);
         let mut var_chunkCount = <u64>::sse_decode(deserializer);
         let mut var_localPath = <Option<String>>::sse_decode(deserializer);
+        let mut var_previewPath = <Option<String>>::sse_decode(deserializer);
         return crate::conversation::attachments::AttachmentView {
             attachment_id: var_attachmentId,
             direction: var_direction,
@@ -3299,6 +3300,7 @@ impl SseDecode for crate::conversation::attachments::AttachmentView {
             completed_chunks: var_completedChunks,
             chunk_count: var_chunkCount,
             local_path: var_localPath,
+            preview_path: var_previewPath,
         };
     }
 }
@@ -3329,6 +3331,7 @@ impl SseDecode for crate::api::conversation::BridgeAttachmentPayload {
         let mut var_mime = <String>::sse_decode(deserializer);
         let mut var_dataBase64 = <String>::sse_decode(deserializer);
         let mut var_thumbnailBase64 = <Option<String>>::sse_decode(deserializer);
+        let mut var_previewBase64 = <Option<String>>::sse_decode(deserializer);
         let mut var_voice =
             <Option<crate::attachment_runtime::VoiceMeta>>::sse_decode(deserializer);
         return crate::api::conversation::BridgeAttachmentPayload {
@@ -3336,6 +3339,7 @@ impl SseDecode for crate::api::conversation::BridgeAttachmentPayload {
             mime: var_mime,
             data_base64: var_dataBase64,
             thumbnail_base64: var_thumbnailBase64,
+            preview_base64: var_previewBase64,
             voice: var_voice,
         };
     }
@@ -3587,6 +3591,7 @@ impl SseDecode for crate::api::conversation_bridge::ConversationBridgeErrorKind 
             9 => crate::api::conversation_bridge::ConversationBridgeErrorKind::Revoked,
             10 => crate::api::conversation_bridge::ConversationBridgeErrorKind::PermissionDenied,
             11 => crate::api::conversation_bridge::ConversationBridgeErrorKind::Internal,
+            12 => crate::api::conversation_bridge::ConversationBridgeErrorKind::PayloadTooLarge,
             _ => unreachable!("Invalid variant for ConversationBridgeErrorKind: {}", inner),
         };
     }
@@ -5853,6 +5858,7 @@ impl flutter_rust_bridge::IntoDart for crate::conversation::attachments::Attachm
             self.completed_chunks.into_into_dart().into_dart(),
             self.chunk_count.into_into_dart().into_dart(),
             self.local_path.into_into_dart().into_dart(),
+            self.preview_path.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -5897,6 +5903,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::conversation::BridgeAttachmen
             self.mime.into_into_dart().into_dart(),
             self.data_base64.into_into_dart().into_dart(),
             self.thumbnail_base64.into_into_dart().into_dart(),
+            self.preview_base64.into_into_dart().into_dart(),
             self.voice.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -6212,6 +6219,7 @@ impl flutter_rust_bridge::IntoDart
             Self::Revoked => 9.into_dart(),
             Self::PermissionDenied => 10.into_dart(),
             Self::Internal => 11.into_dart(),
+            Self::PayloadTooLarge => 12.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -7822,6 +7830,7 @@ impl SseEncode for crate::conversation::attachments::AttachmentView {
         <u64>::sse_encode(self.completed_chunks, serializer);
         <u64>::sse_encode(self.chunk_count, serializer);
         <Option<String>>::sse_encode(self.local_path, serializer);
+        <Option<String>>::sse_encode(self.preview_path, serializer);
     }
 }
 
@@ -7847,6 +7856,7 @@ impl SseEncode for crate::api::conversation::BridgeAttachmentPayload {
         <String>::sse_encode(self.mime, serializer);
         <String>::sse_encode(self.data_base64, serializer);
         <Option<String>>::sse_encode(self.thumbnail_base64, serializer);
+        <Option<String>>::sse_encode(self.preview_base64, serializer);
         <Option<crate::attachment_runtime::VoiceMeta>>::sse_encode(self.voice, serializer);
     }
 }
@@ -8042,6 +8052,7 @@ crate::api::conversation_bridge::ConversationBridgeErrorKind::NeedsRejoin => { 8
 crate::api::conversation_bridge::ConversationBridgeErrorKind::Revoked => { 9 }
 crate::api::conversation_bridge::ConversationBridgeErrorKind::PermissionDenied => { 10 }
 crate::api::conversation_bridge::ConversationBridgeErrorKind::Internal => { 11 }
+crate::api::conversation_bridge::ConversationBridgeErrorKind::PayloadTooLarge => { 12 }
  _ => { unimplemented!(""); }}, serializer);
     }
 }

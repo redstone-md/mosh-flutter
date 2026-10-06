@@ -41,6 +41,7 @@ impl Persistence {
             message_id: id.to_owned(),
             message: message.clone(),
             attachment_manifest: None,
+            preview_manifest: None,
         };
         let event =
             serde_json::to_vec(&event).map_err(|e| PersistenceError::Json(e.to_string()))?;

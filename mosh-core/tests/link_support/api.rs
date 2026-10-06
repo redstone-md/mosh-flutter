@@ -7,6 +7,9 @@ use serde_json::{json, Value};
 
 use super::OUTPUT_PREFIX;
 
+#[path = "attachments.rs"]
+mod attachments;
+
 /// Exercise the public bridge facade with real shared resources and discovery.
 pub(super) fn run(dir: PathBuf) {
     private_dm::set_app_data_dir(dir.to_string_lossy().into_owned()).unwrap();
@@ -15,6 +18,14 @@ pub(super) fn run(dir: PathBuf) {
         let command: Value = serde_json::from_str(&line.unwrap()).unwrap();
         let argument = command["argument"].as_str().unwrap_or_default().to_owned();
         let action = command["action"].as_str().unwrap();
+        if action.starts_with("attachment_") || action.starts_with("chat_") {
+            println!(
+                "{OUTPUT_PREFIX}{}",
+                attachments::command(action, &argument, &command)
+            );
+            std::io::stdout().flush().unwrap();
+            continue;
+        }
         if action.starts_with("dm_") {
             println!("{OUTPUT_PREFIX}{}", dm_command(action, argument, &command));
             std::io::stdout().flush().unwrap();

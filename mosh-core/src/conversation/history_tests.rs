@@ -88,3 +88,6 @@ fn attempt(message: &TestMessage, status: MessageDeliveryStatus) -> OutboundAtte
 mod messages;
 #[path = "history_tests/replay.rs"]
 mod replay;
+
+#[path = "history_tests/previews.rs"]
+mod previews;
