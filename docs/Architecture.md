@@ -68,6 +68,11 @@ and navigation. Action methods return results instead of navigating or editing
 the composer. A sealed `ConversationSnapshot` gives shared rendering one message
 shape while preserving each kind's native snapshot for kind-specific controls.
 
+The message list retains one text selection area. Row delegates expand a timed
+third mouse click to the whole body; one animated menu owner shares Mosh controls
+across text and attachments while retaining selection through menu focus.
+See [message menus](Features/message-context-menus.md) for targeting and gestures.
+
 `ConversationTextSends` admits submitted drafts in FIFO order without blocking
 editing or waiting for delivery. It keeps refused submissions individually for
 Retry. The existing native outbox and snapshot rows own durable delivery states.
