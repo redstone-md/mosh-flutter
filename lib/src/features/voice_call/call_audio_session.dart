@@ -41,6 +41,7 @@ class CallAudioSession {
   BigInt _seq = BigInt.zero;
   bool _cancelled = false;
   bool _draining = false;
+  Future<void>? _stopping;
   bool muted = false;
 
   bool get ready => !_cancelled && _capture != null && _playback != null;
@@ -113,21 +114,30 @@ class CallAudioSession {
     _cancelled = true;
     _poll?.cancel();
     _poll = null;
+    _stopping ??= _release();
   }
 
-  Future<void> stop() async {
+  Future<void> stop() {
     cancel();
+    return _stopping!;
+  }
+
+  Future<void> _release() async {
     final capture = _capture;
     final playback = _playback;
     _capture = null;
     _playback = null;
-    for (final stop in [capture?.stop, playback?.stop]) {
-      if (stop == null) continue;
-      try {
-        await stop();
-      } catch (_) {
-        // Release the other resource even if this one refuses teardown.
-      }
+    await Future.wait([
+      if (capture != null) _stopHandle(capture.stop),
+      if (playback != null) _stopHandle(playback.stop),
+    ]);
+  }
+
+  Future<void> _stopHandle(Future<void> Function() stop) async {
+    try {
+      await stop();
+    } catch (_) {
+      // Each resource releases independently, including when another stalls.
     }
   }
 }

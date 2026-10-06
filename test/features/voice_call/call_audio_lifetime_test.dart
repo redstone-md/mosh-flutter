@@ -53,6 +53,8 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(capture.starts, 1);
     expect(playback.starts, 1);
+    expect(playback.stops, 1,
+        reason: 'A stalled microphone stop cannot retain the output');
     expect(audio.isAttached, isFalse);
     capture.stopping!.complete();
     await second;
@@ -76,8 +78,13 @@ void main() {
     await delayed.started.future;
     final nextCapture = RecordingCapture();
     final second = _attach(audio, 'second', nextCapture, playback);
-    final lateCapture = RecordingCapture();
+    final lateCapture = RecordingCapture()..stopping = Completer<void>();
     delayed.handle.complete(await lateCapture.start((_) {}));
+    await Future<void>.delayed(Duration.zero);
+    expect(playback.stops, 1,
+        reason: 'Cancellation releases output while late capture stops');
+    expect(nextCapture.starts, 0);
+    lateCapture.stopping!.complete();
     await first;
     await second;
     expect(lateCapture.stops, 1);

@@ -70,3 +70,11 @@ accept completes. Replacement calls retain independent gates.
 | Finding | Decision | Change and evidence |
 | --- | --- | --- |
 | Native capture cleanup is counted before its real stop completes | Accept | Record successful capture/playback start and stop after the underlying operation completes. Four controlled tests cover pending, successful and failed stops for both backends. Native scenarios retain real Record/CPAL defaults. |
+
+## Follow-up review of `683c4cb7`
+
+| Finding | Decision | Change and evidence |
+| --- | --- | --- |
+| A stalled capture stop delays playback release | Accept | Cancellation starts independent teardown for acquired handles. `stop` joins that work; the serialized audio owner still waits for startup and all teardown before replacement. Two failing-then-passing lifetime tests check stalled active and late capture teardown. |
+| Failed accept permanently suppresses a cancelled notification | Accept | Reset the notification attempt while busy and start a new attempt when the incoming call becomes retryable. A generation rejects old readiness/focus/show work even for the same call ID. Tests cover an already posted alert and pending initialization. |
+| The setup-control test has an unused incoming-call import | Do not accept | The test uses `kCallDeclineReasonHangup`, declared in that file. Analyze is clean; deleting the import would remove the constant's direct declaration from scope. |

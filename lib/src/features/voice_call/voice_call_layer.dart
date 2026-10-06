@@ -40,6 +40,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
 
 class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
   String? _notifiedCall;
+  int _notificationGeneration = 0;
   int? _notificationId;
   FlutterLocalNotificationsPlugin? _notificationPlugin;
   Future<void> _notificationWork = Future.value();
@@ -57,14 +58,15 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         voiceCallOrchestratorProvider(widget.sessionId).select((s) => s.error),
         (_, error) => _reportError(error));
     final dialog = state.dialog;
-    if (dialog is! IncomingCallDialog ||
-        state.busy ||
-        dialog.callId != _notifiedCall) {
+    if (dialog is IncomingCallDialog && !state.busy) {
+      if (_notifiedCall != dialog.callId) {
+        _clearNotification();
+        _notifiedCall = dialog.callId;
+        unawaited(_notify(dialog));
+      }
+    } else {
+      _notifiedCall = null;
       _clearNotification();
-    }
-    if (dialog is IncomingCallDialog && _notifiedCall != dialog.callId) {
-      _notifiedCall = dialog.callId;
-      unawaited(_notify(dialog));
     }
     final call = CallViewState.fromDialog(
       widget.sessionId,
@@ -124,16 +126,17 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
   }
 
   Future<void> _notify(IncomingCallDialog dialog) async {
+    final generation = _notificationGeneration;
     try {
       if (!await ref.read(notificationsReadyProvider.future) || !mounted) {
         return;
       }
-      if (!_isIncoming(dialog.callId)) return;
+      if (!_isIncoming(dialog.callId, generation)) return;
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
         if (await windowManager.isFocused()) return;
         if (await widget.isCallWindowFocused?.call() ?? false) return;
       }
-      if (!mounted || !_isIncoming(dialog.callId)) return;
+      if (!mounted || !_isIncoming(dialog.callId, generation)) return;
       final plugin = ref.read(flutterLocalNotificationsPluginProvider);
       final peer =
           dialog.peerName.isEmpty ? widget.l.callPeerFallback : dialog.peerName;
@@ -142,7 +145,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
       _notificationPlugin = plugin;
       _notificationId = id;
       _notificationWork = _notificationWork.then((_) async {
-        if (!mounted || !_isIncoming(dialog.callId)) return;
+        if (!mounted || !_isIncoming(dialog.callId, generation)) return;
         await plugin.show(
             id: id,
             title: 'Mosh',
@@ -156,6 +159,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
   }
 
   void _clearNotification() {
+    ++_notificationGeneration;
     final id = _notificationId;
     if (id == null) return;
     _notificationId = null;
@@ -166,10 +170,11 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         .catchError((Object _) {});
   }
 
-  bool _isIncoming(String id) {
+  bool _isIncoming(String id, int generation) {
     final state = ref.read(voiceCallOrchestratorProvider(widget.sessionId));
     final current = state.dialog;
-    return _notifiedCall == id &&
+    return generation == _notificationGeneration &&
+        _notifiedCall == id &&
         !state.busy &&
         current is IncomingCallDialog &&
         current.callId == id;
