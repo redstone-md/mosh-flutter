@@ -4,11 +4,12 @@ import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart'
-    show PasteImageAction;
+    show PasteAttachmentAction, readSystemClipboard;
 import 'package:mosh/src/features/shared/optical_icon.dart';
 import 'package:mosh/src/features/shared/press_scale.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
 import 'package:mosh/src/rust/api/audio_devices.dart' show audioInputDeviceId;
+import 'package:super_clipboard/super_clipboard.dart' show ClipboardDataReader;
 
 /// Horizontal gap between composer-box children.
 const double kComposerGap = 8;
@@ -48,6 +49,7 @@ class ConversationComposer extends StatelessWidget {
     required this.onVoiceError,
     this.inputDeviceId = _storedComposerInputDeviceId,
     this.onTyping,
+    this.readClipboard = readSystemClipboard,
   });
 
   final TextEditingController controller;
@@ -88,8 +90,18 @@ class ConversationComposer extends StatelessWidget {
   /// default reads mosh-core's audio-devices store.
   final String? Function() inputDeviceId;
 
+  /// Reads the clipboard for paste-to-attach. Injectable so widget tests
+  /// hand in a fake reader; the default reads the system clipboard.
+  final Future<ClipboardDataReader?> Function() readClipboard;
+
   @override
   Widget build(BuildContext context) {
+    final paste = PasteAttachmentAction(
+      onAttach: onAttach,
+      onAttachmentPickError: onAttachmentPickError,
+      gate: () => !sending && !disabled,
+      readClipboard: readClipboard,
+    );
     // Composer chrome: bg-1 surface with a hairline top border.
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
@@ -138,8 +150,8 @@ class ConversationComposer extends StatelessWidget {
                 const SizedBox(width: kComposerGap),
                 Expanded(
                   child: Actions(
-                    // Paste-to-attach: intercept the paste [Intent] so an
-                    // image on the clipboard is attached instead of pasted
+                    // Paste-to-attach: intercept the paste [Intent] so a file
+                    // or image on the clipboard is attached instead of pasted
                     // as text. No `onPaste` callback exists on Flutter 3.44
                     // `TextField`, so the ancestor `Actions` override is the
                     // interception point (the same `Action.overridable`
@@ -147,15 +159,13 @@ class ConversationComposer extends StatelessWidget {
                     // .dart:5709). On no image the action defers to
                     // `callingAction` so the default text paste runs.
                     actions: <Type, Action<Intent>>{
-                      PasteTextIntent: PasteImageAction(
-                        onAttach: onAttach,
-                        onAttachmentPickError: onAttachmentPickError,
-                        gate: () => !sending && !disabled,
-                      ) as Action<Intent>,
+                      PasteTextIntent: paste as Action<Intent>,
                     },
                     child: TextField(
                       controller: controller,
                       enabled: !disabled,
+                      contextMenuBuilder: (context, editable) =>
+                          _contextMenu(editable, paste),
                       // Finalize IME composition without Flutter's default
                       // unfocus, keeping the next keyboard submission ready.
                       onEditingComplete: controller.clearComposing,
@@ -235,3 +245,20 @@ class ConversationComposer extends StatelessWidget {
     );
   }
 }
+
+/// The platform's editing menu, with Paste routed through [paste] so it
+/// attaches a copied file or image exactly like Ctrl+V / Cmd+V does.
+Widget _contextMenu(EditableTextState editable, PasteAttachmentAction paste) =>
+    AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: editable.contextMenuAnchors,
+      buttonItems: [
+        for (final item in editable.contextMenuButtonItems)
+          item.type == ContextMenuButtonType.paste
+              ? item.copyWith(onPressed: () {
+                  editable.hideToolbar();
+                  paste.paste(
+                      () => editable.pasteText(SelectionChangedCause.toolbar));
+                })
+              : item,
+      ],
+    );

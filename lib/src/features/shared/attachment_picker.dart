@@ -9,9 +9,9 @@ import 'package:mosh/src/features/shared/thumbnail.dart'
     show createAttachmentPreviews;
 
 /// Why the picker rejected the picked file. Maps to the localized message the
-/// screen shows (the enum leaves room for future reasons without an API
-/// churn).
-enum AttachmentPickError { tooLarge, previewUnavailable }
+/// screen shows. [notAFile] and [unreadable] come from a pasted file path: a
+/// directory, or a file that is gone or cannot be read.
+enum AttachmentPickError { tooLarge, previewUnavailable, notAFile, unreadable }
 
 class AttachmentPreviewException implements Exception {
   const AttachmentPreviewException();

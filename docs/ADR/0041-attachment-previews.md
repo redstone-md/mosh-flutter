@@ -17,7 +17,8 @@ Decode supported images once in a background isolate with the existing `image`
 package. Keep their original bytes. Produce a JPEG miniature at quality 50 with
 an edge of at most 48 pixels, reducing that edge until its base64 fits 2,048 bytes.
 Also produce the existing 320-pixel JPEG preview at quality 70. Picker, drop and
-clipboard use the same ingest. An unreadable image reports a localized preview
+clipboard (copied images and, see `docs/Features/clipboard-attachments.md`,
+copied files) use the same ingest. An unreadable image reports a localized preview
 error and is refused. Existing best-effort video capture remains supported.
 Bake EXIF orientation before resizing and omit the remaining EXIF. Retain valid
 RGB ICC profiles, with a 64 KiB extraction/inflation cap, in standard JPEG APP2

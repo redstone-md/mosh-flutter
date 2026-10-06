@@ -195,6 +195,14 @@
   },
   "attachmentTooLargeMessage": "Attachment exceeds the 50 MB limit",
   "attachmentPreviewUnavailable": "Could not create an image preview. Try another image format.",
+  "attachmentNotAFile": "Only files can be attached, not folders.",
+  "@attachmentNotAFile": {
+    "description": "Shown when a pasted clipboard path is a folder"
+  },
+  "attachmentUnreadable": "Could not read the copied file. It may have been moved or be unavailable.",
+  "@attachmentUnreadable": {
+    "description": "Shown when a pasted clipboard file is missing or cannot be read"
+  },
   "chatActionErrorPayloadTooLarge": "This message is too large to send.",
   "@attachmentTooLargeMessage": {
     "description": "Shown when the picked attachment is rejected for exceeding the 50 MB ceiling (mirrors React use-chat-orchestration `onError(\"Attachment exceeds the 50 MB limit\")`)"

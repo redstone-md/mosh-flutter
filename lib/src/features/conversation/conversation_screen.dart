@@ -176,6 +176,8 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     _showSnackBar(switch (error) {
       AttachmentPickError.tooLarge => l.attachmentTooLargeMessage,
       AttachmentPickError.previewUnavailable => l.attachmentPreviewUnavailable,
+      AttachmentPickError.notAFile => l.attachmentNotAFile,
+      AttachmentPickError.unreadable => l.attachmentUnreadable,
     });
   }
 
