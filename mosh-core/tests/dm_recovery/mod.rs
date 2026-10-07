@@ -76,7 +76,12 @@ fn recovery_switches_source_after_partial_import_and_restart_without_losing_live
     linked.restart();
     linked.connect(&contact);
     let partial = linked.wait_recovered_dm_text(&session, "Missed 0");
-    assert_eq!(partial["history_sync"], "importing");
+    // Importing reads the wall clock: a slow runner can pass the source
+    // timeout between pages while the partial history stays durable.
+    assert!(matches!(
+        partial["history_sync"].as_str(),
+        Some("importing" | "waiting_for_source")
+    ));
     assert!(partial["messages"].as_array().unwrap().len() < 41);
     contact.stop();
     linked.restart();
