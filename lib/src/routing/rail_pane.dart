@@ -120,8 +120,9 @@ class _RailPaneState extends ConsumerState<RailPane> {
             layout: layout,
             width: target,
             dragging: _dragOrigin != null,
+            // From the visible edge, which trails [target] mid-animation.
             onDragStart: () => setState(() {
-              _dragOrigin = target;
+              _dragOrigin = width;
               _dragDelta = 0;
             }),
             onDrag: (delta) => _drag(delta, total),
