@@ -4,6 +4,49 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0] - 2026-10-07
+
+### Added
+
+- One animated toast stack for copy confirmations and action errors. Hover to
+  expand the stack and hold its timers; swipe or close a notification to dismiss
+  it. Repeated messages return to the front, and unread messages wait their turn.
+- Select messages by dragging across rows, extend a selection with Shift, and
+  copy or delete the selection in personal chats, groups and channels.
+- Resize the desktop chat list or collapse it to an avatar strip. The chosen
+  layout survives restarts and keeps the current chat, draft, search and scroll.
+- Independent desktop voice-call windows and an application-wide call strip.
+  Calls keep running while you open other conversations or Settings.
+- Paste files copied from a desktop file manager into the message composer.
+
+### Changed
+
+- Message and attachment actions use the same context menus and preserve text
+  selection, keyboard focus and screen-reader actions.
+- Chat-list rows, search and controls have consistent insets; crowded titlebars
+  keep the peer connection status visible.
+
+### Fixed
+
+- Screenshot attachments use bounded inline miniatures and separately
+  transferred clear previews, avoiding failures caused by oversized messages.
+- Attachment previews respect image orientation and the message bubble width.
+- Copied files enforce the attachment size limit while being read.
+- Voice calls retain their audio owner across navigation, reject overlapping
+  starts, and release call controls, ringtone and audio during termination.
+- Actions completing after a chat closes still report localized errors.
+- Folded, unread notifications retain their lifetime until their text is shown;
+  replacing the toast stack cancels its old animation timers.
+- Video attachment previews enable native video decoding before capturing a
+  frame.
+
+### Upgrade notes
+
+- This release ships a Windows x64 installer and a universal macOS disk image
+  for Apple Silicon and Intel.
+- Older clients can still show attachment miniatures and download originals;
+  separately transferred clear previews require an updated client.
+
 ## [0.16.1] - 2026-10-05
 
 ### Fixed
