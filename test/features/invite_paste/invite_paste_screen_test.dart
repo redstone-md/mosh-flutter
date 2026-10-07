@@ -274,6 +274,13 @@ void main() {
     await tester.pump();
     expect(find.text('Group invite detected'), findsOneWidget);
     expect(find.text('Design'), findsOneWidget);
+
+    // Another group link: same kind, new name.
+    await tester.enterText(find.byType(TextField),
+        'mosh://group?mesh=7x9v&group=drift-team&name=Sales#fp=91A4D2C877B091A4D2C877B091A4D2C8');
+    await tester.pump();
+    expect(find.text('Sales'), findsOneWidget);
+    expect(find.text('Design'), findsNothing);
   });
 
   testWidgets(
