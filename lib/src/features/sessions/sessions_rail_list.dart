@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/org/org_section.dart';
 import 'package:mosh/src/features/sessions/org_actions.dart';
+import 'package:mosh/src/features/sessions/rail_compact.dart';
 import 'package:mosh/src/features/sessions/rail_entry.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_rail_actions.dart';
@@ -47,7 +48,10 @@ class SessionsRailList extends ConsumerWidget {
     final orgs = ref.watch(orgsProvider).value ?? const <OrgSnapshot>[];
     final offers = ref.watch(pendingDmOffersProvider);
     final entries = _entries(ref);
+    final compact = RailCompactScope.of(context);
     if (status == null && offers.isEmpty && entries.isEmpty && orgs.isEmpty) {
+      // The strip's own New button is the empty state's only action.
+      if (compact) return const SizedBox.shrink();
       return _EmptyState(onStart: () => openNewSessionAction(context, ref));
     }
     final visible = recentRailEntries(entries, l, query: query, kind: kind);
@@ -59,19 +63,25 @@ class SessionsRailList extends ConsumerWidget {
         ]);
       },
       child: ListView(
-          padding: const EdgeInsetsDirectional.only(end: 12),
+          padding: const EdgeInsets.symmetric(horizontal: kRailPadding),
           children: [
             if (status case final status?) status,
-            ..._offers(context, ref, offers, l),
+            ..._offers(context, ref, offers, l, compact: compact),
             for (final entry in visible)
               ChatRowMenu(
                   entry: entry,
                   child: entry.buildRow(context, _chrome(ref, entry))),
-            if (visible.isEmpty && entries.isNotEmpty)
+            if (visible.isEmpty && entries.isNotEmpty && !compact)
               Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(l.chatListEmpty)),
-            ..._orgSections(context, ref, orgs, l),
+            if (compact)
+              for (final org in orgs) ...[
+                const RailDivider(),
+                CompactOrgButton(name: org.orgName),
+              ]
+            else
+              ..._orgSections(context, ref, orgs, l),
           ]),
     );
   }
@@ -114,13 +124,15 @@ class SessionsRailList extends ConsumerWidget {
   }
 
   List<Widget> _offers(BuildContext context, WidgetRef ref,
-      List<PendingDmOffer> offers, AppLocalizations l) {
+      List<PendingDmOffer> offers, AppLocalizations l,
+      {required bool compact}) {
     if (offers.isEmpty) return const [];
     return [
-      Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(l.chatListInvitations,
-              style: Theme.of(context).textTheme.labelMedium)),
+      if (!compact)
+        Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(l.chatListInvitations,
+                style: Theme.of(context).textTheme.labelMedium)),
       for (final offer in offers)
         OfferRailEntry(
           pending: offer,

@@ -11,10 +11,12 @@ import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';
-import 'package:mosh/src/features/sessions/rail_item.dart' show kRailWidth;
+import 'package:mosh/src/features/sessions/rail_compact.dart'
+    show expandChatList;
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/routing/mosh_title_bar.dart';
+import 'package:mosh/src/routing/rail_pane.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
@@ -77,7 +79,10 @@ class _MoshShellState extends ConsumerState<MoshShell> {
       );
 
   void _focusSearch() {
-    if (isMobileBreakpoint(context)) context.go(AppRoutes.sessions);
+    if (!isMobileBreakpoint(context)) {
+      return expandChatList(ref, focusSearch: true);
+    }
+    context.go(AppRoutes.sessions);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) ref.read(chatListSearchFocusProvider).requestFocus();
     });
@@ -130,16 +135,9 @@ class _MoshShellState extends ConsumerState<MoshShell> {
           ),
         ),
         Expanded(
-          child: Row(
-            children: <Widget>[
-              SizedBox(
-                width: (MediaQuery.sizeOf(context).width * 0.28)
-                    .clamp(268.0, kRailWidth),
-                child: _SemanticsPane(child: widget.children[0]),
-              ),
-              const VerticalDivider(width: 1, thickness: 1),
-              Expanded(child: _SemanticsPane(child: widget.children[1])),
-            ],
+          child: RailPane(
+            rail: _SemanticsPane(child: widget.children[0]),
+            chat: _SemanticsPane(child: widget.children[1]),
           ),
         ),
       ],

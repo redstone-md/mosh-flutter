@@ -9,11 +9,15 @@ import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import 'package:mosh/src/state/rail_layout_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 /// Below this width at normal text scale, Peer status shows only its icon.
 const double _kCompactWidth = 640;
+
+/// Widest the live state pill grows before its label ellipsizes.
+const double _kStatePillMaxWidth = 240;
 
 const IconData _kPeerStatusIcon = Icons.electrical_services_outlined;
 
@@ -73,6 +77,10 @@ class MoshTitleBar extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
     return Row(
       children: <Widget>[
+        if (onOpenPeerStatus != null) ...[
+          const _ChatListToggle(),
+          const SizedBox(width: 6),
+        ],
         Image.asset('assets/branding/mosh-mark.png',
             width: 18, height: 18, excludeFromSemantics: true),
         const SizedBox(width: 8),
@@ -96,25 +104,44 @@ class MoshTitleBar extends ConsumerWidget {
             ),
           ),
         ),
+        // The static subtitle yields first: Peer status and the live
+        // state keep their width, the state up to a cap past which it
+        // ellipsizes.
         if (onOpenPeerStatus != null) ...[
           const SizedBox(width: 14),
-          Flexible(
-              child: Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    compact
-                        ? IconButton(
-                            tooltip: l.peerStatusTitle,
-                            icon: const Icon(_kPeerStatusIcon, size: 18),
-                            style: _focusRingStyle,
-                            onPressed: onOpenPeerStatus,
-                          )
-                        : _PeerStatusButton(onTap: onOpenPeerStatus!),
-                    const SizedBox(width: 14),
-                    Flexible(child: _StatePillSlot(activeKey: activeKey)),
-                  ]))),
+          compact
+              ? IconButton(
+                  tooltip: l.peerStatusTitle,
+                  icon: const Icon(_kPeerStatusIcon, size: 18),
+                  style: _focusRingStyle,
+                  onPressed: onOpenPeerStatus,
+                )
+              : _PeerStatusButton(onTap: onOpenPeerStatus!),
+          const SizedBox(width: 14),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _kStatePillMaxWidth),
+            child: _StatePillSlot(activeKey: activeKey),
+          ),
         ],
       ],
+    );
+  }
+}
+
+/// Collapses the chat list to its avatar strip and expands it back.
+class _ChatListToggle extends ConsumerWidget {
+  const _ChatListToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    final collapsed = ref.watch(railLayoutProvider.select((l) => l.collapsed));
+    return IconButton(
+      tooltip: collapsed ? l.chatListExpand : l.chatListCollapse,
+      icon: Icon(collapsed ? Icons.menu : Icons.menu_open, size: 18),
+      style: _focusRingStyle,
+      visualDensity: VisualDensity.compact,
+      onPressed: () => ref.read(railLayoutProvider.notifier).toggle(),
     );
   }
 }
