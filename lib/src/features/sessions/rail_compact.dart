@@ -65,8 +65,10 @@ class CompactRailItem extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final kind = item.kind.conversationKind;
-    final onTap = item.action == null ? item.onTap : () => expandChatList(ref);
-    final label = item.semanticLabel ??
+    final expands = item.action != null;
+    final onTap = expands ? () => expandChatList(ref) : item.onTap;
+    // A row that only expands the list must not keep its accepting name.
+    final label = (expands ? null : item.semanticLabel) ??
         [if (l != null) kind.label(l), item.title, item.subtitle]
             .where((part) => part.isNotEmpty)
             .join('\n');
@@ -81,6 +83,7 @@ class CompactRailItem extends ConsumerWidget {
           button: true,
           selected: item.active,
           label: label,
+          hint: expands ? l?.chatListExpand : null,
           onTap: onTap,
           child: Material(
             color: item.active ? kind.tint : Colors.transparent,
