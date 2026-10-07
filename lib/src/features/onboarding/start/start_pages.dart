@@ -9,8 +9,9 @@ import 'start_motion.dart';
 ///
 /// Changing [index] slides side by side: a page with a lower index leaves
 /// to the left, a higher one to the right, each fading and blurring on
-/// the way. The shown page sizes the stack; the leaving one overlays it
-/// from the top until it has faded. Instant under reduced motion.
+/// the way. The shown page sizes the stack; the leaving one is pinned to
+/// its top edge until it has faded, painted in page order, so both read
+/// through each other mid-slide. Instant under reduced motion.
 class StartPages extends StatefulWidget {
   const StartPages({super.key, required this.index, required this.pages});
 

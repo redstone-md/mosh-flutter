@@ -32,10 +32,12 @@ void main() {
         inter.addFont(_read('assets/fonts/Inter-$w.ttf'));
       }
       await inter.load();
-      await (FontLoader('monospace')
-            ..addFont(
-                _read('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf')))
-          .load();
+      // Links render in a monospace face; load one where the system has
+      // it, else they fall back to boxes.
+      const mono = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf';
+      if (File(mono).existsSync()) {
+        await (FontLoader('monospace')..addFont(_read(mono))).load();
+      }
       await (FontLoader('MaterialIcons')
             ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf')))
           .load();
