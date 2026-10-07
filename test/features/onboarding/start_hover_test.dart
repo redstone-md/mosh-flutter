@@ -1,13 +1,16 @@
 // IVO-50: the start menu answers the pointer. A hovered or focused card
 // lights up and leans toward the pointer; the hero illustration drifts
-// after it. Reduced motion keeps the light and drops the movement.
+// after it. Reduced motion keeps the light and drops the movement, here
+// and in the join preview.
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart';
+import 'package:mosh/src/features/onboarding/join_preview.dart';
 import 'package:mosh/src/features/onboarding/start/start_card.dart';
+import 'package:mosh/src/invite/invite_detection.dart';
 import 'package:mosh/src/features/onboarding/start/start_hero.dart';
 import '../../support/pump.dart';
 
@@ -85,6 +88,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(_arrowFill(tester), MoshColors.moss);
     expect(_lean(tester), Matrix4.identity()..setEntry(3, 2, 0.001));
+    // The arrow fills but does not travel.
+    expect(tester.widget<AnimatedSlide>(find.byType(AnimatedSlide)).offset,
+        Offset.zero);
+  });
+
+  testWidgets('reduced motion swaps the join preview at once', (tester) async {
+    await _pump(
+        tester,
+        const JoinPreview(
+            kind: InviteDetectionKind.dm, title: 'Private chat invite'),
+        reduceMotion: true);
+    expect(
+        tester
+            .widget<AnimatedContainer>(find.byType(AnimatedContainer))
+            .duration,
+        Duration.zero);
   });
 
   testWidgets('Enter on a focused card opens it', (tester) async {

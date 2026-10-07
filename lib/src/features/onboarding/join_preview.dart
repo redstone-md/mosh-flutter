@@ -56,7 +56,9 @@ class JoinPreview extends StatelessWidget {
     return Semantics(
       liveRegion: true,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 250),
         curve: const Cubic(0.22, 1, 0.36, 1),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
