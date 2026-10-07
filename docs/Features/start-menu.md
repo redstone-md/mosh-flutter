@@ -5,10 +5,11 @@ welcome hero over four ways to begin, each opening its step in place.
 
 ## Behavior
 
-- **Menu.** An eyebrow, the title "Start a conversation", a subtitle that
-  promises encryption for private chats and groups only, and three facts
-  the runtime backs: MLS in chats and groups, the decentralized Moss
-  network, encrypted history on the device. The hero illustration sits on
+- **Menu.** A plain greeting (no caps, no tracking), the title "Start a
+  conversation" and a subtitle that promises encryption for private chats
+  and groups only. There is no fact list: a static claim such as
+  "encrypted history" can be false while the storage warning shows. The
+  hero illustration sits on
   the right from 760px of pane width. Cards sit four to a row from 1000px,
   two by two from 520px and stack as compact rows on a phone.
 - **Steps.** Each card opens its step in place; the rail stays. A step
@@ -40,11 +41,15 @@ Values follow transitions.dev recipes, all on `cubic-bezier(0.22, 1, 0.36, 1)`
 
 - Texts reveal (18): hero lines rise 12px from a 3px blur over 500ms, 40ms
   apart; cards follow 80ms apart.
-- Page side by side (08): menu and step slide 8px with a 3px blur over 250ms.
+- Page fade-through: the leaving page fades out in the first 40% of 250ms
+  sliding 8px toward its side, then the shown page fades in. Every page is
+  centred in a box at least as tall as the pane, so the menu does not jump
+  when a shorter step replaces it. No blur: it reads as mush and costs a
+  full-pane filter on the illustration.
 - Card hover tilt (19): up to 6° toward the pointer, following in 400ms and
   settling in 1000ms, under a soft glare. Hover and keyboard focus light the
   card the same way; the arrow fills and nudges forward (24).
-- The hero illustration drifts up to 6px after the pointer.
+- The hero illustration stays still.
 
 Under reduced motion everything is shown at rest and steps swap in place;
 cards still light on hover and focus.
@@ -59,6 +64,9 @@ keep their bridge calls. Illustrations and their prompts live in
 [`assets/start/`](../../assets/start/README.md).
 
 ## Known gaps
+
+- With the storage warning shown, the pane is taller than the window by
+  the banner's height, so it scrolls.
 
 - A private chat invite is not single-use in the core: until a contact
   connects, a second person can use it, and a new link does not revoke the
