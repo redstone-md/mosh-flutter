@@ -58,9 +58,37 @@ jobs:
         run: cargo clippy --manifest-path mosh-core/Cargo.toml --all-targets -- -D warnings
 
       # Real Moss + automatic discovery use a local tracker, independent of
-      # public tracker availability or unrelated public peers.
+      # public tracker availability or unrelated public peers. Every test
+      # target but the multi-device DM flow, which runs in its own job.
       - name: Cargo test
-        run: node scripts/moss-test.mjs
+        shell: bash
+        run: |
+          targets=()
+          for file in mosh-core/tests/*.rs; do
+            name=$(basename "$file" .rs)
+            [ "$name" = multi_device_dm_flow ] || targets+=(--test "$name")
+          done
+          node scripts/moss-test.mjs --lib "${targets[@]}"
+
+  # The multi-device DM flow is ~11 minutes of real-Moss installations
+  # waiting on protocol timeouts, not CPU, so it gets its own runner beside
+  # rust-core instead of after it. It shares rust-core's test-profile cache.
+  rust-core-dm-flow:
+    name: Rust core multi-device DM flow (real Moss)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup
+        with:
+          flutter: 'false'
+          rust-cache-key: desktop
+
+      - name: Cargo test (multi-device DM flow)
+        run: node scripts/moss-test.mjs --test multi_device_dm_flow
 
   codegen-drift:
     name: flutter_rust_bridge codegen drift
@@ -71,9 +99,12 @@ jobs:
         with:
           submodules: recursive
 
+      # Its own cache: it builds no test profile, and as the first desktop
+      # job to finish it used to save the shared key, leaving the test jobs
+      # to rebuild every dependency.
       - uses: ./.github/actions/setup
         with:
-          rust-cache-key: desktop
+          rust-cache-key: desktop-codegen
 
       # A cargo install from source is minutes of compile for a binary that
       # only changes when the pinned version does; cache the built binaries.
