@@ -253,8 +253,11 @@ class _Arrow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Under reduced motion the arrow fills without travelling.
+    final still = MediaQuery.disableAnimationsOf(context);
+    final duration = still ? Duration.zero : StartMotion.arrow;
     return AnimatedContainer(
-      duration: StartMotion.arrow,
+      duration: duration,
       curve: StartMotion.ease,
       width: size,
       height: size,
@@ -263,9 +266,9 @@ class _Arrow extends StatelessWidget {
         color: lit ? MoshColors.moss : MoshColors.bg3,
       ),
       child: AnimatedSlide(
-        duration: StartMotion.arrow,
+        duration: duration,
         curve: StartMotion.ease,
-        offset: Offset(lit ? StartMotion.arrowShift / 18 : 0, 0),
+        offset: Offset(lit && !still ? StartMotion.arrowShift / 18 : 0, 0),
         child: Icon(
           Icons.arrow_forward,
           size: 18,
