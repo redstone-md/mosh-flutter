@@ -111,4 +111,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SettingsScreen), findsOneWidget);
   });
+
+  testWidgets('screen readers hear an invitation expands the list',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await pumpRail(tester,
+          channels: const [],
+          store: _collapsed(),
+          seed: (bridge) => bridge.seedChannels([_withOffer()]));
+      final offer =
+          tester.getSemantics(find.bySemanticsLabel(RegExp('alpha-peer')));
+      expect(offer.label, isNot(contains('Accept')));
+      expect(offer.hint, 'Expand chat list');
+    } finally {
+      semantics.dispose();
+    }
+  });
 }
