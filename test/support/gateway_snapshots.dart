@@ -151,9 +151,11 @@ GroupSnapshot cannedGroupSnapshot({
 
 /// Canned [OrgSnapshot] for joinOrg + pollOrg. Empty-but-valid members/offers/
 /// links (the org has no other members in the fake).
-OrgSnapshot cannedOrgSnapshot({required String orgPubkey}) => OrgSnapshot(
+OrgSnapshot cannedOrgSnapshot(
+        {required String orgPubkey, String orgName = ''}) =>
+    OrgSnapshot(
       orgPubkey: orgPubkey,
-      orgName: '',
+      orgName: orgName,
       meshId: '',
       ownPeerId: '',
       confirmationCode: '',
