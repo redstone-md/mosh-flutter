@@ -16,6 +16,9 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 /// Below this width at normal text scale, Peer status shows only its icon.
 const double _kCompactWidth = 640;
 
+/// Widest the live state pill grows before its label ellipsizes.
+const double _kStatePillMaxWidth = 240;
+
 const IconData _kPeerStatusIcon = Icons.electrical_services_outlined;
 
 /// Desktop titlebar. Watches activeConversationKeyProvider + the matching
@@ -101,23 +104,24 @@ class MoshTitleBar extends ConsumerWidget {
             ),
           ),
         ),
+        // The static subtitle yields first: Peer status and the live
+        // state keep their width, the state up to a cap past which it
+        // ellipsizes.
         if (onOpenPeerStatus != null) ...[
           const SizedBox(width: 14),
-          Flexible(
-              child: Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    compact
-                        ? IconButton(
-                            tooltip: l.peerStatusTitle,
-                            icon: const Icon(_kPeerStatusIcon, size: 18),
-                            style: _focusRingStyle,
-                            onPressed: onOpenPeerStatus,
-                          )
-                        : _PeerStatusButton(onTap: onOpenPeerStatus!),
-                    const SizedBox(width: 14),
-                    Flexible(child: _StatePillSlot(activeKey: activeKey)),
-                  ]))),
+          compact
+              ? IconButton(
+                  tooltip: l.peerStatusTitle,
+                  icon: const Icon(_kPeerStatusIcon, size: 18),
+                  style: _focusRingStyle,
+                  onPressed: onOpenPeerStatus,
+                )
+              : _PeerStatusButton(onTap: onOpenPeerStatus!),
+          const SizedBox(width: 14),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _kStatePillMaxWidth),
+            child: _StatePillSlot(activeKey: activeKey),
+          ),
         ],
       ],
     );
