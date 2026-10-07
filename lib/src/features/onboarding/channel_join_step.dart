@@ -62,7 +62,7 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
       _error = null;
     });
     try {
-      await ref.read(bridgeFacadeProvider).joinChannel(
+      final joined = await ref.read(bridgeFacadeProvider).joinChannel(
             request: JoinChannelRequest(
               name: name,
               displayName: settings.displayName,
@@ -74,7 +74,8 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
           .read(conversationListProvider(ConversationKind.channel).notifier)
           .refresh();
       if (!mounted) return;
-      context.go(AppRoutes.channelFor(name));
+      // The core normalizes the name (`#News` joins `news`).
+      context.go(AppRoutes.channelFor(joined.name));
     } catch (e) {
       // The inline error is the one source of truth (no SnackBar), and its
       // wording comes from the bridge kind when the seam threw one.

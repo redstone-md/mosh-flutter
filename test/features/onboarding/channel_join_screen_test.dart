@@ -21,6 +21,7 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
+import '../../support/gateway_snapshots.dart';
 import '../../support/pump.dart';
 
 void main() {
@@ -90,6 +91,29 @@ void main() {
     // Reading the notifier initializes the provider once, then the explicit
     // post-join refresh performs the second fetch.
     expect(bridge.countOf(BridgeMethod.listChannels), 2);
+  });
+
+  // IVO-50: the core lowercases and strips `#`; the route must follow the
+  // name the core joined, not the raw input.
+  testWidgets('joining opens the channel by the name the core normalized',
+      (tester) async {
+    final bridge = ScriptableBridge();
+    bridge.conversations.channels['#News'] =
+        cannedChannelSnapshot(name: 'news', displayName: '');
+    final container = ProviderContainer(overrides: [
+      bridgeFacadeProvider.overrideWithValue(bridge),
+    ]);
+    addTearDown(container.dispose);
+    final router =
+        await pumpRoute(tester, AppRoutes.channelJoin, container: container);
+
+    await tester.enterText(find.byType(TextField), '#News');
+    await tester.pump();
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+
+    expect(router.routeInformationProvider.value.uri.path,
+        AppRoutes.channelFor('news'));
   });
 
   testWidgets('Back button returns to the onboarding menu', (tester) async {
