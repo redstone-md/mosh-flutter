@@ -59,6 +59,7 @@ class Toaster extends ChangeNotifier {
       final bumped = _shown.removeAt(index)._bumped();
       _shown.insert(0, bumped);
       _countdowns[bumped.id]!.restart(_lifetime(kind));
+      _syncCountdowns();
       notifyListeners();
       return;
     }
@@ -88,12 +89,19 @@ class Toaster extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Holds every countdown, as while the stack is fanned out.
+  /// Holds dismissal while the stack is fanned out; its text remains readable.
   set paused(bool value) {
     if (_paused == value) return;
     _paused = value;
-    for (final countdown in _countdowns.values) {
-      countdown.paused = value;
+    _syncCountdowns();
+    if (!value) _promote();
+  }
+
+  void _syncCountdowns() {
+    for (var index = 0; index < _shown.length; index++) {
+      _countdowns[_shown[index].id]!
+        ..paused = _paused
+        ..exposed = _paused || index == 0;
     }
   }
 
@@ -101,6 +109,7 @@ class Toaster extends ChangeNotifier {
     var changed = false;
     while (_waiting.isNotEmpty) {
       if (_shown.length >= visible) {
+        if (_paused) break;
         final oldest = _countdowns[_shown.last.id]!;
         if (!oldest.readable) {
           oldest.onReadable(_promote);
@@ -112,10 +121,10 @@ class Toaster extends ChangeNotifier {
       _shown.insert(0, next);
       _countdowns[next.id] = _Countdown(
           _lifetime(next.kind), () => dismiss(next.id),
-          readableAfter: minShown)
-        ..paused = _paused;
+          readableAfter: minShown);
       changed = true;
     }
+    _syncCountdowns();
     if (changed) notifyListeners();
   }
 
@@ -132,29 +141,46 @@ class Toaster extends ChangeNotifier {
 /// again, so a toast never vanishes right after the pointer lets go.
 /// Fake-async friendly: only timers, no wall clock.
 class _Countdown {
-  _Countdown(this._lifetime, this._onDone, {required Duration readableAfter}) {
-    _readable = Timer(readableAfter, () {
-      readable = true;
-      final then = _onReadable;
-      _onReadable = null;
-      then?.call();
-    });
-    _run();
-  }
+  _Countdown(this._lifetime, this._onDone, {required Duration readableAfter})
+      : _readableAfter = readableAfter;
 
   Duration _lifetime;
   final VoidCallback _onDone;
-  late final Timer _readable;
+  final Duration _readableAfter;
+  Timer? _readable;
   Timer? _timer;
   bool _paused = false;
+  bool _exposed = false;
   VoidCallback? _onReadable;
 
-  /// Whether the toast has been on screen long enough to read.
+  /// Whether the toast's text has been exposed long enough to read.
   bool readable = false;
 
-  void _run() {
-    _timer?.cancel();
-    _timer = _paused ? null : Timer(_lifetime, _onDone);
+  void _run({bool restart = false}) {
+    if (_paused || (!_exposed && !readable)) {
+      _timer?.cancel();
+      _timer = null;
+    } else if (_timer == null || restart) {
+      _timer?.cancel();
+      _timer = Timer(_lifetime, _onDone);
+    }
+  }
+
+  /// Only the front toast and an expanded stack expose their text.
+  set exposed(bool value) {
+    if (_exposed == value) return;
+    _exposed = value;
+    _readable?.cancel();
+    if (value && !readable) {
+      _readable = Timer(_readableAfter, () {
+        readable = true;
+        final then = _onReadable;
+        _onReadable = null;
+        _run();
+        then?.call();
+      });
+    }
+    _run();
   }
 
   set paused(bool value) {
@@ -165,7 +191,7 @@ class _Countdown {
 
   void restart(Duration lifetime) {
     _lifetime = lifetime;
-    _run();
+    _run(restart: true);
   }
 
   /// Calls [then] once the toast is [readable].
@@ -173,7 +199,7 @@ class _Countdown {
 
   void cancel() {
     _timer?.cancel();
-    _readable.cancel();
+    _readable?.cancel();
   }
 }
 

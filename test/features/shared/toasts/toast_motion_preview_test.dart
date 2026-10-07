@@ -18,6 +18,34 @@ const _dir = String.fromEnvironment('TOAST_PREVIEW');
 const _boundary = ValueKey('toast-preview');
 
 void main() {
+  testWidgets('captured frames release their native images', (tester) async {
+    final directory = (await tester.runAsync(
+        () => Directory.systemTemp.createTemp('mosh-toast-capture-')))!;
+    addTearDown(() => directory.delete(recursive: true));
+    await tester.pumpWidget(const RepaintBoundary(
+      key: _boundary,
+      child:
+          SizedBox(width: 32, height: 32, child: ColoredBox(color: Colors.red)),
+    ));
+    final images = <ui.Image>[];
+    final onCreate = ui.Image.onCreate;
+    ui.Image.onCreate = (image) {
+      images.add(image);
+      onCreate?.call(image);
+    };
+    addTearDown(() {
+      ui.Image.onCreate = onCreate;
+      for (final image in images) {
+        if (!image.debugDisposed) image.dispose();
+      }
+    });
+    for (var frame = 0; frame < 3; frame++) {
+      await _capture(tester, frame, directory: directory.path);
+    }
+    expect(images, hasLength(3));
+    expect(images.every((image) => image.debugDisposed), isTrue);
+  });
+
   testWidgets('toast motion preview', (tester) async {
     if (_dir.isEmpty) return;
     await tester.runAsync(() async {
@@ -86,14 +114,19 @@ void main() {
 Future<ByteData> _read(String path) async =>
     ByteData.sublistView(await File(path).readAsBytes());
 
-Future<void> _capture(WidgetTester tester, int frame) async {
+Future<void> _capture(WidgetTester tester, int frame,
+    {String directory = _dir}) async {
   final boundary =
       tester.renderObject<RenderRepaintBoundary>(find.byKey(_boundary));
   await tester.runAsync(() async {
     final image = await boundary.toImage();
-    final png = await image.toByteData(format: ui.ImageByteFormat.png);
-    await File('$_dir/f${frame.toString().padLeft(4, '0')}.png')
-        .writeAsBytes(png!.buffer.asUint8List());
+    try {
+      final png = await image.toByteData(format: ui.ImageByteFormat.png);
+      await File('$directory/f${frame.toString().padLeft(4, '0')}.png')
+          .writeAsBytes(png!.buffer.asUint8List());
+    } finally {
+      image.dispose();
+    }
   });
 }
 

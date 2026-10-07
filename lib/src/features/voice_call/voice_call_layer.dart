@@ -209,10 +209,9 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
 }
 
 Future<Object?> startVoiceCall(WidgetRef ref, String sessionId) async {
+  final alreadyInProgress =
+      AppLocalizations.of(ref.context)!.callAlreadyInProgress;
   final result =
       await ref.read(voiceCallStartProvider.notifier).start(sessionId);
-  if (result is CallAlreadyInProgress && ref.context.mounted) {
-    return AppLocalizations.of(ref.context)!.callAlreadyInProgress;
-  }
-  return result;
+  return result is CallAlreadyInProgress ? alreadyInProgress : result;
 }
