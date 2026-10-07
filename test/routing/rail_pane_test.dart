@@ -207,4 +207,17 @@ void main() {
       semantics.dispose();
     }
   });
+
+  testWidgets('a drag caught mid-animation starts from the visible edge',
+      (tester) async {
+    await pumpRail(tester,
+        store: MemoryRailLayoutStore(const RailLayout(width: 400)));
+    await tester.tap(find.byTooltip('Collapse chat list'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+    final grabbed = _railWidth(tester);
+    expect(grabbed, greaterThan(250));
+    await _drag(tester, 40);
+    expect(_railWidth(tester), moreOrLessEquals(grabbed + 40, epsilon: 1));
+  });
 }
