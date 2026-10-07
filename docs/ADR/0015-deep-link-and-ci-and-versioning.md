@@ -240,3 +240,13 @@ to finish saves it. That was `codegen-drift`, which builds no test profile,
 so the cache restored as a full match and the test jobs still rebuilt every
 dependency. `codegen-drift` now saves under `desktop-codegen`; the jobs that
 build the test profile share `desktop`.
+
+The release builds became the critical path. A warm cargokit cache still
+rebuilt mosh-core whenever its sources changed, and with fat LTO at one
+codegen unit that rebuild ran single-threaded for about 4 minutes locally
+(about 7 on the Windows runner). Changing `lto` would rebuild every
+dependency, so CI proof builds keep fat LTO and give mosh-core alone 16
+codegen units through the Cargo config: about 1.5 minutes locally, with the
+dependency cache intact. Pull requests and main pushes both build this way,
+so their caches stay interchangeable; `release.yml` builds the published
+artifacts with the profile as committed.
