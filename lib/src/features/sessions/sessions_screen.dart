@@ -30,13 +30,13 @@ class SessionsScreen extends ConsumerStatefulWidget {
 }
 
 class _SessionsScreenState extends ConsumerState<SessionsScreen> {
-  final _search = TextEditingController();
+  final _searchText = TextEditingController();
   String _query = '';
   ConversationKind? _kind;
 
   @override
   void dispose() {
-    _search.dispose();
+    _searchText.dispose();
     super.dispose();
   }
 
@@ -73,58 +73,63 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   }
 
   List<Widget> _sections(BuildContext context, bool compact) {
-    final l = AppLocalizations.of(context)!;
     final async = ref.watch(conversationListProvider(ConversationKind.dm));
-    void openSettings() => context.push(AppRoutes.settings);
     return <Widget>[
       // The NewSession button + its divider are pinned above `.rail-list`,
       // outside the scroller and independent of whether any conversation
       // exists.
-      _inset(compact
-          ? CompactRailButton(
-              icon: kCompactNewIcon,
-              label: l.shellNewSession,
-              filled: true,
-              onTap: () => openNewSessionAction(context, ref))
-          : RailNewButton(
-              label: l.shellNewSession,
-              onTap: () => openNewSessionAction(context, ref),
-            )),
+      _inset(_newButton(context, compact)),
       const SizedBox(height: kRailPadding),
-      _inset(compact
-          ? CompactRailButton(
-              icon: const Icon(Icons.search, size: 20),
-              label: l.chatListSearch,
-              onTap: () => expandChatList(ref, focusSearch: true))
-          : SessionsListControls(
-              focusNode: ref.watch(chatListSearchFocusProvider),
-              controller: _search,
-              kind: _kind,
-              onSearch: (value) => setState(() => _query = value),
-              onKind: (value) => setState(() => _kind = value),
-            )),
+      _inset(_search(context, compact)),
       SizedBox(height: isMobileBreakpoint(context) ? 4 : 8),
       Expanded(
         child: SessionsRailList(
           dmSessions: sessionsOf(async.value),
           query: _query,
           kind: _kind,
-          status: _status(async, l, compact),
+          status: _status(async, AppLocalizations.of(context)!, compact),
         ),
       ),
       // The gear, pinned BELOW the scroller (the same fixed slot the
       // NewSession button holds above it) so it never scrolls away — the
       // Discord placement.
       const SizedBox(height: kRailPadding),
-      _inset(compact
-          ? CompactRailButton(
-              icon: const Icon(Icons.settings_outlined,
-                  size: 18, color: MoshColors.fg2),
-              label: l.settingsGearLabel,
-              onTap: openSettings)
-          : RailSettingsButton(
-              label: l.settingsGearLabel, onTap: openSettings)),
+      _inset(_settingsButton(context, compact)),
     ];
+  }
+
+  Widget _newButton(BuildContext context, bool compact) {
+    final label = AppLocalizations.of(context)!.shellNewSession;
+    void open() => openNewSessionAction(context, ref);
+    return compact
+        ? CompactRailButton(
+            icon: kCompactNewIcon, label: label, filled: true, onTap: open)
+        : RailNewButton(label: label, onTap: open);
+  }
+
+  Widget _search(BuildContext context, bool compact) => compact
+      ? CompactRailButton(
+          icon: const Icon(Icons.search, size: 20),
+          label: AppLocalizations.of(context)!.chatListSearch,
+          onTap: () => expandChatList(ref, focusSearch: true))
+      : SessionsListControls(
+          focusNode: ref.watch(chatListSearchFocusProvider),
+          controller: _searchText,
+          kind: _kind,
+          onSearch: (value) => setState(() => _query = value),
+          onKind: (value) => setState(() => _kind = value),
+        );
+
+  Widget _settingsButton(BuildContext context, bool compact) {
+    final label = AppLocalizations.of(context)!.settingsGearLabel;
+    void open() => context.push(AppRoutes.settings);
+    return compact
+        ? CompactRailButton(
+            icon: const Icon(Icons.settings_outlined,
+                size: 18, color: MoshColors.fg2),
+            label: label,
+            onTap: open)
+        : RailSettingsButton(label: label, onTap: open);
   }
 
   Widget? _status(

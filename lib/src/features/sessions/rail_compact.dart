@@ -11,6 +11,8 @@ import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/features/shared/conversation_kind_style.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'package:mosh/src/features/shared/resumed_ink.dart';
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
 import 'package:mosh/src/state/rail_layout_provider.dart';
 
 /// Width of the collapsed chat list: one avatar column.
@@ -87,34 +89,7 @@ class CompactRailItem extends ConsumerWidget {
               child: InkWell(
                 borderRadius: radius,
                 onTap: onTap,
-                child: FocusRing(
-                  radius: radius,
-                  child: Container(
-                    width: _kCompactItem,
-                    height: _kCompactItem,
-                    decoration: BoxDecoration(
-                      borderRadius: radius,
-                      border: item.active
-                          ? Border.all(
-                              color: kind.accent.withValues(alpha: 0.4))
-                          : null,
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      clipBehavior: Clip.none,
-                      children: [
-                        ExcludeSemantics(
-                          child: IconTheme.merge(
-                            data: IconThemeData(color: kind.accent, size: 18),
-                            child: item.leading,
-                          ),
-                        ),
-                        if (item.trailing case final badge?)
-                          PositionedDirectional(top: 2, end: 0, child: badge),
-                      ],
-                    ),
-                  ),
-                ),
+                child: FocusRing(radius: radius, child: _tile(kind, radius)),
               ),
             ),
           ),
@@ -122,6 +97,32 @@ class CompactRailItem extends ConsumerWidget {
       ),
     );
   }
+
+  /// The avatar, the active ring and the unread badge on the corner.
+  Widget _tile(ConversationKind kind, BorderRadius radius) => Container(
+        width: _kCompactItem,
+        height: _kCompactItem,
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          border: item.active
+              ? Border.all(color: kind.accent.withValues(alpha: 0.4))
+              : null,
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            ExcludeSemantics(
+              child: IconTheme.merge(
+                data: IconThemeData(color: kind.accent, size: 18),
+                child: item.leading,
+              ),
+            ),
+            if (item.trailing case final badge?)
+              PositionedDirectional(top: 2, end: 0, child: badge),
+          ],
+        ),
+      );
 }
 
 /// A square icon control of the collapsed list, named by its tooltip.
