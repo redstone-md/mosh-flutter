@@ -21,12 +21,16 @@ class SessionsListControls extends StatelessWidget {
   const SessionsListControls({
     super.key,
     required this.focusNode,
+    this.controller,
     required this.kind,
     required this.onSearch,
     required this.onKind,
   });
 
   final FocusNode focusNode;
+
+  /// Owns the query, so it survives the field leaving the collapsed list.
+  final TextEditingController? controller;
   final ConversationKind? kind;
   final ValueChanged<String> onSearch;
   final ValueChanged<ConversationKind?> onKind;
@@ -68,6 +72,7 @@ class SessionsListControls extends StatelessWidget {
   Widget _search(BuildContext context, bool mobile, String hint) => TextField(
         key: const ValueKey('chat-list-search'),
         focusNode: focusNode,
+        controller: controller,
         onChanged: onSearch,
         style: const TextStyle(fontSize: 13, color: MoshColors.fg1),
         decoration: InputDecoration(

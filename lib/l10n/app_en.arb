@@ -1754,6 +1754,22 @@
     "description": "Subtitle of the crash-reporting switch in a build without a Sentry DSN"
   },
   "chatListSearch": "Search chats",
+  "chatListCollapse": "Collapse chat list",
+  "@chatListCollapse": {
+    "description": "Titlebar button and resize-handle action that collapses the desktop chat list to its avatar strip"
+  },
+  "chatListExpand": "Expand chat list",
+  "@chatListExpand": {
+    "description": "Titlebar button and resize-handle action that expands the collapsed desktop chat list"
+  },
+  "chatListResize": "Chat list width",
+  "@chatListResize": {
+    "description": "Screen-reader name of the handle between the chat list and the conversation; arrows resize it"
+  },
+  "chatListCollapsed": "Collapsed",
+  "@chatListCollapsed": {
+    "description": "Screen-reader value of the chat list resize handle while the list is collapsed"
+  },
   "chatListPersonal": "Personal",
   "chatListGroups": "Groups",
   "chatListChannels": "Channels",

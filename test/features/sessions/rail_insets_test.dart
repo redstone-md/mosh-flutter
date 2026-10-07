@@ -18,15 +18,15 @@ void main() {
       final rail = tester.getRect(find.byType(SessionsScreen));
       for (final part in [RailItem, RailNewButton, RailSettingsButton]) {
         final rect = tester.getRect(find.byType(part).first);
-        expect(rail.right - rect.right, rect.left - rail.left,
-            reason: '$part');
+        expect(rail.right - rect.right, rect.left - rail.left, reason: '$part');
       }
     });
 
     testWidgets('$label: filter chips line up with the search field',
         (tester) async {
       await pumpRail(tester, size: size);
-      final search = tester.getRect(find.byKey(const ValueKey('chat-list-search')));
+      final search =
+          tester.getRect(find.byKey(const ValueKey('chat-list-search')));
       final chip = tester.getRect(find.byType(ChoiceChip).first);
       // A chip's tap target pads its painted pill vertically only.
       expect(chip.left, search.left);
