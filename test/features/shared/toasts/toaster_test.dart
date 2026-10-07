@@ -18,7 +18,50 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1499));
     expect(_messages(toaster), ['three', 'two', 'one']);
     await tester.pump(const Duration(milliseconds: 1));
-    // The oldest has been readable; the waiting one pushes it out.
+    // Folded messages have not been readable yet.
+    expect(_messages(toaster), ['three', 'two', 'one']);
+    await tester.pump(const Duration(milliseconds: 2500));
+    expect(_messages(toaster), ['four', 'two', 'one']);
+    toaster.dispose();
+  });
+
+  testWidgets('a folded toast keeps its lifetime until it can be read',
+      (tester) async {
+    final toaster = Toaster()
+      ..show('one')
+      ..show('two');
+    await tester.pump(const Duration(seconds: 4));
+    expect(_messages(toaster), ['one']);
+    await tester.pump(const Duration(milliseconds: 3999));
+    expect(_messages(toaster), ['one']);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(toaster.toasts, isEmpty);
+    toaster.dispose();
+  });
+
+  testWidgets('a burst can evict an oldest toast that was already read',
+      (tester) async {
+    final toaster = Toaster()..show('one');
+    await tester.pump(const Duration(milliseconds: 1500));
+    toaster
+      ..show('two')
+      ..show('three')
+      ..show('four');
+    expect(_messages(toaster), ['four', 'three', 'two']);
+    toaster.dispose();
+  });
+
+  testWidgets('a burst waits while the pointer holds the expanded stack',
+      (tester) async {
+    final toaster = Toaster()
+      ..show('one')
+      ..show('two')
+      ..show('three');
+    toaster.paused = true;
+    await tester.pump(const Duration(seconds: 4));
+    toaster.show('four');
+    expect(_messages(toaster), ['three', 'two', 'one']);
+    toaster.paused = false;
     expect(_messages(toaster), ['four', 'three', 'two']);
     toaster.dispose();
   });
@@ -45,8 +88,10 @@ void main() {
       ..show('Copied', kind: ToastKind.success)
       ..show('Failed', kind: ToastKind.error);
     await tester.pump(const Duration(seconds: 4));
-    expect(_messages(toaster), ['Failed']);
+    expect(_messages(toaster), ['Failed', 'Copied']);
     await tester.pump(const Duration(seconds: 2));
+    expect(_messages(toaster), ['Copied']);
+    await tester.pump(const Duration(seconds: 4));
     expect(toaster.toasts, isEmpty);
     toaster.dispose();
   });

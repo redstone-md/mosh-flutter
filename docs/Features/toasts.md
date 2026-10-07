@@ -17,10 +17,12 @@ one copy showed the same snackbar in both.
   own display.
 - **Stacking.** The newest toast leads and up to two fold behind it, showing
   only their edge. A burst waits for a slot instead of evicting a toast
-  before it was readable for 1.5s. Repeating a shown message brings it back
-  to the front with a short pop instead of stacking a copy.
+  before its text was exposed for 1.5s. Folded, unread toasts keep their
+  lifetime until they reach the front or the pointer expands the stack.
+  Repeating a shown message brings it back to the front with a short pop
+  instead of stacking a copy.
 - **Closing.** Confirmations last 4s, errors 6s. Hovering fans the stack out
-  and holds its timers; leaving grants each a full lifetime again. The close
+  and holds dismissal timers; leaving grants each a full lifetime again. The close
   button and a swipe toward the edge dismiss at once.
 - **Accessibility.** Each arrival and each repeat is announced; errors
   interrupt, confirmations wait. Each toast and its close button ("Dismiss
@@ -55,6 +57,7 @@ without touching a disposed context. `actionErrorReporter` does the same for
 - `app_toasts_test.dart` covers the desktop copy and a deletion failing after
   its chat closed.
 - `toast_motion_preview_test.dart` renders the motion frame by frame with
-  `--dart-define=TOAST_PREVIEW=<dir>` for visual review.
+  `--dart-define=TOAST_PREVIEW=<dir>` for visual review and checks that
+  captured frames release their native images.
 
 Real-device motion and screen reader output remain runtime checks.

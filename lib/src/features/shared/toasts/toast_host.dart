@@ -61,9 +61,6 @@ class _ToastHostState extends ConsumerState<ToastHost> {
   @override
   void dispose() {
     _detach();
-    for (final timer in _removals) {
-      timer.cancel();
-    }
     super.dispose();
   }
 
@@ -80,6 +77,10 @@ class _ToastHostState extends ConsumerState<ToastHost> {
 
   /// Toasts belong to the host that shows them.
   void _detach() {
+    for (final timer in _removals) {
+      timer.cancel();
+    }
+    _removals.clear();
     _attached
       ?..removeListener(_sync)
       ..paused = false

@@ -36,6 +36,21 @@ Future<Toaster> _pump(WidgetTester tester,
       .read(toasterProvider);
 }
 
+Future<Toaster> _mountScope(WidgetTester tester) async {
+  final container = ProviderContainer();
+  addTearDown(container.dispose);
+  await tester.pumpWidget(UncontrolledProviderScope(
+    container: container,
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, child) => ToastHost(child: child!),
+      home: const SizedBox(),
+    ),
+  ));
+  return container.read(toasterProvider);
+}
+
 void main() {
   testWidgets('a toast shows once and closes on its timer', (tester) async {
     final toaster = await _pump(tester);
@@ -158,30 +173,33 @@ void main() {
   });
 
   testWidgets('a replaced scope shows its own toasts', (tester) async {
-    Future<Toaster> mount() async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          builder: (context, child) => ToastHost(child: child!),
-          home: const SizedBox(),
-        ),
-      ));
-      return container.read(toasterProvider);
-    }
-
-    final first = await mount();
+    final first = await _mountScope(tester);
     first.show('old');
     await tester.pumpAndSettle();
-    final second = await mount();
+    final second = await _mountScope(tester);
     // The old scope's stack went with the host that showed it.
     expect(first.toasts, isEmpty);
     second.show('new');
     await tester.pumpAndSettle();
     expect(find.text('new'), findsOneWidget);
     expect(find.text('old'), findsNothing);
+  });
+
+  testWidgets('an old removal cannot erase the replacement stack height',
+      (tester) async {
+    final first = await _mountScope(tester);
+    first.show('old');
+    await tester.pumpAndSettle();
+    first.dismiss(first.toasts.single.id);
+    await tester.pump();
+    final second = await _mountScope(tester);
+    second.show('new');
+    await tester.pump();
+    await tester.pump();
+    final hoverArea = find.ancestor(
+        of: find.byType(ToastCard), matching: find.byType(MouseRegion));
+    expect(tester.getSize(hoverArea.first).height, greaterThan(0));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(tester.getSize(hoverArea.first).height, greaterThan(0));
   });
 }
