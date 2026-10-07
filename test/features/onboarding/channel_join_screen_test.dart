@@ -1,56 +1,69 @@
-// Widget tests for the ChannelJoinScreen (channel-join step). Mirrors the
-// chat_create_screen_test boilerplate: ProviderScope override of
-// `bridgeFacadeProvider` with the scripted bridge + localized
-// MaterialApp.router so the step's Back button (context.go) resolves.
+// Widget tests for the channel-join step (ChannelJoinStep), opened the way
+// a person does: the start menu in the chat pane at /chat, then a tap on
+// the "Join a public channel" card (`pumpStartStep`). The bridge is
+// scripted.
 //
-// Test 1: initial state -- title + body + placeholder + `#` + button label.
-// Test 2: Join button is disabled when the name is empty; enabling on text.
-// Test 3: tapping Join (with a name entered) calls the bridge's joinChannel
-//   (canned snapshot) and navigates to the channel screen (slice-3 seam).
-// Test 4: Back button returns to the onboarding menu.
+// Test 1: initial state -- lead, unencrypted warning, field, button, the
+//   example names.
+// Test 2: Join is disabled while the name is empty; enabled on text.
+// Test 3: an example chip fills the field and enables Join.
+// Test 4: tapping Join calls the bridge's joinChannel and navigates to the
+//   channel screen.
+// Test 5: the route follows the name the core normalized (IVO-50).
+// Test 6: Back returns to the start menu.
+// Tests 7-8: a failed join shows a persistent inline error, worded by the
+//   bridge error's kind, never a SnackBar, and stays on the step.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/channel_screen.dart';
-import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
-import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
-import '../../support/scriptable_bridge.dart';
+import 'package:mosh/src/features/onboarding/channel_join_step.dart';
+import 'package:mosh/src/features/onboarding/start/start_menu.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart';
-import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
-import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
-import '../../support/pump.dart';
+import 'package:mosh/src/state/gateway_provider.dart';
+import '../../support/gateway_snapshots.dart';
+import '../../support/scriptable_bridge.dart';
+import '../../support/scriptable_gateway.dart';
+import '../../support/start_menu.dart';
+
+const _card = 'Join a public channel';
+const _warning =
+    'End-to-end encryption is disabled for public channels. Anyone who joins this channel can read messages.';
+
+Finder _inStep(Finder matching) =>
+    find.descendant(of: find.byType(ChannelJoinStep), matching: matching);
+
+final _nameField = _inStep(find.byType(TextField));
+final _joinButton = _inStep(find.byType(FilledButton));
 
 void main() {
-  Future<void> pumpJoinStep(
-    WidgetTester tester, {
-    BridgeFacade? bridge,
-    String initialLocation = AppRoutes.channelJoin,
-  }) {
-    final container = ProviderContainer(overrides: [
-      bridgeFacadeProvider.overrideWithValue(bridge ?? ScriptableBridge()),
-    ]);
-    addTearDown(container.dispose);
-    return pumpRoute(tester, initialLocation, container: container);
+  Future<void> pumpJoinStep(WidgetTester tester, {ScriptableBridge? bridge}) =>
+      pumpStartStep(tester, _card, bridge: bridge ?? ScriptableBridge());
+
+  FilledButton joinButton(WidgetTester tester) =>
+      tester.widget<FilledButton>(_joinButton);
+
+  Future<void> join(WidgetTester tester, String name) async {
+    await tester.enterText(_nameField, name);
+    await tester.pump();
+    await tester.tap(_joinButton);
+    await tester.pumpAndSettle();
   }
 
-  testWidgets(
-      'initial state renders title, body, placeholder, `#` prefix, and button label',
+  testWidgets('initial state renders lead, warning, field, button, examples',
       (tester) async {
     await pumpJoinStep(tester);
 
-    expect(find.text('Join a public channel'), findsOneWidget);
-    expect(
-      find.text(
-        'End-to-end encryption is disabled for public channels. Anyone who joins this channel can read messages.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('channel-name'), findsOneWidget);
+    expect(find.text('Join an open room by its name.'), findsOneWidget);
+    expect(find.text(_warning), findsOneWidget);
+    expect(find.text('Channel name'), findsOneWidget);
     expect(find.text('Join channel'), findsOneWidget);
-    expect(find.text('#'), findsOneWidget);
+    for (final name in ['news', 'dev', 'community']) {
+      expect(find.widgetWithText(ActionChip, name), findsOneWidget);
+    }
   });
 
   testWidgets(
@@ -58,16 +71,24 @@ void main() {
       (tester) async {
     await pumpJoinStep(tester);
 
-    // Empty name -> disabled (onPressed is null).
-    final button = tester.widget<FilledButton>(find.byType(FilledButton));
-    expect(button.onPressed, isNull);
+    expect(joinButton(tester).onPressed, isNull);
 
-    // Enter text -> enabled (onPressed is not null).
-    await tester.enterText(find.byType(TextField), 'test-channel');
+    await tester.enterText(_nameField, 'test-channel');
     await tester.pump();
-    final enabledButton =
-        tester.widget<FilledButton>(find.byType(FilledButton));
-    expect(enabledButton.onPressed, isNotNull);
+    expect(joinButton(tester).onPressed, isNotNull);
+  });
+
+  testWidgets('tapping an example fills the field and enables Join',
+      (tester) async {
+    await pumpJoinStep(tester);
+
+    final chip = find.widgetWithText(ActionChip, 'dev');
+    await tester.ensureVisible(chip);
+    await tester.tap(chip);
+    await tester.pump();
+
+    expect(tester.widget<TextField>(_nameField).controller!.text, 'dev');
+    expect(joinButton(tester).onPressed, isNotNull);
   });
 
   testWidgets(
@@ -76,33 +97,44 @@ void main() {
     final bridge = ScriptableBridge();
     await pumpJoinStep(tester, bridge: bridge);
 
-    await tester.enterText(find.byType(TextField), 'test-channel');
-    await tester.pump();
-    await tester.tap(find.byType(FilledButton));
-    await tester.pumpAndSettle();
+    await join(tester, 'test-channel');
 
-    // The joinChannel seam (slice-3) calls the bridge's joinChannel (returns
-    // a canned ChannelSnapshot for 'test-channel') and navigates to the
-    // channel screen. No SnackBar on the happy path.
     expect(find.byType(ChannelScreen), findsOneWidget);
-    expect(find.byType(ChannelJoinScreen), findsNothing);
+    expect(find.byType(ChannelJoinStep), findsNothing);
     expect(find.byType(SnackBar), findsNothing);
     // Reading the notifier initializes the provider once, then the explicit
     // post-join refresh performs the second fetch.
     expect(bridge.countOf(BridgeMethod.listChannels), 2);
   });
 
-  testWidgets('Back button returns to the onboarding menu', (tester) async {
+  // IVO-50: the core lowercases and strips `#`; the route must follow the
+  // name the core joined, not the raw input.
+  testWidgets('joining opens the channel by the name the core normalized',
+      (tester) async {
+    final bridge = ScriptableBridge();
+    bridge.conversations.channels['#News'] =
+        cannedChannelSnapshot(name: 'news', displayName: '');
+    final container = ProviderContainer(overrides: [
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      gatewayProvider.overrideWithValue(ScriptableGateway()),
+    ]);
+    addTearDown(container.dispose);
+    final router = await pumpStartStep(tester, _card, container: container);
+
+    await join(tester, '#News');
+
+    expect(router.routeInformationProvider.value.uri.path,
+        AppRoutes.channelFor('news'));
+  });
+
+  testWidgets('Back returns to the start menu', (tester) async {
     await pumpJoinStep(tester);
 
-    expect(find.text('Back'), findsOneWidget);
     await tester.tap(find.text('Back'));
     await tester.pumpAndSettle();
 
-    // Routing returned to '/' (onboarding): the menu screen reappears and
-    // the step screen is gone.
-    expect(find.byType(OnboardingScreen), findsOneWidget);
-    expect(find.byType(ChannelJoinScreen), findsNothing);
+    expect(find.byType(StartMenu), findsOneWidget);
+    expect(find.byType(ChannelJoinStep), findsNothing);
   });
 
   // The bridge throws the generated ConversationBridgeError (ticket 17); the
@@ -118,13 +150,10 @@ void main() {
       ..failAlways(BridgeMethod.joinChannel, error: error);
     await pumpJoinStep(tester, bridge: throwing);
 
-    await tester.enterText(find.byType(TextField), 'test-channel');
-    await tester.pump();
-    await tester.tap(find.byType(FilledButton));
-    await tester.pumpAndSettle();
+    await join(tester, 'test-channel');
 
     final l =
-        AppLocalizations.of(tester.element(find.byType(ChannelJoinScreen)))!;
+        AppLocalizations.of(tester.element(find.byType(ChannelJoinStep)))!;
     expect(find.text(l.chatActionErrorUnavailable), findsOneWidget);
     expect(find.textContaining(error.message), findsNothing);
     expect(find.textContaining('Instance of'), findsNothing);
@@ -138,10 +167,7 @@ void main() {
       ..failAlways(BridgeMethod.joinChannel, error: message);
     await pumpJoinStep(tester, bridge: throwing);
 
-    await tester.enterText(find.byType(TextField), 'test-channel');
-    await tester.pump();
-    await tester.tap(find.byType(FilledButton));
-    await tester.pumpAndSettle();
+    await join(tester, 'test-channel');
 
     // A non-bridge error renders as its own text (the classifier's text
     // arm) and the inline error is the ONE source of feedback -- no
@@ -149,7 +175,7 @@ void main() {
     expect(find.text(message), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
     expect(find.byType(ChannelScreen), findsNothing);
-    expect(find.byType(ChannelJoinScreen), findsOneWidget);
+    expect(find.byType(ChannelJoinStep), findsOneWidget);
     // A failed join must not initialize or refresh the channel list.
     expect(throwing.countOf(BridgeMethod.listChannels), 0);
   });

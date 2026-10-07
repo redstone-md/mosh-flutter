@@ -1,7 +1,7 @@
 // S4.5: widget test for the Invite Paste screen. Pumps it in a ProviderScope
 // + localized MaterialApp.router (the step's Back button uses context.go),
 // drives live detection, and asserts:
-//   - the OnboardStepFrame title + body render (no AppBar),
+//   - the step title + body render (no AppBar),
 //   - the 3-state detection badge (neutral / ok / bad) flips with input,
 //   - the Connect button is enabled for every detected kind (dm + group +
 //     org -- all three have a wired Gateway seam),
@@ -21,7 +21,7 @@ import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
-import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
+import 'package:mosh/src/features/onboarding/start/start_menu.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -35,11 +35,14 @@ void main() {
     WidgetTester tester,
     BridgeFacade bridge, {
     String initialLocation = AppRoutes.join,
-  }) =>
-      pumpRoute(tester, initialLocation,
-          overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
+  }) {
+    _tallView(tester);
+    return pumpRoute(tester, initialLocation,
+        overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
+  }
+
   testWidgets(
-      'renders the OnboardStepFrame title (no AppBar) and a neutral badge on empty',
+      'renders the step title (no AppBar) and a neutral preview on empty',
       (tester) async {
     await pumpPasteStep(tester, ScriptableBridge());
 
@@ -65,7 +68,8 @@ void main() {
     await tester.pump();
     // ok badge: the "private chat invite detected" label + a check icon.
     expect(find.text('Private chat invite detected'), findsOneWidget);
-    expect(find.byIcon(Icons.check), findsOneWidget);
+    expect(find.text('Opens a private chat with the person who sent it.'),
+        findsOneWidget);
     // DM -> Connect enabled.
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNotNull);
@@ -98,7 +102,8 @@ void main() {
     // ok badge: the "group invite detected" label + a check icon (group is a
     // detected kind, so the badge is green/ok).
     expect(find.text('Group invite detected'), findsOneWidget);
-    expect(find.byIcon(Icons.check), findsOneWidget);
+    // The link names no group, and the preview says so.
+    expect(find.text('The link carries no group name.'), findsOneWidget);
     // group join is wired (slice-3 seam): Connect is ENABLED.
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNotNull);
@@ -126,7 +131,8 @@ void main() {
     await tester.pump();
     // ok badge: the "organization bundle detected" label + a check icon.
     expect(find.text('Organization bundle detected'), findsOneWidget);
-    expect(find.byIcon(Icons.check), findsOneWidget);
+    // The preview shows the name the bundle carries.
+    expect(find.text('drift-collective'), findsOneWidget);
     // org join is wired (slice-3 seam): Connect is ENABLED.
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNotNull);
@@ -185,6 +191,7 @@ void main() {
     // both doubles share one runtime.
     final gateway = ScriptableGateway();
     final bridge = ScriptableBridge(conversations: gateway.conversations);
+    _tallView(tester);
     await pumpRoute(tester, AppRoutes.join, overrides: [
       bridgeFacadeProvider.overrideWithValue(bridge),
       gatewayProvider.overrideWithValue(gateway),
@@ -246,7 +253,7 @@ void main() {
     expect(bridge.countOf(BridgeMethod.listSessions), 0);
   });
 
-  testWidgets('Back returns to the onboarding menu', (tester) async {
+  testWidgets('Back returns to the start menu', (tester) async {
     await pumpPasteStep(tester, ScriptableBridge());
 
     // The frame's Back affordance reads the localized "Back" label.
@@ -254,9 +261,26 @@ void main() {
     await tester.tap(find.text('Back'));
     await tester.pumpAndSettle();
 
-    // Routing returned to '/' (onboarding): the menu screen reappears.
-    expect(find.byType(OnboardingScreen), findsOneWidget);
+    // Back opens the chat pane's start menu.
+    expect(find.byType(StartMenu), findsOneWidget);
     expect(find.byType(InvitePasteScreen), findsNothing);
+  });
+
+  testWidgets('a group link shows the group name it carries', (tester) async {
+    await pumpPasteStep(tester, ScriptableBridge());
+
+    await tester.enterText(find.byType(TextField),
+        'mosh://group?mesh=7x9v&group=drift-team&name=Design#fp=91A4D2C877B091A4D2C877B091A4D2C8');
+    await tester.pump();
+    expect(find.text('Group invite detected'), findsOneWidget);
+    expect(find.text('Design'), findsOneWidget);
+
+    // Another group link: same kind, new name.
+    await tester.enterText(find.byType(TextField),
+        'mosh://group?mesh=7x9v&group=drift-team&name=Sales#fp=91A4D2C877B091A4D2C877B091A4D2C8');
+    await tester.pump();
+    expect(find.text('Sales'), findsOneWidget);
+    expect(find.text('Design'), findsNothing);
   });
 
   testWidgets(
@@ -293,4 +317,12 @@ void main() {
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNotNull);
   });
+}
+
+/// Tall enough that the whole step, Connect included, is on screen.
+void _tallView(WidgetTester tester) {
+  tester.view
+    ..physicalSize = const Size(1000, 1100)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
 }

@@ -277,7 +277,7 @@ class ChatPaneWelcome extends StatelessWidget {
                 vertical: mobile ? 24 : 48,
               ),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
+                constraints: const BoxConstraints(maxWidth: 1240),
                 child: const NewSessionPanel(),
               ),
             ),

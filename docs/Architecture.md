@@ -130,6 +130,9 @@ See [conversation behavior](Features/chat-redesign.md),
 Transient confirmations and failures go through the app's one toast stack,
 `Toaster` rendered by `ToastHost`; see [toasts](Features/toasts.md).
 
+With no conversation open the chat pane shows the start menu and its four
+steps in place; see [start menu](Features/start-menu.md).
+
 Caught conversation errors become `ConversationActionError` and use localized
 wording derived from `ConversationBridgeErrorKind`. Runtime diagnostic strings
 are for logs. Poll/list failures remain provider errors. Rejoin, revocation and

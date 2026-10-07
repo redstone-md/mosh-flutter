@@ -7,6 +7,8 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/invite/invite_detection.dart';
+import 'package:mosh/src/invite/invite_uri.dart' show parseMoshGroupInvite;
+import 'package:mosh/src/features/onboarding/join_preview.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
@@ -50,6 +52,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     // it in sync for every subsequent edit.
     _controller = TextEditingController(text: widget.initialInviteUri);
     _detection = detectInvite(widget.initialInviteUri ?? '');
+    _name = _linkName();
     _controller.addListener(_onChanged);
   }
 
@@ -62,9 +65,11 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
 
   void _onChanged() {
     final next = detectInvite(_controller.text);
-    if (next != _detection) {
-      setState(() => _detection = next);
-    }
+    if (next == _detection && _linkName(next) == _name) return;
+    setState(() {
+      _detection = next;
+      _name = _linkName();
+    });
   }
 
   // Detected = any of the three wired kinds (empty + unknown are not).
@@ -163,48 +168,56 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     return AppRoutes.sessions;
   }
 
+  /// The name the link carries, for a group or an organization. Two
+  /// links of one kind can differ only in it, so it is tracked apart.
+  String? _name;
+
+  String? _linkName([InviteDetection? detection]) {
+    final text = _controller.text.trim();
+    try {
+      return switch ((detection ?? _detection).kind) {
+        InviteDetectionKind.group => parseMoshGroupInvite(text).label,
+        InviteDetectionKind.org => Uri.parse(text).queryParameters['name'],
+        _ => null,
+      };
+    } on Object {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     // _detected already excludes empty + unknown, so this is just the
     // busy guard.
     final ready = _detected && !_busy;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          l.onboardJoinStepBody,
-          style: theme.textTheme.bodyMedium?.copyWith(height: 1.55),
-        ),
-        const SizedBox(height: 16),
-        // The literal 'Invite link' label is intentionally non-localized.
-        // Invalid input maps to Semantics.validationResult (invalid for
-        // the unknown kind); the border stays neutral (only the badge
-        // reflects the error visually), and the badge's liveRegion also
-        // announces the error to assistive tech.
+        // Invalid input is flagged to assistive tech here and announced by
+        // the preview's live region; the border stays neutral.
         Semantics(
-          textField: true,
-          label: 'Invite link',
           validationResult: _detection.kind == InviteDetectionKind.unknown
               ? SemanticsValidationResult.invalid
               : SemanticsValidationResult.none,
           child: TextField(
             controller: _controller,
             maxLines: 4,
-            minLines: 2,
+            minLines: 1,
             enabled: !_busy,
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
             decoration: InputDecoration(
+              labelText: l.onboardInviteLinkLabel,
               hintText: l.onboardJoinPlaceholder,
-              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.link, size: 20),
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        _DetectBadge(
+        const SizedBox(height: 14),
+        JoinPreview(
           kind: _detection.kind,
-          detected: _detected,
-          label: _detectLabel(l),
+          title: _detectLabel(l),
+          name: _name,
         ),
         const SizedBox(height: 20),
         FilledButton(
@@ -223,54 +236,6 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
           InlineError(message: _error?.describe(l)),
         ],
       ],
-    );
-  }
-}
-
-/// Live detection status row with 3 states:
-///   detected (dm|group|org) -> positive (primary color + check icon)
-///   kind === unknown        -> error/red, no check icon
-///   kind === empty          -> neutral outline, no check icon
-///
-/// Wraps the row in Semantics(liveRegion: true) so screen readers
-/// announce detection changes. The check icon shows ONLY when detected.
-class _DetectBadge extends StatelessWidget {
-  const _DetectBadge({
-    required this.kind,
-    required this.detected,
-    required this.label,
-  });
-
-  final InviteDetectionKind kind;
-  final bool detected;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isBad = kind == InviteDetectionKind.unknown;
-    final color = detected
-        ? scheme.primary
-        : isBad
-            ? scheme.error
-            : scheme.outline;
-    return Semantics(
-      liveRegion: true,
-      child: Row(
-        children: [
-          if (detected) ...[
-            Icon(Icons.check, size: 16, color: color),
-            const SizedBox(width: 8),
-          ],
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(color: color, fontSize: 14),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
