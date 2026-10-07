@@ -52,6 +52,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     // it in sync for every subsequent edit.
     _controller = TextEditingController(text: widget.initialInviteUri);
     _detection = detectInvite(widget.initialInviteUri ?? '');
+    _name = _linkName();
     _controller.addListener(_onChanged);
   }
 
@@ -64,9 +65,11 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
 
   void _onChanged() {
     final next = detectInvite(_controller.text);
-    if (next != _detection) {
-      setState(() => _detection = next);
-    }
+    if (next == _detection && _linkName(next) == _name) return;
+    setState(() {
+      _detection = next;
+      _name = _linkName();
+    });
   }
 
   // Detected = any of the three wired kinds (empty + unknown are not).
@@ -165,11 +168,14 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     return AppRoutes.sessions;
   }
 
-  /// The name the link carries, for a group or an organization.
-  String? get _linkName {
+  /// The name the link carries, for a group or an organization. Two
+  /// links of one kind can differ only in it, so it is tracked apart.
+  String? _name;
+
+  String? _linkName([InviteDetection? detection]) {
     final text = _controller.text.trim();
     try {
-      return switch (_detection.kind) {
+      return switch ((detection ?? _detection).kind) {
         InviteDetectionKind.group => parseMoshGroupInvite(text).label,
         InviteDetectionKind.org => Uri.parse(text).queryParameters['name'],
         _ => null,
@@ -211,7 +217,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         JoinPreview(
           kind: _detection.kind,
           title: _detectLabel(l),
-          name: _linkName,
+          name: _name,
         ),
         const SizedBox(height: 20),
         FilledButton(
