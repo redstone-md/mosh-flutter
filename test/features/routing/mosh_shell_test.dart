@@ -26,9 +26,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/onboarding/chat_create_step.dart';
-import 'package:mosh/src/features/onboarding/onboard_menu.dart';
+import 'package:mosh/src/features/onboarding/start/start_menu.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
@@ -39,9 +38,9 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/routing/mosh_shell.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart';
 
-// The onboard head shares its label with the rail's start button.
+// The start menu title shares its label with the rail's start button.
 Finder _onboardTitle() => find.descendant(
-      of: find.byType(OnboardMenu),
+      of: find.byType(StartMenu),
       matching: find.text('Start a conversation'),
     );
 
@@ -209,11 +208,9 @@ void main() {
     // The welcome pane renders beside the rail (chat branch preloaded).
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
 
-    // Desktop embeds NewSessionPanel, whose step=menu child is OnboardMenu.
-    // The menu renders the onboard head
-    // (onboardTitle "Start a conversation") + the four tiles (Start:
-    // chat/group, Join: join/channel).
-    expect(find.byType(OnboardMenu), findsOneWidget);
+    // Desktop embeds NewSessionPanel, whose menu page is StartMenu: the
+    // hero title "Start a conversation" and the four cards.
+    expect(find.byType(StartMenu), findsOneWidget);
     expect(_onboardTitle(), findsOneWidget);
     expect(find.text('Start a private chat'), findsOneWidget);
     expect(find.text('Create a group'), findsOneWidget);
@@ -226,34 +223,25 @@ void main() {
             'Create an invite or paste one to start your first encrypted conversation.'),
         findsNothing);
 
-    // Tap the Chat tile (onboardTileChatTitle "Start a private chat"). The
-    // desktop NewSessionPanel switches its IndexedStack to the chat step
-    // INLINE (no context.go): ChatCreateStep wrapped in OnboardStepBody
-    // renders the step title (l.onboardTileChatTitle) + a Back button.
-    // ChatCreateScreen does NOT mount -- the step is inline, the rail
-    // stays, no routing happened.
+    // Tap the Chat card. NewSessionPanel switches to the chat step in
+    // place (no routing): the step title and a Back button render while
+    // the rail stays.
+    final location = appRouter.routeInformationProvider.value.uri.path;
     await tester.tap(find.text('Start a private chat'));
     await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, location);
 
-    // No routing: ChatCreateScreen does NOT mount (the step is inline).
-    expect(find.byType(ChatCreateScreen), findsNothing);
-    // The chat step body (ChatCreateStep) is now the active IndexedStack
-    // child, so it is on-stage. The menu tile carrying the same
-    // "Start a private chat" text is offstage (skipOffstage default skips it),
-    // so find.text(l.onboardTileChatTitle) resolves to exactly the visible
-    // step title (OnboardStepBody headlineSmall).
+    // The menu card with the same text is offstage (skipOffstage default
+    // skips it), so this finds exactly the visible step title.
     final chatTitle =
         AppLocalizations.of(tester.element(find.byType(ChatPaneWelcome)))!
             .onboardTileChatTitle;
     expect(find.text(chatTitle), findsOneWidget);
     expect(find.byType(ChatCreateStep), findsOneWidget);
 
-    // Back (l.onboardBack "Back") returns the IndexedStack to step=menu.
-    // The menu re-renders (onboardTitle "Start a conversation" findsOne).
-    // The chat step body (ChatCreateStep) goes offstage inside the
-    // IndexedStack, so find.byType skips it (skipOffstage default). The
-    // menu tile "Start a private chat" re-shows, so find.text(chatTitle) is
-    // NOT usable as the "step gone" signal -- the type check is.
+    // Back returns to the menu. The chat step goes offstage, so
+    // find.byType skips it; the menu card re-shows its title, so the type
+    // check is the "step gone" signal.
     await tester.tap(find.text('Back'));
     await tester.pumpAndSettle();
 
@@ -262,8 +250,7 @@ void main() {
   });
 
   // Mobile ChatPaneWelcome uses the same NewSessionPanel as desktop. This
-  // pins the one-tap SessionRail New flow: the full panel is inline and the
-  // chat-create route is not pushed.
+  // pins the one-tap SessionRail New flow: the full panel is inline.
   testWidgets('mobile (400x800): ChatPaneWelcome embeds NewSessionPanel inline',
       (tester) async {
     final gw = ScriptableGateway()
@@ -279,10 +266,9 @@ void main() {
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
 
     expect(find.byType(NewSessionPanel), findsOneWidget);
-    expect(find.byType(OnboardMenu), findsOneWidget);
+    expect(find.byType(StartMenu), findsOneWidget);
     expect(_onboardTitle(), findsOneWidget);
     expect(find.text('Start a private chat'), findsOneWidget);
-    expect(find.byType(ChatCreateScreen), findsNothing);
   });
 
   // The DM is a pushed route in the chat branch; its ModalBarrier blocks the

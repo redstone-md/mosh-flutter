@@ -73,10 +73,6 @@
   "@setupDisplayNameLabel": {
     "description": "Label for the display name field"
   },
-  "setupDisplayNamePlaceholder": "e.g. juno-laptop",
-  "@setupDisplayNamePlaceholder": {
-    "description": "Placeholder for the display name field"
-  },
   "setupStaticPeerLabel": "Static peer (optional)",
   "@setupStaticPeerLabel": {
     "description": "Label for the static peer field"
@@ -425,25 +421,33 @@
   "@groupUntitled": {
     "description": "Fallback title for an unnamed group"
   },
-  "onboardTitle": "Start a conversation",
-  "@onboardTitle": {
-    "description": "Title of the onboarding screen"
+  "startEyebrow": "Welcome to Mosh",
+  "@startEyebrow": {
+    "description": "Small uppercase line above the start menu title"
   },
-  "onboardSubtitle": "Pick how you want to connect. Private chats and groups are end-to-end encrypted; public channels are open.",
-  "@onboardSubtitle": {
-    "description": "Subtitle of the onboarding screen"
+  "startTitleLead": "Start a",
+  "@startTitleLead": {
+    "description": "First, plain part of the start menu title"
   },
-  "onboardIdentityHint": "Contacts see this name",
-  "@onboardIdentityHint": {
-    "description": "Hint for the identity field on onboarding"
+  "startTitleAccent": "conversation",
+  "@startTitleAccent": {
+    "description": "Second, highlighted part of the start menu title"
   },
-  "onboardStartLabel": "Start",
-  "@onboardStartLabel": {
-    "description": "Label for the start action on onboarding"
+  "startSubtitle": "Private chats and groups are end-to-end encrypted. Public channels are open to anyone who joins.",
+  "@startSubtitle": {
+    "description": "Start menu subtitle; must not promise encryption for public channels"
   },
-  "onboardJoinLabel": "Join",
-  "@onboardJoinLabel": {
-    "description": "Label for the join action on onboarding"
+  "startFactMls": "MLS encryption in chats and groups",
+  "@startFactMls": {
+    "description": "Start menu fact: private chats and groups use MLS"
+  },
+  "startFactMesh": "Decentralized Moss network",
+  "@startFactMesh": {
+    "description": "Start menu fact: transport is the Moss mesh"
+  },
+  "startFactHistory": "Encrypted history on this device",
+  "@startFactHistory": {
+    "description": "Start menu fact: local storage is encrypted"
   },
   "onboardBack": "Back",
   "@onboardBack": {
@@ -461,7 +465,7 @@
   "@onboardTileChatTitle": {
     "description": "Title of the private-chat onboarding tile"
   },
-  "onboardTileChatDesc": "One-to-one, end-to-end encrypted",
+  "onboardTileChatDesc": "A secure one-to-one conversation.",
   "@onboardTileChatDesc": {
     "description": "Description of the private-chat onboarding tile"
   },
@@ -469,7 +473,7 @@
   "@onboardTileGroupTitle": {
     "description": "Title of the new-group onboarding tile"
   },
-  "onboardTileGroupDesc": "Encrypted group — you are the admin",
+  "onboardTileGroupDesc": "A closed group for your team or friends.",
   "@onboardTileGroupDesc": {
     "description": "Description of the new-group onboarding tile"
   },
@@ -477,7 +481,7 @@
   "@onboardTileJoinTitle": {
     "description": "Title of the join-with-link onboarding tile"
   },
-  "onboardTileJoinDesc": "Paste an invite a contact sent you",
+  "onboardTileJoinDesc": "Join with an invite a contact sent you.",
   "@onboardTileJoinDesc": {
     "description": "Description of the join-with-link onboarding tile"
   },
@@ -485,43 +489,103 @@
   "@onboardTileChannelTitle": {
     "description": "Title of the public-channel onboarding tile"
   },
-  "onboardTileChannelDesc": "Open broadcast room, joined by name",
+  "onboardTileChannelDesc": "An open room anyone can read. Not encrypted.",
   "@onboardTileChannelDesc": {
     "description": "Description of the public-channel onboarding tile"
   },
-  "onboardChatStepBody": "Create a one-time invite link, then send it to one person over any channel you trust.",
+  "onboardChatStepBody": "Create an invite link and send it to one person over a channel you trust.",
   "@onboardChatStepBody": {
     "description": "Body of the chat step in onboarding"
+  },
+  "onboardInviteReadyTitle": "Invite ready",
+  "@onboardInviteReadyTitle": {
+    "description": "Title of the block shown after an invite link is created"
+  },
+  "onboardInviteLinkLabel": "Invite link",
+  "@onboardInviteLinkLabel": {
+    "description": "Label of an invite link field"
+  },
+  "onboardInviteFooter": "Until your contact connects, anyone who has this link can use it. Send it to one person only.",
+  "@onboardInviteFooter": {
+    "description": "Note under a private chat invite; must not promise the link is single-use"
+  },
+  "onboardGroupInviteFooter": "Anyone who has this link can join the group. Send it only to people you want in.",
+  "@onboardGroupInviteFooter": {
+    "description": "Note under a group invite"
+  },
+  "onboardGroupAnother": "Create another group",
+  "@onboardGroupAnother": {
+    "description": "Returns the group step to an empty form"
+  },
+  "onboardGroupNameLabel": "Group name",
+  "@onboardGroupNameLabel": {
+    "description": "Label of the required group name field"
+  },
+  "onboardGroupNameHint": "Everyone in the group sees this name.",
+  "@onboardGroupNameHint": {
+    "description": "Helper under the group name field"
+  },
+  "onboardGroupMembersNote": "You add members with the group's invite link once it is created.",
+  "@onboardGroupMembersNote": {
+    "description": "Note under the create group button"
+  },
+  "onboardJoinPreviewEmpty": "Mosh tells whether the link opens a private chat, a group or an organization.",
+  "@onboardJoinPreviewEmpty": {
+    "description": "Join preview before a link is pasted"
+  },
+  "onboardJoinPreviewDm": "Opens a private chat with the person who sent it.",
+  "@onboardJoinPreviewDm": {
+    "description": "Join preview for a private chat invite"
+  },
+  "onboardJoinPreviewGroup": "The link carries no group name.",
+  "@onboardJoinPreviewGroup": {
+    "description": "Join preview for a group invite without a name"
+  },
+  "onboardJoinPreviewOrg": "The link carries no organization name.",
+  "@onboardJoinPreviewOrg": {
+    "description": "Join preview for an organization bundle without a name"
+  },
+  "onboardJoinPreviewBad": "Check that you copied the whole link.",
+  "@onboardJoinPreviewBad": {
+    "description": "Join preview for an unrecognized link"
+  },
+  "onboardChannelStepLead": "Join an open room by its name.",
+  "@onboardChannelStepLead": {
+    "description": "Subtitle of the join channel step"
+  },
+  "onboardChannelNameLabel": "Channel name",
+  "@onboardChannelNameLabel": {
+    "description": "Label of the channel name field"
+  },
+  "onboardChannelNameRule": "Latin letters, digits, - and _",
+  "@onboardChannelNameRule": {
+    "description": "Characters a channel name may use"
+  },
+  "onboardChannelExamples": "For example",
+  "@onboardChannelExamples": {
+    "description": "Heading over example channel names"
   },
   "onboardChatCreate": "Create invite link",
   "@onboardChatCreate": {
     "description": "Button label to create a chat invite link"
   },
-  "onboardChatRecreate": "Replace invite link",
+  "onboardChatRecreate": "New link",
   "@onboardChatRecreate": {
     "description": "Button label to replace a chat invite link"
   },
-  "onboardInviteReady": "Invite ready — share it with one person.",
+  "onboardInviteReady": "Share the link with one person.",
   "@onboardInviteReady": {
     "description": "Status shown when a chat invite is ready"
   },
-  "onboardGroupStepBody": "Create a group with end-to-end encryption.",
+  "onboardGroupStepBody": "Create a group with end-to-end encryption. You invite members once it exists.",
   "@onboardGroupStepBody": {
     "description": "Body of the group step in onboarding"
-  },
-  "onboardGroupNamePlaceholder": "Group name (optional)",
-  "@onboardGroupNamePlaceholder": {
-    "description": "Placeholder for the group name field on onboarding"
   },
   "onboardGroupCreate": "Create group",
   "@onboardGroupCreate": {
     "description": "Button label to create a group on onboarding"
   },
-  "onboardGroupRecreate": "Replace group invite",
-  "@onboardGroupRecreate": {
-    "description": "Button label to replace a group invite on onboarding"
-  },
-  "onboardGroupInviteReady": "Group invite ready — send it to the people you want in.",
+  "onboardGroupInviteReady": "Send the link to the people you want in the group.",
   "@onboardGroupInviteReady": {
     "description": "Status shown when a group invite is ready"
   },
@@ -544,7 +608,7 @@
   "@onboardJoinStepBody": {
     "description": "Body of the join step in onboarding"
   },
-  "onboardJoinPlaceholder": "mosh://invite?…  or  mosh://group?…",
+  "onboardJoinPlaceholder": "Paste mosh://invite?… or mosh://group?…",
   "@onboardJoinPlaceholder": {
     "description": "Placeholder for the join step field on onboarding"
   },

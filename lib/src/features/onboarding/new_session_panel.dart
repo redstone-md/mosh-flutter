@@ -6,28 +6,21 @@ import 'package:mosh/src/features/onboarding/channel_join_step.dart';
 import 'package:mosh/src/features/onboarding/chat_create_step.dart';
 import 'package:mosh/src/features/onboarding/group_create_step.dart';
 import 'package:mosh/src/features/onboarding/onboard_join_step.dart';
-import 'package:mosh/src/features/onboarding/onboard_menu.dart';
-import 'package:mosh/src/features/onboarding/onboard_step_frame.dart';
+import 'package:mosh/src/features/onboarding/start/start_menu.dart';
+import 'package:mosh/src/features/onboarding/start/start_pages.dart';
+import 'package:mosh/src/features/onboarding/start/start_step.dart';
 import 'package:mosh/src/features/shared/persistence_warning_banner.dart';
 import 'package:mosh/src/state/persistence_warning_provider.dart';
 
-/// The inline NewSessionPanel step enum. The active step drives the
-/// [IndexedStack] index; switching is local (no route navigation -- the
-/// rail stays).
+/// The start menu's pages, in [StartPages] order.
 enum OnboardStep { menu, chat, group, join, channel }
 
-/// Inline NewSessionPanel -- the desktop chat-pane welcome body when no
-/// conversation is open. Owns the active [OnboardStep], renders the
-/// PersistenceWarningBanner at the top of the scroll, then the active
-/// step.
+/// The chat pane's body when no conversation is open: the start menu and
+/// its four steps, switched in place (the rail stays).
 ///
-/// The caller composes the outer body (Center > SingleChildScrollView >
-/// ConstrainedBox(maxWidth: 460)), the same composition OnboardingScreen
-/// uses, so the inline panel renders identically to the onboarding menu.
-///
-/// Per-step state survives a menu round-trip via the [IndexedStack] keep-
-/// alive (all five widgets stay mounted: the create step's invite, the
-/// join step's pasted link all survive). Do NOT remove the keep-alive.
+/// Every step stays mounted, so its typed text and created invite survive
+/// a trip back to the menu. The storage warning, when there is one, heads
+/// every page.
 class NewSessionPanel extends ConsumerStatefulWidget {
   const NewSessionPanel({super.key});
 
@@ -38,60 +31,56 @@ class NewSessionPanel extends ConsumerStatefulWidget {
 class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
   OnboardStep _step = OnboardStep.menu;
 
-  void _backToMenu() => setState(() => _step = OnboardStep.menu);
+  void _go(OnboardStep step) => setState(() => _step = step);
+
+  void _backToMenu() => _go(OnboardStep.menu);
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    // The banner renders before the step branch and scrolls with the step
-    // body (no fixed header). OnboardMenu also renders its own banner via
-    // the provider, but the step screens do NOT, so this banner covers the
-    // steps too.
     final warning = ref.watch(persistenceWarningProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (warning
-            case AsyncData(
-              :final value,
-            ) when value != null) ...<Widget>[
+        if (warning case AsyncData(:final value) when value != null) ...[
           PersistenceWarningBanner(warning: value),
-          const SizedBox(height: 12),
+          const SizedBox(height: 24),
         ],
-        // IndexedStack keep-alive: all five step widgets stay mounted, so
-        // each step's controllers/state survive a menu round-trip. No
-        // Expanded: the wrapping SingleChildScrollView makes this Column
-        // unbounded, and an Expanded (non-zero flex) there would throw --
-        // the IndexedStack instead sizes to its tallest step and scrolls
-        // with the banner.
-        IndexedStack(
+        StartPages(
           index: _step.index,
-          children: <Widget>[
-            OnboardMenu(
-              onPickChat: () => setState(() => _step = OnboardStep.chat),
-              onPickGroup: () => setState(() => _step = OnboardStep.group),
-              onPickChannel: () => setState(() => _step = OnboardStep.channel),
-              onPickJoin: () => setState(() => _step = OnboardStep.join),
+          pages: <Widget>[
+            StartMenu(
+              onPickChat: () => _go(OnboardStep.chat),
+              onPickGroup: () => _go(OnboardStep.group),
+              onPickJoin: () => _go(OnboardStep.join),
+              onPickChannel: () => _go(OnboardStep.channel),
             ),
-            OnboardStepBody(
+            StartStep(
+              image: 'assets/start/chat.png',
               title: l.onboardTileChatTitle,
+              subtitle: l.onboardChatStepBody,
               onBack: _backToMenu,
               child: const ChatCreateStep(),
             ),
-            OnboardStepBody(
+            StartStep(
+              image: 'assets/start/group.png',
               title: l.onboardTileGroupTitle,
+              subtitle: l.onboardGroupStepBody,
               onBack: _backToMenu,
               child: const GroupCreateStep(),
             ),
-            OnboardStepBody(
+            StartStep(
+              image: 'assets/start/join.png',
               title: l.onboardTileJoinTitle,
+              subtitle: l.onboardJoinStepBody,
               onBack: _backToMenu,
-              // Inline join has no deep-link seed; the deep-link path
-              // still routes to /join full-screen (InvitePasteScreen).
+              // Deep links still open /join full-screen.
               child: const OnboardJoinStep(),
             ),
-            OnboardStepBody(
+            StartStep(
+              image: 'assets/start/channel.png',
               title: l.onboardTileChannelTitle,
+              subtitle: l.onboardChannelStepLead,
               onBack: _backToMenu,
               child: const ChannelJoinStep(),
             ),
