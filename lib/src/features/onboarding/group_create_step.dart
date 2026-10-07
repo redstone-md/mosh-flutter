@@ -15,6 +15,8 @@ import 'package:mosh/src/state/conversation_providers.dart'
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
+import 'package:mosh/src/features/shared/toasts/toaster.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 class GroupCreateStep extends ConsumerStatefulWidget {
   const GroupCreateStep({super.key});
@@ -35,10 +37,16 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
   // inviteFlowProvider (ADR 0010).
   GroupCreated? _created;
 
+  bool _named = false;
+
   @override
   void initState() {
     super.initState();
-    _labelController = TextEditingController(text: '');
+    _labelController = TextEditingController(text: '')
+      ..addListener(() {
+        final named = _labelController.text.trim().isNotEmpty;
+        if (named != _named) setState(() => _named = named);
+      });
   }
 
   @override
@@ -48,7 +56,7 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
   }
 
   // Calls bridge.createGroup with a CreateGroupRequest built from the
-  // entered label (trimmed, null if empty) + inviteFlowProvider's
+  // entered name (trimmed; the form requires one) + inviteFlowProvider's
   // displayName/listenPort/staticPeer (the same settings source
   // createInvite uses, ADR 0010), copies the returned invite URI to the
   // clipboard, and stores the GroupCreated so the InviteResult branch
@@ -56,7 +64,7 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
   // navigating away; the card's Open button is the way in. Mirrors
   // ChatCreateStep's busy + reset-copied + try/finally pattern.
   Future<void> _onCreate() async {
-    if (_busy) return;
+    if (_busy || !_named) return;
     final label = _labelController.text.trim();
     final settings = ref.read(inviteFlowProvider);
     setState(() {
@@ -67,7 +75,7 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
     try {
       final created = await ref.read(bridgeFacadeProvider).createGroup(
             request: CreateGroupRequest(
-              label: label.isEmpty ? null : label,
+              label: label,
               displayName: settings.displayName,
               listenPort: settings.listenPort,
               staticPeer: settings.staticPeer,
@@ -96,48 +104,58 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
   Future<void> _onCopy() async {
     final created = _created;
     if (created == null) return;
+    final toaster = context.toaster;
+    final copied = AppLocalizations.of(context)!.messageCopied;
     await Clipboard.setData(ClipboardData(text: created.inviteUri));
+    toaster.show(copied, kind: ToastKind.success);
     if (mounted) setState(() => _copied = true);
   }
+
+  /// Back to an empty form for another group.
+  void _onAnother() => setState(() {
+        _created = null;
+        _copied = false;
+        _labelController.clear();
+      });
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
+    final created = _created;
+    if (created != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InviteResult(
+            note: l.onboardGroupInviteReady,
+            uri: created.inviteUri,
+            copied: _copied,
+            onCopy: _onCopy,
+            openLabel: l.onboardOpenGroup,
+            onOpen: () => context.go(AppRoutes.groupFor(created.groupId)),
+            footer: l.onboardGroupInviteFooter,
+          ),
+          const SizedBox(height: 8),
+          TextButton(onPressed: _onAnother, child: Text(l.onboardGroupAnother)),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          l.onboardGroupStepBody,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontSize: 12.5,
-            height: 1.6,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 20),
-        // Rounded bordered TextField, 12.5px text. The label is OPTIONAL:
-        // the input stays enabled regardless of whether text exists.
         TextField(
           controller: _labelController,
           decoration: InputDecoration(
-            hintText: l.onboardGroupNamePlaceholder,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
+            labelText: l.onboardGroupNameLabel,
+            helperText: l.onboardGroupNameHint,
+            prefixIcon: const Icon(Icons.group_outlined, size: 20),
           ),
-          style: const TextStyle(fontSize: 12.5),
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => _onCreate(),
         ),
         const SizedBox(height: 20),
-        // Full-width primary button (mirrors ChatCreateStep's FilledButton
-        // with minimumSize 48h). The label flips Create/Recreate based on
-        // `_created` (null = first create). NOT disabled by an empty label.
         FilledButton(
-          onPressed: _busy ? null : _onCreate,
+          onPressed: _busy || !_named ? null : _onCreate,
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           child: _busy
               ? const SizedBox(
@@ -145,29 +163,24 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
                   height: 22,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(
-                  _created != null
-                      ? l.onboardGroupRecreate
-                      : l.onboardGroupCreate,
-                ),
+              : Text(l.onboardGroupCreate),
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),
           InlineError(message: _error?.describe(l)),
         ],
-        // Renders only after a successful create (`_created != null`).
-        // The URI is auto-copied on create and re-copyable via `_onCopy`.
-        if (_created != null) ...[
-          const SizedBox(height: 20),
-          InviteResult(
-            note: l.onboardGroupInviteReady,
-            uri: _created!.inviteUri,
-            copied: _copied,
-            onCopy: _onCopy,
-            openLabel: l.onboardOpenGroup,
-            onOpen: () => context.go(AppRoutes.groupFor(_created!.groupId)),
+        const SizedBox(height: 16),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.info_outline, size: 18, color: MoshColors.fg3),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(l.onboardGroupMembersNote,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: MoshColors.fg3, height: 1.45)),
           ),
-        ],
+        ]),
       ],
     );
   }

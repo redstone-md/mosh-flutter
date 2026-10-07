@@ -25,6 +25,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/main.dart';
+import 'package:mosh/src/features/onboarding/start/start_menu.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/deeplink/mosh_deep_link.dart';
 
@@ -56,7 +57,7 @@ void main() {
     // appRouter is also process-global: a go(/join) issued in one test would
     // leave the next test's fresh MoshApp on /join. Reset to the home route
     // before each test pumps the app.
-    appRouter.go('/');
+    appRouter.go(AppRoutes.sessions);
   });
 
   testWidgets('warm mosh:// link navigates to /join with the field pre-filled',
@@ -67,8 +68,8 @@ void main() {
     addTearDown(intake.dispose);
 
     await pumpApp(tester);
-    // Sanity: we start on the onboarding home.
-    expect(find.text('Start a conversation'), findsOneWidget);
+    // Sanity: we start on the home shell with its start menu.
+    expect(find.byType(StartMenu), findsOneWidget);
 
     // Warm link: emit AFTER the first frame, so the router is ready and the
     // intake calls appRouter.go(/join) directly from the listener.
@@ -92,14 +93,14 @@ void main() {
     addTearDown(intake.dispose);
 
     await pumpApp(tester);
-    expect(find.text('Start a conversation'), findsOneWidget);
+    expect(find.byType(StartMenu), findsOneWidget);
 
     // A stray https link must NOT navigate.
     controller.add(Uri.parse('https://example.com/invite'));
     await tester.pumpAndSettle();
-    expect(find.text('Start a conversation'), findsOneWidget);
+    expect(find.byType(StartMenu), findsOneWidget);
     // We must still be on home, not /join. 'Join with a link' appears on BOTH
-    // screens (onboarding tile title AND /join AppBar title), so it is a poor
+    // screens (start menu card AND /join title), so it is a poor
     // discriminator. The /join empty-field badge 'Waiting for a mosh://
     // link...' is unique to /join; it must NOT be present.
     expect(find.text('Waiting for a mosh:// link…'), findsNothing);

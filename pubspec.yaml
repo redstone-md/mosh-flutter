@@ -106,6 +106,7 @@ flutter:
   assets:
     - assets/branding/
     - assets/onboarding/
+    - assets/start/
   fonts:
     - family: Inter
       fonts:

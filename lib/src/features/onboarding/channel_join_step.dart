@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
@@ -88,61 +89,23 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          l.onboardChannelStepBody,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontSize: 12.5,
-            height: 1.6,
-            color: theme.colorScheme.onSurfaceVariant,
+        _OpenWarning(text: l.onboardChannelStepBody),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _nameController,
+          decoration: InputDecoration(
+            labelText: l.onboardChannelNameLabel,
+            hintText: l.onboardChannelPlaceholder,
+            helperText: l.onboardChannelNameRule,
+            prefixIcon: const Icon(Icons.tag, size: 20),
           ),
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _onJoin(),
         ),
-        const SizedBox(height: 16),
-        // Rounded bordered box with a decorative `#` prefix and a
-        // borderless input.
-        Container(
-          padding: const EdgeInsets.only(left: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: theme.dividerColor),
-            color: theme.colorScheme.surfaceContainerLowest,
-          ),
-          child: Row(
-            children: [
-              Text(
-                '#',
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 14,
-                  color: theme.colorScheme.onSurfaceVariant.withValues(
-                    alpha: 0.7,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 2),
-              Expanded(
-                child: TextField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    hintText: l.onboardChannelPlaceholder,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.fromLTRB(4, 10, 12, 10),
-                  ),
-                  style: const TextStyle(fontSize: 12.5),
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _onJoin(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Full-width primary button (mirrors ChatCreateScreen's
-        // FilledButton with minimumSize 48h).
+        const SizedBox(height: 20),
         FilledButton(
           onPressed: (_canJoin && !_busy) ? _onJoin : null,
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
@@ -158,7 +121,87 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
           const SizedBox(height: 12),
           InlineError(message: _error?.describe(l)),
         ],
+        const SizedBox(height: 24),
+        _Examples(
+          label: l.onboardChannelExamples,
+          onPick: (name) => _nameController.value = TextEditingValue(
+            text: name,
+            selection: TextSelection.collapsed(offset: name.length),
+          ),
+        ),
       ],
     );
+  }
+}
+
+/// Public channels are plaintext; say so before anyone types.
+class _OpenWarning extends StatelessWidget {
+  const _OpenWarning({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: MoshColors.warnSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: MoshColors.warnBorder),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Icon(Icons.lock_open, size: 20, color: MoshColors.warn),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(text,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: MoshColors.fg1, height: 1.5)),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Names that pass the core's rule, one tap to fill in.
+class _Examples extends StatelessWidget {
+  const _Examples({required this.label, required this.onPick});
+
+  final String label;
+  final ValueChanged<String> onPick;
+
+  static const names = ['news', 'dev', 'community'];
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context)
+        .textTheme
+        .labelMedium
+        ?.copyWith(color: MoshColors.fg3);
+    return Column(children: [
+      Row(children: [
+        const Expanded(child: Divider(color: MoshColors.line)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(label, style: style),
+        ),
+        const Expanded(child: Divider(color: MoshColors.line)),
+      ]),
+      const SizedBox(height: 12),
+      Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        alignment: WrapAlignment.center,
+        children: [
+          for (final name in names)
+            ActionChip(
+              avatar: const Icon(Icons.tag, size: 16, color: MoshColors.fg3),
+              label: Text(name),
+              onPressed: () => onPick(name),
+            ),
+        ],
+      ),
+    ]);
   }
 }
