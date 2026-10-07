@@ -188,7 +188,7 @@
   "onboardGroupInvite": "Приглашение в группу",
   "railOfferAccept": "Принять приглашение в чат от {name}",
   "railOfferDismiss": "Отклонить приглашение",
-  "onboardJoinStepBody": "Вставьте mosh:// ссылку-приглашение. Mosh сам определит, открывает ли она приватный чат или группу.",
+  "onboardJoinStepBody": "Вставьте mosh:// ссылку-приглашение. Mosh сам определит, что она открывает: приватный чат, группу или организацию.",
   "onboardJoinPlaceholder": "Вставьте mosh://invite?… или mosh://group?…",
   "onboardJoinDetectChat": "Обнаружено приглашение в приватный чат",
   "onboardJoinDetectGroup": "Обнаружено приглашение в группу",
