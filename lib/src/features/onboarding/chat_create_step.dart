@@ -13,6 +13,7 @@ import 'package:mosh/src/state/conversation_providers.dart'
     show conversationListProvider;
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
+import 'package:mosh/src/features/shared/toasts/toaster.dart';
 
 class ChatCreateStep extends ConsumerStatefulWidget {
   const ChatCreateStep({super.key});
@@ -52,51 +53,65 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
   }
 
   Future<void> _onCopy(String uri) async {
+    final toaster = context.toaster;
+    final copied = AppLocalizations.of(context)!.messageCopied;
     await Clipboard.setData(ClipboardData(text: uri));
+    toaster.show(copied, kind: ToastKind.success);
     if (mounted) setState(() => _copied = true);
   }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     final lastInvite = ref.watch(inviteFlowProvider).lastInvite;
-    final hasInvite = lastInvite != null;
+    final error = _error == null
+        ? null
+        : Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: InlineError(message: _error?.describe(l)),
+          );
+    if (lastInvite == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          FilledButton.icon(
+            onPressed: _busy ? null : _onCreate,
+            style:
+                FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            icon: _busy ? const _Spinner() : const Icon(Icons.link, size: 18),
+            label: Text(l.onboardChatCreate),
+          ),
+          if (error != null) error,
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          l.onboardChatStepBody,
-          style: theme.textTheme.bodyMedium?.copyWith(height: 1.55),
+        InviteResult(
+          note: l.onboardInviteReady,
+          uri: lastInvite.inviteUri,
+          copied: _copied,
+          onCopy: () => _onCopy(lastInvite.inviteUri),
+          onReplace: _onCreate,
+          replaceLabel: l.onboardChatRecreate,
+          openLabel: l.onboardOpenChat,
+          onOpen: () => context.go(AppRoutes.dmFor(lastInvite.sessionId)),
+          footer: l.onboardInviteFooter,
         ),
-        const SizedBox(height: 20),
-        FilledButton(
-          onPressed: _busy ? null : _onCreate,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          child: _busy
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(hasInvite ? l.onboardChatRecreate : l.onboardChatCreate),
-        ),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          InlineError(message: _error?.describe(l)),
-        ],
-        if (hasInvite) ...[
-          const SizedBox(height: 20),
-          InviteResult(
-            note: l.onboardInviteReady,
-            uri: lastInvite.inviteUri,
-            copied: _copied,
-            onCopy: () => _onCopy(lastInvite.inviteUri),
-            openLabel: l.onboardOpenChat,
-            onOpen: () => context.go(AppRoutes.dmFor(lastInvite.sessionId)),
-          ),
-        ],
+        if (error != null) error,
       ],
     );
   }
+}
+
+class _Spinner extends StatelessWidget {
+  const _Spinner();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
 }

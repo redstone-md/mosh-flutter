@@ -40,7 +40,7 @@ approved on 2026-10-02.
 `MoshApp` wraps the router in `FirstRunGate` before mounting conversations or
 starting their auto-poll loop. The production provider overrides enable the
 gate; isolated app tests explicitly opt in with scripted disk/native seams.
-`OnboardMenu` remains the conversation launcher.
+The chat pane's [start menu](start-menu.md) remains the conversation launcher.
 
 `FirstRunStore` writes `first-run.json` in the existing application support
 directory. Version 1 has `displayName`, `step` and `completed`; names are trimmed

@@ -5,14 +5,9 @@ import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/conversation/channel_screen.dart';
 import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
-import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/settings/settings_screen.dart'
     show SettingsScreen;
-
-import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
-import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
-import 'package:mosh/src/features/onboarding/group_create_screen.dart';
 
 import 'package:mosh/src/routing/mosh_shell.dart';
 
@@ -21,7 +16,6 @@ import 'package:mosh/src/routing/mosh_shell.dart';
 class AppRoutes {
   const AppRoutes._();
 
-  static const String onboarding = '/';
   static const String join = '/join';
   static const String sessions = '/sessions';
   // Branch B (chat) default location -- the welcome pane shown when no
@@ -36,15 +30,6 @@ class AppRoutes {
 
   /// Standalone settings above the preserved chat route.
   static const String settings = '/settings';
-
-  /// Chat-create step route. Reached from the onboarding Chat tile.
-  static const String chatCreate = '/chat-create';
-
-  /// Channel-join step route. Reached from the onboarding Channel tile.
-  static const String channelJoin = '/channel-join';
-
-  /// Group-create step route. Reached from the onboarding Group tile.
-  static const String groupCreate = '/group-create';
 
   /// Builds a `/dm/<sessionId>` location string. Centralized so callers do
   /// not concatenate paths by hand (and S2-3 can resolve an invite's
@@ -70,18 +55,13 @@ final GoRouter appRouter = GoRouter(
   // (/chat, ChatPaneWelcome with the inline NewSessionPanel) on the right
   // on desktop, branch A alone on mobile. MoshApp defers mounting this
   // router during first-run setup while retaining an incoming invite.
-  // The `/` conversation-launcher route remains reachable by navigation.
+  // The start menu lives in the chat pane at /chat.
   initialLocation: AppRoutes.sessions,
   routes: <RouteBase>[
     GoRoute(
       path: AppRoutes.settings,
       builder: (BuildContext context, GoRouterState state) =>
           const SettingsScreen(),
-    ),
-    GoRoute(
-      path: AppRoutes.onboarding,
-      builder: (BuildContext context, GoRouterState state) =>
-          const OnboardingScreen(),
     ),
     GoRoute(
       path: AppRoutes.join,
@@ -94,24 +74,6 @@ final GoRouter appRouter = GoRouter(
         final initialInviteUri = extra is String ? extra : null;
         return InvitePasteScreen(initialInviteUri: initialInviteUri);
       },
-    ),
-    GoRoute(
-      // Chat-create step. Reached from the onboarding Chat tile via
-      // context.go(AppRoutes.chatCreate); the step's Back button returns
-      // to AppRoutes.onboarding.
-      path: AppRoutes.chatCreate,
-      builder: (BuildContext context, GoRouterState state) =>
-          const ChatCreateScreen(),
-    ),
-    GoRoute(
-      path: AppRoutes.channelJoin,
-      builder: (BuildContext context, GoRouterState state) =>
-          const ChannelJoinScreen(),
-    ),
-    GoRoute(
-      path: AppRoutes.groupCreate,
-      builder: (BuildContext context, GoRouterState state) =>
-          const GroupCreateScreen(),
     ),
     // Two-pane shell. The rail (branch A, /sessions) + the chat (branch B,
     // /chat welcome + /dm/:id + /channel/:name + /group/:groupId) share
