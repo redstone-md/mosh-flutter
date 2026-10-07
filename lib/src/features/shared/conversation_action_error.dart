@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart';
 import 'package:mosh/src/util/format.dart' show readableError;
 
@@ -50,11 +51,13 @@ class ConversationActionError {
       };
 }
 
-/// Toasts a failed action on a screen that has no error banner of its own.
-/// [context] must be mounted; the caller checks after its await.
-void showActionErrorSnackBar(BuildContext context, Object error) {
+/// Reports a failed action as an error toast, for a screen that has no
+/// error banner of its own. Resolve it before the action's first await:
+/// it holds the app's toaster and strings rather than [context], so a
+/// failure that lands after the screen closed still reaches the user.
+void Function(Object error) actionErrorReporter(BuildContext context) {
   final l = AppLocalizations.of(context)!;
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(ConversationActionError.of(error).describe(l))),
-  );
+  final toaster = context.toaster;
+  return (error) => toaster.show(ConversationActionError.of(error).describe(l),
+      kind: ToastKind.error);
 }

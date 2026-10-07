@@ -12,6 +12,7 @@ import 'package:flutter/services.dart' show MethodChannel;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/voice_call/voice_call_layer.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import '../../support/message_builders.dart';
 import '../../support/pump.dart';
 import '../../support/scriptable_bridge.dart';
@@ -167,17 +168,10 @@ void main() {
     (tester) async {
       final bridge = ScriptableBridge();
       late WidgetRef ref;
-      await tester.pumpWidget(ProviderScope(
-        overrides: [bridgeFacadeProvider.overrideWithValue(bridge)],
-        child: MaterialApp(
-          home: Consumer(
-            builder: (context, r, _) {
-              ref = r;
-              return const SizedBox();
-            },
-          ),
-        ),
-      ));
+      await pumpScreen(tester, Consumer(builder: (context, r, _) {
+        ref = r;
+        return const SizedBox();
+      }), overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
       await tester.pump();
       await startVoiceCall(ref, 'sess-1');
       expect(bridge.countOf(BridgeMethod.callStart), 1);
@@ -185,6 +179,35 @@ void main() {
           'sess-1');
     },
   );
+
+  testWidgets('a call refused after its screen closes reports localized text',
+      (tester) async {
+    final bridge = ScriptableBridge();
+    final container = ProviderContainer(overrides: [
+      bridgeFacadeProvider.overrideWithValue(bridge),
+    ]);
+    addTearDown(container.dispose);
+    await container.read(conversationListProvider(ConversationKind.dm).future);
+    late WidgetRef ref;
+    await pumpScreen(tester, Consumer(builder: (context, r, _) {
+      ref = r;
+      return const SizedBox();
+    }), container: container);
+    final message = AppLocalizations.of(ref.context)!.callAlreadyInProgress;
+    final reportError = actionErrorReporter(ref.context);
+    bridge.hold(BridgeMethod.listSessions);
+    final pending = startVoiceCall(ref, 'origin').then((error) {
+      if (error != null) reportError(error);
+    });
+    await tester.pump();
+    await pumpScreen(tester, const SizedBox(), container: container);
+    bridge.seedSessions([_pendingSnapshot('other')]);
+    bridge.release(BridgeMethod.listSessions);
+    await pending;
+    await tester.pumpAndSettle();
+    expect(find.text(message), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'VoiceCallLayer shows OutgoingCallModal when the snapshot has an outgoingCall',

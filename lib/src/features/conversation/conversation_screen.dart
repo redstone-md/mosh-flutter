@@ -23,6 +23,7 @@ import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart'
     show showMediaViewer;
+import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart'
@@ -156,10 +157,11 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   }
 
   Future<void> _openWithSystemApp(String localPath) async {
+    final toaster = context.toaster;
     try {
       await ref.read(attachmentLauncherProvider).open(localPath);
     } catch (error) {
-      _showSnackBar(readableError(error));
+      toaster.show(readableError(error), kind: ToastKind.error);
     }
   }
 
@@ -174,7 +176,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   void _onAttachmentPickError(AttachmentPickError error) {
     if (!mounted) return;
     final l = AppLocalizations.of(context)!;
-    _showSnackBar(switch (error) {
+    _showError(switch (error) {
       AttachmentPickError.tooLarge => l.attachmentTooLargeMessage,
       AttachmentPickError.previewUnavailable => l.attachmentPreviewUnavailable,
       AttachmentPickError.notAFile => l.attachmentNotAFile,
@@ -182,10 +184,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     });
   }
 
-  void _showSnackBar(String message) {
+  void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    context.toaster.show(message, kind: ToastKind.error);
   }
 
   /// Asks first, then leaves.
@@ -282,7 +283,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
           onRetrySend: _retryFailedSend,
           onOpenAttachment: _openAttachment,
           onPeerMessage: _onPeerMessage,
-          onVoiceError: _showSnackBar,
+          onVoiceError: _showError,
           onAttachmentPickError: _onAttachmentPickError,
         ),
       ),

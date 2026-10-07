@@ -78,6 +78,7 @@
   "messageCopyText": "Копировать сообщение",
   "messageCopySelectedText": "Копировать выделенное",
   "messageCopied": "Скопировано",
+  "toastDismiss": "Закрыть уведомление",
   "chatAttachLabel": "Прикрепить файл",
   "chatDropHint": "Перетащите файл, чтобы поделиться им",
   "attachmentTooLargeMessage": "Размер вложения превышает 50 МБ",

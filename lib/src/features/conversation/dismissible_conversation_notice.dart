@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 
@@ -34,15 +35,14 @@ class _DismissibleConversationNoticeState
   Future<void> _dismiss() async {
     if (_saving) return;
     setState(() => _saving = true);
+    final toaster = context.toaster;
+    final failed = AppLocalizations.of(context)!.noticeDismissFailed;
     try {
       await ref
           .read(dismissedConversationNoticesProvider.notifier)
           .dismiss(widget.kind);
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.noticeDismissFailed)));
-      }
+      toaster.show(failed, kind: ToastKind.error);
     } finally {
       if (mounted) setState(() => _saving = false);
     }

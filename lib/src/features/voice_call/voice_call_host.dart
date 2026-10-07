@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/state/auto_poll_provider.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
@@ -113,8 +114,7 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
         isCallWindowFocused: _window.isFocused,
         onVoiceCallError: (message) {
           if (message != null) {
-            ScaffoldMessenger.maybeOf(context)
-                ?.showSnackBar(SnackBar(content: Text(message)));
+            context.toaster.show(message, kind: ToastKind.error);
           }
         },
       );
