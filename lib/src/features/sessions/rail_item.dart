@@ -131,45 +131,47 @@ class RailItem extends StatelessWidget {
       onTap: semanticLabel == null ? null : onTap,
       // On mobile the opened chat hides the rail and freezes the tap ink.
       child: ResumedInk(
-          child: InkWell(
-        onTap: onTap,
-        // An overlay, not an opaque fill, so the channel and group tints
-        // still show through on hover.
-        hoverColor: _kHoverOverlay,
-        child: FocusRing(
-          radius: radius,
-          child: Container(
-            // A floor, not a fixed height: large text grows the row.
-            constraints: const BoxConstraints(minHeight: kRailItemHeight),
-            padding: const EdgeInsetsDirectional.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
-            child: Row(
-              children: <Widget>[
-                ExcludeSemantics(
-                  child: IconTheme.merge(
-                    data: IconThemeData(color: kind.accent, size: 18),
-                    child: leading,
+          builder: (focusNode) => InkWell(
+                focusNode: focusNode,
+                onTap: onTap,
+                // An overlay, not an opaque fill, so the channel and group tints
+                // still show through on hover.
+                hoverColor: _kHoverOverlay,
+                child: FocusRing(
+                  radius: radius,
+                  child: Container(
+                    // A floor, not a fixed height: large text grows the row.
+                    constraints:
+                        const BoxConstraints(minHeight: kRailItemHeight),
+                    padding: const EdgeInsetsDirectional.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        ExcludeSemantics(
+                          child: IconTheme.merge(
+                            data: IconThemeData(color: kind.accent, size: 18),
+                            child: leading,
+                          ),
+                        ),
+                        const SizedBox(width: 10), // `.rail-item { gap: 10px }`
+                        Expanded(
+                          child: _RailText(
+                            title: title,
+                            subtitle: subtitle,
+                            timestamp: timestamp,
+                          ),
+                        ),
+                        if (trailing case final trailing?) ...<Widget>[
+                          const SizedBox(width: 10),
+                          trailing,
+                        ],
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 10), // `.rail-item { gap: 10px }`
-                Expanded(
-                  child: _RailText(
-                    title: title,
-                    subtitle: subtitle,
-                    timestamp: timestamp,
-                  ),
-                ),
-                if (trailing case final trailing?) ...<Widget>[
-                  const SizedBox(width: 10),
-                  trailing,
-                ],
-              ],
-            ),
-          ),
-        ),
-      )),
+              )),
     );
   }
 }
@@ -270,43 +272,45 @@ class RailSettingsButton extends StatelessWidget {
           // Settings covers the rail; a fresh InkWell drops the press ink
           // that froze under it.
           child: ResumedInk(
-              child: InkWell(
-            borderRadius: radius,
-            onTap: onTap,
-            hoverColor: MoshColors.bg3,
-            child: FocusRing(
-              radius: radius,
-              child: Container(
-                constraints: const BoxConstraints(minHeight: kRailButtonHeight),
-                padding: const EdgeInsetsDirectional.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                child: Row(
-                  children: <Widget>[
-                    const Icon(
-                      Icons.settings_outlined,
-                      size: 18,
-                      color: MoshColors.fg2,
-                    ),
-                    const SizedBox(width: 10),
-                    Flexible(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: MoshColors.fg2,
+              builder: (focusNode) => InkWell(
+                    focusNode: focusNode,
+                    borderRadius: radius,
+                    onTap: onTap,
+                    hoverColor: MoshColors.bg3,
+                    child: FocusRing(
+                      radius: radius,
+                      child: Container(
+                        constraints:
+                            const BoxConstraints(minHeight: kRailButtonHeight),
+                        padding: const EdgeInsetsDirectional.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            const Icon(
+                              Icons.settings_outlined,
+                              size: 18,
+                              color: MoshColors.fg2,
+                            ),
+                            const SizedBox(width: 10),
+                            Flexible(
+                              child: Text(
+                                label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: MoshColors.fg2,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-          )),
+                  )),
         ),
       ),
     );
@@ -328,49 +332,50 @@ class RailNewButton extends StatelessWidget {
       button: true,
       child: PressScale(
         child: ResumedInk(
-            child: InkWell(
-          borderRadius: radius,
-          onTap: onTap,
-          // `.rail-new:hover { background: var(--moss-glow) }`.
-          hoverColor: MoshColors.mossGlow,
-          child: FocusRing(
-            radius: radius,
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 48),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                borderRadius: radius,
-              ),
-              child: Row(
-                children: <Widget>[
-                  const SizedBox(
-                    width: kRailLeadingWidth,
-                    child: Center(
-                      child: CircleAvatar(
-                          radius: 16,
-                          backgroundColor: MoshColors.moss,
-                          child: Icon(Icons.add,
-                              size: 20, color: MoshColors.mossInk)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: MoshColors.fg1,
+            builder: (focusNode) => InkWell(
+                  focusNode: focusNode,
+                  borderRadius: radius,
+                  onTap: onTap,
+                  // `.rail-new:hover { background: var(--moss-glow) }`.
+                  hoverColor: MoshColors.mossGlow,
+                  child: FocusRing(
+                    radius: radius,
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: radius,
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          const SizedBox(
+                            width: kRailLeadingWidth,
+                            child: Center(
+                              child: CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: MoshColors.moss,
+                                  child: Icon(Icons.add,
+                                      size: 20, color: MoshColors.mossInk)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Flexible(
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: MoshColors.fg1,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-        )),
+                )),
       ),
     );
   }

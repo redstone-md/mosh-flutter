@@ -2,8 +2,10 @@
 // fading only after Back, so the button flashed its pressed colour on return.
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
+import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
@@ -49,5 +51,26 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pump();
     expect(_ink(tester, RailNewButton), isEmpty);
+  });
+
+  testWidgets('keyboard focus stays on the gear after settings',
+      (tester) async {
+    await _pumpRail(tester, const Size(1200, 850));
+    Focus.of(tester.element(find.descendant(
+            of: find.byType(RailSettingsButton),
+            matching: find.byType(FocusRing))))
+        .requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Back to chats'));
+    await tester.pumpAndSettle();
+    final focused = FocusManager.instance.primaryFocus?.context;
+    expect(focused, isNotNull);
+    expect(
+        find.descendant(
+            of: find.byType(RailSettingsButton),
+            matching: find.byWidget(focused!.widget)),
+        findsOneWidget);
   });
 }
