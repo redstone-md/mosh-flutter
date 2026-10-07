@@ -1,42 +1,17 @@
-// Tracer-bullet: prove media_kit's headless Player + screenshot() path works
-// inside `flutter test` on Windows before the executor builds the real video
-// thumbnail branch. If this test passes (returns non-null JPEG bytes), the
-// path is viable for the real video-thumbnail branch. If it
-// cannot run in `flutter test` (the case on this Windows machine), the
-// executor must guard with try/catch and treat video thumbnails as
-// best-effort (null on failure, never fatal).
-//
-// VERDICT (Windows, 2026-08-02): the Player + screenshot() path CANNOT run
-// headless inside `flutter test` on this machine. media_kit's native
-// backend is `libmpv-2.dll`, which is NOT shipped inside the pub package
-// `media_kit_libs_windows_video` -- its windows/CMakeLists.txt downloads
-// the DLL at `flutter build windows` time into the CMake binary dir and
-// nothing places it on %PATH% or inside the repo. So in the test isolate
-// `MediaKit.ensureInitialized()` throws "Cannot find libmpv-2.dll". There
-// is no local copy to point `LIBMPV_LIBRARY_PATH` / `ensureInitialized(
-// libmpv:)` at either (build/windows/.../Debug has only flutter_windows.dll
-// + mosh_core.dll; mpv is not on %PATH%). Therefore the real
-// video-thumbnail branch MUST:
-//   1. Guard every Player/screenshot call in try/catch and treat a null
-//      thumbnail as best-effort (never fatal) -- videoThumbnail returns
-//      null on failure.
-//   2. Be exercised end-to-end via integration_test (a real Flutter app
-//      bundle that has the staged libmpv-2.dll), NOT via `flutter test`.
-//   3. Unit-test only the "returns null gracefully when media_kit is
-//      unavailable" fallback path in `flutter test`.
-//
-// The await sequence inside the test body below is the one the executor
-// should reuse inside the real app / integration_test; it is the exact
-// videoThumbnail port (6s overall budget, 10% seek target).
-// On a machine where libmpv-2.dll IS staged (e.g. a CI step that runs
-// `flutter build windows` first, or integration_test), this probe will
-// actually execute and assert the JPEG magic bytes instead of skipping.
+// Native capture uses real libmpv and the committed sample.mp4 fixture.
+// Headless players must enable VideoTrack.auto(): without a VideoController,
+// media_kit defaults to vid=no and produces no decoded frame.
+// These tests verify JPEG capture and the app's bounded attachment previews;
+// only hosts without the native backend skip them.
 import 'dart:async';
+import 'dart:convert' show base64Decode;
 import 'dart:io' show File;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:media_kit/media_kit.dart';
+import 'package:mosh/src/features/shared/thumbnail.dart';
 
 void main() {
   // `flutter test` never runs lib/main.dart, so MediaKit's native libs are
@@ -47,9 +22,23 @@ void main() {
     MediaKit.ensureInitialized();
   } catch (e) {
     skipReason = 'media_kit native backend unavailable in `flutter test`: $e. '
-        'Run this probe via integration_test with a staged libmpv-2.dll. '
-        'See file header for the full diagnosis.';
+        'Install or stage libmpv to run native capture tests.';
   }
+
+  test('video attachment generates a miniature and a clear preview', () async {
+    final fixture = File('test/fixtures/sample.mp4');
+    expect(fixture.existsSync(), isTrue);
+    final previews =
+        await createAttachmentPreviews(fixture.readAsBytesSync(), 'sample.mp4');
+    expect(previews, isNotNull);
+    final miniature = base64Decode(previews!.miniatureBase64);
+    final clear = base64Decode(previews.previewBase64);
+    expect(previews.miniatureBase64.length, lessThanOrEqualTo(2048));
+    expect(img.decodeJpg(miniature), isNotNull);
+    final decoded = img.decodeJpg(clear)!;
+    expect(decoded.width, 320);
+    expect(decoded.height, 240);
+  }, skip: skipReason, timeout: const Timeout(Duration(seconds: 30)));
 
   test(
     'media_kit Player.screenshot() returns JPEG bytes headless',
@@ -67,6 +56,7 @@ void main() {
         player = Player(
           configuration: const PlayerConfiguration(muted: true),
         );
+        await player.setVideoTrack(VideoTrack.auto());
         final media = await Media.memory(bytes);
         await player.open(media, play: false);
 

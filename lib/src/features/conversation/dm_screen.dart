@@ -32,8 +32,8 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   Future<void> _startCall() async {
     final call = ref.read(conversationCallBindingProvider);
     if (call == null) return;
+    final reportError = actionErrorReporter(context);
     final error = await call.start(ref, widget.sessionId);
-    if (!mounted || error == null) return;
-    showActionErrorSnackBar(context, error);
+    if (error != null) reportError(error);
   }
 }

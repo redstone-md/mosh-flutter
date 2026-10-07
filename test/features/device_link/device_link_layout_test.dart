@@ -8,6 +8,7 @@ import 'package:mosh/src/features/device_link/device_link_start_actions.dart';
 import 'package:mosh/src/features/device_link/device_list.dart';
 import 'package:mosh/src/rust/device_link/types.dart';
 
+import '../../support/message_selection.dart' show captureClipboard;
 import '../../support/pump.dart';
 import '../../support/device_link_fixture.dart';
 
@@ -160,6 +161,23 @@ void main() {
     expect(find.text('Cancel link'), findsNothing);
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
     expect(find.textContaining('Approval saved.'), findsOneWidget);
+  });
+
+  testWidgets('copying the linking link confirms with a toast', (tester) async {
+    final copied = captureClipboard(tester);
+    await _pump(
+        tester,
+        DeviceLinkFlow(
+          snapshot: _snapshot(DeviceLinkPhase.showingQr),
+          role: DeviceLinkRole.authorizing,
+          busy: false,
+          onApprove: (_) {},
+          onCancel: () {},
+        ));
+    await tester.tap(find.text('Copy link'));
+    await tester.pumpAndSettle();
+    expect(copied, [deviceLinkQrFixture()]);
+    expect(find.text('Copied'), findsOneWidget);
   });
 
   for (final width in [320.0, 800.0]) {

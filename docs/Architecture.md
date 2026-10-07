@@ -127,6 +127,9 @@ See [conversation behavior](Features/chat-redesign.md),
 [visual consistency](Features/chat-visual-consistency.md) and
 [chat list layout](Features/chat-list-layout.md).
 
+Transient confirmations and failures go through the app's one toast stack,
+`Toaster` rendered by `ToastHost`; see [toasts](Features/toasts.md).
+
 Caught conversation errors become `ConversationActionError` and use localized
 wording derived from `ConversationBridgeErrorKind`. Runtime diagnostic strings
 are for logs. Poll/list failures remain provider errors. Rejoin, revocation and

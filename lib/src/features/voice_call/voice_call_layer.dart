@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart' show windowManager;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
@@ -95,8 +96,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         widget.onVoiceCallError != null) {
       widget.onVoiceCallError!(message);
     } else {
-      ScaffoldMessenger.maybeOf(context)
-          ?.showSnackBar(SnackBar(content: Text(message)));
+      context.toaster.show(message, kind: ToastKind.error);
     }
     ref
         .read(voiceCallOrchestratorProvider(widget.sessionId).notifier)
@@ -209,10 +209,9 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
 }
 
 Future<Object?> startVoiceCall(WidgetRef ref, String sessionId) async {
+  final alreadyInProgress =
+      AppLocalizations.of(ref.context)!.callAlreadyInProgress;
   final result =
       await ref.read(voiceCallStartProvider.notifier).start(sessionId);
-  if (result is CallAlreadyInProgress && ref.context.mounted) {
-    return AppLocalizations.of(ref.context)!.callAlreadyInProgress;
-  }
-  return result;
+  return result is CallAlreadyInProgress ? alreadyInProgress : result;
 }

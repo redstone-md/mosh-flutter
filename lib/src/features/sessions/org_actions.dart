@@ -50,6 +50,7 @@ Future<void> _runOrgAction(
   required String orgPubkey,
   required _OrgAction action,
 }) async {
+  final reportError = actionErrorReporter(context);
   ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
   try {
     final landing = await action(_inviteOf(ref));
@@ -58,8 +59,7 @@ Future<void> _runOrgAction(
     final route = landing.route;
     if (route != null) context.go(route);
   } catch (e) {
-    if (!context.mounted) return;
-    showActionErrorSnackBar(context, e);
+    reportError(e);
   } finally {
     ref.read(orgOperationBusProvider.notifier).finish(orgPubkey);
   }

@@ -185,6 +185,10 @@
   "@messageCopied": {
     "description": "Brief confirmation after a message's text was copied"
   },
+  "toastDismiss": "Dismiss notification",
+  "@toastDismiss": {
+    "description": "Screen reader label of the close button on a toast notification"
+  },
   "chatAttachLabel": "Attach a file",
   "@chatAttachLabel": {
     "description": "Label for the attach-file button"

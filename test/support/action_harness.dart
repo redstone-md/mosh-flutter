@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:mosh/src/features/shared/toasts/toast_host.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
@@ -63,6 +64,7 @@ Future<ActionHarness> mountActionHarness(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         routerConfig: router,
+        builder: (context, child) => ToastHost(child: child!),
       ),
     ),
   );

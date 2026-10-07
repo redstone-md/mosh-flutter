@@ -23,6 +23,10 @@ on:
         description: Build universal binary (arm64 + x86_64). When false, builds host arch (arm64 on Apple Silicon) for fast CI checks.
         type: boolean
         default: true
+      parallel-codegen:
+        description: Compile mosh-core with parallel codegen (CI proof builds, never releases).
+        type: boolean
+        default: false
     outputs:
       artifact:
         description: Name of the uploaded artifact holding the universal .dmg and its .sha256.
@@ -83,6 +87,19 @@ jobs:
       - if: steps.opus.outputs.cache-hit != 'true'
         name: Build libopus.a (macOS universal)
         run: bash scripts/opus-prepare-macos.sh
+
+      # CI builds only prove the app still packages; release.yml builds the
+      # shipped artifact with the profile as committed. Fat LTO stays here
+      # too (changing lto rebuilds every dependency), but mosh-core's own
+      # codegen runs in parallel: its rebuild drops from ~4 to ~1.5 minutes
+      # with the dependency cache intact.
+      - name: Parallel mosh-core codegen (CI proof builds)
+        if: inputs.parallel-codegen
+        shell: bash
+        run: |
+          config="${CARGO_HOME:-$HOME/.cargo}/config.toml"
+          mkdir -p "$(dirname "$config")"
+          printf '\n[profile.release.package.mosh-core]\ncodegen-units = 16\n' >> "$config"
 
       - name: Build macOS app (release)
         env:

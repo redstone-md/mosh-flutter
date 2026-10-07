@@ -87,6 +87,12 @@ DM, group and channel reception, receiver restart and parent deletion. Group
 tests verify organization-wrapped packets at the maximum miniature budget and
 sender restart serving with the saved keys.
 
+Headless video preview capture selects `VideoTrack.auto()` before opening the
+media: media_kit disables video decoding until a track is selected or a
+`VideoController` attaches. The native media tests use real libmpv to verify
+JPEG capture and the bounded miniature/clear-preview pair. They skip only when
+the native backend is unavailable.
+
 Existing runtime send assembly, history replay and deletion admission retain
 their established function-length exceptions. They keep protocol fields and
 atomic history transitions together. The shared `Transfer` owner retains its
