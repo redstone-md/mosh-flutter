@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/features/shared/conversation_kind_style.dart';
+import 'package:mosh/src/features/sessions/rail_compact.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
@@ -28,13 +29,15 @@ const double kRailPadding = 12;
 /// Shared leading slot for the creation button and search icon.
 const double kRailLeadingWidth = 40;
 
-/// Width of the expanded rail pane.
+/// Widest default width of the expanded rail pane; below it the default
+/// follows the window, and a drag can widen the pane further.
 const double kRailWidth = 348;
 
 /// Hover wash over any row tint: about one bg step lighter on bg2.
 final Color _kHoverOverlay = Colors.white.withValues(alpha: 0.03);
 
-extension on RailItemKind {
+/// The conversation kind a rail row stands for, and its accent.
+extension RailItemKindStyle on RailItemKind {
   ConversationKind get conversationKind => switch (this) {
         RailItemKind.dm => ConversationKind.dm,
         RailItemKind.channel => ConversationKind.channel,
@@ -80,6 +83,7 @@ class RailItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (RailCompactScope.of(context)) return CompactRailItem(item: this);
     // The radius stays 12 in every state; the active ring is an inset
     // border and must not move the outer geometry (audit 2026-09-21:
     // radius jumped 12 -> 14 when a row was selected).

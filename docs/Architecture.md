@@ -121,8 +121,11 @@ snapshots. `RailActivity` computes previews and participants in one scan. Search
 and kind filters are local. Shared geometry lives in `app/mosh_shapes.dart`;
 `ConversationKindStyle` shares accents, labels and glyphs. Conversation details
 reuse one widget between the third desktop column and narrow modal layouts.
-See [conversation behavior](Features/chat-redesign.md) and
-[visual consistency](Features/chat-visual-consistency.md).
+On desktop `RailPane` sizes the rail from `railLayoutProvider` and collapses it
+to an avatar strip that `RailCompactScope` announces to the rail widgets.
+See [conversation behavior](Features/chat-redesign.md),
+[visual consistency](Features/chat-visual-consistency.md) and
+[chat list layout](Features/chat-list-layout.md).
 
 Caught conversation errors become `ConversationActionError` and use localized
 wording derived from `ConversationBridgeErrorKind`. Runtime diagnostic strings

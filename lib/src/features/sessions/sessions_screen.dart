@@ -10,6 +10,7 @@ import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
 import 'package:mosh/src/features/sessions/sessions_rail_list.dart';
 import 'package:mosh/src/features/sessions/sessions_list_controls.dart';
+import 'package:mosh/src/features/sessions/rail_compact.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_rail_actions.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
@@ -29,14 +30,26 @@ class SessionsScreen extends ConsumerStatefulWidget {
 }
 
 class _SessionsScreenState extends ConsumerState<SessionsScreen> {
+  final _search = TextEditingController();
   String _query = '';
   ConversationKind? _kind;
 
   @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final async = ref.watch(conversationListProvider(ConversationKind.dm));
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
+    final compact = RailCompactScope.of(context);
+    final column = Padding(
+      // Pinned controls inset themselves; the list insets its rows inside
+      // the scroller, so its scrollbar runs in the right gutter and both
+      // sides of a row stay [kRailPadding] from the edge.
+      padding: const EdgeInsets.symmetric(vertical: kRailPadding),
+      child: Column(children: _sections(context, compact)),
+    );
     // The rail carries NO header of
     // its own; the shell titlebar sits above it.
     return Scaffold(
@@ -48,61 +61,95 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       // under the cutout. Inside the Scaffold, so bg0 still paints edge to
       // edge behind the status bar and only the content is inset.
       body: SafeArea(
-        child: Padding(
-          // Pinned controls inset themselves; the list insets its rows
-          // inside the scroller, so its scrollbar runs in the right gutter
-          // and both sides of a row stay [kRailPadding] from the edge.
-          padding: const EdgeInsets.symmetric(vertical: kRailPadding),
-          child: Column(
-            children: <Widget>[
-              // The NewSession button + its divider are pinned above
-              // `.rail-list`, outside the scroller and independent of whether
-              // any conversation exists.
-              _inset(RailNewButton(
-                label: l.shellNewSession,
-                onTap: () => openNewSessionAction(context, ref),
-              )),
-              const SizedBox(height: kRailPadding),
-              _inset(SessionsListControls(
-                focusNode: ref.watch(chatListSearchFocusProvider),
-                kind: _kind,
-                onSearch: (value) => setState(() => _query = value),
-                onKind: (value) => setState(() => _kind = value),
-              )),
-              SizedBox(height: isMobileBreakpoint(context) ? 4 : 8),
-              Expanded(
-                child: SessionsRailList(
-                  dmSessions: sessionsOf(async.value),
-                  query: _query,
-                  kind: _kind,
-                  status: async.when<Widget?>(
-                    loading: () => SizedBox(
-                      height: kRailItemHeight,
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          semanticsLabel: l.sessionsLoading,
-                        ),
-                      ),
-                    ),
-                    error: (e, _) => _ErrorState(error: e, ref: ref),
-                    data: (_) => null,
-                  ),
-                ),
-              ),
-              // The gear, pinned BELOW the scroller (the same fixed slot
-              // the NewSession button holds above it) so it never scrolls
-              // away — the Discord placement.
-              const SizedBox(height: kRailPadding),
-              _inset(RailSettingsButton(
-                label: l.settingsGearLabel,
-                onTap: () => context.push(AppRoutes.settings),
-              )),
-            ],
-          ),
-        ),
+        // While the pane animates wider than the strip, the strip keeps
+        // its place at the start.
+        child: compact
+            ? Align(
+                alignment: AlignmentDirectional.topStart,
+                child: SizedBox(width: kRailCompactWidth, child: column))
+            : column,
       ),
     );
   }
+
+  List<Widget> _sections(BuildContext context, bool compact) {
+    final l = AppLocalizations.of(context)!;
+    final async = ref.watch(conversationListProvider(ConversationKind.dm));
+    void openSettings() => context.push(AppRoutes.settings);
+    return <Widget>[
+      // The NewSession button + its divider are pinned above `.rail-list`,
+      // outside the scroller and independent of whether any conversation
+      // exists.
+      _inset(compact
+          ? CompactRailButton(
+              icon: kCompactNewIcon,
+              label: l.shellNewSession,
+              filled: true,
+              onTap: () => openNewSessionAction(context, ref))
+          : RailNewButton(
+              label: l.shellNewSession,
+              onTap: () => openNewSessionAction(context, ref),
+            )),
+      const SizedBox(height: kRailPadding),
+      _inset(compact
+          ? CompactRailButton(
+              icon: const Icon(Icons.search, size: 20),
+              label: l.chatListSearch,
+              onTap: () => expandChatList(ref, focusSearch: true))
+          : SessionsListControls(
+              focusNode: ref.watch(chatListSearchFocusProvider),
+              controller: _search,
+              kind: _kind,
+              onSearch: (value) => setState(() => _query = value),
+              onKind: (value) => setState(() => _kind = value),
+            )),
+      SizedBox(height: isMobileBreakpoint(context) ? 4 : 8),
+      Expanded(
+        child: SessionsRailList(
+          dmSessions: sessionsOf(async.value),
+          query: _query,
+          kind: _kind,
+          status: _status(async, l, compact),
+        ),
+      ),
+      // The gear, pinned BELOW the scroller (the same fixed slot the
+      // NewSession button holds above it) so it never scrolls away — the
+      // Discord placement.
+      const SizedBox(height: kRailPadding),
+      _inset(compact
+          ? CompactRailButton(
+              icon: const Icon(Icons.settings_outlined,
+                  size: 18, color: MoshColors.fg2),
+              label: l.settingsGearLabel,
+              onTap: openSettings)
+          : RailSettingsButton(
+              label: l.settingsGearLabel, onTap: openSettings)),
+    ];
+  }
+
+  Widget? _status(
+          AsyncValue<Object?> async, AppLocalizations l, bool compact) =>
+      async.when<Widget?>(
+        loading: () => SizedBox(
+          height: kRailItemHeight,
+          child: Center(
+            child: CircularProgressIndicator(
+              semanticsLabel: l.sessionsLoading,
+            ),
+          ),
+        ),
+        error: (e, _) => compact
+            ? CompactRailButton(
+                icon: const Icon(Icons.error_outline, size: 20),
+                label: l.sessionsError,
+                onTap: _retry)
+            : _ErrorState(error: e, ref: ref),
+        data: (_) => null,
+      );
+
+  void _retry() => ref
+      .read(conversationListProvider(ConversationKind.dm).notifier)
+      .refresh();
 
   Widget _inset(Widget child) => Padding(
       padding: const EdgeInsets.symmetric(horizontal: kRailPadding),
