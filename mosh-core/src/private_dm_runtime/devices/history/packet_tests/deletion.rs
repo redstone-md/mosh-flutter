@@ -68,8 +68,8 @@ pub(super) fn legacy_source_preserves_verified_live_origins(f: &mut Fixture) {
         DeviceMessage::HistoryBatch(f.batch(0, vec![live, record("other", "second")])),
     );
     f.receive(&packet).unwrap();
+    assert_eq!(f.history_sync(), Some(DmHistorySyncState::Complete));
     let snapshot = f.snapshot();
-    assert_eq!(snapshot.history_sync, Some(DmHistorySyncState::Complete));
     assert_eq!(snapshot.messages.len(), 2);
     let overlap = snapshot
         .messages
