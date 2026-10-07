@@ -4,6 +4,38 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] - 2026-10-07
+
+### Added
+
+- A redesigned start menu: with no conversation open, the chat pane shows a
+  welcome hero over four cards (private chat, group, join with a link, public
+  channel). Each card opens its step in place, and typed text and created
+  invites survive a trip back to the menu.
+- The join step previews what a link opens (private chat, group or
+  organization) and the name a group or organization link carries, without
+  fetching anything before Connect.
+
+### Changed
+
+- Private-chat invites are created on request instead of on entry; the step
+  explains that anyone holding the link can use it until the contact connects.
+- Groups require a name. "Replace group invite", which created a second group,
+  is replaced by "Create another group".
+- Public channels warn that they are not encrypted before a name is entered
+  and suggest names that pass the channel name rule.
+- The display name is edited only in Settings → Profile.
+- The standalone start, chat-create, group-create and channel-join pages are
+  gone; `/join` deep links still open the join step.
+
+### Fixed
+
+- Joining a channel such as `#News` opens the channel the core joined
+  (`news`).
+- The join preview refreshes when a link is replaced by another of the same
+  kind.
+- Under reduced motion, the card arrow and join preview stay still.
+
 ## [0.17.0] - 2026-10-07
 
 ### Added
