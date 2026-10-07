@@ -1,7 +1,7 @@
 // IVO-50: the start menu answers the pointer. A hovered or focused card
-// lights up and leans toward the pointer; the hero illustration drifts
-// after it. Reduced motion keeps the light and drops the movement, here
-// and in the join preview.
+// lights up and leans toward the pointer; the hero illustration stays
+// still. Reduced motion keeps the light and drops the movement, here and
+// in the join preview.
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
@@ -117,33 +117,17 @@ void main() {
     expect(taps, 1);
   });
 
-  for (final reduceMotion in [false, true]) {
-    testWidgets(
-        'the illustration ${reduceMotion ? 'stays put' : 'drifts'} '
-        'under the pointer', (tester) async {
-      await _pump(tester,
-          const SizedBox(width: 1100, child: StartHero(illustrated: true)),
-          reduceMotion: reduceMotion);
-      Offset drift() => tester
-          .widget<Transform>(find
-              .ancestor(
-                  of: find.byType(Image), matching: find.byType(Transform))
-              .first)
-          .transform
-          .getTranslation()
-          .let((t) => Offset(t.x, t.y));
-      expect(drift(), Offset.zero);
-      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await mouse.addPointer(location: Offset.zero);
-      addTearDown(mouse.removePointer);
-      await mouse.moveTo(
-          tester.getTopRight(find.byType(StartHero)) + const Offset(-5, 5));
-      await tester.pumpAndSettle();
-      expect(drift() == Offset.zero, reduceMotion);
-    });
-  }
-}
-
-extension<T> on T {
-  R let<R>(R Function(T) f) => f(this);
+  testWidgets('the illustration stays put under the pointer', (tester) async {
+    await _pump(tester,
+        const SizedBox(width: 1100, child: StartHero(illustrated: true)));
+    await tester.pumpAndSettle();
+    final rest = tester.getRect(find.byType(Image));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(
+        tester.getTopRight(find.byType(StartHero)) + const Offset(-5, 5));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(find.byType(Image)), rest);
+  });
 }
