@@ -224,3 +224,19 @@ build compiled all Rust dependencies. They now point at the plugin's actual
 build dirs: `build/windows/x64/plugins/mosh_core/cargokit_build`,
 `build/macos/**/mosh_core.build` (the pod's Xcode `TARGET_TEMP_DIR`) and
 `build/mosh_core/build` (the plugin's Gradle build dir, newly cached).
+
+## Update 2026-10-07: Windows Cargo critical path
+
+On main, `rust-core` took about 25 minutes, 21 of them in Cargo test: about
+4.5 minutes compiling, 3.7 in the library tests and 11.5 in the
+`multi_device_dm_flow` binary alone. That binary runs real Moss
+installations waiting on protocol timeouts, so it is wall-clock rather than
+CPU. It now runs in its own `rust-core-dm-flow` job beside `rust-core`,
+which runs every other test target.
+
+The compile was mostly dependencies. `codegen-drift`, `rust-core` and
+`native-device-linking` shared the `desktop` Cargo cache, and the first job
+to finish saves it. That was `codegen-drift`, which builds no test profile,
+so the cache restored as a full match and the test jobs still rebuilt every
+dependency. `codegen-drift` now saves under `desktop-codegen`; the jobs that
+build the test profile share `desktop`.
