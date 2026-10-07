@@ -17,6 +17,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/deeplink/mosh_deep_link.dart';
 import 'package:mosh/src/deeplink/mosh_url_scheme_windows.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart';
+import 'package:mosh/src/features/shared/toasts/toast_host.dart';
 import 'package:mosh/src/features/crash_reporting/crash_reporting.dart';
 import 'package:mosh/src/features/lock/mosh_lock_screen.dart';
 import 'package:mosh/src/platform/app_data_dir.dart';
@@ -285,11 +286,15 @@ class MoshApp extends ConsumerWidget {
         data: MediaQuery.disableAnimationsOf(context)
             ? Theme.of(context).copyWith(splashFactory: NoSplash.splashFactory)
             : Theme.of(context),
-        child: NativeMenuLocalization(
-          child: FirstRunGate(
-            child: VoiceCallHost(
-              onOpenConversation: _openCallConversation,
-              child: child ?? const SizedBox(),
+        // Above the first-run gate and the call strip, so every action
+        // reports through the one toast stack.
+        child: ToastHost(
+          child: NativeMenuLocalization(
+            child: FirstRunGate(
+              child: VoiceCallHost(
+                onOpenConversation: _openCallConversation,
+                child: child ?? const SizedBox(),
+              ),
             ),
           ),
         ),

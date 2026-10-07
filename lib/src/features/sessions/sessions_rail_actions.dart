@@ -43,6 +43,7 @@ Future<void> acceptOfferAction(
   final flow = ref.read(inviteFlowProvider);
   final gateway = ref.read(gatewayProvider);
   final bridge = ref.read(bridgeFacadeProvider);
+  final reportError = actionErrorReporter(context);
   final SessionSnapshot session;
   try {
     session = await bridge.acceptInvite(
@@ -54,8 +55,7 @@ Future<void> acceptOfferAction(
       ),
     );
   } catch (e) {
-    if (!context.mounted) return;
-    showActionErrorSnackBar(context, e);
+    reportError(e);
     return;
   }
   if (!context.mounted) return;
@@ -84,11 +84,11 @@ Future<void> dismissOfferAction(
   final DmOfferHost<Object?> host = pending.kind == ConversationKind.channel
       ? ChannelTarget(pending.host)
       : GroupTarget(pending.host);
+  final reportError = actionErrorReporter(context);
   try {
     await gw.dismissDmOffer(host, offerId: pending.offer.offerId);
   } catch (e) {
-    if (!context.mounted) return;
-    showActionErrorSnackBar(context, e);
+    reportError(e);
     return;
   }
   // Refresh both lists so the offer row leaves the rail (the derived

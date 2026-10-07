@@ -46,7 +46,10 @@ class _Slot {
 }
 
 class _ToastHostState extends ConsumerState<ToastHost> {
-  late final Toaster _toaster = ref.read(toasterProvider);
+  /// The toaster of the scope above, followed if that scope's container
+  /// is replaced.
+  Toaster? _attached;
+  Toaster get _toaster => _attached!;
 
   /// Newest first, including toasts still animating out.
   final List<_Slot> _slots = [];
@@ -56,24 +59,35 @@ class _ToastHostState extends ConsumerState<ToastHost> {
   bool _spread = false;
 
   @override
-  void initState() {
-    super.initState();
-    _toaster.addListener(_sync);
-    _sync();
-  }
-
-  @override
   void dispose() {
-    _toaster
-      ..removeListener(_sync)
-      ..paused = false;
+    _detach();
     for (final timer in _removals) {
       timer.cancel();
     }
     super.dispose();
   }
 
-  void _sync() {
+  void _attach(Toaster toaster) {
+    if (identical(toaster, _attached)) return;
+    _detach();
+    _slots.clear();
+    _heights.clear();
+    _poses.clear();
+    _spread = false;
+    _attached = toaster..addListener(_sync);
+    _sync(rebuild: false);
+  }
+
+  /// Toasts belong to the host that shows them.
+  void _detach() {
+    _attached
+      ?..removeListener(_sync)
+      ..paused = false
+      ..clear();
+    _attached = null;
+  }
+
+  void _sync({bool rebuild = true}) {
     final shown = _toaster.toasts;
     final ids = {for (final entry in shown) entry.id};
     for (final slot in _slots) {
@@ -98,8 +112,8 @@ class _ToastHostState extends ConsumerState<ToastHost> {
       ..clear()
       ..addAll(active)
       ..addAll(leaving);
-    if (shown.isEmpty) _setSpread(false);
-    if (mounted) setState(() {});
+    if (shown.isEmpty) _setSpread(false, rebuild: rebuild);
+    if (rebuild && mounted) setState(() {});
   }
 
   void _leave(_Slot slot) {
@@ -139,15 +153,16 @@ class _ToastHostState extends ConsumerState<ToastHost> {
           if (slot.leavingFrom == null) slot
       ];
 
-  void _setSpread(bool value) {
+  void _setSpread(bool value, {bool rebuild = true}) {
     if (_spread == value) return;
     _spread = value;
     _toaster.paused = value;
-    if (mounted) setState(() {});
+    if (rebuild && mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    _attach(ref.watch(toasterProvider));
     final mobile = MediaQuery.sizeOf(context).width <= 580;
     final layout = ToastLayout(
       away: mobile ? -1 : 1,

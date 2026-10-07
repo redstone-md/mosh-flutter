@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/toasts/toast_host.dart';
 import 'package:mosh/src/routing/app_router.dart';
 
 /// Mounts [home] as the app's home screen and settles.
@@ -39,6 +40,7 @@ Future<void> pumpScreen(
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => ToastHost(child: child!),
         home: home,
       ),
       overrides: overrides,
@@ -70,7 +72,8 @@ Future<GoRouter> pumpRoute(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: router,
-      builder: builder,
+      builder: (context, child) =>
+          ToastHost(child: builder?.call(context, child) ?? child!),
     ),
     overrides: overrides,
     container: container,

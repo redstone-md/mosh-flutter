@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
@@ -59,8 +60,11 @@ class DeviceLinkFlow extends StatelessWidget {
           DeviceLinkQr(uri: snapshot.qrUri!, label: l.deviceLinkQrLabel),
           const SizedBox(height: 12),
           TextButton.icon(
-            onPressed: () =>
-                Clipboard.setData(ClipboardData(text: snapshot.qrUri!)),
+            onPressed: () async {
+              final toaster = context.toaster;
+              await Clipboard.setData(ClipboardData(text: snapshot.qrUri!));
+              toaster.show(l.messageCopied, kind: ToastKind.success);
+            },
             icon: const Icon(Icons.copy, size: 18),
             label: Text(l.deviceLinkCopy),
           ),

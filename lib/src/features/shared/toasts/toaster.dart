@@ -76,6 +76,18 @@ class Toaster extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Drops every toast, shown or waiting, as when nothing shows them.
+  void clear() {
+    for (final countdown in _countdowns.values) {
+      countdown.cancel();
+    }
+    _countdowns.clear();
+    _waiting.clear();
+    if (_shown.isEmpty) return;
+    _shown.clear();
+    notifyListeners();
+  }
+
   /// Holds every countdown, as while the stack is fanned out.
   set paused(bool value) {
     if (_paused == value) return;
