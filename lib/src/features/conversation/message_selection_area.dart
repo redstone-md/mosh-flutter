@@ -50,13 +50,10 @@ class _MessageSelectionAreaState extends State<MessageSelectionArea>
   }
 
   Future<void> copy(String text) async {
-    final messenger = ScaffoldMessenger.maybeOf(context);
+    final toaster = context.toaster;
     final copied = AppLocalizations.of(context)!.messageCopied;
     await Clipboard.setData(ClipboardData(text: text));
-    if (!mounted) return;
-    messenger
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(copied)));
+    toaster.show(copied, kind: ToastKind.success);
   }
 
   void showMenu(_CopyableMessageState message, Offset position,

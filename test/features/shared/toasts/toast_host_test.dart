@@ -156,4 +156,32 @@ void main() {
     await tester.pump();
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets('a replaced scope shows its own toasts', (tester) async {
+    Future<Toaster> mount() async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => ToastHost(child: child!),
+          home: const SizedBox(),
+        ),
+      ));
+      return container.read(toasterProvider);
+    }
+
+    final first = await mount();
+    first.show('old');
+    await tester.pumpAndSettle();
+    final second = await mount();
+    // The old scope's stack went with the host that showed it.
+    expect(first.toasts, isEmpty);
+    second.show('new');
+    await tester.pumpAndSettle();
+    expect(find.text('new'), findsOneWidget);
+    expect(find.text('old'), findsNothing);
+  });
 }

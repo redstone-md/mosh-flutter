@@ -6,6 +6,7 @@ import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/conversation/message_selection.dart';
 import 'package:mosh/src/features/conversation/message_selection_bar.dart';
+import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/message_deletion/types.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -94,6 +95,7 @@ class _MessageSelectionHostState extends ConsumerState<MessageSelectionHost> {
       return;
     }
     _selection.busy = true;
+    final toaster = context.toaster;
     try {
       await ref
           .read(gatewayProvider)
@@ -105,9 +107,10 @@ class _MessageSelectionHostState extends ConsumerState<MessageSelectionHost> {
         ..busy = false
         ..exit();
     } catch (_) {
+      // Only for the selection it promises to keep: another chat's, or a
+      // closed one's, failure would name the wrong selection.
       if (mounted && _selection.generation == generation) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l.messageDeletionFailed)));
+        toaster.show(l.messageDeletionFailed, kind: ToastKind.error);
       }
     } finally {
       if (mounted && _selection.generation == generation) {
