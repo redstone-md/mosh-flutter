@@ -604,7 +604,7 @@
   "@railOfferDismiss": {
     "description": "Tooltip for the trailing dismiss X on a pending DM-offer row"
   },
-  "onboardJoinStepBody": "Paste a mosh:// invite link. Mosh detects whether it opens a private chat or a group.",
+  "onboardJoinStepBody": "Paste a mosh:// invite link. Mosh detects whether it opens a private chat, a group or an organization.",
   "@onboardJoinStepBody": {
     "description": "Body of the join step in onboarding"
   },
