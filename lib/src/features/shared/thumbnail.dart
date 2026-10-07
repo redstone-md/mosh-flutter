@@ -20,7 +20,7 @@ import 'image_previews.dart';
 /// capture, re-encode). The
 /// video branch is best-effort: if the media_kit native backend (libmpv) is
 /// unavailable, it returns null rather than throwing. End-to-end video
-/// capture is verified via integration_test, not `flutter test`.
+/// capture is verified with real libmpv in the native media tests.
 Future<String?> createThumbnail(Uint8List bytes, String fileName) async {
   return (await createAttachmentPreviews(bytes, fileName))?.previewBase64;
 }
@@ -65,10 +65,9 @@ AttachmentPreviews? _decodeImagePreviews((Uint8List, String) input) {
 /// then decodes + resizes to 320px max-edge + re-encodes JPEG q70 (the same
 /// output shape as the image branch).
 ///
-/// Best-effort: returns null on ANY failure. The media_kit native backend
-/// (libmpv-2.dll) is a `flutter build windows` artifact and is absent from the
-/// `flutter test` isolate, so this resolves null there (the defensive
-/// contract). A real mp4 capture is exercised via integration_test.
+/// Best-effort: returns null when the native backend is unavailable or capture
+/// fails. Headless players must enable their video track explicitly because
+/// media_kit otherwise waits for a VideoController to enable decoding.
 Future<AttachmentPreviews?> _createVideoThumbnail(Uint8List bytes) async {
   Player? player;
   StreamSubscription<Duration>? durSub;
@@ -76,6 +75,7 @@ Future<AttachmentPreviews?> _createVideoThumbnail(Uint8List bytes) async {
   try {
     // vo stays default 'null' (headless) -- do NOT set vo.
     player = Player(configuration: const PlayerConfiguration(muted: true));
+    await player.setVideoTrack(VideoTrack.auto());
     final media = await Media.memory(bytes);
     await player.open(media, play: false);
 
