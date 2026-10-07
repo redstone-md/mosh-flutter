@@ -11,10 +11,10 @@ one copy showed the same snackbar in both.
   Toasts are 360px wide at most and never block taps around them.
 - **What.** Copy confirmations, failed actions (accepting or dismissing an
   invitation, organization actions, starting or running a call, deleting
-  messages, opening or picking an attachment, voice messages, hiding a notice)
-  and the device-link copy report as toasts. Persistent banners, delivery
-  states, inline form errors and the onboarding "Copied" labels keep their
-  own display.
+  messages, opening or picking an attachment, voice messages, hiding a notice),
+  the device-link copy and copying a start menu invite report as toasts.
+  Persistent banners, delivery states and inline form errors keep their own
+  display.
 - **Stacking.** The newest toast leads and up to two fold behind it, showing
   only their edge. A burst waits for a slot instead of evicting a toast
   before its text was exposed for 1.5s. Folded, unread toasts keep their
