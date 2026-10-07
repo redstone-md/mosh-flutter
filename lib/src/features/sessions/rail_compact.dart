@@ -86,7 +86,8 @@ class CompactRailItem extends ConsumerWidget {
             color: item.active ? kind.tint : Colors.transparent,
             borderRadius: radius,
             child: ResumedInk(
-              child: InkWell(
+              builder: (focusNode) => InkWell(
+                focusNode: focusNode,
                 borderRadius: radius,
                 onTap: onTap,
                 child: FocusRing(radius: radius, child: _tile(kind, radius)),
@@ -155,7 +156,8 @@ class CompactRailButton extends StatelessWidget {
           color: filled ? Colors.transparent : MoshColors.bg2,
           borderRadius: radius,
           child: ResumedInk(
-            child: InkWell(
+            builder: (focusNode) => InkWell(
+              focusNode: focusNode,
               borderRadius: radius,
               onTap: onTap,
               hoverColor: filled ? MoshColors.mossGlow : MoshColors.bg3,
