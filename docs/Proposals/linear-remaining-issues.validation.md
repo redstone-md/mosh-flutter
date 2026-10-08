@@ -87,6 +87,40 @@ bindings are identical to the previously verified implementation.
 Coverage against the rebased main covers 567/581 changed Dart lines, 97.6%,
 and 172/193 branches, 89.1%. Native coverage remains 565/613 lines, 92.2%.
 
+## PR review and CI follow-up
+
+Fetched all review threads, reviews and general comments for PR #69. Its one
+unresolved inline CodeAnt finding was valid: the Message action discarded its
+future while creation or publication could fail. The button now awaits that
+future and uses the existing localized error reporter, captured before closing
+the dialog. A regression failed with an unhandled error before the fix and
+passed afterward; all seven sender-meta widget tests passed.
+
+The custom-mesh nitpick was also valid. Both restored and newly created fake
+invitations now pass their mesh into the shared snapshot factory. Two regressions
+failed before the fix and passed after it, covering replacement and opening.
+The combined bridge, saved-invitation and sender-meta run passed 29 tests.
+
+The legacy-Welcome nitpick describes an older record that lost its initial
+Welcome before an old-version restart. That record cannot reconstruct the
+missing Welcome. Returning an error only logs locally; re-adding the member
+would change MLS membership and violate admission guarantees. Already joined
+legacy peers use authenticated Hello. New admissions already persist Welcome
+atomically and have a restart/retry regression. The legacy limit is now explicit
+in the invitation documentation; admission behavior is preserved.
+
+Both failing Rust CI jobs had the same obsolete expectation: a repeated
+KeyPackage could change an established address through unsigned fields. The
+updated real-Moss regression verifies that retry preserves the address and a
+real MLS-encrypted Hello changes it and marks it for persistence. No runtime
+behavior was weakened. The full unit run passed 698 tests with 18 ignored;
+build, strict Clippy, analysis and format checks passed. Independent Standards
+and Spec reviews of the follow-up patch reported no findings.
+
+The full Flutter rerun passed 1805 tests with 4 skipped. The invitation runtime
+and bridge contracts are unchanged by this follow-up; native coverage remains
+92.2% of changed executable lines.
+
 ## Changed files
 
 - `docs/ADR/0042-durable-compact-dm-invitations.md`
@@ -147,7 +181,9 @@ and 172/193 branches, 89.1%. Native coverage remains 565/613 lines, 92.2%.
 - `mosh-core/src/private_dm_runtime/lifecycle.rs`
 - `mosh-core/src/private_dm_runtime/pending_join.rs`
 - `mosh-core/src/private_dm_runtime/runtime_tests/handshake.rs`
+- `mosh-core/src/private_dm_runtime/runtime_tests/peer_discovery.rs`
 - `mosh-core/src/private_dm_runtime/session.rs`
+- `mosh-core/src/private_dm_runtime/session_transport.rs`
 - `mosh-core/src/private_dm_runtime/snapshot.rs`
 - `mosh-core/src/private_dm_runtime/state_tests/restore.rs`
 - `mosh-core/src/private_dm_runtime/wire.rs`
@@ -188,6 +224,7 @@ and 172/193 branches, 89.1%. Native coverage remains 565/613 lines, 92.2%.
 - `test/support/gateway_snapshots.dart`
 - `test/support/message_builders.dart`
 - `test/support/scriptable_bridge.dart`
+- `test/support/scriptable_bridge_test.dart`
 - `test/support/scriptable_bridge_conversations.dart`
 - `test/support/scriptable_bridge_invitations.dart`
 - `test/support/scripted_conversations.dart`
