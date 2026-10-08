@@ -147,6 +147,8 @@
   "startTitleLead": "Начать",
   "startTitleAccent": "разговор",
   "startSubtitle": "Приватные чаты и группы защищены сквозным шифрованием. Публичные каналы открыты всем, кто в них вошёл.",
+  "startGroupEncrypted": "Сквозное шифрование",
+  "startGroupOpen": "Открыто всем",
   "onboardBack": "Назад",
   "onboardAdvancedToggle": "Расширенные настройки подключения",
   "onboardAboutToggle": "Как Mosh вас защищает",

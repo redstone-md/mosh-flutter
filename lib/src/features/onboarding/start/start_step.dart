@@ -45,7 +45,7 @@ class StartStep extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             ExcludeSemantics(
-              child: Image.asset(image, height: 148, fit: BoxFit.contain),
+              child: Image.asset(image, height: 112, fit: BoxFit.contain),
             ),
             const SizedBox(height: 12),
             Semantics(
