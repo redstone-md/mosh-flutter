@@ -1,10 +1,6 @@
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
-import 'package:mosh/src/util/format.dart' show shorten;
-
-/// How many characters of an id to show when there is no better name.
-const int _shortIdLength = 6;
 
 class ConversationLeavePrompt {
   const ConversationLeavePrompt({
@@ -22,7 +18,10 @@ class ConversationLeavePrompt {
   ) =>
       switch (target.kind) {
         ConversationKind.dm => ConversationLeavePrompt(
-            title: l.deleteChatTitle(_peerName(target, snapshot)),
+            title: switch (_peerName(snapshot)) {
+              final name? => l.deleteChatTitle(name),
+              _ => l.deleteChatUnnamedTitle,
+            },
             body: l.deleteChatBody,
             confirmLabel: l.deleteChatConfirm,
           ),
@@ -32,7 +31,10 @@ class ConversationLeavePrompt {
             confirmLabel: l.leaveChannelConfirm,
           ),
         ConversationKind.group => ConversationLeavePrompt(
-            title: l.leaveGroupTitle(_groupName(target, snapshot)),
+            title: switch (_groupName(snapshot)) {
+              final name? => l.leaveGroupTitle(name),
+              _ => l.leaveGroupUnnamedTitle,
+            },
             body: l.leaveGroupBody,
             confirmLabel: l.leaveGroupConfirm,
           ),
@@ -43,23 +45,14 @@ class ConversationLeavePrompt {
   final String confirmLabel;
 }
 
-/// The peer's name, falling back to the session id until their first message
-/// tells us what they are called.
-String _peerName(
-  AnyConversationTarget target,
-  ConversationSnapshot? snapshot,
-) {
-  if (snapshot is! DmConversation) return target.id;
+/// Technical session IDs belong in details, never in confirmation titles.
+String? _peerName(ConversationSnapshot? snapshot) {
+  if (snapshot is! DmConversation) return null;
   final name = snapshot.source.peerDisplayName;
-  return name.isEmpty ? snapshot.source.sessionId : name;
+  return name.isEmpty || name == snapshot.source.sessionId ? null : name;
 }
 
-/// The group's label, falling back to a short form of its id. A group does
-/// not have to be named.
-String _groupName(
-  AnyConversationTarget target,
-  ConversationSnapshot? snapshot,
-) {
+String? _groupName(ConversationSnapshot? snapshot) {
   final label = snapshot is GroupConversation ? snapshot.source.label : null;
-  return label ?? shorten(target.id, _shortIdLength);
+  return label == null || label.trim().isEmpty ? null : label;
 }

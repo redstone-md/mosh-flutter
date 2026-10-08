@@ -17,87 +17,99 @@ void main() {
     const peerFp = 'fp-bob';
 
     testWidgets(
-        'non-own name is tappable and opens a popover with a Message button',
-        (tester) async {
-      await pumpScreen(
+      'non-own name is tappable and opens a popover with a Message button',
+      (tester) async {
+        await pumpScreen(
           tester,
           Scaffold(
-              body: ConversationSenderMeta(
-            fromDevice: 'bob',
-            fromFingerprint: peerFp,
-            sentAtMs: BigInt.from(1700000000000),
-            peer: PeerActions(
-              ownFingerprint: own,
-              offered: const {},
-              busy: false,
-              onMessage: (_) async {},
+            body: ConversationSenderMeta(
+              fromDevice: 'bob',
+              fromFingerprint: peerFp,
+              sentAtMs: BigInt.from(1700000000000),
+              peer: PeerActions(
+                ownFingerprint: own,
+                offered: const {},
+                busy: false,
+                onMessage: (_) async {},
+              ),
             ),
-          )));
+          ),
+        );
 
-      // The name is wrapped in an InkWell tap target.
-      expect(find.byType(InkWell), findsOneWidget);
-      // The visible name renders.
-      expect(find.text('bob'), findsOneWidget);
-      // No popover yet.
-      expect(find.byType(AlertDialog), findsNothing);
+        // The name is wrapped in an InkWell tap target.
+        expect(find.byType(InkWell), findsOneWidget);
+        // The visible name renders.
+        expect(find.text('bob'), findsOneWidget);
+        // No popover yet.
+        expect(find.byType(AlertDialog), findsNothing);
 
-      // Tap the name to open the popover.
-      await tester.tap(find.text('bob'));
-      await tester.pumpAndSettle();
-      expect(find.byType(AlertDialog), findsOneWidget);
-      // The Message button (en) renders + is enabled.
-      final messageButton = find.text('Message');
-      expect(messageButton, findsOneWidget);
-      expect(
+        // Tap the name to open the popover.
+        await tester.tap(find.text('bob'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
+        // The Message button (en) renders + is enabled.
+        final messageButton = find.text('Message');
+        expect(messageButton, findsOneWidget);
+        expect(
           tester
-              .widget<TextButton>(find.ancestor(
-                of: messageButton,
-                matching: find.byType(TextButton),
-              ))
+              .widget<FilledButton>(
+                find.ancestor(
+                  of: messageButton,
+                  matching: find.byType(FilledButton),
+                ),
+              )
               .onPressed,
-          isNotNull);
-    });
+          isNotNull,
+        );
+      },
+    );
 
     testWidgets(
-        'Message button is DISABLED + labelled "Invite sent" when offered',
-        (tester) async {
-      await pumpScreen(
+      'Message button is DISABLED + labelled "Invite sent" when offered',
+      (tester) async {
+        await pumpScreen(
           tester,
           Scaffold(
-              body: ConversationSenderMeta(
-            fromDevice: 'bob',
-            fromFingerprint: peerFp,
-            sentAtMs: BigInt.from(1700000000000),
-            peer: PeerActions(
-              ownFingerprint: own,
-              offered: const {peerFp},
-              busy: false,
-              onMessage: (_) async {},
+            body: ConversationSenderMeta(
+              fromDevice: 'bob',
+              fromFingerprint: peerFp,
+              sentAtMs: BigInt.from(1700000000000),
+              peer: PeerActions(
+                ownFingerprint: own,
+                offered: const {peerFp},
+                busy: false,
+                onMessage: (_) async {},
+              ),
             ),
-          )));
+          ),
+        );
 
-      await tester.tap(find.text('bob'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('bob'));
+        await tester.pumpAndSettle();
 
-      // Already offered -> label "Invite sent" (en).
-      final inviteSent = find.text('Invite sent');
-      expect(inviteSent, findsOneWidget);
-      // Disabled when alreadyOffered or busy.
-      expect(
+        // Already offered -> label "Invite sent" (en).
+        final inviteSent = find.text('Invite sent');
+        expect(inviteSent, findsOneWidget);
+        // Disabled when alreadyOffered or busy.
+        expect(
           tester
-              .widget<TextButton>(find.ancestor(
-                of: inviteSent,
-                matching: find.byType(TextButton),
-              ))
+              .widget<FilledButton>(
+                find.ancestor(
+                  of: inviteSent,
+                  matching: find.byType(FilledButton),
+                ),
+              )
               .onPressed,
-          isNull);
-    });
+          isNull,
+        );
+      },
+    );
 
     testWidgets('Message button is DISABLED when busy', (tester) async {
       await pumpScreen(
-          tester,
-          Scaffold(
-              body: ConversationSenderMeta(
+        tester,
+        Scaffold(
+          body: ConversationSenderMeta(
             fromDevice: 'bob',
             fromFingerprint: peerFp,
             sentAtMs: BigInt.from(1700000000000),
@@ -107,7 +119,9 @@ void main() {
               busy: true,
               onMessage: (_) async {},
             ),
-          )));
+          ),
+        ),
+      );
 
       await tester.tap(find.text('bob'));
       await tester.pumpAndSettle();
@@ -116,91 +130,103 @@ void main() {
       final messageButton = find.text('Message');
       expect(messageButton, findsOneWidget);
       expect(
-          tester
-              .widget<TextButton>(find.ancestor(
+        tester
+            .widget<FilledButton>(
+              find.ancestor(
                 of: messageButton,
-                matching: find.byType(TextButton),
-              ))
-              .onPressed,
-          isNull);
+                matching: find.byType(FilledButton),
+              ),
+            )
+            .onPressed,
+        isNull,
+      );
     });
 
     testWidgets(
-        'tapping Message when enabled calls onMessage(fingerprint) and closes the popover',
-        (tester) async {
-      final offered = <String>[];
-      await pumpScreen(
+      'tapping Message when enabled calls onMessage(fingerprint) and closes the popover',
+      (tester) async {
+        final offered = <String>[];
+        await pumpScreen(
           tester,
           Scaffold(
-              body: ConversationSenderMeta(
-            fromDevice: 'bob',
-            fromFingerprint: peerFp,
-            sentAtMs: BigInt.from(1700000000000),
-            peer: PeerActions(
-              ownFingerprint: own,
-              offered: const {},
-              busy: false,
-              onMessage: (fingerprint) async {
-                offered.add(fingerprint);
-              },
+            body: ConversationSenderMeta(
+              fromDevice: 'bob',
+              fromFingerprint: peerFp,
+              sentAtMs: BigInt.from(1700000000000),
+              peer: PeerActions(
+                ownFingerprint: own,
+                offered: const {},
+                busy: false,
+                onMessage: (fingerprint) async {
+                  offered.add(fingerprint);
+                },
+              ),
             ),
-          )));
+          ),
+        );
 
-      await tester.tap(find.text('bob'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('bob'));
+        await tester.pumpAndSettle();
 
-      // Tap the enabled Message button -> onMessage(peerFp) + popover closes.
-      await tester.tap(find.text('Message'));
-      await tester.pumpAndSettle();
+        // Tap the enabled Message button -> onMessage(peerFp) + popover closes.
+        await tester.tap(find.text('Message'));
+        await tester.pumpAndSettle();
 
-      expect(offered, [peerFp]);
-      // The popover Dialog closed after the tap.
-      expect(find.byType(AlertDialog), findsNothing);
-    });
-
-    testWidgets(
-        'peer == null (DM-row default) renders plain bold Text with NO tap target',
-        (tester) async {
-      await pumpScreen(
-          tester,
-          Scaffold(
-              body: ConversationSenderMeta(
-            fromDevice: 'bob',
-            fromFingerprint: peerFp,
-            sentAtMs: BigInt.from(1700000000000),
-          )));
-
-      // The name renders as plain bold Text.
-      expect(find.text('bob'), findsOneWidget);
-      // No InkWell / GestureDetector tap target (the tap target is only for
-      // non-own channel/group names; DM rows render plain bold).
-      expect(find.byType(InkWell), findsNothing);
-      expect(find.byType(GestureDetector), findsNothing);
-    });
+        expect(offered, [peerFp]);
+        // The popover Dialog closed after the tap.
+        expect(find.byType(AlertDialog), findsNothing);
+      },
+    );
 
     testWidgets(
-        'own fingerprint renders plain bold Text with NO popover (peer != null)',
-        (tester) async {
-      await pumpScreen(
+      'peer == null (DM-row default) renders plain bold Text with NO tap target',
+      (tester) async {
+        await pumpScreen(
           tester,
           Scaffold(
-              body: ConversationSenderMeta(
-            fromDevice: 'me',
-            fromFingerprint: own,
-            sentAtMs: BigInt.from(1700000000000),
-            peer: PeerActions(
-              ownFingerprint: own,
-              offered: const {},
-              busy: false,
-              onMessage: (_) async {},
+            body: ConversationSenderMeta(
+              fromDevice: 'bob',
+              fromFingerprint: peerFp,
+              sentAtMs: BigInt.from(1700000000000),
             ),
-          )));
+          ),
+        );
 
-      // Own name renders as plain bold.
-      expect(find.text('me'), findsOneWidget);
-      // No tap target + no popover for the own name.
-      expect(find.byType(InkWell), findsNothing);
-      expect(find.byType(GestureDetector), findsNothing);
-    });
+        // The name renders as plain bold Text.
+        expect(find.text('bob'), findsOneWidget);
+        // No InkWell / GestureDetector tap target (the tap target is only for
+        // non-own channel/group names; DM rows render plain bold).
+        expect(find.byType(InkWell), findsNothing);
+        expect(find.byType(GestureDetector), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'own fingerprint renders plain bold Text with NO popover (peer != null)',
+      (tester) async {
+        await pumpScreen(
+          tester,
+          Scaffold(
+            body: ConversationSenderMeta(
+              fromDevice: 'me',
+              fromFingerprint: own,
+              sentAtMs: BigInt.from(1700000000000),
+              peer: PeerActions(
+                ownFingerprint: own,
+                offered: const {},
+                busy: false,
+                onMessage: (_) async {},
+              ),
+            ),
+          ),
+        );
+
+        // Own name renders as plain bold.
+        expect(find.text('me'), findsOneWidget);
+        // No tap target + no popover for the own name.
+        expect(find.byType(InkWell), findsNothing);
+        expect(find.byType(GestureDetector), findsNothing);
+      },
+    );
   });
 }
