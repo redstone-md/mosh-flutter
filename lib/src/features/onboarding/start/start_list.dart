@@ -151,6 +151,7 @@ class _StartRowState extends State<StartRow> {
           radius: BorderRadius.zero,
           child: AnimatedContainer(
             duration: duration,
+            curve: StartMotion.ease,
             color: lit ? MoshColors.bg2 : MoshColors.bg1,
             padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 14, 14),
             child: Row(children: [

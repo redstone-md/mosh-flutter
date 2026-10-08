@@ -68,6 +68,22 @@ void main() {
     expect(step.center.dy, moreOrLessEquals(pane.center.dy, epsilon: 2));
   });
 
+  testWidgets('a pane shorter than its padding still lays out', (tester) async {
+    // A landscape phone with the keyboard up leaves less height than the
+    // pane's vertical padding.
+    tester.view
+      ..physicalSize = const Size(800, 60)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pumpScreen(
+      tester,
+      const ChatPaneWelcome(),
+      overrides: [gatewayProvider.overrideWithValue(ScriptableGateway())],
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.byType(StartMenu), findsOneWidget);
+  });
+
   testWidgets('a step keeps its typed text across a trip to the menu',
       (tester) async {
     await _pumpWelcome(tester);
