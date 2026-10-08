@@ -46,25 +46,14 @@ fn handle_control_captures_peer_moss_id_from_key_package() {
     assert_eq!(session.peer_moss_id, Some(bob_moss_peer_id));
 }
 
-// A peer that restarts without a persisted moss identity re-handshakes
-// under a fresh peer-id; the latest KeyPackage must replace the stale pin
-// or every relayed send keeps targeting a dead id.
+// Only an authenticated Hello may replace an established relay address;
+// replaying a KeyPackage cannot authenticate its cleartext routing fields.
 #[test]
-fn key_package_with_new_moss_id_replaces_stale_pin() {
+fn only_authenticated_hello_replaces_a_stale_moss_pin() {
     let _guard = MOSS_TEST_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    drain_received_messages();
-
-    let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-    let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
-    let invite = alice
-        .create_invite(StartSessionRequest {
-            display_name: "Alice".to_string(),
-            listen_port: 42187,
-            static_peer: None,
-        })
-        .expect("Alice invite should be created");
+    let (mut alice, session_id) = lone_session(42187);
 
     let mut bob_crypto = MlsSessionCrypto::new("Bob").expect("Bob crypto should init");
     let key_package_b64 = encode(
@@ -74,7 +63,7 @@ fn key_package_with_new_moss_id_replaces_stale_pin() {
     );
     let make_payload = |moss_peer_id: String| {
         serde_json::to_vec(&ControlEnvelope::KeyPackage {
-            session_id: invite.session_id.clone(),
+            session_id: session_id.clone(),
             participant_id: "bob-participant".to_string(),
             from_device: "Bob".to_string(),
             key_package_b64: key_package_b64.clone(),
@@ -85,7 +74,7 @@ fn key_package_with_new_moss_id_replaces_stale_pin() {
 
     let session = alice
         .sessions
-        .get_mut(&invite.session_id)
+        .get_mut(&session_id)
         .expect("Alice session should exist");
     session
         .handle_control(make_payload("ab".repeat(32)))
@@ -97,8 +86,42 @@ fn key_package_with_new_moss_id_replaces_stale_pin() {
         .expect("resent KeyPackage should be handled");
     assert_eq!(
         session.peer_moss_id,
-        Some("cd".repeat(32)),
-        "restarted peer's fresh moss id should replace the stale pin"
+        Some("ab".repeat(32)),
+        "a package retry must preserve the established address"
+    );
+
+    let ControlEnvelope::Welcome {
+        welcome_b64,
+        ratchet_tree_b64,
+        ..
+    } = decode_json(session.pending_welcome.as_ref().unwrap()).unwrap()
+    else {
+        panic!("admission should cache its Welcome");
+    };
+    bob_crypto
+        .join_welcome(
+            &decode(&welcome_b64).unwrap(),
+            &decode(&ratchet_tree_b64).unwrap(),
+        )
+        .unwrap();
+    session.record_dirty = false;
+    session
+        .handle_control(
+            serde_json::to_vec(&ControlEnvelope::Hello {
+                session_id: session_id.clone(),
+                participant_id: "bob-participant".into(),
+                from_device: "Bob".into(),
+                hello_ciphertext_b64: encode(
+                    &bob_crypto.encrypt("cd".repeat(32).as_bytes()).unwrap(),
+                ),
+            })
+            .unwrap(),
+        )
+        .unwrap();
+    assert_eq!(session.peer_moss_id, Some("cd".repeat(32)));
+    assert!(
+        session.record_dirty,
+        "the authenticated address must be saved"
     );
 }
 

@@ -64,10 +64,8 @@ impl PrivateDmSession {
         }
     }
 
-    /// Remember the peer's moss peer id from the latest frame that carries it.
-    /// Latest wins: a peer that restarts without a persisted moss identity
-    /// re-handshakes under a fresh peer id, and pinning the first one would
-    /// keep asking the transport for a dead id.
+    /// Remember the peer's Moss address at admission or from authenticated
+    /// conversation traffic. Callers reject cleartext changes after admission.
     pub(super) fn note_peer_moss_id(&mut self, id: Option<String>) {
         if let Some(id) = id {
             if self.peer_moss_id.as_deref() != Some(id.as_str()) {
