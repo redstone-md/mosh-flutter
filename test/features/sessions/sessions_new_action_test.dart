@@ -103,12 +103,13 @@ void main() {
     );
 
     await container.read(inviteFlowProvider.notifier).create();
-    expect(bridge.countOf(BridgeMethod.createInvite), 1);
+    expect(bridge.countOf(BridgeMethod.createPendingInvite), 1);
     await tester.tap(find.byType(RailNewButton));
     await tester.pumpAndSettle();
 
     expect(container.read(inviteFlowProvider).lastInvite, isNull);
     expect(find.byType(NewSessionPanel), findsOneWidget);
-    expect(bridge.countOf(BridgeMethod.createInvite), 1);
+    expect(bridge.countOf(BridgeMethod.createPendingInvite), 1);
+    expect((await bridge.listPendingInvites()).length, 1);
   });
 }

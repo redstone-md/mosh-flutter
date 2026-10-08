@@ -7,6 +7,8 @@ import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/conversation/message_selection.dart';
 import 'package:mosh/src/features/conversation/message_selection_bar.dart';
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
+import 'package:mosh/src/features/shared/mosh_dialog.dart';
+import 'package:mosh/src/features/shared/mosh_dialog_route.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/message_deletion/types.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -46,7 +48,10 @@ class _MessageSelectionHostState extends ConsumerState<MessageSelectionHost> {
       ref.read(conversationSnapshotProvider(widget.target)).value;
 
   List<ConversationMessage> get _visible => filterConversationMessages(
-      _snapshot?.messages ?? const [], widget.search, widget.filter);
+        _snapshot?.messages ?? const [],
+        widget.search,
+        widget.filter,
+      );
 
   @override
   void initState() {
@@ -66,14 +71,14 @@ class _MessageSelectionHostState extends ConsumerState<MessageSelectionHost> {
 
   void _retainVisible({bool notify = true}) => _selection.retain([
         for (final m in _visible)
-          if (m.messageId case final id?) id
+          if (m.messageId case final id?) id,
       ], notify: notify);
 
   List<ConversationMessage> get _selected {
     final byId = {for (final m in _visible) m.messageId: m};
     return [
       for (final id in _selection.selectedIds)
-        if (byId[id] case final message?) message
+        if (byId[id] case final message?) message,
     ];
   }
 
@@ -88,9 +93,10 @@ class _MessageSelectionHostState extends ConsumerState<MessageSelectionHost> {
     final target = widget.target;
     final generation = _selection.generation;
     final ids = messages.map((m) => m.messageId!).toList();
-    final scope = await showDialog<DeleteScope>(
-        context: context,
-        builder: (context) => _DeletionPrompt(messages: messages));
+    final scope = await showMoshDialog<DeleteScope>(
+      context: context,
+      builder: (context) => _DeletionPrompt(messages: messages),
+    );
     if (!mounted || scope == null || _selection.generation != generation) {
       return;
     }
@@ -137,35 +143,43 @@ class _MessageSelectionHostState extends ConsumerState<MessageSelectionHost> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(conversationSnapshotProvider(widget.target),
-        (_, __) => _retainVisible());
+    ref.listen(
+      conversationSnapshotProvider(widget.target),
+      (_, __) => _retainVisible(),
+    );
     final header = ListenableBuilder(
-        listenable: _selection,
-        builder: (context, _) => _selection.active
-            ? MessageSelectionBar(
-                count: _selection.count,
-                busy: _selection.busy,
-                onDelete: () => _delete(_selected),
-                onCancel: _selection.exit)
-            : widget.header);
+      listenable: _selection,
+      builder: (context, _) => _selection.active
+          ? MessageSelectionBar(
+              count: _selection.count,
+              busy: _selection.busy,
+              onDelete: () => _delete(_selected),
+              onCancel: _selection.exit,
+            )
+          : widget.header,
+    );
     return MessageSelectionScope(
-        selection: _selection,
-        onDelete: (message) => _delete([message]),
-        selectedText: _selectedText,
-        child: ListenableBuilder(
-            listenable: _selection,
-            // System back leaves the mode before it leaves the chat.
-            builder: (context, chat) => PopScope(
-                canPop: !_selection.active,
-                onPopInvokedWithResult: (didPop, _) {
-                  if (!didPop) _selection.exit();
-                },
-                child: chat!),
-            child: Focus(
-                canRequestFocus: false,
-                skipTraversal: true,
-                onKeyEvent: _onKey,
-                child: widget.builder(context, header))));
+      selection: _selection,
+      onDelete: (message) => _delete([message]),
+      selectedText: _selectedText,
+      child: ListenableBuilder(
+        listenable: _selection,
+        // System back leaves the mode before it leaves the chat.
+        builder: (context, chat) => PopScope(
+          canPop: !_selection.active,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) _selection.exit();
+          },
+          child: chat!,
+        ),
+        child: Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onKeyEvent: _onKey,
+          child: widget.builder(context, header),
+        ),
+      ),
+    );
   }
 }
 
@@ -176,35 +190,45 @@ class _DeletionPrompt extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final everyone = messages.every((m) => m.canDeleteForEveryone);
-    return AlertDialog(
-      title: Text(l.messageDeleteTitle(messages.length)),
-      content: SingleChildScrollView(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-            Text(l.messageDeleteExplanation),
-            if (messages.any((m) => m.localOnly))
-              Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(l.messageDeleteLocalOnly)),
-            if (!everyone)
-              Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(l.messageDeleteMixed)),
-          ])),
+    return MoshDialog(
+      title: l.messageDeleteTitle(messages.length),
+      closeLabel: l.dialogCancel,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(l.messageDeleteExplanation),
+          if (messages.any((m) => m.localOnly))
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(l.messageDeleteLocalOnly),
+            ),
+          if (!everyone)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(l.messageDeleteMixed),
+            ),
+        ],
+      ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l.dialogCancel)),
+          onPressed: () => Navigator.pop(context),
+          child: Text(l.dialogCancel),
+        ),
         TextButton(
-            onPressed: everyone
-                ? () => Navigator.pop(context, DeleteScope.forEveryone)
-                : null,
-            child: Text(l.messageDeleteForEveryone)),
-        TextButton(
-            onPressed: () => Navigator.pop(context, DeleteScope.forMe),
-            child: Text(l.messageDeleteForMe)),
+          onPressed: everyone
+              ? () => Navigator.pop(context, DeleteScope.forEveryone)
+              : null,
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: Text(l.messageDeleteForEveryone),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, DeleteScope.forMe),
+          style: moshDangerButtonStyle(),
+          child: Text(l.messageDeleteForMe),
+        ),
       ],
     );
   }

@@ -44,6 +44,7 @@ final _unread = <String, int>{
 };
 
 SessionSnapshot _session() => SessionSnapshot(
+      inviteAvailable: false,
       sessionId: dmId,
       meshId: 'm',
       role: 'inviter',

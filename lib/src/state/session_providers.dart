@@ -4,6 +4,7 @@ import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/pending_invites_provider.dart';
 
 /// Server state: app identity diagnostics (diagnostics screen, S4.8).
 final diagnosticsProvider =
@@ -108,18 +109,20 @@ class InviteFlowNotifier extends Notifier<InviteFlowState> {
     );
   }
 
-  /// Calls bridgeFacadeProvider.createInvite, stores the result, and returns
-  /// it so the caller can navigate to the invite-paste screen with the URI
-  /// in hand.
+  /// Creates a durable invitation without adding a chat to the recent list.
   Future<InviteCreated> create() async {
-    final invite = await ref.read(bridgeFacadeProvider).createInvite(
-          request: StartSessionRequest(
-            displayName: state.displayName,
-            listenPort: state.listenPort,
-            staticPeer: state.staticPeer,
-          ),
-        );
+    final startedUnder = ref;
+    final invite =
+        await startedUnder.read(bridgeFacadeProvider).createPendingInvite(
+              request: StartSessionRequest(
+                displayName: state.displayName,
+                listenPort: state.listenPort,
+                staticPeer: state.staticPeer,
+              ),
+            );
+    if (!startedUnder.mounted) return invite;
     state = state.copyWith(lastInvite: invite);
+    await startedUnder.read(pendingInvitesProvider.notifier).refresh();
     return invite;
   }
 }

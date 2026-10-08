@@ -15,6 +15,7 @@ SessionSnapshot _session(
   OutgoingCall? outgoingCall,
 }) =>
     SessionSnapshot(
+      inviteAvailable: false,
       sessionId: sessionId,
       meshId: 'm',
       role: 'caller',

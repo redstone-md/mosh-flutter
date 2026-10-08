@@ -1,8 +1,8 @@
 mod api;
-mod crypto;
+pub(crate) mod crypto;
 mod dm;
 mod protocol;
-mod stdio;
+pub(crate) mod stdio;
 use std::cell::Cell;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;

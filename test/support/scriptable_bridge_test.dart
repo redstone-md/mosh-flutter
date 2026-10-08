@@ -14,6 +14,35 @@ import 'scriptable_gateway.dart';
 import 'scriptable_bridge.dart';
 
 void main() {
+  for (final saved in [true, false]) {
+    test('${saved ? "saved" : "new"} invitation retains its custom mesh',
+        () async {
+      const invite = InviteCreated(
+        inviteUri: 'mosh://invite?mesh=custom-mesh&session=custom-session',
+        sessionId: 'custom-session',
+        meshId: 'custom-mesh',
+        fingerprint: 'custom-fingerprint',
+        listenAddress: '127.0.0.1:8765',
+      );
+      final bridge = ScriptableBridge();
+      if (saved) {
+        bridge.seedPendingInvites([invite]);
+      } else {
+        bridge.seedInvite(invite);
+        await bridge.createPendingInvite(
+          request:
+              const StartSessionRequest(displayName: 'alice', listenPort: 8765),
+        );
+      }
+
+      expect((await bridge.listPendingInvites()).single.meshId, invite.meshId);
+      expect((await bridge.replaceInvite(sessionId: invite.sessionId)).meshId,
+          invite.meshId);
+      expect((await bridge.openSession(sessionId: invite.sessionId)).meshId,
+          invite.meshId);
+    });
+  }
+
   test('joining an organization retains the snapshot for list and poll',
       () async {
     final bridge = ScriptableBridge();

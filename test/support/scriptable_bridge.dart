@@ -35,6 +35,7 @@ import 'scripted_conversations.dart';
 
 part 'scriptable_bridge_diagnostics.dart';
 part 'scriptable_bridge_conversations.dart';
+part 'scriptable_bridge_invitations.dart';
 part 'scriptable_bridge_organizations.dart';
 part 'scriptable_bridge_network.dart';
 part 'scriptable_bridge_calls.dart';
@@ -47,6 +48,10 @@ enum BridgeMethod {
   mossLibraryInfo,
   nativeRuntimeStatus,
   createInvite,
+  createPendingInvite,
+  listPendingInvites,
+  replaceInvite,
+  openSession,
   acceptInvite,
   listSessions,
   readReceiptsEnabled,
@@ -95,6 +100,7 @@ class ScriptableBridge extends _ScriptableBridgeState
     with
         _BridgeDiagnostics,
         _BridgeConversations,
+        _BridgeInvitations,
         _BridgeOrganizations,
         _BridgeNetwork,
         _BridgeCalls {
@@ -115,6 +121,7 @@ abstract class _ScriptableBridgeState
   final Map<String, OrgSnapshot> _orgs = {};
 
   InviteCreated? _invite;
+  int _inviteRevision = 0;
   NativeRuntimeStatus? _nativeStatus;
   MossLibraryInfo? _mossLibraryInfo;
   List<NetworkInterfaceInfo> _interfaces = const [];
@@ -141,6 +148,47 @@ abstract class _ScriptableBridgeState
   }
 
   void seedInvite(InviteCreated invite) => _invite = invite;
+
+  void seedPendingInvites(Iterable<InviteCreated> invitations) {
+    for (final invite in invitations) {
+      conversations.pendingInvites[invite.sessionId] = invite;
+      conversations.hiddenSessions.add(invite.sessionId);
+      conversations.sessions[invite.sessionId] = fakeSession(
+        sessionId: invite.sessionId,
+        meshId: invite.meshId,
+        displayName: '',
+        role: 'inviter',
+        inviteUri: invite.inviteUri,
+        fingerprint: invite.fingerprint,
+        inviteAvailable: true,
+      );
+    }
+  }
+
+  InviteCreated _createInvite(StartSessionRequest request) {
+    final sessionId =
+        _invite?.sessionId ?? 'fake-${conversations.sessions.length + 1}';
+    final fingerprint = _invite?.fingerprint ?? fakeFingerprint(sessionId);
+    final invite = _invite ??
+        InviteCreated(
+          inviteUri:
+              'mosh://invite?mesh=fakemesh&session=$sessionId#fp=$fingerprint',
+          sessionId: sessionId,
+          meshId: 'fakemesh',
+          fingerprint: fingerprint,
+          listenAddress: '127.0.0.1:${request.listenPort}',
+        );
+    conversations.sessions[sessionId] = fakeSession(
+      sessionId: sessionId,
+      meshId: invite.meshId,
+      displayName: request.displayName,
+      role: 'inviter',
+      inviteUri: invite.inviteUri,
+      fingerprint: fingerprint,
+      inviteAvailable: true,
+    );
+    return invite;
+  }
 
   void seedNativeRuntimeStatus(NativeRuntimeStatus status) =>
       _nativeStatus = status;

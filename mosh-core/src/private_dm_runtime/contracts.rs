@@ -140,6 +140,9 @@ pub struct SessionSnapshot {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_connect_outcome: Option<ConnectOutcome>,
     pub invite_uri: Option<String>,
+    /// Durable first admission controls creator invitation actions. Offline
+    /// status never makes a consumed invitation available again.
+    pub invite_available: bool,
     pub fingerprint: String,
     pub messages: Vec<ChatMessage>,
     pub attachments: Vec<AttachmentView>,

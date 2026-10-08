@@ -182,10 +182,13 @@ SessionSnapshot fakeSession({
   required String role,
   required String inviteUri,
   required String fingerprint,
+  String meshId = 'fakemesh',
+  bool inviteAvailable = false,
 }) =>
     SessionSnapshot(
+      inviteAvailable: inviteAvailable,
       sessionId: sessionId,
-      meshId: 'fakemesh',
+      meshId: meshId,
       role: role,
       displayName: displayName,
       peerDisplayName: '',
@@ -210,16 +213,8 @@ SessionSnapshot withMessage(
   String messageId,
   BigInt sentAtMs,
 ) =>
-    SessionSnapshot(
-      sessionId: base.sessionId,
-      meshId: base.meshId,
-      role: base.role,
-      displayName: base.displayName,
-      peerDisplayName: base.peerDisplayName,
-      state: base.state,
-      transport: base.transport,
-      inviteUri: base.inviteUri,
-      fingerprint: base.fingerprint,
+    copySessionSnapshot(
+      base,
       messages: [
         ...base.messages,
         ChatMessage(
@@ -233,10 +228,37 @@ SessionSnapshot withMessage(
           retryCount: null,
         ),
       ],
+    );
+
+/// Preserve runtime evidence when a scripted mutation changes one field.
+SessionSnapshot copySessionSnapshot(
+  SessionSnapshot base, {
+  String? inviteUri,
+  bool? inviteAvailable,
+  List<ChatMessage>? messages,
+}) =>
+    SessionSnapshot(
+      deletionSummary: base.deletionSummary,
+      deviceRevocation: base.deviceRevocation,
+      historySync: base.historySync,
+      sessionId: base.sessionId,
+      meshId: base.meshId,
+      role: base.role,
+      displayName: base.displayName,
+      peerDisplayName: base.peerDisplayName,
+      state: base.state,
+      transport: base.transport,
+      peerMossId: base.peerMossId,
+      lastConnectOutcome: base.lastConnectOutcome,
+      inviteUri: inviteUri ?? base.inviteUri,
+      inviteAvailable: inviteAvailable ?? base.inviteAvailable,
+      fingerprint: base.fingerprint,
+      messages: messages ?? base.messages,
       attachments: base.attachments,
       mesh: base.mesh,
       events: base.events,
       pendingCall: base.pendingCall,
+      peerTypingUntilMs: base.peerTypingUntilMs,
       outgoingCall: base.outgoingCall,
       activeCall: base.activeCall,
     );

@@ -34,6 +34,7 @@ ActiveCall _active({required int startedAtMs}) => ActiveCall(
 /// An active-session snapshot seeded so the orchestrator attaches and reports
 /// `muted: false` until a test flips it via `toggleMute`.
 SessionSnapshot _activeSession(String sessionId) => SessionSnapshot(
+      inviteAvailable: false,
       sessionId: sessionId,
       meshId: 'm',
       role: 'caller',

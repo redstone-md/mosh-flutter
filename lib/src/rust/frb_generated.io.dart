@@ -447,6 +447,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<GroupSnapshot> dco_decode_list_group_snapshot(dynamic raw);
 
   @protected
+  List<InviteCreated> dco_decode_list_invite_created(dynamic raw);
+
+  @protected
   List<Uint8List> dco_decode_list_list_prim_u_8_strict(dynamic raw);
 
   @protected
@@ -1105,6 +1108,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GroupSnapshot> sse_decode_list_group_snapshot(
+      SseDeserializer deserializer);
+
+  @protected
+  List<InviteCreated> sse_decode_list_invite_created(
       SseDeserializer deserializer);
 
   @protected
@@ -1828,6 +1835,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_group_snapshot(
       List<GroupSnapshot> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_invite_created(
+      List<InviteCreated> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_list_prim_u_8_strict(

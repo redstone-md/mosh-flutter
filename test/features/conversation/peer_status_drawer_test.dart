@@ -38,6 +38,7 @@ SessionSnapshot _session({
   String role = 'initiator',
 }) =>
     SessionSnapshot(
+      inviteAvailable: false,
       sessionId: sessionId,
       meshId: 'mesh-1',
       role: role,

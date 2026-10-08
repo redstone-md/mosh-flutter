@@ -12,29 +12,8 @@ mixin _BridgeConversations on _ScriptableBridgeState {
 
   @override
   Future<InviteCreated> createInvite({required StartSessionRequest request}) =>
-      runScripted(BridgeMethod.createInvite, {'request': request}, () {
-        final seeded = _invite;
-        final sessionId =
-            seeded?.sessionId ?? 'fake-${conversations.sessions.length + 1}';
-        final fingerprint = seeded?.fingerprint ?? fakeFingerprint(sessionId);
-        final inviteUri = seeded?.inviteUri ??
-            'mosh://invite?mesh=fakemesh&session=$sessionId#fp=$fingerprint';
-        conversations.sessions[sessionId] = fakeSession(
-          sessionId: sessionId,
-          displayName: request.displayName,
-          role: 'inviter',
-          inviteUri: inviteUri,
-          fingerprint: fingerprint,
-        );
-        return seeded ??
-            InviteCreated(
-              inviteUri: inviteUri,
-              sessionId: sessionId,
-              meshId: 'fakemesh',
-              fingerprint: fingerprint,
-              listenAddress: '127.0.0.1:${request.listenPort}',
-            );
-      });
+      runScripted(BridgeMethod.createInvite, {'request': request},
+          () => _createInvite(request));
 
   @override
   Future<SessionSnapshot> acceptInvite(
@@ -57,7 +36,10 @@ mixin _BridgeConversations on _ScriptableBridgeState {
         BridgeMethod.listSessions,
         const {},
         () => SessionListSnapshot(
-            sessions: conversations.sessions.values.toList()),
+            sessions: conversations.sessions.values
+                .where((session) =>
+                    !conversations.hiddenSessions.contains(session.sessionId))
+                .toList()),
       );
 
   @override

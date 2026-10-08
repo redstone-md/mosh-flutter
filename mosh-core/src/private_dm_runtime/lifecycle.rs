@@ -137,6 +137,11 @@ impl PrivateDmRuntime {
         // counterpart is reachable, and cannot ask the transport to reach it.
         session.peer_moss_id = rec.peer_moss_id.clone();
         session.membership = rec.membership.clone();
+        session.invitation = rec.invitation.clone();
+        session.pending_welcome = rec
+            .invitation
+            .as_ref()
+            .and_then(|invite| invite.welcome_payload.clone());
         session.device_store = self.sessions.persistence().cloned();
         // Read state rides the session record: ids the counterpart had
         // authenticated a read of before the restart. Without this a restart
@@ -159,8 +164,52 @@ impl PrivateDmRuntime {
         &mut self,
         request: StartSessionRequest,
     ) -> Result<InviteCreated, PrivateDmRuntimeError> {
-        let persist_listen_port = request.listen_port;
-        let persist_static_peer = request.static_peer.clone();
+        self.create_invitation(request, true)
+    }
+
+    pub(super) fn create_invitation(
+        &mut self,
+        request: StartSessionRequest,
+        opened: bool,
+    ) -> Result<InviteCreated, PrivateDmRuntimeError> {
+        let mut session = self.prepare_invitation_creator(request)?;
+        session.invitation = Some(invitations::InviteLifecycle::new(opened));
+        session.device_store = self.sessions.persistence().cloned();
+        let signed = if opened {
+            session
+                .transport
+                .authenticate_invite(
+                    session.invite_uri.as_deref().unwrap_or_default(),
+                    &session.crypto,
+                )
+                .map_err(PrivateDmRuntimeError::InvalidInvite)
+        } else {
+            session
+                .crypto
+                .random_token("invite")
+                .map_err(PrivateDmRuntimeError::from)
+                .and_then(|token| session.invitation_uri(&token))
+        };
+        let uri = match signed {
+            Ok(uri) => uri,
+            Err(error) => {
+                session.close_invitation_room();
+                return Err(error);
+            }
+        };
+        session.invite_uri = Some(uri);
+        self.persist_created_session(&session)?;
+        let invitation = session.created_invite()?;
+        let id = session.session_id.clone();
+        self.sessions.insert(id.clone(), session);
+        self.sessions.mark_record_final(&id);
+        Ok(invitation)
+    }
+
+    fn prepare_invitation_creator(
+        &mut self,
+        request: StartSessionRequest,
+    ) -> Result<PrivateDmSession, PrivateDmRuntimeError> {
         let mut crypto = MlsSessionCrypto::new(&request.display_name)?;
         crypto.create_group()?;
         let session_id = crypto.random_token("session")?;
@@ -171,55 +220,28 @@ impl PrivateDmRuntime {
             &mesh_id,
             &session_id,
             request.listen_port,
-            request.static_peer,
+            request.static_peer.clone(),
         )?;
-        // Embed our moss peer id so the joiner can ask the transport to reach
-        // us before organic discovery finds us.
-        let invite_uri = build_invite_uri(
+        let uri = build_invite_uri(
             &mesh_id,
             &session_id,
             &fingerprint,
             self.transport.local_peer_id().as_deref(),
         );
-
-        let invite_uri = match self.transport.authenticate_invite(&invite_uri, &crypto) {
-            Ok(invite) => invite,
-            Err(error) => {
-                self.transport.close_room(
-                    &mesh_id,
-                    &session_channels(&session_id),
-                    &format!("{KIND} {session_id}"),
-                );
-                return Err(PrivateDmRuntimeError::InvalidInvite(error));
-            }
-        };
-
-        let session = PrivateDmSession::new(
+        Ok(PrivateDmSession::new(
             SessionRole::Alice,
             request.display_name,
             participant_id,
-            session_id.clone(),
-            mesh_id.clone(),
-            fingerprint.clone(),
-            Some(invite_uri.clone()),
-            persist_listen_port,
-            persist_static_peer.clone(),
-            Arc::clone(&self.transport),
-            crypto,
-            Arc::clone(self.sessions.attachment_store()),
-        );
-
-        self.persist_created_session(&session)?;
-        self.sessions.insert(session_id.clone(), session);
-        self.sessions.mark_record_final(&session_id);
-
-        Ok(InviteCreated {
-            invite_uri,
             session_id,
             mesh_id,
             fingerprint,
-            listen_address: listen_address(),
-        })
+            Some(uri),
+            request.listen_port,
+            request.static_peer,
+            Arc::clone(&self.transport),
+            crypto,
+            Arc::clone(self.sessions.attachment_store()),
+        ))
     }
 
     fn persist_created_session(
@@ -230,11 +252,7 @@ impl PrivateDmRuntime {
             return Ok(());
         };
         if let Err(error) = session.write_extra(store) {
-            session.transport.close_room(
-                &session.mesh_id,
-                &session_channels(&session.session_id),
-                &format!("{KIND} {}", session.session_id),
-            );
+            session.close_invitation_room();
             return Err(error.into());
         }
         Ok(())

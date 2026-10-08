@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_emoji.dart';
+import 'package:mosh/src/features/shared/mosh_dialog.dart';
+import 'package:mosh/src/features/shared/mosh_dialog_route.dart';
 
 /// The lock tap area's inset: the 15px glyph plus 13px on every side keeps
 /// the InkWell at 41x41 -- the audit's >=40px tap floor for a control that
@@ -55,8 +57,11 @@ class FingerprintLock extends StatelessWidget {
       child: Tooltip(
         message: l.cryptoNoticeTitle,
         child: InkWell(
-          onTap: () => showFingerprintDialog(context,
-              fingerprint: fingerprint, hint: hint),
+          onTap: () => showFingerprintDialog(
+            context,
+            fingerprint: fingerprint,
+            hint: hint,
+          ),
           borderRadius: besideName ? MoshShapes.embedded : MoshShapes.control,
           child: Padding(
             // Align the inline glyph with the name's first line.
@@ -85,10 +90,11 @@ Future<void> showFingerprintDialog(
 }) {
   final l = AppLocalizations.of(context)!;
   final emoji = fingerprintEmoji(fingerprint).join();
-  return showDialog<void>(
+  return showMoshDialog<void>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(l.inviteFingerprintLabel),
+    builder: (dialogContext) => MoshDialog(
+      title: l.inviteFingerprintLabel,
+      closeLabel: l.dialogClose,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,

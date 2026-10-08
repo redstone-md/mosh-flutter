@@ -2,6 +2,7 @@
 // vpn_consent_modal.dart). Asserts the show/hide gate, the accept/decline
 // Gateway calls, the saving-phase label swap, and the error branch.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -86,6 +87,35 @@ Future<void> _pump(
 }
 
 void main() {
+  for (final dismissal in ['backdrop', 'Escape', 'close']) {
+    testWidgets('$dismissal declines VPN bypass and never grants consent',
+        (tester) async {
+      final gateway = _consentGateway(
+        detection: _ownsDefault(),
+        interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
+      );
+      var accepts = 0;
+      await _pump(tester, gateway: gateway, onAccept: () async => accepts++);
+      switch (dismissal) {
+        case 'backdrop':
+          await tester.tapAt(const Offset(1, 1));
+        case 'Escape':
+          await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        case 'close':
+          await tester.tap(find.byTooltip('Cancel'));
+      }
+      await tester.pumpAndSettle();
+      expect(find.text("A VPN is carrying Mosh's traffic"), findsNothing);
+      expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 1);
+      expect(
+          gateway
+              .lastCall(BridgeMethod.setVpnBypassConsent)
+              ?.arg<String?>('interfaceName'),
+          isNull);
+      expect(accepts, 0);
+    });
+  }
+
   testWidgets(
     'shows the modal when no consent + VPN owns the default route + a candidate exists',
     (tester) async {

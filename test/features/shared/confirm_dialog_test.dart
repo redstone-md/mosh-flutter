@@ -2,7 +2,7 @@
 // (lib/src/features/shared/confirm_dialog.dart). Pins the prop shape, the
 // danger-color confirm button, the close-X cancel, the ghost cancel button,
 // and the `showConfirmDialog` helper's return contract (true on confirm,
-// false on cancel/Esc/back; scrim tap is a no-op). No ARB dependency: the
+// false on cancel/Esc/back/backdrop). No ARB dependency: the
 // dialog takes labels as props and defaults `cancelLabel` to "Cancel" when
 // null, so the tests pass explicit strings.
 import 'package:flutter/material.dart';
@@ -93,17 +93,16 @@ Future<Future<bool>> _pumpHelper(WidgetTester tester) async {
 void main() {
   // Pins that the dialog renders the title + body + confirmLabel +
   // cancelLabel (defaulting the cancel label to "Cancel" when null).
-  testWidgets('renders title, body, confirm label, and default cancel label',
-      (tester) async {
-    await _pumpDialog(
-      tester,
-      onCancel: () {},
-      onConfirm: () {},
-    );
+  testWidgets('renders title, body, confirm label, and default cancel label', (
+    tester,
+  ) async {
+    await _pumpDialog(tester, onCancel: () {}, onConfirm: () {});
 
     expect(find.text('Leave chat?'), findsOneWidget);
     expect(
-        find.text('This will erase the keys. Are you sure?'), findsOneWidget);
+      find.text('This will erase the keys. Are you sure?'),
+      findsOneWidget,
+    );
     // Confirm button.
     expect(find.text('Leave'), findsOneWidget);
     // Cancel button (defaults to "Cancel").
@@ -116,8 +115,9 @@ void main() {
 
   // Pins that an explicit cancelLabel overrides the default and is used
   // for BOTH the ghost button and the close-X tooltip.
-  testWidgets('explicit cancelLabel drives the ghost button + close-X',
-      (tester) async {
+  testWidgets('explicit cancelLabel drives the ghost button + close-X', (
+    tester,
+  ) async {
     await _pumpDialog(
       tester,
       onCancel: () {},
@@ -166,8 +166,9 @@ void main() {
     expect(confirmed, isFalse);
   });
 
-  testWidgets('Escape cancels once per press with or without modifiers',
-      (tester) async {
+  testWidgets('Escape cancels once per press with or without modifiers', (
+    tester,
+  ) async {
     var cancellations = 0;
     var confirmations = 0;
     await _pumpDialog(
@@ -218,11 +219,7 @@ void main() {
   // `Color(0xFFE86A5A)` background, NOT the theme's default primary. Reads
   // the FilledButton's `backgroundColor` from its resolved style.
   testWidgets('the confirm button uses the danger color', (tester) async {
-    await _pumpDialog(
-      tester,
-      onCancel: () {},
-      onConfirm: () {},
-    );
+    await _pumpDialog(tester, onCancel: () {}, onConfirm: () {});
 
     // Find the FilledButton that holds the confirm label.
     final button = tester.widget<FilledButton>(
@@ -237,21 +234,22 @@ void main() {
     // Direct assertion on the explicit `backgroundColor` we set: the widget
     // passes `Color(0xFFE86A5A)` to `FilledButton.styleFrom`. Compare
     // against that literal so a theme/default drift fails loudly.
-    expect(style.backgroundColor?.resolve({WidgetState.selected}),
-        const Color(0xFFE86A5A));
+    expect(
+      style.backgroundColor?.resolve({WidgetState.selected}),
+      const Color(0xFFE86A5A),
+    );
   });
 
-  // Pins the alert icon: a `Icons.warning` glyph renders inside a 38x38
-  // tinted container. Sanity check the icon is present + decorative (no
-  // semantics).
-  testWidgets('renders the alert-triangle icon (decorative)', (tester) async {
-    await _pumpDialog(
-      tester,
-      onCancel: () {},
-      onConfirm: () {},
-    );
+  testWidgets('title and close button share a compact header', (tester) async {
+    await _pumpDialog(tester, onCancel: () {}, onConfirm: () {});
 
-    expect(find.byIcon(Icons.warning), findsOneWidget);
+    final title = tester.getRect(find.text('Leave chat?'));
+    final close = tester.getRect(find.byTooltip('Cancel'));
+    expect(title.center.dy, close.center.dy);
+    final card = find
+        .descendant(of: find.byType(Dialog), matching: find.byType(Material))
+        .first;
+    expect(tester.getSize(card).width, lessThanOrEqualTo(420));
   });
 
   // === showConfirmDialog helper contract ===
@@ -271,8 +269,9 @@ void main() {
 
   // Pins the helper returns `false` when the ghost cancel button is tapped
   // (the helper's `onCancel` pops `false`; `?? false` is a safety net).
-  testWidgets('showConfirmDialog returns false on ghost cancel',
-      (tester) async {
+  testWidgets('showConfirmDialog returns false on ghost cancel', (
+    tester,
+  ) async {
     final result = await _pumpHelper(tester);
 
     await tester.tap(find.text('Cancel'));
@@ -291,34 +290,14 @@ void main() {
     expect(await result, isFalse);
   });
 
-  // Pins that a tap on the modal barrier (the dim scrim outside the
-  // centered card) does NOT dismiss the dialog -- `barrierDismissible:
-  // false` makes the scrim a no-op. After the tap + a pump, the dialog is
-  // still shown and the helper's `Future<bool>` is still pending (no
-  // `onCancel` -> no pop -> no result).
-  testWidgets('showConfirmDialog scrim tap is a no-op (dialog stays open)',
-      (tester) async {
+  testWidgets('showConfirmDialog returns false on backdrop tap', (
+    tester,
+  ) async {
     final result = await _pumpHelper(tester);
-
-    // Track whether the helper future has resolved (it should NOT after a
-    // scrim tap, since the scrim is a no-op and no button was pressed).
-    var completed = false;
-    result.then((_) => completed = true);
-
-    // Tap the screen's top-left corner -- outside the centered dialog, on
-    // the modal barrier (showDialog's scrim). With
-    // `barrierDismissible: false` this is a no-op (the dim scrim still
-    // shows; it just does not pop).
     await tester.tapAt(const Offset(1, 1));
-    // A single pump (not pumpAndSettle) is enough to dispatch the pointer;
-    // we do NOT want to wait for any pop animation (there should be none).
-    await tester.pump();
-
-    // The dialog card is still on screen...
-    expect(find.text('Delete chat?'), findsOneWidget);
-    expect(find.text('Delete'), findsOneWidget);
-    // ...and the helper future has NOT completed (scrim was a no-op).
-    expect(completed, isFalse);
+    await tester.pumpAndSettle();
+    expect(await result, isFalse);
+    expect(find.text('Delete chat?'), findsNothing);
   });
 
   // Pins that Esc (via the `KeyboardListener`) resolves the helper with
@@ -333,16 +312,10 @@ void main() {
     expect(await result, isFalse);
   });
 
-  // The Android expectation for a modal is back=cancel (so the user is
-  // never trapped in a destructive confirm). Pins that a system-back pop
-  // (gated by the `PopScope(canPop: false, onPopInvokedWithResult:)`)
-  // cancels -- the helper resolves with `false`. `barrierDismissible:
-  // false` blocks the default pop; the `PopScope`'s
-  // `onPopInvokedWithResult` fires `onCancel` (which pops `false`).
-  // Invoked via the test binding's `handlePopRoute`, the same way
-  // Flutter's system-back dispatch reaches a route's `PopScope`.
-  testWidgets('showConfirmDialog returns false on Android system-back',
-      (tester) async {
+  // Android system back uses the same cancellation path as Escape.
+  testWidgets('showConfirmDialog returns false on Android system-back', (
+    tester,
+  ) async {
     final result = await _pumpHelper(tester);
 
     // Dispatch a system-back: the route's `PopScope` (canPop: false)

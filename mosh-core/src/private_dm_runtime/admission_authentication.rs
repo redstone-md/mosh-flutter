@@ -67,9 +67,7 @@ impl PrivateDmSession {
             ));
         }
         let name = self.crypto.key_package_identity(&key_package)?;
-        self.note_peer_name(&name);
-        self.note_peer_moss_id(Some(sender.peer_id));
-        self.answer_key_package(&key_package_b64)
+        self.admit_invitation_package(&name, Some(sender.peer_id), &key_package_b64)
     }
 }
 
@@ -117,6 +115,16 @@ impl PrivateDmRuntime {
             || session.crypto.member_count() != 1
             || invite.mesh_id != session.mesh_id
             || invite.fingerprint != session.crypto.fingerprint()
+            || !session.invite_available()
+            || invite_ownership::invitation_token(raw)
+                .map_err(PrivateDmRuntimeError::InvalidInvite)?
+                != session
+                    .invite_uri
+                    .as_deref()
+                    .map(invite_ownership::invitation_token)
+                    .transpose()
+                    .map_err(PrivateDmRuntimeError::InvalidInvite)?
+                    .flatten()
             || session
                 .expected_invitee()?
                 .is_some_and(|expected| expected != target)
@@ -125,6 +133,15 @@ impl PrivateDmRuntime {
                 "offer requires an unadmitted creator and its original target".into(),
             ));
         }
+        let uri = self.sign_targeted_invite(session, target)?;
+        Ok((session.session_id.clone(), uri))
+    }
+
+    fn sign_targeted_invite(
+        &self,
+        session: &PrivateDmSession,
+        target: &str,
+    ) -> Result<String, PrivateDmRuntimeError> {
         let owner = self.transport.local_peer_id().ok_or_else(|| {
             PrivateDmRuntimeError::InvalidInvite("creator identity unavailable".into())
         })?;
@@ -135,6 +152,16 @@ impl PrivateDmRuntime {
             Some(&owner),
         ))
         .map_err(|error| PrivateDmRuntimeError::InvalidInvite(error.to_string()))?;
+        if let Some(token) = session
+            .invite_uri
+            .as_deref()
+            .map(invite_ownership::invitation_token)
+            .transpose()
+            .map_err(PrivateDmRuntimeError::InvalidInvite)?
+            .flatten()
+        {
+            uri.query_pairs_mut().append_pair("token", &token);
+        }
         uri.query_pairs_mut().append_pair("target", target);
         let uri = self
             .transport
@@ -142,7 +169,7 @@ impl PrivateDmRuntime {
             .map_err(PrivateDmRuntimeError::InvalidInvite)?;
         invite_ownership::verify_offered_invite(&uri, &owner, target)
             .map_err(PrivateDmRuntimeError::InvalidInvite)?;
-        Ok((session.session_id.clone(), uri))
+        Ok(uri)
     }
 }
 
@@ -151,6 +178,9 @@ pub(super) fn admission_key_package(
     mesh: &str,
 ) -> Result<Option<Vec<u8>>, PrivateDmRuntimeError> {
     let mut envelope: ControlEnvelope = decode_json(payload)?;
+    if let ControlEnvelope::InvitationKeyPackage { payload_b64, .. } = envelope {
+        envelope = decode_json(&decode(&payload_b64)?)?;
+    }
     if let ControlEnvelope::AuthenticatedKeyPackage { proof_b64, .. } = envelope {
         let proof: SenderProof = decode_json(&decode(&proof_b64)?)?;
         let sender = proof

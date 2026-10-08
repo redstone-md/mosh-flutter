@@ -140,6 +140,7 @@ fn a_final_record_without_snapshot_is_kept_and_reported() {
     // A final (group_id present) record written without its snapshot: the
     // state a silently failed snapshot write leaves behind.
     let record = contracts::PersistedSession {
+        invitation: None,
         membership: None,
         role_is_alice: true,
         display_name: "Alice".to_string(),

@@ -565,7 +565,7 @@
   "@onboardChatCreate": {
     "description": "Button label to create a chat invite link"
   },
-  "onboardChatRecreate": "New link",
+  "onboardChatRecreate": "Replace link",
   "@onboardChatRecreate": {
     "description": "Button label to replace a chat invite link"
   },
@@ -2055,5 +2055,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "pendingInvitations": "Saved invitations",
+  "createNewInvitation": "Create new invitation",
+  "deleteChatUnnamedTitle": "Delete this chat?",
+  "leaveGroupUnnamedTitle": "Leave this group?"
 }

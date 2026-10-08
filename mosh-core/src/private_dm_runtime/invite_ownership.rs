@@ -40,6 +40,9 @@ pub(crate) fn sign_invite(
     crypto: &MlsSessionCrypto,
 ) -> Result<String, String> {
     let (mut unsigned, _) = split(raw)?;
+    if let Some(compact) = super::compact_invite::sign(unsigned.as_str(), identity, crypto)? {
+        return Ok(compact);
+    }
     let invite = ParsedInvite::parse(unsigned.as_str()).map_err(|error| error.to_string())?;
     let peer_id = hex::encode(identity.verifying_key().to_bytes());
     if invite.peer_moss_id.as_deref() != Some(&peer_id)
@@ -63,6 +66,9 @@ pub(super) fn verify_invite_owner(
     raw: &str,
     invite: &ParsedInvite,
 ) -> Result<Option<VerifiedSender>, String> {
+    if raw.starts_with(super::compact_invite::PREFIX) && !raw.starts_with("mosh://invite/?") {
+        return super::compact_invite::owner(raw).map(Some);
+    }
     let (unsigned, proof) = split(raw)?;
     let Some(proof) = proof else {
         return Ok(None);
@@ -84,6 +90,9 @@ pub(super) fn verify_invite_owner(
 }
 
 pub(crate) fn target_peer(raw: &str) -> Result<Option<String>, String> {
+    if raw.starts_with(super::compact_invite::PREFIX) && !raw.starts_with("mosh://invite/?") {
+        return super::compact_invite::target(raw);
+    }
     let url = url::Url::parse(raw).map_err(|error| error.to_string())?;
     let targets: Vec<_> = url
         .query_pairs()
@@ -96,6 +105,29 @@ pub(crate) fn target_peer(raw: &str) -> Result<Option<String>, String> {
             Ok(Some(target.to_lowercase()))
         }
         _ => Err("invitation requires one valid target identity".into()),
+    }
+}
+
+pub(super) fn invitation_token(raw: &str) -> Result<Option<String>, String> {
+    if raw.starts_with(super::compact_invite::PREFIX) && !raw.starts_with("mosh://invite/?") {
+        return super::compact_invite::token(raw);
+    }
+    let url = url::Url::parse(raw).map_err(|error| error.to_string())?;
+    let tokens: Vec<_> = url
+        .query_pairs()
+        .filter(|(key, _)| key == "token")
+        .map(|(_, value)| value.into_owned())
+        .collect();
+    match tokens.as_slice() {
+        [] => Ok(None),
+        [token]
+            if token.strip_prefix("invite-").is_some_and(|hex| {
+                hex.len() == 16 && hex.bytes().all(|byte| byte.is_ascii_hexdigit())
+            }) =>
+        {
+            Ok(Some(token.clone()))
+        }
+        _ => Err("invitation requires one valid admission token".into()),
     }
 }
 

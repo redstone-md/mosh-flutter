@@ -22,6 +22,9 @@ pub struct ParsedInvite {
 
 impl ParsedInvite {
     pub fn parse(raw: &str) -> Result<Self, PrivateDmRuntimeError> {
+        if raw.starts_with(super::compact_invite::PREFIX) && !raw.starts_with("mosh://invite/?") {
+            return super::compact_invite::parse(raw).map_err(PrivateDmRuntimeError::InvalidInvite);
+        }
         let url = url::Url::parse(raw)
             .map_err(|error| PrivateDmRuntimeError::InvalidInvite(error.to_string()))?;
 
@@ -46,6 +49,8 @@ impl ParsedInvite {
         super::invite_ownership::verify_invite_owner(raw, &invite)
             .map_err(PrivateDmRuntimeError::InvalidInvite)?;
         super::invite_ownership::target_peer(raw).map_err(PrivateDmRuntimeError::InvalidInvite)?;
+        super::invite_ownership::invitation_token(raw)
+            .map_err(PrivateDmRuntimeError::InvalidInvite)?;
         Ok(invite)
     }
 }

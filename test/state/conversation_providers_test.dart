@@ -82,25 +82,30 @@ void main() {
       expect(bridge.countOf(BridgeMethod.listGroups), 0);
     });
 
-    test(
-        'a session created through inviteFlowProvider appears in the DM list '
-        'after a refresh', () async {
-      final (container, _) = _container(ScriptableGateway());
+    test('an invitation appears in the DM list only after explicit opening',
+        () async {
+      final (container, bridge) = _container(ScriptableGateway());
 
       container.read(inviteFlowProvider.notifier).setDisplayName('alice');
       final invite = await container.read(inviteFlowProvider.notifier).create();
       expect(invite.sessionId, isNotEmpty);
 
-      // The facade double mutated its in-memory map; refresh the DM entry
-      // so it re-reads the new session.
       await container
           .read(conversationListProvider(ConversationKind.dm).notifier)
           .refresh();
       final list = await container
           .read(conversationListProvider(ConversationKind.dm).future);
+      expect(sessionsOf(list), isEmpty);
 
-      expect(
-          sessionsOf(list).map((s) => s.sessionId), contains(invite.sessionId));
+      await bridge.openSession(sessionId: invite.sessionId);
+      await container
+          .read(conversationListProvider(ConversationKind.dm).notifier)
+          .refresh();
+      final opened = await container
+          .read(conversationListProvider(ConversationKind.dm).future);
+
+      expect(sessionsOf(opened).map((s) => s.sessionId),
+          contains(invite.sessionId));
     });
   });
 
