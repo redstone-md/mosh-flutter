@@ -34,6 +34,7 @@ class _FailingCaptureFactory implements VoiceCaptureFactory {
 }
 
 SessionSnapshot _activeSnapshot(String sessionId) => SessionSnapshot(
+      inviteAvailable: false,
       sessionId: sessionId,
       meshId: 'mesh',
       role: 'caller',

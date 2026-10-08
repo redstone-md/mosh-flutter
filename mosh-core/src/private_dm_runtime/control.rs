@@ -11,6 +11,7 @@ mod welcome_auth_tests;
 impl PrivateDmSession {
     pub(super) fn handle_control(&mut self, payload: Vec<u8>) -> Result<(), PrivateDmRuntimeError> {
         let envelope: ControlEnvelope = decode_json(&payload)?;
+        let envelope = self.unwrap_invitation_admission(envelope)?;
         if let ControlEnvelope::MessageDeletion { session_id, frame } = envelope {
             return if session_id == self.session_id {
                 self.receive_deletion_frame(frame)
@@ -82,9 +83,7 @@ impl PrivateDmSession {
                 "targeted DM requires authenticated admission".into(),
             ));
         }
-        self.note_peer_name(name);
-        self.note_peer_moss_id(moss_peer_id);
-        self.answer_key_package(key_package)
+        self.admit_invitation_package(name, moss_peer_id, key_package)
     }
 
     fn handle_feedback_control(
@@ -151,38 +150,6 @@ impl PrivateDmSession {
         let manifest: AttachmentOffer = decode_json(&body)?;
         self.note_authenticated_frame(&from_device);
         self.accept_incoming_manifest(from_device, manifest)
-    }
-
-    /// Alice's side of the handshake. Bob re-sends his KeyPackage until he
-    /// sees the Welcome; if we already added him, our first Welcome was
-    /// likely lost before his node meshed, so re-answer with the cached copy
-    /// rather than calling add_members again (which advances the group
-    /// epoch).
-    pub(super) fn answer_key_package(
-        &mut self,
-        key_package_b64: &str,
-    ) -> Result<(), PrivateDmRuntimeError> {
-        if self.peer_joined {
-            if let Some(welcome_payload) = self.pending_welcome.clone() {
-                return self.route_send(ChannelKind::Control, &welcome_payload);
-            }
-            return Ok(());
-        }
-        let key_package = decode(key_package_b64)?;
-        let (welcome, tree) = self.crypto.add_peer(&key_package)?;
-        self.note_handshake_frame();
-        let envelope = ControlEnvelope::Welcome {
-            session_id: self.session_id.clone(),
-            participant_id: self.participant_id.clone(),
-            from_device: self.device_id.clone(),
-            welcome_b64: encode(&welcome),
-            ratchet_tree_b64: encode(&tree),
-            moss_peer_id: self.transport.local_peer_id(),
-        };
-        let welcome_payload = serde_json::to_vec(&envelope)
-            .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-        self.pending_welcome = Some(welcome_payload.clone());
-        self.route_send(ChannelKind::Control, &welcome_payload)
     }
 
     fn accept_welcome(

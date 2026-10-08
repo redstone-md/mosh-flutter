@@ -5,6 +5,8 @@ use super::*;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedSession {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) invitation: Option<crate::private_dm_runtime::invitations::InviteLifecycle>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) membership: Option<crate::private_dm_runtime::devices::DeviceMembership>,
     pub role_is_alice: bool,
     pub display_name: String,

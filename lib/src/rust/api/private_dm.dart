@@ -35,6 +35,23 @@ Future<void> setAppDataDir({required String path}) =>
 Future<InviteCreated> createInvite({required StartSessionRequest request}) =>
     RustLib.instance.api.crateApiPrivateDmCreateInvite(request: request);
 
+/// Save an invitation without adding its conversation to the recent-chat list.
+Future<InviteCreated> createPendingInvite(
+        {required StartSessionRequest request}) =>
+    RustLib.instance.api.crateApiPrivateDmCreatePendingInvite(request: request);
+
+/// Saved invitations remain available after navigation and restart.
+Future<List<InviteCreated>> listPendingInvites() =>
+    RustLib.instance.api.crateApiPrivateDmListPendingInvites();
+
+/// Replace only this unconsumed invitation while preserving its conversation.
+Future<InviteCreated> replaceInvite({required String sessionId}) =>
+    RustLib.instance.api.crateApiPrivateDmReplaceInvite(sessionId: sessionId);
+
+/// Durably add a saved invitation's conversation to the recent-chat list.
+Future<SessionSnapshot> openSession({required String sessionId}) =>
+    RustLib.instance.api.crateApiPrivateDmOpenSession(sessionId: sessionId);
+
 /// Accept a private-DM invite. The
 /// joiner parses the invite URI and processes the inviter's Welcome.
 Future<SessionSnapshot> acceptInvite({required AcceptInviteRequest request}) =>

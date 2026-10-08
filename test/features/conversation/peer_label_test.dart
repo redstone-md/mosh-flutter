@@ -21,6 +21,7 @@ SessionSnapshot _session({
   List<ChatMessage> messages = const [],
 }) =>
     SessionSnapshot(
+      inviteAvailable: false,
       sessionId: 's1',
       meshId: 'm1',
       role: role,

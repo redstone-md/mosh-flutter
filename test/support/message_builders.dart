@@ -173,6 +173,7 @@ class TestSnapshots {
     ActiveCall? activeCall,
   }) =>
       SessionSnapshot(
+        inviteAvailable: false,
         deviceRevocation: deviceRevocation,
         historySync: historySync,
         sessionId: sessionId,

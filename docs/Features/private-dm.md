@@ -22,18 +22,18 @@ sequenceDiagram
     participant Api as Rust bridge API
     participant Bob as Bob (Dart UI)
 
-    Alice->>BF: createInvite(StartSessionRequest)
-    BF->>Api: private_dm::create_invite(request)
+    Alice->>BF: createPendingInvite(StartSessionRequest)
+    BF->>Api: private_dm::create_pending_invite(request)
     Api-->>BF: InviteCreated { inviteUri, fingerprint }
     BF-->>Alice: InviteCreated
     Note over Alice: share invite URI out-of-band
-    Bob->>Bob: parse mosh://invite?...#fp= via invite_uri.dart
+    Bob->>Bob: detect compact or legacy mosh://invite via invite_uri.dart
     Note over Bob: invite_detection.dart watches clipboard
     Bob->>BF: acceptInvite(AcceptInviteRequest)
     BF->>Api: private_dm::accept_invite(request)
     Api-->>BF: SessionSnapshot { fingerprint }
     BF-->>Bob: SessionSnapshot
-    Note over Bob: fingerprint readable via the header lock<br/>(no gate — see below)
+    Note over Bob: native parser verifies invitation signatures<br/>fingerprint readable via the header lock
     Bob->>GW: send(DmTarget(sessionId), body)
     GW->>Api: conversation::send(BridgeConversationRef { Dm, session_id }, body)
     Api-->>GW: () — delivery state arrives in the next poll
@@ -44,6 +44,12 @@ sequenceDiagram
     GW-->>Bob: SessionSnapshot
     Note over Bob: message appears in snapshot
 ```
+
+Creating or replacing a personal invitation does not add a recent chat. Open
+chat saves that decision explicitly; validated first-counterpart admission also
+exposes it. Saved unopened invitations survive navigation and restart. The
+waiting creator's header offers Copy and Replace until native admission consumes
+the invitation. See [invitations](invitations.md) and [ADR 0042](../ADR/0042-durable-compact-dm-invitations.md).
 
 ## What the chat header says
 
@@ -136,7 +142,8 @@ local state ever marked anything "verified".
 - The fingerprint surface is read-only (the lock + dialog above); the
   runtime has no confirm-fingerprint call, and the UI keeps no
   confirmed-fingerprint state.
-- `mosh://invite?...#fp=...` is parsed by ported `invite_uri.dart`; manual
+- Compact `mosh://invite/<base64url>` and legacy query links are parsed by
+  `invite_uri.dart`; manual
   paste only, no OS deep-link association (ADR 0015).
 - Sessions list and per-session snapshot come from the DM entry of
   `conversationListProvider` and `activeSessionProvider.family`; both consume

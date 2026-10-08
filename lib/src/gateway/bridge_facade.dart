@@ -42,6 +42,10 @@ import 'package:mosh/src/rust/api/private_dm.dart' as api
         callSendFrame,
         callStart,
         createInvite,
+        createPendingInvite,
+        listPendingInvites,
+        replaceInvite,
+        openSession,
         listSessions,
         readReceiptsEnabled,
         setReadReceiptsEnabled;
@@ -98,6 +102,19 @@ class BridgeFacade {
   // poll.
   Future<InviteCreated> createInvite({required StartSessionRequest request}) =>
       api.createInvite(request: request);
+
+  Future<InviteCreated> createPendingInvite({
+    required StartSessionRequest request,
+  }) =>
+      api.createPendingInvite(request: request);
+
+  Future<List<InviteCreated>> listPendingInvites() => api.listPendingInvites();
+
+  Future<InviteCreated> replaceInvite({required String sessionId}) =>
+      api.replaceInvite(sessionId: sessionId);
+
+  Future<SessionSnapshot> openSession({required String sessionId}) =>
+      api.openSession(sessionId: sessionId);
 
   Future<SessionSnapshot> acceptInvite(
           {required AcceptInviteRequest request}) =>

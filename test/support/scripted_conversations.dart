@@ -9,7 +9,7 @@
 import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show SessionSnapshot;
+    show InviteCreated, SessionSnapshot;
 import 'package:mosh/src/rust/private_group_runtime.dart'
     show GroupSnapshot, GroupNameStatus;
 
@@ -20,6 +20,8 @@ import 'package:mosh/src/rust/private_group_runtime.dart'
 class ScriptedConversations {
   final names = <String, String>{};
   final Map<String, SessionSnapshot> sessions = {};
+  final Map<String, InviteCreated> pendingInvites = {};
+  final Set<String> hiddenSessions = {};
   final Map<String, ChannelSnapshot> channels = {};
   final Map<String, GroupSnapshot> groups = {};
 

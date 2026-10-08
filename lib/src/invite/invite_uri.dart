@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Error codes emitted by [InviteParseError].
 enum InviteParseErrorCode {
   invalidUrl,
@@ -109,6 +111,10 @@ MoshInvite parseMoshInvite(String rawInvite) {
     throw InviteParseError(InviteParseErrorCode.invalidScheme);
   }
 
+  if (uri.path.isNotEmpty && uri.path != '/') {
+    return _parseCompactInvite(uri);
+  }
+
   final meshId = _readToken(uri, _meshParam, InviteParseErrorCode.missingMesh);
   final sessionId = _readToken(
     uri,
@@ -124,6 +130,43 @@ MoshInvite parseMoshInvite(String rawInvite) {
     peerHint: peerHint,
     fingerprint: fingerprint,
   );
+}
+
+/// This screen extracts routing fields only. Native admission verifies both
+/// signatures and the intended recipient before accepting the invitation.
+MoshInvite _parseCompactInvite(Uri uri) {
+  try {
+    if (uri.hasQuery ||
+        uri.hasFragment ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasPort) {
+      throw const FormatException('Unexpected compact invitation fields');
+    }
+    final encoded = uri.path.substring(1);
+    final bytes = base64Url.decode(base64Url.normalize(encoded));
+    if (bytes.length < 210 ||
+        bytes[0] != 1 ||
+        bytes[1] & ~3 != 0 ||
+        base64Url.encode(bytes).replaceAll('=', '') != encoded) {
+      throw const FormatException('Invalid compact invitation');
+    }
+    final length =
+        210 + ((bytes[1] & 2) != 0 ? 8 : 0) + ((bytes[1] & 1) != 0 ? 32 : 0);
+    if (bytes.length != length) {
+      throw const FormatException('Invalid compact invitation length');
+    }
+    String hex(int start, int end) => bytes
+        .sublist(start, end)
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+        .join();
+    return MoshInvite(
+      meshId: 'mesh-${hex(2, 10)}',
+      sessionId: 'session-${hex(10, 18)}',
+      fingerprint: hex(50, 66).toUpperCase(),
+    );
+  } on FormatException {
+    throw InviteParseError(InviteParseErrorCode.invalidUrl);
+  }
 }
 
 /// Parses a private-group Mosh invite URI. Throws [InviteParseError] on any

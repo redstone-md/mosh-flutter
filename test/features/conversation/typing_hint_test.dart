@@ -27,6 +27,7 @@ final AppLocalizations _l = lookupAppLocalizations(const Locale('en'));
 /// A DM session snapshot shaped the way the canned snapshots are, with the
 /// typing deadline the test wants.
 SessionSnapshot _dm({BigInt? peerTypingUntilMs}) => SessionSnapshot(
+      inviteAvailable: false,
       sessionId: 's1',
       meshId: 'm',
       role: 'inviter',

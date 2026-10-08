@@ -48,6 +48,7 @@ SessionSnapshot _session({
   required DmSessionState state,
 }) =>
     SessionSnapshot(
+      inviteAvailable: false,
       sessionId: sessionId,
       meshId: 'm',
       role: 'inviter',

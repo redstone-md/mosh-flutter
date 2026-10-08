@@ -20,6 +20,7 @@ import '../../support/scriptable_gateway.dart';
 SessionSnapshot shellSession(
         {required String sessionId, required String peer}) =>
     SessionSnapshot(
+      inviteAvailable: false,
       sessionId: sessionId,
       meshId: 'testmesh',
       role: 'inviter',
