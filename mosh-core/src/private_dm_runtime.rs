@@ -1,7 +1,10 @@
 mod admission_authentication;
 mod call_media;
+mod compact_invite;
 pub(crate) mod contracts;
 mod devices;
+mod invitation_admission;
+mod invitations;
 mod invite;
 pub(crate) mod invite_ownership;
 mod outbox;
@@ -126,6 +129,7 @@ pub struct PrivateDmRuntime {
 }
 
 struct PrivateDmSession {
+    invitation: Option<invitations::InviteLifecycle>,
     deletions: crate::message_deletion::DeletionBook,
     history_last_rx_ms: u64,
     recovery_boot_ms: u64,

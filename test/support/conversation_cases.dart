@@ -192,6 +192,7 @@ List<ConversationCase> conversationCases({
         }) =>
             activeSessionProvider(dmId).overrideWith(
           (ref) async => SessionSnapshot(
+            inviteAvailable: false,
             sessionId: dmId,
             meshId: 'testmesh',
             role: 'inviter',

@@ -137,6 +137,13 @@ pub(crate) struct DeviceMembership {
 }
 
 impl DeviceMembership {
+    /// An authorized sibling belongs to our user and cannot consume a DM
+    /// invitation. Unknown MLS members include the original counterpart
+    /// before its encrypted identity claim has reached this installation.
+    pub(crate) fn has_counterpart(&self, signers: &[String]) -> bool {
+        signers.iter().any(|signer| !self.topology.own(signer))
+    }
+
     pub(crate) fn is_joining(&self) -> bool {
         self.joining.is_some()
     }

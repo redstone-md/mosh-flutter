@@ -80,11 +80,8 @@ fn accept_invite_preseeds_peer_moss_id_from_the_invite() {
             static_peer: None,
         })
         .expect("Alice invite should be created");
-    assert!(
-        invite.invite_uri.contains("&moss="),
-        "invite must carry the creator moss id: {}",
-        invite.invite_uri
-    );
+    let parsed = super::super::invite::ParsedInvite::parse(&invite.invite_uri)
+        .expect("invite should decode and verify");
 
     let mut bob = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
     bob.accept_invite(AcceptInviteRequest {
@@ -102,6 +99,7 @@ fn accept_invite_preseeds_peer_moss_id_from_the_invite() {
         .transport
         .local_peer_id()
         .expect("Alice node should expose its key");
+    assert_eq!(parsed.peer_moss_id.as_deref(), Some(alice_id.as_str()));
     let bob_session = bob
         .sessions
         .get(&invite.session_id)

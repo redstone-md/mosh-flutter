@@ -40,6 +40,7 @@ impl PrivateDmSession {
             peer_moss_id: self.peer_moss_id.clone(),
             last_connect_outcome: self.last_connect_outcome,
             invite_uri: self.invite_uri.clone(),
+            invite_available: self.invite_available(),
             fingerprint: self.fingerprint.clone(),
             messages,
             attachments: self.transfer.views(),

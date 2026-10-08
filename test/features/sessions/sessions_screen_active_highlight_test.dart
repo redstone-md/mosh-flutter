@@ -28,6 +28,7 @@ SessionSnapshot _session({
   required String peerDisplayName,
 }) =>
     SessionSnapshot(
+      inviteAvailable: false,
       sessionId: sessionId,
       meshId: 'm',
       role: 'inviter',

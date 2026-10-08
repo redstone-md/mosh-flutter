@@ -368,6 +368,10 @@ class SessionSnapshot {
   /// What the last request to reach the counterpart answered.
   final ConnectOutcome? lastConnectOutcome;
   final String? inviteUri;
+
+  /// Durable first admission controls creator invitation actions. Offline
+  /// status never makes a consumed invitation available again.
+  final bool inviteAvailable;
   final String fingerprint;
   final List<ChatMessage> messages;
   final List<AttachmentView> attachments;
@@ -399,6 +403,7 @@ class SessionSnapshot {
     this.peerMossId,
     this.lastConnectOutcome,
     this.inviteUri,
+    required this.inviteAvailable,
     required this.fingerprint,
     required this.messages,
     required this.attachments,
@@ -425,6 +430,7 @@ class SessionSnapshot {
       peerMossId.hashCode ^
       lastConnectOutcome.hashCode ^
       inviteUri.hashCode ^
+      inviteAvailable.hashCode ^
       fingerprint.hashCode ^
       messages.hashCode ^
       attachments.hashCode ^
@@ -453,6 +459,7 @@ class SessionSnapshot {
           peerMossId == other.peerMossId &&
           lastConnectOutcome == other.lastConnectOutcome &&
           inviteUri == other.inviteUri &&
+          inviteAvailable == other.inviteAvailable &&
           fingerprint == other.fingerprint &&
           messages == other.messages &&
           attachments == other.attachments &&

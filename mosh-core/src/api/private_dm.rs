@@ -69,6 +69,36 @@ pub fn create_invite(
         .map_err(ConversationBridgeError::from)
 }
 
+/// Save an invitation without adding its conversation to the recent-chat list.
+pub fn create_pending_invite(
+    request: StartSessionRequest,
+) -> Result<InviteCreated, ConversationBridgeError> {
+    ensure_runtime()?
+        .create_pending_invite(request)
+        .map_err(ConversationBridgeError::from)
+}
+
+/// Saved invitations remain available after navigation and restart.
+pub fn list_pending_invites() -> Result<Vec<InviteCreated>, ConversationBridgeError> {
+    ensure_runtime()?
+        .list_pending_invites()
+        .map_err(ConversationBridgeError::from)
+}
+
+/// Replace only this unconsumed invitation while preserving its conversation.
+pub fn replace_invite(session_id: String) -> Result<InviteCreated, ConversationBridgeError> {
+    ensure_runtime()?
+        .replace_invite(&session_id)
+        .map_err(ConversationBridgeError::from)
+}
+
+/// Durably add a saved invitation's conversation to the recent-chat list.
+pub fn open_session(session_id: String) -> Result<SessionSnapshot, ConversationBridgeError> {
+    ensure_runtime()?
+        .open_session(&session_id)
+        .map_err(ConversationBridgeError::from)
+}
+
 /// Accept a private-DM invite. The
 /// joiner parses the invite URI and processes the inviter's Welcome.
 pub fn accept_invite(

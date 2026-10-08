@@ -43,6 +43,7 @@ SessionSnapshot _session({
   required List<ChatMessage> messages,
 }) =>
     SessionSnapshot(
+      inviteAvailable: false,
       sessionId: sessionId,
       meshId: 'm',
       role: 'inviter',

@@ -141,6 +141,7 @@ impl PrivateDmRuntime {
         let mut snapshots: Vec<SessionSnapshot> = self
             .sessions
             .values_mut()
+            .filter(|session| session.is_visible())
             .map(PrivateDmSession::snapshot)
             .collect();
         snapshots.sort_by(|a, b| a.session_id.cmp(&b.session_id));

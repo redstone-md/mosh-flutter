@@ -22,6 +22,7 @@ impl PrivateDmSession {
         let data_channel = data_channel(&session_id);
         let blob_channel = blob_channel(&session_id);
         Self {
+            invitation: None,
             deletions: crate::message_deletion::DeletionBook::new(
                 format!("dm:{session_id}"),
                 DM_HISTORY,
@@ -84,19 +85,38 @@ impl PrivateDmSession {
     /// seen since the restart, so it is not Connected until it proves itself.
     pub(super) fn note_restored_history(&mut self) {
         self.peer_display_name = self
-            .messages
-            .iter()
-            .map(|message| message.from_device.as_str())
-            .find(|name| !name.is_empty() && *name != self.device_id)
-            .map(str::to_string);
+            .invitation
+            .as_ref()
+            .and_then(|invite| invite.peer_name.clone())
+            .or_else(|| {
+                self.messages
+                    .iter()
+                    .map(|message| message.from_device.as_str())
+                    .find(|name| !name.is_empty() && *name != self.device_id)
+                    .map(str::to_string)
+            });
         // Bob only ever has a group after the Welcome; Alice has one from the
         // start, so for her only an inbound message proves the handshake ran.
         let handshake_done = self.crypto.is_ready()
-            && (matches!(self.role, SessionRole::Bob) || self.peer_display_name.is_some());
+            && (matches!(self.role, SessionRole::Bob)
+                || self.peer_display_name.is_some()
+                || self
+                    .invitation
+                    .as_ref()
+                    .is_some_and(|invite| invite.consumed)
+                || self.has_restored_counterpart());
         if handshake_done {
             self.peer_joined = true;
             self.state = DmSessionState::Handshaking;
         }
+    }
+
+    fn has_restored_counterpart(&self) -> bool {
+        self.membership
+            .as_ref()
+            .map_or(self.crypto.member_count() > 1, |membership| {
+                membership.has_counterpart(&self.crypto.member_signers())
+            })
     }
 
     /// Builds the persisted record from the live session. `group_id` reflects
@@ -104,6 +124,7 @@ impl PrivateDmSession {
     /// Welcome replaces the empty placeholder written at accept time.
     pub(super) fn to_persisted_record(&self) -> contracts::PersistedSession {
         contracts::PersistedSession {
+            invitation: self.invitation.clone(),
             membership: self.membership.clone(),
             role_is_alice: matches!(self.role, SessionRole::Alice),
             display_name: self.device_id.clone(),

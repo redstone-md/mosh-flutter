@@ -52,6 +52,7 @@ SessionSnapshot _session({
   MeshInfo? mesh,
 }) =>
     SessionSnapshot(
+      inviteAvailable: false,
       sessionId: 'sess-1',
       meshId: 'mesh-1',
       role: 'inviter',

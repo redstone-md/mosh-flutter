@@ -165,6 +165,23 @@ fn stage_admission(
     } else {
         bytes
     };
+    let bytes = if let Some(invitation_token) = session
+        .invite_uri
+        .as_deref()
+        .map(invite_ownership::invitation_token)
+        .transpose()
+        .map_err(PrivateDmRuntimeError::InvalidInvite)?
+        .flatten()
+    {
+        serde_json::to_vec(&ControlEnvelope::InvitationKeyPackage {
+            session_id: session.session_id.clone(),
+            invitation_token,
+            payload_b64: encode(&bytes),
+        })
+        .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?
+    } else {
+        bytes
+    };
     session.pending_key_package = Some(bytes);
     Ok(())
 }

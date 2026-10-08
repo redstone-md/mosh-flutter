@@ -38,6 +38,11 @@ pub fn channel_call_id(channel: &str) -> Option<&str> {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ControlEnvelope {
+    InvitationKeyPackage {
+        session_id: String,
+        invitation_token: String,
+        payload_b64: String,
+    },
     MessageDeletion {
         session_id: String,
         frame: crate::message_deletion::protocol::DeletionFrame,

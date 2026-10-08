@@ -39,6 +39,7 @@ MeshInfo _mesh({int peerCount = 1}) => MeshInfo(
     );
 
 SessionSnapshot _readySession() => SessionSnapshot(
+      inviteAvailable: false,
       sessionId: 'sess-1',
       meshId: 'mesh-1',
       role: 'inviter',
