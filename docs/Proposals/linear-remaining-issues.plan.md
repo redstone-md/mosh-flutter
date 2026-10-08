@@ -75,7 +75,10 @@ The interview decisions below are the implementation specification.
 
 - [x] Read issues, screenshots, architecture and relevant ADRs.
 - [x] Agree on behavior and assign independent worktrees.
-- [ ] Write focused regression tests and implement changes.
-- [ ] Integrate localization and generated bridge bindings.
-- [ ] Review implementation against this specification and repository standards.
-- [ ] Run required checks, record results and make atomic commits.
+- [x] Write focused regression tests and implement changes.
+- [x] Integrate localization and generated bridge bindings.
+- [x] Review implementation against this specification and repository standards.
+- [x] Run required checks, record results and make atomic commits.
+
+Verification and the changed-file list are recorded in
+[the implementation report](linear-remaining-issues.validation.md).
