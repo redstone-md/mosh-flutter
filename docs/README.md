@@ -10,8 +10,9 @@ and the Flutter/Rust bridge.
 | Linked devices | [Device linking](Features/device-linking.md), [Android foreground chats](Features/android-linked-dm.md) |
 | Interface | [Conversations](Features/chat-redesign.md), [message menus](Features/message-context-menus.md), [dialogs](Features/dialogs.md), [settings](Features/settings-redesign.md) |
 | Voice calls | [Call windows, audio ownership and checks](Features/voice-calls.md) |
+| Video call design | [Issue 46 agreed requirements and open decisions](Proposals/issue-46-video-calls.plan.md) |
 | Architecture decisions | [ADRs](ADR/) |
-| Domain terms | [Domain glossary](../CONTEXT.md), [Flutter glossary](flutter-fork-glossary.md) |
+| Domain terms | [Domain glossary](../CONTEXT.md), [feature glossary](../GLOSSARY.md), [Flutter glossary](flutter-fork-glossary.md) |
 | Visual assets | [Sources and regeneration](assets/README.md) |
 
 [Proposals](Proposals/) contain technical investigations and patch rationale.

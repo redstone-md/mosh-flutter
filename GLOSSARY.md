@@ -19,3 +19,16 @@ An attachment descriptor interpreted with its observed transfer state and
 message ownership. Message cards, the file index and open actions share its
 readiness, progress and allowed controls. A failed or cancelled transfer is
 not ready merely because a cached local path remains.
+
+## Calls
+
+**Mosh call**:
+A live conversation between the two users of a private DM, with one participating
+device per user. Each participant independently chooses whether to send audio
+and video.
+_Avoid_: video session, separate audio conversation.
+
+**Participating call device**:
+The device selected to carry a user's live audio and video in a Mosh call.
+Other linked devices may ring without becoming participants in that call.
+_Avoid_: call participant when referring to an installation rather than a person.
