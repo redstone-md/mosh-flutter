@@ -122,6 +122,14 @@ fn exchange(sender: &mut Peer, receiver: &mut Peer) {
         format!("{PACKET_INBOX_CHANNEL_PREFIX}{}", sender.key)
     );
     assert_eq!(
+        sender.ask(json!({"action":"empty", "peer":receiver.key})),
+        json!({"ok":true})
+    );
+    assert_eq!(
+        receiver.receive(b""),
+        format!("{PACKET_INBOX_CHANNEL_PREFIX}{}", sender.key)
+    );
+    assert_eq!(
         receiver.ask(json!({"action":"open", "peer":sender.key})),
         json!({"ok":true})
     );
@@ -140,7 +148,7 @@ fn exchange(sender: &mut Peer, receiver: &mut Peer) {
 fn packet_worker() {
     let mesh = std::env::var("MOSH_PACKET_TEST_MESH").unwrap();
     let runtime = Arc::new(MossFfiRuntime::load_default().unwrap());
-    let config = json!({"listen_port":0,"trackers":[],"nat":{"upnp_enabled":false,"natpmp_enabled":false,"pcp_enabled":false}});
+    let config = json!({"listen_port":0,"trackers":[],"dht_enabled":false,"lan_discovery_enabled":false,"nat":{"upnp_enabled":false,"natpmp_enabled":false,"pcp_enabled":false}});
     let node = runtime.init_node(&mesh, &config.to_string()).unwrap();
     if std::env::var("MOSH_PACKET_TEST_ORDER").unwrap() == "packets" {
         node.set_packet_callback().unwrap();
@@ -166,6 +174,9 @@ fn packet_worker() {
                 .map(|_| json!({"ok":true})),
             "packet" => node
                 .send_to_peer(value["peer"].as_str().unwrap(), b"packet-fixture")
+                .map(|_| json!({"ok":true})),
+            "empty" => node
+                .send_to_peer(value["peer"].as_str().unwrap(), b"")
                 .map(|_| json!({"ok":true})),
             "stream" => node
                 .send_stream(value["peer"].as_str().unwrap(), 17, b"stream-fixture")

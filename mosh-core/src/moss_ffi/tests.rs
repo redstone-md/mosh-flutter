@@ -201,6 +201,35 @@ fn directed_packet_target_rejects_nul_before_crossing_ffi() {
     ));
 }
 
+unsafe extern "C" fn deliver_empty_packet(
+    _handle: MossHandle,
+    callback: Option<PacketCallback>,
+) -> i32 {
+    // SAFETY: the native ABI permits a null buffer for a zero-length packet;
+    // the 32-byte sender stays alive throughout this synchronous callback.
+    unsafe { callback.unwrap()([0xAB; 32].as_ptr(), std::ptr::null(), 0) };
+    MOSS_OK
+}
+
+#[test]
+fn directed_callback_preserves_a_valid_empty_native_packet() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut runtime = MossFfiRuntime::load_default().unwrap();
+    runtime.set_packet_callback = Some(deliver_empty_packet);
+    let node = Arc::new(runtime)
+        .init_node("empty-packet", &node_config(0, None))
+        .unwrap();
+    drain_received_messages();
+    node.set_packet_callback().unwrap();
+    let messages = drain_received_messages();
+    assert_eq!(
+        messages.len(),
+        1,
+        "a valid empty buffer is still a delivered packet"
+    );
+    assert!(messages[0].payload.is_empty());
+}
+
 #[cfg(target_os = "windows")]
 const TEST_LIBRARY_NAME: &str = "moss.dll";
 #[cfg(target_os = "macos")]

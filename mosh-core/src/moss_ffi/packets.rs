@@ -39,13 +39,17 @@ impl MossNode {
 }
 
 unsafe extern "C" fn on_packet_payload(sender: *const u8, data: *const u8, length: u32) {
-    if sender.is_null() || data.is_null() {
+    if sender.is_null() || (data.is_null() && length != 0) {
         return;
     }
     // SAFETY: Moss passes a 32-byte sender key and length bytes, valid for this callback.
     let peer = hex::encode(unsafe { std::slice::from_raw_parts(sender, MOSS_PUBKEY_LEN) });
-    // SAFETY: the native callback owns this live buffer until the callback returns.
-    let payload = unsafe { std::slice::from_raw_parts(data, length as usize) }.to_vec();
+    let payload = if length == 0 {
+        Vec::new()
+    } else {
+        // SAFETY: nonempty native buffers are nonnull and live through this callback.
+        unsafe { std::slice::from_raw_parts(data, length as usize) }.to_vec()
+    };
     crate::inbox::deliver(MossReceivedMessage {
         channel: format!("{PACKET_INBOX_CHANNEL_PREFIX}{peer}"),
         payload,
