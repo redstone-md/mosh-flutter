@@ -44,6 +44,14 @@ admitted counterpart from being mistaken for an unused invitation when no
 message history exists. Linked clients belonging to the local user do not count
 as a counterpart.
 
+Older versions did not persist Welcome. A restored, already connected legacy
+counterpart reconnects through authenticated Hello without that cache. If its
+initial Welcome was lost before the creator restarted an older version, the
+legacy record cannot recover it; create a new invitation. Returning an error
+locally or adding the same MLS member again cannot repair that missing Welcome.
+New admissions persist Welcome before publication and can resend it after
+restart.
+
 Personal-chat and group invitation cards show at most two lines. Copy always
 uses the complete URI. Group and device-link protocols retain their existing
 formats; only the shared group-card presentation changes.
