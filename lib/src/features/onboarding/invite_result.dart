@@ -39,7 +39,9 @@ class InviteResult extends StatelessWidget {
         _ReadyNote(title: l.onboardInviteReadyTitle, note: note),
         const SizedBox(height: 20),
       ],
-      _LinkField(label: l.onboardInviteLinkLabel, uri: uri,
+      _LinkField(
+          label: l.onboardInviteLinkLabel,
+          uri: uri,
           onCopy: busy ? null : onCopy),
       const SizedBox(height: 14),
       ..._actions(l),
@@ -47,47 +49,55 @@ class InviteResult extends StatelessWidget {
     ]);
   }
 
-  Size get _buttonSize => note.isEmpty ? const Size(0, 40) : const Size.fromHeight(48);
+  Size get _buttonSize =>
+      note.isEmpty ? const Size(0, 40) : const Size.fromHeight(48);
 
   Widget _copy(AppLocalizations l) => OutlinedButton.icon(
-    onPressed: busy ? null : onCopy,
-    icon: Icon(copied ? Icons.check : Icons.copy_outlined, size: 18),
-    label: Text(copied ? l.onboardCopied : l.onboardCopyLink),
-    style: OutlinedButton.styleFrom(minimumSize: _buttonSize),
-  );
+        onPressed: busy ? null : onCopy,
+        icon: Icon(copied ? Icons.check : Icons.copy_outlined, size: 18),
+        label: Text(copied ? l.onboardCopied : l.onboardCopyLink),
+        style: OutlinedButton.styleFrom(minimumSize: _buttonSize),
+      );
 
   Widget _open() => FilledButton.icon(
-    onPressed: busy ? null : onOpen,
-    icon: const Icon(Icons.arrow_forward, size: 18),
-    label: Text(openLabel),
-    style: FilledButton.styleFrom(minimumSize: _buttonSize),
-  );
+        onPressed: busy ? null : onOpen,
+        icon: const Icon(Icons.arrow_forward, size: 18),
+        label: Text(openLabel),
+        style: FilledButton.styleFrom(minimumSize: _buttonSize),
+      );
 
   List<Widget> _actions(AppLocalizations l) {
     if (onReplace case final replace?) {
-      return [Wrap(spacing: 12, runSpacing: 8, children: [
-        _copy(l),
-        _open(),
-        TextButton.icon(onPressed: busy ? null : replace,
-          icon: const Icon(Icons.refresh, size: 18),
-          label: Text(replaceLabel ?? l.onboardChatRecreate),
-          style: TextButton.styleFrom(minimumSize: _buttonSize)),
-      ])];
+      return [
+        Wrap(spacing: 12, runSpacing: 8, children: [
+          _copy(l),
+          _open(),
+          TextButton.icon(
+              onPressed: busy ? null : replace,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: Text(replaceLabel ?? l.onboardChatRecreate),
+              style: TextButton.styleFrom(minimumSize: _buttonSize)),
+        ])
+      ];
     }
     return [_copy(l), const SizedBox(height: 12), _open()];
   }
 
   Widget _footer(BuildContext context, String text) => Column(children: [
-    const SizedBox(height: 20),
-    const Divider(height: 1, color: MoshColors.line),
-    const SizedBox(height: 16),
-    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Icon(Icons.lock_outline, size: 20, color: MoshColors.fg3),
-      const SizedBox(width: 12),
-      Expanded(child: Text(text, style: Theme.of(context).textTheme.bodySmall
-          ?.copyWith(color: MoshColors.fg3, height: 1.5))),
-    ]),
-  ]);
+        const SizedBox(height: 20),
+        const Divider(height: 1, color: MoshColors.line),
+        const SizedBox(height: 16),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.lock_outline, size: 20, color: MoshColors.fg3),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Text(text,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: MoshColors.fg3, height: 1.5))),
+        ]),
+      ]);
 }
 
 class _ReadyNote extends StatelessWidget {

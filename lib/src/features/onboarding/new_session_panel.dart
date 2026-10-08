@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/channel_join_step.dart';
@@ -10,6 +11,7 @@ import 'package:mosh/src/features/onboarding/start/start_menu.dart';
 import 'package:mosh/src/features/onboarding/start/start_pages.dart';
 import 'package:mosh/src/features/onboarding/start/start_step.dart';
 import 'package:mosh/src/features/shared/persistence_warning_banner.dart';
+import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/state/persistence_warning_provider.dart';
 
 /// The start menu's pages, in [StartPages] order.
@@ -39,6 +41,12 @@ class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
 
   void _backToMenu() => _go(OnboardStep.menu);
 
+  void _openChat(String sessionId) {
+    if (!mounted || _step != OnboardStep.chat) return;
+    if (ModalRoute.of(context)?.isCurrent == false) return;
+    context.go(AppRoutes.dmFor(sessionId));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -65,7 +73,7 @@ class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
               title: l.onboardTileChatTitle,
               subtitle: l.onboardChatStepBody,
               onBack: _backToMenu,
-              child: const ChatCreateStep(),
+              child: ChatCreateStep(onOpened: _openChat),
             ),
             StartStep(
               image: 'assets/start/group.png',

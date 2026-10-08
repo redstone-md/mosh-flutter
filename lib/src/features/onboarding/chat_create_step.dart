@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/features/onboarding/pending_invitation_card.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
-import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show InviteCreated;
 import 'package:mosh/src/state/pending_invites_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 class ChatCreateStep extends ConsumerStatefulWidget {
-  const ChatCreateStep({super.key});
+  const ChatCreateStep({super.key, required this.onOpened});
+
+  final ValueChanged<String> onOpened;
 
   @override
   ConsumerState<ChatCreateStep> createState() => _ChatCreateStepState();
@@ -66,10 +66,10 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
 
   Future<void> _open(String sessionId) {
     final invitations = ref.read(pendingInvitesProvider.notifier);
-    final router = GoRouter.of(context);
+    final onOpened = widget.onOpened;
     return _run(() async {
       await invitations.open(sessionId);
-      if (mounted) router.go(AppRoutes.dmFor(sessionId));
+      if (mounted) onOpened(sessionId);
     });
   }
 

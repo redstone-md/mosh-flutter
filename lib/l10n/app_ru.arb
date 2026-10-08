@@ -179,7 +179,7 @@
   "onboardChannelNameRule": "Латинские буквы, цифры, «-» и «_»",
   "onboardChannelExamples": "Например",
   "onboardChatCreate": "Создать ссылку-приглашение",
-  "onboardChatRecreate": "Новая ссылка",
+  "onboardChatRecreate": "Заменить ссылку",
   "onboardInviteReady": "Поделитесь ссылкой с одним человеком.",
   "onboardGroupStepBody": "Создайте группу со сквозным шифрованием. Участников пригласите после создания.",
   "onboardGroupCreate": "Создать группу",
