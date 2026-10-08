@@ -85,6 +85,9 @@ The pinned synchronous `Moss_SendToPeer` can spend five seconds opening a relay.
 The probe drops packets queued for more than 50 ms before sending them, but it
 cannot cancel a send already inside Moss. RingRTC records injected socket send
 time at queue admission. No measured production capacity policy has been chosen.
+For a started direct node, Moss's success also acknowledges its own outbound
+queue, not the subsequent socket write. The reported fixture counters do not
+measure that internal queue's residence time or eventual write failures.
 
 Moss's callback sender key is copied from the envelope's **claim**, not supplied
 as an authenticated connection identity. Production control authorization must
@@ -101,22 +104,36 @@ access to remote hosts is not required for the current handoff.
 
 - Focused directed-packet integration: passed, separate real Moss processes,
   including existing stream delivery in both callback-registration orders.
-- Directed-packet refusal, absent symbols and NUL target unit checks: three passed.
+- Directed-packet refusal, absent symbols, NUL target and empty native buffer
+  unit checks: four passed. Empty payloads also pass through both real processes.
 - Node source/lock suite: 16 passed; aggregate coverage 90.64% lines / 86.81% branches.
   Shared source preparation itself: 92% lines / 80% branches.
 - Core, engine and host clippy with warnings denied: passed.
 - Directed-wrapper coverage from focused unit and independent-process checks:
-  30/33 executable lines, 90.91%. Stable Rust did not emit branch counters.
-- Full core suite: running when this result was first recorded.
+  32/35 executable lines, 91.43%. Stable Rust did not emit branch counters.
+- The initial bare Cargo suite passed 701 unit tests, then a public-network
+  group-preview check timed out. The isolated retry passed in 33.74 seconds;
+  the repository's real local-tracker wrapper passed it in 1.82 seconds.
+  The full `node scripts/moss-test.mjs -j 2 --no-fail-fast` run then passed:
+  701 unit tests and 49 integration checks, with 28 ignored test/helper entries.
+  This matches the CI discovery setup rather than depending on the public mesh.
+  After the empty-buffer regression fix, all four directed unit checks and the
+  independent-process packet/stream check passed again; final core lint passed.
+
+The final fixture disables Moss DHT/LAN discovery and trackers. Both the normal
+and tampered-key media checks passed again with those settings. Source checksum
+preparation is included in the existing pinned-source CI step.
 
 ## Standards review
 
-Reviewed `12b074fd...ed75e6a1` against root/core `AGENTS.md` and the code-review
+Reviewed `12b074fd...c5991217` against root/core `AGENTS.md` and the code-review
 smell baseline. No confirmed documented-standard breach was found. One
 low-priority Feature Envy suggestion moved measurement serialization from the
 engine command owner into `Measurements::snapshot()`, beside its recording code.
 The suggestion is addressed; library result ownership, unload order and native
 observer teardown were reviewed.
+The final incremental review also checked empty-buffer safety, graceful worker
+shutdown, fixture discovery isolation and CI source checks; it found no new issues.
 
 ## Spec review
 

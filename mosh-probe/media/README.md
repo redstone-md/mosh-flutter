@@ -6,6 +6,8 @@ engine is a separate shared library loaded into that same process, so its Rust
 dependency graph stays separate from OpenMLS. Native media and ICE packets go
 through directed Moss packets; ICE servers are empty and the engine receives
 only virtual interfaces.
+The fixture also disables Moss DHT/LAN discovery and trackers; its controller
+connects the two loopback nodes explicitly. Application discovery stays unchanged.
 
 The controller uses trusted parent/worker pipes for test negotiation. It installs
 fresh, random, directional AES-256-GCM SRTP keys and keeps their values out of
@@ -57,6 +59,9 @@ holds at most 256. Carrier packets are capped at 2007 bytes including the test
 header and queued packets older than 50 ms are dropped. These are probe limits,
 not measured production scheduling budgets. `max_send_ms` measures the duration
 of `Moss_SendToPeer`, not end-to-end media latency or actual wire completion.
+On a started direct node, Moss itself admits the envelope to its bounded
+per-peer outbound queue. The fixture counters do not measure that queue's age
+or subsequent write/drop result.
 The pinned Moss API can spend five seconds opening a relay. Native injected
 socket timestamps acknowledge queue admission before that call completes.
 
