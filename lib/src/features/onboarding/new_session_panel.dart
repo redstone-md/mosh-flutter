@@ -22,7 +22,11 @@ enum OnboardStep { menu, chat, group, join, channel }
 /// a trip back to the menu. The storage warning, when there is one, heads
 /// every page.
 class NewSessionPanel extends ConsumerStatefulWidget {
-  const NewSessionPanel({super.key});
+  const NewSessionPanel({super.key, this.minHeight = 0});
+
+  /// The pane height pages centre in, so switching pages keeps the menu
+  /// and a step in one frame. The storage warning adds to it.
+  final double minHeight;
 
   @override
   ConsumerState<NewSessionPanel> createState() => _NewSessionPanelState();
@@ -48,6 +52,7 @@ class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
         ],
         StartPages(
           index: _step.index,
+          minHeight: widget.minHeight,
           pages: <Widget>[
             StartMenu(
               onPickChat: () => _go(OnboardStep.chat),

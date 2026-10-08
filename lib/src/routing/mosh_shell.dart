@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -270,18 +272,26 @@ class ChatPaneWelcome extends StatelessWidget {
       // desktop pane is only ~312px wide.
       body: SafeArea(
         child: LayoutBuilder(
-          builder: (context, constraints) => Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsetsDirectional.symmetric(
-                horizontal: constraints.maxWidth < 400 ? 16 : 32,
-                vertical: mobile ? 24 : 48,
+          builder: (context, constraints) {
+            final vertical = mobile ? 24.0 : 48.0;
+            return Center(
+              child: SingleChildScrollView(
+                padding: EdgeInsetsDirectional.symmetric(
+                  horizontal: constraints.maxWidth < 400 ? 16 : 32,
+                  vertical: vertical,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1240),
+                  child: NewSessionPanel(
+                    // A short pane (a phone with the keyboard up) can have
+                    // less height than the padding.
+                    minHeight:
+                        math.max(0, constraints.maxHeight - vertical * 2),
+                  ),
+                ),
               ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1240),
-                child: const NewSessionPanel(),
-              ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

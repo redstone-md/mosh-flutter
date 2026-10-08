@@ -431,23 +431,19 @@
   },
   "startTitleAccent": "conversation",
   "@startTitleAccent": {
-    "description": "Second, highlighted part of the start menu title"
+    "description": "Second part of the start menu title, after startTitleLead"
   },
   "startSubtitle": "Private chats and groups are end-to-end encrypted. Public channels are open to anyone who joins.",
   "@startSubtitle": {
     "description": "Start menu subtitle; must not promise encryption for public channels"
   },
-  "startFactMls": "MLS encryption in chats and groups",
-  "@startFactMls": {
-    "description": "Start menu fact: private chats and groups use MLS"
+  "startGroupEncrypted": "End-to-end encrypted",
+  "@startGroupEncrypted": {
+    "description": "Start menu: heading over the actions that open end-to-end encrypted conversations."
   },
-  "startFactMesh": "Decentralized Moss network",
-  "@startFactMesh": {
-    "description": "Start menu fact: transport is the Moss mesh"
-  },
-  "startFactHistory": "Encrypted history on this device",
-  "@startFactHistory": {
-    "description": "Start menu fact: local storage is encrypted"
+  "startGroupOpen": "Open to everyone",
+  "@startGroupOpen": {
+    "description": "Start menu: heading over the public channel action, which is not encrypted."
   },
   "onboardBack": "Back",
   "@onboardBack": {
