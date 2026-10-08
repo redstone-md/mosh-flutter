@@ -15,5 +15,7 @@ answering for the same contact. Allowing several devices to independently accept
 and send media would turn a two-person call into a call with additional media
 participants. The chosen model requires authenticated device selection and a
 single agreed answer before enabling media; the existing voice controls do not
-yet implement that coordination. Decline, transfer and busy behavior remain open
-in the [design plan](../Proposals/issue-46-video-calls.plan.md).
+yet implement that coordination. Explicit refusal on one receiving device ends
+the pending call on all receiving devices. Call transfer is a separate task;
+user-wide busy behavior remains open in the
+[design plan](../Proposals/issue-46-video-calls.plan.md).

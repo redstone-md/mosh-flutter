@@ -8,16 +8,26 @@ open decisions for [issue 46](https://github.com/redstone-md/mosh-flutter/issues
 - Start a call from a private DM; the contact can accept or decline.
 - macOS and Windows require full acceptance testing. Preserve Linux behavior
   and verify it with available tooling. Android and iOS follow later.
-- Reuse Moss discovery, NAT traversal and relay capability. No new mandatory
-  server infrastructure. Library choice remains open.
+- All call media uses Moss, including direct and relayed paths. Reuse its
+  discovery and NAT traversal; add Moss capabilities when needed. No new
+  mandatory server infrastructure. Media-library choice remains open.
 - Ring the contact's available linked devices. An answer selects one receiving
   device; other devices stop ringing. See [ADR 0043](../ADR/0043-one-device-per-user-in-a-call.md).
+- Explicit decline on one receiving device ends the pending call on all devices.
 - Audio and video belong to one call. Either participant can enable or disable
   their camera during a voice or video call without starting another call.
 - Accepting a call does not automatically enable the receiving camera. Camera
   permission refusal preserves voice calling.
 - Incoming calls require a running application, including minimized windows.
   Delivery after the application exits is outside this issue.
+- All participating clients upgrade together. Do not add a compatibility layer
+  for the existing call protocol or older client versions.
+- Adapt video quality to available bandwidth and prioritize audio. Target
+  720p at 30 fps on a sufficient connection; reduce or pause video on a weak path.
+- Recover a disconnected call for up to 15 seconds with a visible connecting
+  state, then end it if the connection has not recovered.
+- Screen sharing, recording, call transfer and chat call-history entries belong
+  to separate tasks.
 
 Domain terms live in [GLOSSARY.md](../../GLOSSARY.md); existing user and device
 identity definitions live in [CONTEXT.md](../../CONTEXT.md).
@@ -43,21 +53,35 @@ identity definitions live in [CONTEXT.md](../../CONTEXT.md).
   approximately 512 kbit/s, with excess packets dropped. Application payloads
   default to a 65,536-byte cap. These are static implementation findings,
   not a measurement of achievable video quality.
+- Moss already exposes `nat.relay_sustained_kibps` to raise a relay's local
+  allowance. The inspected forwarding path has no aggregate bandwidth budget;
+  per-source limits and session counts do not reserve capacity for a call.
 - [ADR 0012](../ADR/0012-port-strategy-what-goes-to-dart-vs-mosh-core.md) proposes
   native media crypto/buffers, while the current voice implementation keeps
   them in Dart. Resolve the intended boundary when choosing the media stack.
 
+## Design evidence
+
+- [Call concurrency](issue-46-call-concurrency.research.md): Telegram reserves
+  the receiving account before answer and selects one device. Mosh must choose
+  its own admission policy when linked devices cannot communicate.
+- [Relay capacity and directed media](issue-46-relay-media.research.md): actual
+  limits and units, configuration, traffic cost and proposed capacity policy.
+- [Media engine and desktop ownership](issue-46-media-engine.research.md):
+  native libwebrtc and RingRTC transport hooks, packaging gaps and video IPC.
+
+Source inspection establishes candidate APIs, not a working Moss media engine.
+Native packaging, media protection and real-device quality require a focused
+feasibility check before replacing the working voice pipeline.
+
 ## Open decisions
 
-- Decline on one linked device, concurrent answers, concurrent outgoing calls,
-  and another incoming call while a device is busy.
-- Whether every media path must use Moss or a separate direct media connection
-  is allowed without new mandatory infrastructure.
-- Media engine, directed Moss carrier, encryption/key ownership, and desktop
-  capture/decode/render ownership.
+- User-wide versus device-local busy behavior, when to reserve the user, and
+  how concurrent answers and outgoing calls resolve.
+- A unified native audio/video engine, its reproducible packaging and directed
+  Moss integration; media encryption/key ownership and desktop process ownership.
 - Camera activation before answer, device selection and permission failures.
-- Old-client compatibility, quality adaptation and reconnect behavior.
-- Call history, screen sharing, recording and device transfer scope.
+- Relay capacity, bandwidth policy and safeguards for message delivery.
 - Acceptance scenarios and observable quality targets on real desktop hosts.
 
 ## Checks and risks

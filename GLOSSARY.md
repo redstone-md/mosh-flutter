@@ -32,3 +32,8 @@ _Avoid_: video session, separate audio conversation.
 The device selected to carry a user's live audio and video in a Mosh call.
 Other linked devices may ring without becoming participants in that call.
 _Avoid_: call participant when referring to an installation rather than a person.
+
+**Call refusal**:
+A user's decision to reject a pending Mosh call across their linked devices.
+It differs from silencing an alert or missing a call.
+_Avoid_: dismiss notification, missed call.
