@@ -1,4 +1,7 @@
 *.sh text eol=lf
 third_party/openmls-patches/* text eol=lf
 third_party/openmls-patches/*.patch -whitespace
+third_party/ringrtc-patches/* text eol=lf
+third_party/ringrtc-patches/*.patch -whitespace
 scripts/*.mjs text eol=lf
+scripts/support/*.mjs text eol=lf

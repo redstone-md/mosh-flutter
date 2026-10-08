@@ -249,6 +249,10 @@ decline, cancel or hang up according to the call phase.
 
 ## Remaining proof work
 
+The [native feasibility results](issue-46-native-media.results.md) record the
+implemented Linux tracer bullet and outstanding adoption gates. Application
+video calls are not implemented by that probe.
+
 - Validate the native candidate, reproducible packaging and directed Moss
   integration, including authenticated media-key exchange and bounded frame IPC.
 - Measure relay capacity, choose numeric flow budgets and verify message/audio
@@ -268,4 +272,5 @@ caller-visible bugs and the repository's changed-code coverage thresholds.
 Primary risks are competing device answers, unauthenticated control messages,
 media queue latency, relay capacity, video crossing the desktop process boundary,
 and regressions in working voice calls. User-wide busy remains best effort
-under partition by design. No production code has changed.
+under partition by design. The current implementation adds an isolated probe
+and directed Moss wrappers; the application's call pipeline has not switched.

@@ -14,6 +14,7 @@ mod config;
 mod identity;
 mod info;
 mod node;
+mod packets;
 mod runtime;
 mod streams;
 mod symbols;
@@ -36,6 +37,7 @@ pub use callbacks::{
 use callbacks::{keystore_load, keystore_save, on_moss_event, on_moss_message, on_stream_payload};
 pub use config::{current_bind_interface, node_config_json, set_bind_interface};
 pub use info::library_version_once;
+pub use packets::PACKET_INBOX_CHANNEL_PREFIX;
 use symbols::*;
 #[cfg(test)]
 pub use test_faults::*;
@@ -149,6 +151,8 @@ pub struct MossFfiRuntime {
     open_stream: Option<MossOpenStreamFn>,
     send_stream: Option<MossSendStreamFn>,
     on_stream: Option<MossOnStreamFn>,
+    send_to_peer: Option<MossSendToPeerFn>,
+    set_packet_callback: Option<MossSetPacketCallbackFn>,
 }
 
 pub struct MossNode {

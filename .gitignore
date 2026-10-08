@@ -49,6 +49,9 @@ third_party/opus-macos-universal/
 third_party/openmls/
 third_party/openmls.lock/
 third_party/openmls.prepare-*/
+third_party/ringrtc/
+third_party/ringrtc.lock/
+third_party/ringrtc.prepare-*/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies

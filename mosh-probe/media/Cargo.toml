@@ -1,0 +1,21 @@
+[package]
+name = "mosh-media-probe"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-only"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+# Isolated feasibility executable; the application does not depend on RingRTC.
+[dependencies]
+anyhow = "1"
+ringrtc = { path = "../../third_party/ringrtc/src/rust", features = ["prebuilt_webrtc", "injectable_network"] }
+prost = "0.14"
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.dev]
+debug = 0

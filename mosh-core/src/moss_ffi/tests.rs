@@ -153,6 +153,54 @@ const TEST_MESH: &str = "mosh-runtime-smoke";
 const TEST_CHANNEL: &str = "mls-control";
 const TEST_PAYLOAD: &[u8] = b"mosh-runtime-payload";
 
+#[test]
+fn directed_packets_surface_a_refused_target() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let runtime = Arc::new(MossFfiRuntime::load_default().unwrap());
+    let node = runtime
+        .init_node("directed-refusal", &node_config(0, None))
+        .unwrap();
+    assert!(matches!(
+        node.send_to_peer("not-a-peer", b"sealed-media"),
+        Err(MossFfiError::Operation {
+            name: "send_to_peer",
+            code: -11
+        })
+    ));
+}
+
+#[test]
+fn directed_packet_capabilities_fail_explicitly_when_unavailable() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut runtime = MossFfiRuntime::load_default().unwrap();
+    runtime.send_to_peer = None;
+    runtime.set_packet_callback = None;
+    let node = Arc::new(runtime)
+        .init_node("missing-packets", &node_config(0, None))
+        .unwrap();
+    assert!(matches!(
+        node.send_to_peer("peer", b"bytes"),
+        Err(MossFfiError::Symbol(_))
+    ));
+    assert!(matches!(
+        node.set_packet_callback(),
+        Err(MossFfiError::Symbol(_))
+    ));
+}
+
+#[test]
+fn directed_packet_target_rejects_nul_before_crossing_ffi() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let runtime = Arc::new(MossFfiRuntime::load_default().unwrap());
+    let node = runtime
+        .init_node("invalid-packet-peer", &node_config(0, None))
+        .unwrap();
+    assert!(matches!(
+        node.send_to_peer("peer\0suffix", b"bytes"),
+        Err(MossFfiError::InvalidCString(_))
+    ));
+}
+
 #[cfg(target_os = "windows")]
 const TEST_LIBRARY_NAME: &str = "moss.dll";
 #[cfg(target_os = "macos")]
