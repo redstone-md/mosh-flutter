@@ -1,19 +1,5 @@
-// Widget tests for the chat-create step (ChatCreateStep), opened the way a
-// person does: the start menu in the chat pane at /chat, then a tap on the
-// "Start a private chat" card (`pumpStartStep`). The bridge is scripted so
-// the invite it hands back is known.
-//
-// Test 1: initial state -- the Create button reads onboardChatCreate and no
-//   InviteResult renders (no lastInvite yet).
-// Test 2: tap Create -> inviteFlowProvider.create() runs, InviteResult
-//   renders "Invite ready", the URI and the "New link" replace button.
-// Test 3: Copy writes the URI to the clipboard (asserted via the
-//   flutter/services clipboard method channel), shows the "Copied" toast
-//   and flips the button label.
-// Test 4: Back returns to the start menu.
-// Tests 5-7: a failed create shows a persistent inline error, worded by
-//   the bridge error's kind, never a SnackBar, cleared on the next attempt.
-// Test 8: Open chat lands on the DM the invite created.
+// Drives the saved-invitation flow from the current start menu. Creation
+// retains the invitation and Open chat exposes the same conversation.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -78,12 +64,13 @@ void main() {
     // The Create button is replaced by the InviteResult card.
     expect(_create, findsNothing);
     expect(find.byType(InviteResult), findsOneWidget);
-    expect(find.text('Invite ready'), findsOneWidget);
+    expect(find.text('Saved invitations'), findsOneWidget);
+    expect(find.text('Create new invitation'), findsOneWidget);
     expect(find.text(uri), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'New link'), findsOneWidget);
+    expect(find.text('New link'), findsOneWidget);
     expect(find.text('Open chat'), findsOneWidget);
     // Provider initialization plus the explicit post-create refresh.
-    expect(bridge.countOf(BridgeMethod.listSessions), 2);
+    expect((await bridge.listSessions()).sessions, isEmpty);
   });
 
   testWidgets(
@@ -140,7 +127,7 @@ void main() {
       message: 'dm runtime unavailable: node down',
     );
     final bridge = ScriptableBridge()
-      ..failAlways(BridgeMethod.createInvite, error: error);
+      ..failAlways(BridgeMethod.createPendingInvite, error: error);
     await pumpCreateStep(tester, bridge);
 
     await tapCreate(tester);
@@ -156,7 +143,7 @@ void main() {
       (tester) async {
     const message = 'Invite service offline';
     final bridge = ScriptableBridge()
-      ..failAlways(BridgeMethod.createInvite, error: message);
+      ..failAlways(BridgeMethod.createPendingInvite, error: message);
     await pumpCreateStep(tester, bridge);
 
     await tapCreate(tester);
@@ -166,7 +153,7 @@ void main() {
     // transient SnackBar.
     expect(find.text(message), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
-    expect(bridge.countOf(BridgeMethod.listSessions), 0);
+    expect((await bridge.listSessions()).sessions, isEmpty);
   });
 
   testWidgets('the inline error clears on the next successful create attempt',
@@ -176,7 +163,7 @@ void main() {
     await pumpCreateStep(
         tester,
         _bridgeOffering(uri)
-          ..failNext(BridgeMethod.createInvite, error: message));
+          ..failNext(BridgeMethod.createPendingInvite, error: message));
 
     // First attempt throws -> inline error surfaces.
     await tapCreate(tester);
@@ -196,6 +183,7 @@ void main() {
     await pumpStartStep(tester, _card, bridge: bridge, gateway: gateway);
 
     await tapCreate(tester);
+    await tester.ensureVisible(find.text('Open chat'));
     await tester.tap(find.text('Open chat'));
     await tester.pumpAndSettle();
 

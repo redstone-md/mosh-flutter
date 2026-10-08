@@ -3,11 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-/// A created invite: a ready note, the link with a copy button, then the
-/// way into the new conversation.
-///
-/// [onReplace] adds a button that makes a fresh invite next to Copy.
-/// [footer] explains what the link allows, under a rule.
+/// At most two URI lines, with the complete link available to Copy.
+/// An empty note omits repeated status copy in a saved invitation list.
 class InviteResult extends StatelessWidget {
   const InviteResult({
     super.key,
@@ -20,82 +17,77 @@ class InviteResult extends StatelessWidget {
     this.onReplace,
     this.replaceLabel,
     this.footer,
+    this.busy = false,
   });
 
-  /// What to do with the link, under the "Invite ready" title.
   final String note;
   final String uri;
-
-  /// Whether the link was just copied; flips the Copy button.
   final bool copied;
   final VoidCallback onCopy;
-
-  /// "Open chat" / "Open group".
   final String openLabel;
   final VoidCallback onOpen;
-
   final VoidCallback? onReplace;
   final String? replaceLabel;
   final String? footer;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final copy = OutlinedButton.icon(
-      onPressed: onCopy,
-      icon: Icon(copied ? Icons.check : Icons.copy_outlined, size: 18),
-      label: Text(copied ? l.onboardCopied : l.onboardCopyLink),
-      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (note.isNotEmpty) ...[
         _ReadyNote(title: l.onboardInviteReadyTitle, note: note),
         const SizedBox(height: 20),
-        _LinkField(label: l.onboardInviteLinkLabel, uri: uri, onCopy: onCopy),
-        const SizedBox(height: 14),
-        if (onReplace case final replace?)
-          Row(children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: replace,
-                icon: const Icon(Icons.refresh, size: 18),
-                label: Text(replaceLabel ?? ''),
-                style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48)),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: copy),
-          ])
-        else
-          copy,
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: onOpen,
-          icon: const Icon(Icons.arrow_forward, size: 18),
-          label: Text(openLabel),
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-        ),
-        if (footer case final text?) ...[
-          const SizedBox(height: 20),
-          const Divider(height: 1, color: MoshColors.line),
-          const SizedBox(height: 16),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Icon(Icons.lock_outline, size: 20, color: MoshColors.fg3),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(text,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: MoshColors.fg3, height: 1.5)),
-            ),
-          ]),
-        ],
       ],
-    );
+      _LinkField(label: l.onboardInviteLinkLabel, uri: uri,
+          onCopy: busy ? null : onCopy),
+      const SizedBox(height: 14),
+      ..._actions(l),
+      if (footer case final text?) _footer(context, text),
+    ]);
   }
+
+  Size get _buttonSize => note.isEmpty ? const Size(0, 40) : const Size.fromHeight(48);
+
+  Widget _copy(AppLocalizations l) => OutlinedButton.icon(
+    onPressed: busy ? null : onCopy,
+    icon: Icon(copied ? Icons.check : Icons.copy_outlined, size: 18),
+    label: Text(copied ? l.onboardCopied : l.onboardCopyLink),
+    style: OutlinedButton.styleFrom(minimumSize: _buttonSize),
+  );
+
+  Widget _open() => FilledButton.icon(
+    onPressed: busy ? null : onOpen,
+    icon: const Icon(Icons.arrow_forward, size: 18),
+    label: Text(openLabel),
+    style: FilledButton.styleFrom(minimumSize: _buttonSize),
+  );
+
+  List<Widget> _actions(AppLocalizations l) {
+    if (onReplace case final replace?) {
+      return [Wrap(spacing: 12, runSpacing: 8, children: [
+        _copy(l),
+        _open(),
+        TextButton.icon(onPressed: busy ? null : replace,
+          icon: const Icon(Icons.refresh, size: 18),
+          label: Text(replaceLabel ?? l.onboardChatRecreate),
+          style: TextButton.styleFrom(minimumSize: _buttonSize)),
+      ])];
+    }
+    return [_copy(l), const SizedBox(height: 12), _open()];
+  }
+
+  Widget _footer(BuildContext context, String text) => Column(children: [
+    const SizedBox(height: 20),
+    const Divider(height: 1, color: MoshColors.line),
+    const SizedBox(height: 16),
+    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Icon(Icons.lock_outline, size: 20, color: MoshColors.fg3),
+      const SizedBox(width: 12),
+      Expanded(child: Text(text, style: Theme.of(context).textTheme.bodySmall
+          ?.copyWith(color: MoshColors.fg3, height: 1.5))),
+    ]),
+  ]);
 }
 
 class _ReadyNote extends StatelessWidget {
@@ -147,7 +139,7 @@ class _LinkField extends StatelessWidget {
 
   final String label;
   final String uri;
-  final VoidCallback onCopy;
+  final VoidCallback? onCopy;
 
   @override
   Widget build(BuildContext context) {
@@ -172,6 +164,7 @@ class _LinkField extends StatelessWidget {
             Expanded(
               child: SelectableText(
                 uri,
+                maxLines: 2,
                 style: const TextStyle(
                   fontFamily: 'monospace',
                   fontSize: 12.5,
