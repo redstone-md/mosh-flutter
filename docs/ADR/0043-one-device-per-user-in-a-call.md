@@ -20,7 +20,13 @@ the pending call on all receiving devices. A pending outgoing or admitted incomi
 call reserves its user's occupancy through ringing, setup, active media and
 reconnection. A free sibling cannot admit an unrelated call while that occupancy
 is known. This follows the account-wide policy demonstrated in
-[Telegram's call flow](https://core.telegram.org/api/calls#one-to-one-calls), while
-Mosh's admission authority and partition guarantees remain to be decided.
-Call transfer is a separate task. See the
+[Telegram's call flow](https://core.telegram.org/api/calls#one-to-one-calls).
+
+A remaining reachable device may start or accept a call without permission
+from unavailable siblings. Known authenticated occupancy blocks another call;
+during network separation the policy is best effort and different devices can
+hold overlapping calls. This chooses availability over strict account-wide
+coordination that could block calls when an authority or quorum is unavailable.
+The rule for discovered conflicts remains open. Call transfer is a separate task.
+See the
 [design plan](../Proposals/issue-46-video-calls.plan.md).

@@ -29,3 +29,9 @@ The exact engine remains under
 Prove native builds, directed Moss media and desktop frame delivery before replacing
 the working voice implementation. Existing call-client protocol compatibility is
 not required; all participants upgrade together.
+
+Hardware encoding is preferred when the chosen engine and device support it,
+but is not a first-release requirement. A software path must pass sustained
+720p/30 quality, latency, UI responsiveness and thermal checks. Missing camera
+or microphone permission must preserve the remaining receive/send capabilities
+instead of making capture a prerequisite for receiving media.

@@ -41,5 +41,6 @@ _Avoid_: dismiss notification, missed call.
 **Call occupancy**:
 A Mosh user's reserved participation in one pending or ongoing call across
 their linked devices. Another call cannot be admitted while that reservation
-is known to remain in effect.
+is known to remain in effect; disconnected devices can temporarily hold
+different reservations.
 _Avoid_: microphone busy, device busy.

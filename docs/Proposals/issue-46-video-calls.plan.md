@@ -16,18 +16,26 @@ open decisions for [issue 46](https://github.com/redstone-md/mosh-flutter/issues
 - Explicit decline on one receiving device ends the pending call on all devices.
 - Occupancy belongs to the user. A pending outgoing or admitted incoming call
   reserves it through ringing, setup, active media and reconnection. A free sibling
-  cannot admit an unrelated call while that occupancy is known. The coordination
-  mechanism and guarantee during network partitions remain open.
+  cannot admit an unrelated call while that occupancy is known.
+- A remaining reachable device can call without permission from unavailable
+  siblings. User-wide occupancy is best effort during network partitions;
+  different devices can temporarily hold overlapping calls. The rule after
+  detecting that conflict remains open.
 - Audio and video belong to one call. Either participant can enable or disable
   their camera during a voice or video call without starting another call.
 - Accepting a call does not automatically enable the receiving camera. Camera
   permission refusal preserves voice calling.
+- A missing or refused microphone does not prevent receiving audio/video.
+  Show its unavailable state and allow enabling a working microphone later.
 - Incoming calls require a running application, including minimized windows.
   Delivery after the application exits is outside this issue.
 - All participating clients upgrade together. Do not add a compatibility layer
   for the existing call protocol or older client versions.
 - Adapt video quality to available bandwidth and prioritize audio. Target
   720p at 30 fps on a sufficient connection; reduce or pause video on a weak path.
+- Hardware encoding is not a prerequisite for the first release. A software
+  candidate must demonstrate the quality target without overheating, material
+  latency or UI slowdown; compare established products' hardware paths.
 - Recover a disconnected call for up to 15 seconds with a visible connecting
   state, then end it if the connection has not recovered.
 - Screen sharing, recording, call transfer and chat call-history entries belong
@@ -81,7 +89,11 @@ identity definitions live in [CONTEXT.md](../../CONTEXT.md).
 - [Media engine and desktop ownership](issue-46-media-engine.research.md):
   native libwebrtc and RingRTC transport hooks, packaging gaps and video IPC.
 - [Candidate comparison](issue-46-media-candidates.research.md): RingRTC,
-  LiveKit, native libwebrtc, GStreamer and flutter_webrtc against the agreed boundary.
+  LiveKit, native libwebrtc, GStreamer, flutter_webrtc and tgcalls against the
+  agreed boundary.
+- [Hardware encoding](issue-46-hardware-video.research.md): Discord Go Live's
+  GPU path, Telegram's Darwin VideoToolbox path, normal Windows/Linux software
+  factories and the limits of tgcalls' unselected direct transport.
 
 Source inspection establishes candidate APIs, not a working Moss media engine.
 Native packaging, media protection and real-device quality require a focused
@@ -116,15 +128,25 @@ fork maintenance; it trades direct application packet APIs for more pipeline
 composition. Revisit that choice after the focused proof, not by silently
 keeping separate permanent audio and video engines.
 
+Record the negotiated codec, encoder implementation and known hardware/software
+state from the actual media runtime. Hardware capture or decoding does not prove
+hardware encoding. Keep encoder selection inside the engine adapter so an
+available hardware path does not require changes to call ownership or Moss.
+
 ## Open decisions
 
-- User-wide admission authority and partition guarantee, plus how concurrent
-  answers and outgoing calls resolve.
-- Native engine candidate, reproducible packaging and directed Moss integration;
-  authenticated media-key exchange and bounded cross-process frame delivery.
-- Camera activation before answer, device selection and permission failures.
-- Measured relay capacity and numeric flow budgets.
-- Acceptance scenarios and observable quality targets on real desktop hosts.
+- Rules for discovered occupancy conflicts, simultaneous cross-calls and
+  competing answer/refusal transitions.
+- Camera activation before answer, camera/device changes and minimizing behavior.
+
+## Remaining proof work
+
+- Validate the native candidate, reproducible packaging and directed Moss
+  integration, including authenticated media-key exchange and bounded frame IPC.
+- Measure relay capacity, choose numeric flow budgets and verify message/audio
+  progress under video pressure.
+- Execute acceptance scenarios and sustained quality checks on real desktop
+  hosts, including permission refusal and receive-only calls.
 
 ## Checks and risks
 
