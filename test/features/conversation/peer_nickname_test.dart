@@ -5,10 +5,15 @@
 // Gateway is involved. Covers: who gets a tap target, when the Message
 // button is disabled and what it says, and that tapping it reports the
 // fingerprint and closes the popover.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
+import 'package:mosh/src/features/shared/toasts/toast_card.dart';
+import 'package:mosh/src/features/shared/toasts/toaster.dart';
+import 'package:mosh/src/rust/api/conversation_bridge.dart';
 import '../../support/pump.dart';
 
 void main() {
@@ -177,6 +182,45 @@ void main() {
         expect(find.byType(AlertDialog), findsNothing);
       },
     );
+
+    testWidgets('a failed Message shows an error after the popover closes',
+        (tester) async {
+      final pending = Completer<void>();
+      await pumpScreen(
+        tester,
+        Scaffold(
+          body: ConversationSenderMeta(
+            fromDevice: 'bob',
+            fromFingerprint: peerFp,
+            sentAtMs: BigInt.from(1700000000000),
+            peer: PeerActions(
+              ownFingerprint: own,
+              offered: const {},
+              busy: false,
+              onMessage: (_) => pending.future,
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('bob'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Message'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+
+      pending.completeError(const ConversationBridgeError(
+        kind: ConversationBridgeErrorKind.unavailable,
+        message: 'offer publication failed',
+      ));
+      await tester.pumpAndSettle();
+
+      expect(
+          find.text('Mosh could not reach the network. Try again in a moment.'),
+          findsOneWidget);
+      expect(tester.widget<ToastCard>(find.byType(ToastCard)).entry.kind,
+          ToastKind.error);
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets(
       'peer == null (DM-row default) renders plain bold Text with NO tap target',
