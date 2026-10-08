@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'network_choice_provider.dart';
+import 'package:mosh/src/features/shared/mosh_dialog.dart';
+import 'package:mosh/src/features/shared/mosh_dialog_motion.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bypass_adapter.dart';
@@ -111,6 +113,10 @@ class _VpnConsentModalState extends ConsumerState<VpnConsentModal> {
   }
 
   Future<void> _decline() async {
+    if (_phase == VpnConsentPhase.saving ||
+        ref.read(networkChoiceProvider(widget.bridge)).busy) {
+      return;
+    }
     setState(() => _phase = VpnConsentPhase.saving);
     try {
       await ref.read(networkChoiceProvider(widget.bridge).notifier).clear();
@@ -129,108 +135,72 @@ class _VpnConsentModalState extends ConsumerState<VpnConsentModal> {
   @override
   Widget build(BuildContext context) {
     final choice = ref.watch(networkChoiceProvider(widget.bridge));
-    if (!_shouldAsk ||
-        choice.savedAdapter != null &&
+    final visible = _shouldAsk &&
+        !(choice.savedAdapter != null &&
             _phase == VpnConsentPhase.asking &&
-            !_retryRestart) {
-      return const SizedBox.shrink();
-    }
-    final theme = Theme.of(context);
-    final danger = const Color(0xFFE5484D);
-    final saving = _phase == VpnConsentPhase.saving || choice.busy;
-    return Material(
-      type: MaterialType.transparency,
-      child: Stack(
+            !_retryRestart);
+    final reduced = MediaQuery.disableAnimationsOf(context);
+    return AnimatedSwitcher(
+      duration: reduced ? Duration.zero : MoshDialogMotion.openDuration,
+      reverseDuration: reduced ? Duration.zero : MoshDialogMotion.closeDuration,
+      switchInCurve: MoshDialogMotion.curve,
+      switchOutCurve: MoshDialogMotion.curve.flipped,
+      transitionBuilder: _transition,
+      child: visible
+          ? _dialog(choice.busy)
+          : const SizedBox.shrink(key: ValueKey('vpn-hidden')),
+    );
+  }
+
+  Widget _transition(Widget child, Animation<double> animation) {
+    if (child is SizedBox) return child;
+    return Stack(children: [
+      FadeTransition(
+        opacity: animation,
+        child: ModalBarrier(
+          color: Colors.black54,
+          dismissible: true,
+          onDismiss: _decline,
+          semanticsLabel: widget.l.dialogCancel,
+        ),
+      ),
+      MoshDialogTransition(animation: animation, child: child),
+    ]);
+  }
+
+  Widget _dialog(bool busy) {
+    final l = widget.l;
+    final saving = _phase == VpnConsentPhase.saving || busy;
+    return MoshDialog(
+      key: const ValueKey('vpn-consent'),
+      title: l.vpnConsentTitle,
+      closeLabel: l.dialogCancel,
+      onCancel: _decline,
+      canCancel: !saving,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Dark scrim. (A blur is omitted -- Flutter BackdropFilter is
-          // expensive + not critical for the dialog's affordance.)
-          const ModalBarrier(
-            color: Color(0x8C000000),
-            dismissible: false,
-          ),
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Dialog(
-                insetPadding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                backgroundColor: theme.colorScheme.surface,
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Warning icon (22, danger tint).
-                      Icon(Icons.warning, size: 22, color: danger),
-                      const SizedBox(height: 10),
-                      Text(
-                        widget.l.vpnConsentTitle,
-                        style: theme.textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 10),
-                      // Body text (with the adapter name).
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: widget.l.vpnConsentBody(_adapter!),
-                            ),
-                          ],
-                        ),
-                        style:
-                            theme.textTheme.bodySmall?.copyWith(height: 1.45),
-                      ),
-                      const SizedBox(height: 10),
-                      // Caveat text.
-                      Text(
-                        widget.l.vpnConsentCaveat,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 11.5,
-                          height: 1.4,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      if (_error != null) ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          _error!,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: danger, fontSize: 12),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      // Right-aligned action row (decline + accept).
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Wrap(
-                          spacing: 8,
-                          children: [
-                            // Decline (ghost).
-                            TextButton(
-                              onPressed: saving ? null : _decline,
-                              child: Text(widget.l.vpnConsentDecline),
-                            ),
-                            // Accept (primary).
-                            FilledButton(
-                              onPressed: saving ? null : _accept,
-                              child: Text(
-                                saving
-                                    ? widget.l.vpnConsentAcceptSaving
-                                    : widget.l.vpnConsentAccept,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Text(l.vpnConsentBody(_adapter!)),
+          const SizedBox(height: 12),
+          Text(l.vpnConsentCaveat),
+          if (_error case final error?) ...[
+            const SizedBox(height: 12),
+            Text(error,
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ],
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: saving ? null : _decline,
+          child: Text(l.vpnConsentDecline),
+        ),
+        FilledButton(
+          onPressed: saving ? null : _accept,
+          child: Text(saving ? l.vpnConsentAcceptSaving : l.vpnConsentAccept),
+        ),
+      ],
     );
   }
 }
