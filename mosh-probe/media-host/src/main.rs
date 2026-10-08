@@ -43,7 +43,7 @@ fn commands() -> Receiver<Value> {
 
 fn node(mesh: &str) -> ProbeResult<Arc<MossNode>> {
     let runtime = Arc::new(MossFfiRuntime::load_default()?);
-    let config = json!({"trackers":[], "listen_port":0,
+    let config = json!({"trackers":[], "listen_port":0, "dht_enabled":false, "lan_discovery_enabled":false,
         "nat":{"upnp_enabled":false,"natpmp_enabled":false,"pcp_enabled":false}});
     let node = Arc::new(runtime.init_node(mesh, &config.to_string())?);
     node.set_packet_callback()?;
