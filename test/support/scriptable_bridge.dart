@@ -155,6 +155,7 @@ abstract class _ScriptableBridgeState
       conversations.hiddenSessions.add(invite.sessionId);
       conversations.sessions[invite.sessionId] = fakeSession(
         sessionId: invite.sessionId,
+        meshId: invite.meshId,
         displayName: '',
         role: 'inviter',
         inviteUri: invite.inviteUri,
@@ -179,6 +180,7 @@ abstract class _ScriptableBridgeState
         );
     conversations.sessions[sessionId] = fakeSession(
       sessionId: sessionId,
+      meshId: invite.meshId,
       displayName: request.displayName,
       role: 'inviter',
       inviteUri: invite.inviteUri,
