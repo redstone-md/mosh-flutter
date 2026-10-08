@@ -1,6 +1,7 @@
 # Remaining Linear issues: implementation report
 
-Completed 2026-10-08 on `fix/linear-remaining-issues`, based on `9da03059`.
+Completed 2026-10-08 on `fix/linear-remaining-issues`. Initial verification used
+`9da03059`; PR preparation rebased onto `3215ce09` with the current start menu.
 Scope and accepted behavior are in [the plan](linear-remaining-issues.plan.md).
 The implementation covers IVO-48, IVO-49, IVO-51 and IVO-52.
 
@@ -69,6 +70,23 @@ Older application versions cannot read new compact links. This version still
 reads legacy links and saved records. Linux compilation and native execution
 were verified here; Windows, macOS and physical mobile devices were not run.
 
+## PR preparation
+
+Rebased onto `3215ce09`, preserving the current inline start menu, invitation
+field, group footer and Copy feedback. Saved DM invitations use the same layout
+with compact Copy/Open/Replace actions. The start menu owns navigation after
+native opening; Back cancels late navigation while the chat remains durable.
+A regression reproduced the stale navigation before the owner check was added.
+
+After integration, Flutter analysis, Linux debug build, strict Clippy and both
+format checks passed. The full Flutter branch-coverage run passed 1802 tests
+with 4 skipped. The current start-menu preview also passed and its created-chat
+view was inspected with real fonts. Native runtime sources and generated bridge
+bindings are identical to the previously verified implementation.
+
+Coverage against the rebased main covers 567/581 changed Dart lines, 97.6%,
+and 172/193 branches, 89.1%. Native coverage remains 565/613 lines, 92.2%.
+
 ## Changed files
 
 - `docs/ADR/0042-durable-compact-dm-invitations.md`
@@ -92,6 +110,7 @@ were verified here; Windows, macOS and physical mobile devices were not run.
 - `lib/src/features/onboarding/chat_create_step.dart`
 - `lib/src/features/onboarding/first_run_network_form.dart`
 - `lib/src/features/onboarding/invite_result.dart`
+- `lib/src/features/onboarding/new_session_panel.dart`
 - `lib/src/features/onboarding/pending_invitation_card.dart`
 - `lib/src/features/shared/confirm_dialog.dart`
 - `lib/src/features/shared/mosh_dialog.dart`
