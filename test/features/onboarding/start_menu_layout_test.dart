@@ -1,7 +1,8 @@
-// IVO-50: the start menu fits its pane. Cards sit four, two or one to a
-// row, the hero drops its illustration on narrow panes, descriptions wrap
-// in full in Russian, a keyboard user sees which card holds focus, and
-// reduced motion shows everything at rest.
+// IVO-50: the start menu fits its pane. A wide pane puts the welcome
+// beside the list, narrower ones stack them and a phone drops the mark;
+// actions sit under encrypted and open headings, descriptions wrap in full
+// in Russian, a keyboard user sees which row holds focus, and reduced
+// motion shows everything at rest.
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -9,7 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
-import 'package:mosh/src/features/onboarding/start/start_card.dart';
+import 'package:mosh/src/features/onboarding/start/start_hero.dart';
+import 'package:mosh/src/features/onboarding/start/start_list.dart';
 import 'package:mosh/src/features/onboarding/start/start_menu.dart';
 import 'package:mosh/src/features/onboarding/start/start_reveal.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
@@ -41,40 +43,34 @@ Future<AppLocalizations> _pumpMenu(WidgetTester tester, double width,
   return AppLocalizations.of(tester.element(find.byType(StartMenu)))!;
 }
 
-/// How many cards share the first card's row.
-int _cardsInFirstRow(WidgetTester tester) {
-  final top = tester.getTopLeft(find.byType(StartCard).first).dy;
-  return find
-      .byType(StartCard)
-      .evaluate()
-      .where((e) => tester.getTopLeft(find.byWidget(e.widget)).dy == top)
-      .length;
-}
-
 void main() {
-  for (final (width, columns, illustrated) in [
-    (1200.0, 4, true),
-    (800.0, 2, true),
-    (600.0, 2, false),
-    (390.0, 1, false),
+  for (final (width, sideBySide, mark) in [
+    (1200.0, true, true),
+    (800.0, false, true),
+    (390.0, false, false),
   ]) {
-    testWidgets('at ${width.toInt()}px: $columns per row', (tester) async {
+    testWidgets(
+        'at ${width.toInt()}px: '
+        '${sideBySide ? 'side by side' : 'stacked'}, '
+        '${mark ? 'with' : 'without'} the mark', (tester) async {
       await _pumpMenu(tester, width);
-      expect(_cardsInFirstRow(tester), columns);
-      expect(find.byType(Image), illustrated ? findsOneWidget : findsNothing);
+      final hero = tester.getRect(find.byType(StartHero));
+      final list = tester.getRect(find.byType(StartActionList));
+      expect(list.left > hero.right, sideBySide);
+      expect(find.byType(Image), mark ? findsOneWidget : findsNothing);
     });
   }
 
-  testWidgets('cards in a row share a height', (tester) async {
-    await _pumpMenu(tester, 1200, locale: const Locale('ru'));
-    final heights = {
-      for (final e in find.byType(StartCard).evaluate())
-        tester.getSize(find.byWidget(e.widget)).height
-    };
-    expect(heights, hasLength(1));
+  testWidgets('the public channel sits apart, under the open heading',
+      (tester) async {
+    final l = await _pumpMenu(tester, 1200);
+    double top(String text) => tester.getTopLeft(find.text(text)).dy;
+    expect(top(l.startGroupEncrypted), lessThan(top(l.onboardTileChatTitle)));
+    expect(top(l.onboardTileJoinTitle), lessThan(top(l.startGroupOpen)));
+    expect(top(l.startGroupOpen), lessThan(top(l.onboardTileChannelTitle)));
   });
 
-  testWidgets('card descriptions wrap in full on a phone in Russian',
+  testWidgets('row descriptions wrap in full on a phone in Russian',
       (tester) async {
     final l = await _pumpMenu(tester, 320, locale: const Locale('ru'));
     for (final desc in [
@@ -90,7 +86,7 @@ void main() {
     }
   });
 
-  testWidgets('Tab onto a card draws the focus ring', (tester) async {
+  testWidgets('Tab onto a row draws the focus ring', (tester) async {
     final l = await _pumpMenu(tester, 1200);
     Border? ringOf(String title) {
       final ring =

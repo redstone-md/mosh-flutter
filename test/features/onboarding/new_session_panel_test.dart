@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/onboarding/channel_join_step.dart';
 import 'package:mosh/src/features/onboarding/start/start_menu.dart';
+import 'package:mosh/src/features/onboarding/start/start_pages.dart';
 import 'package:mosh/src/features/onboarding/start/start_step.dart';
 import 'package:mosh/src/routing/mosh_shell.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -46,6 +47,41 @@ void main() {
     final step = tester.getRect(find.byType(ChannelJoinStep));
     expect(step.width, lessThanOrEqualTo(StartStep.maxWidth));
     expect(step.center.dx, moreOrLessEquals(pane.center.dx, epsilon: 1));
+  });
+
+  testWidgets('the leaving menu stays in place while a step slides in',
+      (tester) async {
+    await _pumpWelcome(tester);
+    const card = 'Start a private chat';
+    await tester.ensureVisible(find.text(card));
+    await tester.pumpAndSettle();
+    final before = tester.getRect(find.byType(StartMenu));
+
+    await tester.tap(find.text(card));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(tester.getRect(find.byType(StartMenu)).top,
+        moreOrLessEquals(before.top, epsilon: 1));
+
+    await tester.pumpAndSettle();
+    final step = tester.getRect(find.byType(StartStep));
+    final pane = tester.getRect(find.byType(StartPages));
+    expect(step.center.dy, moreOrLessEquals(pane.center.dy, epsilon: 2));
+  });
+
+  testWidgets('a pane shorter than its padding still lays out', (tester) async {
+    // A landscape phone with the keyboard up leaves less height than the
+    // pane's vertical padding.
+    tester.view
+      ..physicalSize = const Size(800, 60)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pumpScreen(
+      tester,
+      const ChatPaneWelcome(),
+      overrides: [gatewayProvider.overrideWithValue(ScriptableGateway())],
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.byType(StartMenu), findsOneWidget);
   });
 
   testWidgets('a step keeps its typed text across a trip to the menu',
