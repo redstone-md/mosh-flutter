@@ -2055,5 +2055,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "pendingInvitations": "Saved invitations",
+  "createNewInvitation": "Create new invitation",
+  "deleteChatUnnamedTitle": "Delete this chat?",
+  "leaveGroupUnnamedTitle": "Leave this group?"
 }

@@ -1085,5 +1085,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "pendingInvitations": "Сохранённые приглашения",
+  "createNewInvitation": "Создать новое приглашение",
+  "deleteChatUnnamedTitle": "Удалить этот чат?",
+  "leaveGroupUnnamedTitle": "Покинуть эту группу?"
 }
