@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/inline_error.dart';
-import 'package:mosh/src/features/onboarding/invite_result.dart';
-import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
-import 'package:mosh/src/gateway/conversation_target.dart'
-    show ConversationKind;
-import 'package:mosh/src/state/conversation_providers.dart'
-    show conversationListProvider;
-import 'package:mosh/src/state/session_providers.dart';
+import 'package:mosh/src/features/onboarding/pending_invitation_card.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
-import 'package:mosh/src/features/shared/toasts/toaster.dart';
+import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
+    show InviteCreated;
+import 'package:mosh/src/state/pending_invites_provider.dart';
+import 'package:mosh/src/state/session_providers.dart';
 
 class ChatCreateStep extends ConsumerStatefulWidget {
   const ChatCreateStep({super.key});
@@ -24,94 +21,120 @@ class ChatCreateStep extends ConsumerStatefulWidget {
 
 class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
   bool _busy = false;
-  bool _copied = false;
-  // Persistent inline error -- stays until the next create attempt.
-  // Cleared at the START of the next attempt below.
+  bool _creating = false;
   ConversationActionError? _error;
 
-  Future<void> _onCreate() async {
+  void _reportError(Object error) {
+    if (mounted) setState(() => _error = ConversationActionError.of(error));
+  }
+
+  Future<void> _run(Future<void> Function() action,
+      {bool creating = false}) async {
     if (_busy) return;
-    // Reset `copied` whenever a new create begins; the previous invite's
-    // "Copied" badge should not persist onto a fresh link.
     setState(() {
       _busy = true;
-      _copied = false;
+      _creating = creating;
       _error = null;
     });
     try {
-      await ref.read(inviteFlowProvider.notifier).create();
-      await ref
-          .read(conversationListProvider(ConversationKind.dm).notifier)
-          .refresh();
-    } catch (e) {
-      // The inline error is the one source of truth (no SnackBar), and its
-      // wording comes from the bridge kind when the seam threw one.
-      if (mounted) setState(() => _error = ConversationActionError.of(e));
+      await action();
+    } catch (error) {
+      _reportError(error);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _creating = false;
+        });
+      }
     }
   }
 
-  Future<void> _onCopy(String uri) async {
-    final toaster = context.toaster;
-    final copied = AppLocalizations.of(context)!.messageCopied;
-    await Clipboard.setData(ClipboardData(text: uri));
-    toaster.show(copied, kind: ToastKind.success);
-    if (mounted) setState(() => _copied = true);
+  Future<void> _create() {
+    final flow = ref.read(inviteFlowProvider.notifier);
+    return _run(() async {
+      await flow.create();
+    }, creating: true);
+  }
+
+  Future<void> _replace(String sessionId) {
+    final invitations = ref.read(pendingInvitesProvider.notifier);
+    return _run(() async {
+      await invitations.replace(sessionId);
+    });
+  }
+
+  Future<void> _open(String sessionId) {
+    final invitations = ref.read(pendingInvitesProvider.notifier);
+    final router = GoRouter.of(context);
+    return _run(() async {
+      await invitations.open(sessionId);
+      if (mounted) router.go(AppRoutes.dmFor(sessionId));
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final lastInvite = ref.watch(inviteFlowProvider).lastInvite;
-    final error = _error == null
-        ? null
-        : Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: InlineError(message: _error?.describe(l)),
-          );
-    if (lastInvite == null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          FilledButton.icon(
-            onPressed: _busy ? null : _onCreate,
-            style:
-                FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            icon: _busy ? const _Spinner() : const Icon(Icons.link, size: 18),
-            label: Text(l.onboardChatCreate),
-          ),
-          if (error != null) error,
-        ],
-      );
-    }
+    final pending = ref.watch(pendingInvitesProvider);
+    final invites = pending.value ?? const [];
+    final error = _error ??
+        switch (pending.error) {
+          final error? => ConversationActionError.of(error),
+          _ => null,
+        };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        InviteResult(
-          note: l.onboardInviteReady,
-          uri: lastInvite.inviteUri,
-          copied: _copied,
-          onCopy: () => _onCopy(lastInvite.inviteUri),
-          onReplace: _onCreate,
-          replaceLabel: l.onboardChatRecreate,
-          openLabel: l.onboardOpenChat,
-          onOpen: () => context.go(AppRoutes.dmFor(lastInvite.sessionId)),
-          footer: l.onboardInviteFooter,
-        ),
-        if (error != null) error,
+        _createButton(l, hasInvites: invites.isNotEmpty),
+        if (error != null) ...[
+          const SizedBox(height: 12),
+          InlineError(message: error.describe(l)),
+        ],
+        if (pending.isLoading && !pending.hasValue) ...[
+          const SizedBox(height: 20),
+          const LinearProgressIndicator(),
+        ],
+        if (pending.hasError)
+          TextButton(
+              onPressed: _busy
+                  ? null
+                  : () =>
+                      _run(ref.read(pendingInvitesProvider.notifier).refresh),
+              child: Text(l.sessionsRetry)),
+        if (invites.isNotEmpty) ..._savedInvitations(l, invites),
       ],
     );
   }
-}
 
-class _Spinner extends StatelessWidget {
-  const _Spinner();
-
-  @override
-  Widget build(BuildContext context) => const SizedBox(
-        width: 18,
-        height: 18,
-        child: CircularProgressIndicator(strokeWidth: 2),
+  Widget _createButton(AppLocalizations l, {required bool hasInvites}) =>
+      FilledButton.icon(
+        onPressed: _busy ? null : _create,
+        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+        icon: _creating
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.link, size: 18),
+        label: Text(hasInvites ? l.createNewInvitation : l.onboardChatCreate),
       );
+
+  List<Widget> _savedInvitations(
+          AppLocalizations l, List<InviteCreated> invites) =>
+      [
+        const SizedBox(height: 20),
+        Text(l.pendingInvitations,
+            style: Theme.of(context).textTheme.titleSmall),
+        for (final invite in invites) ...[
+          const SizedBox(height: 12),
+          PendingInvitationCard(
+              key: ValueKey(invite.sessionId),
+              invite: invite,
+              busy: _busy,
+              onError: _reportError,
+              onReplace: () => _replace(invite.sessionId),
+              onOpen: () => _open(invite.sessionId)),
+        ],
+      ];
 }
