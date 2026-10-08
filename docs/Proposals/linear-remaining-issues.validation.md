@@ -117,9 +117,23 @@ behavior was weakened. The full unit run passed 698 tests with 18 ignored;
 build, strict Clippy, analysis and format checks passed. Independent Standards
 and Spec reviews of the follow-up patch reported no findings.
 
-The full Flutter rerun passed 1805 tests with 4 skipped. The invitation runtime
+The full Flutter rerun passed 1805 tests with 4 skipped. The full native rerun
+passed 698 unit and 48 integration tests, with 27 ignored. The invitation runtime
 and bridge contracts are unchanged by this follow-up; native coverage remains
 92.2% of changed executable lines.
+
+macOS Rust CI passed after the address regression update. Windows then exposed
+an independent test-isolation failure: the channel deletion fixture reused a
+room and accepted a prior fixture's frame from the process-wide inbox. Queuing
+that signed frame reproduced the exact empty-chat assertion without timing
+dependencies. The fixture now clears the inbox on creation, matching neighboring
+tests. Both attachment-lifetime assertions and the strict empty-chat assertion
+remain intact. All eight channel deletion tests, the repeated full unit suite
+(698 passed, 18 ignored) and strict Clippy passed.
+Review found no behavior issue. Test-file exception:
+`mosh-core/src/channel_runtime/runtime_tests/deletion.rs` is 412 lines. The
+signed-frame setup belongs to its existing attachment-cache regression and
+shares that fixture.
 
 ## Changed files
 
@@ -161,6 +175,7 @@ and bridge contracts are unchanged by this follow-up; native coverage remains
 - `lib/src/state/pending_invites_provider.dart`
 - `lib/src/state/session_providers.dart`
 - `mosh-core/src/api/private_dm.rs`
+- `mosh-core/src/channel_runtime/runtime_tests/deletion.rs`
 - `mosh-core/src/frb_generated.rs`
 - `mosh-core/src/private_dm_runtime.rs`
 - `mosh-core/src/private_dm_runtime/actions.rs`
