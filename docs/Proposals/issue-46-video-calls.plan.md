@@ -14,6 +14,10 @@ open decisions for [issue 46](https://github.com/redstone-md/mosh-flutter/issues
 - Ring the contact's available linked devices. An answer selects one receiving
   device; other devices stop ringing. See [ADR 0043](../ADR/0043-one-device-per-user-in-a-call.md).
 - Explicit decline on one receiving device ends the pending call on all devices.
+- Occupancy belongs to the user. A pending outgoing or admitted incoming call
+  reserves it through ringing, setup, active media and reconnection. A free sibling
+  cannot admit an unrelated call while that occupancy is known. The coordination
+  mechanism and guarantee during network partitions remain open.
 - Audio and video belong to one call. Either participant can enable or disable
   their camera during a voice or video call without starting another call.
 - Accepting a call does not automatically enable the receiving camera. Camera
@@ -28,6 +32,12 @@ open decisions for [issue 46](https://github.com/redstone-md/mosh-flutter/issues
   state, then end it if the connection has not recovered.
 - Screen sharing, recording, call transfer and chat call-history entries belong
   to separate tasks.
+- Use one established native audio/video engine in the main process. The child
+  desktop call window receives bounded frames and sends commands; its failure
+  must preserve the call and main-view controls. See
+  [ADR 0044](../ADR/0044-native-call-media-over-moss.md).
+- Bound relay capacity at node and flow levels. Preserve capacity for messages
+  and control; prioritize audio over video. Choose numeric budgets from measurements.
 
 Domain terms live in [GLOSSARY.md](../../GLOSSARY.md); existing user and device
 identity definitions live in [CONTEXT.md](../../CONTEXT.md).
@@ -58,7 +68,8 @@ identity definitions live in [CONTEXT.md](../../CONTEXT.md).
   per-source limits and session counts do not reserve capacity for a call.
 - [ADR 0012](../ADR/0012-port-strategy-what-goes-to-dart-vs-mosh-core.md) proposes
   native media crypto/buffers, while the current voice implementation keeps
-  them in Dart. Resolve the intended boundary when choosing the media stack.
+  them in Dart. [ADR 0044](../ADR/0044-native-call-media-over-moss.md) adopts native
+  media ownership for this feature; the existing pipeline has not yet changed.
 
 ## Design evidence
 
@@ -69,19 +80,50 @@ identity definitions live in [CONTEXT.md](../../CONTEXT.md).
   limits and units, configuration, traffic cost and proposed capacity policy.
 - [Media engine and desktop ownership](issue-46-media-engine.research.md):
   native libwebrtc and RingRTC transport hooks, packaging gaps and video IPC.
+- [Candidate comparison](issue-46-media-candidates.research.md): RingRTC,
+  LiveKit, native libwebrtc, GStreamer and flutter_webrtc against the agreed boundary.
 
 Source inspection establishes candidate APIs, not a working Moss media engine.
 Native packaging, media protection and real-device quality require a focused
 feasibility check before replacing the working voice pipeline.
 
+## Preferred feasibility candidate
+
+RingRTC's low-level Rust WebRTC factory is the first candidate to validate.
+It exposes an injected virtual UDP network without requiring Signal's service
+or CallManager, while retaining established audio/video processing. Keep its
+negotiation format and native pointers behind a Mosh-owned engine adapter.
+This is a research recommendation, not an adopted dependency.
+
+Before adoption, prove:
+
+1. Pinned native artifacts link in the existing desktop builds, including
+   Windows debug and both macOS architectures. Resolve the mismatched Rust/C++
+   callback return declarations rather than assuming ABI compatibility.
+2. All engine packets use the selected Moss peer, with bounded queues and
+   usable timing/loss feedback. No external ICE server or alternate network path.
+3. Authenticated selected-device negotiation installs fresh directional SRTP
+   keys. The current public API reconstructs Signal V4 descriptions with DTLS
+   disabled; generic SDP/DTLS exchange is not a verified path.
+4. Camera input, duplex audio, decoded video and child-window frame delivery
+   meet the quality target. Desktop VP8/VP9 factories are software codecs;
+   source availability does not establish CPU, battery or thermal behavior.
+
+Mandatory Signal-related dependencies, AGPL-3.0 licensing, toolchain differences
+and artifact availability also need explicit review at dependency selection.
+GStreamer is the strongest alternative if RingRTC requires substantial private
+fork maintenance; it trades direct application packet APIs for more pipeline
+composition. Revisit that choice after the focused proof, not by silently
+keeping separate permanent audio and video engines.
+
 ## Open decisions
 
-- User-wide versus device-local busy behavior, when to reserve the user, and
-  how concurrent answers and outgoing calls resolve.
-- A unified native audio/video engine, its reproducible packaging and directed
-  Moss integration; media encryption/key ownership and desktop process ownership.
+- User-wide admission authority and partition guarantee, plus how concurrent
+  answers and outgoing calls resolve.
+- Native engine candidate, reproducible packaging and directed Moss integration;
+  authenticated media-key exchange and bounded cross-process frame delivery.
 - Camera activation before answer, device selection and permission failures.
-- Relay capacity, bandwidth policy and safeguards for message delivery.
+- Measured relay capacity and numeric flow budgets.
 - Acceptance scenarios and observable quality targets on real desktop hosts.
 
 ## Checks and risks

@@ -16,6 +16,11 @@ and send media would turn a two-person call into a call with additional media
 participants. The chosen model requires authenticated device selection and a
 single agreed answer before enabling media; the existing voice controls do not
 yet implement that coordination. Explicit refusal on one receiving device ends
-the pending call on all receiving devices. Call transfer is a separate task;
-user-wide busy behavior remains open in the
+the pending call on all receiving devices. A pending outgoing or admitted incoming
+call reserves its user's occupancy through ringing, setup, active media and
+reconnection. A free sibling cannot admit an unrelated call while that occupancy
+is known. This follows the account-wide policy demonstrated in
+[Telegram's call flow](https://core.telegram.org/api/calls#one-to-one-calls), while
+Mosh's admission authority and partition guarantees remain to be decided.
+Call transfer is a separate task. See the
 [design plan](../Proposals/issue-46-video-calls.plan.md).

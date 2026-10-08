@@ -37,3 +37,9 @@ _Avoid_: call participant when referring to an installation rather than a person
 A user's decision to reject a pending Mosh call across their linked devices.
 It differs from silencing an alert or missing a call.
 _Avoid_: dismiss notification, missed call.
+
+**Call occupancy**:
+A Mosh user's reserved participation in one pending or ongoing call across
+their linked devices. Another call cannot be admitted while that reservation
+is known to remain in effect.
+_Avoid_: microphone busy, device busy.
