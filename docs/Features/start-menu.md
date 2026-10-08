@@ -1,19 +1,25 @@
 # Start menu
 
 IVO-50 redesigns the chat pane shown when no conversation is open: a
-welcome hero over four ways to begin, each opening its step in place.
+welcome beside four ways to begin, each opening its step in place.
 
 ## Behavior
 
-- **Menu.** A plain greeting (no caps, no tracking), the title "Start a
-  conversation" and a subtitle that promises encryption for private chats
-  and groups only. There is no fact list: a static claim such as
-  "encrypted history" can be false while the storage warning shows. The
-  hero illustration sits on
-  the right from 760px of pane width. Cards sit four to a row from 1000px,
-  two by two from 520px and stack as compact rows on a phone.
-- **Steps.** Each card opens its step in place; the rail stays. A step
-  shows Back, its illustration, title and lead, then its form on a raised
+- **Menu.** The Mosh mark, the title "Start a conversation" in one colour
+  and a subtitle that promises encryption for private chats and groups
+  only. The four actions are rows in two groups: "End-to-end encrypted"
+  (private chat, group, join with a link) and "Open to everyone" (public
+  channel). Every invite link opens a DM, group or organization, all
+  admitted through MLS, so the join row belongs to the encrypted group.
+  Icons take the conversation type accents the rail uses. From 860px of
+  pane width the welcome sits left of the list; narrower panes stack them,
+  and below 480px the mark is dropped so the actions come first.
+- **No decoration that claims or performs.** No eyebrow, tracked caps,
+  accent-coloured title word, fact list, parallax, card tilt or glare. A
+  static claim such as "encrypted history" can be false while the storage
+  warning shows, so the menu makes none beyond the subtitle.
+- **Steps.** Each row opens its step in place; the rail stays. A step
+  shows Back, a small illustration, title and lead, then its form on a raised
   card. Every step stays mounted, so typed text and a created invite
   survive a trip to the menu. `/join` (deep links) shows the join step on
   its own page; its Back opens the menu.
@@ -36,38 +42,36 @@ welcome hero over four ways to begin, each opening its step in place.
 
 ## Motion
 
-Values follow transitions.dev recipes, all on `cubic-bezier(0.22, 1, 0.36, 1)`
-(`start/start_motion.dart`):
+All on `cubic-bezier(0.22, 1, 0.36, 1)` (`start/start_motion.dart`):
 
-- Texts reveal (18): hero lines rise 12px from a 3px blur over 500ms, 40ms
-  apart; cards follow 80ms apart.
+- Texts reveal (transitions.dev 18): the mark, title, subtitle and list
+  rise 12px from a 3px blur over 500ms, 40ms apart.
 - Page fade-through: the leaving page fades out in the first 40% of 250ms
   sliding 8px toward its side, then the shown page fades in. Every page is
   centred in a box at least as tall as the pane, so the menu does not jump
   when a shorter step replaces it. No blur: it reads as mush and costs a
   full-pane filter on the illustration.
-- Card hover tilt (19): up to 6° toward the pointer, following in 400ms and
-  settling in 1000ms, under a soft glare. Hover and keyboard focus light the
-  card the same way; the arrow fills and nudges forward (24).
-- The hero illustration stays still.
+- Row hover: hover and keyboard focus raise the row from `bg1` to `bg2` in
+  140ms and edge the chevron forward. Nothing leans, glares or drifts.
 
 Under reduced motion everything is shown at rest and steps swap in place;
-cards still light on hover and focus.
+rows still lift on hover and focus, without the chevron moving.
 
 ## Ownership
 
 `NewSessionPanel` owns the current page; `StartPages` keeps the pages
-mounted and slides between them. `StartMenu`, `StartHero` and `StartCard`
-draw the menu; `StartStep` frames a step. The step widgets
+mounted and fades between them. `StartMenu` lays out `StartHero` and
+`StartActionList` (rows are `StartRow`); `StartStep` frames a step. The step widgets
 (`ChatCreateStep`, `GroupCreateStep`, `OnboardJoinStep`, `ChannelJoinStep`)
 keep their bridge calls. Illustrations and their prompts live in
 [`assets/start/`](../../assets/start/README.md).
 
 ## Known gaps
 
+- `hero.png` carries transparent margins; `StartHero` pulls the mark left
+  by the art's share of the canvas so it lines up with the title.
 - With the storage warning shown, the pane is taller than the window by
   the banner's height, so it scrolls.
-
 - A private chat invite is not single-use in the core: until a contact
   connects, a second person can use it, and a new link does not revoke the
   old one. The copy states this instead of promising one-time use.
