@@ -27,6 +27,8 @@ the software keyboard. Large text and tall menus retain scrollable actions.
   menu; Enter/Space activate an action and Escape dismisses it. Closing restores
   the source row's focus. Ctrl/Cmd+C preserves normal selection copying,
   including while the menu owns focus.
+- Message rows retain keyboard focus without painting a focus outline, including
+  during menu dismissal. Picked messages use the existing full-width tint.
 - A removed or replaced source row dismisses its menu. Scrolling closes it.
   Deferred actions do not invoke a disposed source or conversation.
 - Message identity owns row state; conversation identity owns selection/menu
@@ -57,8 +59,10 @@ After a completed close, the next opening starts at scale 0.97 again.
 Widget tests exercise actual clipboard output, body/caption selection in all
 three conversation kinds, menu targeting, dismissal, source disposal, keyboard
 navigation, mobile handle dragging, attachment controls, enlarged text and edge
-placement. Full Flutter analysis and tests are required. Physical OS pointer and
-touch behavior remains a separate runtime check.
+placement. `message_focus_test.dart` checks row painting during keyboard focus
+and menu dismissal, preserved copy shortcuts and the selection tint in all three
+conversation kinds. Full Flutter analysis and tests are required. Physical OS
+pointer and touch behavior remains a separate runtime check.
 
 The menu panel and message row use declarative widget trees that exceed the
 three-level nesting guideline; their lifecycle and selection logic remain in

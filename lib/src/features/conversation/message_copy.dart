@@ -9,14 +9,11 @@ import 'package:flutter/services.dart';
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/message_selection.dart';
-import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'message_context_menu.dart';
 
 part 'message_drag_selection.dart';
 part 'message_selection_area.dart';
 part 'message_selection_delegate.dart';
-
-const BorderRadius _focusRadius = BorderRadius.all(Radius.circular(6));
 
 SingleActivator get _copyShortcut {
   final apple = defaultTargetPlatform == TargetPlatform.macOS ||
@@ -149,30 +146,27 @@ class _CopyableMessageState extends State<CopyableMessage> {
           child: Focus(
             focusNode: _focus,
             onKeyEvent: _onKey,
-            child: FocusRing(
-              radius: _focusRadius,
-              child: RawGestureDetector(
-                behavior: HitTestBehavior.translucent,
-                gestures: {
-                  if (!widget.selecting) ...{
-                    TapGestureRecognizer: GestureRecognizerFactoryWithHandlers<
-                        TapGestureRecognizer>(
-                      () => TapGestureRecognizer(),
-                      (recognizer) => recognizer.onSecondaryTapDown =
-                          (details) => _menu(details.globalPosition),
-                    ),
-                    _NonTextLongPressRecognizer:
-                        GestureRecognizerFactoryWithHandlers<
-                            _NonTextLongPressRecognizer>(
-                      () => _NonTextLongPressRecognizer(_selection),
-                      (recognizer) => recognizer.onLongPressStart =
-                          (details) => _menu(details.globalPosition),
-                    ),
-                  },
+            child: RawGestureDetector(
+              behavior: HitTestBehavior.translucent,
+              gestures: {
+                if (!widget.selecting) ...{
+                  TapGestureRecognizer: GestureRecognizerFactoryWithHandlers<
+                      TapGestureRecognizer>(
+                    () => TapGestureRecognizer(),
+                    (recognizer) => recognizer.onSecondaryTapDown =
+                        (details) => _menu(details.globalPosition),
+                  ),
+                  _NonTextLongPressRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                          _NonTextLongPressRecognizer>(
+                    () => _NonTextLongPressRecognizer(_selection),
+                    (recognizer) => recognizer.onLongPressStart =
+                        (details) => _menu(details.globalPosition),
+                  ),
                 },
-                child: SelectionContainer(
-                    delegate: _selection, child: widget.child),
-              ),
+              },
+              child:
+                  SelectionContainer(delegate: _selection, child: widget.child),
             ),
           ),
         ),
