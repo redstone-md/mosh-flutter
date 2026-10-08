@@ -28,6 +28,16 @@ pub struct Measurements {
     pub encoder: Mutex<Value>,
 }
 
+impl Measurements {
+    pub fn snapshot(&self) -> Value {
+        json!({"decoded": self.decoded.load(Ordering::Relaxed),
+            "decoded_720": self.decoded_720.load(Ordering::Relaxed),
+            "audio_received": self.audio_received.load(Ordering::Relaxed),
+            "audio": *self.audio.lock().unwrap(), "video": *self.video.lock().unwrap(),
+            "encoder": *self.encoder.lock().unwrap()})
+    }
+}
+
 #[derive(Debug)]
 pub struct Consumer(pub Arc<Measurements>);
 

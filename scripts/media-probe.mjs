@@ -94,7 +94,7 @@ try {
       caller: results[0], callee: results[1] }));
   } while (Date.now() - started < seconds * 1000);
   const [left, right] = results;
-  const ok = values["tamper-key"] ? left.decoded > 0 && right.decoded === 0
+  const ok = values["tamper-key"] ? left.decoded > 0 && left.audio_received && right.decoded === 0 && right.audio_received === false
     : results.every((result) => result.decoded > 30 && result.audio_received);
   if (!ok) process.exitCode = 1;
   console.log(JSON.stringify({ transport_media_check: ok ? "pass" : "fail",

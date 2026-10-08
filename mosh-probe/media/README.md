@@ -49,8 +49,8 @@ implementation, loss, and carrier drops/errors/send duration. A normal run
 passes its narrow transport check when both peers decode video and receive
 audio packets. Silence can produce zero energy; packet receipt does not prove
 microphone capture or audible playback. The tampered-key run passes only when
-the callee cannot decode the caller's video and the reverse direction still
-decodes. This is a negative SRTP authentication check.
+the callee cannot decode the caller's video or receive its audio, while the
+reverse direction still receives both. This is a negative SRTP authentication check.
 
 The two fixture queues each hold at most 128 packets; the Moss unclaimed inbox
 holds at most 256. Carrier packets are capped at 2007 bytes including the test

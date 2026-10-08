@@ -125,13 +125,9 @@ impl Engine {
     }
 
     fn snapshot(&self) -> Value {
-        let measurements = &self.endpoint.measurements;
-        json!({"decoded": measurements.decoded.load(Ordering::Relaxed),
-            "decoded_720": measurements.decoded_720.load(Ordering::Relaxed),
-            "audio_received": measurements.audio_received.load(Ordering::Relaxed),
-            "engine_queue_dropped": self.queue_dropped.load(Ordering::Relaxed),
-            "audio": *measurements.audio.lock().unwrap(), "video": *measurements.video.lock().unwrap(),
-            "encoder": *measurements.encoder.lock().unwrap()})
+        let mut measurements = self.endpoint.measurements.snapshot();
+        measurements["engine_queue_dropped"] = self.queue_dropped.load(Ordering::Relaxed).into();
+        measurements
     }
 }
 

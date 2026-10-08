@@ -104,5 +104,33 @@ access to remote hosts is not required for the current handoff.
 - Directed-packet refusal, absent symbols and NUL target unit checks: three passed.
 - Node source/lock suite: 16 passed; aggregate coverage 90.64% lines / 86.81% branches.
   Shared source preparation itself: 92% lines / 80% branches.
-- Core and engine clippy with warnings denied: passed.
-- Full core suite, host lint and final review: running when this result was first recorded.
+- Core, engine and host clippy with warnings denied: passed.
+- Directed-wrapper coverage from focused unit and independent-process checks:
+  30/33 executable lines, 90.91%. Stable Rust did not emit branch counters.
+- Full core suite: running when this result was first recorded.
+
+## Standards review
+
+Reviewed `12b074fd...ed75e6a1` against root/core `AGENTS.md` and the code-review
+smell baseline. No confirmed documented-standard breach was found. One
+low-priority Feature Envy suggestion moved measurement serialization from the
+engine command owner into `Measurements::snapshot()`, beside its recording code.
+The suggestion is addressed; library result ownership, unload order and native
+observer teardown were reviewed.
+
+## Spec review
+
+No confirmed correctness mismatch or scope creep was found in the isolated
+Linux proof. Four agreed adoption gates remain open: desktop packaging,
+carrier completion/relay feedback, authenticated selected-device negotiation,
+and physical capture/presentation quality. The plan requires "Windows debug and
+both macOS architectures", "usable timing/loss feedback", "Authenticated
+selected-device negotiation" and "child-window frame delivery"; those are
+still missing rather than silently claimed by a passing synthetic run.
+
+The optional review suggestion to check audio as well as video in the
+tampered-key test is addressed. The rejected direction now must report neither
+decoded video nor received audio; the reverse direction must receive both.
+
+Review counts: Standards — one low-priority suggestion addressed, zero confirmed
+breaches; Spec — four acknowledged open gates, zero confirmed stage-1 defects.

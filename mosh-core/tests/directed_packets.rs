@@ -83,7 +83,15 @@ impl Peer {
 
 impl Drop for Peer {
     fn drop(&mut self) {
-        let _ = self.child.kill();
+        let _ = writeln!(self.input, "{}", json!({"action":"stop"}));
+        let _ = self.input.flush();
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while self.child.try_wait().ok().flatten().is_none() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        if self.child.try_wait().ok().flatten().is_none() {
+            let _ = self.child.kill();
+        }
         let _ = self.child.wait();
     }
 }
@@ -149,6 +157,9 @@ fn packet_worker() {
     );
     for line in std::io::stdin().lock().lines().map_while(Result::ok) {
         let value: Value = serde_json::from_str(&line).unwrap();
+        if value["action"] == "stop" {
+            break;
+        }
         let response = match value["action"].as_str().unwrap() {
             "connect" => node
                 .connect(value["address"].as_str().unwrap())
