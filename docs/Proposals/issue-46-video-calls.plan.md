@@ -250,8 +250,8 @@ decline, cancel or hang up according to the call phase.
 ## Remaining proof work
 
 The [native feasibility results](issue-46-native-media.results.md) record the
-implemented Linux tracer bullet and outstanding adoption gates. Application
-video calls are not implemented by that probe.
+implemented Linux tracer bullet, user-run Windows x64 debug checks and outstanding
+adoption gates. Application video calls are not implemented by that probe.
 
 - Validate the native candidate, reproducible packaging and directed Moss
   integration, including authenticated media-key exchange and bounded frame IPC.

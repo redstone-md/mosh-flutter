@@ -1,8 +1,9 @@
 # Issue 46: native media feasibility results
 
-Status on 2026-10-08: **hold application adoption**. The isolated Linux tracer
-bullet exchanges protected audio/video through real Moss processes. It does
-not implement video calls in Mosh or finish the plan's first adoption gate.
+Status on 2026-10-08: **hold application adoption**. The isolated fixture exchanges
+protected audio/video through real Moss processes on Linux and user-tested
+Windows x64. It does not implement video calls in Mosh or finish the plan's first
+adoption gate.
 
 ## Implemented boundary
 
@@ -62,13 +63,44 @@ on every desktop platform.
 Preparing the source again with `--offline` succeeded after the native build:
 Cargo's output directory no longer contaminates the verified source tree.
 
+### User-run Windows x64
+
+The user supplied `mosh-issue-46-retry-20261009-004400.zip`, containing engine,
+host, directed-transport, normal-media and tampered-key logs. The distributed
+bundle was based on `2dd3df13`. Both native components built in Cargo's `dev`
+profile, and the independent-process packet/stream regression passed: one test
+passed, with the worker entry ignored because the parent launches it separately.
+The initial build needed `protoc` installed before retrying.
+
+The normal run passed after 60.004 seconds. The caller/callee received 1796/1795
+decoded frames, including 1678/1677 at 1280×720 after initial adaptation. Sampled
+receive rates after ten seconds were 29.94 to 30.97 and 28.98 to 29.97 fps respectively.
+Both used VP9/libvpx for encoding and decoding. Neither native nor carrier fixture
+queues reported drops; carrier sends reported zero errors and maximum synchronous
+send durations of 0.881/1.873 ms. All reported audio/video loss samples were zero.
+Both directions received audio packets with nonzero energy.
+
+The 15-second tampered-key run also passed. The callee decoded zero frames and
+received no audio; the reverse direction decoded 403 frames and received audio.
+Its last receive-rate sample fell to about 4 fps. This negative check establishes
+only the fixture's authentication behavior. Both workers
+reported ICE closure at the end of each media run.
+
+The user reported an active Discord call with the camera enabled during testing.
+This fixture supplies synthetic video and never acquires a camera, so it cannot
+observe or validate camera occupancy. OS version, CPU/GPU and device models were
+not recorded. These logs establish Windows x64 debug build/load and local media
+transport; physical capture/playback, renderer delivery, remote/relay paths,
+latency and thermal acceptance remain unmeasured.
+
 ## Packaging finding
 
 Putting `mosh-core` and RingRTC in one Cargo dependency graph fails resolution:
 OpenMLS's `hpke-rs 0.6` uses `libcrux-sha3 0.0.6` with `hax-lib =0.3.6`, while
 RingRTC's mandatory libsignal graph uses `hpke-rs 0.7`, `libcrux-sha3 0.0.10`
 and `hax-lib ^0.3.7`. The isolated shared-library boundary links and runs both
-stacks in the same Linux process without patching cryptographic dependencies.
+stacks in the same process on Linux and Windows without patching cryptographic
+dependencies.
 Both probe Cargo lockfiles are committed. Their license/dependency implications
 still belong to application adoption review.
 
@@ -76,10 +108,10 @@ still belong to application adoption review.
 
 | Gate | Current evidence / missing work |
 | --- | --- |
-| Desktop packaging | Linux shared library and host build/run; macOS arm64/x64 and Windows debug have not run. |
+| Desktop packaging | Isolated Linux and Windows x64 debug library/host build/run passed; application packaging and macOS arm64/x64 remain unverified. |
 | Directed carrier | Direct Moss transport works with bounded fixture queues; relay scheduling, aggregate/flow budgets and actual completion timing remain unproved. |
 | Selected-device authentication | SRTP accepts valid and rejects wrong fixture keys; production device identity, caller confirmation, occupancy and key exchange are not implemented. |
-| Capture and presentation | Synthetic decoded video and virtual audio work; camera capture, bounded child-window frame delivery and physical quality acceptance are absent. |
+| Capture and presentation | Synthetic decoded video and received audio work on Linux and Windows; camera capture, bounded child-window frame delivery and physical quality acceptance are absent. |
 
 The pinned synchronous `Moss_SendToPeer` can spend five seconds opening a relay.
 The probe drops packets queued for more than 50 ms before sending them, but it
@@ -97,8 +129,9 @@ be replaced by trusting that callback field.
 The main application's voice pipeline remains the working baseline. The next
 plan stage is gated on the missing proof above; no video button, new call
 protocol, camera owner, renderer IPC or relay policy is shipped by this change.
-User-provided desktop testing can add evidence using the probe instructions;
-access to remote hosts is not required for the current handoff.
+User-provided Windows logs add the evidence above. Further desktop testing can
+use the probe instructions; access to remote hosts is not required for the
+current handoff.
 
 ## Repository checks
 
@@ -142,8 +175,10 @@ Linux proof. Four agreed adoption gates remain open: desktop packaging,
 carrier completion/relay feedback, authenticated selected-device negotiation,
 and physical capture/presentation quality. The plan requires "Windows debug and
 both macOS architectures", "usable timing/loss feedback", "Authenticated
-selected-device negotiation" and "child-window frame delivery"; those are
-still missing rather than silently claimed by a passing synthetic run.
+selected-device negotiation" and "child-window frame delivery". The subsequent
+user-run Windows debug fixture adds platform evidence; macOS, application
+packaging and the remaining requirements are still missing rather than silently
+claimed by a passing synthetic run.
 
 The optional review suggestion to check audio as well as video in the
 tampered-key test is addressed. The rejected direction now must report neither
