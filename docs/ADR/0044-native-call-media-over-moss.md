@@ -24,8 +24,8 @@ depend on that process. Keeping a separate video engine beside the current voice
 pipeline would duplicate timing, recovery and adaptation work. The chosen boundary
 instead requires explicit frame IPC and reproducible native packaging.
 
-The exact engine remains under
-[source investigation](../Proposals/issue-46-media-engine.research.md).
+The exact engine remains subject to the
+[adoption gates](../Proposals/issue-46-video-calls.plan.md#preferred-feasibility-candidate).
 Prove native builds, directed Moss media and desktop frame delivery before replacing
 the working voice implementation. Existing call-client protocol compatibility is
 not required; all participants upgrade together.
@@ -35,3 +35,11 @@ but is not a first-release requirement. A software path must pass sustained
 720p/30 quality, latency, UI responsiveness and thermal checks. Missing camera
 or microphone permission must preserve the remaining receive/send capabilities
 instead of making capture a prerequisite for receiving media.
+
+A video start opens local preview; outgoing media waits for confirmed answer
+and device selection. The receiving camera stays off until its user enables it.
+Turning a camera off stops capture and releases the device. Minimize preserves
+capture choices; device loss preserves other capabilities, and reconnect must
+not override a user's disabled camera or microphone. Call-window selectors reuse
+initial audio settings. The native owner enforces these rules independently of
+renderer lifetime and animation.

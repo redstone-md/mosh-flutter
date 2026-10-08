@@ -1,7 +1,9 @@
 # Issue 46: video calls between contacts
 
-Design interview in progress. This document records agreed requirements and
-open decisions for [issue 46](https://github.com/redstone-md/mosh-flutter/issues/46).
+Product and ownership decisions agreed on 2026-10-08 through questions Q1–Q21
+for [issue 46](https://github.com/redstone-md/mosh-flutter/issues/46). This is the
+implementation plan, not a report of implemented video support. Engine adoption,
+transport budgets and desktop quality remain subject to the proof gates below.
 
 ## Agreed requirements
 
@@ -10,23 +12,37 @@ open decisions for [issue 46](https://github.com/redstone-md/mosh-flutter/issues
   and verify it with available tooling. Android and iOS follow later.
 - All call media uses Moss, including direct and relayed paths. Reuse its
   discovery and NAT traversal; add Moss capabilities when needed. No new
-  mandatory server infrastructure. Media-library choice remains open.
+  mandatory server infrastructure. Engine adoption depends on the proof gates.
 - Ring the contact's available linked devices. An answer selects one receiving
   device; other devices stop ringing. See [ADR 0043](../ADR/0043-one-device-per-user-in-a-call.md).
-- Explicit decline on one receiving device ends the pending call on all devices.
+- Explicit decline on one receiving device ends the pending call on all devices,
+  unless the caller has already confirmed another device's answer.
 - Occupancy belongs to the user. A pending outgoing or admitted incoming call
   reserves it through ringing, setup, active media and reconnection. A free sibling
   cannot admit an unrelated call while that occupancy is known.
 - A remaining reachable device can call without permission from unavailable
   siblings. User-wide occupancy is best effort during network partitions;
-  different devices can temporarily hold overlapping calls. The rule after
-  detecting that conflict remains open.
+  different devices can temporarily hold overlapping calls. Discovering the
+  conflict preserves existing calls, informs the user and blocks new calls until
+  all calls involved have ended. Do not terminate an active call automatically.
+- Simultaneous calls between the same two users merge into one call before media
+  starts. Preserve each user's chosen microphone and camera states.
+- The caller arbitrates answer/refusal races. Its first confirmed transition
+  wins; a stale refusal from another device cannot end an accepted call. Only
+  the selected participating devices may terminate an accepted call.
 - Audio and video belong to one call. Either participant can enable or disable
   their camera during a voice or video call without starting another call.
 - Accepting a call does not automatically enable the receiving camera. Camera
   permission refusal preserves voice calling.
+- Starting a video call opens a local preview. Send media only after the answer
+  and participating devices are confirmed. Turning the camera off stops capture
+  and releases the device; minimizing preserves the selected microphone/camera
+  states.
 - A missing or refused microphone does not prevent receiving audio/video.
   Show its unavailable state and allow enabling a working microphone later.
+- Device selection belongs in the call window. Initial audio choices reuse the
+  existing audio settings. Losing a device preserves other media capabilities;
+  reconnecting it must not re-enable a camera or microphone the user disabled.
 - Incoming calls require a running application, including minimized windows.
   Delivery after the application exits is outside this issue.
 - All participating clients upgrade together. Do not add a compatibility layer
@@ -46,6 +62,9 @@ open decisions for [issue 46](https://github.com/redstone-md/mosh-flutter/issues
   [ADR 0044](../ADR/0044-native-call-media-over-moss.md).
 - Bound relay capacity at node and flow levels. Preserve capacity for messages
   and control; prioritize audio over video. Choose numeric budgets from measurements.
+- Use `interface-design` for the call interface and `transitions-dev` for motion.
+  Reuse the current Flutter theme and components. See the
+  [interface and motion brief](issue-46-call-interface.design.md).
 
 Domain terms live in [GLOSSARY.md](../../GLOSSARY.md); existing user and device
 identity definitions live in [CONTEXT.md](../../CONTEXT.md).
@@ -133,11 +152,100 @@ state from the actual media runtime. Hardware capture or decoding does not prove
 hardware encoding. Keep encoder selection inside the engine adapter so an
 available hardware path does not require changes to call ownership or Moss.
 
-## Open decisions
+## Call coordination
 
-- Rules for discovered occupancy conflicts, simultaneous cross-calls and
-  competing answer/refusal transitions.
-- Camera activation before answer, camera/device changes and minimizing behavior.
+Call identity, the originating DM, selected device identities and a call-bound
+transition revision belong to the native call owner. Authenticate controls and
+occupancy updates using the existing linked-device identity model. Admission
+must use current native state; presentation snapshots cannot select a device,
+grant capture consent or revive an ended call.
+
+| Event | Required result |
+| --- | --- |
+| Contact has several reachable devices | Ring each available device; one answer can select one receiver. |
+| Two devices answer | Caller confirms one selection; the other stops ringing and never starts media. |
+| Answer competes with decline | First caller-confirmed transition wins; requesting an answer locally is still pending. |
+| Decline arrives after selection | Ignore a nonparticipating device's stale refusal; keep the accepted call. |
+| Same users call each other before media | Converge on one call and one caller authority; preserve both users' capture choices. |
+| An unrelated call arrives during known occupancy | Refuse admission without replacing the current call. |
+| Unavailable sibling cannot report occupancy | Reachable device may admit a call; do not wait for a quorum. |
+| Partition heals and reveals different calls | Preserve existing calls, show the conflict, block new admission until all involved calls end. |
+| Old or duplicate control arrives | Apply it idempotently to its call/revision or discard it; never change a replacement call. |
+
+Cross-call merging needs a deterministic ordering of the authenticated offers
+so both devices choose the same call and caller authority. Bind superseded IDs
+to that merge and distinguish obsolete controls from a user's current cancel
+or end action. Merging must not revive an offer already ended by its user. This
+is a protocol implementation detail; it does not permit merging already active
+calls or adding a second participating device. A fresh user action after
+termination creates a new call rather than reviving an old offer.
+
+Occupancy is a set of known call reservations during conflict recovery. A local
+end does not clear another installation's reservation. Synchronize authenticated
+current state when linked devices reconnect; a stale cached reservation must not
+hold the user busy indefinitely. Unknown sibling state remains subject to the
+agreed availability policy, not a strict account-wide guarantee.
+
+## Incremental implementation
+
+Each stage must work end to end before adding the next. Keep the current voice
+baseline usable while validating the replacement. Once adopted, one engine owns
+both audio and video; the existing pipeline is not a permanent second engine.
+
+1. **Prove the engine boundary.** Use an isolated native probe to establish the
+   four adoption gates above. Pin artifacts and document build inputs and any
+   upstream patches. Record a go/no-go result before adopting a dependency in
+   Mosh. If the boundary fails, compare the documented alternatives at the same
+   gates rather than carrying a partial integration into the product.
+2. **Coordinate selected devices.** Implement authenticated controls, caller
+   confirmation, cross-call merging and linked-device occupancy with current
+   voice media. Exercise multi-installation races and partition recovery before
+   admitting video. Keep engine-specific negotiation private to the adapter.
+3. **Move voice through the native engine.** Establish directed Moss transport,
+   media protection, duplex audio, mute, receive-only operation and teardown.
+   Preserve settings, navigation, ringing, close/minimize and window recovery.
+   Compare real audio behavior with the existing baseline before switching it.
+4. **Add video on a direct path.** Add capture/preview, consent, decoded frames
+   and bounded child-window delivery. Verify two real desktop peers can answer,
+   hear and see each other, turn cameras off, change devices and keep messaging.
+   The main process owns capture and keys; dropping the renderer loses frames,
+   not the call.
+5. **Prove relay quality.** Add required Moss capacity, scheduling and packet
+   feedback capabilities at the library boundary. Negotiate bounded flow
+   allowances, reserve messages/control and prioritize audio. Measure actual
+   overhead, reduce/pause video on constrained routes and validate the 15-second
+   recovery limit. Do not substitute bigger buffers for capacity.
+6. **Finish desktop acceptance.** Apply the shared interface and motion brief,
+   localization, permissions and accessible states. Run the matrix below on
+   macOS and Windows; preserve and check Linux. Record sustained quality and
+   actual encoder state before calling issue 46 complete.
+
+Dependency, public bridge and protocol changes must be concrete and reviewable
+before their required repository approval. Moss extension work is authorized by
+the user; it is a separate library change with its own checks and pinned update.
+No such changes are made by this design-document task.
+
+## Acceptance matrix
+
+| Scenario | Evidence required |
+| --- | --- |
+| Two real installations, direct and relay | Bidirectional audio/video; media packets confined to Moss; selected-device authentication and protection. |
+| Several linked receiving devices | Ring all reachable devices; two answers select one; accept/decline races follow caller confirmation. |
+| Simultaneous cross-calls | One call before media; no repeated ringing loop; both users' microphone/camera choices retained. |
+| Busy and partition recovery | Known occupancy blocks another DM call; isolated reachable device can call; discovered conflict preserves calls and blocks new admission. |
+| Camera/microphone permissions and hot-unplug | Independent sending/receiving remains available; unavailable state is truthful; explicit disabled state survives reconnection. |
+| Camera activation and teardown | Local preview before answer; no outgoing media before confirmation; off releases capture; repeated calls leave no capture owner behind. |
+| Navigation, resize, minimize and child failure | Messaging stays usable; minimize preserves capture state; renderer crash preserves audio/call controls; restore recreates presentation. |
+| Weak route and reconnect | Audio/messages/control progress under video pressure; adaptive video; recovery succeeds within 15 seconds or call ends. |
+| Sustained 720p30 on a sufficient path | Report achieved frames, bitrate, loss, latency, A/V skew, queue/frame age, CPU, thermal behavior and UI responsiveness for the actual host/codec. |
+| UI and motion | Keyboard/focus/tooltips, text scaling, long names, narrow window, reduced motion and dark-theme contrast verified visually and with focused widget tests. |
+
+Record host model, OS, architecture, capture/output devices, engine/artifact pin,
+route type and test duration with native results. Physical-camera/microphone and
+speaker checks on macOS and Windows are required; Linux virtual devices provide
+additional coverage rather than replacing those checks. Ringing retains the
+existing 30-second no-answer timeout. Existing close/Escape behavior remains
+decline, cancel or hang up according to the call phase.
 
 ## Remaining proof work
 
@@ -154,7 +262,10 @@ Use existing widget adapters and independent real Moss processes. Preserve the
 voice baseline, navigation and window lifecycle while adding video incrementally.
 Implementation checks include Flutter analyze/tests/format, Rust tests/fmt/clippy,
 and bridge generation/drift checks if native API signatures change.
+Prepare Moss before native runtime tests. Use regression tests for existing
+caller-visible bugs and the repository's changed-code coverage thresholds.
 
 Primary risks are competing device answers, unauthenticated control messages,
 media queue latency, relay capacity, video crossing the desktop process boundary,
-and regressions in working voice calls. No production code has changed.
+and regressions in working voice calls. User-wide busy remains best effort
+under partition by design. No production code has changed.

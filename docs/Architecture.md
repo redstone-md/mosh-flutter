@@ -345,6 +345,11 @@ gap once three later frames wait. Rust owns call signaling and mirrors active
 calls into the hub. The wire is `[seq:u64 BE][ciphertext+tag]`, with AES-GCM nonce
 `[prefix:4][seq:8]` and a direction bit in the sequence.
 
+Accepted video-call ownership lives in [ADR 0043](ADR/0043-one-device-per-user-in-a-call.md)
+and [ADR 0044](ADR/0044-native-call-media-over-moss.md). The
+[issue 46 plan](Proposals/issue-46-video-calls.plan.md) defines stages and acceptance.
+The target uses one native audio/video engine over Moss. The voice pipeline above remains current.
+
 ## Security, builds and checks
 
 History is encrypted with AES-256-GCM under an installation DEK. Windows/Linux

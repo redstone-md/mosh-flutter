@@ -35,7 +35,9 @@ _Avoid_: call participant when referring to an installation rather than a person
 
 **Call refusal**:
 A user's decision to reject a pending Mosh call across their linked devices.
-It differs from silencing an alert or missing a call.
+The caller must confirm it before an answer wins. A nonparticipating device's
+stale refusal cannot end an accepted call. It differs from silencing an alert
+or missing a call.
 _Avoid_: dismiss notification, missed call.
 
 **Call occupancy**:
@@ -44,3 +46,9 @@ their linked devices. Another call cannot be admitted while that reservation
 is known to remain in effect; disconnected devices can temporarily hold
 different reservations.
 _Avoid_: microphone busy, device busy.
+
+**Call occupancy conflict**:
+Knowledge that a user's linked devices hold different calls after operating
+without each other's state. Existing calls continue, the user sees the conflict
+and new admission stays blocked until all calls involved have ended.
+_Avoid_: call waiting, automatic call transfer.

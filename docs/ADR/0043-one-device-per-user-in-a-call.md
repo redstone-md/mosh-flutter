@@ -27,6 +27,21 @@ from unavailable siblings. Known authenticated occupancy blocks another call;
 during network separation the policy is best effort and different devices can
 hold overlapping calls. This chooses availability over strict account-wide
 coordination that could block calls when an authority or quorum is unavailable.
-The rule for discovered conflicts remains open. Call transfer is a separate task.
-See the
-[design plan](../Proposals/issue-46-video-calls.plan.md).
+When devices discover overlapping calls, preserve the existing calls and inform
+the user. Block new calls until all calls involved have ended. Do not choose a
+winner by terminating an active conversation. This is an exception to normal
+single-call occupancy, not support for call waiting or extra media participants.
+
+The caller confirms the first eligible answer or refusal. Until that confirmation,
+a receiving device's answer remains pending and must not start media. If refusal
+wins, all devices stop ringing. If an answer wins, it selects one receiving
+device; later refusals from nonparticipating devices cannot terminate the accepted
+call. Only its two participating devices may end that call. Authenticate these
+transitions and bind them to the call and selected device identities.
+
+Simultaneous offers between the same users merge into one call before media
+starts. Both sides must converge on one call identity and caller authority while
+preserving each user's chosen microphone/camera state. This does not merge two
+already active calls. Call transfer is a separate task. See the
+[design plan](../Proposals/issue-46-video-calls.plan.md) for implementation stages
+and acceptance scenarios.
