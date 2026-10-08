@@ -62,7 +62,7 @@ void main() {
     expect(find.byType(InviteResult), findsNWidgets(2));
     expect(find.text('Create new invitation'), findsOneWidget);
     final replace = find.descendant(
-        of: _card(first.inviteUri), matching: find.text('New link'));
+        of: _card(first.inviteUri), matching: find.text('Replace link'));
     await tester.ensureVisible(replace);
     await tester.tap(replace);
     await tester.pumpAndSettle();
@@ -83,8 +83,8 @@ void main() {
       ..failNext(BridgeMethod.replaceInvite,
           error: StateError('replace failed'));
     await pumpStartStep(tester, 'Start a private chat', bridge: bridge);
-    await tester.ensureVisible(find.text('New link'));
-    await tester.tap(find.text('New link'));
+    await tester.ensureVisible(find.text('Replace link'));
+    await tester.tap(find.text('Replace link'));
     await tester.pumpAndSettle();
     expect(_uri(invite.inviteUri), findsOneWidget);
     expect(find.textContaining('replace failed'), findsOneWidget);
@@ -119,11 +119,12 @@ void main() {
     final bridge = ScriptableBridge()..seedPendingInvites([invite]);
     final opened = Completer<SessionSnapshot>();
     bridge.respondNext(BridgeMethod.openSession, opened.future);
-    final router = await pumpStartStep(tester, 'Start a private chat', bridge: bridge);
+    final router =
+        await pumpStartStep(tester, 'Start a private chat', bridge: bridge);
     await tester.ensureVisible(find.text('Open chat'));
     await tester.tap(find.text('Open chat'));
     await tester.pump();
-    router.go(AppRoutes.settings);
+    router.go(AppRoutes.join);
     await tester.pumpAndSettle();
     opened.complete(bridge.conversations.sessions[invite.sessionId]!);
     await tester.pumpAndSettle();
@@ -136,8 +137,8 @@ void main() {
     final invite = _invite('alice');
     final bridge = ScriptableBridge()..seedPendingInvites([invite]);
     await pumpStartStep(tester, 'Start a private chat', bridge: bridge);
-    final container = ProviderScope.containerOf(
-        tester.element(find.byType(ChatCreateStep)));
+    final container =
+        ProviderScope.containerOf(tester.element(find.byType(ChatCreateStep)));
     bridge.conversations.pendingInvites.clear();
     bridge.conversations.hiddenSessions.clear();
     await container

@@ -19,7 +19,7 @@ import '../../support/start_menu.dart';
 
 const _card = 'Start a private chat';
 
-/// A bridge whose `createInvite` hands back [inviteUri].
+/// A bridge whose `createPendingInvite` hands back [inviteUri].
 ScriptableBridge _bridgeOffering(String inviteUri) => ScriptableBridge()
   ..seedInvite(InviteCreated(
     inviteUri: inviteUri,
@@ -49,7 +49,7 @@ void main() {
     expect(_create, findsOneWidget);
     expect(find.byType(InviteResult), findsNothing);
     // The replace label is not shown until an invite exists.
-    expect(find.text('New link'), findsNothing);
+    expect(find.text('Replace link'), findsNothing);
   });
 
   testWidgets(
@@ -61,15 +61,15 @@ void main() {
 
     await tapCreate(tester);
 
-    // The Create button is replaced by the InviteResult card.
+    // The saved card accompanies the independent Create new invitation action.
     expect(_create, findsNothing);
     expect(find.byType(InviteResult), findsOneWidget);
     expect(find.text('Saved invitations'), findsOneWidget);
     expect(find.text('Create new invitation'), findsOneWidget);
     expect(find.text(uri), findsOneWidget);
-    expect(find.text('New link'), findsOneWidget);
+    expect(find.text('Replace link'), findsOneWidget);
     expect(find.text('Open chat'), findsOneWidget);
-    // Provider initialization plus the explicit post-create refresh.
+    // Creating an invitation keeps it out of recent chats.
     expect((await bridge.listSessions()).sessions, isEmpty);
   });
 

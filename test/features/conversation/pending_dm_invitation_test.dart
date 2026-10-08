@@ -31,8 +31,8 @@ void main() {
       await tester.tap(find.byTooltip('More chat actions'));
       await tester.pumpAndSettle();
       expect(find.text('Copy link'), available ? findsOneWidget : findsNothing);
-      expect(find.text('Replace invite link'),
-          available ? findsOneWidget : findsNothing);
+      expect(
+          find.text('Replace link'), available ? findsOneWidget : findsNothing);
     });
   }
 
@@ -72,7 +72,7 @@ void main() {
     expect(copied, uri);
     await tester.tap(find.byTooltip('More chat actions'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Replace invite link'));
+    await tester.tap(find.text('Replace link'));
     await tester.pumpAndSettle();
     expect(bridge.lastCall(BridgeMethod.replaceInvite)?.args['sessionId'],
         'alice');
