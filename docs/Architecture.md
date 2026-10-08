@@ -133,6 +133,11 @@ Transient confirmations and failures go through the app's one toast stack,
 With no conversation open the chat pane shows the start menu and its four
 steps in place; see [start menu](Features/start-menu.md).
 
+Ordinary modal routes share `MoshDialog` and `showMoshDialog` for compact layout,
+cancellation, focus and reduced-motion-aware transitions. VPN consent uses the
+same dialog content above the Navigator and retains its consent owner.
+See [dialogs](Features/dialogs.md).
+
 Caught conversation errors become `ConversationActionError` and use localized
 wording derived from `ConversationBridgeErrorKind`. Runtime diagnostic strings
 are for logs. Poll/list failures remain provider errors. Rejoin, revocation and
@@ -216,6 +221,16 @@ Attachment streams use direct routes and fall back to room publication on refusa
 blob subscriptions remain active. Restored encrypted manifests preserve offered
 attachments after restart. See [ADR 0027](ADR/0027-attachments-ride-moss-streams.md)
 and [ADR 0028](ADR/0028-durable-attachment-offers.md).
+
+Personal-chat invitations retain their encrypted session and MLS material while
+hidden from recent chats. Explicit opening or validated counterpart admission
+durably exposes the chat. The first counterpart's signer and cached Welcome
+commit with the MLS transition before publication. Replacement changes only the
+signed admission token and preserves the route and keys. Native snapshots expose
+`invite_available`; Flutter uses it for Copy and Replace actions. Compact links
+retain both ownership signatures and legacy imports. See
+[invitations](Features/invitations.md) and
+[ADR 0042](ADR/0042-durable-compact-dm-invitations.md).
 
 Image offers include a JPEG miniature bounded to 2 KiB of base64 and a separate
 signed preview descriptor. The shared transfer owner automatically downloads
