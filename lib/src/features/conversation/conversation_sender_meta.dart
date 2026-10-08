@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/shared/mosh_dialog.dart';
 import 'package:mosh/src/features/shared/mosh_dialog_route.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
@@ -169,8 +170,8 @@ class PeerActions {
 /// [child]) in an `InkWell` tap target; tapping opens a small `Dialog`
 /// titled with the peer's name and a "Message" button that is disabled when
 /// the peer is already offered OR the screen is busy, labelled "Invite
-/// sent" when already offered, and otherwise calls
-/// [PeerActions.onMessage] then closes the popover.
+/// sent" when already offered. Otherwise it closes the popover, calls
+/// [PeerActions.onMessage], and reports any failure as an error toast.
 ///
 /// The visible name is the SAME bold `Text` the plain-bold branch renders
 /// (passed in as [child]) so the meta row's typography is byte-identical
@@ -205,6 +206,7 @@ class _PeerNickname extends StatelessWidget {
     AppLocalizations l,
     bool alreadyOffered,
   ) async {
+    final reportError = actionErrorReporter(context);
     await showMoshDialog<void>(
       context: context,
       builder: (dialogContext) => MoshDialog(
@@ -218,9 +220,13 @@ class _PeerNickname extends StatelessWidget {
           FilledButton(
             onPressed: (alreadyOffered || peer.busy)
                 ? null
-                : () {
+                : () async {
                     Navigator.of(dialogContext).pop();
-                    peer.onMessage(fingerprint);
+                    try {
+                      await peer.onMessage(fingerprint);
+                    } catch (error) {
+                      reportError(error);
+                    }
                   },
             child: Text(
               alreadyOffered ? l.peerInviteSent : l.peerMessageAction,
