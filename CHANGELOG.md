@@ -4,6 +4,22 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.1] - 2026-10-08
+
+### Changed
+
+- The start menu is calmer: the Mosh mark, title and subtitle sit beside the
+  actions, which are grouped as rows under "End-to-end encrypted" (private
+  chat, group, join with a link) and "Open to everyone" (public channel).
+  Narrow panes stack the two, and phones drop the mark. The tilting cards,
+  hero parallax and the static list of security claims are gone.
+
+### Fixed
+
+- Opening a step from the start menu no longer makes the leaving menu jump.
+- The start menu no longer fails to lay out when the pane is shorter than its
+  padding, such as a landscape phone with the keyboard open.
+
 ## [0.18.0] - 2026-10-07
 
 ### Added
