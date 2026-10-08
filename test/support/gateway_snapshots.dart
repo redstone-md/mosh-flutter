@@ -182,12 +182,13 @@ SessionSnapshot fakeSession({
   required String role,
   required String inviteUri,
   required String fingerprint,
+  String meshId = 'fakemesh',
   bool inviteAvailable = false,
 }) =>
     SessionSnapshot(
       inviteAvailable: inviteAvailable,
       sessionId: sessionId,
-      meshId: 'fakemesh',
+      meshId: meshId,
       role: role,
       displayName: displayName,
       peerDisplayName: '',
