@@ -28,10 +28,11 @@ class StartMenu extends StatelessWidget {
   final VoidCallback onPickJoin;
   final VoidCallback onPickChannel;
 
-  /// From this pane width the welcome and the list sit side by side.
+  /// From this content width (the pane less its side padding) the
+  /// welcome and the list sit side by side.
   static const twoColumnWidth = 860.0;
 
-  /// Below this pane width the mark is dropped.
+  /// Below this content width the mark is dropped.
   static const markWidth = 480.0;
 
   @override

@@ -12,8 +12,9 @@ welcome beside four ways to begin, each opening its step in place.
   channel). Every invite link opens a DM, group or organization, all
   admitted through MLS, so the join row belongs to the encrypted group.
   Icons take the conversation type accents the rail uses. From 860px of
-  pane width the welcome sits left of the list; narrower panes stack them,
-  and below 480px the mark is dropped so the actions come first.
+  content width (the pane less its 32px side padding, so a 924px pane) the
+  welcome sits left of the list; narrower panes stack them, and below
+  480px of content width the mark is dropped so the actions come first.
 - **No decoration that claims or performs.** No eyebrow, tracked caps,
   accent-coloured title word, fact list, parallax, card tilt or glare. A
   static claim such as "encrypted history" can be false while the storage
