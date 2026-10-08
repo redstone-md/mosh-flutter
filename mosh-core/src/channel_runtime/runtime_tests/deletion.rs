@@ -15,6 +15,7 @@ struct Fixture {
 }
 impl Fixture {
     fn new() -> Self {
+        drain_received_messages();
         let directory = TempDirectory::new("channel-deletion");
         let store = Arc::new(
             Persistence::open_with_dek(&directory.path().join("history"), [39; 32]).unwrap(),
@@ -161,6 +162,18 @@ fn a_returning_reader_recovers_a_deletion_before_the_original_message() {
 #[test]
 fn identical_attachment_copies_survive_until_the_last_row_is_deleted() {
     let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let previous_frame = {
+        let mut previous = Fixture::new();
+        previous.runtime.send(ROOM, "previous test".into()).unwrap();
+        let session = previous.runtime.channels.get(ROOM).unwrap();
+        MossReceivedMessage {
+            channel: session.topic.clone(),
+            payload: serde_json::to_vec(&session.publishable_message(&session.messages[0]))
+                .unwrap(),
+        }
+    };
+    // The previous fixture can leave signed frames in the process-wide inbox.
+    inbox::deliver(previous_frame);
     let mut f = Fixture::new();
     let mut ids = Vec::new();
     let mut path = None;
