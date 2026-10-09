@@ -10,25 +10,39 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'call_view.dart';
 import 'call_view_state.dart';
 import 'call_window_pipe.dart';
+import 'call_window_frame_receiver.dart';
+import 'call_video_renderer.dart';
 import 'desktop_window_visibility.dart';
 
 /// A call-only process starts no Rust, storage, capture or playback runtime.
 Future<void> launchProcessCallWindow() async {
-  final pipe = CallWindowPipe(
+  final renderer = CallVideoRenderer();
+  late final CallWindowPipe pipe;
+  final receiver = CallWindowFrameReceiver(renderer, (ack) async {
+    await pipe.invoke('call-frame-ack', ack);
+  });
+  pipe = CallWindowPipe(
       stdin.transform(utf8.decoder).transform(const LineSplitter()),
       stdout.writeln,
       outputDone: stdout.done);
-  pipe.onClosed = () => unawaited(windowManager.destroy());
+  pipe.onClosed = () => unawaited(() async {
+        await receiver.dispose();
+        renderer.dispose();
+        await windowManager.destroy();
+      }());
   pipe.onMethod = await startCallWindowView((command) async {
     await pipe.invoke('call-command', command.toMap());
-  });
+  }, renderer: renderer, frameChannel: receiver.connect);
   await pipe.invoke('call-ready');
 }
 
 /// The shared view is independent of the process transport and owns no audio.
 Future<Future<Object?> Function(MethodCall)> startCallWindowView(
-    Future<void> Function(CallViewCommand) sendCommand) async {
-  final controller = _CallWindowController(sendCommand);
+    Future<void> Function(CallViewCommand) sendCommand,
+    {CallVideoRenderer? renderer,
+    Future<void> Function(int, String)? frameChannel}) async {
+  final controller = _CallWindowController(
+      sendCommand, renderer ?? CallVideoRenderer(), frameChannel);
   await controller.initialize();
   runApp(_CallWindowApp(controller));
   return controller.handle;
@@ -36,9 +50,12 @@ Future<Future<Object?> Function(MethodCall)> startCallWindowView(
 
 class _CallWindowController extends ValueNotifier<CallViewState?>
     with WindowListener {
-  _CallWindowController(this.sendCommand) : super(null);
+  _CallWindowController(this.sendCommand, this.video, this.frameChannel)
+      : super(null);
 
   final Future<void> Function(CallViewCommand) sendCommand;
+  final CallVideoRenderer video;
+  final Future<void> Function(int, String)? frameChannel;
   bool _shown = false;
   bool _closing = false;
 
@@ -56,8 +73,13 @@ class _CallWindowController extends ValueNotifier<CallViewState?>
 
   Future<Object?> handle(MethodCall call) async {
     switch (call.method) {
+      case 'call-frame-channel':
+        final channel = call.arguments as Map<Object?, Object?>;
+        if (frameChannel == null) throw MissingPluginException();
+        await frameChannel!(channel['port'] as int, channel['token'] as String);
       case 'call-present':
         value = CallViewState.fromMap(call.arguments as Map<Object?, Object?>);
+        video.update(value);
         await windowManager.setTitle('Mosh · ${value!.peer}');
         if (!_shown) {
           _shown = true;
@@ -70,6 +92,7 @@ class _CallWindowController extends ValueNotifier<CallViewState?>
       case 'call-close':
         _closing = true;
         value = null;
+        video.update(null);
         await windowManager.setPreventClose(false);
         // Reply before destroying the engine that owns this method channel.
         Timer(const Duration(milliseconds: 20),
@@ -127,6 +150,7 @@ class _CallWindowApp extends StatelessWidget {
                   : Center(
                       child: CallView(
                           call: call,
+                          video: controller.video,
                           onAction: (action) =>
                               controller.act(call.command(action))))),
         ),

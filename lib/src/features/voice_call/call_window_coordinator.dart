@@ -3,12 +3,17 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'call_view_state.dart';
+import 'call_video_frame.dart';
 
 abstract interface class CallWindowHandle {
   Future<void> present(CallViewState state);
   Future<void> show();
   Future<bool> isFocused();
   Future<void> close();
+}
+
+abstract interface class CallWindowFrameSink {
+  bool presentFrame(CallVideoFrame frame);
 }
 
 typedef CallWindowFactory = Future<CallWindowHandle> Function(
@@ -36,6 +41,21 @@ class CallWindowCoordinator {
     _desired = state;
     ++_revision;
     _start();
+  }
+
+  bool presentFrame(CallVideoFrame frame) {
+    final call = _desired;
+    if (_disposed ||
+        _working != null ||
+        call == null ||
+        call.sessionId != frame.sessionId ||
+        call.callId != frame.callId) {
+      return false;
+    }
+    return switch (_window) {
+      CallWindowFrameSink sink => sink.presentFrame(frame),
+      _ => false,
+    };
   }
 
   void _start() {

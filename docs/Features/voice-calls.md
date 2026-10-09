@@ -80,8 +80,8 @@ one handle cannot delay release of the other. Replacement still waits for both.
 Every desktop starts the same executable with `--mosh-call-window` in a separate
 process. `MOSH_CALL_WINDOW=1` also identifies child startup on hosts that omit Dart
 entrypoint arguments. GTK/EGL ownership stays independent on Linux. Stdio carries
-only display metadata and commands with session and call IDs, without a listening
-port. The child initializes no Rust runtime, database or audio owner. The parent
+display metadata, commands and frame acknowledgements with session and call IDs.
+The child initializes no Rust runtime, database or audio owner. The parent
 validates commands against the current call, waits for child exit on closure and
 terminates an unresponsive child. A window failure leaves the main strip usable;
 its restore button recreates the window. No additional window plugin is required.
@@ -89,6 +89,50 @@ Android and iOS use the strip inside system safe insets. While a call is shown,
 the host consumes the keyboard inset for both the route and strip, removing it
 from the nested Scaffold so the composer does not reserve the inset twice.
 The wrapper stays mounted across call admission and termination to retain drafts.
+
+### Decoded video presentation (#46)
+
+The native candidate copies decoded RGBA into a latest-frame slot with one spare
+conversion buffer, each capped at 1920×1080×4 bytes. Failed conversion preserves
+the last complete frame. The host owns its copied pixels; native frame pointers
+never enter Flutter. Frame metadata and pixels travel as bounded binary packets.
+
+Presentation uses a dedicated loopback stream so bulk pixels cannot delay stdio
+controls. The parent passes a random 256-bit, one-time capability to the spawned
+child through inherited stdio. The listener accepts at most four unauthenticated
+connections, each for two seconds, and admits one renderer. No user-facing port
+setting or additional server is involved. This stream carries decoded display
+pixels only; peer media still travels through Moss.
+
+The parent admits one frame until the child acknowledges its exact session, call,
+sequence and local/remote lane. A stalled renderer receives no further frames and
+is terminated after five seconds. Restore creates a new renderer and capability.
+Rendering holds one image per lane and one decode in flight. Source/transfer age
+and monotonic decode duration count toward a one-second display budget; stale
+frames are discarded. Every image, codec and immutable buffer has explicit cleanup.
+
+The video stage fits narrow windows, preserves image aspect ratio, mirrors local
+preview, and fades only its presence for 150 ms. Pixel updates do not animate;
+reduced motion removes the fade. The compact controls remain usable independently.
+The stage is wired to the window's frame sink; the application media adapter and
+camera owner are being implemented in the next stage.
+
+On Linux x64 debug, a real separate renderer admitted 88/90 synthetic 720p frames
+before a forced renderer crash and 81/90 after restoration. Frame round-trip
+median/p95 was 17/30 ms over 169 samples. Before separating bulk pixels from stdio,
+it was 155/187 ms over 17 samples; body transfer, rather than copying or decoding,
+dominated. These are short, same-host renderer checks, not sustained camera or
+audio/video quality acceptance. The isolated Moss check additionally copied actual
+decoded native frames and rejected all media in the tampered-key direction.
+
+Run the real desktop presentation check after preparing Moss:
+
+```sh
+flutter drive --target integration_test/call_video_window_test.dart --driver test_driver/integration.dart -d linux --debug --no-start-paused
+```
+
+Use `windows` or `macos` for the corresponding desktop host. Set
+`MOSH_CALL_FRAME_PROFILE=1` only when collecting timing diagnostics.
 
 On Windows, the environment marker bypasses app_links' duplicate-instance handoff.
 The child uses the separate `MOSH_CALL_WINDOW` Win32 class, so new `mosh://` links

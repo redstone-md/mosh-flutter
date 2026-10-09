@@ -1,4 +1,5 @@
 mod engine;
+mod frames;
 mod transport;
 // Reuse the tested Windows pipe isolation before Go adopts inherited stdio.
 #[path = "../../../mosh-core/tests/link_support/stdio.rs"]
@@ -77,6 +78,7 @@ fn pump(
     commands: &Receiver<Value>,
 ) -> ProbeResult {
     let enqueue = transport.sender();
+    let mut frames = frames::Frames::default();
     let deadline = Instant::now() + Duration::from_secs(3700);
     while Instant::now() < deadline {
         for value in commands.try_iter() {
@@ -86,10 +88,12 @@ fn pump(
             let mut reply = engine.ask(value.clone())?;
             if value["action"] == "snapshot" {
                 reply["transport"] = transport.snapshot();
+                reply["frame_export"] = frames.snapshot();
             }
             emit(reply)?;
         }
         let outgoing = engine.ask(incoming(peer))?;
+        frames.pump(engine)?;
         for packet in outgoing["packets"].as_array().ok_or("missing packets")? {
             enqueue(serde_json::from_value(packet.clone())?);
         }

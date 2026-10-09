@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/process_call_window.dart';
+import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
+import 'package:mosh/src/features/voice_call/call_video_frame.dart';
+import '../../support/call_video_frames.dart';
 
 import '../../support/call_window_process.dart';
 
@@ -13,6 +16,44 @@ const _call = CallViewState(
     phase: CallViewPhase.active);
 
 void main() {
+  test('frame delivery admits one frame until its exact acknowledgement',
+      () async {
+    final process = CallWindowProcess(ackFrames: false);
+    final window = await ProcessCallWindow.open((_) async {},
+        startProcess: () async => process);
+    await window.present(const CallViewState(
+        sessionId: 'dm',
+        callId: 'call',
+        peer: 'Alice',
+        phase: CallViewPhase.active));
+    final sink = window as CallWindowFrameSink;
+    expect(sink.presentFrame(testCallVideoFrame(1)), isTrue);
+    expect(sink.presentFrame(testCallVideoFrame(2)), isFalse);
+    process.acknowledgeFrame(testCallVideoFrame(2));
+    await Future<void>.delayed(Duration.zero);
+    expect(sink.presentFrame(testCallVideoFrame(3)), isFalse);
+    process.acknowledgeFrame(testCallVideoFrame(1));
+    await Future<void>.delayed(Duration.zero);
+    final second =
+        process.frameEvents.firstWhere((frame) => frame.sequence == 3);
+    expect(sink.presentFrame(testCallVideoFrame(3)), isTrue);
+    await second.timeout(const Duration(seconds: 2));
+    expect(process.frames.map((f) => f.sequence), [1, 3]);
+    process.acknowledgeFrame(testCallVideoFrame(3));
+    await Future<void>.delayed(Duration.zero);
+    expect(
+        sink.presentFrame(CallVideoFrame(
+            sessionId: 'other',
+            callId: 'call',
+            sequence: 4,
+            width: 2,
+            height: 2,
+            local: false,
+            pixels: testCallVideoFrame(4).pixels)),
+        isFalse);
+    await window.close();
+    expect(sink.presentFrame(testCallVideoFrame(5)), isFalse);
+  });
   test('a broken input after termination cannot retain a window owner',
       () async {
     final process = CallWindowProcess(failClose: true, failInputClose: true);
@@ -42,12 +83,17 @@ void main() {
     expect(await window.isFocused(), isFalse);
     await window.close();
     await process.stdin.done;
-    expect(process.commands,
-        ['call-present', 'call-show', 'call-is-focused', 'call-close']);
+    expect(process.commands, [
+      'call-frame-channel',
+      'call-present',
+      'call-show',
+      'call-is-focused',
+      'call-close'
+    ]);
     expect(process.kills, 0);
     await window.close();
     await window.present(_call);
-    expect(process.commands, hasLength(4));
+    expect(process.commands, hasLength(5));
   });
 
   test('a refused close terminates the owned process before releasing it',

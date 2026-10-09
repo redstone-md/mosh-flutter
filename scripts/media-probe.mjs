@@ -94,8 +94,10 @@ try {
       caller: results[0], callee: results[1] }));
   } while (Date.now() - started < seconds * 1000);
   const [left, right] = results;
-  const ok = values["tamper-key"] ? left.decoded > 0 && left.audio_received && right.decoded === 0 && right.audio_received === false
-    : results.every((result) => result.decoded > 30 && result.audio_received);
+  const copiedFrames = (result) => result.frame_export.copied > 30 && result.frame_export.changing_frames > 10;
+  const ok = values["tamper-key"] ? left.decoded > 0 && left.audio_received && copiedFrames(left)
+    && right.decoded === 0 && right.audio_received === false && right.frame_export.copied === 0
+    : results.every((result) => result.decoded > 30 && result.audio_received && copiedFrames(result));
   if (!ok) process.exitCode = 1;
   console.log(JSON.stringify({ transport_media_check: ok ? "pass" : "fail",
     tampered_srtp_key: values["tamper-key"],

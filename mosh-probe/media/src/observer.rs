@@ -26,6 +26,7 @@ pub struct Measurements {
     pub audio: Mutex<Value>,
     pub video: Mutex<Value>,
     pub encoder: Mutex<Value>,
+    pub frames: crate::frames::Frames,
 }
 
 impl Measurements {
@@ -117,6 +118,7 @@ impl PeerConnectionObserverTrait for Observer {
                     .decoded_720
                     .fetch_add(1, Ordering::Relaxed);
             }
+            self.measurements.frames.store(frame);
         }
         Ok(())
     }

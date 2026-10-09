@@ -15,6 +15,7 @@ class CallModalCard extends StatelessWidget {
     this.compact = false,
     this.onOpenConversation,
     this.notice,
+    this.stage,
   });
 
   final String label;
@@ -26,6 +27,7 @@ class CallModalCard extends StatelessWidget {
   final bool compact;
   final VoidCallback? onOpenConversation;
   final String? notice;
+  final Widget? stage;
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +85,7 @@ class CallModalCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _peer(context),
+                  if (stage != null) Flexible(child: stage!),
                   const SizedBox(height: 18),
                   Text(status,
                       maxLines: 1,

@@ -1,5 +1,8 @@
 //! Isolated candidate ABI. No RingRTC types or dependencies enter mosh-core.
 mod endpoint;
+#[cfg(test)]
+mod frame_api_tests;
+mod frames;
 mod negotiation;
 mod observer;
 
@@ -210,6 +213,50 @@ pub unsafe extern "C" fn mosh_media_probe_free(result: *mut c_char) {
         // SAFETY: the caller returns exclusive ownership of this library's allocation.
         drop(unsafe { CString::from_raw(result) });
     }
+}
+
+/// Copy the latest decoded frame. Returns 0=no newer frame, 1=copied,
+/// 2=short buffer (info reports required bytes), -1=invalid arguments/failure.
+/// # Safety
+/// Handle must be live. `info` is aligned, writable and disjoint from `rgba`.
+/// A nonempty `rgba` is writable for `capacity` bytes. Neither buffer is accessed
+/// concurrently. No call may run concurrently with drop.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn mosh_media_probe_copy_frame(
+    handle: *mut std::ffi::c_void,
+    after: u64,
+    rgba: *mut u8,
+    capacity: usize,
+    info: *mut frames::FrameInfo,
+) -> i32 {
+    if handle.is_null()
+        || info.is_null()
+        || capacity > frames::MAX_RGBA_BYTES
+        || (capacity != 0 && rgba.is_null())
+    {
+        return -1;
+    }
+    catch_unwind(AssertUnwindSafe(|| {
+        // SAFETY: caller retains the live handle until this synchronous copy ends.
+        let engine = unsafe { &*handle.cast::<Mutex<Engine>>() };
+        let Ok(engine) = engine.lock() else { return -1 };
+        let pixels = if capacity == 0 {
+            &mut []
+        } else {
+            // SAFETY: caller guarantees capacity writable bytes and no aliases.
+            unsafe { std::slice::from_raw_parts_mut(rgba, capacity) }
+        };
+        let mut metadata = frames::FrameInfo::default();
+        let status = engine
+            .endpoint
+            .measurements
+            .frames
+            .copy(after, pixels, &mut metadata);
+        // SAFETY: caller provides a disjoint, aligned writable metadata allocation.
+        unsafe { info.write(metadata) };
+        status
+    }))
+    .unwrap_or(-1)
 }
 
 /// # Safety

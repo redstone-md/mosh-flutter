@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
@@ -8,6 +9,8 @@ import 'package:mosh/src/features/voice_call/call_modal_card.dart';
 import 'package:mosh/src/features/voice_call/call_clock.dart'
     show formatCallClock;
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
+import 'call_video_renderer.dart';
+import 'call_video_stage.dart';
 
 /// Shared call presentation. It never creates an audio or signaling owner.
 class CallView extends StatefulWidget {
@@ -20,6 +23,7 @@ class CallView extends StatefulWidget {
     this.l,
     this.tickInterval = const Duration(seconds: 1),
     this.now = _now,
+    this.video,
   });
 
   final CallViewState call;
@@ -29,6 +33,7 @@ class CallView extends StatefulWidget {
   final AppLocalizations? l;
   final Duration tickInterval;
   final int Function() now;
+  final ValueListenable<CallVideoImages>? video;
   static int _now() => DateTime.now().millisecondsSinceEpoch;
 
   @override
@@ -78,6 +83,9 @@ class _CallViewState extends State<CallView> {
       onOpenConversation: () =>
           widget.onAction(CallViewAction.openConversation),
       actions: _actions(l),
+      stage: widget.video == null || widget.compact
+          ? null
+          : CallVideoStage(images: widget.video!, peer: call.peer),
     );
   }
 
