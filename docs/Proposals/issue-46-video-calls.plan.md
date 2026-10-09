@@ -1,9 +1,10 @@
 # Issue 46: video calls between contacts
 
 Product and ownership decisions agreed on 2026-10-08 through questions Q1–Q21
-for [issue 46](https://github.com/redstone-md/mosh-flutter/issues/46). This is the
-implementation plan, not a report of implemented video support. Engine adoption,
-transport budgets and desktop quality remain subject to the proof gates below.
+for [issue 46](https://github.com/redstone-md/mosh-flutter/issues/46). This document
+records the accepted plan and remaining acceptance gates. Desktop support is
+implemented; its evidence is linked in the status section below. Relay capacity
+and physical-device quality remain subject to the proof gates.
 
 ## Agreed requirements
 
@@ -118,13 +119,13 @@ Source inspection establishes candidate APIs, not a working Moss media engine.
 Native packaging, media protection and real-device quality require a focused
 feasibility check before replacing the working voice pipeline.
 
-## Preferred feasibility candidate
+## Feasibility candidate before adoption (2026-10-08)
 
 RingRTC's low-level Rust WebRTC factory is the first candidate to validate.
 It exposes an injected virtual UDP network without requiring Signal's service
 or CallManager, while retaining established audio/video processing. Keep its
 negotiation format and native pointers behind a Mosh-owned engine adapter.
-This is a research recommendation, not an adopted dependency.
+This records the recommendation before the dependency adoption reported below.
 
 Before adoption, prove:
 
@@ -223,7 +224,7 @@ both audio and video; the existing pipeline is not a permanent second engine.
 Dependency, public bridge and protocol changes must be concrete and reviewable
 before their required repository approval. Moss extension work is authorized by
 the user; it is a separate library change with its own checks and pinned update.
-No such changes are made by this design-document task.
+The current implementation keeps Moss source unchanged.
 
 ## Acceptance matrix
 
