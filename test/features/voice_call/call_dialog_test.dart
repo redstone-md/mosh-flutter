@@ -25,7 +25,8 @@ SessionSnapshot _snapshot({
       activeCall: activeCall,
     );
 
-const _pending = PendingCall(callId: 'call-in', fromDevice: 'Alice');
+const _pending =
+    PendingCall(answerPending: false, callId: 'call-in', fromDevice: 'Alice');
 const _outgoing = OutgoingCall(callId: 'call-out');
 final _active = ActiveCall(
   callId: 'call-live',
@@ -90,7 +91,8 @@ void main() {
         () {
       final incoming = callDialogFor(
         _snapshot(
-          pendingCall: const PendingCall(callId: 'c', fromDevice: ''),
+          pendingCall: const PendingCall(
+              answerPending: false, callId: 'c', fromDevice: ''),
         ),
       );
       expect(incoming.peerName, isEmpty);

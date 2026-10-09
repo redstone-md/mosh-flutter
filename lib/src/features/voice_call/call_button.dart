@@ -9,6 +9,7 @@ class CallButton extends StatelessWidget {
     required this.color,
     required this.onPressed,
     this.iconSize = 20,
+    this.foreground = Colors.white,
   });
 
   /// The icon (Icons.phone / Icons.phone_disabled / Icons.mic / Icons.mic_off).
@@ -19,6 +20,7 @@ class CallButton extends StatelessWidget {
 
   /// The button background color.
   final Color color;
+  final Color foreground;
 
   /// The press handler.
   final VoidCallback? onPressed;
@@ -38,7 +40,7 @@ class CallButton extends StatelessWidget {
           shape: const CircleBorder(),
           clipBehavior: Clip.antiAlias,
           child: IconButton(
-            icon: Icon(icon, size: iconSize, color: Colors.white),
+            icon: Icon(icon, size: iconSize, color: foreground),
             onPressed: onPressed,
             splashRadius: 24,
             padding: EdgeInsets.zero,

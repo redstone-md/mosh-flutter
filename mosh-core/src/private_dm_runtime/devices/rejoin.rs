@@ -41,6 +41,7 @@ impl PrivateDmRuntime {
         session.device_id = record.display_name;
         session.participant_id = record.participant_id;
         session.peer_read_ids = record.read_message_ids;
+        session.call_controls = record.call_controls;
         self.sessions.replay(
             &session.session_id,
             Restore {

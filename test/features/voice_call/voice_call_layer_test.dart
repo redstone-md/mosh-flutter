@@ -42,7 +42,8 @@ SessionSnapshot _pendingSnapshot(String sessionId,
       role: 'caller',
       peerDisplayName: 'Alice',
       fingerprint: 'fp',
-      pendingCall: PendingCall(callId: 'call-1', fromDevice: fromDevice),
+      pendingCall: PendingCall(
+          answerPending: false, callId: 'call-1', fromDevice: fromDevice),
     );
 
 SessionSnapshot _activeSnapshot(String sessionId) => TestSnapshots.dm(

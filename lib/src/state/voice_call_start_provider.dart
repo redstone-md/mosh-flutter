@@ -26,9 +26,7 @@ class VoiceCallStartNotifier extends Notifier<bool> {
   }
 
   Future<Object?> start(String sessionId) async {
-    if (state ||
-        _awaitingSnapshot != null ||
-        ref.read(voiceCallSessionProvider) != null) {
+    if (state || _awaitingSnapshot != null || _occupied) {
       return const CallAlreadyInProgress();
     }
     state = true;
@@ -39,7 +37,7 @@ class VoiceCallStartNotifier extends Notifier<bool> {
       if (!ref.mounted) return null;
       await ref.read(conversationListProvider(ConversationKind.dm).future);
       if (!ref.mounted) return null;
-      if (ref.read(voiceCallSessionProvider) != null) {
+      if (_occupied) {
         return const CallAlreadyInProgress();
       }
       await ref.read(bridgeFacadeProvider).callStart(sessionId: sessionId);
@@ -64,4 +62,9 @@ class VoiceCallStartNotifier extends Notifier<bool> {
       if (ref.mounted) state = false;
     }
   }
+
+  bool get _occupied =>
+      ref.read(voiceCallSessionProvider) != null ||
+      sessionsOf(ref.read(conversationListProvider(ConversationKind.dm)).value)
+          .any((session) => session.callAvailability != null);
 }

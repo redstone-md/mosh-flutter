@@ -32,8 +32,8 @@ void main() {
         ..seedSessions([
           TestSnapshots.dm(
               sessionId: 'origin',
-              pendingCall:
-                  const PendingCall(callId: 'call', fromDevice: 'Alice'))
+              pendingCall: const PendingCall(
+                  answerPending: false, callId: 'call', fromDevice: 'Alice'))
         ]);
       final notifications = RecordingCallNotifications();
       if (delayed) notifications.pendingShow = Completer<void>();

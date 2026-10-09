@@ -200,91 +200,28 @@ fn a_failed_decline_keeps_the_call_for_a_retry() {
     }
 }
 
-// handle_call_offer: a subscribe failure must roll the stored ring back, or
-// the ring ignores every repeated offer (a no-op while a call is held) and
-// media can never arrive without the channel subscription.
+// A valid offer whose subscription fails must remain retryable.
 #[test]
 fn a_ring_whose_subscribe_failed_is_retried_by_the_next_offer() {
     let (net, mut alice, mut bob) = memory_pair();
     let invite = invite(&mut alice);
     accept(&mut bob, &invite);
     connect(&mut alice, &mut bob, &invite.session_id);
-
-    // A real offer for a call Bob knows nothing about yet, minted by the
-    // caller's own session so the ciphertext decrypts on Bob's side (MLS
-    // cannot decrypt own messages, so Bob could not mint it for himself).
-    // One ciphertext per delivery: MLS deletes the secret behind an
-    // application message once consumed, which is exactly why the real
-    // retransmit path re-encrypts the body on every resend.
-    let call_id = "ring-retry-call".to_string();
-    let body = || CallOfferBody {
-        key_b64: "a2V5".to_string(),
-        nonce_prefix_b64: "bm9uY2U".to_string(),
-    };
-    let mut mint_offer = || {
-        let ciphertext = {
-            let session = alice
-                .sessions
-                .get_mut(&invite.session_id)
-                .expect("Alice session should exist");
-            session
-                .crypto
-                .encrypt(&serde_json::to_vec(&body()).expect("body should serialize"))
-                .expect("Alice-side group can encrypt")
-        };
-        serde_json::to_vec(&ControlEnvelope::CallOffer {
-            session_id: invite.session_id.clone(),
-            participant_id: "peer-participant".to_string(),
-            from_device: "Alice".to_string(),
-            call_id: call_id.clone(),
-            offer_ciphertext_b64: encode(&ciphertext),
-        })
-        .expect("offer should serialize")
-    };
-    let control = control_channel(&invite.session_id);
-
-    // Bob's subscribe fails: the ring must not be stored against a channel
-    // nothing is listening on.
     net.refuse_subscribes(BOB_ID, true);
-    {
-        let session = bob
-            .sessions
-            .get_mut(&invite.session_id)
-            .expect("Bob session should exist");
-        assert!(
-            session
-                .handle_moss_message(MossReceivedMessage {
-                    channel: control.clone(),
-                    payload: mint_offer(),
-                })
-                .is_err(),
-            "the subscribe failure surfaces"
-        );
-        assert!(
-            session.call.is_none(),
-            "a ring whose subscribe failed is not stored"
-        );
-    }
-
-    // The caller re-offers the SAME call once the transport heals: the ring
-    // now lands and holds — the repair path a pre-stored ring could never
-    // take (any other offer while a call is held is a no-op).
+    let call = alice.call_start(&invite.session_id).expect("start");
+    assert!(bob
+        .poll_session(&invite.session_id)
+        .expect("failed ring")
+        .pending_call
+        .is_none());
     net.refuse_subscribes(BOB_ID, false);
-    {
-        let session = bob
-            .sessions
-            .get_mut(&invite.session_id)
-            .expect("Bob session should exist");
-        session
-            .handle_moss_message(MossReceivedMessage {
-                channel: control,
-                payload: mint_offer(),
-            })
-            .expect("the healed transport accepts the re-offer");
-        assert_eq!(
-            session.call.as_ref().expect("ring held").call_id,
-            call_id,
-            "the re-offer on the healed transport lands as a ring"
-        );
-    }
+    alice.drain_inbound_at(now_ms() + CALL_RESEND_MS + 1);
+    assert_eq!(
+        bob.poll_session(&invite.session_id)
+            .expect("retried ring")
+            .pending_call
+            .expect("ring held")
+            .call_id,
+        call.call_id
+    );
 }

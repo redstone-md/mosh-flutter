@@ -38,6 +38,10 @@ pub fn channel_call_id(channel: &str) -> Option<&str> {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ControlEnvelope {
+    CallControl {
+        session_id: String,
+        ciphertext_b64: String,
+    },
     InvitationKeyPackage {
         session_id: String,
         invitation_token: String,
@@ -81,17 +85,6 @@ pub enum ControlEnvelope {
         from_device: String,
         manifest_ciphertext_b64: String,
     },
-    /// Initiates a 1:1 voice call. The body — a JSON object carrying the
-    /// per-call AES-GCM key and the 4-byte nonce prefix — is encrypted as an
-    /// MLS application message so the key never crosses the wire in the
-    /// clear.
-    CallOffer {
-        session_id: String,
-        participant_id: String,
-        from_device: String,
-        call_id: String,
-        offer_ciphertext_b64: String,
-    },
     /// Re-announces the sender's moss peer id to a counterpart that has lost
     /// it. The id otherwise rides only KeyPackage/Welcome, which stop once the
     /// handshake completes, so a session restored from a record written before
@@ -104,23 +97,6 @@ pub enum ControlEnvelope {
         participant_id: String,
         from_device: String,
         moss_peer_id: String,
-    },
-    CallAccept {
-        session_id: String,
-        participant_id: String,
-        call_id: String,
-    },
-    CallDecline {
-        session_id: String,
-        participant_id: String,
-        call_id: String,
-        reason: String,
-    },
-    CallEnd {
-        session_id: String,
-        participant_id: String,
-        call_id: String,
-        reason: String,
     },
     /// "I am here and I hold the group." Sent by each side as soon as its MLS
     /// state is ready, repeated until the counterpart answers with any
@@ -235,75 +211,8 @@ impl ChannelKind {
 }
 
 #[cfg(test)]
-pub fn fail_next_test_publish(message: &str) -> crate::moss_ffi::TestPublishFailureGuard {
-    crate::moss_ffi::fail_next_test_publish(message)
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn call_offer_roundtrip() {
-        let envelope = ControlEnvelope::CallOffer {
-            session_id: "s".into(),
-            participant_id: "p".into(),
-            from_device: "d".into(),
-            call_id: "c".into(),
-            offer_ciphertext_b64: "Y2lwaGVy".into(),
-        };
-        let json = serde_json::to_string(&envelope).expect("ser");
-        let back: ControlEnvelope = serde_json::from_str(&json).expect("de");
-        match back {
-            ControlEnvelope::CallOffer {
-                call_id,
-                offer_ciphertext_b64,
-                ..
-            } => {
-                assert_eq!(call_id, "c");
-                assert_eq!(offer_ciphertext_b64, "Y2lwaGVy");
-            }
-            _ => panic!("expected CallOffer"),
-        }
-    }
-
-    #[test]
-    fn call_lifecycle_variants_roundtrip() {
-        let accept = ControlEnvelope::CallAccept {
-            session_id: "s".into(),
-            participant_id: "p".into(),
-            call_id: "c".into(),
-        };
-        let bytes = serde_json::to_vec(&accept).unwrap();
-        assert!(matches!(
-            serde_json::from_slice::<ControlEnvelope>(&bytes).unwrap(),
-            ControlEnvelope::CallAccept { .. }
-        ));
-
-        let decline = ControlEnvelope::CallDecline {
-            session_id: "s".into(),
-            participant_id: "p".into(),
-            call_id: "c".into(),
-            reason: "busy".into(),
-        };
-        let bytes = serde_json::to_vec(&decline).unwrap();
-        assert!(matches!(
-            serde_json::from_slice::<ControlEnvelope>(&bytes).unwrap(),
-            ControlEnvelope::CallDecline { .. }
-        ));
-
-        let end = ControlEnvelope::CallEnd {
-            session_id: "s".into(),
-            participant_id: "p".into(),
-            call_id: "c".into(),
-            reason: "hangup".into(),
-        };
-        let bytes = serde_json::to_vec(&end).unwrap();
-        assert!(matches!(
-            serde_json::from_slice::<ControlEnvelope>(&bytes).unwrap(),
-            ControlEnvelope::CallEnd { .. }
-        ));
-    }
 
     #[test]
     fn key_package_carries_optional_moss_peer_id() {

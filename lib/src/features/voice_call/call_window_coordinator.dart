@@ -59,8 +59,8 @@ class CallWindowCoordinator {
             final current = _desired;
             if (_disposed ||
                 current == null ||
-                current.sessionId != command.sessionId ||
-                current.callId != command.callId) {
+                !command.matchesCall(current.sessionId, current.callId,
+                    supersededCallId: current.supersededCallId)) {
               return;
             }
             await onCommand(command);

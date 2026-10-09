@@ -194,6 +194,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       dynamic raw);
 
   @protected
+  CallAvailability dco_decode_box_autoadd_call_availability(dynamic raw);
+
+  @protected
   CallEvent dco_decode_box_autoadd_call_event(dynamic raw);
 
   @protected
@@ -289,6 +292,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BridgeConversationRef dco_decode_bridge_conversation_ref(dynamic raw);
+
+  @protected
+  CallAvailability dco_decode_call_availability(dynamic raw);
 
   @protected
   CallEvent dco_decode_call_event(dynamic raw);
@@ -541,6 +547,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
+  CallAvailability? dco_decode_opt_box_autoadd_call_availability(dynamic raw);
 
   @protected
   CallEvent? dco_decode_opt_box_autoadd_call_event(dynamic raw);
@@ -817,6 +826,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  CallAvailability sse_decode_box_autoadd_call_availability(
+      SseDeserializer deserializer);
+
+  @protected
   CallEvent sse_decode_box_autoadd_call_event(SseDeserializer deserializer);
 
   @protected
@@ -933,6 +946,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   BridgeConversationRef sse_decode_bridge_conversation_ref(
       SseDeserializer deserializer);
+
+  @protected
+  CallAvailability sse_decode_call_availability(SseDeserializer deserializer);
 
   @protected
   CallEvent sse_decode_call_event(SseDeserializer deserializer);
@@ -1220,6 +1236,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  CallAvailability? sse_decode_opt_box_autoadd_call_availability(
+      SseDeserializer deserializer);
 
   @protected
   CallEvent? sse_decode_opt_box_autoadd_call_event(
@@ -1522,6 +1542,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       BridgeConversationRef self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_call_availability(
+      CallAvailability self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_call_event(
       CallEvent self, SseSerializer serializer);
 
@@ -1642,6 +1666,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_bridge_conversation_ref(
       BridgeConversationRef self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_call_availability(
+      CallAvailability self, SseSerializer serializer);
 
   @protected
   void sse_encode_call_event(CallEvent self, SseSerializer serializer);
@@ -1952,6 +1980,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_call_availability(
+      CallAvailability? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_call_event(

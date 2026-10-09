@@ -21,6 +21,31 @@ const _second = CallViewState(
     phase: CallViewPhase.incoming);
 
 void main() {
+  test('cancel from the displayed cross-call survives its canonical ID change',
+      () async {
+    late Future<void> Function(CallViewCommand) send;
+    final commands = <CallViewCommand>[];
+    final coordinator = CallWindowCoordinator((callback) async {
+      send = callback;
+      return RecordingCallWindow();
+    }, (command) async => commands.add(command),
+        (_) => fail('unexpected failure'));
+    coordinator.update(_first);
+    await coordinator.show();
+    final merged = CallViewState.fromMap({
+      ..._first.toMap(),
+      'callId': 'canonical',
+      'supersededCallId': _first.callId
+    });
+    coordinator.update(merged);
+    await coordinator.show();
+    await send(_first.command(CallViewAction.end));
+    expect(commands, hasLength(1));
+    await send(_first.command(CallViewAction.mute));
+    expect(commands, hasLength(1),
+        reason: 'only terminal intent crosses a merge');
+    await coordinator.dispose();
+  });
   test('restore requested during startup retries that startup failure',
       () async {
     final first = Completer<CallWindowHandle>();

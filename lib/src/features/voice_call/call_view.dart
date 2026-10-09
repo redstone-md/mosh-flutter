@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/voice_call/call_button.dart';
 import 'package:mosh/src/features/voice_call/call_modal_card.dart';
@@ -65,11 +66,13 @@ class _CallViewState extends State<CallView> {
       compact: widget.compact,
       label: switch (call.phase) {
         CallViewPhase.incoming => l.callIncomingAriaLabel,
+        CallViewPhase.confirming => l.callAnswerPending,
         CallViewPhase.outgoing => l.callOutgoingAriaLabel,
         CallViewPhase.active => l.callActiveAriaLabel,
       },
       peer: call.peer,
       status: _status(l),
+      notice: call.occupancyConflict ? l.callOccupancyConflict : null,
       statusFontFeatures: active ? const [FontFeature.tabularFigures()] : null,
       onEscape: () => widget.onAction(CallViewAction.end),
       onOpenConversation: () =>
@@ -82,6 +85,7 @@ class _CallViewState extends State<CallView> {
     final call = widget.call;
     if (call.error != null) return call.error!;
     if (call.audioFailed) return l.callAudioFailed;
+    if (call.phase == CallViewPhase.confirming) return l.callAnswerPending;
     if (call.phase != CallViewPhase.active) {
       return call.phase == CallViewPhase.incoming
           ? l.callIncomingStatus
@@ -104,7 +108,8 @@ class _CallViewState extends State<CallView> {
         CallButton(
           icon: call.muted ? Icons.mic_off : Icons.mic,
           tooltip: call.muted ? l.callActiveUnmute : l.callActiveMute,
-          color: call.muted ? const Color(0xFF4F8CFF) : const Color(0xFF2A2D33),
+          color: call.muted ? MoshColors.info : MoshColors.bg3,
+          foreground: call.muted ? MoshColors.bg0 : MoshColors.fg1,
           onPressed: call.busy || !call.audioReady
               ? null
               : () => widget.onAction(CallViewAction.mute),
@@ -115,16 +120,19 @@ class _CallViewState extends State<CallView> {
           CallViewPhase.incoming when call.busy => l.callOutgoingCancel,
           CallViewPhase.incoming => l.callIncomingDecline,
           CallViewPhase.outgoing => l.callOutgoingCancel,
+          CallViewPhase.confirming => l.callOutgoingCancel,
           CallViewPhase.active => l.callActiveHangUp,
         },
-        color: const Color(0xFFE5484D),
+        color: MoshColors.danger,
+        foreground: MoshColors.bg0,
         onPressed: _end,
       ),
       if (call.phase == CallViewPhase.incoming)
         CallButton(
           icon: Icons.phone,
           tooltip: l.callIncomingAccept,
-          color: const Color(0xFF2EA043),
+          color: MoshColors.moss,
+          foreground: MoshColors.mossInk,
           onPressed:
               call.busy ? null : () => widget.onAction(CallViewAction.accept),
         ),

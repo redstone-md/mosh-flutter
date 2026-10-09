@@ -24,6 +24,40 @@ Opening the originating DM remains available while call controls are pending.
 - The supplied `29_cipher_stream` recording plays through the selected CPAL output
   device. See [recording provenance](../../assets/audio/README.md).
 
+## Selected-device coordination (#46)
+
+Call offer, answer, selection, occupancy and terminal controls travel inside MLS
+application messages. The receiver checks the actual MLS leaf signer, conversation,
+and current admitted device's Moss identity. Plaintext accept/end envelopes are
+removed; participating clients upgrade together.
+
+Answering requests selection. The receiving installation remains pending, displays
+“Waiting for confirmation…”, and sends no voice media until the caller selects it.
+All reachable linked receivers ring; the caller accepts the first answer or refusal.
+A later refusal from another receiver cannot end the selected pair. The other
+receivers stop ringing, retain account occupancy, and cannot start an unrelated call.
+
+Simultaneous outgoing calls choose the smaller authenticated caller-signer/call-ID
+pair before media starts. Only an authenticated concurrent offer establishes the
+superseded ID. A cancel from the window still displaying that ID ends the merged
+call. Failed subscription leaves the existing call intact.
+
+Occupancy uses 15-second leases with two-second heartbeats. Known pending/active
+calls block new admission across DMs, including occupancy in the same DM. A healed
+partition can reveal several calls: snapshots report a conflict, existing calls
+continue, an amber notice explains it, and new calls stay blocked until it resolves.
+This remains best effort while installations cannot reach each other.
+
+The encrypted session record retains per-leaf control sequence numbers and the last
+512 closed IDs. Local presentation dismissal is distinct from confirmed termination:
+a device that declined must still observe another device's accepted call. Authorized
+terminal controls remain valid after a newer unrelated offer; old occupancy cannot
+overwrite newer occupancy. Terminal delivery retries every two seconds for 15 seconds
+using a bounded queue of 32 controls. A local end saves its book before returning.
+
+This stage uses the existing voice media owner. Native audio/video negotiation,
+camera capture and decoded-frame delivery are subsequent implementation stages.
+
 ## Runtime ownership
 
 `VoiceCallHost` sits above every route and reads the full DM list. The selected
@@ -123,7 +157,10 @@ Behavioral test bodies and end-to-end scenario methods may exceed the 50-line
 function limit to keep their setup, actions and assertions together.
 The native peer's command dispatcher retains
 the same exception so its public-action routing stays in one place. Production
-functions remain within the limit.
+functions remain within the limit. `VoiceCallOrchestratorNotifier` has a temporary
+215-line type allowance: it owns the existing audio lifecycle and serialized
+controls during the native-engine migration. Keeping those together preserves
+the single call owner; the replacement adapter will remove the old audio setup.
 
 ## Verification on Linux, 2026-10-06
 
@@ -157,3 +194,12 @@ functions remain within the limit.
 
 The CodeAnt findings and decisions are recorded in
 [the IVO-23 review notes](../Proposals/ivo-23-codeant-review.md).
+
+Verification for selected-device coordination: the full Flutter suite passed
+1808 tests (four skipped); the final focused suite passed 196 tests after alias
+and timeout fixes. The core full suite passed, and its final DM-focused run
+passed 165 tests (13 helpers ignored), including real signed controls and
+reordered occupancy. Flutter changed lines/branches measured 96.6%/94.4%;
+Rust changed-line coverage measured 90.9% (stable LLVM emitted no branches).
+Analyze, clippy and bridge regeneration passed. The native audio/video pipeline
+is the next stage; these checks do not establish physical-camera acceptance.

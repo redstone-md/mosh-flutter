@@ -3326,12 +3326,14 @@ impl SseDecode for crate::private_dm_runtime::contracts::ActiveCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_callId = <String>::sse_decode(deserializer);
+        let mut var_supersededCallId = <Option<String>>::sse_decode(deserializer);
         let mut var_direction = <String>::sse_decode(deserializer);
         let mut var_keyB64 = <String>::sse_decode(deserializer);
         let mut var_noncePrefixB64 = <String>::sse_decode(deserializer);
         let mut var_startedAtMs = <u64>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::ActiveCall {
             call_id: var_callId,
+            superseded_call_id: var_supersededCallId,
             direction: var_direction,
             key_b64: var_keyB64,
             nonce_prefix_b64: var_noncePrefixB64,
@@ -3509,6 +3511,18 @@ impl SseDecode for crate::api::conversation::BridgeConversationRef {
         return crate::api::conversation::BridgeConversationRef {
             kind: var_kind,
             id: var_id,
+        };
+    }
+}
+
+impl SseDecode for crate::private_dm_runtime::contracts::CallAvailability {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::private_dm_runtime::contracts::CallAvailability::Busy,
+            1 => crate::private_dm_runtime::contracts::CallAvailability::Conflict,
+            _ => unreachable!("Invalid variant for CallAvailability: {}", inner),
         };
     }
 }
@@ -4857,6 +4871,19 @@ impl SseDecode for Option<bool> {
     }
 }
 
+impl SseDecode for Option<crate::private_dm_runtime::contracts::CallAvailability> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::private_dm_runtime::contracts::CallAvailability>::sse_decode(deserializer),
+            );
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::private_dm_runtime::contracts::CallEvent> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -5253,8 +5280,10 @@ impl SseDecode for crate::private_dm_runtime::contracts::OutgoingCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_callId = <String>::sse_decode(deserializer);
+        let mut var_supersededCallId = <Option<String>>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::OutgoingCall {
             call_id: var_callId,
+            superseded_call_id: var_supersededCallId,
         };
     }
 }
@@ -5290,10 +5319,14 @@ impl SseDecode for crate::private_dm_runtime::contracts::PendingCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_callId = <String>::sse_decode(deserializer);
+        let mut var_supersededCallId = <Option<String>>::sse_decode(deserializer);
         let mut var_fromDevice = <String>::sse_decode(deserializer);
+        let mut var_answerPending = <bool>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::PendingCall {
             call_id: var_callId,
+            superseded_call_id: var_supersededCallId,
             from_device: var_fromDevice,
+            answer_pending: var_answerPending,
         };
     }
 }
@@ -5344,6 +5377,9 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionListSnapshot {
 impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_callAvailability = <Option<
+            crate::private_dm_runtime::contracts::CallAvailability,
+        >>::sse_decode(deserializer);
         let mut var_deletionSummary =
             <Option<crate::message_deletion::types::DeletionSummary>>::sse_decode(deserializer);
         let mut var_deviceRevocation = <Option<
@@ -5384,6 +5420,7 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
         let mut var_activeCall =
             <Option<crate::private_dm_runtime::contracts::ActiveCall>>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::SessionSnapshot {
+            call_availability: var_callAvailability,
             deletion_summary: var_deletionSummary,
             device_revocation: var_deviceRevocation,
             history_sync: var_historySync,
@@ -5883,6 +5920,7 @@ impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::Act
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.call_id.into_into_dart().into_dart(),
+            self.superseded_call_id.into_into_dart().into_dart(),
             self.direction.into_into_dart().into_dart(),
             self.key_b64.into_into_dart().into_dart(),
             self.nonce_prefix_b64.into_into_dart().into_dart(),
@@ -6132,6 +6170,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::conversation::BridgeConversat
     for crate::api::conversation::BridgeConversationRef
 {
     fn into_into_dart(self) -> crate::api::conversation::BridgeConversationRef {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::CallAvailability {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Busy => 0.into_dart(),
+            Self::Conflict => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::private_dm_runtime::contracts::CallAvailability
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::CallAvailability>
+    for crate::private_dm_runtime::contracts::CallAvailability
+{
+    fn into_into_dart(self) -> crate::private_dm_runtime::contracts::CallAvailability {
         self
     }
 }
@@ -7486,7 +7545,11 @@ impl flutter_rust_bridge::IntoIntoDart<crate::org_runtime::OrgSnapshot>
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::OutgoingCall {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.call_id.into_into_dart().into_dart()].into_dart()
+        [
+            self.call_id.into_into_dart().into_dart(),
+            self.superseded_call_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
@@ -7549,7 +7612,9 @@ impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::Pen
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.call_id.into_into_dart().into_dart(),
+            self.superseded_call_id.into_into_dart().into_dart(),
             self.from_device.into_into_dart().into_dart(),
+            self.answer_pending.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -7632,6 +7697,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::Ses
 impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::SessionSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.call_availability.into_into_dart().into_dart(),
             self.deletion_summary.into_into_dart().into_dart(),
             self.device_revocation.into_into_dart().into_dart(),
             self.history_sync.into_into_dart().into_dart(),
@@ -7918,6 +7984,7 @@ impl SseEncode for crate::private_dm_runtime::contracts::ActiveCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.call_id, serializer);
+        <Option<String>>::sse_encode(self.superseded_call_id, serializer);
         <String>::sse_encode(self.direction, serializer);
         <String>::sse_encode(self.key_b64, serializer);
         <String>::sse_encode(self.nonce_prefix_b64, serializer);
@@ -8056,6 +8123,22 @@ impl SseEncode for crate::api::conversation::BridgeConversationRef {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <crate::api::conversation::BridgeConversationKind>::sse_encode(self.kind, serializer);
         <String>::sse_encode(self.id, serializer);
+    }
+}
+
+impl SseEncode for crate::private_dm_runtime::contracts::CallAvailability {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::private_dm_runtime::contracts::CallAvailability::Busy => 0,
+                crate::private_dm_runtime::contracts::CallAvailability::Conflict => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -9092,6 +9175,16 @@ impl SseEncode for Option<bool> {
     }
 }
 
+impl SseEncode for Option<crate::private_dm_runtime::contracts::CallAvailability> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::private_dm_runtime::contracts::CallAvailability>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::private_dm_runtime::contracts::CallEvent> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -9386,6 +9479,7 @@ impl SseEncode for crate::private_dm_runtime::contracts::OutgoingCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.call_id, serializer);
+        <Option<String>>::sse_encode(self.superseded_call_id, serializer);
     }
 }
 
@@ -9419,7 +9513,9 @@ impl SseEncode for crate::private_dm_runtime::contracts::PendingCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.call_id, serializer);
+        <Option<String>>::sse_encode(self.superseded_call_id, serializer);
         <String>::sse_encode(self.from_device, serializer);
+        <bool>::sse_encode(self.answer_pending, serializer);
     }
 }
 
@@ -9456,6 +9552,10 @@ impl SseEncode for crate::private_dm_runtime::contracts::SessionListSnapshot {
 impl SseEncode for crate::private_dm_runtime::contracts::SessionSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::private_dm_runtime::contracts::CallAvailability>>::sse_encode(
+            self.call_availability,
+            serializer,
+        );
         <Option<crate::message_deletion::types::DeletionSummary>>::sse_encode(
             self.deletion_summary,
             serializer,

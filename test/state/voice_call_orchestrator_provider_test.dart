@@ -224,7 +224,8 @@ void main() {
       // Pending -> IncomingCallDialog (peer from fromDevice).
       final pendingController = _SessionController(_session(
         'sess-1',
-        pendingCall: PendingCall(callId: 'p1', fromDevice: 'Bob'),
+        pendingCall:
+            PendingCall(answerPending: false, callId: 'p1', fromDevice: 'Bob'),
       ));
       final pendingContainer = _container(
         controller: pendingController,

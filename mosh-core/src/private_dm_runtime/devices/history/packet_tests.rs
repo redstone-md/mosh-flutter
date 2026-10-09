@@ -191,6 +191,8 @@ impl Fixture {
     }
 }
 
+#[path = "../../calls/boundary_tests.rs"]
+mod calls;
 mod deletion;
 mod export;
 mod recovery;

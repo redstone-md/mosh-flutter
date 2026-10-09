@@ -2046,6 +2046,8 @@
   "messageDeletionFailed": "Could not delete messages. Your selection is kept; try again.",
   "callAlreadyInProgress": "Finish the current call before starting another one.",
   "callAudioFailed": "Audio unavailable",
+  "callOccupancyConflict": "Calls are active on different devices. New calls are unavailable until they end.",
+  "callAnswerPending": "Waiting for confirmation…",
   "callAudioConnecting": "Connecting audio…",
   "callShowWindow": "Show call window",
   "callIncomingNotification": "Incoming call from {peer}",

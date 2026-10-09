@@ -90,8 +90,8 @@ class _CallWindowController extends ValueNotifier<CallViewState?>
     if (_closing ||
         call == null ||
         (call.busy && !command.action.availableWhileBusy) ||
-        call.sessionId != command.sessionId ||
-        call.callId != command.callId) {
+        !command.matchesCall(call.sessionId, call.callId,
+            supersededCallId: call.supersededCallId)) {
       return;
     }
     unawaited(sendCommand(command).catchError((Object error) {

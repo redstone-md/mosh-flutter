@@ -214,5 +214,8 @@ mod typing;
 #[path = "state_tests/calls.rs"]
 mod calls;
 
+#[path = "state_tests/call_selection.rs"]
+mod call_selection;
+
 #[path = "state_tests/restore.rs"]
 mod restore;

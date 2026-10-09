@@ -30,10 +30,10 @@ impl CallDirection {
 pub enum CallPhase {
     Outgoing,
     Ringing,
+    Accepting,
     Active,
 }
 
-#[derive(Debug)]
 pub struct CallState {
     pub call_id: String,
     pub direction: CallDirection,
@@ -44,12 +44,29 @@ pub struct CallState {
     pub started_at_ms: u64,
     /// Counterparty device id captured on offer/accept.
     pub remote_device: String,
+    /// Authenticated MLS caller and selected receiving leaf identities.
+    pub caller_signer: String,
+    pub selected_signer: Option<String>,
+    pub remote_peer: String,
+    /// The replaced outgoing call, so an already displayed cancel remains valid.
+    pub merged_call_id: Option<String>,
     /// Caller-only ring bookkeeping: when the first `CallOffer` went out and
     /// when the last one did. The offer is retransmitted on a cadence until the
     /// callee's `CallAccept` lands, and the ring budget is measured from the
     /// first send. Both stay 0 on the callee.
     pub offer_first_ms: u64,
     pub offer_last_ms: u64,
+}
+
+impl std::fmt::Debug for CallState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CallState")
+            .field("call_id", &self.call_id)
+            .field("direction", &self.direction)
+            .field("phase", &self.phase)
+            .field("selected_signer", &self.selected_signer)
+            .finish_non_exhaustive()
+    }
 }
 
 impl CallState {
@@ -67,6 +84,10 @@ impl CallState {
             nonce_prefix_b64,
             started_at_ms: 0,
             remote_device,
+            caller_signer: String::new(),
+            selected_signer: None,
+            remote_peer: String::new(),
+            merged_call_id: None,
             offer_first_ms: 0,
             offer_last_ms: 0,
         }
@@ -86,6 +107,10 @@ impl CallState {
             nonce_prefix_b64,
             started_at_ms: 0,
             remote_device,
+            caller_signer: String::new(),
+            selected_signer: None,
+            remote_peer: String::new(),
+            merged_call_id: None,
             offer_first_ms: 0,
             offer_last_ms: 0,
         }
@@ -94,6 +119,16 @@ impl CallState {
     pub fn become_active(&mut self, now_ms: u64) {
         self.phase = CallPhase::Active;
         self.started_at_ms = now_ms;
+    }
+
+    pub(crate) fn matches_id(&self, id: &str) -> bool {
+        self.call_id == id || self.merged_call_id.as_deref() == Some(id)
+    }
+
+    pub(crate) fn presentation_alias(&self) -> Option<String> {
+        (self.direction == CallDirection::Callee)
+            .then(|| self.merged_call_id.clone())
+            .flatten()
     }
 
     /// Stamp an outbound `CallOffer`. The first stamp also starts the ring

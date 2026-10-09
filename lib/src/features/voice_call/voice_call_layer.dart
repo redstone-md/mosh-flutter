@@ -60,7 +60,9 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         voiceCallOrchestratorProvider(widget.sessionId).select((s) => s.error),
         (_, error) => _reportError(error));
     final dialog = state.dialog;
-    if (dialog is IncomingCallDialog && !state.busy) {
+    if (dialog is IncomingCallDialog &&
+        !dialog.pending.answerPending &&
+        !state.busy) {
       if (_notifiedCall != dialog.callId) {
         _clearNotification();
         _notifiedCall = dialog.callId;
@@ -78,6 +80,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
       audioReady: state.audioReady,
       audioFailed: state.audioFailed,
       busy: state.busy,
+      occupancyConflict: state.occupancyConflict,
       language: Localizations.localeOf(context).languageCode,
       error: state.error?.cause.describe(widget.l),
     );
@@ -106,7 +109,8 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
   void _act(CallViewCommand command) {
     final state = ref.read(voiceCallOrchestratorProvider(widget.sessionId));
     if ((state.busy && !command.action.availableWhileBusy) ||
-        state.dialog.callId != command.callId) {
+        !command.matchesCall(widget.sessionId, state.dialog.callId,
+            supersededCallId: state.dialog.supersededCallId)) {
       return;
     }
     final notifier =
@@ -192,6 +196,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         _notifiedCall == id &&
         !state.busy &&
         current is IncomingCallDialog &&
+        !current.pending.answerPending &&
         current.callId == id;
   }
 

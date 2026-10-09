@@ -273,4 +273,8 @@ Primary risks are competing device answers, unauthenticated control messages,
 media queue latency, relay capacity, video crossing the desktop process boundary,
 and regressions in working voice calls. User-wide busy remains best effort
 under partition by design. The current implementation adds an isolated probe
-and directed Moss wrappers; the application's call pipeline has not switched.
+and directed Moss wrappers. Selected-device coordination now uses authenticated
+controls, pending caller confirmation, simultaneous-call cancellation, leased
+occupancy and conflict presentation with the existing voice media. The audio/video
+engine and camera/frame delivery have not yet replaced that media pipeline. See
+[implemented coordination](../Features/voice-calls.md#selected-device-coordination-46).

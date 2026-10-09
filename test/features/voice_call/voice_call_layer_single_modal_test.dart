@@ -116,7 +116,8 @@ void main() {
   testWidgets('callee: ring -> accept -> active -> re-polls shows one overlay',
       (tester) async {
     session.snapshot = _snapshot(
-        pendingCall: const PendingCall(callId: 'call-1', fromDevice: 'Alice'));
+        pendingCall: const PendingCall(
+            answerPending: false, callId: 'call-1', fromDevice: 'Alice'));
     await pumpLayer(tester);
     expect(find.text('Incoming voice call...'), findsOneWidget);
 

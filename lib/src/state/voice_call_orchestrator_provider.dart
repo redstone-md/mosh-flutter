@@ -35,6 +35,7 @@ class VoiceCallOrchestratorState {
     this.audioReady = false,
     this.audioFailed = false,
     this.busy = false,
+    this.occupancyConflict = false,
     this.error,
   });
 
@@ -43,6 +44,7 @@ class VoiceCallOrchestratorState {
   final bool audioReady;
   final bool audioFailed;
   final bool busy;
+  final bool occupancyConflict;
   final CallError? error;
 
   VoiceCallOrchestratorState copyWith({
@@ -51,6 +53,7 @@ class VoiceCallOrchestratorState {
     bool? audioReady,
     bool? audioFailed,
     bool? busy,
+    bool? occupancyConflict,
     CallError? error,
   }) =>
       VoiceCallOrchestratorState(
@@ -59,6 +62,7 @@ class VoiceCallOrchestratorState {
         audioReady: audioReady ?? this.audioReady,
         audioFailed: audioFailed ?? this.audioFailed,
         busy: busy ?? this.busy,
+        occupancyConflict: occupancyConflict ?? this.occupancyConflict,
         error: error ?? this.error,
       );
 
@@ -68,6 +72,7 @@ class VoiceCallOrchestratorState {
         audioReady: audioReady,
         audioFailed: audioFailed,
         busy: busy,
+        occupancyConflict: occupancyConflict,
       );
 }
 
@@ -162,6 +167,7 @@ class VoiceCallOrchestratorNotifier
       audioReady: _attachedCallId != null && _audio.isAttached,
       audioFailed: _failedCallId != null,
       busy: busy,
+      occupancyConflict: session?.callAvailability == CallAvailability.conflict,
       error: _error,
     );
   }
@@ -198,18 +204,25 @@ class VoiceCallOrchestratorNotifier
   Future<Object?> startCall() =>
       ref.read(voiceCallStartProvider.notifier).start(sessionId);
 
-  Future<void> acceptCall(String id) => state.dialog is IncomingCallDialog
-      ? _control(id, (b) => b.callAccept(sessionId: sessionId, callId: id),
-          terminal: false)
-      : Future.value();
+  Future<void> acceptCall(String id) {
+    final dialog = state.dialog;
+    if (dialog is! IncomingCallDialog || dialog.pending.answerPending) {
+      return Future.value();
+    }
+    return _control(id, (b) => b.callAccept(sessionId: sessionId, callId: id),
+        terminal: false);
+  }
 
-  Future<void> declineCall(String id, String reason) =>
-      state.dialog is IncomingCallDialog && _acceptedCallId != id
-          ? _control(
-              id,
-              (b) => b.callDecline(
-                  sessionId: sessionId, callId: id, reason: reason))
-          : Future.value();
+  Future<void> declineCall(String id, String reason) {
+    final dialog = state.dialog;
+    if (dialog is! IncomingCallDialog ||
+        dialog.pending.answerPending ||
+        _acceptedCallId == id) {
+      return Future.value();
+    }
+    return _control(id,
+        (b) => b.callDecline(sessionId: sessionId, callId: id, reason: reason));
+  }
 
   /// Closing is terminal intent even while accept is pending. Recheck the same
   /// call after that operation, then choose decline or hang-up from current state.
@@ -217,22 +230,28 @@ class VoiceCallOrchestratorNotifier
 
   Future<void> _endCall(String id, String reason,
       {bool preserveError = false}) async {
-    if (state.dialog.callId != id) return;
-    await _controls.wait(id);
-    if (!ref.mounted || state.dialog.callId != id) return;
-    final incoming =
-        state.dialog is IncomingCallDialog && _acceptedCallId != id;
+    final canonical = await _controls.waitForCurrent(
+        () => ref.mounted && _matchesEnd(id) ? state.dialog.callId : null);
+    if (canonical == null) return;
+    final dialog = state.dialog;
+    final incoming = dialog is IncomingCallDialog &&
+        !dialog.pending.answerPending &&
+        _acceptedCallId != canonical;
     await _control(
-        id,
+        canonical,
         (b) => incoming
             ? b.callDecline(
                 sessionId: sessionId,
-                callId: id,
+                callId: canonical,
                 reason: kCallDeclineReasonUser)
-            : b.callEnd(sessionId: sessionId, callId: id, reason: reason),
+            : b.callEnd(
+                sessionId: sessionId, callId: canonical, reason: reason),
         closing: true,
         preserveError: preserveError);
   }
+
+  bool _matchesEnd(String id) =>
+      state.dialog.callId == id || state.dialog.supersededCallId == id;
 
   Future<void> _control(String id, Future<void> Function(BridgeFacade) action,
       {bool terminal = true,

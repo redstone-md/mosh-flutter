@@ -1076,6 +1076,8 @@
   "messageDeletionFailed": "Не удалось удалить сообщения. Выбор сохранён, попробуйте ещё раз.",
   "callAlreadyInProgress": "Завершите текущий звонок, прежде чем начать новый.",
   "callAudioFailed": "Звук недоступен",
+  "callOccupancyConflict": "Звонки идут на разных устройствах. Новый звонок станет доступен после их завершения.",
+  "callAnswerPending": "Ожидаем подтверждения…",
   "callAudioConnecting": "Подключаем звук…",
   "callShowWindow": "Открыть окно звонка",
   "callIncomingNotification": "Входящий звонок от {peer}",

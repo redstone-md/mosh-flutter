@@ -25,7 +25,8 @@ void main() {
       ..seedSessions([
         TestSnapshots.dm(
             sessionId: 'origin',
-            pendingCall: PendingCall(callId: 'call', fromDevice: 'Alice'))
+            pendingCall: PendingCall(
+                answerPending: false, callId: 'call', fromDevice: 'Alice'))
       ]);
     final container = ProviderContainer(overrides: [
       bridgeFacadeProvider.overrideWithValue(bridge),

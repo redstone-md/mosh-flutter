@@ -50,9 +50,15 @@ impl PrivateDmRuntime {
             return;
         }
         if let Some(session_id) = channel_session_id(&message.channel).map(str::to_string) {
+            let occupied = self.sessions.values().any(|session| {
+                session.session_id != session_id
+                    && (session.call.is_some()
+                        || !session.call_occupancy.calls(now_ms()).is_empty())
+            });
             let Some(session) = self.sessions.get_mut(&session_id) else {
                 return;
             };
+            session.call_admission_blocked = occupied;
             if session.ensure_device_authorized().is_err() {
                 return;
             }

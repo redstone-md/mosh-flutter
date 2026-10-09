@@ -37,8 +37,10 @@ class _Fixture {
     gateway.seedSessions([
       TestSnapshots.dm(
         sessionId: 'origin',
-        pendingCall:
-            active ? null : PendingCall(callId: id, fromDevice: 'Alice'),
+        pendingCall: active
+            ? null
+            : PendingCall(
+                answerPending: false, callId: id, fromDevice: 'Alice'),
         activeCall: active ? TestCalls.active(callId: id) : null,
       )
     ]);
@@ -64,6 +66,67 @@ Future<void> frames(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('cancel survives an authenticated merge during its control wait',
+      (tester) async {
+    final f = _Fixture();
+    addTearDown(f.container.dispose);
+    final accepted = Completer<void>();
+    f.bridge.respondNext(BridgeMethod.callAccept, accepted.future);
+    await f.mount(tester);
+    final displayed = f.window.views.last;
+    final accepting = f.command(displayed.command(CallViewAction.accept));
+    await frames(tester);
+    final closing = f.command(displayed.command(CallViewAction.end));
+    await frames(tester);
+    f.gateway.seedSessions([
+      TestSnapshots.dm(
+          sessionId: 'origin',
+          pendingCall: const PendingCall(
+              callId: 'canonical',
+              supersededCallId: 'call',
+              fromDevice: 'Alice',
+              answerPending: true))
+    ]);
+    f.container.invalidate(conversationListProvider(ConversationKind.dm));
+    await frames(tester);
+    accepted.complete();
+    await Future.wait([accepting, closing]);
+    expect(f.bridge.lastCall(BridgeMethod.callEnd)?.arg<String>('callId'),
+        'canonical');
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+  testWidgets(
+      'a merged call honors the cancel from its previously displayed ID',
+      (tester) async {
+    final f = _Fixture();
+    addTearDown(f.container.dispose);
+    await f.mount(tester);
+    f.gateway.seedSessions([
+      TestSnapshots.dm(
+          sessionId: 'origin',
+          outgoingCall: const OutgoingCall(callId: 'original'))
+    ]);
+    f.container.invalidate(conversationListProvider(ConversationKind.dm));
+    await frames(tester);
+    final oldCommand = f.window.views.last.command(CallViewAction.end);
+    f.gateway.seedSessions([
+      TestSnapshots.dm(
+          sessionId: 'origin',
+          pendingCall: const PendingCall(
+              callId: 'canonical',
+              supersededCallId: 'original',
+              fromDevice: 'Alice',
+              answerPending: true))
+    ]);
+    f.container.invalidate(conversationListProvider(ConversationKind.dm));
+    await frames(tester);
+    await f.command(oldCommand);
+    expect(f.bridge.countOf(BridgeMethod.callEnd), 1);
+    expect(f.bridge.lastCall(BridgeMethod.callEnd)?.arg<String>('callId'),
+        'canonical');
+    expect(f.bridge.countOf(BridgeMethod.callDecline), 0);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
   testWidgets('both call views open the origin while accept is pending',
       (tester) async {
     final f = _Fixture();

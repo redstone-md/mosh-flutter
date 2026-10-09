@@ -45,7 +45,8 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
     if (selected?.sessionId != command.sessionId) return;
     final provider = voiceCallOrchestratorProvider(command.sessionId);
     final state = ref.read(provider);
-    if (state.dialog.callId != command.callId ||
+    if (!command.matchesCall(command.sessionId, state.dialog.callId,
+            supersededCallId: state.dialog.supersededCallId) ||
         (state.busy && !command.action.availableWhileBusy)) {
       return;
     }
@@ -82,6 +83,7 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
             audioReady: state.audioReady,
             audioFailed: state.audioFailed,
             busy: state.busy,
+            occupancyConflict: state.occupancyConflict,
             language: Localizations.localeOf(context).languageCode,
             error: state.error?.cause.describe(l),
           );

@@ -4,6 +4,8 @@ use super::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedSession {
+    #[serde(default)]
+    pub(crate) call_controls: super::super::calls::CallProtocolBook,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) invitation: Option<crate::private_dm_runtime::invitations::InviteLifecycle>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

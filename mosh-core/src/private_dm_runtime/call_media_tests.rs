@@ -32,6 +32,11 @@ fn active_call(alice: &mut PrivateDmRuntime, bob: &mut PrivateDmRuntime) -> (Str
         .poll_session(&invite.session_id)
         .expect("poll should pass");
     assert!(view.active_call.is_some(), "Alice saw the accept");
+    assert!(bob
+        .poll_session(&invite.session_id)
+        .expect("selection")
+        .active_call
+        .is_some());
     (invite.session_id, call.call_id)
 }
 

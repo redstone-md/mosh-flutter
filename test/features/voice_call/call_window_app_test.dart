@@ -99,6 +99,20 @@ void main() {
     await tester.pump();
     await tester.tap(find.byTooltip('Mute'));
     await tester.pump();
+    final displayedActive = tester.widget<CallView>(find.byType(CallView));
+    await handle(MethodCall(
+        'call-present',
+        const CallViewState(
+                sessionId: 'origin',
+                callId: 'merged',
+                supersededCallId: 'active',
+                peer: 'Alice',
+                phase: CallViewPhase.active,
+                audioReady: true)
+            .toMap()));
+    displayedActive.onAction(CallViewAction.end);
+    displayedActive.onAction(CallViewAction.mute);
+    await tester.pump();
     await _osClose(platform);
     await tester.pump();
     await handle(const MethodCall('call-show'));
@@ -111,6 +125,7 @@ void main() {
       'end',
       'end',
       'mute',
+      'end',
       'end'
     ]);
     expect(commands.map((args) => args['sessionId']).toSet(), {'origin'});
@@ -121,7 +136,8 @@ void main() {
       'incoming',
       'incoming',
       'active',
-      'active'
+      'active',
+      'merged'
     ]);
     await handle(const MethodCall('call-close'));
     await tester.pump(const Duration(milliseconds: 20));
