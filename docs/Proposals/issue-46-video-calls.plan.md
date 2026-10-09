@@ -119,9 +119,9 @@ Source inspection establishes candidate APIs, not a working Moss media engine.
 Native packaging, media protection and real-device quality require a focused
 feasibility check before replacing the working voice pipeline.
 
-## Feasibility candidate before adoption (2026-10-08)
+## Preferred feasibility candidate
 
-RingRTC's low-level Rust WebRTC factory is the first candidate to validate.
+On 2026-10-08, RingRTC's low-level Rust WebRTC factory was the preferred candidate.
 It exposes an injected virtual UDP network without requiring Signal's service
 or CallManager, while retaining established audio/video processing. Keep its
 negotiation format and native pointers behind a Mosh-owned engine adapter.
