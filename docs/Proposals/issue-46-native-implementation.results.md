@@ -61,6 +61,10 @@ capability selection have focused tests, and macOS padded-BGRA validation runs
 on Linux. The old feasibility probe shares the production decoder sink.
 
 The instrumented native core owner/process checks covered 1061/1153 lines (92.0%).
+The production engine loaded through its C ABI in four independent process
+scenarios covered 766/852 lines (89.9%), including 143/158 ABI lines. All four
+scenarios passed with instrumentation; the engine's separate 13-test run also
+passed with the virtual duplex audio fixture enabled.
 The Flutter client/view/owner checks covered 312/337 lines (92.6%) and 98/123
 branches (79.7%). A delayed captured-slot regression also verifies that the
 encoder and preview admission count time waiting after pipe receipt.
