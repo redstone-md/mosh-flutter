@@ -4,6 +4,44 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2026-10-09
+
+### Added
+
+- End-to-end encrypted desktop video calls over Moss, with a local preview
+  and microphone, speaker and camera selection. The receiving camera stays
+  off until you enable it.
+- Call selection across linked devices and account-wide busy status. Once
+  one device answers, the other devices stop ringing.
+- Saved private-chat invitations survive restarts. Copy, replace or open an
+  invitation before adding its conversation to the chat list.
+- Compact private-chat links admit one contact. Replacing an unused link
+  invalidates the old link while preserving the conversation.
+
+### Changed
+
+- Desktop audio and video share one native engine. Calls and camera capture
+  continue while you switch conversations or minimize the call window.
+- Confirmation and rename dialogs share keyboard cancellation, focus
+  handling and layouts for narrow windows and larger text.
+
+### Fixed
+
+- Windows audio teardown no longer aborts the application.
+- Failed call preparation and device changes report errors; commands for
+  ended calls no longer report success.
+- A call-selection message without a matching offer cannot reserve the
+  account and block new calls.
+- Invitation actions respect inline navigation and report failed delivery.
+- Message rows no longer draw an unwanted focus outline.
+
+### Upgrade notes
+
+- Both participants must update for desktop calls. Calls between desktop
+  and mobile clients are not supported yet.
+- Compact invitation links require an updated client. Existing invitation
+  links remain readable by this release.
+
 ## [0.18.1] - 2026-10-08
 
 ### Changed
