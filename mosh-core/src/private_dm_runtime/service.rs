@@ -107,10 +107,12 @@ impl PrivateDmRuntime {
             }
         }
         self.pump_devices(now);
+        self.reconcile_call_authority();
         if let Err(error) = self.sessions.persist_tail() {
             self.log_persistence_failure(KIND, &error);
         }
         self.sync_call_media();
+        self.pump_native_media();
     }
 
     pub(super) fn log_persistence_failure(
@@ -129,7 +131,7 @@ impl PrivateDmRuntime {
     /// Tell the media hub which calls are live. Run after every tick and
     /// every call action: the call state machine lives here, the hub only
     /// mirrors its active calls.
-    pub(super) fn sync_call_media(&self) {
+    pub(super) fn sync_call_media(&mut self) {
         let live = self
             .sessions
             .values()
@@ -144,6 +146,7 @@ impl PrivateDmRuntime {
             .collect();
         self.media.sync(live);
         self.media.collect();
+        self.sync_native_media();
     }
 }
 

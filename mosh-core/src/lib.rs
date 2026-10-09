@@ -17,6 +17,7 @@ pub mod mls_crypto;
 pub mod mls_storage;
 pub mod moss_ffi;
 pub mod moss_runtime;
+mod native_call;
 pub mod network_inventory;
 pub mod openmls_crypto;
 pub mod org_envelope;

@@ -124,6 +124,18 @@ pub trait DmTransport: Send + Sync {
     /// apart from [`DmTransport::drain`] so the audio loop never waits on the
     /// DM runtime (`CallMedia`).
     fn drain_media(&self) -> Vec<MossReceivedMessage>;
+
+    fn enable_call_packets(&self) -> Result<(), String> {
+        Err("transport has no directed call packets".into())
+    }
+
+    fn send_call_packet(&self, _peer: &str, _packet: &[u8]) -> Result<(), String> {
+        Err("transport has no directed call packets".into())
+    }
+
+    fn drain_call_packets(&self) -> Vec<MossReceivedMessage> {
+        Vec::new()
+    }
 }
 
 const STREAMS_UNSUPPORTED: &str = "transport has no stream fast path";
@@ -160,6 +172,17 @@ pub(crate) fn is_call_media_inbound(channel: &str) -> bool {
 fn media_inbox() -> &'static inbox::Inbox {
     static INBOX: std::sync::OnceLock<inbox::Inbox> = std::sync::OnceLock::new();
     INBOX.get_or_init(|| inbox::register(is_call_media_inbound))
+}
+
+fn packet_inbox() -> &'static inbox::Inbox {
+    static INBOX: std::sync::OnceLock<inbox::Inbox> = std::sync::OnceLock::new();
+    INBOX.get_or_init(|| {
+        inbox::register_bounded(
+            |channel| channel.starts_with(crate::moss_ffi::PACKET_INBOX_CHANNEL_PREFIX),
+            512,
+            2027,
+        )
+    })
 }
 
 /// The DM's own inbound queue, claimed once for the process. Two DM runtimes
@@ -320,6 +343,23 @@ impl DmTransport for MossDmTransport {
 
     fn drain_media(&self) -> Vec<MossReceivedMessage> {
         media_inbox().drain()
+    }
+
+    fn enable_call_packets(&self) -> Result<(), String> {
+        packet_inbox();
+        self.node()?
+            .set_packet_callback()
+            .map_err(|error| error.to_string())
+    }
+
+    fn send_call_packet(&self, peer: &str, packet: &[u8]) -> Result<(), String> {
+        self.node()?
+            .send_to_peer(peer, packet)
+            .map_err(|error| error.to_string())
+    }
+
+    fn drain_call_packets(&self) -> Vec<MossReceivedMessage> {
+        packet_inbox().drain()
     }
 }
 

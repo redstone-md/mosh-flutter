@@ -14,9 +14,11 @@ pub(super) struct CallControl {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(super) enum CallAction {
+    Media(crate::native_call::types::Signal),
     Offer {
         key_b64: String,
         nonce_prefix_b64: String,
+        native: bool,
     },
     Answer,
     Occupied {
@@ -42,6 +44,7 @@ impl crate::voice_call_runtime::CallState {
             CallPhase::Outgoing => CallAction::Offer {
                 key_b64: self.key_b64.clone(),
                 nonce_prefix_b64: self.nonce_prefix_b64.clone(),
+                native: native_platform(),
             },
             CallPhase::Accepting => CallAction::Answer,
             CallPhase::Active if self.direction == CallDirection::Caller => CallAction::Selected {
@@ -53,4 +56,12 @@ impl crate::voice_call_runtime::CallState {
             },
         })
     }
+}
+
+pub(super) const fn native_platform() -> bool {
+    cfg!(any(
+        target_os = "windows",
+        target_os = "macos",
+        target_os = "linux"
+    ))
 }

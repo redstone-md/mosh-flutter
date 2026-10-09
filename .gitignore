@@ -77,3 +77,11 @@ analyze.out
 
 # aislop scanner state (regenerated per run)
 .aislop/
+
+# Reconstructed pinned camera sources; complete patches are tracked.
+third_party/nokhwa/
+third_party/nokhwa.lock/
+third_party/nokhwa.prepare-*/
+third_party/nokhwa-macos/
+third_party/nokhwa-macos.lock/
+third_party/nokhwa-macos.prepare-*/

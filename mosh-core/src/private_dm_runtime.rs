@@ -7,6 +7,7 @@ mod invitation_admission;
 mod invitations;
 mod invite;
 pub(crate) mod invite_ownership;
+mod native_media;
 mod outbox;
 pub(crate) mod transport;
 mod wire;
@@ -123,6 +124,7 @@ pub struct PrivateDmRuntime {
     /// Voice frames for the live calls; shared with the audio loop, which
     /// never takes this runtime's lock.
     media: Arc<CallMedia>,
+    native_media: Option<Arc<crate::native_call::Hub>>,
     lost_window_ms: u64,
     device_link: Option<devices::DeviceDmLink>,
 }
@@ -268,6 +270,7 @@ impl PrivateDmRuntime {
         Self {
             sessions: ConversationRuntime::new(attachment_store, persistence, DM_HISTORY),
             media: CallMedia::new(Arc::clone(&transport)),
+            native_media: None,
             transport,
             lost_window_ms: LOST_WINDOW_MS,
             device_link: None,

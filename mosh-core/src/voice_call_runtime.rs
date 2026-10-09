@@ -56,6 +56,8 @@ pub struct CallState {
     /// first send. Both stay 0 on the callee.
     pub offer_first_ms: u64,
     pub offer_last_ms: u64,
+    pub(crate) native_controls: std::collections::VecDeque<crate::native_call::types::Signal>,
+    pub(crate) native_camera_sequence: u64,
 }
 
 impl std::fmt::Debug for CallState {
@@ -90,6 +92,8 @@ impl CallState {
             merged_call_id: None,
             offer_first_ms: 0,
             offer_last_ms: 0,
+            native_controls: Default::default(),
+            native_camera_sequence: 0,
         }
     }
 
@@ -113,6 +117,8 @@ impl CallState {
             merged_call_id: None,
             offer_first_ms: 0,
             offer_last_ms: 0,
+            native_controls: Default::default(),
+            native_camera_sequence: 0,
         }
     }
 

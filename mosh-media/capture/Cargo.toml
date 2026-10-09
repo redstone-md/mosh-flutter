@@ -1,0 +1,18 @@
+[package]
+name = "mosh-camera-capture"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+
+[dependencies]
+anyhow = "1"
+nokhwa = { version = "=0.10.11", path = "../../third_party/nokhwa", default-features = false, features = ["input-native", "decoding"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[patch.crates-io]
+nokhwa-bindings-macos = { path = "../../third_party/nokhwa-macos" }
+
+[profile.dev]
+debug = 0

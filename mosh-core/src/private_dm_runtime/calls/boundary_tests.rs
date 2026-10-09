@@ -5,6 +5,8 @@ use crate::voice_call_runtime::CallState;
 use serde_json::json;
 #[path = "boundary_tests/boundary_races.rs"]
 mod boundary_races;
+#[path = "boundary_tests/native_controls.rs"]
+mod native_controls;
 
 fn remote_control(
     f: &mut Fixture,
@@ -15,6 +17,16 @@ fn remote_control(
     action: serde_json::Value,
 ) -> ControlEnvelope {
     let mut action = action;
+    if let Some(offer) = action.get_mut("Offer") {
+        if offer["native"].is_null() {
+            offer["native"] = cfg!(any(
+                target_os = "windows",
+                target_os = "macos",
+                target_os = "linux"
+            ))
+            .into();
+        }
+    }
     let declared_caller = if id == "selected-call" {
         hex::encode(
             f.runtime
@@ -115,6 +127,7 @@ fn selected_call(f: &mut Fixture) {
     );
     call.caller_signer = hex::encode(session.crypto.signer_public());
     call.selected_signer = Some(receiver);
+    call.remote_peer = f.contact.device().moss_peer_id.clone();
     call.become_active(crate::private_dm_runtime::now_ms());
     session.call = Some(call);
 }
@@ -321,6 +334,15 @@ fn signed_call_controls_refuse_stale_devices_and_reordered_occupancy() {
 #[test]
 #[ignore = "Isolated signed-call fixture worker; the parent invokes it."]
 fn call_boundary_process() {
+    native_controls::reordered_camera_state_cannot_reenable_a_stopped_remote_track(
+        &mut Fixture::new(),
+    );
+    native_controls::unsupported_media_installation_does_not_ring_or_select(&mut Fixture::new());
+    native_controls::current_removal_evidence_ends_only_the_selected_pair(&mut Fixture::new());
+    native_controls::selected_device_removal_releases_native_call(&mut Fixture::new());
+    native_controls::local_removal_revokes_retained_native_call(&mut Fixture::new());
+    native_controls::media_retries_cannot_suppress_the_callers_selection(&mut Fixture::new());
+    native_controls::only_the_selected_leaf_can_submit_bound_native_media(&mut Fixture::new());
     stale_nonparticipant_terminals_do_not_end_selected_media(&mut Fixture::new());
     delayed_occupancy_cannot_replace_a_newer_reservation(&mut Fixture::new());
     claimed_transport_identity_must_match_the_authenticated_leaf(&mut Fixture::new());
@@ -330,5 +352,6 @@ fn call_boundary_process() {
     boundary_races::unconfirmed_sibling_end_cannot_hide_a_selected_call(&mut Fixture::new());
     boundary_races::a_selection_cannot_replace_a_different_live_reservation(&mut Fixture::new());
     boundary_races::a_newer_offer_cannot_discard_an_older_authorized_end(&mut Fixture::new());
+    boundary_races::native_failure_is_durable_before_releasing_media(&mut Fixture::new());
     boundary_races::local_end_is_durable_before_returning(&mut Fixture::new());
 }

@@ -126,6 +126,17 @@ pub(super) fn a_newer_offer_cannot_discard_an_older_authorized_end(f: &mut Fixtu
 pub(super) fn local_end_is_durable_before_returning(f: &mut Fixture) {
     selected_call(f);
     let _ = f.runtime.call_end(&f.session, "selected-call", "hangup");
+    late_offer_after_restart_cannot_reopen(f);
+}
+
+pub(super) fn native_failure_is_durable_before_releasing_media(f: &mut Fixture) {
+    selected_call(f);
+    f.runtime
+        .end_failed_native_call(&f.session, "selected-call");
+    late_offer_after_restart_cannot_reopen(f);
+}
+
+fn late_offer_after_restart_cannot_reopen(f: &mut Fixture) {
     f.runtime.rehydrate();
     let contact = f.contact.device().device_id.clone();
     let peer = f.contact.device().moss_peer_id.clone();

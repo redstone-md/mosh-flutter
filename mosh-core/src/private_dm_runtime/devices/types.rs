@@ -144,11 +144,7 @@ impl DeviceMembership {
     pub(in crate::private_dm_runtime) fn call_peer(&self, signer: &str) -> Option<String> {
         let client = self.topology.client(signer)?;
         let device = client.device().ok()?;
-        self.topology
-            .roster(&client.roster.user_id())?
-            .devices()
-            .ok()?
-            .contains(&device)
+        self.authorized(&device, &client.roster.user_id())
             .then_some(device.moss_peer_id)
     }
 

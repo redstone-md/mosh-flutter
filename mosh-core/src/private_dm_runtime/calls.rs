@@ -37,6 +37,7 @@ impl PrivateDmSession {
             CallAction::Offer {
                 key_b64: key_b64.into(),
                 nonce_prefix_b64: nonce_prefix_b64.into(),
+                native: protocol::native_platform(),
             },
         )
     }
@@ -184,9 +185,13 @@ impl PrivateDmSession {
             control.action,
             CallAction::End { .. } | CallAction::Decline { .. }
         );
-        let outcome = if self
-            .call_controls
-            .receive(&control.signer, control.sequence)
+        // Media has its own immutable binding and idempotence rules. Its fresh
+        // retry must not suppress an earlier caller selection or end control.
+        let media = matches!(control.action, CallAction::Media(_));
+        let outcome = if media
+            || self
+                .call_controls
+                .receive(&control.signer, control.sequence)
             || terminal
         {
             self.apply_call_control(control)
@@ -202,6 +207,22 @@ impl PrivateDmSession {
         self.call
             .as_ref()
             .is_some_and(|call| call.matches_id(call_id))
+    }
+
+    pub(super) fn publish_native_media(
+        &mut self,
+        call_id: &str,
+        signal: crate::native_call::types::Signal,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        if !signal.bounded()
+            || !self
+                .call
+                .as_ref()
+                .is_some_and(|call| call.phase == CallPhase::Active && call.call_id == call_id)
+        {
+            return Ok(());
+        }
+        self.publish_authenticated_call(call_id, CallAction::Media(signal))
     }
 }
 

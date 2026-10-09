@@ -21,10 +21,20 @@ impl PrivateDmSession {
             return Ok(());
         }
         match &control.action {
+            CallAction::Media(signal) => {
+                self.receive_native_media(&control, signal.clone());
+                Ok(())
+            }
             CallAction::Offer {
                 key_b64,
                 nonce_prefix_b64,
-            } => self.receive_call_offer(&control, key_b64, nonce_prefix_b64),
+                native,
+            } => {
+                if *native != protocol::native_platform() {
+                    return Ok(());
+                }
+                self.receive_call_offer(&control, key_b64, nonce_prefix_b64)
+            }
             CallAction::Answer => self.receive_call_answer(&control),
             CallAction::Occupied { .. } => Ok(()),
             CallAction::Selected { receiver } => {
@@ -34,6 +44,53 @@ impl PrivateDmSession {
                 self.receive_call_termination(&control)
             }
         }
+    }
+
+    fn receive_native_media(
+        &mut self,
+        control: &CallControl,
+        signal: crate::native_call::types::Signal,
+    ) {
+        if !signal.bounded() {
+            return;
+        }
+        let Some(call) = self
+            .call
+            .as_mut()
+            .filter(|call| call.phase == CallPhase::Active && call.call_id == control.call_id)
+        else {
+            return;
+        };
+        let remote = if call.direction == crate::voice_call_runtime::CallDirection::Caller {
+            call.selected_signer.as_deref()
+        } else {
+            Some(call.caller_signer.as_str())
+        };
+        if remote != Some(&control.signer) || call.remote_peer != control.peer {
+            return;
+        }
+        if let crate::native_call::types::Signal::Description(description) = &signal {
+            let binding = &description.binding;
+            if binding.session_id != self.session_id
+                || binding.call_id != call.call_id
+                || binding.caller != call.caller_signer
+                || call.selected_signer.as_ref() != Some(&binding.callee)
+                || description.offer
+                    != (call.direction == crate::voice_call_runtime::CallDirection::Callee)
+            {
+                return;
+            }
+        }
+        if matches!(signal, crate::native_call::types::Signal::Camera { .. }) {
+            if control.sequence <= call.native_camera_sequence {
+                return;
+            }
+            call.native_camera_sequence = control.sequence;
+        }
+        if call.native_controls.len() >= 16 {
+            call.native_controls.pop_front();
+        }
+        call.native_controls.push_back(signal);
     }
 
     fn receive_call_answer(&mut self, control: &CallControl) -> Result<(), PrivateDmRuntimeError> {
