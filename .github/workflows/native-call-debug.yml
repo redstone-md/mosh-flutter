@@ -1,0 +1,86 @@
+name: Native call teardown diagnosis
+on: workflow_dispatch
+permissions:
+  contents: read
+concurrency:
+  group: native-call-debug-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup
+        with:
+          flutter: 'false'
+          rust-cache-key: native-call
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: mosh-core
+          shared-key: native-call-debug
+          cache-on-failure: true
+      - uses: actions/cache/restore@v4
+        id: native
+        with:
+          path: |
+            .dart_tool/native-media/target
+            .dart_tool/native-sources
+            .dart_tool/native-tools
+          key: native-call-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mosh-media/**/Cargo.lock', 'third_party/*-patches/source.json', 'third_party/*-patches/mosh.patch') }}
+      - run: node scripts/native-media-build.mjs
+      - uses: actions/cache/save@v4
+        if: steps.native.outputs.cache-hit != 'true'
+        with:
+          path: |
+            .dart_tool/native-media/target
+            .dart_tool/native-sources
+            .dart_tool/native-tools
+          key: ${{ steps.native.outputs.cache-primary-key }}
+      - run: cargo build --manifest-path mosh-core/Cargo.toml --features native-media-tests --lib --bin mosh-camera-test-driver --test device_link_flow
+      - name: Enable private minidumps for the test peer
+        shell: pwsh
+        run: |
+          $debugger = "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe"
+          if (-not (Test-Path $debugger)) {
+            $installer = Join-Path $env:RUNNER_TEMP 'native-call-sdk.exe'
+            Invoke-WebRequest 'https://go.microsoft.com/fwlink/?linkid=2382321' -OutFile $installer
+            $signature = Get-AuthenticodeSignature $installer
+            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Microsoft Corporation') {
+              throw 'Windows SDK installer signature rejected'
+            }
+            $install = Start-Process $installer -ArgumentList '/features OptionId.WindowsDesktopDebuggers /quiet /norestart' -Wait -PassThru
+            if ($install.ExitCode -notin @(0, 3010)) { throw "Debugger installation failed: $($install.ExitCode)" }
+          }
+          if (-not (Test-Path $debugger)) { throw 'CDB is unavailable' }
+          $dumpRoot = Join-Path $PWD '.scratch/native-call-crashes'
+          New-Item $dumpRoot -ItemType Directory -Force | Out-Null
+          Get-ChildItem 'mosh-core/target/debug/deps/device_link_flow-*.exe' | ForEach-Object {
+            $key = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\$($_.Name)"
+            New-Item $key -Force | Out-Null
+            New-ItemProperty $key -Name DumpFolder -Value $dumpRoot -PropertyType ExpandString -Force | Out-Null
+            New-ItemProperty $key -Name DumpType -Value 1 -PropertyType DWord -Force | Out-Null
+          }
+      - name: Exercise selected calls and teardown repeatedly
+        shell: bash
+        run: |
+          export MOSH_MEDIA_ENGINE="$PWD/.dart_tool/native-media/debug/mosh_native_media.dll"
+          export MOSH_CAMERA_CAPTURE="$PWD/mosh-core/target/debug/mosh-camera-test-driver.exe"
+          export MOSH_NATIVE_DIAGNOSTICS=1
+          result=0
+          for iteration in 1 2 3; do
+            node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture || result=1
+          done
+          exit "$result"
+      - name: Print symbolized stacks and discard private dumps
+        if: always()
+        shell: pwsh
+        run: |
+          $debugger = "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe"
+          $symbols = "$PWD\mosh-core\target\debug\deps;$PWD\.dart_tool\native-media\target\x86_64-pc-windows-msvc\debug;$PWD\.dart_tool\native-media\target\x86_64-pc-windows-msvc\debug\deps"
+          Get-ChildItem '.scratch/native-call-crashes/*.dmp' -ErrorAction SilentlyContinue | ForEach-Object {
+            try { & $debugger -z $_.FullName -y $symbols -c '.ecxr;k;~*k;q' }
+            finally { Remove-Item $_.FullName -Force }
+          }
