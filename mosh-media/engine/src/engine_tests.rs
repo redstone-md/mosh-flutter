@@ -150,6 +150,37 @@ fn rejects_invalid_binary_packets_and_camera_dimensions() {
 }
 
 #[test]
+fn empty_receive_only_peers_survive_statistics_and_teardown() {
+    let (mut caller, mut callee) = pair();
+    for engine in [&mut caller, &mut callee] {
+        engine.command(json!({"action":"devices"})).unwrap();
+        engine
+            .command(json!({"action":"choices","microphone":false,"video":false}))
+            .unwrap();
+        engine
+            .command(json!({"action":"select","input":null,"output":null}))
+            .unwrap();
+        engine
+            .command(json!({"action":"budget","max_bps":3_000_000}))
+            .unwrap();
+    }
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < deadline {
+        transfer(&mut caller, &mut callee);
+        transfer(&mut callee, &mut caller);
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    for engine in [&mut caller, &mut callee] {
+        let snapshot = engine.command(json!({"action":"snapshot"})).unwrap();
+        assert_eq!(snapshot["connection"], "Connected", "{snapshot}");
+        assert_eq!(snapshot["decoded"], 0);
+    }
+    drop(caller);
+    callee.command(json!({"action":"tick"})).unwrap();
+    drop(callee);
+}
+
+#[test]
 #[ignore = "Requires the Linux PulseAudio sine-source and null-sink fixture"]
 fn virtual_duplex_audio_survives_video_and_microphone_mute() {
     let (mut caller, mut callee) = pair();

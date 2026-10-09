@@ -127,10 +127,17 @@ impl Peer {
         self.replies
             .recv_timeout(Duration::from_secs(30))
             .unwrap_or_else(|error| {
+                let deadline = Instant::now() + Duration::from_millis(250);
+                let status = loop {
+                    let status = self.child.try_wait();
+                    if !matches!(status, Ok(None)) || Instant::now() >= deadline {
+                        break status;
+                    }
+                    std::thread::sleep(Duration::from_millis(10));
+                };
                 panic!(
                     "peer action {} failed: {error}; process status: {:?}",
-                    command["action"],
-                    self.child.try_wait()
+                    command["action"], status
                 )
             })
     }
@@ -192,10 +199,14 @@ impl Peer {
 fn read_replies(stdout: ChildStdout) -> mpsc::Receiver<Value> {
     let (send, replies) = mpsc::channel();
     std::thread::spawn(move || {
-        for line in BufReader::new(stdout)
-            .lines()
-            .map_while(std::result::Result::ok)
-        {
+        for line in BufReader::new(stdout).lines() {
+            let line = match line {
+                Ok(line) => line,
+                Err(error) => {
+                    eprintln!("peer stdout read failed: {error:?}");
+                    break;
+                }
+            };
             if let Some(json) = line.strip_prefix(OUTPUT_PREFIX) {
                 if send.send(serde_json::from_str(json).unwrap()).is_err() {
                     break;
