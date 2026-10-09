@@ -184,7 +184,9 @@ fn native_camera_frames_cross_moss_and_camera_off_preserves_the_call() {
         }
         assert!(
             std::time::Instant::now() < until,
-            "remote video never decoded: {frame}"
+            "remote video never decoded: {frame}; caller: {}; receiver: {}",
+            caller.ask(json!({"action":"call_native_snapshot","argument":session,"call_id":id})),
+            receiver.ask(json!({"action":"call_native_snapshot","argument":session,"call_id":id}))
         );
         std::thread::sleep(std::time::Duration::from_millis(100));
     };
