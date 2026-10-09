@@ -28,7 +28,9 @@ latest decoded frames and bounded transport queues on a dedicated thread.
 The engine's raw handle stays on that thread; no unsafe `Send` wrapper carries
 WebRTC objects between bridge threads. Its code library remains loaded until
 process exit because native dependencies retain global and thread-local state.
-Engine teardown still releases capture, playback and connection resources. Slow Moss sends
+A thread-bound Windows COM apartment guard outlives every endpoint field, so
+native audio objects are released before COM uninitialization. Engine teardown
+still releases capture, playback and connection resources. Slow Moss sends
 run separately, so they cannot block camera off, decoding or device commands.
 
 `mosh-media/engine` is a separate Rust dependency graph. RingRTC's mandatory

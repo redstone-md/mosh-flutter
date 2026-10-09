@@ -55,6 +55,16 @@ capture, thermal behavior or complete sustained production 720p30 quality.
 
 ## Verification and coverage
 
+Windows CI reproduced `0xc0000005` while releasing the native audio COM object.
+The engine now keeps a thread-bound MTA apartment alive until every native
+endpoint field is released. After that change, 14 engine tests and two capture
+tests passed on Windows. Three consecutive CDB runs passed all four independent
+API scenarios (12/12), with successful child-process exits and no access
+violations. The normal CI lane also exercises receive-only connection and
+teardown in three independent engine processes. Temporary debug probes and
+debugger workflow switches have been removed. This does not establish physical
+camera or microphone behavior.
+
 The initial full core suite passed: 713 library tests and 50 integration tests,
 with explicit native scenarios run separately. Eight final native-owner tests
 and all four native process scenarios passed after review fixes.
@@ -84,10 +94,12 @@ outside these host measurements; their coverage is not claimed.
   unplug/replug and sustained 720p30 quality, A/V skew, CPU/thermal and UI checks.
   The previous user-run Windows probe is evidence for that candidate, not the
   newly packaged nokhwa helper or shipping native adapter.
-- The Linux macOS cross-target attempt stopped in Objective-C compilation
-  without an Apple SDK. macOS CI subsequently built the engine and camera helper,
-  passed lint/unit tests and all four independent process scenarios. Application
-  signing/packaging and physical permissions remain separate checks.
+- macOS CI built the engine and camera helper, passed lint/unit tests and all
+  four independent process scenarios. A universal x86_64/arm64 application and
+  DMG passed signing verification and menu tests. Helper architecture checks and
+  signing order have command-boundary regressions; physical permissions remain
+  a host acceptance check. The earlier Linux cross-target attempt lacked an
+  Apple SDK and does not establish macOS behavior.
 - Moss's existing relay has per-source limits but no aggregate node budget or
   audio/message reservations. Client pacing/priority is implemented; aggregate
   relay pressure and completion feedback remain separate library work. Root
@@ -105,8 +117,8 @@ The PR references #46 rather than declaring every adoption gate complete.
 ## Narrow size exceptions
 
 Generated bindings, Cargo locks, license texts and complete upstream patches
-retain their generated/upstream structure. Native `library::Engine::new` and
-`endpoint::Endpoint::new` are 54-line linear construction sequences: keeping the
+retain their generated/upstream structure. Native `library::Engine::new` (54 lines) and
+`endpoint::Endpoint::new` (56 lines) are linear construction sequences: keeping the
 library symbols and borrowed native lifetimes together makes teardown order
 reviewable. `packets::send_loop` is a 52-line single sender loop with bounded
 priority/budget/deadline decisions. The native engine's command dispatch remains

@@ -94,16 +94,12 @@ impl Connection {
     }
 
     pub fn choices(&mut self, choices: &Choices) -> Result<bool, String> {
-        let started = Instant::now();
         self.engine.ask(
             json!({"action":"choices", "microphone":choices.microphone && choices.microphone_allowed,"video":choices.camera}),
         )?;
         let selected = self
             .engine
             .ask(json!({"action":"select","input":choices.input,"output":choices.output}))?;
-        if started.elapsed() >= Duration::from_millis(500) {
-            super::diagnose(format_args!("device choices took {:?}", started.elapsed()));
-        }
         Ok(selected["input_ok"].as_bool().unwrap_or(false))
     }
 

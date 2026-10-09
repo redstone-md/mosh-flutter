@@ -122,11 +122,9 @@ impl Peer {
     }
 
     pub fn ask(&mut self, command: Value) -> Value {
-        let started = Instant::now();
         writeln!(self.stdin, "{command}").unwrap();
         self.stdin.flush().unwrap();
-        let result = self
-            .replies
+        self.replies
             .recv_timeout(Duration::from_secs(30))
             .unwrap_or_else(|error| {
                 let deadline = Instant::now() + Duration::from_millis(250);
@@ -141,17 +139,7 @@ impl Peer {
                     "peer action {} failed: {error}; process status: {:?}",
                     command["action"], status
                 )
-            });
-        if std::env::var_os("MOSH_NATIVE_DIAGNOSTICS").is_some()
-            && started.elapsed() >= Duration::from_millis(500)
-        {
-            eprintln!(
-                "[DEBUG-46] peer action {} took {:?}",
-                command["action"],
-                started.elapsed()
-            );
-        }
-        result
+            })
     }
 
     pub fn connect(&mut self, other: &Self) {
