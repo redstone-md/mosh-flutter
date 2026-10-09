@@ -10,6 +10,7 @@ import 'package:mosh/src/features/conversation/conversation_message_text.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
 import 'package:mosh/src/features/conversation/call_log_entry.dart';
+import 'package:mosh/src/features/conversation/message_selection.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/features/shared/failed_message_retry.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
@@ -98,9 +99,7 @@ class ConversationMessageRow extends StatelessWidget {
                             ? MoshShapes.attachmentPadding
                             : MoshShapes.messagePadding,
                         decoration: BoxDecoration(
-                          color: message.own
-                              ? MoshColors.outgoingMessage
-                              : MoshColors.bg2,
+                          color: _bubbleColor(context),
                           borderRadius: _corners,
                         ),
                         child: _body(context),
@@ -109,6 +108,17 @@ class ConversationMessageRow extends StatelessWidget {
                   ],
                 )),
       );
+
+  Color _bubbleColor(BuildContext context) {
+    final base = message.own ? MoshColors.outgoingMessage : MoshColors.bg2;
+    final selection = MessageSelectionScope.maybeOf(context)?.selection;
+    final id = message.messageId;
+    final selected = id != null && (selection?.isSelected(id) ?? false);
+    return selected
+        ? Color.alphaBlend(
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.22), base)
+        : base;
+  }
 
   BorderRadiusDirectional get _corners {
     final outer = MoshShapes.message.topLeft;

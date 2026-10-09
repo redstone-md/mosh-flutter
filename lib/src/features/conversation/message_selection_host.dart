@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/conversation/message_selection.dart';
+import 'package:mosh/src/features/conversation/message_copy.dart';
 import 'package:mosh/src/features/conversation/message_selection_bar.dart';
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/src/features/shared/mosh_dialog.dart';
@@ -87,6 +90,12 @@ class _MessageSelectionHostState extends ConsumerState<MessageSelectionHost> {
       .where((body) => body.isNotEmpty)
       .join('\n\n');
 
+  void _copySelected() {
+    if (_selection.busy) return;
+    final text = _selectedText();
+    if (text.isNotEmpty) unawaited(copyMessageText(context, text));
+  }
+
   Future<void> _delete(List<ConversationMessage> messages) async {
     if (_selection.busy || messages.isEmpty) return;
     final l = AppLocalizations.of(context)!;
@@ -126,13 +135,18 @@ class _MessageSelectionHostState extends ConsumerState<MessageSelectionHost> {
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent ||
-        event.logicalKey != LogicalKeyboardKey.escape ||
-        !_selection.active) {
+    if (event is! KeyDownEvent || !_selection.active) {
       return KeyEventResult.ignored;
     }
-    _selection.exit();
-    return KeyEventResult.handled;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      _selection.exit();
+      return KeyEventResult.handled;
+    }
+    if (messageCopyShortcut.accepts(event, HardwareKeyboard.instance)) {
+      _copySelected();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   @override
@@ -153,7 +167,6 @@ class _MessageSelectionHostState extends ConsumerState<MessageSelectionHost> {
           ? MessageSelectionBar(
               count: _selection.count,
               busy: _selection.busy,
-              onDelete: () => _delete(_selected),
               onCancel: _selection.exit,
             )
           : widget.header,
@@ -161,6 +174,8 @@ class _MessageSelectionHostState extends ConsumerState<MessageSelectionHost> {
     return MessageSelectionScope(
       selection: _selection,
       onDelete: (message) => _delete([message]),
+      onDeleteSelected: () => _delete(_selected),
+      onCopySelected: _copySelected,
       selectedText: _selectedText,
       child: ListenableBuilder(
         listenable: _selection,

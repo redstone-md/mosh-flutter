@@ -3,6 +3,16 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// Enter selection through the same menu action users invoke.
+Future<void> startMessageSelection(WidgetTester tester, String body,
+    {String label = 'Select message'}) async {
+  await tester.tap(find.text(body),
+      buttons: kSecondaryMouseButton, kind: PointerDeviceKind.mouse);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
+}
+
 /// Capture caller-visible clipboard writes without touching the OS clipboard.
 List<String> captureClipboard(WidgetTester tester) {
   final copied = <String>[];

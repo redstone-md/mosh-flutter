@@ -15,10 +15,18 @@ part 'message_drag_selection.dart';
 part 'message_selection_area.dart';
 part 'message_selection_delegate.dart';
 
-SingleActivator get _copyShortcut {
+SingleActivator get messageCopyShortcut {
   final apple = defaultTargetPlatform == TargetPlatform.macOS ||
       defaultTargetPlatform == TargetPlatform.iOS;
   return SingleActivator(LogicalKeyboardKey.keyC, control: !apple, meta: apple);
+}
+
+/// Copy actions and keyboard shortcuts share the same clipboard feedback.
+Future<void> copyMessageText(BuildContext context, String text) async {
+  final toaster = context.toaster;
+  final copied = AppLocalizations.of(context)!.messageCopied;
+  await Clipboard.setData(ClipboardData(text: text));
+  toaster.show(copied, kind: ToastKind.success);
 }
 
 /// One row's copy shortcut and semantic actions, within the shared selection.
@@ -104,7 +112,7 @@ class _CopyableMessageState extends State<CopyableMessage> {
       return KeyEventResult.handled;
     }
     if (widget.body.isEmpty ||
-        !_copyShortcut.accepts(event, HardwareKeyboard.instance) ||
+        !messageCopyShortcut.accepts(event, HardwareKeyboard.instance) ||
         (_owner?.hasSelection ?? false)) {
       return KeyEventResult.ignored;
     }

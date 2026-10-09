@@ -57,14 +57,6 @@ Future<void> _mouseDrag(WidgetTester tester, List<String> path) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _startSelecting(WidgetTester tester, String body) async {
-  await tester.tap(find.text(body),
-      buttons: kSecondaryMouseButton, kind: PointerDeviceKind.mouse);
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Select message'));
-  await tester.pumpAndSettle();
-}
-
 void main() {
   testWidgets('a mouse drag into another message picks the range',
       (tester) async {
@@ -109,7 +101,7 @@ void main() {
 
   testWidgets('a long press drag picks rows on touch', (tester) async {
     await pumpConversation(tester, _dm, messages: _notes(4));
-    await _startSelecting(tester, 'note 3');
+    await startMessageSelection(tester, 'note 3');
     final gesture = await tester.startGesture(_at(tester, 'note 0'));
     await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
     await gesture.moveTo(_at(tester, 'note 1'));
@@ -122,7 +114,7 @@ void main() {
 
   testWidgets('a plain swipe scrolls instead of picking', (tester) async {
     await pumpConversation(tester, _dm, messages: _notes(60));
-    await _startSelecting(tester, 'note 59');
+    await startMessageSelection(tester, 'note 59');
     await tester.drag(find.text('note 58'), const Offset(0, 120));
     await tester.pumpAndSettle();
     expect(_picked(tester), 1);
@@ -132,7 +124,7 @@ void main() {
   testWidgets('holding a touch drag at the edge scrolls and keeps picking',
       (tester) async {
     await pumpConversation(tester, _dm, messages: _notes(60));
-    await _startSelecting(tester, 'note 59');
+    await startMessageSelection(tester, 'note 59');
     final list = tester.getRect(find.byType(ListView));
     final shown = _shown(tester, list);
     final gesture = await tester.startGesture(_at(tester, 'note 58'));
@@ -153,7 +145,7 @@ void main() {
   testWidgets('leaving the chat mid auto-scroll stops it cleanly',
       (tester) async {
     await pumpConversation(tester, _dm, messages: _notes(60));
-    await _startSelecting(tester, 'note 59');
+    await startMessageSelection(tester, 'note 59');
     final list = tester.getRect(find.byType(ListView));
     final gesture = await tester.startGesture(_at(tester, 'note 58'));
     await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));

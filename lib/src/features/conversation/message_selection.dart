@@ -151,6 +151,8 @@ class MessageSelectionScope extends InheritedNotifier<MessageSelection> {
     super.key,
     required MessageSelection selection,
     required this.onDelete,
+    required this.onDeleteSelected,
+    required this.onCopySelected,
     required this.selectedText,
     required super.child,
   }) : super(notifier: selection);
@@ -158,7 +160,13 @@ class MessageSelectionScope extends InheritedNotifier<MessageSelection> {
   /// Asks how to delete one message, outside the bulk selection.
   final ValueChanged<ConversationMessage> onDelete;
 
-  /// The selected messages' text, oldest first, for the copy shortcut.
+  /// Uses the same confirmation and permissions for the whole selection.
+  final VoidCallback onDeleteSelected;
+
+  /// Copies through the owner so buttons and shortcuts share the busy gate.
+  final VoidCallback onCopySelected;
+
+  /// The selected messages' text, oldest first, for copy actions.
   final String Function() selectedText;
 
   MessageSelection get selection => notifier!;
