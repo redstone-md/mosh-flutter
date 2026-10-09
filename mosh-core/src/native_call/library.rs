@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 use std::{
     ffi::{c_char, c_void, CStr, CString},
     path::PathBuf,
+    sync::OnceLock,
 };
 
 pub const MAX_RGBA: usize = 1920 * 1080 * 4;
@@ -38,16 +39,14 @@ pub(crate) struct Engine {
     copy_packet: CopyPacket,
     push: Push,
     copy_frame: CopyFrame,
-    _library: Library,
+    _library: &'static Library,
 }
 
 impl Engine {
     pub fn new(binding: &Binding, caller: bool) -> Result<Self, String> {
         let config =
             CString::new(json!({"binding":binding,"caller":caller}).to_string()).map_err(error)?;
-        // SAFETY: load only the packaged or explicitly selected local native artifact.
-        let library = unsafe { Library::new(artifact("MOSH_MEDIA_ENGINE", library_name())?) }
-            .map_err(error)?;
+        let library = media_library()?;
         // SAFETY: these signatures match the pinned Mosh ABI. Retain the library through drop.
         let (create, command, free, drop_engine, receive, priority, copy_packet, push, copy_frame) = unsafe {
             (
@@ -164,6 +163,20 @@ impl Engine {
         }
         Some(info)
     }
+}
+
+fn media_library() -> Result<&'static Library, String> {
+    // Native dependencies have process-global state and thread-local cleanup.
+    // Destroy each engine, but keep its executable code mapped until process exit.
+    static LIBRARY: OnceLock<Result<Library, String>> = OnceLock::new();
+    LIBRARY
+        .get_or_init(|| {
+            let path = artifact("MOSH_MEDIA_ENGINE", library_name())?;
+            // SAFETY: load only the packaged or explicitly selected local artifact.
+            unsafe { Library::new(path) }.map_err(error)
+        })
+        .as_ref()
+        .map_err(Clone::clone)
 }
 
 impl Drop for Engine {

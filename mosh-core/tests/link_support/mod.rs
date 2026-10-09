@@ -126,7 +126,13 @@ impl Peer {
         self.stdin.flush().unwrap();
         self.replies
             .recv_timeout(Duration::from_secs(30))
-            .expect("real peer must answer")
+            .unwrap_or_else(|error| {
+                panic!(
+                    "peer action {} failed: {error}; process status: {:?}",
+                    command["action"],
+                    self.child.try_wait()
+                )
+            })
     }
 
     pub fn connect(&mut self, other: &Self) {
@@ -194,6 +200,8 @@ fn read_replies(stdout: ChildStdout) -> mpsc::Receiver<Value> {
                 if send.send(serde_json::from_str(json).unwrap()).is_err() {
                     break;
                 }
+            } else if !line.is_empty() {
+                eprintln!("peer: {line}");
             }
         }
     });
