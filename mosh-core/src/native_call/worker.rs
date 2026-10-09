@@ -39,12 +39,20 @@ pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
         sender: Sender::new(transport.clone()),
     };
     loop {
+        let started = Instant::now();
         let mut state = shared.lock().unwrap_or_else(|error| error.into_inner());
         if state.shutdown {
             return;
         }
-        if let Err(_error) = owner.step(&mut state, &*transport) {
+        if let Err(error) = owner.step(&mut state, &*transport) {
+            super::diagnose(format_args!("worker failed: {error}"));
             state.snapshot.failed = true;
+        }
+        if started.elapsed() >= Duration::from_millis(500) {
+            super::diagnose(format_args!(
+                "worker iteration took {:?}",
+                started.elapsed()
+            ));
         }
         state.applied = state.revision;
         drop(state);
@@ -91,6 +99,12 @@ impl Owner {
         if state.context == self.context {
             return;
         }
+        super::diagnose(format_args!(
+            "context changed: caller={:?} active={:?} prepared={}",
+            state.context.as_ref().map(|context| context.caller),
+            state.context.as_ref().map(|context| context.active),
+            state.prepared
+        ));
         let merged = self
             .context
             .as_ref()
@@ -139,6 +153,7 @@ impl Owner {
             }
         }
         if self.capture.as_mut().is_some_and(Capture::failed) {
+            super::diagnose(format_args!("camera helper stalled or exited"));
             state.choices.camera = false;
             state.snapshot.camera_failed = true;
             self.stop_capture(state)?;
@@ -178,6 +193,12 @@ impl Owner {
         }
         let waiting = self.negotiation_since.get_or_insert_with(Instant::now);
         if self.connection.is_none() && waiting.elapsed() >= Duration::from_secs(15) {
+            if !state.snapshot.failed {
+                super::diagnose(format_args!(
+                    "negotiation expired after {:?}",
+                    waiting.elapsed()
+                ));
+            }
             state.snapshot.failed = true;
             return Ok(());
         }

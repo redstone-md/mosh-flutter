@@ -75,11 +75,23 @@ impl Reporter {
             snapshot["connection"].as_str(),
             Some("Connected" | "Completed")
         ) && route != PeerTransport::None;
+        if state.snapshot.ready != (ready && connected) {
+            super::diagnose(format_args!(
+                "ready={} negotiated={ready} ice={} route={route:?}",
+                connected, snapshot["connection"]
+            ));
+        }
         state.snapshot.ready = ready && connected;
         self.connected_once |= connected;
         state.snapshot.reconnecting = self.connected_once && !state.snapshot.ready;
-        state.snapshot.failed =
-            super::recovery::expired(&mut self.disconnected, connected, Instant::now());
+        let expired = super::recovery::expired(&mut self.disconnected, connected, Instant::now());
+        if expired && !state.snapshot.failed {
+            super::diagnose(format_args!(
+                "connection expired: negotiated={ready} ice={} route={route:?}",
+                snapshot["connection"]
+            ));
+        }
+        state.snapshot.failed = expired;
         sender.relayed(route == PeerTransport::Relayed);
         let budget = if route == PeerTransport::Relayed {
             320_000

@@ -9,6 +9,13 @@ mod telemetry;
 pub(crate) mod types;
 mod worker;
 
+// Temporary CI probe; no descriptions, keys, device IDs or frame bytes.
+pub(super) fn diagnose(message: std::fmt::Arguments<'_>) {
+    if std::env::var_os("MOSH_NATIVE_DIAGNOSTICS").is_some() {
+        eprintln!("[DEBUG-46] {message}");
+    }
+}
+
 use crate::private_dm_runtime::transport::DmTransport;
 use state::State;
 use std::{

@@ -83,6 +83,7 @@ jobs:
           esac
           export MOSH_MEDIA_ENGINE="$PWD/.dart_tool/native-media/debug/$engine"
           export MOSH_CAMERA_CAPTURE="$PWD/mosh-core/target/debug/$helper"
+          export MOSH_NATIVE_DIAGNOSTICS=1
           node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture
 
   rust-core:
