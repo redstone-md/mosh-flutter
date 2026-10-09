@@ -1,3 +1,4 @@
+import 'call_media_view.dart';
 import 'dart:async';
 import 'dart:io' show Platform;
 
@@ -77,6 +78,9 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
       dialog,
       fallback: widget.l.callPeerFallback,
       muted: state.muted,
+      media: state.nativeMedia == null
+          ? null
+          : CallMediaView.fromSnapshot(state.nativeMedia!),
       audioReady: state.audioReady,
       audioFailed: state.audioFailed,
       busy: state.busy,
@@ -125,6 +129,14 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         unawaited(notifier.endCall(id, kCallDeclineReasonHangup));
       case CallViewAction.mute:
         notifier.toggleMute();
+      case CallViewAction.camera:
+        unawaited(notifier.toggleCamera());
+      case CallViewAction.selectInput:
+        unawaited(notifier.selectInput(command.deviceId));
+      case CallViewAction.selectOutput:
+        unawaited(notifier.selectOutput(command.deviceId));
+      case CallViewAction.selectCamera:
+        unawaited(notifier.selectCamera(command.deviceId));
       case CallViewAction.openConversation:
         widget.onOpenConversation?.call();
     }
@@ -219,4 +231,12 @@ Future<Object?> startVoiceCall(WidgetRef ref, String sessionId) async {
   final result =
       await ref.read(voiceCallStartProvider.notifier).start(sessionId);
   return result is CallAlreadyInProgress ? alreadyInProgress : result;
+}
+
+Future<Object?> startVideoCall(WidgetRef ref, String sessionId) async {
+  final label = AppLocalizations.of(ref.context)!.callAlreadyInProgress;
+  final result = await ref
+      .read(voiceCallStartProvider.notifier)
+      .start(sessionId, video: true);
+  return result is CallAlreadyInProgress ? label : result;
 }

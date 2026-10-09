@@ -61,7 +61,7 @@ class _CallWindowController extends ValueNotifier<CallViewState?>
 
   Future<void> initialize() async {
     await windowManager.waitUntilReadyToShow(const WindowOptions(
-      size: Size(420, 300),
+      size: Size(640, 480),
       minimumSize: Size(340, 260),
       center: true,
       title: 'Mosh',
@@ -151,6 +151,7 @@ class _CallWindowApp extends StatelessWidget {
                       child: CallView(
                           call: call,
                           video: controller.video,
+                          onDeviceSelected: controller.act,
                           onAction: (action) =>
                               controller.act(call.command(action))))),
         ),

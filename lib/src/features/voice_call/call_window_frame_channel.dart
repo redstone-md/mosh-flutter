@@ -30,6 +30,8 @@ class CallWindowFrameChannel {
   Future<void> get ready => _ready.future;
 
   void _accept(Socket socket) {
+    // Stream and IOSink report failures independently during an abrupt reset.
+    unawaited(socket.done.catchError((Object _) {}));
     if (_closed || _claimed || _clients.length >= 4) {
       socket.destroy();
       return;
@@ -98,6 +100,7 @@ class CallWindowFrameChannel {
     }
     final socket = await Socket.connect(InternetAddress.loopbackIPv4, port,
         timeout: const Duration(seconds: 5));
+    unawaited(socket.done.catchError((Object _) {}));
     socket.setOption(SocketOption.tcpNoDelay, true);
     socket.add(ascii.encode(token));
     return socket;

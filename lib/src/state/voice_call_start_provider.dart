@@ -3,6 +3,7 @@ import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/voice_call_session_provider.dart';
+import 'package:mosh/src/state/native_call_owner_provider.dart';
 
 class CallAlreadyInProgress implements Exception {
   const CallAlreadyInProgress();
@@ -25,7 +26,7 @@ class VoiceCallStartNotifier extends Notifier<bool> {
     return false;
   }
 
-  Future<Object?> start(String sessionId) async {
+  Future<Object?> start(String sessionId, {bool video = false}) async {
     if (state || _awaitingSnapshot != null || _occupied) {
       return const CallAlreadyInProgress();
     }
@@ -40,7 +41,12 @@ class VoiceCallStartNotifier extends Notifier<bool> {
       if (_occupied) {
         return const CallAlreadyInProgress();
       }
-      await ref.read(bridgeFacadeProvider).callStart(sessionId: sessionId);
+      final started =
+          await ref.read(bridgeFacadeProvider).callStart(sessionId: sessionId);
+      final native = ref.read(nativeCallOwnerProvider);
+      if (native != null) {
+        await native.bind(sessionId, started.callId, video: video);
+      }
       if (!ref.mounted) return null;
       _awaitingSnapshot = sessionId;
       try {

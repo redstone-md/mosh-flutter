@@ -6,7 +6,7 @@ ABI. A Linux 10-second Moss run copied 290/288 changing remote frames with a
 maximum observed export age of 15/14 ms. This establishes the frame-copy boundary;
 it does not establish camera capture or desktop presentation.
 
-Proposed production dependencies:
+Approved production dependencies:
 
 - Keep RingRTC 2.72.1 at commit `331d601894f931337d24e9d56c68b94d28fc4555`, with
   the existing pinned WebRTC artifact and existing ABI patch. Build its Rust
@@ -54,3 +54,10 @@ runtime fact rather than an inferred property of capture or decoding.
 Root `AGENTS.md` requires asking before dependency changes. The user approved
 the dependencies and managed camera helper on 2026-10-09 after reviewing this
 proposal. Implementation continues under that authorization.
+
+The desktop adapter is implemented and enabled after local native duplex,
+receive-only, camera-off/driver-failure and real Flutter window checks. See
+[current results](issue-46-native-implementation.results.md). Authenticated offers
+identify the media path, excluding incompatible mobile installations until their
+native integration follows. Desktop bundles include license notices; process
+isolation does not exempt the combined distribution from license obligations.

@@ -42,10 +42,12 @@ typedef ConversationCallOverlay = Widget Function(
 class ConversationCallBinding {
   const ConversationCallBinding({
     required this.start,
+    this.startVideo,
     required this.overlay,
   });
 
   final ConversationCallStarter start;
+  final ConversationCallStarter? startVideo;
 
   final ConversationCallOverlay overlay;
 }

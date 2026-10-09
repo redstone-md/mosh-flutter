@@ -1,4 +1,4 @@
-# Voice calls
+# Calls
 
 Desktop calls have an independent native window for incoming, outgoing and active
 phases. A compact strip below the main view provides the same controls and a
@@ -55,8 +55,9 @@ terminal controls remain valid after a newer unrelated offer; old occupancy cann
 overwrite newer occupancy. Terminal delivery retries every two seconds for 15 seconds
 using a bounded queue of 32 controls. A local end saves its book before returning.
 
-This stage uses the existing voice media owner. Native audio/video negotiation,
-camera capture and decoded-frame delivery are subsequent implementation stages.
+Desktop calls now use the [native audio/video owner](native-call-media.md), with
+selected-only ephemeral key agreement, independent capture and bounded decoded
+presentation. Android/iOS retain their separate voice path.
 
 ## Runtime ownership
 
@@ -68,7 +69,8 @@ promotes another session that still contains a call; there is no call-waiting UI
 When there is no retained owner, selection prefers an already active call over
 pending or outgoing calls, irrespective of the DM list order.
 
-One shared audio orchestrator serializes replacement. Cancellation stops frame
+The legacy mobile/baseline voice path uses one shared audio orchestrator to
+serialize replacement. Cancellation stops frame
 work immediately; startup and teardown must finish before another capture or
 player opens. Delayed controls, setup failures and drain responses are tied to
 their session and call IDs and cannot affect a replacement call.
@@ -92,7 +94,7 @@ The wrapper stays mounted across call admission and termination to retain drafts
 
 ### Decoded video presentation (#46)
 
-The native candidate copies decoded RGBA into a latest-frame slot with one spare
+The production native engine copies decoded RGBA into a latest-frame slot with one spare
 conversion buffer, each capped at 1920×1080×4 bytes. Failed conversion preserves
 the last complete frame. The host owns its copied pixels; native frame pointers
 never enter Flutter. Frame metadata and pixels travel as bounded binary packets.

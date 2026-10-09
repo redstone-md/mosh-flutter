@@ -1,6 +1,7 @@
 import 'dart:async' show StreamController;
 import 'package:mosh/src/rust/chat_names/types.dart';
 import 'dart:typed_data' show Uint8List;
+import 'package:mosh/src/rust/native_call/types.dart' as native_media;
 
 import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart'
@@ -39,6 +40,7 @@ part 'scriptable_bridge_invitations.dart';
 part 'scriptable_bridge_organizations.dart';
 part 'scriptable_bridge_network.dart';
 part 'scriptable_bridge_calls.dart';
+part 'scriptable_bridge_native_calls.dart';
 
 /// Every method on [BridgeFacade]. Tests name a method through this enum, so
 /// a typo is a compile error instead of a call that is never scripted.
@@ -85,6 +87,10 @@ enum BridgeMethod {
   getVpnBypassConsent,
   setVpnBypassConsent,
   callStart,
+  nativeCallPrepare,
+  nativeCallChoices,
+  nativeCallSnapshot,
+  nativeCallFrame,
   callAccept,
   callDecline,
   callEnd,
@@ -103,7 +109,8 @@ class ScriptableBridge extends _ScriptableBridgeState
         _BridgeInvitations,
         _BridgeOrganizations,
         _BridgeNetwork,
-        _BridgeCalls {
+        _BridgeCalls,
+        _BridgeNativeCalls {
   ScriptableBridge({super.conversations});
 }
 

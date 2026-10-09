@@ -1,3 +1,6 @@
+import 'call_media_view.dart';
+import 'package:mosh/src/state/native_call_owner_provider.dart';
+import 'call_video_frame.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -26,16 +29,20 @@ class VoiceCallHost extends ConsumerStatefulWidget {
 
 class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
   late final CallWindowCoordinator _window;
+  StreamSubscription<CallVideoFrame>? _frames;
 
   @override
   void initState() {
     super.initState();
     _window = CallWindowCoordinator(ref.read(callWindowFactoryProvider), _act,
         (error) => debugPrint('Call window unavailable: ${error.runtimeType}'));
+    _frames =
+        ref.read(nativeCallOwnerProvider)?.frames.listen(_window.presentFrame);
   }
 
   @override
   void dispose() {
+    unawaited(_frames?.cancel());
     unawaited(_window.dispose());
     super.dispose();
   }
@@ -60,6 +67,14 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
         await notifier.endCall(command.callId, kCallDeclineReasonHangup);
       case CallViewAction.mute:
         notifier.toggleMute();
+      case CallViewAction.camera:
+        unawaited(notifier.toggleCamera());
+      case CallViewAction.selectInput:
+        unawaited(notifier.selectInput(command.deviceId));
+      case CallViewAction.selectOutput:
+        unawaited(notifier.selectOutput(command.deviceId));
+      case CallViewAction.selectCamera:
+        unawaited(notifier.selectCamera(command.deviceId));
       case CallViewAction.openConversation:
         widget.onOpenConversation?.call(command.sessionId);
     }
@@ -80,6 +95,9 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
             state.dialog,
             fallback: l.callPeerFallback,
             muted: state.muted,
+            media: state.nativeMedia == null
+                ? null
+                : CallMediaView.fromSnapshot(state.nativeMedia!),
             audioReady: state.audioReady,
             audioFailed: state.audioFailed,
             busy: state.busy,

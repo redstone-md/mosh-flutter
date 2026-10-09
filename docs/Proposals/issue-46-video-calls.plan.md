@@ -69,7 +69,7 @@ transport budgets and desktop quality remain subject to the proof gates below.
 Domain terms live in [GLOSSARY.md](../../GLOSSARY.md); existing user and device
 identity definitions live in [CONTEXT.md](../../CONTEXT.md).
 
-## Existing implementation and constraints
+## Baseline before implementation (2026-10-08)
 
 - Voice calls already use real Moss transport, native Opus/CPAL, Dart AES-GCM,
   and a separate desktop controls process. See [voice calls](../Features/voice-calls.md).
@@ -247,18 +247,18 @@ additional coverage rather than replacing those checks. Ringing retains the
 existing 30-second no-answer timeout. Existing close/Escape behavior remains
 decline, cancel or hang up according to the call phase.
 
-## Remaining proof work
+## Implementation status and remaining proof
 
-The [native feasibility results](issue-46-native-media.results.md) record the
-implemented Linux tracer bullet, user-run Windows x64 debug checks and outstanding
-adoption gates. Application video calls are not implemented by that probe.
+The desktop native owner, authenticated selected-pair key exchange, directed
+Moss transport, managed camera helper, decoded-frame presentation and controls
+are implemented. See [current behavior](../Features/native-call-media.md) and
+[implementation evidence](issue-46-native-implementation.results.md).
 
-- Validate the native candidate, reproducible packaging and directed Moss
-  integration, including authenticated media-key exchange and bounded frame IPC.
-- Measure relay capacity, choose numeric flow budgets and verify message/audio
-  progress under video pressure.
-- Execute acceptance scenarios and sustained quality checks on real desktop
-  hosts, including permission refusal and receive-only calls.
+Physical Windows/macOS acceptance, complete sustained quality/thermal/A-V skew
+checks, aggregate relay budgets and packet-completion feedback remain open.
+Moss source is unchanged under the repository scope restriction. Native desktop
+and legacy mobile offers identify their media protocol; incompatible receivers
+are excluded until their separately scoped native integration exists.
 
 ## Checks and risks
 
@@ -272,9 +272,9 @@ caller-visible bugs and the repository's changed-code coverage thresholds.
 Primary risks are competing device answers, unauthenticated control messages,
 media queue latency, relay capacity, video crossing the desktop process boundary,
 and regressions in working voice calls. User-wide busy remains best effort
-under partition by design. The current implementation adds an isolated probe
-and directed Moss wrappers. Selected-device coordination now uses authenticated
+under partition by design. The implementation uses an isolated native engine
+and directed Moss wrappers. Selected-device coordination uses authenticated
 controls, pending caller confirmation, simultaneous-call cancellation, leased
-occupancy and conflict presentation with the existing voice media. The audio/video
-engine and camera/frame delivery have not yet replaced that media pipeline. See
-[implemented coordination](../Features/voice-calls.md#selected-device-coordination-46).
+occupancy and conflict presentation. The desktop audio/video engine and
+camera/frame delivery replace the desktop voice path. See
+[native calls](../Features/native-call-media.md).

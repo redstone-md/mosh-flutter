@@ -32,7 +32,11 @@ class CallVideoRenderer extends ValueNotifier<CallVideoImages> {
     final old = _call;
     _call = call;
     if (old?.sessionId == call?.sessionId && old?.callId == call?.callId) {
-      if (call?.phase != CallViewPhase.active) _clear(false);
+      if (call?.phase != CallViewPhase.active ||
+          call?.media?.remoteCamera == false) {
+        _clear(false);
+      }
+      if (call?.media?.cameraRequested == false) _clear(true);
       return;
     }
     ++_generation;
@@ -53,7 +57,11 @@ class CallVideoRenderer extends ValueNotifier<CallVideoImages> {
         call != null &&
         frame.sessionId == call.sessionId &&
         frame.callId == call.callId &&
-        (frame.local || call.phase == CallViewPhase.active);
+        (frame.local || call.phase == CallViewPhase.active) &&
+        (call.media == null ||
+            (frame.local
+                ? call.media!.cameraRequested
+                : call.media!.remoteCamera));
   }
 
   Future<bool> receive(CallVideoFrame frame) async {

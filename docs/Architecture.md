@@ -50,6 +50,14 @@ files are checked in and generated localization files are ignored. Moss is a
 pinned submodule; do not modify its source. The OpenMLS upstream mirror is
 reconstructed from [a pinned archive and complete local patch](../third_party/openmls-patches/README.md).
 
+Desktop calls use the [native audio/video owner](Features/native-call-media.md).
+`mosh-core/src/native_call` owns capture, one engine, selected-peer transport and
+latest frames; isolated `mosh-media/engine` and `mosh-media/capture` graphs keep
+Signal/OpenMLS dependencies separate and blocked camera drivers cancellable.
+The child window owns presentation only. Public negotiation uses MLS; media uses
+Moss directed packets. Native builds run through the existing desktop plugin
+and Xcode hooks. See [ADR 0044](ADR/0044-native-call-media-over-moss.md).
+
 ## Flutter state and conversations
 
 `Gateway` owns typed conversation polling and common actions. `ConversationTarget`

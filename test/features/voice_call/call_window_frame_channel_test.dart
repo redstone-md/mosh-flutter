@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:async';
 import 'dart:ui' as ui;
 
@@ -86,6 +87,24 @@ void main() {
     reused.destroy();
     await channel.dispose();
     expect(channel.send([4]), isFalse);
+  });
+
+  test('renderer reset during pixel write closes only presentation', () async {
+    final channel = await CallWindowFrameChannel.bind();
+    addTearDown(channel.dispose);
+    final renderer = await CallWindowFrameChannel.connect(
+        channel.descriptor['port'] as int, channel.token);
+    final subscription = renderer.listen((_) {});
+    subscription.pause();
+    final closed = Completer<void>();
+    channel.onClosed = () => closed.complete();
+    await channel.ready.timeout(const Duration(seconds: 2));
+    expect(channel.send(Uint8List(1280 * 720 * 4)), true);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    renderer.destroy();
+    await closed.future.timeout(const Duration(seconds: 2));
+    await subscription.cancel();
+    expect(channel.send([0]), false);
   });
 
   test('invalid capability is rejected before connecting', () async {

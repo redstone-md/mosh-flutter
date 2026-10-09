@@ -1094,5 +1094,17 @@
   "pendingInvitations": "Сохранённые приглашения",
   "createNewInvitation": "Создать новое приглашение",
   "deleteChatUnnamedTitle": "Удалить этот чат?",
-  "leaveGroupUnnamedTitle": "Покинуть эту группу?"
+  "leaveGroupUnnamedTitle": "Покинуть эту группу?",
+  "callStartVideo": "Начать видеозвонок",
+  "callCameraOn": "Включить камеру",
+  "callCameraOff": "Выключить камеру",
+  "callCameraStarting": "Подключение камеры…",
+  "callCameraUnavailable": "Камера недоступна. Голосовой звонок продолжается.",
+  "callMicrophoneUnavailable": "Микрофон недоступен. Вы можете слушать собеседника.",
+  "callReconnecting": "Восстанавливаем соединение…",
+  "callDevices": "Устройства звонка",
+  "callMicrophone": "Микрофон",
+  "callSpeaker": "Динамики",
+  "callCamera": "Камера",
+  "callDefaultDevice": "По умолчанию"
 }

@@ -104,7 +104,7 @@ dependencies.
 Both probe Cargo lockfiles are committed. Their license/dependency implications
 still belong to application adoption review.
 
-## Adoption gates still open
+## Candidate adoption gates at the probe stage
 
 | Gate | Current evidence / missing work |
 | --- | --- |
@@ -186,3 +186,11 @@ decoded video nor received audio; the reverse direction must receive both.
 
 Review counts: Standards — one low-priority suggestion addressed, zero confirmed
 breaches; Spec — four acknowledged open gates, zero confirmed stage-1 defects.
+
+## Production implementation update, 2026-10-09
+
+The user approved the dependencies and capture-only helper. The shipping desktop
+adapter, fresh selected-pair key agreement, controls and frame channel are now
+implemented. [Current implementation results](issue-46-native-implementation.results.md)
+separate app evidence from the historical candidate runs above and list the
+physical-platform and aggregate-relay gates that remain open.

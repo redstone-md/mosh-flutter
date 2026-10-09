@@ -26,10 +26,12 @@ class DmScreenHeader extends ConsumerStatefulWidget
     required this.chrome,
     required this.sessionId,
     required this.onStartCall,
+    this.onStartVideoCall,
   });
 
   final String sessionId;
   final VoidCallback onStartCall;
+  final VoidCallback? onStartVideoCall;
 
   final ConversationChrome chrome;
 
@@ -114,6 +116,11 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
         _renameAction(l, target, name, original, personal),
       ],
       inlineActions: [
+        if (widget.onStartVideoCall != null)
+          IconButton(
+              icon: const Icon(Icons.videocam_outlined, size: 20),
+              tooltip: l.callStartVideo,
+              onPressed: widget.onStartVideoCall),
         // Primary action precedes search and the menu in every header.
         IconButton(
           icon: const Icon(Icons.phone_outlined, size: 20),

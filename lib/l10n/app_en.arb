@@ -2064,5 +2064,17 @@
   "pendingInvitations": "Saved invitations",
   "createNewInvitation": "Create new invitation",
   "deleteChatUnnamedTitle": "Delete this chat?",
-  "leaveGroupUnnamedTitle": "Leave this group?"
+  "leaveGroupUnnamedTitle": "Leave this group?",
+  "callStartVideo": "Start video call",
+  "callCameraOn": "Turn camera on",
+  "callCameraOff": "Turn camera off",
+  "callCameraStarting": "Starting camera…",
+  "callCameraUnavailable": "Camera unavailable. Voice remains available.",
+  "callMicrophoneUnavailable": "Microphone unavailable. You can still listen.",
+  "callReconnecting": "Reconnecting…",
+  "callDevices": "Call devices",
+  "callMicrophone": "Microphone",
+  "callSpeaker": "Speaker",
+  "callCamera": "Camera",
+  "callDefaultDevice": "System default"
 }

@@ -1,4 +1,5 @@
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
+import 'call_media_view.dart';
 
 enum CallViewPhase { incoming, confirming, outgoing, active }
 
@@ -7,6 +8,10 @@ enum CallViewAction {
   decline,
   end,
   mute,
+  camera,
+  selectInput,
+  selectOutput,
+  selectCamera,
   openConversation;
 
   bool get availableWhileBusy => this == end || this == openConversation;
@@ -29,6 +34,7 @@ class CallViewState {
     this.occupancyConflict = false,
     this.language = 'en',
     this.error,
+    this.media,
   });
 
   final String sessionId;
@@ -44,6 +50,7 @@ class CallViewState {
   final bool occupancyConflict;
   final String language;
   final String? error;
+  final CallMediaView? media;
 
   static CallViewState? fromDialog(String sessionId, CallDialog dialog,
       {required String fallback,
@@ -53,7 +60,8 @@ class CallViewState {
       required bool busy,
       bool occupancyConflict = false,
       required String language,
-      String? error}) {
+      String? error,
+      CallMediaView? media}) {
     if (dialog is NoCallDialog) return null;
     return CallViewState(
       sessionId: sessionId,
@@ -77,6 +85,7 @@ class CallViewState {
       occupancyConflict: occupancyConflict,
       language: language,
       error: error,
+      media: media,
     );
   }
 
@@ -94,6 +103,7 @@ class CallViewState {
         'occupancyConflict': occupancyConflict,
         'language': language,
         'error': error,
+        'media': media?.toMap(),
       };
 
   factory CallViewState.fromMap(Map<Object?, Object?> map) => CallViewState(
@@ -110,10 +120,17 @@ class CallViewState {
         occupancyConflict: map['occupancyConflict'] as bool,
         language: map['language'] as String,
         error: map['error'] as String?,
+        media: map['media'] == null
+            ? null
+            : CallMediaView.fromMap(map['media'] as Map<Object?, Object?>),
       );
 
-  CallViewCommand command(CallViewAction action) =>
-      CallViewCommand(sessionId: sessionId, callId: callId, action: action);
+  CallViewCommand command(CallViewAction action, {String? deviceId}) =>
+      CallViewCommand(
+          sessionId: sessionId,
+          callId: callId,
+          action: action,
+          deviceId: deviceId);
 }
 
 class CallViewCommand {
@@ -121,11 +138,13 @@ class CallViewCommand {
     required this.sessionId,
     required this.callId,
     required this.action,
+    this.deviceId,
   });
 
   final String sessionId;
   final String callId;
   final CallViewAction action;
+  final String? deviceId;
 
   bool matchesCall(String session, String current,
           {String? supersededCallId}) =>
@@ -133,15 +152,17 @@ class CallViewCommand {
       (callId == current ||
           action.availableWhileBusy && callId == supersededCallId);
 
-  Map<String, Object> toMap() => {
+  Map<String, Object?> toMap() => {
         'sessionId': sessionId,
         'callId': callId,
         'action': action.name,
+        'deviceId': deviceId,
       };
 
   factory CallViewCommand.fromMap(Map<Object?, Object?> map) => CallViewCommand(
         sessionId: map['sessionId'] as String,
         callId: map['callId'] as String,
         action: CallViewAction.values.byName(map['action'] as String),
+        deviceId: map['deviceId'] as String?,
       );
 }
