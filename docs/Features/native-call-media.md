@@ -53,8 +53,10 @@ its own automatic discovery, NAT traversal and relays.
 
 `mosh-media/capture` is a capture-only helper using pinned nokhwa. It owns one
 camera on its capture thread and sends validated RGBA over a bounded binary
-pipe. Parent stdin EOF terminates it, even while a driver read blocks. Camera
-off disables the native video track and kills/reaps the helper. Four seconds
+pipe. Timestamps use Unix time. The pinned macOS backend converts sensor
+monotonic timestamps before constructing its buffer, preserving age through
+the pipe. Parent stdin EOF terminates it, even while a driver read blocks.
+Camera off disables the native video track and kills/reaps the helper. Four seconds
 without frames after readiness fails that capture while preserving the call;
 initial camera permission has a separate 65-second startup limit.
 

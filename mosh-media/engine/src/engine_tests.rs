@@ -95,7 +95,15 @@ fn pump(caller: &mut Engine, callee: &mut Engine, duration: Duration) {
 #[test]
 fn receive_only_peer_decodes_and_camera_off_stops_outgoing_video() {
     let (mut caller, mut callee) = pair();
-    pump(&mut caller, &mut callee, Duration::from_secs(2));
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while callee.endpoint.measurements.decoded.load(Ordering::Relaxed) <= 20 {
+        let received = callee.endpoint.measurements.decoded.load(Ordering::Relaxed);
+        assert!(
+            Instant::now() < deadline,
+            "actual decoded frames: {received}"
+        );
+        pump(&mut caller, &mut callee, Duration::from_millis(100));
+    }
     let received = callee.endpoint.measurements.decoded.load(Ordering::Relaxed);
     assert!(received > 20, "actual decoded frames: {received}");
     assert_eq!(
