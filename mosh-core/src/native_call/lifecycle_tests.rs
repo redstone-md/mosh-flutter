@@ -15,6 +15,34 @@ fn pending(id: &str) -> Context {
 }
 
 #[test]
+fn ending_a_call_before_a_device_ack_rejects_the_pending_choices() {
+    let state = Arc::new(Mutex::new(State {
+        context: Some(pending("call")),
+        prepared: true,
+        ..Default::default()
+    }));
+    let hub = Arc::new(Hub {
+        state: state.clone(),
+    });
+    let client = hub.clone();
+    let applying = std::thread::spawn(move || client.choices("dm", "call", Choices::default()));
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while state.lock().unwrap().revision == 0 {
+        assert!(Instant::now() < deadline, "device request was not admitted");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    let mut locked = state.lock().unwrap();
+    // Publish the ended call and obsolete ACK together, without an intermediate state.
+    locked.context = None;
+    locked.applied = locked.revision;
+    drop(locked);
+    assert_eq!(
+        applying.join().unwrap().unwrap_err(),
+        "call ended while applying devices"
+    );
+}
+
+#[test]
 fn prepare_waits_for_initial_preferences_and_repeated_bind_preserves_choices() {
     let state = Arc::new(Mutex::new(State::default()));
     let hub = Hub {

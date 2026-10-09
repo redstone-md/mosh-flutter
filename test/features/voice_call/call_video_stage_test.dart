@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/call_video_renderer.dart';
 import 'package:mosh/src/features/voice_call/call_video_stage.dart';
@@ -15,6 +16,34 @@ const call = CallViewState(
     phase: CallViewPhase.active);
 
 void main() {
+  testWidgets('cleared video paints its owned image clone through the fade',
+      (tester) async {
+    final renderer = CallVideoRenderer()..update(call);
+    addTearDown(renderer.dispose);
+    await pumpScreen(tester, CallVideoStage(images: renderer, peer: 'Alice'),
+        settle: false);
+    await tester.runAsync(() => renderer.receive(testCallVideoFrame(1)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    final original = renderer.value.remote!;
+    final painted =
+        tester.renderObject<RenderImage>(find.byType(RawImage)).image!;
+    expect(painted, isNot(same(original)));
+    renderer.update(null);
+    expect(original.debugDisposed, isTrue);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 75));
+    expect(find.byType(RawImage), findsOneWidget);
+    expect(painted.debugDisposed, isFalse);
+    final bytes = await tester.runAsync(() => painted.toByteData());
+    expect(bytes!.buffer.asUint8List(), testCallVideoFrame(1).pixels);
+    expect(tester.takeException(), isNull);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(RawImage), findsNothing);
+    expect(painted.debugDisposed, isTrue);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets(
       'video fits a narrow call window and preserves accessible controls',
       (tester) async {
