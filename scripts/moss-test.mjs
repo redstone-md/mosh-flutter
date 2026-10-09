@@ -49,7 +49,12 @@ try {
     await listening;
     const trackerUrl = `http://127.0.0.1:${tracker.http.address().port}/announce`;
     console.log(`Moss test discovery: ${trackerUrl}`);
-    const test = testCommand();
+    const test = process.env.MOSH_TEST_CDB ? {
+      command: process.env.MOSH_TEST_CDB,
+      args: ["-o", "-g", "-G", "-y", process.env.MOSH_TEST_SYMBOLS,
+        "-c", 'sxe -c ".echo [DEBUG-46-STACK]; .ecxr; k; gn" av; g',
+        process.env.MOSH_TEST_PEER_EXE, "native_", "--ignored", "--nocapture", "--test-threads=1"],
+    } : testCommand();
     const voiceUiDataDir = ["--voice-ui", "--native-call-ui"].includes(process.argv[2])
       ? await mkdtemp(path.join(os.tmpdir(), "mosh-call-ui-")) : null;
     try {
