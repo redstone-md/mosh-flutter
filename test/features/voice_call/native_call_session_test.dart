@@ -109,6 +109,69 @@ void main() {
     owner.dispose();
   });
 
+  test('overlapping failed binds retain a working presentation client',
+      () async {
+    final bridge = ScriptableBridge();
+    final owner = NativeCallOwner(bridge, () async => false);
+    await owner.bind('dm', 'call');
+    final current = owner.session;
+    final first = Completer<void>();
+    final second = Completer<void>();
+    bridge.respondNext(BridgeMethod.nativeCallPrepare, first.future);
+    final firstFailure =
+        expectLater(owner.bind('dm', 'first'), throwsException);
+    bridge.respondNext(BridgeMethod.nativeCallPrepare, second.future);
+    final secondFailure =
+        expectLater(owner.bind('dm', 'second'), throwsException);
+    first.completeError(Exception('first failed'));
+    await firstFailure;
+    second.completeError(Exception('second failed'));
+    await secondFailure;
+    expect(owner.session, same(current));
+    await owner.session!.toggleCamera();
+    expect(bridge.countOf(BridgeMethod.nativeCallChoices), 1);
+    expect(
+        bridge.lastCall(BridgeMethod.nativeCallChoices)!.arg<String>('callId'),
+        'call');
+    owner.dispose();
+  });
+
+  test('late obsolete preparation cannot replace the working client', () async {
+    final bridge = ScriptableBridge();
+    final owner = NativeCallOwner(bridge, () async => false);
+    await owner.bind('dm', 'call');
+    final waiting = Completer<void>();
+    bridge.respondNext(BridgeMethod.nativeCallPrepare, waiting.future);
+    final obsolete = owner.bind('dm', 'obsolete');
+    await owner.bind('dm', 'current');
+    final current = owner.session;
+    waiting.complete();
+    await obsolete;
+    expect(owner.session, same(current));
+    await current!.toggleCamera();
+    expect(
+        bridge.lastCall(BridgeMethod.nativeCallChoices)!.arg<String>('callId'),
+        'current');
+    owner.dispose();
+  });
+
+  testWidgets('unbind during preparation prevents a late presentation client',
+      (tester) async {
+    final bridge = ScriptableBridge();
+    final owner = NativeCallOwner(bridge, () async => false);
+    await owner.bind('dm', 'call');
+    final waiting = Completer<void>();
+    bridge.respondNext(BridgeMethod.nativeCallPrepare, waiting.future);
+    final preparing = owner.bind('dm', 'replacement');
+    owner.unbind('dm', 'replacement');
+    waiting.complete();
+    await preparing;
+    await tester.pump(const Duration(milliseconds: 20));
+    expect(owner.session, isNull);
+    expect(bridge.countOf(BridgeMethod.nativeCallFrame), 0);
+    owner.dispose();
+  });
+
   test(
       'owner preserves an alias, repeats camera choice once and ignores stale unbind',
       () async {

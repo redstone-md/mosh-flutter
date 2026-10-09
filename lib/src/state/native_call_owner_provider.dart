@@ -14,6 +14,7 @@ class NativeCallOwner extends ChangeNotifier {
   final BridgeFacade bridge;
   final Future<bool> Function() requestMicrophone;
   final _frames = StreamController<CallVideoFrame>.broadcast(sync: true);
+  NativeCallSession? _retained;
   NativeCallSession? session;
   Stream<CallVideoFrame> get frames => _frames.stream;
 
@@ -22,7 +23,6 @@ class NativeCallOwner extends ChangeNotifier {
     var current = session;
     if (current?.sessionId != sessionId ||
         current?.callId != callId && current?.callId != superseded) {
-      final previous = current;
       current = NativeCallSession(
           sessionId: sessionId,
           callId: callId,
@@ -38,10 +38,15 @@ class NativeCallOwner extends ChangeNotifier {
       session = current;
       try {
         await current.start(camera: video);
-        previous?.stop();
+        if (identical(session, current)) {
+          _retained?.stop();
+          _retained = current;
+        } else {
+          current.stop();
+        }
       } catch (_) {
         current.stop();
-        if (identical(session, current)) session = previous;
+        if (identical(session, current)) session = _retained;
         rethrow;
       }
     } else {
@@ -55,13 +60,19 @@ class NativeCallOwner extends ChangeNotifier {
 
   void unbind(String sessionId, String callId) {
     if (session?.sessionId != sessionId || session?.callId != callId) return;
+    _stop();
+  }
+
+  void _stop() {
     session?.stop();
+    _retained?.stop();
     session = null;
+    _retained = null;
   }
 
   @override
   void dispose() {
-    session?.stop();
+    _stop();
     unawaited(_frames.close());
     super.dispose();
   }

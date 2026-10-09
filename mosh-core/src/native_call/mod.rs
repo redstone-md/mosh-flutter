@@ -122,15 +122,19 @@ impl Hub {
                 .state
                 .lock()
                 .map_err(|_| "native call state poisoned")?;
-            if state.applied >= revision {
-                return Ok(());
-            }
             if !state
                 .context
                 .as_ref()
                 .is_some_and(|ctx| ctx.matches(session, call))
             {
                 return Err("call ended while applying devices".into());
+            }
+            if state.applied >= revision {
+                return if state.snapshot.failed {
+                    Err("native media failed to apply device choices".into())
+                } else {
+                    Ok(())
+                };
             }
             if Instant::now() >= until {
                 return Err("native device command timed out".into());

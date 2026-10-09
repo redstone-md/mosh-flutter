@@ -38,6 +38,9 @@ are authorized to continue with best-effort local validation.
   native video/control layout. Preparation waits for initial preferences;
   call replacement cannot inherit capture consent. Native preparation failure
   is surfaced once, and device-command failure does not create a retry loop.
+  Overlapping failed binds retain the last working presentation client; late
+  obsolete preparation and unbind cannot restore a stopped client. Rejected
+  worker operations return an error through the public prepare/choices boundary.
 - Standard Linux Flutter debug packaging passed, including the real engine,
   executable capture helper and GPL/AGPL/Apache notices. The source preparer,
   native Rust lint/tests, binding generation and widget checks run locally.
@@ -52,21 +55,24 @@ capture, thermal behavior or complete sustained production 720p30 quality.
 
 ## Verification and coverage
 
-The full core suite passed: 713 library tests and 50 integration tests, with
-explicit native scenarios run separately. Flutter passed 1841 tests with four
+The initial full core suite passed: 713 library tests and 50 integration tests,
+with explicit native scenarios run separately. Eight final native-owner tests
+and all four native process scenarios passed after review fixes.
+Flutter passed 1844 tests with four
 skips. Format, analyzer, clippy and a second-generation binding drift check
 passed. Real network tests use `scripts/moss-test.mjs`. Native engine tests exercise real
 WebRTC/SRTP, receive-only video and independent camera off. Capture cadence and
 capability selection have focused tests, and macOS padded-BGRA validation runs
 on Linux. The old feasibility probe shares the production decoder sink.
 
-The instrumented native core owner/process checks covered 1061/1153 lines (92.0%).
+The instrumented native core owner/process checks covered 1048/1158 production
+lines (90.5%), excluding test-only lines.
 The production engine loaded through its C ABI in four independent process
 scenarios covered 766/852 lines (89.9%), including 143/158 ABI lines. All four
 scenarios passed with instrumentation; the engine's separate 13-test run also
 passed with the virtual duplex audio fixture enabled.
-The Flutter client/view/owner checks covered 312/337 lines (92.6%) and 98/123
-branches (79.7%). A delayed captured-slot regression also verifies that the
+The Flutter client/view/owner checks covered 320/344 lines (93.0%) and 102/126
+branches (81.0%). A delayed captured-slot regression also verifies that the
 encoder and preview admission count time waiting after pipe receipt.
 Rust branch instrumentation is unavailable on the pinned
 stable toolchain. Physical capture/permission and platform-specific code are
@@ -79,8 +85,9 @@ outside these host measurements; their coverage is not claimed.
   The previous user-run Windows probe is evidence for that candidate, not the
   newly packaged nokhwa helper or shipping native adapter.
 - The Linux macOS cross-target attempt stopped in Objective-C compilation
-  without an Apple SDK. Full SDK compilation/signing, permissions and universal
-  packaging need the macOS CI/host; they are not locally proven.
+  without an Apple SDK. macOS CI subsequently built the engine and camera helper,
+  passed lint/unit tests and all four independent process scenarios. Application
+  signing/packaging and physical permissions remain separate checks.
 - Moss's existing relay has per-source limits but no aggregate node budget or
   audio/message reservations. Client pacing/priority is implemented; aggregate
   relay pressure and completion feedback remain separate library work. Root

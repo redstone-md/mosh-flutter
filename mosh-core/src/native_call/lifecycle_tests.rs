@@ -65,3 +65,21 @@ fn new_call_cannot_inherit_capture_consent_or_accept_stale_commands() {
     assert!(hub.choices("dm", "old", Choices::default()).is_err());
     assert!(hub.choices("dm", "new", Choices::default()).is_err());
 }
+
+#[test]
+fn rejected_worker_preparation_and_choices_return_an_error() {
+    let state = Arc::new(Mutex::new(State::default()));
+    let hub = Hub {
+        state: state.clone(),
+    };
+    let transport = MemoryNet::new().endpoint("local");
+    let worker = std::thread::spawn(move || worker::run(state, transport));
+    let mut context = pending("call");
+    context.active = true;
+    // The owner cannot negotiate an active caller without its selected receiver.
+    assert!(hub.prepare(context, Choices::default()).is_err());
+    assert!(hub.snapshot("dm", "call").unwrap().failed);
+    assert!(hub.choices("dm", "call", Choices::default()).is_err());
+    drop(hub);
+    worker.join().unwrap();
+}
