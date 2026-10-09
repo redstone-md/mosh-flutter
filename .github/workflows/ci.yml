@@ -61,6 +61,9 @@ jobs:
           restore-keys: native-call-${{ runner.os }}-${{ runner.arch }}-
       - name: Build packaged engine and camera helper
         run: node scripts/native-media-build.mjs
+      - name: macOS packaging command regressions
+        if: runner.os == 'Linux'
+        run: node --test scripts/macos-package.test.mjs
       - name: Native Rust format, lint and tests
         shell: bash
         run: |

@@ -57,6 +57,18 @@ jobs:
         with:
           rust-cache-key: macos
 
+      # Reuse both release slices and the debug engine used by menu tests.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .dart_tool/native-media/target
+            .dart_tool/native-sources
+            .dart_tool/native-tools
+          key: native-app-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mosh-media/**/Cargo.lock', 'third_party/*-patches/source.json', 'third_party/*-patches/mosh.patch') }}
+          restore-keys: |
+            native-app-${{ runner.os }}-${{ runner.arch }}-
+            native-call-${{ runner.os }}-${{ runner.arch }}-
+
       # cargokit compiles mosh-core into the pod target's Xcode temp dir
       # (TARGET_TEMP_DIR, .../Pods.build/<config>/mosh_core.build), which the
       # cargo cache above does not see. Keyed on the lockfile and toolchain;
