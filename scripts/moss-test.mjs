@@ -52,7 +52,7 @@ try {
     const test = process.env.MOSH_TEST_CDB ? {
       command: process.env.MOSH_TEST_CDB,
       args: ["-o", "-g", "-G", "-y", process.env.MOSH_TEST_SYMBOLS,
-        "-c", 'sxe -c ".echo [DEBUG-46-STACK]; .ecxr; k; gn" av; g',
+        "-c", '.echo [DEBUG-46-STACK]; .ecxr; k; sxe -c ".ecxr; k; gn" -c2 ".ecxr; k; gn" av; gn',
         process.env.MOSH_TEST_PEER_EXE, "native_", "--ignored", "--nocapture", "--test-threads=1"],
     } : testCommand();
     const voiceUiDataDir = ["--voice-ui", "--native-call-ui"].includes(process.argv[2])

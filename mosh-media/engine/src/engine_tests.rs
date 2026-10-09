@@ -3,6 +3,50 @@ use super::*;
 use std::sync::atomic::Ordering;
 
 #[test]
+#[cfg(windows)]
+fn a_sole_windows_audio_owner_can_be_destroyed_in_an_independent_process() {
+    // Parallel factories keep the process MTA alive and hide the last-owner race.
+    for _ in 0..3 {
+        let status = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "engine::tests::isolated_windows_audio_owner",
+                "--ignored",
+                "--nocapture",
+            ])
+            .status()
+            .unwrap();
+        assert!(
+            status.success(),
+            "sole audio owner crashed during teardown: {status}"
+        );
+    }
+}
+
+#[test]
+#[cfg(windows)]
+#[ignore = "Launched independently by the Windows lifecycle regression"]
+fn isolated_windows_audio_owner() {
+    let mut engine = Engine::new(Config {
+        binding: MediaBinding {
+            session_id: "dm".into(),
+            call_id: "call".into(),
+            caller: "a".into(),
+            callee: "b".into(),
+            media_session: vec![9; 16],
+        },
+        caller: true,
+    })
+    .unwrap();
+    engine.command(json!({"action":"offer"})).unwrap();
+    engine.command(json!({"action":"devices"})).unwrap();
+    engine
+        .command(json!({"action":"select","input":null,"output":null}))
+        .unwrap();
+    drop(engine);
+}
+
+#[test]
 fn caller_can_pump_an_offer_before_the_selected_answer_arrives() {
     let binding = MediaBinding {
         session_id: "dm".into(),
