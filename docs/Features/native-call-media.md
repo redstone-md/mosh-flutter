@@ -105,6 +105,8 @@ builds both isolated crates and packages the library/helper and license notices.
 An explicit/system `protoc` is accepted; otherwise the hook downloads a locally
 scoped, SHA-256-verified protoc 36.2. Windows builds need Visual Studio's desktop
 C++ tools, Rust, Flutter and Node; no global protobuf installation is required.
+macOS also needs `brew install coreutils` for RingRTC's GNU realpath downloader,
+alongside the existing autoconf/automake/libtool build prerequisites.
 
 macOS builds each requested architecture and uses `lipo` for universal output.
 The engine is signed as a framework; the helper inherits the main app sandbox

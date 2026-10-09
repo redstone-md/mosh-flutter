@@ -12,6 +12,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { values } = parseArgs({ options: { profile: { type: "string", default: "debug" },
   output: { type: "string" }, targets: { type: "string" }, offline: { type: "boolean", default: false } } });
 if (!["debug", "release"].includes(values.profile)) throw new Error("profile must be debug or release");
+if (process.platform === "darwin"
+    && spawnSync("realpath", ["-e", "."]).status !== 0
+    && spawnSync("grealpath", ["."]).status !== 0) {
+  throw new Error("RingRTC needs GNU realpath on macOS: brew install coreutils");
+}
 await prepareRingRtc({ offline: values.offline });
 await prepareNativeCamera({ offline: values.offline });
 const env = { ...process.env, PROTOC: await nativeProtoc(root) };
