@@ -1,4 +1,4 @@
-import 'dart:async' show StreamSubscription, Timer;
+import 'dart:async' show StreamSubscription, Timer, unawaited;
 import 'dart:convert' show base64Encode;
 import 'dart:io' show Directory, File;
 import 'dart:typed_data' show Uint8List;
@@ -87,6 +87,13 @@ class _VoiceComposerState extends State<VoiceComposer> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Hidden controls must not leave the microphone capturing unattended.
+    if (!Visibility.of(context)) unawaited(_finishRecording());
+  }
+
+  @override
   void dispose() {
     _stopTimersAndAmplitude();
     _disposePreview();
@@ -156,8 +163,10 @@ class _VoiceComposerState extends State<VoiceComposer> {
         widget.onError(widget.permissionDeniedLabel);
         return;
       }
+      if (!mounted || !Visibility.of(context)) return;
       await _capture();
       _ifMounted(() => setState(() => _phase = _Phase.recording));
+      if (mounted && !Visibility.of(context)) await _finishRecording();
     } catch (error) {
       await _abortRecording(error);
     }
