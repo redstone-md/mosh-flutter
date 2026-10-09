@@ -48,6 +48,13 @@ are reconciled against the selected pair; loss of authorization clears that
 call and releases both media paths. Locally failed/end calls persist their
 closed-ID book before media synchronization.
 
+A counterpart's device selection can reserve occupancy only for an admitted
+offer from that original caller. Its caller binding survives local presentation
+dismissal and sibling-selection retries, and confirmed termination clears it.
+Authenticated own-sibling occupancy remains independent of a local offer.
+After restart, offer evidence is empty, so only own-sibling occupancy can restore
+Busy for an ongoing call on another device; counterpart selection alone cannot.
+
 RingRTC receives only a virtual UDP interface. Actual packets use Moss directed
 peer packets, with a call nonce and selected-peer check before native decoding.
 No engine ICE server or another mandatory server is configured. Moss supplies

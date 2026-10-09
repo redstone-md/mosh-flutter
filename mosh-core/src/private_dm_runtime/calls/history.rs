@@ -6,13 +6,14 @@ impl PrivateDmSession {
             return;
         };
         let confirmed = call.direction == crate::voice_call_runtime::CallDirection::Caller
-            || call.phase == CallPhase::Active;
+            || call.phase == CallPhase::Active
+            || self.call_controls.confirmed_closed(&call.call_id);
         self.call_controls.close(&call.call_id, confirmed);
         if let Some(id) = &call.merged_call_id {
             self.call_controls.close(id, confirmed);
         }
         self.record_dirty = true;
-        self.call_occupancy.finish(&call.call_id);
+        self.call_occupancy.finish(&call.call_id, confirmed);
         let _ = self
             .transport
             .unsubscribe(&self.mesh_id, &voice_call_channel(&call.call_id));

@@ -7,6 +7,8 @@ use serde_json::json;
 mod boundary_races;
 #[path = "boundary_tests/native_controls.rs"]
 mod native_controls;
+#[path = "boundary_tests/selection_admission.rs"]
+mod selection_admission;
 
 fn remote_control(
     f: &mut Fixture,

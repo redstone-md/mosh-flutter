@@ -5,6 +5,12 @@ const LEASE_MS: u64 = 15_000;
 #[derive(Default)]
 pub(in crate::private_dm_runtime) struct CallOccupancy {
     devices: HashMap<String, Reservation>,
+    admitted_offer: Option<AdmittedOffer>,
+}
+
+struct AdmittedOffer {
+    call_id: String,
+    caller: String,
 }
 
 struct Reservation {
@@ -15,8 +21,22 @@ struct Reservation {
 }
 
 impl CallOccupancy {
+    pub(super) fn admit_offer(&mut self, call_id: &str, caller: &str) {
+        self.admitted_offer = Some(AdmittedOffer {
+            call_id: call_id.into(),
+            caller: caller.into(),
+        });
+    }
+
     pub(super) fn reserve_selected(&mut self, device: &str, call_id: &str, caller: &str, now: u64) {
         self.expire(now);
+        if !self
+            .admitted_offer
+            .as_ref()
+            .is_some_and(|offer| offer.call_id == call_id && offer.caller == caller)
+        {
+            return;
+        }
         if self.devices.get(device).is_some_and(|reservation| {
             reservation.call_id != call_id || reservation.caller != caller
         }) {
@@ -76,16 +96,36 @@ impl CallOccupancy {
         }
     }
 
-    pub(super) fn finish(&mut self, call_id: &str) {
+    pub(super) fn finish(&mut self, call_id: &str, confirmed: bool) {
         self.devices
             .retain(|_, reservation| reservation.call_id != call_id);
+        if confirmed {
+            self.forget_offer(call_id);
+        }
     }
 
     pub(super) fn receive_end(&mut self, sender: &str, call_id: &str) {
+        if self
+            .admitted_offer
+            .as_ref()
+            .is_some_and(|offer| offer.call_id == call_id && offer.caller == sender)
+        {
+            self.forget_offer(call_id);
+        }
         self.devices.retain(|_, reservation| {
             reservation.call_id != call_id
                 || (reservation.caller != sender && reservation.receiver.as_deref() != Some(sender))
         });
+    }
+
+    fn forget_offer(&mut self, call_id: &str) {
+        if self
+            .admitted_offer
+            .as_ref()
+            .is_some_and(|offer| offer.call_id == call_id)
+        {
+            self.admitted_offer = None;
+        }
     }
 
     pub(in crate::private_dm_runtime) fn expire(&mut self, now: u64) {
@@ -139,7 +179,7 @@ impl PrivateDmSession {
     pub(super) fn observe_own_call(&mut self, control: &CallControl) {
         if self.authoritative_call_end(control) {
             self.call_controls.close(&control.call_id, true);
-            self.call_occupancy.finish(&control.call_id);
+            self.call_occupancy.finish(&control.call_id, true);
         }
         match &control.action {
             CallAction::End { .. } | CallAction::Decline { .. } => self

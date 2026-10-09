@@ -100,6 +100,8 @@ impl PrivateDmSession {
         );
         call.caller_signer = control.signer.clone();
         call.remote_peer = control.peer.clone();
+        self.call_occupancy
+            .admit_offer(&control.call_id, &control.signer);
         self.call = Some(call);
         self.note_authenticated_frame(&control.name);
         Ok(())
