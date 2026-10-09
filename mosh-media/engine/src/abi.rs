@@ -1,4 +1,5 @@
 //! The loading process retains every buffer through its synchronous call.
+//! Create, command and drop an engine on one owner thread; Windows COM is thread-bound.
 use crate::{
     engine::{Config, Engine, MAX_PACKET},
     frames::{FrameInfo, MAX_RGBA_BYTES},

@@ -32,10 +32,13 @@ pub struct Endpoint {
     pub candidates: Receiver<String>,
     pub source: VideoSource,
     pub measurements: Arc<Measurements>,
+    // Last: CoUninitialize may unload COM servers used by the audio backend.
+    _apartment: crate::apartment::Apartment,
 }
 
 impl Endpoint {
     pub fn new(role: &str, sender: impl Fn(Packet) + Send + Sync + 'static) -> Result<Self> {
+        let apartment = crate::apartment::Apartment::new()?;
         let factory = PeerConnectionFactory::new(&AudioConfig::default(), true, "", None)?;
         let network = factory
             .injectable_network()
@@ -87,6 +90,7 @@ impl Endpoint {
             candidates,
             source,
             measurements,
+            _apartment: apartment,
         })
     }
 

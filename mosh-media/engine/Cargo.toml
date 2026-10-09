@@ -21,5 +21,9 @@ hkdf = "=0.13.0"
 sha2 = "=0.11.0"
 zeroize = "=1.9.1"
 
+[target.'cfg(windows)'.dependencies]
+# Already required by RingRTC; own the caller's apartment through native teardown.
+windows = { version = "=0.62.2", features = ["Win32_System_Com"] }
+
 [profile.dev]
 debug = 0
