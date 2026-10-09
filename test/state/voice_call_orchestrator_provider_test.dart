@@ -8,6 +8,8 @@
 library;
 
 import 'dart:typed_data';
+import 'package:mosh/src/state/native_call_owner_provider.dart';
+import '../support/native_call_fixture.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,8 +27,10 @@ import 'package:mosh/src/state/session_providers.dart'
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
 
 part 'voice_call_orchestrator_provider_support.dart';
+part 'voice_call_native_binding_support.dart';
 
 void main() {
+  registerNativeBindingTests();
   group('voice_call_orchestrator_provider', () {
     test('no ActiveCall -> no orchestrator, muted false', () async {
       final gateway = ScriptableBridge();
@@ -224,7 +228,8 @@ void main() {
       // Pending -> IncomingCallDialog (peer from fromDevice).
       final pendingController = _SessionController(_session(
         'sess-1',
-        pendingCall: PendingCall(callId: 'p1', fromDevice: 'Bob'),
+        pendingCall:
+            PendingCall(answerPending: false, callId: 'p1', fromDevice: 'Bob'),
       ));
       final pendingContainer = _container(
         controller: pendingController,

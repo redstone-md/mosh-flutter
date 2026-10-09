@@ -22,8 +22,8 @@ void main() {
         ..seedSessions([
           TestSnapshots.dm(
               sessionId: 'origin',
-              pendingCall:
-                  const PendingCall(callId: 'call', fromDevice: 'Alice'))
+              pendingCall: const PendingCall(
+                  answerPending: false, callId: 'call', fromDevice: 'Alice'))
         ]);
       final accepted = Completer<void>();
       final bridge = ScriptableBridge(conversations: gateway.conversations)

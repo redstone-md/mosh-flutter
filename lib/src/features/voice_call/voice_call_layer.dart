@@ -1,3 +1,4 @@
+import 'call_media_view.dart';
 import 'dart:async';
 import 'dart:io' show Platform;
 
@@ -60,7 +61,9 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         voiceCallOrchestratorProvider(widget.sessionId).select((s) => s.error),
         (_, error) => _reportError(error));
     final dialog = state.dialog;
-    if (dialog is IncomingCallDialog && !state.busy) {
+    if (dialog is IncomingCallDialog &&
+        !dialog.pending.answerPending &&
+        !state.busy) {
       if (_notifiedCall != dialog.callId) {
         _clearNotification();
         _notifiedCall = dialog.callId;
@@ -75,9 +78,13 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
       dialog,
       fallback: widget.l.callPeerFallback,
       muted: state.muted,
+      media: state.nativeMedia == null
+          ? null
+          : CallMediaView.fromSnapshot(state.nativeMedia!),
       audioReady: state.audioReady,
       audioFailed: state.audioFailed,
       busy: state.busy,
+      occupancyConflict: state.occupancyConflict,
       language: Localizations.localeOf(context).languageCode,
       error: state.error?.cause.describe(widget.l),
     );
@@ -106,7 +113,8 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
   void _act(CallViewCommand command) {
     final state = ref.read(voiceCallOrchestratorProvider(widget.sessionId));
     if ((state.busy && !command.action.availableWhileBusy) ||
-        state.dialog.callId != command.callId) {
+        !command.matchesCall(widget.sessionId, state.dialog.callId,
+            supersededCallId: state.dialog.supersededCallId)) {
       return;
     }
     final notifier =
@@ -121,6 +129,14 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         unawaited(notifier.endCall(id, kCallDeclineReasonHangup));
       case CallViewAction.mute:
         notifier.toggleMute();
+      case CallViewAction.camera:
+        unawaited(notifier.toggleCamera());
+      case CallViewAction.selectInput:
+        unawaited(notifier.selectInput(command.deviceId));
+      case CallViewAction.selectOutput:
+        unawaited(notifier.selectOutput(command.deviceId));
+      case CallViewAction.selectCamera:
+        unawaited(notifier.selectCamera(command.deviceId));
       case CallViewAction.openConversation:
         widget.onOpenConversation?.call();
     }
@@ -192,6 +208,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         _notifiedCall == id &&
         !state.busy &&
         current is IncomingCallDialog &&
+        !current.pending.answerPending &&
         current.callId == id;
   }
 
@@ -214,4 +231,12 @@ Future<Object?> startVoiceCall(WidgetRef ref, String sessionId) async {
   final result =
       await ref.read(voiceCallStartProvider.notifier).start(sessionId);
   return result is CallAlreadyInProgress ? alreadyInProgress : result;
+}
+
+Future<Object?> startVideoCall(WidgetRef ref, String sessionId) async {
+  final label = AppLocalizations.of(ref.context)!.callAlreadyInProgress;
+  final result = await ref
+      .read(voiceCallStartProvider.notifier)
+      .start(sessionId, video: true);
+  return result is CallAlreadyInProgress ? label : result;
 }

@@ -133,16 +133,24 @@ impl PrivateDmRuntime {
         session_id: &str,
     ) -> Result<SessionSnapshot, PrivateDmRuntimeError> {
         self.drain_inbound();
-        Ok(self.session_mut(session_id)?.snapshot())
+        let availability = self.call_availability();
+        let mut snapshot = self.session_mut(session_id)?.snapshot();
+        snapshot.call_availability = availability;
+        Ok(snapshot)
     }
 
     pub fn list_sessions(&mut self) -> Result<SessionListSnapshot, PrivateDmRuntimeError> {
         self.drain_inbound();
+        let availability = self.call_availability();
         let mut snapshots: Vec<SessionSnapshot> = self
             .sessions
             .values_mut()
             .filter(|session| session.is_visible())
-            .map(PrivateDmSession::snapshot)
+            .map(|session| {
+                let mut snapshot = session.snapshot();
+                snapshot.call_availability = availability;
+                snapshot
+            })
             .collect();
         snapshots.sort_by(|a, b| a.session_id.cmp(&b.session_id));
         Ok(SessionListSnapshot {

@@ -26,7 +26,8 @@ class _Fixture {
 void main() {
   final incoming = TestSnapshots.dm(
       sessionId: 'incoming',
-      pendingCall: const PendingCall(callId: 'ring', fromDevice: 'Alice'));
+      pendingCall: const PendingCall(
+          answerPending: false, callId: 'ring', fromDevice: 'Alice'));
   final active = TestSnapshots.dm(
       sessionId: 'active', activeCall: TestCalls.active(callId: 'talk'));
 

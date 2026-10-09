@@ -116,6 +116,9 @@ pub struct ReadReceiptBody {
 #[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize)]
 pub struct SessionSnapshot {
+    /// Account-wide admission, including leases held by linked installations.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub call_availability: Option<CallAvailability>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deletion_summary: Option<crate::message_deletion::types::DeletionSummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -161,6 +164,14 @@ pub struct SessionSnapshot {
     pub outgoing_call: Option<OutgoingCall>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active_call: Option<ActiveCall>,
+}
+
+#[frb(non_opaque)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CallAvailability {
+    Busy,
+    Conflict,
 }
 
 #[frb(non_opaque)]
@@ -275,17 +286,22 @@ impl ConversationMessage for ChatMessage {
 #[derive(Debug, Clone, Serialize)]
 pub struct PendingCall {
     pub call_id: String,
+    pub superseded_call_id: Option<String>,
     pub from_device: String,
+    /// Answer requested locally; media waits for the caller's selected device.
+    pub answer_pending: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OutgoingCall {
     pub call_id: String,
+    pub superseded_call_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ActiveCall {
     pub call_id: String,
+    pub superseded_call_id: Option<String>,
     /// "caller" or "callee" — drives the nonce direction bit.
     pub direction: String,
     pub key_b64: String,
@@ -307,16 +323,6 @@ pub struct CallEvent {
 pub struct CallStarted {
     pub session_id: String,
     pub call_id: String,
-    pub key_b64: String,
-    pub nonce_prefix_b64: String,
-}
-
-/// Body of an MLS-encrypted CallOffer. Never crosses the wire in the clear:
-/// the runtime serialises it to JSON, encrypts via the session's MLS
-/// application-message key, and ships the ciphertext in
-/// `ControlEnvelope::CallOffer::offer_ciphertext_b64`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CallOfferBody {
     pub key_b64: String,
     pub nonce_prefix_b64: String,
 }

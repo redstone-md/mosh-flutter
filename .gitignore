@@ -49,6 +49,9 @@ third_party/opus-macos-universal/
 third_party/openmls/
 third_party/openmls.lock/
 third_party/openmls.prepare-*/
+third_party/ringrtc/
+third_party/ringrtc.lock/
+third_party/ringrtc.prepare-*/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -74,3 +77,11 @@ analyze.out
 
 # aislop scanner state (regenerated per run)
 .aislop/
+
+# Reconstructed pinned camera sources; complete patches are tracked.
+third_party/nokhwa/
+third_party/nokhwa.lock/
+third_party/nokhwa.prepare-*/
+third_party/nokhwa-macos/
+third_party/nokhwa-macos.lock/
+third_party/nokhwa-macos.prepare-*/

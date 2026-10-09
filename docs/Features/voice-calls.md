@@ -1,4 +1,4 @@
-# Voice calls
+# Calls
 
 Desktop calls have an independent native window for incoming, outgoing and active
 phases. A compact strip below the main view provides the same controls and a
@@ -24,6 +24,41 @@ Opening the originating DM remains available while call controls are pending.
 - The supplied `29_cipher_stream` recording plays through the selected CPAL output
   device. See [recording provenance](../../assets/audio/README.md).
 
+## Selected-device coordination (#46)
+
+Call offer, answer, selection, occupancy and terminal controls travel inside MLS
+application messages. The receiver checks the actual MLS leaf signer, conversation,
+and current admitted device's Moss identity. Plaintext accept/end envelopes are
+removed; participating clients upgrade together.
+
+Answering requests selection. The receiving installation remains pending, displays
+“Waiting for confirmation…”, and sends no voice media until the caller selects it.
+All reachable linked receivers ring; the caller accepts the first answer or refusal.
+A later refusal from another receiver cannot end the selected pair. The other
+receivers stop ringing, retain account occupancy, and cannot start an unrelated call.
+
+Simultaneous outgoing calls choose the smaller authenticated caller-signer/call-ID
+pair before media starts. Only an authenticated concurrent offer establishes the
+superseded ID. A cancel from the window still displaying that ID ends the merged
+call. Failed subscription leaves the existing call intact.
+
+Occupancy uses 15-second leases with two-second heartbeats. Known pending/active
+calls block new admission across DMs, including occupancy in the same DM. A healed
+partition can reveal several calls: snapshots report a conflict, existing calls
+continue, an amber notice explains it, and new calls stay blocked until it resolves.
+This remains best effort while installations cannot reach each other.
+
+The encrypted session record retains per-leaf control sequence numbers and the last
+512 closed IDs. Local presentation dismissal is distinct from confirmed termination:
+a device that declined must still observe another device's accepted call. Authorized
+terminal controls remain valid after a newer unrelated offer; old occupancy cannot
+overwrite newer occupancy. Terminal delivery retries every two seconds for 15 seconds
+using a bounded queue of 32 controls. A local end saves its book before returning.
+
+Desktop calls now use the [native audio/video owner](native-call-media.md), with
+selected-only ephemeral key agreement, independent capture and bounded decoded
+presentation. Android/iOS retain their separate voice path.
+
 ## Runtime ownership
 
 `VoiceCallHost` sits above every route and reads the full DM list. The selected
@@ -34,7 +69,8 @@ promotes another session that still contains a call; there is no call-waiting UI
 When there is no retained owner, selection prefers an already active call over
 pending or outgoing calls, irrespective of the DM list order.
 
-One shared audio orchestrator serializes replacement. Cancellation stops frame
+The legacy mobile/baseline voice path uses one shared audio orchestrator to
+serialize replacement. Cancellation stops frame
 work immediately; startup and teardown must finish before another capture or
 player opens. Delayed controls, setup failures and drain responses are tied to
 their session and call IDs and cannot affect a replacement call.
@@ -46,8 +82,8 @@ one handle cannot delay release of the other. Replacement still waits for both.
 Every desktop starts the same executable with `--mosh-call-window` in a separate
 process. `MOSH_CALL_WINDOW=1` also identifies child startup on hosts that omit Dart
 entrypoint arguments. GTK/EGL ownership stays independent on Linux. Stdio carries
-only display metadata and commands with session and call IDs, without a listening
-port. The child initializes no Rust runtime, database or audio owner. The parent
+display metadata, commands and frame acknowledgements with session and call IDs.
+The child initializes no Rust runtime, database or audio owner. The parent
 validates commands against the current call, waits for child exit on closure and
 terminates an unresponsive child. A window failure leaves the main strip usable;
 its restore button recreates the window. No additional window plugin is required.
@@ -55,6 +91,50 @@ Android and iOS use the strip inside system safe insets. While a call is shown,
 the host consumes the keyboard inset for both the route and strip, removing it
 from the nested Scaffold so the composer does not reserve the inset twice.
 The wrapper stays mounted across call admission and termination to retain drafts.
+
+### Decoded video presentation (#46)
+
+The production native engine copies decoded RGBA into a latest-frame slot with one spare
+conversion buffer, each capped at 1920×1080×4 bytes. Failed conversion preserves
+the last complete frame. The host owns its copied pixels; native frame pointers
+never enter Flutter. Frame metadata and pixels travel as bounded binary packets.
+
+Presentation uses a dedicated loopback stream so bulk pixels cannot delay stdio
+controls. The parent passes a random 256-bit, one-time capability to the spawned
+child through inherited stdio. The listener accepts at most four unauthenticated
+connections, each for two seconds, and admits one renderer. No user-facing port
+setting or additional server is involved. This stream carries decoded display
+pixels only; peer media still travels through Moss.
+
+The parent admits one frame until the child acknowledges its exact session, call,
+sequence and local/remote lane. A stalled renderer receives no further frames and
+is terminated after five seconds. Restore creates a new renderer and capability.
+Rendering holds one image per lane and one decode in flight. Source/transfer age
+and monotonic decode duration count toward a one-second display budget; stale
+frames are discarded. Every image, codec and immutable buffer has explicit cleanup.
+
+The video stage fits narrow windows, preserves image aspect ratio, mirrors local
+preview, and fades only its presence for 150 ms. Pixel updates do not animate;
+reduced motion removes the fade. The compact controls remain usable independently.
+The stage is wired to the window's frame sink; the application media adapter and
+camera owner are being implemented in the next stage.
+
+On Linux x64 debug, a real separate renderer admitted 88/90 synthetic 720p frames
+before a forced renderer crash and 81/90 after restoration. Frame round-trip
+median/p95 was 17/30 ms over 169 samples. Before separating bulk pixels from stdio,
+it was 155/187 ms over 17 samples; body transfer, rather than copying or decoding,
+dominated. These are short, same-host renderer checks, not sustained camera or
+audio/video quality acceptance. The isolated Moss check additionally copied actual
+decoded native frames and rejected all media in the tampered-key direction.
+
+Run the real desktop presentation check after preparing Moss:
+
+```sh
+flutter drive --target integration_test/call_video_window_test.dart --driver test_driver/integration.dart -d linux --debug --no-start-paused
+```
+
+Use `windows` or `macos` for the corresponding desktop host. Set
+`MOSH_CALL_FRAME_PROFILE=1` only when collecting timing diagnostics.
 
 On Windows, the environment marker bypasses app_links' duplicate-instance handoff.
 The child uses the separate `MOSH_CALL_WINDOW` Win32 class, so new `mosh://` links
@@ -123,7 +203,10 @@ Behavioral test bodies and end-to-end scenario methods may exceed the 50-line
 function limit to keep their setup, actions and assertions together.
 The native peer's command dispatcher retains
 the same exception so its public-action routing stays in one place. Production
-functions remain within the limit.
+functions remain within the limit. `VoiceCallOrchestratorNotifier` has a temporary
+215-line type allowance: it owns the existing audio lifecycle and serialized
+controls during the native-engine migration. Keeping those together preserves
+the single call owner; the replacement adapter will remove the old audio setup.
 
 ## Verification on Linux, 2026-10-06
 
@@ -157,3 +240,12 @@ functions remain within the limit.
 
 The CodeAnt findings and decisions are recorded in
 [the IVO-23 review notes](../Proposals/ivo-23-codeant-review.md).
+
+Verification for selected-device coordination: the full Flutter suite passed
+1808 tests (four skipped); the final focused suite passed 196 tests after alias
+and timeout fixes. The core full suite passed, and its final DM-focused run
+passed 165 tests (13 helpers ignored), including real signed controls and
+reordered occupancy. Flutter changed lines/branches measured 96.6%/94.4%;
+Rust changed-line coverage measured 90.9% (stable LLVM emitted no branches).
+Analyze, clippy and bridge regeneration passed. The native audio/video pipeline
+is the next stage; these checks do not establish physical-camera acceptance.

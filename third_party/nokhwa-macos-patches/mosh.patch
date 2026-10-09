@@ -1,0 +1,242 @@
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -22,6 +22,9 @@
+ 
+ #![allow(clippy::not_unsafe_ptr_arg_deref)]
+ 
++#[cfg(any(target_os = "macos", test))]
++mod packed_bgra;
++
+ #[cfg(any(target_os = "macos", target_os = "ios"))]
+ #[macro_use]
+ extern crate objc;
+@@ -105,6 +108,8 @@
+             ) -> NSObject;
+ 
+             pub fn dispatch_release(object: NSObject);
++            pub fn dispatch_sync_f(queue: NSObject, context: *mut std::ffi::c_void,
++                work: extern "C" fn(*mut std::ffi::c_void));
+ 
+             pub fn CMSampleBufferGetImageBuffer(sbuf: CMSampleBufferRef) -> CVImageBufferRef;
+ 
+@@ -210,6 +215,10 @@
+         NSObject, OSType,
+     };
+ 
++    use core_video_sys::{CVPixelBufferGetPixelFormatType, CVPixelBufferGetWidth,
++        CVPixelBufferGetHeight, CVPixelBufferGetBytesPerRow, CVPixelBufferIsPlanar,
++        kCVPixelFormatType_32BGRA};
++    use nokhwa_core::buffer::Buffer;
+     use block::ConcreteBlock;
+     use cocoa_foundation::{
+         base::Nil,
+@@ -443,18 +452,30 @@
+             ) {
+                 let image_buffer: CVImageBufferRef =
+                     unsafe { CMSampleBufferGetImageBuffer(didOutputSampleBuffer) };
+-                unsafe {
+-                    CVPixelBufferLockBaseAddress(image_buffer, 0);
++                if image_buffer.is_null() { return; }
++                // SAFETY: CoreMedia retains the pixel buffer through this callback.
++                let (width, height, stride, length, format, planar) = unsafe {
++                    (CVPixelBufferGetWidth(image_buffer.cast()), CVPixelBufferGetHeight(image_buffer.cast()),
++                     CVPixelBufferGetBytesPerRow(image_buffer.cast()), CVPixelBufferGetDataSize(image_buffer) as usize,
++                     CVPixelBufferGetPixelFormatType(image_buffer.cast()), CVPixelBufferIsPlanar(image_buffer.cast()))
+                 };
+-
+-                let buffer_length = unsafe { CVPixelBufferGetDataSize(image_buffer) };
+-                let buffer_ptr = unsafe { CVPixelBufferGetBaseAddress(image_buffer) };
+-                let buffer_as_vec = unsafe {
+-                    std::slice::from_raw_parts_mut(buffer_ptr as *mut u8, buffer_length as usize)
+-                        .to_vec()
++                if planar != 0 || format != kCVPixelFormatType_32BGRA || width == 0 || height == 0
++                    || width > 1920 || height > 1920 || width.saturating_mul(height) > 1920*1080
++                    || stride < width*4 || height.checked_mul(stride).map_or(true, |needed| needed > length) {
++                    return;
++                }
++                // SAFETY: the nonplanar BGRA pixel buffer is retained and locked for this copy.
++                if unsafe { CVPixelBufferLockBaseAddress(image_buffer, 0) } != 0 { return; }
++                let base = unsafe { CVPixelBufferGetBaseAddress(image_buffer) };
++                let rgb = if base.is_null() { None } else {
++                    // SAFETY: the checked stride/size fits the locked native allocation.
++                    crate::packed_bgra::rgb(unsafe {
++                        std::slice::from_raw_parts(base.cast::<u8>(), height*stride)
++                    }, width, height, stride)
+                 };
+-
++                // SAFETY: pairs the successful lock before any early return.
+                 unsafe { CVPixelBufferUnlockBaseAddress(image_buffer, 0) };
++                let Some(rgb) = rgb else { return; };
+ 
+                 // CMSampleBufferGetPresentationTimeStamp returns the sensor
+                 // capture instant on a monotonic clock (mach_absolute_time
+@@ -485,19 +506,15 @@
+                     }
+                 };
+ 
+-                // oooooh scarey unsafe
+-                // AAAAAAAAAAAAAAAAAAAAAAAAA
+-                // https://c.tenor.com/0e_zWtFLOzQAAAAC/needy-streamer-overload-needy-girl-overdose.gif
+-                let bufferlck_cv: *const c_void = unsafe { msg_send![this, bufferPtr] };
+-                let buffer_sndr = unsafe {
+-                    let ptr = bufferlck_cv.cast::<Sender<(Vec<u8>, FrameFormat, Option<Duration>)>>();
+-                    Arc::from_raw(ptr)
+-                };
+-                if let Err(_) = buffer_sndr.send((buffer_as_vec, FrameFormat::GRAY, capture_ts)) {
+-                    // FIXME: dont, what the fuck???
+-                    return;
+-                }
+-                std::mem::forget(buffer_sndr);
++                let sender: *const c_void = unsafe { msg_send![this, bufferPtr] };
++                if sender.is_null() { return; }
++                // SAFETY: AVCaptureVideoCallback retains this Arc until its serial queue
++                // is quiescent. This is a borrow, not a new Arc ownership claim.
++                let sender = unsafe { &*sender.cast::<Sender<Buffer>>() };
++                let frame = Buffer::with_timestamp(Resolution::new(width as u32, height as u32),
++                    &rgb, FrameFormat::RAWRGB, capture_ts);
++                let _ = sender.try_send(frame); // Never block the AVFoundation callback.
++
+             }
+ 
+             #[allow(non_snake_case)]
+@@ -734,12 +751,13 @@
+     pub struct AVCaptureVideoCallback {
+         delegate: *mut Object,
+         queue: NSObject,
++        _sender: Arc<Sender<Buffer>>,
+     }
+ 
+     impl AVCaptureVideoCallback {
+         pub fn new(
+             device_spec: &CStr,
+-            buffer: &Arc<Sender<(Vec<u8>, FrameFormat, Option<Duration>)>>,
++            buffer: &Arc<Sender<Buffer>>,
+         ) -> Result<Self, NokhwaError> {
+             let cls = &CALLBACK_CLASS as &Class;
+             let delegate: *mut Object = unsafe { msg_send![cls, alloc] };
+@@ -756,7 +774,7 @@
+                 dispatch_queue_create(device_spec.as_ptr(), NSObject(std::ptr::null_mut()))
+             };
+ 
+-            Ok(AVCaptureVideoCallback { delegate, queue })
++            Ok(AVCaptureVideoCallback { delegate, queue, _sender: buffer.clone() })
+         }
+ 
+         pub fn data_len(&self) -> usize {
+@@ -769,6 +787,19 @@
+ 
+         pub fn queue(&self) -> &NSObject {
+             &self.queue
++        }
++    }
++
++    impl Drop for AVCaptureVideoCallback {
++        fn drop(&mut self) {
++            extern "C" fn barrier(_: *mut std::ffi::c_void) {}
++            // SAFETY: owner disables the delegate first; it drops on the capture
++            // thread, never on this queue. Drain existing callbacks before the Arc.
++            unsafe {
++                core_media::dispatch_sync_f(self.queue.clone(), std::ptr::null_mut(), barrier);
++                let _: () = msg_send![self.delegate, release];
++                core_media::dispatch_release(self.queue.clone());
++            }
+         }
+     }
+ 
+@@ -2334,21 +2365,25 @@
+             Ok(())
+         }
+ 
+-        pub fn set_frame_format(&self, format: FrameFormat) -> Result<(), NokhwaError> {
+-            let cmpixelfmt = match format {
+-                FrameFormat::YUYV => kCMPixelFormat_422YpCbCr8_yuvs,
+-                FrameFormat::MJPEG => kCMVideoCodecType_JPEG,
+-                FrameFormat::GRAY => kCMPixelFormat_8IndexedGray_WhiteIsZero,
+-                FrameFormat::NV12 => kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+-                FrameFormat::RAWRGB => kCMPixelFormat_24RGB,
+-                FrameFormat::RAWBGR => {
+-                    return Err(NokhwaError::SetPropertyError {
+-                        property: "setVideoSettings".to_string(),
+-                        value: "set frame format".to_string(),
+-                        error: "Unsupported frame format BGR".to_string(),
+-                    });
+-                }
+-            };
++        pub fn remove_delegate(&self, _: &AVCaptureVideoCallback) {
++            // SAFETY: clear delivery before the callback owner drains its serial queue.
++            unsafe { let _: () = msg_send![self.inner, setSampleBufferDelegate:nil queue:nil]; }
++        }
++
++        pub fn set_frame_format(&self, _format: FrameFormat) -> Result<(), NokhwaError> {
++            // Select a known packed output after the device's active format is set.
++            let formats: *mut Object = unsafe { msg_send![self.inner, availableVideoCVPixelFormatTypes] };
++            let count: NSUInteger = unsafe { msg_send![formats, count] };
++            let available = (0..count).any(|index| {
++                let number: *mut Object = unsafe { msg_send![formats, objectAtIndex:index] };
++                let format: u32 = unsafe { msg_send![number, unsignedIntValue] };
++                format == kCVPixelFormatType_32BGRA
++            });
++            if !available {
++                return Err(NokhwaError::SetPropertyError { property: "video output format".into(),
++                    value: "BGRA".into(), error: "BGRA output is unavailable".into() });
++            }
++            let cmpixelfmt = kCVPixelFormatType_32BGRA;
+             let obj = CFNumber::from(cmpixelfmt as i32);
+             let obj = obj.as_CFTypeRef() as *mut Object;
+             let key = unsafe { kCVPixelBufferPixelFormatTypeKey } as *mut Object;
+--- /dev/null
++++ b/src/packed_bgra.rs
+@@ -0,0 +1,53 @@
++//! AVFoundation output can pad each row; camera active formats do not describe it.
++pub(crate) fn rgb(bytes: &[u8], width: usize, height: usize, stride: usize) -> Option<Vec<u8>> {
++    let row = width.checked_mul(4)?;
++    let pixels = width.checked_mul(height)?;
++    if width == 0
++        || height == 0
++        || width > 1920
++        || height > 1920
++        || pixels > 1920 * 1080
++        || stride < row
++        || bytes.len() < height.checked_mul(stride)?
++    {
++        return None;
++    }
++    let mut output = Vec::with_capacity(pixels.checked_mul(3)?);
++    for y in 0..height {
++        for bgra in bytes[y * stride..y * stride + row].chunks_exact(4) {
++            output.extend_from_slice(&[bgra[2], bgra[1], bgra[0]]);
++        }
++    }
++    Some(output)
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn preserves_actual_dimensions_color_order_and_skips_padding() {
++        let bytes = [
++            1, 2, 3, 255, 4, 5, 6, 255, 99, 99, 99, 99, 7, 8, 9, 255, 10, 11, 12, 255, 88, 88, 88,
++            88,
++        ];
++        assert_eq!(
++            rgb(&bytes, 2, 2, 12),
++            Some(vec![3, 2, 1, 6, 5, 4, 9, 8, 7, 12, 11, 10])
++        );
++    }
++
++    #[test]
++    fn rejects_invalid_stride_truncation_overflow_and_oversized_frames() {
++        for (width, height, stride) in [
++            (0, 1, 4),
++            (1, 0, 4),
++            (2, 1, 7),
++            (2, 2, 12),
++            (usize::MAX, 1, 4),
++            (1920, 1920, 7680),
++        ] {
++            assert!(rgb(&[0; 16], width, height, stride).is_none());
++        }
++    }
++}

@@ -20,6 +20,7 @@ import 'package:mosh/src/rust/outbound_delivery.dart'
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show
         ActiveCall,
+        CallAvailability,
         CallEvent,
         ChatMessage,
         ConnectOutcome,
@@ -152,6 +153,7 @@ class TestSnapshots {
   /// private `_snapshot` helper (connected direct session, `inviter`
   /// role, placeholder fingerprint).
   static SessionSnapshot dm({
+    CallAvailability? callAvailability,
     DmDeviceRevocationState? deviceRevocation,
     DmHistorySyncState? historySync,
     required String sessionId,
@@ -173,6 +175,7 @@ class TestSnapshots {
     ActiveCall? activeCall,
   }) =>
       SessionSnapshot(
+        callAvailability: callAvailability,
         inviteAvailable: false,
         deviceRevocation: deviceRevocation,
         historySync: historySync,

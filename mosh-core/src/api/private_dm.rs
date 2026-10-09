@@ -138,8 +138,8 @@ pub fn call_start(session_id: String) -> Result<CallStarted, ConversationBridgeE
 }
 
 /// Accept an incoming voice call.
-/// Moves the session from pending-call into the active state. The peer
-/// learns the acceptance through the MLS CallAccept control message.
+/// Requests selection with an authenticated answer. Media remains pending until
+/// the caller confirms that this installation is the selected receiver.
 pub fn call_accept(session_id: String, call_id: String) -> Result<(), ConversationBridgeError> {
     let mut runtime = ensure_runtime()?;
     runtime

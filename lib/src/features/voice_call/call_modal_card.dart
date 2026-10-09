@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 
 /// Shared presentation and keyboard behavior for all call phases.
@@ -13,6 +14,8 @@ class CallModalCard extends StatelessWidget {
     this.statusFontFeatures,
     this.compact = false,
     this.onOpenConversation,
+    this.notice,
+    this.stage,
   });
 
   final String label;
@@ -23,10 +26,12 @@ class CallModalCard extends StatelessWidget {
   final List<FontFeature>? statusFontFeatures;
   final bool compact;
   final VoidCallback? onOpenConversation;
+  final String? notice;
+  final Widget? stage;
 
   @override
   Widget build(BuildContext context) {
-    return compact ? _compact(context) : _standalone();
+    return compact ? _compact(context) : _standalone(context);
   }
 
   Widget _compact(BuildContext context) {
@@ -37,31 +42,39 @@ class CallModalCard extends StatelessWidget {
         container: true,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(spacing: 12, children: [
-            Expanded(
-              child: InkWell(
-                onTap: onOpenConversation,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(peer, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    Text(status,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontFeatures: statusFontFeatures)),
-                  ],
-                ),
-              ),
-            ),
-            ...actions,
-          ]),
+          child: LayoutBuilder(
+              builder: (context, constraints) => constraints.maxWidth < 480
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                          _identity(),
+                          const SizedBox(height: 8),
+                          Wrap(spacing: 12, runSpacing: 8, children: actions)
+                        ])
+                  : Row(
+                      spacing: 12,
+                      children: [Expanded(child: _identity()), ...actions])),
         ),
       ),
     );
   }
 
-  Widget _standalone() {
+  Widget _identity() => InkWell(
+      onTap: onOpenConversation,
+      child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(peer, maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(status,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontFeatures: statusFontFeatures)),
+            if (notice != null) _notice(),
+          ]));
+
+  Widget _standalone(BuildContext context) {
     return ModalFocusTrap(
       onEscape: onEscape,
       autofocus: true,
@@ -69,30 +82,35 @@ class CallModalCard extends StatelessWidget {
         label: label,
         container: true,
         child: Dialog(
-          insetPadding: const EdgeInsets.all(24),
-          backgroundColor: const Color(0xFF1D1F24),
+          insetPadding: const EdgeInsets.all(16),
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minWidth: 280),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _peer(),
-                  const SizedBox(height: 18),
+                  _peer(context),
+                  if (stage != null) Flexible(child: stage!),
+                  const SizedBox(height: 12),
                   Text(status,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontSize: 14,
-                          color: const Color(0xBFFFFFFF),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontFeatures: statusFontFeatures)),
-                  const SizedBox(height: 18),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    spacing: 16,
-                    children: actions,
-                  ),
+                  if (notice != null)
+                    Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: _notice()),
+                  const SizedBox(height: 12),
+                  Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: actions),
                 ],
               ),
             ),
@@ -102,14 +120,17 @@ class CallModalCard extends StatelessWidget {
     );
   }
 
-  Widget _peer() => InkWell(
+  Widget _notice() => Text(notice!,
+      style: const TextStyle(color: MoshColors.warn), softWrap: true);
+
+  Widget _peer(BuildContext context) => InkWell(
         onTap: onOpenConversation,
         child: Text(peer,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 18,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w700)),
       );
 }

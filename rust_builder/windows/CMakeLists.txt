@@ -10,6 +10,7 @@ project(${PROJECT_NAME} LANGUAGES CXX)
 
 include("../cargokit/cmake/cargokit.cmake")
 apply_cargokit(${PROJECT_NAME} ../../../../../../mosh-core mosh_core "")
+include("../native-media.cmake")
 
 # List of absolute paths to libraries that should be bundled with the plugin.
 # This list could contain prebuilt libraries, or libraries created by an
@@ -24,5 +25,11 @@ apply_cargokit(${PROJECT_NAME} ../../../../../../mosh-core mosh_core "")
 # the same way, so both sides agree on "mosh_core.dll".
 set(mosh_core_bundled_libraries
   "${${PROJECT_NAME}_cargokit_lib}"
+  "${MOSH_NATIVE_ENGINE}"
+  "${MOSH_NATIVE_CAPTURE}"
+  "${MOSH_NATIVE_DIRECTORY}/licenses/THIRD_PARTY_NOTICES.md"
+  "${MOSH_NATIVE_DIRECTORY}/licenses/AGPL-3.0.txt"
+  "${MOSH_NATIVE_DIRECTORY}/licenses/GPL-3.0.txt"
+  "${MOSH_NATIVE_DIRECTORY}/licenses/Apache-2.0.txt"
   PARENT_SCOPE
 )

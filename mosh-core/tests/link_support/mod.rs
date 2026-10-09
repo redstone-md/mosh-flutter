@@ -126,7 +126,20 @@ impl Peer {
         self.stdin.flush().unwrap();
         self.replies
             .recv_timeout(Duration::from_secs(30))
-            .expect("real peer must answer")
+            .unwrap_or_else(|error| {
+                let deadline = Instant::now() + Duration::from_millis(250);
+                let status = loop {
+                    let status = self.child.try_wait();
+                    if !matches!(status, Ok(None)) || Instant::now() >= deadline {
+                        break status;
+                    }
+                    std::thread::sleep(Duration::from_millis(10));
+                };
+                panic!(
+                    "peer action {} failed: {error}; process status: {:?}",
+                    command["action"], status
+                )
+            })
     }
 
     pub fn connect(&mut self, other: &Self) {
@@ -172,7 +185,10 @@ impl Peer {
         if self.child.try_wait().ok().flatten().is_none() {
             let _ = writeln!(self.stdin, "{}", json!({"action":"shutdown"}));
             let _ = self.stdin.flush();
-            self.child.wait().unwrap();
+            let status = self.child.wait().unwrap();
+            if !status.success() {
+                eprintln!("peer exited unsuccessfully: {status}");
+            }
         }
     }
 
@@ -186,14 +202,20 @@ impl Peer {
 fn read_replies(stdout: ChildStdout) -> mpsc::Receiver<Value> {
     let (send, replies) = mpsc::channel();
     std::thread::spawn(move || {
-        for line in BufReader::new(stdout)
-            .lines()
-            .map_while(std::result::Result::ok)
-        {
+        for line in BufReader::new(stdout).lines() {
+            let line = match line {
+                Ok(line) => line,
+                Err(error) => {
+                    eprintln!("peer stdout read failed: {error:?}");
+                    break;
+                }
+            };
             if let Some(json) = line.strip_prefix(OUTPUT_PREFIX) {
                 if send.send(serde_json::from_str(json).unwrap()).is_err() {
                     break;
                 }
+            } else if !line.is_empty() {
+                eprintln!("peer: {line}");
             }
         }
     });

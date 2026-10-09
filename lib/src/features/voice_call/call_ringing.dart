@@ -17,6 +17,10 @@ class CallRinging {
   bool _timedOut = false;
 
   void update(CallDialog dialog, {required bool busy}) {
+    if (dialog is IncomingCallDialog && dialog.pending.answerPending) {
+      dispose();
+      return;
+    }
     if (dialog is! IncomingCallDialog && dialog is! OutgoingCallDialog) {
       dispose();
       return;

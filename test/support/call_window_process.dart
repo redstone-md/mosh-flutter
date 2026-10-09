@@ -4,12 +4,16 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/call_window_pipe.dart';
+import 'package:mosh/src/features/voice_call/call_video_frame.dart';
+import 'package:mosh/src/features/voice_call/call_window_frame_channel.dart';
+import 'package:mosh/src/features/voice_call/call_window_input.dart';
 
 /// Process fixture at the inherited stdio boundary; no platform plugin needed.
 class CallWindowProcess extends Fake implements Process {
   CallWindowProcess(
       {this.failClose = false,
       this.ignoreTerminate = false,
+      this.ackFrames = true,
       bool failInputClose = false}) {
     stdin = _Input(_receive, failInputClose);
     _emit({'id': 1, 'method': 'call-ready'});
@@ -17,6 +21,12 @@ class CallWindowProcess extends Fake implements Process {
 
   final bool failClose;
   final bool ignoreTerminate;
+  final bool ackFrames;
+  final frames = <CallVideoFrame>[];
+  final _frameEvents = StreamController<CallVideoFrame>.broadcast();
+  Stream<CallVideoFrame> get frameEvents => _frameEvents.stream;
+  Socket? _frameSocket;
+  CallWindowInput? _frameInput;
   final commands = <String>[];
   final _output = StreamController<List<int>>();
   final _exited = Completer<int>();
@@ -41,6 +51,10 @@ class CallWindowProcess extends Fake implements Process {
     final method = message['method'] as String?;
     if (method == null) return;
     commands.add(method);
+    if (method == 'call-frame-channel') {
+      unawaited(_openFrames(message));
+      return;
+    }
     _emit({
       'id': message['id'],
       if (method == 'call-close' && failClose) 'error': true
@@ -51,8 +65,37 @@ class CallWindowProcess extends Fake implements Process {
   void _exit() {
     if (_exited.isCompleted) return;
     _exited.complete(0);
+    unawaited(_frameEvents.close());
+    _frameSocket?.destroy();
+    unawaited(_frameInput?.dispose());
     unawaited(_output.close());
   }
+
+  void _receiveFrame(CallVideoFrame frame) {
+    frames.add(frame);
+    _frameEvents.add(frame);
+    if (ackFrames) acknowledgeFrame(frame);
+  }
+
+  Future<void> _openFrames(Map message) async {
+    final descriptor = message['arguments'] as Map;
+    _frameSocket = await CallWindowFrameChannel.connect(
+        descriptor['port'] as int, descriptor['token'] as String);
+    _frameInput = CallWindowInput(_frameSocket!, _receiveFrame);
+    unawaited(_frameInput!.lines.drain<void>().catchError((Object _) {}));
+    _emit({'id': message['id']});
+  }
+
+  void acknowledgeFrame(CallVideoFrame frame) => _emit({
+        'id': 100 + frames.length,
+        'method': 'call-frame-ack',
+        'arguments': {
+          'sessionId': frame.sessionId,
+          'callId': frame.callId,
+          'sequence': frame.sequence,
+          'local': frame.local,
+        },
+      });
 
   @override
   bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {

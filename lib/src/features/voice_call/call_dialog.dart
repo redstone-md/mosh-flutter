@@ -14,6 +14,7 @@ sealed class CallDialog {
   /// learns it. The renderer decides the fallback, because only it has
   /// localizations.
   String get peerName;
+  String? get supersededCallId => null;
 }
 
 /// No call at all: the session's snapshot carries no call, so the UI owes
@@ -49,6 +50,8 @@ final class IncomingCallDialog extends CallDialog {
 
   @override
   String get callId => pending.callId;
+  @override
+  String? get supersededCallId => pending.supersededCallId;
 
   @override
   bool operator ==(Object other) =>
@@ -75,6 +78,8 @@ final class OutgoingCallDialog extends CallDialog {
 
   @override
   String get callId => call.callId;
+  @override
+  String? get supersededCallId => call.supersededCallId;
 
   @override
   bool operator ==(Object other) =>
@@ -101,6 +106,8 @@ final class ActiveCallDialog extends CallDialog {
 
   @override
   String get callId => active.callId;
+  @override
+  String? get supersededCallId => active.supersededCallId;
 
   @override
   bool operator ==(Object other) =>

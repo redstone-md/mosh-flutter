@@ -90,6 +90,8 @@ install(CODE "
 
 set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/data")
 set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib")
+install(DIRECTORY "${mosh_core_media_licenses}/" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}/native-media-licenses" COMPONENT Runtime)
+install(PROGRAMS "${mosh_core_capture_program}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}" COMPONENT Runtime)
 
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)

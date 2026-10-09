@@ -15,6 +15,7 @@ import 'api/conversation/names.dart';
 import 'api/conversation_bridge.dart';
 import 'api/device_link.dart';
 import 'api/diagnostics.dart';
+import 'api/native_call.dart';
 import 'api/network.dart';
 import 'api/org.dart';
 import 'api/private_dm.dart';
@@ -38,6 +39,7 @@ import 'frb_generated.dart';
 import 'message_deletion/origin.dart';
 import 'message_deletion/types.dart';
 import 'moss_runtime.dart';
+import 'native_call/types.dart';
 import 'network_inventory.dart';
 import 'openmls_crypto.dart';
 import 'org_runtime.dart';
@@ -194,6 +196,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       dynamic raw);
 
   @protected
+  CallAvailability dco_decode_box_autoadd_call_availability(dynamic raw);
+
+  @protected
   CallEvent dco_decode_box_autoadd_call_event(dynamic raw);
 
   @protected
@@ -224,6 +229,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DmHistorySyncState dco_decode_box_autoadd_dm_history_sync_state(dynamic raw);
+
+  @protected
+  Frame dco_decode_box_autoadd_frame(dynamic raw);
 
   @protected
   GroupNameChanged dco_decode_box_autoadd_group_name_changed(dynamic raw);
@@ -267,6 +275,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingCall dco_decode_box_autoadd_pending_call(dynamic raw);
 
   @protected
+  Snapshot dco_decode_box_autoadd_snapshot(dynamic raw);
+
+  @protected
   StartSessionRequest dco_decode_box_autoadd_start_session_request(dynamic raw);
 
   @protected
@@ -289,6 +300,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BridgeConversationRef dco_decode_bridge_conversation_ref(dynamic raw);
+
+  @protected
+  CallAvailability dco_decode_call_availability(dynamic raw);
 
   @protected
   CallEvent dco_decode_call_event(dynamic raw);
@@ -343,6 +357,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeletionSummary dco_decode_deletion_summary(dynamic raw);
 
   @protected
+  Device dco_decode_device(dynamic raw);
+
+  @protected
   DeviceDescriptor dco_decode_device_descriptor(dynamic raw);
 
   @protected
@@ -377,6 +394,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DmSessionState dco_decode_dm_session_state(dynamic raw);
+
+  @protected
+  double dco_decode_f_64(dynamic raw);
+
+  @protected
+  Frame dco_decode_frame(dynamic raw);
 
   @protected
   GroupCreated dco_decode_group_created(dynamic raw);
@@ -431,6 +454,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ChatNameEntry> dco_decode_list_chat_name_entry(dynamic raw);
+
+  @protected
+  List<Device> dco_decode_list_device(dynamic raw);
 
   @protected
   List<DeviceDescriptor> dco_decode_list_device_descriptor(dynamic raw);
@@ -543,6 +569,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
 
   @protected
+  CallAvailability? dco_decode_opt_box_autoadd_call_availability(dynamic raw);
+
+  @protected
   CallEvent? dco_decode_opt_box_autoadd_call_event(dynamic raw);
 
   @protected
@@ -571,6 +600,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DmHistorySyncState? dco_decode_opt_box_autoadd_dm_history_sync_state(
       dynamic raw);
+
+  @protected
+  Frame? dco_decode_opt_box_autoadd_frame(dynamic raw);
 
   @protected
   GroupNameChanged? dco_decode_opt_box_autoadd_group_name_changed(dynamic raw);
@@ -604,6 +636,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PendingCall? dco_decode_opt_box_autoadd_pending_call(dynamic raw);
+
+  @protected
+  Snapshot? dco_decode_opt_box_autoadd_snapshot(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -655,6 +690,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SessionSnapshot dco_decode_session_snapshot(dynamic raw);
+
+  @protected
+  Snapshot dco_decode_snapshot(dynamic raw);
 
   @protected
   SnapshotEvent dco_decode_snapshot_event(dynamic raw);
@@ -817,6 +855,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  CallAvailability sse_decode_box_autoadd_call_availability(
+      SseDeserializer deserializer);
+
+  @protected
   CallEvent sse_decode_box_autoadd_call_event(SseDeserializer deserializer);
 
   @protected
@@ -854,6 +896,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DmHistorySyncState sse_decode_box_autoadd_dm_history_sync_state(
       SseDeserializer deserializer);
+
+  @protected
+  Frame sse_decode_box_autoadd_frame(SseDeserializer deserializer);
 
   @protected
   GroupNameChanged sse_decode_box_autoadd_group_name_changed(
@@ -906,6 +951,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingCall sse_decode_box_autoadd_pending_call(SseDeserializer deserializer);
 
   @protected
+  Snapshot sse_decode_box_autoadd_snapshot(SseDeserializer deserializer);
+
+  @protected
   StartSessionRequest sse_decode_box_autoadd_start_session_request(
       SseDeserializer deserializer);
 
@@ -933,6 +981,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   BridgeConversationRef sse_decode_bridge_conversation_ref(
       SseDeserializer deserializer);
+
+  @protected
+  CallAvailability sse_decode_call_availability(SseDeserializer deserializer);
 
   @protected
   CallEvent sse_decode_call_event(SseDeserializer deserializer);
@@ -991,6 +1042,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeletionSummary sse_decode_deletion_summary(SseDeserializer deserializer);
 
   @protected
+  Device sse_decode_device(SseDeserializer deserializer);
+
+  @protected
   DeviceDescriptor sse_decode_device_descriptor(SseDeserializer deserializer);
 
   @protected
@@ -1031,6 +1085,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DmSessionState sse_decode_dm_session_state(SseDeserializer deserializer);
+
+  @protected
+  double sse_decode_f_64(SseDeserializer deserializer);
+
+  @protected
+  Frame sse_decode_frame(SseDeserializer deserializer);
 
   @protected
   GroupCreated sse_decode_group_created(SseDeserializer deserializer);
@@ -1092,6 +1152,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   List<ChatNameEntry> sse_decode_list_chat_name_entry(
       SseDeserializer deserializer);
+
+  @protected
+  List<Device> sse_decode_list_device(SseDeserializer deserializer);
 
   @protected
   List<DeviceDescriptor> sse_decode_list_device_descriptor(
@@ -1222,6 +1285,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  CallAvailability? sse_decode_opt_box_autoadd_call_availability(
+      SseDeserializer deserializer);
+
+  @protected
   CallEvent? sse_decode_opt_box_autoadd_call_event(
       SseDeserializer deserializer);
 
@@ -1257,6 +1324,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DmHistorySyncState? sse_decode_opt_box_autoadd_dm_history_sync_state(
       SseDeserializer deserializer);
+
+  @protected
+  Frame? sse_decode_opt_box_autoadd_frame(SseDeserializer deserializer);
 
   @protected
   GroupNameChanged? sse_decode_opt_box_autoadd_group_name_changed(
@@ -1296,6 +1366,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   PendingCall? sse_decode_opt_box_autoadd_pending_call(
       SseDeserializer deserializer);
+
+  @protected
+  Snapshot? sse_decode_opt_box_autoadd_snapshot(SseDeserializer deserializer);
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
@@ -1353,6 +1426,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SessionSnapshot sse_decode_session_snapshot(SseDeserializer deserializer);
+
+  @protected
+  Snapshot sse_decode_snapshot(SseDeserializer deserializer);
 
   @protected
   SnapshotEvent sse_decode_snapshot_event(SseDeserializer deserializer);
@@ -1522,6 +1598,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       BridgeConversationRef self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_call_availability(
+      CallAvailability self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_call_event(
       CallEvent self, SseSerializer serializer);
 
@@ -1560,6 +1640,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_dm_history_sync_state(
       DmHistorySyncState self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_frame(Frame self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_group_name_changed(
@@ -1614,6 +1697,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       PendingCall self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_snapshot(Snapshot self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_start_session_request(
       StartSessionRequest self, SseSerializer serializer);
 
@@ -1642,6 +1728,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_bridge_conversation_ref(
       BridgeConversationRef self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_call_availability(
+      CallAvailability self, SseSerializer serializer);
 
   @protected
   void sse_encode_call_event(CallEvent self, SseSerializer serializer);
@@ -1707,6 +1797,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       DeletionSummary self, SseSerializer serializer);
 
   @protected
+  void sse_encode_device(Device self, SseSerializer serializer);
+
+  @protected
   void sse_encode_device_descriptor(
       DeviceDescriptor self, SseSerializer serializer);
 
@@ -1752,6 +1845,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_dm_session_state(
       DmSessionState self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_f_64(double self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frame(Frame self, SseSerializer serializer);
 
   @protected
   void sse_encode_group_created(GroupCreated self, SseSerializer serializer);
@@ -1818,6 +1917,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_chat_name_entry(
       List<ChatNameEntry> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_device(List<Device> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_device_descriptor(
@@ -1954,6 +2056,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_call_availability(
+      CallAvailability? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_call_event(
       CallEvent? self, SseSerializer serializer);
 
@@ -1988,6 +2094,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_dm_history_sync_state(
       DmHistorySyncState? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_frame(Frame? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_group_name_changed(
@@ -2028,6 +2137,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_pending_call(
       PendingCall? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_snapshot(
+      Snapshot? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
@@ -2087,6 +2200,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_session_snapshot(
       SessionSnapshot self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_snapshot(Snapshot self, SseSerializer serializer);
 
   @protected
   void sse_encode_snapshot_event(SnapshotEvent self, SseSerializer serializer);

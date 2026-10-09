@@ -25,6 +25,7 @@ pub mod diagnostics;
 /// `set_app_data_dir`). Borrowed by every runtime facade.
 pub mod shared_runtime;
 
+pub mod native_call;
 /// Facade for the `private_dm_*` family of commands.
 pub mod private_dm;
 

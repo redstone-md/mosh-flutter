@@ -7,7 +7,8 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import '../../support/voice_call_fakes.dart';
 
 const _incoming = IncomingCallDialog(
-    pending: PendingCall(callId: 'first', fromDevice: 'Alice'),
+    pending:
+        PendingCall(answerPending: false, callId: 'first', fromDevice: 'Alice'),
     peerName: 'Alice');
 const _outgoing =
     OutgoingCallDialog(call: OutgoingCall(callId: 'second'), peerName: 'Bob');

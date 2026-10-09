@@ -38,6 +38,7 @@ class _FailingRingtonePlayer implements RingtonePlayer {
 }
 
 PendingCall _pending() => const PendingCall(
+      answerPending: false,
       callId: 'call-1',
       fromDevice: 'peer-device',
     );

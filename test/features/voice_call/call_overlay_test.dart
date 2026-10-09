@@ -233,6 +233,7 @@ void main() {
           .toggleMute();
       await tester.pump();
       expect(find.byIcon(Icons.mic_off), findsOneWidget);
+      await tester.pumpAndSettle();
       expect(find.byIcon(Icons.mic), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();

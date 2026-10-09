@@ -1,0 +1,9 @@
+{
+  "name": "ringrtc",
+  "version": "2.72.1",
+  "upstreamCommit": "331d601894f931337d24e9d56c68b94d28fc4555",
+  "url": "https://codeload.github.com/signalapp/ringrtc/tar.gz/331d601894f931337d24e9d56c68b94d28fc4555",
+  "archiveName": "ringrtc-331d601894f931337d24e9d56c68b94d28fc4555.tar.gz",
+  "archiveSha256": "bbf9b42ef1f786fb1fca97348e001add2e1433f4658c690a00a63ed0552acb3c",
+  "sourceSha256": "d5a5ee3135857b190649fbdab75a8c6dbf7d5280e875bd0f3610e52b029b5e8f"
+}

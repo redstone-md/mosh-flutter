@@ -50,7 +50,7 @@ try {
     const trackerUrl = `http://127.0.0.1:${tracker.http.address().port}/announce`;
     console.log(`Moss test discovery: ${trackerUrl}`);
     const test = testCommand();
-    const voiceUiDataDir = process.argv[2] === "--voice-ui"
+    const voiceUiDataDir = ["--voice-ui", "--native-call-ui"].includes(process.argv[2])
       ? await mkdtemp(path.join(os.tmpdir(), "mosh-call-ui-")) : null;
     try {
       const status = await run(test.command, test.args, {
@@ -75,11 +75,12 @@ try {
 
 function testCommand() {
   const args = process.argv.slice(2);
-  if (args[0] === "--voice-ui") {
-    if (args.length !== 1) throw new Error("--voice-ui does not accept additional arguments");
+  if (["--voice-ui", "--native-call-ui"].includes(args[0])) {
+    if (args.length !== 1) throw new Error("Call UI tests do not accept additional arguments");
     const platform = { win32: "windows", darwin: "macos", linux: "linux" }[process.platform];
     if (!platform) throw new Error("Voice UI tests require a desktop host");
-    const testArgs = ["drive", "--target", "integration_test/voice_call_test.dart", "--driver", "test_driver/integration.dart", "-d", platform, "--debug", "--no-start-paused"];
+    const target = args[0] === "--native-call-ui" ? "integration_test/native_call_test.dart" : "integration_test/voice_call_test.dart";
+    const testArgs = ["drive", "--target", target, "--driver", "test_driver/integration.dart", "-d", platform, "--debug", "--no-start-paused"];
     return process.platform === "win32"
       ? { command: "cmd.exe", args: ["/d", "/s", "/c", `flutter ${testArgs.join(" ")}`] }
       : { command: "flutter", args: testArgs };

@@ -153,6 +153,83 @@ const TEST_MESH: &str = "mosh-runtime-smoke";
 const TEST_CHANNEL: &str = "mls-control";
 const TEST_PAYLOAD: &[u8] = b"mosh-runtime-payload";
 
+#[test]
+fn directed_packets_surface_a_refused_target() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let runtime = Arc::new(MossFfiRuntime::load_default().unwrap());
+    let node = runtime
+        .init_node("directed-refusal", &node_config(0, None))
+        .unwrap();
+    assert!(matches!(
+        node.send_to_peer("not-a-peer", b"sealed-media"),
+        Err(MossFfiError::Operation {
+            name: "send_to_peer",
+            code: -11
+        })
+    ));
+}
+
+#[test]
+fn directed_packet_capabilities_fail_explicitly_when_unavailable() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut runtime = MossFfiRuntime::load_default().unwrap();
+    runtime.send_to_peer = None;
+    runtime.set_packet_callback = None;
+    let node = Arc::new(runtime)
+        .init_node("missing-packets", &node_config(0, None))
+        .unwrap();
+    assert!(matches!(
+        node.send_to_peer("peer", b"bytes"),
+        Err(MossFfiError::Symbol(_))
+    ));
+    assert!(matches!(
+        node.set_packet_callback(),
+        Err(MossFfiError::Symbol(_))
+    ));
+}
+
+#[test]
+fn directed_packet_target_rejects_nul_before_crossing_ffi() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let runtime = Arc::new(MossFfiRuntime::load_default().unwrap());
+    let node = runtime
+        .init_node("invalid-packet-peer", &node_config(0, None))
+        .unwrap();
+    assert!(matches!(
+        node.send_to_peer("peer\0suffix", b"bytes"),
+        Err(MossFfiError::InvalidCString(_))
+    ));
+}
+
+unsafe extern "C" fn deliver_empty_packet(
+    _handle: MossHandle,
+    callback: Option<PacketCallback>,
+) -> i32 {
+    // SAFETY: the native ABI permits a null buffer for a zero-length packet;
+    // the 32-byte sender stays alive throughout this synchronous callback.
+    unsafe { callback.unwrap()([0xAB; 32].as_ptr(), std::ptr::null(), 0) };
+    MOSS_OK
+}
+
+#[test]
+fn directed_callback_preserves_a_valid_empty_native_packet() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut runtime = MossFfiRuntime::load_default().unwrap();
+    runtime.set_packet_callback = Some(deliver_empty_packet);
+    let node = Arc::new(runtime)
+        .init_node("empty-packet", &node_config(0, None))
+        .unwrap();
+    drain_received_messages();
+    node.set_packet_callback().unwrap();
+    let messages = drain_received_messages();
+    assert_eq!(
+        messages.len(),
+        1,
+        "a valid empty buffer is still a delivered packet"
+    );
+    assert!(messages[0].payload.is_empty());
+}
+
 #[cfg(target_os = "windows")]
 const TEST_LIBRARY_NAME: &str = "moss.dll";
 #[cfg(target_os = "macos")]

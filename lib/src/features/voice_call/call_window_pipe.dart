@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 
 /// Duplex requests over inherited stdio. Only presentation and call commands
-/// cross this pipe; no listening port or runtime credentials are needed.
+/// cross this pipe. Bulk pixels use a separate authenticated presentation stream.
 class CallWindowPipe {
   CallWindowPipe(Stream<String> lines, this.write, {Future<void>? outputDone}) {
     _input =

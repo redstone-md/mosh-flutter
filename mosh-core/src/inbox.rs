@@ -36,6 +36,7 @@ struct Slot {
     /// None marks the tail that holds what no owner claimed.
     claim: Option<Claim>,
     queue: Vec<MossReceivedMessage>,
+    limits: Option<(usize, usize)>,
 }
 
 static SLOTS: Mutex<Vec<Slot>> = Mutex::new(Vec::new());
@@ -49,6 +50,7 @@ fn slots() -> std::sync::MutexGuard<'static, Vec<Slot>> {
         guard.push(Slot {
             claim: None,
             queue: Vec::new(),
+            limits: None,
         });
     }
     guard
@@ -67,6 +69,23 @@ pub fn register(claim: impl Fn(&str) -> bool + Send + Sync + 'static) -> Inbox {
     slots.push(Slot {
         claim: Some(Box::new(claim)),
         queue: Vec::new(),
+        limits: None,
+    });
+    Inbox(slots.len() - 1)
+}
+
+/// Media owners bound both queue depth and individual packet bytes.
+pub fn register_bounded(
+    claim: impl Fn(&str) -> bool + Send + Sync + 'static,
+    capacity: usize,
+    max_payload: usize,
+) -> Inbox {
+    assert!(capacity > 0 && max_payload > 0);
+    let mut slots = slots();
+    slots.push(Slot {
+        claim: Some(Box::new(claim)),
+        queue: Vec::new(),
+        limits: Some((capacity, max_payload)),
     });
     Inbox(slots.len() - 1)
 }
@@ -81,7 +100,18 @@ pub fn deliver(message: MossReceivedMessage) {
             .is_some_and(|claim| claim(&message.channel))
     });
     match owner {
-        Some(index) => slots[index].queue.push(message),
+        Some(index) => {
+            let slot = &mut slots[index];
+            if let Some((capacity, max_payload)) = slot.limits {
+                if message.payload.len() > max_payload {
+                    return;
+                }
+                if slot.queue.len() >= capacity {
+                    slot.queue.remove(0);
+                }
+            }
+            slot.queue.push(message);
+        }
         None => {
             let tail = &mut slots[0].queue;
             if tail.len() >= UNCLAIMED_CAP {
@@ -112,6 +142,26 @@ pub fn drain_all() -> Vec<MossReceivedMessage> {
 mod tests {
     use super::*;
     use crate::moss_ffi::MOSS_TEST_LOCK;
+
+    #[test]
+    fn media_queue_retains_fresh_packets_and_drops_oversized_payloads() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let media = register_bounded(|channel| channel == "test-bounded-media", 2, 3);
+        for payload in [b"a".as_slice(), b"b", b"oversize", b"c"] {
+            deliver(frame("test-bounded-media", payload));
+        }
+        let packets = media.drain();
+        assert_eq!(
+            packets
+                .iter()
+                .map(|packet| &packet.payload[..])
+                .collect::<Vec<_>>(),
+            [b"b", b"c"]
+        );
+        assert!(media.drain().is_empty());
+    }
 
     fn frame(channel: &str, payload: &[u8]) -> MossReceivedMessage {
         MossReceivedMessage {

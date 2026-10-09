@@ -40,6 +40,11 @@ pub(super) type MossSendStreamFn =
 pub(super) type StreamCallback = unsafe extern "C" fn(*const c_char, *const u8, u32);
 pub(super) type MossOnStreamFn =
     unsafe extern "C" fn(MossHandle, u32, Option<StreamCallback>) -> i32;
+pub(super) type MossSendToPeerFn =
+    unsafe extern "C" fn(MossHandle, *const c_char, *const u8, i32) -> i32;
+pub(super) type PacketCallback = unsafe extern "C" fn(*const u8, *const u8, u32);
+pub(super) type MossSetPacketCallbackFn =
+    unsafe extern "C" fn(MossHandle, Option<PacketCallback>) -> i32;
 
 pub(super) fn load_symbol<T: Copy>(library: &Library, name: &[u8]) -> Result<T, MossFfiError> {
     let symbol: Symbol<T> =

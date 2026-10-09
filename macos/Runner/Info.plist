@@ -28,6 +28,8 @@
 	<string>MainMenu</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Mosh uses the microphone for voice messages and calls.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Mosh uses the camera during calls when you turn video on.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

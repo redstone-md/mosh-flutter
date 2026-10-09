@@ -52,7 +52,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -222909067;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1823122811;
 
 // Section: executor
 
@@ -1202,6 +1202,47 @@ fn wire__crate__api__shared_runtime__ensure_shared_resources_impl(
         },
     )
 }
+fn wire__crate__api__native_call__frame_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "frame",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_session_id = <String>::sse_decode(&mut deserializer);
+            let api_call_id = <String>::sse_decode(&mut deserializer);
+            let api_local = <bool>::sse_decode(&mut deserializer);
+            let api_after = <u64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::native_call::frame(
+                        api_session_id,
+                        api_call_id,
+                        api_local,
+                        api_after,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__vpn__get_bind_interface_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -2049,6 +2090,47 @@ fn wire__crate__api__private_dm__poll_session_impl(
         },
     )
 }
+fn wire__crate__api__native_call__prepare_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "prepare",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_session_id = <String>::sse_decode(&mut deserializer);
+            let api_call_id = <String>::sse_decode(&mut deserializer);
+            let api_microphone = <bool>::sse_decode(&mut deserializer);
+            let api_camera = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::native_call::prepare(
+                        api_session_id,
+                        api_call_id,
+                        api_microphone,
+                        api_camera,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__private_dm__read_receipts_enabled_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -2566,6 +2648,55 @@ fn wire__crate__api__audio_devices__set_audio_devices_impl(
         },
     )
 }
+fn wire__crate__api__native_call__set_choices_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_choices",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_session_id = <String>::sse_decode(&mut deserializer);
+            let api_call_id = <String>::sse_decode(&mut deserializer);
+            let api_microphone = <bool>::sse_decode(&mut deserializer);
+            let api_microphone_allowed = <bool>::sse_decode(&mut deserializer);
+            let api_camera = <bool>::sse_decode(&mut deserializer);
+            let api_input = <Option<String>>::sse_decode(&mut deserializer);
+            let api_output = <Option<String>>::sse_decode(&mut deserializer);
+            let api_camera_id = <Option<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::native_call::set_choices(
+                        api_session_id,
+                        api_call_id,
+                        api_microphone,
+                        api_microphone_allowed,
+                        api_camera,
+                        api_input,
+                        api_output,
+                        api_camera_id,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__private_dm__set_history_dek_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -2727,6 +2858,40 @@ fn wire__crate__api__device_link__snapshot_impl(
                     Ok(output_ok)
                 })(
                 ))
+            }
+        },
+    )
+}
+fn wire__crate__api__native_call__snapshot_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "snapshot",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_session_id = <String>::sse_decode(&mut deserializer);
+            let api_call_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::native_call::snapshot(api_session_id, api_call_id)?;
+                    Ok(output_ok)
+                })())
             }
         },
     )
@@ -3326,12 +3491,14 @@ impl SseDecode for crate::private_dm_runtime::contracts::ActiveCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_callId = <String>::sse_decode(deserializer);
+        let mut var_supersededCallId = <Option<String>>::sse_decode(deserializer);
         let mut var_direction = <String>::sse_decode(deserializer);
         let mut var_keyB64 = <String>::sse_decode(deserializer);
         let mut var_noncePrefixB64 = <String>::sse_decode(deserializer);
         let mut var_startedAtMs = <u64>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::ActiveCall {
             call_id: var_callId,
+            superseded_call_id: var_supersededCallId,
             direction: var_direction,
             key_b64: var_keyB64,
             nonce_prefix_b64: var_noncePrefixB64,
@@ -3509,6 +3676,18 @@ impl SseDecode for crate::api::conversation::BridgeConversationRef {
         return crate::api::conversation::BridgeConversationRef {
             kind: var_kind,
             id: var_id,
+        };
+    }
+}
+
+impl SseDecode for crate::private_dm_runtime::contracts::CallAvailability {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::private_dm_runtime::contracts::CallAvailability::Busy,
+            1 => crate::private_dm_runtime::contracts::CallAvailability::Conflict,
+            _ => unreachable!("Invalid variant for CallAvailability: {}", inner),
         };
     }
 }
@@ -3823,6 +4002,20 @@ impl SseDecode for crate::message_deletion::types::DeletionSummary {
     }
 }
 
+impl SseDecode for crate::native_call::types::Device {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_stable = <bool>::sse_decode(deserializer);
+        return crate::native_call::types::Device {
+            id: var_id,
+            name: var_name,
+            stable: var_stable,
+        };
+    }
+}
+
 impl SseDecode for crate::device_link::types::DeviceDescriptor {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4020,6 +4213,37 @@ impl SseDecode for crate::private_dm_runtime::contracts::DmSessionState {
             1 => crate::private_dm_runtime::contracts::DmSessionState::Handshaking,
             2 => crate::private_dm_runtime::contracts::DmSessionState::Connected,
             _ => unreachable!("Invalid variant for DmSessionState: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for f64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_f64::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for crate::native_call::types::Frame {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_sessionId = <String>::sse_decode(deserializer);
+        let mut var_callId = <String>::sse_decode(deserializer);
+        let mut var_sequence = <u64>::sse_decode(deserializer);
+        let mut var_width = <u32>::sse_decode(deserializer);
+        let mut var_height = <u32>::sse_decode(deserializer);
+        let mut var_local = <bool>::sse_decode(deserializer);
+        let mut var_sourceAgeMs = <u32>::sse_decode(deserializer);
+        let mut var_pixels = <Vec<u8>>::sse_decode(deserializer);
+        return crate::native_call::types::Frame {
+            session_id: var_sessionId,
+            call_id: var_callId,
+            sequence: var_sequence,
+            width: var_width,
+            height: var_height,
+            local: var_local,
+            source_age_ms: var_sourceAgeMs,
+            pixels: var_pixels,
         };
     }
 }
@@ -4326,6 +4550,20 @@ impl SseDecode for Vec<crate::chat_names::types::ChatNameEntry> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::chat_names::types::ChatNameEntry>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::native_call::types::Device> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::native_call::types::Device>::sse_decode(
                 deserializer,
             ));
         }
@@ -4857,6 +5095,19 @@ impl SseDecode for Option<bool> {
     }
 }
 
+impl SseDecode for Option<crate::private_dm_runtime::contracts::CallAvailability> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::private_dm_runtime::contracts::CallAvailability>::sse_decode(deserializer),
+            );
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::private_dm_runtime::contracts::CallEvent> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4972,6 +5223,17 @@ impl SseDecode for Option<crate::private_dm_runtime::contracts::DmHistorySyncSta
                     deserializer,
                 ),
             );
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::native_call::types::Frame> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::native_call::types::Frame>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -5102,6 +5364,19 @@ impl SseDecode for Option<crate::private_dm_runtime::contracts::PendingCall> {
             return Some(
                 <crate::private_dm_runtime::contracts::PendingCall>::sse_decode(deserializer),
             );
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::native_call::types::Snapshot> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::native_call::types::Snapshot>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -5253,8 +5528,10 @@ impl SseDecode for crate::private_dm_runtime::contracts::OutgoingCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_callId = <String>::sse_decode(deserializer);
+        let mut var_supersededCallId = <Option<String>>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::OutgoingCall {
             call_id: var_callId,
+            superseded_call_id: var_supersededCallId,
         };
     }
 }
@@ -5290,10 +5567,14 @@ impl SseDecode for crate::private_dm_runtime::contracts::PendingCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_callId = <String>::sse_decode(deserializer);
+        let mut var_supersededCallId = <Option<String>>::sse_decode(deserializer);
         let mut var_fromDevice = <String>::sse_decode(deserializer);
+        let mut var_answerPending = <bool>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::PendingCall {
             call_id: var_callId,
+            superseded_call_id: var_supersededCallId,
             from_device: var_fromDevice,
+            answer_pending: var_answerPending,
         };
     }
 }
@@ -5344,6 +5625,9 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionListSnapshot {
 impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_callAvailability = <Option<
+            crate::private_dm_runtime::contracts::CallAvailability,
+        >>::sse_decode(deserializer);
         let mut var_deletionSummary =
             <Option<crate::message_deletion::types::DeletionSummary>>::sse_decode(deserializer);
         let mut var_deviceRevocation = <Option<
@@ -5384,6 +5668,7 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
         let mut var_activeCall =
             <Option<crate::private_dm_runtime::contracts::ActiveCall>>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::SessionSnapshot {
+            call_availability: var_callAvailability,
             deletion_summary: var_deletionSummary,
             device_revocation: var_deviceRevocation,
             history_sync: var_historySync,
@@ -5407,6 +5692,64 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
             peer_typing_until_ms: var_peerTypingUntilMs,
             outgoing_call: var_outgoingCall,
             active_call: var_activeCall,
+        };
+    }
+}
+
+impl SseDecode for crate::native_call::types::Snapshot {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_sessionId = <String>::sse_decode(deserializer);
+        let mut var_callId = <String>::sse_decode(deserializer);
+        let mut var_ready = <bool>::sse_decode(deserializer);
+        let mut var_microphone = <bool>::sse_decode(deserializer);
+        let mut var_microphoneRequested = <bool>::sse_decode(deserializer);
+        let mut var_microphoneAvailable = <bool>::sse_decode(deserializer);
+        let mut var_camera = <bool>::sse_decode(deserializer);
+        let mut var_cameraRequested = <bool>::sse_decode(deserializer);
+        let mut var_cameraStarting = <bool>::sse_decode(deserializer);
+        let mut var_cameraFailed = <bool>::sse_decode(deserializer);
+        let mut var_remoteCamera = <bool>::sse_decode(deserializer);
+        let mut var_reconnecting = <bool>::sse_decode(deserializer);
+        let mut var_failed = <bool>::sse_decode(deserializer);
+        let mut var_encoder = <Option<String>>::sse_decode(deserializer);
+        let mut var_codec = <Option<String>>::sse_decode(deserializer);
+        let mut var_videoWidth = <u32>::sse_decode(deserializer);
+        let mut var_videoHeight = <u32>::sse_decode(deserializer);
+        let mut var_videoFps = <f64>::sse_decode(deserializer);
+        let mut var_packetsDropped = <u64>::sse_decode(deserializer);
+        let mut var_inputs = <Vec<crate::native_call::types::Device>>::sse_decode(deserializer);
+        let mut var_outputs = <Vec<crate::native_call::types::Device>>::sse_decode(deserializer);
+        let mut var_cameras = <Vec<crate::native_call::types::Device>>::sse_decode(deserializer);
+        let mut var_input = <Option<String>>::sse_decode(deserializer);
+        let mut var_output = <Option<String>>::sse_decode(deserializer);
+        let mut var_cameraId = <Option<String>>::sse_decode(deserializer);
+        return crate::native_call::types::Snapshot {
+            session_id: var_sessionId,
+            call_id: var_callId,
+            ready: var_ready,
+            microphone: var_microphone,
+            microphone_requested: var_microphoneRequested,
+            microphone_available: var_microphoneAvailable,
+            camera: var_camera,
+            camera_requested: var_cameraRequested,
+            camera_starting: var_cameraStarting,
+            camera_failed: var_cameraFailed,
+            remote_camera: var_remoteCamera,
+            reconnecting: var_reconnecting,
+            failed: var_failed,
+            encoder: var_encoder,
+            codec: var_codec,
+            video_width: var_videoWidth,
+            video_height: var_videoHeight,
+            video_fps: var_videoFps,
+            packets_dropped: var_packetsDropped,
+            inputs: var_inputs,
+            outputs: var_outputs,
+            cameras: var_cameras,
+            input: var_input,
+            output: var_output,
+            camera_id: var_cameraId,
         };
     }
 }
@@ -5618,115 +5961,119 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        32 => wire__crate__api__vpn__get_bind_interface_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__vpn__get_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__org__group_invite_members_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__device_link__join_link_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__org__join_org_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__conversation__leave_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__org__leave_org_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__channel__list_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__org__list_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__private_group__list_impl(port, ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__network__list_interfaces_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__private_dm__list_pending_invites_impl(
+        32 => wire__crate__api__native_call__frame_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__vpn__get_bind_interface_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__vpn__get_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__org__group_invite_members_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__device_link__join_link_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__org__join_org_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__conversation__leave_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__org__leave_org_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__channel__list_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__org__list_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__private_group__list_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__network__list_interfaces_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__private_dm__list_pending_invites_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        47 => wire__crate__api__private_dm__list_sessions_impl(port, ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__conversation__mark_viewed_impl(port, ptr, rust_vec_len, data_len),
-        49 => {
+        48 => wire__crate__api__private_dm__list_sessions_impl(port, ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__conversation__mark_viewed_impl(port, ptr, rust_vec_len, data_len),
+        50 => {
             wire__crate__api__diagnostics__moss_library_info_impl(port, ptr, rust_vec_len, data_len)
         }
-        50 => wire__crate__api__diagnostics__native_runtime_status_impl(
+        51 => wire__crate__api__diagnostics__native_runtime_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        51 => wire__crate__api__private_dm__open_session_impl(port, ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__conversation__names__personal_names_impl(
+        52 => wire__crate__api__private_dm__open_session_impl(port, ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__conversation__names__personal_names_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        53 => wire__crate__api__channel__poll_impl(port, ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__org__poll_impl(port, ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__private_group__poll_impl(port, ptr, rust_vec_len, data_len),
-        56 => wire__crate__api__private_dm__poll_session_impl(port, ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__private_dm__read_receipts_enabled_impl(
+        54 => wire__crate__api__channel__poll_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__org__poll_impl(port, ptr, rust_vec_len, data_len),
+        56 => wire__crate__api__private_group__poll_impl(port, ptr, rust_vec_len, data_len),
+        57 => wire__crate__api__private_dm__poll_session_impl(port, ptr, rust_vec_len, data_len),
+        58 => wire__crate__api__native_call__prepare_impl(port, ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__private_dm__read_receipts_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        58 => wire__crate__api__conversation__names__rename_impl(port, ptr, rust_vec_len, data_len),
-        59 => wire__crate__api__private_dm__replace_invite_impl(port, ptr, rust_vec_len, data_len),
-        60 => wire__crate__api__conversation__names__reset_name_impl(
+        60 => wire__crate__api__conversation__names__rename_impl(port, ptr, rust_vec_len, data_len),
+        61 => wire__crate__api__private_dm__replace_invite_impl(port, ptr, rust_vec_len, data_len),
+        62 => wire__crate__api__conversation__names__reset_name_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        61 => wire__crate__api__conversation__retry_impl(port, ptr, rust_vec_len, data_len),
-        62 => wire__crate__api__device_link__revoke_impl(port, ptr, rust_vec_len, data_len),
-        63 => wire__crate__api__conversation__send_impl(port, ptr, rust_vec_len, data_len),
-        64 => {
+        63 => wire__crate__api__conversation__retry_impl(port, ptr, rust_vec_len, data_len),
+        64 => wire__crate__api__device_link__revoke_impl(port, ptr, rust_vec_len, data_len),
+        65 => wire__crate__api__conversation__send_impl(port, ptr, rust_vec_len, data_len),
+        66 => {
             wire__crate__api__conversation__send_attachment_impl(port, ptr, rust_vec_len, data_len)
         }
-        65 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        66 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        67 => {
+        67 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        68 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        69 => {
             wire__crate__api__private_group__send_dm_offer_impl(port, ptr, rust_vec_len, data_len)
         }
-        68 => {
+        70 => {
             wire__crate__api__private_dm__set_app_data_dir_impl(port, ptr, rust_vec_len, data_len)
         }
-        69 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
+        71 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        71 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
-        72 => wire__crate__api__shared_runtime__set_history_dek_impl(
+        73 => wire__crate__api__native_call__set_choices_impl(port, ptr, rust_vec_len, data_len),
+        74 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
+        75 => wire__crate__api__shared_runtime__set_history_dek_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        73 => wire__crate__api__private_dm__set_read_receipts_enabled_impl(
+        76 => wire__crate__api__private_dm__set_read_receipts_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        74 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
-        75 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        76 => wire__crate__api__diagnostics__start_panic_reporting_impl(
+        77 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        78 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        79 => wire__crate__api__native_call__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        80 => wire__crate__api__diagnostics__start_panic_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        77 => wire__crate__api__diagnostics__stop_panic_reporting_impl(
+        81 => wire__crate__api__diagnostics__stop_panic_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        78 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
+        82 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        79 => wire__crate__api__conversation__typing_signal_impl(port, ptr, rust_vec_len, data_len),
+        83 => wire__crate__api__conversation__typing_signal_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -5747,41 +6094,41 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        45 => {
+        46 => {
             wire__crate__api__audio_devices__list_output_devices_impl(ptr, rust_vec_len, data_len)
         }
-        70 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
-        80 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
+        72 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
+        84 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        81 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
+        85 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        82 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
+        86 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        83 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
+        87 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        84 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
+        88 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        85 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
+        89 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        86 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
+        90 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
@@ -5883,6 +6230,7 @@ impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::Act
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.call_id.into_into_dart().into_dart(),
+            self.superseded_call_id.into_into_dart().into_dart(),
             self.direction.into_into_dart().into_dart(),
             self.key_b64.into_into_dart().into_dart(),
             self.nonce_prefix_b64.into_into_dart().into_dart(),
@@ -6132,6 +6480,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::conversation::BridgeConversat
     for crate::api::conversation::BridgeConversationRef
 {
     fn into_into_dart(self) -> crate::api::conversation::BridgeConversationRef {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::CallAvailability {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Busy => 0.into_dart(),
+            Self::Conflict => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::private_dm_runtime::contracts::CallAvailability
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::CallAvailability>
+    for crate::private_dm_runtime::contracts::CallAvailability
+{
+    fn into_into_dart(self) -> crate::private_dm_runtime::contracts::CallAvailability {
         self
     }
 }
@@ -6540,6 +6909,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::message_deletion::types::DeletionS
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::native_call::types::Device {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.stable.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::native_call::types::Device
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::native_call::types::Device>
+    for crate::native_call::types::Device
+{
+    fn into_into_dart(self) -> crate::native_call::types::Device {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::device_link::types::DeviceDescriptor {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -6824,6 +7215,33 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::DmS
     for crate::private_dm_runtime::contracts::DmSessionState
 {
     fn into_into_dart(self) -> crate::private_dm_runtime::contracts::DmSessionState {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::native_call::types::Frame {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.session_id.into_into_dart().into_dart(),
+            self.call_id.into_into_dart().into_dart(),
+            self.sequence.into_into_dart().into_dart(),
+            self.width.into_into_dart().into_dart(),
+            self.height.into_into_dart().into_dart(),
+            self.local.into_into_dart().into_dart(),
+            self.source_age_ms.into_into_dart().into_dart(),
+            self.pixels.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::native_call::types::Frame
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::native_call::types::Frame>
+    for crate::native_call::types::Frame
+{
+    fn into_into_dart(self) -> crate::native_call::types::Frame {
         self
     }
 }
@@ -7486,7 +7904,11 @@ impl flutter_rust_bridge::IntoIntoDart<crate::org_runtime::OrgSnapshot>
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::OutgoingCall {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.call_id.into_into_dart().into_dart()].into_dart()
+        [
+            self.call_id.into_into_dart().into_dart(),
+            self.superseded_call_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
@@ -7549,7 +7971,9 @@ impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::Pen
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.call_id.into_into_dart().into_dart(),
+            self.superseded_call_id.into_into_dart().into_dart(),
             self.from_device.into_into_dart().into_dart(),
+            self.answer_pending.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -7632,6 +8056,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::Ses
 impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::SessionSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.call_availability.into_into_dart().into_dart(),
             self.deletion_summary.into_into_dart().into_dart(),
             self.device_revocation.into_into_dart().into_dart(),
             self.history_sync.into_into_dart().into_dart(),
@@ -7667,6 +8092,50 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::Ses
     for crate::private_dm_runtime::contracts::SessionSnapshot
 {
     fn into_into_dart(self) -> crate::private_dm_runtime::contracts::SessionSnapshot {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::native_call::types::Snapshot {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.session_id.into_into_dart().into_dart(),
+            self.call_id.into_into_dart().into_dart(),
+            self.ready.into_into_dart().into_dart(),
+            self.microphone.into_into_dart().into_dart(),
+            self.microphone_requested.into_into_dart().into_dart(),
+            self.microphone_available.into_into_dart().into_dart(),
+            self.camera.into_into_dart().into_dart(),
+            self.camera_requested.into_into_dart().into_dart(),
+            self.camera_starting.into_into_dart().into_dart(),
+            self.camera_failed.into_into_dart().into_dart(),
+            self.remote_camera.into_into_dart().into_dart(),
+            self.reconnecting.into_into_dart().into_dart(),
+            self.failed.into_into_dart().into_dart(),
+            self.encoder.into_into_dart().into_dart(),
+            self.codec.into_into_dart().into_dart(),
+            self.video_width.into_into_dart().into_dart(),
+            self.video_height.into_into_dart().into_dart(),
+            self.video_fps.into_into_dart().into_dart(),
+            self.packets_dropped.into_into_dart().into_dart(),
+            self.inputs.into_into_dart().into_dart(),
+            self.outputs.into_into_dart().into_dart(),
+            self.cameras.into_into_dart().into_dart(),
+            self.input.into_into_dart().into_dart(),
+            self.output.into_into_dart().into_dart(),
+            self.camera_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::native_call::types::Snapshot
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::native_call::types::Snapshot>
+    for crate::native_call::types::Snapshot
+{
+    fn into_into_dart(self) -> crate::native_call::types::Snapshot {
         self
     }
 }
@@ -7918,6 +8387,7 @@ impl SseEncode for crate::private_dm_runtime::contracts::ActiveCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.call_id, serializer);
+        <Option<String>>::sse_encode(self.superseded_call_id, serializer);
         <String>::sse_encode(self.direction, serializer);
         <String>::sse_encode(self.key_b64, serializer);
         <String>::sse_encode(self.nonce_prefix_b64, serializer);
@@ -8056,6 +8526,22 @@ impl SseEncode for crate::api::conversation::BridgeConversationRef {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <crate::api::conversation::BridgeConversationKind>::sse_encode(self.kind, serializer);
         <String>::sse_encode(self.id, serializer);
+    }
+}
+
+impl SseEncode for crate::private_dm_runtime::contracts::CallAvailability {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::private_dm_runtime::contracts::CallAvailability::Busy => 0,
+                crate::private_dm_runtime::contracts::CallAvailability::Conflict => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -8300,6 +8786,15 @@ impl SseEncode for crate::message_deletion::types::DeletionSummary {
     }
 }
 
+impl SseEncode for crate::native_call::types::Device {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <bool>::sse_encode(self.stable, serializer);
+    }
+}
+
 impl SseEncode for crate::device_link::types::DeviceDescriptor {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -8490,6 +8985,27 @@ impl SseEncode for crate::private_dm_runtime::contracts::DmSessionState {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for f64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_f64::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for crate::native_call::types::Frame {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.session_id, serializer);
+        <String>::sse_encode(self.call_id, serializer);
+        <u64>::sse_encode(self.sequence, serializer);
+        <u32>::sse_encode(self.width, serializer);
+        <u32>::sse_encode(self.height, serializer);
+        <bool>::sse_encode(self.local, serializer);
+        <u32>::sse_encode(self.source_age_ms, serializer);
+        <Vec<u8>>::sse_encode(self.pixels, serializer);
     }
 }
 
@@ -8710,6 +9226,16 @@ impl SseEncode for Vec<crate::chat_names::types::ChatNameEntry> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::chat_names::types::ChatNameEntry>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::native_call::types::Device> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::native_call::types::Device>::sse_encode(item, serializer);
         }
     }
 }
@@ -9092,6 +9618,16 @@ impl SseEncode for Option<bool> {
     }
 }
 
+impl SseEncode for Option<crate::private_dm_runtime::contracts::CallAvailability> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::private_dm_runtime::contracts::CallAvailability>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::private_dm_runtime::contracts::CallEvent> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -9182,6 +9718,16 @@ impl SseEncode for Option<crate::private_dm_runtime::contracts::DmHistorySyncSta
             <crate::private_dm_runtime::contracts::DmHistorySyncState>::sse_encode(
                 value, serializer,
             );
+        }
+    }
+}
+
+impl SseEncode for Option<crate::native_call::types::Frame> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::native_call::types::Frame>::sse_encode(value, serializer);
         }
     }
 }
@@ -9286,6 +9832,16 @@ impl SseEncode for Option<crate::private_dm_runtime::contracts::PendingCall> {
     }
 }
 
+impl SseEncode for Option<crate::native_call::types::Snapshot> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::native_call::types::Snapshot>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -9386,6 +9942,7 @@ impl SseEncode for crate::private_dm_runtime::contracts::OutgoingCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.call_id, serializer);
+        <Option<String>>::sse_encode(self.superseded_call_id, serializer);
     }
 }
 
@@ -9419,7 +9976,9 @@ impl SseEncode for crate::private_dm_runtime::contracts::PendingCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.call_id, serializer);
+        <Option<String>>::sse_encode(self.superseded_call_id, serializer);
         <String>::sse_encode(self.from_device, serializer);
+        <bool>::sse_encode(self.answer_pending, serializer);
     }
 }
 
@@ -9456,6 +10015,10 @@ impl SseEncode for crate::private_dm_runtime::contracts::SessionListSnapshot {
 impl SseEncode for crate::private_dm_runtime::contracts::SessionSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::private_dm_runtime::contracts::CallAvailability>>::sse_encode(
+            self.call_availability,
+            serializer,
+        );
         <Option<crate::message_deletion::types::DeletionSummary>>::sse_encode(
             self.deletion_summary,
             serializer,
@@ -9509,6 +10072,37 @@ impl SseEncode for crate::private_dm_runtime::contracts::SessionSnapshot {
             self.active_call,
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::native_call::types::Snapshot {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.session_id, serializer);
+        <String>::sse_encode(self.call_id, serializer);
+        <bool>::sse_encode(self.ready, serializer);
+        <bool>::sse_encode(self.microphone, serializer);
+        <bool>::sse_encode(self.microphone_requested, serializer);
+        <bool>::sse_encode(self.microphone_available, serializer);
+        <bool>::sse_encode(self.camera, serializer);
+        <bool>::sse_encode(self.camera_requested, serializer);
+        <bool>::sse_encode(self.camera_starting, serializer);
+        <bool>::sse_encode(self.camera_failed, serializer);
+        <bool>::sse_encode(self.remote_camera, serializer);
+        <bool>::sse_encode(self.reconnecting, serializer);
+        <bool>::sse_encode(self.failed, serializer);
+        <Option<String>>::sse_encode(self.encoder, serializer);
+        <Option<String>>::sse_encode(self.codec, serializer);
+        <u32>::sse_encode(self.video_width, serializer);
+        <u32>::sse_encode(self.video_height, serializer);
+        <f64>::sse_encode(self.video_fps, serializer);
+        <u64>::sse_encode(self.packets_dropped, serializer);
+        <Vec<crate::native_call::types::Device>>::sse_encode(self.inputs, serializer);
+        <Vec<crate::native_call::types::Device>>::sse_encode(self.outputs, serializer);
+        <Vec<crate::native_call::types::Device>>::sse_encode(self.cameras, serializer);
+        <Option<String>>::sse_encode(self.input, serializer);
+        <Option<String>>::sse_encode(self.output, serializer);
+        <Option<String>>::sse_encode(self.camera_id, serializer);
     }
 }
 

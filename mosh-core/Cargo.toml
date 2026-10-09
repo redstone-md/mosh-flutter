@@ -10,6 +10,14 @@ publish = false
 [lib]
 crate-type = ["lib", "cdylib", "staticlib"]
 
+[features]
+native-media-tests = []
+
+[[bin]]
+name = "mosh-camera-test-driver"
+path = "tests/support/camera_test_driver.rs"
+required-features = ["native-media-tests"]
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

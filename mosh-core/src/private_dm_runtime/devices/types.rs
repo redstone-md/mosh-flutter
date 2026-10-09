@@ -137,6 +137,17 @@ pub(crate) struct DeviceMembership {
 }
 
 impl DeviceMembership {
+    pub(in crate::private_dm_runtime) fn call_own(&self, signer: &str) -> bool {
+        self.topology.own(signer)
+    }
+
+    pub(in crate::private_dm_runtime) fn call_peer(&self, signer: &str) -> Option<String> {
+        let client = self.topology.client(signer)?;
+        let device = client.device().ok()?;
+        self.authorized(&device, &client.roster.user_id())
+            .then_some(device.moss_peer_id)
+    }
+
     /// An authorized sibling belongs to our user and cannot consume a DM
     /// invitation. Unknown MLS members include the original counterpart
     /// before its encrypted identity claim has reached this installation.

@@ -27,6 +27,7 @@ impl PrivateDmSession {
                 .sort_by(|a, b| (a.sent_at_ms, &a.message_id).cmp(&(b.sent_at_ms, &b.message_id)));
         }
         SessionSnapshot {
+            call_availability: None,
             deletion_summary: self.deletions.summary(),
             device_revocation: self.device_revocation_state(),
             history_sync,
@@ -47,10 +48,12 @@ impl PrivateDmSession {
             mesh: self.mesh_info(),
             events: crate::conversation::mesh::snapshot_events(),
             pending_call: self.call.as_ref().and_then(|call| {
-                if call.phase == CallPhase::Ringing {
+                if matches!(call.phase, CallPhase::Ringing | CallPhase::Accepting) {
                     Some(PendingCall {
                         call_id: call.call_id.clone(),
+                        superseded_call_id: call.presentation_alias(),
                         from_device: call.remote_device.clone(),
+                        answer_pending: call.phase == CallPhase::Accepting,
                     })
                 } else {
                     None
@@ -60,6 +63,7 @@ impl PrivateDmSession {
                 if call.phase == CallPhase::Outgoing {
                     Some(OutgoingCall {
                         call_id: call.call_id.clone(),
+                        superseded_call_id: call.presentation_alias(),
                     })
                 } else {
                     None
@@ -69,6 +73,7 @@ impl PrivateDmSession {
                 if call.phase == CallPhase::Active {
                     Some(ActiveCall {
                         call_id: call.call_id.clone(),
+                        superseded_call_id: call.presentation_alias(),
                         direction: call.direction.as_str().to_string(),
                         key_b64: call.key_b64.clone(),
                         nonce_prefix_b64: call.nonce_prefix_b64.clone(),

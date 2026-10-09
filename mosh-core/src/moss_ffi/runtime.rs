@@ -50,6 +50,8 @@ impl MossFfiRuntime {
             open_stream: try_load_symbol(&library, b"Moss_OpenStream\0"),
             send_stream: try_load_symbol(&library, b"Moss_SendStream\0"),
             on_stream: try_load_symbol(&library, b"Moss_OnStream\0"),
+            send_to_peer: try_load_symbol(&library, b"Moss_SendToPeer\0"),
+            set_packet_callback: try_load_symbol(&library, b"Moss_SetPacketCallback\0"),
             _library: ManuallyDrop::new(library),
         })
     }

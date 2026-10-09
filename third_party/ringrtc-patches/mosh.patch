@@ -1,0 +1,74 @@
+--- a/src/rust/build.rs
++++ b/src/rust/build.rs
+@@ -20,9 +20,10 @@
+     format!("{}/config", project_dir())
+ }
+ 
+-// corresponds to default OUTPUT_DIR in bin/env.sh
++// Keep native build artifacts outside the verified source tree.
+ fn default_output_dir() -> String {
+-    format!("{}/out", project_dir())
++    // Cargo isolates native artifacts by target and profile.
++    env::var("OUT_DIR").expect("Cargo must provide OUT_DIR")
+ }
+ 
+ fn main() {
+--- a/src/rust/src/webrtc/injectable_network.rs
++++ b/src/rust/src/webrtc/injectable_network.rs
+@@ -155,8 +155,8 @@
+         dest: RffiIpPort,
+         data: webrtc::ptr::Borrowed<u8>,
+         size: usize,
+-    ),
+-    delete: extern "C" fn(object: webrtc::ptr::Owned<Box<dyn PacketSender>>),
++    ) -> i32,
++    delete: extern "C" fn(object: webrtc::ptr::Owned<Box<dyn PacketSender>>) -> i32,
+ }
+ 
+ #[allow(non_snake_case)]
+@@ -166,7 +166,7 @@
+     dest: RffiIpPort,
+     data: webrtc::ptr::Borrowed<u8>,
+     size: usize,
+-) {
++) -> i32 {
+     debug!("Send UDP {:?} => {:?} of size {}", source, dest, size);
+ 
+     // Safe because the sender should still be alive (it was just passed to us)
+@@ -179,15 +179,17 @@
+             data,
+         };
+         sender.send_udp(packet);
++        0
+     } else {
+         error!("Rust_InjectableNetworkSender_SendUdp called with null sender");
++        -1
+     }
+ }
+ 
+ #[allow(non_snake_case)]
+ extern "C" fn Rust_InjectableNetworkSender_Delete(
+     mut sender: webrtc::ptr::Owned<Box<dyn PacketSender>>,
+-) {
++) -> i32 {
+     debug!("Rust_InjectableNetworkSender_Release({:?})", sender);
+ 
+     if let Some(sender) = sender.as_mut() {
+@@ -196,6 +198,7 @@
+     } else {
+         error!("Rust_InjectableNetworkSender_Delete called with null sender");
+     }
++    0
+ }
+ 
+ // They are safe to Send/Sync because everything in the C++ hops to
+--- a/src/rust/src/webrtc/peer_connection_factory.rs
++++ b/src/rust/src/webrtc/peer_connection_factory.rs
+@@ -409,6 +409,7 @@
+                 webrtc::ptr::Borrowed::from_ptr(&rffi_ice_servers),
+                 outgoing_audio_track.rffi().as_borrowed(),
+                 outgoing_video_track
++                    .as_ref()
+                     .map_or_else(webrtc::ptr::BorrowedRc::null, |outgoing_video_track| {
+                         outgoing_video_track.rffi().as_borrowed()
+                     }),

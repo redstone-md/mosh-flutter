@@ -1,0 +1,29 @@
+[package]
+name = "mosh-native-media"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-only"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+# Isolate the mandatory libsignal graph from OpenMLS in mosh-core.
+[dependencies]
+anyhow = "1"
+ringrtc = { path = "../../third_party/ringrtc/src/rust", features = ["prebuilt_webrtc", "injectable_network"] }
+prost = "0.14"
+rand = "=0.10.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+x25519-dalek = "=3.0.0"
+hkdf = "=0.13.0"
+sha2 = "=0.11.0"
+zeroize = "=1.9.1"
+
+[target.'cfg(windows)'.dependencies]
+# Already required by RingRTC; own the caller's apartment through native teardown.
+windows = { version = "=0.62.2", features = ["Win32_System_Com"] }
+
+[profile.dev]
+debug = 0

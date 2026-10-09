@@ -33,18 +33,6 @@ fn lone_session(port: u16) -> (PrivateDmRuntime, String) {
     (alice, invite.session_id)
 }
 
-fn test_call_offer_json(session_id: &str, call_id: &str) -> Vec<u8> {
-    serde_json::to_vec(&ControlEnvelope::CallOffer {
-        session_id: session_id.to_string(),
-        participant_id: "the-other-participant".to_string(),
-        from_device: "Bob".to_string(),
-        call_id: call_id.to_string(),
-        // The already-answered branch returns before decrypting.
-        offer_ciphertext_b64: "Y2lwaGVy".to_string(),
-    })
-    .expect("offer should serialize")
-}
-
 fn wait_for_attachment(
     runtime: &mut PrivateDmRuntime,
     session_id: &str,

@@ -109,8 +109,10 @@ ProviderContainer _container({
   required ScriptableBridge gateway,
   VoiceCaptureFactory? captureFactory,
   VoicePlaybackFactory? playbackFactory,
+  NativeCallOwner? native,
 }) {
   return ProviderContainer(overrides: [
+    if (native != null) nativeCallOwnerProvider.overrideWithValue(native),
     activeSessionProvider('sess-1')
         .overrideWith((ref) => Future.value(controller.snapshot)),
     bridgeFacadeProvider.overrideWithValue(gateway),

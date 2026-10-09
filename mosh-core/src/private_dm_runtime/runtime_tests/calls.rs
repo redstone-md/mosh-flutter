@@ -63,10 +63,10 @@ fn caller_gives_up_once_the_ring_budget_is_spent() {
 
     let mut call = CallState::outgoing("call-2".into(), "k".into(), "n".into(), String::new());
     call.mark_offer_sent(1_000);
-    call.mark_offer_sent(1_000 + CALL_RING_TIMEOUT_MS - 1);
+    call.mark_offer_sent(30_999);
     session.call = Some(call);
 
-    session.pump_call_signaling(1_000 + CALL_RING_TIMEOUT_MS);
+    session.pump_call_signaling(31_000);
     assert!(
         session.call.is_none(),
         "the unanswered call is cleared once the budget is spent"
@@ -78,46 +78,6 @@ fn caller_gives_up_once_the_ring_budget_is_spent() {
         .find(|event| event.call_id == "call-2")
         .expect("the timed-out call is logged");
     assert_eq!(logged.kind, "missed");
-}
-
-// The heart of the bug: the callee answered, its CallAccept was dropped, and
-// nothing ever re-sent it — the caller rang out against a peer already in an
-// active call. A repeated offer for a call we hold as Active must re-answer.
-#[test]
-fn answered_callee_re_accepts_a_repeated_offer() {
-    let _guard = MOSS_TEST_LOCK
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let (mut alice, session_id) = lone_session(42199);
-    let session = alice
-        .sessions
-        .get_mut(&session_id)
-        .expect("Alice session should exist");
-
-    let mut call = CallState::ringing("call-3".into(), "k".into(), "n".into(), "Bob".into());
-    call.become_active(1_000);
-    session.call = Some(call);
-
-    // Fail the next publish, so the error IS the observation that a
-    // CallAccept went out.
-    let _publish_fail = wire::fail_next_test_publish("observe the accept");
-    let offer = test_call_offer_json(&session_id, "call-3");
-    assert!(
-        session.handle_control(offer.clone()).is_err(),
-        "a repeated offer for an answered call re-sends the CallAccept"
-    );
-    assert_eq!(
-        session.call.as_ref().expect("call held").phase,
-        CallPhase::Active,
-        "the repeat does not disturb the answered call"
-    );
-
-    // Still ringing (user has not picked up): nothing to re-answer yet.
-    session.call.as_mut().expect("call held").phase = CallPhase::Ringing;
-    assert!(
-        session.handle_control(offer).is_ok(),
-        "an unanswered ring must not auto-accept on the repeat"
-    );
 }
 
 // Voice media has its own queue, so the DM drain never carries it and the

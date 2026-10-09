@@ -75,8 +75,8 @@ Future<CallStarted> callStart({required String sessionId}) =>
     RustLib.instance.api.crateApiPrivateDmCallStart(sessionId: sessionId);
 
 /// Accept an incoming voice call.
-/// Moves the session from pending-call into the active state. The peer
-/// learns the acceptance through the MLS CallAccept control message.
+/// Requests selection with an authenticated answer. Media remains pending until
+/// the caller confirms that this installation is the selected receiver.
 Future<void> callAccept({required String sessionId, required String callId}) =>
     RustLib.instance.api
         .crateApiPrivateDmCallAccept(sessionId: sessionId, callId: callId);

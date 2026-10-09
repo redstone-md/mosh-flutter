@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleIdentifier</key><string>app.mosh.camera-capture</string>
+  <key>CFBundleName</key><string>Mosh Camera</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>NSCameraUsageDescription</key>
+  <string>Mosh uses the camera during calls when you turn video on.</string>
+</dict></plist>

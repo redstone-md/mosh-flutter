@@ -1,4 +1,6 @@
 import 'dart:typed_data' show Uint8List;
+import 'package:mosh/src/rust/api/native_call.dart' as native_call_api;
+import 'package:mosh/src/rust/native_call/types.dart' as native_media;
 import 'package:mosh/src/rust/chat_names/types.dart';
 import 'package:mosh/src/rust/api/conversation/names.dart' as names_api;
 
@@ -76,13 +78,16 @@ import 'package:mosh/src/rust/org_runtime.dart'
     show JoinOrgRequest, OrgSnapshot;
 import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
 
+part 'bridge_facade_native_calls.dart';
+
 /// The 1:1 bridge mirrors, outside the [Gateway] seam (ADR 0025).
 ///
 /// One class, one responsibility: forward each call to the generated frb
 /// function of the same name. Nothing here is worth scripting -- tests fake
 /// it through `bridgeFacadeProvider` only where a screen needs canned data
 /// or a scripted failure (test/support/scriptable_bridge.dart).
-class BridgeFacade {
+
+class BridgeFacade with NativeCallBridge {
   Future<ChatNameSnapshot> personalNames() => names_api.personalNames();
 
   // Diagnostics: app identity + native runtime readiness (S4.8).

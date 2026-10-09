@@ -65,6 +65,10 @@ impl PrivateDmSession {
             transfer: Transfer::new(attachment_store),
             outbound_attempts: HashMap::new(),
             call: None,
+            call_occupancy: Default::default(),
+            call_ends: Default::default(),
+            call_controls: Default::default(),
+            call_admission_blocked: false,
             pending_key_package: None,
             pending_welcome: None,
             last_handshake_send_ms: 0,
@@ -144,6 +148,7 @@ impl PrivateDmSession {
             // screen re-renders), and keeping just these keeps the record
             // small.
             read_message_ids: prune_read_ids(&self.peer_read_ids),
+            call_controls: self.call_controls.clone(),
         }
     }
 

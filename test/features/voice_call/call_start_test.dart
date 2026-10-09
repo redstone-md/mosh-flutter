@@ -11,6 +11,25 @@ import '../../support/message_builders.dart';
 import '../../support/scriptable_bridge.dart';
 
 void main() {
+  for (final availability in CallAvailability.values) {
+    test(
+        'a linked device reservation blocks another local start: $availability',
+        () async {
+      final bridge = ScriptableBridge()
+        ..seedSessions([
+          TestSnapshots.dm(sessionId: 'contact', callAvailability: availability)
+        ]);
+      final container = ProviderContainer(
+          overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
+      addTearDown(container.dispose);
+      expect(
+          await container
+              .read(voiceCallStartProvider.notifier)
+              .start('contact'),
+          isA<CallAlreadyInProgress>());
+      expect(bridge.countOf(BridgeMethod.callStart), 0);
+    });
+  }
   test('cached empty list cannot admit a start after another DM gets a call',
       () async {
     final bridge = ScriptableBridge();
@@ -21,7 +40,8 @@ void main() {
     bridge.seedSessions([
       TestSnapshots.dm(
           sessionId: 'other',
-          pendingCall: const PendingCall(callId: 'incoming', fromDevice: 'Bob'))
+          pendingCall: const PendingCall(
+              answerPending: false, callId: 'incoming', fromDevice: 'Bob'))
     ]);
     final result =
         await container.read(voiceCallStartProvider.notifier).start('origin');

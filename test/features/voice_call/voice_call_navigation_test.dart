@@ -152,7 +152,8 @@ void main() {
     gateway.seedSessions([
       TestSnapshots.dm(
           sessionId: 'origin',
-          pendingCall: const PendingCall(callId: 'first', fromDevice: 'Alice'))
+          pendingCall: const PendingCall(
+              answerPending: false, callId: 'first', fromDevice: 'Alice'))
     ]);
     final ring = RecordingRingtone();
     final container = ProviderContainer(overrides: [

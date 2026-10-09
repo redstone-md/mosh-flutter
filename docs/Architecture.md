@@ -50,6 +50,14 @@ files are checked in and generated localization files are ignored. Moss is a
 pinned submodule; do not modify its source. The OpenMLS upstream mirror is
 reconstructed from [a pinned archive and complete local patch](../third_party/openmls-patches/README.md).
 
+Desktop calls use the [native audio/video owner](Features/native-call-media.md).
+`mosh-core/src/native_call` owns capture, one engine, selected-peer transport and
+latest frames; isolated `mosh-media/engine` and `mosh-media/capture` graphs keep
+Signal/OpenMLS dependencies separate and blocked camera drivers cancellable.
+The child window owns presentation only. Public negotiation uses MLS; media uses
+Moss directed packets. Native builds run through the existing desktop plugin
+and Xcode hooks. See [ADR 0044](ADR/0044-native-call-media-over-moss.md).
+
 ## Flutter state and conversations
 
 `Gateway` owns typed conversation polling and common actions. `ConversationTarget`
@@ -344,6 +352,11 @@ playback. Playback buffers 60 ms, emits silence on underrun, and jitter skips a
 gap once three later frames wait. Rust owns call signaling and mirrors active
 calls into the hub. The wire is `[seq:u64 BE][ciphertext+tag]`, with AES-GCM nonce
 `[prefix:4][seq:8]` and a direction bit in the sequence.
+
+Accepted video-call ownership lives in [ADR 0043](ADR/0043-one-device-per-user-in-a-call.md)
+and [ADR 0044](ADR/0044-native-call-media-over-moss.md). The
+[issue 46 plan](Proposals/issue-46-video-calls.plan.md) defines stages and acceptance.
+The target uses one native audio/video engine over Moss. The voice pipeline above remains current.
 
 ## Security, builds and checks
 

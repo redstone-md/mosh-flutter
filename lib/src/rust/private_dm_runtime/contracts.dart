@@ -46,6 +46,7 @@ class AcceptInviteRequest {
 
 class ActiveCall {
   final String callId;
+  final String? supersededCallId;
 
   /// "caller" or "callee" — drives the nonce direction bit.
   final String direction;
@@ -58,6 +59,7 @@ class ActiveCall {
 
   const ActiveCall({
     required this.callId,
+    this.supersededCallId,
     required this.direction,
     required this.keyB64,
     required this.noncePrefixB64,
@@ -67,6 +69,7 @@ class ActiveCall {
   @override
   int get hashCode =>
       callId.hashCode ^
+      supersededCallId.hashCode ^
       direction.hashCode ^
       keyB64.hashCode ^
       noncePrefixB64.hashCode ^
@@ -78,10 +81,17 @@ class ActiveCall {
       other is ActiveCall &&
           runtimeType == other.runtimeType &&
           callId == other.callId &&
+          supersededCallId == other.supersededCallId &&
           direction == other.direction &&
           keyB64 == other.keyB64 &&
           noncePrefixB64 == other.noncePrefixB64 &&
           startedAtMs == other.startedAtMs;
+}
+
+enum CallAvailability {
+  busy,
+  conflict,
+  ;
 }
 
 class CallEvent {
@@ -288,33 +298,46 @@ class InviteCreated {
 
 class OutgoingCall {
   final String callId;
+  final String? supersededCallId;
 
   const OutgoingCall({
     required this.callId,
+    this.supersededCallId,
   });
 
   @override
-  int get hashCode => callId.hashCode;
+  int get hashCode => callId.hashCode ^ supersededCallId.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is OutgoingCall &&
           runtimeType == other.runtimeType &&
-          callId == other.callId;
+          callId == other.callId &&
+          supersededCallId == other.supersededCallId;
 }
 
 class PendingCall {
   final String callId;
+  final String? supersededCallId;
   final String fromDevice;
+
+  /// Answer requested locally; media waits for the caller's selected device.
+  final bool answerPending;
 
   const PendingCall({
     required this.callId,
+    this.supersededCallId,
     required this.fromDevice,
+    required this.answerPending,
   });
 
   @override
-  int get hashCode => callId.hashCode ^ fromDevice.hashCode;
+  int get hashCode =>
+      callId.hashCode ^
+      supersededCallId.hashCode ^
+      fromDevice.hashCode ^
+      answerPending.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -322,7 +345,9 @@ class PendingCall {
       other is PendingCall &&
           runtimeType == other.runtimeType &&
           callId == other.callId &&
-          fromDevice == other.fromDevice;
+          supersededCallId == other.supersededCallId &&
+          fromDevice == other.fromDevice &&
+          answerPending == other.answerPending;
 }
 
 class SessionListSnapshot {
@@ -344,6 +369,8 @@ class SessionListSnapshot {
 }
 
 class SessionSnapshot {
+  /// Account-wide admission, including leases held by linked installations.
+  final CallAvailability? callAvailability;
   final DeletionSummary? deletionSummary;
   final DmDeviceRevocationState? deviceRevocation;
   final DmHistorySyncState? historySync;
@@ -390,6 +417,7 @@ class SessionSnapshot {
   final ActiveCall? activeCall;
 
   const SessionSnapshot({
+    this.callAvailability,
     this.deletionSummary,
     this.deviceRevocation,
     this.historySync,
@@ -417,6 +445,7 @@ class SessionSnapshot {
 
   @override
   int get hashCode =>
+      callAvailability.hashCode ^
       deletionSummary.hashCode ^
       deviceRevocation.hashCode ^
       historySync.hashCode ^
@@ -446,6 +475,7 @@ class SessionSnapshot {
       identical(this, other) ||
       other is SessionSnapshot &&
           runtimeType == other.runtimeType &&
+          callAvailability == other.callAvailability &&
           deletionSummary == other.deletionSummary &&
           deviceRevocation == other.deviceRevocation &&
           historySync == other.historySync &&

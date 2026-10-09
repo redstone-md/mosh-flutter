@@ -33,6 +33,61 @@ permissions:
 # build the Rust library and peer executable for flutter_tester without
 # building the desktop app.
 jobs:
+  native-call-media:
+    name: Native call media (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup
+        with:
+          flutter: 'false'
+          rust-cache-key: native-call
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q libasound2-dev libudev-dev libclang-dev
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .dart_tool/native-media/target
+            .dart_tool/native-sources
+            .dart_tool/native-tools
+          key: native-call-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mosh-media/**/Cargo.lock', 'third_party/*-patches/source.json', 'third_party/*-patches/mosh.patch') }}
+          restore-keys: native-call-${{ runner.os }}-${{ runner.arch }}-
+      - name: Build packaged engine and camera helper
+        run: node scripts/native-media-build.mjs
+      - name: macOS packaging command regressions
+        if: runner.os == 'Linux'
+        run: node --test scripts/macos-package.test.mjs
+      - name: Native Rust format, lint and tests
+        shell: bash
+        run: |
+          export CARGO_TARGET_DIR="$PWD/.dart_tool/native-media/target"
+          export PROTOC="$(node --input-type=module -e 'import {nativeProtoc} from "./scripts/support/native-protoc.mjs"; console.log(await nativeProtoc(process.cwd()))')"
+          for crate in engine capture; do
+            cargo fmt --manifest-path "mosh-media/$crate/Cargo.toml" --check
+            cargo clippy --manifest-path "mosh-media/$crate/Cargo.toml" --all-targets -- -D warnings
+            cargo test --manifest-path "mosh-media/$crate/Cargo.toml"
+          done
+      - name: Build independent API peer and capture driver
+        run: cargo build --manifest-path mosh-core/Cargo.toml --features native-media-tests --lib --bin mosh-camera-test-driver --test device_link_flow
+      - name: Real MLS, Moss and native SRTP calls
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Windows) engine=mosh_native_media.dll; helper=mosh-camera-test-driver.exe ;;
+            macOS) engine=libmosh_native_media.dylib; helper=mosh-camera-test-driver ;;
+            Linux) engine=libmosh_native_media.so; helper=mosh-camera-test-driver ;;
+          esac
+          export MOSH_MEDIA_ENGINE="$PWD/.dart_tool/native-media/debug/$engine"
+          export MOSH_CAMERA_CAPTURE="$PWD/mosh-core/target/debug/$helper"
+          node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture
+
   rust-core:
     name: Rust core (fmt + clippy + test)
     runs-on: windows-latest
@@ -51,7 +106,7 @@ jobs:
         run: cargo fmt --manifest-path mosh-core/Cargo.toml --check
 
       - name: Pinned source preparation tests
-        run: node --test scripts/openmls-prepare.test.mjs scripts/source-lock.test.mjs
+        run: node --test scripts/openmls-prepare.test.mjs scripts/ringrtc-prepare.test.mjs scripts/source-lock.test.mjs
 
       # Strict lint gate (ADR 0015): warnings fail the job.
       - name: Clippy check

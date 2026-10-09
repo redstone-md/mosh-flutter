@@ -26,14 +26,20 @@ class _DmScreenState extends ConsumerState<DmScreen> {
           chrome: chrome,
           sessionId: widget.sessionId,
           onStartCall: _startCall,
+          onStartVideoCall:
+              ref.watch(conversationCallBindingProvider)?.startVideo == null
+                  ? null
+                  : () => _startCall(video: true),
         ),
       );
 
-  Future<void> _startCall() async {
+  Future<void> _startCall({bool video = false}) async {
     final call = ref.read(conversationCallBindingProvider);
     if (call == null) return;
     final reportError = actionErrorReporter(context);
-    final error = await call.start(ref, widget.sessionId);
+    final start = video ? call.startVideo : call.start;
+    if (start == null) return;
+    final error = await start(ref, widget.sessionId);
     if (error != null) reportError(error);
   }
 }

@@ -7,6 +7,7 @@ mod invitation_admission;
 mod invitations;
 mod invite;
 pub(crate) mod invite_ownership;
+mod native_media;
 mod outbox;
 pub(crate) mod transport;
 mod wire;
@@ -35,11 +36,10 @@ pub use call_media::CallMedia;
 use call_media::LiveCall;
 pub use contracts::{
     AcceptInviteRequest, ActiveCall, AttachmentDescriptor, AttachmentSendResult, AttachmentState,
-    AttachmentView, CallEvent, CallOfferBody, CallStarted, ChatMessage, CloseSessionResult,
-    ConnectOutcome, DmOffer, DmSessionState, InviteCreated, MeshInfo, MessageDeliveryStatus,
-    OutgoingCall, PeerDetail, PendingCall, PrivateDmRuntimeError, ReadReceiptBody,
-    SendMessageResult, SessionListSnapshot, SessionSnapshot, SnapshotEvent, StartSessionRequest,
-    TypingBody,
+    AttachmentView, CallEvent, CallStarted, ChatMessage, CloseSessionResult, ConnectOutcome,
+    DmOffer, DmSessionState, InviteCreated, MeshInfo, MessageDeliveryStatus, OutgoingCall,
+    PeerDetail, PendingCall, PrivateDmRuntimeError, ReadReceiptBody, SendMessageResult,
+    SessionListSnapshot, SessionSnapshot, SnapshotEvent, StartSessionRequest, TypingBody,
 };
 use invite::{build_invite_uri, listen_address, ParsedInvite};
 use transport::PublishError;
@@ -65,7 +65,7 @@ const AUTO_RESEND_MS: u64 = 15_000;
 const AUTO_RESEND_MAX: u32 = 10;
 // Re-offers recover lost accepts. Must outlast Flutter's 30-second auto-decline.
 const CALL_RESEND_MS: u64 = 2_000;
-const CALL_RING_TIMEOUT_MS: u64 = 45_000;
+const CALL_RING_TIMEOUT_MS: u64 = 30_000;
 
 use crate::conversation::read_events::push_read_event;
 use crate::conversation::typing::{self as typing_shared, TypingGate};
@@ -124,6 +124,7 @@ pub struct PrivateDmRuntime {
     /// Voice frames for the live calls; shared with the audio loop, which
     /// never takes this runtime's lock.
     media: Arc<CallMedia>,
+    native_media: Option<Arc<crate::native_call::Hub>>,
     lost_window_ms: u64,
     device_link: Option<devices::DeviceDmLink>,
 }
@@ -194,6 +195,10 @@ struct PrivateDmSession {
     transfer: Transfer,
     outbound_attempts: HashMap<String, OutboundAttemptRecord>,
     call: Option<CallState>,
+    call_occupancy: calls::CallOccupancy,
+    call_ends: calls::CallEndRetries,
+    call_controls: calls::CallProtocolBook,
+    call_admission_blocked: bool,
     // MLS handshake retransmit state. Bob keeps his published KeyPackage here
     // and re-sends it (throttled by HANDSHAKE_RESEND_MS) until he joins; Alice
     // caches the Welcome she produced so she can re-answer a repeat KeyPackage
@@ -265,6 +270,7 @@ impl PrivateDmRuntime {
         Self {
             sessions: ConversationRuntime::new(attachment_store, persistence, DM_HISTORY),
             media: CallMedia::new(Arc::clone(&transport)),
+            native_media: None,
             transport,
             lost_window_ms: LOST_WINDOW_MS,
             device_link: None,
