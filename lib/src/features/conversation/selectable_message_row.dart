@@ -39,7 +39,10 @@ class SelectableMessageRow extends StatelessWidget {
               selected: selecting && id != null ? selected : null,
               onSelect: id == null ? null : () => selection!.toggle(id),
               onDelete: id == null ? null : () => scope!.onDelete(message),
-              child: AbsorbPointer(absorbing: selecting, child: child),
+              child: ExcludeFocus(
+                excluding: selecting,
+                child: AbsorbPointer(absorbing: selecting, child: child),
+              ),
             ),
           ),
           if (selecting && id != null)

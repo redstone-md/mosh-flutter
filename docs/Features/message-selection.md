@@ -20,6 +20,8 @@ refines its appearance with circular selectors and responsive action placement.
   A tap anywhere on a row picks or unpicks it. Shift extends the pick from the
   last picked row.
   Attachments, voice notes, sender names and the row menu rest in this mode.
+  Nested controls lose keyboard focus and cannot be activated by pointer or
+  keyboard; the row itself retains its copy and Escape shortcuts.
 - **Mobile actions.** At 580 px and below, Copy and Delete replace the composer
   at the bottom. The hidden composer stays mounted, preserving its draft and
   controls, and cannot receive focus. Cancel restores it. Actions can wrap for

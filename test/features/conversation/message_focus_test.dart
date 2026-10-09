@@ -40,7 +40,7 @@ Future<void> _keyboardFocus(WidgetTester tester) async {
     conversationCases().first,
     messages: _messages,
   );
-  final focus = Focus.of(tester.element(find.text(_body)));
+  final focus = messageRowFocus(tester, _body);
   focus.requestFocus();
   await tester.pump();
   expect(focus.hasPrimaryFocus, isTrue);
@@ -76,7 +76,7 @@ Future<void> _menuSelection(
   final bubble = find.byKey(const ValueKey('message-bubble-first'));
   final normalColor =
       (tester.widget<Container>(bubble).decoration as BoxDecoration).color;
-  final focus = Focus.of(tester.element(find.text(_body)));
+  final focus = messageRowFocus(tester, _body);
   await tester.tap(
     find.text(_body),
     buttons: kSecondaryMouseButton,
