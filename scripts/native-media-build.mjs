@@ -25,6 +25,8 @@ const host = run("rustc", ["-vV"], true).match(/^host: (.+)$/m)?.[1];
 if (!host) throw new Error("Cannot determine Rust host target");
 const targets = values.targets?.split(",").filter(Boolean) ?? [host];
 if (targets.length > 2 || targets.some((target) => !/^[a-zA-Z0-9_-]+$/.test(target))) throw new Error("Invalid native targets");
+const additionalTargets = targets.filter((target) => target !== host);
+if (additionalTargets.length) run("rustup", ["target", "add", ...additionalTargets]);
 const output = path.resolve(values.output ?? path.join(root, ".dart_tool/native-media", values.profile));
 await mkdir(output, { recursive: true });
 const artifacts = [process.platform === "win32" ? "mosh_native_media.dll"
