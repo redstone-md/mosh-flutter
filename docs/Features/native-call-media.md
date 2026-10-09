@@ -32,6 +32,8 @@ A thread-bound Windows COM apartment guard outlives every endpoint field, so
 native audio objects are released before COM uninitialization. Engine teardown
 still releases capture, playback and connection resources. Slow Moss sends
 run separately, so they cannot block camera off, decoding or device commands.
+The native `Owner` is a documented exception to the 200-line type limit so
+capture, negotiation and engine lifetimes stay in one thread-bound state machine.
 
 `mosh-media/engine` is a separate Rust dependency graph. RingRTC's mandatory
 Signal/hax dependencies conflict with OpenMLS's graph, so they cannot share the
@@ -47,6 +49,10 @@ the renderer receives them. Current signed roster removals and MLS membership
 are reconciled against the selected pair; loss of authorization clears that
 call and releases both media paths. Locally failed/end calls persist their
 closed-ID book before media synchronization.
+
+An active selected receiver that gets no media offer fails setup after 15 seconds.
+Unit tests check that deadline with controlled instants; process tests allow up
+to 30 seconds for DM owners to observe and persist termination over IPC.
 
 A counterpart's device selection can reserve occupancy only for an admitted
 offer from that original caller. Its caller binding survives local presentation

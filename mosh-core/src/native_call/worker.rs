@@ -26,18 +26,7 @@ struct Owner {
 }
 
 pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
-    let mut owner = Owner {
-        context: None,
-        connection: None,
-        capture: None,
-        query: None,
-        choices: Choices::default(),
-        captured: 0,
-        capture_id: None,
-        query_after: Instant::now(),
-        negotiation_since: None,
-        sender: Sender::new(transport.clone()),
-    };
+    let mut owner = Owner::new(transport.clone());
     loop {
         let mut state = shared.lock().unwrap_or_else(|error| error.into_inner());
         if state.shutdown {
@@ -53,6 +42,21 @@ pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
 }
 
 impl Owner {
+    fn new(transport: Arc<dyn DmTransport>) -> Self {
+        Self {
+            context: None,
+            connection: None,
+            capture: None,
+            query: None,
+            choices: Choices::default(),
+            captured: 0,
+            capture_id: None,
+            query_after: Instant::now(),
+            negotiation_since: None,
+            sender: Sender::new(transport),
+        }
+    }
+
     fn step(&mut self, state: &mut State, transport: &dyn DmTransport) -> Result<(), String> {
         self.synchronize(state);
         let Some(context) = state.context.clone() else {
@@ -72,7 +76,7 @@ impl Owner {
             state.snapshot.cameras = devices;
             self.query = None;
         }
-        self.negotiate(&context, state)?;
+        self.negotiate(&context, state, Instant::now())?;
         let choices = state.choices.clone();
         if let Some(connection) = &mut self.connection {
             if self.choices != choices {
@@ -172,12 +176,19 @@ impl Owner {
         disabled
     }
 
-    fn negotiate(&mut self, context: &Context, state: &mut State) -> Result<(), String> {
+    fn negotiate(
+        &mut self,
+        context: &Context,
+        state: &mut State,
+        now: Instant,
+    ) -> Result<(), String> {
         if !context.active {
             return Ok(());
         }
-        let waiting = self.negotiation_since.get_or_insert_with(Instant::now);
-        if self.connection.is_none() && waiting.elapsed() >= Duration::from_secs(15) {
+        let waiting = self.negotiation_since.get_or_insert(now);
+        if self.connection.is_none()
+            && now.saturating_duration_since(*waiting) >= Duration::from_secs(15)
+        {
             state.snapshot.failed = true;
             return Ok(());
         }
@@ -252,6 +263,38 @@ fn present_capture(
 mod tests {
     use super::*;
     use crate::native_call::capture::Captured;
+    use crate::private_dm_runtime::transport::memory::MemoryNet;
+
+    #[test]
+    fn missing_offer_marks_the_call_failed_fifteen_seconds_after_selection() {
+        let started = Instant::now();
+        let mut context = Context {
+            session_id: "dm".into(),
+            call_id: "call".into(),
+            superseded: None,
+            active: false,
+            caller: false,
+            caller_signer: "caller".into(),
+            callee_signer: Some("callee".into()),
+            peer: "remote".into(),
+        };
+        let mut owner = Owner::new(MemoryNet::new().endpoint("local"));
+        let mut state = State::default();
+        owner.negotiate(&context, &mut state, started).unwrap();
+        assert!(!state.snapshot.failed);
+        context.active = true;
+        let selected = started + Duration::from_secs(60);
+        owner.negotiate(&context, &mut state, selected).unwrap();
+        assert!(!state.snapshot.failed);
+        owner
+            .negotiate(&context, &mut state, selected + Duration::from_secs(14))
+            .unwrap();
+        assert!(!state.snapshot.failed);
+        owner
+            .negotiate(&context, &mut state, selected + Duration::from_secs(15))
+            .unwrap();
+        assert!(state.snapshot.failed);
+    }
 
     #[test]
     fn delayed_capture_is_not_admitted_as_live_camera_video() {
