@@ -114,6 +114,14 @@ pixels only; peer media still travels through Moss.
 The parent admits one frame until the child acknowledges its exact session, call,
 sequence and local/remote lane. A stalled renderer receives no further frames and
 is terminated after five seconds. Restore creates a new renderer and capability.
+A renderer that fails to start or exits is not relaunched by later updates of
+the same call; only Restore or a new call starts another one.
+
+On macOS the renderer runs `Contents/MacOS/mosh-call-window`, a copy of the main
+executable signed with only `app-sandbox` and `inherit`. A sandboxed parent cannot
+relaunch its own executable: the child's second sandbox initialization fails with
+`forbidden-sandbox-reinit` and `SIGILL` in `libsystem_secinit`. A missing copy
+fails the window without spawning a process.
 Rendering holds one image per lane and one decode in flight. Source/transfer age
 and monotonic decode duration count toward a one-second display budget; stale
 frames are discarded. Every image, codec and immutable buffer has explicit cleanup.
