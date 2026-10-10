@@ -7,7 +7,7 @@ void main() {
   test('production ringtone preserves the RingtonePlayer seam', () {
     const RingtonePlayer player = CpalRingtonePlayer();
     expect(player, isA<RingtonePlayer>());
-    expect(player.start, isA<RingtoneHandle Function()>());
+    expect(player.start, isA<RingtoneHandle Function(RingtoneKind)>());
   });
 
   test('isolated production seam test does not open an audio device', () {

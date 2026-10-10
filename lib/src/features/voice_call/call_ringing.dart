@@ -38,7 +38,9 @@ class CallRinging {
     }
     if (_handle == null) {
       try {
-        _handle = player.start();
+        _handle = player.start(dialog is IncomingCallDialog
+            ? RingtoneKind.incoming
+            : RingtoneKind.outgoing);
       } catch (_) {
         // Call controls remain usable when the output device is unavailable.
       }

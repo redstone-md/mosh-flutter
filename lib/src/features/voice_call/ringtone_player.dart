@@ -1,3 +1,6 @@
+/// Which call direction a ringtone announces.
+enum RingtoneKind { incoming, outgoing }
+
 /// A started ringtone. The call owner stops it on answer, rejection or end.
 abstract class RingtoneHandle {
   void stop();
@@ -5,7 +8,7 @@ abstract class RingtoneHandle {
 
 /// Audio backend boundary. Calls tolerate a failed start or stop.
 abstract class RingtonePlayer {
-  RingtoneHandle start();
+  RingtoneHandle start(RingtoneKind kind);
 }
 
 /// A [RingtoneHandle] whose `stop()` is inert -- returned by
@@ -20,5 +23,5 @@ class _NoopHandle implements RingtoneHandle {
 class NoopRingtonePlayer implements RingtonePlayer {
   const NoopRingtonePlayer();
   @override
-  RingtoneHandle start() => const _NoopHandle();
+  RingtoneHandle start(RingtoneKind kind) => const _NoopHandle();
 }

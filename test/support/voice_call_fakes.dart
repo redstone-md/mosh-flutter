@@ -58,9 +58,11 @@ class _Playback implements VoicePlaybackHandle {
 class RecordingRingtone implements RingtonePlayer {
   int starts = 0;
   int stops = 0;
+  final kinds = <RingtoneKind>[];
   @override
-  RingtoneHandle start() {
+  RingtoneHandle start(RingtoneKind kind) {
     starts++;
+    kinds.add(kind);
     return _Ring(() => stops++);
   }
 }

@@ -6,12 +6,14 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_stream`, `output_stream`, `sample`, `write`
+// These functions are ignored because they are not marked as `pub`: `build_stream`, `output_stream`, `recording`, `sample`, `write`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SignalGenerator`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `eq`, `fmt`
 
-VoiceCallRingtone voiceCallRingtoneStart({String? outputDeviceId}) =>
+VoiceCallRingtone voiceCallRingtoneStart(
+        {String? outputDeviceId, required VoiceCallRingtoneKind kind}) =>
     RustLib.instance.api.crateApiVoiceCallRingtoneVoiceCallRingtoneStart(
-        outputDeviceId: outputDeviceId);
+        outputDeviceId: outputDeviceId, kind: kind);
 
 void voiceCallRingtoneStop({required VoiceCallRingtone ringtone}) =>
     RustLib.instance.api
@@ -19,3 +21,10 @@ void voiceCallRingtoneStop({required VoiceCallRingtone ringtone}) =>
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallRingtone>>
 abstract class VoiceCallRingtone implements RustOpaqueInterface {}
+
+/// Which bundled recording a ringtone plays.
+enum VoiceCallRingtoneKind {
+  incoming,
+  outgoing,
+  ;
+}
