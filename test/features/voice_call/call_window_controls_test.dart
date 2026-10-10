@@ -43,8 +43,8 @@ void main() {
           settle: false);
       await tester.pump(const Duration(milliseconds: 100));
       final end = incoming ? 'Decline call' : 'Cancel call';
-      expect(find.byTooltip(end), findsOneWidget,
-          reason: 'controls remain usable until the child is ready');
+      expect(find.byType(CallView), findsNothing,
+          reason: 'a starting window must not flash the fallback strip');
       ready.complete(RecordingCallWindow());
       await tester.pump();
       await tester.pump();
@@ -82,6 +82,26 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('without a call window the strip owns controls', (tester) async {
+    final gateway = ScriptableGateway()
+      ..seedSessions([
+        TestSnapshots.dm(
+            sessionId: 'origin',
+            outgoingCall: const OutgoingCall(callId: 'call'))
+      ]);
+    await pumpScreen(tester, const VoiceCallHost(child: Scaffold()),
+        overrides: [
+          gatewayProvider.overrideWithValue(gateway),
+          bridgeFacadeProvider.overrideWithValue(
+              ScriptableBridge(conversations: gateway.conversations)),
+        ],
+        settle: false);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byTooltip('Cancel call'), findsOneWidget,
+        reason: 'mobile has no call window to show controls');
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('controls transfer after presentation and return on its failure',
       (tester) async {
     final gateway = ScriptableGateway()
@@ -102,7 +122,7 @@ void main() {
     await pumpScreen(tester, const VoiceCallHost(child: Scaffold()),
         container: container, settle: false);
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.byTooltip('Cancel call'), findsOneWidget);
+    expect(find.byTooltip('Cancel call'), findsNothing);
     presented.complete();
     await tester.pump();
     await tester.pump();

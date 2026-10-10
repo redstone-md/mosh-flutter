@@ -303,6 +303,32 @@ void main() {
     expect(replacement.views.single.muted, isTrue);
     await coordinator.dispose();
   });
+
+  test('fallback controls appear only after a window failure', () async {
+    final startup = Completer<CallWindowHandle>();
+    final window = RecordingCallWindow();
+    var opens = 0;
+    final coordinator = CallWindowCoordinator((_) {
+      if (++opens == 1) return startup.future;
+      return Future.value(window);
+    }, (_) async {}, (_) {});
+    expect(CallWindowCoordinator(null, (_) async {}, (_) {}).fallback.value,
+        isTrue,
+        reason: 'without a window factory the strip is the only control');
+    coordinator.update(_first);
+    await Future<void>.delayed(Duration.zero);
+    expect(coordinator.fallback.value, isFalse,
+        reason: 'a starting window must not flash inline controls');
+    startup.completeError(StateError('child failed'));
+    await Future<void>.delayed(Duration.zero);
+    expect(coordinator.fallback.value, isTrue);
+    coordinator.update(_second);
+    expect(coordinator.fallback.value, isFalse);
+    await coordinator.show();
+    expect(coordinator.fallback.value, isFalse);
+    expect(window.views.single.callId, 'second');
+    await coordinator.dispose();
+  });
 }
 
 class _LostWindow extends RecordingCallWindow {

@@ -1,9 +1,10 @@
 # Calls
 
 Desktop calls have an independent native window for incoming, outgoing and active
-phases. While that window is ready the main view shows no call strip. A compact
-strip below the main view appears only while the window is unavailable: it
-supplies call controls and a button to restore the window. Clicking the peer in
+phases. The main view shows no call strip while that window starts or runs. A
+compact strip below the main view appears only after the window fails, or on
+platforms without a call window: it supplies call controls and, on desktop, a
+button to restore the window. Clicking the peer in
 either view opens the original DM. Messages, attachments, search and scrolling remain available during a call.
 Navigation to another DM, group, channel or Settings keeps the audio running.
 Opening the originating DM remains available while call controls are pending.

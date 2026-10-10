@@ -36,6 +36,10 @@ class CallWindowCoordinator {
   final void Function(Object) onFailure;
   final _available = ValueNotifier(false);
   ValueListenable<bool> get available => _available;
+  // Inline controls exist only without a window or after its failure, so a
+  // starting window never flashes them.
+  late final _fallback = ValueNotifier(factory == null);
+  ValueListenable<bool> get fallback => _fallback;
   CallWindowHandle? _window;
   CallViewState? _desired;
   Future<void>? _working;
@@ -48,7 +52,10 @@ class CallWindowCoordinator {
 
   void update(CallViewState? state) {
     if (_disposed || mapEquals(_desired?.toMap(), state?.toMap())) return;
-    if (!_isDesiredCall(state)) _available.value = false;
+    if (!_isDesiredCall(state)) {
+      _available.value = false;
+      if (factory != null) _fallback.value = false;
+    }
     _desired = state;
     ++_revision;
     _start();
@@ -111,6 +118,7 @@ class CallWindowCoordinator {
             _available.value = !_disposed &&
                 identical(_window, window) &&
                 _isDesiredCall(current);
+            if (_available.value) _fallback.value = false;
           }
         }
       } catch (error) {
@@ -148,8 +156,10 @@ class CallWindowCoordinator {
   bool _hasFailed(CallViewState? state) =>
       _failed == (session: state?.sessionId, call: state?.callId);
 
-  void _markFailed(CallViewState? state) =>
-      _failed = (session: state?.sessionId, call: state?.callId);
+  void _markFailed(CallViewState? state) {
+    _failed = (session: state?.sessionId, call: state?.callId);
+    if (!_disposed && _isDesiredCall(state)) _fallback.value = true;
+  }
 
   Future<void> show() async {
     if (_disposed || _desired == null) return;
@@ -168,6 +178,7 @@ class CallWindowCoordinator {
       if (_disposed || !identical(_window, attempted)) return;
       _window = null;
       _available.value = false;
+      _fallback.value = true;
       try {
         await attempted?.close();
       } catch (_) {/* The native owner may already be gone. */}
@@ -200,5 +211,6 @@ class CallWindowCoordinator {
     _start();
     await _working;
     _available.dispose();
+    _fallback.dispose();
   }
 }
