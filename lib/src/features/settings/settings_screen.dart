@@ -1,3 +1,4 @@
+import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -108,7 +109,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _wide(SettingsSection section) => Column(
         children: [
-          const MoshTitleBar.brand(),
+          if (!DesktopChromeScope.isPresent(context))
+            const MoshTitleBar.brand(),
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,

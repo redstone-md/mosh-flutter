@@ -72,10 +72,12 @@ jobs:
         # crash reporting; without it the build cannot report at all.
         run: flutter build windows --release --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }}
 
-      - name: Test native Windows icons and call window classes
+      - name: Test native Windows chrome, icons and call window classes
         shell: pwsh
         run: |
-          cmake --build build/windows/x64 --config Release --target mosh_window_icon_test
+          cmake --build build/windows/x64 --config Release --target mosh_window_icon_test mosh_desktop_title_bar_test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & .\build\windows\x64\runner\tests\Release\mosh_desktop_title_bar_test.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & .\build\windows\x64\runner\tests\Release\mosh_window_icon_test.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

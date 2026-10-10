@@ -7,6 +7,7 @@ import 'package:mosh/src/features/onboarding/first_run_profile.dart';
 import 'package:mosh/src/features/onboarding/first_run_provider.dart';
 import 'package:mosh/src/features/onboarding/first_run_transition.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
+import 'package:mosh/src/platform/desktop_window_controller.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/locale_preference_store.dart';
@@ -65,6 +66,7 @@ class FirstRunHarness {
     Size size = const Size(1200, 850),
     double scale = 1,
     DesktopAppRelauncher? relauncher,
+    DesktopWindowController? windowController,
     bool settle = true,
   }) async {
     tester.view.physicalSize = size;
@@ -88,7 +90,8 @@ class FirstRunHarness {
         container: container,
         child: RepaintBoundary(
             key: const ValueKey('setup-preview'),
-            child: MoshApp(relauncher: relauncher))));
+            child: MoshApp(
+                relauncher: relauncher, windowController: windowController))));
     if (settle) {
       await tester.pumpAndSettle();
     } else {

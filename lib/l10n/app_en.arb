@@ -2076,5 +2076,7 @@
   "callMicrophone": "Microphone",
   "callSpeaker": "Speaker",
   "callCamera": "Camera",
-  "callDefaultDevice": "System default"
+  "callDefaultDevice": "System default",
+  "windowMaximize": "Maximize",
+  "windowRestore": "Restore"
 }

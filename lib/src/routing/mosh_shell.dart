@@ -1,3 +1,4 @@
+import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -8,25 +9,14 @@ import 'package:mosh/src/features/sessions/sessions_list_controls.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
-import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
+import 'package:mosh/src/features/conversation/active_peer_status_drawer.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';
 import 'package:mosh/src/features/sessions/rail_compact.dart'
     show expandChatList;
-import 'package:mosh/src/gateway/conversation_target.dart'
-    show ConversationKind;
 import 'package:mosh/src/routing/mosh_title_bar.dart';
 import 'package:mosh/src/routing/rail_pane.dart';
-import 'package:mosh/src/rust/channel_runtime/types.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/private_group_runtime.dart';
-import 'package:mosh/src/state/active_conversation_key_provider.dart';
-import 'package:mosh/src/state/channel_group_providers.dart';
-import 'package:mosh/src/state/conversation_providers.dart'
-    show invalidateConversation;
-import 'package:mosh/src/state/session_providers.dart';
 
 /// The two-pane shell container -- wired as the StatefulShellRoute
 /// navigatorContainerBuilder. Receives the two branch Navigator widgets
@@ -38,12 +28,8 @@ import 'package:mosh/src/state/session_providers.dart';
 /// auto-activates the matched branch. The shell only LAYS OUT whatever
 /// branch is active (mobile) or both (desktop).
 ///
-/// A ConsumerStatefulWidget so the desktop titlebar's shell-level
-/// PeerStatusDrawer toggle lives here: the shell both flips
-/// `_showPeerStatus` AND mounts the Positioned.fill overlay. The titlebar
-/// fires the shell-supplied `onOpenPeerStatus` callback and holds no
-/// overlay state; the shell rebuilds on the flip, which is what makes the
-/// drawer appear.
+/// Standalone/mobile layouts retain their local diagnostics overlay. The
+/// integrated desktop frame provides the shared titlebar and diagnostics.
 class MoshShell extends ConsumerStatefulWidget {
   const MoshShell({
     super.key,
@@ -110,13 +96,7 @@ class _MoshShellState extends ConsumerState<MoshShell> {
         // invalidates the family entry.
         if (_showPeerStatus)
           Positioned.fill(
-            child: PeerStatusDrawer(
-              session: _activeDmSession(ref),
-              channel: _activeChannelSnapshot(ref),
-              group: _activeGroupSnapshot(ref),
-              error: _activeDrawerError(ref),
-              refreshing: false,
-              onRefresh: _invalidateActiveFamily,
+            child: ActivePeerStatusDrawer(
               onClose: () => setState(() => _showPeerStatus = false),
             ),
           ),
@@ -131,11 +111,12 @@ class _MoshShellState extends ConsumerState<MoshShell> {
   Widget _desktopPanes() {
     return Column(
       children: <Widget>[
-        _SemanticsPane(
-          child: MoshTitleBar(
-            onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
+        if (!DesktopChromeScope.isPresent(context))
+          _SemanticsPane(
+            child: MoshTitleBar(
+              onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
+            ),
           ),
-        ),
         Expanded(
           child: RailPane(
             rail: _SemanticsPane(child: widget.children[0]),
@@ -144,58 +125,6 @@ class _MoshShellState extends ConsumerState<MoshShell> {
         ),
       ],
     );
-  }
-
-  // The live DM SessionSnapshot for the active conversation, or null
-  // (non-dm or loading/error). PeerStatusDrawer renders NoActiveSession
-  // when all three snapshot getters return null.
-  SessionSnapshot? _activeDmSession(WidgetRef ref) {
-    final active = ref.watch(activeConversationProvider);
-    if (active?.kind != ConversationKind.dm) return null;
-    return ref.watch(activeSessionProvider(active!.arg)).value;
-  }
-
-  // The live ChannelSnapshot for the active conversation, or null
-  // (non-channel or loading/error).
-  ChannelSnapshot? _activeChannelSnapshot(WidgetRef ref) {
-    final active = ref.watch(activeConversationProvider);
-    if (active?.kind != ConversationKind.channel) return null;
-    return ref.watch(channelSnapshotProvider(active!.arg)).value;
-  }
-
-  // The live GroupSnapshot for the active conversation, or null
-  // (non-group or loading/error).
-  GroupSnapshot? _activeGroupSnapshot(WidgetRef ref) {
-    final active = ref.watch(activeConversationProvider);
-    if (active?.kind != ConversationKind.group) return null;
-    return ref.watch(groupSnapshotProvider(active!.arg)).value;
-  }
-
-  // What the drawer says about a failed read of the active snapshot, worded
-  // from the error's kind (never the runtime's raw message), or null when
-  // the active family is loading/data or no conversation is open.
-  String? _activeDrawerError(WidgetRef ref) {
-    final active = ref.watch(activeConversationProvider);
-    if (active == null) return null;
-    final async = switch (active.kind) {
-      ConversationKind.dm => ref.watch(activeSessionProvider(active.arg)),
-      ConversationKind.channel =>
-        ref.watch(channelSnapshotProvider(active.arg)),
-      ConversationKind.group => ref.watch(groupSnapshotProvider(active.arg)),
-    };
-    final error = async.error;
-    if (error == null) return null;
-    return ConversationActionError.of(error)
-        .describe(AppLocalizations.of(context)!);
-  }
-
-  // Invalidates the active conversation's snapshot family entry so a
-  // refresh re-runs the server query. No-op when nothing is open. Which
-  // family that is belongs to the state layer, not here.
-  void _invalidateActiveFamily() {
-    final active = ref.read(activeConversationProvider);
-    if (active == null) return;
-    invalidateConversation(ref.invalidate, active.conversation);
   }
 }
 

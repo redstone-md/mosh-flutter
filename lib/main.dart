@@ -35,6 +35,8 @@ import 'package:mosh/src/state/production_provider_overrides.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
 import 'package:media_kit/media_kit.dart';
 import 'package:mosh/src/routing/app_router.dart';
+import 'package:mosh/src/platform/desktop_window_controller.dart';
+import 'package:mosh/src/platform/desktop_window_frame.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/media_stream_server.dart';
@@ -57,6 +59,7 @@ void main(List<String> args) async {
       return;
     }
   }
+  final windowController = await DesktopWindowController.initialize();
   // Load intl date symbols once so non-en locales (e.g. ru) format dates
   // in-locale via `DateFormat` (`formatClock`/`formatClockFull`). en ships
   // loaded by default, but calling it unconditionally keeps init
@@ -192,7 +195,7 @@ void main(List<String> args) async {
       ));
     }
   } else {
-    root = MoshApp(relauncher: relauncher);
+    root = MoshApp(relauncher: relauncher, windowController: windowController);
   }
   _appRoot.value = root;
 }
@@ -263,7 +266,9 @@ class LifecycleGate with WidgetsBindingObserver {
 }
 
 class MoshApp extends ConsumerWidget {
-  const MoshApp({super.key, this.relauncher});
+  const MoshApp({super.key, this.relauncher, this.windowController});
+
+  final DesktopWindowController? windowController;
 
   final DesktopAppRelauncher? relauncher;
 
@@ -288,12 +293,16 @@ class MoshApp extends ConsumerWidget {
             : Theme.of(context),
         // Above the first-run gate and the call strip, so every action
         // reports through the one toast stack.
-        child: ToastHost(
-          child: NativeMenuLocalization(
-            child: FirstRunGate(
-              child: VoiceCallHost(
-                onOpenConversation: _openCallConversation,
-                child: child ?? const SizedBox(),
+        child: DesktopWindowFrame(
+          controller: windowController,
+          router: appRouter,
+          child: ToastHost(
+            child: NativeMenuLocalization(
+              child: FirstRunGate(
+                child: VoiceCallHost(
+                  onOpenConversation: _openCallConversation,
+                  child: child ?? const SizedBox(),
+                ),
               ),
             ),
           ),

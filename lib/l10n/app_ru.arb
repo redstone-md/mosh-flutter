@@ -1106,5 +1106,7 @@
   "callMicrophone": "Микрофон",
   "callSpeaker": "Динамики",
   "callCamera": "Камера",
-  "callDefaultDevice": "По умолчанию"
+  "callDefaultDevice": "По умолчанию",
+  "windowMaximize": "Развернуть",
+  "windowRestore": "Восстановить"
 }

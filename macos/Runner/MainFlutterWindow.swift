@@ -3,6 +3,7 @@ import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
   private var menuLocalizer: NativeMenuLocalizer?
+  private var titlebarChannel: FlutterMethodChannel?
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -13,6 +14,26 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
     menuLocalizer = NativeMenuLocalizer(
       messenger: flutterViewController.engine.binaryMessenger)
+    titlebarChannel = FlutterMethodChannel(
+      name: "mosh/window-chrome",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+    titlebarChannel?.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else { result(nil); return }
+      switch call.method {
+      case "configure":
+        // AppKit keeps real traffic lights and their native fullscreen actions.
+        let button = self.standardWindowButton(.zoomButton)
+        let frame = button?.convert(button?.bounds ?? .zero, to: self.contentView)
+        result(["leadingInset": (frame?.maxX ?? 64) + 14])
+      case "doubleClick":
+        let action = UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick")
+        if action == "Minimize" { self.performMiniaturize(nil) }
+        else if action != "None" { self.performZoom(nil) }
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
 
     super.awakeFromNib()
   }

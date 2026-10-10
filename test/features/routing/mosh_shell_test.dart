@@ -84,11 +84,11 @@ void main() {
     // No drawer before the titlebar button is tapped.
     expect(find.byType(PeerStatusDrawer), findsNothing);
 
-    // Tap the shared desktop titlebar's "Connection status" button (its visible
-    // text is l.peerStatusTitle -- the same locator style the existing
-    // cases use via find.text). At this point the drawer is closed, so
-    // "Connection status" resolves to exactly the titlebar button.
-    await tester.tap(find.text('Connection status'));
+    await tester.tap(find.text('Carol'));
+    await tester.pumpAndSettle();
+
+    // The selected conversation's status opens diagnostics on every layout.
+    await tester.tap(find.byTooltip('Connection status').first);
     await tester.pumpAndSettle();
 
     // The shell flipped its _showPeerStatus and rebuilt the Stack, so the

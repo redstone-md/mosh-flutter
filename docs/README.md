@@ -8,7 +8,7 @@ and the Flutter/Rust bridge.
 | First launch | [Setup guide](Features/first-run-setup.md) |
 | Private conversations | [Private chats](Features/private-dm.md), [invitations](Features/invitations.md), [read receipts](Features/read-receipts.md), [typing](Features/typing.md) |
 | Linked devices | [Device linking](Features/device-linking.md), [Android foreground chats](Features/android-linked-dm.md) |
-| Interface | [Conversations](Features/chat-redesign.md), [message menus](Features/message-context-menus.md), [dialogs](Features/dialogs.md), [settings](Features/settings-redesign.md) |
+| Interface | [Conversations](Features/chat-redesign.md), [message menus](Features/message-context-menus.md), [dialogs](Features/dialogs.md), [settings](Features/settings-redesign.md), [desktop titlebar](Features/desktop-titlebar.md) |
 | Voice calls | [Call windows, audio ownership and checks](Features/voice-calls.md) |
 | Video calls | [Issue 46 plan and acceptance](Proposals/issue-46-video-calls.plan.md), [interface and motion](Proposals/issue-46-call-interface.design.md), [native feasibility results](Proposals/issue-46-native-media.results.md) |
 | Architecture decisions | [ADRs](ADR/) |
