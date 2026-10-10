@@ -17,6 +17,8 @@ Desktop-first Flutter + Riverpod, Rust via flutter_rust_bridge, Moss + OpenMLS.
 - Ask before changing public contracts, dependencies, schemas or deleting tracked code.
 - Never commit secrets or build artifacts, force-push main, or merge for a maintainer.
 - Use atomic Conventional Commits after verification.
+- Commit authors are only ForeverInLaw or Rxflex. No AI authorship or `Co-Authored-By` trailers.
+- Branch names follow Conventional Commits types: `<type>/<short-scope>`, e.g. `fix/call-window`.
 
 ## Product
 - Desktop first, then Android, then iOS.
