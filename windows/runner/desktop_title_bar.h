@@ -14,7 +14,7 @@ class DesktopTitleBar {
  public:
   DesktopTitleBar(HWND window, HWND view, flutter::BinaryMessenger* messenger);
   ~DesktopTitleBar();
-  void SetMaximizeRegion(RECT region);
+  void SetMaximizeRegion(RECT region, RECT buttons = {});
   std::optional<LRESULT> HandleMessage(UINT message, WPARAM wparam, LPARAM lparam);
 
  private:
@@ -26,6 +26,7 @@ class DesktopTitleBar {
   HWND window_;
   HWND view_;
   RECT maximize_region_{};
+  RECT buttons_region_{};
   bool hovered_ = false;
   bool pressed_ = false;
   bool configured_ = false;

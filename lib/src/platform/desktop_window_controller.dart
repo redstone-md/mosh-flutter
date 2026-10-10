@@ -101,13 +101,20 @@ class DesktopWindowController extends ChangeNotifier with WindowListener {
       ? channel.invokeMethod<void>('showMenu')
       : windowManager.popUpWindowMenu();
 
-  Future<void> setMaximizeRegion(Rect region, double pixelRatio) =>
+  Future<void> setMaximizeRegion(Rect region, double pixelRatio,
+          {required Rect buttonsRegion}) =>
       channel.invokeMethod<void>('maximizeRegion', {
         'left': region.left,
         'top': region.top,
         'right': region.right,
         'bottom': region.bottom,
         'pixelRatio': pixelRatio,
+        'buttons': {
+          'left': buttonsRegion.left,
+          'top': buttonsRegion.top,
+          'right': buttonsRegion.right,
+          'bottom': buttonsRegion.bottom,
+        },
       });
 
   @override

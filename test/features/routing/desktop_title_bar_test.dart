@@ -119,7 +119,7 @@ void main() {
     await _app(tester, window);
     await tester.tap(find.text('Alice'));
     await tester.pumpAndSettle();
-    await tester.tap(_inBar(find.byTooltip('Collapse chat list')));
+    await tester.tap(_inBar(find.byTooltip('Expand chat list')));
     await tester.pumpAndSettle();
     expect(
         appRouter.routeInformationProvider.value.uri.path, AppRoutes.sessions);

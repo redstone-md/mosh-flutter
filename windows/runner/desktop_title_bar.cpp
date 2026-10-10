@@ -17,6 +17,13 @@ double Number(const flutter::EncodableMap& map, const char* key) {
   if (const auto value = std::get_if<int32_t>(&it->second)) return *value;
   return 0;
 }
+
+RECT Bounds(const flutter::EncodableMap& map, double ratio) {
+  return {static_cast<LONG>(std::lround(Number(map, "left") * ratio)),
+          static_cast<LONG>(std::lround(Number(map, "top") * ratio)),
+          static_cast<LONG>(std::lround(Number(map, "right") * ratio)),
+          static_cast<LONG>(std::lround(Number(map, "bottom") * ratio))};
+}
 }  // namespace
 
 DesktopTitleBar::DesktopTitleBar(HWND window, HWND view,
@@ -32,9 +39,10 @@ DesktopTitleBar::~DesktopTitleBar() {
   if (channel_) channel_->SetMethodCallHandler(nullptr);
 }
 
-void DesktopTitleBar::SetMaximizeRegion(RECT region) {
+void DesktopTitleBar::SetMaximizeRegion(RECT region, RECT buttons) {
   configured_ = true;
   maximize_region_ = region;
+  buttons_region_ = buttons;
 }
 
 void DesktopTitleBar::RegisterChannel(flutter::BinaryMessenger* messenger) {
@@ -49,10 +57,14 @@ void DesktopTitleBar::RegisterChannel(flutter::BinaryMessenger* messenger) {
           ? std::get_if<flutter::EncodableMap>(call.arguments()) : nullptr;
       if (!args) { result->Error("invalid-region", "Expected caption rectangle"); return; }
       const double ratio = Number(*args, "pixelRatio");
-      SetMaximizeRegion({static_cast<LONG>(std::lround(Number(*args, "left") * ratio)),
-                         static_cast<LONG>(std::lround(Number(*args, "top") * ratio)),
-                         static_cast<LONG>(std::lround(Number(*args, "right") * ratio)),
-                         static_cast<LONG>(std::lround(Number(*args, "bottom") * ratio))});
+      RECT buttons{};
+      const auto it = args->find(flutter::EncodableValue("buttons"));
+      if (it != args->end()) {
+        if (const auto* map = std::get_if<flutter::EncodableMap>(&it->second)) {
+          buttons = Bounds(*map, ratio);
+        }
+      }
+      SetMaximizeRegion(Bounds(*args, ratio), buttons);
       result->Success();
     } else if (call.method_name() == "showMenu") {
       ShowMenu();
@@ -66,6 +78,8 @@ void DesktopTitleBar::RegisterChannel(flutter::BinaryMessenger* messenger) {
 int DesktopTitleBar::HitTest(POINT point) const {
   if (!configured_) return HTCLIENT;
   ScreenToClient(view_, &point);
+  if (PtInRect(&maximize_region_, point)) return HTMAXBUTTON;
+  if (PtInRect(&buttons_region_, point)) return HTCLIENT;
   const UINT dpi = GetDpiForWindow(window_);
   const int padding = GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
   const int border_x = GetSystemMetricsForDpi(SM_CXFRAME, dpi) + padding;
@@ -78,7 +92,7 @@ int DesktopTitleBar::HitTest(POINT point) const {
     if (point.x >= client.right - border_x) return HTTOPRIGHT;
     return HTTOP;
   }
-  return PtInRect(&maximize_region_, point) ? HTMAXBUTTON : HTCLIENT;
+  return HTCLIENT;
 }
 
 LRESULT CALLBACK DesktopTitleBar::ViewProc(HWND hwnd, UINT message, WPARAM wparam,
@@ -141,7 +155,7 @@ std::optional<LRESULT> DesktopTitleBar::HandleMessage(UINT message, WPARAM wpara
       pressed_ = false;
       break;
     case WM_DPICHANGED:
-      maximize_region_ = {};
+      SetMaximizeRegion({});
       [[fallthrough]];
     case WM_SIZE:
     case WM_KILLFOCUS:

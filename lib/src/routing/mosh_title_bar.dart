@@ -124,8 +124,11 @@ class _ChatListToggle extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final collapsed = ref.watch(railLayoutProvider.select((l) => l.collapsed));
     return IconButton(
-      tooltip: collapsed ? l.chatListExpand : l.chatListCollapse,
-      icon: Icon(collapsed ? Icons.menu : Icons.menu_open, size: 18),
+      tooltip: onPressed != null || collapsed
+          ? l.chatListExpand
+          : l.chatListCollapse,
+      icon: Icon(onPressed != null || collapsed ? Icons.menu : Icons.menu_open,
+          size: 18),
       style: _focusRingStyle,
       visualDensity: VisualDensity.compact,
       onPressed:
@@ -183,16 +186,18 @@ class _StatePillSlot extends ConsumerWidget {
   }
 
   (String, String) _dm(WidgetRef ref, AppLocalizations l) {
-    final state = ref.watch(activeSessionProvider(activeKey.arg)).value?.state;
+    final snapshot = ref.watch(activeSessionProvider(activeKey.arg));
+    final state = snapshot.hasError ? null : snapshot.value?.state;
     return state == null
-        ? ('idle', l.peerStatusTitle)
+        ? ('unknown', l.diagPeerUnknown)
         : (dmPillState(state), dmStateLabel(l, state));
   }
 
   (String, String) _group(WidgetRef ref, AppLocalizations l) {
-    final state = ref.watch(groupSnapshotProvider(activeKey.arg)).value?.state;
+    final snapshot = ref.watch(groupSnapshotProvider(activeKey.arg));
+    final state = snapshot.hasError ? null : snapshot.value?.state;
     return state == null
-        ? ('idle', l.peerStatusTitle)
+        ? ('unknown', l.diagPeerUnknown)
         : (state, stateLabel(l, state));
   }
 }

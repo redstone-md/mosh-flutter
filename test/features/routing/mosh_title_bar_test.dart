@@ -8,23 +8,28 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors, moshThemeData;
 import 'package:mosh/src/features/shared/focus_ring.dart';
+import 'package:mosh/src/features/conversation/active_peer_status_drawer.dart';
 import 'package:mosh/src/routing/mosh_title_bar.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
 import '../../support/pump.dart';
 import '../../support/scriptable_gateway.dart';
+import '../../support/scriptable_bridge.dart';
 import 'shell_harness.dart';
 
 /// Pumps the titlebar alone, [width] wide, with a DM with Alice open so the
 /// bar carries its StatePill. The rest of the shell is left out: this file
 /// pins the bar, not the panes below it.
-Future<void> _pumpBar(WidgetTester tester, {double width = 1200}) async {
+Future<void> _pumpBar(WidgetTester tester,
+    {double width = 1200,
+    ScriptableGateway? gateway,
+    bool settle = true}) async {
   tester.view.physicalSize = Size(width, 700);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  final gw = ScriptableGateway()
+  final gw = (gateway ?? ScriptableGateway())
     ..seedSessions([shellSession(sessionId: 'alice-1', peer: 'Alice')]);
   await pumpScreen(
     tester,
@@ -41,6 +46,7 @@ Future<void> _pumpBar(WidgetTester tester, {double width = 1200}) async {
       activeConversationProvider
           .overrideWithValue(ActiveConversation.parse('dm:alice-1')),
     ],
+    settle: settle,
   );
 }
 
@@ -57,6 +63,48 @@ Finder _inTitleBar(Finder matching) =>
     find.descendant(of: find.byType(MoshTitleBar), matching: matching);
 
 void main() {
+  testWidgets('pending selected snapshot reports unknown, then its real state',
+      (tester) async {
+    final gateway = ScriptableGateway()..hold(GatewayMethod.poll);
+    await _pumpBar(tester, gateway: gateway, settle: false);
+    await tester.pump();
+    expect(find.text('unknown'), findsOneWidget);
+    gateway.release(GatewayMethod.poll);
+    await tester.pumpAndSettle();
+    expect(find.text('Connected'), findsOneWidget);
+  });
+
+  testWidgets('diagnostic refresh stays disabled during its snapshot request',
+      (tester) async {
+    final gateway = ScriptableGateway()
+      ..seedSessions([shellSession(sessionId: 'alice-1', peer: 'Alice')]);
+    await pumpScreen(
+        tester,
+        Scaffold(
+            body: Column(children: [
+          MoshTitleBar(onOpenPeerStatus: () {}),
+          Expanded(child: ActivePeerStatusDrawer(onClose: () {})),
+        ])),
+        overrides: [
+          gatewayProvider.overrideWithValue(gateway),
+          bridgeFacadeProvider.overrideWithValue(
+              ScriptableBridge(conversations: gateway.conversations)),
+          activeConversationProvider
+              .overrideWithValue(ActiveConversation.parse('dm:alice-1')),
+        ]);
+    gateway.hold(GatewayMethod.poll);
+    await tester.tap(find.byTooltip('Refresh status'));
+    await tester.pump();
+    await tester.pump();
+    final button = find.ancestor(
+        of: find.byTooltip('Refresh status'),
+        matching: find.byType(IconButton));
+    expect(tester.widget<IconButton>(button).onPressed, isNull);
+    gateway.release(GatewayMethod.poll);
+    await tester.pumpAndSettle();
+    expect(tester.widget<IconButton>(button).onPressed, isNotNull);
+  });
+
   testWidgets('narrow titlebar keeps actions and removes technical subtitle',
       (tester) async {
     await _pumpBar(tester, width: 320);

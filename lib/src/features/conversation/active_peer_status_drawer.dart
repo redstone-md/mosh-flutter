@@ -36,7 +36,8 @@ class ActivePeerStatusDrawer extends ConsumerWidget {
           ? null
           : ConversationActionError.of(error)
               .describe(AppLocalizations.of(context)!),
-      refreshing: false,
+      refreshing:
+          dm?.isLoading ?? channel?.isLoading ?? group?.isLoading ?? false,
       onClose: onClose,
       onRefresh: () {
         if (active != null) {

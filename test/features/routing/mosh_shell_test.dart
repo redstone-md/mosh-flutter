@@ -307,7 +307,7 @@ void main() {
     await tester.tap(find.text('Hana'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Connection status'));
+    await tester.tap(find.byTooltip('Connection status').first);
     await tester.pumpAndSettle();
 
     Finder inDrawer(String text) => find.descendant(

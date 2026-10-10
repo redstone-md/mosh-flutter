@@ -23,6 +23,7 @@ class DesktopCaptionButtons extends StatefulWidget {
 class _DesktopCaptionButtonsState extends State<DesktopCaptionButtons> {
   final _maximizeKey = GlobalKey();
   Rect? _lastRegion;
+  Rect? _lastButtonsRegion;
   double? _lastRatio;
 
   @override
@@ -119,10 +120,18 @@ class _DesktopCaptionButtonsState extends State<DesktopCaptionButtons> {
     final box = _maximizeKey.currentContext?.findRenderObject() as RenderBox?;
     final region =
         box == null ? Rect.zero : box.localToGlobal(Offset.zero) & box.size;
+    final buttons = context.findRenderObject() as RenderBox;
+    final buttonsRegion = buttons.localToGlobal(Offset.zero) & buttons.size;
     final ratio = MediaQuery.devicePixelRatioOf(context);
-    if (region == _lastRegion && ratio == _lastRatio) return;
+    if (region == _lastRegion &&
+        buttonsRegion == _lastButtonsRegion &&
+        ratio == _lastRatio) {
+      return;
+    }
     _lastRegion = region;
+    _lastButtonsRegion = buttonsRegion;
     _lastRatio = ratio;
-    unawaited(widget.controller.setMaximizeRegion(region, ratio));
+    unawaited(widget.controller
+        .setMaximizeRegion(region, ratio, buttonsRegion: buttonsRegion));
   }
 }

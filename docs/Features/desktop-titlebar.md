@@ -8,7 +8,8 @@ The bar has Mosh branding and the chat-list toggle in chat routes. When a
 conversation is selected, its current state opens the existing connection
 details. A channel says Broadcast without claiming a verified connection.
 Settings, setup and empty selection have no conversation indicator. The chat
-name remains in the chat header.
+name remains in the chat header. Unavailable snapshots say unknown; a pending
+diagnostics refresh disables its refresh button.
 
 At narrow widths the product wordmark and status text yield before controls.
 The logo and buttons remain on one row. The bar has a 44 logical-pixel minimum
@@ -20,7 +21,8 @@ localized tooltips, accessible names and keyboard actions.
 - Windows keeps its resize frame and Alt+Space menu. Right-clicking blank
   titlebar space opens the system menu. The rendered maximize rectangle returns
   HTMAXBUTTON on the top-level HWND for Windows 11 Snap Layouts. Flutter's child
-  view passes these hits through on the same UI thread. Region changes follow
+  view passes these hits through on the same UI thread. Caption buttons take
+  precedence over the top resize strip. Region changes follow
   window layout and DPI; blank space drags and double-clicks maximize/restore.
 - macOS keeps AppKit traffic lights and fullscreen actions. Branding reserves
   their actual horizontal space. Double-click honors the system's titlebar
