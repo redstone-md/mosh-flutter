@@ -16,6 +16,33 @@ const _call = CallViewState(
     phase: CallViewPhase.active);
 
 void main() {
+  group('call window executable', () {
+    test('other desktops relaunch the main executable', () {
+      expect(
+          callWindowExecutable(
+              executable: '/opt/mosh/mosh', macOS: false, exists: (_) => false),
+          '/opt/mosh/mosh');
+    });
+
+    test('macOS uses the sandbox-inheriting sibling', () {
+      expect(
+          callWindowExecutable(
+              executable: '/Applications/mosh.app/Contents/MacOS/mosh',
+              macOS: true,
+              exists: (path) => path.endsWith('/MacOS/mosh-call-window')),
+          '/Applications/mosh.app/Contents/MacOS/mosh-call-window');
+    });
+
+    test('macOS never relaunches the sandboxed main executable', () {
+      expect(
+          () => callWindowExecutable(
+              executable: '/Applications/mosh.app/Contents/MacOS/mosh',
+              macOS: true,
+              exists: (_) => false),
+          throwsStateError);
+    });
+  });
+
   test('child exit restores inline controls without a call update', () async {
     final process = CallWindowProcess();
     final failures = <Object>[];

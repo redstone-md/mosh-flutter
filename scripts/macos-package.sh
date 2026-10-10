@@ -36,6 +36,8 @@ BUNDLED_LIB="$APP/Contents/MacOS/libmoss.dylib"
 [ -f "$BUNDLED_LIB" ] || fail "libmoss.dylib is not in Contents/MacOS (run scripts/moss-prepare.mjs before the build)"
 CAMERA_HELPER="$APP/Contents/Helpers/mosh-camera-capture"
 [ -f "$CAMERA_HELPER" ] || fail "camera helper missing from Contents/Helpers"
+CALL_WINDOW="$APP/Contents/MacOS/mosh-call-window"
+[ -f "$CALL_WINDOW" ] || fail "call window executable missing from Contents/MacOS"
 [ -f "$APP/Contents/Frameworks/libmosh_native_media.dylib" ] || fail "native media engine missing from Contents/Frameworks"
 
 # Everything that must run on the target arch: the main executable and every
@@ -59,7 +61,7 @@ while IFS= read -r -d '' binary; do
   else
     echo "arch check ok: ${binary#"$APP"/} ($archs)"
   fi
-done < <(find "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Helpers" -maxdepth 1 \( -name '*.dylib' -o -path "$APP/Contents/MacOS/mosh" -o -path "$CAMERA_HELPER" \) -print0)
+done < <(find "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Helpers" -maxdepth 1 \( -name '*.dylib' -o -path "$APP/Contents/MacOS/mosh" -o -path "$CAMERA_HELPER" -o -path "$CALL_WINDOW" \) -print0)
 
 # --- Signing --------------------------------------------------------------------
 # With MOSH_SIGN_IDENTITY (CI sets it from scripts/macos-import-signing.sh)
@@ -76,6 +78,9 @@ if [ -n "${MOSH_SIGN_IDENTITY:-}" ]; then
     sign "$nested"
   done < <(find "$APP/Contents/Frameworks" "$APP/Contents/MacOS" -maxdepth 1 \( -name '*.framework' -o -name '*.dylib' \) -print0)
   sign --options runtime --entitlements "$ROOT/mosh-media/capture/macos/Helper.entitlements" "$CAMERA_HELPER"
+  # A sandboxed child must inherit the sandbox; re-initializing it is fatal.
+  sign --identifier app.mosh.mosh.call-window \
+    --entitlements "$ROOT/mosh-media/capture/macos/Helper.entitlements" "$CALL_WINDOW"
   sign --entitlements "$ENTITLEMENTS" "$APP"
   codesign -dvv "$APP" 2>&1 | grep -q "Authority=Mosh Self-Signed Code Signing" ||
     fail "the app is not signed by the Mosh identity"
