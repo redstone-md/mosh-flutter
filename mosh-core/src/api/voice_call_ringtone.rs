@@ -1,4 +1,4 @@
-//! CPAL playback of the bundled call ringtone for incoming and outgoing voice calls.
+//! CPAL playback of the bundled incoming and outgoing call ringtones.
 
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -13,7 +13,24 @@ mod recording;
 
 const MAX_SECONDS: f64 = 30.0;
 
+/// Which bundled recording a ringtone plays.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VoiceCallRingtoneKind {
+    Incoming,
+    Outgoing,
+}
+
+impl VoiceCallRingtoneKind {
+    fn recording(self) -> &'static recording::Recording {
+        match self {
+            Self::Incoming => &recording::INCOMING,
+            Self::Outgoing => &recording::OUTGOING,
+        }
+    }
+}
+
 struct SignalGenerator {
+    recording: &'static recording::Recording,
     sample_rate: f64,
     next_sample: u64,
 }
@@ -24,7 +41,7 @@ impl SignalGenerator {
         if elapsed >= MAX_SECONDS {
             0.0
         } else {
-            recording::sample(elapsed, channel, channels)
+            self.recording.sample(elapsed, channel, channels)
         }
     }
 }
@@ -46,12 +63,14 @@ fn build_stream(
     device: &cpal::Device,
     config: &StreamConfig,
     sample_format: SampleFormat,
+    kind: VoiceCallRingtoneKind,
 ) -> Result<Stream, String> {
     let channels = config.channels as usize;
     if channels == 0 {
         return Err("cpal ringtone: output device reported zero channels".to_string());
     }
     let generator = SignalGenerator {
+        recording: kind.recording(),
         sample_rate: config.sample_rate as f64,
         next_sample: 0,
     };
@@ -94,6 +113,7 @@ pub struct VoiceCallRingtone {
 #[frb(sync)]
 pub fn voice_call_ringtone_start(
     output_device_id: Option<String>,
+    kind: VoiceCallRingtoneKind,
 ) -> Result<VoiceCallRingtone, String> {
     let device = crate::audio_devices::resolve_output_device(output_device_id.as_deref())?;
     let supported = device
@@ -101,7 +121,7 @@ pub fn voice_call_ringtone_start(
         .map_err(|error| format!("cpal ringtone: default output config: {error:?}"))?;
     let sample_format = supported.sample_format();
     let config = supported.config();
-    let stream = build_stream(&device, &config, sample_format)?;
+    let stream = build_stream(&device, &config, sample_format, kind)?;
     let stream_slot = Arc::new(Mutex::new(Some(stream)));
     let cleanup_slot = Arc::clone(&stream_slot);
     thread::Builder::new()
@@ -138,7 +158,9 @@ mod tests {
         let device = crate::audio_devices::resolve_output_device(None).unwrap();
         let id = device.id().unwrap().to_string();
         for _ in 0..3 {
-            let ringtone = voice_call_ringtone_start(Some(id.clone())).unwrap();
+            let ringtone =
+                voice_call_ringtone_start(Some(id.clone()), VoiceCallRingtoneKind::Incoming)
+                    .unwrap();
             assert!(ringtone.stream.lock().unwrap().is_some());
             thread::sleep(Duration::from_millis(150));
             voice_call_ringtone_stop(&ringtone).unwrap();
@@ -148,17 +170,31 @@ mod tests {
         let supported = device.default_output_config().unwrap();
         let mut invalid = supported.config();
         invalid.channels = 0;
-        assert!(build_stream(&device, &invalid, SampleFormat::F32).is_err());
-        assert!(build_stream(&device, &supported.config(), SampleFormat::I8).is_err());
+        assert!(build_stream(
+            &device,
+            &invalid,
+            SampleFormat::F32,
+            VoiceCallRingtoneKind::Outgoing
+        )
+        .is_err());
+        assert!(build_stream(
+            &device,
+            &supported.config(),
+            SampleFormat::I8,
+            VoiceCallRingtoneKind::Outgoing
+        )
+        .is_err());
     }
 
     #[test]
     fn sample_rate_conversion_preserves_the_recording_time() {
         let cd = SignalGenerator {
+            recording: &recording::INCOMING,
             sample_rate: 44_100.0,
             next_sample: 4_410,
         };
         let device = SignalGenerator {
+            recording: &recording::INCOMING,
             sample_rate: 48_000.0,
             next_sample: 4_800,
         };
@@ -167,8 +203,23 @@ mod tests {
     }
 
     #[test]
+    fn each_kind_plays_its_own_recording() {
+        let at = |kind: VoiceCallRingtoneKind| SignalGenerator {
+            recording: kind.recording(),
+            sample_rate: 48_000.0,
+            next_sample: 4_800,
+        };
+        let incoming = at(VoiceCallRingtoneKind::Incoming);
+        let outgoing = at(VoiceCallRingtoneKind::Outgoing);
+        assert_ne!(incoming.sample(0, 2), outgoing.sample(0, 2));
+        assert!(std::ptr::eq(incoming.recording, &recording::INCOMING));
+        assert!(std::ptr::eq(outgoing.recording, &recording::OUTGOING));
+    }
+
+    #[test]
     fn timeout_outputs_silence_in_every_sample_format() {
         let mut generator = SignalGenerator {
+            recording: &recording::OUTGOING,
             sample_rate: 48_000.0,
             next_sample: 1_440_000,
         };

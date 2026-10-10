@@ -22,8 +22,8 @@ Opening the originating DM remains available while call controls are pending.
   signaling also fails.
 - Incoming calls time out after 30 seconds. Answer, decline, cancel and end stop
   the ringtone immediately. Failed controls remain retryable.
-- The supplied `29_cipher_stream` recording plays through the selected CPAL output
-  device. See [recording provenance](../../assets/audio/README.md).
+- Incoming and outgoing calls play separate recordings through the selected CPAL
+  output device. See [recording provenance](../../assets/audio/README.md).
 
 ## Selected-device coordination (#46)
 

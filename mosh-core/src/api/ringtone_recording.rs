@@ -1,19 +1,39 @@
-//! Fixed, compiled PCM recording. The bundled canonical WAV format is checked
+//! Fixed, compiled PCM recordings. The bundled canonical WAV format is checked
 //! by tests; this module does not parse arbitrary files or allocate in callbacks.
 
-const RECORDING: &[u8] = include_bytes!("../../../assets/audio/cipher_stream.wav");
 const HEADER_BYTES: usize = 44;
-const SAMPLE_RATE: f64 = 44_100.0;
+const SAMPLE_RATE: f64 = 48_000.0;
 const CHANNELS: usize = 2;
-const GAIN: f32 = 0.3;
 
-pub(super) fn sample(elapsed: f64, output_channel: usize, output_channels: usize) -> f32 {
-    pcm_sample(
-        &RECORDING[HEADER_BYTES..],
-        elapsed * SAMPLE_RATE,
-        output_channel,
-        output_channels,
-    ) * GAIN
+pub(super) struct Recording {
+    wav: &'static [u8],
+    gain: f32,
+}
+
+// Gains match the loudness of the previous single ringtone.
+pub(super) static INCOMING: Recording = Recording {
+    wav: include_bytes!("../../../assets/audio/ringtone_incoming.wav"),
+    gain: 0.5,
+};
+pub(super) static OUTGOING: Recording = Recording {
+    wav: include_bytes!("../../../assets/audio/ringtone_outgoing.wav"),
+    gain: 0.6,
+};
+
+impl Recording {
+    pub(super) fn sample(
+        &self,
+        elapsed: f64,
+        output_channel: usize,
+        output_channels: usize,
+    ) -> f32 {
+        pcm_sample(
+            &self.wav[HEADER_BYTES..],
+            elapsed * SAMPLE_RATE,
+            output_channel,
+            output_channels,
+        ) * self.gain
+    }
 }
 
 fn pcm_sample(pcm: &[u8], position: f64, channel: usize, output_channels: usize) -> f32 {
@@ -43,17 +63,40 @@ fn read(pcm: &[u8], frame: usize, channel: usize) -> f32 {
 mod tests {
     use super::*;
 
+    fn assert_canonical(recording: &Recording, frames: usize) {
+        let wav = recording.wav;
+        assert_eq!(&wav[..4], b"RIFF");
+        assert_eq!(&wav[8..16], b"WAVEfmt ");
+        assert_eq!(&wav[16..20], &16_u32.to_le_bytes());
+        assert_eq!(&wav[20..22], &1_u16.to_le_bytes());
+        assert_eq!(&wav[22..24], &2_u16.to_le_bytes());
+        assert_eq!(&wav[24..28], &48_000_u32.to_le_bytes());
+        assert_eq!(&wav[34..36], &16_u16.to_le_bytes());
+        assert_eq!(&wav[36..40], b"data");
+        assert_eq!(wav.len() - HEADER_BYTES, frames * 4);
+    }
+
     #[test]
-    fn recording_matches_the_compiled_pcm_format() {
-        assert_eq!(&RECORDING[..4], b"RIFF");
-        assert_eq!(&RECORDING[8..16], b"WAVEfmt ");
-        assert_eq!(&RECORDING[16..20], &16_u32.to_le_bytes());
-        assert_eq!(&RECORDING[20..22], &1_u16.to_le_bytes());
-        assert_eq!(&RECORDING[22..24], &2_u16.to_le_bytes());
-        assert_eq!(&RECORDING[24..28], &44_100_u32.to_le_bytes());
-        assert_eq!(&RECORDING[34..36], &16_u16.to_le_bytes());
-        assert_eq!(&RECORDING[36..40], b"data");
-        assert_eq!(RECORDING.len() - HEADER_BYTES, 123_479 * 4);
+    fn recordings_match_the_compiled_pcm_format() {
+        assert_canonical(&INCOMING, 725_674);
+        assert_canonical(&OUTGOING, 612_059);
+    }
+
+    #[test]
+    fn recordings_are_distinct_audible_phrases_with_silent_loop_boundaries() {
+        for recording in [&INCOMING, &OUTGOING] {
+            let pcm = &recording.wav[HEADER_BYTES..];
+            let last = (pcm.len() / (CHANNELS * 2) - 1) as f64;
+            for channel in 0..CHANNELS {
+                assert_eq!(pcm_sample(pcm, 0.0, channel, 2), 0.0);
+                assert_eq!(pcm_sample(pcm, last, channel, 2), 0.0);
+            }
+            let phrase: f32 = (0..96_000)
+                .map(|i| recording.sample(i as f64 / SAMPLE_RATE, 0, 2).abs())
+                .sum();
+            assert!(phrase > 100.0);
+        }
+        assert_ne!(INCOMING.wav, OUTGOING.wav);
     }
 
     #[test]
@@ -72,16 +115,5 @@ mod tests {
         assert_eq!(pcm_sample(&pcm, 1.5, 0, 2), 0.25);
         assert_eq!(pcm_sample(&pcm, 2.0, 0, 2), 0.0);
         assert_eq!(pcm_sample(&pcm, 2.5, 0, 2), 0.25);
-    }
-
-    #[test]
-    fn the_recording_has_an_audible_phrase_and_a_silent_loop_boundary() {
-        assert_eq!(sample(0.0, 0, 2), 0.0);
-        let phrase: f32 = (1_000..60_000)
-            .map(|i| sample(i as f64 / SAMPLE_RATE, 0, 2).abs())
-            .sum();
-        assert!(phrase > 100.0);
-        assert_eq!(sample(2.7, 0, 2), 0.0);
-        assert_eq!(sample(2.7, 1, 2), 0.0);
     }
 }

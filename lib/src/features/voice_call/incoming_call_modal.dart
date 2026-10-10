@@ -84,7 +84,7 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
     super.initState();
     // Ringtone start is best-effort: a failure leaves it silent.
     try {
-      _ringtone = widget.ringtone.start();
+      _ringtone = widget.ringtone.start(RingtoneKind.incoming);
     } catch (_) {
       _ringtone = null;
     }

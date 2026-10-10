@@ -31,7 +31,7 @@ class RecordingSettingsRingtone implements RingtonePlayer, RingtoneHandle {
   bool failStart = false;
 
   @override
-  RingtoneHandle start() {
+  RingtoneHandle start(RingtoneKind kind) {
     if (failStart) throw StateError('scripted output failure');
     starts++;
     return this;

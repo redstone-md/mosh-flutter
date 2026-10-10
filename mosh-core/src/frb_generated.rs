@@ -3281,10 +3281,14 @@ fn wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_output_device_id = <Option<String>>::sse_decode(&mut deserializer);
+            let api_kind = <crate::api::voice_call_ringtone::VoiceCallRingtoneKind>::sse_decode(
+                &mut deserializer,
+            );
             deserializer.end();
             transform_result_sse::<_, String>((move || {
                 let output_ok = crate::api::voice_call_ringtone::voice_call_ringtone_start(
                     api_output_device_id,
+                    api_kind,
                 )?;
                 Ok(output_ok)
             })())
@@ -5838,6 +5842,18 @@ impl SseDecode for usize {
     }
 }
 
+impl SseDecode for crate::api::voice_call_ringtone::VoiceCallRingtoneKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::voice_call_ringtone::VoiceCallRingtoneKind::Incoming,
+            1 => crate::api::voice_call_ringtone::VoiceCallRingtoneKind::Outgoing,
+            _ => unreachable!("Invalid variant for VoiceCallRingtoneKind: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::attachment_runtime::VoiceMeta {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8207,6 +8223,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_group_runtime::wire_types:
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::voice_call_ringtone::VoiceCallRingtoneKind {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Incoming => 0.into_dart(),
+            Self::Outgoing => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::voice_call_ringtone::VoiceCallRingtoneKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::voice_call_ringtone::VoiceCallRingtoneKind>
+    for crate::api::voice_call_ringtone::VoiceCallRingtoneKind
+{
+    fn into_into_dart(self) -> crate::api::voice_call_ringtone::VoiceCallRingtoneKind {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::attachment_runtime::VoiceMeta {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -10174,6 +10211,22 @@ impl SseEncode for usize {
             .cursor
             .write_u64::<NativeEndian>(self as _)
             .unwrap();
+    }
+}
+
+impl SseEncode for crate::api::voice_call_ringtone::VoiceCallRingtoneKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::voice_call_ringtone::VoiceCallRingtoneKind::Incoming => 0,
+                crate::api::voice_call_ringtone::VoiceCallRingtoneKind::Outgoing => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

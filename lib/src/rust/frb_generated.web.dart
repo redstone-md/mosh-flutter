@@ -722,6 +722,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_usize(dynamic raw);
 
   @protected
+  VoiceCallRingtoneKind dco_decode_voice_call_ringtone_kind(dynamic raw);
+
+  @protected
   VoiceMeta dco_decode_voice_meta(dynamic raw);
 
   @protected
@@ -1457,6 +1460,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
+
+  @protected
+  VoiceCallRingtoneKind sse_decode_voice_call_ringtone_kind(
+      SseDeserializer deserializer);
 
   @protected
   VoiceMeta sse_decode_voice_meta(SseDeserializer deserializer);
@@ -2231,6 +2238,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_voice_call_ringtone_kind(
+      VoiceCallRingtoneKind self, SseSerializer serializer);
 
   @protected
   void sse_encode_voice_meta(VoiceMeta self, SseSerializer serializer);
