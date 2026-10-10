@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HardwareKeyboard;
+import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show isMobileBreakpoint;
 import 'package:mosh/src/features/conversation/message_copy.dart';
 import 'package:mosh/src/features/conversation/message_selection.dart';
 
@@ -23,20 +26,36 @@ class SelectableMessageRow extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: selecting && id != null ? () => _pick(selection!, id) : null,
-      child: ColoredBox(
-        color: selected
-            ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.16)
-            : Colors.transparent,
-        child: CopyableMessage(
-          key: ValueKey(message.messageId ?? message),
-          body: message.body,
-          selectionId: id,
-          selecting: selecting,
-          selected: selecting && id != null ? selected : null,
-          onSelect: id == null ? null : () => selection!.toggle(id),
-          onDelete: id == null ? null : () => scope!.onDelete(message),
-          child: AbsorbPointer(absorbing: selecting, child: child),
-        ),
+      child: Row(
+        textDirection:
+            isMobileBreakpoint(context) ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          Expanded(
+            child: CopyableMessage(
+              key: ValueKey(message.messageId ?? message),
+              body: message.body,
+              selectionId: id,
+              selecting: selecting,
+              selected: selecting && id != null ? selected : null,
+              onSelect: id == null ? null : () => selection!.toggle(id),
+              onDelete: id == null ? null : () => scope!.onDelete(message),
+              child: ExcludeFocus(
+                excluding: selecting,
+                child: AbsorbPointer(absorbing: selecting, child: child),
+              ),
+            ),
+          ),
+          if (selecting && id != null)
+            Checkbox(
+              key: ValueKey('message-selector-$id'),
+              value: selected,
+              shape: const CircleBorder(),
+              visualDensity: VisualDensity.standard,
+              materialTapTargetSize: MaterialTapTargetSize.padded,
+              semanticLabel: AppLocalizations.of(context)!.messageSelect,
+              onChanged: selection!.busy ? null : (_) => _pick(selection, id),
+            ),
+        ],
       ),
     );
   }

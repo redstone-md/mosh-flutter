@@ -49,12 +49,7 @@ class _MessageSelectionAreaState extends State<MessageSelectionArea>
     }
   }
 
-  Future<void> copy(String text) async {
-    final toaster = context.toaster;
-    final copied = AppLocalizations.of(context)!.messageCopied;
-    await Clipboard.setData(ClipboardData(text: text));
-    toaster.show(copied, kind: ToastKind.success);
-  }
+  Future<void> copy(String text) => copyMessageText(context, text);
 
   void showMenu(_CopyableMessageState message, Offset position,
       {bool fromTextSelection = false, bool fromKeyboard = false}) {
@@ -135,15 +130,14 @@ class _MessageSelectionAreaState extends State<MessageSelectionArea>
     }
     if (scope != null &&
         scope.selection.active &&
-        _copyShortcut.accepts(event, HardwareKeyboard.instance)) {
-      final text = scope.selectedText();
-      if (text.isNotEmpty) unawaited(copy(text));
+        messageCopyShortcut.accepts(event, HardwareKeyboard.instance)) {
+      scope.onCopySelected();
       return KeyEventResult.handled;
     }
     final message = _pointedMessage;
     if (hasSelection &&
         (_menuKey.currentState?.isOpen ?? false) &&
-        _copyShortcut.accepts(event, HardwareKeyboard.instance) &&
+        messageCopyShortcut.accepts(event, HardwareKeyboard.instance) &&
         message != null &&
         message.mounted) {
       // Overlay focus has no widget ancestor containing the native action.

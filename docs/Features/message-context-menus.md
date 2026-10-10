@@ -28,7 +28,7 @@ the software keyboard. Large text and tall menus retain scrollable actions.
   the source row's focus. Ctrl/Cmd+C preserves normal selection copying,
   including while the menu owns focus.
 - Message rows retain keyboard focus without painting a focus outline, including
-  during menu dismissal. Picked messages use the existing full-width tint.
+  during menu dismissal. Picked messages use a bubble tint and circular selectors.
 - A removed or replaced source row dismisses its menu. Scrolling closes it.
   Deferred actions do not invoke a disposed source or conversation.
 - Message identity owns row state; conversation identity owns selection/menu

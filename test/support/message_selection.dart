@@ -1,7 +1,29 @@
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/conversation/message_copy.dart';
+
+/// Find the row's shortcut focus, outside its nested control focus nodes.
+FocusNode messageRowFocus(WidgetTester tester, String body) => tester
+    .widget<Focus>(find
+        .descendant(
+            of: find.ancestor(
+                of: find.text(body), matching: find.byType(CopyableMessage)),
+            matching: find.byType(Focus))
+        .first)
+    .focusNode!;
+
+/// Enter selection through the same menu action users invoke.
+Future<void> startMessageSelection(WidgetTester tester, String body,
+    {String label = 'Select message'}) async {
+  await tester.tap(find.text(body),
+      buttons: kSecondaryMouseButton, kind: PointerDeviceKind.mouse);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
+}
 
 /// Capture caller-visible clipboard writes without touching the OS clipboard.
 List<String> captureClipboard(WidgetTester tester) {

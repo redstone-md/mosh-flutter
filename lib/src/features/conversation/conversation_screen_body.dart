@@ -17,6 +17,7 @@ import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_state.dart';
 import 'package:mosh/src/features/conversation/conversation_text_sends.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/message_selection_actions.dart';
 import 'package:mosh/src/features/conversation/typing_hint.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/chat_drop_zone.dart' show ChatDropZone;
@@ -111,8 +112,10 @@ class ConversationScreenBody extends ConsumerWidget {
                   child: _messages(
                       async, state, controller, l, sendBusy || sends.closing)),
               TypingHint(names: typingNamesOf(async.value)),
-              _composer(l, sendBusy, controller,
-                  sends.closing || _revoked(async.value)),
+              MessageSelectionComposer(
+                child: _composer(l, sendBusy, controller,
+                    sends.closing || _revoked(async.value)),
+              ),
             ],
           ),
           if (chrome.showPeerStatus && !detailsDocked)

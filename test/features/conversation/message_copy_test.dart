@@ -6,7 +6,6 @@
 // as a screen-reader action. "Copy message" copies the body alone.
 import 'package:flutter/gestures.dart'
     show PointerDeviceKind, kSecondaryMouseButton;
-import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -103,7 +102,7 @@ void main() {
     final copied = captureClipboard(tester);
     await _pump(tester);
 
-    Focus.of(tester.element(find.text('second message'))).requestFocus();
+    messageRowFocus(tester, 'second message').requestFocus();
     await tester.pump();
     await sendPlatformShortcut(tester, LogicalKeyboardKey.keyC);
 
