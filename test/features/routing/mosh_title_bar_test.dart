@@ -24,7 +24,8 @@ import 'shell_harness.dart';
 Future<void> _pumpBar(WidgetTester tester,
     {double width = 1200,
     ScriptableGateway? gateway,
-    bool settle = true}) async {
+    bool settle = true,
+    VoidCallback? onOpenPeerStatus}) async {
   tester.view.physicalSize = Size(width, 700);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
@@ -37,7 +38,7 @@ Future<void> _pumpBar(WidgetTester tester,
       data: moshThemeData,
       child: Scaffold(
         body: Column(
-          children: [MoshTitleBar(onOpenPeerStatus: () {})],
+          children: [MoshTitleBar(onOpenPeerStatus: onOpenPeerStatus ?? () {})],
         ),
       ),
     ),
@@ -115,12 +116,18 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('the Peer status button is read once, by its visible text',
+  testWidgets('Peer status is announced once and opens via a semantic action',
       (tester) async {
     final handle = tester.ensureSemantics();
-    await _pumpBar(tester);
+    var opened = false;
+    await _pumpBar(tester, onOpenPeerStatus: () => opened = true);
 
-    expect(find.semantics.byLabel('Connection status'), findsOne);
+    final button = find.semantics.byLabel('Connection status');
+    expect(button, findsOne);
+    final node = button.evaluate().single;
+    expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    node.owner!.performAction(node.id, SemanticsAction.tap);
+    expect(opened, isTrue);
     handle.dispose();
   });
 

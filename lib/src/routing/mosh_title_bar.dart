@@ -171,6 +171,7 @@ class _StatePillSlot extends ConsumerWidget {
               label: l.peerStatusTitle,
               value: label,
               button: true,
+              onTap: onTap,
               excludeSemantics: true,
               child: InkWell(
                 borderRadius: BorderRadius.circular(999),
