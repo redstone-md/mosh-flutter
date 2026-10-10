@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show mapEquals;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, ValueNotifier, mapEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'call_view_state.dart';
 import 'call_video_frame.dart';
@@ -29,6 +30,8 @@ class CallWindowCoordinator {
   final CallWindowFactory? factory;
   final Future<void> Function(CallViewCommand) onCommand;
   final void Function(Object) onFailure;
+  final _available = ValueNotifier(false);
+  ValueListenable<bool> get available => _available;
   CallWindowHandle? _window;
   CallViewState? _desired;
   Future<void>? _working;
@@ -73,6 +76,7 @@ class CallWindowCoordinator {
         if (_desired == null) {
           final window = _window;
           _window = null;
+          _available.value = false;
           await window?.close();
         } else {
           _window ??= await factory!((command) async {
@@ -88,11 +92,13 @@ class CallWindowCoordinator {
           final current = _desired;
           if (current != null && !_disposed) {
             await _window!.present(current);
+            _available.value = true;
           }
         }
       } catch (error) {
         final window = _window;
         _window = null;
+        _available.value = false;
         try {
           await window?.close();
         } catch (_) {
@@ -119,6 +125,7 @@ class CallWindowCoordinator {
     } catch (error) {
       if (_disposed || !identical(_window, attempted)) return;
       _window = null;
+      _available.value = false;
       try {
         await attempted?.close();
       } catch (_) {/* The native owner may already be gone. */}
@@ -144,10 +151,12 @@ class CallWindowCoordinator {
   }
 
   Future<void> dispose() async {
+    if (_disposed) return;
     _disposed = true;
     _desired = null;
     ++_revision;
     _start();
     await _working;
+    _available.dispose();
   }
 }

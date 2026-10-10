@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show ValueNotifier;
+
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
@@ -72,10 +74,20 @@ class _Ring implements RingtoneHandle {
 
 class RecordingCallWindow implements CallWindowHandle {
   final views = <CallViewState>[];
+  final presentation = ValueNotifier<CallViewState?>(null);
+  Future<void>? presentWait;
+  Object? presentFailure;
   int shows = 0;
   int closes = 0;
   @override
-  Future<void> present(CallViewState state) async => views.add(state);
+  Future<void> present(CallViewState state) async {
+    await presentWait;
+    final failure = presentFailure;
+    if (failure != null) throw failure;
+    views.add(state);
+    presentation.value = state;
+  }
+
   @override
   Future<void> show() async => shows++;
   @override

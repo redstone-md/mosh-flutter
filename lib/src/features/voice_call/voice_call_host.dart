@@ -123,21 +123,25 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
     );
   }
 
-  Widget _strip(String sessionId, AppLocalizations l) => VoiceCallLayer(
-        key: ValueKey(sessionId),
-        sessionId: sessionId,
-        l: l,
-        onOpenConversation: () => widget.onOpenConversation?.call(sessionId),
-        onShowWindow: ref.read(callWindowFactoryProvider) == null
-            ? null
-            : () => unawaited(_window.show()),
-        isCallWindowFocused: _window.isFocused,
-        onVoiceCallError: (message) {
-          if (message != null) {
-            context.toaster.show(message, kind: ToastKind.error);
-          }
-        },
-      );
+  Widget _strip(String sessionId, AppLocalizations l) => ValueListenableBuilder(
+      valueListenable: _window.available,
+      builder: (_, controlsInWindow, __) => VoiceCallLayer(
+            key: ValueKey(sessionId),
+            sessionId: sessionId,
+            l: l,
+            controlsInWindow: controlsInWindow,
+            onOpenConversation: () =>
+                widget.onOpenConversation?.call(sessionId),
+            onShowWindow: ref.read(callWindowFactoryProvider) == null
+                ? null
+                : () => unawaited(_window.show()),
+            isCallWindowFocused: _window.isFocused,
+            onVoiceCallError: (message) {
+              if (message != null) {
+                context.toaster.show(message, kind: ToastKind.error);
+              }
+            },
+          ));
 }
 
 /// MaterialApp.builder sits above the router's Overlay. The shared strip needs

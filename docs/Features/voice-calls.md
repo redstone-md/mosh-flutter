@@ -1,8 +1,9 @@
 # Calls
 
 Desktop calls have an independent native window for incoming, outgoing and active
-phases. A compact strip below the main view provides the same controls and a
-button to restore the window. Clicking the peer in either view opens the original
+phases. A compact strip below the main view shows status and a button to restore
+the ready window. It supplies call controls while the window is unavailable.
+Clicking the peer in either view opens the original
 DM. Messages, attachments, search and scrolling remain available during a call.
 Navigation to another DM, group, channel or Settings keeps the audio running.
 Opening the originating DM remains available while call controls are pending.
@@ -85,8 +86,11 @@ entrypoint arguments. GTK/EGL ownership stays independent on Linux. Stdio carrie
 display metadata, commands and frame acknowledgements with session and call IDs.
 The child initializes no Rust runtime, database or audio owner. The parent
 validates commands against the current call, waits for child exit on closure and
-terminates an unresponsive child. A window failure leaves the main strip usable;
-its restore button recreates the window. No additional window plugin is required.
+terminates an unresponsive child. Once the child has accepted its first call
+presentation, the main strip keeps only status and the restore button. Call
+controls stay in that window. Startup or presentation failure restores the
+strip's controls, and its restore button recreates the window. No additional
+window plugin is required.
 Android and iOS use the strip inside system safe insets. While a call is shown,
 the host consumes the keyboard inset for both the route and strip, removing it
 from the nested Scaffold so the composer does not reserve the inset twice.

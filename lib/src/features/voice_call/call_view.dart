@@ -25,6 +25,7 @@ class CallView extends StatefulWidget {
     this.now = _now,
     this.video,
     this.onDeviceSelected,
+    this.controlsInWindow = false,
   });
 
   final CallViewState call;
@@ -36,6 +37,7 @@ class CallView extends StatefulWidget {
   final int Function() now;
   final ValueListenable<CallVideoImages>? video;
   final void Function(CallViewCommand)? onDeviceSelected;
+  final bool controlsInWindow;
   static int _now() => DateTime.now().millisecondsSinceEpoch;
 
   @override
@@ -81,6 +83,7 @@ class _CallViewState extends State<CallView> {
           widget.onAction(CallViewAction.openConversation),
       actions: callControls(call, l, widget.onAction,
           showWindow: widget.onShowWindow,
+          controlsInWindow: widget.controlsInWindow,
           devices: widget.compact || widget.onDeviceSelected == null
               ? null
               : () => unawaited(_devices())),
