@@ -250,6 +250,59 @@ void main() {
     await coordinator.dispose();
     expect(window.closes, 1);
   });
+
+  test('a failed window is not respawned by updates of the same call',
+      () async {
+    // Regression: a renderer that cannot start (macOS sandbox re-init) was
+    // relaunched on every media update, producing a crash report per update.
+    final failures = <Object>[];
+    final window = RecordingCallWindow();
+    var opens = 0;
+    final coordinator = CallWindowCoordinator((_) async {
+      if (++opens == 1) throw StateError('window unavailable');
+      return window;
+    }, (_) async {}, failures.add);
+    coordinator.update(_first);
+    await Future<void>.delayed(Duration.zero);
+    for (final muted in [true, false, true]) {
+      coordinator
+          .update(CallViewState.fromMap({..._first.toMap(), 'muted': muted}));
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(opens, 1);
+    expect(failures, hasLength(1));
+    expect(coordinator.available.value, isFalse);
+    coordinator.update(_second);
+    await Future<void>.delayed(Duration.zero);
+    expect(opens, 2, reason: 'another call may try a fresh window');
+    expect(window.views.single.callId, 'second');
+    await coordinator.dispose();
+  });
+
+  test('an exited window is not respawned by updates of the same call',
+      () async {
+    final exiting = _ExitingWindow();
+    final replacement = RecordingCallWindow();
+    var opens = 0;
+    final failures = <Object>[];
+    final coordinator = CallWindowCoordinator(
+        (_) async => ++opens == 1 ? exiting : replacement,
+        (_) async {},
+        failures.add);
+    coordinator.update(_first);
+    await coordinator.show();
+    exiting.exited.complete();
+    await Future<void>.delayed(Duration.zero);
+    coordinator
+        .update(CallViewState.fromMap({..._first.toMap(), 'muted': true}));
+    await Future<void>.delayed(Duration.zero);
+    expect(opens, 1);
+    expect(failures, hasLength(1));
+    await coordinator.show();
+    expect(opens, 2, reason: 'explicit restore still retries');
+    expect(replacement.views.single.muted, isTrue);
+    await coordinator.dispose();
+  });
 }
 
 class _LostWindow extends RecordingCallWindow {
