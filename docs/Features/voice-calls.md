@@ -1,14 +1,15 @@
 # Calls
 
 Desktop calls have an independent native window for incoming, outgoing and active
-phases. A compact strip below the main view shows status and a button to restore
-the ready window. It supplies call controls while the window is unavailable.
-Clicking the peer in either view opens the original
-DM. Messages, attachments, search and scrolling remain available during a call.
+phases. The main view shows no call strip while that window starts or runs. A
+compact strip below the main view appears only after the window fails, or on
+platforms without a call window: it supplies call controls and, on desktop, a
+button to restore the window. Clicking the peer in
+either view opens the original DM. Messages, attachments, search and scrolling remain available during a call.
 Navigation to another DM, group, channel or Settings keeps the audio running.
 Opening the originating DM remains available while call controls are pending.
 
-- Minimize preserves the call. The restore button brings its window forward.
+- Minimize preserves the call. The OS taskbar or Dock brings its window forward.
 - Close or Escape in the call window declines an incoming call, cancels an
   outgoing call or hangs up
   an active call. Remote termination closes the window and removes the strip.
@@ -22,8 +23,8 @@ Opening the originating DM remains available while call controls are pending.
   signaling also fails.
 - Incoming calls time out after 30 seconds. Answer, decline, cancel and end stop
   the ringtone immediately. Failed controls remain retryable.
-- The supplied `29_cipher_stream` recording plays through the selected CPAL output
-  device. See [recording provenance](../../assets/audio/README.md).
+- Incoming and outgoing calls play separate recordings through the selected CPAL
+  output device. See [recording provenance](../../assets/audio/README.md).
 
 ## Selected-device coordination (#46)
 
@@ -114,6 +115,14 @@ pixels only; peer media still travels through Moss.
 The parent admits one frame until the child acknowledges its exact session, call,
 sequence and local/remote lane. A stalled renderer receives no further frames and
 is terminated after five seconds. Restore creates a new renderer and capability.
+A renderer that fails to start or exits is not relaunched by later updates of
+the same call; only Restore or a new call starts another one.
+
+On macOS the renderer runs `Contents/MacOS/mosh-call-window`, a copy of the main
+executable signed with only `app-sandbox` and `inherit`. A sandboxed parent cannot
+relaunch its own executable: the child's second sandbox initialization fails with
+`forbidden-sandbox-reinit` and `SIGILL` in `libsystem_secinit`. A missing copy
+fails the window without spawning a process.
 Rendering holds one image per lane and one decode in flight. Source/transfer age
 and monotonic decode duration count toward a one-second display budget; stale
 frames are discarded. Every image, codec and immutable buffer has explicit cleanup.

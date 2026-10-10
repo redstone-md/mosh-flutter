@@ -121,7 +121,7 @@ void main() {
       }
       await _frames(tester);
       expect(find.byTooltip('Mute'), findsNothing);
-      expect(find.byIcon(Icons.open_in_new), findsOneWidget);
+      expect(find.byIcon(Icons.open_in_new), findsNothing);
       expect(capture.starts, 1);
       expect(playback.starts, 1);
       expect(capture.stops, 0);

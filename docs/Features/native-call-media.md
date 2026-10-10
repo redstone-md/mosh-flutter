@@ -140,6 +140,8 @@ The engine is signed as a framework; the helper inherits the main app sandbox
 and carries camera usage text. The main app owns microphone/camera permissions.
 DMG packaging verifies the helper's architectures and re-signs it with its
 sandbox inheritance entitlements before sealing the application.
+The call window executable (`Contents/MacOS/mosh-call-window`) is signed the same
+way; see [voice calls](voice-calls.md).
 Windows places the DLL/helper beside the executable; Linux places both in `lib`,
 with executable permission on the helper. Do not ship the test camera driver.
 

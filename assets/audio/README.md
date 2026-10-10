@@ -1,16 +1,21 @@
-# Call ringtone
+# Call ringtones
 
-`cipher_stream.wav` is the original user-supplied `29_cipher_stream` composition.
-It was synthesized locally without sampled audio and supplied for redistribution
-with Mosh under this repository's GPL-3.0-or-later license.
+`ringtone_incoming.wav` (incoming calls and the Settings sound test) and
+`ringtone_outgoing.wav` (outgoing calls) are user-supplied recordings, converted
+from the supplied MP3 files without resampling.
 
-The recording is a 2.8-second seamless loop with a silent tail. Its canonical
-WAV header is 44 bytes; the payload is stereo little-endian signed PCM16 at
-44,100 Hz. SHA-256 of the supplied file:
-`a3da671ae7a73fef0e25308dc6c47b460d0fac1dce032c51eccd24bf28e5cbd4`.
+| File | Source MP3 SHA-256 | Length |
+|---|---|---|
+| `ringtone_incoming.wav` | `6b1be0d0ef146643a0136e5646297bb62cae91080221acc22f6c176d7097a672` | 15.1 s |
+| `ringtone_outgoing.wav` | `1b0b4083a654d36ddb2471362670969a5243f9aae20a4696dea19cf90367dd95` | 12.8 s |
 
-Rust embeds this single fixed recording. The ringtone callback reads its PCM
-payload and interpolates at the output device's sample rate, preserving stereo
-or averaging for mono. Extra output channels stay silent. There is no runtime
-asset lookup or general-purpose audio decoder. Replacements must retain the
-documented PCM format and pass the recording metadata tests.
+Conversion: decode with ffmpeg, apply a 10 ms linear fade at both ends so the
+loop boundary is silent, write a canonical 44-byte WAV header. The payload is
+stereo little-endian signed PCM16 at 48,000 Hz.
+
+Rust embeds both fixed recordings. The ringtone callback reads the PCM payload
+and interpolates at the output device's sample rate, preserving stereo or
+averaging for mono. Extra output channels stay silent. Per-recording gain keeps
+their loudness at the previous ringtone's level. There is no runtime asset
+lookup or general-purpose audio decoder. Replacements must retain the documented
+PCM format and pass the recording metadata tests.

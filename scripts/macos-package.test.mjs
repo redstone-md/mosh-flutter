@@ -22,7 +22,7 @@ async function packageFixture(helperArchs = "arm64 x86_64") {
         : relative === "pubspec.yaml" ? "version: 1.0.0\n" : "fixture";
       await writeFile(destination, content);
     }
-    for (const relative of ["MacOS/mosh", "MacOS/libmoss.dylib",
+    for (const relative of ["MacOS/mosh", "MacOS/mosh-call-window", "MacOS/libmoss.dylib",
       "Frameworks/libmosh_native_media.dylib", "Helpers/mosh-camera-capture"]) {
       const destination = path.join(app, "Contents", relative);
       await mkdir(path.dirname(destination), { recursive: true });
@@ -67,4 +67,16 @@ test("packaging signs the camera helper with inheritance before sealing the app"
     && line.includes("Release.entitlements") && line.endsWith("mosh.app"));
   assert.ok(helper >= 0, "the camera helper must be signed with its own entitlements");
   assert.ok(helper < app, "nested code must be signed before the app seal");
+});
+
+test("packaging signs the call window to inherit the sandbox before sealing the app", async () => {
+  const result = await packageFixture();
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  const commands = result.signing.split("\n");
+  const window = commands.findIndex((line) => line.includes("--force")
+    && line.includes("Helper.entitlements") && line.endsWith("mosh-call-window"));
+  const app = commands.findIndex((line) => line.includes("--force")
+    && line.includes("Release.entitlements") && line.endsWith("mosh.app"));
+  assert.ok(window >= 0, "the call window must not carry the main sandbox entitlements");
+  assert.ok(window < app, "nested code must be signed before the app seal");
 });

@@ -36,16 +36,26 @@ class CallWindowCoordinator {
   final void Function(Object) onFailure;
   final _available = ValueNotifier(false);
   ValueListenable<bool> get available => _available;
+  // Inline controls exist only without a window or after its failure, so a
+  // starting window never flashes them.
+  late final _fallback = ValueNotifier(factory == null);
+  ValueListenable<bool> get fallback => _fallback;
   CallWindowHandle? _window;
   CallViewState? _desired;
   Future<void>? _working;
   int _revision = 0;
   int _presented = 0;
   bool _disposed = false;
+  // A renderer that failed for this call is restored only by an explicit
+  // show(); otherwise every media update would relaunch a crashing process.
+  ({String? session, String? call})? _failed;
 
   void update(CallViewState? state) {
     if (_disposed || mapEquals(_desired?.toMap(), state?.toMap())) return;
-    if (!_isDesiredCall(state)) _available.value = false;
+    if (!_isDesiredCall(state)) {
+      _available.value = false;
+      if (factory != null) _fallback.value = false;
+    }
     _desired = state;
     ++_revision;
     _start();
@@ -81,12 +91,15 @@ class CallWindowCoordinator {
   Future<void> _sync() async {
     while (_presented != _revision) {
       final revision = _revision;
+      final target = _desired;
       try {
         if (_desired == null) {
           final window = _window;
           _window = null;
           _available.value = false;
           await window?.close();
+        } else if (_window == null && _hasFailed(_desired)) {
+          _available.value = false;
         } else {
           _window ??= _watch(await factory!((command) async {
             final current = _desired;
@@ -105,12 +118,14 @@ class CallWindowCoordinator {
             _available.value = !_disposed &&
                 identical(_window, window) &&
                 _isDesiredCall(current);
+            if (_available.value) _fallback.value = false;
           }
         }
       } catch (error) {
         final window = _window;
         _window = null;
         _available.value = false;
+        _markFailed(target);
         try {
           await window?.close();
         } catch (_) {
@@ -128,6 +143,7 @@ class CallWindowCoordinator {
         if (_disposed || !identical(_window, window)) return;
         _window = null;
         _available.value = false;
+        _markFailed(_desired);
         try {
           await window.close();
         } catch (_) {/* The child may already be gone. */}
@@ -137,11 +153,20 @@ class CallWindowCoordinator {
     return window;
   }
 
+  bool _hasFailed(CallViewState? state) =>
+      _failed == (session: state?.sessionId, call: state?.callId);
+
+  void _markFailed(CallViewState? state) {
+    _failed = (session: state?.sessionId, call: state?.callId);
+    if (!_disposed && _isDesiredCall(state)) _fallback.value = true;
+  }
+
   Future<void> show() async {
     if (_disposed || _desired == null) return;
     await _working;
     if (_disposed || _desired == null) return;
     if (_window == null) {
+      _failed = null;
       ++_revision;
       _start();
       await _working;
@@ -153,6 +178,7 @@ class CallWindowCoordinator {
       if (_disposed || !identical(_window, attempted)) return;
       _window = null;
       _available.value = false;
+      _fallback.value = true;
       try {
         await attempted?.close();
       } catch (_) {/* The native owner may already be gone. */}
@@ -185,5 +211,6 @@ class CallWindowCoordinator {
     _start();
     await _working;
     _available.dispose();
+    _fallback.dispose();
   }
 }

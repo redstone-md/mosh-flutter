@@ -45,7 +45,8 @@ class _VoiceSettingsSectionState extends ConsumerState<VoiceSettingsSection> {
       return;
     }
     try {
-      final handle = ref.read(ringtonePlayerProvider).start();
+      final handle =
+          ref.read(ringtonePlayerProvider).start(RingtoneKind.incoming);
       setState(() {
         _error = null;
         _ringtone = handle;

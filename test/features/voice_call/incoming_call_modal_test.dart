@@ -19,7 +19,7 @@ class _RecordingRingtonePlayer implements RingtonePlayer {
   int startCount = 0;
   int stopCount = 0;
   @override
-  RingtoneHandle start() {
+  RingtoneHandle start(RingtoneKind kind) {
     startCount++;
     return _RecordingHandle(this);
   }
@@ -34,7 +34,8 @@ class _RecordingHandle implements RingtoneHandle {
 
 class _FailingRingtonePlayer implements RingtonePlayer {
   @override
-  RingtoneHandle start() => throw StateError('no output device');
+  RingtoneHandle start(RingtoneKind kind) =>
+      throw StateError('no output device');
 }
 
 PendingCall _pending() => const PendingCall(

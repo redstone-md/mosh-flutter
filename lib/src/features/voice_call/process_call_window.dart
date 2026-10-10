@@ -14,6 +14,26 @@ const _callWindowEnvironment = 'MOSH_CALL_WINDOW';
 bool get isCallWindowProcess =>
     Platform.environment[_callWindowEnvironment] == '1';
 
+/// Sandbox-inheriting copy of the main executable, produced by the macOS
+/// build. macOS kills a sandboxed child that initializes the sandbox again,
+/// so the main executable cannot be relaunched as the renderer.
+const macosCallWindowExecutable = 'mosh-call-window';
+
+String callWindowExecutable(
+    {String? executable,
+    bool? macOS,
+    bool Function(String path) exists = _fileExists}) {
+  final main = executable ?? Platform.resolvedExecutable;
+  if (!(macOS ?? Platform.isMacOS)) return main;
+  final helper = '${File(main).parent.path}/$macosCallWindowExecutable';
+  if (!exists(helper)) {
+    throw StateError('macOS call window executable is missing');
+  }
+  return helper;
+}
+
+bool _fileExists(String path) => File(path).existsSync();
+
 /// Each desktop keeps renderer ownership in a separate process. Audio and
 /// signaling stay in the main process, behind the same call-window boundary.
 class ProcessCallWindow
@@ -40,8 +60,7 @@ class ProcessCallWindow
     ProcessCallWindow? window;
     try {
       process = await (startProcess?.call() ??
-          Process.start(
-              Platform.resolvedExecutable, [callWindowProcessArgument],
+          Process.start(callWindowExecutable(), [callWindowProcessArgument],
               environment: {_callWindowEnvironment: '1'}));
       final attached = _attach(process, frames, onCommand);
       window = attached.$1;

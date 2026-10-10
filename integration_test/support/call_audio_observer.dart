@@ -97,8 +97,8 @@ class _Ringtone implements RingtonePlayer {
   _Ringtone(this.observer);
   final CallAudioObserver observer;
   @override
-  RingtoneHandle start() {
-    final handle = const CpalRingtonePlayer().start();
+  RingtoneHandle start(RingtoneKind kind) {
+    final handle = const CpalRingtonePlayer().start(kind);
     observer.rings++;
     return _RingHandle(observer, handle);
   }

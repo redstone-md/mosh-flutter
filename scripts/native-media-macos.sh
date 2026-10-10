@@ -29,3 +29,11 @@ codesign --force --sign "$MOSH_NATIVE_SIGNING_IDENTITY" --options runtime \
 codesign --force --sign "$MOSH_NATIVE_SIGNING_IDENTITY" --options runtime \
   --entitlements "$MOSH_NATIVE_ROOT/mosh-media/capture/macos/Helper.entitlements" \
   "$MOSH_NATIVE_APP/Helpers/mosh-camera-capture"
+# macOS kills a sandboxed child that initializes the sandbox again, so the call
+# window cannot relaunch the main executable. This copy only inherits it.
+MOSH_CALL_WINDOW="$MOSH_NATIVE_APP/MacOS/mosh-call-window"
+cp "$TARGET_BUILD_DIR/$EXECUTABLE_PATH" "$MOSH_CALL_WINDOW"
+codesign --force --sign "$MOSH_NATIVE_SIGNING_IDENTITY" \
+  --identifier app.mosh.mosh.call-window \
+  --entitlements "$MOSH_NATIVE_ROOT/mosh-media/capture/macos/Helper.entitlements" \
+  "$MOSH_CALL_WINDOW"

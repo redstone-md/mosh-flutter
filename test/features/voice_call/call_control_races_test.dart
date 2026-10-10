@@ -138,12 +138,12 @@ void main() {
     expect(f.bridge.countOf(BridgeMethod.callDecline), 0);
     await tester.pumpWidget(const SizedBox.shrink());
   });
-  testWidgets('both call views open the origin while accept is pending',
+  testWidgets('window command and view open the origin while accept is pending',
       (tester) async {
     final f = _Fixture();
     addTearDown(f.container.dispose);
     f.bridge.hold(BridgeMethod.callAccept);
-    await f.mount(tester);
+    await f.mount(tester, renderWindow: true);
     final accepting =
         f.command(f.window.views.last.command(CallViewAction.accept));
     await frames(tester);
@@ -192,7 +192,7 @@ void main() {
       (tester) async {
     final f = _Fixture();
     addTearDown(f.container.dispose);
-    await f.mount(tester);
+    await f.mount(tester, renderWindow: true);
     final stale = f.window.views.last.command(CallViewAction.decline);
     final oldView = tester.widget<CallView>(find.byType(CallView));
     f.seed(active: true);
@@ -203,7 +203,8 @@ void main() {
     expect(f.bridge.countOf(BridgeMethod.callDecline), 0);
     expect(f.bridge.countOf(BridgeMethod.callEnd), 0);
     expect(f.window.views.last.phase, CallViewPhase.active);
-    expect(find.byTooltip('Mute'), findsNothing);
+    expect(find.byType(CallView), findsOneWidget,
+        reason: 'the ready window replaces the main-window strip');
     await tester.pumpWidget(const SizedBox.shrink());
     f.container.dispose();
     await tester.pump();

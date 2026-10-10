@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
 import 'package:mosh/src/features/voice_call/call_ringing.dart';
 import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
+import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 import '../../support/voice_call_fakes.dart';
@@ -32,6 +33,9 @@ void main() {
     expect(player.stops, 3);
     ringing.dispose();
     expect(player.stops, 3);
+    expect(player.kinds,
+        [RingtoneKind.incoming, RingtoneKind.incoming, RingtoneKind.outgoing],
+        reason: 'each direction plays its own ringtone');
   });
 
   testWidgets(

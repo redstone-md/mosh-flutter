@@ -124,12 +124,12 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
   }
 
   Widget _strip(String sessionId, AppLocalizations l) => ValueListenableBuilder(
-      valueListenable: _window.available,
-      builder: (_, controlsInWindow, __) => VoiceCallLayer(
+      valueListenable: _window.fallback,
+      builder: (_, fallback, __) => VoiceCallLayer(
             key: ValueKey(sessionId),
             sessionId: sessionId,
             l: l,
-            controlsInWindow: controlsInWindow,
+            controlsInWindow: !fallback,
             onOpenConversation: () =>
                 widget.onOpenConversation?.call(sessionId),
             onShowWindow: ref.read(callWindowFactoryProvider) == null

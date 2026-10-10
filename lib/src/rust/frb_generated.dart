@@ -397,7 +397,7 @@ abstract class RustLibApi extends BaseApi {
       {required VoicePlayback p});
 
   VoiceCallRingtone crateApiVoiceCallRingtoneVoiceCallRingtoneStart(
-      {String? outputDeviceId});
+      {String? outputDeviceId, required VoiceCallRingtoneKind kind});
 
   void crateApiVoiceCallRingtoneVoiceCallRingtoneStop(
       {required VoiceCallRingtone ringtone});
@@ -2818,11 +2818,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   VoiceCallRingtone crateApiVoiceCallRingtoneVoiceCallRingtoneStart(
-      {String? outputDeviceId}) {
+      {String? outputDeviceId, required VoiceCallRingtoneKind kind}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_opt_String(outputDeviceId, serializer);
+        sse_encode_voice_call_ringtone_kind(kind, serializer);
         return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 89)!;
       },
       codec: SseCodec(
@@ -2831,7 +2832,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         decodeErrorData: sse_decode_String,
       ),
       constMeta: kCrateApiVoiceCallRingtoneVoiceCallRingtoneStartConstMeta,
-      argValues: [outputDeviceId],
+      argValues: [outputDeviceId, kind],
       apiImpl: this,
     ));
   }
@@ -2839,7 +2840,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiVoiceCallRingtoneVoiceCallRingtoneStartConstMeta =>
       const TaskConstMeta(
         debugName: "voice_call_ringtone_start",
-        argNames: ["outputDeviceId"],
+        argNames: ["outputDeviceId", "kind"],
       );
 
   @override
@@ -4798,6 +4799,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt dco_decode_usize(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeU64(raw);
+  }
+
+  @protected
+  VoiceCallRingtoneKind dco_decode_voice_call_ringtone_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return VoiceCallRingtoneKind.values[raw as int];
   }
 
   @protected
@@ -7215,6 +7222,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VoiceCallRingtoneKind sse_decode_voice_call_ringtone_kind(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return VoiceCallRingtoneKind.values[inner];
+  }
+
+  @protected
   VoiceMeta sse_decode_voice_meta(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_durationMs = sse_decode_u_32(deserializer);
@@ -9151,6 +9166,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_usize(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
+  }
+
+  @protected
+  void sse_encode_voice_call_ringtone_kind(
+      VoiceCallRingtoneKind self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
