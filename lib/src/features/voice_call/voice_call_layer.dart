@@ -90,7 +90,9 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
       language: Localizations.localeOf(context).languageCode,
       error: state.error?.cause.describe(widget.l),
     );
-    if (call == null) return const SizedBox.shrink();
+    // A ready call window shows the call; the strip returns only as a fallback
+    // while that window is unavailable. Notifications and errors stay here.
+    if (call == null || widget.controlsInWindow) return const SizedBox.shrink();
     return CallView(
         call: call,
         compact: true,
