@@ -17,6 +17,10 @@ abstract interface class CallWindowFrameSink {
   bool presentFrame(CallVideoFrame frame);
 }
 
+abstract interface class CallWindowLifecycle {
+  Future<void> get closed;
+}
+
 typedef CallWindowFactory = Future<CallWindowHandle> Function(
     Future<void> Function(CallViewCommand) onCommand);
 
@@ -84,7 +88,7 @@ class CallWindowCoordinator {
           _available.value = false;
           await window?.close();
         } else {
-          _window ??= await factory!((command) async {
+          _window ??= _watch(await factory!((command) async {
             final current = _desired;
             if (_disposed ||
                 current == null ||
@@ -93,11 +97,14 @@ class CallWindowCoordinator {
               return;
             }
             await onCommand(command);
-          });
+          }));
           final current = _desired;
           if (current != null && !_disposed) {
-            await _window!.present(current);
-            _available.value = !_disposed && _isDesiredCall(current);
+            final window = _window!;
+            await window.present(current);
+            _available.value = !_disposed &&
+                identical(_window, window) &&
+                _isDesiredCall(current);
           }
         }
       } catch (error) {
@@ -113,6 +120,21 @@ class CallWindowCoordinator {
       }
       _presented = revision;
     }
+  }
+
+  CallWindowHandle _watch(CallWindowHandle window) {
+    if (window case CallWindowLifecycle lifecycle) {
+      unawaited(lifecycle.closed.then((_) async {
+        if (_disposed || !identical(_window, window)) return;
+        _window = null;
+        _available.value = false;
+        try {
+          await window.close();
+        } catch (_) {/* The child may already be gone. */}
+        if (!_disposed) onFailure(StateError('Call window exited'));
+      }));
+    }
+    return window;
   }
 
   Future<void> show() async {

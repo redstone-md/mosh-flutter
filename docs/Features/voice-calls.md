@@ -88,8 +88,9 @@ The child initializes no Rust runtime, database or audio owner. The parent
 validates commands against the current call, waits for child exit on closure and
 terminates an unresponsive child. Once the child has accepted its first call
 presentation, the main strip keeps only status and the restore button. Call
-controls stay in that window. Startup or presentation failure restores the
-strip's controls, and its restore button recreates the window. No additional
+controls stay in that window. Startup or presentation failure and child-process
+exit restore the strip's controls without waiting for a new call snapshot.
+Its restore button recreates the window. No additional
 window plugin is required.
 Android and iOS use the strip inside system safe insets. While a call is shown,
 the host consumes the keyboard inset for both the route and strip, removing it

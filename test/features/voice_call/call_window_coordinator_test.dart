@@ -21,6 +21,45 @@ const _second = CallViewState(
     phase: CallViewPhase.incoming);
 
 void main() {
+  test('an exit during presentation cannot restore stale readiness', () async {
+    final presented = Completer<void>();
+    final window = _ExitingWindow()..presentWait = presented.future;
+    final failures = <Object>[];
+    final coordinator =
+        CallWindowCoordinator((_) async => window, (_) async {}, failures.add);
+    addTearDown(coordinator.dispose);
+    coordinator.update(_first);
+    await Future<void>.delayed(Duration.zero);
+    window.exited.complete();
+    await Future<void>.delayed(Duration.zero);
+    presented.complete();
+    await Future<void>.delayed(Duration.zero);
+    expect(coordinator.available.value, isFalse);
+    expect(window.closes, 1);
+    expect(failures, hasLength(1));
+  });
+
+  test('a late exit cannot revoke a replacement window', () async {
+    final old = _ExitingWindow();
+    final next = RecordingCallWindow();
+    var opens = 0;
+    final coordinator = CallWindowCoordinator(
+        (_) async => ++opens == 1 ? old : next,
+        (_) async {},
+        (error) => fail('$error'));
+    coordinator.update(_first);
+    await coordinator.show();
+    coordinator.update(null);
+    await Future<void>.delayed(Duration.zero);
+    coordinator.update(_second);
+    await coordinator.show();
+    old.exited.complete();
+    await Future<void>.delayed(Duration.zero);
+    expect(coordinator.available.value, isTrue);
+    expect(next.closes, 0);
+    await coordinator.dispose();
+  });
+
   test('same-call updates cannot revoke acknowledged window readiness',
       () async {
     final first = Completer<void>();
@@ -216,6 +255,13 @@ void main() {
 class _LostWindow extends RecordingCallWindow {
   @override
   Future<void> show() async => throw StateError('process exited');
+}
+
+class _ExitingWindow extends RecordingCallWindow
+    implements CallWindowLifecycle {
+  final exited = Completer<void>();
+  @override
+  Future<void> get closed => exited.future;
 }
 
 class _DelayedWindow extends RecordingCallWindow {
