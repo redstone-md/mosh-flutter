@@ -41,14 +41,15 @@ class CallWindowCoordinator {
 
   void update(CallViewState? state) {
     if (_disposed || mapEquals(_desired?.toMap(), state?.toMap())) return;
-    if (_desired?.sessionId != state?.sessionId ||
-        _desired?.callId != state?.callId) {
-      _available.value = false;
-    }
+    if (!_isDesiredCall(state)) _available.value = false;
     _desired = state;
     ++_revision;
     _start();
   }
+
+  bool _isDesiredCall(CallViewState? state) =>
+      state?.sessionId == _desired?.sessionId &&
+      state?.callId == _desired?.callId;
 
   bool presentFrame(CallVideoFrame frame) {
     final call = _desired;
@@ -96,7 +97,7 @@ class CallWindowCoordinator {
           final current = _desired;
           if (current != null && !_disposed) {
             await _window!.present(current);
-            _available.value = !_disposed && identical(current, _desired);
+            _available.value = !_disposed && _isDesiredCall(current);
           }
         }
       } catch (error) {

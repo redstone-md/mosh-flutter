@@ -21,6 +21,27 @@ const _second = CallViewState(
     phase: CallViewPhase.incoming);
 
 void main() {
+  test('same-call updates cannot revoke acknowledged window readiness',
+      () async {
+    final first = Completer<void>();
+    final next = Completer<void>();
+    final window = RecordingCallWindow()..presentWait = first.future;
+    final coordinator = CallWindowCoordinator(
+        (_) async => window, (_) async {}, (error) => fail('$error'));
+    coordinator.update(_first);
+    await Future<void>.delayed(Duration.zero);
+    window.presentWait = next.future;
+    coordinator
+        .update(CallViewState.fromMap({..._first.toMap(), 'muted': true}));
+    first.complete();
+    await Future<void>.delayed(Duration.zero);
+    expect(coordinator.available.value, isTrue,
+        reason: 'frequent media updates must not duplicate inline controls');
+    next.complete();
+    await coordinator.show();
+    await coordinator.dispose();
+  });
+
   for (final previousReady in [false, true]) {
     test('a replacement keeps inline controls until presented: $previousReady',
         () async {
