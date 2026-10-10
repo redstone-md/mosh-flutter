@@ -1,14 +1,14 @@
 # Calls
 
 Desktop calls have an independent native window for incoming, outgoing and active
-phases. A compact strip below the main view shows status and a button to restore
-the ready window. It supplies call controls while the window is unavailable.
-Clicking the peer in either view opens the original
-DM. Messages, attachments, search and scrolling remain available during a call.
+phases. While that window is ready the main view shows no call strip. A compact
+strip below the main view appears only while the window is unavailable: it
+supplies call controls and a button to restore the window. Clicking the peer in
+either view opens the original DM. Messages, attachments, search and scrolling remain available during a call.
 Navigation to another DM, group, channel or Settings keeps the audio running.
 Opening the originating DM remains available while call controls are pending.
 
-- Minimize preserves the call. The restore button brings its window forward.
+- Minimize preserves the call. The OS taskbar or Dock brings its window forward.
 - Close or Escape in the call window declines an incoming call, cancels an
   outgoing call or hangs up
   an active call. Remote termination closes the window and removes the strip.

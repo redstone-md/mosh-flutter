@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
@@ -49,7 +50,9 @@ void main() {
       await tester.pump();
       expect(find.byTooltip(end), findsNothing);
       expect(find.byTooltip('Accept call'), findsNothing);
-      expect(find.byIcon(Icons.open_in_new), findsOneWidget);
+      expect(find.byIcon(Icons.open_in_new), findsNothing,
+          reason: 'the ready window replaces the main-window strip');
+      expect(find.byType(CallView), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
     });
   }
