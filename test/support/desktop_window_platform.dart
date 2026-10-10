@@ -10,11 +10,17 @@ class DesktopWindowPlatform {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   final calls = <MethodCall>[];
   Map<String, Object?> configuration = {};
+  Future<void>? maximizeCompletion;
+  Future<void>? restoreCompletion;
+  Future<void> Function()? duringWindowSetup;
   static const manager = MethodChannel('window_manager');
 
   void install() {
     messenger.setMockMethodCallHandler(manager, (call) async {
       calls.add(call);
+      if (call.method == 'maximize') await maximizeCompletion;
+      if (call.method == 'unmaximize') await restoreCompletion;
+      if (call.method == 'setTitleBarStyle') await duringWindowSetup?.call();
       if (call.method.startsWith('is')) return call.method == 'isFocused';
       return null;
     });

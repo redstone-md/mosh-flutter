@@ -18,6 +18,10 @@ class DesktopWindowController extends ChangeNotifier with WindowListener {
   bool _maximizeHovered = false;
   String _decorationLayout = ':minimize,maximize,close';
   double _leadingInset = 0;
+  bool? _requestedMaximized;
+  int _maximizeRevision = 0;
+  int _pendingMaximizeRequests = 0;
+  Future<void> _maximizeActions = Future.value();
 
   bool get focused => _focused;
   bool get maximized => _maximized;
@@ -33,6 +37,7 @@ class DesktopWindowController extends ChangeNotifier with WindowListener {
     }
     final owner =
         DesktopWindowController(platform: platform ?? defaultTargetPlatform);
+    channel.setMethodCallHandler(owner._nativeEvent);
     final config = await channel.invokeMapMethod<String, Object?>('configure');
     owner._configuration(config);
     await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
@@ -41,7 +46,6 @@ class DesktopWindowController extends ChangeNotifier with WindowListener {
     owner._fullScreen = await windowManager.isFullScreen();
     owner._focused = await windowManager.isFocused();
     windowManager.addListener(owner);
-    channel.setMethodCallHandler(owner._nativeEvent);
     return owner;
   }
 
@@ -66,8 +70,29 @@ class DesktopWindowController extends ChangeNotifier with WindowListener {
 
   Future<void> minimize() => windowManager.minimize();
   Future<void> close() => windowManager.close();
-  Future<void> toggleMaximize() =>
-      _maximized ? windowManager.unmaximize() : windowManager.maximize();
+  Future<void> toggleMaximize() {
+    final target = !(_requestedMaximized ?? _maximized);
+    final revision = ++_maximizeRevision;
+    _pendingMaximizeRequests++;
+    _requestedMaximized = target;
+    final action = _maximizeActions.then((_) async {
+      await (target ? windowManager.maximize() : windowManager.unmaximize());
+      final actual = await windowManager.isMaximized();
+      if (revision != _maximizeRevision) return;
+      _maximized = actual;
+      if (actual == target) _requestedMaximized = null;
+      notifyListeners();
+    }).whenComplete(() => _pendingMaximizeRequests--);
+    // Preserve each activation until native acknowledgement. A failed command
+    // must neither poison the queue nor clear a newer user's intent.
+    _maximizeActions =
+        action.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return action.catchError((Object error, StackTrace stack) {
+      if (revision == _maximizeRevision) _requestedMaximized = null;
+      Error.throwWithStackTrace(error, stack);
+    });
+  }
+
   Future<void> startDragging() => windowManager.startDragging();
   Future<void> doubleClick() => platform == TargetPlatform.macOS
       ? channel.invokeMethod<void>('doubleClick')
@@ -100,12 +125,18 @@ class DesktopWindowController extends ChangeNotifier with WindowListener {
   @override
   void onWindowMaximize() {
     _maximized = true;
+    if (_pendingMaximizeRequests == 0 && _requestedMaximized == true) {
+      _requestedMaximized = null;
+    }
     notifyListeners();
   }
 
   @override
   void onWindowUnmaximize() {
     _maximized = false;
+    if (_pendingMaximizeRequests == 0 && _requestedMaximized == false) {
+      _requestedMaximized = null;
+    }
     notifyListeners();
   }
 

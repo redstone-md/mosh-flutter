@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -34,6 +36,67 @@ Finder _inBar(Finder matching) =>
     find.descendant(of: find.byType(MoshTitleBar), matching: matching);
 
 void main() {
+  testWidgets('older window events preserve the latest queued toggle',
+      (tester) async {
+    final maximize = Completer<void>();
+    final restore = Completer<void>();
+    final platform = DesktopWindowPlatform()
+      ..maximizeCompletion = maximize.future
+      ..restoreCompletion = restore.future;
+    final window = await _window(platform);
+    await _app(tester, window);
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byTooltip('Maximize'));
+    }
+    await platform.event('maximize');
+    maximize.complete();
+    await tester.pump();
+    await platform.event('unmaximize');
+    await tester.pump();
+    await tester.tap(find.byTooltip('Maximize'));
+    restore.complete();
+    await tester.pumpAndSettle();
+    expect(
+        platform.calls
+            .map((c) => c.method)
+            .where((m) => m == 'maximize' || m == 'unmaximize')
+            .toList(),
+        ['maximize', 'unmaximize', 'maximize', 'unmaximize']);
+  });
+
+  testWidgets('quick caption activations serialize maximize then restore',
+      (tester) async {
+    final completion = Completer<void>();
+    final platform = DesktopWindowPlatform()
+      ..maximizeCompletion = completion.future;
+    final window = await _window(platform);
+    await _app(tester, window);
+    await tester.tap(find.byTooltip('Maximize'));
+    await tester.tap(find.byTooltip('Maximize'));
+    List<String> commands() => platform.calls
+        .map((c) => c.method)
+        .where((m) => m == 'maximize' || m == 'unmaximize')
+        .toList();
+    expect(commands(), ['maximize']);
+    completion.complete();
+    await tester.pumpAndSettle();
+    expect(commands(), ['maximize', 'unmaximize']);
+  });
+
+  testWidgets('GTK preference updates during setup survive initialization',
+      (tester) async {
+    final platform = DesktopWindowPlatform()
+      ..configuration = {'layout': ':close'};
+    platform.duringWindowSetup = () => platform.send(
+        DesktopWindowController.channel,
+        const MethodCall(
+            'configuration', {'layout': 'close:minimize,maximize'}));
+    final window = await _window(platform, target: TargetPlatform.linux);
+    await _app(tester, window);
+    expect(tester.getCenter(find.byTooltip('Close')).dx, lessThan(50));
+    expect(find.byTooltip('Maximize'), findsOneWidget);
+  });
+
   testWidgets('320px desktop at 200% keeps caption and status hit areas',
       (tester) async {
     tester.platformDispatcher.textScaleFactorTestValue = 2;
@@ -79,7 +142,7 @@ void main() {
     await platform.event('maximize');
     await tester.pump();
     await tester.tap(find.byTooltip('Restore'));
-    expect(platform.calls.last.method, 'unmaximize');
+    expect(platform.calls.map((c) => c.method), contains('unmaximize'));
     appRouter.go(AppRoutes.settings);
     await tester.pumpAndSettle();
     expect(find.byType(MoshTitleBar), findsOneWidget);
@@ -130,7 +193,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 60));
     await tester.tap(logo);
     await tester.pump();
-    expect(platform.calls.last.method, 'maximize');
+    expect(platform.calls.map((c) => c.method), contains('maximize'));
     await tester.pump(const Duration(milliseconds: 350));
   });
 

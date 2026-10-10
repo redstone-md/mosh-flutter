@@ -67,14 +67,15 @@ int DesktopTitleBar::HitTest(POINT point) const {
   if (!configured_) return HTCLIENT;
   ScreenToClient(view_, &point);
   const UINT dpi = GetDpiForWindow(window_);
-  const int border = GetSystemMetricsForDpi(SM_CYFRAME, dpi) +
-                     GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+  const int padding = GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+  const int border_x = GetSystemMetricsForDpi(SM_CXFRAME, dpi) + padding;
+  const int border_y = GetSystemMetricsForDpi(SM_CYFRAME, dpi) + padding;
   if (!IsZoomed(window_) && (GetWindowLongPtr(window_, GWL_STYLE) & WS_THICKFRAME) &&
-      point.y >= 0 && point.y < border) {
+      point.y >= 0 && point.y < border_y) {
     RECT client;
     GetClientRect(view_, &client);
-    if (point.x < border) return HTTOPLEFT;
-    if (point.x >= client.right - border) return HTTOPRIGHT;
+    if (point.x < border_x) return HTTOPLEFT;
+    if (point.x >= client.right - border_x) return HTTOPRIGHT;
     return HTTOP;
   }
   return PtInRect(&maximize_region_, point) ? HTMAXBUTTON : HTCLIENT;
