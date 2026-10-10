@@ -12,12 +12,19 @@ class DesktopWindowController extends ChangeNotifier with WindowListener {
 
   final TargetPlatform platform;
   static const channel = MethodChannel('mosh/window-chrome');
-  bool focused = true;
-  bool maximized = false;
-  bool fullScreen = false;
-  bool maximizeHovered = false;
-  String decorationLayout = ':minimize,maximize,close';
-  double leadingInset = 0;
+  bool _focused = true;
+  bool _maximized = false;
+  bool _fullScreen = false;
+  bool _maximizeHovered = false;
+  String _decorationLayout = ':minimize,maximize,close';
+  double _leadingInset = 0;
+
+  bool get focused => _focused;
+  bool get maximized => _maximized;
+  bool get fullScreen => _fullScreen;
+  bool get maximizeHovered => _maximizeHovered;
+  String get decorationLayout => _decorationLayout;
+  double get leadingInset => _leadingInset;
 
   static Future<DesktopWindowController?> initialize(
       {TargetPlatform? platform}) async {
@@ -30,18 +37,18 @@ class DesktopWindowController extends ChangeNotifier with WindowListener {
     owner._configuration(config);
     await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
     await windowManager.setTitle('Mosh');
-    owner.maximized = await windowManager.isMaximized();
-    owner.fullScreen = await windowManager.isFullScreen();
-    owner.focused = await windowManager.isFocused();
+    owner._maximized = await windowManager.isMaximized();
+    owner._fullScreen = await windowManager.isFullScreen();
+    owner._focused = await windowManager.isFocused();
     windowManager.addListener(owner);
     channel.setMethodCallHandler(owner._nativeEvent);
     return owner;
   }
 
   void _configuration(Map<String, Object?>? config) {
-    if (config?['layout'] case final String layout) decorationLayout = layout;
+    if (config?['layout'] case final String layout) _decorationLayout = layout;
     if (config?['leadingInset'] case final num inset) {
-      leadingInset = inset.toDouble();
+      _leadingInset = inset.toDouble();
     }
   }
 
@@ -50,7 +57,7 @@ class DesktopWindowController extends ChangeNotifier with WindowListener {
       case 'configuration':
         _configuration(Map<String, Object?>.from(call.arguments as Map));
       case 'maximizeHover':
-        maximizeHovered = call.arguments == true;
+        _maximizeHovered = call.arguments == true;
       default:
         return;
     }
@@ -60,7 +67,7 @@ class DesktopWindowController extends ChangeNotifier with WindowListener {
   Future<void> minimize() => windowManager.minimize();
   Future<void> close() => windowManager.close();
   Future<void> toggleMaximize() =>
-      maximized ? windowManager.unmaximize() : windowManager.maximize();
+      _maximized ? windowManager.unmaximize() : windowManager.maximize();
   Future<void> startDragging() => windowManager.startDragging();
   Future<void> doubleClick() => platform == TargetPlatform.macOS
       ? channel.invokeMethod<void>('doubleClick')
@@ -80,37 +87,37 @@ class DesktopWindowController extends ChangeNotifier with WindowListener {
 
   @override
   void onWindowFocus() {
-    focused = true;
+    _focused = true;
     notifyListeners();
   }
 
   @override
   void onWindowBlur() {
-    focused = false;
+    _focused = false;
     notifyListeners();
   }
 
   @override
   void onWindowMaximize() {
-    maximized = true;
+    _maximized = true;
     notifyListeners();
   }
 
   @override
   void onWindowUnmaximize() {
-    maximized = false;
+    _maximized = false;
     notifyListeners();
   }
 
   @override
   void onWindowEnterFullScreen() {
-    fullScreen = true;
+    _fullScreen = true;
     notifyListeners();
   }
 
   @override
   void onWindowLeaveFullScreen() {
-    fullScreen = false;
+    _fullScreen = false;
     notifyListeners();
   }
 

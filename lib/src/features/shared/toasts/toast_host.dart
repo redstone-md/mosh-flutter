@@ -1,10 +1,10 @@
-import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 
 import 'toast_card.dart';
 import 'toast_motion.dart';

@@ -51,26 +51,28 @@ class _DesktopCaptionButtonsState extends State<DesktopCaptionButtons> {
   Widget _button(BuildContext context, String name) {
     final c = widget.controller;
     final l = AppLocalizations.of(context)!;
-    final action = switch (name) {
-      'minimize' => c.minimize,
-      'maximize' => c.toggleMaximize,
-      _ => c.close,
-    };
-    final label = switch (name) {
-      'minimize' => l.nativeMenuMinimize,
-      'maximize' => c.maximized ? l.windowRestore : l.windowMaximize,
-      _ => l.dialogClose,
-    };
-    final caption = switch (name) {
-      'minimize' => WindowCaptionButton.minimize(
-          onPressed: action, brightness: Brightness.dark),
-      'maximize' => c.maximized
-          ? WindowCaptionButton.unmaximize(
-              onPressed: action, brightness: Brightness.dark)
-          : WindowCaptionButton.maximize(
-              onPressed: action, brightness: Brightness.dark),
-      _ => WindowCaptionButton.close(
-          onPressed: action, brightness: Brightness.dark),
+    final (action, label, caption) = switch (name) {
+      'minimize' => (
+          c.minimize,
+          l.nativeMenuMinimize,
+          WindowCaptionButton.minimize(
+              onPressed: c.minimize, brightness: Brightness.dark)
+        ),
+      'maximize' => (
+          c.toggleMaximize,
+          c.maximized ? l.windowRestore : l.windowMaximize,
+          c.maximized
+              ? WindowCaptionButton.unmaximize(
+                  onPressed: c.toggleMaximize, brightness: Brightness.dark)
+              : WindowCaptionButton.maximize(
+                  onPressed: c.toggleMaximize, brightness: Brightness.dark)
+        ),
+      _ => (
+          c.close,
+          l.dialogClose,
+          WindowCaptionButton.close(
+              onPressed: c.close, brightness: Brightness.dark)
+        ),
     };
     return _accessibleButton(
         label,

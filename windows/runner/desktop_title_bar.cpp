@@ -141,8 +141,7 @@ std::optional<LRESULT> DesktopTitleBar::HandleMessage(UINT message, WPARAM wpara
       break;
     case WM_DPICHANGED:
       maximize_region_ = {};
-      Hover(false);
-      break;
+      [[fallthrough]];
     case WM_SIZE:
     case WM_KILLFOCUS:
       Hover(false);

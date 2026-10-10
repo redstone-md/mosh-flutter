@@ -160,24 +160,26 @@ class _StatePillSlot extends ConsumerWidget {
       ConversationKind.channel => ('idle', l.channelBroadcastBadge),
       ConversationKind.group => _group(ref, l),
     };
-    return Tooltip(
-      message: l.peerStatusTitle,
-      child: Semantics(
-          label: l.peerStatusTitle,
-          value: label,
-          button: true,
-          excludeSemantics: true,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(999),
-            onTap: onTap,
-            child: FocusRing(
-                radius: BorderRadius.circular(999),
-                child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: StatePill(
-                        state: state, label: label, compact: compact))),
-          )),
-    );
+    return ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        child: Tooltip(
+          message: l.peerStatusTitle,
+          child: Semantics(
+              label: l.peerStatusTitle,
+              value: label,
+              button: true,
+              excludeSemantics: true,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: onTap,
+                child: FocusRing(
+                    radius: BorderRadius.circular(999),
+                    child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: StatePill(
+                            state: state, label: label, compact: compact))),
+              )),
+        ));
   }
 
   (String, String) _dm(WidgetRef ref, AppLocalizations l) {

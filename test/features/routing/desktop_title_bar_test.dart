@@ -34,6 +34,21 @@ Finder _inBar(Finder matching) =>
     find.descendant(of: find.byType(MoshTitleBar), matching: matching);
 
 void main() {
+  testWidgets('320px desktop at 200% keeps caption and status hit areas',
+      (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final platform = DesktopWindowPlatform();
+    final window = await _window(platform);
+    await _app(tester, window, size: const Size(320, 800));
+    await tester.tap(find.text('Alice'));
+    await tester.pumpAndSettle();
+    final status = _inBar(find.byTooltip('Connection status'));
+    expect(tester.getSize(status).width, greaterThanOrEqualTo(40));
+    expect(find.byTooltip('Close'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('narrow desktop menu returns from the chat to its list',
       (tester) async {
     final platform = DesktopWindowPlatform();

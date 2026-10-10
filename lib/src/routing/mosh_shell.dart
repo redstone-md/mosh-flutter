@@ -1,4 +1,3 @@
-import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -7,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/features/sessions/sessions_list_controls.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/conversation/active_peer_status_drawer.dart';
