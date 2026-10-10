@@ -4,6 +4,24 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] - 2026-10-10
+
+### Added
+
+- Incoming and outgoing calls play separate ringtones.
+
+### Changed
+
+- The call strip below the main window appears only when the call window
+  cannot open or on platforms without one. A starting call window no longer
+  flashes it.
+
+### Fixed
+
+- macOS calls no longer crash the call window process repeatedly. The window
+  starts from a helper that inherits the app sandbox.
+- A call window that fails to start is not relaunched on every call update.
+
 ## [0.20.0] - 2026-10-10
 
 ### Changed
