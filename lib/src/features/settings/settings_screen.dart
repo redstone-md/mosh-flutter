@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
@@ -108,7 +109,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _wide(SettingsSection section) => Column(
         children: [
-          const MoshTitleBar.brand(),
+          if (!DesktopChromeScope.isPresent(context))
+            const MoshTitleBar.brand(),
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,

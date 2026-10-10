@@ -5,6 +5,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
+import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
@@ -19,129 +20,119 @@ const double _kCompactWidth = 640;
 /// Widest the live state pill grows before its label ellipsizes.
 const double _kStatePillMaxWidth = 240;
 
-const IconData _kPeerStatusIcon = Icons.electrical_services_outlined;
-
-/// Desktop titlebar. Watches activeConversationKeyProvider + the matching
-/// snapshot family only for the StatePill slot. The shell-level
-/// PeerStatusDrawer toggle lives in MoshShell: this titlebar fires the
-/// shell-supplied [onOpenPeerStatus] VoidCallback when the Peer status
-/// button is tapped. Keeping the toggle in the shell is what rebuilds the
-/// Stack so the Positioned.fill drawer actually appears (a titlebar-owned
-/// toggle would no-op the shell, since the shell does not watch it).
+/// Shared application branding and selected-conversation diagnostics.
 class MoshTitleBar extends ConsumerWidget {
-  const MoshTitleBar({super.key, required this.onOpenPeerStatus});
+  const MoshTitleBar(
+      {super.key,
+      required this.onOpenPeerStatus,
+      this.showChatList = true,
+      this.onToggleChatList,
+      this.integrated = false,
+      this.leading = const SizedBox.shrink(),
+      this.trailing = const SizedBox.shrink(),
+      this.dragArea});
 
-  /// Settings retain window branding without the hidden chat's live status.
-  const MoshTitleBar.brand({super.key}) : onOpenPeerStatus = null;
+  const MoshTitleBar.brand({super.key})
+      : onOpenPeerStatus = null,
+        showChatList = false,
+        onToggleChatList = null,
+        integrated = false,
+        leading = const SizedBox.shrink(),
+        trailing = const SizedBox.shrink(),
+        dragArea = null;
 
-  /// Invoked when the "Peer status" button is tapped -- the shell flips
-  /// its `_showPeerStatus` and rebuilds to mount the Positioned.fill
-  /// PeerStatusDrawer over the whole shell. Owned by the shell, not this
-  /// titlebar, so the shell rebuilds when it flips (a titlebar-owned
-  /// toggle would no-op).
   final VoidCallback? onOpenPeerStatus;
+  final bool showChatList;
+  final VoidCallback? onToggleChatList;
+  final bool integrated;
+  final Widget leading;
+  final Widget trailing;
+  final Widget Function(Widget child)? dragArea;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (!integrated && DesktopChromeScope.isPresent(context)) {
+      return const SizedBox.shrink();
+    }
     final theme = Theme.of(context);
-    final activeKey =
+    final active =
         onOpenPeerStatus == null ? null : ref.watch(activeConversationProvider);
-    // The Material carries the bar fill, so the Peer status button's ink
-    // paints above it. The shell mounts the titlebar ABOVE the branch
-    // Scaffolds, so there is no other Material to draw on.
     return Material(
       color: theme.scaffoldBackgroundColor,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 44),
-        padding: const EdgeInsets.symmetric(horizontal: 18),
+      child: DecoratedBox(
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: theme.dividerColor)),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) => _row(
-            context,
-            activeKey,
-            compact: constraints.maxWidth <
-                _kCompactWidth *
-                    MediaQuery.textScalerOf(context).scale(14) /
-                    14,
-          ),
+            border: Border(bottom: BorderSide(color: theme.dividerColor))),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: LayoutBuilder(builder: (context, constraints) {
+            final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+            return Row(children: [
+              leading,
+              const SizedBox(width: 8),
+              if (showChatList) _ChatListToggle(onPressed: onToggleChatList),
+              Expanded(
+                  child: _branding(context,
+                      showName: constraints.maxWidth >= 480 * scale)),
+              if (active != null)
+                Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: ConstrainedBox(
+                      constraints:
+                          const BoxConstraints(maxWidth: _kStatePillMaxWidth),
+                      child: _StatePillSlot(
+                          activeKey: active,
+                          compact:
+                              constraints.maxWidth < _kCompactWidth * scale,
+                          onTap: onOpenPeerStatus!),
+                    )),
+              trailing,
+              if (!integrated) const SizedBox(width: 8),
+            ]);
+          }),
         ),
       ),
     );
   }
 
-  Widget _row(BuildContext context, ActiveConversation? activeKey,
-      {required bool compact}) {
-    final l = AppLocalizations.of(context)!;
-    final text = Theme.of(context).textTheme;
-    return Row(
-      children: <Widget>[
-        if (onOpenPeerStatus != null) ...[
-          const _ChatListToggle(),
-          const SizedBox(width: 6),
-        ],
+  Widget _branding(BuildContext context, {required bool showName}) {
+    final brand = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Row(children: [
         Image.asset('assets/branding/mosh-mark.png',
             width: 18, height: 18, excludeFromSemantics: true),
-        const SizedBox(width: 8),
-        Text(
-          l.shellProductName,
-          style: text.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.04 * 14,
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Tooltip(
-            message: l.shellWindowSubtitle,
-            excludeFromSemantics: true,
-            child: Text(
-              l.shellWindowSubtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: text.bodySmall,
-            ),
-          ),
-        ),
-        // The static subtitle yields first: Peer status and the live
-        // state keep their width, the state up to a cap past which it
-        // ellipsizes.
-        if (onOpenPeerStatus != null) ...[
-          const SizedBox(width: 14),
-          compact
-              ? IconButton(
-                  tooltip: l.peerStatusTitle,
-                  icon: const Icon(_kPeerStatusIcon, size: 18),
-                  style: _focusRingStyle,
-                  onPressed: onOpenPeerStatus,
-                )
-              : _PeerStatusButton(onTap: onOpenPeerStatus!),
-          const SizedBox(width: 14),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: _kStatePillMaxWidth),
-            child: _StatePillSlot(activeKey: activeKey),
-          ),
+        if (showName) ...[
+          const SizedBox(width: 8),
+          Text(AppLocalizations.of(context)!.shellProductName,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.56)),
         ],
-      ],
+      ]),
     );
+    return dragArea?.call(brand) ?? brand;
   }
 }
 
 /// Collapses the chat list to its avatar strip and expands it back.
 class _ChatListToggle extends ConsumerWidget {
-  const _ChatListToggle();
+  const _ChatListToggle({this.onPressed});
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final collapsed = ref.watch(railLayoutProvider.select((l) => l.collapsed));
     return IconButton(
-      tooltip: collapsed ? l.chatListExpand : l.chatListCollapse,
-      icon: Icon(collapsed ? Icons.menu : Icons.menu_open, size: 18),
+      tooltip: onPressed != null || collapsed
+          ? l.chatListExpand
+          : l.chatListCollapse,
+      icon: Icon(onPressed != null || collapsed ? Icons.menu : Icons.menu_open,
+          size: 18),
       style: _focusRingStyle,
       visualDensity: VisualDensity.compact,
-      onPressed: () => ref.read(railLayoutProvider.notifier).toggle(),
+      onPressed:
+          onPressed ?? () => ref.read(railLayoutProvider.notifier).toggle(),
     );
   }
 }
@@ -156,80 +147,59 @@ final ButtonStyle _focusRingStyle = ButtonStyle(
   ),
 );
 
-/// The "Peer status" ghost button (plug icon 14 + text), the same icon the
-/// DM/Channel/Group AppBars use for their peer-status action. The visible
-/// text is its accessible name; the InkWell supplies button semantics.
-class _PeerStatusButton extends StatelessWidget {
-  const _PeerStatusButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  static final BorderRadius _radius = BorderRadius.circular(6);
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    return InkWell(
-      borderRadius: _radius,
-      onTap: onTap,
-      child: FocusRing(
-        radius: _radius,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 30),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(
-                  _kPeerStatusIcon,
-                  size: 14,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 6),
-                Text(l.peerStatusTitle, style: theme.textTheme.labelMedium),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The StatePill slot. Renders the live pill for the active conversation
-/// kind, or nothing when no conversation is open. Watches the matching
-/// snapshot family for the live `.state` (dm/group); the channel branch
-/// renders a fixed ready pill + channelBroadcastBadge text regardless of
-/// state (ChannelSnapshot has no .state field).
+/// Uses existing conversation state mapping; never claims global connectivity.
 class _StatePillSlot extends ConsumerWidget {
-  const _StatePillSlot({required this.activeKey});
-
-  final ActiveConversation? activeKey;
+  const _StatePillSlot(
+      {required this.activeKey, required this.compact, required this.onTap});
+  final ActiveConversation activeKey;
+  final bool compact;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final activeKey = this.activeKey;
-    if (activeKey == null) return const SizedBox.shrink();
     final l = AppLocalizations.of(context)!;
-    switch (activeKey.kind) {
-      case ConversationKind.dm:
-        final async = ref.watch(activeSessionProvider(activeKey.arg));
-        final state = async.value?.state;
-        if (state == null) return const SizedBox.shrink();
-        return StatePill(
-            state: dmPillState(state), label: dmStateLabel(l, state));
-      case ConversationKind.channel:
-        // Channels are always in the Broadcast state; ChannelSnapshot has
-        // no .state.
-        return StatePill(state: 'ready', label: l.channelBroadcastBadge);
-      case ConversationKind.group:
-        final async = ref.watch(groupSnapshotProvider(activeKey.arg));
-        final state = async.value?.state;
-        if (state == null) return const SizedBox.shrink();
-        return StatePill(state: state, label: stateLabel(l, state));
-    }
+    final (state, label) = switch (activeKey.kind) {
+      ConversationKind.dm => _dm(ref, l),
+      ConversationKind.channel => ('idle', l.channelBroadcastBadge),
+      ConversationKind.group => _group(ref, l),
+    };
+    return ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        child: Tooltip(
+          message: l.peerStatusTitle,
+          child: Semantics(
+              label: l.peerStatusTitle,
+              value: label,
+              button: true,
+              onTap: onTap,
+              excludeSemantics: true,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: onTap,
+                child: FocusRing(
+                    radius: BorderRadius.circular(999),
+                    child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: StatePill(
+                            state: state, label: label, compact: compact))),
+              )),
+        ));
+  }
+
+  (String, String) _dm(WidgetRef ref, AppLocalizations l) {
+    final snapshot = ref.watch(activeSessionProvider(activeKey.arg));
+    final state = snapshot.hasError ? null : snapshot.value?.state;
+    return state == null
+        ? ('unknown', l.diagPeerUnknown)
+        : (dmPillState(state), dmStateLabel(l, state));
+  }
+
+  (String, String) _group(WidgetRef ref, AppLocalizations l) {
+    final snapshot = ref.watch(groupSnapshotProvider(activeKey.arg));
+    final state = snapshot.hasError ? null : snapshot.value?.state;
+    return state == null
+        ? ('unknown', l.diagPeerUnknown)
+        : (state, stateLabel(l, state));
   }
 }
 
@@ -242,7 +212,11 @@ class _StatePillSlot extends ConsumerWidget {
 ///   idle    = default text + fg-3 dot
 /// Unknown states fall back to the idle chrome.
 class StatePill extends StatelessWidget {
-  const StatePill({super.key, required this.state, required this.label});
+  const StatePill(
+      {super.key,
+      required this.state,
+      required this.label,
+      this.compact = false});
 
   /// The raw state string ('idle' / 'waiting' / 'ready' / ...).
   final String state;
@@ -250,6 +224,7 @@ class StatePill extends StatelessWidget {
   /// The localized label (stateLabel output for dm/group; the broadcast
   /// badge text for channels).
   final String label;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -280,18 +255,19 @@ class StatePill extends StatelessWidget {
                 boxShadow: variant.dotGlow,
               ),
             ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  letterSpacing: 0.02 * 11.5,
-                  color: variant.textColor,
+            if (!compact) const SizedBox(width: 8),
+            if (!compact)
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    letterSpacing: 0.02 * 11.5,
+                    color: variant.textColor,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

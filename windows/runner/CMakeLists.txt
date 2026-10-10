@@ -8,6 +8,7 @@ project(runner LANGUAGES CXX)
 # Any new source files that you add to the application should be added here.
 add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
+  "desktop_title_bar.cpp"
   "main.cpp"
   "utils.cpp"
   "win32_window.cpp"
@@ -33,7 +34,7 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
-target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
+target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib" "comctl32.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
@@ -55,3 +56,17 @@ add_custom_command(TARGET mosh_window_icon_test POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${FLUTTER_LIBRARY}" "$<TARGET_FILE_DIR:mosh_window_icon_test>"
 )
+
+add_executable(mosh_desktop_title_bar_test EXCLUDE_FROM_ALL
+  "tests/desktop_title_bar_test.cpp"
+  "desktop_title_bar.cpp"
+)
+apply_standard_settings(mosh_desktop_title_bar_test)
+target_compile_definitions(mosh_desktop_title_bar_test PRIVATE "NOMINMAX")
+target_link_libraries(mosh_desktop_title_bar_test PRIVATE
+  flutter flutter_wrapper_app "comctl32.lib")
+set_target_properties(mosh_desktop_title_bar_test PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests")
+add_custom_command(TARGET mosh_desktop_title_bar_test POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${FLUTTER_LIBRARY}" "$<TARGET_FILE_DIR:mosh_desktop_title_bar_test>")

@@ -4,6 +4,24 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] - 2026-10-10
+
+### Changed
+
+- One integrated desktop titlebar stays available in chats, settings and setup,
+  including narrow windows. It keeps native macOS traffic lights, Windows Snap
+  Layouts and the desktop's Linux caption placement.
+- The selected conversation's status opens connection details. Window branding
+  no longer includes the technical OpenMLS subtitle.
+- Message selection controls are compact; row actions and recording respect
+  the current selection mode.
+
+### Fixed
+
+- Call controls appear in the call window and return to the main window if the
+  child exits. Media updates preserve the child window's readiness.
+- Windows camera capture no longer opens transient helper console windows.
+
 ## [0.19.0] - 2026-10-09
 
 ### Added

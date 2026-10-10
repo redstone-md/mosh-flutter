@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/routing/mosh_title_bar.dart';
@@ -51,7 +52,8 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
         backgroundColor: MoshColors.bg0,
         body: SafeArea(
             child: Column(children: [
-          const MoshTitleBar.brand(),
+          if (!DesktopChromeScope.isPresent(context))
+            const MoshTitleBar.brand(),
           Expanded(child: LayoutBuilder(builder: _viewport)),
         ])),
       ));

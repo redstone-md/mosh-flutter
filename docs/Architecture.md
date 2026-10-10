@@ -304,6 +304,15 @@ See [ADR 0039](ADR/0039-chat-names.md).
 
 ## Setup, settings and voice
 
+The desktop main process configures `DesktopWindowController` after the call-child
+entrypoint has returned. `DesktopWindowFrame` owns one titlebar above the router
+and first-run gate. Route-local branding yields through `DesktopChromeScope`.
+The frame reuses selected-conversation diagnostics; setup/settings have no chat
+status. Existing `window_manager` owns window actions and events. Private native
+hooks supply Windows maximize hit testing and system menu, macOS traffic-light
+insets and double-click preference, and live Linux GTK caption layout. See
+[desktop titlebar](Features/desktop-titlebar.md).
+
 Interface language defaults to Flutter's system resolution, including changes
 to the OS's preferred locales. Profile settings can persist an explicit English
 or Russian choice in `interface-language`, a non-secret Dart preference independent

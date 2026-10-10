@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 
 import 'toast_card.dart';
 import 'toast_motion.dart';
@@ -164,7 +165,8 @@ class _ToastHostState extends ConsumerState<ToastHost> {
   @override
   Widget build(BuildContext context) {
     _attach(ref.watch(toasterProvider));
-    final mobile = MediaQuery.sizeOf(context).width <= 580;
+    final mobile = !DesktopChromeScope.isPresent(context) &&
+        MediaQuery.sizeOf(context).width <= 580;
     final layout = ToastLayout(
       away: mobile ? -1 : 1,
       reduceMotion: MediaQuery.disableAnimationsOf(context),
@@ -175,7 +177,10 @@ class _ToastHostState extends ConsumerState<ToastHost> {
       widget.child,
       if (_slots.isNotEmpty)
         Positioned(
-          top: mobile ? null : padding.top + _kTopInset,
+          top: mobile
+              ? null
+              : padding.top +
+                  (DesktopChromeScope.isPresent(context) ? 12 : _kTopInset),
           bottom: mobile ? padding.bottom + _kBottomInset : null,
           left: 0,
           right: 0,
