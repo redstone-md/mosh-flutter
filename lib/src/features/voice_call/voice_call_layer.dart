@@ -27,6 +27,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
     this.onOpenConversation,
     this.onShowWindow,
     this.isCallWindowFocused,
+    this.controlsInWindow = false,
   });
 
   final String sessionId;
@@ -35,6 +36,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
   final VoidCallback? onOpenConversation;
   final VoidCallback? onShowWindow;
   final Future<bool> Function()? isCallWindowFocused;
+  final bool controlsInWindow;
 
   @override
   ConsumerState<VoiceCallLayer> createState() => _VoiceCallLayerState();
@@ -92,6 +94,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
     return CallView(
         call: call,
         compact: true,
+        controlsInWindow: widget.controlsInWindow,
         onShowWindow: widget.onShowWindow,
         onAction: (action) => _act(call.command(action)));
   }

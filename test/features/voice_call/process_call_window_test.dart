@@ -16,6 +16,31 @@ const _call = CallViewState(
     phase: CallViewPhase.active);
 
 void main() {
+  test('child exit restores inline controls without a call update', () async {
+    final process = CallWindowProcess();
+    final failures = <Object>[];
+    var opens = 0;
+    final coordinator = CallWindowCoordinator(
+        (_) => ProcessCallWindow.open((_) async {},
+            startProcess: () async =>
+                ++opens == 1 ? process : CallWindowProcess()),
+        (_) async {},
+        failures.add);
+    addTearDown(coordinator.dispose);
+    coordinator.update(_call);
+    await coordinator.show();
+    expect(coordinator.available.value, isTrue);
+
+    process.kill();
+    await Future<void>.delayed(Duration.zero);
+    expect(coordinator.available.value, isFalse,
+        reason: 'the main strip must recover without Restore or a new state');
+    await coordinator.show();
+    expect(opens, 2);
+    expect(coordinator.available.value, isTrue);
+    expect(failures, hasLength(1));
+  });
+
   test('frame delivery admits one frame until its exact acknowledgement',
       () async {
     final process = CallWindowProcess(ackFrames: false);

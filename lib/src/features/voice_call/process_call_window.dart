@@ -16,7 +16,8 @@ bool get isCallWindowProcess =>
 
 /// Each desktop keeps renderer ownership in a separate process. Audio and
 /// signaling stay in the main process, behind the same call-window boundary.
-class ProcessCallWindow implements CallWindowHandle, CallWindowFrameSink {
+class ProcessCallWindow
+    implements CallWindowHandle, CallWindowFrameSink, CallWindowLifecycle {
   ProcessCallWindow._(this._process, this._pipe, this._frames);
   final Process _process;
   final CallWindowPipe _pipe;
@@ -27,6 +28,9 @@ class ProcessCallWindow implements CallWindowHandle, CallWindowFrameSink {
   ({String session, String call, int sequence, bool local})? _frame;
   Timer? _frameDeadline;
   Stopwatch? _frameElapsed;
+
+  @override
+  Future<void> get closed => _process.exitCode.then((_) {});
 
   static Future<CallWindowHandle> open(
       Future<void> Function(CallViewCommand) onCommand,

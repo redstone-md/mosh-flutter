@@ -120,15 +120,16 @@ void main() {
         router.go(route);
       }
       await _frames(tester);
-      expect(find.byTooltip('Mute'), findsOneWidget);
+      expect(find.byTooltip('Mute'), findsNothing);
+      expect(find.byIcon(Icons.open_in_new), findsOneWidget);
       expect(capture.starts, 1);
       expect(playback.starts, 1);
       expect(capture.stops, 0);
       expect(window.closes, 0);
     }
-    await tester.tap(find.byTooltip('Mute'));
+    await command(window.views.last.command(CallViewAction.mute));
     await _frames(tester);
-    expect(find.byTooltip('Unmute'), findsOneWidget);
+    expect(find.byTooltip('Unmute'), findsNothing);
     expect(window.views.last.muted, isTrue);
     await command(window.views.last.command(CallViewAction.end));
     await _frames(tester);

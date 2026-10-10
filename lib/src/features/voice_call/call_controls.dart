@@ -6,31 +6,35 @@ import 'call_view_state.dart';
 
 List<Widget> callControls(CallViewState call, AppLocalizations l,
         void Function(CallViewAction) act,
-        {VoidCallback? showWindow, VoidCallback? devices}) =>
+        {VoidCallback? showWindow,
+        VoidCallback? devices,
+        bool controlsInWindow = false}) =>
     [
       if (showWindow != null)
         IconButton(
             tooltip: l.callShowWindow,
             onPressed: showWindow,
             icon: const Icon(Icons.open_in_new)),
-      if (call.phase == CallViewPhase.active || call.media != null)
-        _microphone(call, l, act),
-      if (call.media != null) _camera(call, l, act),
-      if (devices != null && call.media != null)
-        CallButton(
-            icon: Icons.tune,
-            tooltip: l.callDevices,
-            color: MoshColors.bg3,
-            foreground: MoshColors.fg1,
-            onPressed: call.busy ? null : devices),
-      _end(call, l, act),
-      if (call.phase == CallViewPhase.incoming)
-        CallButton(
-            icon: Icons.phone,
-            tooltip: l.callIncomingAccept,
-            color: MoshColors.moss,
-            foreground: MoshColors.mossInk,
-            onPressed: call.busy ? null : () => act(CallViewAction.accept)),
+      if (!controlsInWindow) ...[
+        if (call.phase == CallViewPhase.active || call.media != null)
+          _microphone(call, l, act),
+        if (call.media != null) _camera(call, l, act),
+        if (devices != null && call.media != null)
+          CallButton(
+              icon: Icons.tune,
+              tooltip: l.callDevices,
+              color: MoshColors.bg3,
+              foreground: MoshColors.fg1,
+              onPressed: call.busy ? null : devices),
+        _end(call, l, act),
+        if (call.phase == CallViewPhase.incoming)
+          CallButton(
+              icon: Icons.phone,
+              tooltip: l.callIncomingAccept,
+              color: MoshColors.moss,
+              foreground: MoshColors.mossInk,
+              onPressed: call.busy ? null : () => act(CallViewAction.accept)),
+      ],
     ];
 
 Widget _microphone(CallViewState call, AppLocalizations l,

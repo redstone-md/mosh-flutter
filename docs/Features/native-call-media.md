@@ -6,7 +6,9 @@ preview; media is sent only after the caller confirms the answering installation
 An incoming call starts with camera off. Camera and microphone choices are
 independent, and permission refusal preserves reception and other capabilities.
 
-The call window and compact strip have microphone, camera and end controls.
+The ready desktop call window owns microphone, camera and end controls. The main
+strip shows call status and a button to reopen that window. Until the window is
+ready, or after a presentation failure, the strip supplies the call controls.
 The window adds selectors for microphone, speaker and camera, using `MoshSelect`.
 They send commands for the displayed DM/call. Initial audio preferences map
 existing Record/CPAL IDs against the engine's current inventory; stale initial
@@ -76,6 +78,12 @@ the pipe. Parent stdin EOF terminates it, even while a driver read blocks.
 Camera off disables the native video track and kills/reaps the helper. Four seconds
 without frames after readiness fails that capture while preserving the call;
 initial camera permission has a separate 65-second startup limit.
+
+Windows launches both capture and camera enumeration with `CREATE_NO_WINDOW`,
+so the five-second inventory refresh cannot open a console. A camera busy in
+another application can fail the first frame with Media Foundation error
+`0xC00D3704`. Closing the other application's capture and enabling the camera
+again preserves the existing audio call.
 
 Capture selects an actual supported format near 720p30. macOS patches request
 available BGRA output, validate actual pixel-buffer layout, remove row padding,
@@ -149,3 +157,18 @@ its child renderer with a local discovery tracker. It needs a desktop display
 and the same native artifact/driver environment. The physical-device acceptance
 and current evidence are recorded in
 [implementation results](../Proposals/issue-46-native-implementation.results.md).
+
+For a physical-camera failure, close other camera applications and run the
+packaged helper directly through the diagnostic command below. It checks a
+complete RGBA frame, reports readiness and stderr, and terminates the helper.
+It saves no video. Use the helper from the affected build rather than a fixture.
+
+```sh
+node scripts/native-camera-check.mjs /path/to/mosh-camera-capture.exe
+```
+
+In the reported Windows case, a busy camera failed before its first frame. After
+release, the original installed helper produced 261,736,282 bytes in five seconds
+without error. An independent Media Foundation probe also received 30 frames in
+NV12 720p, MJPEG 720p and YUY2 480p. This does not establish performance on other
+cameras; it confirms that the reported capture refusal was device contention.

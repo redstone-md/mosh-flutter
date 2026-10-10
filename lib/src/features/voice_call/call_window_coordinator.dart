@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show mapEquals;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, ValueNotifier, mapEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'call_view_state.dart';
 import 'call_video_frame.dart';
@@ -16,6 +17,10 @@ abstract interface class CallWindowFrameSink {
   bool presentFrame(CallVideoFrame frame);
 }
 
+abstract interface class CallWindowLifecycle {
+  Future<void> get closed;
+}
+
 typedef CallWindowFactory = Future<CallWindowHandle> Function(
     Future<void> Function(CallViewCommand) onCommand);
 
@@ -29,6 +34,8 @@ class CallWindowCoordinator {
   final CallWindowFactory? factory;
   final Future<void> Function(CallViewCommand) onCommand;
   final void Function(Object) onFailure;
+  final _available = ValueNotifier(false);
+  ValueListenable<bool> get available => _available;
   CallWindowHandle? _window;
   CallViewState? _desired;
   Future<void>? _working;
@@ -38,10 +45,15 @@ class CallWindowCoordinator {
 
   void update(CallViewState? state) {
     if (_disposed || mapEquals(_desired?.toMap(), state?.toMap())) return;
+    if (!_isDesiredCall(state)) _available.value = false;
     _desired = state;
     ++_revision;
     _start();
   }
+
+  bool _isDesiredCall(CallViewState? state) =>
+      state?.sessionId == _desired?.sessionId &&
+      state?.callId == _desired?.callId;
 
   bool presentFrame(CallVideoFrame frame) {
     final call = _desired;
@@ -73,9 +85,10 @@ class CallWindowCoordinator {
         if (_desired == null) {
           final window = _window;
           _window = null;
+          _available.value = false;
           await window?.close();
         } else {
-          _window ??= await factory!((command) async {
+          _window ??= _watch(await factory!((command) async {
             final current = _desired;
             if (_disposed ||
                 current == null ||
@@ -84,15 +97,20 @@ class CallWindowCoordinator {
               return;
             }
             await onCommand(command);
-          });
+          }));
           final current = _desired;
           if (current != null && !_disposed) {
-            await _window!.present(current);
+            final window = _window!;
+            await window.present(current);
+            _available.value = !_disposed &&
+                identical(_window, window) &&
+                _isDesiredCall(current);
           }
         }
       } catch (error) {
         final window = _window;
         _window = null;
+        _available.value = false;
         try {
           await window?.close();
         } catch (_) {
@@ -102,6 +120,21 @@ class CallWindowCoordinator {
       }
       _presented = revision;
     }
+  }
+
+  CallWindowHandle _watch(CallWindowHandle window) {
+    if (window case CallWindowLifecycle lifecycle) {
+      unawaited(lifecycle.closed.then((_) async {
+        if (_disposed || !identical(_window, window)) return;
+        _window = null;
+        _available.value = false;
+        try {
+          await window.close();
+        } catch (_) {/* The child may already be gone. */}
+        if (!_disposed) onFailure(StateError('Call window exited'));
+      }));
+    }
+    return window;
   }
 
   Future<void> show() async {
@@ -119,6 +152,7 @@ class CallWindowCoordinator {
     } catch (error) {
       if (_disposed || !identical(_window, attempted)) return;
       _window = null;
+      _available.value = false;
       try {
         await attempted?.close();
       } catch (_) {/* The native owner may already be gone. */}
@@ -144,10 +178,12 @@ class CallWindowCoordinator {
   }
 
   Future<void> dispose() async {
+    if (_disposed) return;
     _disposed = true;
     _desired = null;
     ++_revision;
     _start();
     await _working;
+    _available.dispose();
   }
 }

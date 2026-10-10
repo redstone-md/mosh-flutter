@@ -39,12 +39,7 @@ impl Capture {
         if let Some(id) = id {
             command.arg(id);
         }
-        let mut child = command
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|error| error.to_string())?;
+        let mut child = command.spawn().map_err(|error| error.to_string())?;
         let stdout = child.stdout.take().ok_or("missing camera output")?;
         let output = Arc::new(Mutex::new(Output::default()));
         let sink = output.clone();
@@ -168,7 +163,23 @@ fn helper() -> Result<Command, String> {
     } else {
         "mosh-camera-capture"
     };
-    Ok(Command::new(artifact("MOSH_CAMERA_CAPTURE", name)?))
+    Ok(helper_command(artifact("MOSH_CAMERA_CAPTURE", name)?))
+}
+
+fn helper_command(executable: std::path::PathBuf) -> Command {
+    let mut command = Command::new(executable);
+    command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // Both enumeration and capture are background console executables.
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command
 }
 
 pub(crate) struct Query {
@@ -180,8 +191,6 @@ impl Query {
         let child = helper()?
             .arg("--list")
             .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
             .spawn()
             .map_err(|error| error.to_string())?;
         Ok(Self {
@@ -226,6 +235,29 @@ impl Drop for Query {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn camera_helpers_have_no_console_window() {
+        // Use a console executable to observe the actual process-creation flags.
+        let script = r#"
+Add-Type -Name CameraConsole -Namespace Mosh -MemberDefinition '[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();'
+[Mosh.CameraConsole]::GetConsoleWindow().ToInt64()
+"#;
+        let output = helper_command("powershell.exe".into())
+            .args(["-NoProfile", "-NonInteractive", "-Command", script])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "0");
+    }
     #[test]
     fn validates_camera_header_before_allocating_and_never_formats_pixels() {
         let mut header = [0; 24];

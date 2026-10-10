@@ -47,12 +47,23 @@ class _Fixture {
     container.invalidate(conversationListProvider(ConversationKind.dm));
   }
 
-  Future<void> mount(WidgetTester tester) async {
+  Future<void> mount(WidgetTester tester, {bool renderWindow = false}) async {
     seed();
     await pumpScreen(
         tester,
         VoiceCallHost(
-            onOpenConversation: (_) => opened++, child: const Scaffold()),
+            onOpenConversation: (_) => opened++,
+            child: Scaffold(
+                body: !renderWindow
+                    ? null
+                    : ValueListenableBuilder<CallViewState?>(
+                        valueListenable: window.presentation,
+                        builder: (_, call, __) => call == null
+                            ? const SizedBox.shrink()
+                            : CallView(
+                                call: call,
+                                onAction: (action) => unawaited(
+                                    command(call.command(action))))))),
         container: container,
         settle: false);
     await frames(tester);
@@ -191,7 +202,8 @@ void main() {
     await frames(tester);
     expect(f.bridge.countOf(BridgeMethod.callDecline), 0);
     expect(f.bridge.countOf(BridgeMethod.callEnd), 0);
-    expect(find.byTooltip('Mute'), findsOneWidget);
+    expect(f.window.views.last.phase, CallViewPhase.active);
+    expect(find.byTooltip('Mute'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     f.container.dispose();
     await tester.pump();
@@ -204,7 +216,7 @@ void main() {
         addTearDown(f.container.dispose);
         final accepted = Completer<void>();
         f.bridge.respondNext(BridgeMethod.callAccept, accepted.future);
-        await f.mount(tester);
+        await f.mount(tester, renderWindow: kind == 'button');
         final displayed = f.window.views.last;
         final accepting = f.command(displayed.command(CallViewAction.accept));
         await frames(tester);
