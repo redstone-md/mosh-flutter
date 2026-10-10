@@ -21,6 +21,33 @@ const _second = CallViewState(
     phase: CallViewPhase.incoming);
 
 void main() {
+  for (final previousReady in [false, true]) {
+    test('a replacement keeps inline controls until presented: $previousReady',
+        () async {
+      final first = Completer<void>();
+      final second = Completer<void>();
+      final window = RecordingCallWindow()
+        ..presentWait = previousReady ? null : first.future;
+      final coordinator = CallWindowCoordinator(
+          (_) async => window, (_) async {}, (error) => fail('$error'));
+      coordinator.update(_first);
+      await Future<void>.delayed(Duration.zero);
+      expect(coordinator.available.value, previousReady);
+      window.presentWait = second.future;
+      coordinator.update(_second);
+      expect(coordinator.available.value, isFalse);
+      if (!previousReady) first.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(coordinator.available.value, isFalse);
+      second.complete();
+      await coordinator.show();
+      expect(coordinator.available.value, isTrue);
+      expect(window.views.last.callId, _second.callId);
+      await coordinator.dispose();
+      await coordinator.dispose();
+    });
+  }
+
   test('cancel from the displayed cross-call survives its canonical ID change',
       () async {
     late Future<void> Function(CallViewCommand) send;
