@@ -43,13 +43,14 @@ DecodedMiniature decodeMiniature(String? source) {
   } catch (_) {
     decoded = _emptyMiniature;
   }
-  final size = _entryBytes(source, decoded);
-  if (size > _miniatureEntryMaxBytes) return decoded;
+  final entryBytes = _entryBytes(source, decoded);
+  if (entryBytes > _miniatureEntryMaxBytes) return decoded;
   _miniatureCache[source] = decoded;
-  _miniatureCacheBytes += size;
+  _miniatureCacheBytes += entryBytes;
   while (_miniatureCacheBytes > _miniatureCacheMaxBytes) {
     final oldest = _miniatureCache.keys.first;
-    _miniatureCacheBytes -= _entryBytes(oldest, _miniatureCache.remove(oldest)!);
+    final evicted = _miniatureCache.remove(oldest)!;
+    _miniatureCacheBytes -= _entryBytes(oldest, evicted);
   }
   return decoded;
 }
