@@ -4,6 +4,27 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] - 2026-10-11
+
+### Added
+
+- About checks the published releases while the card is open and installs a newer
+  one on request: the artifact downloads with a progress bar and its published
+  SHA-256 is verified before anything is installed. Windows hands the verified
+  installer the flags that replace the build and start Mosh again; on macOS the
+  sandboxed app opens the verified disk image instead of replacing its own
+  bundle, and the card asks for the drag into Applications. A failed update keeps
+  the running build and offers a retry, and nothing installs unverified, unasked
+  or in the background.
+- Where a release publishes nothing for the host, the card opens the release page
+  rather than offering a button that cannot finish.
+
+### Fixed
+
+- The compact Peer status pill in the titlebar is a circle around the status dot
+  instead of a stretched pill with empty space on its right, and it keeps its
+  40×40 tap target.
+
 ## [0.21.0] - 2026-10-10
 
 ### Added
