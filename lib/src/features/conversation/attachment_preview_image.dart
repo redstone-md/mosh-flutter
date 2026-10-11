@@ -8,10 +8,20 @@ import 'package:flutter/painting.dart';
 /// Decoded inline miniature: its bytes and the size read from its header.
 typedef DecodedMiniature = ({Uint8List bytes, Size? size});
 
-const int _miniatureCacheCapacity = 256;
+/// Total retained bytes (base64 source plus decoded buffer) across entries.
+const int _miniatureCacheMaxBytes = 4 * 1024 * 1024;
+
+/// Larger entries are decoded on demand but never retained. Current
+/// miniatures are at most 2 KiB of base64 and legacy ones 32 KiB.
+const int _miniatureEntryMaxBytes = 128 * 1024;
+
 final LinkedHashMap<String, DecodedMiniature> _miniatureCache =
     LinkedHashMap<String, DecodedMiniature>();
+int _miniatureCacheBytes = 0;
 final DecodedMiniature _emptyMiniature = (bytes: Uint8List(0), size: null);
+
+int _entryBytes(String source, DecodedMiniature decoded) =>
+    source.length + decoded.bytes.lengthInBytes;
 
 /// Decodes a base64 miniature once and reuses the result on later builds.
 ///
@@ -33,9 +43,13 @@ DecodedMiniature decodeMiniature(String? source) {
   } catch (_) {
     decoded = _emptyMiniature;
   }
+  final size = _entryBytes(source, decoded);
+  if (size > _miniatureEntryMaxBytes) return decoded;
   _miniatureCache[source] = decoded;
-  if (_miniatureCache.length > _miniatureCacheCapacity) {
-    _miniatureCache.remove(_miniatureCache.keys.first);
+  _miniatureCacheBytes += size;
+  while (_miniatureCacheBytes > _miniatureCacheMaxBytes) {
+    final oldest = _miniatureCache.keys.first;
+    _miniatureCacheBytes -= _entryBytes(oldest, _miniatureCache.remove(oldest)!);
   }
   return decoded;
 }
