@@ -148,6 +148,10 @@ final ButtonStyle _focusRingStyle = ButtonStyle(
 );
 
 /// Uses existing conversation state mapping; never claims global connectivity.
+///
+/// The 40px minimum belongs to the button around the pill, never to the pill's
+/// own surface: a stretched surface leaves the dot off center in the compact
+/// state, where the label is gone and only the dot remains.
 class _StatePillSlot extends ConsumerWidget {
   const _StatePillSlot(
       {required this.activeKey, required this.compact, required this.onTap});
@@ -180,8 +184,17 @@ class _StatePillSlot extends ConsumerWidget {
                     radius: BorderRadius.circular(999),
                     child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: StatePill(
-                            state: state, label: label, compact: compact))),
+                        // The minimum tap target sizes the button, not the
+                        // pill. Shrink-wrapping the centering keeps the button
+                        // at that minimum instead of the row's full width,
+                        // and keeps the dot equally spaced inside the pill.
+                        child: Center(
+                            widthFactor: 1,
+                            heightFactor: 1,
+                            child: StatePill(
+                                state: state,
+                                label: label,
+                                compact: compact)))),
               )),
         ));
   }
