@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
+import 'package:mosh/src/features/settings/about_update_notice.dart';
 import 'package:mosh/src/features/settings/app_package_info_provider.dart';
+import 'package:mosh/src/features/settings/app_release_provider.dart';
 import 'package:mosh/src/features/settings/settings_content.dart';
 import 'package:mosh/src/features/settings/settings_navigation.dart';
 import 'package:mosh/src/features/settings/settings_screen.dart';
@@ -25,6 +28,7 @@ PackageInfo _package({String version = '9.8.7-dev', String build = '42'}) =>
 Future<void> _pump(
   WidgetTester tester, {
   Future<PackageInfo> Function()? load,
+  List<Override> overrides = const [],
   Size size = const Size(1200, 800),
   double scale = 1,
   Locale locale = const Locale('en'),
@@ -55,6 +59,7 @@ Future<void> _pump(
     ),
     overrides: [
       if (load != null) appPackageInfoProvider.overrideWith((ref) => load()),
+      ...overrides,
     ],
   );
 }
@@ -117,6 +122,11 @@ void main() {
         (tester) async {
       await _pump(tester,
           load: () async => _package(),
+          // The unanswered feed is the widest notice: a message and an action.
+          overrides: [
+            updateCheckProvider.overrideWith(
+                (ref) async => throw StateError('feed unavailable')),
+          ],
           size: Size(width, 844),
           scale: scale,
           locale: const Locale('ru'));
@@ -158,5 +168,88 @@ void main() {
     expect(find.text('Version 9.8.7-dev · build 42'), findsOneWidget);
     expect(reads, 2);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an available release names its version and opens its page',
+      (tester) async {
+    final opened = <Uri>[];
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => PublishedRelease(
+          version: '0.22.0',
+          pageUri: Uri.parse('https://example.test/releases/0.22.0'))),
+      releasePageOpenerProvider.overrideWithValue((page) async {
+        opened.add(page);
+        return true;
+      }),
+    ]);
+
+    expect(find.text('Version 0.22.0 is available.'), findsOneWidget);
+    await tester.tap(find.text('Open release page'));
+    await tester.pumpAndSettle();
+
+    expect(opened, [Uri.parse('https://example.test/releases/0.22.0')]);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a current installation promises nothing to download',
+      (tester) async {
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => null),
+    ]);
+
+    expect(find.text('This is the newest release.'), findsOneWidget);
+    expect(find.byType(TextButton), findsNothing);
+  });
+
+  testWidgets('a refused page reports itself instead of failing silently',
+      (tester) async {
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => PublishedRelease(
+          version: '0.22.0',
+          pageUri: Uri.parse('https://example.test/releases/0.22.0'))),
+      releasePageOpenerProvider.overrideWithValue((page) async => false),
+    ]);
+
+    await tester.tap(find.text('Open release page'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not open the release page.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a failed check explains itself and retries on demand',
+      (tester) async {
+    var reads = 0;
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async {
+        reads++;
+        if (reads == 1) throw StateError('feed unavailable');
+        return null;
+      }),
+    ]);
+
+    expect(find.text('Could not check for updates.'), findsOneWidget);
+    await tester.tap(find.text('Try again'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('This is the newest release.'), findsOneWidget);
+    expect(reads, 2);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an unknown installed version never asks the feed',
+      (tester) async {
+    var reads = 0;
+    await _pump(tester, load: () async => _package(version: ''), overrides: [
+      updateCheckProvider.overrideWith((ref) async {
+        reads++;
+        return null;
+      }),
+    ]);
+
+    expect(find.text('Version unavailable'), findsOneWidget);
+    expect(find.text('This is the newest release.'), findsNothing);
+    expect(find.text('Checking for updates…'), findsNothing);
+    expect(reads, 0);
   });
 }

@@ -405,10 +405,18 @@ and groups from public channels without end-to-end encryption. Per the local
 copy review, a short explanation of Moss delivery and public-tracker discovery
 is visible directly in the card. The redundant public-channel sentence and
 separate anonymity warning were removed along with the protection disclosure.
-No global security/connectivity status, licence, changelog or updater action
-is introduced. Existing theme text, card padding and shapes wrap on phones
-and enlarged text. Declarative widget-tree nesting uses the existing exception;
-methods and interaction test bodies remain below 50 lines.
+No global security/connectivity status, licence or changelog action is
+introduced. A release notice sits under the identity line: it names the newest
+published version with a button to its release page, says nothing while the
+installed build is the newest one, and reports an unanswered feed with a retry
+instead of claiming the installation is current (ADR 0045). The notice appears
+only once the installed version is known, so an unavailable version never asks
+the feed, and it reads the feed only while the card is mounted. Existing theme
+text, card padding and shapes wrap on phones and enlarged text; the notice's
+action moves to its own line when a long word and doubled text leave no room.
+
+Declarative widget-tree nesting uses the existing exception; methods and
+interaction test bodies remain below 50 lines.
 
 Initial About verification: formatting is clean across 449 Dart files and Flutter
 analysis reports no issues. The full suite passes 1076 tests with five existing
@@ -431,10 +439,29 @@ native-library skips. The one changed executable Dart line is covered;
 changed branch coverage is not applicable. Updated captures were inspected at
 1200px, 390px and 320px with doubled text.
 
+Release notice verification: formatting is clean across 676 Dart files and
+Flutter analysis reports no issues. The full suite passes 1937 tests with four
+existing native-library skips. Seven checks cover the feed and its comparison
+(tag prefix, malformed bodies, suffix handling, refused downgrade, and the feed
+staying untouched when the installed version has not resolved); five cover the
+notice in About (an available release with its page opened, a current
+installation, a refused page, an unanswered feed with its retry, and an unknown
+version skipping the feed), and the compact pill adds one geometry check that
+fails against the unfixed code. The notice was inspected at 1200×800 and, in
+Russian with doubled text, at 320×844, where the action takes its own line
+instead of overflowing. Review of the real feed on Windows and macOS remains
+for runtime review.
+
 Changed files are about_settings_section.dart, app_package_info_provider.dart,
 both localization ARBs and about_settings_section_test.dart. The plan,
 architecture map and this guide describe the result. No Rust API, schema or
 dependency changes.
+
+The release notice adds about_update_notice.dart and app_release_provider.dart,
+extends about_settings_section.dart and both ARBs, and is covered by
+about_settings_section_test.dart and app_release_provider_test.dart. It adds no
+dependency: the feed reads through dart:io, and the page opens through the
+url_launcher the attachment launcher already uses.
 
 ## Changed files
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 
+import 'about_update_notice.dart';
 import 'app_package_info_provider.dart';
 import 'settings_card.dart';
 
@@ -21,6 +22,10 @@ class AboutSettingsSection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _identity(context, l, info),
+          if (_hasVersion(info)) ...[
+            const SizedBox(height: 12),
+            const AboutUpdateNotice(),
+          ],
           const SizedBox(height: 20),
           Text(l.cryptoNoticeBody, style: text.bodySmall),
           const SizedBox(height: 12),
@@ -39,6 +44,11 @@ class AboutSettingsSection extends ConsumerWidget {
       subtitle: Text(_version(l, info), style: text.bodySmall),
     );
   }
+
+  /// The update notice compares against the installed version, so it waits
+  /// for a successful package read instead of guessing.
+  bool _hasVersion(AsyncValue<PackageInfo> info) =>
+      info.value?.version.isNotEmpty ?? false;
 
   String _version(AppLocalizations l, AsyncValue<PackageInfo> info) =>
       info.when(
