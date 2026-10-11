@@ -26,20 +26,14 @@ class _MediaPreviewCard extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final descriptor = attachment.descriptor;
     final thumb = descriptor.thumbnailB64;
-    // A malformed server thumbnail must never take the conversation down:
-    // base64Decode throws during build, which errorBuilder cannot catch.
-    // Empty bytes on decode failure -> Image.memory's decode fails ->
-    // errorBuilder renders the broken-image fallback.
-    var bytes = Uint8List(0);
-    try {
-      if (thumb != null) bytes = base64Decode(thumb);
-    } catch (_) {
-      // malformed thumbnail: broken-image fallback below
-    }
+    // Decoded once per thumbnail and cached: list rebuilds must not re-run
+    // base64 decoding on the UI thread. A malformed thumbnail yields empty
+    // bytes -> the image decode fails -> errorBuilder renders the
+    // broken-image fallback.
+    final (:bytes, size: mediaSize) = decodeMiniature(thumb);
     // Drives the centered play-overlay on top of the thumbnail image.
     final isVideo = descriptor.mime.startsWith('video/');
     final previewLabel = l.attachmentOpenAria(descriptor.fileName);
-    final mediaSize = encodedImageSize(bytes);
 
     return _FileCardShell(
       failed: attachment.failed,

@@ -1,7 +1,44 @@
+import 'dart:collection' show LinkedHashMap;
+import 'dart:convert' show base64Decode;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
+
+/// Decoded inline miniature: its bytes and the size read from its header.
+typedef DecodedMiniature = ({Uint8List bytes, Size? size});
+
+const int _miniatureCacheCapacity = 256;
+final LinkedHashMap<String, DecodedMiniature> _miniatureCache =
+    LinkedHashMap<String, DecodedMiniature>();
+final DecodedMiniature _emptyMiniature = (bytes: Uint8List(0), size: null);
+
+/// Decodes a base64 miniature once and reuses the result on later builds.
+///
+/// Message lists rebuild every attachment card on each transfer progress or
+/// state change; decoding the base64 and parsing its header in every build
+/// blocks the UI thread. A malformed value yields empty bytes so the image's
+/// errorBuilder renders the broken-image fallback, as before.
+DecodedMiniature decodeMiniature(String? source) {
+  if (source == null || source.isEmpty) return _emptyMiniature;
+  final cached = _miniatureCache.remove(source);
+  if (cached != null) {
+    _miniatureCache[source] = cached; // mark as most recently used
+    return cached;
+  }
+  DecodedMiniature decoded;
+  try {
+    final bytes = base64Decode(source);
+    decoded = (bytes: bytes, size: encodedImageSize(bytes));
+  } catch (_) {
+    decoded = _emptyMiniature;
+  }
+  _miniatureCache[source] = decoded;
+  if (_miniatureCache.length > _miniatureCacheCapacity) {
+    _miniatureCache.remove(_miniatureCache.keys.first);
+  }
+  return decoded;
+}
 
 /// Reject excessive intrinsic dimensions before the codec allocates pixels.
 class AttachmentPreviewFileImage extends FileImage {
