@@ -37,11 +37,20 @@ things:
 
 The check stays as confined as before: it runs while the About card is mounted,
 never polls, is not retried on its own, and reads a public repository with no
-credential. It now also downloads, which is the one request that carries a body
-— the artifact, whose published digest is verified before anything is installed.
-Nothing is installed from a release that publishes no checksum, a digest that
-does not match, or a download that did not finish: a failed update leaves the
-installed build untouched and offers a retry.
+credential — the request is a plain GET of a fixed URL that says nothing about
+the installation. It now also downloads, which is the one request that carries a
+body — the artifact, whose published digest is verified before anything is
+installed. Nothing is installed from a release that publishes no checksum, a
+digest that does not match, or a download that did not finish: a failed update
+leaves the installed build untouched and offers a retry.
+
+The feed is the release list rather than GitHub's "latest release" shorthand,
+because that shorthand means "the most recent non-prerelease" and the release
+workflow publishes `-rc` tags as pre-releases: About would stay silent about one
+until the stable build arrived. Rows are compared by version rather than by the
+date they were published, and the comparison ignores pre-release and build
+suffixes, so the highest published version wins and an installed build is never
+told it is older than it is.
 
 A background updater that installs when it decides to was rejected for the same
 reason the check is manual: a peer-to-peer messenger reports home as little as it

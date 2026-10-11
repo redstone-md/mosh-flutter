@@ -45,37 +45,60 @@ class ReleaseAsset {
 /// without a socket.
 typedef ReleaseFeedReader = Future<String> Function(Uri url);
 
-/// Reads the newest release from the public repository's release feed.
+/// Reads the newest published release from the public repository's release
+/// feed.
 ///
-/// Mosh ships unsigned artifacts, so nothing here downloads or installs a
-/// build: the feed only answers "is there something newer", and the page it
-/// returns is where the platform's own download flow starts.
+/// The request is a plain GET of a fixed URL: no credential, no identifier and
+/// no version of the installed build travels with it.
 class GitHubReleaseFeed {
   const GitHubReleaseFeed({ReleaseFeedReader? read}) : _read = read;
 
   final ReleaseFeedReader? _read;
 
-  /// A public repository with a public feed: no credentials, no proxy, and
-  /// nothing about the installation beyond the version it asks about.
-  static final Uri latestUrl = Uri.parse(
-      'https://api.github.com/repos/redstone-md/mosh-flutter/releases/latest');
+  /// The list endpoint, not `/releases/latest`: that shorthand means "the most
+  /// recent non-prerelease, non-draft release", and the release workflow
+  /// publishes `-rc` tags as pre-releases, so About would stay silent about one
+  /// until the stable build arrived. A public repository needs no credential.
+  static final Uri releasesUrl = Uri.parse(
+      'https://api.github.com/repos/redstone-md/mosh-flutter/releases?per_page=10');
 
+  /// The newest published build, pre-releases included. Rows are ordered by
+  /// creation date, so the highest version wins rather than the top row.
   Future<PublishedRelease> latest() async {
-    final decoded = jsonDecode(await (_read ?? _readOverHttp)(latestUrl));
-    if (decoded is! Map<String, Object?>) {
-      throw const FormatException('Release feed is not an object');
+    final decoded = jsonDecode(await (_read ?? _readOverHttp)(releasesUrl));
+    if (decoded is! List<Object?>) {
+      throw const FormatException('Release feed is not a list');
     }
-    final tag = decoded['tag_name'];
-    final page = decoded['html_url'];
-    if (tag is! String || page is! String || page.isEmpty) {
-      throw const FormatException('Release feed lacks a tag or a page');
+    final published = <PublishedRelease>[];
+    for (final entry in decoded) {
+      if (entry is! Map<String, Object?>) continue;
+      final release = _release(entry);
+      if (release != null) published.add(release);
     }
-    return PublishedRelease(
-      version: tag.replaceFirst(RegExp('^v'), ''),
-      pageUri: Uri.parse(page),
-      assets: _assets(decoded['assets']),
-    );
+    if (published.isEmpty) {
+      throw const FormatException('Release feed lists no published release');
+    }
+    return published.reduce((best, next) =>
+        isNewerRelease(next.version, best.version) ? next : best);
   }
+}
+
+/// One release row, or null when it is a draft, carries no version, or has no
+/// absolute page to send anyone to.
+PublishedRelease? _release(Map<String, Object?> entry) {
+  if (entry['draft'] == true) return null;
+  final tag = entry['tag_name'];
+  final page = entry['html_url'];
+  if (tag is! String || page is! String) return null;
+  final uri = Uri.tryParse(page);
+  if (uri == null || !uri.isAbsolute || uri.host.isEmpty) return null;
+  final version = tag.replaceFirst(RegExp('^v'), '');
+  if (version.isEmpty) return null;
+  return PublishedRelease(
+    version: version,
+    pageUri: uri,
+    assets: _assets(entry['assets']),
+  );
 }
 
 /// Uploaded files, skipping anything the feed describes incompletely rather
