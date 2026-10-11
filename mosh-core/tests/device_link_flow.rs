@@ -244,11 +244,7 @@ fn an_interrupted_approved_link_recovers_when_both_desktops_restart() {
     trusted.wait_phase("AwaitingApproval");
     let code = joining.wait_phase("AwaitingConfirmation")["confirmation_code"].clone();
     joining.stop();
-    std::thread::sleep(std::time::Duration::from_secs(16));
-    assert_eq!(
-        trusted.ask(json!({"action":"snapshot"}))["error"],
-        "ConnectionLost"
-    );
+    trusted.wait_error("ConnectionLost");
     assert_eq!(
         trusted.ask(json!({"action":"approve","argument":code}))["phase"],
         "Delivering"

@@ -148,6 +148,10 @@ final ButtonStyle _focusRingStyle = ButtonStyle(
 );
 
 /// Uses existing conversation state mapping; never claims global connectivity.
+///
+/// The 40px minimum belongs to the button around the pill, never to the pill's
+/// own surface: a stretched surface leaves the dot off center in the compact
+/// state, where the label is gone and only the dot remains.
 class _StatePillSlot extends ConsumerWidget {
   const _StatePillSlot(
       {required this.activeKey, required this.compact, required this.onTap});
@@ -180,8 +184,17 @@ class _StatePillSlot extends ConsumerWidget {
                     radius: BorderRadius.circular(999),
                     child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: StatePill(
-                            state: state, label: label, compact: compact))),
+                        // The minimum tap target sizes the button, not the
+                        // pill. Shrink-wrapping the centering keeps the button
+                        // at that minimum instead of the row's full width,
+                        // and keeps the dot equally spaced inside the pill.
+                        child: Center(
+                            widthFactor: 1,
+                            heightFactor: 1,
+                            child: StatePill(
+                                state: state,
+                                label: label,
+                                compact: compact)))),
               )),
         ));
   }
@@ -206,6 +219,9 @@ class _StatePillSlot extends ConsumerWidget {
 /// StatePill: inline-flex row, gap 8, min height 26 (grows with the text),
 /// padding 12x3, radius 999, labelMedium ellipsized (full label in a
 /// tooltip), raised-surface bg, 1px hairline border, a 7x7 round dot.
+/// Compact drops the label and the width around the dot, so the surface is a
+/// circle of the pill's own height: the same shape at a glance, no stretched
+/// stadium with the dot off to one side.
 /// Variants:
 ///   ready   = moss-glow bg + moss text + moss dot with glow
 ///   waiting = warn text + warn dot (default bg)
@@ -217,6 +233,9 @@ class StatePill extends StatelessWidget {
       required this.state,
       required this.label,
       this.compact = false});
+
+  /// The pill's resting height; the compact badge is a circle of this size.
+  static const double height = 26;
 
   /// The raw state string ('idle' / 'waiting' / 'ready' / ...).
   final String state;
@@ -234,8 +253,12 @@ class StatePill extends StatelessWidget {
       message: label,
       excludeFromSemantics: true,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 26),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+        constraints: compact
+            ? const BoxConstraints.tightFor(width: height, height: height)
+            : const BoxConstraints(minHeight: height),
+        padding: compact
+            ? EdgeInsets.zero
+            : const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
         decoration: BoxDecoration(
           color:
               variant.background ?? theme.colorScheme.surfaceContainerHighest,
@@ -244,6 +267,8 @@ class StatePill extends StatelessWidget {
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment:
+              compact ? MainAxisAlignment.center : MainAxisAlignment.start,
           children: <Widget>[
             // 7x7 round state dot; ready gets a moss glow shadow.
             Container(

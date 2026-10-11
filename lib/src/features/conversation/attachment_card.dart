@@ -12,6 +12,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/util/format.dart';
 
+import 'package:mosh/src/features/shared/mosh_progress_bar.dart';
 import 'package:mosh/src/features/conversation/attachment_actions.dart';
 import 'package:mosh/src/features/conversation/conversation_attachment.dart';
 import 'package:mosh/src/features/conversation/attachment_thumb.dart';
@@ -239,24 +240,15 @@ Widget _buildBar({
         ]),
       if (progress != null) ...[
         const SizedBox(height: 4),
-        _trailing(_progressBar(l, progress.fraction, percent), messageFooter),
+        _trailing(
+            MoshProgressBar(
+                fraction: progress.fraction,
+                semanticsLabel: l.attachmentStateDownloading(percent)),
+            messageFooter),
       ],
     ],
   );
 }
-
-/// 4px moss progress on bg-3; a null [fraction] is indeterminate.
-Widget _progressBar(AppLocalizations l, double? fraction, int percent) =>
-    ClipRRect(
-      borderRadius: BorderRadius.circular(2),
-      child: LinearProgressIndicator(
-        value: fraction,
-        minHeight: 4,
-        backgroundColor: MoshColors.bg3,
-        color: MoshColors.moss,
-        semanticsLabel: l.attachmentStateDownloading(percent),
-      ),
-    );
 
 /// [content] fills the line and [footer], when present, ends it.
 Widget _trailing(Widget content, Widget? footer) => footer == null

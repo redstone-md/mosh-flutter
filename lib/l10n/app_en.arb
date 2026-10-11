@@ -341,6 +341,55 @@
   "settingsAboutVersionLoading": "Reading version…",
   "settingsAboutVersionUnavailable": "Version unavailable",
   "settingsAboutNetworkBody": "Moss delivers messages through a network of nodes. Public trackers are used to discover nodes.",
+  "settingsAboutUpdateChecking": "Checking for updates…",
+  "settingsAboutUpdateCurrent": "This is the newest release.",
+  "@settingsAboutUpdateCurrent": {
+    "description": "About notice when the installed build matches or leads the newest published one; it never suggests a downgrade"
+  },
+  "settingsAboutUpdateAvailable": "Version {version} is available.",
+  "@settingsAboutUpdateAvailable": {
+    "description": "About notice when the release feed names a newer build than the installed one; Mosh does not install it, it points at the release page",
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "settingsAboutUpdateOpen": "Open release page",
+  "settingsAboutUpdateRetry": "Try again",
+  "settingsAboutUpdateFailed": "Could not check for updates.",
+  "@settingsAboutUpdateFailed": {
+    "description": "About notice for an offline or unanswered release feed; retrying is the only offered action"
+  },
+  "settingsAboutUpdateOpenFailed": "Could not open the release page.",
+  "@settingsAboutUpdateOpenFailed": {
+    "description": "Toast when the platform refuses to open the release page in a browser"
+  },
+  "settingsAboutUpdateInstall": "Update",
+  "@settingsAboutUpdateInstall": {
+    "description": "About button that downloads, verifies and installs the newer build, then restarts Mosh"
+  },
+  "settingsAboutUpdateDownloading": "Downloading the update… {percent}%",
+  "@settingsAboutUpdateDownloading": {
+    "description": "About notice while the artifact downloads; the number is the share already received",
+    "placeholders": { "percent": { "type": "int" } }
+  },
+  "settingsAboutUpdateDownloadingUnknown": "Downloading the update…",
+  "@settingsAboutUpdateDownloadingUnknown": {
+    "description": "About notice while downloading when the server declared no size, so the bar stays indeterminate"
+  },
+  "settingsAboutUpdateApplying": "Installing and restarting…",
+  "@settingsAboutUpdateApplying": {
+    "description": "About notice after a verified download, while the installer takes over and Mosh is about to restart"
+  },
+  "settingsAboutUpdateInstallFailed": "Could not update.",
+  "@settingsAboutUpdateInstallFailed": {
+    "description": "About notice when the download, its checksum or the handover to the installer failed; the installed build is untouched"
+  },
+  "settingsAboutUpdateImageOpen": "The image is open: drag Mosh into Applications, then start it again.",
+  "@settingsAboutUpdateImageOpen": {
+    "description": "About notice after the verified disk image was handed to Finder, on a host where the sandboxed app cannot replace its own bundle"
+  },
+  "settingsAboutUpdateImageShow": "Show the image",
+  "@settingsAboutUpdateImageShow": {
+    "description": "About action that opens the downloaded disk image again, for someone who closed the Finder window"
+  },
   "groupCreateCardTitle": "Create private group",
   "@groupCreateCardTitle": {
     "description": "Title of the create-group card"

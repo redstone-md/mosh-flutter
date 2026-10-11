@@ -116,6 +116,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('compact Peer status centers its dot inside the tap target',
+      (tester) async {
+    await _pumpBar(tester, width: 520);
+
+    final pill = find
+        .descendant(
+            of: find.byType(StatePill), matching: find.byType(Container))
+        .first;
+    final dot = find.descendant(
+        of: find.byType(StatePill),
+        matching: find.byWidgetPredicate((widget) =>
+            widget is Container &&
+            widget.constraints ==
+                const BoxConstraints.tightFor(width: 7, height: 7)));
+    final target = find.ancestor(
+        of: find.byType(StatePill), matching: find.byType(InkWell));
+
+    final pillRect = tester.getRect(pill);
+    final dotRect = tester.getRect(dot);
+    final targetRect = tester.getRect(target);
+
+    // The surface hugs its content and is round, not a stretched stadium.
+    expect(pillRect.width, lessThan(targetRect.width));
+    expect(pillRect.width, moreOrLessEquals(pillRect.height, epsilon: 0.01));
+    // The dot keeps equal space on both sides of that surface.
+    expect(dotRect.left - pillRect.left,
+        moreOrLessEquals(pillRect.right - dotRect.right, epsilon: 0.01));
+    // The surface is centered in the button it is tapped through.
+    expect(pillRect.left - targetRect.left,
+        moreOrLessEquals(targetRect.right - pillRect.right, epsilon: 0.01));
+    // The button still meets the minimum pointer target, and in the compact
+    // state it is exactly that target: the centering must not widen it.
+    expect(targetRect.width, moreOrLessEquals(40, epsilon: 0.01));
+    expect(targetRect.height, moreOrLessEquals(40, epsilon: 0.01));
+  });
+
   testWidgets('Peer status is announced once and opens via a semantic action',
       (tester) async {
     final handle = tester.ensureSemantics();

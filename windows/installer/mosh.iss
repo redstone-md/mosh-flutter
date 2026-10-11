@@ -82,6 +82,10 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: deskto
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
+; Self-update: the app downloads this installer, starts it and exits, so Setup
+; is what brings Mosh back -- nothing else is left running to do it. Only the
+; app's own /RELAUNCH=1 raises this, so a scripted silent install stays quiet.
+Filename: "{app}\{#AppExeName}"; Flags: nowait; Check: WantsRelaunch
 
 [UninstallDelete]
 ; redb + the attachment store live in the roaming data dir, NOT under {app}.
@@ -89,3 +93,17 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; F
 ; history, and the at-rest DEK stays in Credential Manager so a reinstall
 ; picks the history back up. Only the extracted bundle goes.
 Type: filesandordirs; Name: "{app}\data"
+
+[Code]
+{ Whether this install should start Mosh again. The updater passes
+  /RELAUNCH=1; anything else -- a person, a script, a deployment tool -- does
+  not, and keeps the installer's usual silence. }
+function WantsRelaunch: Boolean;
+var
+  Index: Integer;
+begin
+  Result := False;
+  for Index := 1 to ParamCount do
+    if CompareText(ParamStr(Index), '/RELAUNCH=1') = 0 then
+      Result := True;
+end;

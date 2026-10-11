@@ -1,18 +1,28 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
+import 'package:mosh/src/features/settings/about_update_notice.dart';
 import 'package:mosh/src/features/settings/app_package_info_provider.dart';
+import 'package:mosh/src/features/settings/app_release_provider.dart';
+import 'package:mosh/src/features/settings/app_update_apply.dart';
+import 'package:mosh/src/features/settings/app_update_download.dart';
+import 'package:mosh/src/features/settings/app_update_install.dart';
 import 'package:mosh/src/features/settings/settings_content.dart';
 import 'package:mosh/src/features/settings/settings_navigation.dart';
 import 'package:mosh/src/features/settings/settings_screen.dart';
+import 'package:mosh/src/features/shared/attachment_launcher.dart';
+import 'package:mosh/src/features/shared/mosh_progress_bar.dart';
 
 import '../../support/pump.dart';
 import '../../support/settings.dart';
+import '../../support/update_assets.dart';
 
 PackageInfo _package({String version = '9.8.7-dev', String build = '42'}) =>
     PackageInfo(
@@ -22,9 +32,59 @@ PackageInfo _package({String version = '9.8.7-dev', String build = '42'}) =>
       buildNumber: build,
     );
 
+/// Reports scripted progress and finishes when the test says so: the widget
+/// test drives the card, the downloader's own I/O is covered where it lives.
+class _ScriptedDownloader implements ReleaseDownloader {
+  final Completer<File> finished = Completer<File>();
+  final List<UpdateCandidate> asked = [];
+
+  @override
+  Future<File> download(
+    UpdateCandidate candidate, {
+    void Function(int received, int? total)? onProgress,
+  }) async {
+    asked.add(candidate);
+    onProgress?.call(512, 1024);
+    return finished.future;
+  }
+}
+
+/// Records what the system was asked to open: the macOS hand-off ends in exactly
+/// that call.
+class _RecordingLauncher implements AttachmentLauncher {
+  _RecordingLauncher(this.opened);
+
+  final List<String> opened;
+
+  @override
+  Future<void> open(String localPath) async => opened.add(localPath);
+}
+
+/// Fails the first attempt, then behaves: the retry the card offers.
+class _FlakyDownloader implements ReleaseDownloader {
+  _FlakyDownloader(this._delegate);
+
+  final ReleaseDownloader _delegate;
+  int attempts = 0;
+
+  @override
+  Future<File> download(
+    UpdateCandidate candidate, {
+    void Function(int received, int? total)? onProgress,
+  }) {
+    attempts++;
+    if (attempts == 1) {
+      return Future<File>.error(
+          const UpdateDownloadException('connection lost'));
+    }
+    return _delegate.download(candidate, onProgress: onProgress);
+  }
+}
+
 Future<void> _pump(
   WidgetTester tester, {
   Future<PackageInfo> Function()? load,
+  List<Override> overrides = const [],
   Size size = const Size(1200, 800),
   double scale = 1,
   Locale locale = const Locale('en'),
@@ -55,6 +115,7 @@ Future<void> _pump(
     ),
     overrides: [
       if (load != null) appPackageInfoProvider.overrideWith((ref) => load()),
+      ...overrides,
     ],
   );
 }
@@ -117,6 +178,11 @@ void main() {
         (tester) async {
       await _pump(tester,
           load: () async => _package(),
+          // The unanswered feed is the widest notice: a message and an action.
+          overrides: [
+            updateCheckProvider.overrideWith(
+                (ref) async => throw StateError('feed unavailable')),
+          ],
           size: Size(width, 844),
           scale: scale,
           locale: const Locale('ru'));
@@ -158,5 +224,204 @@ void main() {
     expect(find.text('Version 9.8.7-dev · build 42'), findsOneWidget);
     expect(reads, 2);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an available release names its version and opens its page',
+      (tester) async {
+    final opened = <Uri>[];
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => PublishedRelease(
+          version: '0.22.0',
+          pageUri: Uri.parse('https://example.test/releases/0.22.0'))),
+      releasePageOpenerProvider.overrideWithValue((page) async {
+        opened.add(page);
+        return true;
+      }),
+    ]);
+
+    expect(find.text('Version 0.22.0 is available.'), findsOneWidget);
+    await tester.tap(find.text('Open release page'));
+    await tester.pumpAndSettle();
+
+    expect(opened, [Uri.parse('https://example.test/releases/0.22.0')]);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a current installation promises nothing to download',
+      (tester) async {
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => null),
+    ]);
+
+    expect(find.text('This is the newest release.'), findsOneWidget);
+    expect(find.byType(TextButton), findsNothing);
+  });
+
+  testWidgets('a refused page reports itself instead of failing silently',
+      (tester) async {
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => PublishedRelease(
+          version: '0.22.0',
+          pageUri: Uri.parse('https://example.test/releases/0.22.0'))),
+      releasePageOpenerProvider.overrideWithValue((page) async => false),
+    ]);
+
+    await tester.tap(find.text('Open release page'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not open the release page.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a page the platform throws on reports itself, not an exception',
+      (tester) async {
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => PublishedRelease(
+            version: '0.22.0',
+            pageUri: Uri.parse('https://example.test/releases/0.22.0'),
+          )),
+      releasePageOpenerProvider
+          .overrideWithValue((page) async => throw StateError('no handler')),
+    ]);
+
+    await tester.tap(find.text('Open release page'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not open the release page.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a failed check explains itself and retries on demand',
+      (tester) async {
+    var reads = 0;
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async {
+        reads++;
+        if (reads == 1) throw StateError('feed unavailable');
+        return null;
+      }),
+    ]);
+
+    expect(find.text('Could not check for updates.'), findsOneWidget);
+    await tester.tap(find.text('Try again'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('This is the newest release.'), findsOneWidget);
+    expect(reads, 2);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an unknown installed version never asks the feed',
+      (tester) async {
+    var reads = 0;
+    await _pump(tester, load: () async => _package(version: ''), overrides: [
+      updateCheckProvider.overrideWith((ref) async {
+        reads++;
+        return null;
+      }),
+    ]);
+
+    expect(find.text('Version unavailable'), findsOneWidget);
+    expect(find.text('This is the newest release.'), findsNothing);
+    expect(find.text('Checking for updates…'), findsNothing);
+    expect(reads, 0);
+  });
+
+  testWidgets('Update downloads the artifact, then hands it to the installer',
+      (tester) async {
+    final downloader = _ScriptedDownloader();
+    final applied = <String>[];
+    final terminated = <int>[];
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => releaseWithAssets()),
+      hostPlatformProvider.overrideWithValue(HostPlatform.windows),
+      releaseDownloaderProvider.overrideWithValue(downloader),
+      updateApplierProvider.overrideWithValue(WindowsUpdateApplier(
+        start: (executable, arguments, mode) async => applied.add(executable),
+        terminate: terminated.add,
+      )),
+    ]);
+
+    expect(find.text('Version 0.22.0 is available.'), findsOneWidget);
+    await tester.tap(find.text('Update'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Downloading the update… 50%'), findsOneWidget);
+    expect(
+      tester.widget<MoshProgressBar>(find.byType(MoshProgressBar)).fraction,
+      moreOrLessEquals(0.5, epsilon: 0.01),
+    );
+    expect(downloader.asked.single.artifact.name, 'mosh-0.22.0-setup.exe');
+
+    downloader.finished.complete(File('/updates/mosh-0.22.0-setup.exe'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Installing and restarting…'), findsOneWidget);
+    expect(applied, ['/updates/mosh-0.22.0-setup.exe']);
+    expect(terminated, [0]);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('macOS hands the verified image over and says what is left',
+      (tester) async {
+    final downloader = _ScriptedDownloader()
+      ..finished.complete(File('/cache/mosh-update/Mosh_0.22.0_universal.dmg'));
+    final opened = <String>[];
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => releaseWithAssets(
+            assetNames: const [
+              'Mosh_0.22.0_universal.dmg',
+              'Mosh_0.22.0_universal.dmg.sha256',
+            ],
+          )),
+      hostPlatformProvider.overrideWithValue(HostPlatform.macOS),
+      releaseDownloaderProvider.overrideWithValue(downloader),
+      attachmentLauncherProvider.overrideWithValue(_RecordingLauncher(opened)),
+    ]);
+
+    expect(find.text('Version 0.22.0 is available.'), findsOneWidget);
+    await tester.tap(find.text('Update'));
+    await tester.pumpAndSettle();
+
+    expect(opened, ['/cache/mosh-update/Mosh_0.22.0_universal.dmg']);
+    expect(
+        find.text(
+            'The image is open: drag Mosh into Applications, then start it again.'),
+        findsOneWidget);
+
+    await tester.tap(find.text('Show the image'));
+    await tester.pumpAndSettle();
+
+    expect(opened, hasLength(2));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a failed update explains itself and retries on demand',
+      (tester) async {
+    final downloader = _ScriptedDownloader()
+      ..finished.complete(File('/updates/mosh-0.22.0-setup.exe'));
+    final flaky = _FlakyDownloader(downloader);
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => releaseWithAssets()),
+      hostPlatformProvider.overrideWithValue(HostPlatform.windows),
+      releaseDownloaderProvider.overrideWithValue(flaky),
+      updateApplierProvider.overrideWithValue(WindowsUpdateApplier(
+        start: (executable, arguments, mode) async {},
+        terminate: (_) {},
+      )),
+    ]);
+
+    await tester.tap(find.text('Update'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not update.'), findsOneWidget);
+    expect(flaky.attempts, 1);
+
+    await tester.tap(find.text('Try again'));
+    await tester.pumpAndSettle();
+
+    expect(flaky.attempts, 2);
+    expect(find.text('Installing and restarting…'), findsOneWidget);
   });
 }
