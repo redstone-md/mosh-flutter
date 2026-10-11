@@ -19,6 +19,14 @@ use mosh_core::shared_node::SharedMossNode;
 use serde_json::{json, Value};
 
 const OUTPUT_PREFIX: &str = "MOSH_TEST_JSON ";
+
+/// How long a phase or an error may take to show up. The peers are separate
+/// processes on a runner that runs several suites at once, and a transition that
+/// takes milliseconds on an idle machine has been seen to take tens of seconds
+/// there, so the budget sits far above the healthy value; a real stall still
+/// fails the run, and with the budget in the message.
+const OBSERVATION_BUDGET: Duration = Duration::from_secs(90);
+
 static NETWORK_SCENARIO: Mutex<()> = Mutex::new(());
 thread_local! {
     static NETWORK_SCOPE: Cell<u64> = const { Cell::new(0) };
@@ -150,16 +158,33 @@ impl Peer {
         self.ask(json!({"action":"connect","argument":format!("127.0.0.1:{}", other.port)}));
     }
 
+    /// Waits for the runtime to report `phase`.
     pub fn wait_phase(&mut self, phase: &str) -> Value {
-        let deadline = Instant::now() + Duration::from_secs(if self.api { 60 } else { 30 });
+        self.wait_for(phase, |snapshot| snapshot["phase"] == phase)
+    }
+
+    /// Waits for the runtime to report `error`, so a scenario observes a lost
+    /// link instead of sleeping for a guessed interval.
+    #[allow(
+        dead_code,
+        reason = "Shared harness observation the linked-desktop recovery test uses."
+    )]
+    pub fn wait_error(&mut self, error: &str) -> Value {
+        self.wait_for(error, |snapshot| snapshot["error"] == error)
+    }
+
+    /// Polls the peer's snapshot until it reports `expected` as its phase or its
+    /// error, and names `expected` when it never does.
+    fn wait_for(&mut self, expected: &str, ready: impl Fn(&Value) -> bool) -> Value {
+        let deadline = Instant::now() + OBSERVATION_BUDGET;
         loop {
             let snapshot = self.ask(json!({"action":"snapshot"}));
-            if snapshot["phase"] == phase {
+            if ready(&snapshot) {
                 return snapshot;
             }
             assert!(
                 Instant::now() < deadline,
-                "expected {phase}, got phase={}, error={}",
+                "expected {expected} within {OBSERVATION_BUDGET:?}, got phase={}, error={}",
                 snapshot["phase"],
                 snapshot["error"]
             );
