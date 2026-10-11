@@ -147,13 +147,24 @@ class AboutUpdateNotice extends ConsumerWidget {
   Widget _button(String label, VoidCallback onPressed) =>
       TextButton(onPressed: onPressed, child: Text(label));
 
+  /// A platform that refuses the page can answer false or throw — a missing
+  /// handler, an unregistered plugin. Both end in the same notice rather than
+  /// in an unhandled exception nobody sees.
   Future<void> _openRelease(
       BuildContext context, WidgetRef ref, AppLocalizations l, Uri page) async {
-    final opened = await ref.read(releasePageOpenerProvider)(page);
+    final opened = await _tryOpen(ref, page);
     if (!opened && context.mounted) {
       ref
           .read(toasterProvider)
           .show(l.settingsAboutUpdateOpenFailed, kind: ToastKind.error);
+    }
+  }
+
+  Future<bool> _tryOpen(WidgetRef ref, Uri page) async {
+    try {
+      return await ref.read(releasePageOpenerProvider)(page);
+    } catch (_) {
+      return false;
     }
   }
 }

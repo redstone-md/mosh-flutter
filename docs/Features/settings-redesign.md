@@ -444,7 +444,7 @@ changed branch coverage is not applicable. Updated captures were inspected at
 1200px, 390px and 320px with doubled text.
 
 Release notice verification: formatting is clean across 695 Dart files and
-Flutter analysis reports no issues. The full suite passes 1959 tests with four
+Flutter analysis reports no issues. The full suite passes 1960 tests with four
 existing native-library skips. Ten checks cover the feed and its comparison
 (including a feed of pre-releases, the highest version winning over the newest
 row, drafts, and rows whose page cannot be opened), seven cover the download (the
@@ -452,12 +452,13 @@ published sidecar, a declared and an undeclared size, a mismatched digest, a
 stream that dies mid-flight, a missing checksum and the digest line's own
 rules), and ten cover installing: which artifact this host takes, the installer's
 silent flags, the script's arguments, and the swap script itself, run against
-shimmed hdiutil, ditto and open, rollback included. Two more drive the card from
-the button to the handover and back from a failure. The notice was inspected at
-1200×800 in Russian and, for the unanswered feed with doubled text, at 320×844,
-where the action takes its own line instead of overflowing. The installer's
-relaunch gate and the bundle swap on real Windows and macOS machines remain for
-runtime review.
+shimmed hdiutil, ditto and open, rollback included. Three more drive the card
+itself: the button through to the handover, back from a failed download, and a
+platform that throws instead of refusing the release page. The notice was
+inspected at 1200×800 in Russian and, for the unanswered feed with doubled text,
+at 320×844, where the action takes its own line instead of overflowing. The
+installer's relaunch gate and the bundle swap on real Windows and macOS machines
+remain for runtime review.
 
 Changed files are about_settings_section.dart, app_package_info_provider.dart,
 both localization ARBs and about_settings_section_test.dart. The plan,

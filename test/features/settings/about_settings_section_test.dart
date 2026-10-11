@@ -261,6 +261,24 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a page the platform throws on reports itself, not an exception',
+      (tester) async {
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => PublishedRelease(
+            version: '0.22.0',
+            pageUri: Uri.parse('https://example.test/releases/0.22.0'),
+          )),
+      releasePageOpenerProvider
+          .overrideWithValue((page) async => throw StateError('no handler')),
+    ]);
+
+    await tester.tap(find.text('Open release page'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not open the release page.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a failed check explains itself and retries on demand',
       (tester) async {
     var reads = 0;
