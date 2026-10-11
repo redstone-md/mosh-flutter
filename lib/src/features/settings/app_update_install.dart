@@ -46,7 +46,9 @@ final hostPlatformProvider =
 final updateApplierProvider = Provider<UpdateApplier>(
   (ref) => switch (ref.watch(hostPlatformProvider)) {
     HostPlatform.windows => const WindowsUpdateApplier(),
-    HostPlatform.macOS => const MacOsUpdateApplier(),
+    // The shipped macOS app is sandboxed, so it cannot replace itself; see
+    // [UnsupportedUpdateApplier] and ADR 0045.
+    HostPlatform.macOS => const UnsupportedUpdateApplier(),
     HostPlatform.other => const UnsupportedUpdateApplier(),
   },
 );

@@ -40,7 +40,9 @@ typedef AssetStreamOpener = Future<AssetStream> Function(Uri url);
 ///
 /// The checksum is read from the release's own sidecar asset, so the integrity
 /// statement is the one published beside the installer rather than a second
-/// source that could drift from it.
+/// source that could drift from it. It catches a download that was truncated,
+/// corrupted or altered in transit; it cannot decide who published the release,
+/// which is what signing would do (CODE_SIGNING.md, ADR 0045).
 class ReleaseDownloader {
   const ReleaseDownloader(
       {AssetStreamOpener? open, Future<Directory> Function()? staging})

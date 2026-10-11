@@ -351,6 +351,23 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a sandboxed macOS build offers the release page, not a button',
+      (tester) async {
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => releaseWithAssets(
+            assetNames: const [
+              'Mosh_0.22.0_universal.dmg',
+              'Mosh_0.22.0_universal.dmg.sha256',
+            ],
+          )),
+      hostPlatformProvider.overrideWithValue(HostPlatform.macOS),
+    ]);
+
+    expect(find.text('Version 0.22.0 is available.'), findsOneWidget);
+    expect(find.text('Open release page'), findsOneWidget);
+    expect(find.text('Update'), findsNothing);
+  });
+
   testWidgets('a failed update explains itself and retries on demand',
       (tester) async {
     final downloader = _ScriptedDownloader()

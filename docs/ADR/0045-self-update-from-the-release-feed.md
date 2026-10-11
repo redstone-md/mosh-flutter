@@ -29,11 +29,15 @@ things:
   exits; Setup replaces the bundle and, because of `/RELAUNCH=1`, starts the new
   build itself. A scripted or deployed silent install stays quiet: the relaunch
   is gated in the installer script on that one flag.
-- macOS ships a disk image holding the app. The updater starts a detached
-  script that waits for the app to leave, mounts the image, stages the new
-  bundle beside the old one, swaps them, and starts it. Every step that can fail
-  puts the previous bundle back, so a refused swap leaves a working app rather
-  than a missing one.
+- macOS ships a disk image holding the app, and About does **not** install it.
+  The shipped app is sandboxed — `com.apple.security.app-sandbox` in
+  `macos/Runner/Release.entitlements`, with user-selected file access and
+  nothing more — and a sandboxed process can neither replace the bundle in
+  `/Applications` nor mount the image. A child process inherits the sandbox, so
+  a script started by the app cannot do it either. About offers the release page
+  there instead of a button that cannot finish. Updating without that click
+  needs something running outside the sandbox, the way Sparkle's Autoupdate
+  does; that is its own piece of work and needs a Mac to verify.
 
 The check stays as confined as before: it runs while the About card is mounted,
 never polls, is not retried on its own, and reads a public repository with no
@@ -43,6 +47,17 @@ body — the artifact, whose published digest is verified before anything is
 installed. Nothing is installed from a release that publishes no checksum, a
 digest that does not match, or a download that did not finish: a failed update
 leaves the installed build untouched and offers a retry.
+
+What that digest does not do is decide who published the release: it is fetched
+from the same release it describes, so it catches a download that was truncated,
+corrupted or altered in transit, not one replaced on the publisher's side. Anyone
+who could rewrite both the artifact and its sidecar would pass this check, and
+installing their code is exactly the risk of shipping without a trusted publisher
+signature — [CODE_SIGNING.md](../../CODE_SIGNING.md) records that the checksums
+are the integrity statement and that signing is what would make the release
+itself verifiable. Everything here narrows the window: nothing installs
+unverified, nothing installs unasked, and nothing installs in the background.
+None of it replaces a signature.
 
 The feed is the release list rather than GitHub's "latest release" shorthand,
 because that shorthand means "the most recent non-prerelease" and the release

@@ -59,110 +59,15 @@ class WindowsUpdateApplier implements UpdateApplier {
   }
 }
 
-/// Swaps the running bundle for the downloaded one through a detached script.
+/// Hosts where this build cannot install by itself, so the release page is the
+/// honest action instead of a button that cannot finish.
 ///
-/// The image carries the app and an Applications link, so installing is a
-/// bundle swap: the script waits for this process to leave, mounts the image,
-/// stages the new bundle beside the old one, swaps them, and starts it. Every
-/// step that can fail puts the previous bundle back and starts that instead, so
-/// a refused swap leaves a working app rather than a missing one.
-class MacOsUpdateApplier implements UpdateApplier {
-  const MacOsUpdateApplier({
-    String? executable,
-    int Function()? processId,
-    UpdateProcessStarter? start,
-    UpdateProcessTerminator? terminate,
-  })  : _executable = executable,
-        _processId = processId ?? _currentProcessId,
-        _start = start ?? _startDetached,
-        _terminate = terminate ?? exit;
-
-  /// Overridden by tests; production resolves the running bundle.
-  final String? _executable;
-  final int Function() _processId;
-  final UpdateProcessStarter _start;
-  final UpdateProcessTerminator _terminate;
-
-  /// The bundle this process runs from: `<bundle>.app/Contents/MacOS/mosh`.
-  static String bundlePath(String resolvedExecutable) =>
-      File(resolvedExecutable).parent.parent.parent.path;
-
-  /// The swap, as one script so it can outlive the process it replaces.
-  /// Arguments: the app's pid, the image, and the bundle to replace. Commands
-  /// come from PATH, which a macOS app keeps, so the sequence can be driven by
-  /// a test's own hdiutil, ditto and open.
-  static const String swapScript = r'''
-#!/bin/bash
-# Written by Mosh. Swaps the running bundle for the downloaded one, then starts
-# it, putting the previous bundle back when a step fails.
-set -u
-app_pid=$1
-image=$2
-target=$3
-staged="$target.new"
-backup="$target.old"
-mount=$(mktemp -d /tmp/mosh-update.XXXXXX)
-
-detach() {
-  hdiutil detach "$mount" -quiet >/dev/null 2>&1 || true
-  rm -rf "$mount"
-}
-trap detach EXIT
-
-fail() {
-  # Nothing has changed yet, or the previous bundle is already back.
-  open "$target" >/dev/null 2>&1 || true
-  exit 1
-}
-
-# The bundle cannot be replaced while it runs: wait for the app to leave.
-waited=0
-while kill -0 "$app_pid" 2>/dev/null && [ "$waited" -lt 120 ]; do
-  sleep 0.5
-  waited=$((waited + 1))
-done
-
-hdiutil attach "$image" -nobrowse -readonly -mountpoint "$mount" >/dev/null || fail
-source_app=$(ls -d "$mount"/*.app 2>/dev/null | head -n 1)
-[ -n "$source_app" ] || fail
-
-rm -rf "$staged" "$backup"
-ditto "$source_app" "$staged" || fail
-detach
-rm -f "$image"
-
-mv "$target" "$backup" || fail
-if ! mv "$staged" "$target"; then
-  mv "$backup" "$target" || true
-  fail
-fi
-
-rm -rf "$backup"
-open "$target" >/dev/null 2>&1 || true
-''';
-
-  @override
-  bool get supported => true;
-
-  @override
-  Future<void> apply(File artifact) async {
-    final script = File('${artifact.parent.path}/mosh-swap.sh');
-    await script.writeAsString(swapScript);
-    await _start(
-      '/bin/bash',
-      <String>[
-        script.path,
-        '${_processId()}',
-        artifact.path,
-        bundlePath(_executable ?? Platform.resolvedExecutable),
-      ],
-      ProcessStartMode.detached,
-    );
-    _terminate(0);
-  }
-}
-
-/// Hosts with no installer to run: the update is a link to the release page.
+/// macOS is the case that matters: the shipped app is sandboxed
+/// (`com.apple.security.app-sandbox`), a sandboxed process can neither replace
+/// the bundle in /Applications nor mount the release image, and a child process
+/// inherits the sandbox. Updating there needs something outside the sandbox —
+/// the pattern Sparkle's Autoupdate uses — which is its own piece of work, and
+/// ADR 0045 records it.
 class UnsupportedUpdateApplier implements UpdateApplier {
   const UnsupportedUpdateApplier();
 
@@ -172,8 +77,6 @@ class UnsupportedUpdateApplier implements UpdateApplier {
   @override
   Future<void> apply(File artifact) async {}
 }
-
-int _currentProcessId() => pid;
 
 Future<void> _startDetached(
   String executable,
