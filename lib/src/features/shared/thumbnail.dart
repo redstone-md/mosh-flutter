@@ -45,6 +45,12 @@ Future<AttachmentPreviews?> _createImageThumbnail(
     compute(_decodeImagePreviews, (bytes, fileName),
         debugLabel: 'attachment-previews');
 
+AttachmentPreviews? _decodeVideoFrame(Uint8List frame) {
+  final decoded = img.decodeImage(frame);
+  if (decoded == null) return null;
+  return encodeImagePreviews(decoded);
+}
+
 AttachmentPreviews? _decodeImagePreviews((Uint8List, String) input) {
   final (bytes, fileName) = input;
   try {
@@ -128,11 +134,11 @@ Future<AttachmentPreviews?> _createVideoThumbnail(Uint8List bytes) async {
     if (frame == null || frame.isEmpty) return null;
 
     // 4) Decode + resize to 320px max-edge + re-encode JPEG q70 (the same
-    //    output as the image branch). decodeImage sniffs the format from the JPEG
-    //    bytes returned by screenshot().
-    final decoded = img.decodeImage(frame);
-    if (decoded == null) return null;
-    return encodeImagePreviews(decoded);
+    //    output as the image branch). Offload to a background isolate via
+    //    compute() to avoid blocking the main thread (same pattern as the
+    //    image branch above).
+    return compute(_decodeVideoFrame, frame,
+        debugLabel: 'video-attachment-previews');
   } on Exception {
     // media_kit native backend unavailable / decode failure -- never fatal.
     return null;
