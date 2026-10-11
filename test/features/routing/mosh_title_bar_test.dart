@@ -137,8 +137,9 @@ void main() {
     final dotRect = tester.getRect(dot);
     final targetRect = tester.getRect(target);
 
-    // The surface hugs its content instead of the button's minimum width.
+    // The surface hugs its content and is round, not a stretched stadium.
     expect(pillRect.width, lessThan(targetRect.width));
+    expect(pillRect.width, moreOrLessEquals(pillRect.height, epsilon: 0.01));
     // The dot keeps equal space on both sides of that surface.
     expect(dotRect.left - pillRect.left,
         moreOrLessEquals(pillRect.right - dotRect.right, epsilon: 0.01));
