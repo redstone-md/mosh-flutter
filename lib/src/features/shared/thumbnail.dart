@@ -46,9 +46,16 @@ Future<AttachmentPreviews?> _createImageThumbnail(
         debugLabel: 'attachment-previews');
 
 AttachmentPreviews? _decodeVideoFrame(Uint8List frame) {
-  final decoded = img.decodeImage(frame);
-  if (decoded == null) return null;
-  return encodeImagePreviews(decoded);
+  try {
+    final decoded = img.decodeImage(frame);
+    if (decoded == null) return null;
+    return encodeImagePreviews(decoded);
+  } catch (_) {
+    // Never fatal -- resolve null on any decode/encode failure. `catch (_)` on
+    // purpose: a corrupt frame can throw a RangeError (an Error, not an
+    // Exception), matching the same guard used in _decodeImagePreviews.
+    return null;
+  }
 }
 
 AttachmentPreviews? _decodeImagePreviews((Uint8List, String) input) {
@@ -137,7 +144,7 @@ Future<AttachmentPreviews?> _createVideoThumbnail(Uint8List bytes) async {
     //    output as the image branch). Offload to a background isolate via
     //    compute() to avoid blocking the main thread (same pattern as the
     //    image branch above).
-    return compute(_decodeVideoFrame, frame,
+    return await compute(_decodeVideoFrame, frame,
         debugLabel: 'video-attachment-previews');
   } on Exception {
     // media_kit native backend unavailable / decode failure -- never fatal.
