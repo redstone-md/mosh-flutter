@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,12 +11,17 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/settings/about_update_notice.dart';
 import 'package:mosh/src/features/settings/app_package_info_provider.dart';
 import 'package:mosh/src/features/settings/app_release_provider.dart';
+import 'package:mosh/src/features/settings/app_update_apply.dart';
+import 'package:mosh/src/features/settings/app_update_download.dart';
+import 'package:mosh/src/features/settings/app_update_install.dart';
 import 'package:mosh/src/features/settings/settings_content.dart';
 import 'package:mosh/src/features/settings/settings_navigation.dart';
 import 'package:mosh/src/features/settings/settings_screen.dart';
+import 'package:mosh/src/features/shared/mosh_progress_bar.dart';
 
 import '../../support/pump.dart';
 import '../../support/settings.dart';
+import '../../support/update_assets.dart';
 
 PackageInfo _package({String version = '9.8.7-dev', String build = '42'}) =>
     PackageInfo(
@@ -24,6 +30,44 @@ PackageInfo _package({String version = '9.8.7-dev', String build = '42'}) =>
       version: version,
       buildNumber: build,
     );
+
+/// Reports scripted progress and finishes when the test says so: the widget
+/// test drives the card, the downloader's own I/O is covered where it lives.
+class _ScriptedDownloader implements ReleaseDownloader {
+  final Completer<File> finished = Completer<File>();
+  final List<UpdateCandidate> asked = [];
+
+  @override
+  Future<File> download(
+    UpdateCandidate candidate, {
+    void Function(int received, int? total)? onProgress,
+  }) async {
+    asked.add(candidate);
+    onProgress?.call(512, 1024);
+    return finished.future;
+  }
+}
+
+/// Fails the first attempt, then behaves: the retry the card offers.
+class _FlakyDownloader implements ReleaseDownloader {
+  _FlakyDownloader(this._delegate);
+
+  final ReleaseDownloader _delegate;
+  int attempts = 0;
+
+  @override
+  Future<File> download(
+    UpdateCandidate candidate, {
+    void Function(int received, int? total)? onProgress,
+  }) {
+    attempts++;
+    if (attempts == 1) {
+      return Future<File>.error(
+          const UpdateDownloadException('connection lost'));
+    }
+    return _delegate.download(candidate, onProgress: onProgress);
+  }
+}
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -251,5 +295,69 @@ void main() {
     expect(find.text('This is the newest release.'), findsNothing);
     expect(find.text('Checking for updates…'), findsNothing);
     expect(reads, 0);
+  });
+
+  testWidgets('Update downloads the artifact, then hands it to the installer',
+      (tester) async {
+    final downloader = _ScriptedDownloader();
+    final applied = <String>[];
+    final terminated = <int>[];
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => releaseWithAssets()),
+      hostPlatformProvider.overrideWithValue(HostPlatform.windows),
+      releaseDownloaderProvider.overrideWithValue(downloader),
+      updateApplierProvider.overrideWithValue(WindowsUpdateApplier(
+        start: (executable, arguments, mode) async => applied.add(executable),
+        terminate: terminated.add,
+      )),
+    ]);
+
+    expect(find.text('Version 0.22.0 is available.'), findsOneWidget);
+    await tester.tap(find.text('Update'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Downloading the update… 50%'), findsOneWidget);
+    expect(
+      tester.widget<MoshProgressBar>(find.byType(MoshProgressBar)).fraction,
+      moreOrLessEquals(0.5, epsilon: 0.01),
+    );
+    expect(downloader.asked.single.artifact.name, 'mosh-0.22.0-setup.exe');
+
+    downloader.finished.complete(File('/updates/mosh-0.22.0-setup.exe'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Installing and restarting…'), findsOneWidget);
+    expect(applied, ['/updates/mosh-0.22.0-setup.exe']);
+    expect(terminated, [0]);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a failed update explains itself and retries on demand',
+      (tester) async {
+    final downloader = _ScriptedDownloader()
+      ..finished.complete(File('/updates/mosh-0.22.0-setup.exe'));
+    final flaky = _FlakyDownloader(downloader);
+    await _pump(tester, load: () async => _package(), overrides: [
+      updateCheckProvider.overrideWith((ref) async => releaseWithAssets()),
+      hostPlatformProvider.overrideWithValue(HostPlatform.windows),
+      releaseDownloaderProvider.overrideWithValue(flaky),
+      updateApplierProvider.overrideWithValue(WindowsUpdateApplier(
+        start: (executable, arguments, mode) async {},
+        terminate: (_) {},
+      )),
+    ]);
+
+    await tester.tap(find.text('Update'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not update.'), findsOneWidget);
+    expect(flaky.attempts, 1);
+
+    await tester.tap(find.text('Try again'));
+    await tester.pumpAndSettle();
+
+    expect(flaky.attempts, 2);
+    expect(find.text('Installing and restarting…'), findsOneWidget);
   });
 }

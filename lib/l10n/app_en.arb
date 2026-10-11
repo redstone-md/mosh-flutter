@@ -361,6 +361,27 @@
   "@settingsAboutUpdateOpenFailed": {
     "description": "Toast when the platform refuses to open the release page in a browser"
   },
+  "settingsAboutUpdateInstall": "Update",
+  "@settingsAboutUpdateInstall": {
+    "description": "About button that downloads, verifies and installs the newer build, then restarts Mosh"
+  },
+  "settingsAboutUpdateDownloading": "Downloading the update… {percent}%",
+  "@settingsAboutUpdateDownloading": {
+    "description": "About notice while the artifact downloads; the number is the share already received",
+    "placeholders": { "percent": { "type": "int" } }
+  },
+  "settingsAboutUpdateDownloadingUnknown": "Downloading the update…",
+  "@settingsAboutUpdateDownloadingUnknown": {
+    "description": "About notice while downloading when the server declared no size, so the bar stays indeterminate"
+  },
+  "settingsAboutUpdateApplying": "Installing and restarting…",
+  "@settingsAboutUpdateApplying": {
+    "description": "About notice after a verified download, while the installer takes over and Mosh is about to restart"
+  },
+  "settingsAboutUpdateInstallFailed": "Could not update.",
+  "@settingsAboutUpdateInstallFailed": {
+    "description": "About notice when the download, its checksum or the handover to the installer failed; the installed build is untouched"
+  },
   "groupCreateCardTitle": "Create private group",
   "@groupCreateCardTitle": {
     "description": "Title of the create-group card"

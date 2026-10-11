@@ -9,13 +9,36 @@ import 'app_package_info_provider.dart';
 
 /// A published build, with the page a person opens to download it.
 class PublishedRelease {
-  const PublishedRelease({required this.version, required this.pageUri});
+  const PublishedRelease({
+    required this.version,
+    required this.pageUri,
+    this.assets = const [],
+  });
 
   /// The release version, without the `v` prefix of its git tag.
   final String version;
 
   /// The release page: notes, installers and their checksums.
   final Uri pageUri;
+
+  /// What the release workflow uploaded: installers and their checksums.
+  final List<ReleaseAsset> assets;
+
+  /// The uploaded file named [name], or null when the release lacks it.
+  ReleaseAsset? assetNamed(String name) {
+    for (final asset in assets) {
+      if (asset.name == name) return asset;
+    }
+    return null;
+  }
+}
+
+/// One uploaded file of a release.
+class ReleaseAsset {
+  const ReleaseAsset({required this.name, required this.downloadUri});
+
+  final String name;
+  final Uri downloadUri;
 }
 
 /// Reads the feed body. Injectable, so parsing and comparison are tested
@@ -50,8 +73,58 @@ class GitHubReleaseFeed {
     return PublishedRelease(
       version: tag.replaceFirst(RegExp('^v'), ''),
       pageUri: Uri.parse(page),
+      assets: _assets(decoded['assets']),
     );
   }
+}
+
+/// Uploaded files, skipping anything the feed describes incompletely rather
+/// than inventing a URL for it.
+List<ReleaseAsset> _assets(Object? raw) {
+  if (raw is! List<Object?>) return const [];
+  return [
+    for (final entry in raw)
+      if (entry is Map<String, Object?>)
+        if (entry['name'] case final String name)
+          if (entry['browser_download_url'] case final String url)
+            if (name.isNotEmpty && url.isNotEmpty)
+              ReleaseAsset(name: name, downloadUri: Uri.parse(url)),
+  ];
+}
+
+/// The host whose artifact would be installed.
+enum HostPlatform { windows, macOS, other }
+
+/// The artifact for this host and the checksum published beside it. Both are
+/// required: an artifact nobody published a digest for is not installed.
+class UpdateCandidate {
+  const UpdateCandidate({required this.artifact, required this.checksum});
+
+  final ReleaseAsset artifact;
+  final ReleaseAsset checksum;
+}
+
+/// What this host would install from [release], or null when the release
+/// carries nothing for it — a Linux build has no published installer, and a
+/// release whose assets were renamed is not guessed at.
+UpdateCandidate? updateCandidateFor(
+  PublishedRelease release,
+  HostPlatform platform,
+) {
+  final suffix = switch (platform) {
+    HostPlatform.windows => '-setup.exe',
+    HostPlatform.macOS => '.dmg',
+    HostPlatform.other => null,
+  };
+  if (suffix == null) return null;
+  for (final asset in release.assets) {
+    if (!asset.name.endsWith(suffix)) continue;
+    if (!asset.name.contains(release.version)) continue;
+    final checksum = release.assetNamed('${asset.name}.sha256');
+    if (checksum == null) return null;
+    return UpdateCandidate(artifact: asset, checksum: checksum);
+  }
+  return null;
 }
 
 const _kFeedTimeout = Duration(seconds: 10);
