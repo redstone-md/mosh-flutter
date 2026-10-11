@@ -17,6 +17,7 @@ import 'package:mosh/src/features/settings/app_update_install.dart';
 import 'package:mosh/src/features/settings/settings_content.dart';
 import 'package:mosh/src/features/settings/settings_navigation.dart';
 import 'package:mosh/src/features/settings/settings_screen.dart';
+import 'package:mosh/src/features/shared/attachment_launcher.dart';
 import 'package:mosh/src/features/shared/mosh_progress_bar.dart';
 
 import '../../support/pump.dart';
@@ -46,6 +47,17 @@ class _ScriptedDownloader implements ReleaseDownloader {
     onProgress?.call(512, 1024);
     return finished.future;
   }
+}
+
+/// Records what the system was asked to open: the macOS hand-off ends in exactly
+/// that call.
+class _RecordingLauncher implements AttachmentLauncher {
+  _RecordingLauncher(this.opened);
+
+  final List<String> opened;
+
+  @override
+  Future<void> open(String localPath) async => opened.add(localPath);
 }
 
 /// Fails the first attempt, then behaves: the retry the card offers.
@@ -351,8 +363,11 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a sandboxed macOS build offers the release page, not a button',
+  testWidgets('macOS hands the verified image over and says what is left',
       (tester) async {
+    final downloader = _ScriptedDownloader()
+      ..finished.complete(File('/cache/mosh-update/Mosh_0.22.0_universal.dmg'));
+    final opened = <String>[];
     await _pump(tester, load: () async => _package(), overrides: [
       updateCheckProvider.overrideWith((ref) async => releaseWithAssets(
             assetNames: const [
@@ -361,11 +376,25 @@ void main() {
             ],
           )),
       hostPlatformProvider.overrideWithValue(HostPlatform.macOS),
+      releaseDownloaderProvider.overrideWithValue(downloader),
+      attachmentLauncherProvider.overrideWithValue(_RecordingLauncher(opened)),
     ]);
 
     expect(find.text('Version 0.22.0 is available.'), findsOneWidget);
-    expect(find.text('Open release page'), findsOneWidget);
-    expect(find.text('Update'), findsNothing);
+    await tester.tap(find.text('Update'));
+    await tester.pumpAndSettle();
+
+    expect(opened, ['/cache/mosh-update/Mosh_0.22.0_universal.dmg']);
+    expect(
+        find.text(
+            'The image is open: drag Mosh into Applications, then start it again.'),
+        findsOneWidget);
+
+    await tester.tap(find.text('Show the image'));
+    await tester.pumpAndSettle();
+
+    expect(opened, hasLength(2));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('a failed update explains itself and retries on demand',

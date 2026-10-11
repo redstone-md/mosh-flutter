@@ -382,6 +382,14 @@
   "@settingsAboutUpdateInstallFailed": {
     "description": "About notice when the download, its checksum or the handover to the installer failed; the installed build is untouched"
   },
+  "settingsAboutUpdateImageOpen": "The image is open: drag Mosh into Applications, then start it again.",
+  "@settingsAboutUpdateImageOpen": {
+    "description": "About notice after the verified disk image was handed to Finder, on a host where the sandboxed app cannot replace its own bundle"
+  },
+  "settingsAboutUpdateImageShow": "Show the image",
+  "@settingsAboutUpdateImageShow": {
+    "description": "About action that opens the downloaded disk image again, for someone who closed the Finder window"
+  },
   "groupCreateCardTitle": "Create private group",
   "@groupCreateCardTitle": {
     "description": "Title of the create-group card"

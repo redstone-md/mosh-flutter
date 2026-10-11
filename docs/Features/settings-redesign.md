@@ -408,12 +408,14 @@ separate anonymity warning were removed along with the protection disclosure.
 No global security/connectivity status, licence or changelog action is
 introduced. A release notice sits under the identity line: it names the newest
 published version and installs it when asked — the artifact downloads with a
-progress bar, its published SHA-256 is verified, and on Windows the installer
-takes over, restarting Mosh on the new build. Where this build cannot install by
-itself — macOS, whose app is sandboxed, and Linux, which has no installer at all
-— the notice opens the release page instead of offering a button that cannot
-finish. It says nothing while the installed build is the newest one, and reports
-an unanswered feed with a retry instead of claiming the installation is current
+progress bar and its published SHA-256 is verified. On Windows the installer
+then takes over and restarts Mosh on the new build; on macOS, whose app is
+sandboxed, the verified image goes to the system, which mounts it, and the card
+tells the person to drag Mosh into Applications. Where nothing can be installed
+at all — Linux, which the release publishes no installer for — the notice opens
+the release page instead of offering a button that cannot finish. It says
+nothing while the installed build is the newest one, and reports an unanswered
+feed with a retry instead of claiming the installation is current
 (ADR 0045). The notice appears only once the installed version is known, so an
 unavailable version never asks the feed, and it reads the feed only while the
 card is mounted. Existing theme text, card padding and shapes wrap on phones,
@@ -445,20 +447,21 @@ changed branch coverage is not applicable. Updated captures were inspected at
 1200px, 390px and 320px with doubled text.
 
 Release notice verification: formatting is clean across 695 Dart files and
-Flutter analysis reports no issues. The full suite passes 1958 tests with four
+Flutter analysis reports no issues. The full suite passes 1960 tests with four
 existing native-library skips. Ten checks cover the feed and its comparison
 (including a feed of pre-releases, the highest version winning over the newest
 row, drafts, and rows whose page cannot be opened), seven cover the download (the
 published sidecar, a declared and an undeclared size, a mismatched digest, a
 stream that dies mid-flight, a missing checksum and the digest line's own
-rules), and seven cover installing: which artifact this host takes, the
-installer's silent flags, and that a sandboxed macOS build installs nothing by
-itself. Four more drive the card itself: the button through to the handover, back
-from a failed download, a platform that throws instead of refusing the release
-page, and a sandboxed build offered that page rather than a button. The notice
-was inspected at 1200×800 in Russian and, for the unanswered feed with doubled
-text, at 320×844, where the action takes its own line instead of overflowing. The
-installer's relaunch gate on a real Windows machine remains for runtime review.
+rules), and nine cover taking and handing over an artifact: which one this host
+takes, the installer's silent flags, the image hand-off, and that a host with no
+artifact at all installs nothing. Four more drive the card itself: the button
+through to the handover, back from a failed download, a platform that throws
+instead of refusing the release page, and macOS handing the verified image to the
+system. The notice was inspected at 1200×800 in Russian and, for the unanswered
+feed with doubled text, at 320×844, where the action takes its own line instead
+of overflowing. The installer's relaunch gate on a real Windows machine remains
+for runtime review.
 
 Changed files are about_settings_section.dart, app_package_info_provider.dart,
 both localization ARBs and about_settings_section_test.dart. The plan,
@@ -471,8 +474,8 @@ extends about_settings_section.dart and both ARBs, and is covered by
 about_settings_section_test.dart, app_release_provider_test.dart,
 app_update_download_test.dart and app_update_apply_test.dart. The Windows
 installer script gains the `/RELAUNCH=1` entry that starts Mosh again after a
-self-update, while macOS keeps the release page because the shipped app is
-sandboxed and cannot replace its own bundle (ADR 0045). No dependency is
+self-update, and macOS hands the verified image to the system because the
+sandboxed app cannot replace its own bundle (ADR 0045). No dependency is
 added: digests come from the `cryptography` the app already uses, the feed and
 the artifact are read through `dart:io`, and the
 release page opens through the `url_launcher` the attachment launcher already

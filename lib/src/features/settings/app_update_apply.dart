@@ -16,12 +16,17 @@ typedef UpdateProcessStarter = Future<void> Function(
 
 typedef UpdateProcessTerminator = void Function(int exitCode);
 
-/// Installs a verified artifact and ends this process, so the replacement can
-/// write over the files this one has open.
+/// Puts a verified artifact where the platform can use it: an installer this
+/// app runs, or — where the app cannot install anything itself — the system's
+/// own handler for the downloaded image.
 abstract interface class UpdateApplier {
-  /// Whether this host installs the artifact on its own. About offers the
-  /// update button only where this holds, and the release page otherwise.
+  /// Whether this host installs on its own. About offers the update button
+  /// only where this holds, and the release page otherwise.
   bool get supported;
+
+  /// Whether [apply] replaces the installed bundle. Where it does not, the
+  /// person finishes the update and the card says how.
+  bool get installsInPlace;
 
   Future<void> apply(File artifact);
 }
@@ -53,26 +58,52 @@ class WindowsUpdateApplier implements UpdateApplier {
   bool get supported => true;
 
   @override
+  bool get installsInPlace => true;
+
+  @override
   Future<void> apply(File artifact) async {
     await _start(artifact.path, installerArguments, ProcessStartMode.detached);
     _terminate(0);
   }
 }
 
-/// Hosts where this build cannot install by itself, so the release page is the
-/// honest action instead of a button that cannot finish.
+/// Hands the verified image to the system instead of installing it.
 ///
-/// macOS is the case that matters: the shipped app is sandboxed
-/// (`com.apple.security.app-sandbox`), a sandboxed process can neither replace
-/// the bundle in /Applications nor mount the release image, and a child process
-/// inherits the sandbox. Updating there needs something outside the sandbox —
-/// the pattern Sparkle's Autoupdate uses — which is its own piece of work, and
-/// ADR 0045 records it.
+/// The shipped app is sandboxed (`com.apple.security.app-sandbox`), and a
+/// sandboxed process can neither replace the bundle in /Applications nor mount
+/// an image; its children inherit that. Finder mounts it outside the sandbox,
+/// so the update ends with one drag — the closest to a single button this build
+/// can honestly offer. Installing outright needs something running outside the
+/// sandbox, the way Sparkle's Installer.xpc does, which is its own piece of work
+/// (ADR 0045).
+class MacOsImageApplier implements UpdateApplier {
+  const MacOsImageApplier({required this.open});
+
+  /// Opens a downloaded file with the system handler, so a test can record the
+  /// hand-off instead of starting Finder.
+  final Future<void> Function(String path) open;
+
+  @override
+  bool get supported => true;
+
+  @override
+  bool get installsInPlace => false;
+
+  @override
+  Future<void> apply(File artifact) => open(artifact.path);
+}
+
+/// Hosts where this build can do nothing at all with an artifact, so the release
+/// page is the honest action instead of a button that cannot finish. Linux is
+/// the case: the release publishes no installer for it.
 class UnsupportedUpdateApplier implements UpdateApplier {
   const UnsupportedUpdateApplier();
 
   @override
   bool get supported => false;
+
+  @override
+  bool get installsInPlace => false;
 
   @override
   Future<void> apply(File artifact) async {}

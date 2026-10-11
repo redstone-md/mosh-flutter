@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:mosh/src/features/shared/attachment_launcher.dart';
 
 import 'app_release_provider.dart';
 import 'app_update_apply.dart';
@@ -33,6 +37,12 @@ final class UpdateInstallApplying extends UpdateInstallState {
   const UpdateInstallApplying();
 }
 
+/// The verified image is with Finder, which is as far as a sandboxed app gets:
+/// the person finishes the update themselves.
+final class UpdateInstallImageOpen extends UpdateInstallState {
+  const UpdateInstallImageOpen();
+}
+
 /// The download or the handover failed. The installed build is untouched.
 final class UpdateInstallFailed extends UpdateInstallState {
   const UpdateInstallFailed();
@@ -46,9 +56,10 @@ final hostPlatformProvider =
 final updateApplierProvider = Provider<UpdateApplier>(
   (ref) => switch (ref.watch(hostPlatformProvider)) {
     HostPlatform.windows => const WindowsUpdateApplier(),
-    // The shipped macOS app is sandboxed, so it cannot replace itself; see
-    // [UnsupportedUpdateApplier] and ADR 0045.
-    HostPlatform.macOS => const UnsupportedUpdateApplier(),
+    // The shipped macOS app is sandboxed, so it hands the image to Finder
+    // rather than replacing its own bundle; see [MacOsImageApplier] and ADR 0045.
+    HostPlatform.macOS =>
+      MacOsImageApplier(open: ref.watch(attachmentLauncherProvider).open),
     HostPlatform.other => const UnsupportedUpdateApplier(),
   },
 );
@@ -76,6 +87,8 @@ final updateInstallProvider =
     NotifierProvider<UpdateInstall, UpdateInstallState>(UpdateInstall.new);
 
 class UpdateInstall extends Notifier<UpdateInstallState> {
+  File? _image;
+
   @override
   UpdateInstallState build() => const UpdateInstallIdle();
 
@@ -91,8 +104,28 @@ class UpdateInstall extends Notifier<UpdateInstallState> {
             onProgress: (received, total) => state =
                 UpdateInstallDownloading(received: received, total: total),
           );
-      state = const UpdateInstallApplying();
-      await ref.read(updateApplierProvider).apply(file);
+      final applier = ref.read(updateApplierProvider);
+      if (applier.installsInPlace) {
+        state = const UpdateInstallApplying();
+        await applier.apply(file);
+        return;
+      }
+      await applier.apply(file);
+      _image = file;
+      state = const UpdateInstallImageOpen();
+    } catch (_) {
+      state = const UpdateInstallFailed();
+    }
+  }
+
+  /// Shows the downloaded image again. Where the app cannot install it, showing
+  /// it is the whole update, and a closed Finder window would otherwise strand
+  /// whoever closed it.
+  Future<void> reveal() async {
+    final image = _image;
+    if (image == null) return;
+    try {
+      await ref.read(updateApplierProvider).apply(image);
     } catch (_) {
       state = const UpdateInstallFailed();
     }

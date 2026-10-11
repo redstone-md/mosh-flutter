@@ -82,9 +82,32 @@ void main() {
     expect(applier.supported, isTrue);
   });
 
-  test('a sandboxed macOS build installs nothing by itself', () {
+  test('the image applier opens the verified file and nothing else', () async {
+    final opened = <String>[];
+    final applier = MacOsImageApplier(open: (path) async => opened.add(path));
+
+    await applier.apply(File('/tmp/Mosh_0.22.0_universal.dmg'));
+
+    expect(opened, ['/tmp/Mosh_0.22.0_universal.dmg']);
+    expect(applier.supported, isTrue);
+    expect(applier.installsInPlace, isFalse);
+  });
+
+  test('a sandboxed macOS build hands the image over instead of installing',
+      () {
     final container = ProviderContainer(overrides: [
       hostPlatformProvider.overrideWithValue(HostPlatform.macOS),
+    ]);
+    addTearDown(container.dispose);
+
+    final applier = container.read(updateApplierProvider);
+    expect(applier.supported, isTrue);
+    expect(applier.installsInPlace, isFalse);
+  });
+
+  test('a host with no artifact at all installs nothing', () {
+    final container = ProviderContainer(overrides: [
+      hostPlatformProvider.overrideWithValue(HostPlatform.other),
     ]);
     addTearDown(container.dispose);
 

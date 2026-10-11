@@ -29,15 +29,20 @@ things:
   exits; Setup replaces the bundle and, because of `/RELAUNCH=1`, starts the new
   build itself. A scripted or deployed silent install stays quiet: the relaunch
   is gated in the installer script on that one flag.
-- macOS ships a disk image holding the app, and About does **not** install it.
-  The shipped app is sandboxed — `com.apple.security.app-sandbox` in
-  `macos/Runner/Release.entitlements`, with user-selected file access and
-  nothing more — and a sandboxed process can neither replace the bundle in
-  `/Applications` nor mount the image. A child process inherits the sandbox, so
-  a script started by the app cannot do it either. About offers the release page
-  there instead of a button that cannot finish. Updating without that click
-  needs something running outside the sandbox, the way Sparkle's Autoupdate
-  does; that is its own piece of work and needs a Mac to verify.
+- macOS ships a disk image holding the app, and About does not install it
+  itself. The shipped app is sandboxed — `com.apple.security.app-sandbox` in
+  `macos/Runner/Release.entitlements`, with user-selected file access and nothing
+  more — and a sandboxed process can neither replace the bundle in
+  `/Applications` nor mount an image; a child process inherits the sandbox, so a
+  script started by the app cannot do it either. The updater downloads the image,
+  verifies its published digest like any other artifact, and hands the verified
+  file to the system, which mounts it outside the sandbox: the update ends with
+  one drag into Applications, and the card says so rather than leaving the move
+  to guesswork. Handing a downloaded file to the system is the path the app
+  already takes for received attachments, so nothing new is trusted with the
+  launch. Installing outright needs something running outside the sandbox,
+  the way Sparkle's `Installer.xpc` does; that is its own piece of work and needs
+  a Mac to verify.
 
 The check stays as confined as before: it runs while the About card is mounted,
 never polls, is not retried on its own, and reads a public repository with no

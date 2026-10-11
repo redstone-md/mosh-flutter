@@ -41,6 +41,13 @@ class AboutUpdateNotice extends ConsumerWidget {
               icon: Icons.system_update_alt,
               tint: MoshColors.moss,
               message: l.settingsAboutUpdateApplying);
+        case UpdateInstallImageOpen():
+          return _line(context,
+              icon: Icons.folder_open,
+              tint: MoshColors.moss,
+              message: l.settingsAboutUpdateImageOpen,
+              action: _button(l.settingsAboutUpdateImageShow,
+                  () => ref.read(updateInstallProvider.notifier).reveal()));
         case UpdateInstallFailed():
           return _line(context,
               icon: Icons.error_outline,
