@@ -102,7 +102,10 @@ JPEG/PNG header, including legacy EXIF orientation, before any decode. It
 scales with the available width (at most 320px), clamped to 120–260px, or is
 200px when unknown. Miniature, clear preview and original fill that box with cover
 fit, so their arrival never moves the list. Miniatures are cached by their
-encoded value and reappear in the first frame when a chat is reopened. Download, cancel, retry and open behavior is unchanged.
+encoded value and reappear in the first frame when a chat is reopened.
+Base64 bytes and parsed sizes use a 4 MiB cache payload budget. Keys are
+budgeted as UTF-16; entries above 128 KiB are decoded without retention.
+Download, cancel, retry and open behavior is unchanged.
 
 Voice uses the same message surface. Play/pause is centered without an extra
 translation, including the recording preview. The button uses the theme's

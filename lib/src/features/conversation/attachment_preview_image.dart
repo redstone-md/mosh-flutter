@@ -1,7 +1,60 @@
+import 'dart:collection' show LinkedHashMap;
+import 'dart:convert' show base64Decode;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
+
+/// Decoded inline miniature: its bytes and the size read from its header.
+typedef DecodedMiniature = ({Uint8List bytes, Size? size});
+
+/// Total retained bytes (base64 source plus decoded buffer) across entries.
+const int _miniatureCacheMaxBytes = 4 * 1024 * 1024;
+
+/// Larger entries are decoded on demand but never retained. Current
+/// miniatures are at most 2 KiB of base64 and legacy ones 32 KiB.
+const int _miniatureEntryMaxBytes = 128 * 1024;
+
+final LinkedHashMap<String, DecodedMiniature> _miniatureCache =
+    LinkedHashMap<String, DecodedMiniature>();
+int _miniatureCacheBytes = 0;
+final DecodedMiniature _emptyMiniature = (bytes: Uint8List(0), size: null);
+
+// Two bytes per UTF-16 code unit also cover malformed non-ASCII keys.
+int _entryBytes(String source, DecodedMiniature decoded) =>
+    source.length * 2 + decoded.bytes.lengthInBytes;
+
+/// Decodes a base64 miniature once and reuses the result on later builds.
+///
+/// Message lists rebuild every attachment card on each transfer progress or
+/// state change; decoding the base64 and parsing its header in every build
+/// blocks the UI thread. A malformed value yields empty bytes so the image's
+/// errorBuilder renders the broken-image fallback, as before.
+DecodedMiniature decodeMiniature(String? source) {
+  if (source == null || source.isEmpty) return _emptyMiniature;
+  final cached = _miniatureCache.remove(source);
+  if (cached != null) {
+    _miniatureCache[source] = cached; // mark as most recently used
+    return cached;
+  }
+  DecodedMiniature decoded;
+  try {
+    final bytes = base64Decode(source);
+    decoded = (bytes: bytes, size: encodedImageSize(bytes));
+  } catch (_) {
+    decoded = _emptyMiniature;
+  }
+  final entryBytes = _entryBytes(source, decoded);
+  if (entryBytes > _miniatureEntryMaxBytes) return decoded;
+  _miniatureCache[source] = decoded;
+  _miniatureCacheBytes += entryBytes;
+  while (_miniatureCacheBytes > _miniatureCacheMaxBytes) {
+    final oldest = _miniatureCache.keys.first;
+    final evicted = _miniatureCache.remove(oldest)!;
+    _miniatureCacheBytes -= _entryBytes(oldest, evicted);
+  }
+  return decoded;
+}
 
 /// Reject excessive intrinsic dimensions before the codec allocates pixels.
 class AttachmentPreviewFileImage extends FileImage {
