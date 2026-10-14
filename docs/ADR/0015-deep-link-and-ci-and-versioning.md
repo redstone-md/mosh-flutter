@@ -292,3 +292,12 @@ Timeout diagnostics include the command budget and child-process status.
 The real-process regression delays one reply for 35 seconds: it fails with the
 old timeout and passes with the shared budget. The deterministic 25-second
 silence-boundary test remains independent of this harness budget.
+
+## Update 2026-10-15: Windows dependency caches
+
+Windows jobs cache the Flutter SDK and existing Cargo/cargokit outputs, but
+fetch pub dependencies without caching that directory. Main CI built and
+uploaded the installer successfully, then spent 17 minutes archiving pub cache
+and reached the 60-minute job limit during SDK cache cleanup. `flutter pub get`
+took about one minute in that run; omitting the pub archive avoids that measured
+cleanup cost without changing build inputs or the job timeout.
