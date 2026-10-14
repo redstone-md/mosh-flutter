@@ -176,6 +176,7 @@ impl Drop for Sender {
 }
 
 fn send_loop(shared: Arc<Shared>, transport: Arc<dyn DmTransport>) {
+    let _priority = super::media_thread::Priority::new();
     let started = Instant::now();
     let limits = capacity(true);
     let mut total = Budget::new(limits.total_bytes_per_second, started);
@@ -188,6 +189,13 @@ fn send_loop(shared: Arc<Shared>, transport: Arc<dyn DmTransport>) {
         let packet = loop {
             if queue.stopped {
                 return;
+            }
+            if queue.priority.is_empty() && queue.video.is_empty() {
+                queue = shared
+                    .changed
+                    .wait(queue)
+                    .unwrap_or_else(|error| error.into_inner());
+                continue;
             }
             match queue.next(&mut total, &mut video, Instant::now()) {
                 Next::Send(packet) => break packet,
