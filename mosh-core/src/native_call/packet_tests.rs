@@ -1,5 +1,5 @@
 use super::*;
-use crate::private_dm_runtime::transport::{memory::MemoryNet, PeerTransport};
+use crate::private_dm_runtime::transport::memory::MemoryNet;
 
 #[test]
 fn maximum_packet_can_refill_depleted_budgets_before_expiring() {
@@ -157,6 +157,7 @@ mod native {
         library::{Engine, MAX_PACKET},
         types::Binding,
     };
+    use crate::private_dm_runtime::transport::PeerTransport;
     use serde_json::json;
 
     #[test]
