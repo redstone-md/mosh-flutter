@@ -234,31 +234,45 @@ fn pairing_preserves_a_real_existing_dm_and_its_counterpart_after_restart() {
 }
 
 #[test]
-fn an_interrupted_approved_link_recovers_when_both_desktops_restart() {
+fn an_approved_link_survives_restart_before_or_after_its_acknowledgement() {
     let _network = isolated_network_scenario();
-    let mut trusted = Peer::new();
-    let mut joining = Peer::new();
-    trusted.connect(&joining);
-    let qr = trusted.ask(json!({"action":"qr"}));
-    joining.ask(json!({"action":"import","argument":qr["qr_uri"],"name":"Second desktop"}));
-    trusted.wait_phase("AwaitingApproval");
-    let code = joining.wait_phase("AwaitingConfirmation")["confirmation_code"].clone();
-    joining.stop();
-    trusted.wait_error("ConnectionLost");
-    assert_eq!(
-        trusted.ask(json!({"action":"approve","argument":code}))["phase"],
-        "Delivering"
-    );
-    joining.restart();
-    let phase = joining.ask(json!({"action":"snapshot"}))["phase"].clone();
-    assert!(
-        phase == "AwaitingConfirmation" || phase == "Linked",
-        "must restore the authenticated request, got {phase}"
-    );
-    trusted.restart();
-    trusted.connect(&joining);
-    let restored = joining.wait_phase("Linked");
-    assert_eq!(trusted.wait_phase("Linked")["devices"], restored["devices"]);
+    for completed_before_restart in [false, true] {
+        let mut trusted = Peer::new();
+        let mut joining = Peer::new();
+        trusted.connect(&joining);
+        let qr = trusted.ask(json!({"action":"qr"}));
+        joining.ask(json!({"action":"import","argument":qr["qr_uri"],"name":"Second desktop"}));
+        trusted.wait_phase("AwaitingApproval");
+        let code = joining.wait_phase("AwaitingConfirmation")["confirmation_code"].clone();
+        joining.stop();
+        trusted.wait_error("ConnectionLost");
+        assert_eq!(
+            trusted.ask(json!({"action":"approve","argument":code}))["phase"],
+            "Delivering"
+        );
+        if !completed_before_restart {
+            trusted.restart();
+            assert_eq!(
+                trusted.ask(json!({"action":"snapshot"}))["phase"],
+                "Delivering"
+            );
+        }
+        joining.restart();
+        let phase = joining.ask(json!({"action":"snapshot"}))["phase"].clone();
+        assert!(
+            phase == "AwaitingConfirmation" || phase == "Linked",
+            "must restore the authenticated request, got {phase}"
+        );
+        if completed_before_restart {
+            joining.wait_phase("Linked");
+            trusted.wait_phase("Linked");
+            trusted.restart();
+            assert_eq!(trusted.ask(json!({"action":"snapshot"}))["phase"], "Idle");
+        }
+        trusted.connect(&joining);
+        let restored = joining.wait_phase("Linked");
+        trusted.wait_linked_roster(&restored["devices"]);
+    }
 }
 
 #[test]

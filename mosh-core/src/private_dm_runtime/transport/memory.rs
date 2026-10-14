@@ -20,6 +20,7 @@ struct Endpoint {
     inbox: Vec<MossReceivedMessage>,
     /// Voice-call media, queued apart the way the moss inbox claims it.
     media_inbox: Vec<MossReceivedMessage>,
+    packet_inbox: Vec<MossReceivedMessage>,
     connect_requests: Vec<String>,
     /// The transport turns every publish away, the way moss answers a
     /// node with nobody to hand the frame to.

@@ -178,4 +178,44 @@ impl DmTransport for MemoryTransport {
             .map(|endpoint| std::mem::take(&mut endpoint.media_inbox))
             .unwrap_or_default()
     }
+
+    fn enable_call_packets(&self) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn send_call_packet(&self, peer: &str, packet: &[u8]) -> Result<(), String> {
+        let mut state = self.net.lock();
+        let link = state
+            .links
+            .get(&(self.peer_id.clone(), peer.to_owned()))
+            .filter(|link| link.visible_reach() != PeerTransport::None)
+            .ok_or("peer unreachable")?;
+        let channel = format!(
+            "{}{}",
+            crate::moss_ffi::PACKET_INBOX_CHANNEL_PREFIX,
+            self.peer_id
+        );
+        if link
+            .drop_if
+            .as_ref()
+            .is_some_and(|rule| rule(&channel, packet))
+        {
+            return Ok(());
+        }
+        let target = state.endpoints.get_mut(peer).ok_or("peer missing")?;
+        target.packet_inbox.push(MossReceivedMessage {
+            channel,
+            payload: packet.to_vec(),
+        });
+        Ok(())
+    }
+
+    fn drain_call_packets(&self) -> Vec<MossReceivedMessage> {
+        self.net
+            .lock()
+            .endpoints
+            .get_mut(&self.peer_id)
+            .map(|endpoint| std::mem::take(&mut endpoint.packet_inbox))
+            .unwrap_or_default()
+    }
 }

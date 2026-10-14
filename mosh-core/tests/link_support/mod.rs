@@ -1,6 +1,7 @@
 mod api;
 pub(crate) mod crypto;
 mod dm;
+mod observation;
 mod protocol;
 pub(crate) mod stdio;
 use std::cell::Cell;
@@ -156,40 +157,6 @@ impl Peer {
             return;
         }
         self.ask(json!({"action":"connect","argument":format!("127.0.0.1:{}", other.port)}));
-    }
-
-    /// Waits for the runtime to report `phase`.
-    pub fn wait_phase(&mut self, phase: &str) -> Value {
-        self.wait_for(phase, |snapshot| snapshot["phase"] == phase)
-    }
-
-    /// Waits for the runtime to report `error`, so a scenario observes a lost
-    /// link instead of sleeping for a guessed interval.
-    #[allow(
-        dead_code,
-        reason = "Shared harness observation the linked-desktop recovery test uses."
-    )]
-    pub fn wait_error(&mut self, error: &str) -> Value {
-        self.wait_for(error, |snapshot| snapshot["error"] == error)
-    }
-
-    /// Polls the peer's snapshot until it reports `expected` as its phase or its
-    /// error, and names `expected` when it never does.
-    fn wait_for(&mut self, expected: &str, ready: impl Fn(&Value) -> bool) -> Value {
-        let deadline = Instant::now() + OBSERVATION_BUDGET;
-        loop {
-            let snapshot = self.ask(json!({"action":"snapshot"}));
-            if ready(&snapshot) {
-                return snapshot;
-            }
-            assert!(
-                Instant::now() < deadline,
-                "expected {expected} within {OBSERVATION_BUDGET:?}, got phase={}, error={}",
-                snapshot["phase"],
-                snapshot["error"]
-            );
-            std::thread::sleep(Duration::from_millis(100));
-        }
     }
 
     pub fn restart(&mut self) {

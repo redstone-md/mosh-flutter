@@ -73,3 +73,26 @@ fn memory_net_delivers_only_over_reachable_links_and_honors_drops() {
     a.connect_peer("b").expect("connect is recorded");
     assert_eq!(net.connect_requests("a"), vec!["b".to_string()]);
 }
+
+#[test]
+fn memory_call_packets_honor_drop_rules_without_reporting_send_failure() {
+    let net = memory::MemoryNet::new();
+    let a = net.endpoint("a");
+    let b = net.endpoint("b");
+    let channel = format!("{}a", crate::moss_ffi::PACKET_INBOX_CHANNEL_PREFIX);
+    let dropped_channel = channel.clone();
+    net.link("a", "b", PeerTransport::Relayed);
+    net.drop_frames("a", "b", move |channel, payload| {
+        channel == dropped_channel && payload == b"lost"
+    });
+    a.send_call_packet("b", b"lost").unwrap();
+    a.send_call_packet("b", b"kept").unwrap();
+    let packets = b.drain_call_packets();
+    assert_eq!(packets.len(), 1);
+    assert_eq!(packets[0].channel, channel);
+    assert_eq!(packets[0].payload, b"kept");
+    assert!(b.drain_call_packets().is_empty());
+    assert!(b.drain().is_empty());
+    assert!(b.drain_media().is_empty());
+    assert!(b.send_call_packet("a", b"unreachable").is_err());
+}

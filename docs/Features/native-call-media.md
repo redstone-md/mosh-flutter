@@ -111,11 +111,26 @@ codec/implementation reported by the engine.
 
 ## Capacity and recovery
 
-The client limits queued media to 50 ms and gives negotiated audio payloads,
-STUN and RTCP priority over video. Direct sending allows 500,000 bytes/s total
+The client limits queued media to 500 ms and gives negotiated audio payloads,
+STUN and RTCP priority over video. Short bursts wait for capacity inside that
+deadline; both budgets are charged only when the packet can be sent. Waiting
+video never blocks newly queued audio/control. The deadline accommodates a maximum
+2,027-byte wrapped packet's 63.4 ms refill time on a depleted relay video budget,
+with headroom for keyframe bursts and delayed thread wakeups. Eight 1,473-byte
+fragments need about 368 ms with no credit, or 268 ms with a full bucket.
+The engine packet queue expires packets after 200 ms, so delayed polling does
+not discard fresh frame fragments
+before they reach the sender. Both queues remain bounded; the one-second decoded
+frame freshness limit is unchanged.
+Route and encoder limits apply before packets are transferred, independently of
+the 250 ms statistics refresh. Unknown routes use relay limits until a direct
+path is confirmed. Direct sending allows 500,000 bytes/s total
 and 450,000 video. Relayed sending allows 48,000 bytes/s total and 32,000 video;
-the engine caps video at 320 kbit/s and adapts to 360p15 on that path, versus
-up to 3 Mbit/s and 720p30 on direct paths. WebRTC supplies congestion adaptation.
+the engine's relay send-rate ceiling is 224 kbit/s and adapts to 360p15 on that
+path, versus up to 3 Mbit/s and 720p30 on direct paths. The shared capacity
+policy keeps the engine below the carrier's video allowance with room for
+packet framing. WebRTC supplies congestion adaptation.
+An idle sender waits for a queue notification without a periodic timer.
 Every observed connection loss receives a fresh 15-second recovery window.
 After that, local termination clears capture and persists the terminal state.
 
@@ -150,15 +165,29 @@ node scripts/native-media-build.mjs
 cargo build --manifest-path mosh-core/Cargo.toml --features native-media-tests --lib --bin mosh-camera-test-driver --test device_link_flow
 # Set MOSH_MEDIA_ENGINE to the built engine and MOSH_CAMERA_CAPTURE to the
 # compiled test driver for reproducible driver-fixture checks.
+cargo test --manifest-path mosh-core/Cargo.toml --lib --features native-media-tests native_call:: -- --include-ignored
 node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture
 node scripts/moss-test.mjs --native-call-ui
 ```
+
+The relay regression allows eight seconds for codec bandwidth adaptation, then
+requires at least 30 decoded frames over eight seconds. The first decoded frame
+must arrive within three seconds, and subsequent frames must stay fresh within
+one second throughout both phases. Capture uses an absolute 15 fps schedule,
+skipping missed slots instead of accumulating delay or sending catch-up bursts.
 
 The last command runs one real Flutter app, an independent public-API peer and
 its child renderer with a local discovery tracker. It needs a desktop display
 and the same native artifact/driver environment. The physical-device acceptance
 and current evidence are recorded in
 [implementation results](../Proposals/issue-46-native-implementation.results.md).
+
+The packet regression drives the real engine through the production sender with
+a controlled relay route and a moving subject over a detailed background. It
+requires continuously fresh decoded frames within the renderer's one-second
+expiry. Separate checks cover short bursts, audio/control priority, expired
+packets and transport refusal. This reproduces carrier-induced video loss;
+physical camera discovery and macOS signing still require the affected device.
 
 For a physical-camera failure, close other camera applications and run the
 packaged helper directly through the diagnostic command below. It checks a

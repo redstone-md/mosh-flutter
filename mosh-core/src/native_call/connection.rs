@@ -109,6 +109,14 @@ impl Connection {
         sender: &Sender,
         state: &mut State,
     ) -> Result<(), String> {
+        self.reporter.update(
+            &mut self.engine,
+            &self.context.peer,
+            self.ready,
+            transport,
+            sender,
+            state,
+        )?;
         let candidates = if self.ready {
             std::mem::take(&mut self.pending)
         } else {
@@ -130,14 +138,6 @@ impl Connection {
         }
         self.transfer_packets(transport, sender);
         self.present(state);
-        self.reporter.update(
-            &mut self.engine,
-            &self.context.peer,
-            self.ready,
-            transport,
-            sender,
-            state,
-        )?;
         if self.resend.elapsed() >= Duration::from_secs(1) {
             self.resend = Instant::now();
             if !state.snapshot.ready {

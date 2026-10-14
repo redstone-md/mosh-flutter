@@ -3,6 +3,28 @@ use super::*;
 use std::sync::atomic::Ordering;
 
 #[test]
+fn a_delayed_packet_poll_preserves_fresh_packets_and_discards_stale_ones() {
+    let mut engine = Engine::new(Config {
+        binding: MediaBinding {
+            session_id: "dm".into(),
+            call_id: "call".into(),
+            caller: "a".into(),
+            callee: "b".into(),
+            media_session: vec![9; 16],
+        },
+        caller: true,
+    })
+    .unwrap();
+    let mut buffer = [0; MAX_PACKET];
+    engine.pending_packet = Some((Instant::now() - Duration::from_millis(150), vec![1, 2, 3]));
+    assert_eq!(engine.copy_packet(&mut buffer), 3);
+    assert_eq!(&buffer[..3], &[1, 2, 3]);
+    engine.pending_packet = Some((Instant::now() - Duration::from_millis(300), vec![4, 5, 6]));
+    assert_eq!(engine.copy_packet(&mut buffer), 0);
+    assert_eq!(engine.dropped.load(Ordering::Relaxed), 1);
+}
+
+#[test]
 #[cfg(windows)]
 fn windows_audio_teardown_survives_independent_processes() {
     for _ in 0..3 {
@@ -119,6 +141,25 @@ fn pump(caller: &mut Engine, callee: &mut Engine, duration: Duration) {
     }
 }
 
+fn drain_video_after_camera_off(caller: &mut Engine, callee: &mut Engine) -> usize {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let mut changed = Instant::now();
+    let mut decoded = callee.endpoint.measurements.decoded.load(Ordering::Relaxed);
+    while changed.elapsed() < Duration::from_millis(400) {
+        assert!(
+            Instant::now() < deadline,
+            "video did not stop after camera off"
+        );
+        pump(caller, callee, Duration::from_millis(100));
+        let current = callee.endpoint.measurements.decoded.load(Ordering::Relaxed);
+        if current != decoded {
+            decoded = current;
+            changed = Instant::now();
+        }
+    }
+    decoded
+}
+
 #[test]
 fn receive_only_peer_decodes_and_camera_off_stops_outgoing_video() {
     let (mut caller, mut callee) = pair();
@@ -151,8 +192,7 @@ fn receive_only_peer_decodes_and_camera_off_stops_outgoing_video() {
     caller
         .command(json!({"action":"choices","microphone":false,"video":false}))
         .unwrap();
-    pump(&mut caller, &mut callee, Duration::from_millis(300));
-    let stopped = callee.endpoint.measurements.decoded.load(Ordering::Relaxed);
+    let stopped = drain_video_after_camera_off(&mut caller, &mut callee);
     pump(&mut caller, &mut callee, Duration::from_millis(400));
     assert_eq!(
         callee.endpoint.measurements.decoded.load(Ordering::Relaxed),

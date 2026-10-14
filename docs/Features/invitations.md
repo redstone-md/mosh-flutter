@@ -15,6 +15,11 @@ opened chat awaiting its counterpart also offers Copy and Replace in its header
 menu. The native `invite_available` field controls these actions. Connection
 status and display names cannot determine whether an invitation is consumed.
 
+Invitation cards emphasize Open chat with the filled primary button. Copy and
+Replace link share neutral outlined styling. All actions share typography,
+padding, height and corner geometry; setup retains its larger themed text.
+Copy feedback changes only the label and icon, preserving secondary emphasis.
+
 Replace link preserves the session, mesh, MLS keys and existing chat-list entry.
 It saves a new signed admission token before returning the new URI. A refused
 save preserves the earlier URI. Both raw and authenticated KeyPackages must
