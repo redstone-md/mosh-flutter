@@ -77,9 +77,23 @@ fn sibling_controls_cannot_make_an_offline_contact_connected_or_typing() {
     let contact_peer = wait_typing(&mut original, session)["peer_moss_id"].clone();
     wait_typing(&mut linked, session);
     counterpart.stop();
+    eprintln!(
+        "[DEBUG-dm-offline] observer_pid={} sibling_pid={}",
+        original.diagnostic_pid(),
+        linked.diagnostic_pid()
+    );
+    let observed_since = Instant::now();
     let until = Instant::now() + Duration::from_secs(35);
     loop {
+        let poll_started = Instant::now();
         let snapshot = original.ask(json!({"action":"dm_poll","argument":session}));
+        eprintln!(
+            "[DEBUG-dm-offline] elapsed={:?} poll={:?} state={} typing={}",
+            observed_since.elapsed(),
+            poll_started.elapsed(),
+            snapshot["state"],
+            snapshot["peer_typing_until_ms"]
+        );
         if snapshot["state"] == "handshaking" && snapshot["peer_typing_until_ms"].is_null() {
             break;
         }

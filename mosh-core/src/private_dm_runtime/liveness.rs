@@ -13,6 +13,12 @@ impl PrivateDmSession {
     /// failed mesh report says nothing about the counterpart at all.
     pub(super) fn pump_liveness(&mut self, now_ms: u64, lost_window_ms: u64) {
         if std::mem::take(&mut self.authenticated_since_tick) {
+            eprintln!(
+                "[DEBUG-dm-offline-auth] pid={} now_ms={} previous_ms={}",
+                std::process::id(),
+                now_ms,
+                self.last_authenticated_rx_ms
+            );
             self.last_authenticated_rx_ms = self.last_authenticated_rx_ms.max(now_ms);
         }
         let silent_for = now_ms.saturating_sub(self.last_authenticated_rx_ms);

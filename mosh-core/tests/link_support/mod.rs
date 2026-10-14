@@ -184,6 +184,10 @@ impl Peer {
         }
     }
 
+    pub fn diagnostic_pid(&self) -> u32 {
+        self.child.id()
+    }
+
     #[allow(dead_code)] // Shared helper also compiles in the DM test executable.
     pub fn crash(&mut self) {
         self.child.kill().unwrap();

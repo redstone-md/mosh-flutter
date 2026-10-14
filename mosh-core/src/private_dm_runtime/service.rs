@@ -20,8 +20,17 @@ impl PrivateDmRuntime {
     /// [`Self::drain_inbound`] on a given clock: the frames drained here are
     /// stamped with `now` when the tick records the counterpart's proof.
     pub(super) fn drain_inbound_at(&mut self, now: u64) {
+        let measured_since = std::time::Instant::now();
         self.receive_inbound();
         self.tick(now);
+        if measured_since.elapsed() >= std::time::Duration::from_millis(250) {
+            eprintln!(
+                "[DEBUG-dm-offline-tick] pid={} now_ms={} elapsed={:?}",
+                std::process::id(),
+                now,
+                measured_since.elapsed()
+            );
+        }
     }
 
     /// Receive membership/control updates without publishing queued messages.
