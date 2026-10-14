@@ -269,7 +269,10 @@ seconds; the failed main run logged a liveness transition after 36.2 seconds
 of silence, beyond the test's previous 35-second deadline. A delayed captured
 snapshot reproduced that failure despite the runtime transitioning offline.
 
-The protocol's 25-second silence window remains covered by deterministic
-reachability tests. The real-process test still requires cleared typing and
+The deterministic reachability test pins the contract independently of the
+runtime constant: after a fresh authenticated message it requires Connected
+at 24,999 ms and Handshaking at 25,000 ms, then verifies recovery on a new
+message. Extending the runtime window to 60 seconds passed the previous
+tests but fails this check. The real-process test still requires cleared typing and
 checks that sibling typing and read controls preserve the contact's offline
 state, display name and Moss identity.

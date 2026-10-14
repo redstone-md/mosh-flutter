@@ -68,10 +68,19 @@ fn keepalives_hold_a_quiet_chat_connected() {
 #[test]
 fn silence_for_the_lost_window_reads_as_offline_until_a_frame() {
     let (net, mut alice, mut bob, session_id) = unlisted_pair();
-    net.drop_frames(BOB_ID, ALICE_ID, |_, _| true);
+    bob.send_message(&session_id, "last authenticated proof".into())
+        .expect("contact should send");
     let start = now_ms();
     alice.drain_inbound_at(start);
-    alice.drain_inbound_at(start + LOST_WINDOW_MS);
+    net.drop_frames(BOB_ID, ALICE_ID, |_, _| true);
+
+    // Pin the 25-second contract independently of runtime configuration.
+    alice.drain_inbound_at(start + 24_999);
+    assert_eq!(
+        alice.poll_session(&session_id).expect("poll").state,
+        DmSessionState::Connected
+    );
+    alice.drain_inbound_at(start + 25_000);
     assert_eq!(
         alice.poll_session(&session_id).expect("poll").state,
         DmSessionState::Handshaking
