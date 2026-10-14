@@ -182,6 +182,9 @@ mod native {
     use crate::private_dm_runtime::transport::PeerTransport;
     use serde_json::json;
 
+    // Measure after codec adaptation; freshness is checked throughout.
+    const WARMUP: Duration = Duration::from_secs(8);
+
     #[test]
     #[ignore = "Requires the real native engine through MOSH_MEDIA_ENGINE"]
     fn relay_video_does_not_lose_fresh_decoded_frames() {
@@ -202,11 +205,11 @@ mod native {
         let mut capture_at = started + interval;
         let mut decoded = started;
         let mut sequence = 0;
+        let mut initial_sequence = None;
         let mut tick = 0;
-        while started.elapsed() < Duration::from_secs(8) {
+        while started.elapsed() < WARMUP + Duration::from_secs(8) {
             let now = Instant::now();
             if now >= capture_at {
-                // Keep the capture cadence; skip missed slots without a burst.
                 while capture_at <= now {
                     capture_at += interval;
                 }
@@ -216,17 +219,36 @@ mod native {
             }
             forward(&mut caller, &mut callee, &sending, "b", &*a);
             forward(&mut callee, &mut caller, &returning, "a", &*b);
-            if let Some(frame) = callee.frame(sequence, &mut decoded_pixels) {
+            let frame = callee.frame(sequence, &mut decoded_pixels);
+            assert!(
+                sequence > 0 || started.elapsed() < Duration::from_secs(3),
+                "relay did not decode startup video"
+            );
+            if let Some(frame) = frame {
                 sequence = frame.sequence;
                 decoded = Instant::now();
+            }
+            if started.elapsed() >= WARMUP {
+                initial_sequence.get_or_insert(sequence);
             }
             assert_fresh(sequence, decoded, &sending, &mut caller, &mut callee);
             std::thread::sleep(Duration::from_millis(10));
         }
+        let sustained = sequence - initial_sequence.unwrap();
+        assert_sustained(sustained, tick, &sending, &mut caller, &mut callee);
+    }
+
+    fn assert_sustained(
+        decoded: u64,
+        captured: usize,
+        sender: &Sender,
+        caller: &mut Engine,
+        callee: &mut Engine,
+    ) {
         assert!(
-            sequence >= 30,
-            "remote video stalled: {sequence} decoded from {tick} captured; {} packets lost; sender: {}; receiver: {}",
-            sending.dropped(),
+            decoded >= 30,
+            "remote video stalled: {decoded} decoded after warmup, {captured} total captured; {} packets lost; sender: {}; receiver: {}",
+            sender.dropped(),
             caller.ask(json!({"action":"snapshot"})).unwrap(),
             callee.ask(json!({"action":"snapshot"})).unwrap()
         );

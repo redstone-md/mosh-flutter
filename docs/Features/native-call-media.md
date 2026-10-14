@@ -168,6 +168,12 @@ node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapt
 node scripts/moss-test.mjs --native-call-ui
 ```
 
+The relay regression allows eight seconds for codec bandwidth adaptation, then
+requires at least 30 decoded frames over eight seconds. The first decoded frame
+must arrive within three seconds, and subsequent frames must stay fresh within
+one second throughout both phases. Capture uses an absolute 15 fps schedule,
+skipping missed slots instead of accumulating delay or sending catch-up bursts.
+
 The last command runs one real Flutter app, an independent public-API peer and
 its child renderer with a local discovery tracker. It needs a desktop display
 and the same native artifact/driver environment. The physical-device acceptance
