@@ -2,7 +2,6 @@ mod capture;
 mod connection;
 mod devices;
 mod library;
-mod media_thread;
 mod packets;
 mod recovery;
 mod state;

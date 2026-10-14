@@ -176,7 +176,6 @@ impl Drop for Sender {
 }
 
 fn send_loop(shared: Arc<Shared>, transport: Arc<dyn DmTransport>) {
-    let _priority = super::media_thread::Priority::new();
     let started = Instant::now();
     let limits = capacity(true);
     let mut total = Budget::new(limits.total_bytes_per_second, started);

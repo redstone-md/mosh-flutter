@@ -124,12 +124,9 @@ the engine's relay send-rate ceiling is 224 kbit/s and adapts to 360p15 on that
 path, versus up to 3 Mbit/s and 720p30 on direct paths. The shared capacity
 policy keeps the engine below the carrier's video allowance with room for
 packet framing. WebRTC supplies congestion adaptation.
-On macOS, active media processing and packet sending request interactive thread
-QoS so timer coalescing does not defer the 10 ms pump past packet expiry. The
-processing scope restores its previous class and relative priority, falling back
-to the system default for an unspecified class. An idle sender waits for a queue
-notification without a periodic timer. The policy follows Apple's
-[thread QoS guidance](https://developer.apple.com/library/archive/documentation/Performance/Conceptual/EnergyGuide-iOS/PrioritizeWorkWithQoS.html).
+The media pump uses a 10 ms timed park, backed by a dispatch semaphore on macOS,
+instead of a nanosleep timer. An idle sender waits for a queue notification
+without a periodic timer.
 Every observed connection loss receives a fresh 15-second recovery window.
 After that, local termination clears capture and persists the terminal state.
 

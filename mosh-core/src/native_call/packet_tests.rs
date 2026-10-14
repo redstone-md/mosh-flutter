@@ -163,7 +163,8 @@ mod native {
     #[test]
     #[ignore = "Requires the real native engine through MOSH_MEDIA_ENGINE"]
     fn relay_video_does_not_lose_fresh_decoded_frames() {
-        let _priority = crate::native_call::media_thread::Priority::new();
+        #[cfg(target_os = "macos")]
+        compare_waits();
         let net = MemoryNet::new();
         let a = net.endpoint("a");
         let b = net.endpoint("b");
@@ -195,13 +196,37 @@ mod native {
                 decoded = Instant::now();
             }
             assert_fresh(sequence, decoded, &sending, &mut caller, &mut callee);
-            std::thread::sleep(Duration::from_millis(10));
+            let wait = Instant::now();
+            std::thread::park_timeout(Duration::from_millis(10));
+            if wait.elapsed() >= Duration::from_millis(20) {
+                eprintln!("[media-wait-probe] park_timeout: {:?}", wait.elapsed());
+            }
         }
         assert!(
             sequence >= 30,
             "remote video stalled: {sequence} decoded; {} packets lost",
             sending.dropped()
         );
+    }
+
+    #[cfg(target_os = "macos")]
+    fn compare_waits() {
+        for (name, wait) in [
+            ("sleep", std::thread::sleep as fn(Duration)),
+            ("park_timeout", std::thread::park_timeout as fn(Duration)),
+        ] {
+            let mut delays = Vec::new();
+            for _ in 0..50 {
+                let started = Instant::now();
+                wait(Duration::from_millis(10));
+                delays.push(started.elapsed());
+            }
+            delays.sort_unstable();
+            eprintln!(
+                "[media-wait-probe] {name}: median {:?}, max {:?}",
+                delays[25], delays[49]
+            );
+        }
     }
 
     fn assert_fresh(

@@ -27,23 +27,18 @@ struct Owner {
 
 pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
     let mut owner = Owner::new(transport.clone());
-    let mut priority = None;
     loop {
         let mut state = shared.lock().unwrap_or_else(|error| error.into_inner());
         if state.shutdown {
             return;
-        }
-        if state.context.is_some() {
-            priority.get_or_insert_with(super::media_thread::Priority::new);
-        } else {
-            priority = None;
         }
         if let Err(_error) = owner.step(&mut state, &*transport) {
             state.snapshot.failed = true;
         }
         state.applied = state.revision;
         drop(state);
-        std::thread::sleep(Duration::from_millis(10));
+        // Timed parking uses a dispatch semaphore on macOS, avoiding nanosleep.
+        std::thread::park_timeout(Duration::from_millis(10));
     }
 }
 
