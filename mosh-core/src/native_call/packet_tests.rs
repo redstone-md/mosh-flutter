@@ -181,20 +181,28 @@ mod native {
         let mut sequence = 0;
         let mut tick = 0;
         while started.elapsed() < Duration::from_secs(8) {
+            let cycle = Instant::now();
             if captured.elapsed() >= Duration::from_millis(66) {
                 captured = Instant::now();
                 motion(&mut pixels, tick);
-                assert!(caller.push(640, 360, &pixels));
+                assert!(trace("capture-push", || caller.push(640, 360, &pixels)));
                 tick += 1;
             }
             forward(&mut caller, &mut callee, &sending, "b", &*a);
             forward(&mut callee, &mut caller, &returning, "a", &*b);
-            if let Some(frame) = callee.frame(sequence, &mut decoded_pixels) {
+            if let Some(frame) = trace("decoded-frame", || {
+                callee.frame(sequence, &mut decoded_pixels)
+            }) {
                 sequence = frame.sequence;
                 decoded = Instant::now();
             }
             assert_fresh(sequence, decoded, &sending, &mut caller, &mut callee);
-            std::thread::sleep(Duration::from_millis(10));
+            if cycle.elapsed() >= Duration::from_millis(20) {
+                eprintln!("[DEBUG-pr85-media-loop] full-cycle: {:?}", cycle.elapsed());
+            }
+            trace("loop-sleep", || {
+                std::thread::sleep(Duration::from_millis(10))
+            });
         }
         assert!(
             sequence >= 30,
@@ -255,14 +263,17 @@ mod native {
         peer: &str,
         receive: &dyn DmTransport,
     ) {
-        let gathered = from.ask(json!({"action":"tick"})).unwrap();
-        to.ask(json!({"action":"tick", "candidates":gathered["candidates"]}))
-            .unwrap();
+        let gathered = trace("source-tick", || from.ask(json!({"action":"tick"}))).unwrap();
+        trace("destination-tick", || {
+            to.ask(json!({"action":"tick", "candidates":gathered["candidates"]}))
+        })
+        .unwrap();
         for message in receive.drain_call_packets() {
-            assert!(from.receive(unwrap(&message.payload, &[9; 16]).unwrap()));
+            assert!(trace("packet-receive", || from
+                .receive(unwrap(&message.payload, &[9; 16]).unwrap())));
         }
         let mut packet = [0; MAX_PACKET];
-        while let Some(length) = from.packet(&mut packet) {
+        while let Some(length) = trace("packet-copy", || from.packet(&mut packet)) {
             sender.enqueue(
                 peer,
                 &[9; 16],
@@ -297,5 +308,15 @@ mod native {
                 pixel.copy_from_slice(&[(tick * 7) as u8, (tick * 13) as u8, 128, 255]);
             }
         }
+    }
+
+    fn trace<T>(stage: &str, action: impl FnOnce() -> T) -> T {
+        let started = Instant::now();
+        let result = action();
+        let elapsed = started.elapsed();
+        if elapsed >= Duration::from_millis(20) {
+            eprintln!("[DEBUG-pr85-media-loop] {stage}: {elapsed:?}");
+        }
+        result
     }
 }
