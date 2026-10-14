@@ -64,9 +64,9 @@ fn a_late_sender_wakeup_preserves_a_refilled_video_packet() {
 
 #[test]
 fn video_bursts_fit_the_direct_and_relay_queue_deadlines() {
-    for relayed in [true, false] {
+    for (relayed, credit_ms) in [(true, 0), (true, 120), (false, 0), (false, 120)] {
         let started = Instant::now();
-        let mut now = started + Duration::from_millis(120);
+        let mut now = started + Duration::from_millis(credit_ms);
         let limits = capacity(relayed);
         let mut total = Budget::new(limits.total_bytes_per_second, started);
         let mut video = Budget::new(limits.video_bytes_per_second, started);
@@ -74,10 +74,11 @@ fn video_bursts_fit_the_direct_and_relay_queue_deadlines() {
             relayed,
             ..Default::default()
         };
-        for sequence in 0..4 {
+        let packet_count = if relayed { 8 } else { 4 };
+        for sequence in 0..packet_count {
             queue.video.push_back(Packet {
                 peer: "remote".into(),
-                bytes: vec![sequence; 1020],
+                bytes: vec![sequence as u8; 1473],
                 queued: now,
             });
         }
@@ -90,12 +91,12 @@ fn video_bursts_fit_the_direct_and_relay_queue_deadlines() {
         }
         assert_eq!(
             packets.len(),
-            4,
+            packet_count,
             "one missing fragment loses the video frame"
         );
         assert_eq!(queue.dropped, 0);
         for (sequence, packet) in packets.iter().enumerate() {
-            assert_eq!(packet.bytes, vec![sequence as u8; 1020]);
+            assert_eq!(packet.bytes, vec![sequence as u8; 1473]);
         }
     }
 }
@@ -144,7 +145,7 @@ fn packets_older_than_the_queue_deadline_are_never_sent() {
     queue.video.push_back(Packet {
         peer: "remote".into(),
         bytes: vec![0; 100],
-        queued: now - Duration::from_millis(201),
+        queued: now - Duration::from_millis(501),
     });
     let next = queue.next(
         &mut Budget::new(48_000, now),

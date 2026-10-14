@@ -11,8 +11,8 @@ struct Packet {
     bytes: Vec<u8>,
     queued: Instant,
 }
-// Allow a 63.4 ms relay refill plus a delayed sender wakeup.
-const MAX_QUEUE_AGE: Duration = Duration::from_millis(200);
+// Relay keyframe bursts need more than 200 ms to drain, plus scheduler headroom.
+const MAX_QUEUE_AGE: Duration = Duration::from_millis(500);
 
 pub(super) struct Capacity {
     pub total_bytes_per_second: usize,
