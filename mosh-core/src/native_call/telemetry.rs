@@ -1,4 +1,8 @@
-use super::{library::Engine, packets::Sender, state::State};
+use super::{
+    library::Engine,
+    packets::{capacity, Sender},
+    state::State,
+};
 use crate::private_dm_runtime::transport::{DmTransport, PeerTransport};
 use serde_json::json;
 use std::time::{Duration, Instant};
@@ -81,11 +85,7 @@ impl Reporter {
         state.snapshot.failed =
             super::recovery::expired(&mut self.disconnected, connected, Instant::now());
         sender.relayed(route == PeerTransport::Relayed);
-        let budget = if route == PeerTransport::Relayed {
-            320_000
-        } else {
-            3_000_000
-        };
+        let budget = capacity(route == PeerTransport::Relayed).encoder_bits_per_second;
         if self.budget != budget {
             engine.ask(json!({"action":"budget","max_bps":budget}))?;
             self.budget = budget;

@@ -11,6 +11,35 @@ struct Packet {
     bytes: Vec<u8>,
     queued: Instant,
 }
+const MAX_QUEUE_AGE: Duration = Duration::from_millis(50);
+
+pub(super) struct Capacity {
+    pub total_bytes_per_second: usize,
+    pub video_bytes_per_second: usize,
+    pub encoder_bits_per_second: u64,
+}
+
+/// Keep engine rates below the carrier's envelope, including packet framing.
+pub(super) fn capacity(relayed: bool) -> Capacity {
+    if relayed {
+        Capacity {
+            total_bytes_per_second: 48_000,
+            video_bytes_per_second: 32_000,
+            encoder_bits_per_second: 224_000,
+        }
+    } else {
+        Capacity {
+            total_bytes_per_second: 500_000,
+            video_bytes_per_second: 450_000,
+            encoder_bits_per_second: 3_000_000,
+        }
+    }
+}
+
+enum Next {
+    Send(Packet),
+    Wait(Duration),
+}
 #[derive(Default)]
 struct Queue {
     priority: VecDeque<Packet>,
@@ -18,6 +47,44 @@ struct Queue {
     stopped: bool,
     relayed: bool,
     dropped: u64,
+}
+impl Queue {
+    fn lane(&mut self, priority: bool) -> &mut VecDeque<Packet> {
+        if priority {
+            &mut self.priority
+        } else {
+            &mut self.video
+        }
+    }
+
+    fn next(&mut self, total: &mut Budget, video: &mut Budget, now: Instant) -> Next {
+        let priority = !self.priority.is_empty();
+        let Some(packet) = self.lane(priority).front() else {
+            return Next::Wait(MAX_QUEUE_AGE);
+        };
+        let bytes = packet.bytes.len();
+        let age = now.saturating_duration_since(packet.queued);
+        if age >= MAX_QUEUE_AGE {
+            self.lane(priority).pop_front();
+            self.dropped = self.dropped.saturating_add(1);
+            return Next::Wait(Duration::ZERO);
+        }
+        let limits = capacity(self.relayed);
+        total.rate = limits.total_bytes_per_second;
+        video.rate = limits.video_bytes_per_second;
+        let mut wait = total.delay(bytes, now);
+        if !priority {
+            wait = wait.max(video.delay(bytes, now));
+        }
+        if !wait.is_zero() {
+            return Next::Wait(wait.min(MAX_QUEUE_AGE - age));
+        }
+        total.available -= bytes as f64;
+        if !priority {
+            video.available -= bytes as f64;
+        }
+        Next::Send(self.lane(priority).pop_front().unwrap())
+    }
 }
 struct Shared {
     queue: Mutex<Queue>,
@@ -56,11 +123,7 @@ impl Sender {
         if full {
             queue.dropped = queue.dropped.saturating_add(1);
         }
-        let lane = if priority {
-            &mut queue.priority
-        } else {
-            &mut queue.video
-        };
+        let lane = queue.lane(priority);
         if full {
             lane.pop_front();
         }
@@ -87,6 +150,7 @@ impl Sender {
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .relayed = relayed;
+        self.0.changed.notify_one();
     }
     pub fn dropped(&self) -> u64 {
         self.0
@@ -108,48 +172,33 @@ impl Drop for Sender {
 }
 
 fn send_loop(shared: Arc<Shared>, transport: Arc<dyn DmTransport>) {
-    let mut total = Budget::new(48_000);
-    let mut video = Budget::new(32_000);
+    let started = Instant::now();
+    let mut total = Budget::new(48_000, started);
+    let mut video = Budget::new(32_000, started);
     loop {
         let mut queue = shared
             .queue
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        if queue.stopped {
-            return;
-        }
-        if queue.priority.is_empty() && queue.video.is_empty() {
-            queue = shared
-                .changed
-                .wait_timeout(queue, Duration::from_millis(50))
-                .unwrap_or_else(|error| error.into_inner())
-                .0;
+        let packet = loop {
             if queue.stopped {
                 return;
             }
-        }
-        let priority = !queue.priority.is_empty();
-        let packet = if priority {
-            queue.priority.pop_front()
-        } else {
-            queue.video.pop_front()
+            match queue.next(&mut total, &mut video, Instant::now()) {
+                Next::Send(packet) => break packet,
+                Next::Wait(wait) => {
+                    queue = shared
+                        .changed
+                        .wait_timeout(queue, wait)
+                        .unwrap_or_else(|error| error.into_inner())
+                        .0;
+                }
+            }
         };
-        let Some(packet) = packet else {
-            continue;
-        };
-        total.rate = if queue.relayed { 48_000 } else { 500_000 };
-        video.rate = if queue.relayed { 32_000 } else { 450_000 };
-        let admitted = packet.queued.elapsed() <= Duration::from_millis(50)
-            && (priority || video.take(packet.bytes.len()))
-            && total.take(packet.bytes.len());
-        if !admitted {
-            queue.dropped = queue.dropped.saturating_add(1);
-        }
         drop(queue);
-        if admitted
-            && transport
-                .send_call_packet(&packet.peer, &packet.bytes)
-                .is_err()
+        if transport
+            .send_call_packet(&packet.peer, &packet.bytes)
+            .is_err()
         {
             let mut queue = shared
                 .queue
@@ -166,24 +215,22 @@ struct Budget {
     updated: Instant,
 }
 impl Budget {
-    fn new(rate: usize) -> Self {
+    fn new(rate: usize, now: Instant) -> Self {
         Self {
             rate,
             available: 0.0,
-            updated: Instant::now(),
+            updated: now,
         }
     }
-    fn take(&mut self, bytes: usize) -> bool {
-        let now = Instant::now();
+    fn delay(&mut self, bytes: usize, now: Instant) -> Duration {
         self.available = (self.available
             + now.duration_since(self.updated).as_secs_f64() * self.rate as f64)
             .min(self.rate as f64 * 0.1);
         self.updated = now;
         if self.available < bytes as f64 {
-            return false;
+            return Duration::from_secs_f64((bytes as f64 - self.available) / self.rate as f64);
         }
-        self.available -= bytes as f64;
-        true
+        Duration::ZERO
     }
 }
 
@@ -204,3 +251,7 @@ mod tests {
         assert!(unwrap(&[0; 2028], &[9; 16]).is_none());
     }
 }
+
+#[cfg(test)]
+#[path = "packet_tests.rs"]
+mod packet_tests;

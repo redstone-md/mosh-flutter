@@ -112,10 +112,14 @@ codec/implementation reported by the engine.
 ## Capacity and recovery
 
 The client limits queued media to 50 ms and gives negotiated audio payloads,
-STUN and RTCP priority over video. Direct sending allows 500,000 bytes/s total
+STUN and RTCP priority over video. Short bursts wait for capacity inside that
+deadline; both budgets are charged only when the packet can be sent. Waiting
+video never blocks newly queued audio/control. Direct sending allows 500,000 bytes/s total
 and 450,000 video. Relayed sending allows 48,000 bytes/s total and 32,000 video;
-the engine caps video at 320 kbit/s and adapts to 360p15 on that path, versus
-up to 3 Mbit/s and 720p30 on direct paths. WebRTC supplies congestion adaptation.
+the engine's relay send-rate ceiling is 224 kbit/s and adapts to 360p15 on that
+path, versus up to 3 Mbit/s and 720p30 on direct paths. The shared capacity
+policy keeps the engine below the carrier's video allowance with room for
+packet framing. WebRTC supplies congestion adaptation.
 Every observed connection loss receives a fresh 15-second recovery window.
 After that, local termination clears capture and persists the terminal state.
 
@@ -150,6 +154,7 @@ node scripts/native-media-build.mjs
 cargo build --manifest-path mosh-core/Cargo.toml --features native-media-tests --lib --bin mosh-camera-test-driver --test device_link_flow
 # Set MOSH_MEDIA_ENGINE to the built engine and MOSH_CAMERA_CAPTURE to the
 # compiled test driver for reproducible driver-fixture checks.
+cargo test --manifest-path mosh-core/Cargo.toml --lib --features native-media-tests native_call::packets -- --include-ignored
 node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture
 node scripts/moss-test.mjs --native-call-ui
 ```
@@ -159,6 +164,13 @@ its child renderer with a local discovery tracker. It needs a desktop display
 and the same native artifact/driver environment. The physical-device acceptance
 and current evidence are recorded in
 [implementation results](../Proposals/issue-46-native-implementation.results.md).
+
+The packet regression drives the real engine through the production sender with
+a controlled relay route and a moving subject over a detailed background. It
+requires continuously fresh decoded frames within the renderer's one-second
+expiry. Separate checks cover short bursts, audio/control priority, expired
+packets and transport refusal. This reproduces carrier-induced video loss;
+physical camera discovery and macOS signing still require the affected device.
 
 For a physical-camera failure, close other camera applications and run the
 packaged helper directly through the diagnostic command below. It checks a
