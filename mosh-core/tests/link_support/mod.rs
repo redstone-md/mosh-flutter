@@ -26,7 +26,7 @@ const OUTPUT_PREFIX: &str = "MOSH_TEST_JSON ";
 /// takes milliseconds on an idle machine has been seen to take tens of seconds
 /// there, so the budget sits far above the healthy value; a real stall still
 /// fails the run, and with the budget in the message.
-const OBSERVATION_BUDGET: Duration = Duration::from_secs(90);
+pub(super) const OBSERVATION_BUDGET: Duration = Duration::from_secs(90);
 
 static NETWORK_SCENARIO: Mutex<()> = Mutex::new(());
 thread_local! {
