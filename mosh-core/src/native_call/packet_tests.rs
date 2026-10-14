@@ -41,6 +41,28 @@ fn maximum_packet_can_refill_depleted_budgets_before_expiring() {
 }
 
 #[test]
+fn a_late_sender_wakeup_preserves_a_refilled_video_packet() {
+    let started = Instant::now();
+    let mut queue = Queue {
+        relayed: true,
+        ..Default::default()
+    };
+    queue.video.push_back(Packet {
+        peer: "remote".into(),
+        bytes: vec![1; super::super::library::MAX_PACKET + 20],
+        queued: started,
+    });
+    let limits = capacity(true);
+    let mut total = Budget::new(limits.total_bytes_per_second, started);
+    let mut video = Budget::new(limits.video_bytes_per_second, started);
+    assert!(matches!(
+        queue.next(&mut total, &mut video, started + Duration::from_millis(150)),
+        Next::Send(_)
+    ));
+    assert_eq!(queue.dropped, 0);
+}
+
+#[test]
 fn video_bursts_fit_the_direct_and_relay_queue_deadlines() {
     for relayed in [true, false] {
         let started = Instant::now();
@@ -122,7 +144,7 @@ fn packets_older_than_the_queue_deadline_are_never_sent() {
     queue.video.push_back(Packet {
         peer: "remote".into(),
         bytes: vec![0; 100],
-        queued: now - Duration::from_millis(101),
+        queued: now - Duration::from_millis(201),
     });
     let next = queue.next(
         &mut Budget::new(48_000, now),
@@ -163,8 +185,6 @@ mod native {
     #[test]
     #[ignore = "Requires the real native engine through MOSH_MEDIA_ENGINE"]
     fn relay_video_does_not_lose_fresh_decoded_frames() {
-        #[cfg(target_os = "macos")]
-        compare_waits();
         let net = MemoryNet::new();
         let a = net.endpoint("a");
         let b = net.endpoint("b");
@@ -196,37 +216,13 @@ mod native {
                 decoded = Instant::now();
             }
             assert_fresh(sequence, decoded, &sending, &mut caller, &mut callee);
-            let wait = Instant::now();
-            std::thread::park_timeout(Duration::from_millis(10));
-            if wait.elapsed() >= Duration::from_millis(20) {
-                eprintln!("[media-wait-probe] park_timeout: {:?}", wait.elapsed());
-            }
+            std::thread::sleep(Duration::from_millis(10));
         }
         assert!(
             sequence >= 30,
             "remote video stalled: {sequence} decoded; {} packets lost",
             sending.dropped()
         );
-    }
-
-    #[cfg(target_os = "macos")]
-    fn compare_waits() {
-        for (name, wait) in [
-            ("sleep", std::thread::sleep as fn(Duration)),
-            ("park_timeout", std::thread::park_timeout as fn(Duration)),
-        ] {
-            let mut delays = Vec::new();
-            for _ in 0..50 {
-                let started = Instant::now();
-                wait(Duration::from_millis(10));
-                delays.push(started.elapsed());
-            }
-            delays.sort_unstable();
-            eprintln!(
-                "[media-wait-probe] {name}: median {:?}, max {:?}",
-                delays[25], delays[49]
-            );
-        }
     }
 
     fn assert_fresh(

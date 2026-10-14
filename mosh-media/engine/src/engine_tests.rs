@@ -3,6 +3,28 @@ use super::*;
 use std::sync::atomic::Ordering;
 
 #[test]
+fn a_delayed_packet_poll_preserves_fresh_packets_and_discards_stale_ones() {
+    let mut engine = Engine::new(Config {
+        binding: MediaBinding {
+            session_id: "dm".into(),
+            call_id: "call".into(),
+            caller: "a".into(),
+            callee: "b".into(),
+            media_session: vec![9; 16],
+        },
+        caller: true,
+    })
+    .unwrap();
+    let mut buffer = [0; MAX_PACKET];
+    engine.pending_packet = Some((Instant::now() - Duration::from_millis(150), vec![1, 2, 3]));
+    assert_eq!(engine.copy_packet(&mut buffer), 3);
+    assert_eq!(&buffer[..3], &[1, 2, 3]);
+    engine.pending_packet = Some((Instant::now() - Duration::from_millis(300), vec![4, 5, 6]));
+    assert_eq!(engine.copy_packet(&mut buffer), 0);
+    assert_eq!(engine.dropped.load(Ordering::Relaxed), 1);
+}
+
+#[test]
 #[cfg(windows)]
 fn windows_audio_teardown_survives_independent_processes() {
     for _ in 0..3 {

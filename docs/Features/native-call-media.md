@@ -111,11 +111,15 @@ codec/implementation reported by the engine.
 
 ## Capacity and recovery
 
-The client limits queued media to 100 ms and gives negotiated audio payloads,
+The client limits queued media to 200 ms and gives negotiated audio payloads,
 STUN and RTCP priority over video. Short bursts wait for capacity inside that
 deadline; both budgets are charged only when the packet can be sent. Waiting
 video never blocks newly queued audio/control. The deadline accommodates a maximum
-2,027-byte wrapped packet's 63.4 ms refill time on a depleted relay video budget.
+2,027-byte wrapped packet's 63.4 ms refill time on a depleted relay video budget,
+with headroom for delayed thread wakeups. The engine packet queue also expires
+packets after 200 ms, so delayed polling does not discard fresh frame fragments
+before they reach the sender. Both queues remain bounded; the one-second decoded
+frame freshness limit is unchanged.
 Route and encoder limits apply before packets are transferred, independently of
 the 250 ms statistics refresh. Unknown routes use relay limits until a direct
 path is confirmed. Direct sending allows 500,000 bytes/s total
@@ -124,9 +128,7 @@ the engine's relay send-rate ceiling is 224 kbit/s and adapts to 360p15 on that
 path, versus up to 3 Mbit/s and 720p30 on direct paths. The shared capacity
 policy keeps the engine below the carrier's video allowance with room for
 packet framing. WebRTC supplies congestion adaptation.
-The media pump uses a 10 ms timed park, backed by a dispatch semaphore on macOS,
-instead of a nanosleep timer. An idle sender waits for a queue notification
-without a periodic timer.
+An idle sender waits for a queue notification without a periodic timer.
 Every observed connection loss receives a fresh 15-second recovery window.
 After that, local termination clears capture and persists the terminal state.
 

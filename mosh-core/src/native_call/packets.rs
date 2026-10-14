@@ -11,8 +11,8 @@ struct Packet {
     bytes: Vec<u8>,
     queued: Instant,
 }
-// A maximum wrapped packet needs 63.4 ms at the relay's video rate.
-const MAX_QUEUE_AGE: Duration = Duration::from_millis(100);
+// Allow a 63.4 ms relay refill plus a delayed sender wakeup.
+const MAX_QUEUE_AGE: Duration = Duration::from_millis(200);
 
 pub(super) struct Capacity {
     pub total_bytes_per_second: usize,

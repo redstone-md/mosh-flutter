@@ -16,6 +16,8 @@ use std::{
 };
 
 pub const MAX_PACKET: usize = 2007;
+// Short scheduler delays must not discard fragments of an otherwise fresh frame.
+const MAX_PACKET_AGE: Duration = Duration::from_millis(200);
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -252,7 +254,7 @@ impl Engine {
             let Some((queued, bytes)) = packet else {
                 return 0;
             };
-            if queued.elapsed() > Duration::from_millis(50) {
+            if queued.elapsed() > MAX_PACKET_AGE {
                 self.dropped.fetch_add(1, Ordering::Relaxed);
                 continue;
             }

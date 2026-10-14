@@ -37,8 +37,7 @@ pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
         }
         state.applied = state.revision;
         drop(state);
-        // Timed parking uses a dispatch semaphore on macOS, avoiding nanosleep.
-        std::thread::park_timeout(Duration::from_millis(10));
+        std::thread::sleep(Duration::from_millis(10));
     }
 }
 
