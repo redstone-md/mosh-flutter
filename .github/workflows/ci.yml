@@ -331,6 +331,15 @@ jobs:
           moss: android
           rust-cache-key: android
 
+      - name: Android native hook preparation tests
+        run: node --test scripts/android-native-hooks-prepare.test.mjs
+
+      # irondash's Android hook has its own rust-toolchain.toml in the Pub
+      # cache. Prepare its pinned compiler and targets before Gradle, with
+      # bounded retries, instead of downloading them inside the asset hook.
+      - name: Prepare Android native hook Rust toolchain
+        run: node scripts/android-native-hooks-prepare.mjs
+
       # Cargokit builds libmosh_core.so for the device ABI; the target has to
       # exist before Gradle invokes it. build.gradle.kts pins arm64-v8a.
       - name: Add Rust android target

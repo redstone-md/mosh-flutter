@@ -250,3 +250,12 @@ codegen units through the Cargo config: about 1.5 minutes locally, with the
 dependency cache intact. Pull requests and main pushes both build this way,
 so their caches stay interchangeable; `release.yml` builds the published
 artifacts with the profile as committed.
+
+## Update 2026-10-14: Android native hook toolchain
+
+The Android APK job prepares `irondash_engine_context`'s Rust toolchain after
+`flutter pub get`, before Gradle runs its native asset hook. The helper resolves
+the package through `.dart_tool/package_config.json` and lets Rustup read the
+dependency's own `android/rust/rust-toolchain.toml`, including its targets.
+It retries failed installations at most three times and fails the job if none
+succeeds. Mosh's compiler pin and the APK's arm64 target are unchanged.
