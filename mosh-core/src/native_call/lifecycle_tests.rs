@@ -1,6 +1,13 @@
 use super::*;
 use crate::private_dm_runtime::transport::memory::MemoryNet;
 
+#[test]
+fn memory_transport_can_start_the_native_call_hub() {
+    let transport = MemoryNet::new().endpoint("local");
+    let hub = Hub::new(transport).unwrap();
+    assert!(hub.snapshot("dm", "call").is_none());
+}
+
 fn pending(id: &str) -> Context {
     Context {
         session_id: "dm".into(),

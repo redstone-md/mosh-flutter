@@ -2,6 +2,45 @@ use super::*;
 use crate::private_dm_runtime::transport::{memory::MemoryNet, PeerTransport};
 
 #[test]
+fn maximum_packet_can_refill_depleted_budgets_before_expiring() {
+    for relayed in [false, true] {
+        for priority in [false, true] {
+            let started = Instant::now();
+            let limits = capacity(relayed);
+            let mut queue = Queue {
+                relayed,
+                ..Default::default()
+            };
+            let bytes = super::super::library::MAX_PACKET + 20;
+            queue.lane(priority).push_back(Packet {
+                peer: "remote".into(),
+                bytes: vec![1; bytes],
+                queued: started,
+            });
+            let mut total = Budget::new(limits.total_bytes_per_second, started);
+            let mut video = Budget::new(limits.video_bytes_per_second, started);
+            assert!(matches!(
+                queue.next(&mut total, &mut video, started),
+                Next::Wait(_)
+            ));
+            let rate = if priority {
+                limits.total_bytes_per_second
+            } else {
+                limits.video_bytes_per_second
+            };
+            let refilled = started
+                + Duration::from_secs_f64(bytes as f64 / rate as f64)
+                + Duration::from_millis(1);
+            assert!(matches!(
+                queue.next(&mut total, &mut video, refilled),
+                Next::Send(_)
+            ));
+            assert_eq!(queue.dropped, 0);
+        }
+    }
+}
+
+#[test]
 fn video_bursts_fit_the_direct_and_relay_queue_deadlines() {
     for relayed in [true, false] {
         let net = MemoryNet::new();
@@ -75,7 +114,7 @@ fn packets_older_than_the_queue_deadline_are_never_sent() {
     queue.video.push_back(Packet {
         peer: "remote".into(),
         bytes: vec![0; 100],
-        queued: now - Duration::from_millis(51),
+        queued: now - Duration::from_millis(101),
     });
     let next = queue.next(
         &mut Budget::new(48_000, now),

@@ -11,7 +11,8 @@ struct Packet {
     bytes: Vec<u8>,
     queued: Instant,
 }
-const MAX_QUEUE_AGE: Duration = Duration::from_millis(50);
+// A maximum wrapped packet needs 63.4 ms at the relay's video rate.
+const MAX_QUEUE_AGE: Duration = Duration::from_millis(100);
 
 pub(super) struct Capacity {
     pub total_bytes_per_second: usize,
@@ -95,7 +96,10 @@ pub(crate) struct Sender(Arc<Shared>);
 impl Sender {
     pub fn new(transport: Arc<dyn DmTransport>) -> Self {
         let shared = Arc::new(Shared {
-            queue: Mutex::new(Queue::default()),
+            queue: Mutex::new(Queue {
+                relayed: true,
+                ..Default::default()
+            }),
             changed: Condvar::new(),
         });
         let worker = shared.clone();
@@ -173,8 +177,9 @@ impl Drop for Sender {
 
 fn send_loop(shared: Arc<Shared>, transport: Arc<dyn DmTransport>) {
     let started = Instant::now();
-    let mut total = Budget::new(48_000, started);
-    let mut video = Budget::new(32_000, started);
+    let limits = capacity(true);
+    let mut total = Budget::new(limits.total_bytes_per_second, started);
+    let mut video = Budget::new(limits.video_bytes_per_second, started);
     loop {
         let mut queue = shared
             .queue

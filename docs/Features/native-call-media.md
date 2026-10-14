@@ -111,10 +111,14 @@ codec/implementation reported by the engine.
 
 ## Capacity and recovery
 
-The client limits queued media to 50 ms and gives negotiated audio payloads,
+The client limits queued media to 100 ms and gives negotiated audio payloads,
 STUN and RTCP priority over video. Short bursts wait for capacity inside that
 deadline; both budgets are charged only when the packet can be sent. Waiting
-video never blocks newly queued audio/control. Direct sending allows 500,000 bytes/s total
+video never blocks newly queued audio/control. The deadline accommodates a maximum
+2,027-byte wrapped packet's 63.4 ms refill time on a depleted relay video budget.
+Route and encoder limits apply before packets are transferred, independently of
+the 250 ms statistics refresh. Unknown routes use relay limits until a direct
+path is confirmed. Direct sending allows 500,000 bytes/s total
 and 450,000 video. Relayed sending allows 48,000 bytes/s total and 32,000 video;
 the engine's relay send-rate ceiling is 224 kbit/s and adapts to 360p15 on that
 path, versus up to 3 Mbit/s and 720p30 on direct paths. The shared capacity
@@ -154,7 +158,7 @@ node scripts/native-media-build.mjs
 cargo build --manifest-path mosh-core/Cargo.toml --features native-media-tests --lib --bin mosh-camera-test-driver --test device_link_flow
 # Set MOSH_MEDIA_ENGINE to the built engine and MOSH_CAMERA_CAPTURE to the
 # compiled test driver for reproducible driver-fixture checks.
-cargo test --manifest-path mosh-core/Cargo.toml --lib --features native-media-tests native_call::packets -- --include-ignored
+cargo test --manifest-path mosh-core/Cargo.toml --lib --features native-media-tests native_call:: -- --include-ignored
 node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture
 node scripts/moss-test.mjs --native-call-ui
 ```

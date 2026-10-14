@@ -14,6 +14,7 @@ pub(super) struct Reporter {
     budget: u64,
     connected_once: bool,
 }
+
 impl Reporter {
     pub fn new() -> Self {
         Self {
@@ -67,6 +68,14 @@ impl Reporter {
         sender: &Sender,
         state: &mut State,
     ) -> Result<(), String> {
+        let route = transport.reach(peer);
+        let relayed = route != PeerTransport::Direct;
+        sender.relayed(relayed);
+        let budget = capacity(relayed).encoder_bits_per_second;
+        if self.budget != budget {
+            engine.ask(json!({"action":"budget","max_bps":budget}))?;
+            self.budget = budget;
+        }
         if self.statistics.elapsed() < Duration::from_millis(250) {
             return Ok(());
         }
@@ -74,7 +83,6 @@ impl Reporter {
         self.refresh_devices(engine, state)?;
         let snapshot = engine.ask(json!({"action":"snapshot"}))?;
         state.snapshot.packets_dropped = sender.dropped();
-        let route = transport.reach(peer);
         let connected = matches!(
             snapshot["connection"].as_str(),
             Some("Connected" | "Completed")
@@ -84,12 +92,6 @@ impl Reporter {
         state.snapshot.reconnecting = self.connected_once && !state.snapshot.ready;
         state.snapshot.failed =
             super::recovery::expired(&mut self.disconnected, connected, Instant::now());
-        sender.relayed(route == PeerTransport::Relayed);
-        let budget = capacity(route == PeerTransport::Relayed).encoder_bits_per_second;
-        if self.budget != budget {
-            engine.ask(json!({"action":"budget","max_bps":budget}))?;
-            self.budget = budget;
-        }
         let encoder = &snapshot["encoder"];
         state.snapshot.encoder = encoder["implementation"]
             .as_str()
@@ -102,3 +104,7 @@ impl Reporter {
         Ok(())
     }
 }
+
+#[cfg(all(test, feature = "native-media-tests"))]
+#[path = "telemetry_tests.rs"]
+mod tests;
