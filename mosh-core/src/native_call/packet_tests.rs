@@ -198,13 +198,18 @@ mod native {
         let mut decoded_pixels = vec![0; pixels.len()];
         let (mut caller, mut callee) = pair();
         let started = Instant::now();
-        let mut captured = started;
+        let interval = Duration::from_millis(66);
+        let mut capture_at = started + interval;
         let mut decoded = started;
         let mut sequence = 0;
         let mut tick = 0;
         while started.elapsed() < Duration::from_secs(8) {
-            if captured.elapsed() >= Duration::from_millis(66) {
-                captured = Instant::now();
+            let now = Instant::now();
+            if now >= capture_at {
+                // Keep the capture cadence; skip missed slots without a burst.
+                while capture_at <= now {
+                    capture_at += interval;
+                }
                 motion(&mut pixels, tick);
                 assert!(caller.push(640, 360, &pixels));
                 tick += 1;
@@ -220,8 +225,10 @@ mod native {
         }
         assert!(
             sequence >= 30,
-            "remote video stalled: {sequence} decoded; {} packets lost",
-            sending.dropped()
+            "remote video stalled: {sequence} decoded from {tick} captured; {} packets lost; sender: {}; receiver: {}",
+            sending.dropped(),
+            caller.ask(json!({"action":"snapshot"})).unwrap(),
+            callee.ask(json!({"action":"snapshot"})).unwrap()
         );
     }
 
