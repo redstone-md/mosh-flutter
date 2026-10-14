@@ -40,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [macos-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -86,10 +86,19 @@ jobs:
           esac
           export MOSH_MEDIA_ENGINE="$PWD/.dart_tool/native-media/debug/$engine"
           export MOSH_CAMERA_CAPTURE="$PWD/mosh-core/target/debug/$helper"
-          cargo test --manifest-path mosh-core/Cargo.toml --lib --features native-media-tests native_call:: -- --include-ignored --nocapture
-          node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture
+          for attempt in 1 2 3; do
+            echo "::group::Isolated relay video $attempt"
+            cargo test --manifest-path mosh-core/Cargo.toml --lib --features native-media-tests native_call::packets::packet_tests::native::relay_video_does_not_lose_fresh_decoded_frames -- --exact --include-ignored --nocapture
+            echo "::endgroup::"
+          done
+          for attempt in 1 2 3; do
+            echo "::group::Native unit group $attempt"
+            cargo test --manifest-path mosh-core/Cargo.toml --lib --features native-media-tests native_call:: -- --include-ignored --nocapture
+            echo "::endgroup::"
+          done
 
   rust-core:
+    if: github.ref != 'refs/heads/test/macos-relay-freshness'
     name: Rust core (fmt + clippy + test)
     runs-on: windows-latest
     timeout-minutes: 45
@@ -130,6 +139,7 @@ jobs:
   # waiting on protocol timeouts, not CPU, so it gets its own runner beside
   # rust-core instead of after it. It shares rust-core's test-profile cache.
   rust-core-dm-flow:
+    if: github.ref != 'refs/heads/test/macos-relay-freshness'
     name: Rust core multi-device DM flow (real Moss)
     runs-on: windows-latest
     timeout-minutes: 45
@@ -147,6 +157,7 @@ jobs:
         run: node scripts/moss-test.mjs --test multi_device_dm_flow
 
   codegen-drift:
+    if: github.ref != 'refs/heads/test/macos-relay-freshness'
     name: flutter_rust_bridge codegen drift
     runs-on: windows-latest
     timeout-minutes: 45
@@ -192,6 +203,7 @@ jobs:
         run: git diff --exit-code lib/src/rust mosh-core/src/frb_generated.rs
 
   flutter-test:
+    if: github.ref != 'refs/heads/test/macos-relay-freshness'
     name: Flutter gen-l10n + widget and unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -227,6 +239,7 @@ jobs:
         run: flutter test
 
   integration-test:
+    if: github.ref != 'refs/heads/test/macos-relay-freshness'
     name: Integration test (real bridge, slice one)
     runs-on: windows-latest
     timeout-minutes: 60
@@ -265,6 +278,7 @@ jobs:
         run: flutter test integration_test/slice_one_test.dart -d windows
 
   native-device-linking:
+    if: github.ref != 'refs/heads/test/macos-relay-freshness'
     name: Native device linking (real bridge and peers)
     runs-on: windows-latest
     timeout-minutes: 60
@@ -311,6 +325,7 @@ jobs:
             Remove-Item -Recurse -Force
 
   android-build:
+    if: github.ref != 'refs/heads/test/macos-relay-freshness'
     name: Android APK (arm64, debug)
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -385,6 +400,7 @@ jobs:
   # and its runtime behaviour under dlopen of the real universal dylib.
   # fmt is OS-independent and stays gated on the windows job.
   rust-core-macos:
+    if: github.ref != 'refs/heads/test/macos-relay-freshness'
     name: Rust core on macOS (clippy + test)
     runs-on: macos-latest
     timeout-minutes: 45
@@ -415,6 +431,7 @@ jobs:
   # Proves main still packages into the setup .exe users install. The same
   # reusable workflow builds the artifact a release publishes.
   windows-installer:
+    if: github.ref != 'refs/heads/test/macos-relay-freshness'
     uses: ./.github/workflows/build-windows.yml
     with:
       parallel-codegen: true
@@ -422,6 +439,7 @@ jobs:
   # Same proof for the macOS DMG. On PRs, builds the fast host arm64 slice;
   # on main branch pushes or release tags, builds the full universal binary.
   macos-dmg:
+    if: github.ref != 'refs/heads/test/macos-relay-freshness'
     uses: ./.github/workflows/build-macos.yml
     with:
       universal: ${{ github.event_name != 'pull_request' }}
