@@ -20,8 +20,9 @@ final LinkedHashMap<String, DecodedMiniature> _miniatureCache =
 int _miniatureCacheBytes = 0;
 final DecodedMiniature _emptyMiniature = (bytes: Uint8List(0), size: null);
 
+// Two bytes per UTF-16 code unit also cover malformed non-ASCII keys.
 int _entryBytes(String source, DecodedMiniature decoded) =>
-    source.length + decoded.bytes.lengthInBytes;
+    source.length * 2 + decoded.bytes.lengthInBytes;
 
 /// Decodes a base64 miniature once and reuses the result on later builds.
 ///
