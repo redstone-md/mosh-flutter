@@ -44,7 +44,7 @@ class InviteResult extends StatelessWidget {
           uri: uri,
           onCopy: busy ? null : onCopy),
       const SizedBox(height: 14),
-      ..._actions(l),
+      ..._actions(context, l),
       if (footer case final text?) _footer(context, text),
     ]);
   }
@@ -52,35 +52,49 @@ class InviteResult extends StatelessWidget {
   Size get _buttonSize =>
       note.isEmpty ? const Size(0, 40) : const Size.fromHeight(48);
 
-  Widget _copy(AppLocalizations l) => OutlinedButton.icon(
+  Widget _copy(AppLocalizations l, ButtonStyle style) => OutlinedButton.icon(
         onPressed: busy ? null : onCopy,
         icon: Icon(copied ? Icons.check : Icons.copy_outlined, size: 18),
         label: Text(copied ? l.onboardCopied : l.onboardCopyLink),
-        style: OutlinedButton.styleFrom(minimumSize: _buttonSize),
+        style: style,
       );
 
-  Widget _open() => FilledButton.icon(
+  Widget _open(ButtonStyle style) => FilledButton.icon(
         onPressed: busy ? null : onOpen,
         icon: const Icon(Icons.arrow_forward, size: 18),
         label: Text(openLabel),
-        style: FilledButton.styleFrom(minimumSize: _buttonSize),
+        style: style,
       );
 
-  List<Widget> _actions(AppLocalizations l) {
+  List<Widget> _actions(BuildContext context, AppLocalizations l) {
+    final theme = Theme.of(context);
+    final style = ButtonStyle(
+      minimumSize: WidgetStatePropertyAll(_buttonSize),
+      padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
+      textStyle: WidgetStatePropertyAll(
+          theme.filledButtonTheme.style?.textStyle?.resolve({}) ??
+              theme.textTheme.labelLarge),
+      visualDensity: VisualDensity.standard,
+    );
+    final secondary = style.copyWith(
+      foregroundColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.disabled) ? null : MoshColors.fg1),
+    );
     if (onReplace case final replace?) {
       return [
         Wrap(spacing: 12, runSpacing: 8, children: [
-          _copy(l),
-          _open(),
-          TextButton.icon(
+          _copy(l, secondary),
+          _open(style),
+          OutlinedButton.icon(
               onPressed: busy ? null : replace,
               icon: const Icon(Icons.refresh, size: 18),
               label: Text(replaceLabel ?? l.onboardChatRecreate),
-              style: TextButton.styleFrom(minimumSize: _buttonSize)),
+              style: secondary),
         ])
       ];
     }
-    return [_copy(l), const SizedBox(height: 12), _open()];
+    return [_copy(l, secondary), const SizedBox(height: 12), _open(style)];
   }
 
   Widget _footer(BuildContext context, String text) => Column(children: [
