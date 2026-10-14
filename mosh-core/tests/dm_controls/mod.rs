@@ -77,7 +77,9 @@ fn sibling_controls_cannot_make_an_offline_contact_connected_or_typing() {
     let contact_peer = wait_typing(&mut original, session)["peer_moss_id"].clone();
     wait_typing(&mut linked, session);
     counterpart.stop();
-    let until = Instant::now() + Duration::from_secs(35);
+    // The receiver's silence window follows its last authenticated frame;
+    // queued frames and a slow poll can delay observing the offline state.
+    let until = Instant::now() + link_support::OBSERVATION_BUDGET;
     loop {
         let snapshot = original.ask(json!({"action":"dm_poll","argument":session}));
         if snapshot["state"] == "handshaking" && snapshot["peer_typing_until_ms"].is_null() {
@@ -85,7 +87,10 @@ fn sibling_controls_cannot_make_an_offline_contact_connected_or_typing() {
         }
         assert!(
             Instant::now() < until,
-            "the stopped contact must become offline"
+            "the stopped contact must become offline within {:?}, state={}, typing={}",
+            link_support::OBSERVATION_BUDGET,
+            snapshot["state"],
+            snapshot["peer_typing_until_ms"]
         );
         std::thread::sleep(Duration::from_millis(100));
     }

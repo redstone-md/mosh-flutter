@@ -259,3 +259,17 @@ the package through `.dart_tool/package_config.json` and lets Rustup read the
 dependency's own `android/rust/rust-toolchain.toml`, including its targets.
 It retries failed installations at most three times and fails the job if none
 succeeds. Mosh's compiler pin and the APK's arm64 target are unchanged.
+
+## Update 2026-10-14: DM offline observation
+
+The real-process DM control test uses the harness's existing 90-second
+observation budget to establish that a stopped contact is offline before
+testing sibling controls. Windows diagnostic runs measured polls up to 10.9
+seconds; the failed main run logged a liveness transition after 36.2 seconds
+of silence, beyond the test's previous 35-second deadline. A delayed captured
+snapshot reproduced that failure despite the runtime transitioning offline.
+
+The protocol's 25-second silence window remains covered by deterministic
+reachability tests. The real-process test still requires cleared typing and
+checks that sibling typing and read controls preserve the contact's offline
+state, display name and Moss identity.
