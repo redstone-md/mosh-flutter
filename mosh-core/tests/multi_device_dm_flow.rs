@@ -3,6 +3,7 @@ mod dm_history;
 mod dm_recovery;
 mod dm_revocation;
 mod link_support;
+mod peer_commands;
 
 use link_support::{isolated_network_scenario, peer_process, Peer};
 use serde_json::{json, Value};

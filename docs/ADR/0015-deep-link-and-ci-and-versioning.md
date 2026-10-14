@@ -282,3 +282,13 @@ desktop, matching continued input. A single five-second hint can expire between
 slow polls; a six-second gap between observers reproduced the CI failure with
 the old prerequisite and passed with refreshed input. Both observation steps
 reuse the harness budget; protocol deadlines are unchanged.
+
+## Update 2026-10-15: Windows command replies
+
+Real-process peer commands use the same 90-second observation budget as test
+phases. The previous 30-second reply timeout could abort `dm_send` or `dm_poll`
+while the worker was still alive, before the surrounding phase deadline.
+Timeout diagnostics include the command budget and child-process status.
+The real-process regression delays one reply for 35 seconds: it fails with the
+old timeout and passes with the shared budget. The deterministic 25-second
+silence-boundary test remains independent of this harness budget.

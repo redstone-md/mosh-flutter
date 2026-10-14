@@ -134,7 +134,7 @@ impl Peer {
         writeln!(self.stdin, "{command}").unwrap();
         self.stdin.flush().unwrap();
         self.replies
-            .recv_timeout(Duration::from_secs(30))
+            .recv_timeout(OBSERVATION_BUDGET)
             .unwrap_or_else(|error| {
                 let deadline = Instant::now() + Duration::from_millis(250);
                 let status = loop {
@@ -145,8 +145,8 @@ impl Peer {
                     std::thread::sleep(Duration::from_millis(10));
                 };
                 panic!(
-                    "peer action {} failed: {error}; process status: {:?}",
-                    command["action"], status
+                    "peer action {} failed: {error}; budget: {:?}; process status: {:?}",
+                    command["action"], OBSERVATION_BUDGET, status
                 )
             })
     }
