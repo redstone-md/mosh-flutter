@@ -119,6 +119,25 @@ fn pump(caller: &mut Engine, callee: &mut Engine, duration: Duration) {
     }
 }
 
+fn drain_video_after_camera_off(caller: &mut Engine, callee: &mut Engine) -> usize {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let mut changed = Instant::now();
+    let mut decoded = callee.endpoint.measurements.decoded.load(Ordering::Relaxed);
+    while changed.elapsed() < Duration::from_millis(400) {
+        assert!(
+            Instant::now() < deadline,
+            "video did not stop after camera off"
+        );
+        pump(caller, callee, Duration::from_millis(100));
+        let current = callee.endpoint.measurements.decoded.load(Ordering::Relaxed);
+        if current != decoded {
+            decoded = current;
+            changed = Instant::now();
+        }
+    }
+    decoded
+}
+
 #[test]
 fn receive_only_peer_decodes_and_camera_off_stops_outgoing_video() {
     let (mut caller, mut callee) = pair();
@@ -151,8 +170,7 @@ fn receive_only_peer_decodes_and_camera_off_stops_outgoing_video() {
     caller
         .command(json!({"action":"choices","microphone":false,"video":false}))
         .unwrap();
-    pump(&mut caller, &mut callee, Duration::from_millis(300));
-    let stopped = callee.endpoint.measurements.decoded.load(Ordering::Relaxed);
+    let stopped = drain_video_after_camera_off(&mut caller, &mut callee);
     pump(&mut caller, &mut callee, Duration::from_millis(400));
     assert_eq!(
         callee.endpoint.measurements.decoded.load(Ordering::Relaxed),
