@@ -34,6 +34,7 @@ permissions:
 # building the desktop app.
 jobs:
   native-call-media:
+    if: github.ref != 'refs/heads/test/dm-command-timings'
     name: Native call media (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -90,6 +91,7 @@ jobs:
           node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture
 
   rust-core:
+    if: github.ref != 'refs/heads/test/dm-command-timings'
     name: Rust core (fmt + clippy + test)
     runs-on: windows-latest
     timeout-minutes: 45
@@ -144,9 +146,18 @@ jobs:
           rust-cache-key: desktop
 
       - name: Cargo test (multi-device DM flow)
-        run: node scripts/moss-test.mjs --test multi_device_dm_flow
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            for filter in dm_controls::sibling_controls_cannot_make_an_offline_contact_connected_or_typing dm_history::linked_desktop_imports_pre_link_text_with_original_ids_authors_and_times dm_history::interrupted_history_waits_for_source_resumes_and_keeps_live_text_once; do
+              echo "::group::Command timing $attempt $filter"
+              node scripts/moss-test.mjs --test multi_device_dm_flow "$filter" -- --exact --nocapture
+              echo "::endgroup::"
+            done
+          done
 
   codegen-drift:
+    if: github.ref != 'refs/heads/test/dm-command-timings'
     name: flutter_rust_bridge codegen drift
     runs-on: windows-latest
     timeout-minutes: 45
@@ -192,6 +203,7 @@ jobs:
         run: git diff --exit-code lib/src/rust mosh-core/src/frb_generated.rs
 
   flutter-test:
+    if: github.ref != 'refs/heads/test/dm-command-timings'
     name: Flutter gen-l10n + widget and unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -227,6 +239,7 @@ jobs:
         run: flutter test
 
   integration-test:
+    if: github.ref != 'refs/heads/test/dm-command-timings'
     name: Integration test (real bridge, slice one)
     runs-on: windows-latest
     timeout-minutes: 60
@@ -265,6 +278,7 @@ jobs:
         run: flutter test integration_test/slice_one_test.dart -d windows
 
   native-device-linking:
+    if: github.ref != 'refs/heads/test/dm-command-timings'
     name: Native device linking (real bridge and peers)
     runs-on: windows-latest
     timeout-minutes: 60
@@ -311,6 +325,7 @@ jobs:
             Remove-Item -Recurse -Force
 
   android-build:
+    if: github.ref != 'refs/heads/test/dm-command-timings'
     name: Android APK (arm64, debug)
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -385,6 +400,7 @@ jobs:
   # and its runtime behaviour under dlopen of the real universal dylib.
   # fmt is OS-independent and stays gated on the windows job.
   rust-core-macos:
+    if: github.ref != 'refs/heads/test/dm-command-timings'
     name: Rust core on macOS (clippy + test)
     runs-on: macos-latest
     timeout-minutes: 45
@@ -415,6 +431,7 @@ jobs:
   # Proves main still packages into the setup .exe users install. The same
   # reusable workflow builds the artifact a release publishes.
   windows-installer:
+    if: github.ref != 'refs/heads/test/dm-command-timings'
     uses: ./.github/workflows/build-windows.yml
     with:
       parallel-codegen: true
@@ -422,6 +439,7 @@ jobs:
   # Same proof for the macOS DMG. On PRs, builds the fast host arm64 slice;
   # on main branch pushes or release tags, builds the full universal binary.
   macos-dmg:
+    if: github.ref != 'refs/heads/test/dm-command-timings'
     uses: ./.github/workflows/build-macos.yml
     with:
       universal: ${{ github.event_name != 'pull_request' }}

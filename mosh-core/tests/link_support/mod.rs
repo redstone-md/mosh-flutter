@@ -1,5 +1,6 @@
 mod api;
 pub(crate) mod crypto;
+mod diagnostic;
 mod dm;
 mod observation;
 mod protocol;
@@ -272,7 +273,7 @@ fn dm_runtime(
     let dm_service = dm.clone();
     if std::env::var("MOSH_DM_MANUAL_SERVICE").as_deref() != Ok("1") {
         std::thread::spawn(move || loop {
-            dm_service.lock().unwrap().service();
+            diagnostic::service(|| dm_service.lock().unwrap().service());
             std::thread::sleep(Duration::from_millis(100));
         });
     }
@@ -313,9 +314,15 @@ fn serve(
             continue;
         }
         if action.starts_with("dm_") {
-            let response = dm::command(&mut dm.lock().unwrap(), action, &arg, &command);
-            println!("{OUTPUT_PREFIX}{response}");
-            std::io::stdout().flush().unwrap();
+            let mut guard = diagnostic::command("lock", action, || dm.lock().unwrap());
+            let response = diagnostic::command("execute", action, || {
+                dm::command(&mut guard, action, &arg, &command)
+            });
+            drop(guard);
+            diagnostic::command("reply", action, || {
+                println!("{OUTPUT_PREFIX}{response}");
+                std::io::stdout().flush().unwrap();
+            });
             continue;
         }
         let mut rt = runtime.lock().unwrap();
