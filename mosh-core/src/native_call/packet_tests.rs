@@ -43,29 +43,37 @@ fn maximum_packet_can_refill_depleted_budgets_before_expiring() {
 #[test]
 fn video_bursts_fit_the_direct_and_relay_queue_deadlines() {
     for relayed in [true, false] {
-        let net = MemoryNet::new();
-        let local = net.endpoint("local");
-        let remote = net.endpoint("remote");
-        net.link_both("local", "remote", PeerTransport::Relayed);
-        let sender = Sender::new(local);
-        sender.relayed(relayed);
-        std::thread::sleep(Duration::from_millis(120));
+        let started = Instant::now();
+        let mut now = started + Duration::from_millis(120);
+        let limits = capacity(relayed);
+        let mut total = Budget::new(limits.total_bytes_per_second, started);
+        let mut video = Budget::new(limits.video_bytes_per_second, started);
+        let mut queue = Queue {
+            relayed,
+            ..Default::default()
+        };
         for sequence in 0..4 {
-            sender.enqueue("remote", &[9; 16], &[sequence; 1000], false);
+            queue.video.push_back(Packet {
+                peer: "remote".into(),
+                bytes: vec![sequence; 1020],
+                queued: now,
+            });
         }
-        std::thread::sleep(Duration::from_millis(100));
-        let packets = remote.drain_call_packets();
+        let mut packets = Vec::new();
+        while !queue.video.is_empty() {
+            match queue.next(&mut total, &mut video, now) {
+                Next::Send(packet) => packets.push(packet),
+                Next::Wait(wait) => now += wait + Duration::from_micros(1),
+            }
+        }
         assert_eq!(
             packets.len(),
             4,
             "one missing fragment loses the video frame"
         );
-        assert_eq!(sender.dropped(), 0);
+        assert_eq!(queue.dropped, 0);
         for (sequence, packet) in packets.iter().enumerate() {
-            assert_eq!(
-                unwrap(&packet.payload, &[9; 16]),
-                Some([sequence as u8; 1000].as_slice())
-            );
+            assert_eq!(packet.bytes, vec![sequence as u8; 1020]);
         }
     }
 }
@@ -162,8 +170,10 @@ mod native {
         let returning = Sender::new(b.clone());
         sending.relayed(true);
         returning.relayed(true);
-        let (mut caller, mut callee) = pair();
         let mut pixels = vec![0; 640 * 360 * 4];
+        pattern(&mut pixels, 0);
+        let mut decoded_pixels = vec![0; pixels.len()];
+        let (mut caller, mut callee) = pair();
         let started = Instant::now();
         let mut captured = started;
         let mut decoded = started;
@@ -172,13 +182,13 @@ mod native {
         while started.elapsed() < Duration::from_secs(8) {
             if captured.elapsed() >= Duration::from_millis(66) {
                 captured = Instant::now();
-                pattern(&mut pixels, tick);
+                motion(&mut pixels, tick);
                 assert!(caller.push(640, 360, &pixels));
                 tick += 1;
             }
             forward(&mut caller, &mut callee, &sending, "b", &*a);
             forward(&mut callee, &mut caller, &returning, "a", &*b);
-            if let Some(frame) = callee.frame(sequence, &mut pixels) {
+            if let Some(frame) = callee.frame(sequence, &mut decoded_pixels) {
                 sequence = frame.sequence;
                 decoded = Instant::now();
             }
@@ -276,6 +286,14 @@ mod native {
                     detail as u8,
                     255,
                 ]);
+            }
+        }
+    }
+
+    fn motion(pixels: &mut [u8], tick: usize) {
+        for row in pixels.chunks_exact_mut(640 * 4).skip(120).take(120) {
+            for pixel in row[240 * 4..400 * 4].chunks_exact_mut(4) {
+                pixel.copy_from_slice(&[(tick * 7) as u8, (tick * 13) as u8, 128, 255]);
             }
         }
     }
