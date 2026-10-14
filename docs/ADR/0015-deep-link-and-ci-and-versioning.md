@@ -273,6 +273,12 @@ The deterministic reachability test pins the contract independently of the
 runtime constant: after a fresh authenticated message it requires Connected
 at 24,999 ms and Handshaking at 25,000 ms, then verifies recovery on a new
 message. Extending the runtime window to 60 seconds passed the previous
-tests but fails this check. The real-process test still requires cleared typing and
-checks that sibling typing and read controls preserve the contact's offline
+tests but fails this check. The real-process test still requires cleared typing
+and checks that sibling typing and read controls preserve the contact's offline
 state, display name and Moss identity.
+
+The typing prerequisite refreshes the contact's signal while waiting for each
+desktop, matching continued input. A single five-second hint can expire between
+slow polls; a six-second gap between observers reproduced the CI failure with
+the old prerequisite and passed with refreshed input. Both observation steps
+reuse the harness budget; protocol deadlines are unchanged.

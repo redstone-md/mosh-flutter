@@ -1,8 +1,10 @@
 use super::*;
 
-fn wait_typing(peer: &mut Peer, session: &str) -> Value {
-    let until = Instant::now() + Duration::from_secs(10);
+fn wait_typing(peer: &mut Peer, contact: &mut Peer, session: &str) -> Value {
+    let until = Instant::now() + link_support::OBSERVATION_BUDGET;
     loop {
+        // Continued input refreshes the hint while slow observers catch up.
+        contact.ask(json!({"action":"dm_typing","argument":session}));
         let snapshot = peer.ask(json!({"action":"dm_poll","argument":session}));
         if snapshot["peer_typing_until_ms"].is_number() {
             return snapshot;
@@ -73,9 +75,9 @@ fn sibling_controls_cannot_make_an_offline_contact_connected_or_typing() {
     counterpart.ask(json!({"action":"dm_viewed","argument":session}));
     wait_read(&mut original, session, "Contact reads shared text");
     wait_read(&mut linked, session, "Contact reads shared text");
-    counterpart.ask(json!({"action":"dm_typing","argument":session}));
-    let contact_peer = wait_typing(&mut original, session)["peer_moss_id"].clone();
-    wait_typing(&mut linked, session);
+    let contact_peer =
+        wait_typing(&mut original, &mut counterpart, session)["peer_moss_id"].clone();
+    wait_typing(&mut linked, &mut counterpart, session);
     counterpart.stop();
     // The receiver's silence window follows its last authenticated frame;
     // queued frames and a slow poll can delay observing the offline state.
