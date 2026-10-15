@@ -4,8 +4,8 @@ fn wait_typing(peer: &mut Peer, contact: &mut Peer, session: &str) -> Value {
     let until = Instant::now() + link_support::OBSERVATION_BUDGET;
     loop {
         // Continued input refreshes the hint while slow observers catch up.
-        contact.ask(json!({"action":"dm_typing","argument":session}));
-        let snapshot = peer.ask(json!({"action":"dm_poll","argument":session}));
+        contact.ask_until(json!({"action":"dm_typing","argument":session}), until);
+        let snapshot = peer.ask_until(json!({"action":"dm_poll","argument":session}), until);
         if snapshot["peer_typing_until_ms"].is_number() {
             return snapshot;
         }
@@ -35,7 +35,7 @@ fn assert_contact_stays_offline(peer: &mut Peer, session: &str, contact_peer: &V
 fn wait_read(peer: &mut Peer, session: &str, body: &str) {
     let until = Instant::now() + Duration::from_secs(10);
     loop {
-        let snapshot = peer.ask(json!({"action":"dm_poll","argument":session}));
+        let snapshot = peer.ask_until(json!({"action":"dm_poll","argument":session}), until);
         if snapshot["messages"]
             .as_array()
             .unwrap()
@@ -83,7 +83,7 @@ fn sibling_controls_cannot_make_an_offline_contact_connected_or_typing() {
     // queued frames and a slow poll can delay observing the offline state.
     let until = Instant::now() + link_support::OBSERVATION_BUDGET;
     loop {
-        let snapshot = original.ask(json!({"action":"dm_poll","argument":session}));
+        let snapshot = original.ask_until(json!({"action":"dm_poll","argument":session}), until);
         if snapshot["state"] == "handshaking" && snapshot["peer_typing_until_ms"].is_null() {
             break;
         }

@@ -13,14 +13,26 @@ const PREVIEW: &[u8] = include_bytes!("fixtures/preview.jpg");
 const MINIATURE: &[u8] = include_bytes!("fixtures/miniature.jpg");
 
 fn poll(peer: &mut Peer, kind: &str, id: &str) -> Value {
-    peer.ask(json!({"action":"chat_poll", "kind":kind, "argument":id}))
+    poll_until(
+        peer,
+        kind,
+        id,
+        Instant::now() + link_support::OBSERVATION_BUDGET,
+    )
+}
+
+fn poll_until(peer: &mut Peer, kind: &str, id: &str, deadline: Instant) -> Value {
+    peer.ask_until(
+        json!({"action":"chat_poll", "kind":kind, "argument":id}),
+        deadline,
+    )
 }
 
 fn wait_ready(sender: &mut Peer, receiver: &mut Peer, kind: &str, id: &str) {
     let until = Instant::now() + Duration::from_secs(45);
     loop {
-        let a = poll(sender, kind, id);
-        let b = poll(receiver, kind, id);
+        let a = poll_until(sender, kind, id, until);
+        let b = poll_until(receiver, kind, id, until);
         let ready = match kind {
             "dm" => a["state"] == "connected" && b["state"] == "connected",
             "group" => a["member_count"] == 2 && b["member_count"] == 2,
@@ -40,8 +52,8 @@ fn wait_ready(sender: &mut Peer, receiver: &mut Peer, kind: &str, id: &str) {
 fn wait_preview(sender: &mut Peer, receiver: &mut Peer, kind: &str, id: &str) -> Value {
     let until = Instant::now() + Duration::from_secs(45);
     loop {
-        poll(sender, kind, id);
-        let snapshot = poll(receiver, kind, id);
+        poll_until(sender, kind, id, until);
+        let snapshot = poll_until(receiver, kind, id, until);
         if snapshot["attachments"][0]["preview_path"].is_string() {
             return snapshot;
         }

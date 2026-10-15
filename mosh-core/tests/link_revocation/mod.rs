@@ -19,7 +19,7 @@ fn removal_is_durable_and_old_qr_cannot_restore_the_linked_installation() {
     assert_eq!(removed["revocations"][0]["state"], "Applied");
     let until = Instant::now() + Duration::from_secs(30);
     loop {
-        let snapshot = linked.ask(json!({"action":"snapshot"}));
+        let snapshot = linked.ask_until(json!({"action":"snapshot"}), until);
         if snapshot["revoked"] == true {
             assert_eq!(snapshot["user_id"], before["user_id"]);
             assert_eq!(snapshot["own_device_id"], before["own_device_id"]);

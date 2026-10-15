@@ -3,6 +3,7 @@ mod dm_history;
 mod dm_recovery;
 mod dm_revocation;
 mod link_support;
+mod peer_commands;
 
 use link_support::{isolated_network_scenario, peer_process, Peer};
 use serde_json::{json, Value};
@@ -11,8 +12,8 @@ use std::time::{Duration, Instant};
 fn wait_connected(peer: &mut Peer, contact: &mut Peer, session: &str) -> Value {
     let until = Instant::now() + Duration::from_secs(45);
     loop {
-        contact.ask(json!({"action":"dm_poll","argument":session}));
-        let list = peer.ask(json!({"action":"dm_list"}));
+        contact.ask_until(json!({"action":"dm_poll","argument":session}), until);
+        let list = peer.ask_until(json!({"action":"dm_list"}), until);
         if let Some(snapshot) = list["sessions"]
             .as_array()
             .unwrap()
@@ -171,7 +172,7 @@ fn sibling_receipt_does_not_claim_delivery_and_contact_receipt_reaches_both_desk
     for peer in [&mut original, &mut linked] {
         let until = Instant::now() + Duration::from_secs(15);
         loop {
-            let snapshot = peer.ask(json!({"action":"dm_poll","argument":session}));
+            let snapshot = peer.ask_until(json!({"action":"dm_poll","argument":session}), until);
             assert_one_author_and_copy(
                 &snapshot,
                 "Only sibling has acknowledged",
@@ -201,8 +202,8 @@ fn pending_join_and_admission_journal_resume_with_independent_keys_after_restart
     linked.connect(&counterpart);
     let until = Instant::now() + Duration::from_secs(30);
     loop {
-        original.ask(json!({"action":"dm_list"}));
-        let list = linked.ask(json!({"action":"dm_list"}));
+        original.ask_until(json!({"action":"dm_list"}), until);
+        let list = linked.ask_until(json!({"action":"dm_list"}), until);
         if !list["sessions"].as_array().unwrap().is_empty() {
             break;
         }

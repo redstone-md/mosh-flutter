@@ -18,7 +18,7 @@ fn an_offline_pairing_target_does_not_block_link_commands() {
     joining.connect(&carrier);
     let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
-        let network = joining.ask(json!({"action":"network"}));
+        let network = joining.ask_until(json!({"action":"network"}), until);
         if network["peer_details"]
             .as_array()
             .unwrap()
