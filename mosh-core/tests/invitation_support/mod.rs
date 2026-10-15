@@ -31,7 +31,15 @@ pub fn send(peer: &mut Peer, id: &str, body: &str) {
 }
 
 pub fn poll(peer: &mut Peer, id: &str) -> Value {
-    let snapshot = peer.ask(json!({"action":"dm_poll", "argument":id}));
+    poll_until(
+        peer,
+        id,
+        Instant::now() + crate::link_support::OBSERVATION_BUDGET,
+    )
+}
+
+fn poll_until(peer: &mut Peer, id: &str, deadline: Instant) -> Value {
+    let snapshot = peer.ask_until(json!({"action":"dm_poll", "argument":id}), deadline);
     assert!(snapshot["error"].is_null(), "session polling succeeds");
     snapshot
 }
@@ -57,8 +65,8 @@ pub fn evidence(peer: &mut Peer, id: &str, reason: &str) -> Value {
 pub fn wait_connected(creator: &mut Peer, contact: &mut Peer, id: &str) -> (Value, Value) {
     let until = Instant::now() + Duration::from_secs(45);
     loop {
-        let alice = poll(creator, id);
-        let bob = poll(contact, id);
+        let alice = poll_until(creator, id, until);
+        let bob = poll_until(contact, id, until);
         if alice["state"] == "connected" && bob["state"] == "connected" {
             return (alice, bob);
         }
@@ -80,9 +88,12 @@ pub fn wait_rejected(
 ) {
     let until = Instant::now() + Duration::from_secs(45);
     loop {
-        poll(creator, id);
-        let joining = poll(contact, id);
-        let observed = evidence(creator, id, reason);
+        poll_until(creator, id, until);
+        let joining = poll_until(contact, id, until);
+        let observed = creator.ask_until(
+            json!({"action":"evidence", "argument":id, "reason":reason}),
+            until,
+        );
         assert_eq!(
             observed["members"], members,
             "rejected peer must not change persisted MLS membership"

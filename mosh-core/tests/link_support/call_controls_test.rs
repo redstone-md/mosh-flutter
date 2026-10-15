@@ -70,7 +70,7 @@ fn wait_call_view(
 ) -> serde_json::Value {
     let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
-        let sessions = peer.ask(json!({"action":"dm_list"}));
+        let sessions = peer.ask_until(json!({"action":"dm_list"}), until);
         if let Some(view) = sessions["sessions"]
             .as_array()
             .unwrap()
@@ -108,7 +108,10 @@ fn native_selected_pair_connects_over_moss_without_capture() {
         let views: Vec<_> = [&mut caller, &mut receiver]
             .into_iter()
             .map(|peer| {
-                peer.ask(json!({"action":"call_native_snapshot","argument":session,"call_id":id}))
+                peer.ask_until(
+                    json!({"action":"call_native_snapshot","argument":session,"call_id":id}),
+                    until,
+                )
             })
             .collect();
         if views.iter().all(|view| view["ready"] == true) {
@@ -174,8 +177,10 @@ fn native_camera_frames_cross_moss_and_camera_off_preserves_the_call() {
     let (mut caller, mut receiver, session, id) = native_pair(true);
     let until = std::time::Instant::now() + std::time::Duration::from_secs(20);
     let first = loop {
-        let frame =
-            receiver.ask(json!({"action":"call_native_frame","argument":session,"call_id":id}));
+        let frame = receiver.ask_until(
+            json!({"action":"call_native_frame","argument":session,"call_id":id}),
+            until,
+        );
         if frame["sequence"]
             .as_u64()
             .is_some_and(|sequence| sequence > 20)
@@ -195,8 +200,10 @@ fn native_camera_frames_cross_moss_and_camera_off_preserves_the_call() {
     assert_eq!(first["rgba_bytes"], 320 * 180 * 4);
     assert_eq!(first["first_pixel"][3], 255);
     let later = loop {
-        let frame =
-            receiver.ask(json!({"action":"call_native_frame","argument":session,"call_id":id}));
+        let frame = receiver.ask_until(
+            json!({"action":"call_native_frame","argument":session,"call_id":id}),
+            until,
+        );
         if frame["sequence"].as_u64() > first["sequence"].as_u64() {
             break frame;
         }
@@ -240,8 +247,10 @@ fn native_stalled_camera_releases_capture_without_ending_receive_only_media() {
     assert!(result["error"].is_null(), "{result}");
     let until = std::time::Instant::now() + std::time::Duration::from_secs(20);
     loop {
-        let status =
-            caller.ask(json!({"action":"call_native_snapshot","argument":session,"call_id":id}));
+        let status = caller.ask_until(
+            json!({"action":"call_native_snapshot","argument":session,"call_id":id}),
+            until,
+        );
         if status["camera_failed"] == true && status["ready"] == true {
             assert_eq!(status["camera_requested"], false);
             assert_eq!(status["camera"], false);

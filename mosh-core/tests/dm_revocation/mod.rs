@@ -62,7 +62,7 @@ fn offline_participant_keeps_removal_pending_then_dm_continues_without_revoked_d
     linked.connect(&contact);
     let until = Instant::now() + Duration::from_secs(30);
     loop {
-        let restored = linked.ask(json!({"action":"dm_poll","argument":session}));
+        let restored = linked.ask_until(json!({"action":"dm_poll","argument":session}), until);
         if restored["device_revocation"] != "revoked" && restored["state"] == "connected" {
             assert!(restored["messages"]
                 .as_array()
@@ -86,8 +86,8 @@ fn offline_participant_keeps_removal_pending_then_dm_continues_without_revoked_d
 fn wait_applied(original: &mut Peer, contact: &mut Peer, session: &str) {
     let until = Instant::now() + Duration::from_secs(45);
     loop {
-        contact.ask(json!({"action":"dm_poll","argument":session}));
-        let status = original.ask(json!({"action":"snapshot"}));
+        contact.ask_until(json!({"action":"dm_poll","argument":session}), until);
+        let status = original.ask_until(json!({"action":"snapshot"}), until);
         if status["revocations"][0]["state"] == "Applied" {
             return;
         }

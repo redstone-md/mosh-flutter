@@ -29,7 +29,7 @@ fn a_second_scanner_cannot_replace_the_device_waiting_for_approval() {
     // Wait through retries rather than approving before the second scan arrives.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
-        let snapshot = other.ask(json!({"action":"snapshot"}));
+        let snapshot = other.ask_until(json!({"action":"snapshot"}), deadline);
         assert_eq!(snapshot["phase"], "Connecting");
         assert!(snapshot["confirmation_code"].is_null());
         if snapshot["error"] == "ConnectionLost" {

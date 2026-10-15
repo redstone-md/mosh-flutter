@@ -77,7 +77,7 @@ impl Peer {
     fn wait_dm_text_within(&mut self, session: &str, text: &str, budget: Duration) -> Value {
         let until = Instant::now() + budget;
         loop {
-            let snapshot = self.ask(json!({"action":"dm_poll","argument":session}));
+            let snapshot = self.ask_until(json!({"action":"dm_poll","argument":session}), until);
             if snapshot["messages"]
                 .as_array()
                 .unwrap()

@@ -26,9 +26,9 @@ fn admit_without_importing(
 ) {
     let until = Instant::now() + Duration::from_secs(45);
     loop {
-        original.ask(json!({"action":"dm_list"}));
-        contact.ask(json!({"action":"dm_poll","argument":session}));
-        let list = linked.ask(json!({"action":"dm_list"}));
+        original.ask_until(json!({"action":"dm_list"}), until);
+        contact.ask_until(json!({"action":"dm_poll","argument":session}), until);
+        let list = linked.ask_until(json!({"action":"dm_list"}), until);
         if list["sessions"]
             .as_array()
             .unwrap()
@@ -48,8 +48,8 @@ fn admit_without_importing(
 fn finish_history(original: &mut Peer, linked: &mut Peer, session: &str) -> Value {
     let until = Instant::now() + Duration::from_secs(45);
     loop {
-        original.ask(json!({"action":"dm_poll","argument":session}));
-        let snapshot = linked.ask(json!({"action":"dm_poll","argument":session}));
+        original.ask_until(json!({"action":"dm_poll","argument":session}), until);
+        let snapshot = linked.ask_until(json!({"action":"dm_poll","argument":session}), until);
         if snapshot["history_sync"] == "complete" {
             return snapshot;
         }

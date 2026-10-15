@@ -293,6 +293,12 @@ The real-process regression delays one reply for 35 seconds: it fails with the
 old timeout and passes with the shared budget. The deterministic 25-second
 silence-boundary test remains independent of this harness budget.
 
+Bounded polling passes its outer deadline to each peer command. Each receive
+uses the remaining time (capped by the command budget), and replies received
+after that deadline fail before a caller can accept their state. A separate
+real-process regression rejects a successful DM reply delayed for 35 seconds
+when the caller's live-delivery budget is 30 seconds.
+
 ## Update 2026-10-15: Windows dependency caches
 
 Windows jobs cache the Flutter SDK and existing Cargo/cargokit outputs, but

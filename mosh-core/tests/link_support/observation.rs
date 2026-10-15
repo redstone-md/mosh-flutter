@@ -35,7 +35,7 @@ impl Peer {
     fn wait_for(&mut self, expected: &str, ready: impl Fn(&Value) -> bool) -> Value {
         let deadline = Instant::now() + OBSERVATION_BUDGET;
         loop {
-            let snapshot = self.ask(json!({"action":"snapshot"}));
+            let snapshot = self.ask_until(json!({"action":"snapshot"}), deadline);
             if ready(&snapshot) {
                 return snapshot;
             }

@@ -131,24 +131,33 @@ impl Peer {
     }
 
     pub fn ask(&mut self, command: Value) -> Value {
+        self.ask_until(command, Instant::now() + OBSERVATION_BUDGET)
+    }
+
+    /// A command cannot outlive the observation that requested it.
+    pub fn ask_until(&mut self, command: Value, deadline: Instant) -> Value {
+        assert!(Instant::now() < deadline, "peer command deadline expired");
         writeln!(self.stdin, "{command}").unwrap();
         self.stdin.flush().unwrap();
-        self.replies
-            .recv_timeout(OBSERVATION_BUDGET)
-            .unwrap_or_else(|error| {
-                let deadline = Instant::now() + Duration::from_millis(250);
-                let status = loop {
-                    let status = self.child.try_wait();
-                    if !matches!(status, Ok(None)) || Instant::now() >= deadline {
-                        break status;
-                    }
-                    std::thread::sleep(Duration::from_millis(10));
-                };
-                panic!(
-                    "peer action {} failed: {error}; budget: {:?}; process status: {:?}",
-                    command["action"], OBSERVATION_BUDGET, status
-                )
-            })
+        let budget = deadline
+            .saturating_duration_since(Instant::now())
+            .min(OBSERVATION_BUDGET);
+        let response = self.replies.recv_timeout(budget).unwrap_or_else(|error| {
+            let deadline = Instant::now() + Duration::from_millis(250);
+            let status = loop {
+                let status = self.child.try_wait();
+                if !matches!(status, Ok(None)) || Instant::now() >= deadline {
+                    break status;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            };
+            panic!(
+                "peer action {} failed: {error}; budget: {:?}; process status: {:?}",
+                command["action"], budget, status
+            )
+        });
+        assert!(Instant::now() < deadline, "peer command deadline expired");
+        response
     }
 
     pub fn connect(&mut self, other: &Self) {

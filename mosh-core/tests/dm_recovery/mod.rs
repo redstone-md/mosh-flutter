@@ -25,7 +25,9 @@ pub(super) fn linked_dm(mut linked: Peer) -> (Peer, Peer, Peer, String) {
     linked.connect(&contact);
     wait_connected(&mut linked, &mut contact, &session);
     let until = Instant::now() + Duration::from_secs(45);
-    while linked.ask(json!({"action":"dm_poll","argument":session}))["history_sync"] != "complete" {
+    while linked.ask_until(json!({"action":"dm_poll","argument":session}), until)["history_sync"]
+        != "complete"
+    {
         assert!(Instant::now() < until, "initial history must complete");
         std::thread::sleep(Duration::from_millis(100));
     }
@@ -191,7 +193,7 @@ fn returning_desktop_waits_when_all_holders_are_offline_then_recovers_from_one()
     linked.restart();
     let until = Instant::now() + Duration::from_secs(20);
     loop {
-        let snapshot = linked.ask(json!({"action":"dm_poll","argument":session}));
+        let snapshot = linked.ask_until(json!({"action":"dm_poll","argument":session}), until);
         if snapshot["history_sync"] == "waiting_for_source" {
             assert_eq!(snapshot["messages"].as_array().unwrap().len(), 1);
             break;
