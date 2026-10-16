@@ -4,7 +4,12 @@ import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/conversation/peer_label.dart';
 import 'package:mosh/src/util/format.dart';
 
-typedef ConversationParticipant = ({String identity, String name});
+typedef ConversationParticipant = ({
+  String identity,
+  String name,
+  bool authenticated,
+  bool own
+});
 
 class ConversationDetailsModel {
   ConversationDetailsModel(this.snapshot, this.l, {this.personalName});
@@ -38,30 +43,51 @@ class ConversationDetailsModel {
   List<ConversationParticipant> get participants {
     if (snapshot case DmConversation(:final source)) {
       return [
-        (identity: source.fingerprint, name: source.displayName),
+        (
+          identity: source.fingerprint,
+          name: source.displayName,
+          authenticated: true,
+          own: true
+        ),
         if (source.peerDisplayName.isNotEmpty)
           (
             identity: source.peerMossId ?? source.sessionId,
-            name: source.peerDisplayName
+            name: source.peerDisplayName,
+            authenticated: true,
+            own: false
           ),
       ];
     }
-    final authors = <String, String>{};
+    final authors = <String, ConversationParticipant>{};
     for (final message in snapshot.messages) {
       final identity = message.fromFingerprint;
-      if (identity != null) authors[identity] = message.fromDevice;
+      if (identity != null) {
+        final authenticated = message.metadata?.origin != null;
+        if (!authenticated && authors[identity]?.authenticated == true) {
+          continue;
+        }
+        authors[identity] = (
+          identity: identity,
+          name: message.fromDevice,
+          authenticated: authenticated,
+          own: authenticated && message.metadata?.isOwn == true
+        );
+      }
     }
     if (snapshot case GroupConversation(:final source)
         when source.memberPeerIds.isNotEmpty) {
       return [
         for (final id in source.memberPeerIds)
-          (identity: id, name: authors[id] ?? shorten(id, 8))
+          (authors[id] ??
+              (
+                identity: id,
+                name: shorten(id, 8),
+                authenticated: true,
+                own: id == snapshot.ownFingerprint
+              ))
       ];
     }
-    return [
-      for (final entry in authors.entries)
-        (identity: entry.key, name: entry.value)
-    ];
+    return authors.values.toList();
   }
 
   List<ConversationMessage> get files {

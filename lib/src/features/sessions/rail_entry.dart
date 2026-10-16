@@ -298,8 +298,11 @@ final class OfferRailEntry extends RailEntry {
     final fromDevice = pending.offer.fromDevice;
     return RailItem(
       kind: RailItemKind.dm,
-      leading:
-          Avatar(name: fromDevice, plusIdentity: pending.offer.fromFingerprint),
+      leading: Avatar(
+          name: fromDevice,
+          plusIdentity: pending.offer.authenticated == true
+              ? pending.offer.fromFingerprint
+              : null),
       title: fromDevice,
       subtitle: pending.kind == ConversationKind.channel
           ? '#${pending.host}'

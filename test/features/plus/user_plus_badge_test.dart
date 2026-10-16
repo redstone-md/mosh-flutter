@@ -15,6 +15,22 @@ import '../../support/pump.dart';
 import '../../support/plus/fakes.dart';
 
 void main() {
+  testWidgets(
+      'own badge checks expiry even when the last native read was active',
+      (tester) async {
+    final native = MemoryPlusCommands()
+      ..current = PlusSnapshot(
+          active: true,
+          visible: true,
+          expiresAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch - 1),
+          peerBadges: []);
+    final container = _container(native);
+    addTearDown(container.dispose);
+    await pumpScreen(
+        tester, const Scaffold(body: Avatar(name: 'Me', ownPlus: true)),
+        container: container);
+    expect(find.byIcon(Icons.workspace_premium), findsNothing);
+  });
   testWidgets('shared badges expire and conversation titles stay ordinary',
       (tester) async {
     final native = MemoryPlusCommands()

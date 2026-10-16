@@ -17,7 +17,12 @@ class UserPlusBadge extends ConsumerWidget {
     final visible = ref.watch(plusProvider.select((value) {
       final snapshot = value.value?.snapshot;
       if (snapshot == null) return false;
-      if (own) return snapshot.active && snapshot.visible;
+      if (own) {
+        return snapshot.active &&
+            snapshot.visible &&
+            (snapshot.expiresAtMs?.toInt() ?? 0) >
+                DateTime.now().millisecondsSinceEpoch;
+      }
       return snapshot.peerBadges.any((badge) =>
           badge.identity == identity &&
           badge.expiresAtMs.toInt() > DateTime.now().millisecondsSinceEpoch);

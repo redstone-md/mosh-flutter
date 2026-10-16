@@ -145,9 +145,10 @@ class ConversationDetailsPanel extends ConsumerWidget {
                 Avatar(
                     name: participant.name,
                     radius: 17,
-                    ownPlus:
-                        participant.identity == model.snapshot.ownFingerprint,
-                    plusIdentity: '${target.key}:${participant.identity}'),
+                    ownPlus: participant.authenticated && participant.own,
+                    plusIdentity: participant.authenticated
+                        ? '${target.key}:${participant.identity}'
+                        : null),
                 const SizedBox(width: 10),
                 Expanded(
                     child: Text(participant.name,
