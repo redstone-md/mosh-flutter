@@ -20,6 +20,26 @@ pub(super) struct LocalState {
     pub peers: std::collections::BTreeMap<String, super::peers::PeerEvidence>,
 }
 
+impl LocalState {
+    fn load(store: &Persistence) -> Result<Option<Self>, String> {
+        store
+            .get_plus_record("local-v1")
+            .map_err(|e| e.to_string())?
+            .map(|bytes| {
+                serde_json::from_slice(&bytes).map_err(|_| "invalid saved PLUS purchase".into())
+            })
+            .transpose()
+    }
+
+    fn holds_purchase(&self) -> bool {
+        self.order.is_some() || self.certificate.is_some()
+    }
+}
+
+pub(crate) fn has_purchase(store: &Persistence) -> Result<bool, String> {
+    Ok(LocalState::load(store)?.is_some_and(|state| state.holds_purchase()))
+}
+
 pub struct PlusRuntime {
     pub(super) store: Arc<Persistence>,
     pub(super) issuer: Issuer,
@@ -33,19 +53,18 @@ impl PlusRuntime {
         issuer_key_b64: &str,
     ) -> Result<Self, String> {
         super::certificate::subject_message(&account_id)?;
-        let mut state = match store
-            .get_plus_record("local-v1")
-            .map_err(|e| e.to_string())?
-        {
-            Some(bytes) => serde_json::from_slice::<LocalState>(&bytes)
-                .map_err(|_| "invalid saved PLUS purchase")?,
-            None => LocalState {
+        let mut state = LocalState::load(&store)?.unwrap_or_else(|| LocalState {
+            account_id: account_id.clone(),
+            ..Default::default()
+        });
+        if state.account_id != account_id {
+            if state.holds_purchase() {
+                return Err("PLUS purchase belongs to a different account".into());
+            }
+            state = LocalState {
                 account_id: account_id.clone(),
                 ..Default::default()
-            },
-        };
-        if state.account_id != account_id {
-            return Err("PLUS purchase belongs to a different account".into());
+            };
         }
         let issuer = Issuer::new(issuer_key_b64)?;
         state

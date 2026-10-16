@@ -304,6 +304,7 @@ impl ConversationSession for ChannelSession {
 mod blob;
 mod deletion;
 mod lifecycle;
+mod offers;
 mod plus;
 mod session;
 

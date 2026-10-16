@@ -126,6 +126,8 @@ pub(super) enum ChannelBlobEnvelope {
     /// A private-DM invitation aimed at one channel member.
     DmOffer {
         offer: DmOffer,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        origin: Option<crate::message_deletion::MessageOrigin>,
     },
 }
 

@@ -11,6 +11,10 @@ pub(crate) mod types;
 
 pub use certificate::{Certificate, Issuer};
 pub use protocol::PlusFrame;
+pub(crate) use purchase::has_purchase;
 pub use purchase::PlusRuntime;
 pub(crate) use transport::{open_mls, seal_mls, PlusSchedule, SealedPlusFrame};
 pub use types::{PlusOrder, PlusPaymentStatus, PlusPeerBadge, PlusSnapshot};
+
+#[cfg(test)]
+mod withdrawal_tests;

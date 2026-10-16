@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:mosh/src/features/plus/plus_commands.dart';
 import 'package:mosh/src/rust/api/private_dm.dart' as setup;
+import 'package:mosh/src/rust/api/device_link.dart' as link;
 import 'package:mosh/src/rust/frb_generated.dart';
 import 'package:mosh/src/rust/plus/types.dart';
 
@@ -51,6 +52,8 @@ void main() {
     };
     expect((await commands.saveOrder(order)).order!.status,
         PlusPaymentStatus.paid);
+    expect((await link.snapshot()).canJoin, isFalse,
+        reason: 'A purchase already binds this installation to its account');
     final blinded = await commands.prepare();
     expect(base64Decode(blinded).length, 256);
     expect(await commands.prepare(), blinded);

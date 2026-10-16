@@ -78,6 +78,9 @@ impl PlusRuntime {
     ) -> Result<(), String> {
         let account = frame.verify(context, author)?;
         let known = self.state.peers.get(&account);
+        if known.is_none() && frame.certificate.is_none() {
+            return Ok(());
+        }
         if let Some(old) = self.state.peers.get(&account) {
             if old.revision > frame.revision {
                 return Ok(());

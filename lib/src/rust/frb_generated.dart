@@ -3908,14 +3908,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DmOffer dco_decode_dm_offer(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return DmOffer(
       offerId: dco_decode_String(arr[0]),
       fromDevice: dco_decode_String(arr[1]),
       fromFingerprint: dco_decode_String(arr[2]),
       targetFingerprint: dco_decode_String(arr[3]),
       inviteUri: dco_decode_String(arr[4]),
+      authenticated: dco_decode_opt_box_autoadd_bool(arr[5]),
     );
   }
 
@@ -5999,12 +6000,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_fromFingerprint = sse_decode_String(deserializer);
     var var_targetFingerprint = sse_decode_String(deserializer);
     var var_inviteUri = sse_decode_String(deserializer);
+    var var_authenticated = sse_decode_opt_box_autoadd_bool(deserializer);
     return DmOffer(
         offerId: var_offerId,
         fromDevice: var_fromDevice,
         fromFingerprint: var_fromFingerprint,
         targetFingerprint: var_targetFingerprint,
-        inviteUri: var_inviteUri);
+        inviteUri: var_inviteUri,
+        authenticated: var_authenticated);
   }
 
   @protected
@@ -8395,6 +8398,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.fromFingerprint, serializer);
     sse_encode_String(self.targetFingerprint, serializer);
     sse_encode_String(self.inviteUri, serializer);
+    sse_encode_opt_box_autoadd_bool(self.authenticated, serializer);
   }
 
   @protected

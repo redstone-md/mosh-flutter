@@ -26,10 +26,14 @@ pub(crate) fn configure(
 }
 
 pub(crate) fn with_owner<T>(
+    account: &str,
     action: impl FnOnce(&mut PlusRuntime) -> Result<T, String>,
 ) -> Result<T, String> {
     let mut guard = OWNER.lock().map_err(|_| "PLUS owner unavailable")?;
-    let (_, owner) = guard.as_mut().ok_or("PLUS issuer not configured")?;
+    let (key, owner) = guard.as_mut().ok_or("PLUS issuer not configured")?;
+    if owner.state.account_id != account {
+        *owner = PlusRuntime::open(owner.store.clone(), account.into(), key)?;
+    }
     action(owner)
 }
 

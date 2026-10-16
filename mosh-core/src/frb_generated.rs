@@ -4394,12 +4394,14 @@ impl SseDecode for crate::conversation::dm_offers::DmOffer {
         let mut var_fromFingerprint = <String>::sse_decode(deserializer);
         let mut var_targetFingerprint = <String>::sse_decode(deserializer);
         let mut var_inviteUri = <String>::sse_decode(deserializer);
+        let mut var_authenticated = <Option<bool>>::sse_decode(deserializer);
         return crate::conversation::dm_offers::DmOffer {
             offer_id: var_offerId,
             from_device: var_fromDevice,
             from_fingerprint: var_fromFingerprint,
             target_fingerprint: var_targetFingerprint,
             invite_uri: var_inviteUri,
+            authenticated: var_authenticated,
         };
     }
 }
@@ -7501,6 +7503,7 @@ impl flutter_rust_bridge::IntoDart for crate::conversation::dm_offers::DmOffer {
             self.from_fingerprint.into_into_dart().into_dart(),
             self.target_fingerprint.into_into_dart().into_dart(),
             self.invite_uri.into_into_dart().into_dart(),
+            self.authenticated.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -9405,6 +9408,7 @@ impl SseEncode for crate::conversation::dm_offers::DmOffer {
         <String>::sse_encode(self.from_fingerprint, serializer);
         <String>::sse_encode(self.target_fingerprint, serializer);
         <String>::sse_encode(self.invite_uri, serializer);
+        <Option<bool>>::sse_encode(self.authenticated, serializer);
     }
 }
 

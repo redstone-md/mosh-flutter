@@ -137,18 +137,7 @@ impl ChannelRuntime {
     ) -> Result<(), ChannelRuntimeError> {
         let normalized = normalize_name(name)?;
         let session = self.channel_mut(&normalized)?;
-        let offer = DmOffers::mint(
-            session.display_name.clone(),
-            session.device_fingerprint.clone(),
-            target_fingerprint,
-            invite_uri,
-        );
-        publish_json(
-            &session.node,
-            &session.mesh_id,
-            &session.blob_topic,
-            &ChannelBlobEnvelope::DmOffer { offer },
-        )
+        session.publish_dm_offer(target_fingerprint, invite_uri)
     }
 
     pub fn dismiss_dm_offer(

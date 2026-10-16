@@ -2,6 +2,15 @@
 pub use crate::plus::{PlusOrder, PlusPaymentStatus, PlusPeerBadge, PlusSnapshot};
 use crate::{conversation::now_ms, plus::global};
 
+fn with_owner<T>(
+    action: impl FnOnce(&mut crate::plus::PlusRuntime) -> Result<T, String>,
+) -> Result<T, String> {
+    let account = super::device_link::snapshot()
+        .map_err(|_| "PLUS account unavailable")?
+        .user_id;
+    global::with_owner(&account, action)
+}
+
 pub fn configure_issuer(public_key_b64: String) -> Result<PlusSnapshot, String> {
     let identity = super::device_link::snapshot().map_err(|_| "PLUS account unavailable")?;
     let resources = super::shared_runtime::ensure_shared_resources()?;
@@ -12,29 +21,29 @@ pub fn configure_issuer(public_key_b64: String) -> Result<PlusSnapshot, String> 
 }
 
 pub fn snapshot() -> Result<PlusSnapshot, String> {
-    global::with_owner(|owner| Ok(owner.snapshot(now_ms())))
+    with_owner(|owner| Ok(owner.snapshot(now_ms())))
 }
 
 pub fn save_order(order_json: String) -> Result<PlusSnapshot, String> {
-    global::with_owner(|owner| {
+    with_owner(|owner| {
         owner.save_order(&order_json, now_ms())?;
         Ok(owner.snapshot(now_ms()))
     })
 }
 
 pub fn prepare_issuance() -> Result<String, String> {
-    global::with_owner(|owner| owner.prepare_issuance())
+    with_owner(|owner| owner.prepare_issuance())
 }
 
 pub fn complete_issuance(blind_signature_b64: String) -> Result<PlusSnapshot, String> {
-    global::with_owner(|owner| {
+    with_owner(|owner| {
         owner.complete_issuance(&blind_signature_b64, now_ms())?;
         Ok(owner.snapshot(now_ms()))
     })
 }
 
 pub fn set_visible(visible: bool) -> Result<PlusSnapshot, String> {
-    global::with_owner(|owner| {
+    with_owner(|owner| {
         owner.set_visible(visible)?;
         Ok(owner.snapshot(now_ms()))
     })

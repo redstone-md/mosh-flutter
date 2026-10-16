@@ -11,7 +11,7 @@ pub(super) fn command(action: &str, argument: &str, input: &Value) -> Value {
         "plus_complete" => plus::complete_issuance(argument.into()),
         "plus_visible" => plus::set_visible(input["visible"].as_bool().unwrap()),
         "plus_prepare" => return json!({"blinded":plus::prepare_issuance().unwrap()}),
-        _ => return conversations(action, argument),
+        _ => return conversations(action, argument, input),
     };
     match result {
         Ok(snapshot) => serde_json::to_value(snapshot).unwrap(),
@@ -19,8 +19,16 @@ pub(super) fn command(action: &str, argument: &str, input: &Value) -> Value {
     }
 }
 
-fn conversations(action: &str, argument: &str) -> Value {
+fn conversations(action: &str, argument: &str, input: &Value) -> Value {
     match action {
+        "plus_channel_offer" => match channel::send_dm_offer(
+            argument.into(),
+            input["target"].as_str().unwrap().into(),
+            input["invite"].as_str().unwrap().into(),
+        ) {
+            Ok(()) => json!({"ok":true}),
+            Err(error) => json!({"error":error.to_string()}),
+        },
         "plus_channel_poll" => {
             serde_json::to_value(channel::poll(argument.into()).unwrap()).unwrap()
         }

@@ -19,6 +19,9 @@ pub struct DmOffer {
     pub from_fingerprint: String,
     pub target_fingerprint: String,
     pub invite_uri: String,
+    /// Derived by the receiving carrier. Wire input cannot assert this value.
+    #[serde(default, skip_deserializing, skip_serializing_if = "Option::is_none")]
+    pub authenticated: Option<bool>,
 }
 
 /// The offers aimed at us, oldest first.
@@ -42,6 +45,7 @@ impl DmOffers {
             from_fingerprint,
             target_fingerprint,
             invite_uri,
+            authenticated: None,
         }
     }
 
@@ -70,6 +74,14 @@ impl DmOffers {
 
     fn holds(&self, offer_id: &str) -> bool {
         self.offers.iter().any(|offer| offer.offer_id == offer_id)
+    }
+}
+
+impl DmOffer {
+    pub(crate) fn signing_bytes(&self) -> Result<Vec<u8>, String> {
+        let mut unsigned = self.clone();
+        unsigned.authenticated = None;
+        serde_json::to_vec(&unsigned).map_err(|e| e.to_string())
     }
 }
 

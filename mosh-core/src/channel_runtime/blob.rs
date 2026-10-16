@@ -29,7 +29,10 @@ impl ChannelSession {
                 }
                 Ok(())
             }
-            ChannelBlobEnvelope::DmOffer { offer } => {
+            ChannelBlobEnvelope::DmOffer { mut offer, origin } => {
+                offer.authenticated = origin
+                    .as_ref()
+                    .and_then(|proof| self.verify_offer(&offer, proof).ok().map(|()| true));
                 self.dm_offers.receive(offer, &self.device_fingerprint);
                 Ok(())
             }

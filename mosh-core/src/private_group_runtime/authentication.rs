@@ -168,7 +168,7 @@ impl GroupSession {
         ciphertext: &str,
         sender: VerifiedSender,
     ) -> Result<(), PrivateGroupError> {
-        let offer: DmOffer = decode_json(&self.decrypt_application(ciphertext, &sender)?)?;
+        let mut offer: DmOffer = decode_json(&self.decrypt_application(ciphertext, &sender)?)?;
         self.require_author(&offer.from_fingerprint, &sender)?;
         crate::private_dm_runtime::invite_ownership::verify_offered_invite(
             &offer.invite_uri,
@@ -176,6 +176,7 @@ impl GroupSession {
             &offer.target_fingerprint,
         )
         .map_err(PrivateGroupError::Codec)?;
+        offer.authenticated = Some(true);
         self.dm_offers.receive(offer, &self.device_fingerprint);
         Ok(())
     }
