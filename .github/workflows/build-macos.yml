@@ -27,6 +27,14 @@ on:
         description: Compile mosh-core with parallel codegen (CI proof builds, never releases).
         type: boolean
         default: false
+      plus-server-url:
+        description: Optional PLUS devnet billing URL (HTTPS or loopback HTTP).
+        type: string
+        default: ''
+      plus-issuer-key:
+        description: Optional independently pinned PLUS issuer public SPKI base64.
+        type: string
+        default: ''
     outputs:
       artifact:
         description: Name of the uploaded artifact holding the universal .dmg and its .sha256.
@@ -35,6 +43,18 @@ on:
     inputs:
       universal:
         description: Build universal binary (arm64 + x86_64).
+        type: boolean
+        default: true
+      plus-server-url:
+        description: PLUS devnet billing URL (HTTPS or loopback HTTP).
+        type: string
+        default: ''
+      plus-issuer-key:
+        description: Independently pinned PLUS issuer public SPKI base64.
+        type: string
+        default: ''
+      parallel-codegen:
+        description: Compile mosh-core with parallel codegen for a pilot build.
         type: boolean
         default: true
 
@@ -47,7 +67,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 60
     outputs:
-      artifact: mosh-macos-dmg
+      artifact: ${{ inputs.plus-issuer-key != '' && 'mosh-macos-plus-devnet' || 'mosh-macos-dmg' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -117,9 +137,14 @@ jobs:
         env:
           MOSH_ONLY_ACTIVE_ARCH: ${{ inputs.universal && 'NO' || 'YES' }}
           MOSH_MACOS_UNIVERSAL: ${{ inputs.universal && 'true' || 'false' }}
+          MOSH_PLUS_SERVER_URL: ${{ inputs.plus-server-url }}
+          MOSH_PLUS_ISSUER_KEY: ${{ inputs.plus-issuer-key }}
         # ADR 0035: the Sentry DSN (a public repo variable) enables opt-in
         # crash reporting; without it the build cannot report at all.
-        run: flutter build macos --release --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }}
+        run: >-
+          flutter build macos --release --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }}
+          "--dart-define=MOSH_PLUS_SERVER_URL=$MOSH_PLUS_SERVER_URL"
+          "--dart-define=MOSH_PLUS_ISSUER_KEY=$MOSH_PLUS_ISSUER_KEY"
 
       - name: Test native menu localization
         if: ${{ !inputs.universal }}
@@ -177,7 +202,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mosh-macos-dmg
+          name: ${{ inputs.plus-issuer-key != '' && 'mosh-macos-plus-devnet' || 'mosh-macos-dmg' }}
           path: |
             build/macos-dist/*.dmg
             build/macos-dist/*.sha256

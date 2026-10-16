@@ -21,6 +21,14 @@ implementation in the separate `mosh-billing` repository. Its README describes
 key generation, durable SQLite storage and server configuration. Nothing in this
 slice creates a remote repository, deploys a server or uses mainnet.
 
+The existing Windows installer and macOS DMG workflows also accept manual
+`plus-server-url` and `plus-issuer-key` inputs on the selected branch. Pass the
+same independently pinned public key to both to produce ready-to-install pilot
+clients. Their artifacts are named `mosh-windows-plus-devnet` and
+`mosh-macos-plus-devnet`; ordinary builds keep their existing artifact names and
+leave PLUS disabled. A loopback URL supports an SSH tunnel to a private verifier
+without deploying a public billing service. Issuer private keys stay outside CI.
+
 Profile settings displays price, mint, recipient, devnet, term and network-fee
 notice before creating an order. The encrypted native owner saves the immutable
 order and its bearer capability before the QR appears. The standard QR does not
