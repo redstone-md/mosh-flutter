@@ -45,6 +45,7 @@ pub struct JoinChannelRequest {
 pub(crate) mod types;
 pub use types::*;
 struct ChannelSession {
+    plus_schedule: crate::plus::PlusSchedule,
     pub(super) deletions: crate::message_deletion::DeletionBook,
     pub(super) name: String,
     pub(super) topic: String,
@@ -254,6 +255,7 @@ impl ChannelRuntime {
         for session in self.channels.values_mut() {
             session.apply_deletions()?;
             let _ = session.sync_deletions(crate::conversation::now_ms());
+            let _ = session.sync_plus(crate::conversation::now_ms());
             session.pump_attachment_requests();
         }
         Ok(())
@@ -302,6 +304,7 @@ impl ConversationSession for ChannelSession {
 mod blob;
 mod deletion;
 mod lifecycle;
+mod plus;
 mod session;
 
 pub fn normalize_name(raw: &str) -> Result<String, ChannelRuntimeError> {

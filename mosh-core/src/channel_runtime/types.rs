@@ -104,6 +104,9 @@ pub struct ChannelSnapshot {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub(super) enum ChannelBlobEnvelope {
+    PlusMetadata {
+        frame: crate::plus::PlusFrame,
+    },
     MessageDeletion {
         frame: crate::message_deletion::protocol::DeletionFrame,
     },
@@ -121,7 +124,9 @@ pub(super) enum ChannelBlobEnvelope {
         frame: ChunkFrame,
     },
     /// A private-DM invitation aimed at one channel member.
-    DmOffer { offer: DmOffer },
+    DmOffer {
+        offer: DmOffer,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

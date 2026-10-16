@@ -76,6 +76,7 @@ impl GroupSession {
             return Ok(());
         }
         match envelope {
+            ControlEnvelope::PlusMetadata { frame, .. } => self.receive_plus(&frame, sender),
             ControlEnvelope::MessageDeletion { frame, .. } => {
                 self.receive_deletion_frame(frame, &sender)
             }

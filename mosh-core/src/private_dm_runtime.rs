@@ -130,6 +130,7 @@ pub struct PrivateDmRuntime {
 }
 
 struct PrivateDmSession {
+    plus_schedule: crate::plus::PlusSchedule,
     invitation: Option<invitations::InviteLifecycle>,
     deletions: crate::message_deletion::DeletionBook,
     history_last_rx_ms: u64,
@@ -321,6 +322,7 @@ mod control;
 mod data;
 mod deletion;
 mod liveness;
+mod plus;
 mod session;
 mod snapshot;
 mod typing;

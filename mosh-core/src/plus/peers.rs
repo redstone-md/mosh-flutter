@@ -10,7 +10,9 @@ pub(super) struct PeerEvidence {
 
 impl PeerEvidence {
     pub(super) fn trusted_by(&self, issuer: &Issuer, account: &str) -> bool {
-        self.certificate.as_ref().is_none_or(|certificate| issuer.verify(certificate, account, 0).is_ok())
+        self.certificate
+            .as_ref()
+            .is_none_or(|certificate| issuer.verify(certificate, account, 0).is_ok())
     }
 }
 
@@ -24,6 +26,17 @@ impl PlusRuntime {
         now_ms: u64,
     ) -> Result<Option<PlusFrame>, String> {
         if !self.state.ever_visible {
+            return Ok(None);
+        }
+        // Peers expire the same certificate locally. Sending a different value
+        // under the original revision would conflict with its signed opt-in.
+        if self.state.visible
+            && self
+                .state
+                .certificate
+                .as_ref()
+                .is_some_and(|c| c.expires_at_ms <= now_ms)
+        {
             return Ok(None);
         }
         let Some(ownership) =
@@ -64,9 +77,7 @@ impl PlusRuntime {
         now_ms: u64,
     ) -> Result<(), String> {
         let account = frame.verify(context, author)?;
-        if let Some(certificate) = &frame.certificate {
-            self.issuer.verify(certificate, &account, now_ms)?;
-        }
+        let known = self.state.peers.get(&account);
         if let Some(old) = self.state.peers.get(&account) {
             if old.revision > frame.revision {
                 return Ok(());
@@ -76,6 +87,14 @@ impl PlusRuntime {
             }
         } else if self.state.peers.len() >= 2048 {
             return Err("PLUS peer cache limit reached".into());
+        }
+        if let Some(certificate) = &frame.certificate {
+            if certificate.expires_at_ms <= now_ms {
+                return Err("expired PLUS certificate".into());
+            }
+            if !known.is_some_and(|p| p.certificate.as_ref() == Some(certificate)) {
+                self.issuer.verify(certificate, &account, now_ms)?;
+            }
         }
         let mut mapped = self
             .state

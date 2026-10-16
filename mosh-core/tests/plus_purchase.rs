@@ -41,7 +41,7 @@ fn authenticated_peer_badge_updates_without_a_chat_message_and_cannot_replay_opt
     sender.save_order(&order(), 1_700_000_000_000).unwrap();
     let request = sender.prepare_issuance().unwrap();
     let key = issuer()
-        .derive_key_pair_for_metadata(b"mosh-plus-devnet-v1\0mosh-plus-30d\01800057600000")
+        .derive_key_pair_for_metadata(b"mosh-plus-devnet-v1\0mosh-plus-30d\x001800057600000")
         .unwrap();
     let signature = key
         .sk
@@ -71,13 +71,33 @@ fn authenticated_peer_badge_updates_without_a_chat_message_and_cannot_replay_opt
         )
         .unwrap();
     assert_eq!(receiver.snapshot(1_700_000_000_000).peer_badges.len(), 1);
+    let mut forged = frame.clone();
+    forged.signature = "00".repeat(64);
+    assert!(receiver
+        .accept_peer(&forged, "channel:test", &author, &[], 1_700_000_000_000)
+        .is_err());
+    assert!(sender
+        .frame("channel:test", &peer, &author, sign, 1_800_057_600_000)
+        .unwrap()
+        .is_none());
     drop(receiver);
-    let other: serde_json::Value = serde_json::from_str(include_str!("fixtures/plus-public-vector.json")).unwrap();
-    let store = Arc::new(Persistence::open_with_dek(&directory.path().join("receiver"), [42; 32]).unwrap());
-    let changed_issuer = PlusRuntime::open(store, "cd".repeat(32), other["public_key"].as_str().unwrap()).unwrap();
-    assert!(changed_issuer.snapshot(1_700_000_000_000).peer_badges.is_empty());
+    let other: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/plus-public-vector.json")).unwrap();
+    let store =
+        Arc::new(Persistence::open_with_dek(&directory.path().join("receiver"), [42; 32]).unwrap());
+    let changed_issuer = PlusRuntime::open(
+        store,
+        "cd".repeat(32),
+        other["public_key"].as_str().unwrap(),
+    )
+    .unwrap();
+    assert!(changed_issuer
+        .snapshot(1_700_000_000_000)
+        .peer_badges
+        .is_empty());
     drop(changed_issuer);
-    let store = Arc::new(Persistence::open_with_dek(&directory.path().join("receiver"), [42; 32]).unwrap());
+    let store =
+        Arc::new(Persistence::open_with_dek(&directory.path().join("receiver"), [42; 32]).unwrap());
     let mut receiver = PlusRuntime::open(store, "cd".repeat(32), &public_key).unwrap();
     assert!(receiver
         .accept_peer(&frame, "channel:other", &author, &[], 1_700_000_000_000)
@@ -128,12 +148,27 @@ fn purchase_resumes_the_same_blinded_request_and_retains_the_certificate_after_r
     let store = Arc::new(Persistence::open_with_dek(&path, [42; 32]).unwrap());
     let mut owner = PlusRuntime::open(store, "ab".repeat(32), &issuer_key).unwrap();
     owner.save_order(&order(), 1_700_000_000_000).unwrap();
+    for (field, value) in [
+        ("network", "solana-mainnet"),
+        ("amount_atomic", "1000000002"),
+        ("payment_uri", "solana:wrong"),
+        ("access_token", "short"),
+    ] {
+        let mut invalid: serde_json::Value = serde_json::from_str(&order()).unwrap();
+        invalid[field] = value.into();
+        if field == "access_token" {
+            invalid["id"] = "another-order".into();
+        }
+        assert!(owner
+            .save_order(&invalid.to_string(), 1_700_000_000_000)
+            .is_err());
+    }
     let blinded = owner.prepare_issuance().unwrap();
     drop(owner);
     let store = Arc::new(Persistence::open_with_dek(&path, [42; 32]).unwrap());
     let mut owner = PlusRuntime::open(store, "ab".repeat(32), &issuer_key).unwrap();
     assert_eq!(owner.prepare_issuance().unwrap(), blinded);
-    let metadata = b"mosh-plus-devnet-v1\0mosh-plus-30d\01800057600000";
+    let metadata = b"mosh-plus-devnet-v1\0mosh-plus-30d\x001800057600000";
     let key = issuer().derive_key_pair_for_metadata(metadata).unwrap();
     let signature = key
         .sk
@@ -157,4 +192,23 @@ fn purchase_resumes_the_same_blinded_request_and_retains_the_certificate_after_r
         .save_order(&next.to_string(), 1_800_057_600_001)
         .unwrap();
     assert_ne!(owner.prepare_issuance().unwrap(), blinded);
+}
+
+#[test]
+fn an_expired_paid_issuance_can_be_replaced_after_a_client_outage() {
+    let directory = TempDirectory::new("mosh-plus-expired-intent");
+    let store =
+        Arc::new(Persistence::open_with_dek(&directory.path().join("store"), [42; 32]).unwrap());
+    let key = STANDARD.encode(issuer().pk.to_der().unwrap());
+    let mut owner = PlusRuntime::open(store, "ab".repeat(32), &key).unwrap();
+    owner.save_order(&order(), 1_700_000_000_000).unwrap();
+    owner.prepare_issuance().unwrap();
+    let mut next: serde_json::Value = serde_json::from_str(&order()).unwrap();
+    next["id"] = "new-order".into();
+    next["expires_at_ms"] = 1_802_736_000_000_u64.into();
+    owner
+        .save_order(&next.to_string(), 1_800_057_600_001)
+        .unwrap();
+    assert!(!owner.snapshot(1_800_057_600_001).active);
+    assert!(owner.prepare_issuance().is_ok());
 }

@@ -19,6 +19,7 @@ pub mod device_link;
 /// Facade for app-level health: `app_diagnostics` /
 /// `native_runtime_status`.
 pub mod diagnostics;
+pub mod plus;
 
 /// Shared process-global runtime resources (Moss node + attachment store +
 /// persistence) + the two mobile-inject knobs (`set_history_dek`,

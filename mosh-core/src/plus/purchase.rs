@@ -48,7 +48,9 @@ impl PlusRuntime {
             return Err("PLUS purchase belongs to a different account".into());
         }
         let issuer = Issuer::new(issuer_key_b64)?;
-        state.peers.retain(|account, proof| proof.trusted_by(&issuer, account));
+        state
+            .peers
+            .retain(|account, proof| proof.trusted_by(&issuer, account));
         Ok(Self {
             store,
             issuer,
@@ -73,11 +75,10 @@ impl PlusRuntime {
             }
             order.access_token = old.access_token.clone();
         } else if self.snapshot(now_ms).active
-            || self
-                .state
-                .order
-                .as_ref()
-                .is_some_and(|o| o.status != PlusPaymentStatus::Issued)
+            || self.state.order.as_ref().is_some_and(|o| {
+                o.status == PlusPaymentStatus::AwaitingPayment
+                    || o.expires_at_ms.is_none_or(|expiry| expiry > now_ms)
+            })
         {
             return Err("PLUS purchase is already active".into());
         }

@@ -8,6 +8,7 @@ impl ChannelSession {
             .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;
         match envelope {
             ChannelBlobEnvelope::MessageDeletion { frame } => self.receive_deletion_frame(frame),
+            ChannelBlobEnvelope::PlusMetadata { frame } => self.receive_plus(&frame),
             ChannelBlobEnvelope::Manifest {
                 from_device,
                 from_fingerprint,
