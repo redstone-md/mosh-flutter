@@ -33,6 +33,9 @@ resumes an outstanding order when the configured app is running. Failed reads or
 issuance retain the last snapshot and expose Retry. A completed certificate needs
 no payment server to remain valid. Orders cannot be replaced while pending or
 active; a completed or interrupted issuance can be replaced after its expiry.
+An installation with a pending or completed purchase cannot adopt another account
+through device linking. A fresh installation may link first; every PLUS command
+then resolves the current account before reading or writing its owner.
 
 ## Protocol and ownership
 
@@ -51,6 +54,9 @@ classic token program, reference, mint, recipient and exact integer received
 amount. A submitted transaction signature or wallet callback grants nothing.
 Overpayment and late correct payment are accepted; partial transfers are not
 combined. The server durably claims a transaction for one order only.
+Reference history advances in bounded pages with a durable `scan_before` cursor.
+A correct transfer cannot be permanently buried behind the latest 100 signatures;
+the cursor survives verifier restart and returns to the head after reaching the end.
 
 The first verified paid transition reserves the durable issuance intent and
 `expires_at_ms`: thirty days from that transition, rounded **up** to a UTC day.
@@ -81,6 +87,11 @@ evidence for own profile, DM header/details/list/offer, message authors,
 participants and organization member/offer identities. Group/channel titles
 represent conversations and receive no paid user badge. Legacy public messages
 without a native-verified origin cannot borrow a badge by claiming a fingerprint.
+Participant labels retain the provenance of their selected message; an unsigned
+legacy message cannot replace an authenticated label. Native channel DM offers
+countersign their complete name/invite/target in an optional message-origin proof.
+Only verified carrier/invite ownership can set the snapshot's `authenticated`
+flag; serialized input cannot assert it. Legacy offers remain ordinary offers.
 
 `plus::PlusRuntime` owns encrypted local purchase, visibility revision and peer
 evidence in additive `plus_records` storage. Runtime account proofs delegate the
@@ -98,6 +109,8 @@ bounded (2048 accounts, 128 aliases/account); unchanged verified certificates do
 not repeat RSA verification or persistence on every advertisement. Restart checks
 cached certificates against the current pin. Conversation owners acquire the PLUS
 lock; the PLUS owner never acquires a conversation lock.
+Withdrawals for unknown accounts do not allocate cache entries. Known withdrawals
+retain their revision so earlier opt-in packets cannot replay over them.
 
 Opt-out publishes a higher signed revision. Recipients reject older revisions;
 expiry is evaluated locally even offline. Opt-out cannot erase previously shared
@@ -123,7 +136,7 @@ reinstall, early renewal, other durations and service grace are deferred.
   Russian layout. A rendered QR is decoded through the existing image importer.
 
 Automated RPC fixtures are not a real-chain/mobile-wallet acceptance result.
-The remaining manual gate requires an HTTPS pilot server, a devnet mint/treasury,
+The remaining manual gate requires a loopback or HTTPS pilot server, a devnet mint/treasury,
 funded external mobile wallet and two Windows/macOS clients. Pay a QR, restart the
 verifier during pending issuance, restart the buyer, then check the same expiry,
 default hidden state, explicit opt-in in all user surfaces and opt-out. Repeat an
@@ -133,4 +146,29 @@ signature and outcomes privately; do not publish order capabilities or keys.
 The existing conversation widget builders/control dispatchers retain documented
 size exceptions. PLUS peer authorization and the scenario tests keep complete
 verification/persistence sequences together; these functions may exceed 50 lines.
+The participant getter keeps the three existing conversation kinds and their
+display-name provenance together, including declarative record construction.
 Generated bridge files are not handwritten code.
+
+## Local check results
+
+- Flutter full suite: **1978 passed, 4 skipped**. Analyze and formatting passed.
+  Changed executable lines: **290/318 (91.19%)**; changed branches:
+  **83/111 (74.77%)**, excluding generated bindings.
+- Rust full Moss runner passed. After review fixes, focused PLUS, signed-offer,
+  account-adoption and independent-process propagation tests passed again.
+  Build, formatting and all-target Clippy with warnings denied passed.
+  Changed executable lines: **768/833 (92.20%)**; stable LLVM emitted no branch
+  counters. A clean coverage build avoided merging earlier source revisions.
+- Actual Flutter/native bridge passed its PLUS persistence/blinding/forgery and
+  account-adoption checks. Bridge regeneration produces no binding drift.
+- Private billing typecheck and all three HTTP scenarios passed. Loaded service
+  modules measured **98.10% lines / 76.80% branches**. The late-payment scenario
+  includes 104 failed signatures and a verifier restart between scan pages.
+- Fresh TypeScript issuance → Rust finalization/verification → Go verification
+  passed, including rejecting a different account. Its ephemeral test key and
+  output remain outside the public source tree.
+- All six independent review findings were corrected. Own-badge expiry also has
+  a regression for a previously active native snapshot that has become stale.
+
+These results do not replace the real devnet-wallet/Windows/macOS gate above.

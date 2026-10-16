@@ -2,6 +2,9 @@
 
 Status: product scope, implementation contracts, dependencies, additive schemas
 and TDD seams approved by the user in the implementation interview.
+Implemented and verified locally. See [feature/protocol guide](../Features/plus-devnet.md)
+and [review results](issue-70-plus-devnet.review.md). Real-wallet/desktop acceptance
+remains the manual gate described below.
 
 Issue: https://github.com/redstone-md/mosh-flutter/issues/70
 Starting revision: `10e4a711808a66f6592831516ce33648fbaae8b3`.
@@ -64,7 +67,7 @@ status cannot be erased from other people's copies by changing visibility.
   issuer trust key independently of responses from the payment endpoint. Use
   HTTPS outside loopback; reject mainnet configuration in this devnet slice.
 
-## Proposed additions requiring confirmation
+## Approved additions
 
 - Rust dependency: `blind-rsa-signatures` for partially blind RSA. Check exact
   version, safe-prime key requirements and shared suite interoperability first.
@@ -83,7 +86,7 @@ status cannot be erased from other people's copies by changing visibility.
 - Share typed public wire examples/test vectors with the private server;
   publishing the issuer implementation is unnecessary for interoperability.
 
-## Proposed TDD seams
+## Approved TDD seams
 
 1. Payment HTTP interface (`create order`, `read status`, `issue certificate`),
    using real durable SQLite and real protocol/cryptography dependencies.

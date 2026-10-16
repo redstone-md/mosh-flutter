@@ -8,6 +8,9 @@ Purchases need durable independent on-chain verification while peers must verify
 a paid badge without contacting billing. A wallet/order must not become the
 messenger account identity. Existing Moss identities, MLS leaves and linked-account
 roots already have distinct owners and authenticated delegation paths.
+Plain account-linked issuance would directly connect a wallet payment to a Mosh
+identity. Partially blind issuance adds cryptographic/key-management complexity
+to avoid that direct join while keeping peers independent of billing availability.
 
 ## Decision
 
@@ -28,6 +31,9 @@ requiring text or changing text-message ratchets. Verify actual conversation aut
 delegated account, pinned issuer and expiry locally. A single shared Flutter badge
 reads this owner. The global visibility setting starts off. Legacy public author
 labels alone cannot establish paid identity.
+Native offer/participant snapshots carry verification provenance into every user
+surface. A purchase makes its installation ineligible to adopt another account;
+fresh linking before purchase rebinds the PLUS owner to the adopted account.
 
 ## Consequences
 
