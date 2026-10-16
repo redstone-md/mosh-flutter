@@ -12,6 +12,7 @@ class DisplayNameForm extends StatefulWidget {
       required this.onSave,
       this.compact = false,
       this.showAvatar = true,
+      this.showPlus = false,
       this.showSaveConfirmation = true});
   final String initialName;
   final String actionLabel;
@@ -20,6 +21,7 @@ class DisplayNameForm extends StatefulWidget {
 
   /// The profile editor previews initials; setup leads straight to the field.
   final bool showAvatar;
+  final bool showPlus;
 
   /// Settings confirms a save; the wizard confirms by moving to the next step.
   final bool showSaveConfirmation;
@@ -85,7 +87,10 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                               backgroundColor: MoshColors.avatarSurface,
                               child: Icon(Icons.person_outline,
                                   size: radius * .8, color: MoshColors.fg2))
-                          : Avatar(name: _name.text, radius: radius))),
+                          : Avatar(
+                              name: _name.text,
+                              radius: radius,
+                              ownPlus: widget.showPlus))),
               SizedBox(height: widget.compact ? 16 : 28),
             ],
             TextFormField(

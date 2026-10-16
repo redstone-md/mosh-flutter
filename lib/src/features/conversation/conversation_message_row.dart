@@ -18,6 +18,7 @@ import 'package:mosh/src/gateway/conversation_target.dart'
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/rust/message_deletion/types.dart';
+import 'package:mosh/src/features/plus/plus_identity.dart';
 
 class ConversationMessageRow extends StatelessWidget {
   const ConversationMessageRow({
@@ -33,11 +34,16 @@ class ConversationMessageRow extends StatelessWidget {
     required this.l,
     this.attachmentView,
     this.peer,
+    this.conversationKey,
     this.continuesBelow = false,
   });
 
   final ConversationMessage message;
   final ConversationKind kind;
+  final String? conversationKey;
+
+  String? get _plusIdentity =>
+      verifiedMessagePlusIdentity(message, conversationKey);
 
   /// Whether this row continues the previous sender's block. A continuation
   /// row drops the meta and indents under the first row's avatar.
@@ -80,6 +86,7 @@ class ConversationMessageRow extends StatelessWidget {
                         SelectionContainer.disabled(
                             child: Avatar(
                                 name: message.fromDevice,
+                                plusIdentity: _plusIdentity,
                                 radius: messageAvatarSize / 2)),
                       const SizedBox(width: kMessageRowGap),
                     ],
@@ -179,6 +186,7 @@ class ConversationMessageRow extends StatelessWidget {
             if (!grouped && !message.own && kind != ConversationKind.dm)
               ConversationSenderMeta(
                 fromDevice: message.fromDevice,
+                plusIdentity: _plusIdentity,
                 fromFingerprint: message.fromFingerprint,
                 sentAtMs: message.sentAtMs,
                 showTime: false,
