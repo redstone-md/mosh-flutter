@@ -27,6 +27,7 @@ pub mod org_signing;
 pub mod outbound_delivery;
 pub mod panic_reporting;
 pub mod persistence;
+pub mod plus;
 pub mod private_dm_runtime;
 pub mod private_group_runtime;
 pub mod read_receipts;
