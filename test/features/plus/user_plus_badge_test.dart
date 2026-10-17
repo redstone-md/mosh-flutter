@@ -87,6 +87,37 @@ void main() {
         container: container);
     expect(find.byIcon(Icons.workspace_premium), findsNWidgets(2));
   });
+
+  testWidgets('legacy DM messages use the authenticated conversation badge',
+      (tester) async {
+    final native = MemoryPlusCommands()
+      ..current = PlusSnapshot(active: false, visible: false, peerBadges: [
+        PlusPeerBadge(
+            identity: 'dm:test',
+            expiresAtMs: BigInt.from(DateTime.now()
+                .add(const Duration(days: 1))
+                .millisecondsSinceEpoch))
+      ]);
+    final container = _container(native);
+    addTearDown(container.dispose);
+    await pumpScreen(
+        tester,
+        Scaffold(
+            body: ConversationMessageRow(
+                message: const ConversationMessage(
+                    fromDevice: 'Peer', body: 'legacy DM', own: false),
+                conversationKey: 'dm:test',
+                kind: ConversationKind.dm,
+                grouped: false,
+                busy: false,
+                onAttachmentDownload: (_) {},
+                onAttachmentCancel: (_) {},
+                onAttachmentOpen: (_) {},
+                onRetry: (_) {},
+                l: lookupAppLocalizations(const Locale('en')))),
+        container: container);
+    expect(find.byIcon(Icons.workspace_premium), findsOneWidget);
+  });
 }
 
 ProviderContainer _container(MemoryPlusCommands native) =>

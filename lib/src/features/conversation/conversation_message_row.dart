@@ -43,7 +43,7 @@ class ConversationMessageRow extends StatelessWidget {
   final String? conversationKey;
 
   String? get _plusIdentity =>
-      verifiedMessagePlusIdentity(message, conversationKey);
+      verifiedMessagePlusIdentity(message, conversationKey, kind);
 
   /// Whether this row continues the previous sender's block. A continuation
   /// row drops the meta and indents under the first row's avatar.
