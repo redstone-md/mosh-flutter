@@ -157,16 +157,15 @@ impl MessageOrigin {
 }
 
 pub(crate) fn verify_signature(key: &str, signature: &str, input: &[u8]) -> Result<(), String> {
-    let bytes: [u8; 32] = hex::decode(key)
-        .map_err(|e| e.to_string())?
-        .try_into()
-        .map_err(|_| "invalid signing key")?;
-    let key = VerifyingKey::from_bytes(&bytes).map_err(|e| e.to_string())?;
+    let mut key_bytes = [0; 32];
+    hex::decode_to_slice(key, &mut key_bytes).map_err(|e| e.to_string())?;
+    let key = VerifyingKey::from_bytes(&key_bytes).map_err(|e| e.to_string())?;
     if key.is_weak() {
         return Err("weak signing key".into());
     }
-    let signature = hex::decode(signature).map_err(|e| e.to_string())?;
-    let signature = Signature::from_slice(&signature).map_err(|e| e.to_string())?;
+    let mut signature_bytes = [0; 64];
+    hex::decode_to_slice(signature, &mut signature_bytes).map_err(|e| e.to_string())?;
+    let signature = Signature::from_bytes(&signature_bytes);
     key.verify_strict(input, &signature)
         .map_err(|e| e.to_string())
 }
