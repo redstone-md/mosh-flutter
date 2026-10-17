@@ -106,3 +106,12 @@ unit suite **732 passed / 20 ignored**, targeted purchase/certificate and real
 channel-offer scenarios passed. Analyze, all-target Clippy, formatting and
 bridge regeneration/drift checks passed. The fixed-size signature change adds
 no new dependency; checkout serialization reuses the existing native owner.
+
+CI follow-up: the Flutter job in run `38989627016` failed when a reused call-window
+renderer capability was rejected with a TCP reset during `Socket.connect`.
+The test assumed rejection always returned a stream ending at EOF. A separate
+server isolate reproduced the rejection race locally. The shared test assertion
+now accepts socket errors during connect/read, retains any received bytes for
+the zero-pixel assertion, preserves its timeout, and always destroys the socket.
+The one-time capability and application transport are unchanged. The original
+five channel tests and 1,000 rejected connections passed after the correction.
