@@ -40,7 +40,7 @@ impl DmOffers {
         invite_uri: String,
     ) -> DmOffer {
         DmOffer {
-            offer_id: format!("offer-{}", &sha256_hex(invite_uri.as_bytes())[..16]),
+            offer_id: Self::offer_id(&invite_uri),
             from_device,
             from_fingerprint,
             target_fingerprint,
@@ -49,13 +49,23 @@ impl DmOffers {
         }
     }
 
-    /// Files an offer that just arrived. It is kept only when it names us,
-    /// did not come from us, and is not one we already hold.
+    /// Keeps addressed offers with canonical IDs. Authenticated arrivals replace
+    /// an unsigned duplicate; later unverified fields cannot downgrade them.
     pub fn receive(&mut self, offer: DmOffer, own_fingerprint: &str) {
         if offer.target_fingerprint != own_fingerprint
             || offer.from_fingerprint == own_fingerprint
-            || self.holds(&offer.offer_id)
+            || offer.offer_id != Self::offer_id(&offer.invite_uri)
         {
+            return;
+        }
+        if let Some(old) = self
+            .offers
+            .iter_mut()
+            .find(|old| old.offer_id == offer.offer_id)
+        {
+            if old.authenticated != Some(true) && offer.authenticated == Some(true) {
+                *old = offer;
+            }
             return;
         }
         self.offers.push(offer);
@@ -72,8 +82,8 @@ impl DmOffers {
         self.offers.clone()
     }
 
-    fn holds(&self, offer_id: &str) -> bool {
-        self.offers.iter().any(|offer| offer.offer_id == offer_id)
+    fn offer_id(invite_uri: &str) -> String {
+        format!("offer-{}", &sha256_hex(invite_uri.as_bytes())[..16])
     }
 }
 
@@ -153,6 +163,37 @@ mod tests {
         offers.receive(offer_from(THEM, US, "mosh://invite/one"), US);
 
         assert_eq!(offers.to_vec().len(), 1);
+    }
+
+    #[test]
+    fn authenticated_offer_replaces_unsigned_fields_and_cannot_be_downgraded() {
+        let mut offers = DmOffers::default();
+        let mut unsigned = offer_from(THEM, US, "mosh://invite/one");
+        unsigned.from_device = "Forged name".into();
+        offers.receive(unsigned.clone(), US);
+        let mut verified = offer_from(THEM, US, "mosh://invite/one");
+        verified.authenticated = Some(true);
+        offers.receive(verified, US);
+        offers.receive(unsigned, US);
+        let saved = offers.to_vec();
+        assert_eq!(saved.len(), 1);
+        assert_eq!(saved[0].from_device, "their laptop");
+        assert_eq!(saved[0].authenticated, Some(true));
+    }
+
+    #[test]
+    fn copying_an_offer_id_cannot_suppress_a_different_invite() {
+        let mut offers = DmOffers::default();
+        let verified = offer_from(THEM, US, "mosh://invite/one");
+        let mut collision = offer_from("other-peer", US, "mosh://invite/two");
+        collision.offer_id = verified.offer_id.clone();
+        collision.authenticated = Some(true);
+        offers.receive(collision, US);
+        offers.receive(verified, US);
+        let saved = offers.to_vec();
+        assert_eq!(saved.len(), 1);
+        assert_eq!(saved[0].invite_uri, "mosh://invite/one");
+        assert_eq!(saved[0].from_fingerprint, THEM);
     }
 
     #[test]

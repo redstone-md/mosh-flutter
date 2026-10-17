@@ -30,9 +30,14 @@ impl ChannelSession {
                 Ok(())
             }
             ChannelBlobEnvelope::DmOffer { mut offer, origin } => {
-                offer.authenticated = origin
-                    .as_ref()
-                    .and_then(|proof| self.verify_offer(&offer, proof).ok().map(|()| true));
+                offer.authenticated = match origin {
+                    Some(proof) => {
+                        self.verify_offer(&offer, &proof)
+                            .map_err(ChannelRuntimeError::Codec)?;
+                        Some(true)
+                    }
+                    None => None,
+                };
                 self.dm_offers.receive(offer, &self.device_fingerprint);
                 Ok(())
             }

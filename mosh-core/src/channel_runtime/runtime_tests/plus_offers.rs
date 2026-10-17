@@ -54,18 +54,23 @@ fn only_the_signed_offer_name_and_invite_can_represent_a_paid_author() {
             wire["offer"]["from_device"] = "Forged name".into();
         }
         wire["offer"]["authenticated"] = true.into();
-        runtime
+        let received = runtime
             .channel_mut("plus-offers")
             .unwrap()
-            .handle_blob(serde_json::to_vec(&wire).unwrap())
-            .unwrap();
+            .handle_blob(serde_json::to_vec(&wire).unwrap());
+        if changed {
+            assert!(received.is_err());
+            assert!(runtime.poll("plus-offers").unwrap().dm_offers.is_empty());
+            continue;
+        }
+        received.unwrap();
         let saved = runtime.poll("plus-offers").unwrap().dm_offers.remove(0);
-        assert_eq!(saved.authenticated, if changed { None } else { Some(true) });
+        assert_eq!(saved.authenticated, Some(true));
         runtime
             .dismiss_dm_offer("plus-offers", &offer.offer_id)
             .unwrap();
     }
-    let mut legacy = original;
+    let mut legacy = original.clone();
     legacy.as_object_mut().unwrap().remove("origin");
     legacy["offer"]["from_device"] = "Unverified legacy".into();
     legacy["offer"]["authenticated"] = true.into();
@@ -78,4 +83,13 @@ fn only_the_signed_offer_name_and_invite_can_represent_a_paid_author() {
         runtime.poll("plus-offers").unwrap().dm_offers[0].authenticated,
         None
     );
+    runtime
+        .channel_mut("plus-offers")
+        .unwrap()
+        .handle_blob(serde_json::to_vec(&original).unwrap())
+        .unwrap();
+    let offers = runtime.poll("plus-offers").unwrap().dm_offers;
+    assert_eq!(offers.len(), 1);
+    assert_eq!(offers[0].from_device, "Paid sender");
+    assert_eq!(offers[0].authenticated, Some(true));
 }
