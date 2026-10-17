@@ -54,3 +54,55 @@ manual gate and is not represented by local RPC fixtures.
 
 Standards: 2 findings, worst P1 account adoption; Spec: 4 findings, worst P1 forged
 identity surfaces. All six findings have corresponding corrections and tests.
+
+## PR 89: CodeAnt review
+
+[PR 89](https://github.com/redstone-md/mosh-flutter/pull/89) is on
+`feat/plus-devnet`. All three inline findings were accepted, reproduced and
+corrected; GitHub confirms their threads resolved:
+
+| Thread | File | Correction and verification |
+| --- | --- | --- |
+| `PRRT_kwDOTpdkls6tapLt` | `lib/src/features/plus/plus_config.dart` | Reject empty HTTPS hosts; URL regression failed before the fix and passed afterward. |
+| `PRRT_kwDOTpdkls6tap5B` | `test/features/plus/plus_offer_test.dart` | Use tomorrow's expiry instead of a fixed January 2027 deadline; widget test passed. |
+| `PRRT_kwDOTpdkls6taqy4` | `mosh-core/src/plus/peers.rs` | Withdrawals do not allocate aliases. Real signatures and encrypted restart prove full-capacity opt-out and rejection of replayed opt-in; regression failed before the fix. |
+
+The user also requested evaluation of the four suggestions in the
+[CodeAnt Nitpicks comment](https://github.com/redstone-md/mosh-flutter/pull/89#issuecomment-6227023683):
+
+1. **DO NOT ACCEPT the HTTP-race explanation.** No QR is exposed before native
+   order persistence; adoption before that point safely binds the checkout to
+   the current account. A separate native race was confirmed and corrected:
+   `api/plus.rs` now holds the existing device-link owner across account lookup
+   and the PLUS action. The concurrent native-service regression failed before
+   the fix and passed afterward. Existing independent-process coverage verifies
+   adoption before purchase and rejection after purchase. No reservation, schema
+   or bridge change was needed. The concurrency test's 100 ms observation window
+   can reduce its sensitivity under extreme scheduler delay; runtime correctness
+   does not depend on timing.
+2. **ACCEPT offer poisoning.** `channel_runtime/blob.rs` rejects supplied-invalid
+   proofs. `conversation/dm_offers.rs` checks the existing canonical invite ID,
+   promotes verified duplicates over unsigned fields, and never downgrades them.
+   Owner regressions reproduced both poisoned names and copied IDs before the
+   fix. The real channel runtime checks legacy-first to signed upgrade without
+   dismissing the earlier offer.
+3. **ACCEPT legacy DM badge loss.** `plus_identity.dart` uses typed conversation
+   kind: a DM uses its authenticated session, while groups/channels still require
+   native message provenance. The rendered legacy-DM badge regression failed
+   before the fix; the legacy-channel forgery regression still passes.
+4. **ACCEPT fixed-size signature decoding as hardening.** The shared Ed25519
+   verifier decodes into 32/64-byte arrays using the existing `hex` dependency.
+   This removes input-sized decode buffers while preserving strict verification.
+   Moss already bounds incoming publishes, so the original suggestion's
+   unbounded-allocation implication was overstated. Existing real signature and
+   forgery tests validate behavior; rejection tests alone do not measure allocation.
+
+Independent follow-up review reported **0 Standards / 0 Spec findings** for the
+packaging changes and these corrections. The existing Windows/macOS workflows
+produce configured pilot installers; no private issuer key enters Actions.
+
+Follow-up verification: full Flutter suite **1979 passed / 4 skipped**, native
+unit suite **732 passed / 20 ignored**, targeted purchase/certificate and real
+channel-offer scenarios passed. Analyze, all-target Clippy, formatting and
+bridge regeneration/drift checks passed. The fixed-size signature change adds
+no new dependency; checkout serialization reuses the existing native owner.

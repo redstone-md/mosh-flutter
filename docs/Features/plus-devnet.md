@@ -43,7 +43,9 @@ no payment server to remain valid. Orders cannot be replaced while pending or
 active; a completed or interrupted issuance can be replaced after its expiry.
 An installation with a pending or completed purchase cannot adopt another account
 through device linking. A fresh installation may link first; every PLUS command
-then resolves the current account before reading or writing its owner.
+then resolves the current account before reading or writing its owner. Account
+resolution and the native PLUS action hold the device-link owner together, so
+adoption cannot interleave between selecting the account and saving its purchase.
 
 ## Protocol and ownership
 
@@ -100,6 +102,10 @@ legacy message cannot replace an authenticated label. Native channel DM offers
 countersign their complete name/invite/target in an optional message-origin proof.
 Only verified carrier/invite ownership can set the snapshot's `authenticated`
 flag; serialized input cannot assert it. Legacy offers remain ordinary offers.
+An offer with a supplied invalid proof is rejected. A verified arrival upgrades
+an unsigned duplicate without permitting a later downgrade; invite-derived IDs
+prevent a different invitation from occupying the same slot. DM history uses
+its authenticated session's peer badge even without a per-message origin.
 
 `plus::PlusRuntime` owns encrypted local purchase, visibility revision and peer
 evidence in additive `plus_records` storage. Runtime account proofs delegate the
@@ -160,7 +166,7 @@ The participant getter keeps the three existing conversation kinds and their
 display-name provenance together, including declarative record construction.
 Generated bridge files are not handwritten code.
 
-## Local check results
+## Initial implementation checks
 
 - Flutter full suite: **1978 passed, 4 skipped**. Analyze and formatting passed.
   Changed executable lines: **290/318 (91.19%)**; changed branches:
@@ -182,3 +188,5 @@ Generated bridge files are not handwritten code.
   a regression for a previously active native snapshot that has become stale.
 
 These results do not replace the real devnet-wallet/Windows/macOS gate above.
+PR 89's follow-up fixes and checks are recorded in the
+[implementation review](../Proposals/issue-70-plus-devnet.review.md).
