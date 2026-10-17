@@ -1,5 +1,9 @@
 # Mosh+ devnet pilot
 
+For the ready-built Windows/macOS pilot, see the
+[Russian installation and payment guide](plus-devnet-pilot-ru.md), including the
+current live devnet acceptance status.
+
 Issue [#70](https://github.com/redstone-md/mosh-flutter/issues/70) implements one
 30-day product purchased with nine-decimal classic SPL **test tokens** on Solana
 devnet. Payment uses an external mobile wallet and a desktop Solana Pay QR.
