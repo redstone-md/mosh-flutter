@@ -1,4 +1,4 @@
-//! Lock order: conversation owner -> PLUS. PLUS never locks a conversation.
+//! Lock order: conversation/device-link owner -> PLUS. PLUS never locks those owners.
 use super::{PlusFrame, PlusRuntime, PlusSnapshot};
 use crate::{conversation::now_ms, persistence::Persistence};
 use std::sync::{Arc, Mutex};

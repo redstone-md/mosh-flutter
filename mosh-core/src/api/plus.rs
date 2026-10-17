@@ -5,10 +5,11 @@ use crate::{conversation::now_ms, plus::global};
 fn with_owner<T>(
     action: impl FnOnce(&mut crate::plus::PlusRuntime) -> Result<T, String>,
 ) -> Result<T, String> {
-    let account = super::device_link::snapshot()
-        .map_err(|_| "PLUS account unavailable")?
-        .user_id;
-    global::with_owner(&account, action)
+    super::device_link::with_runtime(|runtime| {
+        let account = runtime.snapshot()?.user_id;
+        Ok::<_, super::device_link::DeviceLinkError>(global::with_owner(&account, action))
+    })
+    .map_err(|_| "PLUS account unavailable")?
 }
 
 pub fn configure_issuer(public_key_b64: String) -> Result<PlusSnapshot, String> {
@@ -48,3 +49,7 @@ pub fn set_visible(visible: bool) -> Result<PlusSnapshot, String> {
         Ok(owner.snapshot(now_ms()))
     })
 }
+
+#[cfg(test)]
+#[path = "plus_tests.rs"]
+mod tests;
