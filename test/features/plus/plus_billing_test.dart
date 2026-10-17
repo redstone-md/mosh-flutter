@@ -50,6 +50,8 @@ void main() {
     for (final url in [
       'http://example.com',
       'ftp://localhost',
+      'https:',
+      'https:///',
       'https://a.test/?x=1',
       'https://user@a.test'
     ]) {

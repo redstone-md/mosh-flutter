@@ -10,6 +10,7 @@ class PlusConfig {
     final uri = Uri.parse(serverUrl);
     final loopback = ['localhost', '127.0.0.1', '::1'].contains(uri.host);
     if (!(uri.scheme == 'https' || uri.scheme == 'http' && loopback) ||
+        uri.host.isEmpty ||
         uri.userInfo.isNotEmpty ||
         uri.hasQuery ||
         uri.hasFragment ||
