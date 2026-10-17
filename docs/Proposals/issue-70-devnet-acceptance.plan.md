@@ -20,3 +20,11 @@ headless acceptance must not be described as their manual verification.
 
 No mainnet transactions, new application dependencies, public deployment,
 contract/schema changes, release or merge are included.
+
+Completed on 2026-10-17: loopback systemd billing, initialized classic SPL mint,
+funded test payer, and seven live acceptance checks through real Solana Pay,
+HTTP, native encrypted state and independent Moss peers. A 0.5-token underpayment
+did not grant access; a one-token payment issued a certificate that survived
+retries/restarts and propagated only after explicit opt-in. The ready-installer
+guide contains public transaction evidence. Physical mobile/desktop device
+checks remain outside this headless result.

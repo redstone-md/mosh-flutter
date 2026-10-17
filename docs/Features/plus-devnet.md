@@ -156,8 +156,15 @@ reinstall, early renewal, other durations and service grace are deferred.
   Russian layout. A rendered QR is decoded through the existing image importer.
 
 Automated RPC fixtures are not a real-chain/mobile-wallet acceptance result.
-The remaining manual gate requires a loopback or HTTPS pilot server, a devnet mint/treasury,
-funded external mobile wallet and two Windows/macOS clients. Pay a QR, restart the
+Live headless devnet acceptance passed on 2026-10-17: real Solana Pay underpayment
+and full payment, durable HTTP/native issuance and restarts, then independent
+Moss/MLS peer badge verification and opt-out in DM/group/channel. The loopback
+pilot service and classic SPL mint are provisioned with the existing installer
+issuer pin; transaction evidence is linked in the
+[pilot guide](plus-devnet-pilot-ru.md).
+
+The remaining device gate requires a funded external mobile wallet and the
+Windows/macOS clients. Scan and pay a QR, restart the
 verifier during pending issuance, restart the buyer, then check the same expiry,
 default hidden state, explicit opt-in in all user surfaces and opt-out. Repeat an
 underpayment without granting access. Record wallet/OS/build/mint/transaction
@@ -191,6 +198,7 @@ Generated bridge files are not handwritten code.
 - All six independent review findings were corrected. Own-badge expiry also has
   a regression for a previously active native snapshot that has become stale.
 
-These results do not replace the real devnet-wallet/Windows/macOS gate above.
+The live headless result above supplements these initial fixture checks.
+Mobile-wallet QR scanning and Windows/macOS device acceptance remain open.
 PR 89's follow-up fixes and checks are recorded in the
 [implementation review](../Proposals/issue-70-plus-devnet.review.md).
