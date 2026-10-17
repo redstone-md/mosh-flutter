@@ -16,7 +16,10 @@ void main() {
       final native = MemoryPlusCommands()
         ..current = PlusSnapshot(active: false, visible: false, peerBadges: [
           PlusPeerBadge(
-              identity: 'paid-peer', expiresAtMs: BigInt.from(1800057600000))
+              identity: 'paid-peer',
+              expiresAtMs: BigInt.from(DateTime.now()
+                  .add(const Duration(days: 1))
+                  .millisecondsSinceEpoch))
         ]);
       final entry = OfferRailEntry(
           pending: PendingDmOffer(
