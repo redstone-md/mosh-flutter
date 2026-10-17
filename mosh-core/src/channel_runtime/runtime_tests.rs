@@ -30,6 +30,9 @@ mod delivery;
 #[path = "runtime_tests/deletion.rs"]
 mod deletion;
 
+#[path = "runtime_tests/plus_offers.rs"]
+mod plus_offers;
+
 #[test]
 fn identical_files_are_distinct_message_occurrences() {
     let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());

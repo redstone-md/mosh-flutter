@@ -100,6 +100,7 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
       chrome: widget.chrome,
       peerOnline: s?.state == DmSessionState.connected,
       avatarName: name,
+      plusIdentity: target.key,
       title: ConversationHeaderTitle(
         name: name,
         subtitle: status,

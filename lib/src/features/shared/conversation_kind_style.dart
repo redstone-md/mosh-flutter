@@ -35,12 +35,14 @@ class ConversationKindAvatar extends StatelessWidget {
     required this.name,
     this.radius = 24,
     this.online = false,
+    this.plusIdentity,
   });
 
   final ConversationKind kind;
   final String name;
   final double radius;
   final bool online;
+  final String? plusIdentity;
 
   @override
   Widget build(BuildContext context) => Tooltip(
@@ -48,7 +50,8 @@ class ConversationKindAvatar extends StatelessWidget {
         child: kind == ConversationKind.dm
             ? Stack(
                 children: [
-                  Avatar(name: name, radius: radius),
+                  Avatar(
+                      name: name, radius: radius, plusIdentity: plusIdentity),
                   if (online)
                     PositionedDirectional(
                       bottom: 0,

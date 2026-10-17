@@ -48,6 +48,7 @@ impl ConversationSession for GroupSession {
 }
 
 pub(super) struct GroupSession {
+    pub(super) plus_schedule: crate::plus::PlusSchedule,
     pub(super) deletions: crate::message_deletion::DeletionBook,
     pub(super) pending_join_package: Option<Vec<u8>>,
     pub(super) group_id: String,
@@ -123,6 +124,7 @@ impl GroupSession {
         org_signer: Option<SigningKey>,
     ) -> Self {
         Self {
+            plus_schedule: Default::default(),
             deletions: crate::message_deletion::DeletionBook::new(
                 format!("group:{}", record.group_id),
                 GROUP_HISTORY,

@@ -1,5 +1,26 @@
 # Mosh domain terms
 
+## Mosh+
+
+**Mosh+ entitlement**:
+A time-limited benefit belonging to a Mosh account. Its owner may choose to
+display a verified badge to other users.
+_Avoid_: paid wallet, premium device.
+
+**PLUS payment order**:
+An individual quote connecting a specified token amount, recipient and payment
+reference to one entitlement purchase.
+_Avoid_: recurring subscription, entitlement certificate.
+
+**PLUS certificate**:
+An issuer-signed statement that a particular Mosh account holds Mosh+ until a
+specified expiry. It does not identify the paying wallet.
+_Avoid_: account ownership proof, payment receipt.
+
+**PLUS visibility**:
+The account owner's choice to disclose their valid Mosh+ status to other people.
+_Avoid_: per-chat subscription, deletion of previously disclosed proof.
+
 ## Send admission
 
 Acceptance of a new text for delivery after its message and provisional

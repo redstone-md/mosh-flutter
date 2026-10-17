@@ -18,10 +18,32 @@ on:
         description: Compile mosh-core with parallel codegen (CI proof builds, never releases).
         type: boolean
         default: false
+      plus-server-url:
+        description: Optional PLUS devnet billing URL (HTTPS or loopback HTTP).
+        type: string
+        default: ''
+      plus-issuer-key:
+        description: Optional independently pinned PLUS issuer public SPKI base64.
+        type: string
+        default: ''
     outputs:
       artifact:
         description: Name of the uploaded artifact holding the setup .exe and its .sha256.
         value: ${{ jobs.installer.outputs.artifact }}
+  workflow_dispatch:
+    inputs:
+      plus-server-url:
+        description: PLUS devnet billing URL (HTTPS or loopback HTTP).
+        type: string
+        default: ''
+      plus-issuer-key:
+        description: Independently pinned PLUS issuer public SPKI base64.
+        type: string
+        default: ''
+      parallel-codegen:
+        description: Compile mosh-core with parallel codegen for a pilot build.
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -32,7 +54,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 60
     outputs:
-      artifact: mosh-windows-setup
+      artifact: ${{ inputs.plus-issuer-key != '' && 'mosh-windows-plus-devnet' || 'mosh-windows-setup' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -68,9 +90,15 @@ jobs:
           printf '\n[profile.release.package.mosh-core]\ncodegen-units = 16\n' >> "$config"
 
       - name: Build Windows app (release)
+        env:
+          MOSH_PLUS_SERVER_URL: ${{ inputs.plus-server-url }}
+          MOSH_PLUS_ISSUER_KEY: ${{ inputs.plus-issuer-key }}
         # ADR 0035: the Sentry DSN (a public repo variable) enables opt-in
         # crash reporting; without it the build cannot report at all.
-        run: flutter build windows --release --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }}
+        run: >-
+          flutter build windows --release --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }}
+          "--dart-define=MOSH_PLUS_SERVER_URL=$env:MOSH_PLUS_SERVER_URL"
+          "--dart-define=MOSH_PLUS_ISSUER_KEY=$env:MOSH_PLUS_ISSUER_KEY"
 
       - name: Test native Windows chrome, icons and call window classes
         shell: pwsh
@@ -136,7 +164,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mosh-windows-setup
+          name: ${{ inputs.plus-issuer-key != '' && 'mosh-windows-plus-devnet' || 'mosh-windows-setup' }}
           path: |
             build/installer/*.exe
             build/installer/*.sha256

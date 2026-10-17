@@ -18,6 +18,7 @@ import 'api/diagnostics.dart';
 import 'api/native_call.dart';
 import 'api/network.dart';
 import 'api/org.dart';
+import 'api/plus.dart';
 import 'api/private_dm.dart';
 import 'api/private_group.dart';
 import 'api/shared_runtime.dart';
@@ -46,6 +47,7 @@ import 'org_runtime.dart';
 import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 import 'persistence.dart';
+import 'plus/types.dart';
 import 'private_dm_runtime/contracts.dart';
 import 'private_dm_runtime/transport.dart';
 import 'private_group_runtime.dart';
@@ -273,6 +275,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PendingCall dco_decode_box_autoadd_pending_call(dynamic raw);
+
+  @protected
+  PlusOrder dco_decode_box_autoadd_plus_order(dynamic raw);
 
   @protected
   Snapshot dco_decode_box_autoadd_snapshot(dynamic raw);
@@ -503,6 +508,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<PeerDetail> dco_decode_list_peer_detail(dynamic raw);
 
   @protected
+  List<PlusPeerBadge> dco_decode_list_plus_peer_badge(dynamic raw);
+
+  @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
 
   @protected
@@ -638,6 +646,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingCall? dco_decode_opt_box_autoadd_pending_call(dynamic raw);
 
   @protected
+  PlusOrder? dco_decode_opt_box_autoadd_plus_order(dynamic raw);
+
+  @protected
   Snapshot? dco_decode_opt_box_autoadd_snapshot(dynamic raw);
 
   @protected
@@ -681,6 +692,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PersistenceRuntimeStatus dco_decode_persistence_runtime_status(dynamic raw);
+
+  @protected
+  PlusOrder dco_decode_plus_order(dynamic raw);
+
+  @protected
+  PlusPaymentStatus dco_decode_plus_payment_status(dynamic raw);
+
+  @protected
+  PlusPeerBadge dco_decode_plus_peer_badge(dynamic raw);
+
+  @protected
+  PlusSnapshot dco_decode_plus_snapshot(dynamic raw);
 
   @protected
   SecureStorageStatus dco_decode_secure_storage_status(dynamic raw);
@@ -954,6 +977,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingCall sse_decode_box_autoadd_pending_call(SseDeserializer deserializer);
 
   @protected
+  PlusOrder sse_decode_box_autoadd_plus_order(SseDeserializer deserializer);
+
+  @protected
   Snapshot sse_decode_box_autoadd_snapshot(SseDeserializer deserializer);
 
   @protected
@@ -1212,6 +1238,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<PeerDetail> sse_decode_list_peer_detail(SseDeserializer deserializer);
 
   @protected
+  List<PlusPeerBadge> sse_decode_list_plus_peer_badge(
+      SseDeserializer deserializer);
+
+  @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
 
   @protected
@@ -1371,6 +1401,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  PlusOrder? sse_decode_opt_box_autoadd_plus_order(
+      SseDeserializer deserializer);
+
+  @protected
   Snapshot? sse_decode_opt_box_autoadd_snapshot(SseDeserializer deserializer);
 
   @protected
@@ -1418,6 +1452,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   PersistenceRuntimeStatus sse_decode_persistence_runtime_status(
       SseDeserializer deserializer);
+
+  @protected
+  PlusOrder sse_decode_plus_order(SseDeserializer deserializer);
+
+  @protected
+  PlusPaymentStatus sse_decode_plus_payment_status(
+      SseDeserializer deserializer);
+
+  @protected
+  PlusPeerBadge sse_decode_plus_peer_badge(SseDeserializer deserializer);
+
+  @protected
+  PlusSnapshot sse_decode_plus_snapshot(SseDeserializer deserializer);
 
   @protected
   SecureStorageStatus sse_decode_secure_storage_status(
@@ -1704,6 +1751,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       PendingCall self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_plus_order(
+      PlusOrder self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_snapshot(Snapshot self, SseSerializer serializer);
 
   @protected
@@ -1984,6 +2035,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       List<PeerDetail> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_plus_peer_badge(
+      List<PlusPeerBadge> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
 
   @protected
@@ -2146,6 +2201,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       PendingCall? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_plus_order(
+      PlusOrder? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_snapshot(
       Snapshot? self, SseSerializer serializer);
 
@@ -2195,6 +2254,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_persistence_runtime_status(
       PersistenceRuntimeStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_plus_order(PlusOrder self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_plus_payment_status(
+      PlusPaymentStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_plus_peer_badge(PlusPeerBadge self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_plus_snapshot(PlusSnapshot self, SseSerializer serializer);
 
   @protected
   void sse_encode_secure_storage_status(

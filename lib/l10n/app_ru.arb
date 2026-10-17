@@ -1122,5 +1122,38 @@
   "callCamera": "Камера",
   "callDefaultDevice": "По умолчанию",
   "windowMaximize": "Развернуть",
-  "windowRestore": "Восстановить"
+  "windowRestore": "Восстановить",
+  "plusPilotHint": "Mosh+ · Пилот в Devnet · 30 дней",
+  "plusBadgeLabel": "Подтверждённый Mosh+ (devnet)",
+  "plusCreatePayment": "Создать QR для оплаты",
+  "plusRetryError": "Не удалось обновить Mosh+. Повторите попытку.",
+  "plusRetry": "Повторить",
+  "plusNetworkNotice": "Только тестовые токены. Перед сканированием переключите мобильный кошелёк на Solana Devnet. Для комиссии нужен небольшой запас devnet SOL.",
+  "plusTerm": "Действует 30 дней с выдачи, с округлением вверх до границы суток UTC.",
+  "plusAwaiting": "Ожидаем окончательного подтверждения платежа. Можно закрыть Mosh и вернуться позже.",
+  "plusIssuing": "Платёж подтверждён. Получаем сертификат Mosh+…",
+  "plusVisibility": "Показывать мой бейдж Mosh+",
+  "plusVisibilityHint": "Одна настройка для всех бесед. Уже переданное подтверждение может остаться у других людей.",
+  "plusUnavailable": "Покупки недоступны в этой сборке.",
+  "plusPrivacyHint": "Платёжный сервис не получает ваш аккаунт Mosh. Небольшие группы покупателей всё же можно сопоставить. Сертификат хранится на этом компьютере; синхронизация и восстановление после переустановки в пилот не входят.",
+  "plusMint": "Адрес токена",
+  "plusRecipient": "Получатель",
+  "plusRefresh": "Проверить платёж",
+  "plusExpired": "Срок Mosh+ истёк.",
+  "plusUntil": "Mosh+ действует до {date} UTC",
+  "plusPrice": "{amount} тестовых токенов · Solana Devnet",
+  "@plusUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@plusPrice": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  }
 }

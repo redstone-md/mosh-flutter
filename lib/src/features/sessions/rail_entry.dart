@@ -168,6 +168,7 @@ final class DmRailEntry extends RailEntry {
       leading: ConversationKindAvatar(
           kind: ref.kind,
           name: label,
+          plusIdentity: ref.key,
           online: session.state == DmSessionState.connected),
       title: label,
       timestamp: timestamp(context),
@@ -297,7 +298,11 @@ final class OfferRailEntry extends RailEntry {
     final fromDevice = pending.offer.fromDevice;
     return RailItem(
       kind: RailItemKind.dm,
-      leading: Avatar(name: fromDevice),
+      leading: Avatar(
+          name: fromDevice,
+          plusIdentity: pending.offer.authenticated == true
+              ? pending.offer.fromFingerprint
+              : null),
       title: fromDevice,
       subtitle: pending.kind == ConversationKind.channel
           ? '#${pending.host}'

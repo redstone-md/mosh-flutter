@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/features/plus/user_plus_badge.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
@@ -52,9 +53,11 @@ class ConversationSenderMeta extends StatelessWidget {
     this.fromFingerprint,
     this.peer,
     this.showTime = true,
+    this.plusIdentity,
   });
 
   final String fromDevice;
+  final String? plusIdentity;
 
   /// The sender's device fingerprint, or null in a DM. When set, a
   /// [DeviceFingerprintChip] follows the name: a channel or a group can hold
@@ -87,6 +90,7 @@ class ConversationSenderMeta extends StatelessWidget {
         textBaseline: TextBaseline.alphabetic,
         children: [
           Flexible(child: nameWidget),
+          UserPlusBadge(identity: plusIdentity),
           if (fingerprint != null) ...[
             const SizedBox(width: kMessageMetaGap),
             DeviceFingerprintChip(fingerprint: fingerprint),

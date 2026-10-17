@@ -38,6 +38,7 @@ impl PrivateGroupRuntime {
                 continue;
             }
             let _ = session.sync_deletions(now_ms());
+            let _ = session.sync_plus(now_ms());
             session.pump_attachment_requests();
             // ADR 0005: a roster change may legitimize lag-buffered commits.
             session.sync_roster_state();
