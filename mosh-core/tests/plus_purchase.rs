@@ -141,6 +141,71 @@ fn order() -> String {
 }
 
 #[test]
+fn withdrawal_from_a_new_conversation_survives_full_alias_capacity_and_restart() {
+    let now = 1_700_000_000_000;
+    let directory = TempDirectory::new("mosh-plus-full-aliases");
+    let store =
+        Arc::new(Persistence::open_with_dek(&directory.path().join("sender"), [41; 32]).unwrap());
+    let peer = "01".repeat(32);
+    let identity = DeviceIdentity::open(store.clone(), &peer).unwrap();
+    let public_key = STANDARD.encode(issuer().pk.to_der().unwrap());
+    let mut sender = PlusRuntime::open(store, identity.roster().user_id(), &public_key).unwrap();
+    sender.save_order(&order(), now).unwrap();
+    let blinded = sender.prepare_issuance().unwrap();
+    let derived = issuer()
+        .derive_key_pair_for_metadata(b"mosh-plus-devnet-v1\0mosh-plus-30d\x001800057600000")
+        .unwrap();
+    let signature = derived
+        .sk
+        .blind_sign(STANDARD.decode(blinded).unwrap())
+        .unwrap();
+    sender
+        .complete_issuance(&STANDARD.encode(signature.0), now)
+        .unwrap();
+    sender.set_visible(true).unwrap();
+    let signing_key = SigningKey::from_bytes(&[3; 32]);
+    let author = hex::encode(signing_key.verifying_key().as_bytes());
+    let sign = |bytes: &[u8]| Ok(signing_key.sign(bytes).to_bytes().to_vec());
+    let visible = sender
+        .frame("channel:old", &peer, &author, sign, now)
+        .unwrap()
+        .unwrap();
+    let path = directory.path().join("receiver");
+    let store = Arc::new(Persistence::open_with_dek(&path, [42; 32]).unwrap());
+    let mut receiver = PlusRuntime::open(store, "cd".repeat(32), &public_key).unwrap();
+    let aliases: Vec<_> = (0..128).map(|i| format!("channel:{i}:{peer}")).collect();
+    receiver
+        .accept_peer(&visible, "channel:old", &author, &aliases, now)
+        .unwrap();
+    assert_eq!(receiver.snapshot(now).peer_badges.len(), 128);
+    sender.set_visible(false).unwrap();
+    let hidden = sender
+        .frame("channel:new", &peer, &author, sign, now)
+        .unwrap()
+        .unwrap();
+    receiver
+        .accept_peer(
+            &hidden,
+            "channel:new",
+            &author,
+            &[format!("channel:new:{peer}")],
+            now,
+        )
+        .unwrap();
+    assert!(receiver.snapshot(now).peer_badges.is_empty());
+    drop(receiver);
+    let store = Arc::new(Persistence::open_with_dek(&path, [42; 32]).unwrap());
+    let mut receiver = PlusRuntime::open(store, "cd".repeat(32), &public_key).unwrap();
+    receiver
+        .accept_peer(&visible, "channel:old", &author, &aliases, now)
+        .unwrap();
+    assert!(
+        receiver.snapshot(now).peer_badges.is_empty(),
+        "old opt-in must not replay over a persisted withdrawal"
+    );
+}
+
+#[test]
 fn purchase_resumes_the_same_blinded_request_and_retains_the_certificate_after_restart() {
     let directory = TempDirectory::new("mosh-plus-purchase");
     let path = directory.path().join("history.redb");

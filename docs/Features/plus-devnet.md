@@ -118,7 +118,9 @@ not repeat RSA verification or persistence on every advertisement. Restart check
 cached certificates against the current pin. Conversation owners acquire the PLUS
 lock; the PLUS owner never acquires a conversation lock.
 Withdrawals for unknown accounts do not allocate cache entries. Known withdrawals
-retain their revision so earlier opt-in packets cannot replay over them.
+retain their revision so earlier opt-in packets cannot replay over them. They do
+not allocate aliases, so a full alias cache cannot block a withdrawal received
+from a new conversation.
 
 Opt-out publishes a higher signed revision. Recipients reject older revisions;
 expiry is evaluated locally even offline. Opt-out cannot erase previously shared

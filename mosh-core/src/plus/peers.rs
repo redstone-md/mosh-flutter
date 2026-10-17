@@ -105,12 +105,15 @@ impl PlusRuntime {
             .get(&account)
             .map(|p| p.aliases.clone())
             .unwrap_or_default();
-        for alias in aliases {
-            if alias.len() > 256 {
-                return Err("invalid PLUS identity alias".into());
-            }
-            if !mapped.contains(alias) {
-                mapped.push(alias.clone());
+        // A withdrawal updates the account revision without allocating aliases.
+        if frame.certificate.is_some() {
+            for alias in aliases {
+                if alias.len() > 256 {
+                    return Err("invalid PLUS identity alias".into());
+                }
+                if !mapped.contains(alias) {
+                    mapped.push(alias.clone());
+                }
             }
         }
         if mapped.len() > 128 {
