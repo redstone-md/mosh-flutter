@@ -18,11 +18,16 @@ Capture is never reenabled automatically when a device returns. Camera IDs
 without a stable platform identity remain scoped to the call.
 
 Sound & Video settings stores a desktop camera default beside microphone and
-speaker preferences. Native call preparation resolves that stable camera ID
-against the helper's current inventory; an unavailable default uses the normal
-default camera. Per-call camera choices remain independent and do not overwrite
+speaker preferences. When the camera is first enabled, the native owner resolves
+that stable ID against its asynchronous helper inventory; an unavailable default
+uses the normal default camera. Voice-only preparation never waits for camera
+enumeration, and the owner continues audio and device controls while inventory
+is pending. Per-call camera choices remain independent and do not overwrite
 the saved default. Merely opening settings enumerates devices without opening
 a stream or preparing an engine.
+Only an explicit camera-selection command changes the per-call device ID.
+Microphone, speaker and camera on/off commands preserve the native owner's
+current ID, so an older presentation snapshot cannot undo asynchronous fallback.
 
 Android/iOS retain the existing voice pipeline. Authenticated offers identify
 the media protocol, so an incompatible installation does not ring or become the

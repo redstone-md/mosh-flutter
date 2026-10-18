@@ -32,7 +32,8 @@ fn ending_a_call_before_a_device_ack_rejects_the_pending_choices() {
         state: state.clone(),
     });
     let client = hub.clone();
-    let applying = std::thread::spawn(move || client.choices("dm", "call", Choices::default()));
+    let applying =
+        std::thread::spawn(move || client.choices("dm", "call", Choices::default(), false));
     let deadline = Instant::now() + Duration::from_secs(2);
     while state.lock().unwrap().revision == 0 {
         assert!(Instant::now() < deadline, "device request was not admitted");
@@ -97,8 +98,8 @@ fn new_call_cannot_inherit_capture_consent_or_accept_stale_commands() {
     assert!(!state.prepared);
     assert!(!state.choices.camera && !state.choices.microphone_allowed);
     drop(state);
-    assert!(hub.choices("dm", "old", Choices::default()).is_err());
-    assert!(hub.choices("dm", "new", Choices::default()).is_err());
+    assert!(hub.choices("dm", "old", Choices::default(), false).is_err());
+    assert!(hub.choices("dm", "new", Choices::default(), false).is_err());
 }
 
 #[test]
@@ -114,7 +115,9 @@ fn rejected_worker_preparation_and_choices_return_an_error() {
     // The owner cannot negotiate an active caller without its selected receiver.
     assert!(hub.prepare(context, Choices::default()).is_err());
     assert!(hub.snapshot("dm", "call").unwrap().failed);
-    assert!(hub.choices("dm", "call", Choices::default()).is_err());
+    assert!(hub
+        .choices("dm", "call", Choices::default(), false)
+        .is_err());
     drop(hub);
     worker.join().unwrap();
 }

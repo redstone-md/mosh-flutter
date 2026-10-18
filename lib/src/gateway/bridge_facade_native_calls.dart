@@ -20,7 +20,8 @@ mixin NativeCallBridge {
           required bool camera,
           String? input,
           String? output,
-          String? cameraId}) =>
+          String? cameraId,
+          bool cameraSelection = false}) =>
       native_call_api.setChoices(
           sessionId: sessionId,
           callId: callId,
@@ -29,7 +30,8 @@ mixin NativeCallBridge {
           camera: camera,
           input: input,
           output: output,
-          cameraId: cameraId);
+          cameraId: cameraId,
+          cameraSelection: cameraSelection);
 
   Future<native_media.Snapshot?> nativeCallSnapshot(
           {required String sessionId, required String callId}) =>

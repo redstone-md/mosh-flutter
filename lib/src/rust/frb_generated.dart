@@ -357,7 +357,8 @@ abstract class RustLibApi extends BaseApi {
       required bool camera,
       String? input,
       String? output,
-      String? cameraId});
+      String? cameraId,
+      required bool cameraSelection});
 
   void crateApiNativeCallSetDefaultCamera({String? cameraId});
 
@@ -2423,7 +2424,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       required bool camera,
       String? input,
       String? output,
-      String? cameraId}) {
+      String? cameraId,
+      required bool cameraSelection}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -2435,6 +2437,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_opt_String(input, serializer);
         sse_encode_opt_String(output, serializer);
         sse_encode_opt_String(cameraId, serializer);
+        sse_encode_bool(cameraSelection, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 75, port: port_);
       },
@@ -2451,7 +2454,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         camera,
         input,
         output,
-        cameraId
+        cameraId,
+        cameraSelection
       ],
       apiImpl: this,
     ));
@@ -2468,7 +2472,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "camera",
           "input",
           "output",
-          "cameraId"
+          "cameraId",
+          "cameraSelection"
         ],
       );
 

@@ -87,8 +87,9 @@ The host-architecture macOS CI lane runs RunnerTests against the compiled menu.
   platform IDs can be saved across restarts; devices with call-scoped IDs remain
   selectable in the call window. Camera inventory refreshes when its card is
   reopened. The saved camera applies to new calls. A missing saved device falls
-  back to the default at call preparation; the saved preference stays visible
+  back to the default when video is first enabled; the saved preference stays visible
   as unavailable in settings. Changing the default leaves an active call alone.
+  Camera enumeration is asynchronous and does not delay voice-only startup.
 - Loading disables a selector. Enumeration failure offers retry and system
   default selection. A disconnected saved device remains visible as unavailable
   until the user chooses another; a failed save displays an error and keeps the

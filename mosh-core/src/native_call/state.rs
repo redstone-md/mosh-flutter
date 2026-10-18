@@ -14,6 +14,8 @@ pub(crate) struct State {
     pub context: Option<Context>,
     pub prepared: bool,
     pub choices: Choices,
+    /// Saved default awaiting the first camera start; explicit call picks win.
+    pub pending_camera_default: Option<String>,
     pub snapshot: Snapshot,
     pub inbound: VecDeque<Signal>,
     pub outbound: VecDeque<(String, String, Signal)>,

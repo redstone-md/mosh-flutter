@@ -48,6 +48,7 @@ pub(super) fn command(
                 None,
                 None,
                 Some("test-camera-stall".into()),
+                true,
             )
             .map(|()| json!({}))
             .unwrap_or_else(|error| json!({"error":error}));
@@ -62,6 +63,7 @@ pub(super) fn command(
                 None,
                 None,
                 None,
+                false,
             )
             .map(|()| json!({}))
             .unwrap_or_else(|error| json!({"error":error}));

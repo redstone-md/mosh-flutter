@@ -2739,6 +2739,7 @@ fn wire__crate__api__native_call__set_choices_impl(
             let api_input = <Option<String>>::sse_decode(&mut deserializer);
             let api_output = <Option<String>>::sse_decode(&mut deserializer);
             let api_camera_id = <Option<String>>::sse_decode(&mut deserializer);
+            let api_camera_selection = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -2751,6 +2752,7 @@ fn wire__crate__api__native_call__set_choices_impl(
                         api_input,
                         api_output,
                         api_camera_id,
+                        api_camera_selection,
                     )?;
                     Ok(output_ok)
                 })())

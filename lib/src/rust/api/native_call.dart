@@ -30,6 +30,8 @@ Future<void> prepare(
         microphone: microphone,
         camera: camera);
 
+/// Only explicit camera selection updates its ID; other controls preserve the
+/// owner's choice after asynchronous default resolution.
 Future<void> setChoices(
         {required String sessionId,
         required String callId,
@@ -38,7 +40,8 @@ Future<void> setChoices(
         required bool camera,
         String? input,
         String? output,
-        String? cameraId}) =>
+        String? cameraId,
+        required bool cameraSelection}) =>
     RustLib.instance.api.crateApiNativeCallSetChoices(
         sessionId: sessionId,
         callId: callId,
@@ -47,7 +50,8 @@ Future<void> setChoices(
         camera: camera,
         input: input,
         output: output,
-        cameraId: cameraId);
+        cameraId: cameraId,
+        cameraSelection: cameraSelection);
 
 Future<Snapshot?> snapshot(
         {required String sessionId, required String callId}) =>

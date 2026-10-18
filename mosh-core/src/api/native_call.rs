@@ -32,19 +32,13 @@ pub fn prepare(
     camera: bool,
 ) -> Result<(), String> {
     let settings = crate::audio_devices::load(&super::shared_runtime::resolved_data_dir());
-    let camera_id = settings.camera_device_id.filter(|id| {
-        list_cameras()
-            .unwrap_or_default()
-            .iter()
-            .any(|device| device.stable && device.id == *id)
-    });
     let choices = Choices {
         microphone,
         microphone_allowed: false,
         camera,
         input: settings.input_device_id,
         output: settings.output_device_id,
-        camera_id,
+        camera_id: settings.camera_device_id,
     };
     let hub = super::private_dm::ensure_runtime()
         .map_err(|error| error.to_string())?
@@ -54,6 +48,8 @@ pub fn prepare(
 }
 
 // Bridge fields stay explicit; the native owner receives one Choices value.
+/// Only explicit camera selection updates its ID; other controls preserve the
+/// owner's choice after asynchronous default resolution.
 #[allow(clippy::too_many_arguments)]
 pub fn set_choices(
     session_id: String,
@@ -64,6 +60,7 @@ pub fn set_choices(
     input: Option<String>,
     output: Option<String>,
     camera_id: Option<String>,
+    camera_selection: bool,
 ) -> Result<(), String> {
     hub()?.choices(
         &session_id,
@@ -76,6 +73,7 @@ pub fn set_choices(
             output,
             camera_id,
         },
+        camera_selection,
     )
 }
 

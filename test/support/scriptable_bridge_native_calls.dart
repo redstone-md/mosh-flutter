@@ -25,7 +25,8 @@ mixin _BridgeNativeCalls on _ScriptableBridgeState {
           required bool camera,
           String? input,
           String? output,
-          String? cameraId}) =>
+          String? cameraId,
+          bool cameraSelection = false}) =>
       runScripted(
           BridgeMethod.nativeCallChoices,
           {
@@ -36,7 +37,8 @@ mixin _BridgeNativeCalls on _ScriptableBridgeState {
             'camera': camera,
             'input': input,
             'output': output,
-            'cameraId': cameraId
+            'cameraId': cameraId,
+            'cameraSelection': cameraSelection
           },
           () {});
   @override

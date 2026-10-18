@@ -51,8 +51,9 @@ for a desktop camera card. Add a backward-compatible optional camera ID to the
 existing audio-devices preference file; each setter preserves the other picks.
 Expose helper inventory and camera preference access through the existing native
 call bridge and regenerate bindings. Inventory must not open a stream or call.
-Save only stable platform IDs. New calls resolve the saved camera against current
-inventory and fall back to default when missing; per-call choices and active
+Save only stable platform IDs. On first camera enable, resolve the saved camera
+against asynchronous inventory and fall back to default when missing; voice-only
+preparation must not wait for camera enumeration. Per-call choices and active
 calls remain independent. Check Flutter analysis, generated binding drift and
 Rust compilation/lint without running tests.
 
@@ -69,3 +70,13 @@ and corrected the loss of camera-enumeration errors before the settings picker.
 No tests were run, as requested. No macOS SDK compilation or physical camera
 acceptance is claimed. A new macOS build and the affected Mac Mini's local
 preview/first frames, then Mac Mini → Air video, remain outstanding.
+
+CodeAnt's review of PR #90 identified that synchronous default-camera resolution
+could delay voice-only preparation by the inventory helper's three-second bound.
+The native owner now resolves the initial saved camera only when video starts,
+using its existing asynchronous inventory. Explicit per-call choices supersede
+the pending default; failed inventory still allows the documented default fallback.
+Call choices carry explicit camera-selection intent so microphone/speaker/on-off
+commands cannot restore an old ID after asynchronous default resolution. Both
+sides of the local bridge and its generated bindings are updated together;
+the network and binary camera frame protocols are unchanged.
