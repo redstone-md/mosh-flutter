@@ -73,7 +73,7 @@ impl Owner {
             self.query = Query::start().ok();
         }
         if let Some(devices) = self.query.as_mut().and_then(Query::poll) {
-            state.snapshot.cameras = devices;
+            state.snapshot.cameras = devices.unwrap_or_default();
             self.query = None;
         }
         self.negotiate(&context, state, Instant::now())?;

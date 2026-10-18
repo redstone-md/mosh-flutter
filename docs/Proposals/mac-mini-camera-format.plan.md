@@ -43,3 +43,29 @@ only cause on this device still requires a physical rerun.
 Keep current resolution preferences, permissions, sandboxing, public bridge and
 binary capture protocol unchanged. No new dependency is needed. macOS SDK
 compilation and the affected physical device are unavailable on this host.
+
+## Default camera settings (additional user request)
+
+Rename Sound to Sound & Video (Звук и видео). Reuse the existing device picker
+for a desktop camera card. Add a backward-compatible optional camera ID to the
+existing audio-devices preference file; each setter preserves the other picks.
+Expose helper inventory and camera preference access through the existing native
+call bridge and regenerate bindings. Inventory must not open a stream or call.
+Save only stable platform IDs. New calls resolve the saved camera against current
+inventory and fall back to default when missing; per-call choices and active
+calls remain independent. Check Flutter analysis, generated binding drift and
+Rust compilation/lint without running tests.
+
+## Verification on Linux
+
+On 2026-10-18 the helper and core library compile with their locked dependency
+graphs. Clippy passes for the helper and core (all targets) with warnings denied;
+Flutter analysis and localization generation pass. Repeating bridge generation
+produces byte-identical bindings after the standard Rust formatting step. The
+complete macOS dependency patch reconstructs from its verified upstream archive
+to the pinned source hash. Independent read-only spec/standards reviews found
+and corrected the loss of camera-enumeration errors before the settings picker.
+
+No tests were run, as requested. No macOS SDK compilation or physical camera
+acceptance is claimed. A new macOS build and the affected Mac Mini's local
+preview/first frames, then Mac Mini → Air video, remain outstanding.

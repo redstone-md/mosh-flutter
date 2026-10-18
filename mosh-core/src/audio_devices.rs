@@ -1,5 +1,5 @@
-//! The audio-devices setting: which input (mic) and output (speaker)
-//! device the voice paths should use. One app-level answer, deliberately a
+//! Default media devices: microphone, speaker and desktop camera.
+//! One app-level answer, deliberately a
 //! plain JSON file in the data dir like the read-receipts toggle: not a
 //! secret, and readable on a launch where the encrypted store is slow.
 //!
@@ -21,15 +21,17 @@ use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 
 const FILE_NAME: &str = "audio-devices.json";
 
-/// The stored answer: device ids as the platform reports them
-/// (`record`'s `InputDevice.id` for input, cpal's `DeviceId.to_string()`
-/// for output). Both optional: only an explicit pick persists.
+/// Device IDs from record (input), cpal (output), and the native capture helper
+/// (camera). Each is optional; only explicit picks persist. Keep the historical
+/// filename so existing audio preferences need no migration.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AudioDevicesSetting {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub input_device_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_device_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub camera_device_id: Option<String>,
 }
 
 pub fn setting_path(config_dir: &Path) -> PathBuf {
@@ -224,6 +226,7 @@ mod tests {
             &AudioDevicesSetting {
                 input_device_id: Some("avcapture:Built-in Microphone".to_string()),
                 output_device_id: Some("coreaudio:AppleHDAEngineOutput".to_string()),
+                ..Default::default()
             },
         )
         .expect("picks should save");
@@ -243,6 +246,7 @@ mod tests {
             &AudioDevicesSetting {
                 input_device_id: Some("avcapture:Built-in Microphone".to_string()),
                 output_device_id: None,
+                ..Default::default()
             },
         )
         .expect("reset should save");
@@ -287,6 +291,7 @@ mod tests {
             &AudioDevicesSetting {
                 input_device_id: None,
                 output_device_id: Some("coreaudio:gone-device".to_string()),
+                ..Default::default()
             },
         )
         .expect("stale pick should save");

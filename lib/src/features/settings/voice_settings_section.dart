@@ -1,6 +1,7 @@
 import 'dart:async' show Timer;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
@@ -9,6 +10,7 @@ import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
     show ringtonePlayerProvider;
 
 import 'audio_device_picker.dart';
+import 'camera_settings_card.dart';
 import 'settings_card.dart';
 
 const Duration kTestRingtoneDuration = Duration(milliseconds: 1500);
@@ -78,6 +80,13 @@ class _VoiceSettingsSectionState extends ConsumerState<VoiceSettingsSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _microphone(l, picks),
+        if (!kIsWeb &&
+            (defaultTargetPlatform == TargetPlatform.macOS ||
+                defaultTargetPlatform == TargetPlatform.windows ||
+                defaultTargetPlatform == TargetPlatform.linux)) ...[
+          const SizedBox(height: 16),
+          const CameraSettingsCard(),
+        ],
         const SizedBox(height: 16),
         _speakers(l, picks),
         const SizedBox(height: 24),

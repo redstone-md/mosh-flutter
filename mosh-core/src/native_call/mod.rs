@@ -17,6 +17,17 @@ use std::{
 };
 use types::{Choices, Context, Frame, Signal, Snapshot};
 
+/// Reuse the bounded helper inventory without creating an engine or call.
+pub(crate) fn list_cameras() -> Result<Vec<types::Device>, String> {
+    let mut query = capture::Query::start()?;
+    loop {
+        if let Some(devices) = query.poll() {
+            return devices;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
 /// Owns one selected call independently of Flutter and the presentation process.
 pub(crate) struct Hub {
     state: Arc<Mutex<State>>,

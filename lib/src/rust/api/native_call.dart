@@ -9,6 +9,16 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `hub`
 
+/// Inventory only: does not prepare a call or open a capture stream.
+Future<List<Device>> listCameras() =>
+    RustLib.instance.api.crateApiNativeCallListCameras();
+
+String? defaultCameraId() =>
+    RustLib.instance.api.crateApiNativeCallDefaultCameraId();
+
+void setDefaultCamera({String? cameraId}) =>
+    RustLib.instance.api.crateApiNativeCallSetDefaultCamera(cameraId: cameraId);
+
 Future<void> prepare(
         {required String sessionId,
         required String callId,

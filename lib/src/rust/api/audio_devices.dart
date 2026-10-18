@@ -24,7 +24,8 @@ String? audioOutputDeviceId() =>
 
 /// Persists BOTH picks in one write: the settings screen edits them as a
 /// pair, and a partial update losing the other field would surprise the
-/// user. `None` clears the pick back to the system default.
+/// user. Preserve the independent camera choice. `None` clears an audio pick
+/// back to the system default.
 void setAudioDevices({String? inputDeviceId, String? outputDeviceId}) =>
     RustLib.instance.api.crateApiAudioDevicesSetAudioDevices(
         inputDeviceId: inputDeviceId, outputDeviceId: outputDeviceId);

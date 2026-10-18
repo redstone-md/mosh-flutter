@@ -1410,9 +1410,9 @@
   "@settingsTitle": {
     "description": "AppBar title of the settings screen reached from the rail gear"
   },
-  "settingsSectionVoice": "Sound",
+  "settingsSectionVoice": "Sound & Video",
   "@settingsSectionVoice": {
-    "description": "Navigation label of the Sound settings section"
+    "description": "Navigation label of the Sound & Video settings section"
   },
   "settingsSectionConnection": "Connection",
   "@settingsSectionConnection": {
@@ -1441,6 +1441,10 @@
   "settingsOutputDeviceHint": "Where call audio and ringtones play. Applies from the next call.",
   "@settingsOutputDeviceHint": {
     "description": "Hint under the output-device dropdown"
+  },
+  "settingsCameraDeviceHint": "Default camera for video calls. Applies from the next call.",
+  "@settingsCameraDeviceHint": {
+    "description": "Hint for the saved desktop camera selection in Sound & Video settings"
   },
   "settingsDeviceDefault": "System default",
   "@settingsDeviceDefault": {
@@ -1923,7 +1927,7 @@
   "@settingsDeviceUnavailableHint": {
     "description": "Explanation below an unavailable saved audio device"
   },
-  "settingsDevicesLoadError": "Could not load audio devices. Try again or select the system default.",
+  "settingsDevicesLoadError": "Could not load devices. Try again or select the system default.",
   "@settingsDevicesLoadError": {
     "description": "Audio hardware enumeration failed; retry and default selection are available"
   },

@@ -138,7 +138,8 @@ impl Drop for Capture {
         };
         let message = format!(
             "camera capture stopped: reason={}; exit={status:?}; terminated_by_owner={}; stderr={}",
-            self.failure.as_deref().unwrap_or("camera disabled"), exited.is_none(),
+            self.failure.as_deref().unwrap_or("camera disabled"),
+            exited.is_none(),
             String::from_utf8_lossy(&stderr).trim(),
         );
         dlog::write(level, kinds::CALL, "", &message);
@@ -272,31 +273,24 @@ impl Query {
             started: Instant::now(),
         })
     }
-    pub fn poll(&mut self) -> Option<Vec<Device>> {
-        let finished = self.child.try_wait().ok().flatten();
+    pub fn poll(&mut self) -> Option<Result<Vec<Device>, String>> {
+        let finished = match self.child.try_wait() {
+            Ok(status) => status,
+            Err(error) => return Some(Err(format!("camera enumeration wait: {error}"))),
+        };
         if finished.is_none() && self.started.elapsed() < Duration::from_secs(3) {
             return None;
         }
-        if !finished.is_some_and(|status| status.success()) {
-            return Some(Vec::new());
-        }
-        let mut bytes = Vec::new();
-        let Some(stdout) = self.child.stdout.take() else {
-            return Some(Vec::new());
+        let Some(status) = finished else {
+            return Some(Err("camera enumeration timed out".into()));
         };
-        if stdout.take(65_536).read_to_end(&mut bytes).is_err() {
-            return Some(Vec::new());
+        if !status.success() {
+            return Some(Err(format!("camera enumeration exited: {status}")));
         }
-        let devices: Vec<Device> = serde_json::from_slice(&bytes).unwrap_or_default();
-        Some(
-            devices
-                .into_iter()
-                .filter(|device| {
-                    !device.id.is_empty() && device.id.len() <= 4096 && device.name.len() <= 512
-                })
-                .take(32)
-                .collect(),
-        )
+        let Some(stdout) = self.child.stdout.take() else {
+            return Some(Err("missing camera enumeration output".into()));
+        };
+        Some(read_devices(stdout))
     }
 }
 impl Drop for Query {
@@ -304,6 +298,25 @@ impl Drop for Query {
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
+}
+
+fn read_devices(reader: impl Read) -> Result<Vec<Device>, String> {
+    let mut bytes = Vec::new();
+    reader
+        .take(65_537)
+        .read_to_end(&mut bytes)
+        .map_err(|error| error.to_string())?;
+    if bytes.len() > 65_536 {
+        return Err("camera enumeration output too large".into());
+    }
+    let devices: Vec<Device> = serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
+    Ok(devices
+        .into_iter()
+        .filter(|device| {
+            !device.id.is_empty() && device.id.len() <= 4096 && device.name.len() <= 512
+        })
+        .take(32)
+        .collect())
 }
 
 #[cfg(test)]

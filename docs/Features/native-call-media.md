@@ -17,6 +17,13 @@ input, preserving video and playback. Losing output returns to default output.
 Capture is never reenabled automatically when a device returns. Camera IDs
 without a stable platform identity remain scoped to the call.
 
+Sound & Video settings stores a desktop camera default beside microphone and
+speaker preferences. Native call preparation resolves that stable camera ID
+against the helper's current inventory; an unavailable default uses the normal
+default camera. Per-call camera choices remain independent and do not overwrite
+the saved default. Merely opening settings enumerates devices without opening
+a stream or preparing an engine.
+
 Android/iOS retain the existing voice pipeline. Authenticated offers identify
 the media protocol, so an incompatible installation does not ring or become the
 selected receiver. Desktop/mobile calls are currently unsupported; a contact
