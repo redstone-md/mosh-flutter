@@ -13,6 +13,10 @@ use crate::shared_node::SharedMossNode;
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub(super) enum ControlEnvelope {
+    PlusMetadata {
+        group_id: String,
+        frame: crate::plus::SealedPlusFrame,
+    },
     MessageDeletion {
         group_id: String,
         frame: crate::message_deletion::protocol::DeletionFrame,
@@ -106,6 +110,7 @@ impl ControlEnvelope {
         matches!(
             self,
             Self::AttachmentManifest { .. }
+                | Self::PlusMetadata { .. }
                 | Self::MessageDeletion { .. }
                 | Self::DmOffer { .. }
                 | Self::TypingIndicator { .. }
@@ -114,6 +119,7 @@ impl ControlEnvelope {
     }
     pub(super) fn group_id(&self) -> &str {
         match self {
+            Self::PlusMetadata { group_id, .. } => group_id,
             Self::MessageDeletion { group_id, .. } => group_id,
             Self::NameMetadata { group_id, .. } => group_id,
             Self::KeyPackage { group_id, .. }

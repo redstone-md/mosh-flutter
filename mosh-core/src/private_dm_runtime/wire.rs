@@ -38,6 +38,10 @@ pub fn channel_call_id(channel: &str) -> Option<&str> {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ControlEnvelope {
+    PlusMetadata {
+        session_id: String,
+        frame: crate::plus::SealedPlusFrame,
+    },
     CallControl {
         session_id: String,
         ciphertext_b64: String,

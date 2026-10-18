@@ -371,6 +371,13 @@ The target uses one native audio/video engine over Moss. The voice pipeline abov
 
 ## Security, builds and checks
 
+The optional devnet PLUS owner stores encrypted purchase/blinding state and peer
+evidence beside existing history. Flutter uses a feature-local bridge and Riverpod
+owner; independent issuer pinning separates trust from payment-server discovery.
+Authenticated DM/group/channel carriers deliver account-bound proofs without text.
+Billing remains a separate private service; peers verify locally. See
+[PLUS protocol and acceptance](Features/plus-devnet.md) and [ADR 0046](ADR/0046-plus-devnet-blind-entitlements.md).
+
 History is encrypted with AES-256-GCM under an installation DEK. Windows/Linux
 use OS credential storage; macOS uses a permission-restricted file inside the app
 container; Android injects its own Keystore key. Device and transport identity

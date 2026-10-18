@@ -22,6 +22,7 @@ impl PrivateDmSession {
         let data_channel = data_channel(&session_id);
         let blob_channel = blob_channel(&session_id);
         Self {
+            plus_schedule: Default::default(),
             invitation: None,
             deletions: crate::message_deletion::DeletionBook::new(
                 format!("dm:{session_id}"),

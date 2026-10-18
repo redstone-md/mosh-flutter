@@ -1,0 +1,204 @@
+# Mosh+ devnet pilot
+
+For the ready-built Windows/macOS pilot, see the
+[Russian installation and payment guide](plus-devnet-pilot-ru.md), including the
+current live devnet acceptance status.
+
+Issue [#70](https://github.com/redstone-md/mosh-flutter/issues/70) implements one
+30-day product purchased with nine-decimal classic SPL **test tokens** on Solana
+devnet. Payment uses an external mobile wallet and a desktop Solana Pay QR.
+The wallet keeps its keys. Mosh never signs a wallet transaction.
+
+## Build and checkout
+
+Configure both purchasing desktop clients explicitly:
+
+```sh
+flutter run --dart-define=MOSH_PLUS_SERVER_URL=https://billing.example \
+  --dart-define=MOSH_PLUS_ISSUER_KEY=BASE64_SPKI_PUBLIC_KEY
+```
+
+The issuer key is an independent trust pin. A catalog response cannot replace it.
+Without a pin the pilot is disabled; a pin without a server enables local badge
+verification only. HTTP is allowed only on loopback. Keep the private issuer
+implementation in the separate `mosh-billing` repository. Its README describes
+key generation, durable SQLite storage and server configuration. Nothing in this
+slice creates a remote repository, deploys a server or uses mainnet.
+
+The existing Windows installer and macOS DMG workflows also accept manual
+`plus-server-url` and `plus-issuer-key` inputs on the selected branch. Pass the
+same independently pinned public key to both to produce ready-to-install pilot
+clients. Their artifacts are named `mosh-windows-plus-devnet` and
+`mosh-macos-plus-devnet`; ordinary builds keep their existing artifact names and
+leave PLUS disabled. A loopback URL supports an SSH tunnel to a private verifier
+without deploying a public billing service. Issuer private keys stay outside CI.
+
+Profile settings displays price, mint, recipient, devnet, term and network-fee
+notice before creating an order. The encrypted native owner saves the immutable
+order and its bearer capability before the QR appears. The standard QR does not
+select a Solana cluster: switch the mobile wallet to **Devnet** before scanning,
+and fund it with the configured test token and devnet SOL for fees. Provision
+the recipient's associated token account before accepting payments.
+
+The native order, blinding inverse and certificate survive closing Mosh. Polling
+resumes an outstanding order when the configured app is running. Failed reads or
+issuance retain the last snapshot and expose Retry. A completed certificate needs
+no payment server to remain valid. Orders cannot be replaced while pending or
+active; a completed or interrupted issuance can be replaced after its expiry.
+An installation with a pending or completed purchase cannot adopt another account
+through device linking. A fresh installation may link first; every PLUS command
+then resolves the current account before reading or writing its owner. Account
+resolution and the native PLUS action hold the device-link owner together, so
+adoption cannot interleave between selecting the account and saving its purchase.
+
+## Protocol and ownership
+
+`GET /v1/catalog` returns `network=solana-devnet`, `product=mosh-plus-30d`, `mint`,
+`recipient`, `amount_atomic` (canonical positive u64 string), `token_decimals=9`
+and `issuer_public_key_b64` (SPKI DER, standard base64). The client compares the
+key with its build pin. All price formatting and comparisons use integer units.
+
+`POST /v1/orders` returns an immutable quote with random `id`, `reference`,
+`payment_uri`, `status=awaiting_payment` and an `access_token`. Subsequent
+`GET /v1/orders/:id`, `POST .../refresh` and `POST .../issue` require
+`Authorization: Bearer <access_token>`. Capabilities never go into URLs or logs.
+
+Refresh independently verifies the devnet genesis, successful finalized transfer,
+classic token program, reference, mint, recipient and exact integer received
+amount. A submitted transaction signature or wallet callback grants nothing.
+Overpayment and late correct payment are accepted; partial transfers are not
+combined. The server durably claims a transaction for one order only.
+Reference history advances in bounded pages with a durable `scan_before` cursor.
+A correct transfer cannot be permanently buried behind the latest 100 signatures;
+the cursor survives verifier restart and returns to the head after reaching the end.
+
+The first verified paid transition reserves the durable issuance intent and
+`expires_at_ms`: thirty days from that transition, rounded **up** to a UTC day.
+The client persists its blinding state before submitting
+`{"blinded_message_b64":"..."}` to `POST .../issue`. The server binds the first
+valid request before signing and persists `blind_signature_b64` before replying.
+Retries/concurrent calls/restarts retain the same request, expiry and result.
+
+Use RSAPBSSA-SHA384-PSS-Deterministic, with safe-prime RSA issuer keys of
+2048–4096 bits. This is the partially blind protocol from draft-amjad-cfrg-
+partially-blind-rsa-02; RFC 9474 alone does not define this metadata extension.
+The `Deterministic` name describes message preparation; PSS still uses its salt.
+The hidden subject is UTF-8 `mosh-plus-subject-v1\0<account_id>`; public metadata
+is UTF-8 `mosh-plus-devnet-v1\0mosh-plus-30d\0<expires_at_ms>` (decimal millis).
+Account IDs are the existing lowercase 64-hex linked-account root, not a Moss
+identity or an MLS leaf. Neither order ID nor wallet appears in certificate claims.
+
+The public [interop vector](../../mosh-core/tests/fixtures/plus-public-vector.json)
+was issued by TypeScript, finalized by Rust and verified by Go CIRCL. The separate
+IETF test-key fixture is a **published test key**, never an operational issuer.
+Partially blind issuance hides the Mosh account from billing; small cohorts and
+network/timing observation still limit unlinkability. Do not promise anonymity.
+
+## Badge delivery
+
+One visibility switch is initially off. The shared badge reads native-verified
+evidence for own profile, DM header/details/list/offer, message authors,
+participants and organization member/offer identities. Group/channel titles
+represent conversations and receive no paid user badge. Legacy public messages
+without a native-verified origin cannot borrow a badge by claiming a fingerprint.
+Participant labels retain the provenance of their selected message; an unsigned
+legacy message cannot replace an authenticated label. Native channel DM offers
+countersign their complete name/invite/target in an optional message-origin proof.
+Only verified carrier/invite ownership can set the snapshot's `authenticated`
+flag; serialized input cannot assert it. Legacy offers remain ordinary offers.
+An offer with a supplied invalid proof is rejected. A verified arrival upgrades
+an unsigned duplicate without permitting a later downgrade; invite-derived IDs
+prevent a different invitation from occupying the same slot. DM history uses
+its authenticated session's peer badge even without a per-message origin.
+
+`plus::PlusRuntime` owns encrypted local purchase, visibility revision and peer
+evidence in additive `plus_records` storage. Runtime account proofs delegate the
+linked account to the actual conversation author; that author countersigns the
+context, proof, certificate and monotonic revision. DM additionally matches its
+authenticated membership/account map. Groups reuse their verified sender carrier;
+channels verify their real Moss author signature. Aliases come from those carriers.
+
+Optional proofs travel every five seconds, including without text messages.
+DM/group proofs use the existing MLS exporter with a separate domain, AES-GCM
+and context AAD; they do not advance ordinary application-message ratchets.
+Channel proofs are public like the channel itself. Receivers verify pinned issuer,
+account ownership, context, signature, expiry and revision locally. Evidence is
+bounded (2048 accounts, 128 aliases/account); unchanged verified certificates do
+not repeat RSA verification or persistence on every advertisement. Restart checks
+cached certificates against the current pin. Conversation owners acquire the PLUS
+lock; the PLUS owner never acquires a conversation lock.
+Withdrawals for unknown accounts do not allocate cache entries. Known withdrawals
+retain their revision so earlier opt-in packets cannot replay over them. They do
+not allocate aliases, so a full alias cache cannot block a withdrawal received
+from a new conversation.
+
+Opt-out publishes a higher signed revision. Recipients reject older revisions;
+expiry is evaluated locally even offline. Opt-out cannot erase previously shared
+proof from another person's copies. Linked-device entitlement sync, recovery after
+reinstall, early renewal, other durations and service grace are deferred.
+
+## Verification and acceptance
+
+- HTTP tests in the private repository use durable SQLite, real partially blind
+  crypto and SDK-encoded/signed transfers through a local RPC fixture. They check
+  unsuccessful/unfinalized/wrong-token/wrong-recipient/underpaid transfers,
+  overpayment, ambiguous references, durable retry and concurrent issuance.
+- `node scripts/moss-test.mjs --test plus_certificate --test plus_purchase`
+  checks native certificates, encrypted restart, opt-out, forgery, pin changes and
+  replacement after an expired issuance.
+- `node scripts/moss-test.mjs --test multi_device_dm_flow plus_flow::verified_plus`
+  uses independent installations, real Moss and MLS, and no text messages to
+  deliver then hide the badge across DM, group and channel.
+- After `cargo build --manifest-path mosh-core/Cargo.toml`,
+  `flutter test native_test/plus_commands_test.dart` uses the actual bridge.
+- `flutter test test/features/plus` covers HTTP access, trust pin, exact price,
+  durable QR before payment, retry, opt-in, legacy identity protection and narrow
+  Russian layout. A rendered QR is decoded through the existing image importer.
+
+Automated RPC fixtures are not a real-chain/mobile-wallet acceptance result.
+Live headless devnet acceptance passed on 2026-10-17: real Solana Pay underpayment
+and full payment, durable HTTP/native issuance and restarts, then independent
+Moss/MLS peer badge verification and opt-out in DM/group/channel. The loopback
+pilot service and classic SPL mint are provisioned with the existing installer
+issuer pin; transaction evidence is linked in the
+[pilot guide](plus-devnet-pilot-ru.md).
+
+The remaining device gate requires a funded external mobile wallet and the
+Windows/macOS clients. Scan and pay a QR, restart the
+verifier during pending issuance, restart the buyer, then check the same expiry,
+default hidden state, explicit opt-in in all user surfaces and opt-out. Repeat an
+underpayment without granting access. Record wallet/OS/build/mint/transaction
+signature and outcomes privately; do not publish order capabilities or keys.
+
+The existing conversation widget builders/control dispatchers retain documented
+size exceptions. PLUS peer authorization and the scenario tests keep complete
+verification/persistence sequences together; these functions may exceed 50 lines.
+The participant getter keeps the three existing conversation kinds and their
+display-name provenance together, including declarative record construction.
+Generated bridge files are not handwritten code.
+
+## Initial implementation checks
+
+- Flutter full suite: **1978 passed, 4 skipped**. Analyze and formatting passed.
+  Changed executable lines: **290/318 (91.19%)**; changed branches:
+  **83/111 (74.77%)**, excluding generated bindings.
+- Rust full Moss runner passed. After review fixes, focused PLUS, signed-offer,
+  account-adoption and independent-process propagation tests passed again.
+  Build, formatting and all-target Clippy with warnings denied passed.
+  Changed executable lines: **768/833 (92.20%)**; stable LLVM emitted no branch
+  counters. A clean coverage build avoided merging earlier source revisions.
+- Actual Flutter/native bridge passed its PLUS persistence/blinding/forgery and
+  account-adoption checks. Bridge regeneration produces no binding drift.
+- Private billing typecheck and all three HTTP scenarios passed. Loaded service
+  modules measured **98.10% lines / 76.80% branches**. The late-payment scenario
+  includes 104 failed signatures and a verifier restart between scan pages.
+- Fresh TypeScript issuance → Rust finalization/verification → Go verification
+  passed, including rejecting a different account. Its ephemeral test key and
+  output remain outside the public source tree.
+- All six independent review findings were corrected. Own-badge expiry also has
+  a regression for a previously active native snapshot that has become stale.
+
+The live headless result above supplements these initial fixture checks.
+Mobile-wallet QR scanning and Windows/macOS device acceptance remain open.
+PR 89's follow-up fixes and checks are recorded in the
+[implementation review](../Proposals/issue-70-plus-devnet.review.md).
