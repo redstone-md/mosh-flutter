@@ -191,6 +191,10 @@ retried, within the existing observation deadline and with a pause between
 attempts. Other failures stop immediately; persistent dial failures still fail
 the scenario. Delivery and authenticated-session assertions remain unchanged.
 
+The core test profile optimizes `curve25519-dalek`: unoptimized signature
+arithmetic dominated real-Moss polling and exhausted the history deadline.
+The fixtures retain real signature verification and their normal deadlines.
+
 The Dart test peer keeps stdout draining between commands. A filtered
 broadcast stream discards logs and buffers only JSON replies for the existing
 iterator; iterator cancellation cancels the upstream subscription. A real
