@@ -162,7 +162,15 @@ impl Owner {
             }
         }
         if let Some(devices) = self.query.as_mut().and_then(Query::poll) {
-            state.snapshot.cameras = devices.unwrap_or_default();
+            match devices {
+                Ok(devices) => state.snapshot.cameras = devices,
+                Err(error) => crate::diagnostics_log::write(
+                    crate::diagnostics_log::LogLevel::Warn,
+                    crate::diagnostics_log::kinds::CALL,
+                    "",
+                    &format!("camera enumeration failed; keeping previous inventory: {error}"),
+                ),
+            }
             self.camera_inventory_ready = true;
             self.query = None;
         }

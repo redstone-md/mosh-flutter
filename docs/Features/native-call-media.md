@@ -22,9 +22,10 @@ speaker preferences. When the camera is first enabled, the native owner resolves
 that stable ID against its asynchronous helper inventory; an unavailable default
 uses the normal default camera. Voice-only preparation never waits for camera
 enumeration, and the owner continues audio and device controls while inventory
-is pending. Per-call camera choices remain independent and do not overwrite
-the saved default. Merely opening settings enumerates devices without opening
-a stream or preparing an engine.
+is pending. A failed inventory refresh retains the last successful camera list
+and logs the error; a successful empty result clears it. Per-call camera choices
+remain independent and do not overwrite the saved default. Merely opening
+settings enumerates devices without opening a stream or preparing an engine.
 Only an explicit camera-selection command changes the per-call device ID.
 Microphone, speaker and camera on/off commands preserve the native owner's
 current ID, so an older presentation snapshot cannot undo asynchronous fallback.
