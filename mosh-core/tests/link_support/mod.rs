@@ -1,4 +1,5 @@
 mod api;
+mod connection;
 pub(crate) mod crypto;
 mod dm;
 mod observation;
@@ -158,14 +159,6 @@ impl Peer {
         });
         assert!(Instant::now() < deadline, "peer command deadline expired");
         response
-    }
-
-    pub fn connect(&mut self, other: &Self) {
-        // Public bridge scenarios deliberately rely on automatic discovery.
-        if self.api {
-            return;
-        }
-        self.ask(json!({"action":"connect","argument":format!("127.0.0.1:{}", other.port)}));
     }
 
     pub fn restart(&mut self) {
@@ -344,8 +337,10 @@ fn serve(
         }
         let result = match action {
             "connect" => {
-                node.connect(&arg).unwrap();
-                rt.snapshot()
+                let response = connection::command(&node, &arg);
+                println!("{OUTPUT_PREFIX}{response}");
+                std::io::stdout().flush().unwrap();
+                continue;
             }
             "snapshot" => rt.snapshot(),
             "network" => {
