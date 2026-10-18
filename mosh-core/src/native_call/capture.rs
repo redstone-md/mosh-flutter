@@ -3,10 +3,12 @@ use super::{
     library::{artifact, MAX_RGBA},
     types::Device,
 };
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use std::{
     io::{BufRead, BufReader, Read},
     process::{Child, Command, Stdio},
     sync::{Arc, Mutex},
+    thread::JoinHandle,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -24,12 +26,15 @@ struct Output {
     ready: Option<Instant>,
     frame: Option<Arc<Captured>>,
     done: bool,
+    error: Option<String>,
 }
 
 pub(crate) struct Capture {
     child: Child,
     output: Arc<Mutex<Output>>,
     started: Instant,
+    stderr: Option<JoinHandle<Vec<u8>>>,
+    failure: Option<String>,
 }
 
 impl Capture {
@@ -39,39 +44,68 @@ impl Capture {
         if let Some(id) = id {
             command.arg(id);
         }
-        let mut child = command.spawn().map_err(|error| error.to_string())?;
+        let mut child = command
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|error| error.to_string())?;
         let stdout = child.stdout.take().ok_or("missing camera output")?;
+        let stderr = child.stderr.take().ok_or("missing camera diagnostics")?;
+        let stderr = Some(std::thread::spawn(move || read_stderr(stderr)));
         let output = Arc::new(Mutex::new(Output::default()));
         let sink = output.clone();
         std::thread::spawn(move || {
-            let _ = read_capture(BufReader::new(stdout), &sink);
-            sink.lock().unwrap_or_else(|error| error.into_inner()).done = true;
+            let result = read_capture(BufReader::new(stdout), &sink);
+            let mut output = sink.lock().unwrap_or_else(|error| error.into_inner());
+            output.error = result.err();
+            output.done = true;
         });
         Ok(Self {
             child,
             output,
             started: Instant::now(),
+            stderr,
+            failure: None,
         })
     }
 
     pub fn failed(&mut self) -> bool {
+        let status = self.child.try_wait();
         let output = self
             .output
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        output.done
-            || self.child.try_wait().ok().flatten().is_some()
-            || output.ready.map_or_else(
-                || self.started.elapsed() > Duration::from_secs(65),
-                |ready| {
-                    output
-                        .frame
-                        .as_ref()
-                        .map_or(ready, |frame| frame.received)
-                        .elapsed()
-                        > Duration::from_secs(4)
-                },
+        self.failure = if output.done {
+            Some(format!(
+                "output ended: {}",
+                output.error.as_deref().unwrap_or("EOF")
+            ))
+        } else if let Ok(Some(status)) = &status {
+            Some(format!("helper exited: {status}"))
+        } else if let Err(error) = status {
+            Some(format!("waiting for helper: {error}"))
+        } else if output.ready.map_or_else(
+            || self.started.elapsed() > Duration::from_secs(65),
+            |ready| {
+                output
+                    .frame
+                    .as_ref()
+                    .map_or(ready, |frame| frame.received)
+                    .elapsed()
+                    > Duration::from_secs(4)
+            },
+        ) {
+            Some(
+                if output.ready.is_some() {
+                    "no camera frames for 4 seconds"
+                } else {
+                    "camera startup exceeded 65 seconds"
+                }
+                .to_string(),
             )
+        } else {
+            None
+        };
+        self.failure.is_some()
     }
 
     pub fn frame(&self, after: u64) -> Option<Arc<Captured>> {
@@ -86,10 +120,50 @@ impl Capture {
 }
 impl Drop for Capture {
     fn drop(&mut self) {
+        let exited = self.child.try_wait().ok().flatten();
         drop(self.child.stdin.take());
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+        if exited.is_none() {
+            let _ = self.child.kill();
+        }
+        let status = self.child.wait();
+        let stderr = self
+            .stderr
+            .take()
+            .and_then(|reader| reader.join().ok())
+            .unwrap_or_default();
+        let level = if self.failure.is_some() {
+            LogLevel::Warn
+        } else {
+            LogLevel::Info
+        };
+        let message = format!(
+            "camera capture stopped: reason={}; exit={status:?}; terminated_by_owner={}; stderr={}",
+            self.failure.as_deref().unwrap_or("camera disabled"), exited.is_none(),
+            String::from_utf8_lossy(&stderr).trim(),
+        );
+        dlog::write(level, kinds::CALL, "", &message);
     }
+}
+
+// Drain continuously so a verbose native driver cannot block capture. Keep
+// only its last 8 KiB; stdout contains pixels and never enters the field log.
+fn read_stderr(mut reader: impl Read) -> Vec<u8> {
+    let mut tail = Vec::new();
+    let mut chunk = [0; 1024];
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(count) => {
+                tail.extend_from_slice(&chunk[..count]);
+                if tail.len() > 8192 {
+                    tail.drain(..tail.len() - 8192);
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(_) => break,
+        }
+    }
+    tail
 }
 
 fn read_capture(mut reader: impl BufRead, output: &Mutex<Output>) -> Result<(), String> {

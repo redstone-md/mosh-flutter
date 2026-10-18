@@ -30,7 +30,15 @@
      use block::ConcreteBlock;
      use cocoa_foundation::{
          base::Nil,
-@@ -443,18 +452,30 @@
+@@ -244,6 +253,7 @@
+     use std::ffi::CString;
+     use std::{
+         borrow::Cow,
++        cell::Cell,
+         cmp::Ordering,
+         collections::BTreeMap,
+         convert::TryFrom,
+@@ -443,18 +453,30 @@
              ) {
                  let image_buffer: CVImageBufferRef =
                      unsafe { CMSampleBufferGetImageBuffer(didOutputSampleBuffer) };
@@ -70,7 +78,7 @@
  
                  // CMSampleBufferGetPresentationTimeStamp returns the sensor
                  // capture instant on a monotonic clock (mach_absolute_time
-@@ -485,19 +506,15 @@
+@@ -485,19 +507,15 @@
                      }
                  };
  
@@ -99,7 +107,7 @@
              }
  
              #[allow(non_snake_case)]
-@@ -734,12 +751,13 @@
+@@ -734,12 +752,13 @@
      pub struct AVCaptureVideoCallback {
          delegate: *mut Object,
          queue: NSObject,
@@ -114,7 +122,7 @@
          ) -> Result<Self, NokhwaError> {
              let cls = &CALLBACK_CLASS as &Class;
              let delegate: *mut Object = unsafe { msg_send![cls, alloc] };
-@@ -756,7 +774,7 @@
+@@ -756,7 +775,7 @@
                  dispatch_queue_create(device_spec.as_ptr(), NSObject(std::ptr::null_mut()))
              };
  
@@ -123,7 +131,7 @@
          }
  
          pub fn data_len(&self) -> usize {
-@@ -769,6 +787,19 @@
+@@ -769,6 +788,19 @@
  
          pub fn queue(&self) -> &NSObject {
              &self.queue
@@ -143,7 +151,204 @@
          }
      }
  
-@@ -2334,21 +2365,25 @@
+@@ -786,6 +818,22 @@
+ 
+         pub fn min(&self) -> f64 {
+             unsafe { msg_send![self.inner, minFrameRate] }
++        }
++
++        fn duration_for(&self, fps: u32) -> Option<*mut Object> {
++            // supported_formats exposes native endpoints as integer FPS. Keep
++            // their original CMTime, including e.g. 29.97 instead of 1/29.
++            let key = if self.max() as u32 == fps {
++                "minFrameDuration"
++            } else if self.min() as u32 == fps {
++                "maxFrameDuration"
++            } else {
++                return None;
++            };
++            eprintln!("camera selected timing: requested_fps={fps} supported_fps={}..{} duration={key}", self.min(), self.max());
++            // SAFETY: the range belongs to a live device format; KVC boxes its
++            // CMTime as an autoreleased NSValue, used on this capture thread.
++            Some(unsafe { msg_send![self.inner, valueForKey: str_to_nsstr(key)] })
+         }
+     }
+ 
+@@ -795,6 +843,18 @@
+         pub resolution: CMVideoDimensions,
+         pub fps_list: Vec<f64>,
+         pub fourcc: FrameFormat,
++    }
++
++    impl AVCaptureDeviceFormat {
++        fn log_native_mode(&self, ranges: &[AVFrameRateRange]) {
++            // SAFETY: the device retains this video format and its description.
++            let description: CMFormatDescriptionRef =
++                unsafe { msg_send![self.internal, formatDescription] };
++            let fourcc = unsafe { CMFormatDescriptionGetMediaSubType(description) };
++            let fps: Vec<_> = ranges.iter().map(|range| (range.min(), range.max())).collect();
++            eprintln!("camera native mode: {}x{} fourcc={fourcc:08x} fps={fps:?}",
++                self.resolution.width, self.resolution.height);
++        }
+     }
+ 
+     impl TryFrom<*mut Object> for AVCaptureDeviceFormat {
+@@ -895,7 +955,7 @@
+     pub struct AVCaptureDevice {
+         inner: *mut Object,
+         device: CameraInfo,
+-        locked: bool,
++        locked: Cell<bool>,
+     }
+ 
+     impl AVCaptureDevice {
+@@ -944,7 +1004,7 @@
+             Ok(AVCaptureDevice {
+                 inner: capture,
+                 device: camera_info,
+-                locked: false,
++                locked: Cell::new(false),
+             })
+         }
+ 
+@@ -991,7 +1051,7 @@
+         }
+ 
+         pub fn lock(&self) -> Result<(), NokhwaError> {
+-            if self.locked {
++            if self.locked.get() {
+                 return Ok(());
+             }
+             if self.already_in_use() {
+@@ -1000,8 +1060,11 @@
+                     error: "Already in use".to_string(),
+                 });
+             }
+-            let err_ptr: *mut c_void = std::ptr::null_mut();
+-            let accepted: BOOL = unsafe { msg_send![self.inner, lockForConfiguration: err_ptr] };
++            let mut err_ptr: *mut Object = std::ptr::null_mut();
++            // SAFETY: self owns a live device and NSError** points to a local
++            // out-parameter for the duration of this synchronous call.
++            let accepted: BOOL =
++                unsafe { msg_send![self.inner, lockForConfiguration: &mut err_ptr] };
+             if !err_ptr.is_null() {
+                 return Err(NokhwaError::SetPropertyError {
+                     property: "lockForConfiguration".to_string(),
+@@ -1010,72 +1073,68 @@
+                 });
+             }
+             // Space these out for debug purposes
+-            if !accepted == YES {
++            if accepted != YES {
+                 return Err(NokhwaError::SetPropertyError {
+                     property: "lockForConfiguration".to_string(),
+                     value: "Locked".to_string(),
+                     error: "Lock Rejected".to_string(),
+                 });
+             }
++            self.locked.set(true);
+             Ok(())
+         }
+ 
+         pub fn unlock(&mut self) {
+-            if self.locked {
+-                self.locked = false;
++            if self.locked.replace(false) {
++                // SAFETY: this device successfully acquired the matching lock.
+                 unsafe { msg_send![self.inner, unlockForConfiguration] }
+             }
+         }
+ 
+-        // thank you ffmpeg
++        fn native_format(
++            &self,
++            descriptor: CameraFormat,
++        ) -> Result<(*mut Object, *mut Object), NokhwaError> {
++            let mut selected = None;
++            for (index, format) in self.supported_formats_raw()?.iter().enumerate() {
++                // SAFETY: format and ranges are owned by this live device.
++                let ranges = ns_arr_to_vec::<AVFrameRateRange>(unsafe {
++                    msg_send![format.internal, videoSupportedFrameRateRanges]
++                });
++                if index < 64 {
++                    format.log_native_mode(&ranges);
++                }
++                if selected.is_some()
++                    || format.fourcc != descriptor.format()
++                    || format.resolution.width != descriptor.width() as i32
++                    || format.resolution.height != descriptor.height() as i32
++                {
++                    continue;
++                }
++                selected = ranges.iter().find_map(|range| {
++                    range
++                        .duration_for(descriptor.frame_rate())
++                        .map(|duration| (format.internal, duration))
++                });
++            }
++            selected.ok_or_else(|| NokhwaError::SetPropertyError {
++                property: "CameraFormat".to_string(),
++                value: descriptor.to_string(),
++                error: "No matching native format and frame duration".to_string(),
++            })
++        }
++
+         pub fn set_all(&mut self, descriptor: CameraFormat) -> Result<(), NokhwaError> {
++            let (selected_format, min_frame_duration) = self.native_format(descriptor)?;
+             self.lock()?;
+-            let format_list = try_ns_arr_to_vec::<AVCaptureDeviceFormat, NokhwaError>(unsafe {
+-                msg_send![self.inner, formats]
+-            })?;
+-            let format_description_sel = sel!(formatDescription);
+-
+-            let mut selected_format: *mut Object = std::ptr::null_mut();
+-            let mut selected_range: *mut Object = std::ptr::null_mut();
+-
+-            for format in format_list {
+-                let format_desc_ref: CMFormatDescriptionRef =
+-                    unsafe { msg_send![format.internal, performSelector: format_description_sel] };
+-                let dimensions = unsafe { CMVideoFormatDescriptionGetDimensions(format_desc_ref) };
+-
+-                if dimensions.height == descriptor.resolution().height() as i32
+-                    && dimensions.width == descriptor.resolution().width() as i32
+-                {
+-                    selected_format = format.internal;
+-
+-                    for range in ns_arr_to_vec::<AVFrameRateRange>(unsafe {
+-                        msg_send![format.internal, videoSupportedFrameRateRanges]
+-                    }) {
+-                        let max_fps: f64 = unsafe { msg_send![range.inner, maxFrameRate] };
+-                        // Older Apple cameras (i.e. iMac 2013) return 29.97000002997 as FPS.
+-                        if (f64::from(descriptor.frame_rate()) - max_fps).abs() < 0.999 {
+-                            selected_range = range.inner;
+-                            break;
+-                        }
+-                    }
+-                }
+-            }
+-            if selected_range.is_null() || selected_format.is_null() {
+-                return Err(NokhwaError::SetPropertyError {
+-                    property: "CameraFormat".to_string(),
+-                    value: descriptor.to_string(),
+-                    error: "Not Found/Rejected/Unsupported".to_string(),
+-                });
+-            }
+-
++            eprintln!("camera selected mode: {descriptor}");
+             let activefmtkey = str_to_nsstr("activeFormat");
+-            let min_frame_duration = str_to_nsstr("minFrameDuration");
+             let active_video_min_frame_duration = str_to_nsstr("activeVideoMinFrameDuration");
+             let active_video_max_frame_duration = str_to_nsstr("activeVideoMaxFrameDuration");
++            // SAFETY: both native values come from the same device format, the
++            // device is locked, and the boxed duration preserves native timing.
+             let _: () =
+                 unsafe { msg_send![self.inner, setValue:selected_format forKey:activefmtkey] };
+-            let min_frame_duration: *mut Object =
+-                unsafe { msg_send![selected_range, valueForKey: min_frame_duration] };
+             let _: () = unsafe {
+                 msg_send![self.inner, setValue:min_frame_duration forKey:active_video_min_frame_duration]
+             };
+@@ -2334,21 +2393,25 @@
              Ok(())
          }
  

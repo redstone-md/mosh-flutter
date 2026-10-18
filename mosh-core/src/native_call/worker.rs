@@ -136,7 +136,13 @@ impl Owner {
                     self.capture_id = state.choices.camera_id.clone();
                     self.capture = Some(capture);
                 }
-                Err(_) => {
+                Err(error) => {
+                    crate::diagnostics_log::write(
+                        crate::diagnostics_log::LogLevel::Warn,
+                        crate::diagnostics_log::kinds::CALL,
+                        "",
+                        &format!("camera capture startup failed: {error}"),
+                    );
                     state.choices.camera = false;
                     state.snapshot.camera_failed = true;
                 }

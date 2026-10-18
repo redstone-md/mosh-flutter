@@ -92,6 +92,24 @@ Failure during stream initialization also removes its delegate. A two-frame
 30Hz cadence handles driver jitter without dropping alternate 30Hz frames due
 to processing time.
 
+The macOS configuration patch matches resolution and nokhwa's pixel-format descriptor with an
+FPS endpoint belonging to that same native format. It uses the original native
+frame duration, including fractional rates, and releases the configuration
+lock. This corrects a backend loop that could combine a 720p10 format with a
+different format's 30 fps duration. It does not establish physical acceptance
+on the reported Mac Mini USB camera until that device produces frames again.
+Nokhwa normalizes several native FourCC values to one descriptor; diagnostics
+retain the native FourCC, while selection keeps each format and duration paired.
+
+The helper reports startup phases, the selected mode and first complete frame
+to stderr; macOS also lists up to 64 native modes with actual FPS ranges.
+The owner continuously drains stderr, retaining only its final 8 KiB. After
+capture stops, the existing application field log records that tail, output
+failure or timeout, process exit status and whether the owner terminated it.
+Camera startup failures before spawning are logged as well. Enumeration still
+discards stderr. Binary stdout frames, account identities and media keys are
+never included in these diagnostics.
+
 `NativeCallSession` in Dart owns commands and presentation polling. Rust retains
 media when this client or the window disappears. The child window starts no
 Rust, capture or audio runtime. Public state travels through inherited stdio;
