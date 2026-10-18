@@ -100,3 +100,7 @@ bounds and contain no media bytes or keys. These events, together with helper
 diagnostics from both installations, are needed to distinguish capture, transport,
 decoder and presentation delays. The cause of the physical video pauses is not
 yet established; the layout correction does not repair or prove that path.
+
+For release 0.23.0, physical verification of this latest layout follow-up is
+deferred. The earlier camera-startup confirmation and the automated frame-gap
+reproduction must not be presented as complete hardware acceptance of the pauses.

@@ -163,12 +163,13 @@ pilot service and classic SPL mint are provisioned with the existing installer
 issuer pin; transaction evidence is linked in the
 [pilot guide](plus-devnet-pilot-ru.md).
 
-The remaining device gate requires a funded external mobile wallet and the
-Windows/macOS clients. Scan and pay a QR, restart the
-verifier during pending issuance, restart the buyer, then check the same expiry,
-default hidden state, explicit opt-in in all user surfaces and opt-out. Repeat an
-underpayment without granting access. Record wallet/OS/build/mint/transaction
-signature and outcomes privately; do not publish order capabilities or keys.
+On 2026-10-18 the reporter confirmed mobile payment, entitlement retention after
+restart and badge behavior on macOS/Windows. The tested QR entry point was the
+iPhone Camera app opening Solflare; Solflare's in-app scanner treated the URI as
+a recipient address and rejected it. Phantom 26.33.1 did not finish loading the
+reporter's devnet token inventory. These device reports supplement the headless
+checks; they do not establish compatibility with every wallet version. Further
+wallet/OS/build/transaction evidence stays private, without capabilities or keys.
 
 The existing conversation widget builders/control dispatchers retain documented
 size exceptions. PLUS peer authorization and the scenario tests keep complete
@@ -199,6 +200,6 @@ Generated bridge files are not handwritten code.
   a regression for a previously active native snapshot that has become stale.
 
 The live headless result above supplements these initial fixture checks.
-Mobile-wallet QR scanning and Windows/macOS device acceptance remain open.
+The reporter's mobile-wallet and Windows/macOS acceptance is recorded above.
 PR 89's follow-up fixes and checks are recorded in the
 [implementation review](../Proposals/issue-70-plus-devnet.review.md).
