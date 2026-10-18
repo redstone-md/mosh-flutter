@@ -36,6 +36,7 @@ redb = "2"
 sha2 = "0.10"
 rand = "0.8"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
+blind-rsa-signatures = "=0.18.0"
 hex = "0.4"
 mime_guess = "2"
 if-addrs = "0.15.0"

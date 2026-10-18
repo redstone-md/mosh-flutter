@@ -6,6 +6,7 @@ import 'package:mosh/src/features/onboarding/first_run_provider.dart';
 
 import 'settings_card.dart';
 import 'language_settings_card.dart';
+import 'package:mosh/src/features/plus/plus_settings_card.dart';
 
 class ProfileSettingsSection extends ConsumerWidget {
   const ProfileSettingsSection({super.key});
@@ -29,11 +30,14 @@ class ProfileSettingsSection extends ConsumerWidget {
                 title: l.firstRunNameTitle,
                 hint: l.firstRunNameScope,
                 child: DisplayNameForm(
+                    showPlus: true,
                     initialName: profile.displayName,
                     actionLabel: l.firstRunSaveName,
                     onSave:
                         ref.read(firstRunProfileProvider.notifier).saveName)),
           ),
+      const SizedBox(height: 20),
+      const PlusSettingsCard(),
     ]);
   }
 }

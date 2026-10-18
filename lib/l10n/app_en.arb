@@ -2132,5 +2132,38 @@
   "callCamera": "Camera",
   "callDefaultDevice": "System default",
   "windowMaximize": "Maximize",
-  "windowRestore": "Restore"
+  "windowRestore": "Restore",
+  "plusPilotHint": "Mosh+ · Devnet pilot · 30 days",
+  "plusBadgeLabel": "Verified Mosh+ (devnet)",
+  "plusCreatePayment": "Create payment QR",
+  "plusRetryError": "Could not update Mosh+. Retry.",
+  "plusRetry": "Retry",
+  "plusNetworkNotice": "Test tokens only. Switch your mobile wallet to Solana Devnet before scanning. Keep a little devnet SOL for network fees.",
+  "plusTerm": "Valid for 30 days from issuance, rounded up to the next UTC day.",
+  "plusAwaiting": "Waiting for a finalized payment. You can close Mosh and return later.",
+  "plusIssuing": "Payment verified. Completing Mosh+ issuance…",
+  "plusVisibility": "Show my Mosh+ badge",
+  "plusVisibilityHint": "One setting for all conversations. Previously shared proof may remain with other people.",
+  "plusUnavailable": "Purchases are unavailable in this build.",
+  "plusPrivacyHint": "The payment service does not receive your Mosh account. Small groups of buyers can still be correlated. This desktop keeps the certificate; device sync and reinstall recovery are not included in this pilot.",
+  "plusMint": "Token mint",
+  "plusRecipient": "Recipient",
+  "plusRefresh": "Check payment",
+  "plusExpired": "Mosh+ has expired.",
+  "plusUntil": "Mosh+ valid until {date} UTC",
+  "plusPrice": "{amount} test tokens · Solana Devnet",
+  "@plusUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@plusPrice": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  }
 }

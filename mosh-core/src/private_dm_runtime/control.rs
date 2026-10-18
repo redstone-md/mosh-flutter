@@ -12,6 +12,13 @@ impl PrivateDmSession {
     pub(super) fn handle_control(&mut self, payload: Vec<u8>) -> Result<(), PrivateDmRuntimeError> {
         let envelope: ControlEnvelope = decode_json(&payload)?;
         let envelope = self.unwrap_invitation_admission(envelope)?;
+        if let ControlEnvelope::PlusMetadata { session_id, frame } = envelope {
+            return if session_id == self.session_id {
+                self.receive_plus(&frame)
+            } else {
+                Ok(())
+            };
+        }
         if let ControlEnvelope::MessageDeletion { session_id, frame } = envelope {
             return if session_id == self.session_id {
                 self.receive_deletion_frame(frame)

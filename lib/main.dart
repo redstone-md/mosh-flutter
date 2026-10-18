@@ -8,6 +8,7 @@ import 'dart:io' show Platform;
 // the minimal disambiguation (vs. aliasing the lock-screen import, which
 // would force `lock.LockState` at the two call sites).
 import 'package:flutter/material.dart' hide LockState;
+import 'package:mosh/src/features/plus/user_plus_badge.dart';
 import 'package:flutter/services.dart' show PlatformException;
 
 import 'package:intl/date_symbol_data_local.dart';
@@ -301,7 +302,7 @@ class MoshApp extends ConsumerWidget {
               child: FirstRunGate(
                 child: VoiceCallHost(
                   onOpenConversation: _openCallConversation,
-                  child: child ?? const SizedBox(),
+                  child: PlusHost(child: child ?? const SizedBox()),
                 ),
               ),
             ),

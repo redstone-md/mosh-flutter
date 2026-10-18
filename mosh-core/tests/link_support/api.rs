@@ -11,6 +11,8 @@ use super::OUTPUT_PREFIX;
 mod attachments;
 #[path = "calls.rs"]
 mod calls;
+#[path = "plus.rs"]
+mod plus;
 
 /// Exercise the public bridge facade with real shared resources and discovery.
 pub(super) fn run(dir: PathBuf) {
@@ -22,6 +24,14 @@ pub(super) fn run(dir: PathBuf) {
         let argument = command["argument"].as_str().unwrap_or_default().to_owned();
         let action = command["action"].as_str().unwrap();
         calls::reconcile(&mut call_probe);
+        if action.starts_with("plus_") {
+            println!(
+                "{OUTPUT_PREFIX}{}",
+                plus::command(action, &argument, &command)
+            );
+            std::io::stdout().flush().unwrap();
+            continue;
+        }
         if action.starts_with("call_") {
             println!(
                 "{OUTPUT_PREFIX}{}",

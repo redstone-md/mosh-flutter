@@ -226,6 +226,7 @@ class _ConversationMessageListViewState
     final callbacks = widget.attachmentCallbacks(view, own: row.message.own);
     final messageRow = ConversationMessageRow(
       message: row.message,
+      conversationKey: widget.snapshot.target.key,
       kind: kind,
       grouped: row.grouped,
       continuesBelow: row.continuesBelow,

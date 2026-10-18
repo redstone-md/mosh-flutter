@@ -15,12 +15,16 @@ class DmOffer {
   final String targetFingerprint;
   final String inviteUri;
 
+  /// Derived by the receiving carrier. Wire input cannot assert this value.
+  final bool? authenticated;
+
   const DmOffer({
     required this.offerId,
     required this.fromDevice,
     required this.fromFingerprint,
     required this.targetFingerprint,
     required this.inviteUri,
+    this.authenticated,
   });
 
   @override
@@ -29,7 +33,8 @@ class DmOffer {
       fromDevice.hashCode ^
       fromFingerprint.hashCode ^
       targetFingerprint.hashCode ^
-      inviteUri.hashCode;
+      inviteUri.hashCode ^
+      authenticated.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -40,5 +45,6 @@ class DmOffer {
           fromDevice == other.fromDevice &&
           fromFingerprint == other.fromFingerprint &&
           targetFingerprint == other.targetFingerprint &&
-          inviteUri == other.inviteUri;
+          inviteUri == other.inviteUri &&
+          authenticated == other.authenticated;
 }

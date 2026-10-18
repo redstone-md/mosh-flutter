@@ -11,6 +11,12 @@ import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelMessage;
+import 'package:mosh/src/rust/message_deletion/types.dart';
+import 'package:mosh/src/rust/message_deletion/origin.dart';
+import 'package:mosh/src/features/plus/plus_provider.dart';
+import 'package:mosh/src/rust/plus/types.dart';
+import '../../support/plus/fakes.dart';
 
 import '../../support/message_builders.dart';
 import '../../support/conversation_cases.dart'
@@ -22,6 +28,82 @@ import '../../support/scriptable_gateway.dart';
 final l = lookupAppLocalizations(const Locale('en'));
 
 void main() {
+  test('a legacy message cannot replace an authenticated participant label',
+      () {
+    final snapshot = ChannelConversation(
+        const ChannelTarget('general'),
+        TestSnapshots.channel(
+            name: 'general',
+            deviceFingerprint: 'self',
+            messages: [
+              const ChannelMessage(
+                  fromDevice: 'Verified sender',
+                  fromFingerprint: 'peer',
+                  body: 'hello',
+                  metadata: MessageMetadata(
+                      canDeleteForEveryone: true,
+                      localOnly: false,
+                      origin: MessageOrigin(
+                          conversation: 'channel:general',
+                          id: 'message',
+                          contentHash: 'hash',
+                          author: 'peer',
+                          signature: 'native-verified'))),
+              TestMessages.channel(
+                  fromDevice: 'Forged later name',
+                  fromFingerprint: 'peer',
+                  body: 'legacy'),
+            ]));
+    final participant =
+        ConversationDetailsModel(snapshot, l).participants.single;
+    expect(participant.name, 'Verified sender');
+    expect(participant.authenticated, isTrue);
+  });
+  testWidgets(
+      'legacy channel participant labels cannot inherit paid or own badges',
+      (tester) async {
+    final source = TestSnapshots.channel(
+        name: 'general',
+        deviceFingerprint: 'self',
+        messages: [
+          TestMessages.channel(
+              fromDevice: 'Forged paid name',
+              fromFingerprint: 'paid-peer',
+              body: 'hi'),
+          TestMessages.channel(
+              fromDevice: 'Forged own name',
+              fromFingerprint: 'self',
+              body: 'hi'),
+        ]);
+    final snapshot =
+        ChannelConversation(const ChannelTarget('general'), source);
+    final native = MemoryPlusCommands()
+      ..current = PlusSnapshot(active: true, visible: true, peerBadges: [
+        PlusPeerBadge(
+            identity: 'channel:general:paid-peer',
+            expiresAtMs: BigInt.from(1800057600000))
+      ]);
+    await pumpScreen(
+        tester,
+        Scaffold(
+            body: SizedBox(
+                width: 320,
+                child: ConversationDetailsPanel(
+                    target: snapshot.target,
+                    async: AsyncData(snapshot),
+                    onClose: () {},
+                    onOpenAttachment: (_, __, ___) {}))),
+        overrides: [
+          plusConfigProvider
+              .overrideWithValue(const PlusConfig(issuerKey: 'pin')),
+          plusCommandsProvider.overrideWithValue(native),
+          plusPollIntervalProvider.overrideWithValue(null),
+          gatewayProvider
+              .overrideWithValue(ScriptableGateway()..seedChannels([source])),
+        ]);
+    expect(find.text('Forged paid name'), findsOneWidget);
+    expect(find.byIcon(Icons.workspace_premium), findsNothing);
+  });
   test('DM details use runtime name, state and participants', () {
     final snapshot = DmConversation(
         const DmTarget('dm'),

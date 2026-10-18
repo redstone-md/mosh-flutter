@@ -110,6 +110,8 @@ class ConversationDetailsPanel extends ConsumerWidget {
       Column(children: [
         ConversationKindAvatar(
             kind: target.kind,
+            plusIdentity:
+                target.kind == ConversationKind.dm ? target.key : null,
             name: model.title,
             radius: 38,
             online: switch (model.snapshot) {
@@ -140,7 +142,13 @@ class ConversationDetailsPanel extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(children: [
-                Avatar(name: participant.name, radius: 17),
+                Avatar(
+                    name: participant.name,
+                    radius: 17,
+                    ownPlus: participant.authenticated && participant.own,
+                    plusIdentity: participant.authenticated
+                        ? '${target.key}:${participant.identity}'
+                        : null),
                 const SizedBox(width: 10),
                 Expanded(
                     child: Text(participant.name,

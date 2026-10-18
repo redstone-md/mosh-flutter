@@ -343,6 +343,7 @@ mod deletion;
 mod lifecycle;
 mod org_gate;
 mod pending_join;
+mod plus;
 mod rehydrate;
 mod snapshot;
 mod wires;

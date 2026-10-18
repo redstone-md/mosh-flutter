@@ -220,6 +220,9 @@ impl DeviceIdentity {
     }
 
     pub(crate) fn can_join(&self) -> Result<bool> {
+        if crate::plus::has_purchase(&self.store).map_err(storage_error)? {
+            return Ok(false);
+        }
         if self.revoked()? {
             return Ok(true);
         }

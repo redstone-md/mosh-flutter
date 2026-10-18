@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -73,18 +74,14 @@ void main() {
     final channel = await CallWindowFrameChannel.bind();
     addTearDown(channel.dispose);
     final port = channel.descriptor['port'] as int;
-    final wrong = await CallWindowFrameChannel.connect(port, '0' * 64);
-    await wrong.drain<void>().timeout(const Duration(seconds: 2));
-    wrong.destroy();
+    await _expectRejectedConnection(port, '0' * 64);
     final renderer = await CallWindowFrameChannel.connect(port, channel.token);
     final data = renderer.first;
     await channel.ready.timeout(const Duration(seconds: 2));
     expect(channel.send([1, 2, 3]), isTrue);
     expect(await data.timeout(const Duration(seconds: 2)), [1, 2, 3]);
     renderer.destroy();
-    final reused = await CallWindowFrameChannel.connect(port, channel.token);
-    await reused.drain<void>().timeout(const Duration(seconds: 2));
-    reused.destroy();
+    await _expectRejectedConnection(port, channel.token);
     await channel.dispose();
     expect(channel.send([4]), isFalse);
   });
@@ -115,4 +112,20 @@ void main() {
     await expectLater(
         CallWindowFrameChannel.connect(1234, 'secret'), throwsFormatException);
   });
+}
+
+Future<void> _expectRejectedConnection(int port, String token) async {
+  Socket? socket;
+  final received = <int>[];
+  try {
+    socket = await CallWindowFrameChannel.connect(port, token);
+    await for (final bytes in socket.timeout(const Duration(seconds: 2))) {
+      received.addAll(bytes);
+    }
+  } on SocketException {
+    // Immediate rejection can reset connect or the stream instead of EOF.
+  } finally {
+    socket?.destroy();
+  }
+  expect(received, isEmpty, reason: 'Rejected renderer receives no pixels');
 }

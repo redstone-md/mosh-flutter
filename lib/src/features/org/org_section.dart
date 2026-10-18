@@ -152,6 +152,7 @@ class _OfferRow extends StatelessWidget {
     required OrgDmOfferView offer,
   })  : offerId = offer.offerId,
         fromName = offer.fromName,
+        fromPeerId = offer.fromPeerId,
         _kind = _OfferRowKind.dm,
         _groupOffer = null;
 
@@ -164,12 +165,14 @@ class _OfferRow extends StatelessWidget {
     required OrgGroupOfferView offer,
   })  : offerId = offer.offerId,
         fromName = offer.fromName,
+        fromPeerId = null,
         _kind = _OfferRowKind.group,
         _groupOffer = offer;
 
   final String orgPubkey;
   final String offerId;
   final String fromName;
+  final String? fromPeerId;
   final bool busy;
   final void Function(String, String) onAccept;
   final void Function(String, String) onDismiss;
@@ -196,7 +199,8 @@ class _OfferRow extends StatelessWidget {
                 child: Row(
                   children: [
                     switch (_kind) {
-                      _OfferRowKind.dm => Avatar(name: fromName, radius: 12),
+                      _OfferRowKind.dm => Avatar(
+                          name: fromName, radius: 12, plusIdentity: fromPeerId),
                       _OfferRowKind.group =>
                         const Icon(Icons.group_outlined, size: 18),
                     },
@@ -340,7 +344,11 @@ class _MemberRow extends StatelessWidget {
           radius: _kRowRadius,
           child: Row(
             children: [
-              Avatar(name: member.name, radius: 12),
+              Avatar(
+                  name: member.name,
+                  radius: 12,
+                  plusIdentity: member.mossPeerId,
+                  ownPlus: member.isSelf),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
