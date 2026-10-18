@@ -4,6 +4,38 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0] - 2026-10-18
+
+### Added
+
+- Sound & Video settings now remember a default camera beside the microphone and
+  speaker choices. Missing cameras fall back to the default without delaying
+  voice-only calls.
+- A configured Mosh+ devnet pilot supports a 30-day test purchase through a
+  mobile wallet, a certificate retained after restart and optional verified user
+  badges in conversations. Ordinary release installers leave this pilot disabled.
+
+### Fixed
+
+- macOS USB cameras use a frame rate supported by the selected native format,
+  avoiding camera startup failures caused by mismatched format/FPS settings.
+- A pause in remote video keeps your preview small and shows a waiting message.
+  Fresh frames restore the remote picture automatically. Camera and media logs
+  now help distinguish capture failures, video stalls and presentation problems.
+- Relayed calls preserve short video packet bursts instead of dropping fresh
+  fragments prematurely.
+- Video thumbnail loading runs away from the UI thread; decoded previews are
+  reused within a bounded cache to prevent chat freezes.
+- Invitation action buttons have consistent heights.
+- A failed camera-list refresh retains the last successful list.
+
+### Upgrade notes
+
+- Mosh+ purchases use test tokens and the separately configured private devnet
+  pilot. Public billing and mainnet payments are outside this release.
+- Intermittent video pauses are still being investigated. The layout correction
+  has automated coverage; confirmation on the affected Macs remains pending.
+
 ## [0.22.0] - 2026-10-11
 
 ### Added

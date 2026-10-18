@@ -19,7 +19,7 @@ use flutter_rust_bridge::frb;
 use serde::{Deserialize, Serialize};
 
 use crate::api::shared_runtime::resolved_data_dir;
-use crate::audio_devices::{self, AudioDevicesSetting};
+use crate::audio_devices;
 
 /// One enumerable output device: the cpal `DeviceId` stringified (the
 /// stable persisted form, `host:device`) plus the human label for the
@@ -67,20 +67,18 @@ pub fn audio_output_device_id() -> Option<String> {
 
 /// Persists BOTH picks in one write: the settings screen edits them as a
 /// pair, and a partial update losing the other field would surprise the
-/// user. `None` clears the pick back to the system default.
+/// user. Preserve the independent camera choice. `None` clears an audio pick
+/// back to the system default.
 #[frb(sync)]
 pub fn set_audio_devices(
     input_device_id: Option<String>,
     output_device_id: Option<String>,
 ) -> Result<(), String> {
-    audio_devices::save(
-        &resolved_data_dir(),
-        &AudioDevicesSetting {
-            input_device_id,
-            output_device_id,
-        },
-    )
-    .map_err(|error| format!("audio-devices save: {error}"))
+    let mut settings = audio_devices::load(&resolved_data_dir());
+    settings.input_device_id = input_device_id;
+    settings.output_device_id = output_device_id;
+    audio_devices::save(&resolved_data_dir(), &settings)
+        .map_err(|error| format!("audio-devices save: {error}"))
 }
 
 #[cfg(test)]

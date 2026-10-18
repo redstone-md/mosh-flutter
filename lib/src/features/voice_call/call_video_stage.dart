@@ -8,9 +8,14 @@ import 'call_video_renderer.dart';
 
 /// Presentation only. Pixel changes never animate; stage presence may fade.
 class CallVideoStage extends StatelessWidget {
-  const CallVideoStage({super.key, required this.images, required this.peer});
+  const CallVideoStage(
+      {super.key,
+      required this.images,
+      required this.peer,
+      this.remoteCamera = false});
   final ValueListenable<CallVideoImages> images;
   final String peer;
+  final bool remoteCamera;
 
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<CallVideoImages>(
@@ -21,7 +26,7 @@ class CallVideoStage extends StatelessWidget {
               : const Duration(milliseconds: 150),
           switchInCurve: Curves.easeInOut,
           switchOutCurve: Curves.easeInOut,
-          child: images.remote == null && images.local == null
+          child: !remoteCamera && images.remote == null && images.local == null
               ? const SizedBox.shrink(key: ValueKey(false))
               : _stage(context, images),
         ),
@@ -30,6 +35,7 @@ class CallVideoStage extends StatelessWidget {
   Widget _stage(BuildContext context, CallVideoImages images) {
     final remote = images.remote;
     final preview = images.local;
+    final remoteStage = remoteCamera || remote != null;
     final l = AppLocalizations.of(context)!;
     return Padding(
       key: const ValueKey(true),
@@ -40,13 +46,13 @@ class CallVideoStage extends StatelessWidget {
               child: ColoredBox(
                   color: MoshColors.bg0,
                   child: Stack(fit: StackFit.expand, children: [
-                    _picture(
-                        remote ?? preview!,
-                        remote != null
-                            ? l.callRemoteVideo(peer)
-                            : l.callLocalPreview,
-                        mirrored: remote == null),
-                    if (remote != null && preview != null)
+                    if (remote != null)
+                      _picture(remote, l.callRemoteVideo(peer), mirrored: false)
+                    else if (remoteStage)
+                      Center(child: Text(l.callWaitingForVideo))
+                    else if (preview != null)
+                      _picture(preview, l.callLocalPreview, mirrored: true),
+                    if (remoteStage && preview != null)
                       _preview(preview, l.callLocalPreview),
                   ])))),
     );

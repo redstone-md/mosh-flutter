@@ -94,9 +94,10 @@ class NativeCallSession {
       });
   Future<void> selectCamera(String? id) => _change(() async {
         _cameraId = id;
-      });
+      }, cameraSelection: true);
 
-  Future<void> _change(Future<void> Function() change) {
+  Future<void> _change(Future<void> Function() change,
+      {bool cameraSelection = false}) {
     return _commands = _commands.catchError((Object _) {}).then((_) async {
       await _starting;
       if (_closed) return;
@@ -113,7 +114,8 @@ class NativeCallSession {
             camera: _camera,
             input: _input,
             output: _output,
-            cameraId: _cameraId);
+            cameraId: _cameraId,
+            cameraSelection: cameraSelection);
         if (!_closed) await _readState();
       } finally {
         busy = false;

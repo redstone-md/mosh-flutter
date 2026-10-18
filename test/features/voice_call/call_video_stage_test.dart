@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/call_video_renderer.dart';
+import 'package:mosh/src/features/voice_call/call_media_view.dart';
 import 'package:mosh/src/features/voice_call/call_video_stage.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
 
 import '../../support/call_video_frames.dart';
+import '../../support/native_call_fixture.dart';
 import '../../support/pump.dart';
 
 const call = CallViewState(
@@ -16,6 +18,48 @@ const call = CallViewState(
     phase: CallViewPhase.active);
 
 void main() {
+  testWidgets(
+      'remote video expiry keeps preview small and fresh video recovers',
+      (tester) async {
+    final image = await tester
+        .runAsync(() => CallVideoRenderer.decodeRgba(testCallVideoFrame(1)));
+    addTearDown(image!.dispose);
+    final active = CallViewState(
+        sessionId: 'dm',
+        callId: 'call',
+        peer: 'Alice',
+        phase: CallViewPhase.active,
+        media: CallMediaView.fromSnapshot(nativeCallSnapshot(camera: true)));
+    final renderer = CallVideoRenderer(decode: (_) async => image.clone())
+      ..update(active);
+    addTearDown(renderer.dispose);
+    await pumpScreen(
+        tester,
+        Scaffold(
+            body: CallView(call: active, video: renderer, onAction: (_) {})),
+        settle: false);
+    await renderer.receive(testCallVideoFrame(1));
+    await renderer.receive(testCallVideoFrame(1, local: true));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 900));
+    await renderer.receive(testCallVideoFrame(2, local: true));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(renderer.value.remote, isNull);
+    expect(renderer.value.local, isNotNull);
+    final preview = find.bySemanticsLabel('Your camera preview');
+    final stage = find.byType(CallVideoStage);
+    expect(tester.getSize(preview).width,
+        lessThan(tester.getSize(stage).width / 2),
+        reason: 'a missing remote frame must not promote the local camera');
+    expect(find.text('Waiting for video…'), findsOneWidget);
+    await renderer.receive(testCallVideoFrame(2));
+    await tester.pump();
+    expect(find.text('Waiting for video…'), findsNothing);
+    expect(find.bySemanticsLabel('Video from Alice'), findsOneWidget);
+    renderer.update(null);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('cleared video paints its owned image clone through the fade',
       (tester) async {
     final renderer = CallVideoRenderer()..update(call);

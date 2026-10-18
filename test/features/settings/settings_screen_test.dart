@@ -56,7 +56,7 @@ void main() {
     final router = await _route(tester, AppRoutes.sessions);
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
-    expect(find.text('Sound'), findsNWidgets(2));
+    expect(find.text('Sound & Video'), findsNWidgets(2));
     expect(find.text('Devices'), findsOneWidget);
     expect(find.text('Connection'), findsOneWidget);
     expect(find.text('Privacy'), findsOneWidget);
@@ -120,9 +120,9 @@ void main() {
       (tester) async {
     _size(tester, const Size(390, 844));
     await _route(tester);
-    expect(find.text('Sound'), findsOneWidget);
+    expect(find.text('Sound & Video'), findsOneWidget);
     expect(find.text('Microphone'), findsNothing);
-    await tester.tap(find.text('Sound'));
+    await tester.tap(find.text('Sound & Video'));
     await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsOneWidget);
     expect(find.text('Connection'), findsNothing);
@@ -138,12 +138,12 @@ void main() {
     final router = await _route(tester, AppRoutes.sessions);
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sound'));
+    await tester.tap(find.text('Sound & Video'));
     await tester.pumpAndSettle();
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.text('Connection'), findsOneWidget);
-    await tester.tap(find.text('Sound'));
+    await tester.tap(find.text('Sound & Video'));
     await tester.pumpAndSettle();
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
@@ -169,7 +169,7 @@ void main() {
     await _route(tester, AppRoutes.sessions);
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sound'));
+    await tester.tap(find.text('Sound & Video'));
     await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsOneWidget);
     await tester.binding.handlePopRoute();
@@ -179,7 +179,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsNothing);
-    expect(find.text('Sound'), findsOneWidget);
+    expect(find.text('Sound & Video'), findsOneWidget);
     expect(find.text('Devices'), findsOneWidget);
   });
 

@@ -17,6 +17,7 @@ struct Owner {
     connection: Option<Connection>,
     capture: Option<Capture>,
     query: Option<Query>,
+    camera_inventory_ready: bool,
     choices: Choices,
     captured: u64,
     capture_id: Option<String>,
@@ -48,6 +49,7 @@ impl Owner {
             connection: None,
             capture: None,
             query: None,
+            camera_inventory_ready: false,
             choices: Choices::default(),
             captured: 0,
             capture_id: None,
@@ -67,15 +69,8 @@ impl Owner {
             transport.drain_call_packets();
             return Ok(());
         }
+        self.query_cameras(state);
         self.capture(state)?;
-        if self.query.is_none() && Instant::now() >= self.query_after {
-            self.query_after = Instant::now() + Duration::from_secs(5);
-            self.query = Query::start().ok();
-        }
-        if let Some(devices) = self.query.as_mut().and_then(Query::poll) {
-            state.snapshot.cameras = devices;
-            self.query = None;
-        }
         self.negotiate(&context, state, Instant::now())?;
         let choices = state.choices.clone();
         if let Some(connection) = &mut self.connection {
@@ -107,6 +102,8 @@ impl Owner {
             self.capture = None;
             self.connection = None;
             self.query = None;
+            self.camera_inventory_ready = false;
+            self.query_after = Instant::now();
             self.sender.reset();
             state.snapshot = Default::default();
             state.frames = Default::default();
@@ -131,16 +128,12 @@ impl Owner {
         }
         if state.choices.camera && self.capture.is_none() {
             state.snapshot.camera_failed = false;
-            match Capture::start(state.choices.camera_id.as_deref()) {
-                Ok(capture) => {
-                    self.capture_id = state.choices.camera_id.clone();
-                    self.capture = Some(capture);
-                }
-                Err(_) => {
-                    state.choices.camera = false;
-                    state.snapshot.camera_failed = true;
-                }
+            if !self.camera_ready(state) {
+                state.snapshot.camera_requested = true;
+                state.snapshot.camera_starting = true;
+                return Ok(());
             }
+            self.start_capture(state);
         }
         if self.capture.as_mut().is_some_and(Capture::failed) {
             state.choices.camera = false;
@@ -158,6 +151,69 @@ impl Owner {
         state.snapshot.camera_requested = state.choices.camera;
         state.snapshot.camera_starting = state.choices.camera && !state.snapshot.camera;
         Ok(())
+    }
+
+    fn query_cameras(&mut self, state: &mut State) {
+        if self.query.is_none() && Instant::now() >= self.query_after {
+            self.query_after = Instant::now() + Duration::from_secs(5);
+            self.query = Query::start().ok();
+            if self.query.is_none() {
+                self.camera_inventory_ready = true;
+            }
+        }
+        if let Some(devices) = self.query.as_mut().and_then(Query::poll) {
+            match devices {
+                Ok(devices) => state.snapshot.cameras = devices,
+                Err(error) => crate::diagnostics_log::write(
+                    crate::diagnostics_log::LogLevel::Warn,
+                    crate::diagnostics_log::kinds::CALL,
+                    "",
+                    &format!("camera enumeration failed; keeping previous inventory: {error}"),
+                ),
+            }
+            self.camera_inventory_ready = true;
+            self.query = None;
+        }
+    }
+
+    fn camera_ready(&self, state: &mut State) -> bool {
+        let Some(preferred) = state.pending_camera_default.as_ref() else {
+            return true;
+        };
+        if state.choices.camera_id.as_ref() != Some(preferred) {
+            state.pending_camera_default = None;
+            return true;
+        }
+        if !self.camera_inventory_ready {
+            return false;
+        }
+        state.choices.camera_id = state
+            .snapshot
+            .cameras
+            .iter()
+            .find(|device| device.stable && device.id == *preferred)
+            .map(|device| device.id.clone());
+        state.pending_camera_default = None;
+        true
+    }
+
+    fn start_capture(&mut self, state: &mut State) {
+        match Capture::start(state.choices.camera_id.as_deref()) {
+            Ok(capture) => {
+                self.capture_id = state.choices.camera_id.clone();
+                self.capture = Some(capture);
+            }
+            Err(error) => {
+                crate::diagnostics_log::write(
+                    crate::diagnostics_log::LogLevel::Warn,
+                    crate::diagnostics_log::kinds::CALL,
+                    "",
+                    &format!("camera capture startup failed: {error}"),
+                );
+                state.choices.camera = false;
+                state.snapshot.camera_failed = true;
+            }
+        }
     }
 
     fn stop_capture(&mut self, state: &mut State) -> Result<(), String> {

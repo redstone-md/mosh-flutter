@@ -1,9 +1,29 @@
 //! Desktop call controls and presentation; no media keys cross this bridge.
 pub use crate::native_call::types::{Device, Frame, Snapshot};
 use crate::native_call::{types::Choices, Hub};
+use flutter_rust_bridge::frb;
 use std::sync::{Arc, OnceLock};
 
 static HUB: OnceLock<Arc<Hub>> = OnceLock::new();
+
+/// Inventory only: does not prepare a call or open a capture stream.
+pub fn list_cameras() -> Result<Vec<Device>, String> {
+    crate::native_call::list_cameras()
+}
+
+#[frb(sync)]
+pub fn default_camera_id() -> Option<String> {
+    crate::audio_devices::load(&super::shared_runtime::resolved_data_dir()).camera_device_id
+}
+
+#[frb(sync)]
+pub fn set_default_camera(camera_id: Option<String>) -> Result<(), String> {
+    let directory = super::shared_runtime::resolved_data_dir();
+    let mut settings = crate::audio_devices::load(&directory);
+    settings.camera_device_id = camera_id;
+    crate::audio_devices::save(&directory, &settings)
+        .map_err(|error| format!("camera preference save: {error}"))
+}
 
 pub fn prepare(
     session_id: String,
@@ -18,7 +38,7 @@ pub fn prepare(
         camera,
         input: settings.input_device_id,
         output: settings.output_device_id,
-        camera_id: None,
+        camera_id: settings.camera_device_id,
     };
     let hub = super::private_dm::ensure_runtime()
         .map_err(|error| error.to_string())?
@@ -28,6 +48,8 @@ pub fn prepare(
 }
 
 // Bridge fields stay explicit; the native owner receives one Choices value.
+/// Only explicit camera selection updates its ID; other controls preserve the
+/// owner's choice after asynchronous default resolution.
 #[allow(clippy::too_many_arguments)]
 pub fn set_choices(
     session_id: String,
@@ -38,6 +60,7 @@ pub fn set_choices(
     input: Option<String>,
     output: Option<String>,
     camera_id: Option<String>,
+    camera_selection: bool,
 ) -> Result<(), String> {
     hub()?.choices(
         &session_id,
@@ -50,6 +73,7 @@ pub fn set_choices(
             output,
             camera_id,
         },
+        camera_selection,
     )
 }
 

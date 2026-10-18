@@ -89,7 +89,10 @@ class _CallViewState extends State<CallView> {
               : () => unawaited(_devices())),
       stage: widget.video == null || widget.compact
           ? null
-          : CallVideoStage(images: widget.video!, peer: call.peer),
+          : CallVideoStage(
+              images: widget.video!,
+              peer: call.peer,
+              remoteCamera: active && call.media?.remoteCamera == true),
     );
   }
 

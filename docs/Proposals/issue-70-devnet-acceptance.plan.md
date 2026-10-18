@@ -28,3 +28,10 @@ did not grant access; a one-token payment issued a certificate that survived
 retries/restarts and propagated only after explicit opt-in. The ready-installer
 guide contains public transaction evidence. Physical mobile/desktop device
 checks remain outside this headless result.
+
+Device follow-up on 2026-10-18: the reporter confirmed mobile payment through
+iPhone Camera → Solflare, purchase retention after restart and badges on
+macOS/Windows. Solflare's in-app address scanner rejected the payment URI;
+Phantom 26.33.1 did not load the devnet token list in that run. See the guide
+for the tested entry point. Ordinary 0.23.0 release installers keep the pilot
+disabled; its configured installers and private billing remain separate.

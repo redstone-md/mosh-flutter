@@ -17,6 +17,19 @@ input, preserving video and playback. Losing output returns to default output.
 Capture is never reenabled automatically when a device returns. Camera IDs
 without a stable platform identity remain scoped to the call.
 
+Sound & Video settings stores a desktop camera default beside microphone and
+speaker preferences. When the camera is first enabled, the native owner resolves
+that stable ID against its asynchronous helper inventory; an unavailable default
+uses the normal default camera. Voice-only preparation never waits for camera
+enumeration, and the owner continues audio and device controls while inventory
+is pending. A failed inventory refresh retains the last successful camera list
+and logs the error; a successful empty result clears it. Per-call camera choices
+remain independent and do not overwrite the saved default. Merely opening
+settings enumerates devices without opening a stream or preparing an engine.
+Only an explicit camera-selection command changes the per-call device ID.
+Microphone, speaker and camera on/off commands preserve the native owner's
+current ID, so an older presentation snapshot cannot undo asynchronous fallback.
+
 Android/iOS retain the existing voice pipeline. Authenticated offers identify
 the media protocol, so an incompatible installation does not ring or become the
 selected receiver. Desktop/mobile calls are currently unsupported; a contact
@@ -92,6 +105,25 @@ Failure during stream initialization also removes its delegate. A two-frame
 30Hz cadence handles driver jitter without dropping alternate 30Hz frames due
 to processing time.
 
+The macOS configuration patch matches resolution and nokhwa's pixel-format descriptor with an
+FPS endpoint belonging to that same native format. It uses the original native
+frame duration, including fractional rates, and releases the configuration
+lock. This corrects a backend loop that could combine a 720p10 format with a
+different format's 30 fps duration. The reporter has confirmed working camera
+capture on the Mac Mini with the patched universal build. Intermittent remote
+video pauses remain a separate delivery/presentation investigation.
+Nokhwa normalizes several native FourCC values to one descriptor; diagnostics
+retain the native FourCC, while selection keeps each format and duration paired.
+
+The helper reports startup phases, the selected mode and first complete frame
+to stderr; macOS also lists up to 64 native modes with actual FPS ranges.
+The owner continuously drains stderr, retaining only its final 8 KiB. After
+capture stops, the existing application field log records that tail, output
+failure or timeout, process exit status and whether the owner terminated it.
+Camera startup failures before spawning are logged as well. Enumeration still
+discards stderr. Binary stdout frames, account identities and media keys are
+never included in these diagnostics.
+
 `NativeCallSession` in Dart owns commands and presentation polling. Rust retains
 media when this client or the window disappears. The child window starts no
 Rust, capture or audio runtime. Public state travels through inherited stdio;
@@ -104,10 +136,23 @@ Each lane retains its latest image, and the renderer has one decode in flight.
 Call/generation checks discard old responses, and image age includes transfer
 and decode time. Images expire after one second without fresh delivery. Camera
 off clears its image immediately. Rendering preserves aspect ratio, mirrors
-local preview and uses a small secondary preview over remote video. Frequent
+local preview and uses a small secondary preview over remote video. While the
+peer's camera remains enabled, an expired or not-yet-received remote frame shows
+"Waiting for video…" in the same stage and keeps local preview small. A
+camera-state change permits switching back to a local-only stage;
+frame expiry does not mean the peer disabled their camera. Fresh frames restore
+remote video automatically without retaining an expired image. Frequent
 frames and the timer do not animate; discrete icon/stage changes honor reduced
 motion. No encoder hardware badge is inferred: diagnostics show the actual
 codec/implementation reported by the engine.
+
+The existing application log records native media transitions: route, ICE
+connection state, remote video waiting/live/stalled/off, decoded-frame age/count,
+packet drops and audio/video codec statistics. Identical states do not repeat.
+These events distinguish remote capture failure (camera-off plus the sender's
+helper log), interrupted decoding/delivery (stalled), and presentation trouble
+while native reception remains live. They contain no images, audio or media keys.
+An uninterrupted audio stream alone does not prove the video path is healthy.
 
 ## Capacity and recovery
 

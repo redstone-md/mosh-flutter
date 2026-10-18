@@ -1,6 +1,7 @@
 mod capture;
 mod connection;
 mod devices;
+mod diagnostics;
 mod library;
 mod packets;
 mod recovery;
@@ -16,6 +17,17 @@ use std::{
     time::{Duration, Instant},
 };
 use types::{Choices, Context, Frame, Signal, Snapshot};
+
+/// Reuse the bounded helper inventory without creating an engine or call.
+pub(crate) fn list_cameras() -> Result<Vec<types::Device>, String> {
+    let mut query = capture::Query::start()?;
+    loop {
+        if let Some(devices) = query.poll() {
+            return devices;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
 
 /// Owns one selected call independently of Flutter and the presentation process.
 pub(crate) struct Hub {
@@ -46,6 +58,7 @@ impl Hub {
         });
         if !same || !state.prepared {
             state.inbound.clear();
+            state.pending_camera_default = choices.camera_id.clone();
             state.choices = choices;
             state.revision = state.revision.saturating_add(1);
         }
@@ -72,6 +85,7 @@ impl Hub {
             if !same {
                 state.inbound.clear();
                 state.prepared = false;
+                state.pending_camera_default = None;
                 state.choices = Default::default();
             }
             state.context = context;
@@ -84,7 +98,13 @@ impl Hub {
         }
     }
 
-    pub fn choices(&self, session: &str, call: &str, mut choices: Choices) -> Result<(), String> {
+    pub fn choices(
+        &self,
+        session: &str,
+        call: &str,
+        mut choices: Choices,
+        camera_selection: bool,
+    ) -> Result<(), String> {
         choices.input = choices
             .input
             .as_deref()
@@ -107,6 +127,13 @@ impl Hub {
                     .is_some_and(|ctx| ctx.matches(session, call))
             {
                 return Err("call no longer exists".into());
+            }
+            if camera_selection {
+                state.pending_camera_default = None;
+            } else {
+                // Other controls may carry a snapshot from before asynchronous
+                // default resolution. Only an explicit camera pick changes it.
+                choices.camera_id.clone_from(&state.choices.camera_id);
             }
             state.choices = choices;
             state.revision = state.revision.saturating_add(1);

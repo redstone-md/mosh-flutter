@@ -1,6 +1,6 @@
 # Settings redesign
 
-The settings frame has six sections: Sound, Profile, Devices,
+The settings frame has six sections: Sound & Video, Profile, Devices,
 Connection, Privacy and About. The original
 [approved plan](../Archive/settings-redesign.plan.md) is archived for reference.
 Read receipts have moved to Privacy.
@@ -12,7 +12,7 @@ Read receipts have moved to Privacy.
   Direct route entry falls back to the chat list.
 - At widths of at least 800px a 280px sidebar accompanies content capped at
   800px. The existing titlebar retains branding without a global network badge.
-  Sound opens first; the last section survives closing settings during this
+  Sound & Video opens first; the last section survives closing settings during this
   application launch. Restarting the application resets that choice.
 - Narrow windows and Android start with the section list. Selecting a section
   opens its detail view. The toolbar back button, system Back and Escape return
@@ -77,18 +77,26 @@ The feature uses existing ARB generation and settings controls. It adds a separa
 Rust APIs, bridge bindings and database schemas retain their existing contracts.
 The host-architecture macOS CI lane runs RunnerTests against the compiled menu.
 
-## Sound
+## Sound & Video
 
-- Microphone and speaker cards consume the existing Riverpod device providers
-  and persisted `audio-devices.json` choices. Changing one preserves the other.
+- Microphone, desktop camera and speaker cards consume Riverpod device providers
+  and persisted `audio-devices.json` choices. Changing one preserves the others.
   Choices apply to subsequent recording or playback as before.
+- The desktop camera selector reuses the hardware selector and capture helper's
+  bounded inventory without starting a call or capturing frames. Only stable
+  platform IDs can be saved across restarts; devices with call-scoped IDs remain
+  selectable in the call window. Camera inventory refreshes when its card is
+  reopened. The saved camera applies to new calls. A missing saved device falls
+  back to the default when video is first enabled; the saved preference stays visible
+  as unavailable in settings. Changing the default leaves an active call alone.
+  Camera enumeration is asynchronous and does not delay voice-only startup.
 - Loading disables a selector. Enumeration failure offers retry and system
   default selection. A disconnected saved device remains visible as unavailable
   until the user chooses another; a failed save displays an error and keeps the
   persisted selection in the field.
 - The existing ringtone player provides the speaker test. Stop, the 1.5-second
   timer and section disposal release the handle. Playback errors are visible
-  and can be retried. No additional microphone test or video controls appear.
+  and can be retried. Selecting a default camera does not activate a preview.
 
 ## Adaptive menus
 

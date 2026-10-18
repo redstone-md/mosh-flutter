@@ -73,3 +73,8 @@ codegen-units = 1
 debug = "line-tables-only"
 split-debuginfo = "packed"
 strip = "none"
+
+# Multi-device tests verify signed rosters and message origins on every poll.
+# Unoptimized curve arithmetic can exhaust their protocol deadlines on CI.
+[profile.test.package.curve25519-dalek]
+opt-level = 3
