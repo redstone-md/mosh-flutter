@@ -13,6 +13,7 @@ pub(super) struct Reporter {
     disconnected: Option<Instant>,
     budget: u64,
     connected_once: bool,
+    diagnostics: super::diagnostics::Monitor,
 }
 
 impl Reporter {
@@ -23,6 +24,7 @@ impl Reporter {
             disconnected: None,
             budget: 0,
             connected_once: false,
+            diagnostics: Default::default(),
         }
     }
     fn refresh_devices(&mut self, engine: &mut Engine, state: &mut State) -> Result<(), String> {
@@ -101,6 +103,8 @@ impl Reporter {
         state.snapshot.video_width = encoder["width"].as_u64().unwrap_or(0) as u32;
         state.snapshot.video_height = encoder["height"].as_u64().unwrap_or(0) as u32;
         state.snapshot.video_fps = encoder["fps"].as_f64().unwrap_or(0.0);
+        self.diagnostics
+            .update(route, state, &snapshot, sender.dropped());
         Ok(())
     }
 }

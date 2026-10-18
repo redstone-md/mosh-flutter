@@ -1,6 +1,7 @@
 mod capture;
 mod connection;
 mod devices;
+mod diagnostics;
 mod library;
 mod packets;
 mod recovery;

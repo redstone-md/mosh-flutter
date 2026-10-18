@@ -67,9 +67,12 @@ complete macOS dependency patch reconstructs from its verified upstream archive
 to the pinned source hash. Independent read-only spec/standards reviews found
 and corrected the loss of camera-enumeration errors before the settings picker.
 
-No tests were run, as requested. No macOS SDK compilation or physical camera
-acceptance is claimed. A new macOS build and the affected Mac Mini's local
-preview/first frames, then Mac Mini → Air video, remain outstanding.
+Those initial local checks did not run tests or claim macOS hardware acceptance.
+Subsequently, universal build [39150094892](https://github.com/redstone-md/mosh-flutter/actions/runs/39150094892)
+passed macOS compilation, architecture and signing checks. The reporter confirmed
+that the affected camera works with that build. CI
+[39154787584](https://github.com/redstone-md/mosh-flutter/actions/runs/39154787584)
+also passed, including the repaired real-Moss multi-device scenarios.
 
 CodeAnt's review of PR #90 identified that synchronous default-camera resolution
 could delay voice-only preparation by the inventory helper's three-second bound.
@@ -80,3 +83,20 @@ Call choices carry explicit camera-selection intent so microphone/speaker/on-off
 commands cannot restore an old ID after asynchronous default resolution. Both
 sides of the local bridge and its generated bindings are updated together;
 the network and binary camera frame protocols are unchanged.
+
+## Intermittent remote video follow-up
+
+The reporter observes video disappearing and returning while audio continues.
+The renderer's existing one-second freshness limit reproducibly promoted local
+preview to the large stage. The stage now follows the peer's camera-enabled
+state independently of frame availability: it shows a waiting placeholder and
+keeps local preview small during a gap. Fresh frames restore video automatically;
+expired images are still cleared. A focused renderer-to-view reproduction
+failed before this fix and passed afterward.
+
+Native diagnostics record only route/ICE/video-state transitions, with frame age,
+decoded count, packet drops and codec statistics. They preserve the existing log
+bounds and contain no media bytes or keys. These events, together with helper
+diagnostics from both installations, are needed to distinguish capture, transport,
+decoder and presentation delays. The cause of the physical video pauses is not
+yet established; the layout correction does not repair or prove that path.

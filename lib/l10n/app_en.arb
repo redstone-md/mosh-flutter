@@ -2125,6 +2125,7 @@
   "callCameraUnavailable": "Camera unavailable. Voice remains available.",
   "callMicrophoneUnavailable": "Microphone unavailable. You can still listen.",
   "callReconnecting": "Reconnecting…",
+  "callWaitingForVideo": "Waiting for video…",
   "callDevices": "Call devices",
   "callMicrophone": "Microphone",
   "callSpeaker": "Speaker",

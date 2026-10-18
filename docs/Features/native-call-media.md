@@ -109,8 +109,9 @@ The macOS configuration patch matches resolution and nokhwa's pixel-format descr
 FPS endpoint belonging to that same native format. It uses the original native
 frame duration, including fractional rates, and releases the configuration
 lock. This corrects a backend loop that could combine a 720p10 format with a
-different format's 30 fps duration. It does not establish physical acceptance
-on the reported Mac Mini USB camera until that device produces frames again.
+different format's 30 fps duration. The reporter has confirmed working camera
+capture on the Mac Mini with the patched universal build. Intermittent remote
+video pauses remain a separate delivery/presentation investigation.
 Nokhwa normalizes several native FourCC values to one descriptor; diagnostics
 retain the native FourCC, while selection keeps each format and duration paired.
 
@@ -135,10 +136,23 @@ Each lane retains its latest image, and the renderer has one decode in flight.
 Call/generation checks discard old responses, and image age includes transfer
 and decode time. Images expire after one second without fresh delivery. Camera
 off clears its image immediately. Rendering preserves aspect ratio, mirrors
-local preview and uses a small secondary preview over remote video. Frequent
+local preview and uses a small secondary preview over remote video. While the
+peer's camera remains enabled, an expired or not-yet-received remote frame shows
+"Waiting for video…" in the same stage and keeps local preview small. A
+camera-state change permits switching back to a local-only stage;
+frame expiry does not mean the peer disabled their camera. Fresh frames restore
+remote video automatically without retaining an expired image. Frequent
 frames and the timer do not animate; discrete icon/stage changes honor reduced
 motion. No encoder hardware badge is inferred: diagnostics show the actual
 codec/implementation reported by the engine.
+
+The existing application log records native media transitions: route, ICE
+connection state, remote video waiting/live/stalled/off, decoded-frame age/count,
+packet drops and audio/video codec statistics. Identical states do not repeat.
+These events distinguish remote capture failure (camera-off plus the sender's
+helper log), interrupted decoding/delivery (stalled), and presentation trouble
+while native reception remains live. They contain no images, audio or media keys.
+An uninterrupted audio stream alone does not prove the video path is healthy.
 
 ## Capacity and recovery
 

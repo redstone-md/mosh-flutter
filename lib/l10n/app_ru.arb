@@ -1117,6 +1117,7 @@
   "callCameraUnavailable": "Камера недоступна. Голосовой звонок продолжается.",
   "callMicrophoneUnavailable": "Микрофон недоступен. Вы можете слушать собеседника.",
   "callReconnecting": "Восстанавливаем соединение…",
+  "callWaitingForVideo": "Ожидаем видео…",
   "callDevices": "Устройства звонка",
   "callMicrophone": "Микрофон",
   "callSpeaker": "Динамики",
