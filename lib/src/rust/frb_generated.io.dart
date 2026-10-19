@@ -278,6 +278,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlusOrder dco_decode_box_autoadd_plus_order(dynamic raw);
 
   @protected
+  PlusSeries dco_decode_box_autoadd_plus_series(dynamic raw);
+
+  @protected
   Snapshot dco_decode_box_autoadd_snapshot(dynamic raw);
 
   @protected
@@ -288,6 +291,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  int dco_decode_box_autoadd_u_8(dynamic raw);
 
   @protected
   VoiceMeta dco_decode_box_autoadd_voice_meta(dynamic raw);
@@ -506,6 +512,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<PeerDetail> dco_decode_list_peer_detail(dynamic raw);
 
   @protected
+  List<PlusOrder> dco_decode_list_plus_order(dynamic raw);
+
+  @protected
   List<PlusPeerBadge> dco_decode_list_plus_peer_badge(dynamic raw);
 
   @protected
@@ -647,6 +656,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlusOrder? dco_decode_opt_box_autoadd_plus_order(dynamic raw);
 
   @protected
+  PlusSeries? dco_decode_opt_box_autoadd_plus_series(dynamic raw);
+
+  @protected
   Snapshot? dco_decode_opt_box_autoadd_snapshot(dynamic raw);
 
   @protected
@@ -654,6 +666,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_8(dynamic raw);
 
   @protected
   VoiceMeta? dco_decode_opt_box_autoadd_voice_meta(dynamic raw);
@@ -699,6 +714,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlusPeerBadge dco_decode_plus_peer_badge(dynamic raw);
+
+  @protected
+  PlusSeries dco_decode_plus_series(dynamic raw);
 
   @protected
   PlusSnapshot dco_decode_plus_snapshot(dynamic raw);
@@ -978,6 +996,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlusOrder sse_decode_box_autoadd_plus_order(SseDeserializer deserializer);
 
   @protected
+  PlusSeries sse_decode_box_autoadd_plus_series(SseDeserializer deserializer);
+
+  @protected
   Snapshot sse_decode_box_autoadd_snapshot(SseDeserializer deserializer);
 
   @protected
@@ -989,6 +1010,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_box_autoadd_u_8(SseDeserializer deserializer);
 
   @protected
   VoiceMeta sse_decode_box_autoadd_voice_meta(SseDeserializer deserializer);
@@ -1236,6 +1260,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<PeerDetail> sse_decode_list_peer_detail(SseDeserializer deserializer);
 
   @protected
+  List<PlusOrder> sse_decode_list_plus_order(SseDeserializer deserializer);
+
+  @protected
   List<PlusPeerBadge> sse_decode_list_plus_peer_badge(
       SseDeserializer deserializer);
 
@@ -1403,6 +1430,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  PlusSeries? sse_decode_opt_box_autoadd_plus_series(
+      SseDeserializer deserializer);
+
+  @protected
   Snapshot? sse_decode_opt_box_autoadd_snapshot(SseDeserializer deserializer);
 
   @protected
@@ -1410,6 +1441,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_8(SseDeserializer deserializer);
 
   @protected
   VoiceMeta? sse_decode_opt_box_autoadd_voice_meta(
@@ -1460,6 +1494,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlusPeerBadge sse_decode_plus_peer_badge(SseDeserializer deserializer);
+
+  @protected
+  PlusSeries sse_decode_plus_series(SseDeserializer deserializer);
 
   @protected
   PlusSnapshot sse_decode_plus_snapshot(SseDeserializer deserializer);
@@ -1753,6 +1790,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       PlusOrder self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_plus_series(
+      PlusSeries self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_snapshot(Snapshot self, SseSerializer serializer);
 
   @protected
@@ -1764,6 +1805,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_u_8(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_voice_meta(
@@ -2033,6 +2077,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       List<PeerDetail> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_plus_order(
+      List<PlusOrder> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_plus_peer_badge(
       List<PlusPeerBadge> self, SseSerializer serializer);
 
@@ -2203,6 +2251,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       PlusOrder? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_plus_series(
+      PlusSeries? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_snapshot(
       Snapshot? self, SseSerializer serializer);
 
@@ -2211,6 +2263,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_8(int? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_voice_meta(
@@ -2262,6 +2317,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_plus_peer_badge(PlusPeerBadge self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_plus_series(PlusSeries self, SseSerializer serializer);
 
   @protected
   void sse_encode_plus_snapshot(PlusSnapshot self, SseSerializer serializer);

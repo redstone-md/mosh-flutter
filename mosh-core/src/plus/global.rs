@@ -10,16 +10,28 @@ pub(crate) fn configure(
     account: String,
     key: &str,
 ) -> Result<PlusSnapshot, String> {
+    configure_mode(store, account, key, None)
+}
+
+pub(crate) fn configure_mode(
+    store: Arc<Persistence>,
+    account: String,
+    key: &str,
+    writer: Option<&str>,
+) -> Result<PlusSnapshot, String> {
     let mut guard = OWNER.lock().map_err(|_| "PLUS owner unavailable")?;
     if let Some((existing, owner)) = guard.as_ref() {
-        if existing != key {
+        if existing != key || owner.issuer.mainnet_key_id.is_some() != writer.is_some() {
             return Err("PLUS issuer is already configured".into());
         }
         if owner.state.account_id == account {
             return Ok(owner.snapshot(now_ms()));
         }
     }
-    let owner = PlusRuntime::open(store, account, key)?;
+    let owner = match writer {
+        Some(writer) => PlusRuntime::open_mainnet(store, account, key, writer)?,
+        None => PlusRuntime::open(store, account, key)?,
+    };
     let snapshot = owner.snapshot(now_ms());
     *guard = Some((key.into(), owner));
     Ok(snapshot)
@@ -32,7 +44,16 @@ pub(crate) fn with_owner<T>(
     let mut guard = OWNER.lock().map_err(|_| "PLUS owner unavailable")?;
     let (key, owner) = guard.as_mut().ok_or("PLUS issuer not configured")?;
     if owner.state.account_id != account {
-        *owner = PlusRuntime::open(owner.store.clone(), account.into(), key)?;
+        *owner = PlusRuntime::open_with_issuer(
+            owner.store.clone(),
+            account.into(),
+            if owner.issuer.mainnet_key_id.is_some() {
+                super::Issuer::mainnet(key)?
+            } else {
+                super::Issuer::new(key)?
+            },
+            &owner.writer,
+        )?;
     }
     action(owner)
 }

@@ -1,5 +1,5 @@
 //! Durable PLUS state. Blinding secrets stay native; wallet keys stay in the wallet.
-pub use crate::plus::{PlusOrder, PlusPaymentStatus, PlusPeerBadge, PlusSnapshot};
+pub use crate::plus::{PlusOrder, PlusPaymentStatus, PlusPeerBadge, PlusSeries, PlusSnapshot};
 use crate::{conversation::now_ms, plus::global};
 
 fn with_owner<T>(
@@ -23,6 +23,41 @@ pub fn configure_issuer(public_key_b64: String) -> Result<PlusSnapshot, String> 
 
 pub fn snapshot() -> Result<PlusSnapshot, String> {
     with_owner(|owner| Ok(owner.snapshot(now_ms())))
+}
+
+pub fn configure_mainnet_issuer(public_key_b64: String) -> Result<PlusSnapshot, String> {
+    let identity = super::device_link::snapshot().map_err(|_| "PLUS account unavailable")?;
+    let resources = super::shared_runtime::ensure_shared_resources()?;
+    let store = resources
+        .persistence
+        .ok_or("PLUS requires encrypted storage")?;
+    global::configure_mode(
+        store,
+        identity.user_id,
+        &public_key_b64,
+        Some(&identity.own_device_id),
+    )
+}
+
+pub fn save_series(id: String, access_token: String) -> Result<PlusSnapshot, String> {
+    with_owner(|owner| {
+        owner.save_series(&id, &access_token)?;
+        Ok(owner.snapshot(now_ms()))
+    })
+}
+
+pub fn prepare_order_issuance(order_id: String) -> Result<String, String> {
+    with_owner(|owner| owner.prepare_order_issuance(&order_id))
+}
+
+pub fn complete_order_issuance(
+    order_id: String,
+    blind_signature_b64: String,
+) -> Result<PlusSnapshot, String> {
+    with_owner(|owner| {
+        owner.complete_order_issuance(&order_id, &blind_signature_b64, now_ms())?;
+        Ok(owner.snapshot(now_ms()))
+    })
 }
 
 pub fn save_order(order_json: String) -> Result<PlusSnapshot, String> {

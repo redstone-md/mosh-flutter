@@ -15,6 +15,23 @@ Future<PlusSnapshot> configureIssuer({required String publicKeyB64}) =>
 
 Future<PlusSnapshot> snapshot() => RustLib.instance.api.crateApiPlusSnapshot();
 
+Future<PlusSnapshot> configureMainnetIssuer({required String publicKeyB64}) =>
+    RustLib.instance.api
+        .crateApiPlusConfigureMainnetIssuer(publicKeyB64: publicKeyB64);
+
+Future<PlusSnapshot> saveSeries(
+        {required String id, required String accessToken}) =>
+    RustLib.instance.api
+        .crateApiPlusSaveSeries(id: id, accessToken: accessToken);
+
+Future<String> prepareOrderIssuance({required String orderId}) =>
+    RustLib.instance.api.crateApiPlusPrepareOrderIssuance(orderId: orderId);
+
+Future<PlusSnapshot> completeOrderIssuance(
+        {required String orderId, required String blindSignatureB64}) =>
+    RustLib.instance.api.crateApiPlusCompleteOrderIssuance(
+        orderId: orderId, blindSignatureB64: blindSignatureB64);
+
 Future<PlusSnapshot> saveOrder({required String orderJson}) =>
     RustLib.instance.api.crateApiPlusSaveOrder(orderJson: orderJson);
 
