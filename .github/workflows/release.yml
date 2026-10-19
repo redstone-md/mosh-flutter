@@ -57,6 +57,9 @@ jobs:
     uses: ./.github/workflows/build-windows.yml
     with:
       upload-debug-files: true
+      plus-network: solana-mainnet
+      plus-server-url: ${{ vars.MOSH_PLUS_SERVER_URL }}
+      plus-issuer-key: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
     secrets: inherit
 
   dmg:
@@ -64,6 +67,9 @@ jobs:
     uses: ./.github/workflows/build-macos.yml
     with:
       upload-debug-files: true
+      plus-network: solana-mainnet
+      plus-server-url: ${{ vars.MOSH_PLUS_SERVER_URL }}
+      plus-issuer-key: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
     secrets: inherit
 
   publish:

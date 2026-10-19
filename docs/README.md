@@ -8,7 +8,7 @@ and the Flutter/Rust bridge.
 | First launch | [Setup guide](Features/first-run-setup.md) |
 | Private conversations | [Private chats](Features/private-dm.md), [invitations](Features/invitations.md), [read receipts](Features/read-receipts.md), [typing](Features/typing.md) |
 | Linked devices | [Device linking](Features/device-linking.md), [Android foreground chats](Features/android-linked-dm.md) |
-| Mosh+ | [Devnet checkout, protocol and verified badges](Features/plus-devnet.md), [production implementation plan](Proposals/issue-70-plus-mainnet.plan.md) |
+| Mosh+ | [Production checkout, renewal and recovery](Features/plus-mainnet.md), [инструкция](Features/plus-mainnet-ru.md), [completed devnet pilot](Features/plus-devnet-pilot-ru.md), [implementation plan](Proposals/issue-70-plus-mainnet.plan.md) |
 | Interface | [Conversations](Features/chat-redesign.md), [message menus](Features/message-context-menus.md), [dialogs](Features/dialogs.md), [settings](Features/settings-redesign.md), [desktop titlebar](Features/desktop-titlebar.md) |
 | Voice calls | [Call windows, audio ownership and checks](Features/voice-calls.md) |
 | Video calls | [Issue 46 plan and acceptance](Proposals/issue-46-video-calls.plan.md), [interface and motion](Proposals/issue-46-call-interface.design.md), [native feasibility results](Proposals/issue-46-native-media.results.md) |

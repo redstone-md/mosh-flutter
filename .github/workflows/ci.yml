@@ -63,7 +63,7 @@ jobs:
         run: node scripts/native-media-build.mjs
       - name: macOS packaging command regressions
         if: runner.os == 'Linux'
-        run: node --test scripts/macos-package.test.mjs
+        run: node --test scripts/macos-package.test.mjs scripts/plus-build-config.test.mjs
       - name: Native Rust format, lint and tests
         shell: bash
         run: |
