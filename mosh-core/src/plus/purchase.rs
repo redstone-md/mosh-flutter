@@ -92,6 +92,10 @@ impl PlusRuntime {
         state
             .peers
             .retain(|account, proof| proof.trusted_by(&issuer, account));
+        state
+            .mainnet
+            .peers
+            .retain(|account, proof| proof.trusted_by(&issuer, account));
         Ok(Self {
             store,
             issuer,

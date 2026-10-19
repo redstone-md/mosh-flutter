@@ -15,6 +15,8 @@ pub(super) struct MainnetState {
     pub visibility_counter: u64,
     pub visibility_writer: String,
     pub checkout_ready: bool,
+    #[serde(default)]
+    pub peers: BTreeMap<String, super::mainnet_peers::PeerProof>,
 }
 
 impl PlusRuntime {

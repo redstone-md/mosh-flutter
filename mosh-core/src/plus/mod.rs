@@ -4,6 +4,7 @@ mod certificate;
 pub(crate) mod global;
 mod issuance;
 mod mainnet;
+mod mainnet_peers;
 mod peers;
 mod protocol;
 mod purchase;
