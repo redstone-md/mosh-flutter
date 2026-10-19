@@ -62,7 +62,7 @@ fn wait(peer: &mut Peer, ready: bool, active: bool, visible: bool) {
     }
 }
 
-fn activate(peer: &mut Peer, key: &KeyPair, pin: &str, series: &str) {
+pub(super) fn activate(peer: &mut Peer, key: &KeyPair, pin: &str, series: &str) {
     let now = mosh_core::conversation::now_ms();
     let start = now / 86_400_000 * 86_400_000;
     let end = (now + 30 * 86_400_000).div_ceil(86_400_000) * 86_400_000;

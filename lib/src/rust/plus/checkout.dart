@@ -9,14 +9,16 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 class PlusCheckoutIntent {
   final String requestId;
   final String asset;
+  final String? offerJson;
 
   const PlusCheckoutIntent({
     required this.requestId,
     required this.asset,
+    this.offerJson,
   });
 
   @override
-  int get hashCode => requestId.hashCode ^ asset.hashCode;
+  int get hashCode => requestId.hashCode ^ asset.hashCode ^ offerJson.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -24,5 +26,6 @@ class PlusCheckoutIntent {
       other is PlusCheckoutIntent &&
           runtimeType == other.runtimeType &&
           requestId == other.requestId &&
-          asset == other.asset;
+          asset == other.asset &&
+          offerJson == other.offerJson;
 }

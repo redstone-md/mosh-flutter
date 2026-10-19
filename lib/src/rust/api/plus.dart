@@ -30,6 +30,9 @@ Future<PlusSnapshot> confirmSeriesRegistered({required String id}) =>
 Future<PlusCheckoutIntent> prepareCheckout({required String asset}) =>
     RustLib.instance.api.crateApiPlusPrepareCheckout(asset: asset);
 
+Future<PlusCheckoutIntent> bindCheckoutOffer({required String offerJson}) =>
+    RustLib.instance.api.crateApiPlusBindCheckoutOffer(offerJson: offerJson);
+
 Future<PlusSnapshot> cancelCheckout() =>
     RustLib.instance.api.crateApiPlusCancelCheckout();
 

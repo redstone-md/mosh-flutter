@@ -15,6 +15,8 @@ class PlusCommands {
       api.confirmSeriesRegistered(id: id);
   Future<PlusCheckoutIntent> prepareCheckout(String asset) =>
       api.prepareCheckout(asset: asset);
+  Future<PlusCheckoutIntent> bindCheckoutOffer(Map<String, dynamic> offer) =>
+      api.bindCheckoutOffer(offerJson: jsonEncode(offer));
   Future<PlusSnapshot> cancelCheckout() => api.cancelCheckout();
   Future<PlusSnapshot> saveSchedule(String id, BigInt reservedUntil) =>
       api.saveSchedule(id: id, reservedUntilMs: reservedUntil);

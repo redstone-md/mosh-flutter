@@ -57,6 +57,10 @@ pub fn prepare_checkout(asset: String) -> Result<PlusCheckoutIntent, String> {
     with_owner(|owner| owner.prepare_checkout(&asset))
 }
 
+pub fn bind_checkout_offer(offer_json: String) -> Result<PlusCheckoutIntent, String> {
+    with_owner(|owner| owner.bind_checkout_offer(&offer_json))
+}
+
 pub fn cancel_checkout() -> Result<PlusSnapshot, String> {
     with_owner(|owner| {
         owner.cancel_checkout()?;

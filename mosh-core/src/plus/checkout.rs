@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 pub struct PlusCheckoutIntent {
     pub request_id: String,
     pub asset: String,
+    #[serde(default)]
+    pub offer_json: Option<String>,
 }
 
 impl PlusRuntime {
@@ -36,9 +38,41 @@ impl PlusRuntime {
         let intent = PlusCheckoutIntent {
             request_id: hex::encode(random),
             asset: asset.into(),
+            offer_json: None,
         };
         let mut next = self.state.clone();
         next.mainnet.checkout_intent = Some(intent.clone());
+        self.save(next)?;
+        Ok(intent)
+    }
+
+    /// Pin accepted catalog terms before the first HTTP request can be lost.
+    pub fn bind_checkout_offer(&mut self, json: &str) -> Result<PlusCheckoutIntent, String> {
+        if json.len() > 4096 {
+            return Err("PLUS checkout terms exceed size limit".into());
+        }
+        let offer: serde_json::Value =
+            serde_json::from_str(json).map_err(|_| "invalid PLUS checkout terms")?;
+        let mut next = self.state.clone();
+        let intent = next
+            .mainnet
+            .checkout_intent
+            .as_mut()
+            .ok_or("no PLUS checkout")?;
+        if offer["asset"].as_str() != Some(&intent.asset)
+            || offer["issuer_key_id"].as_str() != self.issuer.mainnet_key_id.as_deref()
+            || offer["network"] != "solana-mainnet"
+            || offer["product"] != "mosh-plus-supporter-30d"
+        {
+            return Err("PLUS checkout terms mismatch".into());
+        }
+        if let Some(old) = &intent.offer_json {
+            if old != json {
+                return Err("PLUS checkout terms already fixed".into());
+            }
+        }
+        intent.offer_json = Some(json.into());
+        let intent = intent.clone();
         self.save(next)?;
         Ok(intent)
     }
@@ -62,5 +96,23 @@ impl PlusRuntime {
                 .max(reserved_until_ms),
         );
         self.save(next)
+    }
+}
+
+impl PlusCheckoutIntent {
+    pub(super) fn validate_quote(&self, order: &super::PlusOrder) -> Result<(), String> {
+        if let Some(terms) = &self.offer_json {
+            let terms: serde_json::Value =
+                serde_json::from_str(terms).map_err(|_| "invalid PLUS checkout terms")?;
+            let quote = serde_json::to_value(order).map_err(|_| "invalid PLUS quote")?;
+            if terms.as_object().is_none_or(|terms| {
+                terms
+                    .iter()
+                    .any(|(key, value)| quote.get(key) != Some(value))
+            }) {
+                return Err("PLUS checkout quote changed".into());
+            }
+        }
+        Ok(())
     }
 }

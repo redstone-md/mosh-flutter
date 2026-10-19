@@ -57,6 +57,27 @@ class PlusCatalog {
   String get amountAtomic => assets.first.amountAtomic;
   String get amount => assets.first.amount;
 
+  Map<String, dynamic> orderTerms(String assetId) {
+    final asset = assets.singleWhere((asset) => asset.id == assetId);
+    return {
+      'network': network,
+      'product': product,
+      'recipient': recipient,
+      'issuer_key_id': issuerKeyId,
+      'asset': asset.id,
+      'mint': asset.mint,
+      'amount_atomic': asset.amountAtomic,
+      'token_decimals': asset.decimals,
+    };
+  }
+
+  static void validateTerms(
+      Map<String, dynamic> terms, Map<String, dynamic> quote) {
+    if (terms.entries.any((entry) => quote[entry.key] != entry.value)) {
+      throw const FormatException('Mosh+ quote changed');
+    }
+  }
+
   void validateOrder(Map<String, dynamic> json) {
     final mainnet = network == 'solana-mainnet';
     final selected =

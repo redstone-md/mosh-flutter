@@ -123,22 +123,7 @@ impl DeviceLinkRuntime {
                     .get(&sender.device_id)
                     .is_some_and(|p| p.id == request_id) =>
             {
-                let Some(next) = global::with_sync(&account, |owner| owner.merge_sync(&page))
-                    .map_err(|_| super::super::roster::invalid())?
-                else {
-                    return Ok(());
-                };
-                if let Some(after) = next {
-                    let page = PageRequest::new(Some(after));
-                    let message = page.message();
-                    self.plus_sync
-                        .pending
-                        .insert(sender.device_id.clone(), page);
-                    self.send_names(sender, message);
-                } else {
-                    self.plus_sync.pending.remove(&sender.device_id);
-                    self.send_plus_saved(sender)?;
-                }
+                self.receive_plus_page(sender, &account, &page)?;
             }
             NameMessage::PlusSaved {
                 digest,
@@ -153,6 +138,31 @@ impl DeviceLinkRuntime {
                 .map_err(storage_error)?;
             }
             _ => {}
+        }
+        Ok(())
+    }
+
+    fn receive_plus_page(
+        &mut self,
+        sender: &DeviceDescriptor,
+        account: &str,
+        page: &str,
+    ) -> Result<()> {
+        let Some(next) = global::with_sync(account, |owner| owner.merge_sync(page))
+            .map_err(|_| super::super::roster::invalid())?
+        else {
+            return Ok(());
+        };
+        if let Some(after) = next {
+            let page = PageRequest::new(Some(after));
+            let message = page.message();
+            self.plus_sync
+                .pending
+                .insert(sender.device_id.clone(), page);
+            self.send_names(sender, message);
+        } else {
+            self.plus_sync.pending.remove(&sender.device_id);
+            self.send_plus_saved(sender)?;
         }
         Ok(())
     }

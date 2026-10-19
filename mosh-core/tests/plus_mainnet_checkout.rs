@@ -28,11 +28,21 @@ fn checkout_resumes_one_durable_request_after_restart_and_waits_for_series_agree
     let series = owner.prepare_series().unwrap();
     owner.confirm_series_registered(&series.id).unwrap();
     let intent = owner.prepare_checkout("USDC").unwrap();
+    use sha2::{Digest, Sha256};
+    let offer = serde_json::json!({
+        "asset": "USDC", "issuer_key_id": hex::encode(Sha256::digest(vector["public_key"].as_str().unwrap().as_bytes())),
+        "network": "solana-mainnet", "product": "mosh-plus-supporter-30d", "amount_atomic": "5000000"
+    }).to_string();
+    owner.bind_checkout_offer(&offer).unwrap();
     drop(owner);
     let mut owner = open();
     let resumed = owner.prepare_checkout("USDC").unwrap();
     assert_eq!(intent.request_id, resumed.request_id);
     assert_eq!(resumed.asset, "USDC");
+    assert_eq!(resumed.offer_json.as_deref(), Some(offer.as_str()));
+    assert!(owner
+        .bind_checkout_offer(&offer.replace("5000000", "6000000"))
+        .is_err());
     assert!(owner.prepare_checkout("CLXAI").is_err());
     assert!(owner.prepare_checkout("FAKE").is_err());
     owner.cancel_checkout().unwrap();

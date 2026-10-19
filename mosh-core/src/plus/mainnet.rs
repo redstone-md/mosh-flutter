@@ -14,7 +14,6 @@ pub(super) struct MainnetState {
     pub certificates: BTreeMap<String, Certificate>,
     pub visibility_counter: u64,
     pub visibility_writer: String,
-    pub checkout_ready: bool,
     #[serde(default)]
     pub peers: BTreeMap<String, super::mainnet_peers::PeerProof>,
     #[serde(default)]
@@ -109,6 +108,7 @@ impl PlusRuntime {
                 {
                     return Err("PLUS checkout response mismatch".into());
                 }
+                intent.validate_quote(&order)?;
                 next.mainnet.checkout_intent = None;
             }
         }
@@ -194,32 +194,10 @@ impl PlusRuntime {
     }
 
     pub(super) fn mainnet_snapshot(&self, now: u64) -> PlusSnapshot {
-        let mut certificates: Vec<_> = self
-            .state
-            .mainnet
-            .certificates
-            .values()
-            .filter(|c| self.issuer.verify_claims(c, &self.state.account_id).is_ok())
-            .collect();
-        certificates.sort_by_key(|c| c.mainnet.as_ref().map(|claims| claims.valid_from_ms));
-        let active = certificates
-            .iter()
-            .any(|c| self.issuer.verify(c, &self.state.account_id, now).is_ok());
-        let mut until = certificates
-            .iter()
-            .filter(|c| self.issuer.verify(c, &self.state.account_id, now).is_ok())
-            .map(|c| c.expires_at_ms)
-            .max();
-        for certificate in &certificates {
-            if let (Some(end), Some(claims)) = (until, &certificate.mainnet) {
-                if claims.valid_from_ms <= end {
-                    until = Some(end.max(certificate.expires_at_ms));
-                }
-            }
-        }
+        let (until, next_from) = self.mainnet_coverage(now);
         let orders: Vec<_> = self.state.mainnet.orders.values().cloned().collect();
         PlusSnapshot {
-            active,
+            active: until.is_some(),
             visible: self.state.visible,
             expires_at_ms: until,
             order: orders
@@ -254,11 +232,40 @@ impl PlusRuntime {
                 })
                 .cloned()
                 .collect(),
-            next_active_from_ms: certificates
-                .iter()
-                .filter_map(|c| c.mainnet.as_ref().map(|p| p.valid_from_ms))
-                .filter(|from| *from > now)
-                .min(),
+            next_active_from_ms: next_from,
         }
+    }
+    fn mainnet_coverage(&self, now: u64) -> (Option<u64>, Option<u64>) {
+        let mut periods: Vec<_> = self
+            .state
+            .mainnet
+            .certificates
+            .values()
+            .filter(|c| self.issuer.verify_claims(c, &self.state.account_id).is_ok())
+            .filter_map(|c| {
+                c.mainnet
+                    .as_ref()
+                    .map(|p| (p.valid_from_ms, c.expires_at_ms))
+            })
+            .collect();
+        periods.sort_unstable();
+        let mut until = periods
+            .iter()
+            .filter(|(from, end)| *from <= now && now < *end)
+            .map(|(_, end)| *end)
+            .max();
+        for (from, end) in &periods {
+            if let Some(current) = until {
+                if *from <= current {
+                    until = Some(current.max(*end));
+                }
+            }
+        }
+        let next_from = periods
+            .iter()
+            .map(|(from, _)| *from)
+            .filter(|from| *from > now)
+            .min();
+        (until, next_from)
     }
 }

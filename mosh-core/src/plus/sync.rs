@@ -101,33 +101,7 @@ impl PlusRuntime {
             return Err("PLUS sync account/issuer mismatch".into());
         }
         let mut next = self.state.clone();
-        if let Some(series) = page.series {
-            if series.id.is_empty()
-                || series.id.len() > 128
-                || !(32..=128).contains(&series.access_token.len())
-            {
-                return Err("invalid PLUS series".into());
-            }
-            if next
-                .mainnet
-                .series
-                .as_ref()
-                .is_some_and(|old| old != &series)
-            {
-                next.mainnet.bootstrap.conflict = true;
-                self.save(next)?;
-                return Err("conflicting PLUS renewal series".into());
-            }
-            next.mainnet.series = Some(series);
-            next.mainnet.bootstrap.registered = true;
-            next.mainnet.bootstrap.committed |= page.committed;
-            next.mainnet
-                .bootstrap
-                .acknowledgements
-                .insert(self.writer.clone());
-        } else if page.committed {
-            return Err("missing committed PLUS series".into());
-        }
+        self.merge_sync_series(&mut next, page.series, page.committed)?;
         match (page.counter, page.writer.as_str()).cmp(&(
             next.mainnet.visibility_counter,
             next.mainnet.visibility_writer.as_str(),
@@ -153,6 +127,42 @@ impl PlusRuntime {
         Ok(page.next)
     }
 
+    fn merge_sync_series(
+        &mut self,
+        next: &mut super::purchase::LocalState,
+        series: Option<PlusSeries>,
+        committed: bool,
+    ) -> Result<(), String> {
+        if let Some(series) = series {
+            if series.id.is_empty()
+                || series.id.len() > 128
+                || !(32..=128).contains(&series.access_token.len())
+            {
+                return Err("invalid PLUS series".into());
+            }
+            if next
+                .mainnet
+                .series
+                .as_ref()
+                .is_some_and(|old| old != &series)
+            {
+                next.mainnet.bootstrap.conflict = true;
+                self.save(next.clone())?;
+                return Err("conflicting PLUS renewal series".into());
+            }
+            next.mainnet.series = Some(series);
+            next.mainnet.bootstrap.registered = true;
+            next.mainnet.bootstrap.committed |= committed;
+            next.mainnet
+                .bootstrap
+                .acknowledgements
+                .insert(self.writer.clone());
+        } else if committed {
+            return Err("missing committed PLUS series".into());
+        }
+        Ok(())
+    }
+
     fn merge_sync_item(
         &self,
         state: &mut super::mainnet::MainnetState,
@@ -168,16 +178,35 @@ impl PlusRuntime {
             return Err("invalid synchronized PLUS order".into());
         }
         if let Some(old) = state.orders.get(&id) {
-            if !old.same_offer(&item.order) {
+            if !old.same_offer(&item.order)
+                || state
+                    .order_writers
+                    .get(&id)
+                    .is_some_and(|writer| writer != &item.writer)
+            {
                 return Err("conflicting PLUS order".into());
             }
             if old.status > item.order.status {
                 return Ok(());
             }
+            if old
+                .valid_from_ms
+                .is_some_and(|from| Some(from) != item.order.valid_from_ms)
+                || old
+                    .expires_at_ms
+                    .is_some_and(|end| Some(end) != item.order.expires_at_ms)
+            {
+                return Err("conflicting PLUS interval".into());
+            }
         }
         if let Some(certificate) = item.certificate {
             self.issuer
                 .verify_claims(&certificate, &self.state.account_id)?;
+            if certificate.expires_at_ms != item.order.expires_at_ms.unwrap_or(0)
+                || certificate.mainnet.as_ref().map(|c| c.valid_from_ms) != item.order.valid_from_ms
+            {
+                return Err("synchronized PLUS certificate interval mismatch".into());
+            }
             state.certificates.insert(id.clone(), certificate);
         }
         if let Some(prepared) = item.prepared {

@@ -82,52 +82,10 @@ impl PlusRuntime {
         let status: Status =
             serde_json::from_str(json).map_err(|_| "invalid PLUS recovery response")?;
         let recovery = self.recovery_snapshot().ok_or("no PLUS recovery session")?;
-        let url = url::Url::parse(&status.url).map_err(|_| "invalid PLUS recovery URL")?;
-        if status.id != recovery.id
-            || status.code != recovery.code
-            || status.expires_at_ms <= now
-            || status.expires_at_ms > now.saturating_add(86_400_000)
-            || status.orders.len() > 32
-            || !matches!(url.scheme(), "http" | "https")
-            || !url.username().is_empty()
-            || url.password().is_some()
-            || url.query().is_some()
-            || url.fragment().is_some()
-            || url.path() != format!("/recover/{}", recovery.id)
-        {
-            return Err("PLUS recovery session mismatch".into());
-        }
+        status.validate(&recovery, now)?;
         let mut next = self.state.clone();
-        for mut order in status.orders {
-            order.validate()?;
-            if order.network != "solana-mainnet"
-                || order.issuer_key_id != self.issuer.mainnet_key_id
-                || order.valid_from_ms.is_none()
-                || order.expires_at_ms.is_none_or(|end| end <= now)
-            {
-                return Err("invalid recovered PLUS interval".into());
-            }
-            order.access_token = None;
-            if let Some(old) = next.mainnet.orders.get(&order.id) {
-                if !old.same_offer(&order)
-                    || old.valid_from_ms != order.valid_from_ms
-                    || old.expires_at_ms != order.expires_at_ms
-                {
-                    return Err("recovered PLUS order changed".into());
-                }
-                order.access_token = old.access_token.clone();
-            }
-            next.mainnet
-                .order_writers
-                .entry(order.id.clone())
-                .or_insert_with(|| self.writer.clone());
-            next.mainnet
-                .recovery
-                .as_mut()
-                .ok_or("no recovery session")?
-                .orders
-                .insert(order.id.clone());
-            next.mainnet.orders.insert(order.id.clone(), order);
+        for order in status.orders {
+            self.merge_recovered_order(&mut next.mainnet, order, now)?;
         }
         if next.mainnet.orders.len() > 512 {
             return Err("PLUS order limit reached".into());
@@ -140,6 +98,42 @@ impl PlusRuntime {
         recovery.url = Some(status.url);
         recovery.expires_at_ms = status.expires_at_ms;
         self.save(next)
+    }
+
+    fn merge_recovered_order(
+        &self,
+        next: &mut super::mainnet::MainnetState,
+        mut order: PlusOrder,
+        now: u64,
+    ) -> Result<(), String> {
+        order.validate()?;
+        if order.network != "solana-mainnet"
+            || order.issuer_key_id != self.issuer.mainnet_key_id
+            || order.valid_from_ms.is_none()
+            || order.expires_at_ms.is_none_or(|end| end <= now)
+        {
+            return Err("invalid recovered PLUS interval".into());
+        }
+        order.access_token = None;
+        if let Some(old) = next.orders.get(&order.id) {
+            if !old.same_offer(&order)
+                || old.valid_from_ms != order.valid_from_ms
+                || old.expires_at_ms != order.expires_at_ms
+            {
+                return Err("recovered PLUS order changed".into());
+            }
+            order.access_token = old.access_token.clone();
+        }
+        next.order_writers
+            .entry(order.id.clone())
+            .or_insert_with(|| self.writer.clone());
+        next.recovery
+            .as_mut()
+            .ok_or("no recovery session")?
+            .orders
+            .insert(order.id.clone());
+        next.orders.insert(order.id.clone(), order);
+        Ok(())
     }
 
     pub fn prepare_recovery_issuance(&mut self, id: &str) -> Result<PlusRecoveryIssuance, String> {
@@ -188,5 +182,26 @@ impl PlusRuntime {
                 orders,
             }
         })
+    }
+}
+
+impl Status {
+    fn validate(&self, recovery: &PlusRecoverySession, now: u64) -> Result<(), String> {
+        let url = url::Url::parse(&self.url).map_err(|_| "invalid PLUS recovery URL")?;
+        if self.id != recovery.id
+            || self.code != recovery.code
+            || self.expires_at_ms <= now
+            || self.expires_at_ms > now.saturating_add(86_400_000)
+            || self.orders.len() > 32
+            || !matches!(url.scheme(), "http" | "https")
+            || !url.username().is_empty()
+            || url.password().is_some()
+            || url.query().is_some()
+            || url.fragment().is_some()
+            || url.path() != format!("/recover/{}", recovery.id)
+        {
+            return Err("PLUS recovery session mismatch".into());
+        }
+        Ok(())
     }
 }

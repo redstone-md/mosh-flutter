@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:mosh/src/rust/plus/types.dart';
 import 'plus_billing.dart';
 import 'plus_catalog.dart';
@@ -46,14 +47,19 @@ class PlusMainnetFlow {
     if (!snapshot.checkoutReady || snapshot.series == null) {
       throw StateError('Mosh+ is synchronizing');
     }
-    final offer = await catalog();
+    var intent = await commands.prepareCheckout(asset);
     if (!alive()) return;
-    final intent = await commands.prepareCheckout(asset);
+    if (intent.offerJson == null) {
+      final offer = await catalog();
+      if (!alive()) return;
+      intent = await commands.bindCheckoutOffer(offer.orderTerms(asset));
+    }
     if (!alive()) return;
     await record(commands.snapshot());
     if (!alive()) return;
     final quote = await client.createMainnet(snapshot.series!, intent);
-    offer.validateOrder(quote);
+    PlusCatalog.validateTerms(
+        jsonDecode(intent.offerJson!) as Map<String, dynamic>, quote);
     if (quote['asset'] != intent.asset ||
         quote['request_id'] != intent.requestId ||
         quote['series_id'] != snapshot.series!.id) {
@@ -65,11 +71,42 @@ class PlusMainnetFlow {
   Future<void> refresh(PlusSnapshot snapshot) async {
     snapshot = await initialize(snapshot);
     if (!alive() || !snapshot.checkoutReady) return;
+    Object? failure;
     if (snapshot.checkoutIntent case final intent?) {
-      await purchase(intent.asset);
+      try {
+        await purchase(intent.asset);
+      } catch (error) {
+        failure = error;
+      }
       if (!alive()) return;
       snapshot = await commands.snapshot();
     }
+    final orderFailure = await refreshOrders(snapshot);
+    failure ??= orderFailure;
+    if (!alive()) return;
+    final current = await commands.snapshot();
+    if (current.recovery != null) {
+      try {
+        await recovery.refresh(current);
+      } catch (error) {
+        failure ??= error;
+      }
+    }
+    if (alive() &&
+        current.series != null &&
+        (current.reservedUntilMs == null ||
+            current.unissuedOrderIds.isNotEmpty ||
+            current.recovery != null)) {
+      try {
+        await schedule(current.series!);
+      } catch (error) {
+        failure ??= error;
+      }
+    }
+    if (failure != null) throw failure;
+  }
+
+  Future<Object?> refreshOrders(PlusSnapshot snapshot) async {
     Object? failure;
     final recoveryIds =
         snapshot.recovery?.orders.map((o) => o.id).toSet() ?? {};
@@ -83,7 +120,7 @@ class PlusMainnetFlow {
     final tail =
         pending.where((order) => order.id.compareTo(_after) > 0).toList();
     for (final order in (tail.isEmpty ? pending : tail).take(4)) {
-      if (!alive()) return;
+      if (!alive()) return failure;
       _after = order.id;
       try {
         await resumeOrder(order);
@@ -91,27 +128,7 @@ class PlusMainnetFlow {
         failure ??= error;
       }
     }
-    if (!alive()) return;
-    final current = await commands.snapshot();
-    if (current.recovery != null) {
-      try {
-        await recovery.refresh(current);
-      } catch (error) {
-        failure ??= error;
-      }
-    }
-    if (alive() &&
-        current.series != null &&
-        (current.reservedUntilMs == null ||
-            pending.isNotEmpty ||
-            current.recovery != null)) {
-      try {
-        await schedule(current.series!);
-      } catch (error) {
-        failure ??= error;
-      }
-    }
-    if (failure != null) throw failure;
+    return failure;
   }
 
   Future<void> resumeOrder(PlusOrder order) async {

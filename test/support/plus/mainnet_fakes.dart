@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:mosh/src/features/plus/plus_billing.dart';
 import 'package:mosh/src/features/plus/plus_commands.dart';
 import 'package:mosh/src/features/plus/plus_config.dart';
@@ -55,6 +56,7 @@ final mainnetOrder = <String, dynamic>{
 
 class MainnetTestCommands extends PlusCommands {
   String? selectedAsset;
+  PlusCheckoutIntent? intent;
   PlusOrder? pending;
   PlusRecoverySession? recovery;
   bool ready = true;
@@ -70,6 +72,7 @@ class MainnetTestCommands extends PlusCommands {
       checkoutReady: ready,
       orders: pending == null ? const [] : [pending!],
       order: pending,
+      checkoutIntent: intent,
       recovery: recovery,
       unissuedOrderIds: pending == null ? const [] : [pending!.id]);
 
@@ -80,11 +83,20 @@ class MainnetTestCommands extends PlusCommands {
   @override
   Future<PlusCheckoutIntent> prepareCheckout(String asset) async {
     selectedAsset = asset;
-    return PlusCheckoutIntent(requestId: 'request', asset: asset);
+    return intent ??= PlusCheckoutIntent(requestId: 'request', asset: asset);
   }
 
   @override
+  Future<PlusCheckoutIntent> bindCheckoutOffer(
+          Map<String, dynamic> offer) async =>
+      intent = PlusCheckoutIntent(
+          requestId: intent!.requestId,
+          asset: intent!.asset,
+          offerJson: jsonEncode(offer));
+
+  @override
   Future<PlusSnapshot> saveOrder(Map<String, dynamic> order) async {
+    intent = null;
     pending = PlusOrder(
         id: 'renewal',
         network: 'solana-mainnet',
