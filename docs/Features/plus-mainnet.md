@@ -105,7 +105,10 @@ independent issuer pin, recipient, assets/prices and secret bindings were verifi
 the real RPC and both recipient ATAs passed read-only checks. The operator confirmed
 Workers Free and an independent encrypted issuer backup. The private Workers
 runbook records the deployed version, namespace, backup and rollback procedure.
-Client release configuration, published support/purchase terms and approved real
+The public [purchase terms](https://mosh.run/plus/terms) and updated
+[privacy policy](https://mosh.run/privacy) were published on 2026-10-19;
+both locales and support links passed live browser checks. Client release
+configuration, applying the public URLs to the billing catalog and approved real
 mainnet acceptance remain activation gates. Preflight checks genesis,
 both mints/decimals, recipient token accounts and issuer continuity before sales.
 The service never receives treasury signing keys. It rejects the published test
@@ -113,7 +116,9 @@ issuer when enabling sales.
 
 The operator selected a separate ordinary treasury wallet with shared key custody.
 Each key holder can spend independently; this wallet enforces no multisig approval
-threshold. Revenue ownership and refund responsibilities must be agreed separately.
+threshold. Revenue ownership must be agreed separately. Private support is
+[@redstonemdbot](https://t.me/redstonemdbot); Sergey handles refund requests
+through Evgeny, as confirmed by the operator and published in the purchase terms.
 
 Automatic billing HTTP requests run only while Mosh+ settings are mounted and
 there is pending work. Checks run every five seconds during the first minute,
