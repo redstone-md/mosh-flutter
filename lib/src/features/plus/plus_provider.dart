@@ -10,15 +10,7 @@ import 'plus_mainnet_flow.dart';
 
 export 'plus_config.dart';
 
-final plusConfigProvider = Provider((ref) => PlusConfig(
-    issuerKey: String.fromEnvironment('MOSH_PLUS_ISSUER_KEY'),
-    serverUrl: String.fromEnvironment('MOSH_PLUS_SERVER_URL'),
-    mainnet: switch (const String.fromEnvironment('MOSH_PLUS_NETWORK',
-        defaultValue: 'solana-mainnet')) {
-      'solana-mainnet' => true,
-      'solana-devnet' => false,
-      _ => throw const FormatException('Invalid Mosh+ network configuration'),
-    }));
+final plusConfigProvider = Provider((ref) => PlusConfig.fromEnvironment());
 final plusCommandsProvider = Provider((ref) => PlusCommands());
 final plusPollIntervalProvider =
     Provider<Duration?>((ref) => const Duration(seconds: 5));

@@ -2,6 +2,7 @@ import { createHash, createPublicKey } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { verifyPlusRuntimeConfig } from './support/plus-runtime-config.mjs';
 
 /** Public build metadata only; no wallet, issuer secret or billing capabilities. */
 export function plusBuildConfig(env) {
@@ -35,7 +36,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   const manifest = plusBuildConfig(process.env);
   const path = process.argv[2];
   if (!path) throw new Error('Usage: node scripts/plus-build-config.mjs <manifest.json>');
+  await verifyPlusRuntimeConfig(process.env);
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, JSON.stringify(manifest, null, 2) + '\n');
-  process.stdout.write(`PLUS: ${manifest.network}, purchases configured: ${manifest.purchases_configured}\n`);
+  process.stdout.write(`PLUS: ${manifest.network}, purchases configured: ${manifest.purchases_configured}; AOT configuration verified\n`);
 }

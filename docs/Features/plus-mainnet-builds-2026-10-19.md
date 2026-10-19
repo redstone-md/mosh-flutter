@@ -1,5 +1,11 @@
 # Production Mosh+ acceptance installers — 2026-10-19
 
+**Withdrawn on 2026-10-20:** these installers hide Mosh+ because the issuer key
+and billing origin were read without `const` and become empty in AOT code.
+Matching sidecar manifests did not establish runtime configuration. Do not use
+these artifacts for acceptance. Corrected installers are being rebuilt with a
+compiled configuration check before packaging; the hashes below are historical.
+
 Prepared from `feat/plus-mainnet` commit
 `de4b0d6f01ebfb8f3703f9a9e667da8a6988df9f`, version **0.23.0**.
 These feature-branch acceptance artifacts have not been attached to a release.

@@ -96,9 +96,14 @@ suffix. The macOS release installer remains universal (Intel and Apple Silicon).
 
 The production origin and independently checked public pin were configured as
 release repository variables on 2026-10-19. Separate Windows and universal macOS
-[acceptance installers](plus-mainnet-builds-2026-10-19.md) were built and their
-downloaded manifests and checksums verified. Ordinary PR proof artifacts without
-explicit PLUS inputs remain unconfigured. Desktop acceptance is still pending.
+[initial acceptance installers](plus-mainnet-builds-2026-10-19.md) had matching
+downloaded manifests and checksums but were withdrawn: non-constant environment
+reads returned empty keys/URLs in AOT code. Configuration now belongs to
+`PlusConfig.fromEnvironment()`, using constant reads. Before writing a manifest,
+the build tool compiles and executes that same factory and verifies its actual
+values against the requested inputs. Corrected installers are being rebuilt.
+Ordinary PR proof artifacts without explicit PLUS inputs remain unconfigured.
+Desktop acceptance is still pending.
 
 Without a pin/URL, CI builds keep purchases disabled. With configured clients,
 billing can still pause new sales independently. Pausing preserves existing order

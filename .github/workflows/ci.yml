@@ -221,6 +221,9 @@ jobs:
       - name: flutter gen-l10n
         run: flutter gen-l10n
 
+      - name: PLUS configuration in compiled release code
+        run: node --test scripts/plus-runtime-config.test.mjs
+
       # Widget tests override gatewayProvider with the scriptable gateway in
       # test/support/, so no Rust runtime is needed here (ADR 0013).
       - name: flutter test
