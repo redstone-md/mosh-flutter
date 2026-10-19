@@ -60,6 +60,7 @@ class MainnetTestCommands extends PlusCommands {
   PlusOrder? pending;
   PlusRecoverySession? recovery;
   bool ready = true;
+  BigInt? reservedUntil;
   final expiry = BigInt.from(
       DateTime.now().add(const Duration(days: 30)).millisecondsSinceEpoch);
   PlusSnapshot get current => PlusSnapshot(
@@ -74,6 +75,7 @@ class MainnetTestCommands extends PlusCommands {
       order: pending,
       checkoutIntent: intent,
       recovery: recovery,
+      reservedUntilMs: reservedUntil,
       unissuedOrderIds: pending == null ? const [] : [pending!.id]);
 
   @override
@@ -114,8 +116,11 @@ class MainnetTestCommands extends PlusCommands {
   }
 
   @override
-  Future<PlusSnapshot> saveSchedule(String id, BigInt reservedUntil) async =>
-      current;
+  Future<PlusSnapshot> saveSchedule(String id, BigInt reservedUntil) async {
+    this.reservedUntil = reservedUntil;
+    return current;
+  }
+
   @override
   Future<PlusRecoverySession> prepareRecovery() async =>
       recovery = PlusRecoverySession(

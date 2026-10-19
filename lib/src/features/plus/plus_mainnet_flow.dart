@@ -4,6 +4,7 @@ import 'plus_billing.dart';
 import 'plus_catalog.dart';
 import 'plus_commands.dart';
 import 'plus_recovery_flow.dart';
+import 'plus_billing_poll.dart';
 
 /// HTTP coordinates purchases; native owns durable intent, proofs and device sync.
 class PlusMainnetFlow {
@@ -12,13 +13,21 @@ class PlusMainnetFlow {
       required this.client,
       required this.catalog,
       required this.alive,
-      required this.update});
+      required this.update,
+      DateTime Function()? now,
+      bool Function()? checkoutVisible})
+      : _poll = PlusBillingPoll(now: now),
+        _checkoutVisible = checkoutVisible ?? (() => true);
   final PlusCommands commands;
   final PlusBilling client;
   final Future<PlusCatalog> Function() catalog;
   final bool Function() alive;
   final void Function(PlusSnapshot) update;
   String _after = '';
+  final PlusBillingPoll _poll;
+  final bool Function() _checkoutVisible;
+
+  void resumePolling() => _poll.reset();
 
   Future<PlusSnapshot> record(Future<PlusSnapshot> pending) async {
     final snapshot = await pending;
@@ -68,7 +77,12 @@ class PlusMainnetFlow {
     if (alive()) await record(commands.saveOrder(quote));
   }
 
-  Future<void> refresh(PlusSnapshot snapshot) async {
+  Future<void> refresh(PlusSnapshot snapshot, {bool automatic = false}) async {
+    if (automatic) {
+      if (!_poll.due(snapshot, visible: _checkoutVisible())) return;
+    } else {
+      _poll.reset();
+    }
     snapshot = await initialize(snapshot);
     if (!alive() || !snapshot.checkoutReady) return;
     Object? failure;
@@ -92,11 +106,7 @@ class PlusMainnetFlow {
         failure ??= error;
       }
     }
-    if (alive() &&
-        current.series != null &&
-        (current.reservedUntilMs == null ||
-            current.unissuedOrderIds.isNotEmpty ||
-            current.recovery != null)) {
+    if (alive() && _poll.scheduleDue(current, automatic: automatic)) {
       try {
         await schedule(current.series!);
       } catch (error) {

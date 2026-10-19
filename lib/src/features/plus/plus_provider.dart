@@ -38,6 +38,16 @@ final plusProvider =
 class PlusController extends AsyncNotifier<PlusState> {
   bool _running = false;
   PlusMainnetFlow? _production;
+  int _checkoutViews = 0;
+
+  void openCheckout() {
+    _checkoutViews++;
+    _production?.resumePolling();
+  }
+
+  void closeCheckout() {
+    if (_checkoutViews > 0) _checkoutViews--;
+  }
 
   @override
   Future<PlusState> build() async {
@@ -52,7 +62,8 @@ class PlusController extends AsyncNotifier<PlusState> {
         : commands.configure(config.issuerKey));
     if (!startedUnder.mounted) return PlusState(snapshot: snapshot);
     if (interval != null) {
-      final poller = ForegroundPoller(interval, refresh);
+      final poller =
+          ForegroundPoller(interval, () => _refresh(automatic: true));
       startedUnder.onDispose(poller.dispose);
     }
     return PlusState(snapshot: snapshot);
@@ -95,6 +106,7 @@ class PlusController extends AsyncNotifier<PlusState> {
           client: scope.read(plusBillingProvider),
           catalog: () => scope.read(plusCatalogProvider.future),
           alive: () => scope.mounted,
+          checkoutVisible: () => _checkoutViews > 0,
           update: (snapshot) => _update(scope, snapshot));
 
   Future<void> purchase([String asset = 'USDC']) =>
@@ -126,13 +138,17 @@ class PlusController extends AsyncNotifier<PlusState> {
         _update(scope, await commands.visibility(visible));
       }, busy: true);
 
-  Future<void> refresh() => _run((scope, commands) async {
+  Future<void> refresh() => _refresh();
+
+  Future<void> _refresh({bool automatic = false}) =>
+      _run((scope, commands) async {
         final snapshot = await commands.snapshot();
         if (!scope.mounted) return;
         _update(scope, snapshot);
         if (scope.read(plusConfigProvider).mainnet) {
           if (scope.read(plusConfigProvider).canPurchase) {
-            await _mainnet(scope, commands).refresh(snapshot);
+            await _mainnet(scope, commands)
+                .refresh(snapshot, automatic: automatic);
           }
           return;
         }

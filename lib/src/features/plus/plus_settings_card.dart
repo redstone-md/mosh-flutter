@@ -9,11 +9,33 @@ import 'plus_state.dart';
 import 'plus_mainnet_settings.dart';
 import 'plus_membership_status.dart';
 
-class PlusSettingsCard extends ConsumerWidget {
+class PlusSettingsCard extends ConsumerStatefulWidget {
   const PlusSettingsCard({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlusSettingsCard> createState() => _PlusSettingsCardState();
+}
+
+class _PlusSettingsCardState extends ConsumerState<PlusSettingsCard> {
+  PlusController? _controller;
+  @override
+  void initState() {
+    super.initState();
+    if (ref.read(plusConfigProvider).enabled) {
+      final controller = ref.read(plusProvider.notifier);
+      controller.openCheckout();
+      _controller = controller;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.closeCheckout();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final config = ref.watch(plusConfigProvider);
     if (!config.enabled) return const SizedBox.shrink();
     final l = AppLocalizations.of(context)!;

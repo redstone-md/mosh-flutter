@@ -39,7 +39,8 @@ recipient ATA, exact instruction amount and actual received amount. Underpayment
 are not summed; overpayment grants one normal period. A signature cannot fulfill
 two orders. Ordinary signed source-owner transfers qualify automatically;
 ambiguous/delegated sources and competing full payments enter durable manual
-review. A scan processes 100 signatures per refresh and persists progress/candidate
+review. A scan lists up to 100 signatures and checks at most 32 transaction bodies
+per refresh, preserving room under Workers Free's subrequest budget. It persists progress/candidate
 before accepting a unique result across pages. Before allocation it checks the
 history head again; new arrivals restart the scan without losing the candidate.
 Later disputes need operator review.
@@ -97,13 +98,24 @@ refresh, issuance, recovery and local badge validation. Do not rotate an issuer
 while existing paid/future/pending orders require it; a client trust and purchase
 migration must precede such a change.
 
-The private operator runbook prepares an isolated production database/issuer,
-read-only preflight, reverse proxy, backup and rollback. Activation requires actual
+The selected deployment is Cloudflare Workers Free at `https://billing.mosh.run`,
+with one SQLite-backed Durable Object keeping global payment uniqueness and atomic
+recovery joins. The private Workers runbook prepares secret bindings, read-only
+preflight, backup and rollback. This target is not an activated deployment.
+Activation requires actual
 HTTPS origin, production RPC, Squads 2-of-3 **vault** recipient and both initialized
 ATAs, independent public pin, support and purchase terms. Preflight checks genesis,
 both mints/decimals, recipient token accounts and issuer continuity before sales.
 The service never receives treasury signing keys. It rejects the published test
 issuer when enabling sales.
+
+Automatic billing HTTP requests run only while Mosh+ settings are mounted and
+there is pending work. Checks run every five seconds during the first minute,
+then every thirty seconds, stopping after ten minutes. Reopening settings or a
+manual check restarts the window; late payments and durable issuance remain
+recoverable. Local badge refresh continues independently without billing requests.
+The renewal tail is fetched when unknown or advanced, rather than on every unpaid
+poll. Workers/DO free quotas apply to the account, not each domain or Worker.
 
 ## Evidence and remaining acceptance
 
