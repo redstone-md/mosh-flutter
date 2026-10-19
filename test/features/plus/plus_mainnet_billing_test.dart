@@ -61,5 +61,20 @@ void main() {
     expect(requests.last.$2, 'Bearer private-poll-token');
     expect(requests.every((entry) => !entry.$1.contains('private-')), isTrue);
     expect(requests.last.$1, '/v2/recovery/session/status');
+    await client.schedule(series);
+    await client.recoveryStatus(recovery, after: 'last-order');
+    expect(requests.last.$1, '/v2/recovery/session/status?after=last-order');
+    await client.recover(
+        recovery,
+        'owned-order',
+        const PlusRecoveryIssuance(
+            blindedMessageB64: 'blind',
+            destinationSignatureB64: 'destination-proof'));
+    expect(requests.last.$1, '/v2/recovery/session/orders/owned-order/issue');
+    expect(requests.last.$2, 'Bearer private-poll-token');
+    expect(requests.last.$3, {
+      'blinded_message_b64': 'blind',
+      'destination_signature_b64': 'destination-proof'
+    });
   });
 }

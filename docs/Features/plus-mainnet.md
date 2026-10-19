@@ -40,7 +40,9 @@ are not summed; overpayment grants one normal period. A signature cannot fulfill
 two orders. Ordinary signed source-owner transfers qualify automatically;
 ambiguous/delegated sources and competing full payments enter durable manual
 review. A scan processes 100 signatures per refresh and persists progress/candidate
-before accepting a unique result across pages. Later disputes need operator review.
+before accepting a unique result across pages. Before allocation it checks the
+history head again; new arrivals restart the scan without losing the candidate.
+Later disputes need operator review.
 
 Production partially blind public metadata is UTF-8:
 
