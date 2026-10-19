@@ -114,4 +114,5 @@ jobs:
           set -euo pipefail
           args=(--title "Mosh $VERSION" --notes-file notes.md --verify-tag)
           [ "$PRERELEASE" = "true" ] && args+=(--prerelease)
-          gh release create "$GITHUB_REF_NAME" "${args[@]}" dist/*
+          mapfile -d '' -t assets < <(find dist -type f -print0)
+          gh release create "$GITHUB_REF_NAME" "${args[@]}" "${assets[@]}"
