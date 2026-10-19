@@ -103,11 +103,15 @@ with one SQLite-backed Durable Object keeping global payment uniqueness and atom
 recovery joins. The private Workers runbook prepares secret bindings, read-only
 preflight, backup and rollback. This target is not an activated deployment.
 Activation requires actual
-HTTPS origin, production RPC, Squads 2-of-3 **vault** recipient and both initialized
+HTTPS origin, production RPC, an agreed recipient and both initialized
 ATAs, independent public pin, support and purchase terms. Preflight checks genesis,
 both mints/decimals, recipient token accounts and issuer continuity before sales.
 The service never receives treasury signing keys. It rejects the published test
 issuer when enabling sales.
+
+The operator selected a separate ordinary treasury wallet with shared key custody.
+Each key holder can spend independently; this wallet enforces no multisig approval
+threshold. Revenue ownership and refund responsibilities must be agreed separately.
 
 Automatic billing HTTP requests run only while Mosh+ settings are mounted and
 there is pending work. Checks run every five seconds during the first minute,
@@ -130,7 +134,7 @@ subsequently linked device metadata; production DM/group/channel proof delivery
 uses the same authenticated carriers. Fixtures do not establish mainnet payments.
 
 Before opening sales, record installer hashes and public build manifests, then
-approve and perform actual mainnet payments in both assets to the configured vault,
+approve and perform actual mainnet payments in both assets to the configured recipient,
 early renewal, linked-device transfer and recovery on a new account. Confirm the
 mobile wallet browser's sign-in/consent on a real phone. A standard Solana Pay QR
 does not select a cluster; use Solana mainnet and the phone's ordinary Camera if a
