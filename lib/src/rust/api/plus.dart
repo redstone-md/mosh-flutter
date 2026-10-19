@@ -19,10 +19,11 @@ Future<PlusSnapshot> configureMainnetIssuer({required String publicKeyB64}) =>
     RustLib.instance.api
         .crateApiPlusConfigureMainnetIssuer(publicKeyB64: publicKeyB64);
 
-Future<PlusSnapshot> saveSeries(
-        {required String id, required String accessToken}) =>
-    RustLib.instance.api
-        .crateApiPlusSaveSeries(id: id, accessToken: accessToken);
+Future<PlusSeries> prepareSeries() =>
+    RustLib.instance.api.crateApiPlusPrepareSeries();
+
+Future<PlusSnapshot> confirmSeriesRegistered({required String id}) =>
+    RustLib.instance.api.crateApiPlusConfirmSeriesRegistered(id: id);
 
 Future<String> prepareOrderIssuance({required String orderId}) =>
     RustLib.instance.api.crateApiPlusPrepareOrderIssuance(orderId: orderId);

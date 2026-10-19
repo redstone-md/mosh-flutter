@@ -6,11 +6,28 @@ use serde_json::{json, Value};
 pub(super) fn command(action: &str, argument: &str, input: &Value) -> Value {
     let result = match action {
         "plus_configure" => plus::configure_issuer(argument.into()),
+        "plus_mainnet_configure" => plus::configure_mainnet_issuer(argument.into()),
+        "plus_series_registered" => plus::confirm_series_registered(argument.into()),
+        "plus_order_complete" => {
+            plus::complete_order_issuance(input["id"].as_str().unwrap().into(), argument.into())
+        }
         "plus_snapshot" => plus::snapshot(),
         "plus_order" => plus::save_order(argument.into()),
         "plus_complete" => plus::complete_issuance(argument.into()),
         "plus_visible" => plus::set_visible(input["visible"].as_bool().unwrap()),
         "plus_prepare" => return json!({"blinded":plus::prepare_issuance().unwrap()}),
+        "plus_order_prepare" => {
+            return match plus::prepare_order_issuance(argument.into()) {
+                Ok(blinded) => json!({"blinded":blinded}),
+                Err(error) => json!({"error":error}),
+            }
+        }
+        "plus_series_prepare" => {
+            return match plus::prepare_series() {
+                Ok(series) => serde_json::to_value(series).unwrap(),
+                Err(error) => json!({"error":error}),
+            }
+        }
         _ => return conversations(action, argument, input),
     };
     match result {

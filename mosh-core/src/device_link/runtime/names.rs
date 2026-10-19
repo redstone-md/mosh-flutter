@@ -222,6 +222,11 @@ impl DeviceLinkRuntime {
         self.reload_names()?;
         let (sender, message) = names_wire::open(&self.identity, packet)?;
         match message {
+            message @ (NameMessage::PlusRequest { .. }
+            | NameMessage::PlusBatch { .. }
+            | NameMessage::PlusSaved { .. }) => {
+                self.receive_plus(&sender, message)?;
+            }
             NameMessage::CertificateRequest | NameMessage::Certificate { .. } => {
                 self.receive_certificate(&sender, message)?;
             }

@@ -152,6 +152,8 @@ class PlusSnapshot {
   final PlusSeries? series;
   final bool checkoutReady;
   final BigInt? nextActiveFromMs;
+  final bool canInitializeSeries;
+  final bool seriesRegistered;
 
   const PlusSnapshot({
     required this.active,
@@ -159,10 +161,12 @@ class PlusSnapshot {
     this.expiresAtMs,
     this.order,
     required this.peerBadges,
-    required this.orders,
+    this.orders = const [],
     this.series,
-    required this.checkoutReady,
+    this.checkoutReady = false,
     this.nextActiveFromMs,
+    this.canInitializeSeries = false,
+    this.seriesRegistered = false,
   });
 
   @override
@@ -175,7 +179,9 @@ class PlusSnapshot {
       orders.hashCode ^
       series.hashCode ^
       checkoutReady.hashCode ^
-      nextActiveFromMs.hashCode;
+      nextActiveFromMs.hashCode ^
+      canInitializeSeries.hashCode ^
+      seriesRegistered.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -190,5 +196,7 @@ class PlusSnapshot {
           orders == other.orders &&
           series == other.series &&
           checkoutReady == other.checkoutReady &&
-          nextActiveFromMs == other.nextActiveFromMs;
+          nextActiveFromMs == other.nextActiveFromMs &&
+          canInitializeSeries == other.canInitializeSeries &&
+          seriesRegistered == other.seriesRegistered;
 }

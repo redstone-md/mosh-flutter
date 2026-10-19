@@ -14,6 +14,7 @@ impl DeviceLinkRuntime {
     pub fn service(&mut self) -> Result<()> {
         self.identity.reload()?;
         self.reload_names()?;
+        self.reload_plus()?;
         self.reconcile_removal()?;
         self.expire()?;
         for message in self.transport.drain() {
@@ -29,6 +30,7 @@ impl DeviceLinkRuntime {
         self.retry_roster();
         self.sync_names()?;
         self.sync_deletions()?;
+        self.sync_plus()?;
         Ok(())
     }
 

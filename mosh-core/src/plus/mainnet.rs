@@ -17,6 +17,10 @@ pub(super) struct MainnetState {
     pub checkout_ready: bool,
     #[serde(default)]
     pub peers: BTreeMap<String, super::mainnet_peers::PeerProof>,
+    #[serde(default)]
+    pub bootstrap: super::bootstrap::Bootstrap,
+    #[serde(default)]
+    pub order_writers: BTreeMap<String, String>,
 }
 
 impl PlusRuntime {
@@ -92,6 +96,10 @@ impl PlusRuntime {
             return Err("invalid PLUS order capability".into());
         }
         let mut next = self.state.clone();
+        next.mainnet
+            .order_writers
+            .entry(order.id.clone())
+            .or_insert_with(|| self.writer.clone());
         next.mainnet.orders.insert(order.id.clone(), order);
         self.save(next)
     }
@@ -99,6 +107,15 @@ impl PlusRuntime {
     pub fn prepare_order_issuance(&mut self, id: &str) -> Result<String, String> {
         if let Some(prepared) = self.state.mainnet.prepared.get(id) {
             return Ok(prepared.blinded_message_b64.clone());
+        }
+        if self
+            .state
+            .mainnet
+            .order_writers
+            .get(id)
+            .is_some_and(|writer| writer != &self.writer)
+        {
+            return Err("PLUS issuance is waiting for its device to synchronize".into());
         }
         let order = self.state.mainnet.orders.get(id).ok_or("no PLUS order")?;
         if order.status == PlusPaymentStatus::AwaitingPayment {
@@ -196,7 +213,9 @@ impl PlusRuntime {
             orders,
             peer_badges: self.peer_badges(now),
             series: self.state.mainnet.series.clone(),
-            checkout_ready: self.state.mainnet.checkout_ready,
+            checkout_ready: self.checkout_ready(),
+            can_initialize_series: self.can_initialize_series(),
+            series_registered: self.state.mainnet.bootstrap.registered,
             next_active_from_ms: certificates
                 .iter()
                 .filter_map(|c| c.mainnet.as_ref().map(|p| p.valid_from_ms))

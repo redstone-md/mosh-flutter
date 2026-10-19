@@ -17,6 +17,16 @@ pub(super) struct PreparedIssuance {
     mainnet: Option<MainnetClaims>,
 }
 
+impl PreparedIssuance {
+    pub(super) fn matches(&self, account: &str, from: Option<u64>, until: Option<u64>) -> bool {
+        self.account_id == account
+            && Some(self.expires_at_ms) == until
+            && self.mainnet.as_ref().map(|c| c.valid_from_ms) == from
+            && self.blinded_message_b64.len() <= 700
+            && self.secret_b64.len() <= 700
+    }
+}
+
 impl Issuer {
     pub(super) fn prepare(
         &self,

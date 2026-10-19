@@ -1,5 +1,6 @@
 //! Account-bound devnet Mosh+ certificates, purchase durability and peer evidence.
 
+mod bootstrap;
 mod certificate;
 pub(crate) mod global;
 mod issuance;
@@ -8,6 +9,7 @@ mod mainnet_peers;
 mod peers;
 mod protocol;
 mod purchase;
+mod sync;
 mod transport;
 pub(crate) mod types;
 

@@ -5,6 +5,41 @@ use std::sync::{Arc, Mutex};
 
 static OWNER: Mutex<Option<(String, PlusRuntime)>> = Mutex::new(None);
 
+pub(crate) fn reconcile_roster(
+    account: &str,
+    writer: &str,
+    roster: &str,
+    initializer: &str,
+    members: &[String],
+) -> Result<(), String> {
+    let mut guard = OWNER.lock().map_err(|_| "PLUS owner unavailable")?;
+    let Some((key, owner)) = guard.as_mut() else {
+        return Ok(());
+    };
+    if owner.issuer.mainnet_key_id.is_none() {
+        return Ok(());
+    }
+    if owner.state.account_id != account {
+        *owner = PlusRuntime::open_mainnet(owner.store.clone(), account.into(), key, writer)?;
+    }
+    owner.reconcile_plus_roster(roster, initializer, members)
+}
+
+pub(crate) fn with_sync<T>(
+    account: &str,
+    action: impl FnOnce(&mut PlusRuntime) -> Result<T, String>,
+) -> Result<Option<T>, String> {
+    let mut guard = OWNER.lock().map_err(|_| "PLUS owner unavailable")?;
+    match guard.as_mut() {
+        Some((_, owner))
+            if owner.state.account_id == account && owner.issuer.mainnet_key_id.is_some() =>
+        {
+            action(owner).map(Some)
+        }
+        _ => Ok(None),
+    }
+}
+
 pub(crate) fn configure(
     store: Arc<Persistence>,
     account: String,

@@ -41,10 +41,16 @@ pub struct PlusSnapshot {
     pub expires_at_ms: Option<u64>,
     pub order: Option<PlusOrder>,
     pub peer_badges: Vec<PlusPeerBadge>,
+    #[frb(default = "const []")]
     pub orders: Vec<PlusOrder>,
     pub series: Option<PlusSeries>,
+    #[frb(default = false)]
     pub checkout_ready: bool,
     pub next_active_from_ms: Option<u64>,
+    #[frb(default = false)]
+    pub can_initialize_series: bool,
+    #[frb(default = false)]
+    pub series_registered: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -39,9 +39,13 @@ pub fn configure_mainnet_issuer(public_key_b64: String) -> Result<PlusSnapshot, 
     )
 }
 
-pub fn save_series(id: String, access_token: String) -> Result<PlusSnapshot, String> {
+pub fn prepare_series() -> Result<PlusSeries, String> {
+    with_owner(|owner| owner.prepare_series())
+}
+
+pub fn confirm_series_registered(id: String) -> Result<PlusSnapshot, String> {
     with_owner(|owner| {
-        owner.save_series(&id, &access_token)?;
+        owner.confirm_series_registered(&id)?;
         Ok(owner.snapshot(now_ms()))
     })
 }

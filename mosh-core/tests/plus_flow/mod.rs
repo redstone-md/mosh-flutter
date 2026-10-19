@@ -1,4 +1,5 @@
 use super::*;
+mod mainnet;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use blind_rsa_signatures::pbrsa::PartiallyBlindKeyPairSha384PSSDeterministic as KeyPair;
 use blind_rsa_signatures::pbrsa::PartiallyBlindSecretKeySha384PSSDeterministic as SecretKey;

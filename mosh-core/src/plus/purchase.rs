@@ -223,6 +223,8 @@ impl PlusRuntime {
             series: None,
             checkout_ready: true,
             next_active_from_ms: None,
+            can_initialize_series: false,
+            series_registered: false,
         }
     }
 

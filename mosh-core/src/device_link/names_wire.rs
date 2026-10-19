@@ -10,6 +10,18 @@ pub(crate) const PREFIX: &[u8] = b"mosh-chat-names-v2\0";
 
 #[derive(Serialize, Deserialize)]
 pub(super) enum NameMessage {
+    PlusRequest {
+        after: Option<String>,
+        request_id: [u8; 16],
+    },
+    PlusBatch {
+        page: String,
+        request_id: [u8; 16],
+    },
+    PlusSaved {
+        digest: String,
+        series_digest: String,
+    },
     CertificateRequest,
     Certificate {
         certificate: super::account_certificate::AccountCertificate,
