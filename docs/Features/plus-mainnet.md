@@ -100,11 +100,13 @@ migration must precede such a change.
 
 The selected deployment is Cloudflare Workers Free at `https://billing.mosh.run`,
 with one SQLite-backed Durable Object keeping global payment uniqueness and atomic
-recovery joins. The private Workers runbook prepares secret bindings, read-only
-preflight, backup and rollback. This target is not an activated deployment.
-Activation requires actual
-HTTPS origin, production RPC, an agreed recipient and both initialized
-ATAs, independent public pin, support and purchase terms. Preflight checks genesis,
+recovery joins. It was deployed on 2026-10-19 with sales paused. HTTPS catalog,
+independent issuer pin, recipient, assets/prices and secret bindings were verified;
+the real RPC and both recipient ATAs passed read-only checks. The operator confirmed
+Workers Free and an independent encrypted issuer backup. The private Workers
+runbook records the deployed version, namespace, backup and rollback procedure.
+Client release configuration, published support/purchase terms and approved real
+mainnet acceptance remain activation gates. Preflight checks genesis,
 both mints/decimals, recipient token accounts and issuer continuity before sales.
 The service never receives treasury signing keys. It rejects the published test
 issuer when enabling sales.
