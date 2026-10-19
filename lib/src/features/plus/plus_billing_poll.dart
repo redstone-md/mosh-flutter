@@ -26,6 +26,11 @@ class PlusBillingPoll {
           when session.expiresAtMs.toInt() > now.millisecondsSinceEpoch)
         session.id,
     ]..sort();
+    if (pending.isEmpty &&
+        snapshot.checkoutReady &&
+        scheduleDue(snapshot, automatic: true)) {
+      pending.add('schedule');
+    }
     if (pending.isEmpty) return false;
     final work = pending.join('|');
     if (_work != work) {
