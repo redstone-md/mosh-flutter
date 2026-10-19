@@ -46,7 +46,8 @@ against the independent issuer record and live catalog before dispatch.
 Ordinary PR proof artifacts without explicit PLUS inputs remain unconfigured.
 
 `purchases_configured: true` records client configuration; the live catalog still
-returns `purchases_enabled: false`. After installation, check both asset prices
+returns `purchases_enabled: false`. After installation, open **Settings → Profile**
+and scroll to the **Mosh+** card below the display-name form. Check both asset prices
 (5 USDC / 2575 CLXAI) and the purchase-terms/support links. The disabled payment
 button currently uses “Покупки недоступны в этой сборке.” while sales are paused.
 Desktop launches and real payment/recovery flows were not verified on this Linux
