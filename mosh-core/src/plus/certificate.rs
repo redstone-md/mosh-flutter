@@ -81,6 +81,12 @@ impl Issuer {
                     && claims.valid_from_ms < certificate.expires_at_ms => {}
             _ => return Err("PLUS certificate network/issuer mismatch".into()),
         }
+        if let Some(claims) = &certificate.mainnet {
+            let duration = certificate.expires_at_ms - claims.valid_from_ms;
+            if !(30 * DAY_MS..=31 * DAY_MS).contains(&duration) {
+                return Err("invalid PLUS certificate paid interval".into());
+            }
+        }
         let metadata = claims_metadata(certificate.expires_at_ms, certificate.mainnet.as_ref());
         let key = self
             .key
