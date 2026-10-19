@@ -72,3 +72,9 @@ its aggregate type exceeds the 200-line guideline to retain one persistence and
 lock boundary. Transactional merge and DTO construction may exceed 50 lines where
 splitting would hide validation from the atomic save. The real-Moss carrier test
 keeps one setup/send/hide scenario together. Generated bridge code is exempt.
+
+The integration scenarios in `mosh-core/tests/plus_mainnet.rs`,
+`plus_mainnet_recovery.rs`, `plus_mainnet_peers.rs` and `plus_mainnet_sync.rs`
+also exceed 50 lines (at most 92). Each keeps one purchase, recovery, peer-proof
+or linked-device workflow together with its restart and rejection assertions;
+splitting these scenarios would separate the observable result from its setup.
