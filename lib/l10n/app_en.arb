@@ -2214,5 +2214,8 @@
         "type": "String"
       }
     }
-  }
+  },
+  "plusPurchaseTerms": "Purchase terms",
+  "plusPaymentSupport": "Payment support",
+  "plusCancelSetup": "Cancel payment setup"
 }

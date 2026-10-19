@@ -16,6 +16,9 @@ final mainnetCatalog = <String, dynamic>{
   'recipient': '11111111111111111111111111111111',
   'issuer_key_id': 'a' * 64,
   'issuer_public_key_b64': 'pin',
+  'purchases_enabled': true,
+  'terms_url': 'https://mosh.example/terms',
+  'support_url': 'https://mosh.example/support',
   'assets': [
     {
       'id': 'USDC',
@@ -129,8 +132,10 @@ class MainnetTestCommands extends PlusCommands {
 
 class MainnetTestBilling extends PlusBilling {
   MainnetTestBilling() : super(mainnetConfig);
+  bool enabled = true;
   @override
-  Future<Map<String, dynamic>> catalog() async => mainnetCatalog;
+  Future<Map<String, dynamic>> catalog() async =>
+      {...mainnetCatalog, 'purchases_enabled': enabled};
   @override
   Future<Map<String, dynamic>> createMainnet(
           PlusSeries series, PlusCheckoutIntent intent) async =>

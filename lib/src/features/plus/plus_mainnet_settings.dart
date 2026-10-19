@@ -38,6 +38,10 @@ class PlusMainnetSettings extends ConsumerWidget {
           PlusPendingPayment(
               order: order, busy: value.busy, onRefresh: controller.refresh),
       if (config.canPurchase) ...[
+        if (snapshot.checkoutIntent != null)
+          TextButton(
+              onPressed: value.busy ? null : controller.cancelCheckout,
+              child: Text(l.plusCancelSetup)),
         if (!snapshot.checkoutReady) Text(l.plusWaitingSync),
         PlusNewPayment(
             busy: value.busy,

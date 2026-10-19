@@ -15,6 +15,7 @@ class PlusCommands {
       api.confirmSeriesRegistered(id: id);
   Future<PlusCheckoutIntent> prepareCheckout(String asset) =>
       api.prepareCheckout(asset: asset);
+  Future<PlusSnapshot> cancelCheckout() => api.cancelCheckout();
   Future<PlusSnapshot> saveSchedule(String id, BigInt reservedUntil) =>
       api.saveSchedule(id: id, reservedUntilMs: reservedUntil);
   Future<String> prepareOrder(String id) =>

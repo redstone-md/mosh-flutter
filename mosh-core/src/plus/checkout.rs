@@ -11,6 +11,16 @@ pub struct PlusCheckoutIntent {
 }
 
 impl PlusRuntime {
+    /// Cancels an intent before any accepted QR; paid/order records are retained.
+    pub fn cancel_checkout(&mut self) -> Result<(), String> {
+        if self.issuer.mainnet_key_id.is_none() {
+            return Err("not a production PLUS account".into());
+        }
+        let mut next = self.state.clone();
+        next.mainnet.checkout_intent = None;
+        self.save(next)
+    }
+
     pub fn prepare_checkout(&mut self, asset: &str) -> Result<PlusCheckoutIntent, String> {
         if !self.checkout_ready() || !matches!(asset, "USDC" | "CLXAI") {
             return Err("PLUS checkout is not ready".into());

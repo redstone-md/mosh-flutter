@@ -57,6 +57,13 @@ pub fn prepare_checkout(asset: String) -> Result<PlusCheckoutIntent, String> {
     with_owner(|owner| owner.prepare_checkout(&asset))
 }
 
+pub fn cancel_checkout() -> Result<PlusSnapshot, String> {
+    with_owner(|owner| {
+        owner.cancel_checkout()?;
+        Ok(owner.snapshot(now_ms()))
+    })
+}
+
 pub fn save_schedule(id: String, reserved_until_ms: u64) -> Result<PlusSnapshot, String> {
     with_owner(|owner| {
         owner.save_schedule(&id, reserved_until_ms)?;

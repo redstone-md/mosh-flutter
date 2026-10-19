@@ -1,6 +1,6 @@
 class PlusCatalog {
   PlusCatalog._(this.network, this.product, this.recipient, this.issuerKeyId,
-      this.assets);
+      this.assets, this.purchasesEnabled, this.supportUrl, this.termsUrl);
 
   factory PlusCatalog.fromJson(Map<String, dynamic> json, String pin,
       {bool mainnet = false}) {
@@ -39,7 +39,10 @@ class PlusCatalog {
         product,
         json['recipient'] as String,
         mainnet ? json['issuer_key_id'] as String : null,
-        List.unmodifiable(assets));
+        List.unmodifiable(assets),
+        !mainnet || json['purchases_enabled'] == true,
+        _publicLink(json['support_url']),
+        _publicLink(json['terms_url']));
   }
 
   final String network;
@@ -47,6 +50,9 @@ class PlusCatalog {
   final String recipient;
   final String? issuerKeyId;
   final List<PlusAsset> assets;
+  final bool purchasesEnabled;
+  final Uri? supportUrl;
+  final Uri? termsUrl;
   String get mint => assets.first.mint;
   String get amountAtomic => assets.first.amountAtomic;
   String get amount => assets.first.amount;
@@ -66,6 +72,18 @@ class PlusCatalog {
       throw const FormatException('Mosh+ quote changed');
     }
   }
+}
+
+Uri? _publicLink(Object? value) {
+  if (value == null) return null;
+  if (value is! String) {
+    throw const FormatException('Invalid Mosh+ purchase link');
+  }
+  final uri = Uri.parse(value);
+  if (uri.scheme != 'https' || uri.host.isEmpty || uri.userInfo.isNotEmpty) {
+    throw const FormatException('Invalid Mosh+ purchase link');
+  }
+  return uri;
 }
 
 class PlusAsset {

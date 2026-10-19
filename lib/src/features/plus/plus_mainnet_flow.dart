@@ -50,6 +50,8 @@ class PlusMainnetFlow {
     if (!alive()) return;
     final intent = await commands.prepareCheckout(asset);
     if (!alive()) return;
+    await record(commands.snapshot());
+    if (!alive()) return;
     final quote = await client.createMainnet(snapshot.series!, intent);
     offer.validateOrder(quote);
     if (quote['asset'] != intent.asset ||

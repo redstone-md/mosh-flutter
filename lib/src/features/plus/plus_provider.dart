@@ -115,6 +115,13 @@ class PlusController extends AsyncNotifier<PlusState> {
       _run((scope, commands) => _mainnet(scope, commands).recovery.start(),
           busy: true);
 
+  Future<void> cancelCheckout() => _run((scope, commands) async {
+        final snapshot = await commands.cancelCheckout();
+        if (!scope.mounted) return;
+        _update(scope, snapshot);
+        scope.invalidate(plusCatalogProvider);
+      }, busy: true);
+
   Future<void> visibility(bool visible) => _run((scope, commands) async {
         _update(scope, await commands.visibility(visible));
       }, busy: true);

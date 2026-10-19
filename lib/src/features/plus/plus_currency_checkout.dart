@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'plus_catalog.dart';
 import 'plus_checkout.dart';
 
@@ -39,10 +40,24 @@ class _PlusCurrencyCheckoutState extends State<PlusCurrencyCheckout> {
       Text(l.plusPaidPrice(asset.amount, asset.id)),
       PlusPaymentTerms(
           mint: asset.mint, recipient: widget.catalog.recipient, mainnet: true),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        if (widget.catalog.termsUrl case final url?)
+          TextButton(
+              onPressed: () =>
+                  launchUrl(url, mode: LaunchMode.externalApplication),
+              child: Text(l.plusPurchaseTerms)),
+        if (widget.catalog.supportUrl case final url?)
+          TextButton(
+              onPressed: () =>
+                  launchUrl(url, mode: LaunchMode.externalApplication),
+              child: Text(l.plusPaymentSupport)),
+      ]),
+      if (!widget.catalog.purchasesEnabled) Text(l.plusUnavailable),
       FilledButton(
-          onPressed: widget.busy || !widget.ready
-              ? null
-              : () => widget.onPurchase(asset.id),
+          onPressed:
+              widget.busy || !widget.ready || !widget.catalog.purchasesEnabled
+                  ? null
+                  : () => widget.onPurchase(asset.id),
           child: Text(widget.renewal ? l.plusRenew : l.plusCreatePayment)),
     ]);
   }

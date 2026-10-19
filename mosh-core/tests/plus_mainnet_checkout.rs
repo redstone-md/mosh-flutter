@@ -35,4 +35,8 @@ fn checkout_resumes_one_durable_request_after_restart_and_waits_for_series_agree
     assert_eq!(resumed.asset, "USDC");
     assert!(owner.prepare_checkout("CLXAI").is_err());
     assert!(owner.prepare_checkout("FAKE").is_err());
+    owner.cancel_checkout().unwrap();
+    let replacement = owner.prepare_checkout("CLXAI").unwrap();
+    assert_ne!(replacement.request_id, intent.request_id);
+    assert_eq!(replacement.asset, "CLXAI");
 }

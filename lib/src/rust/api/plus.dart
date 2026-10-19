@@ -30,6 +30,9 @@ Future<PlusSnapshot> confirmSeriesRegistered({required String id}) =>
 Future<PlusCheckoutIntent> prepareCheckout({required String asset}) =>
     RustLib.instance.api.crateApiPlusPrepareCheckout(asset: asset);
 
+Future<PlusSnapshot> cancelCheckout() =>
+    RustLib.instance.api.crateApiPlusCancelCheckout();
+
 Future<PlusSnapshot> saveSchedule(
         {required String id, required BigInt reservedUntilMs}) =>
     RustLib.instance.api

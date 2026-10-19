@@ -1206,5 +1206,8 @@
         "type": "String"
       }
     }
-  }
+  },
+  "plusPurchaseTerms": "Условия покупки",
+  "plusPaymentSupport": "Поддержка по платежам",
+  "plusCancelSetup": "Отменить создание платежа"
 }

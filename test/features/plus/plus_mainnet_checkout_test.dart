@@ -12,12 +12,30 @@ import '../../support/pump.dart';
 
 void main() {
   testWidgets(
+      'paused sales disable new payment QR while keeping recovery available',
+      (tester) async {
+    final native = MainnetTestCommands();
+    await screen(tester, native, salesEnabled: false);
+    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNull);
+    expect(
+        find.text('Purchases are unavailable in this build.'), findsOneWidget);
+    expect(
+        tester
+            .widget<OutlinedButton>(
+                find.widgetWithText(OutlinedButton, 'Recover purchase'))
+            .onPressed,
+        isNotNull);
+  });
+  testWidgets(
       'an active subscriber can renew in CLXAI without losing the current badge setting',
       (tester) async {
     final native = MainnetTestCommands();
     await screen(tester, native);
     expect(find.textContaining('Devnet'), findsNothing);
     await tester.tap(find.text('CLXAI'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Add 30 days'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add 30 days'));
     await tester.pumpAndSettle();
@@ -41,11 +59,13 @@ void main() {
   });
 }
 
-Future<void> screen(WidgetTester tester, MainnetTestCommands native) async {
+Future<void> screen(WidgetTester tester, MainnetTestCommands native,
+    {bool salesEnabled = true}) async {
   final container = ProviderContainer(overrides: [
     plusConfigProvider.overrideWithValue(mainnetConfig),
     plusCommandsProvider.overrideWithValue(native),
-    plusBillingProvider.overrideWithValue(MainnetTestBilling()),
+    plusBillingProvider
+        .overrideWithValue(MainnetTestBilling()..enabled = salesEnabled),
     plusPollIntervalProvider.overrideWithValue(null),
   ]);
   addTearDown(container.dispose);
