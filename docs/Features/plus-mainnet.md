@@ -92,6 +92,12 @@ commit, network, enabled verification/purchase configuration and issuer key ID.
 Mainnet artifacts keep ordinary names; only explicit devnet builds have a devnet
 suffix. The macOS release installer remains universal (Intel and Apple Silicon).
 
+The production origin and independently checked public pin were configured as
+release repository variables on 2026-10-19. Separate Windows and universal macOS
+[acceptance installers](plus-mainnet-builds-2026-10-19.md) were built and their
+downloaded manifests and checksums verified. Ordinary PR proof artifacts without
+explicit PLUS inputs remain unconfigured. Desktop acceptance is still pending.
+
 Without a pin/URL, CI builds keep purchases disabled. With configured clients,
 billing can still pause new sales independently. Pausing preserves existing order
 refresh, issuance, recovery and local badge validation. Do not rotate an issuer
@@ -109,8 +115,8 @@ The public [purchase terms](https://mosh.run/plus/terms) and updated
 [privacy policy](https://mosh.run/privacy) were published on 2026-10-19;
 both locales and support links passed live browser checks. Both public URLs were
 applied to the live billing catalog and verified with sales still paused.
-Client release configuration and approved real mainnet acceptance remain
-activation gates. Preflight checks genesis,
+Installed-client and approved real mainnet acceptance remain activation gates.
+Preflight checks genesis,
 both mints/decimals, recipient token accounts and issuer continuity before sales.
 The service never receives treasury signing keys. It rejects the published test
 issuer when enabling sales.
