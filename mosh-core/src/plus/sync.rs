@@ -214,6 +214,7 @@ impl PlusRuntime {
                 &self.state.account_id,
                 item.order.valid_from_ms,
                 item.order.expires_at_ms,
+                item.order.issuer_key_id.as_deref(),
             ) {
                 return Err("invalid PLUS issuance state".into());
             }

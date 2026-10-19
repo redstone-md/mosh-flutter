@@ -18,10 +18,17 @@ pub(super) struct PreparedIssuance {
 }
 
 impl PreparedIssuance {
-    pub(super) fn matches(&self, account: &str, from: Option<u64>, until: Option<u64>) -> bool {
+    pub(super) fn matches(
+        &self,
+        account: &str,
+        from: Option<u64>,
+        until: Option<u64>,
+        issuer_key_id: Option<&str>,
+    ) -> bool {
         self.account_id == account
             && Some(self.expires_at_ms) == until
             && self.mainnet.as_ref().map(|c| c.valid_from_ms) == from
+            && self.mainnet.as_ref().map(|c| c.issuer_key_id.as_str()) == issuer_key_id
             && self.blinded_message_b64.len() <= 700
             && self.secret_b64.len() <= 700
     }

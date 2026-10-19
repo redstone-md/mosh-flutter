@@ -85,3 +85,21 @@ fn synchronized_certificates_match_immutable_paid_intervals_and_reject_foreign_w
     assert!(owner.snapshot(1_797_465_600_000).active);
     assert!(owner.merge_sync(&page.to_string()).is_ok());
 }
+
+#[test]
+fn a_foreign_prepared_issuer_is_rejected_without_poisoning_a_paid_order() {
+    let source_directory = TempDirectory::new("mosh-prepared-source");
+    let mut source = open(&source_directory);
+    source.save_series("series", &"a".repeat(43)).unwrap();
+    source.save_order(&paid_order().to_string(), 0).unwrap();
+    let blind = source.prepare_order_issuance("order").unwrap();
+    let original = source.export_sync(None).unwrap().unwrap();
+    let mut foreign: Value = serde_json::from_str(&original).unwrap();
+    foreign["items"][0]["prepared"]["mainnet"]["issuer_key_id"] = json!("b".repeat(64));
+    let destination_directory = TempDirectory::new("mosh-prepared-destination");
+    let mut destination = open(&destination_directory);
+    assert!(destination.merge_sync(&foreign.to_string()).is_err());
+    assert!(destination.snapshot(0).orders.is_empty());
+    destination.merge_sync(&original).unwrap();
+    assert_eq!(destination.prepare_order_issuance("order").unwrap(), blind);
+}
