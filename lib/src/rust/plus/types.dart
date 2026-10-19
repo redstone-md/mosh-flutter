@@ -4,7 +4,9 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'checkout.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'recovery_types.dart';
 
 class PlusOrder {
   final String id;
@@ -25,6 +27,7 @@ class PlusOrder {
   final String? issuerKeyId;
   final String? seriesId;
   final BigInt? validFromMs;
+  final String? requestId;
 
   const PlusOrder({
     required this.id,
@@ -45,6 +48,7 @@ class PlusOrder {
     this.issuerKeyId,
     this.seriesId,
     this.validFromMs,
+    this.requestId,
   });
 
   @override
@@ -66,7 +70,8 @@ class PlusOrder {
       tokenDecimals.hashCode ^
       issuerKeyId.hashCode ^
       seriesId.hashCode ^
-      validFromMs.hashCode;
+      validFromMs.hashCode ^
+      requestId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -90,7 +95,8 @@ class PlusOrder {
           tokenDecimals == other.tokenDecimals &&
           issuerKeyId == other.issuerKeyId &&
           seriesId == other.seriesId &&
-          validFromMs == other.validFromMs;
+          validFromMs == other.validFromMs &&
+          requestId == other.requestId;
 }
 
 enum PlusPaymentStatus {
@@ -154,6 +160,10 @@ class PlusSnapshot {
   final BigInt? nextActiveFromMs;
   final bool canInitializeSeries;
   final bool seriesRegistered;
+  final PlusCheckoutIntent? checkoutIntent;
+  final BigInt? reservedUntilMs;
+  final PlusRecoverySession? recovery;
+  final List<String> unissuedOrderIds;
 
   const PlusSnapshot({
     required this.active,
@@ -167,6 +177,10 @@ class PlusSnapshot {
     this.nextActiveFromMs,
     this.canInitializeSeries = false,
     this.seriesRegistered = false,
+    this.checkoutIntent,
+    this.reservedUntilMs,
+    this.recovery,
+    this.unissuedOrderIds = const [],
   });
 
   @override
@@ -181,7 +195,11 @@ class PlusSnapshot {
       checkoutReady.hashCode ^
       nextActiveFromMs.hashCode ^
       canInitializeSeries.hashCode ^
-      seriesRegistered.hashCode;
+      seriesRegistered.hashCode ^
+      checkoutIntent.hashCode ^
+      reservedUntilMs.hashCode ^
+      recovery.hashCode ^
+      unissuedOrderIds.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -198,5 +216,9 @@ class PlusSnapshot {
           checkoutReady == other.checkoutReady &&
           nextActiveFromMs == other.nextActiveFromMs &&
           canInitializeSeries == other.canInitializeSeries &&
-          seriesRegistered == other.seriesRegistered;
+          seriesRegistered == other.seriesRegistered &&
+          checkoutIntent == other.checkoutIntent &&
+          reservedUntilMs == other.reservedUntilMs &&
+          recovery == other.recovery &&
+          unissuedOrderIds == other.unissuedOrderIds;
 }

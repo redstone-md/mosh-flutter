@@ -47,6 +47,8 @@ import 'org_runtime.dart';
 import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 import 'persistence.dart';
+import 'plus/checkout.dart';
+import 'plus/recovery_types.dart';
 import 'plus/types.dart';
 import 'private_dm_runtime/contracts.dart';
 import 'private_dm_runtime/transport.dart';
@@ -277,7 +279,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingCall dco_decode_box_autoadd_pending_call(dynamic raw);
 
   @protected
+  PlusCheckoutIntent dco_decode_box_autoadd_plus_checkout_intent(dynamic raw);
+
+  @protected
   PlusOrder dco_decode_box_autoadd_plus_order(dynamic raw);
+
+  @protected
+  PlusRecoverySession dco_decode_box_autoadd_plus_recovery_session(dynamic raw);
 
   @protected
   PlusSeries dco_decode_box_autoadd_plus_series(dynamic raw);
@@ -655,7 +663,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingCall? dco_decode_opt_box_autoadd_pending_call(dynamic raw);
 
   @protected
+  PlusCheckoutIntent? dco_decode_opt_box_autoadd_plus_checkout_intent(
+      dynamic raw);
+
+  @protected
   PlusOrder? dco_decode_opt_box_autoadd_plus_order(dynamic raw);
+
+  @protected
+  PlusRecoverySession? dco_decode_opt_box_autoadd_plus_recovery_session(
+      dynamic raw);
 
   @protected
   PlusSeries? dco_decode_opt_box_autoadd_plus_series(dynamic raw);
@@ -709,6 +725,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PersistenceRuntimeStatus dco_decode_persistence_runtime_status(dynamic raw);
 
   @protected
+  PlusCheckoutIntent dco_decode_plus_checkout_intent(dynamic raw);
+
+  @protected
   PlusOrder dco_decode_plus_order(dynamic raw);
 
   @protected
@@ -716,6 +735,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlusPeerBadge dco_decode_plus_peer_badge(dynamic raw);
+
+  @protected
+  PlusRecoveryIssuance dco_decode_plus_recovery_issuance(dynamic raw);
+
+  @protected
+  PlusRecoverySession dco_decode_plus_recovery_session(dynamic raw);
 
   @protected
   PlusSeries dco_decode_plus_series(dynamic raw);
@@ -995,7 +1020,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingCall sse_decode_box_autoadd_pending_call(SseDeserializer deserializer);
 
   @protected
+  PlusCheckoutIntent sse_decode_box_autoadd_plus_checkout_intent(
+      SseDeserializer deserializer);
+
+  @protected
   PlusOrder sse_decode_box_autoadd_plus_order(SseDeserializer deserializer);
+
+  @protected
+  PlusRecoverySession sse_decode_box_autoadd_plus_recovery_session(
+      SseDeserializer deserializer);
 
   @protected
   PlusSeries sse_decode_box_autoadd_plus_series(SseDeserializer deserializer);
@@ -1428,7 +1461,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  PlusCheckoutIntent? sse_decode_opt_box_autoadd_plus_checkout_intent(
+      SseDeserializer deserializer);
+
+  @protected
   PlusOrder? sse_decode_opt_box_autoadd_plus_order(
+      SseDeserializer deserializer);
+
+  @protected
+  PlusRecoverySession? sse_decode_opt_box_autoadd_plus_recovery_session(
       SseDeserializer deserializer);
 
   @protected
@@ -1488,6 +1529,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  PlusCheckoutIntent sse_decode_plus_checkout_intent(
+      SseDeserializer deserializer);
+
+  @protected
   PlusOrder sse_decode_plus_order(SseDeserializer deserializer);
 
   @protected
@@ -1496,6 +1541,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlusPeerBadge sse_decode_plus_peer_badge(SseDeserializer deserializer);
+
+  @protected
+  PlusRecoveryIssuance sse_decode_plus_recovery_issuance(
+      SseDeserializer deserializer);
+
+  @protected
+  PlusRecoverySession sse_decode_plus_recovery_session(
+      SseDeserializer deserializer);
 
   @protected
   PlusSeries sse_decode_plus_series(SseDeserializer deserializer);
@@ -1788,8 +1841,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       PendingCall self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_plus_checkout_intent(
+      PlusCheckoutIntent self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_plus_order(
       PlusOrder self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_plus_recovery_session(
+      PlusRecoverySession self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_plus_series(
@@ -2249,8 +2310,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       PendingCall? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_plus_checkout_intent(
+      PlusCheckoutIntent? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_plus_order(
       PlusOrder? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_plus_recovery_session(
+      PlusRecoverySession? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_plus_series(
@@ -2311,6 +2380,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       PersistenceRuntimeStatus self, SseSerializer serializer);
 
   @protected
+  void sse_encode_plus_checkout_intent(
+      PlusCheckoutIntent self, SseSerializer serializer);
+
+  @protected
   void sse_encode_plus_order(PlusOrder self, SseSerializer serializer);
 
   @protected
@@ -2319,6 +2392,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_plus_peer_badge(PlusPeerBadge self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_plus_recovery_issuance(
+      PlusRecoveryIssuance self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_plus_recovery_session(
+      PlusRecoverySession self, SseSerializer serializer);
 
   @protected
   void sse_encode_plus_series(PlusSeries self, SseSerializer serializer);

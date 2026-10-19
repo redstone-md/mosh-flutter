@@ -21,6 +21,12 @@ pub(super) struct MainnetState {
     pub bootstrap: super::bootstrap::Bootstrap,
     #[serde(default)]
     pub order_writers: BTreeMap<String, String>,
+    #[serde(default)]
+    pub checkout_intent: Option<super::checkout::PlusCheckoutIntent>,
+    #[serde(default)]
+    pub reserved_until_ms: Option<u64>,
+    #[serde(default)]
+    pub recovery: Option<super::recovery::RecoveryState>,
 }
 
 impl PlusRuntime {
@@ -96,6 +102,16 @@ impl PlusRuntime {
             return Err("invalid PLUS order capability".into());
         }
         let mut next = self.state.clone();
+        if !next.mainnet.orders.contains_key(&order.id) {
+            if let Some(intent) = &next.mainnet.checkout_intent {
+                if order.request_id.as_deref() != Some(&intent.request_id)
+                    || order.asset.as_deref() != Some(&intent.asset)
+                {
+                    return Err("PLUS checkout response mismatch".into());
+                }
+                next.mainnet.checkout_intent = None;
+            }
+        }
         next.mainnet
             .order_writers
             .entry(order.id.clone())
@@ -216,6 +232,17 @@ impl PlusRuntime {
             checkout_ready: self.checkout_ready(),
             can_initialize_series: self.can_initialize_series(),
             series_registered: self.state.mainnet.bootstrap.registered,
+            checkout_intent: self.state.mainnet.checkout_intent.clone(),
+            reserved_until_ms: self.state.mainnet.reserved_until_ms,
+            recovery: self.recovery_snapshot(),
+            unissued_order_ids: self
+                .state
+                .mainnet
+                .orders
+                .keys()
+                .filter(|id| !self.state.mainnet.certificates.contains_key(*id))
+                .cloned()
+                .collect(),
             next_active_from_ms: certificates
                 .iter()
                 .filter_map(|c| c.mainnet.as_ref().map(|p| p.valid_from_ms))

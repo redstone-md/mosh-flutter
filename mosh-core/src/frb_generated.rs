@@ -52,7 +52,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -2070304538;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1548499142;
 
 // Section: executor
 
@@ -2361,6 +2361,39 @@ fn wire__crate__api__native_call__prepare_impl(
         },
     )
 }
+fn wire__crate__api__plus__prepare_checkout_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "prepare_checkout",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_asset = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::plus::prepare_checkout(api_asset)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__plus__prepare_issuance_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -2420,6 +2453,71 @@ fn wire__crate__api__plus__prepare_order_issuance_impl(
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok = crate::api::plus::prepare_order_issuance(api_order_id)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__plus__prepare_recovery_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "prepare_recovery",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::plus::prepare_recovery()?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__plus__prepare_recovery_issuance_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "prepare_recovery_issuance",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_order_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::plus::prepare_recovery_issuance(api_order_id)?;
                     Ok(output_ok)
                 })())
             }
@@ -2699,6 +2797,73 @@ fn wire__crate__api__plus__save_order_impl(
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok = crate::api::plus::save_order(api_order_json)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__plus__save_recovery_status_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "save_recovery_status",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_status_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::plus::save_recovery_status(api_status_json)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__plus__save_schedule_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "save_schedule",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            let api_reserved_until_ms = <u64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::plus::save_schedule(api_id, api_reserved_until_ms)?;
                     Ok(output_ok)
                 })())
             }
@@ -5859,11 +6024,37 @@ impl SseDecode for Option<crate::private_dm_runtime::contracts::PendingCall> {
     }
 }
 
+impl SseDecode for Option<crate::plus::checkout::PlusCheckoutIntent> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::plus::checkout::PlusCheckoutIntent>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::plus::types::PlusOrder> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::plus::types::PlusOrder>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::plus::recovery_types::PlusRecoverySession> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::plus::recovery_types::PlusRecoverySession>::sse_decode(deserializer),
+            );
         } else {
             return None;
         }
@@ -6119,6 +6310,18 @@ impl SseDecode for crate::persistence::PersistenceRuntimeStatus {
     }
 }
 
+impl SseDecode for crate::plus::checkout::PlusCheckoutIntent {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_requestId = <String>::sse_decode(deserializer);
+        let mut var_asset = <String>::sse_decode(deserializer);
+        return crate::plus::checkout::PlusCheckoutIntent {
+            request_id: var_requestId,
+            asset: var_asset,
+        };
+    }
+}
+
 impl SseDecode for crate::plus::types::PlusOrder {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6140,6 +6343,7 @@ impl SseDecode for crate::plus::types::PlusOrder {
         let mut var_issuerKeyId = <Option<String>>::sse_decode(deserializer);
         let mut var_seriesId = <Option<String>>::sse_decode(deserializer);
         let mut var_validFromMs = <Option<u64>>::sse_decode(deserializer);
+        let mut var_requestId = <Option<String>>::sse_decode(deserializer);
         return crate::plus::types::PlusOrder {
             id: var_id,
             network: var_network,
@@ -6159,6 +6363,7 @@ impl SseDecode for crate::plus::types::PlusOrder {
             issuer_key_id: var_issuerKeyId,
             series_id: var_seriesId,
             valid_from_ms: var_validFromMs,
+            request_id: var_requestId,
         };
     }
 }
@@ -6184,6 +6389,42 @@ impl SseDecode for crate::plus::types::PlusPeerBadge {
         return crate::plus::types::PlusPeerBadge {
             identity: var_identity,
             expires_at_ms: var_expiresAtMs,
+        };
+    }
+}
+
+impl SseDecode for crate::plus::recovery_types::PlusRecoveryIssuance {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_blindedMessageB64 = <String>::sse_decode(deserializer);
+        let mut var_destinationSignatureB64 = <String>::sse_decode(deserializer);
+        return crate::plus::recovery_types::PlusRecoveryIssuance {
+            blinded_message_b64: var_blindedMessageB64,
+            destination_signature_b64: var_destinationSignatureB64,
+        };
+    }
+}
+
+impl SseDecode for crate::plus::recovery_types::PlusRecoverySession {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_pollToken = <String>::sse_decode(deserializer);
+        let mut var_publicKeyB64 = <String>::sse_decode(deserializer);
+        let mut var_code = <String>::sse_decode(deserializer);
+        let mut var_expiresAtMs = <u64>::sse_decode(deserializer);
+        let mut var_url = <Option<String>>::sse_decode(deserializer);
+        let mut var_orders = <Vec<crate::plus::types::PlusOrder>>::sse_decode(deserializer);
+        let mut var_completedOrders = <u32>::sse_decode(deserializer);
+        return crate::plus::recovery_types::PlusRecoverySession {
+            id: var_id,
+            poll_token: var_pollToken,
+            public_key_b64: var_publicKeyB64,
+            code: var_code,
+            expires_at_ms: var_expiresAtMs,
+            url: var_url,
+            orders: var_orders,
+            completed_orders: var_completedOrders,
         };
     }
 }
@@ -6214,6 +6455,12 @@ impl SseDecode for crate::plus::types::PlusSnapshot {
         let mut var_nextActiveFromMs = <Option<u64>>::sse_decode(deserializer);
         let mut var_canInitializeSeries = <bool>::sse_decode(deserializer);
         let mut var_seriesRegistered = <bool>::sse_decode(deserializer);
+        let mut var_checkoutIntent =
+            <Option<crate::plus::checkout::PlusCheckoutIntent>>::sse_decode(deserializer);
+        let mut var_reservedUntilMs = <Option<u64>>::sse_decode(deserializer);
+        let mut var_recovery =
+            <Option<crate::plus::recovery_types::PlusRecoverySession>>::sse_decode(deserializer);
+        let mut var_unissuedOrderIds = <Vec<String>>::sse_decode(deserializer);
         return crate::plus::types::PlusSnapshot {
             active: var_active,
             visible: var_visible,
@@ -6226,6 +6473,10 @@ impl SseDecode for crate::plus::types::PlusSnapshot {
             next_active_from_ms: var_nextActiveFromMs,
             can_initialize_series: var_canInitializeSeries,
             series_registered: var_seriesRegistered,
+            checkout_intent: var_checkoutIntent,
+            reserved_until_ms: var_reservedUntilMs,
+            recovery: var_recovery,
+            unissued_order_ids: var_unissuedOrderIds,
         };
     }
 }
@@ -6664,84 +6915,96 @@ fn pde_ffi_dispatcher_primary_impl(
         63 => wire__crate__api__private_group__poll_impl(port, ptr, rust_vec_len, data_len),
         64 => wire__crate__api__private_dm__poll_session_impl(port, ptr, rust_vec_len, data_len),
         65 => wire__crate__api__native_call__prepare_impl(port, ptr, rust_vec_len, data_len),
-        66 => wire__crate__api__plus__prepare_issuance_impl(port, ptr, rust_vec_len, data_len),
-        67 => {
+        66 => wire__crate__api__plus__prepare_checkout_impl(port, ptr, rust_vec_len, data_len),
+        67 => wire__crate__api__plus__prepare_issuance_impl(port, ptr, rust_vec_len, data_len),
+        68 => {
             wire__crate__api__plus__prepare_order_issuance_impl(port, ptr, rust_vec_len, data_len)
         }
-        68 => wire__crate__api__plus__prepare_series_impl(port, ptr, rust_vec_len, data_len),
-        69 => wire__crate__api__private_dm__read_receipts_enabled_impl(
+        69 => wire__crate__api__plus__prepare_recovery_impl(port, ptr, rust_vec_len, data_len),
+        70 => wire__crate__api__plus__prepare_recovery_issuance_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        70 => wire__crate__api__conversation__names__rename_impl(port, ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__private_dm__replace_invite_impl(port, ptr, rust_vec_len, data_len),
-        72 => wire__crate__api__conversation__names__reset_name_impl(
+        71 => wire__crate__api__plus__prepare_series_impl(port, ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__private_dm__read_receipts_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        73 => wire__crate__api__conversation__retry_impl(port, ptr, rust_vec_len, data_len),
-        74 => wire__crate__api__device_link__revoke_impl(port, ptr, rust_vec_len, data_len),
-        75 => wire__crate__api__plus__save_order_impl(port, ptr, rust_vec_len, data_len),
-        76 => wire__crate__api__conversation__send_impl(port, ptr, rust_vec_len, data_len),
-        77 => {
+        73 => wire__crate__api__conversation__names__rename_impl(port, ptr, rust_vec_len, data_len),
+        74 => wire__crate__api__private_dm__replace_invite_impl(port, ptr, rust_vec_len, data_len),
+        75 => wire__crate__api__conversation__names__reset_name_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        76 => wire__crate__api__conversation__retry_impl(port, ptr, rust_vec_len, data_len),
+        77 => wire__crate__api__device_link__revoke_impl(port, ptr, rust_vec_len, data_len),
+        78 => wire__crate__api__plus__save_order_impl(port, ptr, rust_vec_len, data_len),
+        79 => wire__crate__api__plus__save_recovery_status_impl(port, ptr, rust_vec_len, data_len),
+        80 => wire__crate__api__plus__save_schedule_impl(port, ptr, rust_vec_len, data_len),
+        81 => wire__crate__api__conversation__send_impl(port, ptr, rust_vec_len, data_len),
+        82 => {
             wire__crate__api__conversation__send_attachment_impl(port, ptr, rust_vec_len, data_len)
         }
-        78 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        79 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        80 => {
+        83 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        84 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        85 => {
             wire__crate__api__private_group__send_dm_offer_impl(port, ptr, rust_vec_len, data_len)
         }
-        81 => {
+        86 => {
             wire__crate__api__private_dm__set_app_data_dir_impl(port, ptr, rust_vec_len, data_len)
         }
-        82 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
+        87 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        84 => wire__crate__api__native_call__set_choices_impl(port, ptr, rust_vec_len, data_len),
-        86 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
-        87 => wire__crate__api__shared_runtime__set_history_dek_impl(
+        89 => wire__crate__api__native_call__set_choices_impl(port, ptr, rust_vec_len, data_len),
+        91 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
+        92 => wire__crate__api__shared_runtime__set_history_dek_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        88 => wire__crate__api__private_dm__set_read_receipts_enabled_impl(
+        93 => wire__crate__api__private_dm__set_read_receipts_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        89 => wire__crate__api__plus__set_visible_impl(port, ptr, rust_vec_len, data_len),
-        90 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
-        91 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        92 => wire__crate__api__native_call__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        93 => wire__crate__api__plus__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        94 => wire__crate__api__diagnostics__start_panic_reporting_impl(
+        94 => wire__crate__api__plus__set_visible_impl(port, ptr, rust_vec_len, data_len),
+        95 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        96 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        97 => wire__crate__api__native_call__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        98 => wire__crate__api__plus__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        99 => wire__crate__api__diagnostics__start_panic_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        95 => wire__crate__api__diagnostics__stop_panic_reporting_impl(
+        100 => wire__crate__api__diagnostics__stop_panic_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        96 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
+        101 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        97 => wire__crate__api__conversation__typing_signal_impl(port, ptr, rust_vec_len, data_len),
+        102 => {
+            wire__crate__api__conversation__typing_signal_impl(port, ptr, rust_vec_len, data_len)
+        }
         _ => unreachable!(),
     }
 }
@@ -6766,39 +7029,39 @@ fn pde_ffi_dispatcher_sync_impl(
         53 => {
             wire__crate__api__audio_devices__list_output_devices_impl(ptr, rust_vec_len, data_len)
         }
-        83 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
-        85 => wire__crate__api__native_call__set_default_camera_impl(ptr, rust_vec_len, data_len),
-        98 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
+        88 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
+        90 => wire__crate__api__native_call__set_default_camera_impl(ptr, rust_vec_len, data_len),
+        103 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        99 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
+        104 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        100 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
+        105 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        101 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
+        106 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        102 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
+        107 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        103 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
+        108 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        104 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
+        109 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
@@ -8685,6 +8948,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::persistence::PersistenceRuntimeSta
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::plus::checkout::PlusCheckoutIntent {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.request_id.into_into_dart().into_dart(),
+            self.asset.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::plus::checkout::PlusCheckoutIntent
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::plus::checkout::PlusCheckoutIntent>
+    for crate::plus::checkout::PlusCheckoutIntent
+{
+    fn into_into_dart(self) -> crate::plus::checkout::PlusCheckoutIntent {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::plus::types::PlusOrder {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -8706,6 +8990,7 @@ impl flutter_rust_bridge::IntoDart for crate::plus::types::PlusOrder {
             self.issuer_key_id.into_into_dart().into_dart(),
             self.series_id.into_into_dart().into_dart(),
             self.valid_from_ms.into_into_dart().into_dart(),
+            self.request_id.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -8762,6 +9047,54 @@ impl flutter_rust_bridge::IntoIntoDart<crate::plus::types::PlusPeerBadge>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::plus::recovery_types::PlusRecoveryIssuance {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.blinded_message_b64.into_into_dart().into_dart(),
+            self.destination_signature_b64.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::plus::recovery_types::PlusRecoveryIssuance
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::plus::recovery_types::PlusRecoveryIssuance>
+    for crate::plus::recovery_types::PlusRecoveryIssuance
+{
+    fn into_into_dart(self) -> crate::plus::recovery_types::PlusRecoveryIssuance {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::plus::recovery_types::PlusRecoverySession {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.poll_token.into_into_dart().into_dart(),
+            self.public_key_b64.into_into_dart().into_dart(),
+            self.code.into_into_dart().into_dart(),
+            self.expires_at_ms.into_into_dart().into_dart(),
+            self.url.into_into_dart().into_dart(),
+            self.orders.into_into_dart().into_dart(),
+            self.completed_orders.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::plus::recovery_types::PlusRecoverySession
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::plus::recovery_types::PlusRecoverySession>
+    for crate::plus::recovery_types::PlusRecoverySession
+{
+    fn into_into_dart(self) -> crate::plus::recovery_types::PlusRecoverySession {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::plus::types::PlusSeries {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -8797,6 +9130,10 @@ impl flutter_rust_bridge::IntoDart for crate::plus::types::PlusSnapshot {
             self.next_active_from_ms.into_into_dart().into_dart(),
             self.can_initialize_series.into_into_dart().into_dart(),
             self.series_registered.into_into_dart().into_dart(),
+            self.checkout_intent.into_into_dart().into_dart(),
+            self.reserved_until_ms.into_into_dart().into_dart(),
+            self.recovery.into_into_dart().into_dart(),
+            self.unissued_order_ids.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -10673,12 +11010,32 @@ impl SseEncode for Option<crate::private_dm_runtime::contracts::PendingCall> {
     }
 }
 
+impl SseEncode for Option<crate::plus::checkout::PlusCheckoutIntent> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::plus::checkout::PlusCheckoutIntent>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::plus::types::PlusOrder> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::plus::types::PlusOrder>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::plus::recovery_types::PlusRecoverySession> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::plus::recovery_types::PlusRecoverySession>::sse_encode(value, serializer);
         }
     }
 }
@@ -10864,6 +11221,14 @@ impl SseEncode for crate::persistence::PersistenceRuntimeStatus {
     }
 }
 
+impl SseEncode for crate::plus::checkout::PlusCheckoutIntent {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.request_id, serializer);
+        <String>::sse_encode(self.asset, serializer);
+    }
+}
+
 impl SseEncode for crate::plus::types::PlusOrder {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -10885,6 +11250,7 @@ impl SseEncode for crate::plus::types::PlusOrder {
         <Option<String>>::sse_encode(self.issuer_key_id, serializer);
         <Option<String>>::sse_encode(self.series_id, serializer);
         <Option<u64>>::sse_encode(self.valid_from_ms, serializer);
+        <Option<String>>::sse_encode(self.request_id, serializer);
     }
 }
 
@@ -10913,6 +11279,28 @@ impl SseEncode for crate::plus::types::PlusPeerBadge {
     }
 }
 
+impl SseEncode for crate::plus::recovery_types::PlusRecoveryIssuance {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.blinded_message_b64, serializer);
+        <String>::sse_encode(self.destination_signature_b64, serializer);
+    }
+}
+
+impl SseEncode for crate::plus::recovery_types::PlusRecoverySession {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.poll_token, serializer);
+        <String>::sse_encode(self.public_key_b64, serializer);
+        <String>::sse_encode(self.code, serializer);
+        <u64>::sse_encode(self.expires_at_ms, serializer);
+        <Option<String>>::sse_encode(self.url, serializer);
+        <Vec<crate::plus::types::PlusOrder>>::sse_encode(self.orders, serializer);
+        <u32>::sse_encode(self.completed_orders, serializer);
+    }
+}
+
 impl SseEncode for crate::plus::types::PlusSeries {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -10935,6 +11323,16 @@ impl SseEncode for crate::plus::types::PlusSnapshot {
         <Option<u64>>::sse_encode(self.next_active_from_ms, serializer);
         <bool>::sse_encode(self.can_initialize_series, serializer);
         <bool>::sse_encode(self.series_registered, serializer);
+        <Option<crate::plus::checkout::PlusCheckoutIntent>>::sse_encode(
+            self.checkout_intent,
+            serializer,
+        );
+        <Option<u64>>::sse_encode(self.reserved_until_ms, serializer);
+        <Option<crate::plus::recovery_types::PlusRecoverySession>>::sse_encode(
+            self.recovery,
+            serializer,
+        );
+        <Vec<String>>::sse_encode(self.unissued_order_ids, serializer);
     }
 }
 

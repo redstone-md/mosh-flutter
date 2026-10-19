@@ -1,5 +1,8 @@
 //! Durable PLUS state. Blinding secrets stay native; wallet keys stay in the wallet.
-pub use crate::plus::{PlusOrder, PlusPaymentStatus, PlusPeerBadge, PlusSeries, PlusSnapshot};
+pub use crate::plus::{
+    PlusCheckoutIntent, PlusOrder, PlusPaymentStatus, PlusPeerBadge, PlusRecoveryIssuance,
+    PlusRecoverySession, PlusSeries, PlusSnapshot,
+};
 use crate::{conversation::now_ms, plus::global};
 
 fn with_owner<T>(
@@ -48,6 +51,32 @@ pub fn confirm_series_registered(id: String) -> Result<PlusSnapshot, String> {
         owner.confirm_series_registered(&id)?;
         Ok(owner.snapshot(now_ms()))
     })
+}
+
+pub fn prepare_checkout(asset: String) -> Result<PlusCheckoutIntent, String> {
+    with_owner(|owner| owner.prepare_checkout(&asset))
+}
+
+pub fn save_schedule(id: String, reserved_until_ms: u64) -> Result<PlusSnapshot, String> {
+    with_owner(|owner| {
+        owner.save_schedule(&id, reserved_until_ms)?;
+        Ok(owner.snapshot(now_ms()))
+    })
+}
+
+pub fn prepare_recovery() -> Result<PlusRecoverySession, String> {
+    with_owner(|owner| owner.prepare_recovery(now_ms()))
+}
+
+pub fn save_recovery_status(status_json: String) -> Result<PlusSnapshot, String> {
+    with_owner(|owner| {
+        owner.save_recovery_status(&status_json, now_ms())?;
+        Ok(owner.snapshot(now_ms()))
+    })
+}
+
+pub fn prepare_recovery_issuance(order_id: String) -> Result<PlusRecoveryIssuance, String> {
+    with_owner(|owner| owner.prepare_recovery_issuance(&order_id))
 }
 
 pub fn prepare_order_issuance(order_id: String) -> Result<String, String> {

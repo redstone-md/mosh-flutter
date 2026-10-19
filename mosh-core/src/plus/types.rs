@@ -31,6 +31,7 @@ pub struct PlusOrder {
     pub issuer_key_id: Option<String>,
     pub series_id: Option<String>,
     pub valid_from_ms: Option<u64>,
+    pub request_id: Option<String>,
 }
 
 #[derive(Clone, Serialize)]
@@ -51,6 +52,11 @@ pub struct PlusSnapshot {
     pub can_initialize_series: bool,
     #[frb(default = false)]
     pub series_registered: bool,
+    pub checkout_intent: Option<super::checkout::PlusCheckoutIntent>,
+    pub reserved_until_ms: Option<u64>,
+    pub recovery: Option<super::recovery_types::PlusRecoverySession>,
+    #[frb(default = "const []")]
+    pub unissued_order_ids: Vec<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -122,6 +128,7 @@ impl PlusOrder {
             && self.token_decimals == other.token_decimals
             && self.issuer_key_id == other.issuer_key_id
             && self.series_id == other.series_id
+            && self.request_id == other.request_id
     }
 
     fn valid_product(&self) -> bool {

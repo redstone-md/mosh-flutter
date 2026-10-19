@@ -225,6 +225,10 @@ impl PlusRuntime {
             next_active_from_ms: None,
             can_initialize_series: false,
             series_registered: false,
+            checkout_intent: None,
+            reserved_until_ms: None,
+            recovery: None,
+            unissued_order_ids: Vec::new(),
         }
     }
 
