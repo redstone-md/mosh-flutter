@@ -15,7 +15,8 @@ Configure both purchasing desktop clients explicitly:
 
 ```sh
 flutter run --dart-define=MOSH_PLUS_SERVER_URL=https://billing.example \
-  --dart-define=MOSH_PLUS_ISSUER_KEY=BASE64_SPKI_PUBLIC_KEY
+  --dart-define=MOSH_PLUS_ISSUER_KEY=BASE64_SPKI_PUBLIC_KEY \
+  --dart-define=MOSH_PLUS_NETWORK=solana-devnet
 ```
 
 The issuer key is an independent trust pin. A catalog response cannot replace it.
@@ -26,7 +27,8 @@ key generation, durable SQLite storage and server configuration. Nothing in this
 slice creates a remote repository, deploys a server or uses mainnet.
 
 The existing Windows installer and macOS DMG workflows also accept manual
-`plus-server-url` and `plus-issuer-key` inputs on the selected branch. Pass the
+`plus-server-url`, `plus-issuer-key` and `plus-network` inputs on the selected branch.
+For this completed pilot, explicitly set `plus-network=solana-devnet`. Pass the
 same independently pinned public key to both to produce ready-to-install pilot
 clients. Their artifacts are named `mosh-windows-plus-devnet` and
 `mosh-macos-plus-devnet`; ordinary builds keep their existing artifact names and
