@@ -6,8 +6,14 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PlusRecoveryPanel extends StatelessWidget {
-  const PlusRecoveryPanel({super.key, required this.session});
+  const PlusRecoveryPanel(
+      {super.key,
+      required this.session,
+      required this.busy,
+      required this.onRefresh});
   final PlusRecoverySession session;
+  final bool busy;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +48,10 @@ class PlusRecoveryPanel extends StatelessWidget {
               label: Text(l.plusOpenRecovery)),
         ]),
       ],
+      TextButton.icon(
+          onPressed: busy ? null : onRefresh,
+          icon: const Icon(Icons.refresh),
+          label: Text(l.refreshStatus)),
       if (session.completedOrders > 0)
         Text(l.plusRecoveryFinished(session.completedOrders.toString())),
     ]);

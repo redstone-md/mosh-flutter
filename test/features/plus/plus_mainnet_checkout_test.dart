@@ -9,6 +9,7 @@ import 'package:flutter/rendering.dart';
 import 'package:mosh/src/features/device_link/qr_image.dart';
 import '../../support/plus/mainnet_fakes.dart';
 import '../../support/pump.dart';
+import 'package:mosh/src/rust/plus/recovery_types.dart';
 
 void main() {
   testWidgets(
@@ -48,7 +49,8 @@ void main() {
       'wallet recovery shows its pairing code and a public QR without the polling capability',
       (tester) async {
     final native = MainnetTestCommands();
-    await screen(tester, native);
+    final billing = RecoveryRefreshBilling();
+    await screen(tester, native, billing: billing);
     await tester.ensureVisible(find.text('Recover purchase'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Recover purchase'));
@@ -56,16 +58,20 @@ void main() {
     expect(find.text('ABCDEF12'), findsOneWidget);
     expect(await readQr(tester), 'https://billing.example/recover/session');
     expect(find.textContaining('private-poll-token'), findsNothing);
+    await tester.ensureVisible(find.text('Refresh status'));
+    await tester.tap(find.text('Refresh status'));
+    await tester.pumpAndSettle();
+    expect(billing.recoveryChecks, 1);
   });
 }
 
 Future<void> screen(WidgetTester tester, MainnetTestCommands native,
-    {bool salesEnabled = true}) async {
+    {bool salesEnabled = true, MainnetTestBilling? billing}) async {
   final container = ProviderContainer(overrides: [
     plusConfigProvider.overrideWithValue(mainnetConfig),
     plusCommandsProvider.overrideWithValue(native),
-    plusBillingProvider
-        .overrideWithValue(MainnetTestBilling()..enabled = salesEnabled),
+    plusBillingProvider.overrideWithValue(
+        (billing ?? MainnetTestBilling())..enabled = salesEnabled),
     plusPollIntervalProvider.overrideWithValue(null),
   ]);
   addTearDown(container.dispose);
@@ -76,6 +82,16 @@ Future<void> screen(WidgetTester tester, MainnetTestCommands native,
               child: RepaintBoundary(
                   key: ValueKey('mainnet-card'), child: PlusSettingsCard()))),
       container: container);
+}
+
+class RecoveryRefreshBilling extends MainnetTestBilling {
+  int recoveryChecks = 0;
+  @override
+  Future<Map<String, dynamic>> recoveryStatus(PlusRecoverySession session,
+      {String? after}) async {
+    recoveryChecks++;
+    return {...await startRecovery(mainnetSeries, session), 'orders': []};
+  }
 }
 
 Future<String?> readQr(WidgetTester tester) async {

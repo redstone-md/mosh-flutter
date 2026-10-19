@@ -4,6 +4,24 @@ import 'package:mosh/src/rust/plus/types.dart';
 import '../../support/plus/mainnet_fakes.dart';
 
 void main() {
+  test('a fresh visible checkout registers its series before enabling purchase',
+      () async {
+    final native = FreshCheckoutCommands();
+    final billing = BudgetBilling();
+    final updates = <PlusSnapshot>[];
+    final flow = PlusMainnetFlow(
+        commands: native,
+        client: billing,
+        catalog: () async => throw StateError('catalog not needed'),
+        alive: () => true,
+        update: updates.add);
+    await flow.refresh(native.current, automatic: true);
+    expect(billing.registrations, 1);
+    expect(updates.last.checkoutReady, true);
+    await flow.refresh(native.current, automatic: true);
+    expect(billing.registrations, 1);
+  });
+
   test('automatic billing checks require a visible checkout, back off and stop',
       () async {
     final native = MainnetTestCommands();
@@ -64,8 +82,15 @@ void main() {
 }
 
 class BudgetBilling extends MainnetTestBilling {
+  int registrations = 0;
   int checks = 0;
   int schedules = 0;
+  @override
+  Future<Map<String, dynamic>> registerSeries(PlusSeries series) async {
+    registrations++;
+    return {'id': series.id, 'access_token': series.accessToken};
+  }
+
   @override
   Future<Map<String, dynamic>> refresh(PlusOrder order) async {
     checks++;
@@ -76,5 +101,26 @@ class BudgetBilling extends MainnetTestBilling {
   Future<Map<String, dynamic>> schedule(PlusSeries series) async {
     schedules++;
     return super.schedule(series);
+  }
+}
+
+class FreshCheckoutCommands extends MainnetTestCommands {
+  bool registered = false;
+  @override
+  PlusSnapshot get current => PlusSnapshot(
+      active: false,
+      visible: false,
+      peerBadges: const [],
+      canInitializeSeries: !registered,
+      seriesRegistered: registered,
+      checkoutReady: registered,
+      series: registered ? mainnetSeries : null,
+      reservedUntilMs: reservedUntil);
+  @override
+  Future<PlusSeries> prepareSeries() async => mainnetSeries;
+  @override
+  Future<PlusSnapshot> confirmSeries(String id) async {
+    registered = true;
+    return current;
   }
 }

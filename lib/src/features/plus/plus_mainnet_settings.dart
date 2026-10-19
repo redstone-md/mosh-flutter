@@ -59,7 +59,8 @@ class PlusMainnetSettings extends ConsumerWidget {
       ] else
         Text(l.plusUnavailable),
       if (snapshot.recovery case final session?)
-        PlusRecoveryPanel(session: session),
+        PlusRecoveryPanel(
+            session: session, busy: value.busy, onRefresh: controller.refresh),
       const SizedBox(height: 12),
       Text(l.plusMainnetPrivacy),
     ]);

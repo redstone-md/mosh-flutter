@@ -18,6 +18,8 @@ class PlusBillingPoll {
     if (!visible) return false;
     final now = _now();
     final pending = [
+      if (snapshot.canInitializeSeries && !snapshot.seriesRegistered)
+        'bootstrap',
       if (snapshot.checkoutIntent case final intent?) intent.requestId,
       ...snapshot.unissuedOrderIds,
       if (snapshot.recovery case final session?

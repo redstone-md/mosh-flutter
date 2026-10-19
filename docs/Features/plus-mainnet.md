@@ -113,7 +113,10 @@ Automatic billing HTTP requests run only while Mosh+ settings are mounted and
 there is pending work. Checks run every five seconds during the first minute,
 then every thirty seconds, stopping after ten minutes. Reopening settings or a
 manual check restarts the window; late payments and durable issuance remain
-recoverable. Local badge refresh continues independently without billing requests.
+recoverable. The recovery panel also provides a manual status check, including
+the remaining five minutes of its fifteen-minute session. A fresh visible card
+registers its series before enabling purchase/recovery; idle accounts do not
+register in the background. Local badge refresh continues independently without billing requests.
 The renewal tail is fetched when unknown or advanced, rather than on every unpaid
 poll. Workers/DO free quotas apply to the account, not each domain or Worker.
 
