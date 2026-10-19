@@ -9,7 +9,7 @@ mod purchase;
 mod transport;
 pub(crate) mod types;
 
-pub use certificate::{Certificate, Issuer};
+pub use certificate::{Certificate, Issuer, MainnetClaims};
 pub use protocol::PlusFrame;
 pub(crate) use purchase::has_purchase;
 pub use purchase::PlusRuntime;
