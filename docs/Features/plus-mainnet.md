@@ -107,9 +107,10 @@ Workers Free and an independent encrypted issuer backup. The private Workers
 runbook records the deployed version, namespace, backup and rollback procedure.
 The public [purchase terms](https://mosh.run/plus/terms) and updated
 [privacy policy](https://mosh.run/privacy) were published on 2026-10-19;
-both locales and support links passed live browser checks. Client release
-configuration, applying the public URLs to the billing catalog and approved real
-mainnet acceptance remain activation gates. Preflight checks genesis,
+both locales and support links passed live browser checks. Both public URLs were
+applied to the live billing catalog and verified with sales still paused.
+Client release configuration and approved real mainnet acceptance remain
+activation gates. Preflight checks genesis,
 both mints/decimals, recipient token accounts and issuer continuity before sales.
 The service never receives treasury signing keys. It rejects the published test
 issuer when enabling sales.
