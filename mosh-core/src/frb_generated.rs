@@ -6461,6 +6461,7 @@ impl SseDecode for crate::plus::types::PlusSnapshot {
         let mut var_recovery =
             <Option<crate::plus::recovery_types::PlusRecoverySession>>::sse_decode(deserializer);
         let mut var_unissuedOrderIds = <Vec<String>>::sse_decode(deserializer);
+        let mut var_issuableOrderIds = <Vec<String>>::sse_decode(deserializer);
         return crate::plus::types::PlusSnapshot {
             active: var_active,
             visible: var_visible,
@@ -6477,6 +6478,7 @@ impl SseDecode for crate::plus::types::PlusSnapshot {
             reserved_until_ms: var_reservedUntilMs,
             recovery: var_recovery,
             unissued_order_ids: var_unissuedOrderIds,
+            issuable_order_ids: var_issuableOrderIds,
         };
     }
 }
@@ -9134,6 +9136,7 @@ impl flutter_rust_bridge::IntoDart for crate::plus::types::PlusSnapshot {
             self.reserved_until_ms.into_into_dart().into_dart(),
             self.recovery.into_into_dart().into_dart(),
             self.unissued_order_ids.into_into_dart().into_dart(),
+            self.issuable_order_ids.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -11333,6 +11336,7 @@ impl SseEncode for crate::plus::types::PlusSnapshot {
             serializer,
         );
         <Vec<String>>::sse_encode(self.unissued_order_ids, serializer);
+        <Vec<String>>::sse_encode(self.issuable_order_ids, serializer);
     }
 }
 

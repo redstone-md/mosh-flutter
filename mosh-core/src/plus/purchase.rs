@@ -229,6 +229,7 @@ impl PlusRuntime {
             reserved_until_ms: None,
             recovery: None,
             unissued_order_ids: Vec::new(),
+            issuable_order_ids: Vec::new(),
         }
     }
 

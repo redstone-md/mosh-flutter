@@ -1,8 +1,10 @@
 /// The issuer pin is build configuration, never learned from an HTTP response.
 class PlusConfig {
-  const PlusConfig({required this.issuerKey, this.serverUrl = ''});
+  const PlusConfig(
+      {required this.issuerKey, this.serverUrl = '', this.mainnet = false});
   final String issuerKey;
   final String serverUrl;
+  final bool mainnet;
   bool get enabled => issuerKey.isNotEmpty;
   bool get canPurchase => enabled && serverUrl.isNotEmpty;
 

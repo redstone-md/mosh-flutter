@@ -243,6 +243,17 @@ impl PlusRuntime {
                 .filter(|id| !self.state.mainnet.certificates.contains_key(*id))
                 .cloned()
                 .collect(),
+            issuable_order_ids: self
+                .state
+                .mainnet
+                .orders
+                .keys()
+                .filter(|id| {
+                    self.state.mainnet.prepared.contains_key(*id)
+                        || self.state.mainnet.order_writers.get(*id) == Some(&self.writer)
+                })
+                .cloned()
+                .collect(),
             next_active_from_ms: certificates
                 .iter()
                 .filter_map(|c| c.mainnet.as_ref().map(|p| p.valid_from_ms))

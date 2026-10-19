@@ -57,6 +57,8 @@ pub struct PlusSnapshot {
     pub recovery: Option<super::recovery_types::PlusRecoverySession>,
     #[frb(default = "const []")]
     pub unissued_order_ids: Vec<String>,
+    #[frb(default = "const []")]
+    pub issuable_order_ids: Vec<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]

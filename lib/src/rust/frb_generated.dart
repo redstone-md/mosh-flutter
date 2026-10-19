@@ -5345,8 +5345,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlusSnapshot dco_decode_plus_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 15)
-      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
+    if (arr.length != 16)
+      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
     return PlusSnapshot(
       active: dco_decode_bool(arr[0]),
       visible: dco_decode_bool(arr[1]),
@@ -5363,6 +5363,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       reservedUntilMs: dco_decode_opt_box_autoadd_u_64(arr[12]),
       recovery: dco_decode_opt_box_autoadd_plus_recovery_session(arr[13]),
       unissuedOrderIds: dco_decode_list_String(arr[14]),
+      issuableOrderIds: dco_decode_list_String(arr[15]),
     );
   }
 
@@ -7996,6 +7997,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_recovery =
         sse_decode_opt_box_autoadd_plus_recovery_session(deserializer);
     var var_unissuedOrderIds = sse_decode_list_String(deserializer);
+    var var_issuableOrderIds = sse_decode_list_String(deserializer);
     return PlusSnapshot(
         active: var_active,
         visible: var_visible,
@@ -8011,7 +8013,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         checkoutIntent: var_checkoutIntent,
         reservedUntilMs: var_reservedUntilMs,
         recovery: var_recovery,
-        unissuedOrderIds: var_unissuedOrderIds);
+        unissuedOrderIds: var_unissuedOrderIds,
+        issuableOrderIds: var_issuableOrderIds);
   }
 
   @protected
@@ -10232,6 +10235,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_u_64(self.reservedUntilMs, serializer);
     sse_encode_opt_box_autoadd_plus_recovery_session(self.recovery, serializer);
     sse_encode_list_String(self.unissuedOrderIds, serializer);
+    sse_encode_list_String(self.issuableOrderIds, serializer);
   }
 
   @protected

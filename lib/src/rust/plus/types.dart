@@ -164,6 +164,7 @@ class PlusSnapshot {
   final BigInt? reservedUntilMs;
   final PlusRecoverySession? recovery;
   final List<String> unissuedOrderIds;
+  final List<String> issuableOrderIds;
 
   const PlusSnapshot({
     required this.active,
@@ -181,6 +182,7 @@ class PlusSnapshot {
     this.reservedUntilMs,
     this.recovery,
     this.unissuedOrderIds = const [],
+    this.issuableOrderIds = const [],
   });
 
   @override
@@ -199,7 +201,8 @@ class PlusSnapshot {
       checkoutIntent.hashCode ^
       reservedUntilMs.hashCode ^
       recovery.hashCode ^
-      unissuedOrderIds.hashCode;
+      unissuedOrderIds.hashCode ^
+      issuableOrderIds.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -220,5 +223,6 @@ class PlusSnapshot {
           checkoutIntent == other.checkoutIntent &&
           reservedUntilMs == other.reservedUntilMs &&
           recovery == other.recovery &&
-          unissuedOrderIds == other.unissuedOrderIds;
+          unissuedOrderIds == other.unissuedOrderIds &&
+          issuableOrderIds == other.issuableOrderIds;
 }
