@@ -1,0 +1,27 @@
+name: Windows network diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect the built-in network event schema
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force build/network-diagnostics | Out-Null
+          $provider = Get-WinEvent -ListProvider Microsoft-Windows-Kernel-Network
+          $provider.Events | ForEach-Object {
+            [pscustomobject]@{id=$_.Id; opcode=$_.Opcode.Name; task=$_.Task.Name; template=$_.Template}
+          } | ConvertTo-Json -Depth 6 | Set-Content build/network-diagnostics/provider-schema.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mosh-network-diagnostics-schema
+          path: build/network-diagnostics/provider-schema.json
+          retention-days: 7
