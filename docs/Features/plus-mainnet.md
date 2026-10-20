@@ -11,8 +11,8 @@ mint, recipient, full payment/privacy information and terms/support links.
 Paused sales disable the purchase button with **Purchases paused**; recovery
 remains available, including when the catalog cannot load.
 
-Implementation is on `feat/plus-mainnet`. The devnet pilot is complete; production
-activation and real mainnet acceptance are still pending. See the
+Mosh 0.24.0 is released. The devnet pilot is complete; the operator enabled
+production sales on 2026-10-20. Real mainnet purchase acceptance remains pending. See the
 [Russian walkthrough](plus-mainnet-ru.md), [approved plan](../Proposals/issue-70-plus-mainnet.plan.md)
 and [ADR 0047](../ADR/0047-plus-production-periods-and-wallet-recovery.md).
 
@@ -107,7 +107,8 @@ reads returned empty keys/URLs in AOT code. Configuration now belongs to
 the build tool compiles and executes that same factory and verifies its actual
 values against the requested inputs. The [corrected installers](plus-mainnet-builds-2026-10-20.md)
 and their source CI passed; the operator installed the Windows build and confirmed
-that the card is visible. Compact checkout installers are building separately.
+that the card is visible. Mosh 0.24.0 includes the compact checkout and its
+independent expansion/scroll storage fix; use the published release installers.
 Ordinary PR proof artifacts without explicit PLUS inputs remain unconfigured.
 Installed macOS and real payment/recovery acceptance are still pending.
 
@@ -127,8 +128,14 @@ runbook records the deployed version, namespace, backup and rollback procedure.
 The public [purchase terms](https://mosh.run/plus/terms) and updated
 [privacy policy](https://mosh.run/privacy) were published on 2026-10-19;
 both locales and support links passed live browser checks. Both public URLs were
-applied to the live billing catalog and verified with sales still paused.
-Installed-client and approved real mainnet acceptance remain activation gates.
+applied to the live billing catalog and verified. On 2026-10-20 the operator
+authorized activation and set `SALES_ENABLED=true` through the dashboard. The
+enabled catalog retained its complete independent issuer pin, recipient, both
+assets/prices and public URLs. Creating one unpaid quote per asset, retrying
+idempotently and reading with authorization succeeded; no funds were sent.
+Real payment issuance, renewal, device sync/recovery and deployed Free signer
+CPU measurement remain acceptance gates. [Android release packaging](android-release.md)
+adds a signed ARM64 APK pipeline; physical-phone acceptance remains pending.
 Preflight checks genesis,
 both mints/decimals, recipient token accounts and issuer continuity before sales.
 The service never receives treasury signing keys. It rejects the published test
