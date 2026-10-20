@@ -53,11 +53,12 @@ libraries without matching Mosh libraries; final package checks reject that case
 
 The prior main APK exposed 4 KiB LOAD alignment in `libmoss.so` and the
 irondash native hook. The Moss wrapper now supplies explicit 16 KiB external
-linker flags, and shared CI preparation sets target-scoped Cargo flags for the
-independent irondash hook. This does not modify either upstream source tree.
-Local Android builds need the same
-`CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,-z,common-page-size=16384"`
-environment variable; clean old Flutter build outputs before rebuilding.
+linker flags. Shared CI preparation installs the target-scoped settings from
+`scripts/support/android-cargo-config.toml` into the runner's Cargo configuration.
+Dart hooks filter Cargo environment variables, so merely exporting Rust flags
+does not reach the independent irondash build. This does not patch either upstream
+source tree. For local Android builds, merge that target table into
+`~/.cargo/config.toml`; clean old hook outputs before rebuilding.
 
 The `mosh-android-release` artifact contains the APK, SHA-256 sidecar and
 `plus-build.json` with source commit and public billing configuration. Tagged
