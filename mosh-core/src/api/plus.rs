@@ -1,5 +1,8 @@
 //! Durable PLUS state. Blinding secrets stay native; wallet keys stay in the wallet.
-pub use crate::plus::{PlusOrder, PlusPaymentStatus, PlusPeerBadge, PlusSnapshot};
+pub use crate::plus::{
+    PlusCheckoutIntent, PlusOrder, PlusPaymentStatus, PlusPeerBadge, PlusRecoveryIssuance,
+    PlusRecoverySession, PlusSeries, PlusSnapshot,
+};
 use crate::{conversation::now_ms, plus::global};
 
 fn with_owner<T>(
@@ -23,6 +26,82 @@ pub fn configure_issuer(public_key_b64: String) -> Result<PlusSnapshot, String> 
 
 pub fn snapshot() -> Result<PlusSnapshot, String> {
     with_owner(|owner| Ok(owner.snapshot(now_ms())))
+}
+
+pub fn configure_mainnet_issuer(public_key_b64: String) -> Result<PlusSnapshot, String> {
+    let identity = super::device_link::snapshot().map_err(|_| "PLUS account unavailable")?;
+    let resources = super::shared_runtime::ensure_shared_resources()?;
+    let store = resources
+        .persistence
+        .ok_or("PLUS requires encrypted storage")?;
+    global::configure_mode(
+        store,
+        identity.user_id,
+        &public_key_b64,
+        Some(&identity.own_device_id),
+    )
+}
+
+pub fn prepare_series() -> Result<PlusSeries, String> {
+    with_owner(|owner| owner.prepare_series())
+}
+
+pub fn confirm_series_registered(id: String) -> Result<PlusSnapshot, String> {
+    with_owner(|owner| {
+        owner.confirm_series_registered(&id)?;
+        Ok(owner.snapshot(now_ms()))
+    })
+}
+
+pub fn prepare_checkout(asset: String) -> Result<PlusCheckoutIntent, String> {
+    with_owner(|owner| owner.prepare_checkout(&asset))
+}
+
+pub fn bind_checkout_offer(offer_json: String) -> Result<PlusCheckoutIntent, String> {
+    with_owner(|owner| owner.bind_checkout_offer(&offer_json))
+}
+
+pub fn cancel_checkout() -> Result<PlusSnapshot, String> {
+    with_owner(|owner| {
+        owner.cancel_checkout()?;
+        Ok(owner.snapshot(now_ms()))
+    })
+}
+
+pub fn save_schedule(id: String, reserved_until_ms: u64) -> Result<PlusSnapshot, String> {
+    with_owner(|owner| {
+        owner.save_schedule(&id, reserved_until_ms)?;
+        Ok(owner.snapshot(now_ms()))
+    })
+}
+
+pub fn prepare_recovery() -> Result<PlusRecoverySession, String> {
+    with_owner(|owner| owner.prepare_recovery(now_ms()))
+}
+
+pub fn save_recovery_status(status_json: String) -> Result<PlusSnapshot, String> {
+    with_owner(|owner| {
+        owner.save_recovery_status(&status_json, now_ms())?;
+        Ok(owner.snapshot(now_ms()))
+    })
+}
+
+pub fn prepare_recovery_issuance(order_id: String) -> Result<PlusRecoveryIssuance, String> {
+    with_owner(|owner| owner.prepare_recovery_issuance(&order_id))
+}
+
+pub fn prepare_order_issuance(order_id: String) -> Result<String, String> {
+    with_owner(|owner| owner.prepare_order_issuance(&order_id))
+}
+
+pub fn complete_order_issuance(
+    order_id: String,
+    blind_signature_b64: String,
+) -> Result<PlusSnapshot, String> {
+    with_owner(|owner| {
+        owner.complete_order_issuance(&order_id, &blind_signature_b64, now_ms())?;
+        Ok(owner.snapshot(now_ms()))
+    })
 }
 
 pub fn save_order(order_json: String) -> Result<PlusSnapshot, String> {

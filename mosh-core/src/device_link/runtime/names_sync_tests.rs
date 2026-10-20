@@ -19,6 +19,7 @@ impl Pair {
             deletion_digests: Default::default(),
             deletion_pages: Default::default(),
             deletion_fragments: Default::default(),
+            plus_sync: Default::default(),
             names: fixture.peer.chat_names().unwrap(),
             identity: fixture.peer,
             transport: LinkTransport::new(fixture.shared.clone()).unwrap(),

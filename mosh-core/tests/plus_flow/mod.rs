@@ -1,4 +1,5 @@
 use super::*;
+mod mainnet;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use blind_rsa_signatures::pbrsa::PartiallyBlindKeyPairSha384PSSDeterministic as KeyPair;
 use blind_rsa_signatures::pbrsa::PartiallyBlindSecretKeySha384PSSDeterministic as SecretKey;
@@ -55,6 +56,16 @@ fn issuer() -> KeyPair {
 
 #[test]
 fn verified_plus_propagates_over_real_dm_group_and_channel_without_chat_messages() {
+    verify_badge_carriers(false);
+}
+
+#[test]
+fn production_plus_propagates_over_real_dm_group_and_channel_without_chat_messages() {
+    verify_badge_carriers(true);
+}
+
+// Integration scenario keeps setup, transmission and hide assertions together.
+fn verify_badge_carriers(production: bool) {
     let _network = isolated_network_scenario();
     let key = issuer();
     let public_key = STANDARD.encode(key.pk.to_der().unwrap());
@@ -62,7 +73,7 @@ fn verified_plus_propagates_over_real_dm_group_and_channel_without_chat_messages
     let mut receiver = Peer::new_api();
     for peer in [&mut sender, &mut receiver] {
         assert!(peer
-            .ask(json!({"action":"plus_configure","argument":public_key}))
+            .ask(json!({"action":if production { "plus_mainnet_configure" } else { "plus_configure" },"argument":public_key}))
             .get("error")
             .is_none());
     }
@@ -76,7 +87,18 @@ fn verified_plus_propagates_over_real_dm_group_and_channel_without_chat_messages
     for peer in [&mut sender, &mut receiver] {
         peer.ask(json!({"action":"plus_channel","argument":channel}));
     }
-    activate(&mut sender, &key);
+    if production {
+        let series = sender.ask(json!({"action":"plus_series_prepare"}));
+        sender.ask(json!({"action":"plus_series_registered","argument":series["id"]}));
+        mainnet::activate(
+            &mut sender,
+            &key,
+            &public_key,
+            series["id"].as_str().unwrap(),
+        );
+    } else {
+        activate(&mut sender, &key);
+    }
     wait_badges(
         &mut sender,
         &mut receiver,

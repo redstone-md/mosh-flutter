@@ -18,12 +18,14 @@ pub(super) struct LocalState {
     pub ever_visible: bool,
     #[serde(default)]
     pub peers: std::collections::BTreeMap<String, super::peers::PeerEvidence>,
+    #[serde(default)]
+    pub mainnet: super::mainnet::MainnetState,
 }
 
 impl LocalState {
-    fn load(store: &Persistence) -> Result<Option<Self>, String> {
+    fn load(store: &Persistence, record: &str) -> Result<Option<Self>, String> {
         store
-            .get_plus_record("local-v1")
+            .get_plus_record(record)
             .map_err(|e| e.to_string())?
             .map(|bytes| {
                 serde_json::from_slice(&bytes).map_err(|_| "invalid saved PLUS purchase".into())
@@ -32,18 +34,25 @@ impl LocalState {
     }
 
     fn holds_purchase(&self) -> bool {
-        self.order.is_some() || self.certificate.is_some()
+        self.order.is_some() || self.certificate.is_some() || !self.mainnet.orders.is_empty()
     }
 }
 
 pub(crate) fn has_purchase(store: &Persistence) -> Result<bool, String> {
-    Ok(LocalState::load(store)?.is_some_and(|state| state.holds_purchase()))
+    for key in ["local-v1", "local-v2"] {
+        if LocalState::load(store, key)?.is_some_and(|state| state.holds_purchase()) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 pub struct PlusRuntime {
     pub(super) store: Arc<Persistence>,
     pub(super) issuer: Issuer,
     pub(super) state: LocalState,
+    pub(super) record: &'static str,
+    pub(super) writer: String,
 }
 
 impl PlusRuntime {
@@ -52,8 +61,22 @@ impl PlusRuntime {
         account_id: String,
         issuer_key_b64: &str,
     ) -> Result<Self, String> {
+        Self::open_with_issuer(store, account_id, Issuer::new(issuer_key_b64)?, "")
+    }
+
+    pub(super) fn open_with_issuer(
+        store: Arc<Persistence>,
+        account_id: String,
+        issuer: Issuer,
+        writer: &str,
+    ) -> Result<Self, String> {
         super::certificate::subject_message(&account_id)?;
-        let mut state = LocalState::load(&store)?.unwrap_or_else(|| LocalState {
+        let record = if issuer.mainnet_key_id.is_some() {
+            "local-v2"
+        } else {
+            "local-v1"
+        };
+        let mut state = LocalState::load(&store, record)?.unwrap_or_else(|| LocalState {
             account_id: account_id.clone(),
             ..Default::default()
         });
@@ -66,18 +89,26 @@ impl PlusRuntime {
                 ..Default::default()
             };
         }
-        let issuer = Issuer::new(issuer_key_b64)?;
         state
+            .peers
+            .retain(|account, proof| proof.trusted_by(&issuer, account));
+        state
+            .mainnet
             .peers
             .retain(|account, proof| proof.trusted_by(&issuer, account));
         Ok(Self {
             store,
             issuer,
             state,
+            record,
+            writer: writer.into(),
         })
     }
 
     pub fn save_order(&mut self, json: &str, now_ms: u64) -> Result<(), String> {
+        if self.issuer.mainnet_key_id.is_some() {
+            return self.save_mainnet_order(json);
+        }
         if json.len() > 16_384 {
             return Err("PLUS order exceeds size limit".into());
         }
@@ -158,6 +189,9 @@ impl PlusRuntime {
     }
 
     pub fn set_visible(&mut self, visible: bool) -> Result<(), String> {
+        if self.issuer.mainnet_key_id.is_some() {
+            return self.set_mainnet_visible(visible);
+        }
         let mut next = self.state.clone();
         if next.visible != visible {
             next.revision = next
@@ -171,6 +205,9 @@ impl PlusRuntime {
     }
 
     pub fn snapshot(&self, now_ms: u64) -> PlusSnapshot {
+        if self.issuer.mainnet_key_id.is_some() {
+            return self.mainnet_snapshot(now_ms);
+        }
         let active = self.state.certificate.as_ref().is_some_and(|c| {
             self.issuer
                 .verify(c, &self.state.account_id, now_ms)
@@ -182,13 +219,24 @@ impl PlusRuntime {
             expires_at_ms: self.state.certificate.as_ref().map(|c| c.expires_at_ms),
             order: self.state.order.clone(),
             peer_badges: self.peer_badges(now_ms),
+            orders: self.state.order.iter().cloned().collect(),
+            series: None,
+            checkout_ready: true,
+            next_active_from_ms: None,
+            can_initialize_series: false,
+            series_registered: false,
+            checkout_intent: None,
+            reserved_until_ms: None,
+            recovery: None,
+            unissued_order_ids: Vec::new(),
+            issuable_order_ids: Vec::new(),
         }
     }
 
     pub(super) fn save(&mut self, next: LocalState) -> Result<(), String> {
         let bytes = serde_json::to_vec(&next).map_err(|_| "PLUS purchase encoding failed")?;
         self.store
-            .put_plus_record("local-v1", &bytes)
+            .put_plus_record(self.record, &bytes)
             .map_err(|e| e.to_string())?;
         self.state = next;
         Ok(())

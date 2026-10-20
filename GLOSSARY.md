@@ -21,6 +21,22 @@ _Avoid_: account ownership proof, payment receipt.
 The account owner's choice to disclose their valid Mosh+ status to other people.
 _Avoid_: per-chat subscription, deletion of previously disclosed proof.
 
+**PLUS paid interval**:
+An immutable start and expiry authorized by one verified purchase. A future
+interval becomes active at its start; renewal preserves earlier paid time.
+_Avoid_: floating expiry, wallet balance.
+
+**PLUS renewal series**:
+An anonymous billing capability shared by linked devices to serialize purchases.
+Recovery can join scheduling authority without granting access to other orders.
+_Avoid_: account ID, public wallet identity.
+
+**PLUS wallet recovery**:
+Wallet-authorized issuance of its own original paid intervals to a new account.
+It does not restore the old account, keys or chat history. One additional issuance
+per paid order is available; genuine old certificates retain their original expiry.
+_Avoid_: account recovery, instant revocation.
+
 ## Send admission
 
 Acceptance of a new text for delivery after its message and provisional

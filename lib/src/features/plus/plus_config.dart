@@ -1,8 +1,21 @@
 /// The issuer pin is build configuration, never learned from an HTTP response.
 class PlusConfig {
-  const PlusConfig({required this.issuerKey, this.serverUrl = ''});
+  const PlusConfig(
+      {required this.issuerKey, this.serverUrl = '', this.mainnet = false});
+
+  factory PlusConfig.fromEnvironment() => PlusConfig(
+      issuerKey: const String.fromEnvironment('MOSH_PLUS_ISSUER_KEY'),
+      serverUrl: const String.fromEnvironment('MOSH_PLUS_SERVER_URL'),
+      mainnet: switch (const String.fromEnvironment('MOSH_PLUS_NETWORK',
+          defaultValue: 'solana-mainnet')) {
+        'solana-mainnet' => true,
+        'solana-devnet' => false,
+        _ => throw const FormatException('Invalid Mosh+ network configuration'),
+      });
+
   final String issuerKey;
   final String serverUrl;
+  final bool mainnet;
   bool get enabled => issuerKey.isNotEmpty;
   bool get canPurchase => enabled && serverUrl.isNotEmpty;
 

@@ -63,7 +63,7 @@ jobs:
         run: node scripts/native-media-build.mjs
       - name: macOS packaging command regressions
         if: runner.os == 'Linux'
-        run: node --test scripts/macos-package.test.mjs
+        run: node --test scripts/macos-package.test.mjs scripts/plus-build-config.test.mjs
       - name: Native Rust format, lint and tests
         shell: bash
         run: |
@@ -220,6 +220,9 @@ jobs:
       # before the tests that would fail on it less legibly.
       - name: flutter gen-l10n
         run: flutter gen-l10n
+
+      - name: PLUS configuration in compiled release code
+        run: node --test scripts/plus-runtime-config.test.mjs
 
       # Widget tests override gatewayProvider with the scriptable gateway in
       # test/support/, so no Rust runtime is needed here (ADR 0013).

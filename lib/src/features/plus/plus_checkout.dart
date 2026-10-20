@@ -5,32 +5,65 @@ import 'package:mosh/src/rust/plus/types.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'plus_provider.dart';
 import 'plus_catalog.dart';
+import 'plus_currency_checkout.dart';
+import 'plus_payment_details.dart';
+
+export 'plus_payment_details.dart' show PlusPaymentTerms;
 
 class PlusNewPayment extends ConsumerWidget {
   const PlusNewPayment(
-      {super.key, required this.busy, required this.onPurchase});
+      {super.key,
+      required this.busy,
+      required this.onPurchase,
+      this.onSelectPurchase,
+      this.onRecover,
+      this.ready = true,
+      this.renewal = false});
   final bool busy;
   final VoidCallback onPurchase;
+  final ValueChanged<String>? onSelectPurchase;
+  final VoidCallback? onRecover;
+  final bool ready;
+  final bool renewal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
+    final recovery = onRecover == null
+        ? null
+        : TextButton(
+            onPressed: busy || !ready ? null : onRecover,
+            child: Text(l.plusRecover));
     return ref.watch(plusCatalogProvider).when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => Column(children: [
+            const Center(child: CircularProgressIndicator()),
+            if (recovery != null) recovery,
+          ]),
           error: (_, __) => Column(children: [
             Text(l.plusRetryError),
             TextButton(
                 onPressed: () => ref.invalidate(plusCatalogProvider),
-                child: Text(l.plusRetry))
+                child: Text(l.plusRetry)),
+            if (recovery != null) recovery,
           ]),
-          data: (catalog) =>
-              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text(l.plusPrice(catalog.amount)),
-            PlusPaymentTerms(mint: catalog.mint, recipient: catalog.recipient),
-            FilledButton(
-                onPressed: busy ? null : onPurchase,
-                child: Text(l.plusCreatePayment)),
-          ]),
+          data: (catalog) => onSelectPurchase != null
+              ? PlusCurrencyCheckout(
+                  catalog: catalog,
+                  busy: busy,
+                  ready: ready,
+                  renewal: renewal,
+                  onRecover: onRecover,
+                  onPurchase: onSelectPurchase!)
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                      Text(l.plusPrice(catalog.amount)),
+                      PlusPaymentTerms(
+                          mint: catalog.mint, recipient: catalog.recipient),
+                      FilledButton(
+                          onPressed: busy ? null : onPurchase,
+                          child: Text(l.plusCreatePayment)),
+                    ]),
         );
   }
 }
@@ -49,10 +82,17 @@ class PlusPendingPayment extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final awaiting = order.status == PlusPaymentStatus.awaitingPayment;
+    final mainnet = order.network == 'solana-mainnet';
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Text(l.plusPrice(formatPlusAmount(order.amountAtomic))),
+      Text(mainnet
+          ? l.plusPaidPrice(
+              formatPlusAmount(order.amountAtomic,
+                  decimals: order.tokenDecimals ?? 9),
+              order.asset ?? '')
+          : l.plusPrice(formatPlusAmount(order.amountAtomic))),
       Text(awaiting ? l.plusAwaiting : l.plusIssuing),
-      PlusPaymentTerms(mint: order.mint, recipient: order.recipient),
+      PlusPaymentTerms(
+          mint: order.mint, recipient: order.recipient, mainnet: mainnet),
       if (awaiting)
         Center(
             child: Semantics(
@@ -66,28 +106,5 @@ class PlusPendingPayment extends StatelessWidget {
           icon: const Icon(Icons.refresh),
           label: Text(l.plusRefresh)),
     ]);
-  }
-}
-
-class PlusPaymentTerms extends StatelessWidget {
-  const PlusPaymentTerms(
-      {super.key, required this.mint, required this.recipient});
-  final String mint;
-  final String recipient;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          SelectableText('${l.plusMint}: $mint'),
-          SelectableText('${l.plusRecipient}: $recipient'),
-          const SizedBox(height: 8),
-          Text(l.plusTerm),
-          const SizedBox(height: 8),
-          Text(l.plusNetworkNotice),
-        ]));
   }
 }

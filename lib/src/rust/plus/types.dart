@@ -4,7 +4,9 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'checkout.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'recovery_types.dart';
 
 class PlusOrder {
   final String id;
@@ -20,6 +22,12 @@ class PlusOrder {
   final String? transactionSignature;
   final BigInt? expiresAtMs;
   final String? blindSignatureB64;
+  final String? asset;
+  final int? tokenDecimals;
+  final String? issuerKeyId;
+  final String? seriesId;
+  final BigInt? validFromMs;
+  final String? requestId;
 
   const PlusOrder({
     required this.id,
@@ -35,6 +43,12 @@ class PlusOrder {
     this.transactionSignature,
     this.expiresAtMs,
     this.blindSignatureB64,
+    this.asset,
+    this.tokenDecimals,
+    this.issuerKeyId,
+    this.seriesId,
+    this.validFromMs,
+    this.requestId,
   });
 
   @override
@@ -51,7 +65,13 @@ class PlusOrder {
       accessToken.hashCode ^
       transactionSignature.hashCode ^
       expiresAtMs.hashCode ^
-      blindSignatureB64.hashCode;
+      blindSignatureB64.hashCode ^
+      asset.hashCode ^
+      tokenDecimals.hashCode ^
+      issuerKeyId.hashCode ^
+      seriesId.hashCode ^
+      validFromMs.hashCode ^
+      requestId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -70,7 +90,13 @@ class PlusOrder {
           accessToken == other.accessToken &&
           transactionSignature == other.transactionSignature &&
           expiresAtMs == other.expiresAtMs &&
-          blindSignatureB64 == other.blindSignatureB64;
+          blindSignatureB64 == other.blindSignatureB64 &&
+          asset == other.asset &&
+          tokenDecimals == other.tokenDecimals &&
+          issuerKeyId == other.issuerKeyId &&
+          seriesId == other.seriesId &&
+          validFromMs == other.validFromMs &&
+          requestId == other.requestId;
 }
 
 enum PlusPaymentStatus {
@@ -101,12 +127,44 @@ class PlusPeerBadge {
           expiresAtMs == other.expiresAtMs;
 }
 
+class PlusSeries {
+  final String id;
+  final String accessToken;
+
+  const PlusSeries({
+    required this.id,
+    required this.accessToken,
+  });
+
+  @override
+  int get hashCode => id.hashCode ^ accessToken.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlusSeries &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          accessToken == other.accessToken;
+}
+
 class PlusSnapshot {
   final bool active;
   final bool visible;
   final BigInt? expiresAtMs;
   final PlusOrder? order;
   final List<PlusPeerBadge> peerBadges;
+  final List<PlusOrder> orders;
+  final PlusSeries? series;
+  final bool checkoutReady;
+  final BigInt? nextActiveFromMs;
+  final bool canInitializeSeries;
+  final bool seriesRegistered;
+  final PlusCheckoutIntent? checkoutIntent;
+  final BigInt? reservedUntilMs;
+  final PlusRecoverySession? recovery;
+  final List<String> unissuedOrderIds;
+  final List<String> issuableOrderIds;
 
   const PlusSnapshot({
     required this.active,
@@ -114,6 +172,17 @@ class PlusSnapshot {
     this.expiresAtMs,
     this.order,
     required this.peerBadges,
+    this.orders = const [],
+    this.series,
+    this.checkoutReady = false,
+    this.nextActiveFromMs,
+    this.canInitializeSeries = false,
+    this.seriesRegistered = false,
+    this.checkoutIntent,
+    this.reservedUntilMs,
+    this.recovery,
+    this.unissuedOrderIds = const [],
+    this.issuableOrderIds = const [],
   });
 
   @override
@@ -122,7 +191,18 @@ class PlusSnapshot {
       visible.hashCode ^
       expiresAtMs.hashCode ^
       order.hashCode ^
-      peerBadges.hashCode;
+      peerBadges.hashCode ^
+      orders.hashCode ^
+      series.hashCode ^
+      checkoutReady.hashCode ^
+      nextActiveFromMs.hashCode ^
+      canInitializeSeries.hashCode ^
+      seriesRegistered.hashCode ^
+      checkoutIntent.hashCode ^
+      reservedUntilMs.hashCode ^
+      recovery.hashCode ^
+      unissuedOrderIds.hashCode ^
+      issuableOrderIds.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -133,5 +213,16 @@ class PlusSnapshot {
           visible == other.visible &&
           expiresAtMs == other.expiresAtMs &&
           order == other.order &&
-          peerBadges == other.peerBadges;
+          peerBadges == other.peerBadges &&
+          orders == other.orders &&
+          series == other.series &&
+          checkoutReady == other.checkoutReady &&
+          nextActiveFromMs == other.nextActiveFromMs &&
+          canInitializeSeries == other.canInitializeSeries &&
+          seriesRegistered == other.seriesRegistered &&
+          checkoutIntent == other.checkoutIntent &&
+          reservedUntilMs == other.reservedUntilMs &&
+          recovery == other.recovery &&
+          unissuedOrderIds == other.unissuedOrderIds &&
+          issuableOrderIds == other.issuableOrderIds;
 }

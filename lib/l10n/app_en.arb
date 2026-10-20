@@ -2165,5 +2165,61 @@
         "type": "String"
       }
     }
-  }
+  },
+  "plusSupportHint": "Support Mosh development",
+  "plusProductionBadgeLabel": "Verified Mosh+",
+  "plusPaidPrice": "{amount} {asset} · 30 days",
+  "plusRenew": "Add 30 days",
+  "plusRecover": "Recover purchase",
+  "plusWaitingSync": "Synchronizing Mosh+ with linked devices. First-time setup needs the original device online.",
+  "plusMainnetNotice": "Solana Mainnet. Use your phone’s Camera app to scan the QR. Network fees are extra and require SOL in the paying wallet.",
+  "plusSupportTerm": "One payment, no automatic charges. Renewal adds 30 days after the paid term; a first purchase starts after payment verification and rounds up to a UTC day. Underpayments do not activate Mosh+. Overpayments add no extra time.",
+  "plusMainnetPrivacy": "Billing does not receive your Mosh account. It can link purchases in the same renewal series and see wallet payments. Small groups of buyers can still be correlated. The badge and its visibility sync with your linked devices.",
+  "plusRestoreTerms": "Only the wallet that paid can recover its remaining periods. This restores Mosh+ to this account, without chats or account keys. Each purchase permits one additional certificate; old certificates keep their original expiry.",
+  "plusRecoveryWaiting": "Scan with your phone’s Camera app, then open the page in your wallet browser. Compare the device code before confirming.",
+  "plusDeviceCode": "Device code",
+  "plusRecoveryFinished": "Restored purchases: {count}",
+  "plusRecoveryExpired": "This recovery link has expired. Start recovery again.",
+  "plusNextPeriod": "Next paid period starts {date} UTC.",
+  "plusReservedThrough": "Future purchase dates are reserved through {date} UTC. Recover missing periods with the wallet that paid for them.",
+  "plusOpenRecovery": "Open recovery page",
+  "plusCopyRecovery": "Copy recovery link",
+  "@plusPaidPrice": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "asset": {
+        "type": "String"
+      }
+    }
+  },
+  "@plusRecoveryFinished": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@plusNextPeriod": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@plusReservedThrough": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "plusPurchaseTerms": "Purchase terms",
+  "plusPaymentSupport": "Payment support",
+  "plusCancelSetup": "Cancel payment setup",
+  "plusBuy": "Buy Mosh+",
+  "plusOneTimeHint": "One payment, no automatic charges.",
+  "plusSalesPaused": "Purchases paused",
+  "plusPaymentDetails": "Payment details & terms"
 }

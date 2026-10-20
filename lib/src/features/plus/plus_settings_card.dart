@@ -6,19 +6,43 @@ import 'package:mosh/src/rust/plus/types.dart';
 import 'plus_checkout.dart';
 import 'plus_provider.dart';
 import 'plus_state.dart';
+import 'plus_mainnet_settings.dart';
+import 'plus_membership_status.dart';
 
-class PlusSettingsCard extends ConsumerWidget {
+class PlusSettingsCard extends ConsumerStatefulWidget {
   const PlusSettingsCard({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlusSettingsCard> createState() => _PlusSettingsCardState();
+}
+
+class _PlusSettingsCardState extends ConsumerState<PlusSettingsCard> {
+  PlusController? _controller;
+  @override
+  void initState() {
+    super.initState();
+    if (ref.read(plusConfigProvider).enabled) {
+      final controller = ref.read(plusProvider.notifier);
+      controller.openCheckout();
+      _controller = controller;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.closeCheckout();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final config = ref.watch(plusConfigProvider);
     if (!config.enabled) return const SizedBox.shrink();
     final l = AppLocalizations.of(context)!;
     return SettingsCard(
         icon: Icons.workspace_premium_outlined,
         title: 'Mosh+',
-        hint: l.plusPilotHint,
+        hint: config.mainnet ? l.plusSupportHint : l.plusPilotHint,
         child: ref.watch(plusProvider).when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, __) => _retry(l, () => ref.invalidate(plusProvider)),
@@ -30,20 +54,19 @@ class PlusSettingsCard extends ConsumerWidget {
       WidgetRef ref, PlusState value, PlusConfig config, AppLocalizations l) {
     final snapshot = value.snapshot;
     final controller = ref.read(plusProvider.notifier);
+    if (config.mainnet) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        PlusMainnetSettings(value: value, config: config),
+        if (value.error != null) _retry(l, controller.refresh),
+      ]);
+    }
     final expiry = snapshot.expiresAtMs;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (snapshot.active) ...[
-        Text(l.plusUntil(
-            DateTime.fromMillisecondsSinceEpoch(expiry!.toInt(), isUtc: true)
-                .toIso8601String()
-                .substring(0, 16)
-                .replaceFirst('T', ' '))),
-        SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: Text(l.plusVisibility),
-            subtitle: Text(l.plusVisibilityHint),
-            value: snapshot.visible,
-            onChanged: value.busy ? null : controller.visibility),
+        PlusMembershipStatus(
+            snapshot: snapshot,
+            busy: value.busy,
+            onVisibility: controller.visibility),
       ] else if (snapshot.order case final order? when _pending(order))
         PlusPendingPayment(
             order: order, busy: value.busy, onRefresh: controller.refresh)

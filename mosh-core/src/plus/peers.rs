@@ -25,6 +25,9 @@ impl PlusRuntime {
         sign: impl FnOnce(&[u8]) -> Result<Vec<u8>, String>,
         now_ms: u64,
     ) -> Result<Option<PlusFrame>, String> {
+        if self.issuer.mainnet_key_id.is_some() {
+            return self.mainnet_frame(context, local_peer, author, sign, now_ms);
+        }
         if !self.state.ever_visible {
             return Ok(None);
         }
@@ -62,6 +65,7 @@ impl PlusRuntime {
             revision: self.state.revision,
             certificate,
             signature: String::new(),
+            production: None,
         };
         frame.signature = hex::encode(sign(&frame.input()?)?);
         Ok(Some(frame))
@@ -76,6 +80,12 @@ impl PlusRuntime {
         aliases: &[String],
         now_ms: u64,
     ) -> Result<(), String> {
+        if self.issuer.mainnet_key_id.is_some() {
+            return self.accept_mainnet_peer(frame, context, author, aliases, now_ms);
+        }
+        if frame.production.is_some() {
+            return Err("PLUS proof network mismatch".into());
+        }
         let account = frame.verify(context, author)?;
         let known = self.state.peers.get(&account);
         if known.is_none() && frame.certificate.is_none() {
@@ -140,6 +150,9 @@ impl PlusRuntime {
     }
 
     pub(super) fn peer_badges(&self, now_ms: u64) -> Vec<PlusPeerBadge> {
+        if self.issuer.mainnet_key_id.is_some() {
+            return self.mainnet_peer_badges(now_ms);
+        }
         self.state
             .peers
             .values()

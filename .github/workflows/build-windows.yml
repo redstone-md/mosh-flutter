@@ -18,8 +18,12 @@ on:
         description: Compile mosh-core with parallel codegen (CI proof builds, never releases).
         type: boolean
         default: false
+      plus-network:
+        description: PLUS network (solana-mainnet or solana-devnet).
+        type: string
+        default: solana-mainnet
       plus-server-url:
-        description: Optional PLUS devnet billing URL (HTTPS or loopback HTTP).
+        description: Optional PLUS billing URL (HTTPS or loopback HTTP).
         type: string
         default: ''
       plus-issuer-key:
@@ -32,8 +36,12 @@ on:
         value: ${{ jobs.installer.outputs.artifact }}
   workflow_dispatch:
     inputs:
+      plus-network:
+        description: PLUS network (solana-mainnet or solana-devnet).
+        type: string
+        default: solana-mainnet
       plus-server-url:
-        description: PLUS devnet billing URL (HTTPS or loopback HTTP).
+        description: PLUS billing URL (HTTPS or loopback HTTP).
         type: string
         default: ''
       plus-issuer-key:
@@ -41,7 +49,7 @@ on:
         type: string
         default: ''
       parallel-codegen:
-        description: Compile mosh-core with parallel codegen for a pilot build.
+        description: Compile mosh-core with parallel codegen for a proof build.
         type: boolean
         default: true
 
@@ -54,7 +62,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 60
     outputs:
-      artifact: ${{ inputs.plus-issuer-key != '' && 'mosh-windows-plus-devnet' || 'mosh-windows-setup' }}
+      artifact: ${{ inputs.plus-issuer-key != '' && inputs.plus-network == 'solana-devnet' && 'mosh-windows-plus-devnet' || 'mosh-windows-setup' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -89,14 +97,23 @@ jobs:
           mkdir -p "$(dirname "$config")"
           printf '\n[profile.release.package.mosh-core]\ncodegen-units = 16\n' >> "$config"
 
+      - name: Validate PLUS configuration and record public manifest
+        env:
+          MOSH_PLUS_NETWORK: ${{ inputs.plus-network }}
+          MOSH_PLUS_SERVER_URL: ${{ inputs.plus-server-url }}
+          MOSH_PLUS_ISSUER_KEY: ${{ inputs.plus-issuer-key }}
+        run: node scripts/plus-build-config.mjs build/plus-build.json
+
       - name: Build Windows app (release)
         env:
+          MOSH_PLUS_NETWORK: ${{ inputs.plus-network }}
           MOSH_PLUS_SERVER_URL: ${{ inputs.plus-server-url }}
           MOSH_PLUS_ISSUER_KEY: ${{ inputs.plus-issuer-key }}
         # ADR 0035: the Sentry DSN (a public repo variable) enables opt-in
         # crash reporting; without it the build cannot report at all.
         run: >-
           flutter build windows --release --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }}
+          "--dart-define=MOSH_PLUS_NETWORK=$env:MOSH_PLUS_NETWORK"
           "--dart-define=MOSH_PLUS_SERVER_URL=$env:MOSH_PLUS_SERVER_URL"
           "--dart-define=MOSH_PLUS_ISSUER_KEY=$env:MOSH_PLUS_ISSUER_KEY"
 
@@ -164,8 +181,9 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.plus-issuer-key != '' && 'mosh-windows-plus-devnet' || 'mosh-windows-setup' }}
+          name: ${{ inputs.plus-issuer-key != '' && inputs.plus-network == 'solana-devnet' && 'mosh-windows-plus-devnet' || 'mosh-windows-setup' }}
           path: |
             build/installer/*.exe
             build/installer/*.sha256
+            build/plus-build.json
           if-no-files-found: error

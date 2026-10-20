@@ -6,6 +6,7 @@ mod legacy_tests;
 mod names;
 #[cfg(test)]
 mod names_tests;
+mod plus;
 mod receive;
 mod revocation;
 mod service;
@@ -43,6 +44,7 @@ pub struct DeviceLinkRuntime {
     deletion_digests: std::collections::HashMap<String, String>,
     deletion_pages: std::collections::HashMap<String, deletion::DeletionPage>,
     deletion_fragments: crate::message_deletion::fragment_buffer::FragmentBuffer,
+    plus_sync: plus::SyncState,
 }
 
 impl DeviceLinkRuntime {
@@ -83,6 +85,7 @@ impl DeviceLinkRuntime {
             deletion_digests: Default::default(),
             deletion_pages: Default::default(),
             deletion_fragments: Default::default(),
+            plus_sync: Default::default(),
         };
         runtime.expire()?;
         Ok(runtime)

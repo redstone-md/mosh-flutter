@@ -4,6 +4,35 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0] - 2026-10-20
+
+### Added
+
+- Mosh+ mainnet checkout supports one-time payments of 5 USDC or 2,575 CLXAI
+  for 30 days. Renewals preserve remaining paid time, and wallet recovery can
+  restore the paying wallet's original paid periods on a new account.
+- Linked devices share Mosh+ paid periods and badge visibility. Other users
+  verify production badges locally in DMs, groups, channels and identity views.
+- Profile settings keep the Mosh+ price, currency and purchase/recovery actions
+  visible, with payment details, terms, privacy and support in an expandable block.
+
+### Fixed
+
+- Release builds retain their configured Mosh+ issuer and billing origin instead
+  of hiding the card. Packaging checks these values in compiled release code.
+- Opening Mosh+ after scrolling the profile no longer replaces the card with a
+  gray error block. Payment details and selectable addresses restore their state
+  independently from the profile's scroll position.
+
+### Upgrade notes
+
+- New Mosh+ sales remain paused while real mainnet acceptance is completed.
+  Publishing this release does not enable payments. Existing paid-order checks
+  and wallet recovery remain available during a sales pause.
+- Devnet and mainnet use separate certificates; a devnet pilot purchase does not
+  activate the production badge. Wallet recovery restores paid periods, not chats
+  or account keys. The purchase terms explain payment limits and refund support.
+
 ## [0.23.0] - 2026-10-18
 
 ### Added

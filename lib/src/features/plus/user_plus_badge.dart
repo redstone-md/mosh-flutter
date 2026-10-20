@@ -28,7 +28,10 @@ class UserPlusBadge extends ConsumerWidget {
           badge.expiresAtMs.toInt() > DateTime.now().millisecondsSinceEpoch);
     }));
     if (!visible) return const SizedBox.shrink();
-    final label = AppLocalizations.of(context)!.plusBadgeLabel;
+    final l = AppLocalizations.of(context)!;
+    final label = ref.watch(plusConfigProvider).mainnet
+        ? l.plusProductionBadgeLabel
+        : l.plusBadgeLabel;
     return Tooltip(
         message: label,
         child: Semantics(

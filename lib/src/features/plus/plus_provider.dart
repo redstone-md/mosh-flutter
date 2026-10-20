@@ -6,12 +6,11 @@ import 'plus_catalog.dart';
 import 'plus_commands.dart';
 import 'plus_config.dart';
 import 'plus_state.dart';
+import 'plus_mainnet_flow.dart';
 
 export 'plus_config.dart';
 
-final plusConfigProvider = Provider((ref) => const PlusConfig(
-    issuerKey: String.fromEnvironment('MOSH_PLUS_ISSUER_KEY'),
-    serverUrl: String.fromEnvironment('MOSH_PLUS_SERVER_URL')));
+final plusConfigProvider = Provider((ref) => PlusConfig.fromEnvironment());
 final plusCommandsProvider = Provider((ref) => PlusCommands());
 final plusPollIntervalProvider =
     Provider<Duration?>((ref) => const Duration(seconds: 5));
@@ -21,28 +20,42 @@ final plusBillingProvider = Provider((ref) {
   return client;
 });
 final plusCatalogProvider = FutureProvider((ref) async {
-  final pin = ref.watch(plusConfigProvider).issuerKey;
+  final config = ref.watch(plusConfigProvider);
   final json = await ref.watch(plusBillingProvider).catalog();
-  return PlusCatalog.fromJson(json, pin);
+  return PlusCatalog.fromJson(json, config.issuerKey, mainnet: config.mainnet);
 });
 final plusProvider =
     AsyncNotifierProvider<PlusController, PlusState>(PlusController.new);
 
 class PlusController extends AsyncNotifier<PlusState> {
   bool _running = false;
+  PlusMainnetFlow? _production;
+  int _checkoutViews = 0;
+
+  void openCheckout() {
+    _checkoutViews++;
+    _production?.resumePolling();
+  }
+
+  void closeCheckout() {
+    if (_checkoutViews > 0) _checkoutViews--;
+  }
 
   @override
   Future<PlusState> build() async {
     _running = false;
+    _production = null;
     final startedUnder = ref;
     final config = startedUnder.watch(plusConfigProvider);
     final interval = startedUnder.watch(plusPollIntervalProvider);
-    final snapshot = await startedUnder
-        .watch(plusCommandsProvider)
-        .configure(config.issuerKey);
+    final commands = startedUnder.watch(plusCommandsProvider);
+    final snapshot = await (config.mainnet
+        ? commands.configureMainnet(config.issuerKey)
+        : commands.configure(config.issuerKey));
     if (!startedUnder.mounted) return PlusState(snapshot: snapshot);
     if (interval != null) {
-      final poller = ForegroundPoller(interval, refresh);
+      final poller =
+          ForegroundPoller(interval, () => _refresh(automatic: true));
       startedUnder.onDispose(poller.dispose);
     }
     return PlusState(snapshot: snapshot);
@@ -79,7 +92,21 @@ class PlusController extends AsyncNotifier<PlusState> {
     }
   }
 
-  Future<void> purchase() => _run((scope, commands) async {
+  PlusMainnetFlow _mainnet(Ref scope, PlusCommands commands) =>
+      _production ??= PlusMainnetFlow(
+          commands: commands,
+          client: scope.read(plusBillingProvider),
+          catalog: () => scope.read(plusCatalogProvider.future),
+          alive: () => scope.mounted,
+          checkoutVisible: () => _checkoutViews > 0,
+          update: (snapshot) => _update(scope, snapshot));
+
+  Future<void> purchase([String asset = 'USDC']) =>
+      _run((scope, commands) async {
+        if (scope.read(plusConfigProvider).mainnet) {
+          await _mainnet(scope, commands).purchase(asset);
+          return;
+        }
         final catalog = await scope.read(plusCatalogProvider.future);
         if (!scope.mounted) return;
         final order = await scope.read(plusBillingProvider).create();
@@ -88,14 +115,35 @@ class PlusController extends AsyncNotifier<PlusState> {
         _update(scope, await commands.saveOrder(order));
       }, busy: true);
 
+  Future<void> recover() =>
+      _run((scope, commands) => _mainnet(scope, commands).recovery.start(),
+          busy: true);
+
+  Future<void> cancelCheckout() => _run((scope, commands) async {
+        final snapshot = await commands.cancelCheckout();
+        if (!scope.mounted) return;
+        _update(scope, snapshot);
+        scope.invalidate(plusCatalogProvider);
+      }, busy: true);
+
   Future<void> visibility(bool visible) => _run((scope, commands) async {
         _update(scope, await commands.visibility(visible));
       }, busy: true);
 
-  Future<void> refresh() => _run((scope, commands) async {
+  Future<void> refresh() => _refresh();
+
+  Future<void> _refresh({bool automatic = false}) =>
+      _run((scope, commands) async {
         final snapshot = await commands.snapshot();
         if (!scope.mounted) return;
         _update(scope, snapshot);
+        if (scope.read(plusConfigProvider).mainnet) {
+          if (scope.read(plusConfigProvider).canPurchase) {
+            await _mainnet(scope, commands)
+                .refresh(snapshot, automatic: automatic);
+          }
+          return;
+        }
         if (!scope.read(plusConfigProvider).canPurchase ||
             snapshot.active ||
             snapshot.order == null) {

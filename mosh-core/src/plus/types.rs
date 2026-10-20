@@ -26,6 +26,12 @@ pub struct PlusOrder {
     pub transaction_signature: Option<String>,
     pub expires_at_ms: Option<u64>,
     pub blind_signature_b64: Option<String>,
+    pub asset: Option<String>,
+    pub token_decimals: Option<u8>,
+    pub issuer_key_id: Option<String>,
+    pub series_id: Option<String>,
+    pub valid_from_ms: Option<u64>,
+    pub request_id: Option<String>,
 }
 
 #[derive(Clone, Serialize)]
@@ -36,6 +42,30 @@ pub struct PlusSnapshot {
     pub expires_at_ms: Option<u64>,
     pub order: Option<PlusOrder>,
     pub peer_badges: Vec<PlusPeerBadge>,
+    #[frb(default = "const []")]
+    pub orders: Vec<PlusOrder>,
+    pub series: Option<PlusSeries>,
+    #[frb(default = false)]
+    pub checkout_ready: bool,
+    pub next_active_from_ms: Option<u64>,
+    #[frb(default = false)]
+    pub can_initialize_series: bool,
+    #[frb(default = false)]
+    pub series_registered: bool,
+    pub checkout_intent: Option<super::checkout::PlusCheckoutIntent>,
+    pub reserved_until_ms: Option<u64>,
+    pub recovery: Option<super::recovery_types::PlusRecoverySession>,
+    #[frb(default = "const []")]
+    pub unissued_order_ids: Vec<String>,
+    #[frb(default = "const []")]
+    pub issuable_order_ids: Vec<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[frb(non_opaque)]
+pub struct PlusSeries {
+    pub id: String,
+    pub access_token: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -55,17 +85,18 @@ impl PlusOrder {
             || self.id.len() > 128
             || amount == 0
             || amount.to_string() != self.amount_atomic
-            || self.network != "solana-devnet"
-            || self.product != "mosh-plus-30d"
+            || !self.valid_product()
         {
             return Err("invalid PLUS order".into());
         }
         let uri = url::Url::parse(&self.payment_uri).map_err(|_| "invalid PLUS payment URI")?;
-        let fraction = format!("{:09}", amount % 1_000_000_000);
+        let decimals = self.token_decimals.unwrap_or(9);
+        let units = 10_u64.pow(u32::from(decimals));
+        let fraction = format!("{:0width$}", amount % units, width = usize::from(decimals));
         let fraction = fraction.trim_end_matches('0');
         let decimal = format!(
             "{}{}{}",
-            amount / 1_000_000_000,
+            amount / units,
             if fraction.is_empty() { "" } else { "." },
             fraction
         );
@@ -93,5 +124,35 @@ impl PlusOrder {
             && self.amount_atomic == other.amount_atomic
             && self.reference == other.reference
             && self.payment_uri == other.payment_uri
+            && self.network == other.network
+            && self.product == other.product
+            && self.asset == other.asset
+            && self.token_decimals == other.token_decimals
+            && self.issuer_key_id == other.issuer_key_id
+            && self.series_id == other.series_id
+            && self.request_id == other.request_id
+    }
+
+    fn valid_product(&self) -> bool {
+        match (self.network.as_str(), self.product.as_str()) {
+            ("solana-devnet", "mosh-plus-30d") => self.token_decimals.is_none_or(|d| d == 9),
+            ("solana-mainnet", "mosh-plus-supporter-30d") => matches!(
+                (
+                    self.asset.as_deref(),
+                    self.mint.as_str(),
+                    self.token_decimals
+                ),
+                (
+                    Some("USDC"),
+                    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                    Some(6)
+                ) | (
+                    Some("CLXAI"),
+                    "ECZV4aRyQKz2zr3ZFB9qeb4EzJbzuMCQZ2gpiBQfoHrK",
+                    Some(9)
+                )
+            ),
+            _ => false,
+        }
     }
 }
