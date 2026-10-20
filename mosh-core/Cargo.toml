@@ -47,6 +47,11 @@ ringbuf = "0.5.1"
 # which scrubs and sends them.
 sentry = { version = "0.49.3", default-features = false, features = ["backtrace", "debug-images", "panic"] }
 
+[target.'cfg(target_os = "android")'.dependencies]
+# Reuse CPAL's pinned JNI/context dependencies for the Flutter Activity bootstrap.
+jni = "=0.22.4"
+ndk-context = "=0.1.1"
+
 [target."cfg(windows)".dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_NetworkManagement_IpHelper", "Win32_Foundation", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock"] }
 

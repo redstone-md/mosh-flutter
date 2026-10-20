@@ -85,6 +85,43 @@ void main() {
     expect(bridge.callsTo(BridgeMethod.stopPanicReporting), isNotEmpty);
   });
 
+  test('a malformed Rust event does not escape or stop later reports',
+      () async {
+    final sdk = _Sdk();
+    final bridge = ScriptableBridge()..seedCrashReportingSalt('s1');
+    final reporting = sdk.reporting(bridge);
+    await reporting.resume();
+    addTearDown(() => reporting.setEnabled(false));
+    bridge.rustPanics.add('{invalid');
+    bridge.rustPanics
+        .add(File('test/fixtures/rust_panic_event.json').readAsStringSync());
+    await pumpEventQueue();
+    expect(sdk.events, ['start s1', 'capture panic']);
+  });
+
+  test('an asynchronous capture failure stays inside the reporter', () async {
+    final bridge = ScriptableBridge()..seedCrashReportingSalt('s1');
+    var attempts = 0;
+    final reporting = CrashReporting(
+      bridge: bridge,
+      dsn: 'dsn',
+      start: (_, __) async {},
+      stop: () async {},
+      capture: (_) async {
+        if (++attempts == 1) throw StateError('capture unavailable');
+      },
+    );
+    await reporting.resume();
+    addTearDown(() => reporting.setEnabled(false));
+    final panic =
+        File('test/fixtures/rust_panic_event.json').readAsStringSync();
+    bridge.rustPanics.add(panic);
+    await pumpEventQueue();
+    bridge.rustPanics.add(panic);
+    await pumpEventQueue();
+    expect(attempts, 2);
+  });
+
   testWidgets('switching on records consent and starts reporting',
       (tester) async {
     final sdk = _Sdk();

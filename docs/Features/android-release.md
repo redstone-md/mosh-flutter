@@ -49,7 +49,17 @@ libraries without matching Mosh libraries; final package checks reject that case
 - valid signature matching the independent certificate pin;
 - production package id, API 26 minimum and no debuggable manifest flag;
 - exactly one ABI, including real Flutter, app, Rust and Moss libraries;
-- every native LOAD segment and the APK ZIP support 16 KiB page alignment.
+- every native LOAD segment and the APK ZIP support 16 KiB page alignment;
+- JNI Zero's native-only Java entry points and exact method signatures survive
+  shrinking in the final DEX, including `JniZero.init` and `CommonApis` callbacks.
+
+The matching WebRTC JAR includes JNI Zero without Chromium's consumer keep
+rules. The application therefore preserves
+`CalledByNative`, `CalledByNativeUnchecked` and `AccessedByNative` members using
+the pinned upstream rule pattern. Without these rules R8 removed `JniZero`,
+causing `ClassNotFoundException` and a fatal abort in RingRTC's `JNI_OnLoad`.
+`android-jni-verify.py` inspects actual DEX definitions and static signatures;
+finding a class in the input JAR or in arbitrary APK strings is insufficient.
 
 The prior main APK exposed 4 KiB LOAD alignment in `libmoss.so` and the
 irondash native hook. The Moss wrapper now supplies explicit 16 KiB external
@@ -65,6 +75,25 @@ The `mosh-android-release` artifact contains the APK, SHA-256 sidecar and
 releases publish those files beside the Windows and macOS installers.
 
 ## Installation and acceptance
+
+The Activity initializes CPAL's JVM/application context before starting Dart.
+A process-lifetime global application reference survives Activity recreation;
+an Activity itself is never retained. `node scripts/android-context-check.mjs`
+exercises the production JNI entry point with a real host JVM, including a
+missing context, repeat initialization and garbage collection. This checks
+ownership/bootstrap, not Android hardware enumeration or playback.
+
+Gradle also builds the pinned RingRTC/WebRTC engine for native Android ↔ desktop
+audio/video, stages both shared libraries and uses the Java API from the same
+build. The APK verifier requires those libraries and checks their LOAD segments.
+CI caches the small checksummed WebRTC products; a cache miss builds its pinned
+source/dependency graph locally without remote-execution credentials.
+
+For calls, test both directions against Windows/macOS with both apps foreground:
+voice, video, camera off/on, front/back selection, denied camera permission,
+output routing, and hang-up/retry. Android Back first closes a device dialog,
+then minimizes the call view; another Back returns a DM to its list. Background
+or killed-app ringing and Bluetooth routing are separate physical checks.
 
 Download the APK to the phone, permit installation from the downloading app
 when Android requests it, then install. Existing debug-signed Mosh installations

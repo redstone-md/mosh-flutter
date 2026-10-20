@@ -97,7 +97,6 @@ void main() {
       AppRoutes.dmFor('origin'),
       container: container,
       settle: false,
-      builder: (_, child) => VoiceCallHost(child: child!),
     );
     addTearDown(router.dispose);
     await _frames(tester);

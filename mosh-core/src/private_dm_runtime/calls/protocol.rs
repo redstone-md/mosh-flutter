@@ -62,6 +62,7 @@ pub(super) const fn native_platform() -> bool {
     cfg!(any(
         target_os = "windows",
         target_os = "macos",
-        target_os = "linux"
+        target_os = "linux",
+        target_os = "android"
     ))
 }

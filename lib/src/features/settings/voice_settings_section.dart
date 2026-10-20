@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/state/audio_device_picks_provider.dart';
+import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
     show ringtonePlayerProvider;
 
@@ -106,13 +107,17 @@ class _VoiceSettingsSectionState extends ConsumerState<VoiceSettingsSection> {
   }
 
   Widget _microphone(AppLocalizations l, AudioDevicePicks picks) {
+    final pairedRoute = defaultTargetPlatform == TargetPlatform.android &&
+        ref.watch(nativeCallOwnerProvider) != null;
     final inputs = ref.watch(inputDevicesProvider).whenData((devices) => [
           for (final device in devices) (id: device.id, label: device.label),
         ]);
     return SettingsCard(
       icon: Icons.mic_none_outlined,
       title: l.settingsInputDeviceLabel,
-      hint: l.settingsInputDeviceHint,
+      hint: pairedRoute
+          ? l.settingsInputDeviceHintAndroid
+          : l.settingsInputDeviceHint,
       child: AudioDevicePicker(
         label: l.settingsInputDeviceLabel,
         devices: inputs,

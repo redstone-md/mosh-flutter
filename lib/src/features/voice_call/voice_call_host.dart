@@ -2,6 +2,8 @@ import 'call_media_view.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'call_video_frame.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'call_video_renderer.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +16,7 @@ import 'call_view_state.dart';
 import 'call_window_coordinator.dart';
 import 'incoming_call_modal.dart';
 import 'voice_call_layer.dart';
+import 'mobile_call_host.dart';
 
 /// App-level owner and presentation, mounted below the first-run gate and
 /// above every route, including Settings. Call windows contain no audio owner.
@@ -30,20 +33,29 @@ class VoiceCallHost extends ConsumerStatefulWidget {
 class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
   late final CallWindowCoordinator _window;
   StreamSubscription<CallVideoFrame>? _frames;
+  final _video = CallVideoRenderer();
+  late final bool _mobile = defaultTargetPlatform == TargetPlatform.android &&
+      ref.read(nativeCallOwnerProvider) != null;
 
   @override
   void initState() {
     super.initState();
     _window = CallWindowCoordinator(ref.read(callWindowFactoryProvider), _act,
         (error) => debugPrint('Call window unavailable: ${error.runtimeType}'));
-    _frames =
-        ref.read(nativeCallOwnerProvider)?.frames.listen(_window.presentFrame);
+    _frames = ref.read(nativeCallOwnerProvider)?.frames.listen((frame) {
+      if (_mobile) {
+        unawaited(_video.receive(frame));
+      } else {
+        _window.presentFrame(frame);
+      }
+    });
   }
 
   @override
   void dispose() {
     unawaited(_frames?.cancel());
     unawaited(_window.dispose());
+    _video.dispose();
     super.dispose();
   }
 
@@ -106,11 +118,20 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
             error: state.error?.cause.describe(l),
           );
     _window.update(call);
-    final content = Column(children: [
-      Expanded(child: widget.child),
-      if (selected != null)
-        SafeArea(top: false, child: _strip(selected.sessionId, l)),
-    ]);
+    _video.update(call);
+    final content = _mobile
+        ? MobileCallHost(
+            call: call,
+            session: selected?.sessionId,
+            video: _video,
+            onAction: _act,
+            onOpenConversation: widget.onOpenConversation,
+            child: widget.child)
+        : Column(children: [
+            Expanded(child: widget.child),
+            if (selected != null)
+              SafeArea(top: false, child: _strip(selected.sessionId, l)),
+          ]);
     return _CallHostOverlay(
       child: Padding(
         padding: EdgeInsets.only(

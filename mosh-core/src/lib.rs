@@ -38,6 +38,8 @@ pub mod voice_call_runtime;
 pub mod vpn_consent;
 
 // Flutter-rewrite bridge facade (ADR 0010)
+#[cfg(target_os = "android")]
+mod android;
 pub mod api;
 
 mod sender_auth;

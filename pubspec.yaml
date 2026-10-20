@@ -1,7 +1,7 @@
 name: mosh
 description: "Mosh - desktop-first decentralized E2EE messenger, Flutter shell"
 publish_to: "none"
-version: 0.24.0
+version: 0.24.1
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
@@ -104,6 +104,8 @@ flutter:
   generate: true
   uses-material-design: true
   assets:
+    - assets/audio/ringtone_incoming.wav
+    - assets/audio/ringtone_outgoing.wav
     - assets/branding/
     - assets/onboarding/
     - assets/start/

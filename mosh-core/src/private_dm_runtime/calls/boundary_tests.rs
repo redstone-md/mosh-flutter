@@ -5,6 +5,8 @@ use crate::voice_call_runtime::CallState;
 use serde_json::json;
 #[path = "boundary_tests/boundary_races.rs"]
 mod boundary_races;
+#[path = "boundary_tests/history_direction.rs"]
+mod history_direction;
 #[path = "boundary_tests/native_controls.rs"]
 mod native_controls;
 #[path = "boundary_tests/selection_admission.rs"]
@@ -24,7 +26,8 @@ fn remote_control(
             offer["native"] = cfg!(any(
                 target_os = "windows",
                 target_os = "macos",
-                target_os = "linux"
+                target_os = "linux",
+                target_os = "android"
             ))
             .into();
         }
@@ -336,6 +339,7 @@ fn signed_call_controls_refuse_stale_devices_and_reordered_occupancy() {
 #[test]
 #[ignore = "Isolated signed-call fixture worker; the parent invokes it."]
 fn call_boundary_process() {
+    history_direction::outgoing_and_incoming_history_retain_the_caller(&mut Fixture::new());
     native_controls::reordered_camera_state_cannot_reenable_a_stopped_remote_track(
         &mut Fixture::new(),
     );

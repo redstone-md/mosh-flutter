@@ -13,10 +13,11 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart' show CallEvent;
 
 import '../../support/pump.dart';
 
-ConversationMessage _message({CallEvent? callEvent}) => ConversationMessage(
+ConversationMessage _message({CallEvent? callEvent, bool own = false}) =>
+    ConversationMessage(
       fromDevice: 'alice',
       body: 'hi',
-      own: false,
+      own: own,
       messageId: 'm1',
       sentAtMs: BigInt.from(1000),
       callEvent: callEvent,
@@ -47,18 +48,38 @@ Future<void> _pumpRow(WidgetTester tester, ConversationMessage message) async {
 }
 
 void main() {
+  testWidgets(
+      'an unanswered outgoing call is not labelled as a missed incoming call',
+      (tester) async {
+    await _pumpRow(tester, _message(callEvent: _missedCall(), own: true));
+    expect(find.text('No answer'), findsOneWidget);
+    expect(find.text('Missed call'), findsNothing);
+    expect(find.byIcon(Icons.call_made), findsOneWidget);
+  });
+
+  testWidgets('completed incoming and outgoing calls show their direction',
+      (tester) async {
+    final event = CallEvent(
+        kind: 'completed', durationMs: BigInt.from(86000), callId: 'call');
+    await _pumpRow(tester, _message(callEvent: event, own: true));
+    expect(find.text('Outgoing call · 1:26'), findsOneWidget);
+    expect(find.byIcon(Icons.call_made), findsOneWidget);
+    await _pumpRow(tester, _message(callEvent: event));
+    expect(find.text('Incoming call · 1:26'), findsOneWidget);
+    expect(find.byIcon(Icons.call_received), findsOneWidget);
+  });
   testWidgets('a message with a call event shows the call pill',
       (tester) async {
     await _pumpRow(tester, _message(callEvent: _missedCall()));
 
     expect(find.text('Missed call'), findsOneWidget);
-    expect(find.byIcon(Icons.phone_disabled), findsOneWidget);
+    expect(find.byIcon(Icons.call_missed), findsOneWidget);
   });
 
   testWidgets('a message without one shows no pill', (tester) async {
     await _pumpRow(tester, _message());
 
     expect(find.text('Missed call'), findsNothing);
-    expect(find.byIcon(Icons.phone_disabled), findsNothing);
+    expect(find.byIcon(Icons.call_missed), findsNothing);
   });
 }

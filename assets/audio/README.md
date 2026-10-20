@@ -19,3 +19,10 @@ averaging for mono. Extra output channels stay silent. Per-recording gain keeps
 their loudness at the previous ringtone's level. There is no runtime asset
 lookup or general-purpose audio decoder. Replacements must retain the documented
 PCM format and pass the recording metadata tests.
+
+Android packages the same recordings as uncompressed Flutter assets and plays
+them with `MediaPlayer`: incoming uses `USAGE_NOTIFICATION_RINGTONE` (including
+silent/vibrate mode), outgoing uses `USAGE_VOICE_COMMUNICATION_SIGNALLING`.
+Playback requests transient audio focus, expires after 30 seconds, and is stopped
+on answer/end through the existing `RingtonePlayer` owner. A stale stop or delayed
+preparation callback cannot affect a newer ringtone. Desktop playback stays on CPAL.

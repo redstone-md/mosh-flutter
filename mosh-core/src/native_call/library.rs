@@ -97,6 +97,10 @@ impl Engine {
     }
 
     pub fn ask(&mut self, value: Value) -> Result<Value, String> {
+        #[cfg(target_os = "android")]
+        if matches!(value["action"].as_str(), Some("devices" | "select")) {
+            return crate::android::media::command(value);
+        }
         let command = CString::new(value.to_string()).map_err(error)?;
         // SAFETY: this owner retains the handle, library and command throughout the call.
         let result = unsafe { (self.command)(self.handle, command.as_ptr()) };
@@ -183,6 +187,8 @@ impl Drop for Engine {
     fn drop(&mut self) {
         // SAFETY: owner returns the unique handle before unloading its library.
         unsafe { (self.drop_engine)(self.handle) };
+        #[cfg(target_os = "android")]
+        let _ = crate::android::media::command(json!({"action":"audioStop"}));
     }
 }
 
@@ -197,6 +203,10 @@ fn library_name() -> &'static str {
 }
 
 pub(crate) fn artifact(variable: &str, name: &str) -> Result<PathBuf, String> {
+    if cfg!(target_os = "android") {
+        // Android's linker resolves only libraries in the APK's native namespace.
+        return Ok(PathBuf::from(name));
+    }
     if let Some(path) = std::env::var_os(variable) {
         return Ok(PathBuf::from(path));
     }
@@ -213,6 +223,48 @@ pub(crate) fn artifact(variable: &str, name: &str) -> Result<PathBuf, String> {
         }
     }
     Err(format!("packaged native artifact is missing: {name}"))
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn i420_size(width: u32, height: u32) -> Option<usize> {
+    (width > 0
+        && height > 0
+        && width <= 1920
+        && height <= 1920
+        && width.is_multiple_of(2)
+        && height.is_multiple_of(2)
+        && u64::from(width) * u64::from(height) * 4 <= MAX_RGBA as u64)
+        .then(|| width as usize * height as usize * 3 / 2)
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn i420_to_rgba(width: u32, height: u32, planar: &[u8]) -> Result<Vec<u8>, String> {
+    type Convert = unsafe extern "C" fn(u32, u32, *const u8, usize, *mut u8, usize) -> i32;
+    if i420_size(width, height) != Some(planar.len()) {
+        return Err("invalid I420 frame".into());
+    }
+    let library = media_library()?;
+    let mut rgba = vec![0; width as usize * height as usize * 4];
+    // SAFETY: the pinned converter retains no pointers. Both sized buffers and
+    // its executable library remain alive until conversion returns.
+    let success = unsafe {
+        let convert = library
+            .get::<Convert>(b"mosh_media_i420_to_rgba\0")
+            .map_err(error)?;
+        convert(
+            width,
+            height,
+            planar.as_ptr(),
+            planar.len(),
+            rgba.as_mut_ptr(),
+            rgba.len(),
+        )
+    };
+    if success == 1 {
+        Ok(rgba)
+    } else {
+        Err("I420 conversion failed".into())
+    }
 }
 
 fn error(error: impl std::fmt::Display) -> String {

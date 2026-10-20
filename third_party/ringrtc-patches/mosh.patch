@@ -13,6 +13,49 @@
  }
  
  fn main() {
+@@ -58,6 +59,16 @@
+ 
+     if cfg!(feature = "prebuilt_webrtc") && cfg!(feature = "prebuilt_webrtc_sim") {
+         panic!("Cannot enable both prebuilt_webrtc and prebuilt_webrtc_sim features");
++    }
++
++    // Keep `native` for the C audio-config ABI; Android WebRTC owns its ADM.
++    if target_os == "android" {
++        println!("cargo:rerun-if-env-changed=MOSH_ANDROID_WEBRTC_DIR");
++        let directory = env::var("MOSH_ANDROID_WEBRTC_DIR")
++            .expect("Build Android WebRTC with scripts/android-webrtc-build.mjs first");
++        println!("cargo:rustc-link-search=native={}", directory);
++        println!("cargo:rustc-link-lib=ringrtc_rffi");
++        return;
+     }
+ 
+     if cfg!(feature = "native") {
+--- a/src/rust/src/webrtc/audio_device_module_utils.rs
++++ b/src/rust/src/webrtc/audio_device_module_utils.rs
+@@ -132,7 +132,7 @@
+         if self.count() == 0 {
+             None
+         } else if idx > 0 {
+-            #[cfg(target_os = "macos")]
++            #[cfg(any(target_os = "macos", target_os = "android"))]
+             {
+                 self.iter().nth(idx - 1)
+             }
+@@ -162,12 +162,12 @@
+     #[cfg(not(target_os = "windows"))]
+     /// Returns the number of devices, counting the default device.
+     pub fn count(&self) -> usize {
+-        #[cfg(target_os = "macos")]
++        #[cfg(any(target_os = "macos", target_os = "android"))]
+         let count = self.iter().count();
+         #[cfg(target_os = "linux")]
+         let count = self.iter_non_monitor().count();
+         if count == 0 {
+-            #[cfg(target_os = "macos")]
++            #[cfg(any(target_os = "macos", target_os = "android"))]
+             return 0;
+             #[cfg(target_os = "linux")]
+             return
 --- a/src/rust/src/webrtc/injectable_network.rs
 +++ b/src/rust/src/webrtc/injectable_network.rs
 @@ -155,8 +155,8 @@
@@ -64,7 +107,22 @@
  // They are safe to Send/Sync because everything in the C++ hops to
 --- a/src/rust/src/webrtc/peer_connection_factory.rs
 +++ b/src/rust/src/webrtc/peer_connection_factory.rs
-@@ -409,6 +409,7 @@
+@@ -197,7 +197,13 @@
+         #[cfg_attr(not(feature = "native"), allow(unused_mut, unused_variables))]
+         mut audio_device_observer: Option<Box<dyn AudioDeviceObserver>>,
+     ) -> Result<RffiAudioConfigWrapper> {
+-        #[cfg(feature = "native")]
++        #[cfg(all(feature = "native", target_os = "android"))]
++        let (adm_borrowed, adm_arc) = {
++            // Android's native factory uses the platform ADM, routed by AudioManager.
++            let _ = audio_device_observer.take();
++            (webrtc::ptr::Borrowed::null(), None)
++        };
++        #[cfg(all(feature = "native", not(target_os = "android")))]
+         let (adm_borrowed, adm_arc) = match AudioDeviceModule::new() {
+             Ok(mut adm) => {
+                 if let Some(observer) = audio_device_observer.take() {
+@@ -409,6 +415,7 @@
                  webrtc::ptr::Borrowed::from_ptr(&rffi_ice_servers),
                  outgoing_audio_track.rffi().as_borrowed(),
                  outgoing_video_track

@@ -2,12 +2,15 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/features/voice_call/microphone_permission.dart';
+import 'package:mosh/src/features/voice_call/camera_permission.dart';
 import 'package:mosh/src/features/onboarding/first_run_provider.dart';
 
 import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
     show conversationCallBindingProvider;
 import 'package:mosh/src/features/voice_call/cpal_ringtone.dart'
     show CpalRingtonePlayer;
+import 'package:mosh/src/features/voice_call/android_ringtone.dart';
+import 'package:mosh/src/features/voice_call/android_call_presentation.dart';
 import 'package:mosh/src/features/voice_call/cpal_voice_playback.dart'
     show CpalVoicePlaybackFactory;
 import 'package:mosh/src/features/voice_call/record_voice_capture.dart'
@@ -30,18 +33,30 @@ import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
 /// `flutter test` gets no native handles and no live timer), and the
 /// conversation module's call slots, which default to unbound.
 final List<Override> productionOverrides = <Override>[
+  if (Platform.isAndroid)
+    androidCallPresentationProvider.overrideWith((ref) {
+      final presentation = AndroidCallPresentation();
+      ref.onDispose(presentation.dispose);
+      return presentation;
+    }),
   firstRunEnabledProvider.overrideWithValue(true),
   voiceCaptureFactoryProvider
       .overrideWithValue(const RecordVoiceCaptureFactory()),
   voicePlaybackFactoryProvider
       .overrideWithValue(const CpalVoicePlaybackFactory()),
-  ringtonePlayerProvider.overrideWithValue(const CpalRingtonePlayer()),
+  ringtonePlayerProvider.overrideWithValue(Platform.isAndroid
+      ? const AndroidRingtonePlayer()
+      : const CpalRingtonePlayer()),
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux)
     callWindowFactoryProvider.overrideWithValue(ProcessCallWindow.open),
-  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux)
+  if (Platform.isWindows ||
+      Platform.isMacOS ||
+      Platform.isLinux ||
+      Platform.isAndroid)
     nativeCallOwnerProvider.overrideWith((ref) {
       final owner = NativeCallOwner(
-          ref.read(bridgeFacadeProvider), requestCallMicrophone);
+          ref.read(bridgeFacadeProvider), requestCallMicrophone,
+          requestCamera: requestCallCamera);
       ref.onDispose(owner.dispose);
       return owner;
     }),

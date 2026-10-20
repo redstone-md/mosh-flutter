@@ -6,13 +6,14 @@ import 'package:mosh/src/features/voice_call/native_call_session.dart';
 import 'package:mosh/src/features/voice_call/call_video_frame.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart';
 
-/// Production supplies the native presentation client only on desktop.
+/// Production supplies the presentation client for compatible native platforms.
 final nativeCallOwnerProvider = Provider<NativeCallOwner?>((ref) => null);
 
 class NativeCallOwner extends ChangeNotifier {
-  NativeCallOwner(this.bridge, this.requestMicrophone);
+  NativeCallOwner(this.bridge, this.requestMicrophone, {this.requestCamera});
   final BridgeFacade bridge;
   final Future<bool> Function() requestMicrophone;
+  final Future<bool> Function()? requestCamera;
   final _frames = StreamController<CallVideoFrame>.broadcast(sync: true);
   NativeCallSession? _retained;
   NativeCallSession? session;
@@ -28,6 +29,7 @@ class NativeCallOwner extends ChangeNotifier {
           callId: callId,
           bridge: bridge,
           requestMicrophone: requestMicrophone,
+          requestCamera: requestCamera ?? () async => true,
           onState: notifyListeners,
           onFrame: (frame) {
             if (session?.sessionId == frame.sessionId &&

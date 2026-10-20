@@ -91,7 +91,7 @@ runs:
       id: moss-android
       uses: actions/cache@v4
       with:
-        path: android/app/src/main/jniLibs/arm64-v8a
+        path: android/app/src/main/jniLibs/arm64-v8a/libmoss.so
         key: moss-android-arm64-go1.25.9-${{ hashFiles('moss/**/*.go', 'moss/go.sum', 'scripts/moss-prepare-android.mjs') }}
 
     # The runner image exposes its NDK as ANDROID_NDK_LATEST_HOME; the script

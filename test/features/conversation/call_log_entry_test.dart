@@ -26,25 +26,31 @@ void main() {
       final l = await AppLocalizations.delegate.load(const Locale('en'));
       await _pump(
         tester,
-        CallLogEntry(event: _event(kind: 'missed', durationMs: 0), l: l),
+        CallLogEntry(
+            outgoing: false,
+            event: _event(kind: 'missed', durationMs: 0),
+            l: l),
       );
-      expect(find.byIcon(Icons.phone_disabled), findsOneWidget);
+      expect(find.byIcon(Icons.call_missed), findsOneWidget);
       expect(find.text('Missed call'), findsOneWidget);
-      expect(find.byIcon(Icons.phone), findsNothing);
+      expect(find.byIcon(Icons.call_received), findsNothing);
     },
   );
 
   testWidgets(
-    'completed call renders the phone icon + Call ended label',
+    'completed call renders the phone icon + Incoming call label',
     (tester) async {
       final l = await AppLocalizations.delegate.load(const Locale('en'));
       await _pump(
         tester,
-        CallLogEntry(event: _event(kind: 'completed', durationMs: 0), l: l),
+        CallLogEntry(
+            outgoing: false,
+            event: _event(kind: 'completed', durationMs: 0),
+            l: l),
       );
-      expect(find.byIcon(Icons.phone), findsOneWidget);
-      expect(find.text('Call ended'), findsOneWidget);
-      expect(find.byIcon(Icons.phone_disabled), findsNothing);
+      expect(find.byIcon(Icons.call_received), findsOneWidget);
+      expect(find.text('Incoming call'), findsOneWidget);
+      expect(find.byIcon(Icons.call_missed), findsNothing);
     },
   );
 
@@ -56,11 +62,12 @@ void main() {
       await _pump(
         tester,
         CallLogEntry(
+          outgoing: false,
           event: _event(kind: 'completed', durationMs: 65000),
           l: l,
         ),
       );
-      expect(find.text('Call ended · 1:05'), findsOneWidget);
+      expect(find.text('Incoming call · 1:05'), findsOneWidget);
     },
   );
 
@@ -70,7 +77,10 @@ void main() {
       final l = await AppLocalizations.delegate.load(const Locale('en'));
       await _pump(
         tester,
-        CallLogEntry(event: _event(kind: 'missed', durationMs: 0), l: l),
+        CallLogEntry(
+            outgoing: false,
+            event: _event(kind: 'missed', durationMs: 0),
+            l: l),
       );
       // Missed with 0 ms -> no suffix, just "Missed call".
       expect(find.text('Missed call'), findsOneWidget);

@@ -9,6 +9,27 @@ import '../../support/scriptable_bridge.dart';
 import '../../support/native_call_fixture.dart';
 
 void main() {
+  test(
+      'active native bind requests microphone before consent is reflected in inventory',
+      () async {
+    final bridge = ScriptableBridge();
+    bridge.respondNext(BridgeMethod.nativeCallSnapshot,
+        Future.value(nativeCallSnapshot(microphoneRequested: true)));
+    var prompts = 0;
+    final owner = NativeCallOwner(bridge, () async {
+      prompts++;
+      return true;
+    });
+    await owner.bind('dm', 'call', active: true);
+    expect(prompts, 1);
+    final choice = bridge.lastCall(BridgeMethod.nativeCallChoices)!;
+    expect(choice.arg<bool>('microphone'), true);
+    expect(choice.arg<bool>('microphoneAllowed'), true);
+    await owner.bind('dm', 'call', active: true);
+    expect(prompts, 1);
+    owner.dispose();
+  });
+
   test('preview does not request microphone; denied microphone keeps camera',
       () async {
     final bridge = ScriptableBridge();

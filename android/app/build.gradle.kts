@@ -38,6 +38,7 @@ private fun resolveNdkRoot(version: String, localPropertiesFile: File): File {
 }
 
 android {
+    sourceSets.getByName("main").assets.srcDir(rootProject.projectDir.parentFile.resolve(".dart_tool/android-media/assets"))
     namespace = "app.mosh.mosh"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
@@ -100,6 +101,7 @@ android {
         release {
             // Missing credentials fail release signing; debug stays independent.
             signingConfig = signingConfigs.getByName("release")
+            proguardFile("proguard-rules.pro")
         }
     }
 }
@@ -112,6 +114,7 @@ kotlin {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation(files(rootProject.projectDir.parentFile.resolve(".dart_tool/android-media/webrtc/libwebrtc.jar")))
 }
 
 flutter {
@@ -179,3 +182,14 @@ val mossPreparation = tasks.register<Exec>("prepareMossAndroid") {
 tasks.named("preBuild") {
     dependsOn(mossPreparation)
 }
+
+// The shared native protocol is usable only when its Android engine is packaged.
+val nativeMediaPreparation = tasks.register<Exec>("prepareNativeMediaAndroid") {
+    workingDir(repositoryRoot)
+    doFirst {
+        environment("ANDROID_NDK_HOME", mossNdkRoot.get().absolutePath)
+        commandLine(mossNode.get().absolutePath,
+            repositoryRoot.resolve("scripts/android-native-media-build.mjs").absolutePath)
+    }
+}
+tasks.named("preBuild") { dependsOn(nativeMediaPreparation) }

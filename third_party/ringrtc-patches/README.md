@@ -14,7 +14,7 @@ boundary, not an adopted application engine.
 
 ## Local patches
 
-[mosh.patch](mosh.patch) contains three changes against the pinned upstream:
+[mosh.patch](mosh.patch) contains these changes against the pinned upstream:
 
 - Match Rust injected-network send/delete return types to the C++ `int` ABI.
   This does not add transport completion feedback: native send time is still
@@ -25,6 +25,10 @@ boundary, not an adopted application engine.
   removes that premature release.
 - Put downloaded/extracted native artifacts in Cargo's `OUT_DIR`. Builds no
   longer change the verified source hash or share native output between targets.
+- Link Android to Mosh's pinned WebRTC shared build, retaining the native C audio
+  configuration layout while letting WebRTC own its Android platform ADM. Include
+  Android in the utility's non-Windows device-index code so the graph compiles;
+  Android call routing itself uses AudioManager rather than Cubeb enumeration.
 
 The upstream build script pins and verifies the Signal WebRTC `7871n` archive.
 The candidate's Cargo lockfile pins its Rust dependency graph. Neither generated

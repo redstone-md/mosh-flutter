@@ -334,9 +334,11 @@ void main() {
       expect(
           notifications.lastId, Object.hash('sess-1', 'call-1') & 0x7fffffff);
       expect(
-          notifications.lastDetails?.android?.channelId, 'mosh_notifications');
-      expect(notifications.lastDetails?.android?.channelName,
-          'Mosh notifications');
+          notifications.lastDetails?.android?.channelId, 'mosh_incoming_calls');
+      expect(notifications.lastDetails?.android?.channelName, 'Incoming calls');
+      expect(notifications.lastDetails?.android?.playSound, false,
+          reason:
+              'the call-owned ringtone must not compete with a notification sound');
       // The in-app IncomingCallModal opened too (the toast is additive):
       // the modal shows the peer label + the localized incoming status.
       expect(find.text('Alice'), findsWidgets);

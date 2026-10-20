@@ -263,9 +263,23 @@ fn native_stalled_camera_releases_capture_without_ending_receive_only_media() {
         );
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let status =
-        receiver.ask(json!({"action":"call_native_snapshot","argument":session,"call_id":id}));
-    assert_eq!(status["ready"], true);
+    // Each engine reports its own ICE completion; caller readiness cannot
+    // establish the receiver's state at the same instant.
+    loop {
+        let status = receiver.ask_until(
+            json!({"action":"call_native_snapshot","argument":session,"call_id":id}),
+            until,
+        );
+        assert_eq!(status["failed"], false, "receiver failed: {status}");
+        if status["ready"] == true {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < until,
+            "receiver did not connect: {status}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
     caller.ask(json!({"action":"call_end","argument":session,"call_id":id}));
 }
 

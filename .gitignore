@@ -10,6 +10,7 @@ moss-runtime/*
 moss.dll
 moss.h
 libmoss.so
+android/app/src/main/jniLibs/**/*.so
 libmoss.dylib
 libmoss.h
 

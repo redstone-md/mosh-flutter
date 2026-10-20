@@ -1,6 +1,6 @@
-# Desktop audio/video calls
+# Native audio/video calls
 
-Windows, macOS and Linux use one native RingRTC audio/video engine per selected
+Windows, macOS, Linux and Android use one native RingRTC audio/video engine per selected
 call. The DM header has voice and video actions. A video start opens local
 preview; media is sent only after the caller confirms the answering installation.
 An incoming call starts with camera off. Camera and microphone choices are
@@ -30,11 +30,24 @@ Only an explicit camera-selection command changes the per-call device ID.
 Microphone, speaker and camera on/off commands preserve the native owner's
 current ID, so an older presentation snapshot cannot undo asynchronous fallback.
 
-Android/iOS retain the existing voice pipeline. Authenticated offers identify
-the media protocol, so an incompatible installation does not ring or become the
-selected receiver. Desktop/mobile calls are currently unsupported; a contact
-with a compatible desktop installation can still answer there. All installations
-must upgrade together; the call protocol has no older-client compatibility layer.
+Android ARM64 uses the same authenticated native protocol, virtual Moss network,
+codecs and SRTP key agreement as desktop. Its pinned WebRTC source build enables
+the native factory (the official Android binary has a null stub) and uses WebRTC's
+Android AudioRecord/AudioTrack module. AudioManager selects a communication route
+and its paired microphone; independent desktop microphone selection is not an
+Android call capability. A stale output pick falls back to the system route.
+Camera2 capture publishes one latest RGBA frame through JNI, with generation
+checks before and after conversion so callbacks from an old camera cannot revive
+capture. Pixel rotation/conversion uses WebRTC/libyuv. Permission is requested
+before opening the camera, independently of microphone consent.
+
+The Android call view reuses the shared controls, device dialog and video renderer
+inside the app. Back minimizes that view; the chat and native call remain mounted.
+A dialog receives Back before minimization. Opening the peer returns to its DM;
+the compact strip can restore the view. Foreground Android ↔ desktop calls are
+the acceptance target. Suspended/killed-app ringing is not implemented by this
+change. iOS retains the legacy voice pipeline and cannot answer native offers.
+Older Android builds also require an update; incompatible offers still do not ring.
 
 ## Ownership and encryption
 

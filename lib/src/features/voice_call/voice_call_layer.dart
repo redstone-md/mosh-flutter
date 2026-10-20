@@ -1,8 +1,11 @@
 import 'call_media_view.dart';
+import 'call_notification_details.dart';
 import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'call_video_renderer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart' show windowManager;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -28,6 +31,10 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
     this.onShowWindow,
     this.isCallWindowFocused,
     this.controlsInWindow = false,
+    this.compact = true,
+    this.video,
+    this.onMinimize,
+    this.floating = false,
   });
 
   final String sessionId;
@@ -37,6 +44,10 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
   final VoidCallback? onShowWindow;
   final Future<bool> Function()? isCallWindowFocused;
   final bool controlsInWindow;
+  final bool compact;
+  final ValueListenable<CallVideoImages>? video;
+  final VoidCallback? onMinimize;
+  final bool floating;
 
   @override
   ConsumerState<VoiceCallLayer> createState() => _VoiceCallLayerState();
@@ -95,9 +106,13 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
     if (call == null || widget.controlsInWindow) return const SizedBox.shrink();
     return CallView(
         call: call,
-        compact: true,
+        compact: widget.compact,
+        video: widget.video,
+        onDeviceSelected: _act,
         controlsInWindow: widget.controlsInWindow,
         onShowWindow: widget.onShowWindow,
+        onMinimize: widget.onMinimize,
+        floating: widget.floating,
         onAction: (action) => _act(call.command(action)));
   }
 
@@ -175,7 +190,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
             id: id,
             title: 'Mosh',
             body: body,
-            notificationDetails: moshNotificationDetails);
+            notificationDetails: callNotificationDetails);
       }).catchError((Object _) {});
       await _notificationWork;
     } catch (_) {

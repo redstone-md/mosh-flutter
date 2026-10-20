@@ -13,8 +13,11 @@
 //! `AudioDeviceInfo {id, name}` for enumeration, `Result<_, String>`
 //! matching the voice-call facades' error style.
 
-use cpal::default_host;
-use cpal::traits::{DeviceTrait, HostTrait};
+#[cfg(not(target_os = "android"))]
+use cpal::{
+    default_host,
+    traits::{DeviceTrait, HostTrait},
+};
 use flutter_rust_bridge::frb;
 use serde::{Deserialize, Serialize};
 
@@ -38,6 +41,20 @@ pub struct AudioDeviceInfo {
 /// with two working entries beats an error over one broken one.
 #[frb(sync)]
 pub fn list_output_devices() -> Vec<AudioDeviceInfo> {
+    #[cfg(target_os = "android")]
+    {
+        return crate::android::media::command(serde_json::json!({"action":"devices"}))
+            .and_then(|value| {
+                serde_json::from_value(value["outputs"].clone()).map_err(|e| e.to_string())
+            })
+            .unwrap_or_default();
+    }
+    #[cfg(not(target_os = "android"))]
+    list_cpal_outputs()
+}
+
+#[cfg(not(target_os = "android"))]
+fn list_cpal_outputs() -> Vec<AudioDeviceInfo> {
     let host = default_host();
     let Ok(outputs) = host.output_devices() else {
         return Vec::new();
