@@ -36,14 +36,17 @@ $schema = Get-MoshNetworkSchema
 $session = 'MoshNetwork-' + [guid]::NewGuid().ToString('N')
 $trace = Join-Path $OutputDirectory 'private-network.etl'
 $sessionStarted = $false
+$watchdog = $null
 $loss = $null
 $samples = @()
-$traceDeadline = [timespan]::FromSeconds($DurationSeconds + 30).ToString('hh\:mm\:ss')
 try {
     $traceStart = & logman create trace $session -p $MoshNetworkProvider '0xffffffffffffffff' 5 `
-        -o $trace -f bincirc -max 128 -nb 16 64 -bs 64 -rf $traceDeadline -ets
+        -o $trace -f bincirc -max 128 -nb 16 64 -bs 64 -ets
     if ($LASTEXITCODE -ne 0) { throw "Windows could not start the network trace: $traceStart" }
     $sessionStarted = $true
+    $watchdog = Start-Process "$PSHOME/powershell.exe" -WindowStyle Hidden -PassThru -ArgumentList @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"{0}/TraceWatchdog.ps1"' -f $PSScriptRoot),
+        '-SessionName', $session, '-DeadlineSeconds', ($DurationSeconds + 30))
     $startedAt = [datetime]::UtcNow
     $watch = [System.Diagnostics.Stopwatch]::StartNew()
     Send-MoshTraceControlPackets
@@ -67,6 +70,7 @@ try {
         $loss = Stop-MoshNetworkTrace $session
         $sessionStarted = $false
     }
+    if ($null -ne $watchdog -and -not $watchdog.HasExited) { $watchdog.Kill(); $watchdog.WaitForExit() }
 }
 $stoppedAt = [datetime]::UtcNow
 $totals = New-MoshNetworkTotals
