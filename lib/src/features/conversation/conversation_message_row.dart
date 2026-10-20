@@ -228,7 +228,8 @@ class ConversationMessageRow extends StatelessWidget {
             onOpen: onAttachmentOpen,
             messageFooter: footer,
           ),
-        if (callEvent != null) CallLogEntry(event: callEvent, l: l),
+        if (callEvent != null)
+          CallLogEntry(event: callEvent, outgoing: message.own, l: l),
         if (message.canRetry)
           FailedMessageRetry(
             deliveryError: message.deliveryError,

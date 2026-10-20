@@ -17,19 +17,30 @@ impl PrivateDmSession {
         let _ = self
             .transport
             .unsubscribe(&self.mesh_id, &voice_call_channel(&call.call_id));
-        self.append_call_event_message(&call.remote_device, kind, duration_ms, &call.call_id);
+        let own = call.direction == crate::voice_call_runtime::CallDirection::Caller;
+        let caller = if own {
+            &self.device_id
+        } else {
+            &call.remote_device
+        }
+        .clone();
+        self.append_call_event_message(&caller, own, kind, duration_ms, &call.call_id);
     }
 
     pub(super) fn append_call_event_message(
         &mut self,
-        remote_device: &str,
+        caller: &str,
+        own: bool,
         kind: &str,
         duration_ms: u64,
         call_id: &str,
     ) {
         let message = self.messages.stamp(ChatMessage {
-            metadata: None,
-            from_device: remote_device.into(),
+            metadata: Some(crate::message_deletion::MessageMetadata {
+                is_own: Some(own),
+                ..Default::default()
+            }),
+            from_device: caller.into(),
             body: String::new(),
             message_id: None,
             sent_at_ms: None,

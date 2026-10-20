@@ -26,13 +26,15 @@ class CallLogEntry extends StatelessWidget {
   const CallLogEntry({
     super.key,
     required this.event,
+    required this.outgoing,
     required this.l,
   });
 
   /// The call event to render.
   final CallEvent event;
+  final bool outgoing;
 
-  /// Localizations (callLogMissedLabel / callLogEndedLabel).
+  /// Localized call direction and outcome.
   final AppLocalizations l;
 
   @override
@@ -45,7 +47,10 @@ class CallLogEntry extends StatelessWidget {
         missed ? const Color(0xFFE5484D) : theme.colorScheme.onSurface;
     // 15% gray pill background.
     final pillBg = const Color(0xFF7F7F7F).withValues(alpha: 0.15);
-    final label = missed ? l.callLogMissedLabel : l.callLogEndedLabel;
+    final label = switch (event.kind) {
+      'missed' => outgoing ? l.callLogNoAnswerLabel : l.callLogMissedLabel,
+      _ => outgoing ? l.callLogOutgoingLabel : l.callLogIncomingLabel,
+    };
     // U+00B7 MIDDLE DOT with a space on each side separates the duration.
     final text = duration.isEmpty ? label : '$label \u00B7 $duration';
     return Container(
@@ -59,7 +64,9 @@ class CallLogEntry extends StatelessWidget {
         children: [
           Icon(
             // Phone-off glyph for a missed call, phone for completed.
-            missed ? Icons.phone_disabled : Icons.phone,
+            outgoing
+                ? Icons.call_made
+                : (missed ? Icons.call_missed : Icons.call_received),
             size: 14,
             color: accent,
           ),

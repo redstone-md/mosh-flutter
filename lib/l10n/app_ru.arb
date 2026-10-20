@@ -1214,5 +1214,10 @@
   "plusBuy": "Купить Mosh+",
   "plusOneTimeHint": "Один платёж, без автосписаний.",
   "plusSalesPaused": "Продажи приостановлены",
-  "plusPaymentDetails": "Условия и реквизиты"
+  "plusPaymentDetails": "Условия и реквизиты",
+  "callLogNoAnswerLabel": "Нет ответа",
+  "callLogOutgoingLabel": "Исходящий звонок",
+  "callLogIncomingLabel": "Входящий звонок",
+  "callMinimize": "Свернуть звонок",
+  "callFloatingVideo": "Переместить или раскрыть видео звонка"
 }

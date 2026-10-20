@@ -2222,5 +2222,10 @@
   "plusBuy": "Buy Mosh+",
   "plusOneTimeHint": "One payment, no automatic charges.",
   "plusSalesPaused": "Purchases paused",
-  "plusPaymentDetails": "Payment details & terms"
+  "plusPaymentDetails": "Payment details & terms",
+  "callLogNoAnswerLabel": "No answer",
+  "callLogOutgoingLabel": "Outgoing call",
+  "callLogIncomingLabel": "Incoming call",
+  "callMinimize": "Minimize call",
+  "callFloatingVideo": "Move or expand call video"
 }
