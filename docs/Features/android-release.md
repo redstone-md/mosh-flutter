@@ -66,6 +66,13 @@ releases publish those files beside the Windows and macOS installers.
 
 ## Installation and acceptance
 
+The Activity initializes CPAL's JVM/application context before starting Dart.
+A process-lifetime global application reference survives Activity recreation;
+an Activity itself is never retained. `node scripts/android-context-check.mjs`
+exercises the production JNI entry point with a real host JVM, including a
+missing context, repeat initialization and garbage collection. This checks
+ownership/bootstrap, not Android hardware enumeration or playback.
+
 Download the APK to the phone, permit installation from the downloading app
 when Android requests it, then install. Existing debug-signed Mosh installations
 cannot update to this release signature. **Do not uninstall a used installation

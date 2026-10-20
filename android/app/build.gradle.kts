@@ -100,6 +100,7 @@ android {
         release {
             // Missing credentials fail release signing; debug stays independent.
             signingConfig = signingConfigs.getByName("release")
+            proguardFile("proguard-rules.pro")
         }
     }
 }
