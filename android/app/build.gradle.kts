@@ -10,6 +10,11 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseKeystore = Properties().apply {
+    rootProject.file("key.properties").takeIf(File::isFile)
+        ?.inputStream()?.use(::load)
+}
+
 private fun findTool(name: String): File {
     val executableName = if (System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) "$name.exe" else name
     return System.getenv("PATH").orEmpty()
@@ -72,6 +77,15 @@ android {
         ndk { abiFilters += "arm64-v8a" }
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = releaseKeystore.getProperty("keyAlias")
+            keyPassword = releaseKeystore.getProperty("keyPassword")
+            storeFile = releaseKeystore.getProperty("storeFile")?.let(::file)
+            storePassword = releaseKeystore.getProperty("storePassword")
+        }
+    }
+
     buildTypes {
         debug {
             // The physical linked-DM test must not touch a user's Mosh data.
@@ -80,9 +94,8 @@ android {
             }
         }
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Missing credentials fail release signing; debug stays independent.
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

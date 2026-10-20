@@ -1,11 +1,18 @@
 # Code signing policy
 
-Mosh ships **without a trusted signature**. The SignPath Foundation
+Mosh desktop ships **without a trusted signature**. The SignPath Foundation
 application was declined, and no other certificate — Apple Developer ID
 included — exists today, so neither platform is signed by an identity
 the OS trusts. The SHA-256 checksums published beside every release
 artifact are the integrity check. The macOS app does carry a
 self-signed signature (below).
+
+Android release APKs use a separate persistent release key; Android accepts
+self-signed app certificates and requires the same signing identity for updates.
+Release builds refuse missing credentials instead of using a debug signature.
+The key is held in GitHub Secrets with an independent private backup; the public
+certificate fingerprint is pinned by `ANDROID_SIGNING_CERT_SHA256`.
+See [Android release builds](docs/Features/android-release.md).
 
 ## What a user sees
 

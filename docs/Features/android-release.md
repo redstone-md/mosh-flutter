@@ -1,0 +1,66 @@
+# Android release builds
+
+Mosh's Android APK targets **arm64-v8a, Android 8.0 (API 26) or newer**.
+The package id remains `app.mosh.mosh`. Physical-device acceptance is separate
+from successful compilation and package verification.
+
+## Build and distribution
+
+`build-android.yml` is the shared signed release build for main CI, manual CI
+runs and future tagged releases. PRs keep the existing unsigned-development
+debug build and never invoke the signing workflow. Both modes reuse
+`android-build-setup` for the pinned Flutter, JDK, Rust, Moss and Opus preparation.
+No new runtime dependencies or protocol changes are needed.
+
+The workflow requires repository secrets `ANDROID_KEYSTORE_BASE64` and
+`ANDROID_KEYSTORE_PASSWORD`, with alias `mosh` and the same alphanumeric store/key
+password. It restores the key and ignored `android/key.properties` privately on
+the runner, then removes both in an `always()` cleanup step. Release signing
+never falls back to Android's debug key. Debug builds do not require these secrets.
+Keep an independent private backup: GitHub does not return stored secret values.
+
+Repository variable `ANDROID_SIGNING_CERT_SHA256` independently pins the
+signing certificate. Production `MOSH_PLUS_SERVER_URL` and `MOSH_PLUS_ISSUER_KEY`
+variables are mandatory; the existing compiled AOT probe verifies the same
+configuration factory used by the app. No billing private keys enter the build.
+
+The release uses Flutter AOT, default R8 shrinking, the committed Rust release
+profile and `--target-platform android-arm64`. Dart symbols and R8 mappings are
+uploaded separately as `mosh-android-symbols`. APKs contain no debug entry point.
+The Android version code is `major * 1000000 + minor * 1000 + patch` (minor/patch
+at most 999); preview rebuilds keep that version code and the same signing key.
+An update can replace an equal-version APK. Published stable versions increase it.
+
+`android-package-verify.sh` checks the final APK with Android SDK tools:
+
+- valid signature matching the independent certificate pin;
+- production package id, API 26 minimum and no debuggable manifest flag;
+- exactly one ABI, including real Flutter, app, Rust and Moss libraries;
+- every native LOAD segment and the APK ZIP support 16 KiB page alignment.
+
+The `mosh-android-release` artifact contains the APK, SHA-256 sidecar and
+`plus-build.json` with source commit and public billing configuration. Tagged
+releases publish those files beside the Windows and macOS installers.
+
+## Installation and acceptance
+
+Download the APK to the phone, permit installation from the downloading app
+when Android requests it, then install. Existing debug-signed Mosh installations
+cannot update to this release signature. **Do not uninstall a used installation
+without protecting access to its account/history first:** uninstalling erases its
+private data. Use another phone/profile or arrange device linking before migration.
+Future release APKs use the same signing key and update in place.
+
+First verify cold launch, unlock, Settings → Profile → Mosh+, then link the phone
+through Settings → Devices. Keep both devices online through initial sync.
+Verify a real mainnet payment, badge synchronization and a restart separately;
+the build result alone establishes none of those outcomes. Network fees require
+SOL in the paying wallet. Wallet recovery restores purchases, not chat history.
+
+Payment QR instructions currently assume a second camera device; there is no
+same-phone wallet launch button in checkout yet. For acceptance, display the
+payment QR on the desktop and pay with the phone wallet. Actual wallet
+compatibility remains part of acceptance.
+
+See [linked Android text DM](android-linked-dm.md) for foreground messaging limits
+and [mainnet acceptance](plus-mainnet-ru.md) for the payment checklist.

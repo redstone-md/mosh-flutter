@@ -1,0 +1,120 @@
+name: Build Android release
+
+on:
+  workflow_call:
+    outputs:
+      artifact:
+        description: Signed arm64 APK, checksum and public build configuration.
+        value: ${{ jobs.apk.outputs.artifact }}
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    name: Android APK (arm64, release signed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      artifact: mosh-android-release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Require production configuration and restore signing key
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_SIGNING_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
+          MOSH_PLUS_SERVER_URL: ${{ vars.MOSH_PLUS_SERVER_URL }}
+          MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
+        run: |
+          set -euo pipefail
+          : "${ANDROID_KEYSTORE_BASE64:?Missing Android release signing key}"
+          : "${ANDROID_KEYSTORE_PASSWORD:?Missing Android release signing password}"
+          : "${ANDROID_SIGNING_CERT_SHA256:?Missing independent Android certificate pin}"
+          : "${MOSH_PLUS_SERVER_URL:?Missing production billing origin}"
+          : "${MOSH_PLUS_ISSUER_KEY:?Missing production issuer pin}"
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/mosh-release.jks"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          password = os.environ['ANDROID_KEYSTORE_PASSWORD']
+          assert password.isalnum(), 'Use an alphanumeric Android keystore password'
+          Path('android/key.properties').write_text(
+              f"storeFile={os.environ['RUNNER_TEMP']}/mosh-release.jks\n"
+              f"storePassword={password}\nkeyPassword={password}\nkeyAlias=mosh\n")
+          PY
+
+      - uses: ./.github/actions/android-build-setup
+        with:
+          build-mode: release
+
+      - name: Verify AOT billing configuration
+        env:
+          MOSH_PLUS_NETWORK: solana-mainnet
+          MOSH_PLUS_SERVER_URL: ${{ vars.MOSH_PLUS_SERVER_URL }}
+          MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
+        run: node scripts/plus-build-config.mjs build/android-dist/plus-build.json
+
+      - name: Build signed release APK
+        shell: bash
+        env:
+          MOSH_PLUS_SERVER_URL: ${{ vars.MOSH_PLUS_SERVER_URL }}
+          MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
+          SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+        run: |
+          set -euo pipefail
+          version_code=$(node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const version = readFileSync("pubspec.yaml", "utf8").match(/^version: (\d+)\.(\d+)\.(\d+)/m);
+            if (!version) throw new Error("Missing semantic version");
+            const [major, minor, patch] = version.slice(1).map(Number);
+            const code = major * 1000000 + minor * 1000 + patch;
+            if (minor > 999 || patch > 999 || code < 1 || code > 2100000000) throw new Error("Invalid Android versionCode");
+            console.log(code);')
+          flutter build apk --release --target-platform android-arm64 \
+            --build-number="$version_code" --split-debug-info=build/android-symbols \
+            "--dart-define=SENTRY_DSN=$SENTRY_DSN" \
+            --dart-define=MOSH_PLUS_NETWORK=solana-mainnet \
+            "--dart-define=MOSH_PLUS_SERVER_URL=$MOSH_PLUS_SERVER_URL" \
+            "--dart-define=MOSH_PLUS_ISSUER_KEY=$MOSH_PLUS_ISSUER_KEY"
+
+      - name: Verify signature, manifest, native libraries and alignment
+        shell: bash
+        env:
+          ANDROID_SIGNING_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
+        run: bash scripts/android-package-verify.sh build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Package APK and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '[:space:]')
+          apk="mosh-$version-arm64-v8a.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "build/android-dist/$apk"
+          cd build/android-dist
+          sha256sum "$apk" > "$apk.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mosh-android-release
+          path: build/android-dist/
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mosh-android-symbols
+          path: |
+            build/android-symbols/
+            build/app/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+
+      - name: Remove runner signing material
+        if: always()
+        shell: bash
+        run: rm -f android/key.properties "$RUNNER_TEMP/mosh-release.jks"
