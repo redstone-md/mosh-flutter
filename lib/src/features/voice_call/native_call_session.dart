@@ -11,6 +11,7 @@ class NativeCallSession {
       required this.callId,
       required this.bridge,
       required this.requestMicrophone,
+      this.requestCamera = _allowCamera,
       required this.onState,
       required this.onFrame,
       this.pollInterval = const Duration(milliseconds: 16)});
@@ -19,6 +20,8 @@ class NativeCallSession {
   String callId;
   final BridgeFacade bridge;
   final Future<bool> Function() requestMicrophone;
+  final Future<bool> Function() requestCamera;
+  static Future<bool> _allowCamera() async => true;
   final void Function() onState;
   final void Function(CallVideoFrame) onFrame;
   final Duration pollInterval;
@@ -45,9 +48,13 @@ class NativeCallSession {
   bool get cameraRequested => _camera;
   Future<void> start({bool camera = false}) => _starting ??= _start(camera);
   Future<void> _start(bool camera) async {
-    _camera = camera;
+    _camera = camera && await requestCamera();
+    if (_closed) return;
     await bridge.nativeCallPrepare(
-        sessionId: sessionId, callId: callId, microphone: true, camera: camera);
+        sessionId: sessionId,
+        callId: callId,
+        microphone: true,
+        camera: _camera);
     if (_closed) return;
     await _readState();
     if (_closed) return;
@@ -81,10 +88,10 @@ class NativeCallSession {
         _microphone = !_microphone && (!_active || _microphoneAllowed);
       });
   Future<void> toggleCamera() => _change(() async {
-        _camera = !_camera;
+        _camera = !_camera && await requestCamera();
       });
   Future<void> enableCamera() => _change(() async {
-        _camera = true;
+        _camera = await requestCamera();
       });
   Future<void> selectInput(String? id) => _change(() async {
         _input = id;

@@ -8,7 +8,10 @@ import 'package:flutter/widgets.dart';
 /// The voice-call module behind the conversation's call slots.
 final ConversationCallBinding voiceCallBinding = ConversationCallBinding(
   start: startVoiceCall,
-  startVideo: Platform.isWindows || Platform.isMacOS || Platform.isLinux
+  startVideo: Platform.isWindows ||
+          Platform.isMacOS ||
+          Platform.isLinux ||
+          Platform.isAndroid
       ? startVideoCall
       : null,
   // The app-level host renders call controls across every route.

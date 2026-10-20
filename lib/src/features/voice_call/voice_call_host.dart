@@ -2,6 +2,8 @@ import 'call_media_view.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'call_video_frame.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'call_video_renderer.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,20 +32,31 @@ class VoiceCallHost extends ConsumerStatefulWidget {
 class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
   late final CallWindowCoordinator _window;
   StreamSubscription<CallVideoFrame>? _frames;
+  final _video = CallVideoRenderer();
+  bool _expanded = true;
+  String? _shownCall;
+  late final bool _mobile = defaultTargetPlatform == TargetPlatform.android &&
+      ref.read(nativeCallOwnerProvider) != null;
 
   @override
   void initState() {
     super.initState();
     _window = CallWindowCoordinator(ref.read(callWindowFactoryProvider), _act,
         (error) => debugPrint('Call window unavailable: ${error.runtimeType}'));
-    _frames =
-        ref.read(nativeCallOwnerProvider)?.frames.listen(_window.presentFrame);
+    _frames = ref.read(nativeCallOwnerProvider)?.frames.listen((frame) {
+      if (_mobile) {
+        unawaited(_video.receive(frame));
+      } else {
+        _window.presentFrame(frame);
+      }
+    });
   }
 
   @override
   void dispose() {
     unawaited(_frames?.cancel());
     unawaited(_window.dispose());
+    _video.dispose();
     super.dispose();
   }
 
@@ -106,11 +119,25 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
             error: state.error?.cause.describe(l),
           );
     _window.update(call);
-    final content = Column(children: [
-      Expanded(child: widget.child),
-      if (selected != null)
-        SafeArea(top: false, child: _strip(selected.sessionId, l)),
-    ]);
+    _video.update(call);
+    if (_shownCall != call?.callId) {
+      _shownCall = call?.callId;
+      _expanded = true;
+    }
+    final content = _mobile
+        ? Stack(fit: StackFit.expand, children: [
+            widget.child,
+            if (selected != null)
+              Align(
+                  alignment:
+                      _expanded ? Alignment.center : Alignment.bottomCenter,
+                  child: SafeArea(child: _mobileCall(selected.sessionId, l))),
+          ])
+        : Column(children: [
+            Expanded(child: widget.child),
+            if (selected != null)
+              SafeArea(top: false, child: _strip(selected.sessionId, l)),
+          ]);
     return _CallHostOverlay(
       child: Padding(
         padding: EdgeInsets.only(
@@ -122,6 +149,31 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
       ),
     );
   }
+
+  Widget _mobileCall(String sessionId, AppLocalizations l) =>
+      BackButtonListener(
+          onBackButtonPressed: () async {
+            // Dialog routes get Back first; otherwise minimize presentation only.
+            if (!_expanded ||
+                Navigator.of(context, rootNavigator: true).canPop()) {
+              return false;
+            }
+            setState(() => _expanded = false);
+            return true;
+          },
+          child: VoiceCallLayer(
+            key: ValueKey(sessionId),
+            sessionId: sessionId,
+            l: l,
+            compact: !_expanded,
+            video: _video,
+            onShowWindow:
+                _expanded ? null : () => setState(() => _expanded = true),
+            onOpenConversation: () {
+              setState(() => _expanded = false);
+              widget.onOpenConversation?.call(sessionId);
+            },
+          ));
 
   Widget _strip(String sessionId, AppLocalizations l) => ValueListenableBuilder(
       valueListenable: _window.fallback,

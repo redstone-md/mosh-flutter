@@ -3,6 +3,12 @@
 Date: 2026-10-08
 Status: Accepted
 
+2026-10-20: Android ARM64 adopts this same engine/protocol. A pinned WebRTC source
+patch enables the native injectable factory on Android and selects the platform
+audio module; Camera2/JNI adapts capture behind the existing bounded frame seam.
+Desktop uses Cubeb and its helper process as before. This does not add a second
+network stack or claim background/killed-app incoming-call support.
+
 For [issue 46](https://github.com/redstone-md/mosh-flutter/issues/46), use one
 established native engine for audio and video, with all network media carried
 by Moss. The main process retains the media owner and its capture, codec,

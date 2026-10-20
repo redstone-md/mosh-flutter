@@ -9,6 +9,13 @@ either view opens the original DM. Messages, attachments, search and scrolling r
 Navigation to another DM, group, channel or Settings keeps the audio running.
 Opening the originating DM remains available while call controls are pending.
 
+Android ARM64 uses the same native audio/video protocol as desktop, with an
+in-app call view. Back minimizes it without ending the call; the compact strip
+reopens it. Device dialogs receive Back first. Camera permission refusal preserves
+voice and reception. Android selects a communication output and paired microphone
+through AudioManager. See [native media](native-call-media.md) for packaging and
+the foreground-only acceptance boundary.
+
 - Minimize preserves the call. The OS taskbar or Dock brings its window forward.
 - Close or Escape in the call window declines an incoming call, cancels an
   outgoing call or hangs up

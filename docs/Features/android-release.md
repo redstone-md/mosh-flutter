@@ -73,6 +73,18 @@ exercises the production JNI entry point with a real host JVM, including a
 missing context, repeat initialization and garbage collection. This checks
 ownership/bootstrap, not Android hardware enumeration or playback.
 
+Gradle also builds the pinned RingRTC/WebRTC engine for native Android ↔ desktop
+audio/video, stages both shared libraries and uses the Java API from the same
+build. The APK verifier requires those libraries and checks their LOAD segments.
+CI caches the small checksummed WebRTC products; a cache miss builds its pinned
+source/dependency graph locally without remote-execution credentials.
+
+For calls, test both directions against Windows/macOS with both apps foreground:
+voice, video, camera off/on, front/back selection, denied camera permission,
+output routing, and hang-up/retry. Android Back first closes a device dialog,
+then minimizes the call view; another Back returns a DM to its list. Background
+or killed-app ringing and Bluetooth routing are separate physical checks.
+
 Download the APK to the phone, permit installation from the downloading app
 when Android requests it, then install. Existing debug-signed Mosh installations
 cannot update to this release signature. **Do not uninstall a used installation

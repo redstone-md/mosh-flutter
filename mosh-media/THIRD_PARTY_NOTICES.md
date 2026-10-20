@@ -1,6 +1,11 @@
 # Native call media notices
 
 The desktop application bundles mosh-native-media and mosh-camera-capture.
+Android bundles the same engine with its pinned WebRTC native library and Java
+API; Camera2/Camera1 adapters replace the desktop capture helper. Its APK assets
+include these notices, GPL/AGPL texts and WebRTC's generated dependency licenses
+under `native-media/`. Android WebRTC pins and complete source patches are in
+`third_party/webrtc-android-patches`.
 Their source, build scripts, source patches and exact Cargo lockfiles are in
 https://github.com/redstone-md/mosh-flutter/tree/main/mosh-media (use the tag or
 commit matching the binary). Existing Mosh code retains the root GPL-3.0 license.

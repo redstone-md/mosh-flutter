@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/features/voice_call/microphone_permission.dart';
+import 'package:mosh/src/features/voice_call/camera_permission.dart';
 import 'package:mosh/src/features/onboarding/first_run_provider.dart';
 
 import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
@@ -38,10 +39,14 @@ final List<Override> productionOverrides = <Override>[
   ringtonePlayerProvider.overrideWithValue(const CpalRingtonePlayer()),
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux)
     callWindowFactoryProvider.overrideWithValue(ProcessCallWindow.open),
-  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux)
+  if (Platform.isWindows ||
+      Platform.isMacOS ||
+      Platform.isLinux ||
+      Platform.isAndroid)
     nativeCallOwnerProvider.overrideWith((ref) {
       final owner = NativeCallOwner(
-          ref.read(bridgeFacadeProvider), requestCallMicrophone);
+          ref.read(bridgeFacadeProvider), requestCallMicrophone,
+          requestCamera: requestCallCamera);
       ref.onDispose(owner.dispose);
       return owner;
     }),

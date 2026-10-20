@@ -235,12 +235,12 @@ void main() {
     expect(find.byType(InvitePasteScreen), findsOneWidget);
   });
 
-  testWidgets('a failed DM accept does not initialize or refresh sessions',
-      (tester) async {
+  testWidgets('a failed DM accept does not refresh sessions', (tester) async {
     const message = 'DM runtime offline';
     final bridge = ScriptableBridge()
       ..failAlways(BridgeMethod.acceptInvite, error: message);
     await pumpPasteStep(tester, bridge);
+    final initialReads = bridge.countOf(BridgeMethod.listSessions);
 
     await tester.enterText(find.byType(TextField),
         'mosh://invite?mesh=7x9v&session=drift-41#fp=91A4-D2C8-77B0');
@@ -250,7 +250,7 @@ void main() {
 
     expect(find.text(message), findsOneWidget);
     expect(find.byType(InvitePasteScreen), findsOneWidget);
-    expect(bridge.countOf(BridgeMethod.listSessions), 0);
+    expect(bridge.countOf(BridgeMethod.listSessions), initialReads);
   });
 
   testWidgets('Back returns to the start menu', (tester) async {

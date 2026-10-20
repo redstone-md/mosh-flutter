@@ -50,7 +50,7 @@ files are checked in and generated localization files are ignored. Moss is a
 pinned submodule; do not modify its source. The OpenMLS upstream mirror is
 reconstructed from [a pinned archive and complete local patch](../third_party/openmls-patches/README.md).
 
-Desktop calls use the [native audio/video owner](Features/native-call-media.md).
+Desktop and Android calls use the [native audio/video owner](Features/native-call-media.md).
 `mosh-core/src/native_call` owns capture, one engine, selected-peer transport and
 latest frames; isolated `mosh-media/engine` and `mosh-media/capture` graphs keep
 Signal/OpenMLS dependencies separate and blocked camera drivers cancellable.
@@ -339,7 +339,9 @@ Audio picks persist independently and use system defaults for disconnected
 hardware. See [settings behavior](Features/settings-redesign.md).
 
 The conversation declares `ConversationCallBinding`; production binds its start
-command. `VoiceCallHost` lives above the router, below the first-run gate. It
+command. `VoiceCallHost` lives in the router's persistent outer ShellRoute,
+below the first-run gate and root Navigator. Native device dialogs therefore
+use the real modal/back stack, while all conversation/settings routes share one host. It
 selects the originating call from the app-wide DM list, so navigation does not
 replace or dispose the audio owner. Capture, playback and ringtone retain their
 independent factory providers. Audio replacement waits for the previous startup

@@ -30,8 +30,10 @@ if grep -q '^application-debuggable' "$WORK/manifest.txt"; then
 fi
 
 unzip -q "$APK" 'lib/*' -d "$WORK"
+unzip -p "$APK" assets/native-media/WEBRTC-LICENSE.md > "$WORK/webrtc-license.txt"
+test -s "$WORK/webrtc-license.txt"
 test "$(find "$WORK/lib" -mindepth 1 -maxdepth 1 -type d | wc -l)" = 1
-for library in libapp.so libflutter.so libmosh_core.so libmoss.so; do
+for library in libapp.so libflutter.so libmosh_core.so libmoss.so libmosh_native_media.so libringrtc_rffi.so; do
   test -s "$WORK/lib/arm64-v8a/$library"
 done
 

@@ -24,7 +24,8 @@ fn remote_control(
             offer["native"] = cfg!(any(
                 target_os = "windows",
                 target_os = "macos",
-                target_os = "linux"
+                target_os = "linux",
+                target_os = "android"
             ))
             .into();
         }
