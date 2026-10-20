@@ -11,8 +11,9 @@ mint, recipient, full payment/privacy information and terms/support links.
 Paused sales disable the purchase button with **Purchases paused**; recovery
 remains available, including when the catalog cannot load.
 
-Mosh 0.24.0 is released. The devnet pilot is complete; the operator enabled
-production sales on 2026-10-20. Real mainnet purchase acceptance remains pending. See the
+Mosh 0.24.1 is released. The devnet pilot is complete; the operator enabled
+production sales and accepted the production Mosh+ slice on 2026-10-20. See the
+[acceptance record](plus-mainnet-acceptance-2026-10-20.md),
 [Russian walkthrough](plus-mainnet-ru.md), [approved plan](../Proposals/issue-70-plus-mainnet.plan.md)
 and [ADR 0047](../ADR/0047-plus-production-periods-and-wallet-recovery.md).
 
@@ -110,7 +111,8 @@ and their source CI passed; the operator installed the Windows build and confirm
 that the card is visible. Mosh 0.24.0 includes the compact checkout and its
 independent expansion/scroll storage fix; use the published release installers.
 Ordinary PR proof artifacts without explicit PLUS inputs remain unconfigured.
-Installed macOS and real payment/recovery acceptance are still pending.
+The operator's production acceptance is recorded separately from these earlier
+installer checks; the current release is 0.24.1 on all three platforms.
 
 Without a pin/URL, CI builds keep purchases disabled. With configured clients,
 billing can still pause new sales independently. Pausing preserves existing order
@@ -133,9 +135,11 @@ authorized activation and set `SALES_ENABLED=true` through the dashboard. The
 enabled catalog retained its complete independent issuer pin, recipient, both
 assets/prices and public URLs. Creating one unpaid quote per asset, retrying
 idempotently and reading with authorization succeeded; no funds were sent.
-Real payment issuance, renewal, device sync/recovery and deployed Free signer
-CPU measurement remain acceptance gates. [Android release packaging](android-release.md)
-adds a signed ARM64 APK pipeline; physical-phone acceptance remains pending.
+The operator subsequently accepted the production slice; the
+[acceptance record](plus-mainnet-acceptance-2026-10-20.md) distinguishes that
+decision from automated evidence. Deployed Free signer CPU measurement remains
+an operational check. [Android release packaging](android-release.md)
+provides the signed ARM64 APK published with 0.24.1.
 Preflight checks genesis,
 both mints/decimals, recipient token accounts and issuer continuity before sales.
 The service never receives treasury signing keys. It rejects the published test
@@ -158,7 +162,7 @@ register in the background. Local badge refresh continues independently without 
 The renewal tail is fetched when unknown or advanced, rather than on every unpaid
 poll. Workers/DO free quotas apply to the account, not each domain or Worker.
 
-## Evidence and remaining acceptance
+## Evidence and acceptance
 
 Automated checks cover HTTP payment/renewal/recovery with genuine SDK-signed
 transactions over a fixture RPC, native restart/interval/account isolation,
@@ -167,10 +171,12 @@ sales pause and durable checkout retry. Real Moss processes cover linked and
 subsequently linked device metadata; production DM/group/channel proof delivery
 uses the same authenticated carriers. Fixtures do not establish mainnet payments.
 
-Before opening sales, record installer hashes and public build manifests, then
-approve and perform actual mainnet payments in both assets to the configured recipient,
-early renewal, linked-device transfer and recovery on a new account. Confirm the
-mobile wallet browser's sign-in/consent on a real phone. A standard Solana Pay QR
+The original acceptance checklist covers installer hashes and public build
+manifests, actual mainnet payments in both assets to the configured recipient,
+early renewal, linked-device transfer, recovery on a new account and mobile-wallet
+browser sign-in/consent. The owner accepted the production slice on 2026-10-20;
+see the [record](plus-mainnet-acceptance-2026-10-20.md) for its evidence boundaries.
+A standard Solana Pay QR
 does not select a cluster; use Solana mainnet and the phone's ordinary Camera if a
 wallet's internal scanner treats the URI as an address. Keep the completed
 [devnet pilot guide](plus-devnet-pilot-ru.md) as its historical acceptance record.

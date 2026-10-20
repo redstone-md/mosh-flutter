@@ -1,6 +1,7 @@
 # 0047: Production Mosh+ periods and wallet recovery
 
-Date: 2026-10-19. Status: accepted; production activation awaits acceptance.
+Date: 2026-10-19. Status: accepted; production enabled and owner acceptance recorded
+on 2026-10-20. See the [acceptance record](../Features/plus-mainnet-acceptance-2026-10-20.md).
 Extends [0046](0046-plus-devnet-blind-entitlements.md).
 
 Mosh+ supports development and provides an account-bound, locally verified badge.
@@ -61,9 +62,9 @@ Opening existing production orders under another issuer is refused by preflight.
 
 Sales pause blocks new orders while preserving paid fulfillment and recovery.
 Normal installers carry explicit network and independently configured public pin;
-CI proof builds keep billing disabled. Actual treasury setup, mainnet payments and
-mobile-wallet acceptance remain deployment gates in the
-[feature guide](../Features/plus-mainnet.md).
+CI proof builds keep billing disabled. Deployment and acceptance evidence is
+recorded in the [feature guide](../Features/plus-mainnet.md) and the linked
+production acceptance record.
 
 ## Implementation limits
 

@@ -2,9 +2,10 @@
 
 Дата: 19.10.2026. База: main, c31195f2e753a1d8792a326e8f7c65341e1ba2be,
 релиз 0.23.0. Продуктовые решения согласованы в интервью.
-Технические решения реализуются в `feat/plus-mainnet`; контракты, native owner,
-Flutter UI и закрытый billing обновлены. Этот документ не является отчётом
-о mainnet-приёмке. Текущее поведение: [feature guide](../Features/plus-mainnet.md),
+Реализация включена в main и выпущена в Mosh 0.24.1. 20.10.2026 владелец подтвердил
+приёмку production-слайса и разрешил закрыть #70; итог и границы подтверждений
+сохранены в [записи приёмки](../Features/plus-mainnet-acceptance-2026-10-20.md).
+Ниже сохранён исходный согласованный план. Текущее поведение: [feature guide](../Features/plus-mainnet.md),
 [инструкция](../Features/plus-mainnet-ru.md),
 [ADR 0047](../ADR/0047-plus-production-periods-and-wallet-recovery.md).
 
