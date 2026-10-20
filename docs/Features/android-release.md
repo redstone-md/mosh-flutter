@@ -49,7 +49,17 @@ libraries without matching Mosh libraries; final package checks reject that case
 - valid signature matching the independent certificate pin;
 - production package id, API 26 minimum and no debuggable manifest flag;
 - exactly one ABI, including real Flutter, app, Rust and Moss libraries;
-- every native LOAD segment and the APK ZIP support 16 KiB page alignment.
+- every native LOAD segment and the APK ZIP support 16 KiB page alignment;
+- JNI Zero's native-only Java entry points and exact method signatures survive
+  shrinking in the final DEX, including `JniZero.init` and `CommonApis` callbacks.
+
+The matching WebRTC JAR includes JNI Zero without Chromium's consumer keep
+rules. The application therefore preserves
+`CalledByNative`, `CalledByNativeUnchecked` and `AccessedByNative` members using
+the pinned upstream rule pattern. Without these rules R8 removed `JniZero`,
+causing `ClassNotFoundException` and a fatal abort in RingRTC's `JNI_OnLoad`.
+`android-jni-verify.py` inspects actual DEX definitions and static signatures;
+finding a class in the input JAR or in arbitrary APK strings is insufficient.
 
 The prior main APK exposed 4 KiB LOAD alignment in `libmoss.so` and the
 irondash native hook. The Moss wrapper now supplies explicit 16 KiB external

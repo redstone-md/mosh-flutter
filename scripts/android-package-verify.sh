@@ -49,4 +49,5 @@ for library in "$WORK"/lib/arm64-v8a/*.so; do
   done < <(awk '/^[[:space:]]*LOAD / { print $NF }' "$WORK/headers.txt")
 done
 "$TOOLS/zipalign" -c -P 16 4 "$APK"
+python3 "$(dirname "$0")/android-jni-verify.py" "$APK" --dexdump "$TOOLS/dexdump"
 echo 'Android release signature, manifest, arm64 native libraries and 16 KiB alignment verified.'
