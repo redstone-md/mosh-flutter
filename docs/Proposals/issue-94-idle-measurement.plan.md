@@ -16,7 +16,7 @@ Android network usage is unconfirmed. Research: [source map](issue-94-background
    API stand rather than treating it as a Windows desktop or Android battery test.
 4. If the reported scale is reproduced, reduce to a measured source and add a
    caller-visible regression before the smallest fix. Otherwise prepare a bounded
-   diagnostic build for the reporting Windows machine; do not change discovery or
+   standalone collector for the installed Windows app; do not change discovery or
    relay policy on a guess. Reuse the existing diagnostics/logging boundaries.
 5. Verify changed seams, run relevant checks, commit and publish a reviewable PR.
    Application protocol, storage, dependencies and Moss sources remain unchanged.

@@ -64,6 +64,7 @@ try {
         }
         Start-Sleep -Seconds 1
     }
+    $endControlStarted = [datetime]::UtcNow
     Send-MoshTraceControlPackets
 } finally {
     if ($sessionStarted) {
@@ -74,7 +75,8 @@ try {
 }
 $stoppedAt = [datetime]::UtcNow
 $totals = New-MoshNetworkTotals
-$controlBytes = [uint64]0
+$controlStartBytes = [uint64]0
+$controlEndBytes = [uint64]0
 $collectorPid = $PID
 $records = 0
 Get-WinEvent -Path $trace -Oldest -ErrorAction Stop | ForEach-Object {
@@ -82,11 +84,14 @@ Get-WinEvent -Path $trace -Oldest -ErrorAction Stop | ForEach-Object {
     if ($null -eq $event) { return }
     $records++
     if ($event.process_id -eq $collectorPid -and $event.protocol -eq 'udp' -and $event.loopback) {
-        $controlBytes += $event.bytes
+        if ($event.timestamp -lt $endControlStarted) { $controlStartBytes += $event.bytes }
+        else { $controlEndBytes += $event.bytes }
     }
     if ($event.process_id -eq $TargetProcessId) { Add-MoshNetworkEvent $totals $event $startedAt }
 }
-if ($controlBytes -lt 1280) { throw 'The ETW control traffic was not observed; no valid measurement was produced.' }
+if ($controlStartBytes -lt 1280 -or $controlEndBytes -lt 1280) {
+    throw 'The trace does not cover both control bursts; no complete measurement was produced.'
+}
 $elapsed = ($stoppedAt - $startedAt).TotalSeconds
 $report = @{
     format_version = 1; process_id = $TargetProcessId
@@ -94,7 +99,7 @@ $report = @{
     started_utc = $startedAt.ToString('o'); stopped_utc = $stoppedAt.ToString('o')
     elapsed_seconds = $elapsed; windows_version = [Environment]::OSVersion.Version.ToString()
     provider = $MoshNetworkProvider; control_validated = $true; loss = $loss
-    trace_at_size_cap = ((Get-Item $trace).Length -ge 127MB)
+    complete = ($loss.events_lost -eq 0 -and $loss.log_buffers_lost -eq 0 -and $loss.realtime_buffers_lost -eq 0)
     measurement = 'Kernel-Network size fields; send/recv and retransmit are separate; includes loopback separately'
     network = Export-MoshNetworkTotals $totals
 }
@@ -106,3 +111,4 @@ Compress-Archive -Path $files -DestinationPath $archive -Force
 Write-Host "Report ready: $archive"
 Write-Host 'The ZIP contains only this process byte totals, anonymized peers and resource samples.'
 Write-Host 'The raw ETL stays local and is not included in the ZIP.'
+if (-not $report.complete) { Write-Warning 'ETW lost events. Report totals are incomplete; loss counters are included.' }

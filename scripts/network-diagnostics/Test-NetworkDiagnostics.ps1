@@ -54,6 +54,7 @@ try {
     & "$PSScriptRoot/Measure-MoshNetwork.ps1" -TargetProcessId $target.Id -DurationSeconds 5 -OutputDirectory $testDirectory
     $result = Get-Content (Join-Path $testDirectory 'network-summary.json') -Raw | ConvertFrom-Json
     Assert-MoshDiagnostic $result.control_validated 'Live ETW control packets must be seen'
+    Assert-MoshDiagnostic $result.complete 'Both control bursts and a lossless trace are required'
     $network = $result.network.reported_bytes
     Assert-MoshDiagnostic ($network.udp_send_loopback -ge 1280) 'Target UDP sends must be measured'
     Assert-MoshDiagnostic ($network.udp_recv_loopback -ge 1280) 'Target UDP receives must be measured'
