@@ -4,6 +4,9 @@ set -euo pipefail
 APK="${1:?Usage: android-package-verify.sh <release.apk>}"
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?Set ANDROID_HOME or ANDROID_SDK_ROOT}}"
 PIN="${ANDROID_SIGNING_CERT_SHA256:?Set the independent signing certificate SHA-256}"
+PIN="${PIN//:/}"
+PIN="${PIN,,}"
+[[ "$PIN" =~ ^[0-9a-f]{64}$ ]] || { echo 'Invalid Android signing certificate SHA-256' >&2; exit 1; }
 TOOLS="$(find "$SDK/build-tools" -name apksigner -type f | sort -V | tail -n1)"
 TOOLS="$(dirname "$TOOLS")"
 NDK="$(find "$SDK/ndk" -name llvm-readelf -type f | sort -V | tail -n1)"
@@ -12,7 +15,7 @@ trap 'rm -rf "$WORK"' EXIT
 
 "$TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee "$WORK/signature.txt"
 actual="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$WORK/signature.txt")"
-test "$actual" = "${PIN,,}"
+test "$actual" = "$PIN"
 test "$(grep -c '^Signer #[0-9]* certificate SHA-256 digest:' "$WORK/signature.txt")" = 1
 
 "$TOOLS/aapt" dump badging "$APK" > "$WORK/manifest.txt"
