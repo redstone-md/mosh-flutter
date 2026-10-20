@@ -1,4 +1,5 @@
 import 'call_media_view.dart';
+import 'call_notification_details.dart';
 import 'dart:async';
 import 'dart:io' show Platform;
 
@@ -32,6 +33,8 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
     this.controlsInWindow = false,
     this.compact = true,
     this.video,
+    this.onMinimize,
+    this.floating = false,
   });
 
   final String sessionId;
@@ -43,6 +46,8 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
   final bool controlsInWindow;
   final bool compact;
   final ValueListenable<CallVideoImages>? video;
+  final VoidCallback? onMinimize;
+  final bool floating;
 
   @override
   ConsumerState<VoiceCallLayer> createState() => _VoiceCallLayerState();
@@ -106,6 +111,8 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         onDeviceSelected: _act,
         controlsInWindow: widget.controlsInWindow,
         onShowWindow: widget.onShowWindow,
+        onMinimize: widget.onMinimize,
+        floating: widget.floating,
         onAction: (action) => _act(call.command(action)));
   }
 
@@ -183,7 +190,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
             id: id,
             title: 'Mosh',
             body: body,
-            notificationDetails: moshNotificationDetails);
+            notificationDetails: callNotificationDetails);
       }).catchError((Object _) {});
       await _notificationWork;
     } catch (_) {

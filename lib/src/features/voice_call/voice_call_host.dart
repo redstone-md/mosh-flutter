@@ -16,6 +16,7 @@ import 'call_view_state.dart';
 import 'call_window_coordinator.dart';
 import 'incoming_call_modal.dart';
 import 'voice_call_layer.dart';
+import 'mobile_call_host.dart';
 
 /// App-level owner and presentation, mounted below the first-run gate and
 /// above every route, including Settings. Call windows contain no audio owner.
@@ -33,8 +34,6 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
   late final CallWindowCoordinator _window;
   StreamSubscription<CallVideoFrame>? _frames;
   final _video = CallVideoRenderer();
-  bool _expanded = true;
-  String? _shownCall;
   late final bool _mobile = defaultTargetPlatform == TargetPlatform.android &&
       ref.read(nativeCallOwnerProvider) != null;
 
@@ -120,19 +119,14 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
           );
     _window.update(call);
     _video.update(call);
-    if (_shownCall != call?.callId) {
-      _shownCall = call?.callId;
-      _expanded = true;
-    }
     final content = _mobile
-        ? Stack(fit: StackFit.expand, children: [
-            widget.child,
-            if (selected != null)
-              Align(
-                  alignment:
-                      _expanded ? Alignment.center : Alignment.bottomCenter,
-                  child: SafeArea(child: _mobileCall(selected.sessionId, l))),
-          ])
+        ? MobileCallHost(
+            call: call,
+            session: selected?.sessionId,
+            video: _video,
+            onAction: _act,
+            onOpenConversation: widget.onOpenConversation,
+            child: widget.child)
         : Column(children: [
             Expanded(child: widget.child),
             if (selected != null)
@@ -149,31 +143,6 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
       ),
     );
   }
-
-  Widget _mobileCall(String sessionId, AppLocalizations l) =>
-      BackButtonListener(
-          onBackButtonPressed: () async {
-            // Dialog routes get Back first; otherwise minimize presentation only.
-            if (!_expanded ||
-                Navigator.of(context, rootNavigator: true).canPop()) {
-              return false;
-            }
-            setState(() => _expanded = false);
-            return true;
-          },
-          child: VoiceCallLayer(
-            key: ValueKey(sessionId),
-            sessionId: sessionId,
-            l: l,
-            compact: !_expanded,
-            video: _video,
-            onShowWindow:
-                _expanded ? null : () => setState(() => _expanded = true),
-            onOpenConversation: () {
-              setState(() => _expanded = false);
-              widget.onOpenConversation?.call(sessionId);
-            },
-          ));
 
   Widget _strip(String sessionId, AppLocalizations l) => ValueListenableBuilder(
       valueListenable: _window.fallback,

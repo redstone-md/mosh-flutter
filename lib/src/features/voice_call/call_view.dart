@@ -11,6 +11,7 @@ import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'call_video_renderer.dart';
 import 'call_video_stage.dart';
 import 'call_devices_dialog.dart';
+import 'floating_call_view.dart';
 
 /// Shared call presentation. It never creates an audio or signaling owner.
 class CallView extends StatefulWidget {
@@ -20,6 +21,8 @@ class CallView extends StatefulWidget {
     required this.onAction,
     this.compact = false,
     this.onShowWindow,
+    this.onMinimize,
+    this.floating = false,
     this.l,
     this.tickInterval = const Duration(seconds: 1),
     this.now = _now,
@@ -32,6 +35,8 @@ class CallView extends StatefulWidget {
   final void Function(CallViewAction) onAction;
   final bool compact;
   final VoidCallback? onShowWindow;
+  final VoidCallback? onMinimize;
+  final bool floating;
   final AppLocalizations? l;
   final Duration tickInterval;
   final int Function() now;
@@ -66,8 +71,17 @@ class _CallViewState extends State<CallView> {
     final l = widget.l ?? AppLocalizations.of(context)!;
     final call = widget.call;
     final active = call.phase == CallViewPhase.active;
+    if (widget.floating && widget.video != null) {
+      return FloatingCallView(
+          call: call,
+          images: widget.video!,
+          onRestore: widget.onShowWindow,
+          onEnd: () => widget.onAction(CallViewAction.end));
+    }
     return CallModalCard(
       compact: widget.compact,
+      singleLine: widget.onMinimize != null,
+      onMinimize: widget.onMinimize,
       label: switch (call.phase) {
         CallViewPhase.incoming => l.callIncomingAriaLabel,
         CallViewPhase.confirming => l.callAnswerPending,
@@ -78,12 +92,13 @@ class _CallViewState extends State<CallView> {
       status: _status(l),
       notice: _notice(l),
       statusFontFeatures: active ? const [FontFeature.tabularFigures()] : null,
-      onEscape: () => widget.onAction(CallViewAction.end),
+      onEscape: widget.onMinimize ?? () => widget.onAction(CallViewAction.end),
       onOpenConversation: () =>
           widget.onAction(CallViewAction.openConversation),
       actions: callControls(call, l, widget.onAction,
           showWindow: widget.onShowWindow,
           controlsInWindow: widget.controlsInWindow,
+          camera: !(widget.compact && widget.onMinimize != null),
           devices: widget.compact || widget.onDeviceSelected == null
               ? null
               : () => unawaited(_devices())),

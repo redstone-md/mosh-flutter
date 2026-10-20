@@ -104,6 +104,8 @@ flutter:
   generate: true
   uses-material-design: true
   assets:
+    - assets/audio/ringtone_incoming.wav
+    - assets/audio/ringtone_outgoing.wav
     - assets/branding/
     - assets/onboarding/
     - assets/start/

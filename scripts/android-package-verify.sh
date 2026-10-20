@@ -50,4 +50,14 @@ for library in "$WORK"/lib/arm64-v8a/*.so; do
 done
 "$TOOLS/zipalign" -c -P 16 4 "$APK"
 python3 "$(dirname "$0")/android-jni-verify.py" "$APK" --dexdump "$TOOLS/dexdump"
+python3 - "$APK" <<'PY'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as apk:
+    for direction in ("incoming", "outgoing"):
+        name = f"assets/flutter_assets/assets/audio/ringtone_{direction}.wav"
+        info = apk.getinfo(name)
+        assert info.compress_type == zipfile.ZIP_STORED, f"MediaPlayer needs an uncompressed asset: {name}"
+        assert apk.read(name)[:4] == b"RIFF", f"Invalid ringtone asset: {name}"
+print("Android ringtone recordings are packaged for native MediaPlayer playback.")
+PY
 echo 'Android release signature, manifest, arm64 native libraries and 16 KiB alignment verified.'

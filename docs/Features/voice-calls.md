@@ -10,11 +10,21 @@ Navigation to another DM, group, channel or Settings keeps the audio running.
 Opening the originating DM remains available while call controls are pending.
 
 Android ARM64 uses the same native audio/video protocol as desktop, with an
-in-app call view. Back minimizes it without ending the call; the compact strip
-reopens it. Device dialogs receive Back first. Camera permission refusal preserves
+in-app call view. The minimize button or Back hides the expanded controls without
+ending the call. Voice uses a compact strip; video uses a draggable mini-window.
+Tap Restore to reopen controls. Both remain available across chat/settings routes.
+Device dialogs receive Back first. Camera permission refusal preserves
 voice and reception. Android selects a communication output and paired microphone
 through AudioManager. See [native media](native-call-media.md) for packaging and
-the foreground-only acceptance boundary.
+the native media acceptance boundary.
+
+An active video call uses Android system Picture-in-Picture when the user leaves
+Mosh (Home/app switch), if the device and its PiP settings allow it. Only the video
+stage is shown in system PiP; chats and controls stay mounted offstage. Returning
+restores the previous in-app presentation. Closing system PiP ends that exact call;
+a delayed close cannot terminate a replacement. This adds no draw-over-apps
+permission or second audio/video engine. It does not implement incoming calls
+when Mosh is stopped, or guarantee calls after dismissing/locking its Activity.
 
 - Minimize preserves the call. The OS taskbar or Dock brings its window forward.
 - Close or Escape in the call window declines an incoming call, cancels an
@@ -30,8 +40,14 @@ the foreground-only acceptance boundary.
   signaling also fails.
 - Incoming calls time out after 30 seconds. Answer, decline, cancel and end stop
   the ringtone immediately. Failed controls remain retryable.
-- Incoming and outgoing calls play separate recordings through the selected CPAL
-  output device. See [recording provenance](../../assets/audio/README.md).
+- Incoming and outgoing calls play separate recordings. Desktop uses the selected
+  CPAL output; Android uses native ringtone/call audio attributes and audio focus,
+  respecting silent/vibrate mode. See [recording provenance](../../assets/audio/README.md).
+
+New call-history entries retain the authenticated caller's direction in existing
+message metadata. Incoming missed calls and outgoing no-answer have separate labels; answered calls
+show incoming/outgoing and duration. The existing call-event contract is unchanged.
+Old incorrectly attributed rows lack reliable origin data and are not rewritten.
 
 ## Selected-device coordination (#46)
 
@@ -64,9 +80,9 @@ terminal controls remain valid after a newer unrelated offer; old occupancy cann
 overwrite newer occupancy. Terminal delivery retries every two seconds for 15 seconds
 using a bounded queue of 32 controls. A local end saves its book before returning.
 
-Desktop calls now use the [native audio/video owner](native-call-media.md), with
-selected-only ephemeral key agreement, independent capture and bounded decoded
-presentation. Android/iOS retain their separate voice path.
+Desktop and Android calls use the [native audio/video owner](native-call-media.md),
+with selected-only ephemeral key agreement, independent capture and bounded decoded
+presentation. iOS retains the separate voice path.
 
 ## Runtime ownership
 

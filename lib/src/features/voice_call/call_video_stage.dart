@@ -12,10 +12,14 @@ class CallVideoStage extends StatelessWidget {
       {super.key,
       required this.images,
       required this.peer,
+      this.inset = true,
+      this.alwaysVisible = false,
       this.remoteCamera = false});
   final ValueListenable<CallVideoImages> images;
   final String peer;
   final bool remoteCamera;
+  final bool inset;
+  final bool alwaysVisible;
 
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<CallVideoImages>(
@@ -26,7 +30,10 @@ class CallVideoStage extends StatelessWidget {
               : const Duration(milliseconds: 150),
           switchInCurve: Curves.easeInOut,
           switchOutCurve: Curves.easeInOut,
-          child: !remoteCamera && images.remote == null && images.local == null
+          child: !alwaysVisible &&
+                  !remoteCamera &&
+                  images.remote == null &&
+                  images.local == null
               ? const SizedBox.shrink(key: ValueKey(false))
               : _stage(context, images),
         ),
@@ -39,7 +46,7 @@ class CallVideoStage extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     return Padding(
       key: const ValueKey(true),
-      padding: const EdgeInsets.only(top: 12),
+      padding: EdgeInsets.only(top: inset ? 12 : 0),
       child: AspectRatio(
           aspectRatio: 16 / 9,
           child: RepaintBoundary(
@@ -51,7 +58,13 @@ class CallVideoStage extends StatelessWidget {
                     else if (remoteStage)
                       Center(child: Text(l.callWaitingForVideo))
                     else if (preview != null)
-                      _picture(preview, l.callLocalPreview, mirrored: true),
+                      _picture(preview, l.callLocalPreview, mirrored: true)
+                    else
+                      Center(
+                          child: Semantics(
+                              label: peer,
+                              child:
+                                  const Icon(Icons.person_outline, size: 32))),
                     if (remoteStage && preview != null)
                       _preview(preview, l.callLocalPreview),
                   ])))),

@@ -8,6 +8,7 @@ List<Widget> callControls(CallViewState call, AppLocalizations l,
         void Function(CallViewAction) act,
         {VoidCallback? showWindow,
         VoidCallback? devices,
+        bool camera = true,
         bool controlsInWindow = false}) =>
     [
       if (showWindow != null)
@@ -18,7 +19,7 @@ List<Widget> callControls(CallViewState call, AppLocalizations l,
       if (!controlsInWindow) ...[
         if (call.phase == CallViewPhase.active || call.media != null)
           _microphone(call, l, act),
-        if (call.media != null) _camera(call, l, act),
+        if (camera && call.media != null) _camera(call, l, act),
         if (devices != null && call.media != null)
           CallButton(
               icon: Icons.tune,

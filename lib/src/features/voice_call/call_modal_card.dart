@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
+import 'package:mosh/l10n/app_localizations.dart';
 
 /// Shared presentation and keyboard behavior for all call phases.
 class CallModalCard extends StatelessWidget {
@@ -16,6 +17,8 @@ class CallModalCard extends StatelessWidget {
     this.onOpenConversation,
     this.notice,
     this.stage,
+    this.onMinimize,
+    this.singleLine = false,
   });
 
   final String label;
@@ -28,6 +31,8 @@ class CallModalCard extends StatelessWidget {
   final VoidCallback? onOpenConversation;
   final String? notice;
   final Widget? stage;
+  final VoidCallback? onMinimize;
+  final bool singleLine;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +48,8 @@ class CallModalCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: LayoutBuilder(
-              builder: (context, constraints) => constraints.maxWidth < 480
+              builder: (context, constraints) => !singleLine &&
+                      constraints.maxWidth < 480
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -91,7 +97,7 @@ class CallModalCard extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _peer(context),
+                  _header(context),
                   if (stage != null) Flexible(child: stage!),
                   const SizedBox(height: 12),
                   Text(status,
@@ -122,6 +128,16 @@ class CallModalCard extends StatelessWidget {
 
   Widget _notice() => Text(notice!,
       style: const TextStyle(color: MoshColors.warn), softWrap: true);
+
+  Widget _header(BuildContext context) => onMinimize == null
+      ? _peer(context)
+      : Row(children: [
+          Expanded(child: _peer(context)),
+          IconButton(
+              tooltip: AppLocalizations.of(context)!.callMinimize,
+              onPressed: onMinimize,
+              icon: const Icon(Icons.keyboard_arrow_down))
+        ]);
 
   Widget _peer(BuildContext context) => InkWell(
         onTap: onOpenConversation,
