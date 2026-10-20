@@ -40,9 +40,9 @@ $loss = $null
 $samples = @()
 $traceDeadline = [timespan]::FromSeconds($DurationSeconds + 30).ToString('hh\:mm\:ss')
 try {
-    & logman create trace $session -p $MoshNetworkProvider 0xffffffffffffffff 5 `
-        -o $trace -f bincirc -max 128 -nb 16 64 -bs 64 -rf $traceDeadline -ets | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'Windows could not start the network trace.' }
+    $traceStart = & logman create trace $session -p $MoshNetworkProvider '0xffffffffffffffff' 5 `
+        -o $trace -f bincirc -max 128 -nb 16 64 -bs 64 -rf $traceDeadline -ets
+    if ($LASTEXITCODE -ne 0) { throw "Windows could not start the network trace: $traceStart" }
     $sessionStarted = $true
     $startedAt = [datetime]::UtcNow
     $watch = [System.Diagnostics.Stopwatch]::StartNew()
