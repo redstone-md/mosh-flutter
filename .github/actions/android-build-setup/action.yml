@@ -58,13 +58,15 @@ runs:
 
     - name: Verify Android JVM bootstrap
       shell: bash
-      run: node scripts/android-context-check.mjs
+      run: |
+        node scripts/android-context-check.mjs
+        node --test scripts/native-source-check.test.mjs
 
     # Cache only verified native products, not Chromium's 20+ GiB source tree.
     - uses: actions/cache@v4
       with:
         path: .dart_tool/android-media/webrtc
-        key: android-webrtc-${{ hashFiles('third_party/webrtc-android-patches/**', 'third_party/ringrtc-patches/source.json', 'scripts/android-webrtc-build.mjs') }}
+        key: android-webrtc-${{ hashFiles('third_party/webrtc-android-patches/**', 'third_party/ringrtc-patches/source.json', 'scripts/android-webrtc-build.mjs', 'scripts/support/native-source-check.mjs') }}
 
     - name: Make room for the pinned WebRTC source build
       shell: bash

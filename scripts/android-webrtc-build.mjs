@@ -6,6 +6,7 @@ import { copyFile, mkdir, readFile, symlink, writeFile, access } from 'node:fs/p
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { prepareRingRtc } from './ringrtc-prepare.mjs';
+import { assertNativeSourceClean } from './support/native-source-check.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const patches = path.join(root, 'third_party/webrtc-android-patches');
@@ -13,7 +14,7 @@ const output = path.join(root, '.dart_tool/android-media/webrtc');
 const checkout = path.join(root, '.dart_tool/android-webrtc');
 const depot = path.join(root, '.dart_tool/android-depot-tools');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
-const names = ['libringrtc_rffi.so', 'libwebrtc.jar', 'LICENSE.md'];
+const names = ['libringrtc_rffi.so', 'libwebrtc.jar', 'LICENSE.md', 'OPUS-COPYING'];
 
 export async function prepareAndroidWebRtc() {
   if (process.platform !== 'linux') throw new Error('Build Android media on Linux (the release CI uses Ubuntu)');
@@ -25,6 +26,7 @@ export async function prepareAndroidWebRtc() {
     'third_party/webrtc-android-patches/args.gn',
     'third_party/ringrtc-patches/source.json',
     'scripts/android-webrtc-build.mjs',
+    'scripts/support/native-source-check.mjs',
   ].map(file => readFile(path.join(root, file)))));
   const key = sha(inputs);
   if (await cached(key)) return output;
@@ -38,12 +40,14 @@ export async function prepareAndroidWebRtc() {
 
 async function prepareSources(spec, env) {
   await checkoutCommit(depot, 'https://chromium.googlesource.com/chromium/tools/depot_tools.git', spec.depotToolsCommit);
+  assertNativeSourceClean(depot);
   await mkdir(checkout, { recursive: true });
   await checkoutCommit(path.join(checkout, 'src'), 'https://github.com/signalapp/webrtc.git', spec.webrtcCommit);
   const config = await Promise.all(['common', 'android'].map(name =>
     readFile(path.join(root, `third_party/ringrtc/config/webrtc.gclient.${name}`))));
   await writeFile(path.join(checkout, '.gclient'), Buffer.concat(config));
   const src = path.join(checkout, 'src');
+  assertNativeSourceClean(src, { allowWorkingPatch: true });
   const patch = path.join(patches, 'mosh.patch');
   if (run('git', ['diff', '--quiet'], src, env, true) !== 0) {
     const actual = spawnSync('git', ['diff', '--binary'], { cwd: src, encoding: 'utf8' });
@@ -54,6 +58,7 @@ async function prepareSources(spec, env) {
   }
   run('gclient', ['sync', '--no-history', '--nohooks', '--jobs=8',
     '--revision', `src@${spec.webrtcCommit}`], checkout, env);
+  run('gclient', ['recurse', '--jobs=8', '--', 'git', 'diff', '--quiet', 'HEAD', '--'], checkout, env);
   run('git', ['apply', patch], src, env);
   return src;
 }
@@ -84,6 +89,7 @@ async function cacheProducts(src, build, env, key, spec) {
   await copyFile(path.join(build, 'lib.java/sdk/android', names[1]), path.join(output, names[1]));
   run('python3', ['tools_webrtc/libs/generate_licenses.py', '--target', '//ringrtc:ringrtc',
     output, build], src, env);
+  await copyFile(path.join(src, 'ringrtc/opus/src/COPYING'), path.join(output, 'OPUS-COPYING'));
   const hashes = Object.fromEntries(await Promise.all(names.map(async name =>
     [name, sha(await readFile(path.join(output, name)))])));
   await writeFile(path.join(output, 'build.json'), JSON.stringify({ key, hashes, ...spec }, null, 2) + '\n');

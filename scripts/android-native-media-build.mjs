@@ -36,7 +36,8 @@ await mkdir(licenses, { recursive: true });
 for (const [source, name] of [[path.join(root, 'LICENSE'), 'GPL-3.0.txt'],
   [path.join(root, 'third_party/ringrtc/LICENSE'), 'AGPL-3.0.txt'],
   [path.join(root, 'mosh-media/THIRD_PARTY_NOTICES.md'), 'THIRD_PARTY_NOTICES.md'],
-  [path.join(webrtc, 'LICENSE.md'), 'WEBRTC-LICENSE.md']]) {
+  [path.join(webrtc, 'LICENSE.md'), 'WEBRTC-LICENSE.md'],
+  [path.join(webrtc, 'OPUS-COPYING'), 'OPUS-COPYING']]) {
   await copyFile(source, path.join(licenses, name));
 }
 console.log(`android.native.media=${output}`);
