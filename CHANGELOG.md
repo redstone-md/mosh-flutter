@@ -6,15 +6,40 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.24.1] - 2026-10-20
+
 ### Added
 
 - A reusable signed Android ARM64 release APK build, with mainnet configuration
   checks, SHA-256 checksums, separate symbols and a persistent update certificate.
+- Compatible Android ↔ Windows/macOS voice and video calls, with camera selection
+  and native communication audio routing.
+- Android call minimization: a compact voice strip, draggable in-app video and
+  system Picture-in-Picture when switching apps.
 
 ### Fixed
 
 - Android native libraries use 16 KiB page alignment. Release preparation refuses
   missing signing credentials instead of falling back to debug or unsigned APKs.
+- Android release builds retain JNI Zero entry points, preventing RingRTC from
+  aborting during native library startup.
+- Android incoming and outgoing calls play their recordings through native audio
+  APIs and stop ringing with the matching call.
+- New call history shows the actual incoming/outgoing direction.
+- Floating video follows every pointer movement, including several movements
+  between rendered frames, instead of lagging behind the finger.
+- Android Back closes device dialogs, minimizes a call and returns from a chat in
+  the expected order. PiP hides root dialogs and restores them on return.
+- Malformed Rust crash events no longer prevent subsequent error reporting.
+
+### Upgrade notes
+
+- Android requires ARM64 and Android 8.0 or newer. Release-signed installations
+  update in place. Debug-signed installations require a separate profile/device
+  or an account migration before switching signatures; do not uninstall a used
+  installation without protecting access to its account and history.
+- Android incoming calls require Mosh to be running in the foreground. Closing
+  system PiP ends its call. Existing ambiguous call-history rows are preserved.
 
 ## [0.24.0] - 2026-10-20
 

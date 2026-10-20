@@ -78,6 +78,16 @@ shasum -a 256 -c Mosh_${VERSION}_universal.dmg.sha256
 Open the disk image and drag Mosh to Applications. The app is not notarized;
 if Gatekeeper blocks its first launch, try opening it once, then choose
 **System Settings > Privacy & Security > Open Anyway**.
+
+**Android (ARM64, Android 8.0 or newer):** download
+\`mosh-${VERSION}-arm64-v8a.apk\` and its \`.sha256\` file. Verify the SHA-256
+checksum, then open the APK and allow installation from the downloading app
+when Android asks. Release-signed Mosh updates in place with the same signing key.
+
+A debug-signed installation cannot update to the release signature. Use another
+profile/device or arrange account migration first; uninstalling erases local
+account data and history. See the
+[Android installation guide](https://github.com/${REPO}/blob/${TAG}/docs/Features/android-release.md).
 EOF
 
 # --- what is provably in it --------------------------------------------------
