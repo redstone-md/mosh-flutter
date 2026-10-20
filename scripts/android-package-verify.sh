@@ -14,9 +14,9 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 "$TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee "$WORK/signature.txt"
-actual="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$WORK/signature.txt")"
+actual="$(sed -n 's/^.*certificate SHA-256 digest: //p' "$WORK/signature.txt" | sort -u)"
 test "$actual" = "$PIN"
-test "$(grep -c '^Signer #[0-9]* certificate SHA-256 digest:' "$WORK/signature.txt")" = 1
+grep -qx 'Number of signers: 1' "$WORK/signature.txt"
 
 "$TOOLS/aapt" dump badging "$APK" > "$WORK/manifest.txt"
 grep "^package: name='app.mosh.mosh'" "$WORK/manifest.txt"
