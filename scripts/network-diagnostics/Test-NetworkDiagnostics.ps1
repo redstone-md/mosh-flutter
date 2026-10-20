@@ -66,3 +66,10 @@ try {
         if ($null -ne $child -and -not $child.HasExited) { $child.Kill(); $child.WaitForExit() }
     }
 }
+
+# Failure details survive a child console closing, and stay outside the report ZIP.
+$failure = Start-Process "$PSHOME/powershell.exe" -Wait -PassThru -ArgumentList @(
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"{0}/Measure-MoshNetwork.ps1"' -f $PSScriptRoot),
+    '-TargetProcessId', 2147483647, '-OutputDirectory', ('"{0}"' -f $testDirectory))
+Assert-MoshDiagnostic ($failure.ExitCode -ne 0) 'Missing process must fail'
+Assert-MoshDiagnostic ((Get-Item (Join-Path $testDirectory 'collector-error.txt')).Length -gt 0) 'Persist the child failure message'

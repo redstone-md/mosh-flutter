@@ -5,6 +5,14 @@ param(
     [switch]$Elevated
 )
 $ErrorActionPreference = 'Stop'
+trap {
+    $message = $_.Exception.Message
+    if ($OutputDirectory -and (Test-Path $OutputDirectory -PathType Container)) {
+        $message | Set-Content (Join-Path $OutputDirectory 'collector-error.txt') -Encoding UTF8
+    }
+    Write-Host "Diagnostics failed: $message"
+    exit 1
+}
 . "$PSScriptRoot/NetworkEvents.ps1"
 . "$PSScriptRoot/TraceControl.ps1"
 
@@ -21,6 +29,8 @@ if (-not $OutputDirectory) {
 }
 [void](New-Item -ItemType Directory -Force $OutputDirectory)
 $OutputDirectory = (Resolve-Path $OutputDirectory).Path
+$errorFile = Join-Path $OutputDirectory 'collector-error.txt'
+if (Test-Path $errorFile) { Remove-Item $errorFile }
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]::new($identity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -29,6 +39,15 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
         '-TargetProcessId', $TargetProcessId, '-DurationSeconds', $DurationSeconds,
         '-OutputDirectory', ('"{0}"' -f $OutputDirectory), '-Elevated')
     $collector = Start-Process "$PSHOME/powershell.exe" -Verb RunAs -ArgumentList $arguments -Wait -PassThru
+    if ($collector.ExitCode -eq 0) {
+        Write-Host "Report ready: $OutputDirectory\mosh-network-report.zip"
+        $summary = Get-Content (Join-Path $OutputDirectory 'network-summary.json') -Raw | ConvertFrom-Json
+        if (-not $summary.complete) { Write-Warning 'ETW lost events. Report totals are incomplete.' }
+    }
+    else {
+        if (Test-Path $errorFile) { Get-Content $errorFile | Write-Host }
+        else { Write-Host "The elevated collector failed with exit code $($collector.ExitCode)." }
+    }
     exit $collector.ExitCode
 }
 
