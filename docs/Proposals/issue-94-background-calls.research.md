@@ -5,6 +5,8 @@ Research date: 2026-10-20. Source baseline:
 [Issue 94](https://github.com/redstone-md/mosh-flutter/issues/94).
 This is research, not an approved implementation or a changed runtime contract.
 
+Follow-up: [desktop measurement evidence and Windows collector](issue-94-idle-measurement.results.md).
+
 The reported excessive idle network use is on **desktop**, possibly with chats
 open. The reported 100–150 figure has no captured measurement window or verified
 unit here. Android network consumption is **not confirmed**. Android background

@@ -3,6 +3,7 @@
 Scope: measure the real native public-API installations from v0.24.1 before
 changing transport or scheduling. Desktop excessive network usage is reported;
 Android network usage is unconfirmed. Research: [source map](issue-94-background-calls.research.md).
+Evidence and limits: [measurement results](issue-94-idle-measurement.results.md).
 
 1. Prepare pinned Moss and the existing independent-installation worker. Add only
    missing test-harness commands needed to reproduce the desktop read sequence.
