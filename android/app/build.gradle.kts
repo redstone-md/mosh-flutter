@@ -10,6 +10,11 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseKeystore = Properties().apply {
+    rootProject.file("key.properties").takeIf(File::isFile)
+        ?.inputStream()?.use(::load)
+}
+
 private fun findTool(name: String): File {
     val executableName = if (System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) "$name.exe" else name
     return System.getenv("PATH").orEmpty()
@@ -69,7 +74,20 @@ android {
         // libopus.a (see rust_builder/cargokit/gradle/plugin.gradle) is
         // aarch64-only, so Cargokit can only build libmosh_core.so for arm64.
         // Expand to all ABIs once per-ABI opus artifacts exist.
-        ndk { abiFilters += "arm64-v8a" }
+        ndk {
+            // Flutter prepopulates all supported ABIs before this configuration.
+            abiFilters.clear()
+            abiFilters += "arm64-v8a"
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            keyAlias = releaseKeystore.getProperty("keyAlias")
+            keyPassword = releaseKeystore.getProperty("keyPassword")
+            storeFile = releaseKeystore.getProperty("storeFile")?.let(::file)
+            storePassword = releaseKeystore.getProperty("storePassword")
+        }
     }
 
     buildTypes {
@@ -80,9 +98,8 @@ android {
             }
         }
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Missing credentials fail release signing; debug stays independent.
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
@@ -99,6 +116,21 @@ dependencies {
 
 flutter {
     source = "../.."
+}
+
+val verifyReleaseSigning = tasks.register("verifyReleaseSigning") {
+    doLast {
+        val required = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+        check(required.all { !releaseKeystore.getProperty(it).isNullOrBlank() }) {
+            "Android release signing requires a complete android/key.properties; debug signing is not allowed."
+        }
+        check(file(releaseKeystore.getProperty("storeFile")).isFile) {
+            "Android release keystore does not exist."
+        }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(verifyReleaseSigning)
 }
 
 val repositoryRoot = rootProject.projectDir.parentFile

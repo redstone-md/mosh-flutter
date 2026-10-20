@@ -4,6 +4,18 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- A reusable signed Android ARM64 release APK build, with mainnet configuration
+  checks, SHA-256 checksums, separate symbols and a persistent update certificate.
+
+### Fixed
+
+- Android native libraries use 16 KiB page alignment. Release preparation refuses
+  missing signing credentials instead of falling back to debug or unsigned APKs.
+
 ## [0.24.0] - 2026-10-20
 
 ### Added

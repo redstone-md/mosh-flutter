@@ -72,11 +72,16 @@ jobs:
       plus-issuer-key: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
     secrets: inherit
 
+  apk:
+    needs: verify
+    uses: ./.github/workflows/build-android.yml
+    secrets: inherit
+
   publish:
     name: Publish GitHub release
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [verify, installer, dmg]
+    needs: [verify, installer, dmg, apk]
     permissions:
       contents: write
     steps:
@@ -94,6 +99,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: ${{ needs.dmg.outputs.artifact }}
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.apk.outputs.artifact }}
           path: dist
 
       - name: Release notes
