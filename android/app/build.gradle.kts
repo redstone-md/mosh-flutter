@@ -114,6 +114,21 @@ flutter {
     source = "../.."
 }
 
+val verifyReleaseSigning = tasks.register("verifyReleaseSigning") {
+    doLast {
+        val required = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+        check(required.all { !releaseKeystore.getProperty(it).isNullOrBlank() }) {
+            "Android release signing requires a complete android/key.properties; debug signing is not allowed."
+        }
+        check(file(releaseKeystore.getProperty("storeFile")).isFile) {
+            "Android release keystore does not exist."
+        }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(verifyReleaseSigning)
+}
+
 val repositoryRoot = rootProject.projectDir.parentFile
 val mossCheckout = repositoryRoot.resolve("moss")
 val mossPreparationScript = repositoryRoot.resolve("scripts/moss-prepare-android.mjs")

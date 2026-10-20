@@ -14,6 +14,12 @@ runs:
         java-version: '21'
         cache: gradle
 
+    # native_toolchain_rust's irondash hook uses its own compiler/linker setup.
+    # Target-scoped flags leave host tools and non-Android builds unchanged.
+    - name: Configure 16 KiB native hook linking
+      shell: bash
+      run: echo 'CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS=-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,-z,common-page-size=16384' >> "$GITHUB_ENV"
+
     - uses: ./.github/actions/setup
       with:
         moss: android

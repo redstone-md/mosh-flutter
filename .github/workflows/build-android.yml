@@ -84,6 +84,18 @@ jobs:
             "--dart-define=MOSH_PLUS_SERVER_URL=$MOSH_PLUS_SERVER_URL" \
             "--dart-define=MOSH_PLUS_ISSUER_KEY=$MOSH_PLUS_ISSUER_KEY"
 
+      - name: Prove release signing refuses missing credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv android/key.properties "$RUNNER_TEMP/mosh-key.properties"
+          trap 'mv "$RUNNER_TEMP/mosh-key.properties" android/key.properties' EXIT
+          if bash android/gradlew -p android :app:preReleaseBuild --console=plain > "$RUNNER_TEMP/mosh-missing-signing.log" 2>&1; then
+            echo '::error::Release preparation accepted missing signing credentials'
+            exit 1
+          fi
+          grep -Fq 'Android release signing requires a complete android/key.properties' "$RUNNER_TEMP/mosh-missing-signing.log"
+
       - name: Verify signature, manifest, native libraries and alignment
         shell: bash
         env:

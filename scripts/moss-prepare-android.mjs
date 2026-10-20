@@ -92,8 +92,8 @@ async function main() {
 
   const result = spawnSync(
     "go",
-    // Same flags as moss-prepare.mjs: no build paths, no symbols, no DWARF.
-    ["build", "-trimpath", "-ldflags=-s -w", "-buildmode=c-shared", "-o", OUTPUT_PATH, "./cmd/moss-ffi"],
+    // Explicit external flags also cover Go's c-shared linker on 16 KiB devices.
+    ["build", "-trimpath", "-ldflags=-s -w -extldflags=-Wl,-z,max-page-size=16384,-z,common-page-size=16384", "-buildmode=c-shared", "-o", OUTPUT_PATH, "./cmd/moss-ffi"],
     {
       cwd: MOSS_DIR,
       stdio: "inherit",

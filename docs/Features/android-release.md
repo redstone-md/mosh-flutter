@@ -18,11 +18,17 @@ password. It restores the key and ignored `android/key.properties` privately on
 the runner, then removes both in an `always()` cleanup step. Release signing
 never falls back to Android's debug key. Debug builds do not require these secrets.
 Keep an independent private backup: GitHub does not return stored secret values.
+An explicit `preReleaseBuild` guard also prevents Gradle's unsigned-APK fallback
+when signing properties are incomplete. CI temporarily removes the properties
+and requires this exact failure, then restores them before package verification.
 
 Repository variable `ANDROID_SIGNING_CERT_SHA256` independently pins the
 signing certificate. Production `MOSH_PLUS_SERVER_URL` and `MOSH_PLUS_ISSUER_KEY`
 variables are mandatory; the existing compiled AOT probe verifies the same
 configuration factory used by the app. No billing private keys enter the build.
+
+Initial release certificate SHA-256:
+`e79117cfc5fc330108cb6656a905e5bbefc7d411981bdd406b18aa27d71ee0cf`.
 
 The release uses Flutter AOT, default R8 shrinking, the committed Rust release
 profile and `--target-platform android-arm64`. Dart symbols and R8 mappings are
@@ -37,6 +43,14 @@ An update can replace an equal-version APK. Published stable versions increase i
 - production package id, API 26 minimum and no debuggable manifest flag;
 - exactly one ABI, including real Flutter, app, Rust and Moss libraries;
 - every native LOAD segment and the APK ZIP support 16 KiB page alignment.
+
+The prior main APK exposed 4 KiB LOAD alignment in `libmoss.so` and the
+irondash native hook. The Moss wrapper now supplies explicit 16 KiB external
+linker flags, and shared CI preparation sets target-scoped Cargo flags for the
+independent irondash hook. This does not modify either upstream source tree.
+Local Android builds need the same
+`CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,-z,common-page-size=16384"`
+environment variable; clean old Flutter build outputs before rebuilding.
 
 The `mosh-android-release` artifact contains the APK, SHA-256 sidecar and
 `plus-build.json` with source commit and public billing configuration. Tagged
