@@ -24,8 +24,25 @@ jobs:
           $provider.Events | ForEach-Object {
             [pscustomobject]@{id=$_.Id; opcode=$_.Opcode.Name; task=$_.Task.Name; template=$_.Template}
           } | ConvertTo-Json -Depth 6 | Set-Content build/network-diagnostics/provider-schema.json
+      - name: Verify real process-attributed UDP capture
+        shell: powershell
+        run: scripts/network-diagnostics/Test-NetworkDiagnostics.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: mosh-network-diagnostics-schema
           path: build/network-diagnostics/provider-schema.json
           retention-days: 7
+      - name: Package the Windows collector
+        shell: powershell
+        run: |
+          $files = Get-ChildItem scripts/network-diagnostics -File | Where-Object { $_.Name -notlike 'Test-*' }
+          Compress-Archive -Path $files.FullName -DestinationPath build/mosh-network-diagnostics.zip
+          $hash = (Get-FileHash build/mosh-network-diagnostics.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  mosh-network-diagnostics.zip" | Set-Content build/mosh-network-diagnostics.zip.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mosh-network-diagnostics
+          path: |
+            build/mosh-network-diagnostics.zip
+            build/mosh-network-diagnostics.zip.sha256
+          retention-days: 14
