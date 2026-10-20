@@ -9,7 +9,8 @@ PIN="${PIN,,}"
 [[ "$PIN" =~ ^[0-9a-f]{64}$ ]] || { echo 'Invalid Android signing certificate SHA-256' >&2; exit 1; }
 TOOLS="$(find "$SDK/build-tools" -name apksigner -type f | sort -V | tail -n1)"
 TOOLS="$(dirname "$TOOLS")"
-NDK="$(find "$SDK/ndk" -name llvm-readelf -type f | sort -V | tail -n1)"
+NDK="$(find -L "$SDK/ndk" -name llvm-readelf -type f | sort -V | tail -n1)"
+test -x "$NDK" || { echo 'Android NDK llvm-readelf is missing or not executable' >&2; exit 1; }
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
