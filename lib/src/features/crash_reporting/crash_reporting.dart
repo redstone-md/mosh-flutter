@@ -90,10 +90,18 @@ class CrashReporting {
     await _start(dsn, salt);
     await _rustPanics?.cancel();
     _rustPanics = _bridge.startPanicReporting(dsn: dsn).listen(
-          (json) => _capture(rustEventFromJson(json)),
+          _captureRustEvent,
           onError: (Object error) =>
               debugPrint('mosh: rust panic capture failed: $error'),
         );
+  }
+
+  Future<void> _captureRustEvent(String json) async {
+    try {
+      await _capture(rustEventFromJson(json));
+    } catch (error) {
+      debugPrint('mosh: rust event capture failed (${error.runtimeType})');
+    }
   }
 }
 
@@ -108,6 +116,12 @@ SentryEvent rustEventFromJson(String json) {
       (timestamp * Duration.microsecondsPerSecond).round(),
       isUtc: true,
     ).toIso8601String();
+  }
+  // Rust propagation contexts omit `op`; the Dart SDK requires a string.
+  if (map['contexts'] case final Map<String, dynamic> contexts) {
+    if (contexts['trace'] case final Map<String, dynamic> trace) {
+      trace['op'] ??= '';
+    }
   }
   return SentryEvent.fromJson(map);
 }

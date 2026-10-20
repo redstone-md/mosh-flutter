@@ -1,3 +1,4 @@
+import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:io' show File;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -78,6 +79,22 @@ void main() {
     expect(image['name'], isNot(contains('olga')));
     expect(frame['instruction_addr'], '0x7f3a2c25465');
     expect(out.toString(), isNot(contains(peer)));
+  });
+
+  test('a Rust propagation trace without an operation preserves the panic', () {
+    final json = jsonDecode(
+            File('test/fixtures/rust_panic_event.json').readAsStringSync())
+        as Map<String, dynamic>;
+    json['contexts'] = {
+      'trace': {
+        'trace_id': 'a3f9c2e81b7d4f60a3f9c2e81b7d4f60',
+        'span_id': 'a3f9c2e81b7d4f60',
+      },
+    };
+    final event = rustEventFromJson(jsonEncode(json));
+    expect(event.exceptions!.single.type, 'panic');
+    expect(event.contexts.trace!.traceId.toString(), peer);
+    expect(event.contexts.trace!.operation, isEmpty);
   });
 }
 

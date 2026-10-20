@@ -35,11 +35,15 @@ that users must choose.
   stream; Dart sends it through the same scrubber, consent and SDK. One
   privacy policy, no network code in Rust. A panic inside a bridge call is
   reported once, from Rust: the Dart-side `PanicException` is dropped.
+  The adapter normalizes numeric timestamps and absent Rust trace operations
+  for the Dart SDK. Parsing/capture failures are contained per event, so the
+  reporter cannot raise an unhandled app error or stop later reports.
 - **Debug files stay off the device.** The release profile writes line tables
   to separate files (PDB on Windows, dSYM on macOS) instead of stripping them;
   release-tag builds upload them with `sentry-cli debug-files upload`
-  (secret `SENTRY_AUTH_TOKEN`). Dart frames need nothing: AOT traces are
-  symbolic without `--split-debug-info`.
+  (secret `SENTRY_AUTH_TOKEN`). Desktop Dart frames are symbolic without
+  `--split-debug-info`. Android release builds archive their split Dart symbols
+  separately; use the installed APK's matching Build ID when symbolizing logs.
 
 ## Threat model
 
