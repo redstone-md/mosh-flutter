@@ -2,6 +2,10 @@ name: Windows network diagnostics
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/network-diagnostics.yml'
+      - 'scripts/network-diagnostics/**'
 
 permissions:
   contents: read
