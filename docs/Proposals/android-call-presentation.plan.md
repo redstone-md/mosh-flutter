@@ -31,6 +31,10 @@ Rust unit and integration suites pass with the local real-Moss tracker. Both
 code-review passes found no remaining issues after the PiP fixes. Physical
 ringtone routing, camera continuity and system gestures still require a phone.
 
+Windows CI exposed a camera-watchdog test race: each participant completes ICE
+independently. The test now waits for the receiver within the existing deadline
+and still rejects media failure. The focused real-engine/Moss scenario passes.
+
 ## Changed files
 
 - `android/app/src/main/AndroidManifest.xml`
@@ -62,6 +66,7 @@ ringtone routing, camera continuity and system gestures still require a phone.
 - `mosh-core/src/private_dm_runtime/calls/boundary_tests.rs`
 - `mosh-core/src/private_dm_runtime/calls/boundary_tests/history_direction.rs`
 - `mosh-core/src/private_dm_runtime/calls/history.rs`
+- `mosh-core/tests/link_support/call_controls_test.rs`
 - `pubspec.yaml`
 - `scripts/android-package-verify.sh`
 - `test/features/conversation/call_log_entry_test.dart`
