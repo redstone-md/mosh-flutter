@@ -1,9 +1,8 @@
 # Issue 94: first desktop idle measurements
 
-2026-10-21. Stand and collector prepared; the diagnostic stage awaits a valid
-capture from the reporting Windows machine. Issue #94 remains open.
-The reporting Windows machine and physical Android battery/background-call
-acceptance remain unmeasured. No transport policy or application timers changed.
+2026-10-21. Stand, collector and the first valid Windows process capture are
+complete. Root-cause attribution and physical Android battery/background-call
+acceptance remain open in #94. No transport policy or application timers changed.
 
 ## Stand and method
 
@@ -137,18 +136,76 @@ Local Rust checks: formatting and all-target Clippy with `-D warnings` passed;
 the unit suite passed 733 tests (20 ignored) and `device_link_flow` passed
 14 tests (five media-dependent/worker entry points ignored). The real stand
 separately exercised the added list/viewed fixture commands. Broader native
-integration and the platform CI matrix are separate from Windows collector
+integration also passed, including 23 multi-device DM tests (two ignored).
+The platform CI matrix is separate from Windows collector
 verification; no physical desktop/phone end-to-end acceptance is claimed.
 
 Built-in API references: [logman](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/logman-create-trace),
 [ControlTrace](https://learn.microsoft.com/en-us/windows/win32/api/evntrace/nf-evntrace-controltracew),
 [Get-WinEvent](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.diagnostics/get-winevent?view=powershell-5.1).
 
+## Reporting Windows machine: first valid capture
+
+The owner supplied `mosh-network-report-20261020.zip`. Only the two expected
+JSON files are present. Archive SHA-256:
+`14349580d5381931e866f522707012d20f67213b0454ee67bfa2da02d38f033b`.
+Raw contents remain local; the figures below are aggregates only.
+
+- UTC interval: 2026-10-20 23:41:53.600 to 23:43:54.056, 120.456 seconds.
+- Windows build 10.0.26200.0; the Mosh process was already running for
+  312.9 seconds when collection started. Application version and core count
+  are not embedded in this report and have not been inferred.
+- `complete=true`, both controls validated; all three ETW loss counters zero.
+  Per-second and anonymous-endpoint sums independently equal the byte totals.
+- 472,019 target-process events; 266 distinct protocol/address/port aliases
+  across the interval. This is not a count of simultaneous Moss nodes.
+
+| Counter | Bytes | Average Mbit/s |
+| --- | ---: | ---: |
+| Sent | 95,217,142 | 6.324 |
+| Received | 59,194,379 | 3.931 |
+| RX + TX | 154,411,521 | 10.255 |
+
+UDP contributes 109,163,579 bytes (70.7%); TCP contributes 45,247,942 bytes.
+No loopback or retransmit bytes were reported. Here `external` means non-loopback,
+which can include LAN traffic; it does not establish Internet egress or billing.
+The largest endpoint contributes 2.88%, the largest ten together 22.33%.
+
+The largest complete one-second RX + TX bucket is 56.796 Mbit/s, with
+37.247 Mbit/s sent and 19.549 received. Median one-second combined rate is
+3.907 Mbit/s. No complete one-second bucket reached 100 Mbit/s. This does not
+exclude shorter bursts or a different observation window. Small boundary buckets
+at seconds -1 and 120 reflect trace startup/stop relative to the chosen origin;
+they contain 343,887 bytes and are excluded from the one-second peak/median.
+
+Process samples span 119.131 seconds: 43.250 seconds of processor time,
+equivalent to 36.30% of one logical CPU on average, not 36.30% of the whole PC.
+Working set ranges from 269.36 to 298.22 MiB; all 118 samples have a main window.
+
+This confirms substantial process-attributed network use in the owner's reported
+idle state. ETW does not identify Moss packet kinds, active relay routes or which
+application operation initiated them. UDP dominance and a broad set of endpoints
+do not establish relay, discovery or an application retry loop as the cause.
+
+Ranked follow-up candidates, with distinct observations needed:
+
+1. Public mesh maintenance/discovery/reconnect churn: control-frame and dial
+   activity dominate even while relay routes remain zero.
+2. Transit relay: ready supernode status and active relay routes must coincide
+   with forwarded packet counters/events and the traffic intervals.
+3. Application metadata/history synchronization: subscribed-topic/application
+   frames dominate and correlate with conversation/device state.
+
+Existing chat diagnostics expose Peers, NAT, Supernode and Relay routes without
+a new build. These values can narrow the relay hypothesis, but a later snapshot
+does not reconstruct relay activity during this captured interval. The existing
+bounded Moss recording is the next source for causal packet-kind attribution
+if the visible state is insufficient; no production setting is changed yet.
+
 ## Next decision
 
-Collect the two-minute Windows report in the observed idle state and record the
-app version, chat/window state and the exact units/source of the “100–150”
-reading. This establishes whether the observation belongs to Mosh and whether
-it is a rate or accumulated transfer. Protocol/discovery/relay attribution then
-uses the measured dominant category and existing diagnostics. Do not close #94
-or claim an idle-resource fix from this diagnostic stage.
+Use the Windows process capture as the first measured symptom, then correlate
+it with runtime mesh/relay and packet-kind evidence. Record the application
+version and exact display/source/window of the owner's “100–150 Mbit” reading
+when available. Do not close #94 or claim an idle-resource fix from this
+diagnostic stage.
