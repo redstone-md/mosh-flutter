@@ -26,6 +26,7 @@ import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
 import 'package:mosh/src/features/onboarding/first_run_gate.dart';
 import 'package:mosh/src/features/voice_call/call_window_app.dart';
+import 'package:mosh/src/features/voice_call/android_pip_overlay.dart';
 import 'package:mosh/src/features/voice_call/process_call_window.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 import 'package:mosh/src/platform/native_menu_localization.dart';
@@ -287,23 +288,25 @@ class MoshApp extends ConsumerWidget {
       // Ink ripples are motion: with the platform's reduce-motion setting
       // on, every InkWell below drops its splash.
       builder: (context, child) => Theme(
-        data: MediaQuery.disableAnimationsOf(context)
-            ? Theme.of(context).copyWith(splashFactory: NoSplash.splashFactory)
-            : Theme.of(context),
-        // Above the first-run gate and the call strip, so every action
-        // reports through the one toast stack.
-        child: DesktopWindowFrame(
-          controller: windowController,
-          router: appRouter,
-          child: ToastHost(
-            child: NativeMenuLocalization(
-              child: FirstRunGate(
-                child: PlusHost(child: child ?? const SizedBox()),
+          data: MediaQuery.disableAnimationsOf(context)
+              ? Theme.of(context)
+                  .copyWith(splashFactory: NoSplash.splashFactory)
+              : Theme.of(context),
+          // Above the first-run gate and the call strip, so every action
+          // reports through the one toast stack.
+          child: AndroidPipOverlay(
+            child: DesktopWindowFrame(
+              controller: windowController,
+              router: appRouter,
+              child: ToastHost(
+                child: NativeMenuLocalization(
+                  child: FirstRunGate(
+                    child: PlusHost(child: child ?? const SizedBox()),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      ),
+          )),
     );
     return DesktopAppRelauncherScope(
       relauncher: relauncher ?? DesktopAppRelauncher.unsupported(),

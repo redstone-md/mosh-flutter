@@ -1,6 +1,8 @@
 package app.mosh.mosh
 
 import android.content.res.Configuration
+import android.app.PictureInPictureUiState
+import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 
@@ -25,6 +27,14 @@ class MainActivity : FlutterActivity() {
     override fun onPictureInPictureModeChanged(pip: Boolean, configuration: Configuration) {
         super.onPictureInPictureModeChanged(pip, configuration)
         callPresentation?.changed(pip)
+    }
+
+    @android.annotation.TargetApi(31)
+    override fun onPictureInPictureUiStateChanged(state: PictureInPictureUiState) {
+        super.onPictureInPictureUiStateChanged(state)
+        if (Build.VERSION.SDK_INT >= 35 && state.isTransitioningToPip) {
+            callPresentation?.preparing()
+        }
     }
 
     override fun onResume() {

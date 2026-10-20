@@ -57,13 +57,18 @@ internal class MoshCallPresentation(private val activity: MainActivity, messenge
     fun leaving() {
         if (!supported || !video || closing) return
         // Hide chats before the Activity is shrunk, including Android 12 auto-enter.
-        shield()
-        mode(true)
+        preparing()
         if (Build.VERSION.SDK_INT < 31) {
             val entered = try { activity.enterPictureInPictureMode(params()) }
                 catch (_: RuntimeException) { false }
             if (!entered) { unshield(); mode(false) }
         }
+    }
+
+    fun preparing() {
+        if (!supported || !video || closing) return
+        shield()
+        mode(true)
     }
 
     fun changed(pip: Boolean) {

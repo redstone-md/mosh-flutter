@@ -55,6 +55,9 @@ void main() {
     presentation.update(null);
     await tester.pump();
     expect(calls.last.arguments, {'call': null, 'video': false});
+    await _event(tester, 'mode', null, pip: false);
+    expect(presentation.inPip, false,
+        reason: 'returning after call termination restores the app');
     await _event(tester, 'closed', 'dm/second');
     expect(closed, ['second']);
     presentation.dispose();
@@ -62,7 +65,7 @@ void main() {
   });
 }
 
-Future<void> _event(WidgetTester tester, String method, String key,
+Future<void> _event(WidgetTester tester, String method, String? key,
     {bool? pip}) async {
   final reply = Completer<ByteData?>();
   tester.binding.defaultBinaryMessenger.handlePlatformMessage(

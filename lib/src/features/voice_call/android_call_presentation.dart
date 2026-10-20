@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'call_view_state.dart';
+import 'call_video_renderer.dart';
 
 final androidCallPresentationProvider =
     Provider<AndroidCallPresentation?>((ref) => null);
@@ -19,6 +20,13 @@ class AndroidCallPresentation extends ChangeNotifier {
   bool _disposed = false;
   void Function(String sessionId, String callId)? onClose;
   CallViewState? _call;
+  CallViewState? get call => _call;
+  CallVideoRenderer? _images;
+  CallVideoRenderer? get images => _images;
+  void bindImages(CallVideoRenderer images) => _images = images;
+  void unbindImages(CallVideoRenderer images) {
+    if (identical(_images, images)) _images = null;
+  }
 
   void update(CallViewState? call) {
     final key = call == null ? null : '${call.sessionId}/${call.callId}';
@@ -27,7 +35,16 @@ class AndroidCallPresentation extends ChangeNotifier {
         ((same && _video) ||
             call?.media?.cameraRequested == true ||
             call?.media?.remoteCamera == true);
+    final old = _call;
     _call = call;
+    if (inPip &&
+        (old?.media?.remoteCamera != call?.media?.remoteCamera ||
+            old?.peer != call?.peer ||
+            old?.callId != call?.callId)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_disposed) notifyListeners();
+      });
+    }
     if (same && video == _video) return;
     _key = key;
     _video = video;
@@ -46,11 +63,12 @@ class AndroidCallPresentation extends ChangeNotifier {
   Future<void> _receive(MethodCall event) async {
     if (_disposed) return;
     final args = event.arguments as Map;
-    if (args['call'] != _key || _key == null) return;
+    if (args['call'] != _key) return;
     if (event.method == 'closed') {
       final call = _call;
       if (call != null) onClose?.call(call.sessionId, call.callId);
     } else if (event.method == 'mode') {
+      if (_key == null && args['pip'] == true) return;
       inPip = args['pip'] == true;
       notifyListeners();
       if (inPip) {

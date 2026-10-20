@@ -20,7 +20,8 @@ the native media acceptance boundary.
 
 An active video call uses Android system Picture-in-Picture when the user leaves
 Mosh (Home/app switch), if the device and its PiP settings allow it. Only the video
-stage is shown in system PiP; chats and controls stay mounted offstage. Returning
+stage is shown in system PiP above the entire root Navigator. Chats, controls and
+open dialogs stay mounted offstage at their original size. Returning
 restores the previous in-app presentation. Closing system PiP ends that exact call;
 a delayed close cannot terminate a replacement. This adds no draw-over-apps
 permission or second audio/video engine. It does not implement incoming calls

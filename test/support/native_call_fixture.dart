@@ -5,6 +5,7 @@ native.Snapshot nativeCallSnapshot(
         String callId = 'call',
         bool microphoneRequested = true,
         bool camera = false,
+        bool remoteCamera = true,
         bool cameraFailed = false}) =>
     native.Snapshot(
         sessionId: sessionId,
@@ -17,7 +18,7 @@ native.Snapshot nativeCallSnapshot(
         cameraRequested: camera,
         cameraStarting: false,
         cameraFailed: cameraFailed,
-        remoteCamera: true,
+        remoteCamera: remoteCamera,
         reconnecting: false,
         failed: false,
         videoWidth: 0,

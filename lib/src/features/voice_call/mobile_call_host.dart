@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'android_call_presentation.dart';
 import 'call_video_renderer.dart';
-import 'call_video_stage.dart';
 import 'call_view_state.dart';
 import 'mobile_call_frame.dart';
 import 'voice_call_layer.dart';
@@ -39,7 +38,7 @@ class _MobileCallHostState extends ConsumerState<MobileCallHost> {
   void initState() {
     super.initState();
     _presentation = ref.read(androidCallPresentationProvider);
-    _presentation?.addListener(_changed);
+    _presentation?.bindImages(widget.video);
     _presentation?.onClose = (session, call) => unawaited(widget.onAction(
         CallViewCommand(
             sessionId: session, callId: call, action: CallViewAction.end)));
@@ -47,13 +46,9 @@ class _MobileCallHostState extends ConsumerState<MobileCallHost> {
 
   @override
   void dispose() {
-    _presentation?.removeListener(_changed);
+    _presentation?.unbindImages(widget.video);
     _presentation?.onClose = null;
     super.dispose();
-  }
-
-  void _changed() {
-    if (mounted) setState(() {});
   }
 
   void _minimize() => setState(() => _expanded = false);
@@ -69,29 +64,16 @@ class _MobileCallHostState extends ConsumerState<MobileCallHost> {
     _videoCall |= call?.media?.cameraRequested == true ||
         call?.media?.remoteCamera == true;
     _presentation?.update(call);
-    final pip = _presentation?.inPip == true;
     final session = widget.session;
     return Stack(fit: StackFit.expand, children: [
-      Offstage(offstage: pip, child: widget.child),
+      widget.child,
       if (session != null)
-        Offstage(
-            offstage: pip,
-            child: SafeArea(
-                child: MobileCallFrame(
-                    key: ValueKey(_shownCall),
-                    expanded: _expanded,
-                    video: _videoCall,
-                    child: _controls(session)))),
-      if (pip)
-        Material(
-            color: Colors.black,
-            child: Center(
-                child: CallVideoStage(
-                    images: widget.video,
-                    peer: call?.peer ?? '',
-                    remoteCamera: call?.media?.remoteCamera == true,
-                    alwaysVisible: true,
-                    inset: false))),
+        SafeArea(
+            child: MobileCallFrame(
+                key: ValueKey(_shownCall),
+                expanded: _expanded,
+                video: _videoCall,
+                child: _controls(session))),
     ]);
   }
 
