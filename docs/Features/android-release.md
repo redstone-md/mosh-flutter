@@ -11,6 +11,8 @@ runs and future tagged releases. PRs keep the existing unsigned-development
 debug build and never invoke the signing workflow. Both modes reuse
 `android-build-setup` for the pinned Flutter, JDK, Rust, Moss and Opus preparation.
 No new runtime dependencies or protocol changes are needed.
+Native compiler caches are saved immediately after compilation, so a later
+package-validation failure does not discard expensive reusable build outputs.
 
 The workflow requires repository secrets `ANDROID_KEYSTORE_BASE64` and
 `ANDROID_KEYSTORE_PASSWORD`, with alias `mosh` and the same alphanumeric store/key
@@ -36,6 +38,11 @@ uploaded separately as `mosh-android-symbols`. APKs contain no debug entry point
 The Android version code is `major * 1000000 + minor * 1000 + patch` (minor/patch
 at most 999); preview rebuilds keep that version code and the same signing key.
 An update can replace an equal-version APK. Published stable versions increase it.
+Flutter prepopulates all supported ABIs in `defaultConfig`; Mosh explicitly clears
+that set before selecting ARM64, following the
+[Flutter migration guide](https://docs.flutter.dev/release/breaking-changes/default-abi-filters-android).
+Adding ARM64 to the default set alone incorrectly packaged third-party ARM32/x86
+libraries without matching Mosh libraries; final package checks reject that case.
 
 `android-package-verify.sh` checks the final APK with Android SDK tools:
 

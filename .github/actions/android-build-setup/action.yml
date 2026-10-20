@@ -4,6 +4,13 @@ inputs:
   build-mode:
     description: Native build cache namespace (debug or release).
     default: debug
+outputs:
+  cargo-cache-key:
+    description: Resolved native compiler cache key.
+    value: ${{ steps.cargokit.outputs.cache-primary-key }}
+  cargo-cache-hit:
+    description: Whether that exact native compiler cache already exists.
+    value: ${{ steps.cargokit.outputs.cache-hit }}
 runs:
   using: composite
   steps:
@@ -60,7 +67,8 @@ runs:
 
     # cargokit compiles mosh-core into the plugin's Gradle build dir
     # (build/<plugin>/build), which the cargo cache above does not see.
-    - uses: actions/cache@v4
+    - id: cargokit
+      uses: actions/cache/restore@v4
       with:
         path: build/mosh_core/build
         key: cargokit-android-${{ inputs.build-mode }}-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}

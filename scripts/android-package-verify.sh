@@ -21,7 +21,8 @@ grep -qx 'Number of signers: 1' "$WORK/signature.txt"
 "$TOOLS/aapt" dump badging "$APK" > "$WORK/manifest.txt"
 grep "^package: name='app.mosh.mosh'" "$WORK/manifest.txt"
 grep "^sdkVersion:'26'" "$WORK/manifest.txt"
-grep "^native-code: 'arm64-v8a'" "$WORK/manifest.txt"
+grep '^native-code:' "$WORK/manifest.txt"
+grep -qx "native-code: 'arm64-v8a'" "$WORK/manifest.txt"
 if grep -q '^application-debuggable' "$WORK/manifest.txt"; then
   echo 'Release APK must not be debuggable' >&2
   exit 1

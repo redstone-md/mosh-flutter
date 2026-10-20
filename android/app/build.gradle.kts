@@ -74,7 +74,11 @@ android {
         // libopus.a (see rust_builder/cargokit/gradle/plugin.gradle) is
         // aarch64-only, so Cargokit can only build libmosh_core.so for arm64.
         // Expand to all ABIs once per-ABI opus artifacts exist.
-        ndk { abiFilters += "arm64-v8a" }
+        ndk {
+            // Flutter prepopulates all supported ABIs before this configuration.
+            abiFilters.clear()
+            abiFilters += "arm64-v8a"
+        }
     }
 
     signingConfigs {

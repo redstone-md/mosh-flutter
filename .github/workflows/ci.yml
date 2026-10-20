@@ -322,7 +322,8 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: ./.github/actions/android-build-setup
+      - id: android-setup
+        uses: ./.github/actions/android-build-setup
 
       # --target-platform is REQUIRED, not an optimisation: jniLibs only
       # carries an arm64-v8a libmoss.so, so a default all-ABI build would
@@ -330,6 +331,12 @@ jobs:
       # runtime with no build-time error.
       - name: Build APK (debug, arm64)
         run: flutter build apk --debug --target-platform android-arm64
+
+      - uses: actions/cache/save@v4
+        if: steps.android-setup.outputs.cargo-cache-hit != 'true'
+        with:
+          path: build/mosh_core/build
+          key: ${{ steps.android-setup.outputs.cargo-cache-key }}
 
       - uses: actions/upload-artifact@v4
         with:

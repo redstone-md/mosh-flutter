@@ -50,7 +50,8 @@ jobs:
               f"storePassword={password}\nkeyPassword={password}\nkeyAlias=mosh\n")
           PY
 
-      - uses: ./.github/actions/android-build-setup
+      - id: android-setup
+        uses: ./.github/actions/android-build-setup
         with:
           build-mode: release
 
@@ -83,6 +84,13 @@ jobs:
             --dart-define=MOSH_PLUS_NETWORK=solana-mainnet \
             "--dart-define=MOSH_PLUS_SERVER_URL=$MOSH_PLUS_SERVER_URL" \
             "--dart-define=MOSH_PLUS_ISSUER_KEY=$MOSH_PLUS_ISSUER_KEY"
+
+      # Preserve expensive native compilation even if package validation fails.
+      - uses: actions/cache/save@v4
+        if: steps.android-setup.outputs.cargo-cache-hit != 'true'
+        with:
+          path: build/mosh_core/build
+          key: ${{ steps.android-setup.outputs.cargo-cache-key }}
 
       - name: Prove release signing refuses missing credentials
         shell: bash
