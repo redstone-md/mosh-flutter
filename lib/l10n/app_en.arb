@@ -1431,6 +1431,7 @@
     "description": "Field label of the input-device dropdown in Sound settings"
   },
   "settingsInputDeviceHint": "The microphone used for voice messages and calls. Applies from the next recording.",
+  "settingsInputDeviceHintAndroid": "Used for voice messages. In calls, the microphone follows the selected audio output.",
   "@settingsInputDeviceHint": {
     "description": "Hint under the input-device dropdown"
   },

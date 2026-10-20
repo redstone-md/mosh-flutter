@@ -23,6 +23,9 @@ assert.notEqual(missing.status, 0, "the probe must reproduce an uninitialized au
 assert.match(missing.stderr, /native audio context is missing/);
 console.log("Before bootstrap: native audio context is missing (reproduced).");
 run("java", args);
+run("javac", ["-d", classes, path.join(probe, "AudioPolicyProbe.java"),
+  path.join(root, "android/app/src/main/java/app/mosh/mosh/MoshCallAudioPolicy.java")]);
+run("java", ["-cp", classes, "app.mosh.mosh.AudioPolicyProbe"]);
 
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: root, stdio: "inherit", windowsHide: true });

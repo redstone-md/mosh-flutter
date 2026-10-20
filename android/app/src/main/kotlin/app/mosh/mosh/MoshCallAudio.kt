@@ -24,6 +24,10 @@ internal class MoshCallAudio(context: Context) {
 
     @Synchronized
     fun devices(): JSONObject {
+        val inputs = JSONArray()
+        MoshCallAudioPolicy.defaultInput(microphonePresent())?.let { id ->
+            inputs.put(JSONObject().put("id", id).put("name", "Microphone (selected audio route)"))
+        }
         val outputs = JSONArray()
         for (device in routes()) {
             outputs.put(JSONObject().put("id", "android:${device.id}")
@@ -33,7 +37,15 @@ internal class MoshCallAudio(context: Context) {
                     else -> device.productName.toString()
                 }))
         }
-        return JSONObject().put("inputs", JSONArray()).put("outputs", outputs)
+        return JSONObject().put("inputs", inputs).put("outputs", outputs)
+    }
+
+    // Hardware presence is independent of RECORD_AUDIO consent. The native
+    // owner requests consent separately after the authenticated call is selected.
+    private fun microphonePresent(): Boolean = manager.getDevices(AudioManager.GET_DEVICES_INPUTS).any {
+        it.type in setOf(AudioDeviceInfo.TYPE_BUILTIN_MIC, AudioDeviceInfo.TYPE_WIRED_HEADSET,
+            AudioDeviceInfo.TYPE_USB_DEVICE, AudioDeviceInfo.TYPE_USB_HEADSET,
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_BLE_HEADSET)
     }
 
     private fun routes(): List<AudioDeviceInfo> = if (Build.VERSION.SDK_INT >= 31) {
@@ -71,7 +83,9 @@ internal class MoshCallAudio(context: Context) {
                 id == null
             }
         }
-        return JSONObject().put("input_ok", true).put("output_ok", ok)
+        val input = value.optString("input").takeUnless { it.isBlank() || it == "null" }
+        return JSONObject().put("input_ok", MoshCallAudioPolicy.acceptsInput(microphonePresent(), input))
+            .put("output_ok", ok)
     }
 
     @Synchronized

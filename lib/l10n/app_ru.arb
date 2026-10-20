@@ -747,6 +747,7 @@
   "settingsGearLabel": "Настройки",
   "settingsInputDeviceLabel": "Микрофон",
   "settingsInputDeviceHint": "Микрофон для голосовых сообщений и звонков. Применится со следующей записи.",
+  "settingsInputDeviceHintAndroid": "Микрофон для голосовых сообщений. В звонках он выбирается вместе с устройством вывода звука.",
   "settingsOutputDeviceLabel": "Динамики",
   "settingsOutputDeviceHint": "Куда играют звонки и рингтоны. Применится со следующего звонка.",
   "settingsCameraDeviceHint": "Камера по умолчанию для видеозвонков. Применится со следующего звонка.",
