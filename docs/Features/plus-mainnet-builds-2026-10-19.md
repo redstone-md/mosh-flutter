@@ -3,7 +3,7 @@
 **Withdrawn on 2026-10-20:** these installers hide Mosh+ because the issuer key
 and billing origin were read without `const` and become empty in AOT code.
 Matching sidecar manifests did not establish runtime configuration. Do not use
-these artifacts for acceptance. Corrected installers are being rebuilt with a
+these artifacts for acceptance. [Corrected installers](plus-mainnet-builds-2026-10-20.md) passed with a
 compiled configuration check before packaging; the hashes below are historical.
 
 Prepared from `feat/plus-mainnet` commit

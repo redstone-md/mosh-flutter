@@ -105,9 +105,11 @@ downloaded manifests and checksums but were withdrawn: non-constant environment
 reads returned empty keys/URLs in AOT code. Configuration now belongs to
 `PlusConfig.fromEnvironment()`, using constant reads. Before writing a manifest,
 the build tool compiles and executes that same factory and verifies its actual
-values against the requested inputs. Corrected installers are being rebuilt.
+values against the requested inputs. The [corrected installers](plus-mainnet-builds-2026-10-20.md)
+and their source CI passed; the operator installed the Windows build and confirmed
+that the card is visible. Compact checkout installers are building separately.
 Ordinary PR proof artifacts without explicit PLUS inputs remain unconfigured.
-Desktop acceptance is still pending.
+Installed macOS and real payment/recovery acceptance are still pending.
 
 Without a pin/URL, CI builds keep purchases disabled. With configured clients,
 billing can still pause new sales independently. Pausing preserves existing order
