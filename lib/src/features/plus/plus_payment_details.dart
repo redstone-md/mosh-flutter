@@ -14,7 +14,9 @@ class PlusPaymentDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final text = Theme.of(context).textTheme.bodySmall!;
+    // Expansion and selectable text scrolling need independent storage slots.
     return ExpansionTile(
+      key: const PageStorageKey('plus-payment-details'),
       title: Text(l.plusPaymentDetails, style: text),
       tilePadding: EdgeInsets.zero,
       childrenPadding: const EdgeInsets.only(bottom: 4),
@@ -66,8 +68,10 @@ class PlusPaymentTerms extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        SelectableText('${l.plusMint}: $mint'),
-        SelectableText('${l.plusRecipient}: $recipient'),
+        SelectableText('${l.plusMint}: $mint',
+            key: PageStorageKey('plus-mint:$mint')),
+        SelectableText('${l.plusRecipient}: $recipient',
+            key: PageStorageKey('plus-recipient:$recipient')),
         const SizedBox(height: 8),
         Text(mainnet ? l.plusSupportTerm : l.plusTerm),
         const SizedBox(height: 8),

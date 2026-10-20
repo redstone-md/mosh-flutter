@@ -1,10 +1,15 @@
 # Production Mosh+ acceptance builds — 2026-10-20
 
+> Compact checkout installers from `7d2cad69` are withdrawn after an installed
+> Windows report: a PageStorage collision replaces the card with an error surface.
+> The configuration-only `06e3aff9` installers below do not contain that disclosure.
+> Replacement compact installers are tracked on [PR #91](https://github.com/redstone-md/mosh-flutter/pull/91).
+
 The configuration fix is built and verified on Windows and universal macOS.
 These replace the [withdrawn first installers](plus-mainnet-builds-2026-10-19.md).
 The operator installed the corrected Windows build and confirmed that the Mosh+
 card is visible. Its screenshot shows the mainnet price, recovery and paused sales.
-A subsequent compact checkout refinement is building separately below.
+The subsequent compact checkout refinement failed installed acceptance; see below.
 Version remains **0.23.0**; identify artifacts by source commit and checksum.
 No artifact has been attached to the existing GitHub release. Sales remain paused;
 actual mainnet payments and wallet recovery await separately approved acceptance.
@@ -37,8 +42,15 @@ build. Recovery stays available when the catalog fails to load.
 
 The [Windows build](https://github.com/redstone-md/mosh-flutter/actions/runs/39345042617)
 and [universal macOS build](https://github.com/redstone-md/mosh-flutter/actions/runs/39345045861)
-are in progress at this record's update. They are separate from the configuration-only
-artifacts above; their installer checksums have not yet been verified.
+passed packaging and downloaded checksum/manifest verification, but are withdrawn.
+The operator's Windows screenshot and TypeError exposed a missing storage boundary:
+the disclosure read the profile's saved scroll offset as a boolean. Selectable
+mint/recipient fields could then read the expansion flag as a scroll offset.
+The fix gives expansion and both selectable fields independent PageStorage keys.
+A regression mounts the real profile settings with delayed catalog loading after
+scrolling, then expands the details and remounts the profile. It reproduced the
+reported exception before the fix and checks that both expansion and scroll position
+restore afterwards. This supplements the earlier isolated card previews.
 Current PR checks are listed on [PR #91](https://github.com/redstone-md/mosh-flutter/pull/91).
 Locally, Flutter analyze, 26 existing PLUS tests and five configuration
 checks passed. Actual Flutter renders were inspected in English/Russian, narrow
