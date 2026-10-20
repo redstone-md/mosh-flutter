@@ -1158,7 +1158,7 @@
       }
     }
   },
-  "plusSupportHint": "Поддержка разработки Mosh · 30 дней",
+  "plusSupportHint": "Поддержка разработки Mosh",
   "plusProductionBadgeLabel": "Подтверждённый Mosh+",
   "plusPaidPrice": "{amount} {asset} · 30 дней",
   "plusRenew": "Добавить 30 дней",
@@ -1209,5 +1209,9 @@
   },
   "plusPurchaseTerms": "Условия покупки",
   "plusPaymentSupport": "Поддержка по платежам",
-  "plusCancelSetup": "Отменить создание платежа"
+  "plusCancelSetup": "Отменить создание платежа",
+  "plusBuy": "Купить Mosh+",
+  "plusOneTimeHint": "Один платёж, без автосписаний.",
+  "plusSalesPaused": "Продажи приостановлены",
+  "plusPaymentDetails": "Условия и реквизиты"
 }

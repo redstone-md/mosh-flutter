@@ -48,21 +48,17 @@ class PlusMainnetSettings extends ConsumerWidget {
             onPurchase: controller.purchase,
             ready: snapshot.checkoutReady,
             renewal: snapshot.active,
+            onRecover: controller.recover,
             onSelectPurchase: controller.purchase),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-            onPressed: value.busy || !snapshot.checkoutReady
-                ? null
-                : controller.recover,
-            icon: const Icon(Icons.restore),
-            label: Text(l.plusRecover)),
       ] else
         Text(l.plusUnavailable),
       if (snapshot.recovery case final session?)
         PlusRecoveryPanel(
             session: session, busy: value.busy, onRefresh: controller.refresh),
-      const SizedBox(height: 12),
-      Text(l.plusMainnetPrivacy),
+      if (!config.canPurchase) ...[
+        const SizedBox(height: 12),
+        Text(l.plusMainnetPrivacy),
+      ],
     ]);
   }
 }

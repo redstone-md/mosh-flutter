@@ -5,7 +5,11 @@ and identity surfaces. It does not buy relay capacity or alter free chat/call
 features. Initial prices are **5 USDC** or **2,575 CLXAI** for 30 days on Solana
 mainnet. External wallets approve each payment; there are no automatic charges.
 Open **Settings → Profile** and scroll to the **Mosh+** card below the display-name
-form for purchase, renewal and recovery.
+form for purchase, renewal and recovery. The card keeps price, currency and
+purchase/recovery actions visible. Expand **Payment details & terms** for the
+mint, recipient, full payment/privacy information and terms/support links.
+Paused sales disable the purchase button with **Purchases paused**; recovery
+remains available, including when the catalog cannot load.
 
 Implementation is on `feat/plus-mainnet`. The devnet pilot is complete; production
 activation and real mainnet acceptance are still pending. See the

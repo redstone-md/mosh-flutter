@@ -19,12 +19,11 @@ void main() {
     await screen(tester, native, salesEnabled: false);
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNull);
-    expect(
-        find.text('Purchases are unavailable in this build.'), findsOneWidget);
+    expect(find.text('Purchases paused'), findsOneWidget);
     expect(
         tester
-            .widget<OutlinedButton>(
-                find.widgetWithText(OutlinedButton, 'Recover purchase'))
+            .widget<TextButton>(
+                find.widgetWithText(TextButton, 'Recover purchase'))
             .onPressed,
         isNotNull);
   });

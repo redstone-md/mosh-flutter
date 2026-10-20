@@ -2166,7 +2166,7 @@
       }
     }
   },
-  "plusSupportHint": "Support Mosh development · 30 days",
+  "plusSupportHint": "Support Mosh development",
   "plusProductionBadgeLabel": "Verified Mosh+",
   "plusPaidPrice": "{amount} {asset} · 30 days",
   "plusRenew": "Add 30 days",
@@ -2217,5 +2217,9 @@
   },
   "plusPurchaseTerms": "Purchase terms",
   "plusPaymentSupport": "Payment support",
-  "plusCancelSetup": "Cancel payment setup"
+  "plusCancelSetup": "Cancel payment setup",
+  "plusBuy": "Buy Mosh+",
+  "plusOneTimeHint": "One payment, no automatic charges.",
+  "plusSalesPaused": "Purchases paused",
+  "plusPaymentDetails": "Payment details & terms"
 }

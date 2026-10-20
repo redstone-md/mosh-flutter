@@ -6,6 +6,9 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'plus_provider.dart';
 import 'plus_catalog.dart';
 import 'plus_currency_checkout.dart';
+import 'plus_payment_details.dart';
+
+export 'plus_payment_details.dart' show PlusPaymentTerms;
 
 class PlusNewPayment extends ConsumerWidget {
   const PlusNewPayment(
@@ -13,24 +16,35 @@ class PlusNewPayment extends ConsumerWidget {
       required this.busy,
       required this.onPurchase,
       this.onSelectPurchase,
+      this.onRecover,
       this.ready = true,
       this.renewal = false});
   final bool busy;
   final VoidCallback onPurchase;
   final ValueChanged<String>? onSelectPurchase;
+  final VoidCallback? onRecover;
   final bool ready;
   final bool renewal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
+    final recovery = onRecover == null
+        ? null
+        : TextButton(
+            onPressed: busy || !ready ? null : onRecover,
+            child: Text(l.plusRecover));
     return ref.watch(plusCatalogProvider).when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => Column(children: [
+            const Center(child: CircularProgressIndicator()),
+            if (recovery != null) recovery,
+          ]),
           error: (_, __) => Column(children: [
             Text(l.plusRetryError),
             TextButton(
                 onPressed: () => ref.invalidate(plusCatalogProvider),
-                child: Text(l.plusRetry))
+                child: Text(l.plusRetry)),
+            if (recovery != null) recovery,
           ]),
           data: (catalog) => onSelectPurchase != null
               ? PlusCurrencyCheckout(
@@ -38,6 +52,7 @@ class PlusNewPayment extends ConsumerWidget {
                   busy: busy,
                   ready: ready,
                   renewal: renewal,
+                  onRecover: onRecover,
                   onPurchase: onSelectPurchase!)
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -91,32 +106,5 @@ class PlusPendingPayment extends StatelessWidget {
           icon: const Icon(Icons.refresh),
           label: Text(l.plusRefresh)),
     ]);
-  }
-}
-
-class PlusPaymentTerms extends StatelessWidget {
-  const PlusPaymentTerms(
-      {super.key,
-      required this.mint,
-      required this.recipient,
-      this.mainnet = false});
-  final String mint;
-  final String recipient;
-  final bool mainnet;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          SelectableText('${l.plusMint}: $mint'),
-          SelectableText('${l.plusRecipient}: $recipient'),
-          const SizedBox(height: 8),
-          Text(mainnet ? l.plusSupportTerm : l.plusTerm),
-          const SizedBox(height: 8),
-          Text(mainnet ? l.plusMainnetNotice : l.plusNetworkNotice),
-        ]));
   }
 }
