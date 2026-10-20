@@ -32,6 +32,9 @@ Flutter chat list, messages and details for DMs, private groups and public chann
   returning to the list first on mobile.
 - DM loading and errors stay inside the scrollable list with a retry action.
   Loaded groups, channels and invitations remain visible and filterable.
+- On mobile, system Back returns from the chat pane to the conversation list,
+  preserving the chat. Nested dialogs and message selection handle Back first;
+  Back from the list itself can leave the application.
 - Desktop keeps list and chat together above 580px. The list grows from 268px to
   348px. At window widths of at least 1280px, details occupy a 320px third column
   and open initially. The header information button toggles them. Smaller windows

@@ -159,7 +159,13 @@ class _MobileShell extends StatelessWidget {
         .entries
         .map((e) => _branchContainer(currentIndex == e.key, e.value))
         .toList();
-    return IndexedStack(index: currentIndex, children: stackItems);
+    return PopScope(
+      canPop: currentIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && currentIndex != 0) context.go(AppRoutes.sessions);
+      },
+      child: IndexedStack(index: currentIndex, children: stackItems),
+    );
   }
 
   Widget _branchContainer(bool isActive, Widget child) {
