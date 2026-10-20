@@ -39,9 +39,14 @@ class _MobileCallFrameState extends State<MobileCallFrame> {
           width: width,
           height: height,
           child: GestureDetector(
-              onPanUpdate: (drag) => setState(() => _position = Offset(
-                  (clamped.dx + drag.delta.dx).clamp(0, maxX),
-                  (clamped.dy + drag.delta.dy).clamp(0, maxY))),
+              onPanUpdate: (drag) {
+                // Several pointer updates can arrive before the next build.
+                final current = _position ?? clamped;
+                setState(() => _position = Offset(
+                    (current.dx.clamp(0, maxX) + drag.delta.dx).clamp(0, maxX),
+                    (current.dy.clamp(0, maxY) + drag.delta.dy)
+                        .clamp(0, maxY)));
+              },
               child: widget.child),
         )
       ]);

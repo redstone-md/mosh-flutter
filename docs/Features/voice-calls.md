@@ -12,6 +12,8 @@ Opening the originating DM remains available while call controls are pending.
 Android ARM64 uses the same native audio/video protocol as desktop, with an
 in-app call view. The minimize button or Back hides the expanded controls without
 ending the call. Voice uses a compact strip; video uses a draggable mini-window.
+The mini-window accumulates every pointer movement between rendered frames and
+stays within the available viewport.
 Tap Restore to reopen controls. Both remain available across chat/settings routes.
 Device dialogs receive Back first. Camera permission refusal preserves
 voice and reception. Android selects a communication output and paired microphone
