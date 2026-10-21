@@ -39,3 +39,20 @@ function Wait-MoshRecordingFile(
     }
     throw 'No Moss recording appeared. Unlock Mosh and open a saved chat before retrying.'
 }
+
+# Complete the report using our clocks, without querying a closed process handle.
+function Save-MoshRecordingReport(
+    [string]$Recording, [hashtable]$Summary, [System.Diagnostics.Stopwatch]$Watch
+) {
+    $Watch.Stop()
+    $Summary.stopped_utc = [datetime]::UtcNow.ToString('o')
+    $Summary.observed_seconds = $Watch.Elapsed.TotalSeconds
+    $Summary.record_limit_bytes = 64MB
+    $Summary.at_size_limit = ((Get-Item $Recording).Length -ge 64MB)
+    $directory = Split-Path $Recording
+    $metadata = Join-Path $directory 'moss-runtime-summary.json'
+    $Summary | ConvertTo-Json | Set-Content $metadata -Encoding UTF8
+    $archive = Join-Path $directory 'mosh-runtime-report.zip'
+    Compress-Archive -Path @($Recording, $metadata) -DestinationPath $archive
+    return $archive
+}

@@ -1,8 +1,13 @@
 param([ValidateRange(30, 600)][int]$DurationSeconds = 180)
 $ErrorActionPreference = 'Stop'
 $recorded = $null
+$recording = $null
 trap {
     Write-Host "Recording failed: $($_.Exception.Message)"
+    if ($recording -and (Test-Path $recording)) {
+        Write-Host "Your recording is preserved: $recording"
+        Write-Host 'Send this .mossrec file in the private diagnostic conversation; no repeat capture is needed.'
+    }
     if ($null -ne $recorded -and -not $recorded.HasExited) {
         Write-Host 'To end diagnostic mode, quit Mosh from its tray icon and open it normally.'
     }
@@ -48,20 +53,15 @@ if (-not $recorded.HasExited) {
     Write-Host 'Keep this tool window open until Mosh has exited.'
     Wait-MoshRecordingExit $recorded
 }
-$stoppedAt = $recorded.ExitTime.ToUniversalTime()
-$metadata = Join-Path $directory 'moss-runtime-summary.json'
-@{
+$summary = @{
     format_version = 1; process_id = $recorded.Id; app_version = $version
     process_start_utc = $processStartedAt.ToString('o')
-    started_utc = $startedAt.ToString('o'); stopped_utc = $stoppedAt.ToString('o')
+    started_utc = $startedAt.ToString('o')
     requested_interval_ended_utc = $intervalEndedAt.ToString('o')
-    observed_seconds = [math]::Max(0, ($stoppedAt - $startedAt).TotalSeconds)
     requested_seconds = $DurationSeconds
-    record_limit_bytes = 64MB; at_size_limit = ((Get-Item $recording).Length -ge 64MB)
     source = 'Existing MOSH_DEBUG_RECORD_DIR recorder; events and five-second runtime snapshots'
-} | ConvertTo-Json | Set-Content $metadata -Encoding UTF8
-$archive = Join-Path $directory 'mosh-runtime-report.zip'
-Compress-Archive -Path @($recording, $metadata) -DestinationPath $archive
+}
+$archive = Save-MoshRecordingReport $recording $summary $watch
 Write-Host "Report ready: $archive"
 Write-Host 'This ZIP contains private network metadata. Send it only in the private diagnostic conversation.'
 Write-Host 'Open Mosh normally using its usual shortcut. No persistent environment settings were changed.'

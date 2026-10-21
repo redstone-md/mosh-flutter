@@ -266,8 +266,9 @@ progress, waits for another normal Quit and archives exactly the recording
 plus a manifest. The owner then opens the ordinary shortcut. The private ZIP
 contains network metadata and must not be published with the source PR.
 Recording continues until that Quit or the approximately 64 MiB cap. The manifest
-separates process startup, recorder detection, requested interval end and actual
-process exit; observed duration includes the final wait for Quit.
+separates process startup, recorder detection, requested interval end and the
+time when the launcher observes process exit. A monotonic stopwatch supplies
+the duration, including the final wait for Quit.
 
 This trace includes startup and only the engine's supported events/metrics.
 Ordinary ping/pong envelopes are not individual debug events; session byte
@@ -276,3 +277,14 @@ hypotheses but is not a complete per-packet-kind byte profiler. Windows tests
 exercise real fixture processes for child environment isolation, executable
 paths with spaces, recorder discovery and timeout behavior without killing
 the application. The actual installed Mosh GUI capture remains an owner step.
+
+The owner's launcher reached both tray exits but failed while calculating report
+duration: a negative double overflowed the Int32 overload selected by
+`Math.Max(0, duration)`. Replaying the reported value reproduces that exception.
+Its magnitude is consistent with subtracting the current date from the Windows
+1601 epoch, although the actual returned `Process.ExitTime` was not captured.
+Report completion now avoids that property and wall-clock subtraction: it uses
+an observed UTC timestamp and the existing monotonic stopwatch. A focused test
+checks fractional duration, invalid timing replacement, Russian culture and the
+actual ZIP contents. On packaging failure, the preserved `.mossrec` is sufficient
+for the next analysis; a new owner capture is not required.
