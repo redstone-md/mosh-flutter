@@ -1,7 +1,8 @@
 # Issue 94: bound offline explicit-target attempts in Moss
 
-This is a proposed extension of the earlier peer-exchange scope. No upstream
-source or dependency pin has changed for this proposal.
+This approved extension of the earlier peer-exchange scope is implemented in
+upstream Moss `eb79f38` and consumed by this branch. Acceptance measurements
+and the configured Windows installer remain required before delivery.
 
 ## Evidence
 
@@ -65,6 +66,20 @@ change their default interval or add product-name checks in Moss.
    counter configuration. Separate own publications, explicit dial work,
    public peer exchange, CPU and complete OS counters in the report.
 
+## Configuration contract
+
+The approved implementation adds top-level `explicit_retry_max_sec` to the
+JSON and Go configurations. Omitted/nonpositive values retain a fixed retry
+gap. A positive value enables exponential spacing after complete failures;
+the effective maximum is bounded by the existing five-minute discovery cap
+and never falls below `max(HandshakeTimeout, Heartbeat, 1s)`. Mosh sets 30.
+Spacing starts at completion. This deliberately removes overlapping attempts
+even under the default policy; it preserves the interval, not the earlier
+overlapping start schedule. New caller intent bypasses a quiet cooldown;
+new addresses/keys supersede an obsolete in-flight attempt. Stop cancels and
+joins the explicit workers. No new FFI symbol, wire field or storage schema
+is needed. The user approved implementation of this split with “давай”.
+
 ## Risks and authorization
 
 An unattended target without new caller intent or inbound connection can wait
@@ -74,7 +89,8 @@ volume and whole-Windows acceptance remain separate checks.
 
 The repository's AGENTS.md says: "Do not modify `moss/` sources or sibling
 repositories." The user authorized the upstream explicit-retry extension in
-the isolated worktree, then requested a compatibility investigation before
-choosing its scope. That investigation is recorded above. No production source,
-public configuration contract or dependency pin has changed in this research
-step; the optional policy interface remains a proposal.
+the isolated worktree, requested a compatibility investigation, and then
+approved the implementation and integration plan with “давай”. The generic
+configuration contract above and the dependency update are included in that
+authorization. Changes remain in the two open PRs; neither merge nor release
+is part of this increment.

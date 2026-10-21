@@ -24,6 +24,7 @@ pub fn node_config_json(config: &MossNodeConfig) -> String {
         "static_peers": config.static_peer.iter().collect::<Vec<_>>(),
         "announce_interval_sec": 15,
         "bootstrap_timeout_sec": 12,
+        "explicit_retry_max_sec": 30,
         "lan_discovery_enabled": true,
         "gossipsub": { "heartbeat_ms": 250 },
         "nat": {

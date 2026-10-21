@@ -230,6 +230,8 @@ peer row. Initial Hello retries stay at two seconds; restored/lost established
 DMs back off to thirty seconds. A usable path or new user text wakes the retry.
 Unchanged offline identity claims follow those probes; changed claims/epochs
 bypass suppression after fresh validation. Connected keepalives are unchanged.
+Mosh opts into Moss's thirty-second maximum explicit-target retry gap. Attempts
+coalesce per target; fresh caller intent and admitted route changes wake them.
 Attachment streams use direct routes and fall back to room publication on refusal;
 blob subscriptions remain active. Restored encrypted manifests preserve offered
 attachments after restart. See [ADR 0027](ADR/0027-attachments-ride-moss-streams.md)
