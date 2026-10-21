@@ -288,3 +288,67 @@ an observed UTC timestamp and the existing monotonic stopwatch. A focused test
 checks fractional duration, invalid timing replacement, Russian culture and the
 actual ZIP contents. On packaging failure, the preserved `.mossrec` is sufficient
 for the next analysis; a new owner capture is not required.
+
+## Owner's engine recording: repeated refusals
+
+The preserved recording is 15,254,487 bytes, SHA-256
+`a268064169e8cdbfd021118e9ffe19fa4461248747ce000ceac6dd729c01f065`.
+All 92,636 JSONL frames parse; its event span is 0.025–192.297 seconds after
+engine startup. It did not reach the 64 MiB cap. Event sequences 1–92,256
+are continuous and all 38 drop snapshots report `bus_dropped=0`.
+This recording is a new launch, separate from the earlier ETW byte capture.
+
+| Observation | Recorded value |
+| --- | --- |
+| Inbound `gossip.prune` | 85,272, about 443/s over the event span; peak 831 in a complete second |
+| PRUNE spread | 52 peer labels and all 35 local topics |
+| Median repeat interval, same peer/topic | 2.250 seconds |
+| Confirmed members and claimed subscribers | Zero on every topic in all 38 snapshots |
+| Mesh peer count | Grows from two at 5 s to 53 at 190 s |
+| Local publishes | 2,027, all DM/group control topics; 2,764,227 payload bytes before fanout |
+| Outbound queue drops | 1,605 by the final snapshot |
+
+At 190 s, the currently live session ciphertext counters contain 37,189,132
+bytes received and 65,578,735 sent. These are neither a lifetime process total
+nor a per-packet-kind breakdown; closed sessions, other network protocols and
+wire overhead differ. The PRUNE count establishes a control-traffic loop,
+not the percentage of all bytes attributable to it. Local publish fanout is
+also visible, but attempted target counts are not confirmed delivery bytes.
+
+### Matching defect in the pinned Moss source
+
+`node_debug_emit.go:emitInbound` maps received PRUNE envelopes to these events.
+The checked-in revision `0effb8bb2cd318d2fb516cd2689083daaa5a1917` has a
+matching sender-side cooldown defect:
+
+1. `ensureTopicMeshMinimum` falls back to connected peers when nobody has
+   claimed the topic, and marks a speculative GRAFT before confirmation.
+2. A peer outside the topic answers GRAFT with PRUNE.
+3. `handleEnvelope` treats an answer to a recent GRAFT as join choreography,
+   even if that peer never claimed the topic. It both sets a two-second block
+   and backdates `graftedAt` through `markMeshGraftRefused`.
+4. That backdating reduces the configured 30-second sender retry interval to
+   two seconds. After the next 250 ms heartbeat, the same stranger is eligible
+   again. This matches the owner's 2.25-second median refusal spacing.
+
+A private Go test overlay exercises the actual pinned methods and existing
+encrypted-session test fixture without changing any dependency files or opening
+network sockets. The existing announce-throttle test passes; the new refusal
+case fails in 2.25 seconds with a second write where the 30-second retry bound
+requires one. Overlay, test and output are retained privately under
+`owner-recording-20261021` in the diagnostic directory. This reproduces the
+mechanism in source; exact equivalence of the installed binary is not proven.
+
+The minimal upstream correction is to retain the normal sender retry marker
+for a refusing peer that never claimed this topic. Only a positive subscription
+claim should qualify for the faster join path; an actual counterpart's GRAFT
+already supplies that signal. Preserve prompt late joins, simultaneous joins,
+message/call delivery and behavior across multiple topics in the regression
+checks. Re-measure bytes after the correction rather than predicting the whole
+traffic reduction from event counts.
+
+Root `AGENTS.md` forbids unrelated Moss changes. After reviewing this diagnosis,
+the owner approved the topic-scoped protocol fix and its dependency integration;
+see the [implementation plan](issue-94-topic-prune.plan.md). No shipping timers,
+discovery policy or dependency revision were changed during the diagnosis.
+Android background calls and remaining traffic sources stay open in #94.
