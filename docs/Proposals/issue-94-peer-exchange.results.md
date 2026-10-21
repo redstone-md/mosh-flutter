@@ -318,3 +318,60 @@ fails this test; the normal path passes three race repetitions. The test-only
 follow-up `cbfb21e` preserves the production tree at `dbe8989`; Mosh pins it.
 At that production revision, 733 Rust units, formatting/all-target Clippy and
 four real-process native-call scenarios pass again.
+
+## Fifth owner capture and native CPU follow-up
+
+The next Windows capture is complete, control-validated and has zero lost
+events/buffers. Its 120.943-second interval contains 6,851,651 outgoing and
+10,370,464 incoming external bytes: **1.139 Mbit/s**, versus 3.083 previously.
+Second and endpoint totals reconcile. The aggregate includes both partial
+boundary buckets; 120 complete-second buckets have median 0.395, p95 4.769
+and maximum 11.043 Mbit/s. One exceeds 10 Mbit/s, versus fourteen previously.
+Endpoint aliases fall from 249 to 88; these are not connected-peer counts.
+
+The 119 visible-window process samples show 22.28125 CPU seconds over 119.71
+seconds: **18.61% of one logical core**, with 18.43% in the second minute.
+The process started 28.5 seconds before recording. Different startup ages,
+public topology and the archive's lack of a binary hash prevent assigning
+the whole measured reduction to the patch or treating this as warm acceptance.
+
+A separate final-pin ten-minute standalone run holds 12 neighbors. Its
+400–520s carrier window averages 0.398 Mbit/s, median 0.088 and p95 2.535;
+the 220.17s warm CPU profile samples 3.88 CPU seconds. These are optimized
+Go-only counters and profiles, not Windows application or OS wire measurements.
+
+An optimized Linux native-facade fixture with real independent installations
+then separates background service from one-second list/open-DM/name polls:
+one offline DM uses 2.69%/4.68% of one core, eleven use 5.66%/9.37%.
+The one-DM fixture retains one unacknowledged test text. The eleven-DM fixture
+confirms all eleven messages delivered before stopping the counterpart.
+There is no Flutter renderer, and topology/hardware differ from the owner;
+these runs do not identify the entire Windows CPU remainder. Raw profiles,
+fictional fixture stores and owner captures remain private.
+
+The profile exposes sorting, JSON serialization and allocation inside repeated
+`MeshInfoJSON` calls. Each report also builds the known-peer directory, although
+Rust only needs live peer rows for reachability. A private Go timing/count
+overlay observes 4,266 full reports over 61 seconds with eleven DMs and polls.
+That diagnostic overlaps a subsequent build; its timing is not a CPU A/B.
+
+The Mosh fix reads once for a reachability logging pass and once for all rows
+of a list. Individual snapshots also derive their path and filtered mesh from
+one report. Observations live only for that operation. Message routing,
+authentication, liveness evidence, retries and wire/bridge contracts retain
+their existing behavior; failed reports remain absent and later reads recover.
+
+Public runtime regressions fail before the relevant fixes: four saved chats
+perform four maintenance reads instead of one; after fixing maintenance, list
+reads still perform five instead of two. Both pass after batching, including
+fresh direct/relayed/offline reports and failed-report output. The existing
+snapshot field literal remains the sole constructor (documented size exception).
+Windows whole-application idle acceptance and Android background/battery work
+remain open.
+
+At this Mosh increment, all 735 Rust unit tests pass (20 independent workers
+intentionally ignored), as do formatting, all-target Clippy and four actual
+native-call subprocess scenarios. The final focused run also checks that an
+empty runtime performs no mesh reads.
+Focused LLVM coverage executes all 22 changed executable production lines;
+the generated LCOV has no branch counters.

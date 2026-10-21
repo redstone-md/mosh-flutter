@@ -34,14 +34,14 @@ impl PrivateDmSession {
     /// found after a start is when discovery finished, and a flip between
     /// direct, relayed and none explains a Connected that comes and goes.
     ///
-    /// One mesh report per call: a failed one says nothing about the
+    /// Use the runtime pass's mesh report: a failed one says nothing about the
     /// counterpart, and a second read could land on a restart the first
     /// missed, logging a lost path and a recovery that never happened.
-    pub(super) fn pump_reach_log(&mut self) {
-        let Some(info) = self.transport.mesh_info() else {
+    pub(super) fn pump_reach_log(&mut self, info: Option<&MeshInfo>) {
+        let Some(info) = info else {
             return;
         };
-        let reach = self.reach_in(&info);
+        let reach = self.reach_in(info);
         if reach == self.logged_reach {
             return;
         }

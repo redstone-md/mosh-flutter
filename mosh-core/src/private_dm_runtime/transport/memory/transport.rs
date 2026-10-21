@@ -121,7 +121,8 @@ impl DmTransport for MemoryTransport {
     }
 
     fn mesh_info(&self) -> Option<MeshInfo> {
-        let state = self.net.lock();
+        let mut state = self.net.lock();
+        state.endpoints.get_mut(&self.peer_id)?.mesh_reports += 1;
         if state.reports_fail(&self.peer_id) {
             return None;
         }

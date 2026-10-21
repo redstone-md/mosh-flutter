@@ -39,6 +39,7 @@ struct Endpoint {
     /// The mesh report fails, the way moss's does while the node restarts:
     /// no report, and so no path to anyone.
     fail_mesh_reports: bool,
+    mesh_reports: usize,
 }
 
 #[derive(Clone)]
@@ -193,6 +194,14 @@ impl MemoryNet {
             .endpoints
             .get(from)
             .map_or(0, |endpoint| endpoint.stream_attempts)
+    }
+
+    /// Full diagnostic reads made by an endpoint, including failed reads.
+    pub fn mesh_reports(&self, from: &str) -> usize {
+        self.lock()
+            .endpoints
+            .get(from)
+            .map_or(0, |endpoint| endpoint.mesh_reports)
     }
 
     /// The peers `from` asked the transport to reach, in order.

@@ -4,6 +4,11 @@ use super::*;
 
 impl PrivateDmSession {
     pub(super) fn snapshot(&mut self) -> SessionSnapshot {
+        let mesh = self.transport.mesh_info();
+        self.snapshot_with_mesh(mesh.as_ref())
+    }
+
+    pub(super) fn snapshot_with_mesh(&mut self, mesh: Option<&MeshInfo>) -> SessionSnapshot {
         // The poll is the heartbeat: a hint past its deadline stops being
         // carried (and files its lapse into the event ring) from here.
         self.expire_peer_typing(now_ms());
@@ -37,7 +42,7 @@ impl PrivateDmSession {
             display_name: self.device_id.clone(),
             peer_display_name: self.peer_display_name.clone().unwrap_or_default(),
             state: self.state,
-            transport: self.reach(),
+            transport: mesh.map_or(PeerTransport::None, |info| self.reach_in(info)),
             peer_moss_id: self.peer_moss_id.clone(),
             last_connect_outcome: self.last_connect_outcome,
             invite_uri: self.invite_uri.clone(),
@@ -45,7 +50,7 @@ impl PrivateDmSession {
             fingerprint: self.fingerprint.clone(),
             messages,
             attachments: self.transfer.views(),
-            mesh: self.mesh_info(),
+            mesh: mesh.map(|info| self.session_mesh(info)),
             events: crate::conversation::mesh::snapshot_events(),
             pending_call: self.call.as_ref().and_then(|call| {
                 if matches!(call.phase, CallPhase::Ringing | CallPhase::Accepting) {
@@ -87,8 +92,8 @@ impl PrivateDmSession {
         }
     }
 
-    pub(super) fn mesh_info(&self) -> Option<MeshInfo> {
-        let mut info = self.transport.mesh_info()?;
+    fn session_mesh(&self, info: &MeshInfo) -> MeshInfo {
+        let mut info = info.clone();
         // The node is shared, so it reports every open conversation's channels.
         // This snapshot belongs to ONE of them: showing the others would put
         // another chat's session id in this chat's diagnostics panel. Peer
@@ -96,7 +101,7 @@ impl PrivateDmSession {
         // against them.
         info.channels
             .retain(|channel| channel_session_id(channel) == Some(self.session_id.as_str()));
-        Some(info)
+        info
     }
 
     /// What needs a live path right now: an attachment, a call. A text never

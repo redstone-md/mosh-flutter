@@ -113,3 +113,23 @@ new automatic relay only while total neighbors remain below the working goal.
 Otherwise direct-outbound repair could add relayed peers indefinitely without
 satisfying that quota. Preserve established relays and explicit/provider paths.
 Verify the actual dial/fallback seam with real TCP nodes at and below the goal.
+
+## Follow-up after the fifth Windows capture: diagnostic reads
+
+The validated 120.943-second owner capture averages 1.139 Mbit/s and 18.61%
+of one logical CPU core. Its process is only 28.5 seconds old at capture start;
+idle acceptance remains open. Profile the optimized real native facade with
+an offline counterpart and with the UI's list/open-chat polling pattern.
+
+The trace exposes repeated complete mesh reports while maintaining and listing
+saved DMs. Share one current observation across the reachability logging pass,
+and one across a returned conversation list. Derive each row's path and filtered
+diagnostics from that same observation. Keep fresh reads between operations,
+failed-report behavior, authenticated liveness and all publication/routing paths.
+Use the existing transport and public snapshot seams; add no cache, timer,
+public API, FFI symbol, schema or dependency. Verify constant read cost across
+chats plus direct/relayed/offline transitions and failed reports before rerunning
+native integrations, independent review, CodeAnt and the configured installer.
+
+Size exception: `snapshot_with_mesh` retains the existing `SessionSnapshot`
+field literal over 50 lines, with one constructor for the whole native shape.

@@ -142,12 +142,17 @@ impl PrivateDmRuntime {
     pub fn list_sessions(&mut self) -> Result<SessionListSnapshot, PrivateDmRuntimeError> {
         self.drain_inbound();
         let availability = self.call_availability();
+        let mesh = if self.sessions.values().any(|session| session.is_visible()) {
+            self.transport.mesh_info()
+        } else {
+            None
+        };
         let mut snapshots: Vec<SessionSnapshot> = self
             .sessions
             .values_mut()
             .filter(|session| session.is_visible())
             .map(|session| {
-                let mut snapshot = session.snapshot();
+                let mut snapshot = session.snapshot_with_mesh(mesh.as_ref());
                 snapshot.call_availability = availability;
                 snapshot
             })

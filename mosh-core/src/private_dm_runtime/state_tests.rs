@@ -219,3 +219,6 @@ mod call_selection;
 
 #[path = "state_tests/restore.rs"]
 mod restore;
+
+#[path = "state_tests/mesh_reads.rs"]
+mod mesh_reads;
