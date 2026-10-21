@@ -356,13 +356,14 @@ Android background calls and remaining traffic sources stay open in #94.
 ## Implemented topic refusal fix
 
 [Moss PR 28](https://github.com/redstone-md/moss/pull/28) implements the approved
-correction at `0404bbc4c223a675c53bfedc9723ed74c049bc5a`, replacing Mosh's
+correction at `7a342029452925d2db9b0bd53b107e7be5e3f2b4`, replacing Mosh's
 `0effb8bb2cd318d2fb516cd2689083daaa5a1917` pin. The pub/sub manager owns refusal
 state per peer and local topic; connection health stays independent. A first
 positive claim admits a late subscriber immediately, while repeated claims
 honor newer refusals. Unsubscribe/disconnect release state; retired direct and
 relay sessions cannot recreate it through queued GRAFT, PRUNE or send markers.
 Wire format, ABI, discovery policy and configured timers are unchanged.
+The existing backoff also preserves configured heartbeat intervals above 30 s.
 
 The same private encrypted-session fixture, 35 topics and one refusing peer,
 ran for 8.5 seconds on Go 1.25.9: 175 GRAFTs / 9,975 ciphertext bytes before,
