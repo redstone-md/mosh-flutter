@@ -127,7 +127,7 @@ Windows Server 2025 / Windows PowerShell 5.1 verification at `82a2b517`:
 - An independent failing child confirmed that its error message survives
   the child console closing. UAC parent redisplays the report path/quality
   or failure. Interactive UAC itself was source-reviewed, not automated.
-- Downloaded package SHA-256 and all six source files were verified against
+- Downloaded package SHA-256 and all packaged source files were verified against
   the repository, allowing Windows line-ending conversion.
 - Standards review: no findings. Spec review: one result-visibility finding,
   fixed and re-reviewed in `82a2b517`.
@@ -240,3 +240,39 @@ it with runtime mesh/relay and packet-kind evidence. Record the application
 version and exact display/source/window of the owner's “100–150 Mbit” reading
 when available. Do not close #94 or claim an idle-resource fix from this
 diagnostic stage.
+
+## Correlation with the supplied application log
+
+`mosh-20261021.log` has 3,840 lines spanning 2026-10-03 through 2026-10-21.
+The ETW interval, 2026-10-20 23:41:53.600–23:43:54.056 UTC, contains zero
+application-log entries. The surrounding current launch has 17 lines at
+23:36:41: one MLS restoration failure and 16 connect requests across eight
+sessions targeting five distinct peers. These requests occur at startup,
+not repeatedly during the captured two minutes. The failed restore is a
+different session from the selected chat shown in the screenshot.
+
+Most warnings in the full file are older MLS generation/verification errors.
+They are not evidence for an error storm during the measured idle interval.
+The lack of log entries does not exclude normal application synchronization:
+the application logger is selective. Moss event callbacks populate the in-memory
+diagnostic ring, not `mosh.log`; the file therefore does not contain the
+engine-level stream needed to attribute its network maintenance.
+
+The collector package now also provides `Start-MossRecording.cmd`, using the
+installed app's existing bounded recorder. It waits for the owner's normal
+tray Quit, launches the same EXE unelevated with a child-local diagnostic
+variable and requests three idle minutes after the recorder is detected. It shows
+progress, waits for another normal Quit and archives exactly the recording
+plus a manifest. The owner then opens the ordinary shortcut. The private ZIP
+contains network metadata and must not be published with the source PR.
+Recording continues until that Quit or the approximately 64 MiB cap. The manifest
+separates process startup, recorder detection, requested interval end and actual
+process exit; observed duration includes the final wait for Quit.
+
+This trace includes startup and only the engine's supported events/metrics.
+Ordinary ping/pong envelopes are not individual debug events; session byte
+totals also change when sessions disappear. It may narrow the remaining
+hypotheses but is not a complete per-packet-kind byte profiler. Windows tests
+exercise real fixture processes for child environment isolation, executable
+paths with spaces, recorder discovery and timeout behavior without killing
+the application. The actual installed Mosh GUI capture remains an owner step.

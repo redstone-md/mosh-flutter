@@ -22,6 +22,15 @@ Evidence and limits: [measurement results](issue-94-idle-measurement.results.md)
 5. Verify changed seams, run relevant checks, commit and publish a reviewable PR.
    Application protocol, storage, dependencies and Moss sources remain unchanged.
 
+Follow-up after the owner's Windows byte capture: compare the same UTC interval
+in the existing application log first. If it has no causal signal, use the
+already shipped `MOSH_DEBUG_RECORD_DIR` recorder through a standalone launcher.
+Keep launches unelevated and environment changes child-local; the owner quits
+through the tray, with bounded waits and no forced termination. Package only
+the recording and its timing/version manifest. Check real child-process
+environment/lifecycle behavior on Windows; do not claim that test substitutes
+for the owner's GUI capture. No new app build or Moss source change is needed.
+
 Raw traces, disposable keys, peer addresses and debugger URLs stay in
 `/root/private/mosh-idle-network`; commit only aggregate evidence. Network traffic
 and CPU measurement are distinct: local bridge snapshots are not wire bytes.
