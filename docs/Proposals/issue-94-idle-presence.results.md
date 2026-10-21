@@ -41,12 +41,60 @@ A separate recorder-backed integration uses independent native API processes
 with real Moss, encrypted redb and MLS. It bounds actual own-publication counts
 while a contact is offline, then restarts that contact and verifies text delivery
 and authenticated Connected state. Before identity suppression, that same
-30-second count is 18 and fails the limit of 12; the corrected test passes.
+30-second count is 18 and fails the limit of 12; the corrected test records
+seven publications and passes.
 The count excludes forwarded traffic and is not a whole-network byte budget.
 
-The full Rust unit suite passes (742 passed, 20 ignored). Four native-call
-scenarios pass with the real media engine. Clippy passes with warnings denied.
+Three secondary module-boundary tests inspect actual control frames after a
+signed roster extension, a real MLS epoch transition, and both soft/hard
+publication failures followed by a new Hello. They avoid inspecting cache
+representation. The primary recorder integration also passes under coverage.
+
+The full Rust unit suite passes (745 passed, 20 ignored), as do 23 independent
+real-Moss multi-device scenarios (two ignored workers) and four native-call
+scenarios with the real media engine. Clippy and formatting pass. LLVM coverage
+executes 36 of 38 changed executable production lines (94.7%); the stable tool
+emits no branch records. Both independent review axes have no remaining
+findings. CodeAnt completed the production change at `77066b70` without inline
+findings; subsequent source changes only add tests/formatting.
 Raw captures, fictional profiling identities and profiles remain private.
+
+## Release workload after the change
+
+The candidate is built at `de491a10` with the shipping release profile and
+the original eight-contact encrypted fixture. After ten minutes of warmup,
+each two-minute window (foreground and background) emits 32 Hello and 32
+DeviceIdentity publications: 64,128 application bytes versus 881,760 before,
+a 92.7% reduction. These counts come from private native instrumentation;
+the separate recorder-backed integration above is independent evidence.
+
+The sampled carrier counters are 0.529/0.681 Mbit/s, versus 0.422/0.627 before.
+Both endpoints have twelve transport neighbors, but the candidate directory
+changes from 415 known addresses at the foreground endpoint to 862 at the
+background endpoint; the baseline has 472/471. This local directory count is not
+the public network's population: admission and directory eviction also affect
+it. Peer-announcement envelopes alone
+total 3.78/5.82 MB across the two candidate windows. The application's bounded
+publications therefore do not establish a whole-network bandwidth reduction.
+
+Observed native CPU is 6.03/5.29% of one core, versus 6.65/6.28 before. Besides
+public topology, the candidate's supplementary debug recorder failed to open
+its missing output directory while the baseline's recorder was active. Native
+counters and CPU sampling completed, but this configuration difference also
+prevents attributing the CPU change to the fix. Repeat any causal CPU comparison
+with matching recorder settings. The native workload does not render Flutter.
+
+Both candidate windows still send 1,920 relay requests (668,160 envelope bytes)
+for eight offline explicit targets. The follow-up isolates their independent
+retry policy: [proposed Moss extension](issue-94-explicit-retry.plan.md).
+Target-specific diagnostic counters subsequently confirm actual overlapping
+explicit pipelines and attribute all relay requests in a separate two-minute
+interval to those eight fictional contacts; details are in that proposal.
+
+The configured [Windows installer at de491a10](https://github.com/redstone-md/mosh-flutter/actions/runs/39668058526/artifacts/12379197516)
+was downloaded and checked against its SHA-256 sidecar, source/Moss commits and
+mainnet PLUS manifest. SHA-256:
+`6bb975f432a5954737ec62e48cfd40e5a2f269261b9532f3de46706465bfa94b`.
 
 ## Acceptance limits
 
