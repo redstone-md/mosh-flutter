@@ -109,7 +109,7 @@ host activity prevent treating it as a whole-application CPU/battery guarantee.
 
 ## Integration and limits
 
-Mosh pins `00bc8cb` in [PR 96](https://github.com/redstone-md/mosh-flutter/pull/96).
+Mosh initially pinned `00bc8cb` in [PR 96](https://github.com/redstone-md/mosh-flutter/pull/96).
 The complete Go suite passes locally; focused protocol checks pass 20 repetitions
 and five race-detector repetitions. Vet and formatting pass. Focused coverage
 ranges include 106/118 changed executable source lines (89.8%); Go's standard
@@ -130,3 +130,79 @@ excessive announcements; the public mesh changes between measurements. No claim
 of zero idle traffic, a fixed whole-application bandwidth target or physical
 Android battery acceptance is made. Android background incoming calls remain
 separate unfinished work in #94. Raw captures and profiles remain private.
+
+## Third Windows capture: offline saved chat
+
+The owner confirmed a full tray exit and the configured installer from run
+`39544003089` (`e53dc266`, Moss `00bc8cb`), without calls or file transfers.
+The saved chat was open and its counterpart offline. The new capture covers
+12:51:40.486–12:53:41.157 UTC on 2026-10-21, 120.671 seconds, starting about
+401 seconds after process launch. Capture/control validation passes, all ETW
+loss counters are zero, and independent aggregate sums reconcile.
+
+| Measurement | Second capture | Third capture |
+| --- | ---: | ---: |
+| TX | 48,586,106 bytes | 12,182,485 bytes |
+| RX | 37,876,494 bytes | 33,720,846 bytes |
+| Combined mean | 5.752 Mbit/s | 3.043 Mbit/s |
+| Complete-second median | 1.223 Mbit/s | 1.199 Mbit/s |
+| Complete-second p95, nearest rank | 27.535 Mbit/s | 14.203 Mbit/s |
+| Complete-second peak | 70.420 Mbit/s | 24.448 Mbit/s |
+| CPU, one logical core equivalent | 30.14% | 27.29% |
+
+TX fell 75.0% relative to the second capture; RX fell only 11.3%. Different
+public topology still prevents a controlled causal comparison. None of the
+complete one-second buckets exceeds 100 Mbit/s, but subsecond bursts remain
+unmeasured. Idle acceptance is unfinished: incoming bytes dominate and the
+median/CPU remain substantial.
+
+## Remaining CPU attribution and correction
+
+A 600-second optimized standalone run at `00bc8cb`, with the same configuration
+and 35 subscriptions but zero application publishes, reproduces the remaining
+traffic. Seconds 400.304–520.397 carry 35,593,438 incoming and 8,480,206 outgoing
+mesh carrier bytes, 2.936 Mbit/s combined. These private socket counters exclude
+some setup/other sockets and are not a full OS wire measurement. DHT contributes
+44,067 bytes in the same window, under 0.003 Mbit/s. There are no transit routes.
+Dispatched incoming announcements account for 55,055 copies/18,700,311 plaintext
+bytes; carrier/envelope counters overlap and must not be added.
+
+The warm CPU profile (seconds 380–600) samples 21.49 CPU seconds over 220.17 s;
+36.20% is in signature verification. Receive handlers verify each peer/status
+claim, then the directory-update function verifies it again. A private overlay
+assertion observes two actual cryptographic verifications for one received
+claim before correction and one after, for all three announcement/status types.
+
+[Moss PR 29](https://github.com/redstone-md/moss/pull/29) consolidates validation
+at the directory boundary. Direct-sender identity, peer signatures and signed
+capability claims keep separate trust rules. It removes the caller-provided
+verification flag, without a signature cache, new wire fields or discovery-policy
+changes. Mosh now pins `83b03d3` for this follow-up; PR 28 has merged upstream.
+
+Five optimized, identical-input receive benchmark repetitions on the same Linux
+host give these medians, with setup outside the measured loop:
+
+| Claim | Before | After | Allocations before → after |
+| --- | ---: | ---: | ---: |
+| `peer_announce` | 129.926 µs | 65.721 µs | 8 → 6 |
+| `supernode_announce` | 130.941 µs | 66.941 µs | 10 → 6 |
+| `supernode_revoke` | 129.675 µs | 65.828 µs | 10 → 6 |
+
+The 48.9–49.4% reduction applies to this handler work, not full-application CPU
+or network traffic. Tampered repeated claims, legacy direct hints, capability
+trust, relay keys and real late-leaf relayed delivery pass focused checks.
+Independent standards and spec reviews report no findings in this follow-up.
+
+A separate 180-second standalone run registers one synthetic absent contact
+after second 60, using the actual retained `ConnectToPeer` path. Over the next
+120.095 seconds, 327 successful relay-request writes for that contact total
+113,796 plaintext bytes (about 0.0076 Mbit/s). This excludes related introductions,
+other setup traffic and application-level controls, so it is not an upper bound
+on a complete offline DM. It does distinguish those requests from the substantial
+general-network traffic already reproduced without any retained contact.
+
+Mosh registers each session/device target once; Moss owns subsequent retries.
+For established device-aware sessions, application control routing checks live
+device reach and does not fall back to public room publishing when all devices
+are offline. Periodic MLS control construction/persistence remains a separate
+potential CPU/disk cost; this packet trace does not measure that cost.

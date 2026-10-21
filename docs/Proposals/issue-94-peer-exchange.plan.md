@@ -48,3 +48,21 @@ identities and actual capability/address changes before selecting a fix.
 
 PRs remain reviewable and unmerged. Android background calls and physical
 battery acceptance remain separate unfinished parts of #94.
+
+## Follow-up after the configured Windows build
+
+The owner confirmed the third capture used run `39544003089` after a full
+tray exit, with a saved chat open and its counterpart offline. Mean traffic
+fell to 3.043 Mbit/s, but 27.29% of one CPU core and 2.236 Mbit/s incoming
+traffic leave idle acceptance unfinished.
+
+A 600-second standalone run at `00bc8cb`, with no application publishes,
+reproduces the remaining traffic. Its warm CPU profile spends 36.20% in
+signature verification. Announcement/status handlers verify the same claim
+again inside the directory update. Consolidate validation at that boundary,
+retaining separate identity, direct-sender and signed-capability trust rules.
+Do not introduce a signature cache or change discovery/connection policy.
+Benchmark identical signed inputs before/after and recheck tampered claims,
+legacy direct hints and relay key admission. Separately trace offline-contact
+retries; an offline counterpart must not be mistaken for an application-idle
+capture with no retained targets.
