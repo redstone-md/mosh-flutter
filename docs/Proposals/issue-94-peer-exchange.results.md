@@ -286,3 +286,35 @@ non-default batch fallback is the only uncovered statement. Independent
 Standards and Spec reviews have no remaining findings. Mosh rebuilds the pinned library and passes Rust formatting, all-target Clippy,
 733 unit tests (20 expected ignored workers) and four real-process native call
 integrations. Platform CI is repeated for the new dependency pin before handoff.
+
+
+## Automatic relay fallback cannot bypass the neighbor goal
+
+Further review finds a NAT edge case: direct-outbound repair demand remains
+positive when connections fall back to relay. Those new logical neighbors do
+not satisfy either direct quota, so automatic retries could keep adding them
+until the separate relay cap. A real TCP regression on `bd952a7` reproduces an
+extra automatic relay at a filled working goal; its below-goal control works.
+
+Gate only new automatic fallback against the current total neighbor count,
+after the direct attempt. Keep existing relay sessions and explicit/provider
+requests outside the gate. The regression checks both goals, then exchanges
+private-room and directed payloads both ways through an explicit relay beyond
+the goal. No purpose flag, timer, wire field or public parameter is introduced.
+
+
+Mosh pins `dbe8989` for this guard. The new actual-dial regression passes five
+repetitions and three race repetitions; the full upstream suite, vet and format
+checks pass. The budget module reaches 96.6% statement coverage. Independent
+Standards and Spec re-reviews have no remaining findings. Public-run figures
+above refer to their named earlier revision; they do not measure this guard.
+
+
+CodeAnt's full review also identifies a vacuous old address-preservation test:
+an unsigned third-party claim is rejected before address selection. Replace it
+with a valid signed claim and assert key admission as well as the retained
+public address. A private mutation forcing candidate-address selection now
+fails this test; the normal path passes three race repetitions. The test-only
+follow-up `cbfb21e` preserves the production tree at `dbe8989`; Mosh pins it.
+At that production revision, 733 Rust units, formatting/all-target Clippy and
+four real-process native-call scenarios pass again.

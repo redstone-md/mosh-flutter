@@ -103,6 +103,13 @@ independent review and CodeAnt comments/nitpicks before the next owner build.
 
 Size-limit exception: existing upstream selector files/functions already exceed
 the Mosh limits. This patch keeps their edits local and extracts the new budget
-policy into a module under 50 lines; it avoids an unrelated rewrite of transport setup.
+policy into a module under 100 lines; it avoids an unrelated rewrite of transport setup.
 Go reports statement coverage, not branch coverage. No tracked captures or
 production instrumentation are introduced.
+
+
+Relay-only neighborhood guard: after a direct discovery attempt fails, allow a
+new automatic relay only while total neighbors remain below the working goal.
+Otherwise direct-outbound repair could add relayed peers indefinitely without
+satisfying that quota. Preserve established relays and explicit/provider paths.
+Verify the actual dial/fallback seam with real TCP nodes at and below the goal.
