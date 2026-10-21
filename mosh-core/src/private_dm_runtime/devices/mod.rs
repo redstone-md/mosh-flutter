@@ -30,4 +30,6 @@ pub(super) fn invalid() -> super::PrivateDmRuntimeError {
 mod history_metadata;
 #[cfg(test)]
 mod history_metadata_tests;
+#[cfg(test)]
+mod identity_advertisement_tests;
 mod identity_session;

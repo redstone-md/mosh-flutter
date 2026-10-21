@@ -1,4 +1,7 @@
-#[allow(dead_code, reason = "Shared harness also serves other integration suites.")]
+#[allow(
+    dead_code,
+    reason = "Shared harness also serves other integration suites."
+)]
 mod link_support;
 
 use link_support::{isolated_network_scenario, peer_process, Peer};
