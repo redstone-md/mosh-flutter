@@ -356,7 +356,7 @@ Android background calls and remaining traffic sources stay open in #94.
 ## Implemented topic refusal fix
 
 [Moss PR 28](https://github.com/redstone-md/moss/pull/28) implements the approved
-correction at `7a342029452925d2db9b0bd53b107e7be5e3f2b4`, replacing Mosh's
+correction at `509a3f86f823723240ab3283dd37426809a3ea30`, replacing Mosh's
 `0effb8bb2cd318d2fb516cd2689083daaa5a1917` pin. The pub/sub manager owns refusal
 state per peer and local topic; connection health stays independent. A first
 positive claim admits a late subscriber immediately, while repeated claims
@@ -373,8 +373,11 @@ This is not a before/after measurement of the owner's full application traffic.
 The complete Go suite passed, including real-network late/simultaneous joins,
 churn, repair and delivery without a direct path. Focused regressions passed
 under the race detector; vet and formatting passed. Those regressions cover
-100 of 107 changed executable lines (93.5%); Go's standard coverage tool does
+120 of 124 changed executable lines (96.8%); Go's standard coverage tool does
 not report branch coverage. Standards and spec reviews have no remaining findings.
+
+The final CodeAnt inline finding and nitpick were reproduced and fixed: dropped
+queue sends do not record retries, and refused mesh admission prevents a GRAFT.
 
 Mosh rebuilt this exact Moss pin; Rust formatting and all-target Clippy passed.
 All four real-process native-call checks passed, including encrypted signaling,
