@@ -202,6 +202,37 @@ does not reconstruct relay activity during this captured interval. The existing
 bounded Moss recording is the next source for causal packet-kind attribution
 if the visible state is insufficient; no production setting is changed yet.
 
+### Owner's subsequent runtime snapshot
+
+The supplied screenshot shows 70 mesh peers (68 direct, two relayed),
+`nat_type=symmetric_nat`, Supernode `standby`, one active local relay session,
+zero transit relay routes, 471 known peers and three subscribed channels.
+The selected DM counterpart is offline and its transport has no route.
+Personal names, addresses, peer IDs and session IDs are omitted here.
+
+These counters have distinct meanings in the checked source:
+
+- `relay_session_count` counts established entries in `relayLocals`: this node
+  is an endpoint using a relay. It does not count routes hosted for others.
+- `relay_route_count` counts `relayRoutes`: zero means no such transit routes
+  exist at the snapshot. Together with standby status, this gives no evidence
+  for active transit relay at that moment. It does not reconstruct the ETW
+  capture's earlier state or exclude gossip forwarding.
+- Connected peers are mesh transport connections, not conversation participants;
+  known peers are a directory, not 471 live connections.
+- `relay_migrated` is emitted by `closeRelaySession` on local-session teardown,
+  commonly after upgrading to a direct connection. It is also used on explicit
+  revocation, so the event name alone proves neither a successful upgrade nor
+  transit service for another pair of endpoints.
+
+Mesh maintenance/discovery/reconnect traffic remains the first candidate.
+The pinned implementation already separates connection upkeep from the 250 ms
+gossip heartbeat, throttles ordinary probes and prevents overlapping relay
+upgrade attempts. Their contribution must be measured; those existing guards
+must not be described as missing fixes. The application log can first check
+whether repeated connection or application synchronization errors coincide
+with the captured idle interval, before requesting a new debug recording.
+
 ## Next decision
 
 Use the Windows process capture as the first measured symptom, then correlate
