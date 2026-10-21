@@ -383,6 +383,9 @@ Mosh rebuilt this exact Moss pin; Rust formatting and all-target Clippy passed.
 All four real-process native-call checks passed, including encrypted signaling,
 media connection, video frame delivery and camera-off/stall handling.
 
-Acceptance still needs a comparable Windows process capture on the corrected
-build. The old owner trace remains useful and need not be collected again.
-Other traffic sources and Android background incoming calls remain open in #94.
+The owner supplied a second valid Windows capture after this first fix.
+It still contains substantial idle bursts; the follow-up reproduces a second
+Moss amplification source and integrates its correction. See the
+[peer exchange results](issue-94-peer-exchange.results.md) for measurements,
+controlled regressions and the current dependency pin. Physical Android battery
+acceptance and background incoming calls remain open in #94.
