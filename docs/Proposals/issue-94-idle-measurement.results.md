@@ -339,16 +339,46 @@ requires one. Overlay, test and output are retained privately under
 `owner-recording-20261021` in the diagnostic directory. This reproduces the
 mechanism in source; exact equivalence of the installed binary is not proven.
 
-The minimal upstream correction is to retain the normal sender retry marker
-for a refusing peer that never claimed this topic. Only a positive subscription
-claim should qualify for the faster join path; an actual counterpart's GRAFT
-already supplies that signal. Preserve prompt late joins, simultaneous joins,
-message/call delivery and behavior across multiple topics in the regression
-checks. Re-measure bytes after the correction rather than predicting the whole
-traffic reduction from event counts.
+The approved upstream correction gives refusals explicit per-peer/topic state.
+It preserves the normal retry bound for a refusing stranger and lets a first
+positive subscription claim take the faster join path. A later refusal still
+takes precedence over repeated claims. Prompt late/simultaneous joins, message
+and call delivery, independent topics and connection cleanup are verification
+gates. Re-measure bytes afterward rather than predicting the whole traffic
+reduction from event counts.
 
 Root `AGENTS.md` forbids unrelated Moss changes. After reviewing this diagnosis,
 the owner approved the topic-scoped protocol fix and its dependency integration;
 see the [implementation plan](issue-94-topic-prune.plan.md). No shipping timers,
 discovery policy or dependency revision were changed during the diagnosis.
 Android background calls and remaining traffic sources stay open in #94.
+
+## Implemented topic refusal fix
+
+[Moss PR 28](https://github.com/redstone-md/moss/pull/28) implements the approved
+correction at `0404bbc4c223a675c53bfedc9723ed74c049bc5a`, replacing Mosh's
+`0effb8bb2cd318d2fb516cd2689083daaa5a1917` pin. The pub/sub manager owns refusal
+state per peer and local topic; connection health stays independent. A first
+positive claim admits a late subscriber immediately, while repeated claims
+honor newer refusals. Unsubscribe/disconnect release state; retired direct and
+relay sessions cannot recreate it through queued GRAFT, PRUNE or send markers.
+Wire format, ABI, discovery policy and configured timers are unchanged.
+
+The same private encrypted-session fixture, 35 topics and one refusing peer,
+ran for 8.5 seconds on Go 1.25.9: 175 GRAFTs / 9,975 ciphertext bytes before,
+35 / 1,995 afterward, an 80% reduction for this control-loop scenario.
+This is not a before/after measurement of the owner's full application traffic.
+
+The complete Go suite passed, including real-network late/simultaneous joins,
+churn, repair and delivery without a direct path. Focused regressions passed
+under the race detector; vet and formatting passed. Those regressions cover
+100 of 107 changed executable lines (93.5%); Go's standard coverage tool does
+not report branch coverage. Standards and spec reviews have no remaining findings.
+
+Mosh rebuilt this exact Moss pin; Rust formatting and all-target Clippy passed.
+All four real-process native-call checks passed, including encrypted signaling,
+media connection, video frame delivery and camera-off/stall handling.
+
+Acceptance still needs a comparable Windows process capture on the corrected
+build. The old owner trace remains useful and need not be collected again.
+Other traffic sources and Android background incoming calls remain open in #94.
