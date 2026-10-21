@@ -81,12 +81,49 @@ Other focused regressions cover independent forwarding ranks, source exclusion,
 signed status changes, immutable claims, stale/mismatched keys, reordered setup,
 failed writes, full relay capacity and score-policy refusal.
 
+## Public-network follow-up
+
+An identical private-overlay harness was rebuilt at final Moss revision
+`00bc8cb` and ran for 210 seconds. The common post-warmup window is seconds
+90–210, approximately 120.1 seconds in each run:
+
+| Envelope measurement | Baseline `509a3f86` | Corrected `00bc8cb` |
+| --- | ---: | ---: |
+| Connected peers, first → last | 36 → 51 | 31 → 50 |
+| Transit relay routes | 0 | 0 |
+| Combined mean | 4.116 Mbit/s | 0.732 Mbit/s |
+| Sample-interval median | 0.409 Mbit/s | 0.275 Mbit/s |
+| Sample-interval p95 | 19.550 Mbit/s | 2.345 Mbit/s |
+| Sample-interval peak | 65.423 Mbit/s | 7.122 Mbit/s |
+| Outgoing `peer_announce` copies | 94,536 | 3,593 |
+| Outgoing `peer_announce` bytes | 32,065,488 | 1,269,675 |
+
+These are successive public-network runs, not a controlled A/B: different
+neighbors and incoming claim bursts contribute to the difference. A second
+baseline's common 90–160 s window averaged 2.141 Mbit/s, illustrating that
+variation. Rates divide counter deltas by actual sample elapsed time; intervals
+are approximately one second, not Windows ETW buckets. Neither DHT/other socket
+traffic nor encryption/network overhead is included in envelope accounting.
+The final CPU profile samples 10.17 CPU seconds over 210.21 s; topology and
+host activity prevent treating it as a whole-application CPU/battery guarantee.
+
 ## Integration and limits
 
 Mosh pins `00bc8cb` in [PR 96](https://github.com/redstone-md/mosh-flutter/pull/96).
-Focused protocol checks pass 20 repetitions and five race-detector repetitions.
-Full upstream and Mosh platform/native-call CI are required before merge;
-results are recorded below when complete.
+The complete Go suite passes locally; focused protocol checks pass 20 repetitions
+and five race-detector repetitions. Vet and formatting pass. Focused coverage
+ranges include 106/118 changed executable source lines (89.8%); Go's standard
+coverage tool does not provide branch coverage. Standards and spec re-reviews
+have no remaining findings. Available CodeAnt inline comments and nitpicks have
+been checked, including the earlier refused-admission race correction.
+
+Mosh rebuilt the pinned library, passed Rust formatting/all-target Clippy and
+733 unit tests, and passed all four real-process native call checks, including
+video delivery, camera-off and capture-stall behavior. Cross-platform evidence
+is published in [upstream CI](https://github.com/redstone-md/moss/actions/runs/39543860324)
+and the [Mosh PR checks](https://github.com/redstone-md/mosh-flutter/pull/96/checks).
+These checks and the configured Windows installer must finish successfully
+before merge; the installer uses the production Mosh+ public issuer pin.
 
 The patch bounds this node's forwarding. Older public peers can still send
 excessive announcements; the public mesh changes between measurements. No claim
