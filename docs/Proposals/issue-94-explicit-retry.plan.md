@@ -36,16 +36,26 @@ all public peer exchange or establish a whole-application resource budget.
 
 ## Proposed scope
 
+The [consumer compatibility audit](issue-94-explicit-consumers.research.md)
+separates generic duplicate-attempt suppression from the longer offline retry
+policy. The inspected game bridges use address-based `Connect`, but unknown
+`ConnectToPeer` consumers may depend on the current recovery cadence. Do not
+change their default interval or add product-name checks in Moss.
+
 1. In the isolated upstream worktree, keep immediate explicit registration and
    the direct-then-relay path, including authenticated relay key admission.
 2. Allow one in-flight connection pipeline per explicit target. Time retries
-   from completion, reuse the existing exponential policy, and cap explicit
-   maintenance retries at thirty seconds. A new explicit caller request wakes
-   a quiet target without creating parallel attempts. Success resets failure
-   state; Stop/restart must discard stale in-flight completion state.
+   from completion. Keep the longer exponential offline backoff, capped at
+   thirty seconds, behind a generic optional policy enabled by Mosh; retain
+   the existing default retry interval. A new explicit caller request or usable
+   target hint must remain responsive during an active attempt or backoff,
+   without creating parallel pipelines. Success resets failure state;
+   Stop/restart must discard stale in-flight completion state.
 3. Preserve priority over automatic discovery, established relay paths, hard
-   capacity and ordinary discovery backoff. Add no FFI/wire/schema/dependency
-   contract, generic timer or manual discovery setting.
+   capacity and ordinary discovery backoff. Specify the optional policy's
+   configuration contract before implementing it; the earlier no-contract
+   proposal is superseded by this compatibility requirement. Keep wire formats,
+   dependencies and discovery automatic; add no manual network setting.
 4. First reproduce repeated/overlapping explicit attempts at the real Node
    boundary with an unavailable target. Cover failure completion, retry bounds,
    success, renewed caller intent and Stop/restart. Verify real signed direct
@@ -63,6 +73,8 @@ authenticated Mosh presence from transport hints. Incoming peer-announcement
 volume and whole-Windows acceptance remain separate checks.
 
 The repository's AGENTS.md says: "Do not modify `moss/` sources or sibling
-repositories." The previous scoped work preserved explicit retry backoff;
-changing that policy needs authorization for this extension. Keep production
-source and the current dependency pin unchanged until then.
+repositories." The user authorized the upstream explicit-retry extension in
+the isolated worktree, then requested a compatibility investigation before
+choosing its scope. That investigation is recorded above. No production source,
+public configuration contract or dependency pin has changed in this research
+step; the optional policy interface remains a proposal.
