@@ -1,8 +1,9 @@
 # Issue 94: bound offline explicit-target attempts in Moss
 
 This approved extension of the earlier peer-exchange scope is implemented in
-upstream Moss `eb79f38` and consumed by this branch. Acceptance measurements
-and the configured Windows installer remain required before delivery.
+upstream Moss `eb79f38` and consumed by this branch. The
+[matched native measurements and configured Windows installer](issue-94-explicit-retry.results.md)
+are verified. Whole-Windows resource acceptance remains open.
 
 ## Evidence
 
