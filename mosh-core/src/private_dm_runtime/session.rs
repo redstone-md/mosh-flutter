@@ -36,6 +36,7 @@ impl PrivateDmSession {
             device_signer: None,
             device_store: None,
             device_connect_requested: std::collections::HashSet::new(),
+            last_identity_advertisement: None,
             role,
             state: DmSessionState::Pending,
             last_authenticated_rx_ms: 0,
@@ -75,6 +76,7 @@ impl PrivateDmSession {
             last_handshake_send_ms: 0,
             last_peer_announce_ms: 0,
             last_hello_send_ms: 0,
+            recovery_hello_delay_ms: None,
             peer_typing_until_ms: None,
             typing_gate: TypingGate::default(),
             peer_read_ids: Vec::new(),
@@ -113,6 +115,7 @@ impl PrivateDmSession {
         if handshake_done {
             self.peer_joined = true;
             self.state = DmSessionState::Handshaking;
+            self.recovery_hello_delay_ms = Some(HANDSHAKE_RESEND_MS);
         }
     }
 

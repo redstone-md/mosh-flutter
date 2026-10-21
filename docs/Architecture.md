@@ -226,7 +226,10 @@ See [ADR 0020](ADR/0020-one-inbox-per-owner.md) and
 
 DM connection state requires an authenticated counterpart frame. Moss's direct,
 relayed or absent peer route is a separate fact; gossip can deliver with no direct
-peer row. Handshake/Hello retries and keepalives refresh that authenticated state.
+peer row. Initial Hello retries stay at two seconds; restored/lost established
+DMs back off to thirty seconds. A usable path or new user text wakes the retry.
+Unchanged offline identity claims follow those probes; changed claims/epochs
+bypass suppression after fresh validation. Connected keepalives are unchanged.
 Attachment streams use direct routes and fall back to room publication on refusal;
 blob subscriptions remain active. Restored encrypted manifests preserve offered
 attachments after restart. See [ADR 0027](ADR/0027-attachments-ride-moss-streams.md)

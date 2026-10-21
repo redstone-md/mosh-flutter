@@ -202,6 +202,9 @@ fn stored_session_rows(persistence: &Persistence) -> Vec<contracts::PersistedSes
 #[path = "state_tests/connection.rs"]
 mod connection;
 
+#[path = "state_tests/idle_presence.rs"]
+mod idle_presence;
+
 #[path = "state_tests/receipt_authorization.rs"]
 mod receipt_authorization;
 

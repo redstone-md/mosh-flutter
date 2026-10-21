@@ -18,6 +18,8 @@ impl PrivateDmSession {
         let silent_for = now_ms.saturating_sub(self.last_authenticated_rx_ms);
         if self.state == DmSessionState::Connected && silent_for >= lost_window_ms {
             self.state = next_state(self.state, SessionEvent::CounterpartLost);
+            self.recovery_hello_delay_ms = Some(HANDSHAKE_RESEND_MS);
+            self.last_hello_send_ms = 0;
             dlog::write(
                 LogLevel::Warn,
                 kinds::HANDSHAKE,
@@ -44,6 +46,9 @@ impl PrivateDmSession {
         let reach = self.reach_in(info);
         if reach == self.logged_reach {
             return;
+        }
+        if reach != PeerTransport::None {
+            self.wake_presence_retry();
         }
         dlog::write(
             LogLevel::Info,

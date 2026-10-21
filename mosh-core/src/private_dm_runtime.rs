@@ -54,6 +54,8 @@ const KIND: &str = "dm";
 
 // Retry cached handshake frames until the counterpart joins.
 const HANDSHAKE_RESEND_MS: u64 = 2_000;
+// Saved offline conversations retain probes without continuously re-encrypting.
+const IDLE_HELLO_MAX_MS: u64 = 30_000;
 // Repair pre-peer-id records after restart.
 const PEER_ANNOUNCE_RESEND_MS: u64 = 5_000;
 // Two missed keepalives establish loss; any authenticated frame resets both.
@@ -142,6 +144,9 @@ struct PrivateDmSession {
     device_signer: Option<ed25519_dalek::SigningKey>,
     device_store: Option<Arc<Persistence>>,
     device_connect_requested: std::collections::HashSet<String>,
+    // Last identity attempt: MLS epoch, validated signed bytes and Hello stamp.
+    // Used only to suppress unchanged offline advertisements, never as trust.
+    last_identity_advertisement: Option<(u64, Vec<u8>, u64)>,
     role: SessionRole,
     state: DmSessionState,
     // When the last authenticated frame from the counterpart was drained, on
@@ -169,6 +174,8 @@ struct PrivateDmSession {
     record_dirty: bool,
     last_peer_announce_ms: u64,
     last_hello_send_ms: u64,
+    // None preserves initial negotiation; Some backs off recovery after loss.
+    recovery_hello_delay_ms: Option<u64>,
     // The peer id last handed to the transport as an explicit connect target.
     // moss retries a registered target on its own, so each id value needs
     // exactly one call; a re-handshake under a fresh id re-registers.

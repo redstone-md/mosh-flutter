@@ -90,6 +90,22 @@ impl PrivateDmSession {
         let Ok(claim) = self.current_device_claim(identity) else {
             return;
         };
+        let Some(epoch) = self.crypto.epoch() else {
+            return;
+        };
+        let Ok(signed_claim) = serde_json::to_vec(&claim) else {
+            return;
+        };
+        let unchanged = self.last_identity_advertisement.as_ref().is_some_and(
+            |(previous_epoch, previous_claim, hello)| {
+                *previous_epoch == epoch
+                    && *previous_claim == signed_claim
+                    && *hello == self.last_hello_send_ms
+            },
+        );
+        if self.state != DmSessionState::Connected && unchanged {
+            return;
+        }
         let Ok(ciphertext_b64) = self.crypto.encrypt_json(&claim) else {
             return;
         };
@@ -99,6 +115,7 @@ impl PrivateDmSession {
             ciphertext_b64,
         };
         if let Ok(payload) = serde_json::to_vec(&envelope) {
+            self.last_identity_advertisement = Some((epoch, signed_claim, self.last_hello_send_ms));
             let _ = self.route_send(ChannelKind::Control, &payload);
         }
     }

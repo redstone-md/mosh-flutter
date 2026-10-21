@@ -4,6 +4,7 @@ pub(crate) mod crypto;
 mod dm;
 mod observation;
 mod protocol;
+mod recording;
 pub(crate) mod stdio;
 use std::cell::Cell;
 use std::io::{BufRead, BufReader, Write};
@@ -50,6 +51,7 @@ pub struct Peer {
     dir: PathBuf,
     api: bool,
     manual_dm: bool,
+    recording: bool,
     network_scope: u64,
     worker: &'static str,
     pub port: u16,
@@ -57,11 +59,11 @@ pub struct Peer {
 
 impl Peer {
     pub fn new() -> Self {
-        Self::new_installation(false, false, "independent_installation_process")
+        Self::new_installation(false, false, "independent_installation_process", false)
     }
 
     pub fn new_api() -> Self {
-        Self::new_installation(true, false, "independent_installation_process")
+        Self::new_installation(true, false, "independent_installation_process", false)
     }
 
     #[allow(
@@ -69,7 +71,7 @@ impl Peer {
         reason = "Shared harness scheduling mode used by the DM admission tests."
     )]
     pub fn new_manual_dm() -> Self {
-        Self::new_installation(false, true, "independent_installation_process")
+        Self::new_installation(false, true, "independent_installation_process", false)
     }
 
     #[allow(
@@ -77,14 +79,21 @@ impl Peer {
         reason = "Used by the core's independent legacy migration workers."
     )]
     pub fn new_with_worker(worker: &'static str) -> Self {
-        Self::new_installation(false, false, worker)
+        Self::new_installation(false, false, worker, false)
     }
 
-    fn new_installation(api: bool, manual_dm: bool, worker: &'static str) -> Self {
+    fn new_installation(api: bool, manual_dm: bool, worker: &'static str, recording: bool) -> Self {
         let dir = std::env::temp_dir().join(format!("mosh-link-flow-{}", rand::random::<u64>()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("storage-key.bin"), rand::random::<[u8; 32]>()).unwrap();
-        Self::start(dir, api, manual_dm, NETWORK_SCOPE.with(Cell::get), worker)
+        Self::start(
+            dir,
+            api,
+            manual_dm,
+            NETWORK_SCOPE.with(Cell::get),
+            worker,
+            recording,
+        )
     }
 
     fn start(
@@ -93,8 +102,10 @@ impl Peer {
         manual_dm: bool,
         network_scope: u64,
         worker: &'static str,
+        recording: bool,
     ) -> Self {
-        let mut child = Command::new(std::env::current_exe().unwrap())
+        let mut command = Command::new(std::env::current_exe().unwrap());
+        command
             .args(["--exact", worker, "--ignored", "--nocapture"])
             .env("MOSH_LINK_TEST_DIR", &dir)
             .env("MOSH_LINK_TEST_PORT", "0")
@@ -103,9 +114,11 @@ impl Peer {
             .env("MOSH_TEST_NETWORK_SCOPE", network_scope.to_string())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .unwrap();
+            .stderr(Stdio::inherit());
+        if recording {
+            command.env("MOSH_DEBUG_RECORD_DIR", &dir);
+        }
+        let mut child = command.spawn().unwrap();
         let stdin = child.stdin.take().unwrap();
         let stdout = child.stdout.take().unwrap();
         let replies = read_replies(stdout);
@@ -116,6 +129,7 @@ impl Peer {
             dir,
             api,
             manual_dm,
+            recording,
             network_scope,
             worker,
             port: 0,
@@ -169,6 +183,7 @@ impl Peer {
             self.manual_dm,
             self.network_scope,
             self.worker,
+            self.recording,
         );
         std::mem::swap(self, &mut replacement);
         // Keep this installation's persistent state; only the killed process is old.
