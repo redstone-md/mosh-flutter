@@ -27,6 +27,9 @@ jobs:
       - name: Verify real process-attributed UDP capture
         shell: powershell
         run: scripts/network-diagnostics/Test-NetworkDiagnostics.ps1
+      - name: Verify Moss recorder process lifecycle
+        shell: powershell
+        run: scripts/network-diagnostics/Test-MossRecording.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: mosh-network-diagnostics-schema

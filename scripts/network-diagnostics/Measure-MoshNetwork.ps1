@@ -93,6 +93,7 @@ try {
     if ($null -ne $watchdog -and -not $watchdog.HasExited) { $watchdog.Kill(); $watchdog.WaitForExit() }
 }
 $stoppedAt = [datetime]::UtcNow
+Write-Host 'Network capture stopped. Processing the private ETL; this can take several minutes.'
 $totals = New-MoshNetworkTotals
 $controlStartBytes = [uint64]0
 $controlEndBytes = [uint64]0
@@ -102,6 +103,7 @@ Get-WinEvent -Path $trace -Oldest -ErrorAction Stop | ForEach-Object {
     $event = Convert-MoshNetworkEvent $_ $schema
     if ($null -eq $event) { return }
     $records++
+    if ($records % 10000 -eq 0) { Write-Host "Processing network events: $records" }
     if ($event.process_id -eq $collectorPid -and $event.protocol -eq 'udp' -and $event.loopback) {
         if ($event.timestamp -lt $endControlStarted) { $controlStartBytes += $event.bytes }
         else { $controlEndBytes += $event.bytes }
