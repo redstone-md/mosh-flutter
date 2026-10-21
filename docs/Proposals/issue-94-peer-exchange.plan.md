@@ -66,3 +66,43 @@ Benchmark identical signed inputs before/after and recheck tampered claims,
 legacy direct hints and relay key admission. Separately trace offline-contact
 retries; an offline counterpart must not be mistaken for an application-idle
 capture with no retained targets.
+
+
+## Follow-up after the fourth Windows capture: discovery degree
+
+The next validated owner capture still averages 3.083 Mbit/s, versus 3.043
+previously. Its last minute uses 26.86% of one logical CPU core; the earlier
+handler optimization did not establish satisfactory application idle use.
+The process started only 42 seconds before this capture, so its whole-window
+CPU change is not a controlled comparison.
+
+Private 180-second optimized Moss runs isolate the transport layer: 35 topics
+produce 50 connected peers (39 outbound direct), while zero topics still
+produce 53 peers and substantial traffic. A diagnostic hard cap of 12 reduces
+traffic and CPU, but also changes directory limits and is not the proposed fix.
+
+This iteration separates a soft automatic discovery goal from hard admission
+capacity. Derive the soft goal from existing mesh degree settings (12 by
+default), retain a minimum outbound population and repair relay-capable
+connections. Apply it to known-peer discovery and tracker kicks/seeds only.
+Preserve explicit contacts, topic-provider discovery, configured static peers,
+LAN discovery, inbound admission, hard MaxPeers, directory capacity, timers,
+trust checks, ranking and retry backoff. Capable-relay repair may bypass
+public-peer ID ordering while a relay deficit exists, because the remote node
+can already have satisfied its own soft goal and never initiate. Ordinary
+discovery retains glare avoidance. No new public configuration or wire/FFI
+contract. Do not forcibly disconnect existing peers.
+
+Focused selector tests must fail before the fix and cover all three automatic
+paths, refill after loss, outbound/relay deficits, static seeds and hard limits.
+Real encrypted contact/relay delivery must work beyond the automatic goal.
+Measure the candidate with MaxPeers unchanged before integration; compare
+public runs as indicative evidence only. Repeat upstream/full native checks,
+independent review and CodeAnt comments/nitpicks before the next owner build.
+
+
+Size-limit exception: existing upstream selector files/functions already exceed
+the Mosh limits. This patch keeps their edits local and extracts the new budget
+policy into a module under 50 lines; it avoids an unrelated rewrite of transport setup.
+Go reports statement coverage, not branch coverage. No tracked captures or
+production instrumentation are introduced.

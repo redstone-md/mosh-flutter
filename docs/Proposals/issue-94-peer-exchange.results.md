@@ -177,7 +177,7 @@ claim before correction and one after, for all three announcement/status types.
 at the directory boundary. Direct-sender identity, peer signatures and signed
 capability claims keep separate trust rules. It removes the caller-provided
 verification flag, without a signature cache, new wire fields or discovery-policy
-changes. Mosh now pins `83b03d3` for this follow-up; PR 28 has merged upstream.
+changes. The claim-verification increment pinned `83b03d3`; PR 28 has merged upstream.
 
 Five optimized, identical-input receive benchmark repetitions on the same Linux
 host give these medians, with setup outside the measured loop:
@@ -202,7 +202,87 @@ on a complete offline DM. It does distinguish those requests from the substantia
 general-network traffic already reproduced without any retained contact.
 
 Mosh registers each session/device target once; Moss owns subsequent retries.
-For established device-aware sessions, application control routing checks live
-device reach and does not fall back to public room publishing when all devices
-are offline. Periodic MLS control construction/persistence remains a separate
+For device-aware sessions (expanded membership, removal or recovery state),
+application control routing checks live device reach and does not fall back
+to public room publishing when all devices are offline. Ordinary two-client
+sessions do not necessarily take that path. Periodic MLS control construction/persistence remains a separate
 potential CPU/disk cost; this packet trace does not measure that cost.
+
+
+## Fourth Windows capture and transport degree attribution
+
+The next controlled, zero-ETW-loss owner report covers 14:35:06.618–14:37:07.644
+UTC, 121.026 seconds. Independent byte aggregates reconcile. TX is 12,568,566
+bytes and RX 34,065,753 bytes: 3.083 Mbit/s combined, essentially unchanged
+from 3.043 Mbit/s. Complete-second median/p95/peak are 1.048/15.704/31.998
+Mbit/s. CPU averages 24.40% of one logical core, but the process is only 42
+seconds old at capture start; its final minute uses 26.86%, versus 27.04%
+previously. This does not establish satisfactory idle resource use or a
+sustained whole-application CPU improvement. The archive has no binary hash.
+
+Three sequential optimized, standalone 180-second runs at `83b03d3` separate
+neighbor degree from topic workload. Each registers the same synthetic absent
+contact after second 60; profiling and counter deltas use seconds 60–180.
+
+| Diagnostic setting | Final peers (outbound direct) | Carrier mean | CPU samples / elapsed |
+| --- | ---: | ---: | ---: |
+| MaxPeers 200, 35 topics | 50 (39) | 0.987 Mbit/s | 6.46 / 120.16 s |
+| MaxPeers 12, 35 topics | 12 (11) | 0.382 Mbit/s | 1.99 / 120.10 s |
+| MaxPeers 200, zero topics | 53 (48) | 1.161 Mbit/s | 5.56 / 120.10 s |
+
+No transit routes are active. DHT accounts for only 43–49 KB in each window.
+Removing subscriptions does not remove general discovery traffic. The hard-cap
+experiment also reduces directory/relay limits, so it is diagnostic evidence,
+not an isolated causal estimate or the proposed production change. Public
+neighbors vary between runs; carrier counters exclude some setup sockets and
+overlap envelope counters. Profiling baseline host activity is not fully
+controlled.
+
+| Opportunity | Impact | Confidence | Effort | Score |
+| --- | ---: | ---: | ---: | ---: |
+| Automatic discovery fills hard admission capacity | 5 | 4 | 3 | 6.7 |
+| Offline application MLS controls/persistence | 2 | 2 | 3 | 1.3 |
+| DHT transport traffic | 1 | 5 | 3 | 1.7 |
+
+The next correction changes only automatic dial eligibility. A soft goal uses
+existing degree settings, with an outbound floor and capable-relay repair.
+It keeps MaxPeers=200, directory limits and explicit/provider/static/inbound
+paths. Three selector regressions fail on the unmodified code because all
+three automatic paths offer extra dials after the working goal is reached.
+Existing candidate order, tie-breaking, trust and backoff remain intact among
+eligible candidates; selecting fewer unrelated neighbors is intentional.
+Floating point/RNG/wire contracts are unaffected. Private golden messaging
+checks assert the same four bidirectional room/direct payloads.
+
+The separation of an operational connection goal from a hard safety limit
+follows the [libp2p connection/resource manager pattern](https://github.com/libp2p/go-libp2p/blob/master/p2p/host/resource-manager/README.md).
+Using Moss's existing degree settings for that goal is our internal policy,
+not a libp2p requirement. The [GossipSub specification](https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md)
+distinguishes explicit peers and an outbound quota; the patch preserves those
+intent paths rather than rejecting inbound peers or forcibly trimming contacts.
+
+
+The soft-goal candidate retains MaxPeers=200 and a 413-entry directory. In
+its next 180-second run, the 60–180 s window averages 0.641 Mbit/s, with sampled
+median/p95/peak 0.125/3.786/5.052 Mbit/s and 12 final peers. CPU samples are
+3.62 seconds over 120.16 seconds. These figures support bounded automatic
+connection growth but remain an indicative public-network comparison, not a
+whole-Mosh CPU/bandwidth guarantee.
+
+Independent review found a convergence edge case: a public node with a relay
+deficit could reject every lower-ID capable candidate under glare avoidance,
+while the remote relays had also met their soft goals. A new selector regression
+reproduced zero repair candidates before correction. Capable-relay repair now
+bypasses that ordering only while the bounded relay deficit exists. Ordinary
+peers retain glare avoidance and outbound demand remains conditional on eligible
+peers. Host/peer backoff and deterministic duplicate-session handling remain.
+
+
+The discovery-goal increment pins `bd952a7` in Mosh. The complete upstream Go
+suite passes, as does the final mesh-wide rerun after the relay-glare correction
+(166.34 s). Focused checks pass five repetitions and three race repetitions;
+vet/formatting pass. The new budget module has 95.2% statement coverage. Its
+non-default batch fallback is the only uncovered statement. Independent
+Standards and Spec reviews have no remaining findings. Mosh rebuilds the pinned library and passes Rust formatting, all-target Clippy,
+733 unit tests (20 expected ignored workers) and four real-process native call
+integrations. Platform CI is repeated for the new dependency pin before handoff.
