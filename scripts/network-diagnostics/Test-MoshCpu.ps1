@@ -4,6 +4,7 @@ $ErrorActionPreference = 'Stop'
 $root = Join-Path $env:RUNNER_TEMP ('cpu-control-' + [guid]::NewGuid().ToString('N'))
 [void](New-Item -ItemType Directory -Force $root)
 $exe = Join-Path $root 'MoshCpuControl.exe'
+if ($MossLibrary) { Copy-Item $MossLibrary (Join-Path $root 'moss.dll') }
 $compiler = [Microsoft.CSharp.CSharpCodeProvider]::new()
 $options = [CodeDom.Compiler.CompilerParameters]::new()
 $options.GenerateExecutable = $true
@@ -24,13 +25,12 @@ try {
     $zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $root 'mosh-cpu-report.zip'))
     try {
         $allowed = @('binary-manifest.json','cpu-summary.json','cpu-instructions.json','network-summary.json','process-samples.json')
+        if ($MossLibrary) { $allowed += 'go-functions.json' }
         foreach ($entry in $zip.Entries) { if ($entry.FullName -notin $allowed) { throw "Unexpected report file: $($entry.FullName)" } }
         if ($zip.Entries.Count -ne $allowed.Count) { throw 'Missing report files' }
     } finally { $zip.Dispose() }
     if ($MossLibrary) {
-        $raw = Join-Path $root 'raw'
-        $tool = Get-CpuProfilerTool (Join-Path $raw 'tools') -GoSymbols
-        $symbols = Read-GoCpuSymbols $tool $MossLibrary $raw
+        $symbols = Get-Content (Join-Path $root 'go-functions.json') -Raw | ConvertFrom-Json
         if ($symbols.functions.Count -lt 1000 -or -not @($symbols.functions | Where-Object { $_.name -like '*moss*mesh*' }).Count) { throw 'Moss function recovery missing' }
         if (@($symbols.functions | Where-Object { $_.start -lt 0 -or $_.end -le $_.start }).Count) { throw 'Invalid relative function addresses' }
         @{ version = $symbols.version; count = $symbols.functions.Count; sha256 = (Get-FileHash $MossLibrary -Algorithm SHA256).Hash } |

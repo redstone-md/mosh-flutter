@@ -5,7 +5,14 @@ param(
     [switch]$Elevated
 )
 $ErrorActionPreference = 'Stop'
-trap { Write-Host "CPU recording failed: $($_.Exception.Message)"; exit 1 }
+trap {
+    $message = $_.Exception.Message
+    if ($OutputDirectory -and (Test-Path $OutputDirectory -PathType Container)) {
+        $message | Set-Content (Join-Path $OutputDirectory 'collector-error.txt') -Encoding UTF8
+    }
+    Write-Host "CPU recording failed: $message"
+    exit 1
+}
 . "$PSScriptRoot/CpuEvents.ps1"
 if (-not [Environment]::Is64BitProcess) { throw 'Run Start-CPU.cmd with 64-bit PowerShell.' }
 if ($TargetProcessId -eq 0) {
@@ -26,6 +33,10 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"{0}"' -f $PSCommandPath),
         '-TargetProcessId', $TargetProcessId, '-DurationSeconds', $DurationSeconds,
         '-OutputDirectory', ('"{0}"' -f $OutputDirectory), '-Elevated')
+    if ($child.ExitCode -eq 0) { Write-Host "Report ready: $OutputDirectory\mosh-cpu-report.zip" }
+    elseif (Test-Path (Join-Path $OutputDirectory 'collector-error.txt')) {
+        Get-Content (Join-Path $OutputDirectory 'collector-error.txt') | Write-Host
+    }
     exit $child.ExitCode
 }
 $raw = Join-Path $OutputDirectory 'raw'
@@ -84,7 +95,9 @@ if (-not $network.WaitForExit(300000)) { throw 'Network processing timed out; ra
 if ($network.ExitCode -ne 0) { throw 'Companion network capture failed' }
 Copy-Item (Join-Path $networkPath 'network-summary.json'), (Join-Path $networkPath 'process-samples.json') $OutputDirectory
 $summary = Get-Content (Join-Path $OutputDirectory 'network-summary.json') -Raw | ConvertFrom-Json
-if (-not $summary.complete -or -not $summary.control_validated) { throw 'Network capture is incomplete' }
+if (-not $summary.complete -or -not $summary.control_validated) {
+    Write-Warning 'Network capture is incomplete; its loss counters are included with the CPU report.'
+}
 $files = @('binary-manifest.json', 'cpu-summary.json', 'cpu-instructions.json', 'network-summary.json', 'process-samples.json', 'go-functions.json') |
     ForEach-Object { Join-Path $OutputDirectory $_ } | Where-Object { Test-Path $_ }
 Compress-Archive -Path $files -DestinationPath (Join-Path $OutputDirectory 'mosh-cpu-report.zip') -Force
