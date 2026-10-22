@@ -135,11 +135,14 @@ mod tests {
         use super::super::ownership;
         use ed25519_dalek::SigningKey;
         let root = SigningKey::generate(&mut rand::rngs::OsRng);
+        let intermediate = SigningKey::generate(&mut rand::rngs::OsRng);
         let linked = SigningKey::generate(&mut rand::rngs::OsRng);
         let root_key = hex::encode(root.verifying_key().as_bytes());
         let linked_key = hex::encode(linked.verifying_key().as_bytes());
         let certificate = AccountCertificate::root(&root)
-            .issue(&linked_key, &root)
+            .issue(&hex::encode(intermediate.verifying_key().as_bytes()), &root)
+            .unwrap()
+            .issue(&linked_key, &intermediate)
             .unwrap();
         let root_proof = ownership::test_proof(&root);
         let same_account = |certificate| {
