@@ -112,6 +112,7 @@ def measure(pid, name, poll=None, seconds=120):
     output = ROOT / (name + '.json')
     tool = os.environ.get('IDLE_CPU_TOOL')
     profile = CpuProfile(tool, ROOT, name, 'mosh') if tool and name.startswith('gui-') else None
+    network = start_network(pid, name, seconds) if profile else None
     child = subprocess.Popen(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass',
                               '-File', str(SCRIPTS / 'Measure-IdleProcess.ps1'),
                               '-TargetProcessId', str(pid), '-Seconds', str(seconds),
@@ -126,9 +127,35 @@ def measure(pid, name, poll=None, seconds=120):
         raise RuntimeError('Measurement failed: ' + name)
     if profile:
         profile.finish()
+    if network:
+        finish_network(network, name)
     result = json.loads(output.read_text(encoding='utf-8-sig'))
     print(name, 'CPU', round(result['cpu_one_core_percent'], 3), flush=True)
     return result
+
+
+def start_network(pid, name, seconds):
+    directory = ROOT / 'raw' / (name + '-network')
+    directory.mkdir(parents=True, exist_ok=True)
+    log = (directory / 'collector.log').open('w')
+    script = SCRIPTS.parent / 'network-diagnostics' / 'Measure-MoshNetwork.ps1'
+    child = subprocess.Popen([
+        'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(script),
+        '-TargetProcessId', str(pid), '-DurationSeconds', str(seconds),
+        '-OutputDirectory', str(directory)], stdout=log, stderr=subprocess.STDOUT)
+    return child, log, directory
+
+
+def finish_network(network, name):
+    child, log, directory = network
+    try:
+        if child.wait(timeout=300):
+            raise RuntimeError('Companion network capture failed: ' + name)
+        summary = json.loads((directory / 'network-summary.json').read_text(encoding='utf-8-sig'))
+        assert summary['complete'] and summary['control_validated'], 'Incomplete network capture'
+        (ROOT / (name + '-network.json')).write_text(json.dumps(summary, indent=2))
+    finally:
+        log.close()
 
 
 def warm(name, poll=None):

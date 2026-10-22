@@ -67,3 +67,8 @@ CSV files stay in the runner's non-uploaded `raw` directory. No application
 dependency, native DLL, stored data contract or production behavior changes.
 Sampling overhead and variable public traffic prevent using these runs as a
 controlled optimization comparison.
+
+In the sampled run, reuse the existing control-validated, loss-checked network
+collector alongside each CPU window. This distinguishes different incoming
+traffic from GUI cost. Keep its raw trace/report files private and upload only
+the anonymized JSON summary. Assert the actual Win32 minimized state.

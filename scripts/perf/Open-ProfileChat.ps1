@@ -6,6 +6,7 @@ using System;
 using System.Runtime.InteropServices;
 public static class ProfileWindow {
  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hwnd, int command);
+ [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hwnd);
  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
  [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr hwnd, int x, int y, int w, int h, bool repaint);
  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
@@ -20,7 +21,11 @@ while ($process.MainWindowHandle -eq [IntPtr]::Zero) {
     $process.Refresh()
 }
 $hwnd = $process.MainWindowHandle
-if ($Hide) { [ProfileWindow]::ShowWindow($hwnd, 6) | Out-Null; exit 0 }
+if ($Hide) {
+    [ProfileWindow]::ShowWindow($hwnd, 6) | Out-Null
+    if (-not [ProfileWindow]::IsIconic($hwnd)) { throw 'Mosh window did not minimize' }
+    exit 0
+}
 [ProfileWindow]::ShowWindow($hwnd, 9) | Out-Null
 [ProfileWindow]::MoveWindow($hwnd, 0, 0, 1280, 900, $true) | Out-Null
 [ProfileWindow]::SetForegroundWindow($hwnd) | Out-Null
