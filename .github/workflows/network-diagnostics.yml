@@ -3,6 +3,10 @@ name: Windows network diagnostics
 on:
   workflow_dispatch:
     inputs:
+      compare_history:
+        description: Compare original and fixed release API history costs
+        type: boolean
+        default: false
       recover_core:
         description: Export the original installed core for offline symbol validation
         type: boolean
@@ -76,7 +80,7 @@ jobs:
           retention-days: 14
 
   release-idle-profile:
-    if: github.event_name == 'workflow_dispatch' && !inputs.owner_toolkit && !inputs.recover_symbols && !inputs.recover_core
+    if: github.event_name == 'workflow_dispatch' && !inputs.owner_toolkit && !inputs.recover_symbols && !inputs.recover_core && !inputs.compare_history
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -223,4 +227,54 @@ jobs:
         with:
           name: original-idle-core
           path: ${{ runner.temp }}/mosh-idle-app/mosh_core.dll
+          retention-days: 7
+
+  history-comparison:
+    if: github.event_name == 'workflow_dispatch' && inputs.compare_history
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          rust: 'false'
+          moss: none
+      - uses: ./.github/actions/install-profile-app
+      - name: Download and validate the fixed configured release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh run download 39792369635 --repo redstone-md/mosh-flutter --name mosh-windows-setup --dir build/candidate
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate artifact unavailable' }
+          Remove-Item Env:GH_TOKEN
+          $exe = @(Get-ChildItem build/candidate -Recurse -Filter *.exe)[0]
+          $sidecar = (Get-Content "$($exe.FullName).sha256" -Raw).Trim().Split(' ')[0]
+          if ((Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLowerInvariant() -ne $sidecar) { throw 'Candidate checksum mismatch' }
+          $manifest = Get-Content build/candidate/plus-build.json -Raw | ConvertFrom-Json
+          if ($manifest.commit -ne '8aa8bb65f8095495bd6be06afe989606d1720cc2' -or -not $manifest.purchases_configured) { throw 'Candidate source/config mismatch' }
+          $app = Join-Path $env:RUNNER_TEMP 'mosh-history-candidate'
+          $setup = Start-Process $exe.FullName -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$app`"", '/TASKS=') -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw 'Candidate install failed' }
+          foreach ($name in @('moss.dll', 'flutter_windows.dll')) {
+            if ((Get-FileHash "$app/$name").Hash -ne (Get-FileHash "$env:IDLE_APP/$name").Hash) { throw "Unexpected runtime change: $name" }
+          }
+          "HISTORY_CANDIDATE=$app" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          New-Item -ItemType Directory -Force build/history-results | Out-Null
+          @('mosh_core.dll', 'moss.dll') | ForEach-Object { @{file=$_; baseline=(Get-FileHash "$env:IDLE_APP/$_").Hash; candidate=(Get-FileHash "$app/$_").Hash} } | ConvertTo-Json | Set-Content build/history-results/binaries.json
+      - name: Compile the generated bridge client and measure matched histories
+        shell: powershell
+        env:
+          MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
+        run: |
+          dart compile exe scripts/perf/idle_api.dart -o scripts/perf/idle-api.exe
+          if ($LASTEXITCODE -ne 0) { throw 'API client compilation failed' }
+          python scripts/perf/history_compare.py "$env:IDLE_APP" "$env:HISTORY_CANDIDATE" build/history-results
+          if ($LASTEXITCODE -ne 0) { throw 'History comparison failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-history-comparison
+          path: build/history-results/*.json
           retention-days: 7
