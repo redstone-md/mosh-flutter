@@ -34,8 +34,8 @@ establish which caller caused every owner-side crypto check.
 
 Approximate CPU/network interval correlation is 0.745, using overlap with
 one-second byte buckets. This supports inspecting background network work,
-but is not causal attribution. The reported 100–150 Mbit/s idle condition is
-not present in this complete capture.
+but is not causal attribution. No complete-second bucket reaches the reported
+100–150 Mbit/s rate; subsecond peaks remain unmeasured.
 
 ## Reproduction and ranked hypotheses
 
@@ -47,9 +47,10 @@ not present in this complete capture.
 
 A private same-binary Linux release probe restores the existing fictional
 8-DM/2-group/1-channel fixture. It adds locally admitted, signed messages to one
-offline DM, then issues thirty public `list_sessions` calls. The manual DM
-service setting removes background DM timer variance; Moss still runs. This
-isolates history cost and is not a whole-Windows or network acceptance test.
+offline DM, then issues thirty public `list_sessions` calls. The normal
+background DM service and Moss remain active. The manual-service test variable
+does not affect this public API worker. This measures the native history
+workload with its background service, not whole-Windows idle acceptance.
 
 | Additional history | CPU for thirty calls | Median wall time per call |
 | --- | ---: | ---: |
@@ -127,7 +128,7 @@ Both release workers use the same production-built Go 1.25.9 Moss library, with
 its loaded path verified in `/proc`; the original worker is from `3e6790f5` and
 the changed worker from `8aa8bb65`. Six rounds alternate execution order. One
 initial list warms each process; thirty subsequent `list_sessions` calls form
-the measurement. The manual DM-service setting is the same on both variants.
+the measurement. The normal background DM service runs on both variants.
 
 Median process CPU for thirty calls falls from **1.735 s** (range 1.68–1.80) to
 **0.720 s** (0.67–0.79), a **58.5%** reduction in this native API workload. A
@@ -218,7 +219,8 @@ lost events or buffers. The process has warmed for 26 minutes 18 seconds.
 Whole-application idle acceptance is not achieved. The public network changes
 between captures, so these are observations, not a controlled estimate of the
 first history fix. Receive traffic is 72.98% and UDP is 92.20% of external
-bytes. The reported 100–150 Mbit/s condition is still absent. Instruction,
+bytes. No complete-second bucket reaches 100 Mbit/s; subsecond peaks remain
+unmeasured. Instruction,
 kernel and unmapped sample counts reconcile to 14,023; 4,343 of 4,346 raw Moss
 instruction samples map to the recovered Go ranges. Three do not. Module CSV
 weights and raw instruction counts are distinct exports.
@@ -266,8 +268,8 @@ latency and are rejected as performance comparisons.
 Twenty rounds alternate `8aa8bb65` and `5c793db1` on the same Linux host, with one
 warm list call and thirty measured calls per process. Both workers load the
 same Go 1.25.9 library. A private compiler overlay disables public discovery,
-and every read asserts zero mesh peers; the manual DM-service setting is the
-same for both variants. Moss sources and production discovery policy are
+and every read asserts zero mesh peers; the normal background DM service runs
+in both variants. Moss sources and production discovery policy are
 unchanged. This isolates history verification rather than public-network work.
 
 | Thirty native list calls | Before | After |
@@ -320,3 +322,7 @@ only this report.
 Owner-side acceptance remains separate. The latest supplied capture predates
 this correction. Residual incoming public mesh traffic and Android
 background-call/battery work remain open; no merge or release is included.
+
+The subsequent exact-binary owner capture and local claim-signing correction
+are recorded in [unchanged local identity claims](issue-94-local-claims.results.md),
+including the public API background-service measurement correction.
