@@ -17,6 +17,7 @@ class CpuProfile:
         self.log = (raw / (name + '.log')).open('w')
         self.child = subprocess.Popen([
             self.tool, '/AcceptEula', '/NoGui', '/Zip:false',
+            '/NoNGenPdbs', '/NoClrRundown',
             '/KernelEvents:Process+Thread+ImageLoad+Profile', '/ClrEvents:None',
             '/MaxCollectSec:' + str(seconds), '/DataFile:' + str(self.trace),
             '/LogFile:' + str(raw / (name + '-perfview.log')), 'collect'],
@@ -43,6 +44,9 @@ def export(source, output):
     unknown = total = 0.0
     with source.open(encoding='utf-8-sig') as stream:
         for row in csv.DictReader(stream):
+            # PerfView does not quote multiline process command-line metadata.
+            if row['Exc'] is None and '!' not in row['Name']:
+                continue
             cost = float(row['Exc'])
             if cost <= 0:
                 continue
@@ -53,6 +57,9 @@ def export(source, output):
                 continue
             module, symbol = name.split('!', 1)
             module = PureWindowsPath(module).name
+            if module == '?':
+                unknown += cost
+                continue
             modules[module] = modules.get(module, 0) + cost
             frames.append({'frame': module + '!' + symbol, 'sampled_ms': cost})
     if total <= 0:
