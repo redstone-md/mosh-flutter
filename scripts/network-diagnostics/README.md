@@ -78,17 +78,20 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Measure-MoshNetwork.ps
 в адресную строку Проводника, открой самый новый каталог `moss-…`
 и передай сохранённый `moss-debug-….mossrec` в приватную переписку.
 Его можно отправить как файл или упаковать в ZIP средствами Проводника.
-# CPU and network attribution on an installed build
+## Профиль CPU вместе с сетью
 
-`Start-CPU.cmd` samples the already running Mosh for 90 seconds, with the
-offline chat open and no call or transfer. Accept the Windows administrator
-prompt. The script downloads checksum-pinned Microsoft PerfView v4.0.0 and
-Mandiant GoReSym v3.4.1 into that recording's private `raw/tools` directory.
-Processing after recording can take several minutes; wait for `Report ready`.
+Для уже работающего Mosh, без переустановки и перезапуска:
 
-Send `mosh-cpu-report.zip` from the printed directory. It contains binary hashes,
-process CPU/RSS samples, CPU module and relative-instruction counts, static Go
-function metadata and anonymized network totals. Sample weights are statistical
-attribution, separate from process CPU counters. Unresolved frames remain marked.
-The underlying system ETL/XML/CSV and profiler logs stay in `raw/` and are not
-included. This recording uses a unique profiler session and leaves Mosh running.
+1. Оставь открытым тот же оффлайн-чат, без звонков и передачи файлов.
+2. Запусти **Start-CPU.cmd** и подтверди запрос прав администратора.
+3. Дождись 90 секунд записи и обработки до **Report ready**.
+4. Передай **mosh-cpu-report.zip** из напечатанного каталога.
+
+Скрипт загружает Microsoft PerfView v4.0.0 и Mandiant GoReSym v3.4.1 с
+проверкой закреплённых SHA-256 в локальный `raw/tools`. В ZIP входят хеши
+бинарников, счётчики CPU/RAM, агрегаты модулей и относительных адресов
+инструкций, статические имена Go-функций Moss и анонимизированные итоги сети.
+Вес CPU-сэмплов — статистическая атрибуция, отдельная от счётчиков CPU
+процесса; неразрешённые кадры остаются отмеченными. Системные ETL/XML/CSV
+и логи профайлера остаются в `raw/` и в ZIP не входят. У профайлера уникальная
+сессия; Mosh продолжает работать.

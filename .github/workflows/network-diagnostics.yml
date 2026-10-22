@@ -147,3 +147,10 @@ jobs:
       - name: Validate real CPU sampling, instruction attribution and Go symbols
         shell: powershell
         run: scripts/network-diagnostics/Test-MoshCpu.ps1 -MossLibrary "$env:IDLE_APP/moss.dll"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cpu-toolkit-control
+          path: ${{ runner.temp }}/cpu-control-*/*.json
+          if-no-files-found: ignore
+          retention-days: 7

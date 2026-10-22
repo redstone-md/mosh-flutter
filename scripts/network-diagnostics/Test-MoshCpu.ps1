@@ -7,7 +7,7 @@ $exe = Join-Path $root 'MoshCpuControl.exe'
 Add-Type -TypeDefinition 'using System; public class CpuControl { public static void Main() { double x=1; while(true) { x=Math.Sqrt(x+2); GC.KeepAlive(x); } } }' -OutputAssembly $exe -OutputType ConsoleApplication
 $child = Start-Process $exe -PassThru
 try {
-    & "$PSScriptRoot/Measure-MoshCpu.ps1" -TargetProcessId $child.Id -DurationSeconds 12 -OutputDirectory $root
+    & "$PSHOME/powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/Measure-MoshCpu.ps1" -TargetProcessId $child.Id -DurationSeconds 12 -OutputDirectory $root
     if ($LASTEXITCODE -ne 0) { throw 'CPU collector failed' }
     $cpu = Get-Content (Join-Path $root 'cpu-summary.json') -Raw | ConvertFrom-Json
     if ($cpu.sampled_weight -lt 2000) { throw 'Busy process samples missing' }
@@ -25,6 +25,7 @@ try {
         $tool = Get-CpuProfilerTool (Join-Path $raw 'tools') -GoSymbols
         $symbols = Read-GoCpuSymbols $tool $MossLibrary $raw
         if ($symbols.functions.Count -lt 1000 -or -not @($symbols.functions | Where-Object { $_.name -like '*moss*mesh*' }).Count) { throw 'Moss function recovery missing' }
+        if (@($symbols.functions | Where-Object { $_.start -lt 0 -or $_.end -le $_.start }).Count) { throw 'Invalid relative function addresses' }
         @{ version = $symbols.version; count = $symbols.functions.Count; sha256 = (Get-FileHash $MossLibrary -Algorithm SHA256).Hash } |
             ConvertTo-Json | Set-Content (Join-Path $root 'symbol-control.json')
     }
