@@ -175,3 +175,65 @@ offline chat. The isolated diagnostic branch now uses the engine's MSAA path.
 The native-only number is indicative and does not reproduce the owner's 16%
 CPU, but synthetic message history, different hardware and public topology
 prevent attributing that difference to the GUI without the remaining checks.
+
+The [MSAA GUI follow-up](https://github.com/redstone-md/mosh-flutter/actions/runs/39713255029)
+passes on an AMD EPYC 7763 runner with four logical processors. The exact EXE
+opens the saved offline DM and its message composer; all eight DMs, two groups
+and one channel remain after exit, with zero pending invitations. Foreground
+CPU is **7.700% of one logical core** over 120.732 seconds; minimized CPU is
+**6.051%** over 120.074 seconds. Working set spans 81.13–96.95 MiB foreground
+and 81.43–96.52 MiB minimized.
+
+These sequential public-network windows establish that substantial work remains
+while minimized, not a causal rendering-cost estimate. The native-only run was
+on different hardware, so subtracting its CPU from this GUI run is invalid.
+Thread CPU sums reconcile within one scheduling tick, but names are empty and
+start addresses mostly resolve to ntdll; they do not attribute active code.
+The owner's 16% CPU and larger working set remain unreproduced. A subsequent
+probe adds control-validated sampled instruction/module attribution alongside
+the existing complete process-network collector; product code remains unchanged.
+
+The [sampled Windows follow-up](https://github.com/redstone-md/mosh-flutter/actions/runs/39716632208)
+passes its real busy-process control, saved-DM UI check and both loss-free,
+control-validated network windows. Its AMD EPYC 9V74 runner uses the unchanged
+shipping binaries. Foreground measures 2.912% of one logical core and
+0.362 Mbit/s; minimized measures 4.431% and 0.485 Mbit/s. The public-network
+windows are sequential, so the increase while minimized does not establish
+a minimizing regression. It reinforces the need to record traffic alongside CPU.
+
+Indicative sampled-frame weights: foreground Rust core 20.1%, Moss 18.2%,
+unresolved 28.2%, Windows kernel 15.9%, Flutter engine 5.6%; minimized Rust core
+18.6%, Moss 17.7%, unresolved 29.3%, kernel 16.4%, Flutter engine 5.2%.
+These are sample proportions, not percentages of a logical core. Sample weights
+(5,620 / 6,092) do not equal process CPU milliseconds (3,500 / 5,343.75) in the
+longer process-counter windows; do not use them as exact per-module CPU budgets.
+Missing native symbols and manually mapped AOT code leave substantial unresolved
+work. MSAA automation also enables Flutter semantics, unlike an uninspected GUI.
+No dominant function or causal whole-application optimization follows from this
+probe. The owner workload still has roughly three times this runner's traffic
+and substantially more CPU; retained history, hardware and network conditions
+remain uncontrolled.
+
+Next required evidence is a CPU profile of the owner's already running process,
+with the same offline chat and workload. The read-only Windows fixture remains
+on `test/windows-idle-profile`; the reusable installed-app collector is included
+in this PR. `Start-CPU.cmd` adds binary hashes, relative instruction samples,
+static Moss function metadata and the existing network/resource counters.
+Only aggregate JSON enters its ZIP; underlying system traces remain local.
+
+Its [Windows control run](https://github.com/redstone-md/mosh-flutter/actions/runs/39721028840)
+passes against a real busy x64 process and the exact shipping Moss DLL. Of
+12,532 sampled weights, 8,673 mapped user instructions reconcile exactly with
+the native module weights (ntdll 6,769 + CLR 1,899 + kernel32 5). Unknown/JIT and
+kernel samples remain separately identified. It recovers 11,326 Go 1.25.9
+functions with valid relative address ranges from DLL SHA-256
+`e1eed14907ce1224b85b09570ce55887dc912f27fd2b3e6b4a42e985d0e9ac1a`.
+The CPU/network archive allowlist check passes; network loss is zero and both
+control bursts validate. Module sorting uses numeric hashtable expressions;
+the strengthened native-function control caught the earlier broken mapping.
+
+The [downloaded collector](https://github.com/redstone-md/mosh-flutter/actions/runs/39721028840/artifacts/12401186707)
+has a matching SHA-256 sidecar and source contents (normalizing Windows checkout
+line endings). ZIP SHA-256 is
+`738f47d397b787c274a48b87804097973c2b45b26d5bada2f24a3639da55a6a4`.
+Its standard network, Moss lifecycle/timing and packaging checks also pass.
