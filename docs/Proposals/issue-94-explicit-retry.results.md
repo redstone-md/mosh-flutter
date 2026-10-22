@@ -214,8 +214,8 @@ probe. The owner workload still has roughly three times this runner's traffic
 and substantially more CPU; retained history, hardware and network conditions
 remain uncontrolled.
 
-Next required evidence is a CPU profile of the owner's already running process,
-with the same offline chat and workload. The read-only Windows fixture remains
+The owner subsequently supplied a complete exact-binary CPU profile; see
+[CPU attribution and history verification](issue-94-owner-cpu.results.md). The read-only Windows fixture remains
 on `test/windows-idle-profile`; the reusable installed-app collector is included
 in this PR. `Start-CPU.cmd` adds binary hashes, relative instruction samples,
 static Moss function metadata and the existing network/resource counters.
