@@ -257,9 +257,13 @@ jobs:
           $app = Join-Path $env:RUNNER_TEMP 'mosh-history-candidate'
           $setup = Start-Process $exe.FullName -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$app`"", '/TASKS=') -Wait -PassThru
           if ($setup.ExitCode -ne 0) { throw 'Candidate install failed' }
-          foreach ($name in @('moss.dll', 'flutter_windows.dll')) {
-            if ((Get-FileHash "$app/$name").Hash -ne (Get-FileHash "$env:IDLE_APP/$name").Hash) { throw "Unexpected runtime change: $name" }
-          }
+          New-Item -ItemType Directory -Force build/history-results | Out-Null
+          @('mosh_core.dll', 'moss.dll', 'flutter_windows.dll') | ForEach-Object { @{file=$_; baseline=(Get-FileHash "$env:IDLE_APP/$_").Hash; installed_candidate=(Get-FileHash "$app/$_").Hash} } | ConvertTo-Json | Set-Content build/history-results/installed-binaries.json
+          if ((Get-FileHash "$app/flutter_windows.dll").Hash -ne (Get-FileHash "$env:IDLE_APP/flutter_windows.dll").Hash) { throw 'Flutter runtime changed' }
+          # Isolate the Rust increment: preserve the installed hash above, then
+          # use exactly the original pinned Go DLL for both benchmark workers.
+          Copy-Item "$app/moss.dll" build/history-results/candidate-moss.dll
+          Copy-Item "$env:IDLE_APP/moss.dll" "$app/moss.dll" -Force
           "HISTORY_CANDIDATE=$app" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           New-Item -ItemType Directory -Force build/history-results | Out-Null
           @('mosh_core.dll', 'moss.dll') | ForEach-Object { @{file=$_; baseline=(Get-FileHash "$env:IDLE_APP/$_").Hash; candidate=(Get-FileHash "$app/$_").Hash} } | ConvertTo-Json | Set-Content build/history-results/binaries.json
@@ -276,5 +280,7 @@ jobs:
         if: always()
         with:
           name: windows-history-comparison
-          path: build/history-results/*.json
+          path: |
+            build/history-results/*.json
+            build/history-results/candidate-moss.dll
           retention-days: 7
