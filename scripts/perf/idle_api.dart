@@ -53,10 +53,11 @@ Future<Map<String, Object?>> command(Map<String, dynamic> input) async {
       final value = await dm.createInvite(
           request: const StartSessionRequest(
               displayName: 'Profile owner', listenPort: 55005));
+      final snapshot = await dm.pollSession(sessionId: value.sessionId);
       return {
         'session': value.sessionId,
         'uri': value.inviteUri,
-        'address': value.listenAddress
+        'port': snapshot.mesh!.listenPort,
       };
     case 'accept':
       final value = await dm.acceptInvite(
@@ -106,6 +107,8 @@ Future<Map<String, Object?>> command(Map<String, dynamic> input) async {
 
 Map<String, Object?> summarize(SessionSnapshot snapshot) => {
       'state': snapshot.state.name,
+      'transport': snapshot.transport.name,
+      'mesh_peers': snapshot.mesh?.peerCount,
       'messages': [
         for (final m in snapshot.messages)
           {'body': m.body, 'status': m.deliveryStatus?.name}

@@ -75,9 +75,17 @@ def pair(owner, index):
     try:
         invite = owner.ask('invite')
         sid = invite['session']
+        assert 0 < invite['port'] < 65536
         other.ask('accept', uri=invite['uri'], name=f'Offline {index}', port=55006 + index,
-                  peer='127.0.0.1:' + invite['address'].rsplit(':', 1)[-1])
-        wait_until(lambda: all(p.ask('poll', session=sid)['state'] == 'connected' for p in [owner, other]))
+                  peer='127.0.0.1:' + str(invite['port']))
+
+        def connected():
+            states = [p.ask('poll', session=sid) for p in [owner, other]]
+            progress = [{k: v for k, v in state.items() if k != 'messages'} for state in states]
+            (ROOT / 'fixture-progress.json').write_text(json.dumps({'index': index, 'states': progress}))
+            return all(state['state'] == 'connected' for state in states)
+
+        wait_until(connected)
         body = 'Idle profiling fixture ' + str(index)
         owner.ask('send', session=sid, body=body)
 
@@ -170,20 +178,40 @@ def gui_profile(data):
         app.wait(timeout=15)
 
 
+def inventory(data):
+    owner = Peer(data)
+    try:
+        state = owner.ask('read')
+        state.update(owner.ask('inventory'))
+        (ROOT / 'gui-inventory.json').write_text(json.dumps(state))
+        assert {k: state[k] for k in ['dm', 'groups', 'channels']} == {'dm': 8, 'groups': 2, 'channels': 1}
+    finally:
+        owner.stop()
+
+
 def main():
     # Match path_provider_windows' company/product convention for this EXE.
     data = Path(os.environ['APPDATA']) / 'app.mosh' / 'mosh'
-    if data.exists():
-        raise RuntimeError('Refusing an existing application data directory')
+    stage = sys.argv[3] if len(sys.argv) > 3 else 'all'
     manifest = {'fixture': {'offline_dm': 8, 'groups': 2, 'channels': 1},
                 'warmup_seconds': 480, 'window_seconds': 120,
                 'hashes': {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
-                           for p in [APP / 'mosh.exe', APP / 'mosh_core.dll']}}
-    (ROOT / 'fingerprint.json').write_text(json.dumps(manifest, indent=2))
-    native = native_profile(data)
-    gui = gui_profile(data)
-    (ROOT / 'comparison.json').write_text(json.dumps({'native': native, 'gui': gui}, indent=2))
-    print('COMPLETE: real release DLL and GUI compared', flush=True)
+                           for p in [APP / 'mosh.exe', APP / 'mosh_core.dll',
+                                     APP / 'moss.dll', APP / 'flutter_windows.dll', APP / 'data/app.so']}}
+    if stage != 'gui':
+        if data.exists():
+            raise RuntimeError('Refusing an existing application data directory')
+        (ROOT / 'fingerprint.json').write_text(json.dumps(manifest, indent=2))
+        native = native_profile(data)
+        (ROOT / 'native-summary.json').write_text(json.dumps(native, indent=2))
+    if stage != 'native':
+        saved = json.loads((ROOT / 'fingerprint.json').read_text())
+        assert saved == manifest and data.exists()
+        native = json.loads((ROOT / 'native-summary.json').read_text())
+        gui = gui_profile(data)
+        inventory(data)
+        (ROOT / 'comparison.json').write_text(json.dumps({'native': native, 'gui': gui}, indent=2))
+    print('COMPLETE profiling stage:', stage, flush=True)
 
 
 if __name__ == '__main__':
