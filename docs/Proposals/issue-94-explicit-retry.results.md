@@ -124,3 +124,54 @@ also shares the host with verification jobs. These measurements establish work
 attribution and scheduler behavior, not a controlled whole-application bandwidth
 or battery budget. The reported 100–150 Mbit/s idle condition has not been
 reproduced by the supplied complete owner measurement.
+
+## Owner Windows follow-up, 2026-10-22
+
+The owner confirms the installer from run 39692467913 after a tray exit and
+reinstallation, with the same eight offline DMs, two groups and one channel,
+and an offline chat open. The ZIP itself does not record an EXE hash/version;
+source attribution here relies on that confirmation. The 01:49:32.712 to
+01:51:33.752 UTC capture is complete and control-validated, with zero ETW
+event/buffer loss. Independent second and endpoint byte sums reconcile.
+
+| Whole-process observation | Previous owner capture | New capture |
+| --- | ---: | ---: |
+| Capture duration | 120.315 s | 121.039 s |
+| Process age at start | 745.411 s | 490.834 s |
+| TX | 8,499,400 bytes | 6,398,739 bytes |
+| RX | 14,610,652 bytes | 15,020,418 bytes |
+| Combined mean | 1.537 Mbit/s | 1.416 Mbit/s |
+| Complete-second median | 0.924 Mbit/s | 0.503 Mbit/s |
+| Complete-second p95 | 6.755 Mbit/s | 7.094 Mbit/s |
+| Complete-second peak | 14.370 Mbit/s | 11.953 Mbit/s |
+| CPU, one logical core | 16.45% | 16.02% |
+| Working-set median | 140.74 MiB | 259.22 MiB |
+
+The mean rate falls 7.9%; CPU falls only 0.43 percentage points. Receive traffic
+accounts for 70.1% of the new volume. The process is over eight minutes old,
+although younger than the requested ten-minute warmup. Different public traffic
+and retained GUI/history state prevent a causal estimate; the larger working
+set is an observation, not an established memory regression or leak. None of
+the 121 complete one-second buckets reaches 100 Mbit/s; two exceed 10 Mbit/s.
+
+**Whole-Windows idle acceptance remains open.** The native explicit-retry fix
+has behavioral/counter evidence, but this capture does not demonstrate that
+the remaining whole-application CPU or incoming bandwidth is resolved. An
+isolated measurement branch now compares the exact shipped Windows DLL and EXE
+with a real disposable fixture, including per-thread CPU attribution. Production
+optimization must follow that attribution.
+
+The first [Windows diagnostic run](https://github.com/redstone-md/mosh-flutter/actions/runs/39711703556)
+successfully establishes and delivers messages in eight independent-process DMs,
+then stops the counterparts and seeds two groups and one channel. Through the
+exact shipped DLLs, the pure-Dart API client measures **4.294% of one logical
+core** over 120.808 seconds after an eight-minute warmup. Its working set ranges
+from 46.95 to 49.20 MiB. No pending invitations exist. The runner is an Intel
+Xeon Platinum 8573C with four logical processors.
+
+The full-application phase does not produce a valid measurement: UI Automation
+only exposes the Flutter host window, so the script refuses to label it an open
+offline chat. The isolated diagnostic branch now uses the engine's MSAA path.
+The native-only number is indicative and does not reproduce the owner's 16%
+CPU, but synthetic message history, different hardware and public topology
+prevent attributing that difference to the GUI without the remaining checks.
