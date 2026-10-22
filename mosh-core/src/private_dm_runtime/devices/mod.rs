@@ -13,6 +13,7 @@ mod runtime;
 mod types;
 
 pub(super) use live::DeviceSignature;
+pub(super) use proof::LocalClaimSigner;
 pub(super) use runtime::DeviceDmLink;
 pub(crate) use types::DeviceMembership;
 pub(super) const DEVICE_CHANNEL: &str = "mosh-dm-devices-v1";
@@ -33,3 +34,5 @@ mod history_metadata_tests;
 #[cfg(test)]
 mod identity_advertisement_tests;
 mod identity_session;
+#[cfg(test)]
+mod local_claim_tests;

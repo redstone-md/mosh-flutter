@@ -6,7 +6,10 @@ use super::{invalid, proof::IdentityClaim, types::*, INITIAL_CLIENTS};
 use crate::device_link::identity::DeviceIdentity;
 
 impl PrivateDmSession {
-    pub(super) fn current_device_claim(&self, identity: &DeviceIdentity) -> Result<IdentityClaim> {
+    pub(super) fn current_device_claim(
+        &mut self,
+        identity: &DeviceIdentity,
+    ) -> Result<IdentityClaim> {
         let current = self
             .membership
             .as_ref()
@@ -29,7 +32,7 @@ impl PrivateDmSession {
             Some(roster) if roster.extends(identity.roster()).map_err(|_| invalid())? => roster,
             _ => identity.roster(),
         };
-        IdentityClaim::create_with_roster(
+        self.local_claim_signer.claim(
             identity,
             roster,
             &self.session_id,

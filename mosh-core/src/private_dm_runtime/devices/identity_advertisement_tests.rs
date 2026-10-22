@@ -61,6 +61,23 @@ impl OfflineIdentity {
 }
 
 #[test]
+fn unchanged_idle_refreshes_and_advertisements_do_not_sign_again() {
+    let mut fixture = OfflineIdentity::new();
+    assert_eq!(fixture.advertise(), 1);
+    let signed = super::proof::claim_signature_count();
+    for _ in 0..10 {
+        fixture
+            .runtime
+            .session_mut(&fixture.session_id)
+            .unwrap()
+            .refresh_device_identity(&fixture.identity)
+            .unwrap();
+        assert_eq!(fixture.advertise(), 0);
+    }
+    assert_eq!(super::proof::claim_signature_count(), signed);
+}
+
+#[test]
 fn an_offline_roster_change_bypasses_unchanged_identity_suppression() {
     let mut fixture = OfflineIdentity::new();
     assert_eq!(fixture.advertise(), 1);

@@ -147,6 +147,7 @@ struct PrivateDmSession {
     // Last identity attempt: MLS epoch, validated signed bytes and Hello stamp.
     // Used only to suppress unchanged offline advertisements, never as trust.
     last_identity_advertisement: Option<(u64, Vec<u8>, u64)>,
+    local_claim_signer: devices::LocalClaimSigner,
     role: SessionRole,
     state: DmSessionState,
     // When the last authenticated frame from the counterpart was drained, on

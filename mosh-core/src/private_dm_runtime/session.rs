@@ -37,6 +37,7 @@ impl PrivateDmSession {
             device_store: None,
             device_connect_requested: std::collections::HashSet::new(),
             last_identity_advertisement: None,
+            local_claim_signer: Default::default(),
             role,
             state: DmSessionState::Pending,
             last_authenticated_rx_ms: 0,

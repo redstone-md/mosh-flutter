@@ -10,10 +10,57 @@ use crate::device_link::{
 };
 use ed25519_dalek::{Signature, Signer};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 const CLAIM_CONTEXT: &[u8] = b"mosh-dm-client-v1\0";
 const PACKET_CONTEXT: &[u8] = b"mosh-dm-admission-v1\0";
 const MAX_DISPLAY_NAME_BYTES: usize = 256;
+
+#[cfg(test)]
+thread_local! {
+    static CLAIM_SIGNATURES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(super) fn claim_signature_count() -> usize {
+    CLAIM_SIGNATURES.get()
+}
+
+/// One locally generated signature, never a cached authorization decision.
+#[derive(Default)]
+pub(in crate::private_dm_runtime) struct LocalClaimSigner {
+    signed: Option<([u8; 32], String)>,
+}
+
+impl LocalClaimSigner {
+    pub(super) fn claim(
+        &mut self,
+        identity: &DeviceIdentity,
+        roster: &DeviceRoster,
+        session: &str,
+        signer: &[u8],
+        name: &str,
+    ) -> Result<IdentityClaim> {
+        let mut claim = IdentityClaim::unsigned(identity, roster, session, signer, name)?;
+        let bytes = claim.bytes()?;
+        let digest: [u8; 32] = Sha256::digest(&bytes).into();
+        claim.signature = match &self.signed {
+            Some((previous, signature)) if *previous == digest => signature.clone(),
+            _ => {
+                let signature = sign_claim(identity, &bytes);
+                self.signed = Some((digest, signature.clone()));
+                signature
+            }
+        };
+        Ok(claim)
+    }
+}
+
+fn sign_claim(identity: &DeviceIdentity, bytes: &[u8]) -> String {
+    #[cfg(test)]
+    CLAIM_SIGNATURES.set(CLAIM_SIGNATURES.get() + 1);
+    hex::encode(identity.key().sign(bytes).to_bytes())
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct IdentityClaim {
@@ -42,6 +89,18 @@ impl IdentityClaim {
         signer: &[u8],
         name: &str,
     ) -> Result<Self> {
+        let mut claim = Self::unsigned(identity, roster, session, signer, name)?;
+        claim.signature = sign_claim(identity, &claim.bytes()?);
+        Ok(claim)
+    }
+
+    fn unsigned(
+        identity: &DeviceIdentity,
+        roster: &DeviceRoster,
+        session: &str,
+        signer: &[u8],
+        name: &str,
+    ) -> Result<Self> {
         if !(roster.extends(identity.roster()).map_err(|_| invalid())?
             || identity.roster().extends(roster).map_err(|_| invalid())?)
             || !identity
@@ -56,16 +115,14 @@ impl IdentityClaim {
         {
             return Err(invalid());
         }
-        let mut claim = Self {
+        Ok(Self {
             session_id: session.into(),
             roster: roster.clone(),
             device_id: identity.device().device_id.clone(),
             mls_signer: hex::encode(signer),
             display_name: name.into(),
             signature: String::new(),
-        };
-        claim.signature = hex::encode(identity.key().sign(&claim.bytes()?).to_bytes());
-        Ok(claim)
+        })
     }
 
     fn bytes(&self) -> Result<Vec<u8>> {
