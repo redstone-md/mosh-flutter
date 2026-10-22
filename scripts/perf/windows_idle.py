@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 import uuid
+from cpu_profile import CpuProfile
 
 APP = Path(sys.argv[1]).resolve()
 ROOT = Path(sys.argv[2]).resolve()
@@ -109,6 +110,8 @@ def powershell(script, *args):
 
 def measure(pid, name, poll=None, seconds=120):
     output = ROOT / (name + '.json')
+    tool = os.environ.get('IDLE_CPU_TOOL')
+    profile = CpuProfile(tool, ROOT, name, 'mosh') if tool and name.startswith('gui-') else None
     child = subprocess.Popen(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass',
                               '-File', str(SCRIPTS / 'Measure-IdleProcess.ps1'),
                               '-TargetProcessId', str(pid), '-Seconds', str(seconds),
@@ -121,6 +124,8 @@ def measure(pid, name, poll=None, seconds=120):
         time.sleep(1)
     if child.returncode:
         raise RuntimeError('Measurement failed: ' + name)
+    if profile:
+        profile.finish()
     result = json.loads(output.read_text(encoding='utf-8-sig'))
     print(name, 'CPU', round(result['cpu_one_core_percent'], 3), flush=True)
     return result

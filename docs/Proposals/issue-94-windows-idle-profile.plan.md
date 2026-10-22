@@ -50,3 +50,20 @@ the repeated headless warmup/measurement while validating GUI automation;
 its native summary is null and cannot establish a same-host native/GUI ratio.
 References: [Flutter engine](https://github.com/flutter/flutter/blob/3.44.8/engine/src/flutter/shell/platform/windows/flutter_window.cc),
 [AccessibleChildren](https://learn.microsoft.com/en-us/windows/win32/api/oleacc/nf-oleacc-accessiblechildren).
+
+The MSAA run passes with the exact installer: 7.700% foreground and 6.051%
+minimized on an AMD EPYC 7763 runner. Both phases retain the complete fixture
+and zero pending invitations. The earlier native run used different hardware;
+do not compute a causal native/GUI delta across them. Thread names are empty
+and their start modules mostly ntdll, so they cannot identify the active code.
+
+The optional `profile_cpu` probe uses Microsoft's standalone PerfView v4.0.0,
+verified against release SHA-256
+`270e2ba419b0b2d93c4b15b0851f257edf655c92fe0ad95add3d0b5f6d6aad48`.
+Validate sampling with a real busy disposable Python child before trusting its
+output, then sample the unchanged GUI process during each measurement window.
+Export only process-filtered, module/frame aggregate JSON. Raw ETL, symbol and
+CSV files stay in the runner's non-uploaded `raw` directory. No application
+dependency, native DLL, stored data contract or production behavior changes.
+Sampling overhead and variable public traffic prevent using these runs as a
+controlled optimization comparison.
