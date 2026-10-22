@@ -69,3 +69,42 @@ fn changed_history_proofs_are_verified_after_a_successful_snapshot() {
     fixture.log.replace(0, original);
     assert!(snapshot(&fixture, &policy).can_delete_for_everyone);
 }
+
+#[test]
+fn unchanged_linked_history_snapshots_do_not_repeat_delegation_verification() {
+    let issuer = SigningKey::generate(&mut rand::rngs::OsRng);
+    let author = SigningKey::generate(&mut rand::rngs::OsRng);
+    let reader = SigningKey::generate(&mut rand::rngs::OsRng);
+    let fixture = Fixture::new(&author);
+    let mut policy = authority(&reader, &author);
+    policy.local.ownership = Some(super::super::ownership::test_linked_proof(&issuer, &reader));
+    let expected = snapshot(&fixture, &policy);
+    assert!(expected.can_delete_for_everyone);
+    let count = crate::device_link::account_certificate::test_verification_count;
+    let before = count();
+    for _ in 0..20 {
+        assert_eq!(snapshot(&fixture, &policy), expected);
+    }
+    assert_eq!(
+        count(),
+        before,
+        "unchanged history must reuse verified delegations"
+    );
+}
+
+#[test]
+fn cached_linked_history_proofs_still_enforce_issuer_revocation() {
+    let issuer = SigningKey::generate(&mut rand::rngs::OsRng);
+    let author = SigningKey::generate(&mut rand::rngs::OsRng);
+    let reader = SigningKey::generate(&mut rand::rngs::OsRng);
+    let fixture = Fixture::new(&author);
+    let mut policy = authority(&reader, &author);
+    policy.local.ownership = Some(super::super::ownership::test_linked_proof(&issuer, &reader));
+    assert!(snapshot(&fixture, &policy).can_delete_for_everyone);
+    policy.own.revoked.insert(key(&issuer));
+    assert!(!snapshot(&fixture, &policy).can_delete_for_everyone);
+    policy.own.revoked.clear();
+    assert!(snapshot(&fixture, &policy).can_delete_for_everyone);
+    policy.members.remove(&key(&reader));
+    assert!(!snapshot(&fixture, &policy).can_delete_for_everyone);
+}

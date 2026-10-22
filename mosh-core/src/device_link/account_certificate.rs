@@ -10,6 +10,16 @@ use super::{
 const CONTEXT: &[u8] = b"mosh-account-delegation-v1\0";
 const MAX_DELEGATIONS: usize = 32;
 
+#[cfg(test)]
+thread_local! {
+    static VERIFICATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(crate) fn test_verification_count() -> usize {
+    VERIFICATIONS.get()
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct AccountCertificate {
     pub root: String,
@@ -69,6 +79,8 @@ impl AccountCertificate {
                 return Err(invalid());
             }
             let signature = hex::decode(&delegation.signature).map_err(|_| invalid())?;
+            #[cfg(test)]
+            VERIFICATIONS.set(VERIFICATIONS.get() + 1);
             signer
                 .verify_strict(
                     &self.input(index, &delegation.key)?,

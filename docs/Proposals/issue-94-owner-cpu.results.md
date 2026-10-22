@@ -68,9 +68,11 @@ or the residual incoming bandwidth has this cause.
 
 The opportunity scores impact 4 × confidence 5 / effort 2 = 10. A bounded,
 process-local cache retains at most 4,096 SHA-256 fingerprints of successful
-Ed25519 checks. Each fingerprint covers the decoded public key, the explicit
-signature-string length, the signature and the entire signed input. No message
-bodies, keys, permission results or serialized cache state are retained.
+cryptographic checks. Signature fingerprints cover the decoded public key, the
+explicit signature-string length, the signature and the entire signed input.
+The linked-history follow-up below adds a separate typed fact for a complete
+serialized account certificate. No message bodies, keys, permission results or
+serialized cache state are retained.
 
 Strict verification, including weak-key rejection, still runs on a miss. Failed
 checks never populate the cache. The cache lock is released before curve work;
@@ -104,9 +106,10 @@ new verification module (97.56%); its full module including the bound test maps
 
 Independent Standards and Spec reviews of `8fe80d00...8aa8bb65` report zero
 remaining findings. CodeAnt finishes the `8aa8bb65` incremental review with no
-unresolved inline findings or nitpicks. Linked account-certificate delegation
-checks remain outside this helper/cache and outside its regression counter;
-this change does not claim to eliminate all snapshot cryptography.
+unresolved inline findings or nitpicks. At `8aa8bb65`, linked account-certificate
+delegation checks remain outside this helper/cache and its regression counter.
+The following follow-up addresses that gap within history account proofs;
+identity/roster validation remains separate.
 
 ## Release mechanism comparison
 
@@ -195,3 +198,59 @@ produces another DLL/PDB pair, GUID
 The rebuilt PDB is therefore rejected for owner-address attribution; no Rust
 function names in this report are inferred from that mismatched PDB. The
 caller-path reproduction above is an independent same-binary Linux profile.
+
+## Owner follow-up: 15:45 capture
+
+The next ZIP is `cpu-20261022-154514/mosh-cpu-report.zip`, SHA-256
+`bbb68351dde01c6f8325df23b47ec1c5ea20cda3faa4fdd03cb4fd8d8c0cd635`.
+The shipping Rust/Moss DLL hashes match the configured `8aa8bb65` installer.
+The 90.776-second network capture is complete and control-validated, with no
+lost events or buffers. The process has warmed for 26 minutes 18 seconds.
+
+| Observation | Previous capture | New capture |
+| --- | ---: | ---: |
+| CPU, one logical core | 14.148% | 15.466% |
+| Working-set median | 239.54 MiB | 119.46 MiB |
+| Combined network mean | 1.853 Mbit/s | 2.278 Mbit/s |
+| Complete-second median / p95 / peak | 0.714 / 7.379 / 26.211 | 0.880 / 13.176 / 15.334 Mbit/s |
+| Statistical Rust / Moss weights | 26.68% / 25.72% | 17.16% / 30.85% |
+
+Whole-application idle acceptance is not achieved. The public network changes
+between captures, so these are observations, not a controlled estimate of the
+first history fix. Receive traffic is 72.98% and UDP is 92.20% of external
+bytes. The reported 100–150 Mbit/s condition is still absent. Instruction,
+kernel and unmapped sample counts reconcile to 14,023; 4,343 of 4,346 raw Moss
+instruction samples map to the recovered Go ranges. Three do not. Module CSV
+weights and raw instruction counts are distinct exports.
+
+## Linked-history reproduction and correction
+
+An independent Linux release API reproduction links two actual installations,
+creates a DM with a third installation and verifies delivery before taking the
+counterpart offline. A control that stopped the authorizing device immediately
+after pairing produced no account proofs; it is rejected as delegation evidence.
+The valid run keeps both linked installations alive until a returned message
+origin contains the issued one-delegation account certificate.
+
+On `8aa8bb65`, thirty list calls cost 0.05 CPU seconds with the small control
+history, 0.73 seconds with 100 additional signed messages, and 1.03 seconds
+with 200. A twenty-second sampled run loses no samples. Two approximately
+33% inclusive caller branches reach `AccountCertificate::verify` from history
+origin verification and local-authority proof validation. This isolates another
+history-dependent cause; it does not assign every owner Rust sample to it.
+
+The correction stores only the successful verification fact for the entire
+serialized certificate, tagged separately from signature facts in the same
+4,096-entry FIFO bound. Subject matching, proof signatures, current membership,
+roles and revocation checks remain outside that fact. Invalid chains never enter
+the cache, and no lock is held during certificate verification. Identity/roster
+certificate validation outside history account proofs is unchanged.
+
+A caller-level snapshot regression fails before correction: twenty unchanged
+polls grow real delegation signature checks from two to twenty-two. After the
+correction it passes. Additional checks enforce issuer revocation/membership
+loss after warming and reject altered delegation signatures or keys even when
+the linked device correctly signs the enclosing account proof. All 35 focused
+message-deletion tests and 752 native unit tests pass (twenty expected ignored
+workers), as do all-target Clippy and formatting. Release comparison, full CI
+and the updated PR review are recorded when complete.

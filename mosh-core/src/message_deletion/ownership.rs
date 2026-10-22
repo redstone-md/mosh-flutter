@@ -92,7 +92,7 @@ impl AccountProof {
         if self.subject != subject {
             return Err("account subject mismatch".into());
         }
-        self.certificate.verify().map_err(|e| e.to_string())?;
+        super::verification::verify_certificate(&self.certificate)?;
         super::origin::verify_signature(self.certificate.subject(), &self.signature, &self.input()?)
     }
 }
@@ -198,7 +198,10 @@ pub(crate) fn test_linked_proof(
 }
 
 #[cfg(test)]
-fn signed_test_proof(certificate: AccountCertificate, key: &ed25519_dalek::SigningKey) -> String {
+pub(super) fn signed_test_proof(
+    certificate: AccountCertificate,
+    key: &ed25519_dalek::SigningKey,
+) -> String {
     let mut proof = AccountProof {
         certificate,
         subject: hex::encode(key.verifying_key().as_bytes()),
