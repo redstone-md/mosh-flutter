@@ -30,7 +30,7 @@ class CpuProfile:
                 self.tool, '/AcceptEula', '/NoGui',
                 '/LogFile:' + str(self.trace.with_suffix('.export.log')),
                 'userCommand', 'SaveCPUStacksAsCsv', str(self.trace),
-                self.process, '2147483647'],
+                self.process, '2147483647', 'GreatestMSec'],
                 stdout=self.log, stderr=subprocess.STDOUT, check=True, timeout=180)
             return export(self.trace.with_suffix('.perfView.csv'),
                           self.root / (self.name + '-cpu.json'))
@@ -71,7 +71,10 @@ def control(tool, root):
     child = subprocess.Popen([sys.executable, '-c',
                               'import math\nwhile True: math.sqrt(12345)'])
     try:
-        result = CpuProfile(tool, root, 'control', 'python', seconds=12).finish()
+        before = process_state(child.pid)
+        (root / 'control-process.json').parent.mkdir(parents=True, exist_ok=True)
+        (root / 'control-process.json').write_text(json.dumps(before))
+        result = CpuProfile(tool, root, 'control', before['ProcessName'], seconds=12).finish()
         assert result['sampled_ms'] >= 2000, 'Busy child CPU samples missing'
         assert any('python' in r['module'].lower() for r in result['modules']), 'Python module attribution missing'
         print('Validated real sampled CPU/module attribution', flush=True)
@@ -84,9 +87,17 @@ def control(tool, root):
         (root / 'control-failure.json').write_text(json.dumps({'error': str(error), 'logs': logs}, indent=2))
         raise
     finally:
+        (root / 'control-process-after.json').write_text(json.dumps(process_state(child.pid)))
         if child.poll() is None:
             child.terminate()
         child.wait(timeout=15)
+
+
+def process_state(pid):
+    output = subprocess.check_output([
+        'powershell.exe', '-NoProfile', '-Command',
+        'Get-Process -Id ' + str(pid) + ' | Select-Object Id,ProcessName,CPU | ConvertTo-Json -Compress'], text=True)
+    return json.loads(output)
 
 
 if __name__ == '__main__':
