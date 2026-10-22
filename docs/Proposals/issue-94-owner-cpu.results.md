@@ -310,6 +310,13 @@ All five extracted shipping binaries match the accompanying symbol manifest.
 The original Rust PDB matches the shipping DLL's CodeView GUID and age;
 future owner instruction offsets can therefore be attributed without a rebuild.
 
-Full CI and owner-side acceptance are reported separately. The latest supplied
-capture predates this correction. Residual incoming public mesh traffic and
-Android background-call/battery work remain open; no merge or release is included.
+The [complete application CI](https://github.com/redstone-md/mosh-flutter/actions/runs/39814315561)
+passes at `d63bb48d`: both Rust core lanes, real multi-device DM and linked-device
+flows, Linux/macOS/Windows native calls, Flutter tests, Windows bridge UI integration,
+binding drift, Android arm64 debug APK and Windows/macOS packaging. The Android
+release lane is intentionally skipped for a pull request. Following commits record
+only this report.
+
+Owner-side acceptance remains separate. The latest supplied capture predates
+this correction. Residual incoming public mesh traffic and Android
+background-call/battery work remain open; no merge or release is included.
