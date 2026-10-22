@@ -192,3 +192,8 @@ Device identity loading/validation, full snapshot serialization and incoming
 public mesh work remain separate costs. This correction does not establish
 acceptable whole-application CPU, bandwidth or Android battery use. Issue 94
 stays open, including Android background calls. No merge or release is included.
+
+The subsequent [loaded-key follow-up](issue-94-identity-key.results.md) analyzes
+the exact `a640f75a` owner capture and removes redundant public-key construction
+inside each loaded identity, while preserving fresh validation and revocation
+checks. Its comparisons use `a640f75a` as the before variant.

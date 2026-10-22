@@ -45,3 +45,5 @@ local exception, avoiding an unrelated identity refactor.
 Rollback is the one functional commit. Whole-Windows idle, retained memory,
 residual public mesh traffic and Android acceptance stay open. No merge or
 release is included.
+
+Measurements and checks are recorded in the [results](issue-94-identity-key.results.md).
