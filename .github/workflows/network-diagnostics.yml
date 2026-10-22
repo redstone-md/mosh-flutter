@@ -7,6 +7,10 @@ on:
         description: Include the headless baseline (disable when debugging GUI automation)
         type: boolean
         default: true
+      owner_toolkit:
+        description: Validate and package the installed-app CPU collector
+        type: boolean
+        default: false
       profile_cpu:
         description: Sample CPU with the pinned Microsoft PerfView tool
         type: boolean
@@ -64,7 +68,7 @@ jobs:
           retention-days: 14
 
   release-idle-profile:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && !inputs.owner_toolkit
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -73,26 +77,7 @@ jobs:
         with:
           rust: 'false'
           moss: none
-      - name: Fetch and install the exact tested release
-        shell: powershell
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          gh run download 39692467913 --repo redstone-md/mosh-flutter --name mosh-windows-setup --dir build/source
-          if ($LASTEXITCODE -ne 0) { throw 'Artifact download failed' }
-          Remove-Item Env:GH_TOKEN
-          $exe = @(Get-ChildItem build/source -Recurse -Filter *.exe)
-          if ($exe.Count -ne 1) { throw 'Expected one installer' }
-          $hash = (Get-FileHash $exe[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($hash -ne 'cdd6bb6028266f1a68de4e88b64ccbd83435f21407b2396ebeef6384dcb739c1') { throw 'Installer hash mismatch' }
-          $manifestFile = @(Get-ChildItem build/source -Recurse -Filter plus-build.json)[0].FullName
-          $manifest = Get-Content $manifestFile -Raw | ConvertFrom-Json
-          if ($manifest.commit -ne '3e6790f532b443e52ff83b9f12555ca8aab1151b' -or -not $manifest.purchases_configured) { throw 'Source/PLUS manifest mismatch' }
-          $installPath = Join-Path $env:RUNNER_TEMP 'mosh-idle-app'
-          $setup = Start-Process $exe[0].FullName -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$installPath`"", '/TASKS=') -Wait -PassThru
-          if ($setup.ExitCode -ne 0) { throw 'Installer failed' }
-          "IDLE_APP=$installPath" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - uses: ./.github/actions/install-profile-app
       - name: Compile API client and validate measurement scripts
         shell: powershell
         run: |
@@ -151,3 +136,14 @@ jobs:
           path: build/profile/*.json
           if-no-files-found: ignore
           retention-days: 7
+
+  owner-cpu-toolkit:
+    if: github.event_name == 'workflow_dispatch' && inputs.owner_toolkit
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install-profile-app
+      - name: Validate real CPU sampling, instruction attribution and Go symbols
+        shell: powershell
+        run: scripts/network-diagnostics/Test-MoshCpu.ps1 -MossLibrary "$env:IDLE_APP/moss.dll"

@@ -1,0 +1,78 @@
+param(
+    [int]$TargetProcessId = 0,
+    [ValidateRange(5, 180)][int]$DurationSeconds = 90,
+    [string]$OutputDirectory = '',
+    [switch]$Elevated
+)
+$ErrorActionPreference = 'Stop'
+trap { Write-Host "CPU recording failed: $($_.Exception.Message)"; exit 1 }
+. "$PSScriptRoot/CpuEvents.ps1"
+if ($TargetProcessId -eq 0) {
+    $targets = @(Get-Process -Name mosh -ErrorAction SilentlyContinue)
+    if ($targets.Count -ne 1) { throw 'Open one Mosh instance first.' }
+    $TargetProcessId = $targets[0].Id
+}
+$target = Get-Process -Id $TargetProcessId
+if (-not $OutputDirectory) {
+    $OutputDirectory = Join-Path $env:LOCALAPPDATA ('Mosh/Diagnostics/cpu-' + [datetime]::UtcNow.ToString('yyyyMMdd-HHmmss'))
+}
+[void](New-Item -ItemType Directory -Force $OutputDirectory)
+$OutputDirectory = (Resolve-Path $OutputDirectory).Path
+$principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    if ($Elevated) { throw 'Windows profiling requires administrator rights.' }
+    $child = Start-Process "$PSHOME/powershell.exe" -Verb RunAs -Wait -PassThru -ArgumentList @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"{0}"' -f $PSCommandPath),
+        '-TargetProcessId', $TargetProcessId, '-DurationSeconds', $DurationSeconds,
+        '-OutputDirectory', ('"{0}"' -f $OutputDirectory), '-Elevated')
+    exit $child.ExitCode
+}
+$raw = Join-Path $OutputDirectory 'raw'
+[void](New-Item -ItemType Directory -Force $raw)
+$tool = Get-CpuProfilerTool (Join-Path $raw 'tools')
+$session = 'MoshCpu-' + [guid]::NewGuid().ToString('N')
+$trace = Join-Path $raw 'cpu.etl'
+$modules = @($target.Modules | ForEach-Object {
+    @{ name = $_.ModuleName; base = $_.BaseAddress.ToInt64(); size = $_.ModuleMemorySize }
+})
+$directory = Split-Path $target.Path
+$binaries = @('mosh.exe', 'mosh_core.dll', 'moss.dll', 'flutter_windows.dll', 'data/app.so') | ForEach-Object {
+    $file = Join-Path $directory $_
+    if (Test-Path $file) { @{ name = $_; sha256 = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant() } }
+}
+@{ process_name = $target.ProcessName; pid = $TargetProcessId; process_started_utc = $target.StartTime.ToUniversalTime().ToString('o')
+    windows_version = [Environment]::OSVersion.Version.ToString(); binaries = @($binaries)
+    perfview = 'v4.0.0'; duration_requested_seconds = $DurationSeconds
+} | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'binary-manifest.json')
+$networkPath = Join-Path $raw 'network'
+$network = Start-Process "$PSHOME/powershell.exe" -PassThru -ArgumentList @(
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"{0}/Measure-MoshNetwork.ps1"' -f $PSScriptRoot),
+    '-TargetProcessId', $TargetProcessId, '-DurationSeconds', $DurationSeconds,
+    '-OutputDirectory', ('"{0}"' -f $networkPath))
+Write-Host "Sampling this Mosh process for $DurationSeconds seconds. Leave the offline chat open."
+& $tool /AcceptEula /NoGui /Zip:false /NoNGenPdbs /NoClrRundown "/SessionName:$session" `
+    /KernelEvents:Process+Thread+ImageLoad+Profile /ClrEvents:None "/MaxCollectSec:$DurationSeconds" `
+    "/DataFile:$trace" "/LogFile:$raw/collect.log" collect > (Join-Path $raw 'console.log')
+if ($LASTEXITCODE -ne 0) { throw 'Profiler collection failed' }
+Write-Host 'Recording stopped. Processing CPU and network events; this can take several minutes.'
+& $tool /AcceptEula /NoGui "/LogFile:$raw/export.log" userCommand SaveCPUStacksAsCsv $trace $target.ProcessName 2147483647 GreatestMSec >> (Join-Path $raw 'console.log')
+if ($LASTEXITCODE -ne 0) { throw 'Profiler export failed' }
+Read-CpuModuleTotals (Join-Path $raw 'cpu.perfView.csv') | ConvertTo-Json -Depth 7 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'cpu-summary.json')
+& $tool /AcceptEula /NoGui "/LogFile:$raw/events.log" userCommand DumpEventsAsXml $trace (Join-Path $raw 'events.xml') >> (Join-Path $raw 'console.log')
+if ($LASTEXITCODE -ne 0) { throw 'Instruction export failed' }
+Read-CpuInstructionOffsets (Join-Path $raw 'events.xml') $TargetProcessId $modules | ConvertTo-Json -Depth 7 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'cpu-instructions.json')
+$dll = Join-Path $directory 'moss.dll'
+if (Test-Path $dll) {
+    $symbols = Get-CpuProfilerTool (Join-Path $raw 'tools') -GoSymbols
+    Read-GoCpuSymbols $symbols $dll $raw | ConvertTo-Json -Depth 7 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'go-functions.json')
+}
+if (-not $network.WaitForExit(300000)) { throw 'Network processing timed out; raw output stays local.' }
+if ($network.ExitCode -ne 0) { throw 'Companion network capture failed' }
+Copy-Item (Join-Path $networkPath 'network-summary.json'), (Join-Path $networkPath 'process-samples.json') $OutputDirectory
+$summary = Get-Content (Join-Path $OutputDirectory 'network-summary.json') -Raw | ConvertFrom-Json
+if (-not $summary.complete -or -not $summary.control_validated) { throw 'Network capture is incomplete' }
+$files = @('binary-manifest.json', 'cpu-summary.json', 'cpu-instructions.json', 'network-summary.json', 'process-samples.json', 'go-functions.json') |
+    ForEach-Object { Join-Path $OutputDirectory $_ } | Where-Object { Test-Path $_ }
+Compress-Archive -Path $files -DestinationPath (Join-Path $OutputDirectory 'mosh-cpu-report.zip') -Force
+Write-Host "Report ready: $OutputDirectory\mosh-cpu-report.zip"
+Write-Host 'ZIP: binary hashes, CPU module/instruction aggregates and anonymized network totals. Raw system traces stay in raw/.'

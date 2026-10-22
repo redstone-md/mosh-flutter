@@ -78,3 +78,18 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Measure-MoshNetwork.ps
 в адресную строку Проводника, открой самый новый каталог `moss-…`
 и передай сохранённый `moss-debug-….mossrec` в приватную переписку.
 Его можно отправить как файл или упаковать в ZIP средствами Проводника.
+# CPU and network attribution on an installed build
+
+`Start-CPU.cmd` samples the already running Mosh for 90 seconds, with the
+offline chat open and no call or transfer. Accept the Windows administrator
+prompt. The script downloads checksum-pinned Microsoft PerfView v4.0.0 and
+Mandiant GoReSym v3.4.1 into that recording's private `raw/tools` directory.
+Processing after recording can take several minutes; wait for `Report ready`.
+
+Send `mosh-cpu-report.zip` from the printed directory. It contains binary hashes,
+process CPU/RSS samples, CPU module and relative-instruction counts, static Go
+function metadata and anonymized network totals. Sample weights are statistical
+attribution, separate from process CPU counters. Unresolved frames remain marked.
+The underlying system ETL/XML/CSV and profiler logs stay in `raw/` and are not
+included. This recording uses a unique profiler session and leaves Mosh running.
+
