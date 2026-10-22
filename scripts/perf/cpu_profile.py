@@ -10,6 +10,7 @@ class CpuProfile:
     def __init__(self, tool, root, name, process, seconds=90):
         self.tool, self.process = str(tool), process
         self.root, self.name = Path(root), name
+        self.root.mkdir(parents=True, exist_ok=True)
         raw = self.root / 'raw'
         raw.mkdir(exist_ok=True)
         self.trace = raw / (name + '.etl')
@@ -68,13 +69,20 @@ def export(source, output):
 
 def control(tool, root):
     child = subprocess.Popen([sys.executable, '-c',
-                              'import math,time\nend=time.monotonic()+30\n'
-                              'while time.monotonic()<end: math.sqrt(12345)'])
+                              'import math\nwhile True: math.sqrt(12345)'])
     try:
         result = CpuProfile(tool, root, 'control', 'python', seconds=12).finish()
         assert result['sampled_ms'] >= 2000, 'Busy child CPU samples missing'
         assert any('python' in r['module'].lower() for r in result['modules']), 'Python module attribution missing'
         print('Validated real sampled CPU/module attribution', flush=True)
+    except Exception as error:
+        # The control contains only our busy child; no fixture or owner data.
+        logs = {}
+        for path in (root / 'raw').glob('control*'):
+            if path.suffix in ['.log', '.csv']:
+                logs[path.name] = path.read_text(errors='replace')[-6000:]
+        (root / 'control-failure.json').write_text(json.dumps({'error': str(error), 'logs': logs}, indent=2))
+        raise
     finally:
         if child.poll() is None:
             child.terminate()

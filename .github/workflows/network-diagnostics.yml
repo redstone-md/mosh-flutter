@@ -108,6 +108,17 @@ jobs:
           Add-Type -Path scripts/perf/ProfileAccessibility.cs -ReferencedAssemblies Accessibility
           python -m py_compile scripts/perf/windows_idle.py
           if ($LASTEXITCODE -ne 0) { throw 'Driver validation failed' }
+      - name: Validate sampled CPU attribution
+        if: inputs.profile_cpu
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tool = Join-Path $env:RUNNER_TEMP 'PerfView.exe'
+          Invoke-WebRequest https://github.com/microsoft/perfview/releases/download/v4.0.0/PerfView.exe -OutFile $tool
+          if ((Get-FileHash $tool -Algorithm SHA256).Hash.ToLowerInvariant() -ne '270e2ba419b0b2d93c4b15b0851f257edf655c92fe0ad95add3d0b5f6d6aad48') { throw 'Profiler checksum mismatch' }
+          python scripts/perf/cpu_profile.py "$tool" build/profile
+          if ($LASTEXITCODE -ne 0) { throw 'Sampled CPU control failed' }
+          "IDLE_CPU_TOOL=$tool" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
       - name: Measure the real release DLL through FFI
         shell: powershell
         env:
@@ -126,17 +137,6 @@ jobs:
           path: build/profile/*.json
           if-no-files-found: ignore
           retention-days: 7
-      - name: Validate sampled CPU attribution
-        if: inputs.profile_cpu
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $tool = Join-Path $env:RUNNER_TEMP 'PerfView.exe'
-          Invoke-WebRequest https://github.com/microsoft/perfview/releases/download/v4.0.0/PerfView.exe -OutFile $tool
-          if ((Get-FileHash $tool -Algorithm SHA256).Hash.ToLowerInvariant() -ne '270e2ba419b0b2d93c4b15b0851f257edf655c92fe0ad95add3d0b5f6d6aad48') { throw 'Profiler checksum mismatch' }
-          python scripts/perf/cpu_profile.py "$tool" build/profile
-          if ($LASTEXITCODE -ne 0) { throw 'Sampled CPU control failed' }
-          "IDLE_CPU_TOOL=$tool" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
       - name: Measure the full desktop application
         shell: powershell
         env:
