@@ -252,5 +252,64 @@ correction it passes. Additional checks enforce issuer revocation/membership
 loss after warming and reject altered delegation signatures or keys even when
 the linked device correctly signs the enclosing account proof. All 35 focused
 message-deletion tests and 752 native unit tests pass (twenty expected ignored
-workers), as do all-target Clippy and formatting. Release comparison, full CI
-and the updated PR review are recorded when complete.
+workers), as do all-target Clippy and formatting. LLVM maps all 97 changed
+executable lines in this increment; branch coverage data is unavailable.
+
+## Controlled linked-history comparison
+
+The release comparison restores the same encrypted fictional fixture before
+every process: 201 messages, each carrying a real account-delegation certificate.
+All outgoing messages are acknowledged before copying the fixture. Earlier
+attempts with an undelivered outbox and public discovery produced unstable
+latency and are rejected as performance comparisons.
+
+Twenty rounds alternate `8aa8bb65` and `5c793db1` on the same Linux host, with one
+warm list call and thirty measured calls per process. Both workers load the
+same Go 1.25.9 library. A private compiler overlay disables public discovery,
+and every read asserts zero mesh peers; the manual DM-service setting is the
+same for both variants. Moss sources and production discovery policy are
+unchanged. This isolates history verification rather than public-network work.
+
+| Thirty native list calls | Before | After |
+| --- | ---: | ---: |
+| Median process CPU | 0.855 s | 0.120 s |
+| CPU range | 0.83–0.92 s | 0.12–0.15 s |
+| Median elapsed time | 0.883 s | 0.170 s |
+| Median per-call time | 29.02 ms | 5.64 ms |
+| Median per-process p95 | 30.87 ms | 6.40 ms |
+
+CPU decreases **85.96% for this isolated workload**. All forty processes
+return identical content, origin, identity and permission metadata, digest
+`8d671f7de9c071cc96b558bb39e1b5b99ff76539d5a44288b1dbb14f0f23d7fc`.
+This is not a whole-application idle CPU or bandwidth prediction.
+
+A twenty-second post-fix profile records 2,798 samples with zero loss while
+reading the same delivered fixture. Hashing and JSON string serialization lead
+the flat user profile; the worker's JSON/stdout protocol is part of that cost.
+Remaining certificate checks occur under `DeviceIdentity::open`, separate from
+the warmed history-proof cache. Kernel names and inline expansion are unavailable;
+the report uses ELF symbols and recorded stacks without inline lookup. This
+does not justify a further production change from harness costs alone.
+
+Independent Standards review reports no findings. Spec review identified a
+negative-test gap: changing the terminal key could fail the outer signature
+before exercising certificate validation. The strengthened two-hop fixture
+preserves the linked signer and correctly signed outer proof while altering
+an intermediate delegation. Re-review reports no remaining findings. CodeAnt
+completed the production-change review at `56d2dc4a` with no inline findings;
+the subsequent `d63bb48d` changes only this negative test.
+
+## Linked-history Windows delivery
+
+The [configured installer](https://github.com/redstone-md/mosh-flutter/actions/runs/39812473672/artifacts/12442816760)
+uses source `56d2dc4a`, production correction `5c793db1`, Moss `eb79f38` and
+the committed release profile. Its SHA-256 is
+`d75d60a6ec10e8f8abc2204da6fba5d26e78885f85693e58f21b1c33d496b419`.
+Download, checksum, source/Moss pin and production PLUS manifest checks pass.
+All five extracted shipping binaries match the accompanying symbol manifest.
+The original Rust PDB matches the shipping DLL's CodeView GUID and age;
+future owner instruction offsets can therefore be attributed without a rebuild.
+
+Full CI and owner-side acceptance are reported separately. The latest supplied
+capture predates this correction. Residual incoming public mesh traffic and
+Android background-call/battery work remain open; no merge or release is included.
