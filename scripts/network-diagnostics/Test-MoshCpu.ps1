@@ -21,12 +21,14 @@ try {
     if ($cpu.sampled_weight -lt 2000) { throw 'Busy process samples missing' }
     $instructions = Get-Content (Join-Path $root 'cpu-instructions.json') -Raw | ConvertFrom-Json
     if (($instructions.instructions | Measure-Object samples -Sum).Sum -lt 100) { throw 'Mapped instruction samples missing' }
+    $nativeWeight = ($cpu.modules | Where-Object { $_.module -in @('ntdll','kernelbase','kernel32','clr') } | Measure-Object weight -Sum).Sum
+    if (($instructions.instructions | Measure-Object samples -Sum).Sum -lt 0.9 * $nativeWeight) { throw 'Native module and instruction attribution disagree' }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $root 'mosh-cpu-report.zip'))
     try {
         $allowed = @('binary-manifest.json','cpu-summary.json','cpu-instructions.json','network-summary.json','process-samples.json')
         if ($MossLibrary) { $allowed += 'go-functions.json' }
-        foreach ($entry in $zip.Entries) { if ($entry.FullName -notin $allowed) { throw "Unexpected report file: $($entry.FullName)" } }
+        if (@($zip.Entries | Where-Object { $_.FullName -notin $allowed }).Count) { throw 'Unexpected report files' }
         if ($zip.Entries.Count -ne $allowed.Count) { throw 'Missing report files' }
     } finally { $zip.Dispose() }
     if ($MossLibrary) {

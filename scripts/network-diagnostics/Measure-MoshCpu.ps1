@@ -73,7 +73,7 @@ $target.Refresh()
 $after = @($target.Modules | ForEach-Object {
     @{ name = $_.ModuleName; base = $_.BaseAddress.ToInt64(); size = $_.ModuleMemorySize }
 })
-$modules = @(@($modules) + $after | Sort-Object base -Unique)
+$modules = @(@($modules) + $after | Sort-Object { $_.base } -Unique)
 Write-Host 'Recording stopped. Processing CPU and network events; this can take several minutes.'
 Invoke-CpuProfiler $tool @('/AcceptEula','/NoGui',"/LogFile:$raw/export.log",'userCommand','SaveCPUStacksAsCsv',
     $trace,$target.ProcessName,'2147483647','GreatestMSec') (Join-Path $raw 'export-console.log')

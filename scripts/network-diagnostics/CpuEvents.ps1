@@ -52,7 +52,7 @@ function Read-CpuModuleTotals([string]$Csv) {
 }
 
 function Read-CpuInstructionOffsets([string]$Xml, [int]$TargetId, [array]$Modules) {
-    $ranges = @($Modules | Sort-Object base)
+    $ranges = @($Modules | Sort-Object { $_.base })
     [long[]]$starts = @($ranges | ForEach-Object { $_.base })
     $counts = @{}; $unknown = 0; $kernel = 0
     $reader = [Xml.XmlReader]::Create($Xml)
@@ -94,6 +94,6 @@ function Read-GoCpuSymbols([string]$Tool, [string]$Dll, [string]$RawDirectory) {
         version = $symbols.Version; image_base = $imageBase
         functions = @(@($symbols.UserFunctions) + @($symbols.StdFunctions) | ForEach-Object {
             @{ name = $_.FullName; start = [long]$_.Start - [long]$imageBase; end = [long]$_.End - [long]$imageBase }
-        } | Sort-Object start)
+        } | Sort-Object { $_.start })
     }
 }
