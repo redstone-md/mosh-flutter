@@ -2,6 +2,11 @@ name: Windows network diagnostics
 
 on:
   workflow_dispatch:
+    inputs:
+      measure_native:
+        description: Include the headless baseline (disable when debugging GUI automation)
+        type: boolean
+        default: true
   pull_request:
     paths:
       - '.github/workflows/network-diagnostics.yml'
@@ -96,12 +101,14 @@ jobs:
           dart compile exe scripts/perf/idle_api.dart -o scripts/perf/idle-api.exe
           if ($LASTEXITCODE -ne 0) { throw 'API client compilation failed' }
           scripts/perf/idle-api.exe --validate
+          Add-Type -Path scripts/perf/ProfileAccessibility.cs -ReferencedAssemblies Accessibility
           python -m py_compile scripts/perf/windows_idle.py
           if ($LASTEXITCODE -ne 0) { throw 'Driver validation failed' }
       - name: Measure the real release DLL through FFI
         shell: powershell
         env:
           MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
+          IDLE_MEASURE_NATIVE: ${{ inputs.measure_native }}
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force build/profile | Out-Null

@@ -21,7 +21,7 @@ Run sequentially on one Windows runner:
 1. Real release DLL through the Dart API client, with the same one-second UI
    reads and a warmed offline fixture.
 2. The installed release Mosh.exe using that fixture and the normal Windows
-   credential store. Open a saved offline DM through UI Automation, warm up,
+   credential store. Open a saved offline DM through Windows accessibility, warm up,
    measure visible and hidden-window phases.
 3. Capture process CPU/RSS and per-thread CPU, descriptions and start modules.
    Record source/artifact hashes, hardware and actual window/fixture checks.
@@ -41,3 +41,12 @@ registered network-diagnostics workflow for dispatch; no main merge or deploy.
 Validate the Dart client by AOT compilation and its real API/fixture assertions;
 validate scripts statically before dispatch. Failed GUI or fixture checks must
 fail the run rather than producing a misleading idle comparison.
+
+Flutter 3.44's engine enables semantics on an MSAA request; its UIA provider is
+disabled by default. The first native profile passes (4.294% of one logical
+core), but UIA only exposes the FLUTTERVIEW host. Use the built-in MSAA API for
+the GUI check. `measure_native=false` builds the same real fixture but skips
+the repeated headless warmup/measurement while validating GUI automation;
+its native summary is null and cannot establish a same-host native/GUI ratio.
+References: [Flutter engine](https://github.com/flutter/flutter/blob/3.44.8/engine/src/flutter/shell/platform/windows/flutter_window.cc),
+[AccessibleChildren](https://learn.microsoft.com/en-us/windows/win32/api/oleacc/nf-oleacc-accessiblechildren).

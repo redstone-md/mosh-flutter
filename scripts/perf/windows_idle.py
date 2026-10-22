@@ -138,13 +138,15 @@ def warm(name, poll=None):
         tick += 1
 
 
-def native_profile(data):
+def native_profile(data, record=True):
     owner = Peer(data)
     try:
         sessions = [pair(owner, i) for i in range(8)]
         owner.ask('seed', channel='idleprof-' + uuid.uuid4().hex[:16])
         assert owner.ask('read') == {'dm': 8, 'groups': 2, 'channels': 1}
         (ROOT / 'native-inventory.json').write_text(json.dumps(owner.ask('inventory')))
+        if not record:
+            return None
 
         def poll(tick):
             owner.ask('read', session=sessions[-1])
@@ -202,7 +204,7 @@ def main():
         if data.exists():
             raise RuntimeError('Refusing an existing application data directory')
         (ROOT / 'fingerprint.json').write_text(json.dumps(manifest, indent=2))
-        native = native_profile(data)
+        native = native_profile(data, os.environ.get('IDLE_MEASURE_NATIVE', 'true') == 'true')
         (ROOT / 'native-summary.json').write_text(json.dumps(native, indent=2))
     if stage != 'native':
         saved = json.loads((ROOT / 'fingerprint.json').read_text())
