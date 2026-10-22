@@ -3,6 +3,10 @@ name: Windows network diagnostics
 on:
   workflow_dispatch:
     inputs:
+      recover_core:
+        description: Export the original installed core for offline symbol validation
+        type: boolean
+        default: false
       recover_symbols:
         description: Rebuild the exact original Windows Rust symbols
         type: boolean
@@ -72,7 +76,7 @@ jobs:
           retention-days: 14
 
   release-idle-profile:
-    if: github.event_name == 'workflow_dispatch' && !inputs.owner_toolkit && !inputs.recover_symbols
+    if: github.event_name == 'workflow_dispatch' && !inputs.owner_toolkit && !inputs.recover_symbols && !inputs.recover_core
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -206,4 +210,17 @@ jobs:
         with:
           name: exact-idle-symbol-candidates
           path: build/idle-symbols/*
+          retention-days: 7
+
+  shipping-core:
+    if: github.event_name == 'workflow_dispatch' && inputs.recover_core
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install-profile-app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: original-idle-core
+          path: ${{ runner.temp }}/mosh-idle-app/mosh_core.dll
           retention-days: 7
