@@ -95,5 +95,103 @@ message-deletion suite passes all thirty-two tests, including existing linked
 account, historical deletion and revoked-issuer scenarios. A cache bound check
 covers eviction and duplicate admission.
 
-Full native checks, a matched release comparison, original Windows-symbol
-validation and the PR bot review are recorded below when complete.
+`cargo build`, all-target Clippy, formatting and the full real-tracker
+`node scripts/moss-test.mjs` run pass. The unit result is 749 passed / twenty
+expected ignored workers; integration targets and doc tests also complete with
+zero failures. LLVM coverage maps forty of forty-one production lines in the
+new verification module (97.56%); its full module including the bound test maps
+58/59 lines (98.31%). Branch data is unavailable.
+
+Independent Standards and Spec reviews of `8fe80d00...8aa8bb65` report zero
+remaining findings. CodeAnt finishes the `8aa8bb65` incremental review with no
+unresolved inline findings or nitpicks. Linked account-certificate delegation
+checks remain outside this helper/cache and outside its regression counter;
+this change does not claim to eliminate all snapshot cryptography.
+
+## Release mechanism comparison
+
+A private release microbenchmark compiles the original helper from `8fe80d00`
+and the actual changed module with the same optimized toolchain, fat LTO and
+one codegen unit. It verifies 128 fictional signed 400-byte messages, rejects
+altered inputs, then alternates before/after order across six rounds of
+32,768 repeated checks. Median duration is 1.7177 seconds before and 0.01908
+seconds after, a 90.0× improvement for this warmed repeated-check mechanism.
+This is not whole-application throughput or a whole-Windows CPU prediction.
+
+A same-host native API comparison restores one identical encrypted fixture
+before every process: eight offline DMs, two groups, one channel and 208 messages.
+Both release workers use the same production-built Go 1.25.9 Moss library, with
+its loaded path verified in `/proc`; the original worker is from `3e6790f5` and
+the changed worker from `8aa8bb65`. Six rounds alternate execution order. One
+initial list warms each process; thirty subsequent `list_sessions` calls form
+the measurement. The manual DM-service setting is the same on both variants.
+
+Median process CPU for thirty calls falls from **1.735 s** (range 1.68–1.80) to
+**0.720 s** (0.67–0.79), a **58.5%** reduction in this native API workload. A
+canonical digest of all returned message contents, identities and permission
+metadata is identical in all twelve processes. It is
+`6e8d988daa876b1c4e6fd2f61086fb47e4bcfdccf91f0d701c1f532069f0606e`.
+
+Wall-time medians are 4.618 / 4.031 seconds per thirty calls, while per-call p95
+medians are 252 / 266 ms. Public Moss and scheduling variance remain visible;
+this does not establish a tail-latency improvement or predict owner idle CPU.
+These are Linux release API workers, not the rendered Windows application.
+
+## Independent receive attribution
+
+A separate native run uses the same fictional 8-DM/2-group/1-channel fixture,
+warms for eight minutes and observes currently owned IPv4 socket ports for 120
+seconds. Packet accounting records zero socket drops. Only receive traffic is
+captured: approximately 7.52 MB of IP bytes, of which 6.24 MB belongs to the mesh
+UDP socket and 31.8 kB is recognized DHT UDP traffic. Mesh UDP is about 83% of
+the received bytes; DHT is about 0.42% in this window.
+
+This rejects DHT dominance for this native receive window, not for the owner's
+Windows workload. Later IP fragments are skipped, transient TCP sockets can be
+missed and transmit attribution is absent. These counters are not a complete
+wire budget. No addresses or payloads are retained in the report. Residual
+public mesh traffic remains a separate investigation from history verification.
+
+## Configured Windows build
+
+The full application CI at runtime commit `8aa8bb65` passes, including Flutter,
+bridge drift, real multi-device DM, Windows/macOS Rust, native audio/video,
+Android debug and both desktop installer proof builds. The separate
+[configured Windows installer](https://github.com/redstone-md/mosh-flutter/actions/runs/39792369635/artifacts/12432974345)
+also passes its source/Moss pin, SHA-256 and production PLUS manifest checks.
+Its installer SHA-256 is
+`3519659d5b34f9e4382c78213c888d620e8a1b2a7993dd5c443b582e38b3603d`.
+
+Moss remains pinned to `eb79f38`, but the rebuilt shipping Go DLL is not
+byte-identical to the previous installer's DLL. A Windows comparison guard
+therefore rejects treating the two complete bundles as a one-variable Rust
+comparison. The isolated API experiment explicitly loads the original Go DLL
+for both variants; it cannot substitute for testing the complete new installer
+against the owner's actual saved history.
+
+The [Windows comparison](https://github.com/redstone-md/mosh-flutter/actions/runs/39801262980)
+successfully restores one identical encrypted 8-DM/2-group/1-channel fixture,
+including 208 messages, before each of six release API processes. Three rounds
+alternate execution order. One initial read warms each process; thirty reads
+then request personal names, all conversation lists and the selected offline DM.
+Returned message bodies and delivery statuses match in every process.
+
+Median process CPU for thirty reads is **2.3125 s** before and **0.453125 s**
+after, an **80.4%** reduction in this Windows API workload. Median wall duration
+falls from 2.344 to 0.531 seconds. Process CPU is sampled around the loop through
+PowerShell, and public network activity remains uncontrolled. This is an
+independent Windows confirmation of the history cost, not a prediction of
+whole-application idle CPU or traffic. The exported candidate Go DLL reports
+the expected Go 1.25.9 toolchain and parent Mosh revision `8aa8bb65` in its build
+metadata; the experiment still requires exact DLL hashes for isolation.
+
+## Windows symbol recovery limit
+
+The original installer is independently installed on a Windows runner and its
+core DLL hash matches the owner manifest. The original DLL references PDB GUID
+`5848b304-90b6-476d-92e8-a85fc9b15d03`, age one. A rebuild from the same source
+produces another DLL/PDB pair, GUID
+`155941da-7ceb-4228-967d-c143ad50f9d7`. Its text and unwind sections differ.
+The rebuilt PDB is therefore rejected for owner-address attribution; no Rust
+function names in this report are inferred from that mismatched PDB. The
+caller-path reproduction above is an independent same-binary Linux profile.
