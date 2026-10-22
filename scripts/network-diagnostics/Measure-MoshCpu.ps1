@@ -7,6 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 trap { Write-Host "CPU recording failed: $($_.Exception.Message)"; exit 1 }
 . "$PSScriptRoot/CpuEvents.ps1"
+if (-not [Environment]::Is64BitProcess) { throw 'Run Start-CPU.cmd with 64-bit PowerShell.' }
 if ($TargetProcessId -eq 0) {
     $targets = @(Get-Process -Name mosh -ErrorAction SilentlyContinue)
     if ($targets.Count -ne 1) { throw 'Open one Mosh instance first.' }
@@ -32,16 +33,20 @@ $raw = Join-Path $OutputDirectory 'raw'
 $tool = Get-CpuProfilerTool (Join-Path $raw 'tools')
 $session = 'MoshCpu-' + [guid]::NewGuid().ToString('N')
 $trace = Join-Path $raw 'cpu.etl'
+$target.Refresh()
 $modules = @($target.Modules | ForEach-Object {
     @{ name = $_.ModuleName; base = $_.BaseAddress.ToInt64(); size = $_.ModuleMemorySize }
 })
 $directory = Split-Path $target.Path
 $binaries = @('mosh.exe', 'mosh_core.dll', 'moss.dll', 'flutter_windows.dll', 'data/app.so') | ForEach-Object {
     $file = Join-Path $directory $_
-    if (Test-Path $file) { @{ name = $_; sha256 = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant() } }
+    if (Test-Path $file) { @{ name = $_; sha256 = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
+        last_write_utc = (Get-Item $file).LastWriteTimeUtc.ToString('o') } }
 }
+$processor = Get-CimInstance Win32_Processor | Select-Object -First 1
 @{ process_name = $target.ProcessName; pid = $TargetProcessId; process_started_utc = $target.StartTime.ToUniversalTime().ToString('o')
     windows_version = [Environment]::OSVersion.Version.ToString(); binaries = @($binaries)
+    cpu_model = $processor.Name; logical_processors = $processor.NumberOfLogicalProcessors
     perfview = 'v4.0.0'; duration_requested_seconds = $DurationSeconds
 } | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'binary-manifest.json')
 $networkPath = Join-Path $raw 'network'
@@ -50,9 +55,14 @@ $network = Start-Process "$PSHOME/powershell.exe" -PassThru -ArgumentList @(
     '-TargetProcessId', $TargetProcessId, '-DurationSeconds', $DurationSeconds,
     '-OutputDirectory', ('"{0}"' -f $networkPath))
 Write-Host "Sampling this Mosh process for $DurationSeconds seconds. Leave the offline chat open."
-Invoke-CpuProfiler $tool @('/AcceptEula','/NoGui','/Zip:false','/NoNGenPdbs','/NoClrRundown',"/SessionName:$session",
+Invoke-CpuProfiler $tool @('/AcceptEula','/NoGui','/Zip:false','/NoNGenPdbs','/NoClrRundown','/CircularMB:128',"/SessionName:$session",
     '/KernelEvents:Process+Thread+ImageLoad+Profile','/ClrEvents:None',"/MaxCollectSec:$DurationSeconds",
     "/DataFile:$trace","/LogFile:$raw/collect.log",'collect') (Join-Path $raw 'console.log')
+$target.Refresh()
+$after = @($target.Modules | ForEach-Object {
+    @{ name = $_.ModuleName; base = $_.BaseAddress.ToInt64(); size = $_.ModuleMemorySize }
+})
+$modules = @(@($modules) + $after | Sort-Object base -Unique)
 Write-Host 'Recording stopped. Processing CPU and network events; this can take several minutes.'
 Invoke-CpuProfiler $tool @('/AcceptEula','/NoGui',"/LogFile:$raw/export.log",'userCommand','SaveCPUStacksAsCsv',
     $trace,$target.ProcessName,'2147483647','GreatestMSec') (Join-Path $raw 'export-console.log')
@@ -62,8 +72,13 @@ Invoke-CpuProfiler $tool @('/AcceptEula','/NoGui',"/LogFile:$raw/events.log",'us
 Read-CpuInstructionOffsets (Join-Path $raw 'events.xml') $TargetProcessId $modules | ConvertTo-Json -Depth 7 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'cpu-instructions.json')
 $dll = Join-Path $directory 'moss.dll'
 if (Test-Path $dll) {
-    $symbols = Get-CpuProfilerTool (Join-Path $raw 'tools') -GoSymbols
-    Read-GoCpuSymbols $symbols $dll $raw | ConvertTo-Json -Depth 7 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'go-functions.json')
+    try {
+        $symbols = Get-CpuProfilerTool (Join-Path $raw 'tools') -GoSymbols
+        $functions = Read-GoCpuSymbols $symbols $dll $raw
+    } catch {
+        $functions = @{ status = 'unavailable'; error_type = $_.Exception.GetType().Name }
+    }
+    $functions | ConvertTo-Json -Depth 7 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'go-functions.json')
 }
 if (-not $network.WaitForExit(300000)) { throw 'Network processing timed out; raw output stays local.' }
 if ($network.ExitCode -ne 0) { throw 'Companion network capture failed' }

@@ -4,7 +4,14 @@ $ErrorActionPreference = 'Stop'
 $root = Join-Path $env:RUNNER_TEMP ('cpu-control-' + [guid]::NewGuid().ToString('N'))
 [void](New-Item -ItemType Directory -Force $root)
 $exe = Join-Path $root 'MoshCpuControl.exe'
-Add-Type -TypeDefinition 'using System; public class CpuControl { public static void Main() { double x=1; while(true) { x=Math.Sqrt(x+2); GC.KeepAlive(x); } } }' -OutputAssembly $exe -OutputType ConsoleApplication
+$compiler = [Microsoft.CSharp.CSharpCodeProvider]::new()
+$options = [CodeDom.Compiler.CompilerParameters]::new()
+$options.GenerateExecutable = $true
+$options.OutputAssembly = $exe
+$options.CompilerOptions = '/platform:x64'
+$result = $compiler.CompileAssemblyFromSource($options, 'using System; using System.Runtime.InteropServices; public class CpuControl { [DllImport("kernel32.dll")] static extern bool QueryPerformanceCounter(out long value); public static void Main() { long value; while(true) QueryPerformanceCounter(out value); } }')
+if ($result.Errors.HasErrors) { throw ($result.Errors | Out-String) }
+$compiler.Dispose()
 $child = Start-Process $exe -PassThru
 try {
     & "$PSHOME/powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/Measure-MoshCpu.ps1" -TargetProcessId $child.Id -DurationSeconds 12 -OutputDirectory $root
