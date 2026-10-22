@@ -1,4 +1,12 @@
 # Standalone profiler tools; no application dependency or settings change.
+function Invoke-CpuProfiler([string]$Tool, [string[]]$Arguments, [string]$Log) {
+    # PerfView is a GUI-subsystem EXE, even in NoGui mode. Wait explicitly.
+    $quoted = @($Arguments | ForEach-Object { '"{0}"' -f $_ })
+    $child = Start-Process $Tool -ArgumentList $quoted -PassThru -Wait `
+        -RedirectStandardOutput $Log -RedirectStandardError "$Log.err"
+    if ($child.ExitCode -ne 0) { throw "Profiler failed with exit code $($child.ExitCode)" }
+}
+
 function Get-CpuProfilerTool([string]$Directory, [switch]$GoSymbols) {
     [void](New-Item -ItemType Directory -Force $Directory)
     $name = if ($GoSymbols) { 'GoReSym.exe' } else { 'PerfView.exe' }

@@ -50,16 +50,15 @@ $network = Start-Process "$PSHOME/powershell.exe" -PassThru -ArgumentList @(
     '-TargetProcessId', $TargetProcessId, '-DurationSeconds', $DurationSeconds,
     '-OutputDirectory', ('"{0}"' -f $networkPath))
 Write-Host "Sampling this Mosh process for $DurationSeconds seconds. Leave the offline chat open."
-& $tool /AcceptEula /NoGui /Zip:false /NoNGenPdbs /NoClrRundown "/SessionName:$session" `
-    /KernelEvents:Process+Thread+ImageLoad+Profile /ClrEvents:None "/MaxCollectSec:$DurationSeconds" `
-    "/DataFile:$trace" "/LogFile:$raw/collect.log" collect > (Join-Path $raw 'console.log')
-if ($LASTEXITCODE -ne 0) { throw 'Profiler collection failed' }
+Invoke-CpuProfiler $tool @('/AcceptEula','/NoGui','/Zip:false','/NoNGenPdbs','/NoClrRundown',"/SessionName:$session",
+    '/KernelEvents:Process+Thread+ImageLoad+Profile','/ClrEvents:None',"/MaxCollectSec:$DurationSeconds",
+    "/DataFile:$trace","/LogFile:$raw/collect.log",'collect') (Join-Path $raw 'console.log')
 Write-Host 'Recording stopped. Processing CPU and network events; this can take several minutes.'
-& $tool /AcceptEula /NoGui "/LogFile:$raw/export.log" userCommand SaveCPUStacksAsCsv $trace $target.ProcessName 2147483647 GreatestMSec >> (Join-Path $raw 'console.log')
-if ($LASTEXITCODE -ne 0) { throw 'Profiler export failed' }
+Invoke-CpuProfiler $tool @('/AcceptEula','/NoGui',"/LogFile:$raw/export.log",'userCommand','SaveCPUStacksAsCsv',
+    $trace,$target.ProcessName,'2147483647','GreatestMSec') (Join-Path $raw 'export-console.log')
 Read-CpuModuleTotals (Join-Path $raw 'cpu.perfView.csv') | ConvertTo-Json -Depth 7 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'cpu-summary.json')
-& $tool /AcceptEula /NoGui "/LogFile:$raw/events.log" userCommand DumpEventsAsXml $trace (Join-Path $raw 'events.xml') >> (Join-Path $raw 'console.log')
-if ($LASTEXITCODE -ne 0) { throw 'Instruction export failed' }
+Invoke-CpuProfiler $tool @('/AcceptEula','/NoGui',"/LogFile:$raw/events.log",'userCommand','DumpEventsAsXml',
+    $trace,(Join-Path $raw 'events.xml')) (Join-Path $raw 'events-console.log')
 Read-CpuInstructionOffsets (Join-Path $raw 'events.xml') $TargetProcessId $modules | ConvertTo-Json -Depth 7 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'cpu-instructions.json')
 $dll = Join-Path $directory 'moss.dll'
 if (Test-Path $dll) {
