@@ -3,6 +3,10 @@ name: Windows network diagnostics
 on:
   workflow_dispatch:
     inputs:
+      interface_profile:
+        description: Attribute Windows interface enumeration using unchanged pinned Moss
+        type: boolean
+        default: false
       stack_control:
         description: Validate caller export on a twelve-second busy owned process
         type: boolean
@@ -155,3 +159,43 @@ jobs:
             build/mosh-network-diagnostics.zip
             build/mosh-network-diagnostics.zip.sha256
           retention-days: 14
+
+  interface-profile:
+    if: github.event_name == 'workflow_dispatch' && inputs.interface_profile
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.9'
+          cache-dependency-path: moss/go.sum
+      - name: Build probe against unchanged pinned Moss
+        shell: bash
+        working-directory: scripts/perf/moss-profile
+        run: |
+          go mod init github.com/redstone-md/moss/diagnostics
+          go mod edit -go=1.25.0 -require=github.com/redstone-md/moss@v0.0.0 -replace=github.com/redstone-md/moss=../../../moss
+          go mod tidy
+          go build -trimpath -o moss-profile.exe .
+          git -C ../../../moss diff --exit-code
+          mkdir -p ../../../build/interface-profile
+      - name: Profile isolated enumeration and LAN scenarios
+        shell: bash
+        run: |
+          for scenario in interfaces addresses mesh-query idle-no-lan idle-lan; do
+            prefix="build/interface-profile/$scenario"
+            scripts/perf/moss-profile/moss-profile.exe -scenario "$scenario" -duration 15s -output "$prefix"
+            go tool pprof -top -cum "$prefix.pprof" > "$prefix.top.txt"
+            go tool pprof -traces "$prefix.pprof" > "$prefix.traces.txt"
+          done
+          git -C moss diff --exit-code
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: moss-interface-profile
+          path: build/interface-profile/*
+          if-no-files-found: error
+          retention-days: 7
