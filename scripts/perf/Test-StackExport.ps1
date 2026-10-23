@@ -56,6 +56,12 @@ try {
         -TargetId $worker.Id -PythonResult "$root/control-callers.json"
     if ($withMoss) {
         Test-MossOffsets $root
+        $raw = "$root/raw/control-cpu/raw"
+        $tool = "$raw/tools/PerfView.exe"
+        & "$PSScriptRoot/Prepare-StackExporter.ps1" -Tool $tool -AttributionTest
+        . "$PSScriptRoot/../network-diagnostics/CpuEvents.ps1"
+        Invoke-CpuProfiler $tool @('/AcceptEula', '/NoGui', "/LogFile:$raw/attribution.log",
+            'userCommand', 'ProbeStacksTests.AssertMossAttribution', "$raw/cpu.etl", [string]$worker.Id) "$raw/attribution-console.log"
     }
 } finally {
     if (-not $worker.HasExited) { $worker.Kill(); $worker.WaitForExit() }

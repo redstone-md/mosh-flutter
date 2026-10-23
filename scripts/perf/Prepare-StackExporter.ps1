@@ -1,8 +1,9 @@
-param([string]$Tool)
+param([string]$Tool, [switch]$AttributionTest)
 $ErrorActionPreference = 'Stop'
 $extensions = Join-Path (Split-Path $Tool) 'PerfViewExtensions'
 [void](New-Item -ItemType Directory -Force $extensions)
-$destination = Join-Path $extensions 'ProbeStacks.dll'
+$assemblyName = if ($AttributionTest) { 'ProbeStacksTests.dll' } else { 'ProbeStacks.dll' }
+$destination = Join-Path $extensions $assemblyName
 if (Test-Path $destination) { exit 0 }
 # The checked PerfView binary has already unpacked its own managed libraries.
 $roots = @((Join-Path $env:APPDATA 'PerfView'), (Join-Path $env:TEMP 'PerfView'))
@@ -26,5 +27,6 @@ $references += $facade[0]
 $compileArguments = @('/nologo', '/target:library', "/out:$destination")
 $compileArguments += @($references | ForEach-Object { "/reference:$_" })
 $compileArguments += Join-Path $PSScriptRoot 'ExportCpuStacks.cs'
+if ($AttributionTest) { $compileArguments += Join-Path $PSScriptRoot 'Test-MossAttribution.cs' }
 & (Join-Path $compilerDirectory 'csc.exe') @compileArguments
 if ($LASTEXITCODE -ne 0) { throw 'PerfView extension compilation failed' }

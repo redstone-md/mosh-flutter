@@ -5,7 +5,7 @@ using Microsoft.Diagnostics.Tracing.Stacks;
 using PerfViewExtensibility;
 
 // PerfView's documented extension boundary; use its stack reader/writer.
-public sealed class Commands : CommandEnvironment {
+public sealed partial class Commands : CommandEnvironment {
     public void SaveExactCpuStacks(string trace, string processId, string output) {
         try {
             using (var file = OpenETLFile(trace)) {
