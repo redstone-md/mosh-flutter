@@ -1,0 +1,34 @@
+name: Install the verified idle-profile binary
+description: Use the already built public installer without recompiling product code.
+runs:
+  using: composite
+  steps:
+    - shell: powershell
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        gh run download 39861533400 --repo redstone-md/mosh-flutter --name mosh-windows-setup --dir build/source
+        if ($LASTEXITCODE -ne 0) { throw 'Artifact download failed' }
+        gh run download 39861533400 --repo redstone-md/mosh-flutter --name mosh-windows-native-symbols --dir build/native-symbols
+        if ($LASTEXITCODE -ne 0) { throw 'Matching symbols download failed' }
+        Remove-Item Env:GH_TOKEN
+        $exe = @(Get-ChildItem build/source -Recurse -Filter *.exe)
+        if ($exe.Count -ne 1) { throw 'Expected one installer' }
+        $hash = (Get-FileHash $exe[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($hash -ne 'fac58b500aa947bf879b3af6c5601e9d12f43996cf4682474a22f37930b732fb') { throw 'Installer hash mismatch' }
+        $manifestFile = @(Get-ChildItem build/source -Recurse -Filter plus-build.json)[0].FullName
+        $manifest = Get-Content $manifestFile -Raw | ConvertFrom-Json
+        if ($manifest.commit -ne 'cd6df31b352a4df40c33c88009d52b866c5451d7' -or -not $manifest.purchases_configured) { throw 'Source/PLUS manifest mismatch' }
+        $installPath = Join-Path $env:RUNNER_TEMP 'mosh-idle-app'
+        $setup = Start-Process $exe[0].FullName -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$installPath`"", '/TASKS=') -Wait -PassThru
+        if ($setup.ExitCode -ne 0) { throw 'Installer failed' }
+        $symbols = Get-Content build/native-symbols/manifest.json -Raw | ConvertFrom-Json
+        if ($symbols.commit -ne $manifest.commit) { throw 'Symbol source mismatch' }
+        foreach ($binary in $symbols.binaries) {
+          if ((Get-FileHash "$installPath/$($binary.name)").Hash.ToLowerInvariant() -ne $binary.sha256) { throw 'Shipping binary mismatch' }
+        }
+        if ((Get-FileHash build/native-symbols/mosh_core.pdb).Hash.ToLowerInvariant() -ne $symbols.pdb_sha256) { throw 'PDB checksum mismatch' }
+        Copy-Item build/native-symbols/mosh_core.pdb $installPath
+        "_NT_SYMBOL_PATH=$installPath;srv*$env:RUNNER_TEMP/symbol-cache*https://msdl.microsoft.com/download/symbols" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+        "IDLE_APP=$installPath" | Out-File $env:GITHUB_ENV -Append -Encoding utf8

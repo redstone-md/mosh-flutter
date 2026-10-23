@@ -1,0 +1,220 @@
+"""Measure the existing release DLL and EXE using a disposable real fixture."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import queue
+import re
+import subprocess
+import sys
+import threading
+import time
+import uuid
+import statistics
+from cpu_profile import CpuProfile
+
+APP = Path(sys.argv[1]).resolve()
+ROOT = Path(sys.argv[2]).resolve()
+SCRIPTS = Path(__file__).parent.resolve()
+PROBE = SCRIPTS / 'idle-api.exe'
+ROOT.mkdir(parents=True, exist_ok=True)
+
+
+class Peer:
+    def __init__(self, directory, counterpart=False):
+        directory.mkdir(parents=True, exist_ok=True)
+        self.replies = queue.Queue()
+        self.errors = (directory / 'probe-stderr.log').open('w')
+        self.child = subprocess.Popen(
+            [str(PROBE), str(APP / 'mosh_core.dll'), str(directory),
+             'counterpart' if counterpart else 'owner'], cwd=APP,
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.errors,
+            text=True, encoding='utf-8')
+        threading.Thread(target=self.read, daemon=True).start()
+        try:
+            assert self.replies.get(timeout=90) == {'ready': True}
+        except queue.Empty:
+            self.errors.flush()
+            raise RuntimeError('API startup failed: ' + redact(
+                (directory / 'probe-stderr.log').read_text(errors='replace')[-3000:]))
+
+    def read(self):
+        for line in self.child.stdout:
+            if line.startswith('IDLE_REPLY '):
+                self.replies.put(json.loads(line[len('IDLE_REPLY '):]))
+
+    def ask(self, op, **values):
+        self.child.stdin.write(json.dumps({'op': op, **values}) + '\n')
+        self.child.stdin.flush()
+        result = self.replies.get(timeout=90)
+        if 'error' in result:
+            raise RuntimeError('Fixture API operation failed: ' + op + ': ' + result['error'])
+        return result
+
+    def stop(self):
+        if self.child.poll() is None:
+            self.child.stdin.write('{"op":"exit"}\n')
+            self.child.stdin.flush()
+            self.child.wait(timeout=15)
+        self.errors.close()
+
+
+def wait_until(check):
+    deadline = time.monotonic() + 90
+    while not check():
+        if time.monotonic() > deadline:
+            raise RuntimeError('Real fixture connection/delivery did not finish')
+        time.sleep(.1)
+
+
+def redact(text):
+    text = re.sub(r'([?&]token=)[^\s"<>]+', r'\1<redacted>', text)
+    text = re.sub(r'mosh://\S+|\b[a-fA-F0-9]{32,}\b|\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?', '<redacted>', text)
+    return text
+
+
+def pair(owner, index):
+    other = Peer(ROOT / ('counterpart-' + str(index)), counterpart=True)
+    try:
+        invite = owner.ask('invite')
+        sid = invite['session']
+        assert 0 < invite['port'] < 65536
+        other.ask('accept', uri=invite['uri'], name=f'Offline {index}', port=55006 + index,
+                  peer='127.0.0.1:' + str(invite['port']))
+
+        def connected():
+            states = [p.ask('poll', session=sid) for p in [owner, other]]
+            progress = [{k: v for k, v in state.items() if k != 'messages'} for state in states]
+            (ROOT / 'fixture-progress.json').write_text(json.dumps({'index': index, 'states': progress}))
+            return all(state['state'] == 'connected' for state in states)
+
+        wait_until(connected)
+        body = 'Idle profiling fixture ' + str(index)
+        owner.ask('send', session=sid, body=body)
+
+        def delivered():
+            received = other.ask('poll', session=sid)['messages']
+            sent = owner.ask('poll', session=sid)['messages']
+            return (any(m['body'] == body for m in received) and
+                    any(m['body'] == body and m['status'] in ['delivered', 'read'] for m in sent))
+
+        wait_until(delivered)
+        print('Established and delivered fixture DM', index, flush=True)
+        return sid
+    finally:
+        other.stop()
+
+
+def powershell(script, *args):
+    subprocess.run(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                    '-File', str(SCRIPTS / script), *map(str, args)], check=True)
+
+
+def measure(pid, name, seconds=90):
+    CpuProfile(ROOT, name, pid, seconds).finish()
+    samples = json.loads((ROOT / (name + '-process-samples.json')).read_text(encoding='utf-8-sig'))
+    network = json.loads((ROOT / (name + '-network-summary.json')).read_text(encoding='utf-8-sig'))
+    assert network['complete'] and network['control_validated'], 'Incomplete network capture'
+    assert len(samples) > 10, 'Missing process CPU samples'
+    elapsed = samples[-1]['second'] - samples[0]['second']
+    cpu_ms = samples[-1]['cpu_ms'] - samples[0]['cpu_ms']
+    assert elapsed > 0 and cpu_ms >= 0, 'Invalid process counter interval'
+    result = {'pid': pid, 'elapsed_seconds': elapsed, 'cpu_ms': cpu_ms,
+              'cpu_one_core_percent': 100 * cpu_ms / (elapsed * 1000),
+              'rss_median_bytes': statistics.median(s['working_set_bytes'] for s in samples)}
+    (ROOT / (name + '.json')).write_text(json.dumps(result, indent=2))
+    print(name, 'CPU', round(result['cpu_one_core_percent'], 3), flush=True)
+    return result
+
+
+def warm(name, poll=None):
+    started = time.monotonic()
+    tick = 0
+    while time.monotonic() - started < 480:
+        if poll:
+            poll(tick)
+        if tick % 60 == 0:
+            print(name, 'warmup', tick // 60, flush=True)
+        time.sleep(1)
+        tick += 1
+
+
+def seed_fixture(data):
+    owner = Peer(data)
+    try:
+        for index in range(8):
+            pair(owner, index)
+        owner.ask('seed', channel='idleprof-' + uuid.uuid4().hex[:16])
+        assert owner.ask('read') == {'dm': 8, 'groups': 2, 'channels': 1}
+        (ROOT / 'native-inventory.json').write_text(json.dumps(checked_inventory(owner)))
+    finally:
+        owner.stop()
+
+
+def gui_profile(data):
+    (data / 'first-run.json').write_text(json.dumps({
+        'version': 1, 'displayName': 'Profile owner', 'step': 'name', 'completed': True}))
+    app = subprocess.Popen([str(APP / 'mosh.exe')], cwd=APP,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        powershell('Open-ProfileChat.ps1', '-TargetProcessId', app.pid,
+                   '-OutputFile', ROOT / 'app-ui.json')
+        warm('GUI')
+        foreground = measure(app.pid, 'gui-foreground', seconds=90)
+        powershell('Open-ProfileChat.ps1', '-TargetProcessId', app.pid, '-Hide')
+        time.sleep(5)
+        hidden = measure(app.pid, 'gui-hidden', seconds=90)
+        return {'foreground': foreground, 'hidden': hidden}
+    finally:
+        # This is our disposable fixture process on an ephemeral runner.
+        subprocess.run(['taskkill', '/PID', str(app.pid), '/T', '/F'], check=False,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        app.wait(timeout=15)
+
+
+def inventory(data):
+    owner = Peer(data)
+    try:
+        state = owner.ask('read')
+        state.update(checked_inventory(owner))
+        (ROOT / 'gui-inventory.json').write_text(json.dumps(state))
+        assert {k: state[k] for k in ['dm', 'groups', 'channels']} == {'dm': 8, 'groups': 2, 'channels': 1}
+    finally:
+        owner.stop()
+
+
+def checked_inventory(owner):
+    value = owner.ask('inventory')
+    assert value['pending_invitations'] == 0, 'Unexpected pending invitations'
+    bodies = value.pop('bodies')
+    assert bodies == ['Idle profiling fixture ' + str(i) for i in range(8)], 'Changed fixture messages'
+    value['message_bodies_sha256'] = hashlib.sha256(json.dumps(bodies).encode()).hexdigest()
+    return value
+
+
+def main():
+    # Match path_provider_windows' company/product convention for this EXE.
+    data = Path(os.environ['APPDATA']) / 'app.mosh' / 'mosh'
+    manifest = {'fixture': {'offline_dm': 8, 'groups': 2, 'channels': 1},
+                'runtime_source': 'cd6df31b352a4df40c33c88009d52b866c5451d7',
+                'warmup_seconds': 480, 'window_seconds': 90,
+                'hashes': {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                           for p in [APP / 'mosh.exe', APP / 'mosh_core.dll',
+                                     APP / 'moss.dll', APP / 'flutter_windows.dll', APP / 'data/app.so']}}
+    if data.exists():
+        raise RuntimeError('Refusing an existing application data directory')
+    (ROOT / 'fingerprint.json').write_text(json.dumps(manifest, indent=2))
+    seed_fixture(data)
+    gui = gui_profile(data)
+    inventory(data)
+    (ROOT / 'comparison.json').write_text(json.dumps({'gui': gui}, indent=2))
+    print('COMPLETE: foreground, minimized and restored inventory', flush=True)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception as error:
+        (ROOT / 'failure.json').write_text(json.dumps({'type': type(error).__name__, 'message': redact(str(error))}))
+        print('Profile failed: ' + type(error).__name__ + ': ' + redact(str(error)), file=sys.stderr)
+        sys.exit(1)

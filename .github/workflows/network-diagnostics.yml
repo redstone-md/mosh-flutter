@@ -2,6 +2,11 @@ name: Windows network diagnostics
 
 on:
   workflow_dispatch:
+    inputs:
+      profile_windows:
+        description: Profile the exact configured release with a disposable full-application fixture
+        type: boolean
+        default: false
   pull_request:
     paths:
       - '.github/workflows/network-diagnostics.yml'
@@ -9,8 +14,53 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
+  release-idle-profile:
+    if: github.event_name == 'workflow_dispatch' && inputs.profile_windows
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          rust: 'false'
+          moss: none
+      - uses: ./.github/actions/install-profile-app
+      - name: Validate and compile the measurement client
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($file in Get-ChildItem scripts/perf -Filter *.ps1) {
+            $tokens = $null; $errors = $null
+            [Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) { throw ($errors | Out-String) }
+          }
+          python -m unittest discover -s scripts/perf -p 'test_*.py'
+          if ($LASTEXITCODE -ne 0) { throw 'Stack export tests failed' }
+          dart compile exe scripts/perf/idle_api.dart -o scripts/perf/idle-api.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Bridge client compilation failed' }
+          scripts/perf/idle-api.exe --validate
+          Add-Type -Path scripts/perf/ProfileAccessibility.cs -ReferencedAssemblies Accessibility
+      - name: Create the real saved-chat fixture and profile the shipping GUI
+        shell: powershell
+        env:
+          MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force build/profile | Out-Null
+          Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors | ConvertTo-Json | Set-Content build/profile/hardware.json
+          python scripts/perf/windows_idle.py "$env:IDLE_APP" build/profile
+          if ($LASTEXITCODE -ne 0) { throw 'Release GUI profiling failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-current-idle-profile
+          path: build/profile/*.json
+          if-no-files-found: error
+          retention-days: 7
+
   diagnostics:
     runs-on: windows-latest
     timeout-minutes: 15
