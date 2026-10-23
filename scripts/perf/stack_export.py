@@ -68,4 +68,3 @@ def export_stacks(source, pid, output):
               'note': 'Exact-PID exported call stacks; native/Go/AOT unwinds can be incomplete. Inclusive paths overlap. No raw trace or command-line metadata.'}
     output.write_text(json.dumps(result, indent=2), encoding='utf-8')
     return result
-

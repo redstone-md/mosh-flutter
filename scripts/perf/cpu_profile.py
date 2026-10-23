@@ -50,4 +50,3 @@ class CpuProfile:
                 stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
         export_stacks(raw / 'cpu.perfView.xml.zip', self.pid,
                       self.root / (self.name + '-callers.json'))
-
