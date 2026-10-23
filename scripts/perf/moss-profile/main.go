@@ -24,6 +24,10 @@ type result struct {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "benchmark" {
+		benchmark(os.Args[2:])
+		return
+	}
 	scenario := flag.String("scenario", "mesh-query", "mesh-query, interfaces, addresses, idle-lan, idle-no-lan")
 	duration := flag.Duration("duration", 15*time.Second, "profile interval")
 	output := flag.String("output", "probe", "output prefix")

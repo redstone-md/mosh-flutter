@@ -3,6 +3,10 @@ name: Windows network diagnostics
 on:
   workflow_dispatch:
     inputs:
+      interface_compare:
+        description: Compare original and batched Moss interface operations
+        type: boolean
+        default: false
       interface_profile:
         description: Attribute Windows interface enumeration using unchanged pinned Moss
         type: boolean
@@ -161,7 +165,7 @@ jobs:
           retention-days: 14
 
   interface-profile:
-    if: github.event_name == 'workflow_dispatch' && inputs.interface_profile
+    if: github.event_name == 'workflow_dispatch' && (inputs.interface_profile || inputs.interface_compare)
     runs-on: windows-latest
     timeout-minutes: 12
     steps:
@@ -183,6 +187,7 @@ jobs:
           git -C ../../../moss diff --exit-code
           mkdir -p ../../../build/interface-profile
       - name: Profile isolated enumeration and LAN scenarios
+        if: inputs.interface_profile
         shell: bash
         run: |
           for scenario in interfaces addresses mesh-query idle-no-lan idle-lan; do
@@ -192,10 +197,41 @@ jobs:
             go tool pprof -traces "$prefix.pprof" > "$prefix.traces.txt"
           done
           git -C moss diff --exit-code
+      - name: Build both immutable revisions
+        if: inputs.interface_compare
+        shell: bash
+        working-directory: scripts/perf/moss-profile
+        run: |
+          test "$(git -C ../../../moss rev-parse HEAD)" = eb79f38e4ef9380b5b398d161a42c65c17b1e4c4
+          mv moss-profile.exe ../../../build/interface-profile/before.exe
+          git -C ../../../moss fetch origin fix/peer-claim-verification
+          git -C ../../../moss checkout 56795686ff6616a01d0d2099802f471dd024332f
+          go build -trimpath -o ../../../build/interface-profile/after.exe .
+      - name: Record host and compare without competing build work
+        if: inputs.interface_compare
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @{ processor = @(Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors); os = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber); image = $env:ImageVersion } | ConvertTo-Json -Depth 5 | Set-Content build/interface-profile/host.json
+          python scripts/perf/compare_interfaces.py build/interface-profile
+          if ($LASTEXITCODE -ne 0) { throw 'Matched comparison failed' }
+      - name: Reprofile the same query component
+        if: inputs.interface_compare
+        shell: bash
+        run: |
+          for variant in before after; do
+            prefix="build/interface-profile/$variant-query"
+            "build/interface-profile/$variant.exe" -scenario mesh-query -duration 15s -output "$prefix"
+            go tool pprof -top -cum "$prefix.pprof" > "$prefix.top.txt"
+            go tool pprof -traces "$prefix.pprof" > "$prefix.traces.txt"
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: moss-interface-profile
-          path: build/interface-profile/*
+          path: |
+            build/interface-profile/*.json
+            build/interface-profile/*.txt
+            build/interface-profile/*.pprof
           if-no-files-found: error
           retention-days: 7
