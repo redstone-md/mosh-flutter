@@ -39,7 +39,8 @@ sample shares as process CPU, or call a nonreproducing fixture a fixed bug.
 
 Next runtime work requires a ranked caller hypothesis and a reproducible
 before/after check. No production behavior changes in this measurement step.
-# Existing owner trace
+
+## Existing owner trace
 
 If the current GUI fixture does not reproduce the owner load, reprocess the
 already recorded owner `raw/cpu.etl` with the same exact-PID PerfView extension

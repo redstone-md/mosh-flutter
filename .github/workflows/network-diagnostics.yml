@@ -38,6 +38,7 @@ jobs:
         run: |
           python -m unittest discover -s scripts/perf -p 'test_*.py'
           if ($LASTEXITCODE -ne 0) { throw 'Stack tests failed' }
+          scripts/perf/Test-StackPaths.ps1
           scripts/perf/Test-StackExport.ps1
       - name: Package the verified exporter and original native symbols
         if: inputs.package_stack_export

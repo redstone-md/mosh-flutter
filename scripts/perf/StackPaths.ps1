@@ -47,7 +47,7 @@ function Read-SelectedStackPaths([xml]$Document, [int]$TargetId) {
         $paths[$key].weight += $row.weight
     }
     if ($paths.Count -eq 0) { throw 'No exact-PID caller stacks' }
-    $weight = ($paths.Values | Measure-Object -Property weight -Sum).Sum
+    $weight = ($paths.Values | ForEach-Object { $_.weight } | Measure-Object -Sum).Sum
     return @{ pid = $TargetId; sampled_weight = $weight; skipped_weight = $skipped
         paths = @($paths.Values | Sort-Object { $_.weight } -Descending)
         note = 'Exact-PID paths. Unwinds may be incomplete. Thread names, process arguments and module paths removed.' }
