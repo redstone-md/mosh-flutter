@@ -20,6 +20,7 @@ try {
     if ($pdb -ne $symbols.pdb_sha256) { throw 'PDB checksum mismatch' }
     $tool = "$PSScriptRoot/tools/PerfView.exe"
     if ((Get-FileHash $tool).Hash.ToLowerInvariant() -ne '270e2ba419b0b2d93c4b15b0851f257edf655c92fe0ad95add3d0b5f6d6aad48') { throw 'Profiler checksum mismatch' }
+    Unblock-File -LiteralPath "$PSScriptRoot/tools/PerfViewExtensions/ProbeStacks.dll"
     $output = Join-Path $PSScriptRoot ('output/' + [datetime]::UtcNow.ToString('yyyyMMdd-HHmmss'))
     $raw = Join-Path $output 'raw'; [void](New-Item -ItemType Directory -Force $raw)
     $stage = 'copying the existing trace'
