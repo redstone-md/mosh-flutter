@@ -75,12 +75,11 @@ $after = @($target.Modules | ForEach-Object {
 })
 $modules = @(@($modules) + $after | Sort-Object { $_.base } -Unique)
 Write-Host 'Recording stopped. Processing CPU and network events; this can take several minutes.'
-Invoke-CpuProfiler $tool @('/AcceptEula','/NoGui',"/LogFile:$raw/export.log",'userCommand','SaveCPUStacksAsCsv',
-    $trace,$target.ProcessName,'2147483647','GreatestMSec') (Join-Path $raw 'export-console.log')
-Read-CpuModuleTotals (Join-Path $raw 'cpu.perfView.csv') | ConvertTo-Json -Depth 7 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'cpu-summary.json')
 Invoke-CpuProfiler $tool @('/AcceptEula','/NoGui',"/LogFile:$raw/events.log",'userCommand','DumpEventsAsXml',
     $trace,(Join-Path $raw 'events.xml')) (Join-Path $raw 'events-console.log')
-Read-CpuInstructionOffsets (Join-Path $raw 'events.xml') $TargetProcessId $modules | ConvertTo-Json -Depth 7 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'cpu-instructions.json')
+$instructions = Read-CpuInstructionOffsets (Join-Path $raw 'events.xml') $TargetProcessId $modules
+$instructions | ConvertTo-Json -Depth 7 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'cpu-instructions.json')
+Read-CpuModuleTotals $instructions | ConvertTo-Json -Depth 7 | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory 'cpu-summary.json')
 $dll = Join-Path $directory 'moss.dll'
 if (Test-Path $dll) {
     try {

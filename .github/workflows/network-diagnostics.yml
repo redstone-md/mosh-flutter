@@ -35,7 +35,9 @@ jobs:
         run: scripts/network-diagnostics/Test-MossRecordingReport.ps1
       - name: Verify real CPU module and instruction attribution
         shell: powershell
-        run: scripts/network-diagnostics/Test-MoshCpu.ps1
+        run: |
+          scripts/network-diagnostics/Test-CpuEvents.ps1
+          scripts/network-diagnostics/Test-MoshCpu.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: mosh-network-diagnostics-schema

@@ -28,26 +28,23 @@ function Get-CpuProfilerTool([string]$Directory, [switch]$GoSymbols) {
     return $path
 }
 
-function Read-CpuModuleTotals([string]$Csv) {
-    $modules = @{}; $unresolved = 0.0; $total = 0.0
-    foreach ($row in Import-Csv $Csv) {
-        if (-not $row.Exc) { continue } # Multiline command-line metadata is not quoted by PerfView.
-        $cost = [double]::Parse($row.Exc, [Globalization.CultureInfo]::InvariantCulture)
-        if ($cost -le 0) { continue }
-        $total += $cost
-        if ($row.Name -notmatch '^([^!]+)!') { $unresolved += $cost; continue }
-        $module = [IO.Path]::GetFileName($Matches[1])
-        if ($module -eq '?') { $unresolved += $cost; continue }
-        if (-not $modules.ContainsKey($module)) { $modules[$module] = 0.0 }
-        $modules[$module] += $cost
+function Read-CpuModuleTotals($Samples) {
+    $modules = @{}; $unresolved = [long]$Samples.unmapped_user_samples
+    $kernel = [long]$Samples.kernel_samples; $total = $kernel + $unresolved
+    foreach ($row in $Samples.instructions) {
+        $cost = [long]$row.samples
+        $module = [IO.Path]::GetFileNameWithoutExtension($row.module).ToLowerInvariant()
+        if (-not $modules.ContainsKey($module)) { $modules[$module] = 0L }
+        $modules[$module] += $cost; $total += $cost
     }
+    if ($kernel -gt 0) { $modules['[kernel]'] = $kernel }
     if ($total -le 0) { throw 'No target CPU samples' }
     return @{
         sampled_weight = $total; unresolved_weight = $unresolved
         modules = @($modules.Keys | ForEach-Object {
             @{ module = $_; weight = $modules[$_]; percent = 100 * $modules[$_] / $total }
         } | Sort-Object { $_.weight } -Descending)
-        note = 'Statistical attribution; sampled weights are not process CPU counters.'
+        note = 'PID-filtered instruction samples; [kernel] groups kernel addresses. Statistical attribution, separate from process CPU counters.'
     }
 }
 

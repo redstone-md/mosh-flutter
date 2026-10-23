@@ -41,9 +41,11 @@ try {
     if (($instructions.instructions | Measure-Object samples -Sum).Sum -lt 100) { throw 'Mapped instruction samples missing' }
     $rawWeight = [long]$instructions.kernel_samples + [long]$instructions.unmapped_user_samples +
         [long]($instructions.instructions | Measure-Object samples -Sum).Sum
-    if ($cpu.sampled_weight -ne $rawWeight) { throw 'CPU summary must reconcile with the exact PID, excluding busier same-name processes' }
     $child.Refresh(); $noise.Refresh()
     if ($noise.TotalProcessorTime -le $child.TotalProcessorTime) { throw 'Same-name control must be busier than the selected target' }
+    Write-Host ('CPU scope control: target={0:N0}ms, noise={1:N0}ms, summary={2}, raw={3}' -f
+        $child.TotalProcessorTime.TotalMilliseconds, $noise.TotalProcessorTime.TotalMilliseconds, $cpu.sampled_weight, $rawWeight)
+    if ($cpu.sampled_weight -ne $rawWeight) { throw 'CPU summary must reconcile with the exact PID, excluding busier same-name processes' }
     $nativeWeight = ($cpu.modules | Where-Object { $_.module -in @('ntdll','kernelbase','kernel32','clr') } | Measure-Object weight -Sum).Sum
     if (($instructions.instructions | Measure-Object samples -Sum).Sum -lt 0.9 * $nativeWeight) { throw 'Native module and instruction attribution disagree' }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
