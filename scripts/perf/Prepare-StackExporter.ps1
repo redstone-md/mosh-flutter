@@ -13,8 +13,14 @@ $references = @($Tool, $trace[0].FullName,
     (Join-Path $support 'Microsoft.Diagnostics.FastSerialization.dll'),
     'System.dll', 'System.Core.dll', 'System.Xml.dll')
 $compilerDirectory = [Runtime.InteropServices.RuntimeEnvironment]::GetRuntimeDirectory()
-$facade = Join-Path $compilerDirectory 'Facades/netstandard.dll'
-if (Test-Path $facade) { $references += $facade }
+$facades = @(
+    (Join-Path $support 'netstandard.dll'),
+    (Join-Path $compilerDirectory 'Facades/netstandard.dll'),
+    (Join-Path ${env:ProgramFiles(x86)} 'Reference Assemblies/Microsoft/Framework/.NETFramework/v4.8/Facades/netstandard.dll'),
+    (Join-Path ${env:ProgramFiles(x86)} 'Reference Assemblies/Microsoft/Framework/.NETFramework/v4.7.2/Facades/netstandard.dll'))
+$facade = @($facades | Where-Object { Test-Path $_ } | Select-Object -First 1)
+if ($facade.Count -ne 1) { throw 'The runner is missing its .NET Standard reference facade' }
+$references += $facade[0]
 # csc accepts an executable assembly reference; PowerShell 5 Add-Type treats
 # the PerfView.exe path as an assembly name and rejects it before compilation.
 $compileArguments = @('/nologo', '/target:library', "/out:$destination")
