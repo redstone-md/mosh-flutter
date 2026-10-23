@@ -169,10 +169,12 @@ inspection therefore does not justify claiming a new duplicate-poll defect
 or adding a global TTL cache. Shared byte-encoder and curve-arithmetic leaves
 also do not identify a caller to change safely.
 
-The confirmed fix in this increment is exact-PID diagnostics. Actual residual
-Windows CPU and public-mesh traffic remain unresolved; more caller evidence
-is required before another runtime change. The subsequent
+The confirmed fix in this increment is exact-PID diagnostics. The subsequent
 [full Windows GUI capture](issue-94-windows-callers.results.md) resolves useful
-Rust callers but does not reproduce the owner's residual load. Whole-Windows
+Rust callers but does not reproduce the owner's residual load. Reprocessing
+the original owner trace then identifies redundant roster-prefix hashing;
+the [focused runtime change and matched release comparison](issue-94-roster-prefix.results.md)
+record that evidence separately. Residual Windows CPU and public-mesh traffic
+remain unresolved. Whole-Windows
 idle and Android background-call/battery acceptance stay open in issue 94.
 No merge or release is included.

@@ -82,11 +82,21 @@ foreign/unrooted processes, cyclic stacks and metadata removal. Independent
 Standards/Spec reviews also caught and corrected unsanitized error-log export;
 only restricted error identifiers may enter shareable diagnostics.
 
-## Next evidence
+## Owner caller trace received
+
+The owner has now reprocessed the original trace successfully. All five
+original binary hashes and the trace checksum match. The selected PID has
+9,924 caller weights; 1,154 foreign weights are excluded. The trace confirms
+redundant roster-prefix hashing, separately exposes Windows adapter-enumeration
+cost below unresolved Moss frames, and retains substantial broken/unresolved
+stacks. See the [owner attribution and matched roster-prefix results](issue-94-roster-prefix.results.md)
+for the focused runtime fix and its limits.
+
+## Existing-trace export
 
 The existing owner ZIP remains valid at 12.909% of one core and 1.474 Mbit/s;
 these lower-load CI windows do not replace it. Its private original
-`raw/cpu.etl` can supply the missing caller chains without another recording
+`raw/cpu.etl` supplied those caller chains without another recording
 or app installation. A separately tested portable reader uses the original
 PDB, checks the report's five binary hashes, selects the exact PID and keeps
 raw traces/logs local. Only sanitized caller paths and build identity enter
@@ -96,22 +106,27 @@ The [portable-export Windows run](https://github.com/redstone-md/mosh-flutter/ac
 passes at measurement commit `85460f9b`. Both readers conserve 13,119 live
 control weights across seventeen paths after applying identical metadata
 normalization. Synthetic checks also preserve case-sensitive native symbols
-and reject foreign-only/cyclic input. The packaged entry point successfully
+and reject foreign-only/cyclic input. The exporter script successfully
 reprocesses a trace from the exact installed release, verifies unchanged input
 SHA-256 and checks that its report contains exactly `callers.json` and
-`identity.json`. Independent Standards/Spec reviews have no remaining findings.
+`identity.json`. That earlier test did not cover the CMD entry with inherited
+PowerShell 7 module paths or a downloaded DLL's blocking mark.
 
-The [verified portable bundle](https://github.com/redstone-md/mosh-flutter/actions/runs/39895119355/artifacts/12475644384)
-is 36,017,306 bytes and contains nine expected files. Its SHA-256 is
-`3cfae10c5c47e20730201a069ac9a9485de3e2929c9c3bf5ed1f033b99a020be`.
+The [corrected portable bundle](https://github.com/redstone-md/mosh-flutter/actions/runs/39901808537/artifacts/12478912684)
+at `69d5717f` is 36,017,422 bytes and contains nine expected files. Its SHA-256 is
+`84784668aeda5878fb3c23d8053dcfe0992a4752561b9d3187e7c411a388157c`.
 The sidecar verifies, scripts match source after Windows line-ending
 normalization, and embedded PDB/PerfView checksums match the originals.
+The actual CMD entry now passes with both owner failure conditions present.
 Extract its inner `mosh-existing-cpu-export.zip` and run
 `Start-Existing-CPU.cmd` on the owner's Windows computer. It defaults to the
 existing `cpu-20261023-000926` directory under LocalAppData/Mosh/Diagnostics;
 if moved, it asks for the folder containing `binary-manifest.json` and `raw/`.
 Send only the resulting `mosh-callers-report.zip` at the printed path.
 
-Further runtime changes require that owner attribution or a reproducible
-matched workload. Issue 94 and Android background-call/battery acceptance
+The first matched runtime change from that attribution is recorded in the
+linked roster-prefix results. The owner also exposed download-mark and mixed
+PowerShell launcher defects; the actual-CMD regression and fixes pass in
+[run 39901808537](https://github.com/redstone-md/mosh-flutter/actions/runs/39901808537)
+on the auxiliary measurement branch. Issue 94 and Android background-call/battery acceptance
 remain open. No merge or release is included.
