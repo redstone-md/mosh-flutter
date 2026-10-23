@@ -198,3 +198,136 @@ focused race/vet and the Linux C-shared build pass. Independent Standards/Spec
 review found only two obsolete private helpers, which were removed. Mosh
 integration and configured installer checks follow the new pin; issue 94 and
 owner whole-application/network acceptance remain open.
+
+## Owner acceptance at `c1a61257`
+
+The fresh `cpu-20261023-204618` ZIP has SHA-256
+`2ed79ab655dd884f0e46734ed620449b54402a3f3820c81f4995cf3c3c70653f`.
+All five binary hashes match the independently verified configured installer
+from [run 39997458526](https://github.com/redstone-md/mosh-flutter/actions/runs/39997458526),
+source `c1a61257`, Moss `3526e05`. This is a new capture, not another export of
+the original ETL. Hardware remains Ryzen 7 6800H, sixteen logical processors,
+Windows 10.0.26200.0. The collector does not establish saved-chat inventory.
+
+The 90.814-second network window starts at 2026-10-23T20:46:43.7986395Z,
+3,605.780 seconds after process startup. The 89 process samples span 89.526
+seconds; counters are monotonic. Network controls and completeness pass, all
+ETW loss counters are zero, and both per-second and endpoint byte sums agree.
+
+| Whole-process observation | Earlier `cd6df31b` capture | Current `c1a61257` capture |
+| --- | ---: | ---: |
+| CPU, one logical core | 12.909% | 13.090% |
+| CPU, normalized over sixteen logical processors | 0.807% | 0.818% |
+| Working-set median | 190.55 MiB | 150.72 MiB |
+| Combined external network mean | 1.474 Mbit/s | 1.456 Mbit/s |
+| Complete-second median | 0.753 Mbit/s | 0.790 Mbit/s |
+| Complete-second p95 | 3.323 Mbit/s | 9.641 Mbit/s |
+| Complete-second peak | 24.434 Mbit/s | 12.143 Mbit/s |
+
+Whole-process CPU and mean bandwidth show no meaningful improvement in these
+observations. The smaller working set and lower peak are observations, not
+causal patch effects: process ages differ (about sixteen versus sixty minutes),
+public topology and history are uncontrolled, and these are single captures.
+The component benchmark above remains a separate, matched result. Issue 94
+and owner idle acceptance remain open.
+
+Current external TX is 4,852,426 bytes and RX is 11,673,403 bytes. Three full
+seconds exceed 10 Mbit/s; none reaches 100 Mbit/s. Subsecond peaks remain
+unmeasured. The largest anonymized endpoint accounts for only 4.95% of bytes;
+endpoint aliases do not establish the number or identity of connected peers.
+
+### Remaining CPU attribution
+
+Use the exact-PID instruction data, not the collector's separate module-name
+classification. Both contain 10,430 weights, but some classifications differ.
+The instruction buckets conserve that total:
+
+| Bucket | Selected instruction weights | Share |
+| --- | ---: | ---: |
+| Moss | 3,483 | 33.39% |
+| Kernel addresses | 2,806 | 26.90% |
+| Rust | 1,269 | 12.17% |
+| Unmapped user addresses | 1,228 | 11.77% |
+| Flutter | 861 | 8.26% |
+
+Other mapped libraries account for the remainder. The original matching Rust
+DLL/PDB resolves all 1,269 Rust weights. Go ranges resolve 3,480 of 3,483 Moss
+weights; bounds checks leave three outside function ranges unassigned. Go
+Edwards25519 leaves account for 898 total-process instruction weights (8.61%),
+versus 209 of 9,924 (2.11%) in the earlier capture. These are leaf sample
+shares, not inclusive caller costs or process-counter durations.
+
+Approximate alignment of 88 CPU-counter intervals with traffic buckets gives
+correlation 0.719. Lowest/highest traffic quartiles have median 0.421/2.596
+Mbit/s and 9.19/14.52% of one core. This assumes uniform traffic inside each
+second and establishes association only. Kernel samples do not identify a
+driver, and flat crypto samples do not prove redundant verification.
+
+Ranked follow-up hypotheses are signed Moss control-envelope work, network-stack
+work associated with incoming traffic, and polling/bridge/JSON work. Existing
+complete Go caller profiling and a fresh Windows GUI/minimized fixture are
+used to distinguish these paths before any further runtime optimization.
+
+### Independent current-release checks
+
+[Windows run 40022962529](https://github.com/redstone-md/mosh-flutter/actions/runs/40022962529)
+passes at measurement commit `a7389c34`, installing the same `c1a61257` EXE
+and matching all five shipped binary hashes. The old exporter keeps its
+original installer defaults; only the current GUI profile selects the new
+immutable installer/source/checksum. Five parser tests and the real Windows
+CPU/network collector checks pass.
+
+The disposable fixture establishes eight acknowledged offline DMs, two groups
+and one channel. Before/after restoration inventories and message-body hashes
+match; no invitations remain pending. The AMD EPYC 7763 runner has two cores
+and four logical processors. After 480 seconds of GUI warmup, separate
+ninety-second windows observe:
+
+| Sequential current-runtime window | CPU, one core | External network mean |
+| --- | ---: | ---: |
+| Visible offline DM | 2.084% | 0.465 Mbit/s |
+| Minimized window | 3.639% | 0.169 Mbit/s |
+
+Both network controls pass with zero ETW loss and reconciled byte sums. Native
+HWND checks confirm the intended visible/minimized state. These are sequential
+public-mesh observations on different hardware from the owner. They do not
+establish a causal effect of minimizing, quantify a patch improvement, or
+reproduce the owner's hour-old process and 13.090% CPU. All 612/587 selected
+Rust instruction weights resolve with the original matching DLL/PDB.
+
+A separate current-Moss Go profile uses the existing fictional native fixture,
+six-minute warmup and ninety-second sample window. Rust product source matches
+the shipping source; only a private profiling overlay adds Go's own CPU sampler.
+Recovered verification callers are
+`handleKnownPeerEnvelope -> verifyPeerAnnouncementEnvelope` and
+`handleKnownPeerEnvelope -> verifySupernodeStatusEnvelope`. The focused trace
+contains only two ten-millisecond samples, so it establishes those callers
+without reproducing or explaining the owner's larger crypto share.
+
+A second private overlay observes the results of every original size-valid
+Ed25519 verification without skipping or changing a check. Its real crypto
+tests cover valid/repeated/changed signatures; the native fixture retains its
+message golden. After six minutes of warmup, a ninety-second window records:
+
+| Signed control-claim domain | Successful checks | Repeated identical successful inputs |
+| --- | ---: | ---: |
+| Peer announcement | 1,850 | 1,622 |
+| Supernode status | 234 | 203 |
+
+Thus 1,825 of 2,084 successful announcement/status checks repeat (87.57%). Six
+invalid peer-announcement checks still execute. Across all observed domains,
+2,092 valid checks minus 1,830 repeats equals 262 unique complete
+public-key/signature/payload hashes. The private observer's 20,000-entry bound
+is not reached; no raw inputs or identities are needed in the result. The
+recorded native fixture has 17–18 neighbors and about 0.268 Mbit/s of mesh
+carrier traffic in that window. Carrier bytes are not the owner's ETW network
+counter and exclude other network paths.
+
+This supports a bounded positive-verification memo as the next CPU candidate,
+keyed by the complete public key, signed payload and signature. It must cache
+only the cryptographic fact: peer trust, admissibility, address updates,
+capabilities and forwarding decisions must still run on every envelope.
+Changed or invalid signatures must retain their existing verification and
+rejection behavior. Such a memo does not reduce incoming wire traffic. No
+production crypto/announcement behavior has been changed by these probes;
+the previously authorized Moss-source exception covered interface enumeration.
