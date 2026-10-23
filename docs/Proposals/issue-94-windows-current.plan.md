@@ -18,8 +18,9 @@ Moss, persisted contracts or generated bridge.
    seconds visible, then ninety seconds minimized, recording process CPU,
    RSS, exact-PID instructions, control-validated network bytes and caller
    stacks. Record hardware and binary fingerprints. Check and record HWND
-   visibility/minimized state immediately before and after each capture;
-   record focus without requiring it, since collector consoles can take it.
+   visibility/minimized state before collector launch and after processing;
+   these checks also bracket setup/processing. Record focus without requiring
+   it, since collector consoles can take it.
 3. Reuse the corrected CPU collector. Export caller stacks using pinned
    PerfView v4.0.0 and matching native symbols. Independently retain only
    stacks with the selected PID, remove process arguments and module paths,
