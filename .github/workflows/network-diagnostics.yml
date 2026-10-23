@@ -3,6 +3,10 @@ name: Windows network diagnostics
 on:
   workflow_dispatch:
     inputs:
+      announcement_compare:
+        description: Compare uncached and memoized announcement verification
+        type: boolean
+        default: false
       interface_compare:
         description: Compare original and batched Moss interface operations
         type: boolean
@@ -33,6 +37,48 @@ permissions:
   actions: read
 
 jobs:
+  announcement-compare:
+    if: github.event_name == 'workflow_dispatch' && inputs.announcement_compare
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.9'
+          cache-dependency-path: moss/go.sum
+      - name: Build both immutable optimized revisions before measuring
+        shell: bash
+        working-directory: moss
+        run: |
+          mkdir -p ../build/announcement-profile
+          git fetch origin fix/peer-claim-verification
+          git checkout 82eb8b63453f835f34c4cc2abdad3faf11301aca
+          cp internal/mesh/announcement_verification_bench_test.go ../build/announcement-profile/
+          cp internal/mesh/announcement_verification_golden_test.go ../build/announcement-profile/
+          go test -c -trimpath -o ../build/announcement-profile/after.exe ./internal/mesh
+          git checkout 3361fc8
+          cp ../build/announcement-profile/*_test.go internal/mesh/
+          go test -c -trimpath -o ../build/announcement-profile/before.exe ./internal/mesh
+          go version > ../build/announcement-profile/toolchain.txt
+      - name: Compare twenty alternating pairs on the same host
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors | ConvertTo-Json | Set-Content build/announcement-profile/host.json
+          python scripts/perf/compare_announcements.py build/announcement-profile
+          if ($LASTEXITCODE -ne 0) { throw 'Announcement comparison failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: moss-announcement-comparison
+          path: |
+            build/announcement-profile/*.json
+            build/announcement-profile/*.txt
+          retention-days: 7
+
   stack-control:
     if: github.event_name == 'workflow_dispatch' && (inputs.stack_control || inputs.package_stack_export)
     runs-on: windows-latest
