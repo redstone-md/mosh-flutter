@@ -20,7 +20,7 @@ type result struct {
 	ElapsedNS  int64  `json:"elapsed_ns"`
 	GoVersion  string `json:"go_version"`
 	Interfaces int    `json:"interfaces"`
-	Eligible   int    `json:"eligible_interfaces"`
+	Eligible   int    `json:"up_nonloopback_interfaces"`
 }
 
 func main() {
@@ -68,23 +68,22 @@ func prepare(scenario string) (func(), func()) {
 	case "addresses":
 		return enumerateAddresses, func() {}
 	case "mesh-query", "idle-lan", "idle-no-lan":
-		cfg := mesh.DefaultConfig()
+		cfg := mesh.DefaultOfflineConfig()
 		cfg.NetworkID = "mosh-isolated-interface-profile/1"
-		cfg.Trackers = nil
-		cfg.DHTEnabled = false
 		cfg.LANDiscoveryEnabled = scenario == "idle-lan"
 		cfg.LANDiscoveryPort = 44446
 		cfg.MasqConfig.Enabled = false
 		node, err := mesh.NewNode("profile", nil, cfg)
 		check(err)
 		if scenario == "mesh-query" {
-			return func() {
-				var info map[string]any
-				check(json.Unmarshal([]byte(node.MeshInfoJSON()), &info))
-				if info["advertised_addr"] == "" {
-					panic("empty advertised address")
-				}
-			}, func() {}
+			var info struct {
+				AdvertisedAddr string `json:"advertised_addr"`
+			}
+			check(json.Unmarshal([]byte(node.MeshInfoJSON()), &info))
+			if info.AdvertisedAddr == "" {
+				panic("empty advertised address")
+			}
+			return func() { _ = node.MeshInfoJSON() }, func() {}
 		}
 		if status := node.Start(); status != mesh.MOSS_OK {
 			panic(fmt.Sprintf("node start: %d", status))
