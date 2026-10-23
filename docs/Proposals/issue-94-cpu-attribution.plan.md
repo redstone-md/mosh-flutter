@@ -36,3 +36,6 @@ field names and ZIP contents remain; module names remain diagnostic values.
 Existing owner data can be analyzed without another recording. Further
 application optimization requires a reproducible caller-level cost after
 this attribution correction. Whole-Windows and Android acceptance stay open.
+
+The correction and subsequent public-mesh profile are recorded in the
+[results](issue-94-cpu-attribution.results.md).
