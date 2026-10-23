@@ -46,16 +46,19 @@ internal sealed class MossStackSource : TraceEventStackSource {
         if (!name.EndsWith("!?", StringComparison.Ordinal)) return name;
         int index = (int)frame - (int)StackSourceFrameIndex.Start;
         if (index < 0 || index >= TraceLog.CodeAddresses.Count) return name;
-        ulong address = TraceLog.CodeAddresses.Address((CodeAddressIndex)index);
-        ulong? offset = null;
+        var code = (CodeAddressIndex)index;
+        var moduleIndex = TraceLog.CodeAddresses.ModuleFileIndex(code);
+        if (moduleIndex == ModuleFileIndex.Invalid) return name;
+        var associated = TraceLog.CodeAddresses.ModuleFiles[moduleIndex];
+        if (!string.Equals(associated.Name, "moss", StringComparison.OrdinalIgnoreCase)) return name;
+        ulong address = TraceLog.CodeAddresses.Address(code);
         foreach (var module in process.LoadedModules) {
-            if (!string.Equals(module.Name, "moss", StringComparison.OrdinalIgnoreCase)) continue;
+            if (!ReferenceEquals(module.ModuleFile, associated)) continue;
             if (address < module.ImageBase) continue;
             ulong candidate = address - module.ImageBase;
             if (candidate >= (ulong)module.ModuleFile.ImageSize) continue;
-            if (offset.HasValue && offset.Value != candidate) return name;
-            offset = candidate;
+            return "moss!+0x" + candidate.ToString("x");
         }
-        return offset.HasValue ? "moss!+0x" + offset.Value.ToString("x") : name;
+        return name;
     }
 }

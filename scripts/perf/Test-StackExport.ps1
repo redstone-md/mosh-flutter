@@ -60,8 +60,16 @@ try {
         $tool = "$raw/tools/PerfView.exe"
         & "$PSScriptRoot/Prepare-StackExporter.ps1" -Tool $tool -AttributionTest
         . "$PSScriptRoot/../network-diagnostics/CpuEvents.ps1"
-        Invoke-CpuProfiler $tool @('/AcceptEula', '/NoGui', "/LogFile:$raw/attribution.log",
-            'userCommand', 'ProbeStacksTests.AssertMossAttribution', "$raw/cpu.etl", [string]$worker.Id) "$raw/attribution-console.log"
+        try {
+            Invoke-CpuProfiler $tool @('/AcceptEula', '/NoGui', "/LogFile:$raw/attribution.log",
+                'userCommand', 'ProbeStacksTests.AssertMossAttribution', "$raw/cpu.etl", [string]$worker.Id) "$raw/attribution-console.log"
+        } catch {
+            $text = Get-Content "$raw/attribution.log" -Raw
+            foreach ($message in @('Conflicting frame was relabeled as Moss', 'Conflict fixture has no matching unresolved frame')) {
+                if ($text.Contains($message)) { throw $message }
+            }
+            throw
+        }
     }
 } finally {
     if (-not $worker.HasExited) { $worker.Kill(); $worker.WaitForExit() }
