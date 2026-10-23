@@ -30,9 +30,10 @@ public class CpuControl {
 '@)
 if ($result.Errors.HasErrors) { throw ($result.Errors | Out-String) }
 $compiler.Dispose()
-$child = Start-Process $exe -PassThru
-$noise = Start-Process $exe -ArgumentList 'noise' -PassThru
+$child = $null; $noise = $null
 try {
+    $child = Start-Process $exe -PassThru
+    $noise = Start-Process $exe -ArgumentList 'noise' -PassThru
     & "$PSHOME/powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/Measure-MoshCpu.ps1" -TargetProcessId $child.Id -DurationSeconds 12 -OutputDirectory $root
     if ($LASTEXITCODE -ne 0) { throw 'CPU collector failed' }
     $cpu = Get-Content (Join-Path $root 'cpu-summary.json') -Raw | ConvertFrom-Json
@@ -66,6 +67,6 @@ try {
     Write-Host "CPU toolkit verified: $root"
 } finally {
     foreach ($process in @($child, $noise)) {
-        if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() }
+        if ($null -ne $process -and -not $process.HasExited) { $process.Kill(); $process.WaitForExit() }
     }
 }

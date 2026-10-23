@@ -28,7 +28,7 @@ try {
     Assert-CpuSample ($target.Count -eq 1 -and $target[0].weight -eq 2 -and $target[0].percent -eq 50) 'Attribute mapped target samples once'
     $kernel = @($summary.modules | Where-Object { $_.module -eq '[kernel]' })
     Assert-CpuSample ($kernel.Count -eq 1 -and $kernel[0].weight -eq 1) 'Keep target kernel samples separate'
-    $known = ($summary.modules | Measure-Object weight -Sum).Sum
+    $known = ($summary.modules | ForEach-Object { $_.weight } | Measure-Object -Sum).Sum
     Assert-CpuSample ($known + $summary.unresolved_weight -eq $summary.sampled_weight) 'Conserve sample totals'
 
     $summary = Read-CpuModuleTotals @{instructions=@();kernel_samples=2;unmapped_user_samples=0}
