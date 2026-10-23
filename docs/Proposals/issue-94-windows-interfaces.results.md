@@ -2,7 +2,8 @@
 
 The owner's original trace proves adapter-enumeration cost, but its re-export
 cannot identify the Go caller across a runtime stack switch. A separate
-Windows probe attributes the candidate paths without changing Moss source.
+Windows probe attributes the candidate paths. The user authorized the narrow
+Moss-source exception, and the shared implementation is now pinned by Mosh.
 This investigation does not establish a cause for residual network traffic.
 
 ## Owner evidence
@@ -104,10 +105,10 @@ probe does not measure or explain public-network bandwidth. Production source
 is unchanged in this investigation; issue 94 remains open.
 
 
-## Proposed implementation boundary
+## Implemented boundary
 
-The candidate is an operation-local interface inventory inside Moss, not a
-Mosh polling delay or a cross-operation TTL cache:
+Moss runtime `3526e05` supplies an operation-local interface inventory. It
+introduces neither a Mosh polling delay nor a cross-operation TTL cache:
 
 - Read Windows adapters and their addresses together once per inventory,
   only when the operation needs local interfaces;
@@ -119,24 +120,81 @@ Mosh polling delay or a cross-operation TTL cache:
 - Refresh on every operation. No stale-network interval, persisted schema,
   public API or new library is needed; use Moss's existing Windows dependency.
 
-This is shared implementation work: SSH/gaming consumers should receive the
-same current addresses through the same selection policy. No Mosh-only option
-is proposed. Tests must compare ordered old/new inventories and selected
-addresses, inject adapter failures/topology changes, assert one enumeration
-per operation, and run existing real transport/LAN tests on Windows/Linux.
-A matched same-host comparison must establish benefit before updating Mosh's
-pin. Owner idle/network acceptance remains separate.
+This is shared implementation work with no Mosh-only option. The beacon
+regression first failed with three inventory reads and two address reads; it
+now passes with one of each. The next operation observes a changed address
+in both payload and broadcast target. Selection, virtual/VPN exclusions,
+local address failures, failed-inventory retries and fast paths are covered.
+Windows tests compare exact ordered metadata/address values with the standard
+library, including IPv4-mapped IPv6 masks, anycast, media flags, IPv6 index
+fallback, owned memory and native buffer growth. Owner idle/network acceptance
+remains separate.
 
 Read-only consumer inspection at Bastion `39885d60` confirms that
 [`mosslink.Status`](https://github.com/redstone-md/bastion/blob/39885d60a9175e15df3635ddb74b5807360ccd3f/server/internal/mosslink/mosslink.go#L382)
 uses the public `MeshInfoJSON` method. Its
 [`go.mod`](https://github.com/redstone-md/bastion/blob/39885d60a9175e15df3635ddb74b5807360ccd3f/server/go.mod)
-replaces Moss with a vendored copy. This proposal changes neither that public
-method nor discovery/relay options. No Bastion source is changed; a consumer
-build remains part of compatibility verification after implementation.
+replaces Moss with a vendored copy. The patch changes neither that public
+method nor discovery/relay options. Direct substitution of Mosh's entire Moss
+pin cannot compile Bastion: its existing vendor exposes four additional APIs
+(`RelayAlways`, `PeerTransport`, `AddKnownPeer`, `PeerIDHex`). This predates the
+interface patch. A disposable copy of Bastion's own vendor accepts the same
+private inventory/beacon change with address-selection wiring adapted to its
+older policy, without adding Mosh's routing preferences. The `mosslink` package
+tests pass before and after that backport on Go 1.27.0. Bastion product source
+and its repository are unchanged. This is a compilation/package compatibility
+check, not an SSH end-to-end test.
 
 Opportunity score for eliminating repeated enumeration is impact 3 × confidence
 4 / effort 3 = 4. The confidence is in the repeated-call mechanism, not in
-attributing all owner load to this candidate. The root and core `AGENTS.md`
-currently forbid Moss-source edits; implementing this boundary requires a
-narrow user-approved exception. No such source edit has been made here.
+attributing all owner load to this candidate. The user granted the narrow
+Moss-source exception on October 23. Public Go/C contracts, storage, wire
+formats, dependencies, discovery cadence and retries are unchanged.
+
+
+## Matched Windows result at the final runtime
+
+[Run 39996690076](https://github.com/redstone-md/mosh-flutter/actions/runs/39996690076)
+uses measurement source `8614622a`, before Moss `eb79f38` and after `3526e05`.
+Both optimized Go 1.25.9 executables are built before measurement. Twenty
+pairs alternate order on one AMD EPYC 7763 Windows Server 2025 VM (two cores,
+four logical processors, build 26100, image 20261021.278.1). No build runs during
+measurement. Each process warms twenty reads then performs 600 mesh queries
+on an unstarted isolated node with the same private identity fixture. Every
+read checks the full JSON SHA-256; no node joins a mesh or sends application
+traffic. The fixture and keys are excluded from artifacts.
+
+| Median of twenty processes per variant | Before | After |
+| --- | ---: | ---: |
+| Process CPU, kernel plus user | 640.625 ms | 367.188 ms |
+| Wall time | 1,520.112 ms | 803.172 ms |
+| Per-read p50 | 2.558 ms | 1.307 ms |
+| Per-read p95 | 3.111 ms | 2.013 ms |
+| Per-read p99 | 3.748 ms | 2.210 ms |
+
+CPU drops in all twenty pairs; the ratio of medians improves **42.68%**.
+Windows process counters have 100 ns units but the observed values have
+15.625 ms granularity. The 600-read loop includes identical hash
+validation overhead in both variants. Per-process p99 uses only 600 readings.
+This is a component result, not the owner's whole-Mosh improvement.
+
+The complete-response golden is
+`1fdd94ea1c1ba385a0497e4fcdee61a23eff289688cd8f3cb7d856bd6db0ea3e`.
+Before/after executable SHA-256 values are
+`7c417ba4f2009df92600009db0e6c5b94924888f1b8ccbbe25d510727e1a2988` and
+`9fe85864437e3673c1766546b43a83b69b36e5ccda7c15af57a3b13cee4cbfde`.
+
+An earlier independent twenty-pair run on a Xeon 6973P-C VM measured 36.84%
+lower median CPU at implementation `5679568`, before dead-helper cleanup.
+Do not combine measurements across hosts or add these percentages to the
+roster/key optimizations. The final run's separate 15-second profiles complete
+5,363 before and 10,444 after queries; Go sample weights remain distinct from
+process counters and are not a second CPU-counter comparison.
+
+The Windows live-inventory/focused tests pass. Go statement coverage is 93.1%
+for the Windows reader, 90.5% for the common snapshot and 85.7% for beacon
+preparation; branch records are unavailable. Local full `go test ./...`,
+focused race/vet and the Linux C-shared build pass. Independent Standards/Spec
+review found only two obsolete private helpers, which were removed. Mosh
+integration and configured installer checks follow the new pin; issue 94 and
+owner whole-application/network acceptance remain open.
