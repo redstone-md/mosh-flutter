@@ -24,6 +24,23 @@ function Test-MossOffsets([string]$Root) {
     Write-Host 'Original Moss DLL RVAs match exact-PID raw instruction samples.'
 }
 
+function Test-ModuleAttribution([string]$Root, [int]$ProcessId) {
+    $raw = "$Root/raw/control-cpu/raw"
+    $tool = "$raw/tools/PerfView.exe"
+    & "$PSScriptRoot/Prepare-StackExporter.ps1" -Tool $tool -AttributionTest
+    . "$PSScriptRoot/../network-diagnostics/CpuEvents.ps1"
+    try {
+        Invoke-CpuProfiler $tool @('/AcceptEula', '/NoGui', "/LogFile:$raw/attribution.log",
+            'userCommand', 'ProbeStacksTests.AssertMossAttribution', "$raw/cpu.etl", [string]$ProcessId) "$raw/attribution-console.log"
+    } catch {
+        $text = Get-Content "$raw/attribution.log" -Raw
+        foreach ($message in @('Conflicting frame was relabeled as Moss', 'Conflict fixture has no matching unresolved frame')) {
+            if ($text.Contains($message)) { throw $message }
+        }
+        throw
+    }
+}
+
 $root = Join-Path (Get-Location) 'build/stack-control'
 [void](New-Item -ItemType Directory -Force $root)
 $exe = Join-Path $root 'mosh.exe'
@@ -56,20 +73,7 @@ try {
         -TargetId $worker.Id -PythonResult "$root/control-callers.json"
     if ($withMoss) {
         Test-MossOffsets $root
-        $raw = "$root/raw/control-cpu/raw"
-        $tool = "$raw/tools/PerfView.exe"
-        & "$PSScriptRoot/Prepare-StackExporter.ps1" -Tool $tool -AttributionTest
-        . "$PSScriptRoot/../network-diagnostics/CpuEvents.ps1"
-        try {
-            Invoke-CpuProfiler $tool @('/AcceptEula', '/NoGui', "/LogFile:$raw/attribution.log",
-                'userCommand', 'ProbeStacksTests.AssertMossAttribution', "$raw/cpu.etl", [string]$worker.Id) "$raw/attribution-console.log"
-        } catch {
-            $text = Get-Content "$raw/attribution.log" -Raw
-            foreach ($message in @('Conflicting frame was relabeled as Moss', 'Conflict fixture has no matching unresolved frame')) {
-                if ($text.Contains($message)) { throw $message }
-            }
-            throw
-        }
+        Test-ModuleAttribution $root $worker.Id
     }
 } finally {
     if (-not $worker.HasExited) { $worker.Kill(); $worker.WaitForExit() }
