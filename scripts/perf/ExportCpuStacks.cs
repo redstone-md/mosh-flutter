@@ -8,9 +8,14 @@ public sealed class Commands : CommandEnvironment {
         try {
             using (var file = OpenETLFile(trace)) {
                 TraceProcess target = null;
-                foreach (var process in file.Processes)
-                    if (process.ProcessID == int.Parse(processId)) target = process;
+                foreach (var process in file.Processes) {
+                    if (process.ProcessID != int.Parse(processId)) continue;
+                    if (target != null) throw new InvalidOperationException("Selected PID reused in trace");
+                    target = process;
+                }
                 if (target == null) throw new InvalidOperationException("Selected PID absent from trace");
+                if (!string.Equals(target.Name, "mosh", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Selected process is not Mosh");
                 file.SetFilterProcess(target);
                 var stacks = file.CPUStacks();
                 stacks.LookupWarmSymbols(10);

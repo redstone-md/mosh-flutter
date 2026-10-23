@@ -13,6 +13,8 @@ $worker = Start-Process $exe -PassThru
 try {
     python scripts/perf/stack_control.py $root $worker.Id
     if ($LASTEXITCODE -ne 0) { throw 'Live stack export failed' }
+    & "$PSScriptRoot/Test-StackPaths.ps1" -XmlZip "$root/raw/control-cpu/raw/cpu.perfView.xml.zip" `
+        -TargetId $worker.Id -PythonResult "$root/control-callers.json"
 } finally {
     if (-not $worker.HasExited) { $worker.Kill(); $worker.WaitForExit() }
 }

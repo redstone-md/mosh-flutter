@@ -39,3 +39,15 @@ sample shares as process CPU, or call a nonreproducing fixture a fixed bug.
 
 Next runtime work requires a ranked caller hypothesis and a reproducible
 before/after check. No production behavior changes in this measurement step.
+# Existing owner trace
+
+If the current GUI fixture does not reproduce the owner load, reprocess the
+already recorded owner `raw/cpu.etl` with the same exact-PID PerfView extension
+and original native PDB. A portable PowerShell 5.1 reader avoids requiring
+Python or another recording on the owner's computer. It strips process
+arguments, module paths and thread names. Its shareable ZIP contains only
+selected caller paths and build identity; raw traces and logs remain local.
+Before delivery, check synthetic privacy/foreign-PID/cycle cases, compare a
+live control with the existing Python parser and reprocess a trace from the
+exact installed release through the packaged entry point. Verify ZIP entries,
+weight conservation and unchanged input trace. No production runtime change.

@@ -7,6 +7,10 @@ on:
         description: Validate caller export on a twelve-second busy owned process
         type: boolean
         default: false
+      package_stack_export:
+        description: Test and package reprocessing of the existing owner trace without a new recording
+        type: boolean
+        default: false
       profile_windows:
         description: Profile the exact configured release with a disposable full-application fixture
         type: boolean
@@ -22,17 +26,35 @@ permissions:
 
 jobs:
   stack-control:
-    if: github.event_name == 'workflow_dispatch' && inputs.stack_control
+    if: github.event_name == 'workflow_dispatch' && (inputs.stack_control || inputs.package_stack_export)
     runs-on: windows-latest
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/install-profile-app
+        if: inputs.package_stack_export
       - name: Check selected-PID stack parsing and real CPU export
         shell: powershell
         run: |
           python -m unittest discover -s scripts/perf -p 'test_*.py'
           if ($LASTEXITCODE -ne 0) { throw 'Stack tests failed' }
           scripts/perf/Test-StackExport.ps1
+      - name: Package the verified exporter and original native symbols
+        if: inputs.package_stack_export
+        shell: powershell
+        run: scripts/perf/Package-StackExport.ps1
+      - name: Reprocess an existing trace from the exact installed release
+        if: inputs.package_stack_export
+        shell: powershell
+        run: scripts/perf/Test-ExistingCpu.ps1
+      - uses: actions/upload-artifact@v4
+        if: inputs.package_stack_export
+        with:
+          name: windows-existing-cpu-export
+          path: |
+            build/mosh-existing-cpu-export.zip
+            build/mosh-existing-cpu-export.zip.sha256
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -86,7 +108,7 @@ jobs:
           retention-days: 7
 
   diagnostics:
-    if: github.event_name != 'workflow_dispatch' || !inputs.stack_control
+    if: github.event_name != 'workflow_dispatch' || (!inputs.stack_control && !inputs.package_stack_export)
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
