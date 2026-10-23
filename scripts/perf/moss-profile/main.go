@@ -39,7 +39,7 @@ func main() {
 			eligible++
 		}
 	}
-	step, cleanup := prepare(*scenario)
+	step, cleanup := prepare(*scenario, *duration)
 	defer cleanup()
 	f, err := os.Create(*output + ".pprof")
 	check(err)
@@ -61,7 +61,7 @@ func main() {
 	fmt.Printf("%s: %d iterations in %s\n", *scenario, iterations, elapsed)
 }
 
-func prepare(scenario string) (func(), func()) {
+func prepare(scenario string, duration time.Duration) (func(), func()) {
 	switch scenario {
 	case "interfaces":
 		return func() { _, err := net.Interfaces(); check(err) }, func() {}
@@ -72,7 +72,6 @@ func prepare(scenario string) (func(), func()) {
 		cfg.NetworkID = "mosh-isolated-interface-profile/1"
 		cfg.LANDiscoveryEnabled = scenario == "idle-lan"
 		cfg.LANDiscoveryPort = 44446
-		cfg.MasqConfig.Enabled = false
 		node, err := mesh.NewNode("profile", nil, cfg)
 		check(err)
 		if scenario == "mesh-query" {
@@ -89,7 +88,7 @@ func prepare(scenario string) (func(), func()) {
 			panic(fmt.Sprintf("node start: %d", status))
 		}
 		time.Sleep(time.Second)
-		return func() { time.Sleep(10 * time.Millisecond) }, func() { node.Stop() }
+		return func() { time.Sleep(duration) }, func() { node.Stop() }
 	default:
 		panic("unknown scenario: " + scenario)
 	}
