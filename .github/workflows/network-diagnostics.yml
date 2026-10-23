@@ -205,8 +205,15 @@ jobs:
           test "$(git -C ../../../moss rev-parse HEAD)" = eb79f38e4ef9380b5b398d161a42c65c17b1e4c4
           mv moss-profile.exe ../../../build/interface-profile/before.exe
           git -C ../../../moss fetch origin fix/peer-claim-verification
-          git -C ../../../moss checkout 56795686ff6616a01d0d2099802f471dd024332f
+          git -C ../../../moss checkout 3526e05205ec5c315eaafa5fed879ba5f7faa1bb
           go build -trimpath -o ../../../build/interface-profile/after.exe .
+      - name: Verify the Windows inventory against native API results
+        if: inputs.interface_compare
+        shell: bash
+        working-directory: moss
+        run: |
+          go test ./internal/mesh -run 'TestWindowsInventory|TestLANBeaconReads|TestInterfaceSnapshot|TestAdvertisedFastPaths' -count=1 -timeout 120s -coverprofile ../build/interface-profile/coverage-windows.out
+          go tool cover -func ../build/interface-profile/coverage-windows.out > ../build/interface-profile/coverage-windows.txt
       - name: Record host and compare without competing build work
         if: inputs.interface_compare
         shell: powershell
@@ -233,5 +240,6 @@ jobs:
             build/interface-profile/*.json
             build/interface-profile/*.txt
             build/interface-profile/*.pprof
+            build/interface-profile/*.out
           if-no-files-found: error
           retention-days: 7
