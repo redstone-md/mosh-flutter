@@ -8,6 +8,21 @@ import subprocess
 from stack_export import export_stacks
 
 
+def error_summary(text):
+    kinds = [
+        'NullReferenceException', 'InvalidOperationException', 'FileLoadException',
+        'FileNotFoundException', 'DirectoryNotFoundException', 'NotSupportedException',
+        'ArgumentException', 'UnauthorizedAccessException', 'BadImageFormatException',
+        'TypeLoadException', 'TimeoutException', 'TargetInvocationException',
+    ]
+    methods = re.findall(
+        r'^\s+at ((?:PerfView(?:Extensibility)?|Microsoft\.Diagnostics|System|Commands)\.[\w.`+<>]+)\(',
+        text, re.M)
+    return {'exception_types': [kind for kind in kinds if re.search(r'\b' + kind + r'\b', text)],
+            'compiler_codes': sorted(set(re.findall(r'\berror (CS[0-9]{4})\b', text))),
+            'methods': sorted(set(methods))[:20]}
+
+
 class CpuProfile:
     def __init__(self, root, name, pid, seconds=90):
         self.root, self.name, self.pid = Path(root), name, pid
@@ -55,15 +70,10 @@ class CpuProfile:
                       self.root / (self.name + '-callers.json'))
 
     def record_export_error(self, raw):
-        messages = []
+        texts = []
         for name in ['stack-export.log', 'stack-symbols.log']:
             path = raw / name
-            if not path.exists():
-                continue
-            for line in path.read_text(errors='replace').splitlines():
-                if not re.search(r'error|exception|could not|failed|^\s+at [\w.]', line, re.I):
-                    continue
-                line = re.sub(r'([?&](?:access_)?token=)[^\s"<>]+', r'\1<redacted>', line, flags=re.I)
-                messages.append(line[:2000])
+            if path.exists():
+                texts.append(path.read_text(errors='replace'))
         (self.root / (self.name + '-export-error.json')).write_text(
-            json.dumps({'messages': messages[-20:]}, indent=2), encoding='utf-8')
+            json.dumps(error_summary('\n'.join(texts)), indent=2), encoding='utf-8')
