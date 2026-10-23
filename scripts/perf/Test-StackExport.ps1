@@ -1,4 +1,29 @@
 $ErrorActionPreference = 'Stop'
+
+function Test-MossOffsets([string]$Root) {
+    $callers = Get-Content "$Root/control-callers.json" -Raw | ConvertFrom-Json
+    $frames = @($callers.paths | ForEach-Object { $_.frames } | Sort-Object -Unique)
+    if (-not ($frames -match '^moss!\+0x[0-9a-f]+$')) { throw 'Moss instruction offsets were lost' }
+    if ($frames -contains 'moss!?') { throw 'Unresolved Moss frames still discard their addresses' }
+    $raw = Get-Content "$Root/control-cpu-instructions.json" -Raw | ConvertFrom-Json
+    $instructions = @{}
+    foreach ($entry in $raw.instructions) {
+        if ($entry.module -eq 'moss.dll') { $instructions[[long]$entry.offset] = $entry.samples }
+    }
+    $leaves = @{}
+    foreach ($path in $callers.paths) {
+        $leaf = [regex]::Match([string]$path.frames[0], '^moss!\+0x([0-9a-f]+)$')
+        if (-not $leaf.Success) { continue }
+        $offset = [Convert]::ToInt64($leaf.Groups[1].Value, 16)
+        $leaves[$offset] += $path.weight
+    }
+    if (-not $leaves.Count) { throw 'No native Moss leaf samples' }
+    foreach ($offset in $leaves.Keys) {
+        if ($leaves[$offset] -ne $instructions[$offset]) { throw 'Moss stack RVA differs from raw instruction attribution' }
+    }
+    Write-Host 'Original Moss DLL RVAs match exact-PID raw instruction samples.'
+}
+
 $root = Join-Path (Get-Location) 'build/stack-control'
 [void](New-Item -ItemType Directory -Force $root)
 $exe = Join-Path $root 'mosh.exe'
@@ -30,11 +55,7 @@ try {
     & "$PSScriptRoot/Test-StackPaths.ps1" -XmlZip "$root/raw/control-cpu/raw/cpu.perfView.xml.zip" `
         -TargetId $worker.Id -PythonResult "$root/control-callers.json"
     if ($withMoss) {
-        $callers = Get-Content "$root/control-callers.json" -Raw | ConvertFrom-Json
-        $frames = @($callers.paths | ForEach-Object { $_.frames } | Sort-Object -Unique)
-        if (-not ($frames -match '^moss!\+0x[0-9a-f]+$')) { throw 'Moss instruction offsets were lost' }
-        if ($frames -contains 'moss!?') { throw 'Unresolved Moss frames still discard their addresses' }
-        Write-Host 'Original Moss DLL exposes module-relative instruction offsets.'
+        Test-MossOffsets $root
     }
 } finally {
     if (-not $worker.HasExited) { $worker.Kill(); $worker.WaitForExit() }
