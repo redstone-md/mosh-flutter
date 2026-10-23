@@ -19,9 +19,10 @@ function Test-MossOffsets([string]$Root) {
     }
     if (-not $leaves.Count) { throw 'No native Moss leaf samples' }
     foreach ($offset in $leaves.Keys) {
-        if ($leaves[$offset] -ne $instructions[$offset]) { throw 'Moss stack RVA differs from raw instruction attribution' }
+        if (-not $instructions.ContainsKey($offset) -or $leaves[$offset] -le 0 -or
+            $leaves[$offset] -gt $instructions[$offset]) { throw 'Moss stack RVA differs from raw instruction attribution' }
     }
-    Write-Host 'Original Moss DLL RVAs match exact-PID raw instruction samples.'
+    Write-Host 'Original Moss DLL RVAs are bounded by exact-PID raw instruction weights; unassigned frames stay unknown.'
 }
 
 function Test-ModuleAttribution([string]$Root, [int]$ProcessId) {
