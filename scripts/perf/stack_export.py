@@ -13,6 +13,9 @@ PROCESS = re.compile(r'^Process(?:32|64)?\s+\S+\s+\((\d+)\)(?:\s|$)')
 def frame_name(value):
     if PROCESS.match(value):
         return '[selected process]'
+    thread = re.match(r'^Thread \((\d+)\)', value)
+    if thread:
+        return '[thread ' + thread[1] + ']'
     if '!' in value:
         module, symbol = value.split('!', 1)
         return PureWindowsPath(module).name + '!' + symbol

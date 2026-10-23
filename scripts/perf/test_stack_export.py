@@ -8,12 +8,14 @@ FIXTURE = r'''<StackSource><Frames>
 <Frame ID="0">Process64 mosh (17) Args: sensitive-fixture-argument</Frame>
 <Frame ID="1">C:\fixture\mosh_core.dll!hot_function</Frame>
 <Frame ID="2">Process64 mosh (42) Args: foreign-private-argument</Frame>
+<Frame ID="3">Thread (19) CPU=42ms (sensitive-fixture-thread-name)</Frame>
 </Frames><Stacks>
 <Stack ID="0" FrameID="0" CallerID="-1"/>
-<Stack ID="1" FrameID="1" CallerID="0"/>
+<Stack ID="1" FrameID="1" CallerID="5"/>
 <Stack ID="2" FrameID="2" CallerID="-1"/>
 <Stack ID="3" FrameID="1" CallerID="2"/>
 <Stack ID="4" FrameID="1" CallerID="-1"/>
+<Stack ID="5" FrameID="3" CallerID="0"/>
 </Stacks><Samples>
 <Sample StackID="1" Metric="2"/><Sample StackID="1"/>
 <Sample StackID="3" Metric="8"/><Sample StackID="4" Metric="4"/>
@@ -23,7 +25,7 @@ FIXTURE = r'''<StackSource><Frames>
 class StackExportTest(unittest.TestCase):
     def test_exact_pid_excludes_foreign_and_removes_metadata(self):
         paths, skipped = read_paths(ET.fromstring(FIXTURE), 17)
-        self.assertEqual(dict(paths), {('mosh_core.dll!hot_function', '[selected process]'): 3})
+        self.assertEqual(dict(paths), {('mosh_core.dll!hot_function', '[thread 19]', '[selected process]'): 3})
         self.assertEqual(dict(skipped), {'foreign': 8, 'without_process': 4})
 
     def test_empty_or_foreign_only_fails(self):
