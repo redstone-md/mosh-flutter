@@ -110,8 +110,18 @@ def powershell(script, *args):
                     '-File', str(SCRIPTS / script), *map(str, args)], check=True)
 
 
-def measure(pid, name, seconds=90):
+def check_window(pid, name, moment, minimized):
+    path = ROOT / (name + '-window-' + moment + '.json')
+    powershell('Open-ProfileChat.ps1', '-TargetProcessId', pid, '-Inspect', '-OutputFile', path)
+    state = json.loads(path.read_text(encoding='utf-8-sig'))
+    assert state['pid'] == pid and state['visible'], 'Expected the owned visible HWND'
+    assert state['iconic'] == minimized, 'Unexpected minimized state'
+
+
+def measure(pid, name, minimized, seconds=90):
+    check_window(pid, name, 'before', minimized)
     CpuProfile(ROOT, name, pid, seconds).finish()
+    check_window(pid, name, 'after', minimized)
     samples = json.loads((ROOT / (name + '-process-samples.json')).read_text(encoding='utf-8-sig'))
     network = json.loads((ROOT / (name + '-network-summary.json')).read_text(encoding='utf-8-sig'))
     assert network['complete'] and network['control_validated'], 'Incomplete network capture'
@@ -127,12 +137,10 @@ def measure(pid, name, seconds=90):
     return result
 
 
-def warm(name, poll=None):
+def warm(name):
     started = time.monotonic()
     tick = 0
     while time.monotonic() - started < 480:
-        if poll:
-            poll(tick)
         if tick % 60 == 0:
             print(name, 'warmup', tick // 60, flush=True)
         time.sleep(1)
@@ -160,11 +168,11 @@ def gui_profile(data):
         powershell('Open-ProfileChat.ps1', '-TargetProcessId', app.pid,
                    '-OutputFile', ROOT / 'app-ui.json')
         warm('GUI')
-        foreground = measure(app.pid, 'gui-foreground', seconds=90)
+        visible = measure(app.pid, 'gui-visible', minimized=False)
         powershell('Open-ProfileChat.ps1', '-TargetProcessId', app.pid, '-Hide')
         time.sleep(5)
-        hidden = measure(app.pid, 'gui-hidden', seconds=90)
-        return {'foreground': foreground, 'hidden': hidden}
+        hidden = measure(app.pid, 'gui-hidden', minimized=True)
+        return {'visible': visible, 'hidden': hidden}
     finally:
         # This is our disposable fixture process on an ephemeral runner.
         subprocess.run(['taskkill', '/PID', str(app.pid), '/T', '/F'], check=False,
@@ -208,7 +216,7 @@ def main():
     gui = gui_profile(data)
     inventory(data)
     (ROOT / 'comparison.json').write_text(json.dumps({'gui': gui}, indent=2))
-    print('COMPLETE: foreground, minimized and restored inventory', flush=True)
+    print('COMPLETE: visible, minimized and restored inventory', flush=True)
 
 
 if __name__ == '__main__':

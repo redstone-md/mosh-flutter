@@ -15,9 +15,11 @@ Moss, persisted contracts or generated bridge.
    exact inventories and no outstanding invitations.
 2. Open a saved offline DM through the shipping GUI and verify its composer
    through the existing MSAA driver. Warm for eight minutes. Measure ninety
-   seconds foreground, then ninety seconds minimized, recording process CPU,
+   seconds visible, then ninety seconds minimized, recording process CPU,
    RSS, exact-PID instructions, control-validated network bytes and caller
-   stacks. Record hardware and binary fingerprints.
+   stacks. Record hardware and binary fingerprints. Check and record HWND
+   visibility/minimized state immediately before and after each capture;
+   record focus without requiring it, since collector consoles can take it.
 3. Reuse the corrected CPU collector. Export caller stacks using pinned
    PerfView v4.0.0 and matching native symbols. Independently retain only
    stacks with the selected PID, remove process arguments and module paths,

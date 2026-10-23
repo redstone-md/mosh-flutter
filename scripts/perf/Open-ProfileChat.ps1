@@ -1,4 +1,4 @@
-param([int]$TargetProcessId, [string]$OutputFile, [switch]$Hide)
+param([int]$TargetProcessId, [string]$OutputFile, [switch]$Hide, [switch]$Inspect)
 $ErrorActionPreference = 'Stop'
 Add-Type -Path (Join-Path $PSScriptRoot 'ProfileAccessibility.cs') -ReferencedAssemblies Accessibility
 Add-Type @'
@@ -7,6 +7,8 @@ using System.Runtime.InteropServices;
 public static class ProfileWindow {
  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hwnd, int command);
  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hwnd);
+ [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
+ [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
  [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr hwnd, int x, int y, int w, int h, bool repaint);
  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
@@ -21,6 +23,14 @@ while ($process.MainWindowHandle -eq [IntPtr]::Zero) {
     $process.Refresh()
 }
 $hwnd = $process.MainWindowHandle
+if ($Inspect) {
+    @{ pid = $TargetProcessId; iconic = [ProfileWindow]::IsIconic($hwnd)
+       visible = [ProfileWindow]::IsWindowVisible($hwnd)
+       foreground = [ProfileWindow]::GetForegroundWindow() -eq $hwnd
+       utc = [DateTime]::UtcNow.ToString('o')
+    } | ConvertTo-Json | Set-Content -Encoding UTF8 $OutputFile
+    exit 0
+}
 if ($Hide) {
     [ProfileWindow]::ShowWindow($hwnd, 6) | Out-Null
     if (-not [ProfileWindow]::IsIconic($hwnd)) { throw 'Mosh window did not minimize' }

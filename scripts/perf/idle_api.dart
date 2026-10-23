@@ -81,35 +81,37 @@ Future<Map<String, Object?>> command(Map<String, dynamic> input) async {
       await seed(input['channel'] as String);
       return {'seeded': true};
     case 'read':
-      await names.personalNames();
-      final sessions = await dm.listSessions();
-      final groupList = await groups.list();
-      final channelList = await channels.list();
-      if (input['session'] case final String session) {
-        await dm.pollSession(sessionId: session);
-      }
-      return {
-        'dm': sessions.sessions.length,
-        'groups': groupList.groups.length,
-        'channels': channelList.channels.length
-      };
-    case 'plus':
-      await plus.snapshot();
-      return {'ok': true};
+      return readLists();
     case 'inventory':
-      final inventory = await dm.listSessions();
-      return {
-        'pending_invitations': (await dm.listPendingInvites()).length,
-        'bodies': [
-          for (final session in inventory.sessions)
-            for (final message in session.messages) message.body,
-        ]..sort(),
-      };
+      return messageInventory();
     case 'exit':
       exit(0);
     default:
       throw ArgumentError('Unknown profiling operation');
   }
+}
+
+Future<Map<String, Object?>> readLists() async {
+  await names.personalNames();
+  final sessions = await dm.listSessions();
+  final groupList = await groups.list();
+  final channelList = await channels.list();
+  return {
+    'dm': sessions.sessions.length,
+    'groups': groupList.groups.length,
+    'channels': channelList.channels.length,
+  };
+}
+
+Future<Map<String, Object?>> messageInventory() async {
+  final inventory = await dm.listSessions();
+  return {
+    'pending_invitations': (await dm.listPendingInvites()).length,
+    'bodies': [
+      for (final session in inventory.sessions)
+        for (final message in session.messages) message.body,
+    ]..sort(),
+  };
 }
 
 Map<String, Object?> summarize(SessionSnapshot snapshot) => {
