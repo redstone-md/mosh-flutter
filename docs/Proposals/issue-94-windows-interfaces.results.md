@@ -101,8 +101,8 @@ These are separate short component captures, not a statistical optimization
 comparison, a matched owner workload or whole-application A/B. CPU model is
 not recorded in the probe artifact; timings cannot be compared across hosts.
 Go sampled weights are distinct from the owner's process CPU counters. The
-probe does not measure or explain public-network bandwidth. Production source
-is unchanged in this investigation; issue 94 remains open.
+probe does not measure or explain public-network bandwidth. The attribution probe itself made no production-source change.
+The implementation and its matched result are recorded below; issue 94 remains open.
 
 
 ## Implemented boundary
