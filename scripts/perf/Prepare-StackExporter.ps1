@@ -12,5 +12,13 @@ $support = Split-Path $trace[0].FullName
 $references = @($Tool, $trace[0].FullName,
     (Join-Path $support 'Microsoft.Diagnostics.FastSerialization.dll'),
     'System.dll', 'System.Core.dll', 'System.Xml.dll')
-Add-Type -Path (Join-Path $PSScriptRoot 'ExportCpuStacks.cs') -ReferencedAssemblies $references `
-    -OutputAssembly $destination -OutputType Library
+$compilerDirectory = [Runtime.InteropServices.RuntimeEnvironment]::GetRuntimeDirectory()
+$facade = Join-Path $compilerDirectory 'Facades/netstandard.dll'
+if (Test-Path $facade) { $references += $facade }
+# csc accepts an executable assembly reference; PowerShell 5 Add-Type treats
+# the PerfView.exe path as an assembly name and rejects it before compilation.
+$compileArguments = @('/nologo', '/target:library', "/out:$destination")
+$compileArguments += @($references | ForEach-Object { "/reference:$_" })
+$compileArguments += Join-Path $PSScriptRoot 'ExportCpuStacks.cs'
+& (Join-Path $compilerDirectory 'csc.exe') @compileArguments
+if ($LASTEXITCODE -ne 0) { throw 'PerfView extension compilation failed' }
