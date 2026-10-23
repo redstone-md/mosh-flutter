@@ -127,6 +127,15 @@ existing `cpu-20261023-000926` directory under LocalAppData/Mosh/Diagnostics;
 if moved, it asks for the folder containing `binary-manifest.json` and `raw/`.
 Send only the resulting `mosh-callers-report.zip` at the printed path.
 
+The owner completed this export as `callers-20261023-145157`, SHA-256
+`0b1ca8139a75db425655ff5984a908be6a05824d28196fa0adbcb5c3623d952b`.
+Identity, selected/foreign weights and broken-stack weight match the original.
+The module-relative frames resolve to Go runtime functions, but all adapter
+paths still stop at the Go system-stack transition. The calling goroutine is
+absent from this trace. No further owner export is requested; a standalone
+Windows Go profile tests the candidates using unchanged pinned Moss source.
+See [interface attribution](issue-94-windows-interfaces.results.md).
+
 The first matched runtime change from that attribution is recorded in the
 linked roster-prefix results. The owner also exposed download-mark and mixed
 PowerShell launcher defects; the actual-CMD regression and fixes pass in

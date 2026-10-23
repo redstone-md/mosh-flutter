@@ -164,9 +164,15 @@ Moss range, restoring all temporary in-memory metadata. That extension is
 excluded from the verified nine-file portable bundle. Actual-CMD, PowerShell 7,
 download-mark, original-trace and two-JSON checks also pass.
 
-The original owner ETL can now be reprocessed to identify the available Go
-ancestors using its existing binary-specific function map. This has not yet
-been done by the owner; broken/unassigned stacks may still prevent attribution.
+The owner supplied the RVA-preserving re-export on October 23. It matches the
+original identity and conserves the same 9,924 selected weights; 1,154 foreign
+weights are still excluded. Its 680 distinct Moss RVAs resolve against the
+original binary's Go 1.25.9 function ranges, with bounds checks; C glue outside
+those ranges stays unnamed. All 921 adapter-enumeration weights end in
+`runtime.asmstdcall -> runtime.asmcgocall_landingpad -> runtime.asmcgocall -> BROKEN`.
+The exporter works, but Windows unwinding does not recover the calling Go
+goroutine across this stack switch. Reprocessing again cannot supply the
+missing caller. See the [interface-attribution investigation](issue-94-windows-interfaces.results.md).
 
 Issue 94, residual Moss/interface costs, public-network behavior and Android
 background-call/battery acceptance remain open. The next owner comparison
