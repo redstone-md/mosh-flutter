@@ -21,7 +21,7 @@ thread_local! {
 #[cfg(test)]
 mod prefix_tests;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct Authorization {
     version: u32,
     parent: Option<String>,
@@ -127,11 +127,7 @@ impl DeviceRoster {
 
     pub(crate) fn extends(&self, base: &Self) -> Result<bool> {
         self.devices()?;
-        if self.entries.len() < base.entries.len() {
-            return Ok(false);
-        }
-        let prefix = Self::from_entries(self.entries[..base.entries.len()].to_vec());
-        Ok(prefix.digest()? == base.digest()?)
+        Ok(self.entries.starts_with(&base.entries))
     }
 
     pub(crate) fn genesis(device: DeviceDescriptor, key: &SigningKey) -> Result<Self> {
