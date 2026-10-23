@@ -7,6 +7,7 @@ $ErrorActionPreference = 'Stop'
 <Frame ID="1">C:\private-module\mosh_core.dll!hot_function</Frame>
 <Frame ID="2">Process64 mosh (42) Args: foreign-private-argument</Frame>
 <Frame ID="3">Thread (9) CPU=1ms (private-thread-name)</Frame>
+<Frame ID="4">C:\private-module\mosh_core.dll!Hot_function</Frame>
 </Frames><Stacks>
 <Stack ID="0" FrameID="0" CallerID="-1"/>
 <Stack ID="1" FrameID="1" CallerID="0"/>
@@ -14,14 +15,17 @@ $ErrorActionPreference = 'Stop'
 <Stack ID="3" FrameID="1" CallerID="2"/>
 <Stack ID="4" FrameID="1" CallerID="-1"/>
 <Stack ID="5" FrameID="3" CallerID="0"/>
+<Stack ID="6" FrameID="4" CallerID="0"/>
 </Stacks><Samples>
 <Sample StackID="1" Metric="2"/><Sample StackID="1"/>
 <Sample StackID="3" Metric="8"/><Sample StackID="4" Metric="4"/>
 <Sample StackID="5"/>
+<Sample StackID="6" Metric="5"/>
 </Samples></StackSource>
 '@
 $result = Read-SelectedStackPaths $fixture 17
-if ($result.sampled_weight -ne 4 -or $result.skipped_weight.foreign -ne 8 -or $result.skipped_weight.without_process -ne 4) { throw 'Selected PID conservation failed' }
+if ($result.sampled_weight -ne 9 -or $result.skipped_weight.foreign -ne 8 -or $result.skipped_weight.without_process -ne 4) { throw 'Selected PID conservation failed' }
+if ($result.paths.Count -ne 3) { throw 'Case-sensitive native symbols were merged' }
 $encoded = $result | ConvertTo-Json -Depth 8
 if ($encoded -match 'private-|Args:|CPU=|Process64|C:\\') { throw 'Private metadata escaped' }
 if ($encoded -notmatch '\[thread 9\]' -or $encoded -notmatch 'mosh_core.dll!hot_function') { throw 'Useful caller frames lost' }

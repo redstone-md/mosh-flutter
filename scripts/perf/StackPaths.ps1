@@ -32,7 +32,8 @@ function Read-StackPath($Sample, $Frames, $Stacks) {
 }
 
 function Read-SelectedStackPaths([xml]$Document, [int]$TargetId) {
-    $frames = @{}; $stacks = @{}; $paths = @{}; $skipped = @{}
+    $frames = @{}; $stacks = @{}; $skipped = @{}
+    $paths = [Collections.Hashtable]::new([StringComparer]::Ordinal)
     foreach ($frame in $Document.SelectNodes('//Frame')) { $frames[[int]$frame.ID] = $frame.InnerText }
     foreach ($stack in $Document.SelectNodes('//Stack')) { $stacks[[int]$stack.ID] = $stack }
     foreach ($sample in $Document.SelectNodes('//Sample')) {
