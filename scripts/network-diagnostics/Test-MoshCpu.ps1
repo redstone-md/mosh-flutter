@@ -10,17 +10,40 @@ $options = [CodeDom.Compiler.CompilerParameters]::new()
 $options.GenerateExecutable = $true
 $options.OutputAssembly = $exe
 $options.CompilerOptions = '/platform:x64'
-$result = $compiler.CompileAssemblyFromSource($options, 'using System; using System.Runtime.InteropServices; public class CpuControl { [DllImport("kernel32.dll")] static extern bool QueryPerformanceCounter(out long value); public static void Main() { long value; while(true) QueryPerformanceCounter(out value); } }')
+[void]$options.ReferencedAssemblies.Add('System.dll')
+$result = $compiler.CompileAssemblyFromSource($options, @'
+using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+public class CpuControl {
+    [DllImport("kernel32.dll")] static extern bool QueryPerformanceCounter(out long value);
+    public static void Main(string[] args) {
+        var clock = Stopwatch.StartNew();
+        long value;
+        while (true) {
+            long end = clock.ElapsedMilliseconds + 10;
+            do { QueryPerformanceCounter(out value); } while (clock.ElapsedMilliseconds < end);
+            if (args.Length == 0) System.Threading.Thread.Sleep(15);
+        }
+    }
+}
+'@)
 if ($result.Errors.HasErrors) { throw ($result.Errors | Out-String) }
 $compiler.Dispose()
 $child = Start-Process $exe -PassThru
+$noise = Start-Process $exe -ArgumentList 'noise' -PassThru
 try {
     & "$PSHOME/powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/Measure-MoshCpu.ps1" -TargetProcessId $child.Id -DurationSeconds 12 -OutputDirectory $root
     if ($LASTEXITCODE -ne 0) { throw 'CPU collector failed' }
     $cpu = Get-Content (Join-Path $root 'cpu-summary.json') -Raw | ConvertFrom-Json
-    if ($cpu.sampled_weight -lt 2000) { throw 'Busy process samples missing' }
+    if ($cpu.sampled_weight -lt 1000) { throw 'Busy process samples missing' }
     $instructions = Get-Content (Join-Path $root 'cpu-instructions.json') -Raw | ConvertFrom-Json
     if (($instructions.instructions | Measure-Object samples -Sum).Sum -lt 100) { throw 'Mapped instruction samples missing' }
+    $rawWeight = [long]$instructions.kernel_samples + [long]$instructions.unmapped_user_samples +
+        [long]($instructions.instructions | Measure-Object samples -Sum).Sum
+    if ($cpu.sampled_weight -ne $rawWeight) { throw 'CPU summary must reconcile with the exact PID, excluding busier same-name processes' }
+    $child.Refresh(); $noise.Refresh()
+    if ($noise.TotalProcessorTime -le $child.TotalProcessorTime) { throw 'Same-name control must be busier than the selected target' }
     $nativeWeight = ($cpu.modules | Where-Object { $_.module -in @('ntdll','kernelbase','kernel32','clr') } | Measure-Object weight -Sum).Sum
     if (($instructions.instructions | Measure-Object samples -Sum).Sum -lt 0.9 * $nativeWeight) { throw 'Native module and instruction attribution disagree' }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -40,5 +63,7 @@ try {
     }
     Write-Host "CPU toolkit verified: $root"
 } finally {
-    if (-not $child.HasExited) { $child.Kill(); $child.WaitForExit() }
+    foreach ($process in @($child, $noise)) {
+        if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() }
+    }
 }
