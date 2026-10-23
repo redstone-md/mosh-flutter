@@ -204,7 +204,7 @@ def main():
     # Match path_provider_windows' company/product convention for this EXE.
     data = Path(os.environ['APPDATA']) / 'app.mosh' / 'mosh'
     manifest = {'fixture': {'offline_dm': 8, 'groups': 2, 'channels': 1},
-                'runtime_source': 'cd6df31b352a4df40c33c88009d52b866c5451d7',
+                'runtime_source': os.environ['IDLE_RUNTIME_SOURCE'],
                 'warmup_seconds': 480, 'window_seconds': 90,
                 'hashes': {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                            for p in [APP / 'mosh.exe', APP / 'mosh_core.dll',

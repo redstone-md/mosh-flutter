@@ -83,6 +83,10 @@ jobs:
           rust: 'false'
           moss: none
       - uses: ./.github/actions/install-profile-app
+        with:
+          run-id: '39997458526'
+          installer-sha: 9f0af67e52feae81feef7d46866a063eef7b8e92e2028b7e5d9cad1bd3152536
+          runtime-commit: c1a612571bc353bafc49ff0508ebc9b2a71ba8d2
       - name: Validate and compile the measurement client
         shell: powershell
         run: |
