@@ -125,11 +125,17 @@ reviews find no actionable runtime issue.
 passes all thirteen active jobs: Windows/macOS Rust, real DM/device-link flows,
 Flutter, bridge drift, Windows integration, Android debug, native calls on
 three desktop platforms and desktop packaging.
-The separate configured installer is still compiling at publication in
+The separate configured installer passes in
 [run 39901883481](https://github.com/redstone-md/mosh-flutter/actions/runs/39901883481).
-Its workflow uses the committed release profile and preserves matching native
-symbols; artifact checksums, configuration and DLL/PDB identity must be checked
-before delivering that installer.
+The [verified Windows installer](https://github.com/redstone-md/mosh-flutter/actions/runs/39901883481/artifacts/12479533658)
+is 55,798,560 bytes, SHA-256
+`05e8942f57e3834c8ae129e657da7ddd24509cb5311923d668ba33f0bc7bd786`.
+Its sidecar and production PLUS manifest verify; all five extracted binaries
+match the original-symbol manifest. The core DLL and PDB share GUID
+`{C30345B7-DA6B-4AA3-9D52-CB071EC5AABA}`, age 1. The parallel-codegen override
+is skipped, preserving the committed release profile. Moss remains source
+`eb79f38`; its DLL hash changes because the embedded parent build revision
+changes, not because Moss source is edited.
 
 The diagnostic launcher defects are separate: the CMD entry scopes a clean
 Windows PowerShell module path, preserves its exit code and removes the
@@ -139,6 +145,28 @@ passes through the actual CMD entry with PowerShell 7 module paths and a
 blocked helper, checks unchanged helper content and original ETL, and
 conserves the selected PID's weights in the two-JSON report. These tools
 remain on the auxiliary `test/windows-idle-current` branch.
+
+The final [exporter run at `917ad7a9`](https://github.com/redstone-md/mosh-flutter/actions/runs/39906509936)
+also retains RVAs for unresolved Go frames associated with the recorded Moss
+module. PerfView's `ETLDataFile.CPUStacks()` wrapper does not pass its CLI
+unknown-address setting to the stack source. The helper uses the documented
+frame/code-address mapping, requires the exact recorded module loaded in the
+selected process and bounds-checks its address before emitting an RVA.
+Unassigned, conflicting and known symbolic frames retain their original names.
+
+A twelve-second control invokes only `Moss_Version`/`Moss_Free` in the original
+DLL, without network nodes. Each resolved leaf offset exists in the same
+trace's raw instruction samples; its positive weight cannot exceed the raw
+weight because unassigned frames intentionally remain unknown. Both readers
+still conserve total selected-PID weight. A separate CI-only extension checks
+unassigned and explicitly different modules against an overlapping historical
+Moss range, restoring all temporary in-memory metadata. That extension is
+excluded from the verified nine-file portable bundle. Actual-CMD, PowerShell 7,
+download-mark, original-trace and two-JSON checks also pass.
+
+The original owner ETL can now be reprocessed to identify the available Go
+ancestors using its existing binary-specific function map. This has not yet
+been done by the owner; broken/unassigned stacks may still prevent attribution.
 
 Issue 94, residual Moss/interface costs, public-network behavior and Android
 background-call/battery acceptance remain open. The next owner comparison

@@ -112,12 +112,15 @@ SHA-256 and checks that its report contains exactly `callers.json` and
 `identity.json`. That earlier test did not cover the CMD entry with inherited
 PowerShell 7 module paths or a downloaded DLL's blocking mark.
 
-The [corrected portable bundle](https://github.com/redstone-md/mosh-flutter/actions/runs/39901808537/artifacts/12478912684)
-at `69d5717f` is 36,017,422 bytes and contains nine expected files. Its SHA-256 is
-`84784668aeda5878fb3c23d8053dcfe0992a4752561b9d3187e7c411a388157c`.
+The [corrected portable bundle](https://github.com/redstone-md/mosh-flutter/actions/runs/39906509936/artifacts/12480608428)
+at `917ad7a9` is 36,018,427 bytes and contains nine expected files. Its SHA-256 is
+`ff61f807d36544130e67da5b6f71ef05ee9c5b609a8cd279e744cb86888936cf`.
 The sidecar verifies, scripts match source after Windows line-ending
 normalization, and embedded PDB/PerfView checksums match the originals.
 The actual CMD entry now passes with both owner failure conditions present.
+The helper also retains module-relative addresses for unresolved frames with
+a recorded Moss module association. Unassigned or conflicting module frames
+remain unknown. The CI-only conflict-test extension is absent from the bundle.
 Extract its inner `mosh-existing-cpu-export.zip` and run
 `Start-Existing-CPU.cmd` on the owner's Windows computer. It defaults to the
 existing `cpu-20261023-000926` directory under LocalAppData/Mosh/Diagnostics;
@@ -127,6 +130,6 @@ Send only the resulting `mosh-callers-report.zip` at the printed path.
 The first matched runtime change from that attribution is recorded in the
 linked roster-prefix results. The owner also exposed download-mark and mixed
 PowerShell launcher defects; the actual-CMD regression and fixes pass in
-[run 39901808537](https://github.com/redstone-md/mosh-flutter/actions/runs/39901808537)
+[run 39906509936](https://github.com/redstone-md/mosh-flutter/actions/runs/39906509936)
 on the auxiliary measurement branch. Issue 94 and Android background-call/battery acceptance
 remain open. No merge or release is included.
