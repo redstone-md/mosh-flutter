@@ -63,7 +63,7 @@ class CpuProfile:
             if not path.exists():
                 continue
             for line in path.read_text(errors='replace').splitlines():
-                if not re.search(r'error|exception|could not|failed', line, re.I):
+                if not re.search(r'error|exception|could not|failed|^\s+at [\w.]', line, re.I):
                     continue
                 line = re.sub(r'([?&](?:access_)?token=)[^\s"<>]+', r'\1<redacted>', line, flags=re.I)
                 messages.append(line[:2000])
