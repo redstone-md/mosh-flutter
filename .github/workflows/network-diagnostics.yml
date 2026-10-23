@@ -3,6 +3,10 @@ name: Windows network diagnostics
 on:
   workflow_dispatch:
     inputs:
+      stack_control:
+        description: Validate caller export on a twelve-second busy owned process
+        type: boolean
+        default: false
       profile_windows:
         description: Profile the exact configured release with a disposable full-application fixture
         type: boolean
@@ -17,6 +21,26 @@ permissions:
   actions: read
 
 jobs:
+  stack-control:
+    if: github.event_name == 'workflow_dispatch' && inputs.stack_control
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check selected-PID stack parsing and real CPU export
+        shell: powershell
+        run: |
+          python -m unittest discover -s scripts/perf -p 'test_*.py'
+          if ($LASTEXITCODE -ne 0) { throw 'Stack tests failed' }
+          scripts/perf/Test-StackExport.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-stack-control
+          path: build/stack-control/*.json
+          if-no-files-found: error
+          retention-days: 7
+
   release-idle-profile:
     if: github.event_name == 'workflow_dispatch' && inputs.profile_windows
     runs-on: windows-latest
@@ -62,6 +86,7 @@ jobs:
           retention-days: 7
 
   diagnostics:
+    if: github.event_name != 'workflow_dispatch' || !inputs.stack_control
     runs-on: windows-latest
     timeout-minutes: 15
     steps:

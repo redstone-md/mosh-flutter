@@ -1,6 +1,7 @@
 """Exact-PID collector and sanitized caller stacks for a disposable CI fixture."""
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 
@@ -42,11 +43,29 @@ class CpuProfile:
         value = json.loads(ids)
         if (value if isinstance(value, list) else [value]) != [self.pid]:
             raise RuntimeError('Expected exactly the owned Mosh GUI before stack export')
-        with (raw / 'stack-export.log').open('w') as log:
-            subprocess.run([
-                str(tool), '/AcceptEula', '/NoGui',
-                '/LogFile:' + str(raw / 'stack-symbols.log'),
-                'userCommand', 'SaveCPUStacks', str(trace), 'mosh'],
-                stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
+        try:
+            with (raw / 'stack-export.log').open('w') as log:
+                subprocess.run([
+                    str(tool), '/AcceptEula', '/NoGui',
+                    '/LogFile:' + str(raw / 'stack-symbols.log'),
+                    'userCommand', 'SaveCPUStacks', str(trace), 'mosh'],
+                    stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            self.record_export_error(raw)
+            raise
         export_stacks(raw / 'cpu.perfView.xml.zip', self.pid,
                       self.root / (self.name + '-callers.json'))
+
+    def record_export_error(self, raw):
+        messages = []
+        for name in ['stack-export.log', 'stack-symbols.log']:
+            path = raw / name
+            if not path.exists():
+                continue
+            for line in path.read_text(errors='replace').splitlines():
+                if not re.search(r'error|exception|could not|failed', line, re.I):
+                    continue
+                line = re.sub(r'([?&](?:access_)?token=)[^\s"<>]+', r'\1<redacted>', line, flags=re.I)
+                messages.append(line[:2000])
+        (self.root / (self.name + '-export-error.json')).write_text(
+            json.dumps({'messages': messages[-20:]}, indent=2), encoding='utf-8')
