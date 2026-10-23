@@ -171,6 +171,8 @@ also do not identify a caller to change safely.
 
 The confirmed fix in this increment is exact-PID diagnostics. Actual residual
 Windows CPU and public-mesh traffic remain unresolved; more caller evidence
-is required before another runtime change. Whole-Windows idle and Android
-background-call/battery acceptance stay open in issue 94. No merge or release
-is included.
+is required before another runtime change. The subsequent
+[full Windows GUI capture](issue-94-windows-callers.results.md) resolves useful
+Rust callers but does not reproduce the owner's residual load. Whole-Windows
+idle and Android background-call/battery acceptance stay open in issue 94.
+No merge or release is included.
