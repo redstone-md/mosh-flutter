@@ -35,20 +35,18 @@ class CpuProfile:
         raw = self.output / 'raw'
         tool = raw / 'tools' / 'PerfView.exe'
         trace = raw / 'cpu.etl'
-        # SaveCPUStacks selects by name. Validate the one disposable GUI, then
-        # independently retain only exported stacks carrying its exact PID.
-        ids = subprocess.check_output([
-            'powershell.exe', '-NoProfile', '-Command',
-            '@(Get-Process -Name mosh).Id | ConvertTo-Json -Compress'], text=True)
-        value = json.loads(ids)
-        if (value if isinstance(value, list) else [value]) != [self.pid]:
-            raise RuntimeError('Expected exactly the owned Mosh GUI before stack export')
+        prepare = Path(__file__).resolve().parent / 'Prepare-StackExporter.ps1'
         try:
             with (raw / 'stack-export.log').open('w') as log:
                 subprocess.run([
+                    'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                    '-File', str(prepare), '-Tool', str(tool)],
+                    stdout=log, stderr=subprocess.STDOUT, check=True, timeout=60)
+                subprocess.run([
                     str(tool), '/AcceptEula', '/NoGui',
                     '/LogFile:' + str(raw / 'stack-symbols.log'),
-                    'userCommand', 'SaveCPUStacks', str(trace), 'mosh'],
+                    'userCommand', 'ProbeStacks.SaveExactCpuStacks', str(trace), str(self.pid),
+                    str(raw / 'cpu.perfView.xml.zip')],
                     stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
             self.record_export_error(raw)
