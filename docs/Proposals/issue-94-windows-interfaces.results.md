@@ -331,3 +331,7 @@ Changed or invalid signatures must retain their existing verification and
 rejection behavior. Such a memo does not reduce incoming wire traffic. No
 production crypto/announcement behavior has been changed by these probes;
 the previously authorized Moss-source exception covered interface enumeration.
+
+The user subsequently approved the memo. Its implementation, matched comparison
+and remaining limits are recorded in the
+[announcement verification follow-up](issue-94-announcement-verification.results.md).
