@@ -211,6 +211,9 @@ mod receipt_authorization;
 #[path = "state_tests/receipt_recovery.rs"]
 mod receipt_recovery;
 
+#[path = "state_tests/receipt_service.rs"]
+mod receipt_service;
+
 #[path = "state_tests/typing.rs"]
 mod typing;
 

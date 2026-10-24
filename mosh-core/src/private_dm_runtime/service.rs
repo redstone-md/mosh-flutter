@@ -12,7 +12,7 @@ impl PrivateDmRuntime {
     }
 
     /// Take in every frame that arrived, then give each session its tick.
-    /// Called on every runtime entry point and by [`Self::service`].
+    /// Used by commands that need maintenance and by [`Self::service`].
     pub(super) fn drain_inbound(&mut self) {
         self.drain_inbound_at(now_ms());
     }

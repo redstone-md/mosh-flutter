@@ -47,6 +47,11 @@ With the toggle on it receipts every counterpart message not yet receipted
 (a per-session in-memory id set stops re-sends while the process lives). With
 the toggle off it is a full no-op — no frame, no event.
 
+The disabled command returns before receiving frames or running maintenance.
+When enabled, it receives incoming updates, checks the selected session's access
+and applies its deletions before sending receipts. It does not tick other chats;
+the existing background service continues their timers and outgoing queues.
+
 File and voice receipts use the attachment id from the encrypted manifest,
 which both peers share. Their local history message ids can differ. The sender
 maps that id to its own message row and persists the read flag with the existing

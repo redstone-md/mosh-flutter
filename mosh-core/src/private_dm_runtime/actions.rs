@@ -43,11 +43,13 @@ impl PrivateDmRuntime {
     /// by the symmetry rule a user who does not send receipts also ignores
     /// the ones addressed to it.
     pub fn mark_viewed(&mut self, session_id: &str) -> Result<(), PrivateDmRuntimeError> {
-        self.drain_inbound();
         if !self.read_receipts_enabled() {
             return Ok(());
         }
+        self.receive_inbound();
         let session = self.session_mut(session_id)?;
+        session.ensure_device_authorized()?;
+        session.apply_deletions()?;
         session.mark_viewed();
         Ok(())
     }
