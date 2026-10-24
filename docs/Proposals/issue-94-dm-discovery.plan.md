@@ -1,8 +1,10 @@
 # Issue 94: discovery for DMs with known counterparts
 
 Status: approved on 2026-10-24, including the Moss-source exception and additive
-public Go/C contract. Implementation and verification are in progress; no
-merge, release or owner acceptance is claimed.
+public Go/C contract. Implementation, native control, Windows packaging/GUI
+measurement and runtime CI are verified in the
+[results](issue-94-dm-discovery.results.md). Owner CPU/network acceptance remains
+open; no merge or release is claimed.
 
 ## Evidence and intended result
 
