@@ -168,7 +168,7 @@ impl DeviceRoster {
             let key = self.authority(index, entry, &devices)?;
             let signature = hex::decode(&entry.signature).map_err(|_| invalid())?;
             let signature = Signature::from_slice(&signature).map_err(|_| invalid())?;
-            key.verify_strict(&entry.bytes()?, &signature)
+            crate::signature_verification::verify_key(&key, &signature, &entry.bytes()?)
                 .map_err(|_| invalid())?;
             if entry.version == REMOVAL_VERSION {
                 if entry.signer == entry.device.device_id || !devices.contains(&entry.device) {

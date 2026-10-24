@@ -39,3 +39,5 @@ mod identity_advertisement_tests;
 mod identity_session;
 #[cfg(test)]
 mod local_claim_tests;
+#[cfg(test)]
+mod verification_tests;

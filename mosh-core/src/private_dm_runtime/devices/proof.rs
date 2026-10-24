@@ -254,8 +254,6 @@ impl DevicePacket {
 pub(super) fn verify(key: &str, signature: &str, bytes: &[u8]) -> Result<()> {
     let signature = hex::decode(signature).map_err(|_| invalid())?;
     let signature = Signature::from_slice(&signature).map_err(|_| invalid())?;
-    public_key(key)
-        .map_err(|_| invalid())?
-        .verify_strict(bytes, &signature)
-        .map_err(|_| invalid())
+    let key = public_key(key).map_err(|_| invalid())?;
+    crate::signature_verification::verify_key(&key, &signature, bytes).map_err(|_| invalid())
 }

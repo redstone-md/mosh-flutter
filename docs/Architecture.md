@@ -269,6 +269,12 @@ services recover missing deletion pages without advancing MLS application
 ratchets. Tombstones also guard history/outbox writes and queue app-owned cache
 cleanup after the last reference. See [ADR 0040](ADR/0040-message-deletion.md).
 
+`signature_verification` shares one bounded cache of successful cryptographic
+facts across message proofs, device rosters and DM identity claims. Entries
+contain only fixed-size digests of the exact key, signature and signed input,
+or the complete account certificate. Current membership, revocation and MLS
+signer checks remain with their callers and run independently of cache hits.
+
 ## Device linking and recovery
 
 `DeviceLinkController` is shared by setup and Devices settings. Its state keeps
