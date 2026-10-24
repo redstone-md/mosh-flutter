@@ -20,7 +20,20 @@ $record = [pscustomobject]@{
 $event = Convert-MoshNetworkEvent $record $schema
 Assert-MoshDiagnostic ($event.process_id -eq 987) 'Use payload PID, not the kernel/header PID'
 $totals = New-MoshNetworkTotals
-Add-MoshNetworkEvent $totals $event $record.TimeCreated.ToUniversalTime()
+$startedAt = $record.TimeCreated.ToUniversalTime()
+$beforeWindow = $event.Clone()
+$beforeWindow.timestamp = $startedAt.AddTicks(-1)
+$beforeWindow.remote_key = 'pre-window-only'
+Add-MoshNetworkEvent $totals $beforeWindow $startedAt
+$empty = Export-MoshNetworkTotals $totals
+Assert-MoshDiagnostic ($empty.event_count -eq 0) 'Exclude traffic before the measurement starts'
+Assert-MoshDiagnostic ($empty.reported_bytes.Count -eq 0) 'Pre-window traffic must not inflate byte totals'
+Assert-MoshDiagnostic ($empty.seconds.Count -eq 0) 'Pre-window traffic must not create negative buckets'
+Assert-MoshDiagnostic ($empty.peers.Count -eq 0) 'Pre-window traffic must not create peer aliases'
+Add-MoshNetworkEvent $totals $event $startedAt
+$boundary = Export-MoshNetworkTotals $totals
+Assert-MoshDiagnostic ($boundary.event_count -eq 1) 'Include traffic exactly at the measurement start'
+Assert-MoshDiagnostic ($boundary.seconds[0].second -eq 0) 'The start boundary belongs in second zero'
 $summary = Export-MoshNetworkTotals $totals | ConvertTo-Json -Depth 8
 Assert-MoshDiagnostic ($totals.bytes['udp_send_external'] -eq 128) 'Count the event size once'
 Assert-MoshDiagnostic ($summary -notmatch '1\.2\.3\.4|67305985|remote_key') 'Exported peers must be anonymous'
