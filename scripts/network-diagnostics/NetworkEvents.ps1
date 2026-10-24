@@ -55,6 +55,7 @@ function New-MoshNetworkTotals {
 
 # Keep endpoint values in memory; export only ordinal peer aliases and byte totals.
 function Add-MoshNetworkEvent([hashtable]$Totals, [hashtable]$Event, [datetime]$StartedAt) {
+    if ($Event.timestamp -lt $StartedAt) { return }
     $key = '{0}_{1}_{2}' -f $Event.protocol, $Event.direction, $(if ($Event.loopback) { 'loopback' } else { 'external' })
     if (-not $Totals.bytes.ContainsKey($key)) { $Totals.bytes[$key] = [uint64]0 }
     $Totals.bytes[$key] += $Event.bytes
