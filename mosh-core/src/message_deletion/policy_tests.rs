@@ -361,3 +361,6 @@ mod readiness;
 
 #[path = "policy_tests/revocation.rs"]
 mod revocation;
+
+#[path = "policy_tests/snapshot_verification.rs"]
+mod snapshot_verification;

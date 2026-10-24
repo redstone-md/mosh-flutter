@@ -79,6 +79,12 @@ pub trait DmTransport: Send + Sync {
     /// trying on its own once asked.
     fn connect_peer(&self, peer_moss_id: &str) -> Result<(), String>;
 
+    /// Complete authenticated room recipients, or empty to restore automatic
+    /// discovery. Optional for transports without topic rendezvous.
+    fn set_room_known_peers(&self, _room: &str, _peers: &[String]) -> Result<(), String> {
+        Ok(())
+    }
+
     fn reach(&self, peer_moss_id: &str) -> PeerTransport;
 
     /// This installation's own moss peer id, once the node is up.
@@ -220,6 +226,12 @@ impl MossDmTransport {
 }
 
 impl DmTransport for MossDmTransport {
+    fn set_room_known_peers(&self, room: &str, peers: &[String]) -> Result<(), String> {
+        self.node()?
+            .set_room_known_peers(room, peers)
+            .map_err(|error| error.to_string())
+    }
+
     fn authenticate_key_package(
         &self,
         payload: &[u8],

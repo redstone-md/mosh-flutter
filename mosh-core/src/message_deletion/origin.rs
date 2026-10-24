@@ -1,8 +1,10 @@
-use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
+use ed25519_dalek::{Signer, SigningKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::mls_crypto::MlsSessionCrypto;
+
+pub(crate) use super::verification::verify as verify_signature;
 
 const CONTEXT: &[u8] = b"mosh-message-origin-v1\0";
 
@@ -154,18 +156,4 @@ impl MessageOrigin {
         );
         Ok(bytes)
     }
-}
-
-pub(crate) fn verify_signature(key: &str, signature: &str, input: &[u8]) -> Result<(), String> {
-    let mut key_bytes = [0; 32];
-    hex::decode_to_slice(key, &mut key_bytes).map_err(|e| e.to_string())?;
-    let key = VerifyingKey::from_bytes(&key_bytes).map_err(|e| e.to_string())?;
-    if key.is_weak() {
-        return Err("weak signing key".into());
-    }
-    let mut signature_bytes = [0; 64];
-    hex::decode_to_slice(signature, &mut signature_bytes).map_err(|e| e.to_string())?;
-    let signature = Signature::from_bytes(&signature_bytes);
-    key.verify_strict(input, &signature)
-        .map_err(|e| e.to_string())
 }

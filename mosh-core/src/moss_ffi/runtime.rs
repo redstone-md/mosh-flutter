@@ -34,6 +34,7 @@ impl MossFfiRuntime {
             subscribe_room: load_symbol(&library, b"Moss_SubscribeRoom\0")?,
             unsubscribe_room: load_symbol(&library, b"Moss_UnsubscribeRoom\0")?,
             publish_room: load_symbol(&library, b"Moss_PublishRoom\0")?,
+            set_room_peer_discovery: try_load_symbol(&library, b"Moss_SetRoomPeerDiscovery\0"),
             connect: load_symbol(&library, b"Moss_Connect\0")?,
             connect_to_peer: load_symbol(&library, b"Moss_ConnectToPeer\0")?,
             publish: load_symbol(&library, b"Moss_Publish\0")?,

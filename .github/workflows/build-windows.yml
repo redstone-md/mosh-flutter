@@ -187,3 +187,30 @@ jobs:
             build/installer/*.sha256
             build/plus-build.json
           if-no-files-found: error
+
+      # Diagnostic installers need their original PDB: a later rebuild can
+      # produce different code addresses even at the same source revision.
+      - name: Preserve matching native symbols for a diagnostic installer
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $app = 'build/windows/x64/runner/Release'
+          $native = 'build/windows/x64/plugins/mosh_core/Release'
+          if ((Get-FileHash "$app/mosh_core.dll").Hash -ne (Get-FileHash "$native/mosh_core.dll").Hash) { throw 'Shipping core differs from the symbol source' }
+          New-Item -ItemType Directory -Force build/native-symbols | Out-Null
+          Copy-Item "$app/mosh_core.dll", "$native/mosh_core.pdb" build/native-symbols
+          $binaries = @('mosh.exe', 'mosh_core.dll', 'moss.dll', 'flutter_windows.dll', 'data/app.so') | ForEach-Object {
+            @{ name = $_; sha256 = (Get-FileHash "$app/$_" -Algorithm SHA256).Hash.ToLowerInvariant() }
+          }
+          @{ commit = (git rev-parse HEAD); binaries = @($binaries)
+            pdb_sha256 = (Get-FileHash build/native-symbols/mosh_core.pdb -Algorithm SHA256).Hash.ToLowerInvariant()
+          } | ConvertTo-Json -Depth 5 | Set-Content build/native-symbols/manifest.json
+
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: mosh-windows-native-symbols
+          path: build/native-symbols/*
+          if-no-files-found: error
+          retention-days: 7

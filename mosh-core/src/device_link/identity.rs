@@ -9,6 +9,22 @@ use super::roster::{invalid, DeviceRoster};
 use super::types::{DeviceDescriptor, DeviceLinkError, DeviceLinkErrorKind, Result};
 use crate::persistence::Persistence;
 
+#[cfg(test)]
+thread_local! {
+    static KEY_CONSTRUCTIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(crate) fn test_key_construction_count() -> usize {
+    KEY_CONSTRUCTIONS.get()
+}
+
+fn signing_key(seed: &[u8; 32]) -> SigningKey {
+    #[cfg(test)]
+    KEY_CONSTRUCTIONS.set(KEY_CONSTRUCTIONS.get() + 1);
+    SigningKey::from_bytes(seed)
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct LinkDelivery {
     pub qr: PairingQr,
@@ -93,6 +109,7 @@ impl LocalIdentity {
 pub struct DeviceIdentity {
     store: Arc<Persistence>,
     persisted: Vec<u8>,
+    signing_key: SigningKey,
     pub(crate) record: LocalIdentity,
 }
 
@@ -128,10 +145,12 @@ impl DeviceIdentity {
                     .map_err(storage_error)?
             }
         };
-        let record = serde_json::from_slice(&persisted).map_err(storage_error)?;
+        let record: LocalIdentity = serde_json::from_slice(&persisted).map_err(storage_error)?;
+        let signing_key = signing_key(&record.seed);
         let identity = Self {
             store,
             persisted,
+            signing_key,
             record,
         };
         identity.validate(peer_id)?;
@@ -192,7 +211,12 @@ impl DeviceIdentity {
         &self.record.roster
     }
     pub(crate) fn key(&self) -> SigningKey {
-        SigningKey::from_bytes(&self.record.seed)
+        if self.signing_key.as_bytes() == &self.record.seed {
+            self.signing_key.clone()
+        } else {
+            // Some callers edit the record before committing it.
+            signing_key(&self.record.seed)
+        }
     }
 
     pub(crate) fn account_certificate(
@@ -262,6 +286,9 @@ impl DeviceIdentity {
         {
             return Err(DeviceLinkError::new(DeviceLinkErrorKind::Busy));
         }
+        if self.signing_key.as_bytes() != &record.seed {
+            self.signing_key = signing_key(&record.seed);
+        }
         self.persisted = bytes;
         self.record = record;
         Ok(())
@@ -269,6 +296,7 @@ impl DeviceIdentity {
 
     pub(crate) fn reload(&mut self) -> Result<()> {
         let next = Self::open(self.store.clone(), &self.device().moss_peer_id)?;
+        self.signing_key = next.signing_key;
         self.record = next.record;
         self.persisted = next.persisted;
         Ok(())

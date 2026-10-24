@@ -12,7 +12,7 @@ impl PrivateDmRuntime {
     }
 
     /// Take in every frame that arrived, then give each session its tick.
-    /// Called on every runtime entry point and by [`Self::service`].
+    /// Used by commands that need maintenance and by [`Self::service`].
     pub(super) fn drain_inbound(&mut self) {
         self.drain_inbound_at(now_ms());
     }
@@ -78,10 +78,15 @@ impl PrivateDmRuntime {
     /// written down afterwards, once the mutable borrow is over.
     pub(super) fn tick(&mut self, now: u64) {
         let lost_window = self.lost_window_ms;
+        let mesh = if self.sessions.values().next().is_some() {
+            self.transport.mesh_info()
+        } else {
+            None
+        };
         let mut dirty: Vec<(String, String)> = Vec::new();
         let mut ready = Vec::new();
         for (session_id, session) in self.sessions.iter_mut() {
-            if !session.service_protocols(now, lost_window) {
+            if !session.service_protocols(now, lost_window, mesh.as_ref()) {
                 continue;
             }
             ready.push(session_id.clone());
@@ -152,8 +157,9 @@ impl PrivateDmRuntime {
 
 impl PrivateDmSession {
     /// Refresh admission and run session protocols before the runtime outbox.
-    fn service_protocols(&mut self, now: u64, lost_window: u64) -> bool {
+    fn service_protocols(&mut self, now: u64, lost_window: u64, mesh: Option<&MeshInfo>) -> bool {
         if self.ensure_device_authorized().is_err() {
+            self.refresh_room_discovery();
             return false;
         }
         if let Err(error) = self.apply_deletions() {
@@ -170,7 +176,7 @@ impl PrivateDmSession {
         let _ = self.sync_plus(now);
         self.pump_peer_connect();
         self.pump_liveness(now, lost_window);
-        self.pump_reach_log();
+        self.pump_reach_log(mesh);
         self.pump_handshake(now);
         self.pump_hello(now);
         self.pump_peer_announce(now);

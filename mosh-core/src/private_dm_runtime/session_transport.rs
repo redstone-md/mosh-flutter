@@ -91,6 +91,7 @@ impl PrivateDmSession {
             self.peer_joined = true;
             let before = self.state;
             self.state = next_state(before, SessionEvent::AuthenticatedFrame);
+            self.recovery_hello_delay_ms = None;
             self.authenticated_since_tick = true;
             // Only the change into Connected is news. Written on every frame,
             // the line read like a reconnect every few seconds.
@@ -158,6 +159,11 @@ impl PrivateDmSession {
     /// pump_handshake.
     pub(super) fn pump_peer_connect(&mut self) {
         self.connect_devices();
+        self.connect_counterpart();
+        self.refresh_room_discovery();
+    }
+
+    fn connect_counterpart(&mut self) {
         let Some(id) = self.peer_moss_id.clone() else {
             return;
         };
@@ -229,13 +235,9 @@ impl PrivateDmSession {
         let _ = self.route_send(ChannelKind::Control, &payload);
     }
 
-    /// Say hello until the counterpart answers with anything authenticated,
-    /// then keep a quiet Connected session alive with one every
-    /// KEEPALIVE_MS. Our side of the handshake is done and MLS is ready, so
-    /// the counterpart can decrypt this the moment it holds the group;
-    /// receiving it is its proof that we are here, and its reply is ours.
-    /// A Hello from the counterpart is answered here too, but never inside
-    /// our own cadence: two sides would otherwise ping-pong forever.
+    /// Initial negotiation retries quickly; a saved/lost peer backs off.
+    /// Authenticated traffic restores the existing connected keepalive cadence.
+    /// Replies remain throttled so two sides cannot ping-pong indefinitely.
     pub(super) fn pump_hello(&mut self, now_ms: u64) {
         let answer = std::mem::take(&mut self.hello_answer_due);
         if !self.can_encrypt_for_peer() {
@@ -246,10 +248,18 @@ impl PrivateDmSession {
             let quiet = now_ms.saturating_sub(self.last_authenticated_rx_ms) >= KEEPALIVE_MS;
             quiet && since_send >= KEEPALIVE_MS
         } else {
-            since_send >= HANDSHAKE_RESEND_MS
+            since_send >= self.recovery_hello_delay_ms.unwrap_or(HANDSHAKE_RESEND_MS)
         };
         if due || (answer && since_send >= HANDSHAKE_RESEND_MS) {
             self.send_hello(now_ms);
+        }
+    }
+
+    /// A usable path or user action should not wait for an idle retry deadline.
+    pub(super) fn wake_presence_retry(&mut self) {
+        if self.recovery_hello_delay_ms.is_some() {
+            self.recovery_hello_delay_ms = Some(HANDSHAKE_RESEND_MS);
+            self.last_hello_send_ms = 0;
         }
     }
 
@@ -277,6 +287,11 @@ impl PrivateDmSession {
         let Ok(payload) = serde_json::to_vec(&envelope) else {
             return;
         };
+        if self.last_hello_send_ms != 0 {
+            if let Some(delay) = self.recovery_hello_delay_ms.as_mut() {
+                *delay = delay.saturating_mul(2).min(IDLE_HELLO_MAX_MS);
+            }
+        }
         self.last_hello_send_ms = now_ms;
         let _ = self.route_send(ChannelKind::Control, &payload);
     }

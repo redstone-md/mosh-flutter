@@ -10,6 +10,7 @@ pub(crate) fn messages<M: ConversationMessage>(
     book: &DeletionBook,
     authority: Option<&DeletionAuthority>,
 ) -> Vec<M> {
+    let permissions = authority.map(DeletionAuthority::for_snapshot);
     log.visible()
         .into_iter()
         .map(|mut message| {
@@ -24,7 +25,9 @@ pub(crate) fn messages<M: ConversationMessage>(
                 && metadata.origin.as_ref().is_some_and(|o| {
                     o.conversation == book.context
                         && o.verify_signature().is_ok()
-                        && authority.is_some_and(|a| a.permitted(o).is_some())
+                        && permissions
+                            .as_ref()
+                            .is_some_and(|a| a.permitted(o).is_some())
                 });
             if let Some(origin) = &metadata.origin {
                 metadata.is_own = authority.map(|a| a.is_author(origin));
