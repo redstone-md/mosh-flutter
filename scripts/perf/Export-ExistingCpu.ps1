@@ -4,10 +4,11 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/CpuEvents.ps1"
 $stage = 'locating the existing report'
 try {
-    if (-not $ReportDirectory) { $ReportDirectory = Join-Path $env:LOCALAPPDATA 'Mosh/Diagnostics/cpu-20261023-000926' }
-    if (-not (Test-Path (Join-Path $ReportDirectory 'raw/cpu.etl'))) {
+    if (-not $ReportDirectory) {
         $ReportDirectory = (Read-Host 'Folder containing the existing CPU report and raw/cpu.etl').Trim('"')
     }
+    $ReportDirectory = [Environment]::ExpandEnvironmentVariables($ReportDirectory)
+    if (-not (Test-Path (Join-Path $ReportDirectory 'raw/cpu.etl'))) { throw 'Existing CPU trace not found' }
     $stage = 'checking the original build and symbols'
     $manifest = Get-Content (Join-Path $ReportDirectory 'binary-manifest.json') -Raw | ConvertFrom-Json
     $symbols = Get-Content "$PSScriptRoot/symbols/manifest.json" -Raw | ConvertFrom-Json

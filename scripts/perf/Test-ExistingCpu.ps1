@@ -8,16 +8,22 @@ function Invoke-DownloadedBundle {
     Set-Content -LiteralPath $helper -Stream Zone.Identifier -Encoding ASCII -Value "[ZoneTransfer]`r`nZoneId=3"
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = Join-Path $env:SystemRoot 'System32/cmd.exe'
-    $info.Arguments = '/d /c Start-Existing-CPU.cmd -ReportDirectory "' + $root + '"'
+    $info.Arguments = '/d /c Start-Existing-CPU.cmd'
     $info.WorkingDirectory = $bundle
     $info.UseShellExecute = $false
     $info.RedirectStandardInput = $true
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
     $info.EnvironmentVariables['PSModulePath'] = (& pwsh -NoProfile -Command '$env:PSModulePath' | Out-String).Trim()
+    $info.EnvironmentVariables['LOCALAPPDATA'] = Join-Path $root 'other-reports'
+    $info.EnvironmentVariables['MOSH_CPU_REPORT'] = $root
+    $stale = Join-Path $info.EnvironmentVariables['LOCALAPPDATA'] 'Mosh/Diagnostics/cpu-20261023-000926/raw'
+    [void](New-Item -ItemType Directory -Force $stale)
+    Set-Content (Join-Path $stale 'cpu.etl') 'An older trace must not be selected implicitly.'
     $child = [Diagnostics.Process]::new(); $child.StartInfo = $info
     try {
         [void]$child.Start()
+        $child.StandardInput.WriteLine('%MOSH_CPU_REPORT%')
         $child.StandardInput.WriteLine(); $child.StandardInput.Close()
         $child.StandardOutput.ReadToEnd() | Set-Content "$root/raw/launcher.stdout.txt"
         $child.StandardError.ReadToEnd() | Set-Content "$root/raw/launcher.stderr.txt"

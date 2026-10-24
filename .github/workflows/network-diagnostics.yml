@@ -87,6 +87,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install-profile-app
         if: inputs.package_stack_export
+        with:
+          run-id: '40053211809'
+          installer-sha: 92a7cc79d088cd0fc2f1ce440e6f48406f3a490f0394b1a414d5371373dde05f
+          runtime-commit: f9727ccf4a615951a85402b0c18476d408c83da3
       - name: Check selected-PID stack parsing and real CPU export
         shell: powershell
         run: |
