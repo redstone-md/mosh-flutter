@@ -159,6 +159,11 @@ impl PrivateDmSession {
     /// pump_handshake.
     pub(super) fn pump_peer_connect(&mut self) {
         self.connect_devices();
+        self.connect_counterpart();
+        self.refresh_room_discovery();
+    }
+
+    fn connect_counterpart(&mut self) {
         let Some(id) = self.peer_moss_id.clone() else {
             return;
         };

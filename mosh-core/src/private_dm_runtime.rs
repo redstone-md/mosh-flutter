@@ -144,6 +144,7 @@ struct PrivateDmSession {
     device_signer: Option<ed25519_dalek::SigningKey>,
     device_store: Option<Arc<Persistence>>,
     device_connect_requested: std::collections::HashSet<String>,
+    room_discovery_peers: Option<Vec<String>>,
     // Last identity attempt: MLS epoch, validated signed bytes and Hello stamp.
     // Used only to suppress unchanged offline advertisements, never as trust.
     last_identity_advertisement: Option<(u64, Vec<u8>, u64)>,

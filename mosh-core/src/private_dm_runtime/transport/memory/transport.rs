@@ -1,6 +1,17 @@
 use super::*;
 
 impl DmTransport for MemoryTransport {
+    fn set_room_known_peers(&self, room: &str, peers: &[String]) -> Result<(), String> {
+        self.net
+            .lock()
+            .endpoints
+            .get_mut(&self.peer_id)
+            .unwrap()
+            .room_discovery
+            .insert(room.to_string(), peers.to_vec());
+        Ok(())
+    }
+
     fn authenticate_invite(
         &self,
         invite: &str,

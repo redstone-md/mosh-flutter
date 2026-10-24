@@ -22,6 +22,7 @@ struct Endpoint {
     media_inbox: Vec<MossReceivedMessage>,
     packet_inbox: Vec<MossReceivedMessage>,
     connect_requests: Vec<String>,
+    room_discovery: HashMap<String, Vec<String>>,
     /// The transport turns every publish away, the way moss answers a
     /// node with nobody to hand the frame to.
     refuse_publishes: bool,
@@ -90,6 +91,15 @@ pub struct MemoryNet {
 }
 
 impl MemoryNet {
+    pub fn room_discovery(&self, peer: &str, room: &str) -> Option<Vec<String>> {
+        self.lock()
+            .endpoints
+            .get(peer)?
+            .room_discovery
+            .get(room)
+            .cloned()
+    }
+
     pub fn new() -> Arc<Self> {
         Arc::new(Self::default())
     }

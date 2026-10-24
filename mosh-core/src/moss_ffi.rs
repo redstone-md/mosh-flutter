@@ -11,6 +11,7 @@ use std::{
 
 mod callbacks;
 mod config;
+mod discovery;
 mod identity;
 mod info;
 mod node;
@@ -135,6 +136,7 @@ pub struct MossFfiRuntime {
     subscribe_room: MossRoomChannel,
     unsubscribe_room: MossRoomChannel,
     publish_room: MossPublishRoom,
+    set_room_peer_discovery: Option<MossRoomPeerDiscovery>,
     connect: MossConnect,
     connect_to_peer: MossConnect,
     publish: MossPublish,

@@ -1,7 +1,8 @@
 # Issue 94: discovery for DMs with known counterparts
 
-Status: proposed; requires approval for a further Moss-source exception and an
-additive public Go/C contract. No implementation or acceptance is claimed.
+Status: approved on 2026-10-24, including the Moss-source exception and additive
+public Go/C contract. Implementation and verification are in progress; no
+merge, release or owner acceptance is claimed.
 
 ## Evidence and intended result
 

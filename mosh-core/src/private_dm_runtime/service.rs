@@ -159,6 +159,7 @@ impl PrivateDmSession {
     /// Refresh admission and run session protocols before the runtime outbox.
     fn service_protocols(&mut self, now: u64, lost_window: u64, mesh: Option<&MeshInfo>) -> bool {
         if self.ensure_device_authorized().is_err() {
+            self.refresh_room_discovery();
             return false;
         }
         if let Err(error) = self.apply_deletions() {

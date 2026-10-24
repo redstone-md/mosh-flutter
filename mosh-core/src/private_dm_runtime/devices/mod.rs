@@ -2,6 +2,9 @@
 mod admission;
 #[cfg(test)]
 mod authorization_tests;
+mod discovery;
+#[cfg(test)]
+mod discovery_tests;
 mod history;
 mod live;
 mod proof;
