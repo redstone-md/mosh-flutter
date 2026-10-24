@@ -130,9 +130,9 @@ jobs:
           moss: none
       - uses: ./.github/actions/install-profile-app
         with:
-          run-id: '39997458526'
-          installer-sha: 9f0af67e52feae81feef7d46866a063eef7b8e92e2028b7e5d9cad1bd3152536
-          runtime-commit: c1a612571bc353bafc49ff0508ebc9b2a71ba8d2
+          run-id: '40031433098'
+          installer-sha: 6bf3f87ddd08212d62adeaa60e59539b36a3fd023d4519e897e03d3ceba66422
+          runtime-commit: 97a9851f89fc1c357b0958a87e792a59093b829e
       - name: Validate and compile the measurement client
         shell: powershell
         run: |
@@ -156,7 +156,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force build/profile | Out-Null
           Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors | ConvertTo-Json | Set-Content build/profile/hardware.json
-          python scripts/perf/windows_idle.py "$env:IDLE_APP" build/profile
+          python scripts/perf/windows_idle.py "$env:IDLE_APP" build/profile 100
           if ($LASTEXITCODE -ne 0) { throw 'Release GUI profiling failed' }
       - uses: actions/upload-artifact@v4
         if: always()

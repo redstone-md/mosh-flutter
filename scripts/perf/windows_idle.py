@@ -17,6 +17,9 @@ APP = Path(sys.argv[1]).resolve()
 ROOT = Path(sys.argv[2]).resolve()
 SCRIPTS = Path(__file__).parent.resolve()
 PROBE = SCRIPTS / 'idle-api.exe'
+MESSAGES_PER_DM = int(sys.argv[3]) if len(sys.argv) > 3 else 1
+if not 1 <= MESSAGES_PER_DM <= 100:
+    raise ValueError("The diagnostic history budget is one to 100 messages per DM")
 ROOT.mkdir(parents=True, exist_ok=True)
 
 
@@ -89,20 +92,32 @@ def pair(owner, index):
             return all(state['state'] == 'connected' for state in states)
 
         wait_until(connected)
-        body = 'Idle profiling fixture ' + str(index)
-        owner.ask('send', session=sid, body=body)
-
-        def delivered():
-            received = other.ask('poll', session=sid)['messages']
-            sent = owner.ask('poll', session=sid)['messages']
-            return (any(m['body'] == body for m in received) and
-                    any(m['body'] == body and m['status'] in ['delivered', 'read'] for m in sent))
-
-        wait_until(delivered)
-        print('Established and delivered fixture DM', index, flush=True)
+        send_history(owner, other, sid, index)
+        print('Established and delivered fixture DM', index, MESSAGES_PER_DM, flush=True)
         return sid
     finally:
         other.stop()
+
+
+def fixture_bodies(index):
+    return ['Idle profiling fixture ' + str(index)] + [
+        f'Idle profiling fixture {index} message {number}'
+        for number in range(1, MESSAGES_PER_DM)]
+
+
+def send_history(owner, other, session, index):
+    bodies = fixture_bodies(index)
+    for body in bodies:
+        owner.ask('send', session=session, body=body)
+
+    def delivered():
+        received = other.ask('poll', session=session)['messages']
+        sent = owner.ask('poll', session=session)['messages']
+        received_bodies = {m['body'] for m in received}
+        acknowledged = {m['body'] for m in sent if m['status'] in ['delivered', 'read']}
+        return set(bodies) <= received_bodies and set(bodies) <= acknowledged
+
+    wait_until(delivered)
 
 
 def powershell(script, *args):
@@ -195,7 +210,8 @@ def checked_inventory(owner):
     value = owner.ask('inventory')
     assert value['pending_invitations'] == 0, 'Unexpected pending invitations'
     bodies = value.pop('bodies')
-    assert bodies == ['Idle profiling fixture ' + str(i) for i in range(8)], 'Changed fixture messages'
+    expected = sorted(body for i in range(8) for body in fixture_bodies(i))
+    assert bodies == expected, 'Changed fixture messages'
     value['message_bodies_sha256'] = hashlib.sha256(json.dumps(bodies).encode()).hexdigest()
     return value
 
@@ -203,7 +219,8 @@ def checked_inventory(owner):
 def main():
     # Match path_provider_windows' company/product convention for this EXE.
     data = Path(os.environ['APPDATA']) / 'app.mosh' / 'mosh'
-    manifest = {'fixture': {'offline_dm': 8, 'groups': 2, 'channels': 1},
+    manifest = {'fixture': {'offline_dm': 8, 'groups': 2, 'channels': 1,
+                             'messages_per_dm': MESSAGES_PER_DM},
                 'runtime_source': os.environ['IDLE_RUNTIME_SOURCE'],
                 'warmup_seconds': 480, 'window_seconds': 90,
                 'hashes': {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
