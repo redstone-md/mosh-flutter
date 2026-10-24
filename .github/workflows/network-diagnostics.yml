@@ -88,9 +88,9 @@ jobs:
       - uses: ./.github/actions/install-profile-app
         if: inputs.package_stack_export
         with:
-          run-id: '40065351610'
-          installer-sha: 66cd82f271be08d756a456b8516097544f3cac474fd01dd01f580fc20917eca3
-          runtime-commit: 82cc774e172fc54f591f31e4c27637ed09403d1c
+          run-id: '40118006925'
+          installer-sha: 3548089b54f521f70bcd3e0cea999a21ca6d1eb65c84f51e40c55c6e1edcc5c8
+          runtime-commit: 54135ec0532522ab6dc771371ad8e1e3f0796b22
       - name: Check selected-PID stack parsing and real CPU export
         shell: powershell
         run: |
@@ -134,9 +134,9 @@ jobs:
           moss: none
       - uses: ./.github/actions/install-profile-app
         with:
-          run-id: '40065351610'
-          installer-sha: 66cd82f271be08d756a456b8516097544f3cac474fd01dd01f580fc20917eca3
-          runtime-commit: 82cc774e172fc54f591f31e4c27637ed09403d1c
+          run-id: '40118006925'
+          installer-sha: 3548089b54f521f70bcd3e0cea999a21ca6d1eb65c84f51e40c55c6e1edcc5c8
+          runtime-commit: 54135ec0532522ab6dc771371ad8e1e3f0796b22
       - name: Validate and compile the measurement client
         shell: powershell
         run: |

@@ -1,11 +1,11 @@
 1. Extract the whole ZIP into a new folder.
 2. Double-click Start-Existing-CPU.cmd.
 3. Enter the full folder path of the CPU report to process.
-   For the latest capture: %LOCALAPPDATA%\Mosh\Diagnostics\cpu-20261024-153156
+   For the latest capture: %LOCALAPPDATA%\Mosh\Diagnostics\cpu-20261024-194749
 4. Wait for "Ready. Send this ZIP", then send the named mosh-callers-report.zip.
 
 Choose the folder containing binary-manifest.json and raw/cpu.etl, not the ZIP.
-This bundle requires the 82cc774e release; reports from other builds are rejected.
+This bundle requires the 54135ec0 release; reports from other builds are rejected.
 No new recording, application restart, Python, installation or administrator prompt.
 Microsoft symbols may be downloaded. Mosh settings and the original trace stay unchanged.
 Only selected-process caller paths and build identity enter the output ZIP.
