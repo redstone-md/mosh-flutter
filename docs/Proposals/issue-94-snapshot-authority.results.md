@@ -105,8 +105,20 @@ or permission rule changes.
 
 The [latest owner capture](issue-94-owner-cpu-20261024-194749.results.md)
 does not prove a whole-process improvement. Its already-high working set
-does not establish a leak over ninety seconds. The matching exporter can
-attribute that existing trace without another recording.
+does not establish a leak over ninety seconds. Its matching caller export is
+now processed in the Windows follow-up below.
 
 Issue 94 stays open for desktop CPU/network acceptance and physical Android
 background-call/battery work. No merge or release is included.
+
+## Independent Windows follow-up
+
+The [configured-GUI follow-up](issue-94-owner-callers-20261024-221402.results.md)
+passes on the actual `aa17f31e` installer, preserving all 800 acknowledged
+message bodies and the eight-DM/two-group/one-channel inventory. It records
+10.563%/8.975% one-core CPU and 0.152/0.097 Mbit/s in separate visible/minimized
+public-mesh windows. These observations do not establish whole-Windows CPU
+improvement, reproduce the owner's higher working set or close owner acceptance.
+The owner's old-trace caller export also matches `54135ec0`; it is not an after
+measurement of this correction. Its processing is complete, without needing
+another export of the same ETL.
