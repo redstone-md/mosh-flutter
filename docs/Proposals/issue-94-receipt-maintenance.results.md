@@ -95,8 +95,10 @@ medians over twenty processes for each variant and setting.
 
 All golden checks pass. Gains are limited; enabled p99 is essentially flat
 and slightly higher. These are native command costs under controlled Linux
-isolation, not a whole-Windows idle CPU or public-bandwidth result. Owner
-acceptance still requires a capture from the configured Windows installer.
+isolation, not a whole-Windows idle CPU or public-bandwidth result. The
+[subsequent owner capture](issue-94-owner-cpu-20261024-194749.results.md) matches
+the configured installer but does not establish whole-process improvement;
+acceptance remains open.
 
 Final-source formatting, build and all-target Clippy with warnings denied pass.
 The final full Linux run via `node scripts/moss-test.mjs` passes: 779 library
