@@ -72,6 +72,8 @@ paths from this owner's existing `raw/cpu.etl`, using the same original PDB.
 No new recording or application restart is required. An exporter must reject
 other application builds and must not implicitly select an older report.
 
-No further production CPU optimization is justified by flat instruction
-attribution alone. Preserve live membership/revocation checks and the existing
-bounded successful-signature cache while investigating the callers.
+The owner has now supplied matching caller paths. The
+[shared-verification follow-up](issue-94-shared-verification.results.md)
+records the attributed repeated checks, caller regressions and matched native
+comparison. Live membership and revocation checks remain independent of the
+bounded successful-signature cache.
