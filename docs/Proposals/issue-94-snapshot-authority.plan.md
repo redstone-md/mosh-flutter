@@ -79,3 +79,6 @@ goldens. Report its history size and isolated-network limits explicitly.
 Run formatting, build, focused/full native tests, Clippy, independent review and
 CodeAnt comments/nitpicks before handing over a configured Windows installer.
 Issue 94 and physical Android background acceptance stay open.
+
+The [implementation and matched comparison](issue-94-snapshot-authority.results.md)
+record the final behavior, validation and acceptance limits.
