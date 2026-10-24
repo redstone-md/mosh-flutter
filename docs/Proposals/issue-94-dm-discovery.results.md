@@ -163,8 +163,10 @@ it does not explain the owner's complete remaining CPU usage.
 
 ## Remaining acceptance
 
-Supply the verified installer for an owner capture on the same machine and
-saved profile. The implementation, native control and runtime CI are verified;
-whole-owner CPU/network acceptance remains open. Native query reductions alone
-do not close issue 94, prove the
-original reported 100–150 Mbit/s source, or establish Android background behavior.
+The [owner capture from 2026-10-24](issue-94-owner-cpu-20261024.results.md)
+matches all five shipping binary hashes and records lower observed traffic
+and CPU. Selected-process caller paths from its existing trace are still
+needed to attribute the remaining work. The implementation, native control
+and runtime CI are verified; whole-owner CPU/network acceptance remains open.
+Native query reductions alone do not close issue 94, prove the original
+reported 100–150 Mbit/s source, or establish Android background behavior.
