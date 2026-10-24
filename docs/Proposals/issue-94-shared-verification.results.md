@@ -102,6 +102,11 @@ retain the exact full message/identity/permission golden SHA-256
 This isolates native API cost; it does not predict a 25% whole-Windows CPU
 reduction or measure public-network bandwidth savings.
 
+The [subsequent owner capture](issue-94-owner-cpu-20261024-153156.results.md)
+matches this exact installer. It records lower Rust/arithmetic sample counts
+but higher whole-process CPU and burstier traffic; it does not establish
+whole-Windows improvement. Current caller attribution remains necessary.
+
 ## Verification and handoff
 
 Final-source build, fourteen focused tests, formatting, diff checks and
