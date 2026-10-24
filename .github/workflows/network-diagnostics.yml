@@ -130,9 +130,9 @@ jobs:
           moss: none
       - uses: ./.github/actions/install-profile-app
         with:
-          run-id: '40031433098'
-          installer-sha: 6bf3f87ddd08212d62adeaa60e59539b36a3fd023d4519e897e03d3ceba66422
-          runtime-commit: 97a9851f89fc1c357b0958a87e792a59093b829e
+          run-id: '40053211809'
+          installer-sha: 92a7cc79d088cd0fc2f1ce440e6f48406f3a490f0394b1a414d5371373dde05f
+          runtime-commit: f9727ccf4a615951a85402b0c18476d408c83da3
       - name: Validate and compile the measurement client
         shell: powershell
         run: |
