@@ -2,7 +2,7 @@
 
 ## Evidence and scope
 
-The current owner capture attributes 898 of 10,430 selected instruction weights
+The owner capture before this memo attributes 898 of 10,430 selected instruction weights
 (8.61%) to Go Edwards25519 leaves. These are sampled weights, not a whole-process
 CPU budget or a recovered caller stack. A separate native fixture identifies
 the announcement verification callers and observes 1,825 identical successful
@@ -82,3 +82,7 @@ packets. It does not establish a whole-Mosh CPU reduction, explain residual
 bandwidth or close issue 94. Cache pressure can reduce hit rate while retaining
 correct verification. Whole-Windows idle/network and Android background-call
 and battery acceptance remain open. No merge or release is included.
+
+The [subsequent exact-binary owner capture and bounded-history Windows run](issue-94-owner-20261023.results.md)
+confirm removal of the old dominant curve hotspot while recording the remaining
+CPU/network work. They do not close whole-application idle acceptance.
