@@ -1,7 +1,10 @@
 use super::{
     protocol::DeleteRequest, shared::DeletionActor, DeletionRecord, DeletionStatus, MessageOrigin,
 };
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    cell::OnceCell,
+    collections::{BTreeMap, BTreeSet},
+};
 
 /// A verified snapshot of the conversation owner's current membership/roles.
 pub(crate) struct DeletionAuthority {
@@ -12,6 +15,31 @@ pub(crate) struct DeletionAuthority {
     pub accounts: BTreeMap<String, String>,
     pub own: super::ownership::OwnAccounts,
     pub public_channel: bool,
+}
+
+/// Local actor validation is shared only while the authority is immutably borrowed.
+pub(super) struct SnapshotAuthority<'a> {
+    authority: &'a DeletionAuthority,
+    local_allowed: OnceCell<bool>,
+}
+
+impl SnapshotAuthority<'_> {
+    pub(super) fn permitted(&self, origin: &MessageOrigin) -> Option<bool> {
+        let authority = self.authority;
+        if !*self.local_allowed.get_or_init(|| {
+            authority.member_with_proof(&authority.local.key, authority.local.ownership.as_deref())
+                && authority.local.ownership.is_some()
+        }) {
+            return None;
+        }
+        if authority.is_author(origin) {
+            return Some(false);
+        }
+        authority
+            .admins
+            .contains(&authority.local.key)
+            .then_some(true)
+    }
 }
 
 impl DeletionAuthority {
@@ -32,15 +60,14 @@ impl DeletionAuthority {
     }
 
     pub fn permitted(&self, origin: &MessageOrigin) -> Option<bool> {
-        if !self.member_with_proof(&self.local.key, self.local.ownership.as_deref())
-            || self.local.ownership.is_none()
-        {
-            return None;
+        self.for_snapshot().permitted(origin)
+    }
+
+    pub(super) fn for_snapshot(&self) -> SnapshotAuthority<'_> {
+        SnapshotAuthority {
+            authority: self,
+            local_allowed: OnceCell::new(),
         }
-        if self.is_author(origin) {
-            return Some(false);
-        }
-        self.admins.contains(&self.local.key).then_some(true)
     }
 
     pub fn is_author(&self, origin: &MessageOrigin) -> bool {

@@ -9,6 +9,63 @@ fn snapshot(fixture: &Fixture, policy: &DeletionAuthority) -> MessageMetadata {
 }
 
 #[test]
+fn a_history_snapshot_checks_its_local_actor_once_and_preserves_complete_rows() {
+    let author = SigningKey::generate(&mut rand::rngs::OsRng);
+    let mut fixture = Fixture::new(&author);
+    for index in 1..16 {
+        let id = format!("message-{index}");
+        let mut message = TestMessage::new("same display name", "content")
+            .with_id(&id)
+            .at(index);
+        message.metadata = Some(MessageMetadata {
+            origin: Some(MessageOrigin::sign(ROOM, &id, b"content", &author, None).unwrap()),
+            ..Default::default()
+        });
+        fixture.log.push(message);
+    }
+    let policy = authority(&author, &author);
+    let expected: Vec<_> = fixture
+        .log
+        .iter()
+        .cloned()
+        .map(|mut message| {
+            let metadata = message.metadata.as_mut().unwrap();
+            metadata.can_delete_for_everyone = true;
+            metadata.is_own = Some(true);
+            message
+        })
+        .collect();
+    let count = super::super::ownership::test_revocation_count;
+    let before = count();
+    let actual = super::super::snapshot::messages(
+        &fixture.log,
+        &fixture.transfer,
+        &fixture.book,
+        Some(&policy),
+    );
+    assert_eq!(actual, expected);
+    assert_eq!(
+        count() - before,
+        1,
+        "one immutable authority must not be revalidated per history row"
+    );
+}
+
+#[test]
+fn unavailable_deletion_storage_does_not_check_an_unused_local_actor() {
+    let author = SigningKey::generate(&mut rand::rngs::OsRng);
+    let mut fixture = Fixture::new(&author);
+    fixture.book.store = None;
+    let policy = authority(&author, &author);
+    let count = super::super::ownership::test_revocation_count;
+    let before = count();
+    let metadata = snapshot(&fixture, &policy);
+    assert!(!metadata.can_delete_for_everyone);
+    assert_eq!(metadata.is_own, Some(true));
+    assert_eq!(count(), before);
+}
+
+#[test]
 fn unchanged_history_snapshots_do_not_repeat_signature_verification() {
     let author = SigningKey::generate(&mut rand::rngs::OsRng);
     let reader = SigningKey::generate(&mut rand::rngs::OsRng);

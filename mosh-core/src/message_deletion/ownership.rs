@@ -6,6 +6,16 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+#[cfg(test)]
+thread_local! {
+    static REVOCATION_CHECKS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(super) fn test_revocation_count() -> usize {
+    REVOCATION_CHECKS.get()
+}
+
 #[derive(Default)]
 pub(crate) struct OwnAccounts {
     pub accounts: BTreeMap<String, String>,
@@ -14,6 +24,8 @@ pub(crate) struct OwnAccounts {
 
 impl OwnAccounts {
     pub fn is_revoked(&self, key: &str, proof: Option<&str>) -> bool {
+        #[cfg(test)]
+        REVOCATION_CHECKS.set(REVOCATION_CHECKS.get() + 1);
         if self.revoked.contains(key) {
             return true;
         }
