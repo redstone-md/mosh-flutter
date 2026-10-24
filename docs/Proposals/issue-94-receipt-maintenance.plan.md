@@ -20,6 +20,8 @@ between distinct exports. The raw ETL remains private on the owner's machine.
 - For enabled commands, receive inbound frames and send the target chat's
   receipts without ticking every saved chat's timers, outbox and media.
   Preserve encrypted receipts, failed-send retries, events and authorization.
+- Keep the existing best-effort tail persistence after receiving frames, including
+  updates to other chats. An immediate restart must retain incoming read flags.
 - Keep ordinary service/poll ownership and cadence. The existing background
   thread still services the runtime without a receipt command.
 - Keep the two mesh reads in list/poll operations: the latter observes routes

@@ -61,16 +61,13 @@ fn read_state_survives_a_restart() {
     bob.drain_inbound();
     bob.mark_viewed(&invite.session_id).expect("viewing passes");
     deliver_inbox(&net, ALICE_ID, BOB_ID, &invite);
-    alice.drain_inbound();
-    assert_eq!(
-        alice_message(&mut alice, &invite.session_id, &message_id).read,
-        Some(true),
-        "the settlement completes before the restart"
-    );
-    // Persist the read state: the record write rides the tail pump.
-    alice.tick(now_ms());
+    let before = net.mesh_reports(ALICE_ID);
+    alice
+        .mark_viewed(&invite.session_id)
+        .expect("viewing passes");
+    assert_eq!(net.mesh_reports(ALICE_ID), before);
 
-    // The restart: a NEW runtime on the SAME store, no connection to Bob.
+    // Restart immediately: no poll, explicit service or receipt from Bob again.
     let mut revived = PrivateDmRuntime::with_transport(
         net.endpoint(ALICE_ID),
         temp_store(),

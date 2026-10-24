@@ -47,6 +47,7 @@ impl PrivateDmRuntime {
             return Ok(());
         }
         self.receive_inbound();
+        self.sessions.persist_tail_logged(KIND);
         let session = self.session_mut(session_id)?;
         session.ensure_device_authorized()?;
         session.apply_deletions()?;

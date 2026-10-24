@@ -48,8 +48,8 @@ With the toggle on it receipts every counterpart message not yet receipted
 the toggle off it is a full no-op — no frame, no event.
 
 The disabled command returns before receiving frames or running maintenance.
-When enabled, it receives incoming updates, checks the selected session's access
-and applies its deletions before sending receipts. It does not tick other chats;
+When enabled, it receives and saves incoming updates, checks the selected session's
+access and applies its deletions before sending receipts. It does not tick other chats;
 the existing background service continues their timers and outgoing queues.
 
 File and voice receipts use the attachment id from the encrypted manifest,
