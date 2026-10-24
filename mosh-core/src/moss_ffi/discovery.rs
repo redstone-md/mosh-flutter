@@ -25,3 +25,36 @@ impl MossNode {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn room_discovery_round_trips_and_propagates_native_validation() {
+        let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        let runtime = Arc::new(MossFfiRuntime::load_default().unwrap());
+        assert!(
+            runtime.set_room_peer_discovery.is_some(),
+            "test requires the pinned Moss library"
+        );
+        let config = MossNodeConfig {
+            listen_port: 0,
+            static_peer: None,
+            bind_interface: None,
+        };
+        let node = runtime
+            .init_default_node("discovery-room", &config)
+            .unwrap();
+        node.set_room_known_peers("discovery-room", &["ab".repeat(32)])
+            .unwrap();
+        node.set_room_known_peers("discovery-room", &[]).unwrap();
+        assert!(node
+            .set_room_known_peers("missing-room", &["ab".repeat(32)])
+            .is_err());
+        assert!(node
+            .set_room_known_peers("discovery-room", &["invalid".into()])
+            .is_err());
+        assert!(node.set_room_known_peers("invalid\0room", &[]).is_err());
+    }
+}
