@@ -18,6 +18,9 @@ ROOT = Path(sys.argv[2]).resolve()
 SCRIPTS = Path(__file__).parent.resolve()
 PROBE = SCRIPTS / 'idle-api.exe'
 MESSAGES_PER_DM = int(sys.argv[3]) if len(sys.argv) > 3 else 1
+REUSE_FIXTURE = sys.argv[4:] == ['--reuse-ci-fixture']
+if len(sys.argv) > 4 and not REUSE_FIXTURE:
+    raise ValueError('Unknown profiling option')
 if not 1 <= MESSAGES_PER_DM <= 100:
     raise ValueError("The diagnostic history budget is one to 100 messages per DM")
 ROOT.mkdir(parents=True, exist_ok=True)
@@ -195,12 +198,12 @@ def gui_profile(data):
         app.wait(timeout=15)
 
 
-def inventory(data):
+def inventory(data, filename='gui-inventory.json'):
     owner = Peer(data)
     try:
         state = owner.ask('read')
         state.update(checked_inventory(owner))
-        (ROOT / 'gui-inventory.json').write_text(json.dumps(state))
+        (ROOT / filename).write_text(json.dumps(state))
         assert {k: state[k] for k in ['dm', 'groups', 'channels']} == {'dm': 8, 'groups': 2, 'channels': 1}
     finally:
         owner.stop()
@@ -216,20 +219,35 @@ def checked_inventory(owner):
     return value
 
 
+def prepare_fixture(data):
+    marker = data / '.idle-profiler-fixture'
+    if REUSE_FIXTURE:
+        if os.environ.get('GITHUB_ACTIONS') != 'true' or not marker.is_file():
+            raise RuntimeError('Reuse requires an owned synthetic CI fixture')
+        if marker.read_text() != 'synthetic-ci-fixture-v1':
+            raise RuntimeError('Unknown synthetic fixture marker')
+        inventory(data, 'native-inventory.json')
+        return
+    if data.exists():
+        raise RuntimeError('Refusing an existing application data directory')
+    seed_fixture(data)
+    if os.environ.get('GITHUB_ACTIONS') == 'true':
+        marker.write_text('synthetic-ci-fixture-v1')
+
+
 def main():
     # Match path_provider_windows' company/product convention for this EXE.
     data = Path(os.environ['APPDATA']) / 'app.mosh' / 'mosh'
     manifest = {'fixture': {'offline_dm': 8, 'groups': 2, 'channels': 1,
                              'messages_per_dm': MESSAGES_PER_DM},
+                'fixture_reused': REUSE_FIXTURE,
                 'runtime_source': os.environ['IDLE_RUNTIME_SOURCE'],
                 'warmup_seconds': 480, 'window_seconds': 90,
                 'hashes': {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                            for p in [APP / 'mosh.exe', APP / 'mosh_core.dll',
                                      APP / 'moss.dll', APP / 'flutter_windows.dll', APP / 'data/app.so']}}
-    if data.exists():
-        raise RuntimeError('Refusing an existing application data directory')
     (ROOT / 'fingerprint.json').write_text(json.dumps(manifest, indent=2))
-    seed_fixture(data)
+    prepare_fixture(data)
     gui = gui_profile(data)
     inventory(data)
     (ROOT / 'comparison.json').write_text(json.dumps({'gui': gui}, indent=2))
