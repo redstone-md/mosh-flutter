@@ -1,0 +1,66 @@
+name: Profile direct peer waits
+description: Compare immutable optimized Moss readiness implementations
+inputs:
+  before-ref:
+    required: true
+    description: Immutable baseline Moss commit
+  after-ref:
+    required: true
+    description: Immutable candidate Moss commit
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: redstone-md/moss
+        ref: ${{ inputs.before-ref }}
+        path: build/wait-before
+    - uses: actions/checkout@v4
+      with:
+        repository: redstone-md/moss
+        ref: ${{ inputs.after-ref }}
+        path: build/wait-after
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.25.9'
+        cache-dependency-path: build/wait-after/go.sum
+    - name: Build both optimized executables before measuring
+      shell: bash
+      env:
+        BEFORE_REF: ${{ inputs.before-ref }}
+        AFTER_REF: ${{ inputs.after-ref }}
+        CGO_ENABLED: '0'
+      run: |
+        set -euo pipefail
+        test "$(git -C build/wait-before rev-parse HEAD)" = "$BEFORE_REF"
+        test "$(git -C build/wait-after rev-parse HEAD)" = "$AFTER_REF"
+        mkdir -p build/direct-wait-profile
+        for file in direct_peer_wait_bench_test.go direct_peer_wait_cpu_windows_test.go; do
+          test ! -e "build/wait-before/internal/mesh/$file"
+          cp "build/wait-after/internal/mesh/$file" "build/wait-before/internal/mesh/$file"
+        done
+        for variant in before after; do
+          (cd "build/wait-$variant" && go test -c -trimpath -o "../direct-wait-profile/$variant.exe" ./internal/mesh)
+          git -C "build/wait-$variant" diff --exit-code
+        done
+        go version > build/direct-wait-profile/toolchain.txt
+        go env GOOS GOARCH GOAMD64 CGO_ENABLED >> build/direct-wait-profile/toolchain.txt
+    - name: Compare twenty alternating pairs without competing builds
+      shell: powershell
+      env:
+        BEFORE_REF: ${{ inputs.before-ref }}
+        AFTER_REF: ${{ inputs.after-ref }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        @{ before = $env:BEFORE_REF; after = $env:AFTER_REF; source = $env:GITHUB_SHA; processor = @(Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors); os = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber); image = $env:ImageVersion; before_exe_sha256 = (Get-FileHash build/direct-wait-profile/before.exe).Hash.ToLowerInvariant(); after_exe_sha256 = (Get-FileHash build/direct-wait-profile/after.exe).Hash.ToLowerInvariant() } | ConvertTo-Json -Depth 5 | Set-Content build/direct-wait-profile/fingerprint.json
+        python scripts/perf/compare_direct_wait.py build/direct-wait-profile
+        if ($LASTEXITCODE -ne 0) { throw 'Paired direct-wait comparison failed' }
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: windows-direct-wait-comparison
+        path: |
+          build/direct-wait-profile/*.json
+          build/direct-wait-profile/*.txt
+        if-no-files-found: error
+        retention-days: 7

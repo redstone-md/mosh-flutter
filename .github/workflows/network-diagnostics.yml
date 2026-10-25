@@ -3,6 +3,18 @@ name: Windows network diagnostics
 on:
   workflow_dispatch:
     inputs:
+      direct_wait_compare:
+        description: Compare twenty paired optimized direct-peer readiness waits
+        type: boolean
+        default: false
+      direct_wait_before:
+        description: Immutable baseline Moss commit for the wait comparison
+        type: string
+        default: 8eb416dd04373a334a2c8d02f8442c6aecda75c7
+      direct_wait_after:
+        description: Immutable candidate Moss commit for the wait comparison
+        type: string
+        default: ed3bb13fbfcd015779c414b7c7cd42df5f71851e
       public_node_profile:
         description: Attribute remaining Windows Go work on a disposable public node
         type: boolean
@@ -41,6 +53,16 @@ permissions:
   actions: read
 
 jobs:
+  direct-wait-compare:
+    if: github.event_name == 'workflow_dispatch' && inputs.direct_wait_compare
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/profile-direct-wait
+        with:
+          before-ref: ${{ inputs.direct_wait_before }}
+          after-ref: ${{ inputs.direct_wait_after }}
   announcement-compare:
     if: github.event_name == 'workflow_dispatch' && inputs.announcement_compare
     runs-on: windows-latest
@@ -175,7 +197,7 @@ jobs:
           retention-days: 7
 
   diagnostics:
-    if: github.event_name != 'workflow_dispatch' || (!inputs.stack_control && !inputs.package_stack_export && !inputs.public_node_profile)
+    if: github.event_name != 'workflow_dispatch' || (!inputs.stack_control && !inputs.package_stack_export && !inputs.public_node_profile && !inputs.direct_wait_compare)
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
