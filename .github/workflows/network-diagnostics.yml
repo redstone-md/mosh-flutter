@@ -253,17 +253,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: redstone-md/moss
-          ref: 979a63459e7327aec5a318b108d0382a8f5b091c
+          ref: a52072b1a0d141b1d8f98b2a30347c882f4d8856
           path: build/public-profile-moss
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.9'
           cache-dependency-path: build/public-profile-moss/go.sum
-      - name: Build the optimized probe against unchanged pinned Moss
+      - name: Build the optimized probe against the candidate shipping integration
         shell: bash
         working-directory: scripts/perf/moss-profile
         run: |
-          test "$(git -C ../../../build/public-profile-moss rev-parse HEAD)" = 979a63459e7327aec5a318b108d0382a8f5b091c
+          test "$(git -C ../../../build/public-profile-moss rev-parse HEAD)" = a52072b1a0d141b1d8f98b2a30347c882f4d8856
           go mod init github.com/redstone-md/moss/diagnostics
           go mod edit -go=1.25.0 -require=github.com/redstone-md/moss@v0.0.0 -replace=github.com/redstone-md/moss=../../../build/public-profile-moss
           go mod tidy
