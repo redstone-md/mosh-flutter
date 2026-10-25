@@ -15,6 +15,19 @@ This keeps transport ownership in Moss and avoids selecting a separate push
 provider or hosted broker before one is shown necessary. A reduced startup
 configuration alone has not established the required lifecycle or energy use.
 
+Waiting is owned inside the Mosh APK with a persistent quiet notification and
+a Stop waiting action. Target background reception after minimizing, screen
+locking, task removal and ordinary process reclamation, beginning after the
+first Android unlock following reboot. Explicit user stopping requires manual
+opening rather than a restart loop. These remain physical-device acceptance
+targets, not guarantees established by the relay tests.
+
+Mosh app lock protects chat access independently of background reception.
+Names and text are hidden in notifications by default while app lock is active;
+the user may explicitly allow their display, including message text on Android's
+lock screen. Android's own disclosure settings still take precedence, and
+showing a notification preview does not unlock the chat interface.
+
 The restriction is on Google-hosted event delivery through FCM. Google STUN
 remains permitted for address discovery; it does not receive Mosh chat messages
 or call offers. This is not a blanket prohibition on network contact with Google.

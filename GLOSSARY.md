@@ -75,6 +75,11 @@ A background availability state in which an installation waits for incoming
 Mosh activity. It differs from an ongoing call and deliberately going offline.
 _Avoid_: active call, offline mode.
 
+**Mosh notification preview**:
+User-authorized display of a sender or caller name, or message text, outside
+the chat interface. Allowing a preview does not unlock access to the chats.
+_Avoid_: unlocking Mosh, message read receipt.
+
 ## Calls
 
 **Mosh call**:

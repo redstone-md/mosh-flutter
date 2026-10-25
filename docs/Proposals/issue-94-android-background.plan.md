@@ -8,8 +8,9 @@ Related: [issue 94](https://github.com/redstone-md/mosh-flutter/issues/94),
 
 ## Accepted product decisions
 
-The owner accepted interview questions 1, 2, 3, 4 and 5 on 2026-10-25,
-and clarified the STUN boundary in question 6:
+The owner accepted interview questions 1, 2, 3, 4, 5, 7, 8 and 9 on
+2026-10-25, clarified the STUN boundary in question 6, and explicitly requested
+opt-in message-text previews on the Android lock screen:
 
 - Mosh app lock protects interactive access to chats. It must not prevent
   background message reception or incoming calls. A user can accept an incoming
@@ -29,10 +30,54 @@ and clarified the STUN boundary in question 6:
   Preserve existing default behavior for desktop, gaming and SSH consumers.
   This selects the architectural direction; API and implementation details
   remain open. See [ADR 0048](../ADR/0048-android-background-waiting.md).
+- Keep waiting inside the Mosh APK. It has a persistent quiet notification
+  describing background availability, with a Stop waiting action.
+- Target incoming activity after minimizing, screen locking, task removal and
+  ordinary system process reclamation. After reboot, support begins after the
+  first Android unlock. Explicit user stopping requires a manual app opening;
+  it must not be treated as ordinary process reclamation and bypassed by a
+  restart loop. These are acceptance targets, not universal OEM guarantees.
+- Hide notification names and message text by default while Mosh app lock is
+  active. Provide settings to disclose names and message text, including full
+  message-text previews on the Android lock screen when explicitly enabled.
+  A preview or call answer must not unlock the chat interface.
 
 These are target behavior decisions, not claims about the shipped release.
 The history-key layout, authentication policy and migration are not decided.
 They must not be weakened implicitly to make a background callback run.
+
+## Notification privacy and Android lifecycle
+
+Mosh app lock and Android screen lock are separate states. The preview settings
+must continue to apply when Mosh app lock is active; otherwise the requested
+locked-screen text option would not meet the accepted behavior.
+Android's system and channel notification settings can impose a stricter
+disclosure policy. Mosh's setting cannot override those restrictions.
+
+When previews are disabled, construct a generic notification without protected
+names/text in its visible fields and metadata. Only marking a detailed
+notification private leaves those details in its normal notification object.
+When previews are enabled, use Android's supported visibility and redacted
+public-version facilities as appropriate; see
+[notification guidance](https://developer.android.com/develop/ui/compose/notifications/create-notification).
+
+Keep the Android states distinct during implementation and acceptance:
+
+| State | Accepted target |
+| --- | --- |
+| Home/minimized or screen locked after first Android unlock | Keep waiting and present permitted notifications/calls. |
+| Task swiped from recent apps | Continue waiting; task removal alone is not an explicit Stop. |
+| Process reclaimed by Android | Recover waiting through the permitted lifecycle without duplicating the runtime. |
+| Reboot before first Android unlock | No incoming guarantee; credential-encrypted storage is unavailable. |
+| After first Android unlock following reboot | Resume the supported background lifecycle. |
+| Explicit user Stop/Force stop | Do not bypass it with automatic resurrection; manual opening is required. |
+
+Android Active apps/Task Manager Stop terminates the whole process without
+callbacks, unlike the app's Stop waiting action. Its lifecycle handling must
+respect user stopping too; see
+[Android user-stop behavior](https://developer.android.com/develop/background-work/services/fgs/handle-user-stopping).
+The persistence and re-enable semantics of the app's own Stop waiting action
+still need to be settled.
 
 ## Selected direction: Moss waiting mode
 
@@ -127,10 +172,11 @@ of FCM. No STUN-provider removal is part of this design.
 
 - Moss waiting lifecycle/interface, attachment selection and any intermediary's
   trust, metadata, abuse limits and operating budget.
-- Background credentials, history-key protection, notification disclosure,
-  biometric policy, migration and failure behavior.
-- Supported lifecycle states, network changes, reboot/first unlock and explicit
-  Android Force stop; call timeout and delayed-event handling.
+- Background credentials, history-key protection, biometric policy, migration
+  and failure behavior; plaintext previews require real background key access.
+- Implementation of the accepted lifecycle states, network changes, persistent
+  user-stop handling, app Stop waiting/re-enable semantics, call expiry and
+  delayed-event handling.
 - Notification and call actions, one call owner, device selection, permissions
   and integration with existing audio routes and PiP.
 - Quantified delivery latency, idle traffic, CPU/wakeups and battery budgets;
