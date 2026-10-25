@@ -43,11 +43,14 @@ impl PrivateDmRuntime {
     /// by the symmetry rule a user who does not send receipts also ignores
     /// the ones addressed to it.
     pub fn mark_viewed(&mut self, session_id: &str) -> Result<(), PrivateDmRuntimeError> {
-        self.drain_inbound();
         if !self.read_receipts_enabled() {
             return Ok(());
         }
+        self.receive_inbound();
+        self.sessions.persist_tail_logged(KIND);
         let session = self.session_mut(session_id)?;
+        session.ensure_device_authorized()?;
+        session.apply_deletions()?;
         session.mark_viewed();
         Ok(())
     }
@@ -142,12 +145,17 @@ impl PrivateDmRuntime {
     pub fn list_sessions(&mut self) -> Result<SessionListSnapshot, PrivateDmRuntimeError> {
         self.drain_inbound();
         let availability = self.call_availability();
+        let mesh = if self.sessions.values().any(|session| session.is_visible()) {
+            self.transport.mesh_info()
+        } else {
+            None
+        };
         let mut snapshots: Vec<SessionSnapshot> = self
             .sessions
             .values_mut()
             .filter(|session| session.is_visible())
             .map(|session| {
-                let mut snapshot = session.snapshot();
+                let mut snapshot = session.snapshot_with_mesh(mesh.as_ref());
                 snapshot.call_availability = availability;
                 snapshot
             })

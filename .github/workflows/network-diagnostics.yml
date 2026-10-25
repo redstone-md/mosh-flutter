@@ -1,0 +1,59 @@
+name: Windows network diagnostics
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/network-diagnostics.yml'
+      - 'scripts/network-diagnostics/**'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect the built-in network event schema
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force build/network-diagnostics | Out-Null
+          $provider = Get-WinEvent -ListProvider Microsoft-Windows-Kernel-Network
+          $provider.Events | ForEach-Object {
+            [pscustomobject]@{id=$_.Id; opcode=$_.Opcode.Name; task=$_.Task.Name; template=$_.Template}
+          } | ConvertTo-Json -Depth 6 | Set-Content build/network-diagnostics/provider-schema.json
+      - name: Verify real process-attributed UDP capture
+        shell: powershell
+        run: scripts/network-diagnostics/Test-NetworkDiagnostics.ps1
+      - name: Verify Moss recorder process lifecycle
+        shell: powershell
+        run: scripts/network-diagnostics/Test-MossRecording.ps1
+      - name: Verify Moss report timing and archive
+        shell: powershell
+        run: scripts/network-diagnostics/Test-MossRecordingReport.ps1
+      - name: Verify real CPU module and instruction attribution
+        shell: powershell
+        run: |
+          scripts/network-diagnostics/Test-CpuEvents.ps1
+          scripts/network-diagnostics/Test-MoshCpu.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mosh-network-diagnostics-schema
+          path: build/network-diagnostics/provider-schema.json
+          retention-days: 7
+      - name: Package the Windows collector
+        shell: powershell
+        run: |
+          $files = Get-ChildItem scripts/network-diagnostics -File | Where-Object { $_.Name -notlike 'Test-*' }
+          Compress-Archive -Path $files.FullName -DestinationPath build/mosh-network-diagnostics.zip
+          $hash = (Get-FileHash build/mosh-network-diagnostics.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  mosh-network-diagnostics.zip" | Set-Content build/mosh-network-diagnostics.zip.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mosh-network-diagnostics
+          path: |
+            build/mosh-network-diagnostics.zip
+            build/mosh-network-diagnostics.zip.sha256
+          retention-days: 14

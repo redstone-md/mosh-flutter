@@ -12,6 +12,8 @@ pub(super) type MossJoinRoom =
     unsafe extern "C" fn(MossHandle, *const c_char, *const u8, u32) -> i32;
 pub(super) type MossRoomChannel =
     unsafe extern "C" fn(MossHandle, *const c_char, *const c_char) -> i32;
+pub(super) type MossRoomPeerDiscovery =
+    unsafe extern "C" fn(MossHandle, *const c_char, i32, *const c_char) -> i32;
 pub(super) type MossPublishRoom =
     unsafe extern "C" fn(MossHandle, *const c_char, *const c_char, *const u8, u32) -> i32;
 pub(super) type MossConnect = unsafe extern "C" fn(MossHandle, *const c_char) -> i32;

@@ -97,6 +97,21 @@ fn chat(action: &str, argument: &str, command: &Value) -> Value {
             }
             Kind::Channel => serde_json::to_value(channel::poll(argument.into()).unwrap()).unwrap(),
         },
+        "chat_list" => match kind(command) {
+            Kind::Dm => {
+                serde_json::to_value(mosh_core::api::private_dm::list_sessions().unwrap()).unwrap()
+            }
+            Kind::Group => serde_json::to_value(private_group::list().unwrap()).unwrap(),
+            Kind::Channel => serde_json::to_value(channel::list().unwrap()).unwrap(),
+        },
+        "chat_viewed" => {
+            conversation::mark_viewed(Ref {
+                kind: kind(command),
+                id: argument.into(),
+            })
+            .unwrap();
+            json!({})
+        }
         _ => panic!("unknown chat command"),
     }
 }

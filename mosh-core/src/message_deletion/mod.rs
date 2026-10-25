@@ -20,6 +20,7 @@ pub(crate) mod snapshot;
 pub(crate) use receive::DeletionContext;
 pub(crate) mod origin;
 mod target;
+mod verification;
 pub(crate) use target::correlate_history_text;
 pub(crate) mod types;
 pub(crate) use book::{DeletionBook, DeletionRecord};

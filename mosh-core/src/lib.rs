@@ -33,6 +33,7 @@ pub mod private_group_runtime;
 pub mod read_receipts;
 pub mod secure_storage;
 pub mod shared_node;
+mod signature_verification;
 pub mod stream_transport;
 pub mod voice_call_runtime;
 pub mod vpn_consent;

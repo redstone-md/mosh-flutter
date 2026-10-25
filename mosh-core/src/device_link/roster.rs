@@ -13,7 +13,15 @@ const REMOVAL_VERSION: u32 = 2;
 pub(crate) const DEFAULT_DEVICE_NAME: &str = "Desktop";
 pub(crate) const MAX_NAME_CHARS: usize = 64;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg(test)]
+thread_local! {
+    static DIGEST_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+mod prefix_tests;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct Authorization {
     version: u32,
     parent: Option<String>,
@@ -119,11 +127,7 @@ impl DeviceRoster {
 
     pub(crate) fn extends(&self, base: &Self) -> Result<bool> {
         self.devices()?;
-        if self.entries.len() < base.entries.len() {
-            return Ok(false);
-        }
-        let prefix = Self::from_entries(self.entries[..base.entries.len()].to_vec());
-        Ok(prefix.digest()? == base.digest()?)
+        Ok(self.entries.starts_with(&base.entries))
     }
 
     pub(crate) fn genesis(device: DeviceDescriptor, key: &SigningKey) -> Result<Self> {
@@ -142,6 +146,8 @@ impl DeviceRoster {
     }
 
     pub fn digest(&self) -> Result<String> {
+        #[cfg(test)]
+        DIGEST_CALLS.set(DIGEST_CALLS.get() + 1);
         let mut hash = Sha256::new();
         hash.update(ROSTER_CONTEXT);
         hash.update(serde_json::to_vec(self).map_err(|_| invalid())?);
@@ -162,7 +168,7 @@ impl DeviceRoster {
             let key = self.authority(index, entry, &devices)?;
             let signature = hex::decode(&entry.signature).map_err(|_| invalid())?;
             let signature = Signature::from_slice(&signature).map_err(|_| invalid())?;
-            key.verify_strict(&entry.bytes()?, &signature)
+            crate::signature_verification::verify_key(&key, &signature, &entry.bytes()?)
                 .map_err(|_| invalid())?;
             if entry.version == REMOVAL_VERSION {
                 if entry.signer == entry.device.device_id || !devices.contains(&entry.device) {

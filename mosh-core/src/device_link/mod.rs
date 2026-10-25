@@ -9,7 +9,11 @@ pub mod types;
 pub mod wire;
 pub use runtime::DeviceLinkRuntime;
 #[cfg(test)]
+mod identity_key_tests;
+#[cfg(test)]
 mod identity_tests;
+#[cfg(test)]
+mod identity_verification_tests;
 #[cfg(test)]
 mod protocol_tests;
 

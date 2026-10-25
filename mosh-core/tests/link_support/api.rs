@@ -117,8 +117,26 @@ fn dm_command(action: &str, argument: String, command: &Value) -> Value {
             .unwrap();
             json!({})
         }
+        "dm_receipts" | "dm_viewed" => receipt_command(action, argument, command),
         _ => panic!("unknown bridge DM command"),
     }
+}
+
+fn receipt_command(action: &str, argument: String, command: &Value) -> Value {
+    match action {
+        "dm_receipts" => {
+            private_dm::set_read_receipts_enabled(command["enabled"].as_bool().unwrap()).unwrap();
+        }
+        "dm_viewed" => {
+            conversation::mark_viewed(conversation::BridgeConversationRef {
+                kind: conversation::BridgeConversationKind::Dm,
+                id: argument,
+            })
+            .unwrap();
+        }
+        _ => unreachable!(),
+    }
+    json!({})
 }
 
 fn names_command(action: &str, argument: &str, command: &Value) -> Value {

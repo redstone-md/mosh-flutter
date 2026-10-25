@@ -18,6 +18,8 @@ impl PrivateDmSession {
         let silent_for = now_ms.saturating_sub(self.last_authenticated_rx_ms);
         if self.state == DmSessionState::Connected && silent_for >= lost_window_ms {
             self.state = next_state(self.state, SessionEvent::CounterpartLost);
+            self.recovery_hello_delay_ms = Some(HANDSHAKE_RESEND_MS);
+            self.last_hello_send_ms = 0;
             dlog::write(
                 LogLevel::Warn,
                 kinds::HANDSHAKE,
@@ -34,16 +36,19 @@ impl PrivateDmSession {
     /// found after a start is when discovery finished, and a flip between
     /// direct, relayed and none explains a Connected that comes and goes.
     ///
-    /// One mesh report per call: a failed one says nothing about the
+    /// Use the runtime pass's mesh report: a failed one says nothing about the
     /// counterpart, and a second read could land on a restart the first
     /// missed, logging a lost path and a recovery that never happened.
-    pub(super) fn pump_reach_log(&mut self) {
-        let Some(info) = self.transport.mesh_info() else {
+    pub(super) fn pump_reach_log(&mut self, info: Option<&MeshInfo>) {
+        let Some(info) = info else {
             return;
         };
-        let reach = self.reach_in(&info);
+        let reach = self.reach_in(info);
         if reach == self.logged_reach {
             return;
+        }
+        if reach != PeerTransport::None {
+            self.wake_presence_retry();
         }
         dlog::write(
             LogLevel::Info,

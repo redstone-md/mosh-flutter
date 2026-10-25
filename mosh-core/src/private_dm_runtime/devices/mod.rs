@@ -2,6 +2,9 @@
 mod admission;
 #[cfg(test)]
 mod authorization_tests;
+mod discovery;
+#[cfg(test)]
+mod discovery_tests;
 mod history;
 mod live;
 mod proof;
@@ -13,6 +16,7 @@ mod runtime;
 mod types;
 
 pub(super) use live::DeviceSignature;
+pub(super) use proof::LocalClaimSigner;
 pub(super) use runtime::DeviceDmLink;
 pub(crate) use types::DeviceMembership;
 pub(super) const DEVICE_CHANNEL: &str = "mosh-dm-devices-v1";
@@ -30,4 +34,10 @@ pub(super) fn invalid() -> super::PrivateDmRuntimeError {
 mod history_metadata;
 #[cfg(test)]
 mod history_metadata_tests;
+#[cfg(test)]
+mod identity_advertisement_tests;
 mod identity_session;
+#[cfg(test)]
+mod local_claim_tests;
+#[cfg(test)]
+mod verification_tests;

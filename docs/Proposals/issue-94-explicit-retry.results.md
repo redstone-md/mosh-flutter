@@ -1,0 +1,239 @@
+# Issue 94: explicit offline connection retries
+
+The native counter reproduction attributes overlapping connection pipelines and
+relay requests to the eight saved offline DM counterparts. The fix coalesces each
+target's pipeline in Moss; Mosh opts into the generic thirty-second maximum
+failure gap. Other consumers retain fixed default gaps. Neither PR closes #94:
+public peer exchange, whole-Windows resource acceptance and Android background
+incoming-call/battery acceptance remain separate work.
+
+## Sources and workload
+
+| Variant | Mosh source | Moss source |
+| --- | --- | --- |
+| Before | `de491a101c679fba12aa9ba778d58e36f1ff038c` | `cbfb21e1fb883cec535085cd31f08534eb571681` |
+| After | `3e6790f532b443e52ff83b9f12555ca8aab1151b` | `eb79f38e4ef9380b5b398d161a42c65c17b1e4c4` |
+
+Both Linux release API workers restore the same fictional profile: eight offline
+DMs, two groups and one channel. Each warms up for ten minutes, then records a
+120-second foreground window and a 120-second background window. Foreground
+polls names, conversation lists and one offline DM once per second; background
+has no UI/API polling. This exercises the native runtime, not a rendered desktop.
+
+The processes run sequentially so the copied transport identities cannot collide.
+Both runs enable the recorder, assert a nonempty capture and verify the expected
+shared library in the process map. Private Go overlays add counters without
+changing production control flow. Changed production files are regenerated from
+each pinned source before inserting counters. Worker/library hashes and overlay
+manifests accompany the private recordings; captures and fixture keys are not
+published.
+
+## Matched counter windows
+
+All four windows complete with eight retained explicit targets. Counts are
+native counter deltas; relay requests are attributed to those eight fictional
+offline counterparts. Neither window contains another application-level
+`Moss_ConnectToPeer` call.
+
+| Count per 120 seconds | Before foreground | After foreground | Before background | After background |
+| --- | ---: | ---: | ---: | ---: |
+| Explicit pipelines started | 160 | 22 | 160 | 21 |
+| Starts overlapping an existing pipeline | 160 | 0 | 160 | 0 |
+| Outgoing offline-target relay requests | 1,912 | 268 | 1,920 | 282 |
+| Hello publications | 32 | 32 | 32 | 32 |
+| DeviceIdentity publications | 32 | 32 | 32 | 32 |
+| Application ConnectToPeer calls | 0 | 0 | 0 | 0 |
+
+The new scheduler removes measured overlaps and reduces explicit starts by
+86–87% and offline relay requests by 85–86%. App publication counts remain
+unchanged from the earlier Mosh presence fix.
+
+The following are indicative resource observations, not an isolated causal
+estimate. Incoming public announcement volume differs substantially despite
+similar neighbor counts; do not attribute the entire CPU/carrier difference
+to explicit retry scheduling.
+
+| Observation | Before foreground | After foreground | Before background | After background |
+| --- | ---: | ---: | ---: | ---: |
+| Neighbors, start → end | 13 → 13 | 14 → 14 | 13 → 13 | 14 → 14 |
+| Incoming peer-announcement envelope bytes | 3,218,117 | 837,474 | 1,750,418 | 1,393,495 |
+| Outgoing peer-announcement envelope bytes | 2,781,938 | 450,548 | 2,043,042 | 786,066 |
+| Partial combined mesh carrier, Mbit/s | 0.709 | 0.345 | 0.532 | 0.433 |
+| API worker CPU, one logical core | 6.09% | 3.92% | 4.36% | 2.98% |
+
+Envelope bytes overlap carrier bytes and must not be added to them. Both captures
+are nonempty (5,294,722 and 5,237,933 bytes respectively). Recorder sizes are
+artifact sizes, not a network-volume measurement.
+
+## Behavioral checks
+
+- A real TCP endpoint accepts Noise handshake bytes but stalls: twenty repeated
+  registrations caused twenty-one concurrent handshakes before the fix. The
+  fixed scheduler keeps one active pipeline.
+- A changed route and a fresh signed address supersede an unfinished handshake.
+  Stop closes blocked handshakes and a restarted node connects successfully.
+- Actual maintenance/socket counts distinguish omitted fixed spacing from the
+  opt-in exponential policy. No test-only manual scheduler drives this check.
+- A three-node relay regression confirms an authenticated relay path and sends
+  encrypted private-room and directed messages both ways. It passes five
+  repetitions, including the admission/cancellation race caught during review.
+- Full upstream Go tests, focused race tests, `go vet` and formatting pass.
+  Changed-line coverage mapped from Go statement blocks is 151/178 (84.83%);
+  intersecting statement coverage is 197/217 (90.78%). Branch data is unavailable.
+  [Moss CI](https://github.com/redstone-md/moss/actions/runs/39691818266)
+  also passes Linux, Windows and fast-package race lanes.
+- Mosh: 745 Rust unit tests pass, with twenty expected ignored workers; all-target
+  Clippy and formatting pass. All 23 real multi-device DM scenarios, four native
+  audio/video scenarios and the independent-process offline presence check pass.
+- Independent Standards review: zero remaining findings. Independent Spec review:
+  zero remaining findings. CodeAnt completed both current code reviews with no
+  unresolved inline suggestions; none were resolved without a verified fix.
+
+Native audio/video CI passes on Linux, macOS and Windows. Flutter tests, native
+device linking, bridge-binding drift, Windows bridge UI integration, both Rust
+core lanes, multi-device DM flow and the Android arm64 debug build also pass.
+Both the PR's Windows proof installer and macOS DMG packaging jobs pass, including
+native chrome/menu checks. The entire
+[Mosh code-check run](https://github.com/redstone-md/mosh-flutter/actions/runs/39692293854)
+finishes successfully at code commit `3e6790f5`; the following commit records only
+this report and the plan's acceptance status.
+
+## Delivery and limits
+
+The [configured Windows installer](https://github.com/redstone-md/mosh-flutter/actions/runs/39692467913/artifacts/12389848643)
+is built from the After source above. Download verification passes: valid PE
+header, matching SHA-256 sidecar, exact source/Moss pins and a mainnet PLUS
+manifest with purchases configured, billing origin `https://billing.mosh.run`
+and the production public issuer pin. Installer SHA-256:
+`cdd6bb6028266f1a68de4e88b64ccbd83435f21407b2396ebeef6384dcb739c1`.
+The setup executable is 55,790,961 bytes. No merge or release is included in
+this increment.
+
+For the remaining owner-side Windows acceptance, install this exact EXE after a
+full tray exit, retain the eight-offline-DM profile and let it warm for ten
+minutes. Run `Start.cmd` from the matching
+[network collector](https://github.com/redstone-md/mosh-flutter/actions/runs/39692293832/artifacts/12389126609)
+with the offline chat open and no calls/transfers. Its 120-second
+`mosh-network-report.zip` supplies process byte/CPU counters and ETW loss checks.
+The collector ZIP checksum has also been verified.
+
+Incoming peer announcements remain a residual source of traffic. Native envelope
+and carrier counters are partial instrumentation, not full OS wire-byte totals.
+The public network's neighbors and announcements vary between runs; worker CPU
+also shares the host with verification jobs. These measurements establish work
+attribution and scheduler behavior, not a controlled whole-application bandwidth
+or battery budget. The reported 100–150 Mbit/s idle condition has not been
+reproduced by the supplied complete owner measurement.
+
+## Owner Windows follow-up, 2026-10-22
+
+The owner confirms the installer from run 39692467913 after a tray exit and
+reinstallation, with the same eight offline DMs, two groups and one channel,
+and an offline chat open. The ZIP itself does not record an EXE hash/version;
+source attribution here relies on that confirmation. The 01:49:32.712 to
+01:51:33.752 UTC capture is complete and control-validated, with zero ETW
+event/buffer loss. Independent second and endpoint byte sums reconcile.
+
+| Whole-process observation | Previous owner capture | New capture |
+| --- | ---: | ---: |
+| Capture duration | 120.315 s | 121.039 s |
+| Process age at start | 745.411 s | 490.834 s |
+| TX | 8,499,400 bytes | 6,398,739 bytes |
+| RX | 14,610,652 bytes | 15,020,418 bytes |
+| Combined mean | 1.537 Mbit/s | 1.416 Mbit/s |
+| Complete-second median | 0.924 Mbit/s | 0.503 Mbit/s |
+| Complete-second p95 | 6.755 Mbit/s | 7.094 Mbit/s |
+| Complete-second peak | 14.370 Mbit/s | 11.953 Mbit/s |
+| CPU, one logical core | 16.45% | 16.02% |
+| Working-set median | 140.74 MiB | 259.22 MiB |
+
+The mean rate falls 7.9%; CPU falls only 0.43 percentage points. Receive traffic
+accounts for 70.1% of the new volume. The process is over eight minutes old,
+although younger than the requested ten-minute warmup. Different public traffic
+and retained GUI/history state prevent a causal estimate; the larger working
+set is an observation, not an established memory regression or leak. None of
+the 121 complete one-second buckets reaches 100 Mbit/s; two exceed 10 Mbit/s.
+
+**Whole-Windows idle acceptance remains open.** The native explicit-retry fix
+has behavioral/counter evidence, but this capture does not demonstrate that
+the remaining whole-application CPU or incoming bandwidth is resolved. An
+isolated measurement branch now compares the exact shipped Windows DLL and EXE
+with a real disposable fixture, including per-thread CPU attribution. Production
+optimization must follow that attribution.
+
+The first [Windows diagnostic run](https://github.com/redstone-md/mosh-flutter/actions/runs/39711703556)
+successfully establishes and delivers messages in eight independent-process DMs,
+then stops the counterparts and seeds two groups and one channel. Through the
+exact shipped DLLs, the pure-Dart API client measures **4.294% of one logical
+core** over 120.808 seconds after an eight-minute warmup. Its working set ranges
+from 46.95 to 49.20 MiB. No pending invitations exist. The runner is an Intel
+Xeon Platinum 8573C with four logical processors.
+
+The full-application phase does not produce a valid measurement: UI Automation
+only exposes the Flutter host window, so the script refuses to label it an open
+offline chat. The isolated diagnostic branch now uses the engine's MSAA path.
+The native-only number is indicative and does not reproduce the owner's 16%
+CPU, but synthetic message history, different hardware and public topology
+prevent attributing that difference to the GUI without the remaining checks.
+
+The [MSAA GUI follow-up](https://github.com/redstone-md/mosh-flutter/actions/runs/39713255029)
+passes on an AMD EPYC 7763 runner with four logical processors. The exact EXE
+opens the saved offline DM and its message composer; all eight DMs, two groups
+and one channel remain after exit, with zero pending invitations. Foreground
+CPU is **7.700% of one logical core** over 120.732 seconds; minimized CPU is
+**6.051%** over 120.074 seconds. Working set spans 81.13–96.95 MiB foreground
+and 81.43–96.52 MiB minimized.
+
+These sequential public-network windows establish that substantial work remains
+while minimized, not a causal rendering-cost estimate. The native-only run was
+on different hardware, so subtracting its CPU from this GUI run is invalid.
+Thread CPU sums reconcile within one scheduling tick, but names are empty and
+start addresses mostly resolve to ntdll; they do not attribute active code.
+The owner's 16% CPU and larger working set remain unreproduced. A subsequent
+probe adds control-validated sampled instruction/module attribution alongside
+the existing complete process-network collector; product code remains unchanged.
+
+The [sampled Windows follow-up](https://github.com/redstone-md/mosh-flutter/actions/runs/39716632208)
+passes its real busy-process control, saved-DM UI check and both loss-free,
+control-validated network windows. Its AMD EPYC 9V74 runner uses the unchanged
+shipping binaries. Foreground measures 2.912% of one logical core and
+0.362 Mbit/s; minimized measures 4.431% and 0.485 Mbit/s. The public-network
+windows are sequential, so the increase while minimized does not establish
+a minimizing regression. It reinforces the need to record traffic alongside CPU.
+
+Indicative sampled-frame weights: foreground Rust core 20.1%, Moss 18.2%,
+unresolved 28.2%, Windows kernel 15.9%, Flutter engine 5.6%; minimized Rust core
+18.6%, Moss 17.7%, unresolved 29.3%, kernel 16.4%, Flutter engine 5.2%.
+These are sample proportions, not percentages of a logical core. Sample weights
+(5,620 / 6,092) do not equal process CPU milliseconds (3,500 / 5,343.75) in the
+longer process-counter windows; do not use them as exact per-module CPU budgets.
+Missing native symbols and manually mapped AOT code leave substantial unresolved
+work. MSAA automation also enables Flutter semantics, unlike an uninspected GUI.
+No dominant function or causal whole-application optimization follows from this
+probe. The owner workload still has roughly three times this runner's traffic
+and substantially more CPU; retained history, hardware and network conditions
+remain uncontrolled.
+
+The owner subsequently supplied a complete exact-binary CPU profile; see
+[CPU attribution and history verification](issue-94-owner-cpu.results.md). The read-only Windows fixture remains
+on `test/windows-idle-profile`; the reusable installed-app collector is included
+in this PR. `Start-CPU.cmd` adds binary hashes, relative instruction samples,
+static Moss function metadata and the existing network/resource counters.
+Only aggregate JSON enters its ZIP; underlying system traces remain local.
+
+Its [Windows control run](https://github.com/redstone-md/mosh-flutter/actions/runs/39721028840)
+passes against a real busy x64 process and the exact shipping Moss DLL. Of
+12,532 sampled weights, 8,673 mapped user instructions reconcile exactly with
+the native module weights (ntdll 6,769 + CLR 1,899 + kernel32 5). Unknown/JIT and
+kernel samples remain separately identified. It recovers 11,326 Go 1.25.9
+functions with valid relative address ranges from DLL SHA-256
+`e1eed14907ce1224b85b09570ce55887dc912f27fd2b3e6b4a42e985d0e9ac1a`.
+The CPU/network archive allowlist check passes; network loss is zero and both
+control bursts validate. Module sorting uses numeric hashtable expressions;
+the strengthened native-function control caught the earlier broken mapping.
+
+The [downloaded collector](https://github.com/redstone-md/mosh-flutter/actions/runs/39721028840/artifacts/12401186707)
+has a matching SHA-256 sidecar and source contents (normalizing Windows checkout
+line endings). ZIP SHA-256 is
+`738f47d397b787c274a48b87804097973c2b45b26d5bada2f24a3639da55a6a4`.
+Its standard network, Moss lifecycle/timing and packaging checks also pass.

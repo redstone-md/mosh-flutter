@@ -86,6 +86,9 @@ impl PrivateDmRuntime {
         if let Err(error) = self.sessions.persist_send(session_id, message_id, true) {
             self.log_persistence_failure(session_id, &error);
         }
+        let session = self.session_mut(session_id)?;
+        session.wake_presence_retry();
+        session.pump_hello(now_ms());
         Ok(())
     }
 

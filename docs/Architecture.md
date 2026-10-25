@@ -226,7 +226,19 @@ See [ADR 0020](ADR/0020-one-inbox-per-owner.md) and
 
 DM connection state requires an authenticated counterpart frame. Moss's direct,
 relayed or absent peer route is a separate fact; gossip can deliver with no direct
-peer row. Handshake/Hello retries and keepalives refresh that authenticated state.
+peer row. Initial Hello retries stay at two seconds; restored/lost established
+DMs back off to thirty seconds. A usable path or new user text wakes the retry.
+Unchanged offline identity claims follow those probes; changed claims/epochs
+bypass suppression after fresh validation. Connected keepalives are unchanged.
+Mosh opts into Moss's thirty-second maximum explicit-target retry gap. Attempts
+coalesce per target; fresh caller intent and admitted route changes wake them.
+DM rooms use Moss's optional KnownPeers discovery policy only when every current
+MLS client has an authorized device route and its existing peer connection
+request is registered. Incomplete legacy/admission state retains Automatic;
+admission and removal refresh the recipient set. The policy skips redundant
+topic searches, provider records and speculative stranger GRAFTs. It changes
+neither subscriptions nor authorization, and older DLLs without the optional
+symbol retain Automatic. Groups and channels keep their existing discovery.
 Attachment streams use direct routes and fall back to room publication on refusal;
 blob subscriptions remain active. Restored encrypted manifests preserve offered
 attachments after restart. See [ADR 0027](ADR/0027-attachments-ride-moss-streams.md)
@@ -256,6 +268,12 @@ only a durable receipt from another participant confirms delivery. Existing
 services recover missing deletion pages without advancing MLS application
 ratchets. Tombstones also guard history/outbox writes and queue app-owned cache
 cleanup after the last reference. See [ADR 0040](ADR/0040-message-deletion.md).
+
+`signature_verification` shares one bounded cache of successful cryptographic
+facts across message proofs, device rosters and DM identity claims. Entries
+contain only fixed-size digests of the exact key, signature and signed input,
+or the complete account certificate. Current membership, revocation and MLS
+signer checks remain with their callers and run independently of cache hits.
 
 ## Device linking and recovery
 

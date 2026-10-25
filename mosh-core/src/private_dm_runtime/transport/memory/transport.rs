@@ -1,6 +1,17 @@
 use super::*;
 
 impl DmTransport for MemoryTransport {
+    fn set_room_known_peers(&self, room: &str, peers: &[String]) -> Result<(), String> {
+        self.net
+            .lock()
+            .endpoints
+            .get_mut(&self.peer_id)
+            .unwrap()
+            .room_discovery
+            .insert(room.to_string(), peers.to_vec());
+        Ok(())
+    }
+
     fn authenticate_invite(
         &self,
         invite: &str,
@@ -121,7 +132,8 @@ impl DmTransport for MemoryTransport {
     }
 
     fn mesh_info(&self) -> Option<MeshInfo> {
-        let state = self.net.lock();
+        let mut state = self.net.lock();
+        state.endpoints.get_mut(&self.peer_id)?.mesh_reports += 1;
         if state.reports_fail(&self.peer_id) {
             return None;
         }

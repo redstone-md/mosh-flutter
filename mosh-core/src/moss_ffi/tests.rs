@@ -4,6 +4,21 @@ unsafe extern "C" fn no_public_key(_handle: MossHandle) -> *mut u8 {
     std::ptr::null_mut()
 }
 
+#[test]
+fn absent_room_discovery_symbol_preserves_legacy_startup() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut runtime = MossFfiRuntime::load_default().unwrap();
+    runtime.set_room_peer_discovery = None;
+    let node = Arc::new(runtime)
+        .init_node("legacy-discovery", &node_config(0, None))
+        .unwrap();
+    node.start().unwrap();
+    node.set_room_known_peers("legacy-discovery", &["ab".repeat(32)])
+        .unwrap();
+    node.set_room_known_peers("legacy-discovery", &[]).unwrap();
+    drop(node);
+}
+
 unsafe extern "C" fn ignore_keystore(
     _load: Option<KeyStoreLoadCallback>,
     _save: Option<KeyStoreSaveCallback>,

@@ -22,6 +22,7 @@ struct Endpoint {
     media_inbox: Vec<MossReceivedMessage>,
     packet_inbox: Vec<MossReceivedMessage>,
     connect_requests: Vec<String>,
+    room_discovery: HashMap<String, Vec<String>>,
     /// The transport turns every publish away, the way moss answers a
     /// node with nobody to hand the frame to.
     refuse_publishes: bool,
@@ -39,6 +40,7 @@ struct Endpoint {
     /// The mesh report fails, the way moss's does while the node restarts:
     /// no report, and so no path to anyone.
     fail_mesh_reports: bool,
+    mesh_reports: usize,
 }
 
 #[derive(Clone)]
@@ -89,6 +91,15 @@ pub struct MemoryNet {
 }
 
 impl MemoryNet {
+    pub fn room_discovery(&self, peer: &str, room: &str) -> Option<Vec<String>> {
+        self.lock()
+            .endpoints
+            .get(peer)?
+            .room_discovery
+            .get(room)
+            .cloned()
+    }
+
     pub fn new() -> Arc<Self> {
         Arc::new(Self::default())
     }
@@ -193,6 +204,14 @@ impl MemoryNet {
             .endpoints
             .get(from)
             .map_or(0, |endpoint| endpoint.stream_attempts)
+    }
+
+    /// Full diagnostic reads made by an endpoint, including failed reads.
+    pub fn mesh_reports(&self, from: &str) -> usize {
+        self.lock()
+            .endpoints
+            .get(from)
+            .map_or(0, |endpoint| endpoint.mesh_reports)
     }
 
     /// The peers `from` asked the transport to reach, in order.
