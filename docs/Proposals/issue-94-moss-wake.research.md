@@ -94,29 +94,34 @@ repository under `/root/private/mosh-android-background-research/`.
 No physical Android device was attached. These checks establish no battery
 budget, wake latency, Doze/OEM reliability or cold locked-state access policy.
 
-## Additional Google dependency to resolve
+## STUN scope clarification
 
 The pinned [STUN defaults](../../moss/internal/mesh/config.go) include Google
 endpoints before other providers. [STUN selection](../../moss/internal/mesh/node_reachability.go)
 can use them when the node has public bootstrap trackers or a non-loopback
 static peer, even if DHT and LAN discovery are disabled.
-This is separate from FCM and Google Play services. Removing FCM alone does
-not establish a no-Google-network-contact policy. The current config has no
-provider-list override, so the intended privacy requirement needs to be explicit.
+This is separate from FCM and Google Play services. In interview question 6
+the owner explicitly permitted Google STUN: the restriction concerns hosted
+delivery of messages/events, not every network contact with Google.
+STUN binding requests discover network mappings and do not carry Mosh chat
+messages or call offers; see [RFC 8489](https://www.rfc-editor.org/rfc/rfc8489.html).
+An operator can still observe/log network metadata. STUN-provider removal is
+not a requirement of this slice.
 
 ## Design implications
 
 The existing relay carrier merits reuse; a new hosted broker is not proven
-necessary. A dedicated opt-in waiting policy in Moss is a candidate for
-maintainer discussion, with current desktop/gaming/SSH behavior preserved.
+necessary. The owner subsequently selected an explicit opt-in waiting policy
+in Moss, with current desktop/gaming/SSH behavior preserved; see
+[ADR 0048](../ADR/0048-android-background-waiting.md).
 It would need an explicit lifecycle and attachment policy rather than a
-collection of hidden timer changes. A separate Google-free wake transport
-remains an alternative if modifying Moss is unsuitable.
+collection of hidden timer changes. A separate wake transport was considered
+but is not the selected direction.
 
-Before selecting either approach, settle:
+Before implementing that direction, settle:
 
-- Whether the receiver retains a small live Moss endpoint or uses another
-  receiving transport; how attachments are selected, renewed and replaced.
+- How the receiver retains its limited Moss endpoint and how attachments are
+  selected, renewed and replaced.
 - Android foreground-service/exemption behavior, process reclamation and force
   stop boundaries; these are not solved by the relay carrier.
 - Authenticated wake events, expiry, replay/abuse limits and which durable state

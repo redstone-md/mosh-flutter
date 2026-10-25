@@ -70,6 +70,11 @@ A short-lived hint that an installation may have pending Mosh activity. It is
 not itself a delivered message or an accepted call.
 _Avoid_: delivery receipt, call acceptance.
 
+**Mosh waiting mode**:
+A background availability state in which an installation waits for incoming
+Mosh activity. It differs from an ongoing call and deliberately going offline.
+_Avoid_: active call, offline mode.
+
 ## Calls
 
 **Mosh call**:

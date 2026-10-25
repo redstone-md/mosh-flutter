@@ -8,7 +8,8 @@ Related: [issue 94](https://github.com/redstone-md/mosh-flutter/issues/94),
 
 ## Accepted product decisions
 
-The owner accepted interview questions 1, 2, 3 and 4 on 2026-10-25:
+The owner accepted interview questions 1, 2, 3, 4 and 5 on 2026-10-25,
+and clarified the STUN boundary in question 6:
 
 - Mosh app lock protects interactive access to chats. It must not prevent
   background message reception or incoming calls. A user can accept an incoming
@@ -20,20 +21,24 @@ The owner accepted interview questions 1, 2, 3 and 4 on 2026-10-25:
   private groups and public channels. This does not change which conversation
   kinds support calls or which content is end-to-end encrypted.
 - The first implementation excludes FCM. Android background operation must work
-  without Google services.
+  without Google Play services; this is not a ban on using Google STUN servers.
 - An untrusted intermediary may carry short encrypted wake signals, with
   self-hosting possible. This does not approve server-side message archives,
   a particular provider, a hosting location or a deployment.
+- Use an explicit opt-in waiting mode in Moss, reusing its relay carrier.
+  Preserve existing default behavior for desktop, gaming and SSH consumers.
+  This selects the architectural direction; API and implementation details
+  remain open. See [ADR 0048](../ADR/0048-android-background-waiting.md).
 
 These are target behavior decisions, not claims about the shipped release.
 The history-key layout, authentication policy and migration are not decided.
 They must not be weakened implicitly to make a background callback run.
 
-## Wake mechanism is unresolved
+## Selected direction: Moss waiting mode
 
-The owner rejected FCM for the first implementation after comparison with
-AyuGram. The Google-free wake mechanism, persistent service and dependencies
-remain undecided.
+The owner chose a Moss waiting mode after comparing FCM, AyuGram and the
+existing relay carrier. Its Android service, lifecycle, attachment policy,
+runtime interface and dependency changes remain undecided.
 
 The comparison must distinguish a system-assisted wake-up from an
 application-owned connection. AyuGram's
@@ -42,7 +47,7 @@ describes a persistent foreground connection to Telegram servers, its battery
 cost, and separate FCM builds. Its quoted battery percentages are not a Mosh
 baseline or a predicted result for a phone running Moss.
 
-The design must explain what happens without Google services, after ordinary
+The design must explain what happens without Google Play services, after ordinary
 process reclamation, and during Doze. A foreground service alone does not
 establish an exemption from Doze network restrictions; see
 [Android's guidance](https://developer.android.com/training/monitoring-device-state/doze-standby).
@@ -77,8 +82,9 @@ Mechanisms considered:
 | Mechanism | Status | Idle and lifecycle trade-off |
 | --- | --- | --- |
 | System-assisted FCM wake | Excluded from the first implementation | Avoids an app-owned idle socket, but requires Google services and exposes delivery metadata. |
-| App-owned lightweight wake connection | Open | Requires a broker and a background owner; Android lifecycle and physical battery/Doze measurements remain necessary. |
+| Separate app-owned lightweight wake connection | Considered; not selected | Requires a broker and a background owner; Android lifecycle and physical battery/Doze measurements remain necessary. |
 | Retained direct Moss connectivity | Not selected; owner objects to retaining the full mesh in idle | Relay forwarding is verified; an economical receiver lifecycle is not. Retaining the regular node also retains its mesh work. |
+| Explicit opt-in Moss waiting mode | Selected direction; not implemented | Reuses existing relay transport with a deliberately limited receiver lifecycle; Android and energy acceptance remain required. |
 
 The owner subsequently asked whether Android itself could be the server and
 noted that AyuGram does not run its own notification servers. Keep these roles
@@ -99,8 +105,9 @@ The pinned C API has no background/client mode or dynamic mesh suspension.
 A reduced startup profile remains a candidate to measure, not a demonstrated
 Android waiting policy. Reusing the carrier therefore needs explicit receiver
 lifecycle/attachment work; it does not automatically require a new hosted server.
-The audit also found default Google STUN endpoints, which are separate from
-FCM/Play services and require a precise no-Google policy.
+The audit also found default Google STUN endpoints. The owner explicitly
+permits these: address discovery is outside the excluded event-delivery role
+of FCM. No STUN-provider removal is part of this design.
 
 ## Existing boundaries
 
@@ -118,8 +125,8 @@ FCM/Play services and require a precise no-Google policy.
 
 ## Remaining design questions
 
-- Wake transport, devices without Google services, persistent-connection mode
-  and any gateway's trust, metadata, abuse limits and operating budget.
+- Moss waiting lifecycle/interface, attachment selection and any intermediary's
+  trust, metadata, abuse limits and operating budget.
 - Background credentials, history-key protection, notification disclosure,
   biometric policy, migration and failure behavior.
 - Supported lifecycle states, network changes, reboot/first unlock and explicit
