@@ -291,9 +291,10 @@ fn unacked_sent_message_auto_resends_then_gives_up() {
         .expect("attempt retained")
         .last_send_ms = 0;
     net.refuse_publishes(ALICE_ID, true);
-    assert!(
-        session.pump_unacked_resends(now_ms()).is_empty(),
-        "a refused publish is not a resend"
+    assert_eq!(
+        session.pump_unacked_resends(now_ms()),
+        vec![message_id.clone()],
+        "a refused publish persists its throttle timestamp without spending a slot"
     );
     net.refuse_publishes(ALICE_ID, false);
     assert_eq!(session.outbound_attempts[&message_id].auto_resends, 0);

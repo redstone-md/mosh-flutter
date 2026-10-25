@@ -67,6 +67,21 @@ impl MlsSessionCrypto {
             signer,
             credential,
             group,
+            forward_recovery: None,
         })
+    }
+
+    pub(super) fn receive_candidate(&self) -> Result<Self, MlsCryptoError> {
+        let identity = Self::credential_identity(&self.credential.credential)
+            .ok_or(MlsCryptoError::NotReady)?;
+        let group_id = self.group_id_bytes().ok_or(MlsCryptoError::NotReady)?;
+        let mut candidate = Self::restore(
+            &identity,
+            &self.signer_public(),
+            &self.snapshot(),
+            &group_id,
+        )?;
+        candidate.forward_recovery = self.forward_recovery.clone();
+        Ok(candidate)
     }
 }

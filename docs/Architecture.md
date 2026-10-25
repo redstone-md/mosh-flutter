@@ -230,6 +230,14 @@ peer row. Initial Hello retries stay at two seconds; restored/lost established
 DMs back off to thirty seconds. A usable path or new user text wakes the retry.
 Unchanged offline identity claims follow those probes; changed claims/epochs
 bypass suppression after fresh validation. Connected keepalives are unchanged.
+Checked DM reception can retry a too-distant future generation on a copy of its own
+MLS state, with a 65,536-generation ceiling and a shared ten-second attempt
+budget. Only authenticated results are installed; the ordinary configuration
+and discarded-key retention stay unchanged. Authenticated reconnection or a new
+contact delivery receipt requeues exhausted unacknowledged sends, preserving
+their ids and author proofs. Bounded retries also encrypt at the current generation,
+so discarded ciphertext does not strand in-flight messages. See
+[the recovery plan](Proposals/dm-forward-recovery.plan.md) for checks and limits.
 Mosh opts into Moss's thirty-second maximum explicit-target retry gap. Attempts
 coalesce per target; fresh caller intent and admitted route changes wake them.
 DM rooms use Moss's optional KnownPeers discovery policy only when every current

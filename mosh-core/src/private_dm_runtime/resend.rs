@@ -3,10 +3,48 @@
 use super::*;
 
 impl PrivateDmSession {
-    /// Encrypt one queued message at the current epoch, publish it, and settle
-    /// it `Sent`. The bytes are recorded on the attempt so the auto re-sends
-    /// replay the same ciphertext the counterpart dedups on.
+    /// Reconnection or a new contact receipt permits another bounded attempt.
+    /// Re-encrypt from the retained text: the receiver may have discarded the
+    /// old ciphertext's generation while catching up.
+    pub(super) fn resume_exhausted_sends(&mut self) {
+        let ids: Vec<_> = self
+            .outbound_attempts
+            .iter()
+            .filter(|(id, attempt)| {
+                attempt.delivery_status == MessageDeliveryStatus::Sent
+                    && attempt.auto_resends >= AUTO_RESEND_MAX
+                    && self.messages.iter().any(|message| {
+                        message.message_id.as_deref() == Some(id)
+                            && message.delivery_status != Some(MessageDeliveryStatus::Delivered)
+                    })
+            })
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in ids {
+            if self.outbox().activate_queue(&id).is_ok() {
+                if let Some(attempt) = self.outbound_attempts.get_mut(&id) {
+                    attempt.auto_resends = 0;
+                }
+                self.dirty_outbound.push(id);
+            }
+        }
+    }
+
+    /// Publish the original semantic message and settle its admitted queue row.
     pub(super) fn publish_queued(&mut self, message_id: &str) -> Result<(), PrivateDmRuntimeError> {
+        self.publish_text(message_id, None)?;
+        self.outbox().settle(message_id, Ok(()), OnSent::Retain)?;
+        Ok(())
+    }
+
+    /// Fresh ciphertext keeps retries usable after a receiver catches up.
+    /// Receipts deduplicate the original id; publication does not downgrade a
+    /// Delivered row retained only for a linked sibling's receipt.
+    fn publish_text(
+        &mut self,
+        message_id: &str,
+        resend: Option<u32>,
+    ) -> Result<(), PrivateDmRuntimeError> {
         let body = self.queued_body(message_id)?;
         let sent_at_ms = self
             .outbound_attempts
@@ -28,7 +66,7 @@ impl PrivateDmSession {
             message_id: Some(message_id.to_string()),
             sent_at_ms: Some(sent_at_ms),
             ciphertext_b64: encode(&ciphertext),
-            resend: None,
+            resend,
         };
         self.sign_device_text(&mut envelope)?;
         self.track_device_receipts(message_id);
@@ -39,7 +77,6 @@ impl PrivateDmSession {
             attempt.publish_payload_b64 = encode(&payload);
             attempt.ciphertext_bytes = ciphertext.len();
         }
-        self.outbox().settle(message_id, Ok(()), OnSent::Retain)?;
         Ok(())
     }
 
@@ -76,7 +113,7 @@ impl PrivateDmSession {
         if !self.peer_joined || !self.device_outbox_ready() {
             return Vec::new();
         }
-        let due: Vec<(String, String, u32)> = self
+        let due: Vec<(String, u32)> = self
             .outbound_attempts
             .iter()
             .filter(|(_, attempt)| {
@@ -84,49 +121,26 @@ impl PrivateDmSession {
                     && attempt.auto_resends < AUTO_RESEND_MAX
                     && now_ms.saturating_sub(attempt.last_send_ms) >= AUTO_RESEND_MS
             })
-            .map(|(id, attempt)| {
-                (
-                    id.clone(),
-                    attempt.publish_payload_b64.clone(),
-                    attempt.auto_resends,
-                )
-            })
+            .map(|(id, attempt)| (id.clone(), attempt.auto_resends))
             .collect();
         let mut changed = self.finish_device_resends();
-        for (message_id, payload_b64, auto_resends) in due {
-            let Ok(payload) = decode(&payload_b64) else {
-                continue;
-            };
-            // Bump the resend counter INSIDE the envelope so the re-sent
-            // frame's bytes differ from the original — the receiver's
-            // frame-level sha256 dedup would otherwise swallow the duplicate
-            // before the re-ack path could run.
-            let Ok(mut envelope) = serde_json::from_slice::<DataEnvelope>(&payload) else {
-                continue;
-            };
-            if self.devices_live()
-                && decode(&envelope.ciphertext_b64)
-                    .ok()
-                    .and_then(|ciphertext| MlsSessionCrypto::commit_epoch(&ciphertext).ok())
-                    != self.crypto.epoch()
-            {
-                if self.publish_queued(&message_id).is_ok() {
-                    changed.push(message_id);
-                }
-                continue;
+        for (message_id, auto_resends) in due {
+            // A refusal still observes the retry cadence: fresh encryption and
+            // persistence must not repeat on every service tick.
+            if let Some(attempt) = self.outbound_attempts.get_mut(&message_id) {
+                attempt.last_send_ms = now_ms;
             }
-            envelope.resend = Some(auto_resends + 1);
-            let Ok(bytes) = serde_json::to_vec(&envelope) else {
-                continue;
-            };
-            // Only a re-send the transport took burns a slot — a refusal must
-            // not exhaust the budget with zero frames on the wire.
-            if self.route_send(ChannelKind::Data, &bytes).is_err() {
+            changed.push(message_id.clone());
+            // Only transport acceptance burns a retry slot. Re-encrypt while
+            // keeping the original id/time/proof and delivery status intact.
+            if self
+                .publish_text(&message_id, Some(auto_resends + 1))
+                .is_err()
+            {
                 continue;
             }
             if let Some(attempt) = self.outbound_attempts.get_mut(&message_id) {
                 attempt.auto_resends += 1;
-                attempt.last_send_ms = now_ms;
                 // Session transition the field log carries: how many times a
                 // message had to be re-sent before the ack arrived.
                 dlog::write(
@@ -139,7 +153,6 @@ impl PrivateDmSession {
                 // automatic loop, the message honestly keeps Sent (not
                 // Delivered), and a manual retry still has its payload.
             }
-            changed.push(message_id);
         }
         changed
     }

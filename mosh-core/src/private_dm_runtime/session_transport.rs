@@ -10,6 +10,7 @@ impl PrivateDmSession {
         if self.has_seen_message(&message) {
             return Ok(());
         }
+        self.crypto.enable_dm_forward_recovery();
         if message.channel == self.control_channel {
             self.handle_control(message.payload)
         } else if message.channel == self.data_channel {
@@ -96,6 +97,7 @@ impl PrivateDmSession {
             // Only the change into Connected is news. Written on every frame,
             // the line read like a reconnect every few seconds.
             if before != DmSessionState::Connected {
+                self.resume_exhausted_sends();
                 dlog::write(
                     LogLevel::Info,
                     kinds::HANDSHAKE,

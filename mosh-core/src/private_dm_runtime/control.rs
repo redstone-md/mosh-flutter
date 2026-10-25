@@ -279,6 +279,7 @@ impl PrivateDmSession {
                 &self.session_id,
                 &format!("message {message_id} settled delivered"),
             );
+            self.resume_exhausted_sends();
         }
         Ok(())
     }
