@@ -228,28 +228,32 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          repository: redstone-md/moss
+          ref: 979a63459e7327aec5a318b108d0382a8f5b091c
+          path: build/public-profile-moss
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.9'
-          cache-dependency-path: moss/go.sum
+          cache-dependency-path: build/public-profile-moss/go.sum
       - name: Build the optimized probe against unchanged pinned Moss
         shell: bash
         working-directory: scripts/perf/moss-profile
         run: |
+          test "$(git -C ../../../build/public-profile-moss rev-parse HEAD)" = 979a63459e7327aec5a318b108d0382a8f5b091c
           go mod init github.com/redstone-md/moss/diagnostics
-          go mod edit -go=1.25.0 -require=github.com/redstone-md/moss@v0.0.0 -replace=github.com/redstone-md/moss=../../../moss
+          go mod edit -go=1.25.0 -require=github.com/redstone-md/moss@v0.0.0 -replace=github.com/redstone-md/moss=../../../build/public-profile-moss
           go mod tidy
           go vet ./...
           go build -trimpath -o moss-profile.exe .
-          git -C ../../../moss diff --exit-code
+          git -C ../../../build/public-profile-moss diff --exit-code
       - name: Profile the public node after eight minutes of warmup
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force build/public-node-profile | Out-Null
-          @{ processor = @(Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors); os = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber); image = $env:ImageVersion; source = $env:GITHUB_SHA; moss = (git -C moss rev-parse HEAD); config_source_sha256 = (Get-FileHash mosh-core/src/moss_ffi/config.rs).Hash.ToLowerInvariant(); probe_sha256 = (Get-FileHash scripts/perf/moss-profile/moss-profile.exe).Hash.ToLowerInvariant() } | ConvertTo-Json -Depth 5 | Set-Content build/public-node-profile/fingerprint.json
+          @{ processor = @(Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors); os = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber); image = $env:ImageVersion; source = $env:GITHUB_SHA; moss = (git -C build/public-profile-moss rev-parse HEAD); config_source_sha256 = (Get-FileHash mosh-core/src/moss_ffi/config.rs).Hash.ToLowerInvariant(); probe_sha256 = (Get-FileHash scripts/perf/moss-profile/moss-profile.exe).Hash.ToLowerInvariant() } | ConvertTo-Json -Depth 5 | Set-Content build/public-node-profile/fingerprint.json
           $probe = Start-Process scripts/perf/moss-profile/moss-profile.exe -ArgumentList @('public-idle', '-warmup', '480s', '-duration', '90s', '-output', 'build/public-node-profile/node') -Wait -PassThru -RedirectStandardOutput build/private-public-node.log -RedirectStandardError build/private-public-node.err
           if ($probe.ExitCode -ne 0) { throw 'Public node profiling failed; node logs are excluded from artifacts' }
           foreach ($phase in @('mesh-polls', 'service-only')) {
@@ -263,7 +267,7 @@ jobs:
             go tool pprof -top -alloc_space -base "$prefix-allocs-before.pprof" "$prefix-allocs.pprof" | Set-Content "$prefix.alloc-top.txt"
             if ($LASTEXITCODE -ne 0) { throw 'Allocation profile validation failed' }
           }
-          git -C moss diff --exit-code
+          git -C build/public-profile-moss diff --exit-code
           if ($LASTEXITCODE -ne 0) { throw 'Moss sources changed' }
       - uses: actions/upload-artifact@v4
         if: always()
