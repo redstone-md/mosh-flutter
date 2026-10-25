@@ -35,6 +35,8 @@ in the future. The identical scenario fails on both 0.24.1 and 0.24.2.
   retry encrypts the retained semantic text at the current generation, without
   resetting its counter or downgrading a Delivered row. This recovers in-flight
   ciphertext discarded by catch-up without requeueing an active outgoing batch.
+  Refused retries advance the attempt timestamp, preserving the fifteen-second
+  crypto/publication cadence without spending the accepted-publication counter.
 
 ## Checks and limits
 
@@ -63,7 +65,7 @@ and recovery scheduling retain an explicit order.
 ## Review decisions
 
 - CodeAnt's repeated-work concern is bounded explicitly: the 65,536-step path
-  measured 87 ms in an optimized server build. The per-DM ten-second gate is
+  measured 87–95 ms across two optimized server runs. The per-DM ten-second gate is
   shared by receive candidates and charges rejected MLS signatures and outer
   proofs too. It is synchronous; slower devices still require field validation.
 - The ordinary checked-message snapshot copy predates this change in 0.24.2.

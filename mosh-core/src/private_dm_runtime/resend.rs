@@ -125,6 +125,12 @@ impl PrivateDmSession {
             .collect();
         let mut changed = self.finish_device_resends();
         for (message_id, auto_resends) in due {
+            // A refusal still observes the retry cadence: fresh encryption and
+            // persistence must not repeat on every service tick.
+            if let Some(attempt) = self.outbound_attempts.get_mut(&message_id) {
+                attempt.last_send_ms = now_ms;
+            }
+            changed.push(message_id.clone());
             // Only transport acceptance burns a retry slot. Re-encrypt while
             // keeping the original id/time/proof and delivery status intact.
             if self
@@ -135,7 +141,6 @@ impl PrivateDmSession {
             }
             if let Some(attempt) = self.outbound_attempts.get_mut(&message_id) {
                 attempt.auto_resends += 1;
-                attempt.last_send_ms = now_ms;
                 // Session transition the field log carries: how many times a
                 // message had to be re-sent before the ack arrived.
                 dlog::write(
@@ -148,7 +153,6 @@ impl PrivateDmSession {
                 // automatic loop, the message honestly keeps Sent (not
                 // Delivered), and a manual retry still has its payload.
             }
-            changed.push(message_id);
         }
         changed
     }

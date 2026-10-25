@@ -231,3 +231,31 @@ fn an_inflight_sibling_retry_does_not_downgrade_contact_delivery() {
         Some(MessageDeliveryStatus::Delivered)
     );
 }
+
+#[test]
+fn refused_retries_throttle_crypto_without_spending_publication_budget() {
+    let (net, mut alice, mut bob) = memory_pair();
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+    let sent = alice
+        .send_message(&invite.session_id, "retry later".into())
+        .unwrap();
+    net.fail_publishes(ALICE_ID, true);
+    let session = alice.session_mut(&invite.session_id).unwrap();
+    let start = session.outbound_attempts[&sent.message_id].last_send_ms + AUTO_RESEND_MS;
+    session.pump_unacked_resends(start);
+    let after_refusal = session.crypto.snapshot();
+    session.pump_unacked_resends(start + 1);
+    assert_eq!(
+        session.crypto.snapshot(),
+        after_refusal,
+        "a refused retry must not derive fresh ciphertext on each service tick"
+    );
+    assert_eq!(session.outbound_attempts[&sent.message_id].auto_resends, 0);
+    net.fail_publishes(ALICE_ID, false);
+    assert!(session
+        .pump_unacked_resends(start + AUTO_RESEND_MS)
+        .contains(&sent.message_id));
+    assert_eq!(session.outbound_attempts[&sent.message_id].auto_resends, 1);
+}
