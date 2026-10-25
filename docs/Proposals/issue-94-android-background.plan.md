@@ -78,7 +78,7 @@ Mechanisms considered:
 | --- | --- | --- |
 | System-assisted FCM wake | Excluded from the first implementation | Avoids an app-owned idle socket, but requires Google services and exposes delivery metadata. |
 | App-owned lightweight wake connection | Open | Requires a broker and a background owner; Android lifecycle and physical battery/Doze measurements remain necessary. |
-| Retained direct Moss connectivity | Not selected; owner objects to retaining the full mesh in idle | Avoids a separate broker while retaining mesh/discovery work. A narrower existing-network path has not been established. |
+| Retained direct Moss connectivity | Not selected; owner objects to retaining the full mesh in idle | Relay forwarding is verified; an economical receiver lifecycle is not. Retaining the regular node also retains its mesh work. |
 
 The owner subsequently asked whether Android itself could be the server and
 noted that AyuGram does not run its own notification servers. Keep these roles
@@ -86,6 +86,21 @@ distinct: an Android service is a local execution component; AyuGram's network
 peer is Telegram's server. Hosting and any reuse of existing Moss infrastructure
 remain open. Local server code does not by itself keep a sleeping phone
 network-reachable or restart it after process reclamation.
+
+### Moss feasibility check
+
+The owner authorized checking reuse of existing Moss nodes. The
+[source audit and native checks](issue-94-moss-wake.research.md) confirm that
+an unchanged relay can carry encrypted traffic to a live leaf. Fifteen targeted
+tests passed; a standalone C-ABI probe also verified that Stop destroys the
+handle instead of preserving a receiving connection.
+
+The pinned C API has no background/client mode or dynamic mesh suspension.
+A reduced startup profile remains a candidate to measure, not a demonstrated
+Android waiting policy. Reusing the carrier therefore needs explicit receiver
+lifecycle/attachment work; it does not automatically require a new hosted server.
+The audit also found default Google STUN endpoints, which are separate from
+FCM/Play services and require a precise no-Google policy.
 
 ## Existing boundaries
 
