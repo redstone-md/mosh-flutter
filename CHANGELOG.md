@@ -6,6 +6,32 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.24.2] - 2026-10-25
+
+### Changed
+
+- Saved private chats use authenticated recipients for discovery and back off
+  repeated presence probes while those recipients are offline.
+- Idle history reads reuse verified signatures, account delegations and loaded
+  signing keys. Current membership, roles and revocation still govern access.
+- Direct connections wake pending waiters through notifications, reducing
+  repeated timer allocation while waiting for an offline peer.
+
+### Fixed
+
+- Bound repeated peer discovery, topic refusals and relay searches while keeping
+  reconnection and message delivery active.
+- Marking a private chat as viewed no longer services every saved chat, and
+  received read state survives without an extra protocol tick.
+- Windows diagnostics attribute CPU samples to the selected process, exclude
+  traffic before recording starts and use bounded recording sessions.
+
+### Upgrade notes
+
+- Existing accounts, chats and Mosh+ purchases update in place.
+- Android incoming calls still require Mosh to be running in the foreground.
+  Background incoming calls and battery acceptance remain tracked in issue #94.
+
 ## [0.24.1] - 2026-10-20
 
 ### Added
