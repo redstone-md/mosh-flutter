@@ -8,7 +8,7 @@ Related: [issue 94](https://github.com/redstone-md/mosh-flutter/issues/94),
 
 ## Accepted product decisions
 
-The owner accepted interview questions 1 and 3 on 2026-10-25:
+The owner accepted interview questions 1, 2, 3 and 4 on 2026-10-25:
 
 - Mosh app lock protects interactive access to chats. It must not prevent
   background message reception or incoming calls. A user can accept an incoming
@@ -19,6 +19,11 @@ The owner accepted interview questions 1 and 3 on 2026-10-25:
   call after minimizing, and notifications for new messages in private DMs,
   private groups and public channels. This does not change which conversation
   kinds support calls or which content is end-to-end encrypted.
+- The first implementation excludes FCM. Android background operation must work
+  without Google services.
+- An untrusted intermediary may carry short encrypted wake signals, with
+  self-hosting possible. This does not approve server-side message archives,
+  a particular provider, a hosting location or a deployment.
 
 These are target behavior decisions, not claims about the shipped release.
 The history-key layout, authentication policy and migration are not decided.
@@ -26,8 +31,9 @@ They must not be weakened implicitly to make a background callback run.
 
 ## Wake mechanism is unresolved
 
-The owner questioned FCM adoption and requested comparison with AyuGram.
-No push provider, persistent service or new dependency is approved yet.
+The owner rejected FCM for the first implementation after comparison with
+AyuGram. The Google-free wake mechanism, persistent service and dependencies
+remain undecided.
 
 The comparison must distinguish a system-assisted wake-up from an
 application-owned connection. AyuGram's
@@ -66,13 +72,20 @@ datacenter supplies server wake hints and retained updates; Mosh would need to
 design those responsibilities explicitly if it adopts a similar wake channel.
 A wake hint alone does not make an offline sender's messages available.
 
-Candidate mechanisms, all still open:
+Mechanisms considered:
 
-| Mechanism | Additional dependency | Idle and lifecycle trade-off |
+| Mechanism | Status | Idle and lifecycle trade-off |
 | --- | --- | --- |
-| System-assisted wake, such as FCM | Provider and server-side wake gateway | Avoids an app-owned idle socket; delivery, metadata and platform limits still apply. |
-| App-owned lightweight wake connection | Wake broker and persistent background owner | Can work without Google; requires explicit Android background support and physical battery/Doze measurements. |
-| Retained direct Moss connectivity | No separate wake broker | Retains mesh/discovery work; must measure its cost and supported Android lifecycle. |
+| System-assisted FCM wake | Excluded from the first implementation | Avoids an app-owned idle socket, but requires Google services and exposes delivery metadata. |
+| App-owned lightweight wake connection | Open | Requires a broker and a background owner; Android lifecycle and physical battery/Doze measurements remain necessary. |
+| Retained direct Moss connectivity | Not selected; owner objects to retaining the full mesh in idle | Avoids a separate broker while retaining mesh/discovery work. A narrower existing-network path has not been established. |
+
+The owner subsequently asked whether Android itself could be the server and
+noted that AyuGram does not run its own notification servers. Keep these roles
+distinct: an Android service is a local execution component; AyuGram's network
+peer is Telegram's server. Hosting and any reuse of existing Moss infrastructure
+remain open. Local server code does not by itself keep a sleeping phone
+network-reachable or restart it after process reclamation.
 
 ## Existing boundaries
 

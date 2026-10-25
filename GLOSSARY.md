@@ -65,6 +65,11 @@ message reception and incoming calls remain available. Accepting a call does
 not unlock access to the chats.
 _Avoid_: going offline, ending a call, locking all background reception.
 
+**Mosh wake signal**:
+A short-lived hint that an installation may have pending Mosh activity. It is
+not itself a delivered message or an accepted call.
+_Avoid_: delivery receipt, call acceptance.
+
 ## Calls
 
 **Mosh call**:
