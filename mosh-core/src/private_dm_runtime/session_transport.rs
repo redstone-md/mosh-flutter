@@ -97,6 +97,7 @@ impl PrivateDmSession {
             // Only the change into Connected is news. Written on every frame,
             // the line read like a reconnect every few seconds.
             if before != DmSessionState::Connected {
+                self.resume_exhausted_sends();
                 dlog::write(
                     LogLevel::Info,
                     kinds::HANDSHAKE,

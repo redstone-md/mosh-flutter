@@ -21,6 +21,12 @@ fn release_budget(crypto: &MlsSessionCrypto) {
         Some(Instant::now() - RETRY_INTERVAL);
 }
 
+fn checked(crypto: &mut MlsSessionCrypto, ciphertext: &[u8]) -> Result<Vec<u8>, MlsCryptoError> {
+    crypto
+        .decrypt_checked(ciphertext, |_, _| Ok(()))
+        .map(|result| result.0)
+}
+
 #[test]
 fn recovered_state_restores_policy_and_survives_restart() {
     let (mut alice, mut bob) = pair();
@@ -42,7 +48,7 @@ fn recovered_state_restores_policy_and_survives_restart() {
         "ordinary MLS owners keep their limit"
     );
     bob.enable_dm_forward_recovery();
-    assert_eq!(bob.decrypt(&ciphertext).unwrap(), b"current text");
+    assert_eq!(checked(&mut bob, &ciphertext).unwrap(), b"current text");
     assert_eq!(bob.group.as_ref().unwrap().configuration(), &configuration);
     assert!(
         bob.decrypt(&ciphertext).is_err(),
@@ -71,14 +77,14 @@ fn forged_catch_up_preserves_state_and_throttles_repeated_work() {
     );
     let forged = alice.encrypt(b"forged sender").unwrap();
     alice.signer = signer;
-    assert!(bob.decrypt(&forged).is_err());
+    assert!(checked(&mut bob, &forged).is_err());
     assert_eq!(bob.snapshot(), before);
     assert!(
-        bob.decrypt(&ciphertext).is_err(),
+        checked(&mut bob, &ciphertext).is_err(),
         "a refused attempt consumes the budget"
     );
     release_budget(&bob);
-    assert_eq!(bob.decrypt(&ciphertext).unwrap(), b"current text");
+    assert_eq!(checked(&mut bob, &ciphertext).unwrap(), b"current text");
 }
 
 #[test]
@@ -107,11 +113,11 @@ fn catch_up_is_bounded_at_the_configured_ceiling() {
     let too_far = alice.encrypt(b"beyond budget").unwrap();
     beyond.enable_dm_forward_recovery();
     let before = beyond.snapshot();
-    assert!(beyond.decrypt(&too_far).is_err());
+    assert!(checked(&mut beyond, &too_far).is_err());
     assert_eq!(beyond.snapshot(), before);
     bob.enable_dm_forward_recovery();
     let started = Instant::now();
-    assert_eq!(bob.decrypt(&ciphertext).unwrap(), b"current text");
+    assert_eq!(checked(&mut bob, &ciphertext).unwrap(), b"current text");
     eprintln!("65,536-generation recovery: {:?}", started.elapsed());
 }
 

@@ -30,6 +30,13 @@ impl PrivateDmSession {
         signer: &[u8],
     ) -> Result<()> {
         let (author, own) = self.device_author(signer)?;
+        let new_contact_delivery = !own
+            && self.outbound_attempts.contains_key(id)
+            && self.messages.iter().any(|message| {
+                message.message_id.as_deref() == Some(id)
+                    && message.from_device == self.device_id
+                    && message.delivery_status != Some(MessageDeliveryStatus::Delivered)
+            });
         let membership = self.membership.as_mut().ok_or_else(invalid)?;
         if !own && !membership.delivered_ids.iter().any(|seen| seen == id) {
             membership.delivered_ids.push(id.into());
@@ -70,6 +77,9 @@ impl PrivateDmSession {
         self.record_dirty = true;
         if !own {
             self.note_authenticated_frame(&author);
+        }
+        if new_contact_delivery {
+            self.resume_exhausted_sends();
         }
         Ok(())
     }

@@ -50,7 +50,7 @@ impl MlsSessionCrypto {
         validate: impl FnOnce(&[u8], &[u8]) -> Result<(), String>,
     ) -> Result<(Vec<u8>, Vec<u8>), MlsCryptoError> {
         let mut candidate = self.receive_candidate()?;
-        let (body, signer) = candidate.decrypt_with_signer(ciphertext)?;
+        let (body, signer) = candidate.decrypt_application(ciphertext, true)?;
         validate(&body, &signer).map_err(MlsCryptoError::OpenMls)?;
         *self = candidate;
         Ok((body, signer))
@@ -60,6 +60,14 @@ impl MlsSessionCrypto {
     pub(crate) fn decrypt_with_signer(
         &mut self,
         ciphertext: &[u8],
+    ) -> Result<(Vec<u8>, Vec<u8>), MlsCryptoError> {
+        self.decrypt_application(ciphertext, false)
+    }
+
+    fn decrypt_application(
+        &mut self,
+        ciphertext: &[u8],
+        checked: bool,
     ) -> Result<(Vec<u8>, Vec<u8>), MlsCryptoError> {
         let group = self.group.as_mut().ok_or(MlsCryptoError::NotReady)?;
         let message =
@@ -79,7 +87,7 @@ impl MlsSessionCrypto {
                     ))
                 );
                 let error = MlsCryptoError::openmls(error);
-                return if forward_gap {
+                return if checked && forward_gap {
                     self.recover_forward_gap(ciphertext, error)
                 } else {
                     Err(error)
