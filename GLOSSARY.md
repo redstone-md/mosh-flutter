@@ -57,6 +57,14 @@ message ownership. Message cards, the file index and open actions share its
 readiness, progress and allowed controls. A failed or cancelled transfer is
 not ready merely because a cached local path remains.
 
+## App access
+
+**Mosh app lock**:
+User authentication protecting access to the chat interface while background
+message reception and incoming calls remain available. Accepting a call does
+not unlock access to the chats.
+_Avoid_: going offline, ending a call, locking all background reception.
+
 ## Calls
 
 **Mosh call**:
