@@ -122,3 +122,10 @@ improvement, reproduce the owner's higher working set or close owner acceptance.
 The owner's old-trace caller export also matches `54135ec0`; it is not an after
 measurement of this correction. Its processing is complete, without needing
 another export of the same ETL.
+
+The subsequent [owner recording on `aa17f31e`](issue-94-owner-cpu-20261024-230853.results.md)
+matches all five release binaries. Observed CPU is 0.654% across sixteen
+logical processors versus 0.678% previously. Mean traffic falls to 0.452
+Mbit/s while the median is almost unchanged; working set decreases during
+the interval. These uncontrolled observations do not establish whole-process
+patch gains or a memory-leak cause. Owner acceptance remains open.
