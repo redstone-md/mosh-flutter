@@ -60,6 +60,7 @@ type publicPhase struct {
 	KnownPolicies  int      `json:"known_dm_policies"`
 	Config         string   `json:"static_mosh_overrides"`
 	SamplerEnabled bool     `json:"sampler_included_in_cpu_window"`
+	ProfileScope   string   `json:"memory_profile_scope"`
 }
 
 func publicIdle(args []string) {
@@ -85,6 +86,7 @@ func publicIdle(args []string) {
 		r.GoVersion, r.GOMAXPROCS = runtime.Version(), runtime.GOMAXPROCS(0)
 		r.WarmupNS, r.RoomCount, r.Subscriptions = int64(*warmup), 11, 33
 		r.KnownPolicies, r.Config, r.SamplerEnabled = 8, publicMoshConfig, true
+		r.ProfileScope = "allocs: cumulative snapshots and delta; heap: latest GC; no forced GC"
 		writeAggregate(*output+"-"+name+".json", r)
 	}
 }
@@ -124,31 +126,35 @@ func registerPublicRooms(node *mesh.Node) {
 }
 
 func profilePublicPhase(node *mesh.Node, name string, duration time.Duration, prefix string) publicPhase {
-	r := publicPhase{Name: name, Before: readTopology(node), MemoryBefore: readMemory()}
+	writeRuntimeProfile(prefix+"-allocs-before.pprof", "allocs")
+	r := publicPhase{Name: name, Before: readTopology(node)}
 	if r.Before.Peers == 0 || r.Before.Known == 0 {
 		panic("public topology not established")
 	}
 	f, err := os.Create(prefix + ".pprof")
 	check(err)
 	check(pprof.StartCPUProfile(f))
+	r.MemoryBefore = readMemory()
 	cpu, start := processCPU(), time.Now()
 	r.Reads = scheduledReads(node, duration, name == "mesh-polls")
 	r.ElapsedNS, r.CPUNS = time.Since(start).Nanoseconds(), processCPU()-cpu
+	r.MemoryAfter = readMemory()
 	pprof.StopCPUProfile()
 	check(f.Close())
-	r.MemoryAfter, r.After = readMemory(), readTopology(node)
+	r.After = readTopology(node)
 	writeRuntimeProfiles(prefix)
 	return r
 }
 
 func scheduledReads(node *mesh.Node, duration time.Duration, poll bool) int {
-	end := time.NewTimer(duration)
+	deadline := time.Now().Add(duration)
+	end := time.NewTimer(time.Until(deadline))
 	defer end.Stop()
 	if !poll {
 		<-end.C
 		return 0
 	}
-	ticks := time.NewTicker(time.Second)
+	ticks := time.NewTicker(time.Second / 6)
 	defer ticks.Stop()
 	reads := 0
 	for {
@@ -156,10 +162,11 @@ func scheduledReads(node *mesh.Node, duration time.Duration, poll bool) int {
 		case <-end.C:
 			return reads
 		case <-ticks.C:
-			for i := 0; i < 6; i++ {
-				_ = node.MeshInfoJSON()
-				reads++
+			if !time.Now().Before(deadline) {
+				return reads
 			}
+			_ = node.MeshInfoJSON()
+			reads++
 		}
 	}
 }
@@ -179,11 +186,15 @@ func readMemory() memory {
 
 func writeRuntimeProfiles(prefix string) {
 	for _, name := range []string{"heap", "allocs", "goroutine"} {
-		f, err := os.Create(prefix + "-" + name + ".pprof")
-		check(err)
-		check(pprof.Lookup(name).WriteTo(f, 0))
-		check(f.Close())
+		writeRuntimeProfile(prefix+"-"+name+".pprof", name)
 	}
+}
+
+func writeRuntimeProfile(path, name string) {
+	f, err := os.Create(path)
+	check(err)
+	check(pprof.Lookup(name).WriteTo(f, 0))
+	check(f.Close())
 }
 
 func writeAggregate(path string, value publicPhase) {

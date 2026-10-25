@@ -260,7 +260,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'CPU caller export failed' }
             go tool pprof -top -inuse_space "$prefix-heap.pprof" | Set-Content "$prefix.heap-top.txt"
             if ($LASTEXITCODE -ne 0) { throw 'Heap profile validation failed' }
-            go tool pprof -top -alloc_space "$prefix-allocs.pprof" | Set-Content "$prefix.alloc-top.txt"
+            go tool pprof -top -alloc_space -base "$prefix-allocs-before.pprof" "$prefix-allocs.pprof" | Set-Content "$prefix.alloc-top.txt"
             if ($LASTEXITCODE -ne 0) { throw 'Allocation profile validation failed' }
           }
           git -C moss diff --exit-code
