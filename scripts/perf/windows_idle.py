@@ -19,8 +19,11 @@ SCRIPTS = Path(__file__).parent.resolve()
 PROBE = SCRIPTS / 'idle-api.exe'
 MESSAGES_PER_DM = int(sys.argv[3]) if len(sys.argv) > 3 else 1
 REUSE_FIXTURE = sys.argv[4:] == ['--reuse-ci-fixture']
-if len(sys.argv) > 4 and not REUSE_FIXTURE:
+PACKAGE_SMOKE = sys.argv[4:] == ['--smoke-ci-fixture']
+if len(sys.argv) > 4 and not (REUSE_FIXTURE or PACKAGE_SMOKE):
     raise ValueError('Unknown profiling option')
+if PACKAGE_SMOKE and os.environ.get('GITHUB_ACTIONS') != 'true':
+    raise ValueError('Package smoke requires an owned synthetic CI fixture')
 if not 1 <= MESSAGES_PER_DM <= 100:
     raise ValueError("The diagnostic history budget is one to 100 messages per DM")
 ROOT.mkdir(parents=True, exist_ok=True)
@@ -185,6 +188,9 @@ def gui_profile(data):
     try:
         powershell('Open-ProfileChat.ps1', '-TargetProcessId', app.pid,
                    '-OutputFile', ROOT / 'app-ui.json')
+        if PACKAGE_SMOKE:
+            check_window(app.pid, 'package-smoke', 'verified', minimized=False)
+            return {'package_smoke': True}
         warm('GUI')
         visible = measure(app.pid, 'gui-visible', minimized=False)
         powershell('Open-ProfileChat.ps1', '-TargetProcessId', app.pid, '-Hide')
@@ -242,7 +248,8 @@ def main():
                              'messages_per_dm': MESSAGES_PER_DM},
                 'fixture_reused': REUSE_FIXTURE,
                 'runtime_source': os.environ['IDLE_RUNTIME_SOURCE'],
-                'warmup_seconds': 480, 'window_seconds': 90,
+                'warmup_seconds': 0 if PACKAGE_SMOKE else 480,
+                'window_seconds': 0 if PACKAGE_SMOKE else 90,
                 'hashes': {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                            for p in [APP / 'mosh.exe', APP / 'mosh_core.dll',
                                      APP / 'moss.dll', APP / 'flutter_windows.dll', APP / 'data/app.so']}}

@@ -17,9 +17,14 @@ this measurement branch. The integration pin lives separately on
 ## Method
 
 Two ephemeral Windows jobs run opposite orders: before/after and after/before.
-Each job installs and prepares both copies before either measurement. It seeds
+The initial run is triggered only by this workflow file changing on the
+measurement branch, after its immutable installer identity is recorded.
+Each job opens the actual candidate EXE, verifies its saved chat/composer and
+seeds
 eight real DMs with 100 acknowledged messages each, two groups and a channel.
-Counterpart installations stop before idle measurements. The same saved fixture
+Its post-close inventory must retain every message. It then prepares both
+baseline application copies before either measurement. Counterpart
+installations stop before idle measurements. The same saved fixture
 and cryptographic identities are reused for the second variant on that host.
 The reuse option requires GitHub Actions and an owned synthetic-fixture marker;
 ordinary profiling still refuses an existing application data directory.

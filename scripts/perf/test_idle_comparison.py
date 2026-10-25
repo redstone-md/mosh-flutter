@@ -12,16 +12,18 @@ class IdleComparisonTest(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
         self.write(self.root, 'provenance.json', {
-            'candidate_moss_sha256': 'candidate', 'order': 'before-after'})
-        for name in ['before', 'after']:
+            'candidate_moss_sha256': 'candidate', 'order': 'before-after',
+            'candidate_source': 'new-package'})
+        for name in ['before', 'after', 'candidate-smoke']:
             root = self.root / name
             root.mkdir()
             self.write(root, 'fingerprint.json', {
-                'runtime_source': 'unchanged-app',
-                'fixture_reused': name == 'after',
+                'runtime_source': 'new-package' if name == 'candidate-smoke' else 'unchanged-app',
+                'fixture_reused': name != 'candidate-smoke',
                 'fixture': {'offline_dm': 8, 'groups': 2, 'channels': 1, 'messages_per_dm': 100},
-                'warmup_seconds': 480, 'window_seconds': 90,
-                'hashes': {key: ('candidate' if name == 'after' else 'baseline')
+                'warmup_seconds': 0 if name == 'candidate-smoke' else 480,
+                'window_seconds': 0 if name == 'candidate-smoke' else 90,
+                'hashes': {key: ('baseline' if name == 'before' else 'candidate')
                           if key == 'moss.dll' else 'identical'
                           for key in ['mosh.exe', 'mosh_core.dll', 'moss.dll',
                                       'flutter_windows.dll', 'app.so']}})
@@ -33,6 +35,7 @@ class IdleComparisonTest(unittest.TestCase):
                 self.write(root, phase + '.json', {'elapsed_seconds': 89, 'cpu_ms': 10})
                 self.write(root, phase + '-network-summary.json',
                            {'complete': True, 'control_validated': True})
+        self.write(self.root / 'candidate-smoke', 'comparison.json', {'gui': {'package_smoke': True}})
 
     @staticmethod
     def write(root, name, value):
@@ -59,5 +62,10 @@ class IdleComparisonTest(unittest.TestCase):
 
     def test_rejects_incomplete_network_capture(self):
         self.alter('gui-visible-network-summary.json', lambda v: v.update({'complete': False}))
+        with self.assertRaises(AssertionError):
+            compare(self.root)
+
+    def test_rejects_a_failed_candidate_package_check(self):
+        self.write(self.root / 'candidate-smoke', 'comparison.json', {'gui': {'package_smoke': False}})
         with self.assertRaises(AssertionError):
             compare(self.root)
