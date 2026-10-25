@@ -1,0 +1,52 @@
+name: macOS tagged-call recheck
+
+on:
+  push:
+    branches: [test/windows-idle-current]
+    paths: [.github/workflows/macos-call-release-check.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  native-call-media:
+    runs-on: macos-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 0047d3564368d932a1afe5db20c173f6b6ce2b62
+          submodules: recursive
+      - name: Assert the tagged source
+        run: test "$(git rev-parse HEAD)" = 0047d3564368d932a1afe5db20c173f6b6ce2b62
+      - uses: ./.github/actions/setup
+        with:
+          flutter: 'false'
+          rust-cache-key: native-call
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .dart_tool/native-media/target
+            .dart_tool/native-sources
+            .dart_tool/native-tools
+          key: native-call-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mosh-media/**/Cargo.lock', 'third_party/*-patches/source.json', 'third_party/*-patches/mosh.patch') }}
+          restore-keys: native-call-${{ runner.os }}-${{ runner.arch }}-
+      - name: Build the tagged native engine
+        run: node scripts/native-media-build.mjs
+      - name: Build the tagged API and capture driver
+        run: cargo build --manifest-path mosh-core/Cargo.toml --features native-media-tests --lib --bin mosh-camera-test-driver --test device_link_flow
+      - name: Repeat the full native-call suite three times
+        shell: bash
+        env:
+          MOSH_MEDIA_ENGINE: ${{ github.workspace }}/.dart_tool/native-media/debug/libmosh_native_media.dylib
+          MOSH_CAMERA_CAPTURE: ${{ github.workspace }}/mosh-core/target/debug/mosh-camera-test-driver
+        run: |
+          for attempt in 1 2 3; do
+            echo "Native-call repetition $attempt"
+            cargo test --manifest-path mosh-core/Cargo.toml --lib --features native-media-tests native_call:: -- --include-ignored --nocapture
+          done
+      - name: Real MLS and Moss calls on the tagged source
+        env:
+          MOSH_MEDIA_ENGINE: ${{ github.workspace }}/.dart_tool/native-media/debug/libmosh_native_media.dylib
+          MOSH_CAMERA_CAPTURE: ${{ github.workspace }}/mosh-core/target/debug/mosh-camera-test-driver
+        run: node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture
