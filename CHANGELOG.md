@@ -6,6 +6,24 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.24.3] - 2026-10-25
+
+### Fixed
+
+- Established private chats recover incoming messages and call setup after
+  missed encrypted traffic leaves a conversation working in only one direction.
+- Unacknowledged messages retry with fresh encryption while preserving their
+  original ids, author proofs and delivery receipts, so older text can arrive
+  after the connection recovers.
+- Unrelated incoming traffic no longer renews exhausted delivery retries.
+  Failed network publications also observe the retry interval, avoiding repeated
+  encryption and persistence on every service tick.
+
+### Upgrade notes
+
+- Existing profiles, chats and Mosh+ purchases update in place. Fully quit Mosh
+  before installing the desktop update.
+
 ## [0.24.2] - 2026-10-25
 
 ### Changed

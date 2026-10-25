@@ -48,8 +48,9 @@ the ceiling case, then run the core suite, lint and existing independent-process
 DM/call integrations. Review before providing installer builds.
 
 This cannot reconstruct deleted secrets or repair arbitrary rollback/divergent
-epochs. The owner's old chat still needs verification on the resulting build;
-a working new chat alone does not identify its exact cryptographic error.
+epochs. The owner confirmed recovery of the affected old chat on the resulting
+Windows/Android build. The historical receiver error was not captured; the test
+establishes a reproducible failure mechanism rather than that missing log entry.
 
 OpenMLS documents `maximum_forward_distance` as the local policy for dropped
 application messages: [forward secrecy](https://book.openmls.tech/forward_secrecy.html)
@@ -88,9 +89,11 @@ Standards and Spec reviews independently checked the final boundaries and
 receipt ordering. Both reported no remaining findings after their fixes.
 The public PR is [#98](https://github.com/redstone-md/mosh-flutter/pull/98).
 
-Field acceptance requires installing the same resulting Windows/Android build
-over both existing installations, fully quitting the previous processes first.
-Keep the old chat and profiles. Send a fresh text from the previously failing
-side, verify text and receipts in both directions, and start a call. If that
-old chat still fails, obtain the receiver's exact inbound-frame warning before
-claiming that this reproduced mechanism explains the physical installation.
+On 2026-10-25 the owner confirmed that the affected old chat works with the
+Windows/Android installers from `e5ebe438` and authorized merge and release.
+Field acceptance for this reported failure is complete.
+
+For a similar report, keep the old chat and profiles. Install the same build on
+both installations, fully quitting the previous processes first. Send fresh
+text from the failing side, verify text and receipts in both directions, then
+start a call. If it still fails, capture the receiver's inbound-frame warning.
