@@ -3,6 +3,10 @@ name: Windows network diagnostics
 on:
   workflow_dispatch:
     inputs:
+      public_node_profile:
+        description: Attribute remaining Windows Go work on a disposable public node
+        type: boolean
+        default: false
       announcement_compare:
         description: Compare uncached and memoized announcement verification
         type: boolean
@@ -171,7 +175,7 @@ jobs:
           retention-days: 7
 
   diagnostics:
-    if: github.event_name != 'workflow_dispatch' || (!inputs.stack_control && !inputs.package_stack_export)
+    if: github.event_name != 'workflow_dispatch' || (!inputs.stack_control && !inputs.package_stack_export && !inputs.public_node_profile)
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -217,6 +221,57 @@ jobs:
             build/mosh-network-diagnostics.zip
             build/mosh-network-diagnostics.zip.sha256
           retention-days: 14
+
+  public-node-profile:
+    if: github.event_name == 'workflow_dispatch' && inputs.public_node_profile
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.9'
+          cache-dependency-path: moss/go.sum
+      - name: Build the optimized probe against unchanged pinned Moss
+        shell: bash
+        working-directory: scripts/perf/moss-profile
+        run: |
+          go mod init github.com/redstone-md/moss/diagnostics
+          go mod edit -go=1.25.0 -require=github.com/redstone-md/moss@v0.0.0 -replace=github.com/redstone-md/moss=../../../moss
+          go mod tidy
+          go vet ./...
+          go build -trimpath -o moss-profile.exe .
+          git -C ../../../moss diff --exit-code
+      - name: Profile the public node after eight minutes of warmup
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force build/public-node-profile | Out-Null
+          @{ processor = @(Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors); os = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber); image = $env:ImageVersion; source = $env:GITHUB_SHA; moss = (git -C moss rev-parse HEAD); config_source_sha256 = (Get-FileHash mosh-core/src/moss_ffi/config.rs).Hash.ToLowerInvariant(); probe_sha256 = (Get-FileHash scripts/perf/moss-profile/moss-profile.exe).Hash.ToLowerInvariant() } | ConvertTo-Json -Depth 5 | Set-Content build/public-node-profile/fingerprint.json
+          $probe = Start-Process scripts/perf/moss-profile/moss-profile.exe -ArgumentList @('public-idle', '-warmup', '480s', '-duration', '90s', '-output', 'build/public-node-profile/node') -Wait -PassThru -RedirectStandardOutput build/private-public-node.log -RedirectStandardError build/private-public-node.err
+          if ($probe.ExitCode -ne 0) { throw 'Public node profiling failed; node logs are excluded from artifacts' }
+          foreach ($phase in @('mesh-polls', 'service-only')) {
+            $prefix = "build/public-node-profile/node-$phase"
+            go tool pprof -top -cum "$prefix.pprof" | Set-Content "$prefix.cpu-top.txt"
+            if ($LASTEXITCODE -ne 0) { throw 'CPU profile validation failed' }
+            go tool pprof -traces "$prefix.pprof" | Set-Content "$prefix.cpu-traces.txt"
+            if ($LASTEXITCODE -ne 0) { throw 'CPU caller export failed' }
+            go tool pprof -top -inuse_space "$prefix-heap.pprof" | Set-Content "$prefix.heap-top.txt"
+            if ($LASTEXITCODE -ne 0) { throw 'Heap profile validation failed' }
+            go tool pprof -top -alloc_space "$prefix-allocs.pprof" | Set-Content "$prefix.alloc-top.txt"
+            if ($LASTEXITCODE -ne 0) { throw 'Allocation profile validation failed' }
+          }
+          git -C moss diff --exit-code
+          if ($LASTEXITCODE -ne 0) { throw 'Moss sources changed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-public-node-profile
+          path: build/public-node-profile/*
+          if-no-files-found: error
+          retention-days: 7
 
   interface-profile:
     if: github.event_name == 'workflow_dispatch' && (inputs.interface_profile || inputs.interface_compare)

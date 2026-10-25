@@ -24,6 +24,10 @@ type result struct {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "public-idle" {
+		publicIdle(os.Args[2:])
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "benchmark" {
 		benchmark(os.Args[2:])
 		return
