@@ -18,6 +18,7 @@ impl MlsSessionCrypto {
             signer,
             credential,
             group: None,
+            forward_recovery: None,
         })
     }
 

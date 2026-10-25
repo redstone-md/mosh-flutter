@@ -1,4 +1,5 @@
 use super::*;
+use openmls::framing::errors::{MessageDecryptionError, SecretTreeError};
 
 impl MlsSessionCrypto {
     /// Serialize one control payload into base64 MLS ciphertext.
@@ -48,15 +49,7 @@ impl MlsSessionCrypto {
         ciphertext: &[u8],
         validate: impl FnOnce(&[u8], &[u8]) -> Result<(), String>,
     ) -> Result<(Vec<u8>, Vec<u8>), MlsCryptoError> {
-        let identity = Self::credential_identity(&self.credential.credential)
-            .ok_or(MlsCryptoError::NotReady)?;
-        let group_id = self.group_id_bytes().ok_or(MlsCryptoError::NotReady)?;
-        let mut candidate = Self::restore(
-            &identity,
-            &self.signer_public(),
-            &self.snapshot(),
-            &group_id,
-        )?;
+        let mut candidate = self.receive_candidate()?;
         let (body, signer) = candidate.decrypt_with_signer(ciphertext)?;
         validate(&body, &signer).map_err(MlsCryptoError::OpenMls)?;
         *self = candidate;
@@ -74,25 +67,26 @@ impl MlsSessionCrypto {
         let protocol_message = message
             .try_into_protocol_message()
             .map_err(MlsCryptoError::codec)?;
-        let processed = group
-            .process_message(&self.provider, protocol_message)
-            .map_err(MlsCryptoError::openmls)?;
-        let signer = match processed.sender() {
-            Sender::Member(index) => group
-                .members()
-                .find(|member| member.index == *index)
-                .map(|member| member.signature_key)
-                .ok_or(MlsCryptoError::NotReady)?,
-            _ => return Err(MlsCryptoError::NotReady),
-        };
-        match processed.into_content() {
-            ProcessedMessageContent::ApplicationMessage(message) => {
-                Ok((message.into_bytes(), signer))
+        let processed = match group.process_message(&self.provider, protocol_message) {
+            Ok(processed) => processed,
+            Err(error) => {
+                let forward_gap = matches!(
+                    error,
+                    ProcessMessageError::ValidationError(ValidationError::UnableToDecrypt(
+                        MessageDecryptionError::SecretTreeError(
+                            SecretTreeError::TooDistantInTheFuture
+                        )
+                    ))
+                );
+                let error = MlsCryptoError::openmls(error);
+                return if forward_gap {
+                    self.recover_forward_gap(ciphertext, error)
+                } else {
+                    Err(error)
+                };
             }
-            _ => Err(MlsCryptoError::OpenMls(
-                "expected application message".to_string(),
-            )),
-        }
+        };
+        application_body(group, processed)
     }
 
     pub fn fingerprint(&self) -> String {
@@ -127,5 +121,25 @@ impl MlsSessionCrypto {
             .try_into_protocol_message()
             .map_err(MlsCryptoError::codec)?;
         Ok(protocol_message.epoch().as_u64())
+    }
+}
+
+fn application_body(
+    group: &MlsGroup,
+    processed: ProcessedMessage,
+) -> Result<(Vec<u8>, Vec<u8>), MlsCryptoError> {
+    let signer = match processed.sender() {
+        Sender::Member(index) => group
+            .members()
+            .find(|member| member.index == *index)
+            .map(|member| member.signature_key)
+            .ok_or(MlsCryptoError::NotReady)?,
+        _ => return Err(MlsCryptoError::NotReady),
+    };
+    match processed.into_content() {
+        ProcessedMessageContent::ApplicationMessage(message) => Ok((message.into_bytes(), signer)),
+        _ => Err(MlsCryptoError::OpenMls(
+            "expected application message".to_string(),
+        )),
     }
 }

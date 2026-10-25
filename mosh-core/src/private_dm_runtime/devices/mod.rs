@@ -31,6 +31,8 @@ pub(super) fn invalid() -> super::PrivateDmRuntimeError {
     super::PrivateDmRuntimeError::Codec(INVALID.into())
 }
 
+#[cfg(test)]
+mod asymmetric_recovery_tests;
 mod history_metadata;
 #[cfg(test)]
 mod history_metadata_tests;

@@ -6,6 +6,7 @@ use openmls_traits::types::SignatureScheme;
 use crate::mls_storage::PersistentProvider;
 
 mod commits;
+mod forward_recovery;
 mod membership;
 mod messages;
 mod metadata;
@@ -55,6 +56,7 @@ pub struct MlsSessionCrypto {
     signer: SignatureKeyPair,
     credential: CredentialWithKey,
     group: Option<MlsGroup>,
+    forward_recovery: Option<std::sync::Arc<forward_recovery::ForwardRecovery>>,
 }
 
 fn fingerprint_from_signature_key(bytes: &[u8]) -> String {

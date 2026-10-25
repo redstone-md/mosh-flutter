@@ -175,6 +175,7 @@ impl PrivateDmSession {
         let _ = self.sync_deletions(now);
         let _ = self.sync_plus(now);
         self.pump_peer_connect();
+        self.resume_exhausted_sends();
         self.pump_liveness(now, lost_window);
         self.pump_reach_log(mesh);
         self.pump_handshake(now);

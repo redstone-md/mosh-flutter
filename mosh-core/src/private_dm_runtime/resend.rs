@@ -3,6 +3,32 @@
 use super::*;
 
 impl PrivateDmSession {
+    /// Fresh contact proof gives exhausted delivery another bounded attempt.
+    /// Re-encrypt from the retained text: the receiver may have discarded the
+    /// old ciphertext's generation while catching up.
+    pub(super) fn resume_exhausted_sends(&mut self) {
+        if !self.authenticated_since_tick {
+            return;
+        }
+        let ids: Vec<_> = self
+            .outbound_attempts
+            .iter()
+            .filter(|(_, attempt)| {
+                attempt.delivery_status == MessageDeliveryStatus::Sent
+                    && attempt.auto_resends >= AUTO_RESEND_MAX
+            })
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in ids {
+            if self.outbox().activate_queue(&id).is_ok() {
+                if let Some(attempt) = self.outbound_attempts.get_mut(&id) {
+                    attempt.auto_resends = 0;
+                }
+                self.dirty_outbound.push(id);
+            }
+        }
+    }
+
     /// Encrypt one queued message at the current epoch, publish it, and settle
     /// it `Sent`. The bytes are recorded on the attempt so the auto re-sends
     /// replay the same ciphertext the counterpart dedups on.
