@@ -5,6 +5,47 @@ use crate::conversation::recovery::manifest::{HistoryKey, Manifest, ManifestHash
 use serde::{de::DeserializeOwned, Serialize};
 
 impl Persistence {
+    /// Untrusted future associations cannot grow the protected evidence table.
+    /// Accepted native evidence uses the ordinary atomic admission instead.
+    pub(crate) fn save_pending_group_evidence(
+        &self,
+        prefix: &str,
+        key: &str,
+        bytes: &[u8],
+    ) -> Result<(), PersistenceError> {
+        if !key.starts_with(prefix) || bytes.len() > 256 * 1024 {
+            return Err(PersistenceError::Json(
+                "pending evidence exceeds bounds".into(),
+            ));
+        }
+        let encrypted = encrypt_blob(&self.dek, bytes)?;
+        self.write(|tx| {
+            let mut table = tx.open_table(GROUP_HISTORY_EVIDENCE).map_err(db_error)?;
+            let mut retained = Vec::new();
+            for row in table
+                .range(prefix..format!("{prefix}\u{10ffff}").as_str())
+                .map_err(db_error)?
+            {
+                let (old_key, value) = row.map_err(db_error)?;
+                if old_key.value() != key {
+                    retained.push((old_key.value().to_owned(), value.value().len()));
+                }
+            }
+            let mut size = retained.iter().map(|(_, size)| *size).sum::<usize>() + encrypted.len();
+            let mut count = retained.len() + 1;
+            for (old_key, old_size) in retained {
+                if count <= 32 && size <= 1024 * 1024 {
+                    break;
+                }
+                table.remove(old_key.as_str()).map_err(db_error)?;
+                count -= 1;
+                size -= old_size;
+            }
+            table.insert(key, encrypted.as_slice()).map_err(db_error)?;
+            Ok(())
+        })
+    }
+
     #[allow(
         dead_code,
         reason = "Approved shared reader for the parallel IVO-142 group adapter."
