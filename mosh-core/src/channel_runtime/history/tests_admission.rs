@@ -215,3 +215,83 @@ fn personal_tombstones_win_over_a_later_holder_copy() {
         HistorySyncState::Complete
     );
 }
+
+#[test]
+fn another_holder_cannot_replace_the_first_unproved_receive_time_or_label() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut f = Fixture::new();
+    let (first, second, author) = (
+        SigningKey::from_bytes(&[31; 32]),
+        SigningKey::from_bytes(&[32; 32]),
+        SigningKey::from_bytes(&[33; 32]),
+    );
+    for signed in [false, true] {
+        let room = if signed {
+            "original-time"
+        } else {
+            "legacy-time"
+        };
+        f.join(room);
+        let mut record = text(&format!("legacy-{}", "a".repeat(64)), "same occurrence");
+        record.legacy_id_absent = !signed;
+        if signed {
+            record.from_fingerprint = hex::encode(author.verifying_key().as_bytes());
+            record.origin = Some(
+                crate::message_deletion::MessageOrigin::sign(
+                    &format!("channel:{room}"),
+                    &record.message_id,
+                    b"same occurrence",
+                    &author,
+                    None,
+                )
+                .unwrap(),
+            );
+        }
+        f.offer_rows(room, &first, &[record.clone()]);
+        f.journal(room, &first);
+        page(&mut f, room, &first, vec![record.clone()]);
+        record.sent_at_ms = 9999;
+        if signed {
+            record.from_device = "Another holder's label".into();
+        }
+        f.offer_rows(room, &second, &[record.clone()]);
+        f.journal(room, &second);
+        page(&mut f, room, &second, vec![record]);
+        f.restart();
+        let snapshot = f.runtime.poll(room).unwrap();
+        assert_eq!(snapshot.messages.len(), 1);
+        assert_eq!(snapshot.messages[0].sent_at_ms, Some(1000));
+        assert_eq!(snapshot.messages[0].from_device, "Unverified label");
+        assert_eq!(
+            snapshot.history_sync.unwrap().state,
+            HistorySyncState::Complete
+        );
+    }
+}
+
+#[test]
+fn leaving_and_rejoining_starts_a_fresh_recovery_instead_of_restoring_a_deleted_cursor() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut f = Fixture::new();
+    let source = SigningKey::from_bytes(&[34; 32]);
+    f.join("rejoin-history");
+    let record = text("retained", "available from holder");
+    f.offer_rows("rejoin-history", &source, &[record.clone()]);
+    f.journal("rejoin-history", &source);
+    page(&mut f, "rejoin-history", &source, vec![record.clone()]);
+    f.runtime.leave("rejoin-history").unwrap();
+    f.join("rejoin-history");
+    assert_eq!(
+        f.runtime
+            .poll("rejoin-history")
+            .unwrap()
+            .history_sync
+            .unwrap()
+            .state,
+        HistorySyncState::WaitingForSource,
+    );
+    f.offer_rows("rejoin-history", &source, &[record.clone()]);
+    f.journal("rejoin-history", &source);
+    page(&mut f, "rejoin-history", &source, vec![record]);
+    assert_eq!(f.runtime.poll("rejoin-history").unwrap().messages.len(), 1);
+}

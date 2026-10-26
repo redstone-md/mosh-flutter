@@ -20,9 +20,7 @@ impl Persistence {
         };
         let existing = existing
             .as_deref()
-            .map(serde_json::from_slice::<serde_json::Value>)
-            .transpose()
-            .map_err(|e| PersistenceError::Json(e.to_string()))?;
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(bytes).ok());
         if existing
             .as_ref()
             .and_then(|v| v.pointer("/message/metadata/deletion"))
@@ -30,19 +28,33 @@ impl Persistence {
         {
             return Ok(());
         }
-        let bytes = decrypt_blob(&self.dek, blob)?;
-        let mut incoming: serde_json::Value =
-            serde_json::from_slice(&bytes).map_err(|e| PersistenceError::Json(e.to_string()))?;
-        if incoming.get("history_evidence").is_none_or(|v| v.is_null()) {
-            if let Some(evidence) = existing.as_ref().and_then(|v| v.get("history_evidence")) {
-                incoming["history_evidence"] = evidence.clone();
-            }
-        }
-        let bytes =
-            serde_json::to_vec(&incoming).map_err(|e| PersistenceError::Json(e.to_string()))?;
+        let bytes = retain_history_evidence(decrypt_blob(&self.dek, blob)?, existing.as_ref())?;
         let erased_bytes = self.erase_known_target(tx, tables, &bytes)?;
         let guarded = encrypt_blob(&self.dek, &erased_bytes)?;
         Self::update_row(tx, tables.messages, key, Some(&guarded))?;
         Ok(())
     }
+}
+
+/// The legacy byte-store contract remains opaque unless a typed proof must survive.
+fn retain_history_evidence(
+    bytes: Vec<u8>,
+    existing: Option<&serde_json::Value>,
+) -> Result<Vec<u8>, PersistenceError> {
+    let Some(evidence) = existing
+        .and_then(|value| value.get("history_evidence"))
+        .filter(|value| !value.is_null())
+    else {
+        return Ok(bytes);
+    };
+    let mut incoming: serde_json::Value =
+        serde_json::from_slice(&bytes).map_err(|e| PersistenceError::Json(e.to_string()))?;
+    let object = incoming.as_object_mut().ok_or_else(|| {
+        PersistenceError::Json("typed history evidence requires a message row".into())
+    })?;
+    if object.get("history_evidence").is_some_and(|v| !v.is_null()) {
+        return Ok(bytes);
+    }
+    object.insert("history_evidence".into(), evidence.clone());
+    serde_json::to_vec(&incoming).map_err(|e| PersistenceError::Json(e.to_string()))
 }

@@ -1,5 +1,4 @@
 use super::*;
-use crate::conversation::recovery::{cursor::PAGE_RECORDS, manifest::FrozenKey};
 
 #[derive(Clone, Serialize, Deserialize)]
 struct Export {
@@ -11,6 +10,42 @@ struct Export {
 }
 
 impl ChannelSession {
+    pub(super) fn answer_history(&mut self, frame: &HistoryFrame, pull: Option<HistoryPull>) {
+        let result = if let Some(pull) = pull {
+            self.serve_history(frame, pull)
+        } else {
+            self.offer_history(frame)
+        };
+        if let Err(error) = result {
+            dlog::write(
+                LogLevel::Warn,
+                kinds::FRAME,
+                &self.name,
+                &format!("history source: {error}"),
+            );
+            let _ = self.reply_history(
+                Some(frame.sender_key.clone()),
+                frame.request_id.clone(),
+                frame.round,
+                HistoryMessage::Unavailable,
+            );
+        }
+    }
+
+    fn offer_history(&mut self, frame: &HistoryFrame) -> Result<(), ChannelRuntimeError> {
+        let manifest = self.history_manifest()?;
+        self.reply_history(
+            Some(frame.sender_key.clone()),
+            frame.request_id.clone(),
+            frame.round,
+            HistoryMessage::Offer {
+                manifest: manifest.digest,
+                total: manifest.total,
+                deletion_digest: self.history_deletion_digest()?,
+            },
+        )
+    }
+
     pub(super) fn history_manifest(&mut self) -> Result<Manifest, ChannelRuntimeError> {
         let count = self.messages.revision();
         if let Some((version, manifest)) = &self.recovery.cache {
@@ -32,15 +67,6 @@ impl ChannelSession {
         frame: &HistoryFrame,
         pull: HistoryPull,
     ) -> Result<(), ChannelRuntimeError> {
-        let HistoryPull {
-            manifest,
-            offset,
-            fragment_offset,
-            deletion_digest,
-            journal,
-            journal_after,
-        } = pull;
-        let current = self.history_manifest()?;
         let prefix = format!(
             "{}\u{1}export-data\u{1}{}",
             self.deletions.context, frame.sender_key
@@ -49,53 +75,23 @@ impl ChannelSession {
             "{}\u{1}export-meta\u{1}{}",
             self.deletions.context, frame.sender_key
         );
-        let store =
-            self.deletions.store.as_ref().ok_or_else(|| {
-                ChannelRuntimeError::Persistence("history store unavailable".into())
-            })?;
+        let current = self.history_manifest()?;
+        let store = self.deletions.store.as_ref().unwrap();
         let mut export = store.recovery_state::<Export>(&meta_key)?;
         if export.as_ref().is_none_or(|e| e.round < frame.round)
-            && offset == 0
-            && current.digest == manifest
-            && self.history_deletion_digest()? == deletion_digest
+            && pull.offset == 0
+            && current.digest == pull.manifest
+            && self.history_deletion_digest()? == pull.deletion_digest
         {
-            let next = Export {
-                round: frame.round,
-                request_id: frame.request_id.clone(),
-                manifest: current,
-                deletion_digest: deletion_digest.clone(),
-                expires_ms: crate::conversation::now_ms().saturating_add(120_000),
-            };
-            let authority = self.deletion_authority()?;
-            store.freeze_recovery(
-                CHANNEL_HISTORY,
-                &self.name,
-                crate::persistence::FrozenExport {
-                    prefix: &prefix,
-                    meta_key: &meta_key,
-                    header: &next,
-                },
-                ChannelRecord::key,
-                self.deletions
-                    .records
-                    .values()
-                    .filter(|r| {
-                        r.scope == crate::message_deletion::DeleteScope::ForEveryone
-                            && r.status != crate::message_deletion::DeletionStatus::Rejected
-                            && authority.validate(r, &authority.local.key).is_ok()
-                    })
-                    .cloned(),
-            )?;
-            export = Some(next);
+            export = Some(self.freeze_history_export(
+                frame,
+                current,
+                &pull.deletion_digest,
+                &prefix,
+                &meta_key,
+            )?);
         }
-        let Some(export) = export.filter(|e| {
-            e.round == frame.round
-                && e.request_id == frame.request_id
-                && e.manifest.digest == manifest
-                && e.deletion_digest == deletion_digest
-                && offset <= e.manifest.total
-                && e.expires_ms > crate::conversation::now_ms()
-        }) else {
+        let Some(export) = export.filter(|e| e.matches(frame, &pull)) else {
             return self.reply_history(
                 Some(frame.sender_key.clone()),
                 frame.request_id.clone(),
@@ -103,86 +99,66 @@ impl ChannelSession {
                 HistoryMessage::Unavailable,
             );
         };
-        if journal {
-            let (records, next) = store.recovery_page(
-                &format!("{prefix}\u{1}journal\u{1}"),
-                journal_after.as_deref(),
-            )?;
-            return self.reply_history(
-                Some(frame.sender_key.clone()),
-                frame.request_id.clone(),
-                frame.round,
-                HistoryMessage::Journal {
-                    manifest,
-                    deletion_digest,
-                    page: crate::message_deletion::protocol::DeletionMessage::State {
-                        records,
-                        next,
-                    },
-                },
-            );
-        }
-        let mut records = Vec::new();
-        let mut bytes = 0;
-        let mut fragment = None;
-        for index in offset
-            ..export
-                .manifest
-                .total
-                .min(offset.saturating_add(PAGE_RECORDS))
-        {
-            let key = store
-                .recovery_state::<FrozenKey>(&format!("{prefix}\u{1}keys\u{1}{index:020}"))?
-                .ok_or_else(|| ChannelRuntimeError::Codec("frozen history key missing".into()))?;
-            let row = store
-                .history_row::<ChannelMessage>(CHANNEL_HISTORY, &key.row_key)?
-                .ok_or_else(|| ChannelRuntimeError::Codec("history row unavailable".into()))?;
-            let record = match ChannelRecord::from_stored(&row) {
-                Some(record) => record,
-                None => self.erased_history_record(&row, &key.key.digest)?,
-            };
-            if record
-                .binding_digest()
-                .map_err(ChannelRuntimeError::Codec)?
-                != key.key.digest
-            {
-                return Err(ChannelRuntimeError::Codec(
-                    "frozen history record changed".into(),
-                ));
-            }
-            let serialized = serde_json::to_vec(&record)
-                .map_err(|e| ChannelRuntimeError::Codec(e.to_string()))?;
-            if bytes + serialized.len() > 24_000 {
-                if records.is_empty() {
-                    fragment = Some(
-                        crate::conversation::recovery::fragment::fragment(
-                            &serialized,
-                            fragment_offset,
-                        )
-                        .map_err(ChannelRuntimeError::Codec)?,
-                    );
-                }
-                break;
-            }
-            if fragment_offset != 0 && !matches!(record.content, records::Content::Erased { .. }) {
-                return Err(ChannelRuntimeError::Codec(
-                    "unexpected history fragment offset".into(),
-                ));
-            }
-            bytes += serialized.len();
-            records.push(record);
-        }
+        let message = if pull.journal {
+            self.history_journal_page(&prefix, &pull)?
+        } else {
+            self.history_content_page(&prefix, export.manifest.total, &pull)?
+        };
         self.reply_history(
             Some(frame.sender_key.clone()),
             frame.request_id.clone(),
             frame.round,
-            HistoryMessage::Page {
-                manifest,
-                total: export.manifest.total,
-                offset,
-                records,
-                fragment,
-            },
+            message,
         )
+    }
+
+    fn freeze_history_export(
+        &self,
+        frame: &HistoryFrame,
+        manifest: Manifest,
+        deletion_digest: &str,
+        prefix: &str,
+        meta_key: &str,
+    ) -> Result<Export, ChannelRuntimeError> {
+        let next = Export {
+            round: frame.round,
+            request_id: frame.request_id.clone(),
+            manifest,
+            deletion_digest: deletion_digest.into(),
+            expires_ms: crate::conversation::now_ms().saturating_add(120_000),
+        };
+        let authority = self.deletion_authority()?;
+        self.deletions.store.as_ref().unwrap().freeze_recovery(
+            CHANNEL_HISTORY,
+            &self.name,
+            crate::persistence::FrozenExport {
+                prefix,
+                meta_key,
+                header: &next,
+                manifest: &next.manifest,
+            },
+            ChannelRecord::key,
+            self.deletions
+                .records
+                .values()
+                .filter(|r| {
+                    r.scope == crate::message_deletion::DeleteScope::ForEveryone
+                        && r.status != crate::message_deletion::DeletionStatus::Rejected
+                        && authority.validate(r, &authority.local.key).is_ok()
+                })
+                .cloned(),
+        )?;
+        Ok(next)
+    }
+}
+
+impl Export {
+    fn matches(&self, frame: &HistoryFrame, pull: &HistoryPull) -> bool {
+        self.round == frame.round
+            && self.request_id == frame.request_id
+            && self.manifest.digest == pull.manifest
+            && self.deletion_digest == pull.deletion_digest
+            && pull.offset <= self.manifest.total
+            && self.expires_ms > crate::conversation::now_ms()
     }
 }

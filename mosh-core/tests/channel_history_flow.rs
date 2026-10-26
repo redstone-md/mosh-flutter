@@ -212,3 +212,86 @@ fn a_fragmented_record_resumes_from_its_durable_partial_after_restart() {
 fn independent_installation_process() {
     peer_process();
 }
+
+#[test]
+fn a_large_deletion_journal_recovers_through_real_independent_bridges() {
+    let _network = isolated_network_scenario();
+    let mut holder = Peer::new_api();
+    let id = format!("history-journal-{}", rand::random::<u64>());
+    holder.ask(json!({"action":"chat_join", "kind":"channel", "argument":id}));
+    for index in 0..16 {
+        holder.ask(json!({"action":"chat_send", "kind":"channel", "argument":id, "body":format!("erased {index}")}));
+        let snapshot = poll(&mut holder, &id);
+        let message_id =
+            snapshot["messages"].as_array().unwrap().last().unwrap()["message_id"].clone();
+        holder.ask(json!({"action":"chat_delete", "kind":"channel", "argument":id, "message_id":message_id}));
+    }
+    holder.ask(json!({"action":"chat_send", "kind":"channel", "argument":id, "body":"retained after deletions"}));
+    holder.restart();
+    let mut reader = Peer::new_api();
+    reader.ask(json!({"action":"chat_join", "kind":"channel", "argument":id}));
+    let deadline = Instant::now() + Duration::from_secs(15);
+    loop {
+        poll(&mut holder, &id);
+        let snapshot = poll(&mut reader, &id);
+        if snapshot["history_sync"]["state"] == "complete" {
+            assert_eq!(snapshot["messages"].as_array().unwrap().len(), 1);
+            assert_eq!(snapshot["messages"][0]["body"], "retained after deletions");
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "journal recovery stalled: {snapshot}"
+        );
+        std::thread::sleep(Duration::from_millis(30));
+    }
+}
+
+#[test]
+fn deleting_a_frozen_fragmented_record_never_reassembles_its_old_content() {
+    let _network = isolated_network_scenario();
+    let mut holder = Peer::new_api();
+    let id = format!("history-erased-fragment-{}", rand::random::<u64>());
+    holder.ask(json!({"action":"chat_join", "kind":"channel", "argument":id}));
+    holder.ask(json!({"action":"chat_send", "kind":"channel", "argument":id, "body":"\u{0001}".repeat(4090)}));
+    let message_id = poll(&mut holder, &id)["messages"][0]["message_id"].clone();
+    holder.restart();
+    let mut reader = Peer::new_api();
+    reader.ask(json!({"action":"chat_join", "kind":"channel", "argument":id}));
+    let deadline = Instant::now() + Duration::from_secs(15);
+    loop {
+        poll(&mut holder, &id);
+        if poll(&mut reader, &id)["history_sync"]["state"] == "importing" {
+            break;
+        }
+        assert!(Instant::now() < deadline, "source not selected");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    // Journal plus two fragment turns remain far short of this nine-fragment record.
+    for _ in 0..3 {
+        std::thread::sleep(Duration::from_millis(20));
+        poll(&mut holder, &id);
+        assert!(poll(&mut reader, &id)["messages"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+    }
+    holder.ask(
+        json!({"action":"chat_delete", "kind":"channel", "argument":id, "message_id":message_id}),
+    );
+    loop {
+        poll(&mut holder, &id);
+        let snapshot = poll(&mut reader, &id);
+        if snapshot["history_sync"]["state"] == "complete" {
+            assert_eq!(snapshot["messages"].as_array().unwrap().len(), 1);
+            assert_eq!(snapshot["messages"][0]["body"], "");
+            assert!(!snapshot["messages"][0]["metadata"]["deletion"].is_null());
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "erased frozen slot stalled: {snapshot}"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
