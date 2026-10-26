@@ -7,7 +7,6 @@ use super::runtime_owner::RuntimeOwner;
 use std::time::Duration;
 
 use crate::api::conversation_bridge::ConversationBridgeError;
-use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::private_dm_runtime::{
     AcceptInviteRequest, CallMedia, CallStarted, InviteCreated, PrivateDmRuntime,
     PrivateDmRuntimeError, SessionListSnapshot, SessionSnapshot, StartSessionRequest,
@@ -55,7 +54,7 @@ fn construct_runtime() -> Result<PrivateDmRuntime, PrivateDmRuntimeError> {
     // persistence wired it now rebuilds sessions + history instead of the
     // slice-one no-op.
     runtime.rehydrate();
-    start_service_thread();
+    start_service_thread().map_err(PrivateDmRuntimeError::Moss)?;
     Ok(runtime)
 }
 
@@ -188,33 +187,8 @@ const SERVICE_INTERVAL: Duration = Duration::from_millis(500);
 /// when this starts (it is called from inside the `RUNTIME` init), so each
 /// pass looks it up; a poisoned lock ends the thread, since every later
 /// call reports the runtime unavailable anyway.
-fn start_service_thread() {
-    let spawned = std::thread::Builder::new()
-        .name("mosh-dm-service".to_string())
-        .spawn(|| loop {
-            std::thread::sleep(SERVICE_INTERVAL);
-            let Some(mutex) = RUNTIME.initialized() else {
-                continue;
-            };
-            if super::background::network_permitted() {
-                let Ok(_authority) = super::background::execution_lease() else {
-                    return;
-                };
-                let Ok(mut guard) = mutex.lock() else {
-                    return;
-                };
-                guard.service();
-            }
-            super::background::reconcile();
-        });
-    if let Err(error) = spawned {
-        dlog::write(
-            LogLevel::Error,
-            kinds::SERVICE,
-            "",
-            &format!("could not start the DM service thread: {error}"),
-        );
-    }
+fn start_service_thread() -> Result<(), String> {
+    RUNTIME.start_service(SERVICE_INTERVAL, PrivateDmRuntime::service)
 }
 
 pub(crate) fn background_work() -> Result<(u32, u32), String> {

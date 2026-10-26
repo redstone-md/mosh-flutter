@@ -11,6 +11,7 @@ use std::sync::{
 };
 
 static OWNER: OnceLock<Owner> = OnceLock::new();
+static INITIALIZE: Mutex<()> = Mutex::new(());
 static AUTHORITY: RwLock<()> = RwLock::new(());
 static DRIVE: Mutex<()> = Mutex::new(());
 static ALLOW_HISTORY: AtomicBool = AtomicBool::new(true);
@@ -41,23 +42,38 @@ fn owner() -> Result<&'static Owner, String> {
     if let Some(owner) = OWNER.get() {
         return Ok(owner);
     }
+    let _initializing = INITIALIZE
+        .lock()
+        .map_err(|_| "background initialization unavailable")?;
+    if let Some(owner) = OWNER.get() {
+        return Ok(owner);
+    }
+    OWNER
+        .set(construct_owner()?)
+        .map_err(|_| "background initialization raced")?;
+    Ok(OWNER.get().expect("initialized execution owner"))
+}
+
+fn construct_owner() -> Result<Owner, String> {
     let resources = shared_runtime::ensure_shared_resources()?;
     let store = store()?;
     let waiting_enabled = store
         .saved_background_intent()
         .map_err(|e| e.to_string())?
         .unwrap_or(true);
+    ALLOW_HISTORY.store(waiting_enabled, Ordering::Release);
     resources
         .shared_node
         .start_suspended_if_idle(!waiting_enabled);
-    // Existing DM service supplies incoming delivery without any UI poller.
-    // Saved off starts with a dormant native identity, never a transient mesh.
+    // Hydrate the existing owners without list/snapshot calls or read markers.
     drop(crate::api::private_dm::ensure_runtime().map_err(|e| e.to_string())?);
+    crate::api::private_group::ensure_background_runtime()?;
+    crate::api::channel::ensure_background_runtime()?;
     let node = resources
         .shared_node
         .acquire(0, None)
         .map_err(|e| e.to_string())?;
-    let candidate = Owner {
+    Ok(Owner {
         node,
         store,
         state: Mutex::new(State {
@@ -69,11 +85,7 @@ fn owner() -> Result<&'static Owner, String> {
             calls: 0,
             transfers: 0,
         }),
-    };
-    if OWNER.set(candidate).is_err() {
-        resources.shared_node.release();
-    }
-    Ok(OWNER.get().expect("initialized execution owner"))
+    })
 }
 
 pub(super) fn set(interactive: bool, waiting_enabled: bool) -> Result<BackgroundStatus, String> {
@@ -147,6 +159,15 @@ pub(crate) fn reconcile() {
     let Some(owner) = OWNER.get() else {
         return;
     };
+    {
+        let state = owner.state.lock().unwrap_or_else(|e| e.into_inner());
+        if state.applied_mode == Some(Mode::Offline)
+            && desired(&state) == Mode::Offline
+            && state.limitation.is_none()
+        {
+            return;
+        }
+    }
     let Ok(_drive) = DRIVE.try_lock() else {
         return;
     };
@@ -161,23 +182,7 @@ pub(crate) fn reconcile() {
         state.transfers,
         state.limitation.clone(),
     );
-    let (calls, transfers) = match facts {
-        Ok(facts) => facts,
-        Err(error) => {
-            state.limitation = Some(error);
-            return;
-        }
-    };
-    state.calls = calls;
-    state.transfers = transfers;
-    let mode = desired(&state);
-    let result =
-        if mode == Mode::Offline && crate::conversation::recovery::transport::active_sends() > 0 {
-            Ok(()) // An already-admitted bounded send drains before native Stop.
-        } else {
-            apply(owner, &mut state, mode)
-        };
-    state.limitation = result.err();
+    update_execution(owner, &mut state, facts);
     let changed = before
         != (
             state.applied_mode,
@@ -189,6 +194,26 @@ pub(crate) fn reconcile() {
     if changed {
         changes::changed();
     }
+}
+
+fn update_execution(owner: &Owner, state: &mut State, facts: Result<(u32, u32), String>) {
+    let (calls, transfers) = match facts {
+        Ok(facts) => facts,
+        Err(error) => {
+            state.limitation = Some(error);
+            return;
+        }
+    };
+    state.calls = calls;
+    state.transfers = transfers;
+    let mode = desired(state);
+    let result =
+        if mode == Mode::Offline && crate::conversation::recovery::transport::active_sends() > 0 {
+            Ok(()) // An already-admitted bounded send drains before native Stop.
+        } else {
+            apply(owner, state, mode)
+        };
+    state.limitation = result.err();
 }
 
 fn work_facts() -> Result<(u32, u32), String> {
