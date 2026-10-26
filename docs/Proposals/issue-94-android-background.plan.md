@@ -16,6 +16,10 @@ Questions 10 through 12 were accepted on 2026-10-26.
 For questions 13 through 15 on the same date, the owner required complete
 missed-history recovery in this slice, added configurable app-lock delay, and
 accepted the background attachment policy below.
+Questions 16 and 17 were accepted on 2026-10-26. For question 18, the owner
+accepted the timer choices and default, but required Android screen locking to
+obey the same timer instead of immediately locking Mosh. Telegram's Android
+implementation is the requested comparison for the timing behavior.
 
 - Mosh app lock protects interactive access to chats. It must not prevent
   background message reception or incoming calls. A user can accept an incoming
@@ -29,8 +33,14 @@ accepted the background attachment policy below.
 - Include recovery of messages missed while offline for private DMs, private
   groups and public channels in the same completed slice. Group/channel history
   recovery must not be deferred to a later slice or represented as complete
-  merely because live background notifications work. Source availability and
-  historical access rules still need explicit agreement.
+  merely because live background notifications work. Recover from available
+  authorized holders, including someone other than the original author. Wait
+  and retry when no holder is reachable; do not add a central message archive.
+  Data absent from every remaining copy cannot be reconstructed.
+- Private-group history starts at joining. Do not serve new history to removed
+  members or reveal the interval between leaving/removal and rejoining.
+  Ordinary offline periods do not end membership and must be recoverable.
+  Public-channel recovery can include all available retained history.
 - The first implementation excludes FCM. Android background operation must work
   without Google Play services; this is not a ban on using Google STUN servers.
 - An untrusted intermediary may carry short encrypted wake signals, with
@@ -64,12 +74,11 @@ accepted the background attachment policy below.
 - Initially enable waiting after setup. The app's Stop waiting action persists
   the disabled state until explicit re-enabling, including across restarts.
   It does not end an active call.
-- When app lock is enabled, re-lock interactive chat access after backgrounding
-  or Android screen locking. Make the background delay configurable, including
-  immediate locking and minute-based choices such as 1, 5 and 10 minutes, so a
-  brief app switch need not require authentication again. Temporary permission
-  dialogs and file pickers must not count as leaving Mosh. The default delay
-  and the relationship to immediate Android screen locking remain to settle.
+- When app lock is enabled, re-lock interactive chat access after the configured
+  delay following backgrounding or Android screen locking. Offer immediate,
+  1, 5, 10 and 30 minute choices, defaulting to 1 minute. Android screen locking
+  obeys that delay too; it must not independently force immediate Mosh lock.
+  Temporary permission dialogs and file pickers must not count as leaving Mosh.
   Incoming call answer and call controls remain separate from chat unlocking.
 - Waiting receives text, call signaling and attachment offers without starting
   automatic media or clear-preview downloads. Continue transfers already
@@ -78,9 +87,9 @@ accepted the background attachment policy below.
 
 These are target behavior decisions, not claims about the shipped release.
 The Android key-release and configurable UI-lock policies are now explicit;
-the concrete storage mechanism, safe migration and remaining timing defaults
-still need design. No existing key or history may be replaced merely because a
-background startup cannot open it.
+the concrete storage mechanism, safe migration and lifecycle timing mechanics
+still need design. No existing key or history may be replaced merely because
+a background startup cannot open it.
 
 ## Notification privacy and Android lifecycle
 
@@ -115,6 +124,32 @@ respect user stopping too; see
 The app's Stop waiting action instead persists a disabled preference before
 stopping waiting; it stays disabled until the user explicitly re-enables it.
 Opening the app after an OS Force stop must not erase that separate preference.
+
+### Telegram auto-lock reference
+
+Inspected the official Android source at
+[`3de37c8cfb039452be7398909461da6288babf15`](https://github.com/DrKLO/Telegram/commit/3de37c8cfb039452be7398909461da6288babf15)
+(2026-10-25, Telegram 13.1.1). This establishes source behavior, not a physical
+test of a particular installed APK.
+
+- [ScreenReceiver](https://github.com/DrKLO/Telegram/blob/3de37c8cfb039452be7398909461da6288babf15/TMessagesProj/src/main/java/org/telegram/messenger/ScreenReceiver.java#L20)
+  reports screen state without directly forcing app lock.
+- [LaunchActivity](https://github.com/DrKLO/Telegram/blob/3de37c8cfb039452be7398909461da6288babf15/TMessagesProj/src/main/java/org/telegram/ui/LaunchActivity.java#L8254)
+  uses the same pause/resume lock check for backgrounding and screen changes.
+  It records elapsed time and rechecks the interval on return, rather than
+  depending on a delayed callback firing while asleep.
+- Telegram's interval options/default differ from the accepted Mosh choices;
+  reuse its timing pattern rather than silently replacing Mosh's settings.
+
+For Mosh, use one grace deadline from the transition out of interactive use.
+Locking an already-backgrounded phone must neither shorten nor restart it.
+Reopening chats before expiry needs no fresh authentication; after expiry,
+authenticate before exposing chat content. A notification, background history
+sync or call answer must not extend the chat-unlock deadline. Check elapsed
+time again on return so sleeping cannot postpone expiry. Preserve a valid
+deadline across ordinary process reclamation; an unverifiable deadline must
+not bypass authentication. These are timing requirements, not a selected
+storage API or an approval for a new authentication dependency.
 
 ## Selected direction: Moss waiting mode
 
@@ -248,17 +283,18 @@ background polling change:
   cannot retrospectively supply missing original authentication evidence.
 
 These are findings about the baseline and requirements on the forthcoming
-design, not an approved wire format, schema or authorization policy.
+design. The holder-availability and membership-window policies are accepted;
+the wire format, schema and their cryptographic enforcement remain to design.
 
 ## Remaining design questions
 
 - Moss waiting lifecycle/interface, attachment selection and any intermediary's
   trust, metadata, abuse limits and operating budget.
 - Background key-access implementation, safe migration and failure behavior;
-  default UI re-lock timing, Android screen-lock behavior and protection of
-  interactive entry points.
+  timer persistence, screen/lifecycle transitions and protection of interactive
+  entry points under the accepted delayed-lock policy.
 - Complete missed-history recovery across all three conversation kinds:
-  available sources, historical authorization, durable cursors, deduplication,
+  source discovery, historical authorization, durable cursors, deduplication,
   deletion precedence and interruption/restart recovery.
 - Implementation of the accepted lifecycle states, network changes, persistent
   user-stop handling, persistent Stop waiting preference, call expiry and

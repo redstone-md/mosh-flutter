@@ -30,13 +30,21 @@ durable wrapping before retiring any old material, and keep the old recoverable
 path on failure or interruption. An unavailable/invalid key must not cause
 silent key regeneration, database replacement or biometric-recovery recursion.
 On 2026-10-26, the owner also accepted automatic UI re-lock with a configurable
-delay after backgrounding, including immediate and minute-based choices.
-Temporary system dialogs must not cause spurious re-locking. Incoming call
-controls remain available without unlocking the chats. The default delay and
-Android screen-lock interaction still need agreement.
-The concrete storage API and remaining UI timing decisions remain in the
+delay after backgrounding, including immediate and minute-based choices. The
+accepted choices are immediate, 1, 5, 10 and 30 minutes, with a 1 minute default.
+The owner explicitly requires Android screen locking to obey this same delay;
+screen locking must not independently force an immediate Mosh lock. Temporary
+system dialogs must not cause spurious re-locking. Incoming call controls
+remain available without unlocking the chats.
+Use one deadline for the continuous absence from interactive chat use; neither
+screen locking nor background notifications may restart or extend it.
+On return, check expiry before showing chats, including if a delayed timer
+could not run while the device slept. The requested
+[Telegram comparison](../Proposals/issue-94-android-background.plan.md#telegram-auto-lock-reference)
+confirms that screen off need not force immediate app lock.
+The concrete storage API and lifecycle timing mechanics remain in the
 [design plan](../Proposals/issue-94-android-background.plan.md).
 
-This records the owner's answers to questions 10 and 14. It amends the Android
-key-release policy in ADRs 0011 and 0034 when implemented; desktop key storage
-is unchanged.
+This records the owner's answers to questions 10, 14 and 18. It amends the
+Android key-release policy in ADRs 0011 and 0034 when implemented; desktop key
+storage is unchanged.
