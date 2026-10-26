@@ -1,7 +1,7 @@
 //! Installation execution, independent of chat unlock or mounted UI polling.
 mod changes;
 mod execution;
-mod types;
+pub(crate) mod types;
 
 use crate::frb_generated::StreamSink;
 pub use crate::persistence::BackgroundNotification;
@@ -42,5 +42,9 @@ pub fn ack_background_notification(id: String, revision: u64) -> Result<(), Stri
 
 pub(crate) use changes::changed as background_delivery_changed;
 pub(crate) use execution::{
-    admit_user_work, automatic_downloads_allowed, execution_lease, network_permitted, reconcile,
+    admit_user_work, automatic_downloads_allowed, execution_lease, history_execution_allowed,
+    network_permitted, reconcile,
 };
+
+#[cfg(target_os = "android")]
+pub(crate) use execution::notify_network_changed;

@@ -53,17 +53,25 @@ unsafe extern "C" fn on_packet_payload(sender: *const u8, data: *const u8, lengt
     // SAFETY: Moss passes a 32-byte sender key and length bytes, valid for this callback.
     let peer = hex::encode(unsafe { std::slice::from_raw_parts(sender, MOSS_PUBKEY_LEN) });
     let payload = if length == 0 {
-        Vec::new()
+        &[][..]
     } else {
         // SAFETY: nonempty native buffers are nonnull and live through this callback.
-        unsafe { std::slice::from_raw_parts(data, length as usize) }.to_vec()
+        unsafe { std::slice::from_raw_parts(data, length as usize) }
     };
-    if let Some(message) = crate::stream_transport::directed_message(&payload) {
+    if let Some(message) = crate::stream_transport::directed_message(payload) {
         crate::inbox::deliver(message);
+        return;
+    }
+    if payload.starts_with(crate::conversation::recovery::transport::PREFIX)
+        && !crate::api::background::history_execution_allowed()
+    {
+        return;
+    }
+    if crate::conversation::recovery::transport::offer(&peer, payload) {
         return;
     }
     crate::inbox::deliver(MossReceivedMessage {
         channel: format!("{PACKET_INBOX_CHANNEL_PREFIX}{peer}"),
-        payload,
+        payload: payload.to_vec(),
     });
 }

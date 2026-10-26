@@ -5,11 +5,15 @@ use crate::{
     moss_ffi::{ActivityMode, MossNode},
     persistence::Persistence,
 };
-use std::sync::{Arc, Mutex, OnceLock, RwLock, RwLockReadGuard};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex, OnceLock, RwLock, RwLockReadGuard,
+};
 
 static OWNER: OnceLock<Owner> = OnceLock::new();
 static AUTHORITY: RwLock<()> = RwLock::new(());
 static DRIVE: Mutex<()> = Mutex::new(());
+static ALLOW_HISTORY: AtomicBool = AtomicBool::new(true);
 
 struct Owner {
     state: Mutex<State>,
@@ -94,6 +98,10 @@ pub(super) fn set(interactive: bool, waiting_enabled: bool) -> Result<Background
         }
         state.interactive = interactive;
         state.waiting_enabled = waiting_enabled;
+        ALLOW_HISTORY.store(interactive || waiting_enabled, Ordering::Release);
+        if !interactive && !waiting_enabled {
+            crate::conversation::recovery::transport::cancel_pending();
+        }
     }
     reconcile();
     changes::changed();
@@ -145,7 +153,7 @@ pub(crate) fn reconcile() {
     let Ok(_authority) = AUTHORITY.write() else {
         return;
     };
-    let facts = crate::api::private_dm::background_work();
+    let facts = work_facts();
     let mut state = owner.state.lock().unwrap_or_else(|e| e.into_inner());
     let before = (
         state.applied_mode,
@@ -163,7 +171,12 @@ pub(crate) fn reconcile() {
     state.calls = calls;
     state.transfers = transfers;
     let mode = desired(&state);
-    let result = apply(owner, &mut state, mode);
+    let result =
+        if mode == Mode::Offline && crate::conversation::recovery::transport::active_sends() > 0 {
+            Ok(()) // An already-admitted bounded send drains before native Stop.
+        } else {
+            apply(owner, &mut state, mode)
+        };
     state.limitation = result.err();
     let changed = before
         != (
@@ -175,6 +188,41 @@ pub(crate) fn reconcile() {
     drop(state);
     if changed {
         changes::changed();
+    }
+}
+
+fn work_facts() -> Result<(u32, u32), String> {
+    // No cross-runtime lock nesting: each initialized owner flushes and releases.
+    [
+        crate::api::private_dm::background_work(),
+        crate::api::private_group::background_work(),
+        crate::api::channel::background_work(),
+    ]
+    .into_iter()
+    .try_fold((0u32, 0u32), |sum, facts| {
+        let (calls, transfers) = facts?;
+        Ok((sum.0.saturating_add(calls), sum.1.saturating_add(transfers)))
+    })
+}
+
+pub(crate) fn history_execution_allowed() -> bool {
+    ALLOW_HISTORY.load(Ordering::Acquire)
+}
+
+// Android's callback is a hint, never proof of carrier reachability.
+#[cfg(target_os = "android")]
+pub(crate) fn notify_network_changed() -> i32 {
+    let Some(owner) = OWNER.get() else {
+        return -3;
+    };
+    let Ok(_authority) = execution_lease() else {
+        return -4;
+    };
+    match owner.node.notify_network_changed() {
+        Ok(()) => 0,
+        Err(crate::moss_ffi::MossFfiError::Symbol(_)) => -2,
+        Err(crate::moss_ffi::MossFfiError::TransportOffline) => -3,
+        Err(_) => -4,
     }
 }
 
