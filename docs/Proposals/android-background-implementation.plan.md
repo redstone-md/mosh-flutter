@@ -53,8 +53,17 @@ preparatory changes do not establish background acceptance.
 - IVO-147: safe adb collector and guide committed as `47aab1c2`; review finding
   about APK identity was fixed in `d4aa4a25`. Nine command-boundary tests pass.
   Physical baseline, process-level gaps and numeric budgets remain open.
-- Flutter analysis, eight focused presentation tests and the JNI context probe
-  pass. The full Flutter suite passes: 2015 tests, four skipped.
+- IVO-134/135 app lock and same-DEK background access are integrated. Native
+  fresh-auth repair stays separate from chat unlock; cold reads never mint keys.
+  The key/lock host checks pass, but physical migration/Keystore acceptance and
+  bootstrap coverage remain open. No ticket is marked Done from compilation.
+- Flutter analysis and the JNI/context/deadline probe pass. After key integration
+  the full Flutter suite passes: 2043 tests, four skipped. The debug ARM64 APK
+  builds and its signature, JNI Zero, key owners and native libraries are checked.
+- CodeAnt review fixes serialize timer writes, preserve call-device sheets,
+  cover native expiry before publication and redact legacy Android notifications.
+  Protected settings/session-list use legitimately ends a valid grace period;
+  the contrary review suggestion is not accepted.
 - Separate standards/spec reviews found no standards findings and one actionable
   collector finding, now fixed. Their full reports are stored with implementation
   evidence outside the repository; this is review of the prepared layer only.
