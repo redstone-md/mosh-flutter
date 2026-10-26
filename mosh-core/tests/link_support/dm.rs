@@ -94,3 +94,38 @@ impl Peer {
         }
     }
 }
+
+/// Real public discovery and authenticated payloads; no address injection.
+impl Peer {
+    #[allow(dead_code, reason = "Manual actual-carrier acceptance preflight.")]
+    pub fn public_dm_route(&mut self, right: &mut Peer) -> String {
+        let invite = self.ask(json!({"action":"dm_invite"}));
+        let id = invite["session_id"].as_str().unwrap().to_owned();
+        right.ask(json!({"action":"dm_accept","argument":invite["invite_uri"]}));
+        let deadline = Instant::now() + super::OBSERVATION_BUDGET;
+        for peer in [&mut *self, &mut *right] {
+            loop {
+                let state = peer.ask_until(json!({"action":"dm_poll","argument":id}), deadline);
+                if state["state"] == "connected" {
+                    break;
+                }
+                assert!(
+                    Instant::now() < deadline,
+                    "public DM preflight not connected: {state}"
+                );
+                std::thread::sleep(Duration::from_millis(100));
+            }
+        }
+        self.assert_bidirectional_dm_route(right, &id);
+        id
+    }
+
+    #[allow(dead_code, reason = "Manual actual-carrier acceptance preflight.")]
+    pub fn assert_bidirectional_dm_route(&mut self, right: &mut Peer, id: &str) {
+        self.ask(json!({"action":"dm_send","argument":id,"body":"Public route left to right"}));
+        right.wait_dm_text(id, "Public route left to right");
+        right.ask(json!({"action":"dm_send","argument":id,"body":"Public route right to left"}));
+        self.wait_dm_text(id, "Public route right to left");
+        eprintln!("Actual bidirectional public DM route control passed: {id}");
+    }
+}

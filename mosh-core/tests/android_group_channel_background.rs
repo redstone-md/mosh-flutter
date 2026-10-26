@@ -70,6 +70,9 @@ fn live_background(kind: &str) {
 
 fn connected(kind: &str) -> (Peer, Peer, String) {
     let (mut sender, mut receiver) = (Peer::new_api(), Peer::new_api());
+    // This acceptance case starts after an observed public route exists. Cold
+    // rendezvous convergence is measured separately, never hidden by retries.
+    sender.public_dm_route(&mut receiver);
     let id = if kind == "group" {
         let created = sender.ask(json!({"action":"chat_create","kind":kind}));
         receiver.ask(json!({"action":"chat_join","kind":kind,"argument":created["invite_uri"]}));

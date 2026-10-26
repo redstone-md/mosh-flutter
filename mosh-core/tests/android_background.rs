@@ -42,6 +42,9 @@ fn background_receipt(require_carrier: bool) {
         });
         peer.ask(json!({"action":"dm_receipts","enabled":true}));
     }
+    if require_carrier {
+        sender.assert_bidirectional_dm_route(&mut recipient, id);
+    }
     // The sender represents desktop Mosh: no Android execution API is attached.
     recipient.ask(json!({"action":"background_set","interactive":true,"waiting":true}));
     let transition =
@@ -372,6 +375,7 @@ fn actual_waiting_carrier_receives_authenticated_call() {
             s["state"] == "connected"
         });
     }
+    caller.assert_bidirectional_dm_route(&mut callee, id);
     // Keep the caller an ordinary desktop node, without opting into waiting.
     callee.ask(json!({"action":"background_set","interactive":true,"waiting":true}));
     callee.ask(json!({"action":"background_set","interactive":false,"waiting":true}));
