@@ -89,6 +89,9 @@ fn inspect_background(path: &Path, key: [u8; 32], kind: &str, id: &str) -> Value
             "message_id":message["message_id"],
             "is_own":message["metadata"]["is_own"],
             "history_basis":row["history_evidence"]["basis"],
+            "group_history_basis":row["history_evidence"]["group"]["basis"],
+            "has_offer": !row["attachment_manifest"].is_null(),
+            "has_preview": !row["preview_manifest"].is_null(),
             "background_fixture_text":message["body"] == "New background text"
                 || message["body"] == "private background text",
         }));

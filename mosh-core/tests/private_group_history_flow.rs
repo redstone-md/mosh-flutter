@@ -12,6 +12,8 @@ use std::time::{Duration, Instant};
 mod erasure;
 #[path = "private_group_history_flow/intervals.rs"]
 mod intervals;
+#[path = "private_group_history_flow/offer_facts.rs"]
+mod offer_facts;
 
 #[test]
 fn an_offline_group_author_is_recovered_from_an_ordinary_holder_after_restart() {
@@ -26,9 +28,21 @@ fn actual_waiting_carrier_recovers_group_history_without_ui_polling_or_duplicate
 
 #[test]
 fn attachment_recovery_keeps_original_offers_without_downloading_files() {
+    recover_attachment(false);
+}
+
+#[test]
+fn an_imported_attachment_remains_recoverable_from_its_restarted_holder() {
+    recover_attachment(true);
+}
+
+fn recover_attachment(imported_holder: bool) {
     let _network = isolated_network_scenario();
     let (mut author, mut holder, mut returning, id) = three_members();
     returning.stop();
+    if imported_holder {
+        holder.stop();
+    }
     assert_eq!(
         author.ask(
             json!({"action":"attachment_send", "kind":"group", "argument":id,
@@ -38,7 +52,16 @@ fn attachment_recovery_keeps_original_offers_without_downloading_files() {
         ),
         json!({})
     );
+    if imported_holder {
+        // No live manifest remains in the publisher's room cache after restart.
+        author.restart();
+        holder.restart();
+    }
     let original = wait_text(&mut [&mut author, &mut holder], &id);
+    if imported_holder {
+        assert!(original["attachments"][0]["preview_path"].is_null());
+    }
+    offer_facts::assert_original_offer(&mut holder, &id, imported_holder);
     author.stop();
     holder.restart();
     returning.restart();
@@ -53,7 +76,9 @@ fn attachment_recovery_keeps_original_offers_without_downloading_files() {
     );
     assert_eq!(recovered["attachments"][0]["state"], "offered");
     assert!(recovered["attachments"][0]["local_path"].is_null());
+    assert!(recovered["attachments"][0]["preview_path"].is_null());
     assert_eq!(recovered["history_sync"]["state"], "complete");
+    offer_facts::assert_original_offer(&mut returning, &id, true);
 }
 
 fn recover(background: bool) {

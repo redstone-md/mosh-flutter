@@ -35,6 +35,7 @@ impl PrivateGroupRuntime {
                 }
             }
         }
+        let mut history_ready = Vec::new();
         for session in self.groups.values_mut() {
             if let Err(error) = session.retry_pending_join() {
                 dlog::write(
@@ -55,14 +56,6 @@ impl PrivateGroupRuntime {
             }
             let _ = session.sync_deletions(now_ms());
             let _ = session.sync_plus(now_ms());
-            if let Err(error) = session.sync_history(now_ms()) {
-                dlog::write(
-                    LogLevel::Warn,
-                    kinds::FRAME,
-                    &session.group_id,
-                    &format!("group history deferred: {error}"),
-                );
-            }
             session.pump_attachment_requests();
             // ADR 0005: a roster change may legitimize lag-buffered commits.
             session.sync_roster_state();
@@ -74,7 +67,36 @@ impl PrivateGroupRuntime {
                     &format!("group name sync failed: {error}"),
                 );
             }
+            history_ready.push(session.group_id.clone());
         }
+        self.sync_group_history(&history_ready);
         Ok(())
+    }
+
+    fn sync_group_history(&mut self, ready: &[String]) {
+        // An imported suffix can acknowledge only an already durable live tail.
+        if self.groups.persist_tail().is_err() {
+            return;
+        }
+        let mut imported = Vec::new();
+        for id in ready {
+            let session = self.groups.get_mut(id).expect("open history-ready group");
+            let before = session.messages.len();
+            if let Err(error) = session.sync_history(now_ms()) {
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::FRAME,
+                    &session.group_id,
+                    &format!("group history deferred: {error}"),
+                );
+            }
+            // A successful import stays durable even if its next Pull fails.
+            if session.messages.len() > before {
+                imported.push(session.group_id.clone());
+            }
+        }
+        for id in imported {
+            self.groups.acknowledge_history(&id);
+        }
     }
 }
