@@ -43,6 +43,10 @@ before opening the camera, independently of microphone consent.
 
 The Android call view reuses the shared controls, device dialog and video renderer
 inside the app. Back minimizes that view; the chat and native call remain mounted.
+A lazy application-owned Flutter engine retains the Dart/native owners when
+Android recreates its Activity. Ringtone and PiP configuration outlive the window;
+only permission UI and the PiP shield attach to it. See
+[Android runtime ownership](android-runtime.md) for checks and physical-device limits.
 A dialog receives Back before minimization. Opening the peer returns to its DM;
 the compact strip can restore the view. Foreground Android ↔ desktop calls are
 the acceptance target. Suspended/killed-app ringing is not implemented by this

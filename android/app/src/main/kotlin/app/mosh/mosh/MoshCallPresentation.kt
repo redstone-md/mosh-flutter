@@ -10,10 +10,12 @@ import android.view.ViewGroup
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 
-/** System PiP uses the same Flutter renderer; it never starts a second call. */
-internal class MoshCallPresentation(private val activity: MainActivity, messenger: BinaryMessenger) {
+/** Engine-owned call configuration; only the attached Activity owns the PiP view. */
+internal class MoshCallPresentation(messenger: BinaryMessenger) {
     private val channel = MethodChannel(messenger, "app.mosh/call-presentation")
-    private val supported = activity.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+    private var activity: MainActivity? = null
+    private val supported get() = activity?.packageManager
+        ?.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE) == true
     private var call: String? = null
     private var video = false
     private var enteredCall: String? = null
@@ -34,15 +36,35 @@ internal class MoshCallPresentation(private val activity: MainActivity, messenge
             }
             call = method.argument<String>("call")
             video = method.argument<Boolean>("video") == true && call != null
-            if (supported) {
-                try {
-                    activity.setPictureInPictureParams(params())
-                    if (call == null && activity.isInPictureInPictureMode) activity.finish()
-                } catch (_: RuntimeException) {
-                    // A finishing Activity cannot update its PiP parameters.
-                }
-            }
+            configureWindow()
             result.success(null)
+        }
+    }
+
+    fun attach(activity: MainActivity) {
+        unshield()
+        this.activity = activity
+        closing = false
+        enteredCall = call.takeIf { activity.isInPictureInPictureMode }
+        configureWindow()
+        if (activity.isInPictureInPictureMode) preparing()
+    }
+
+    fun detach(activity: MainActivity) {
+        if (this.activity !== activity) return
+        unshield()
+        this.activity = null
+        resumed = false
+    }
+
+    private fun configureWindow() {
+        val activity = activity ?: return
+        if (!supported) return
+        try {
+            activity.setPictureInPictureParams(params())
+            if (call == null && activity.isInPictureInPictureMode) activity.finish()
+        } catch (_: RuntimeException) {
+            // A finishing Activity cannot update its PiP parameters.
         }
     }
 
@@ -55,6 +77,7 @@ internal class MoshCallPresentation(private val activity: MainActivity, messenge
     }.build()
 
     fun leaving() {
+        val activity = activity ?: return
         if (!supported || !video || closing) return
         // Hide chats before the Activity is shrunk, including Android 12 auto-enter.
         preparing()
@@ -80,6 +103,7 @@ internal class MoshCallPresentation(private val activity: MainActivity, messenge
     }
 
     fun resumed() {
+        val activity = activity ?: return
         resumed = true
         if (!activity.isInPictureInPictureMode) {
             enteredCall = null
@@ -92,6 +116,7 @@ internal class MoshCallPresentation(private val activity: MainActivity, messenge
     fun paused() { resumed = false }
 
     fun stopped() {
+        val activity = activity ?: return
         val ended = enteredCall ?: return
         if (closing || activity.isChangingConfigurations) return
         closing = true
@@ -106,6 +131,7 @@ internal class MoshCallPresentation(private val activity: MainActivity, messenge
     // Flutter's mode callback is asynchronous. Cover the old chat until a frame
     // containing only video has actually painted; never shrink a chat into PiP.
     private fun shield() {
+        val activity = activity ?: return
         if (shield != null) return
         shield = View(activity).apply { setBackgroundColor(Color.BLACK) }
         activity.addContentView(shield, ViewGroup.LayoutParams(-1, -1))
@@ -115,6 +141,4 @@ internal class MoshCallPresentation(private val activity: MainActivity, messenge
         shield?.let { (it.parent as? ViewGroup)?.removeView(it) }
         shield = null
     }
-
-    fun dispose() { channel.setMethodCallHandler(null); unshield() }
 }
