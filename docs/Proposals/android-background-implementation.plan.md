@@ -75,8 +75,10 @@ preparatory changes do not establish background acceptance.
   synchronously, before asynchronous Dart lifecycle hints.
 - Waiting transport remains in [Moss PR #31](https://github.com/redstone-md/moss/pull/31),
   stacked on PR #30, without an upstream merge. The integration pins its verified
-  candidate. A further public-network group bootstrap fix is under validation;
-  earlier local-tracker success does not establish public-network acceptance.
+  candidate after all eight upstream CI jobs passed. Public-network checks prove
+  group/channel text and offer notifications over an actual Ready carrier after
+  authenticated bidirectional route controls. Cold rendezvous latency and physical
+  Android acceptance remain separate; local-tracker success does not prove them.
 - Host policy probes, Android production/instrumentation compilation, Flutter
   analysis and focused native scenarios pass. The integrated Flutter checkpoint
   passed 2054 tests with four skipped. Whole-branch checks and signed packaging

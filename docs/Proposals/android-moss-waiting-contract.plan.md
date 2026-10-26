@@ -2,7 +2,7 @@
 
 Status: the owner-approved upstream implementation is complete in separate
 [Moss PR #31](https://github.com/redstone-md/moss/pull/31), without merging it.
-Mosh's integration candidate pins `88e49b290a500fad59402773b6c6145ffed734fc`
+Mosh's integration candidate pins `fd6d7d7916aa73c3f6b7079baba0d500a30d260e`
 after its eight CI jobs passed, including Linux/Windows, race and repeated soak.
 Mosh integration checks, upstream maintainer acceptance and physical Android
 acceptance remain required. This is not a shipped capability. Moss source edits
@@ -109,6 +109,13 @@ sending to a waiting recipient. This changes large-relay transport selection,
 including for ordinary consumers, without enabling the waiting policy. The real
 MTU-dropping relay regression and default-consumer suites cover that boundary;
 it must not be described as every non-opted-in transport path being unchanged.
+
+The candidate also corrects ordinary room-interest announcements for colocated
+peers: score-only mesh backoff no longer acts as a health exclusion. Mesh score,
+IP-colocation penalties and health/policy gates remain enforced. This correction
+is shared by ordinary consumers; it does not enable waiting for them. Real TCP
+nodes, repeated race checks and a public-network comparison cover the change.
+Cold rendezvous latency remains separate from delivery over an established path.
 
 The separately approved [connectivity contract](android-moss-connectivity-contract.plan.md)
 adds an explicit network-change hint on the existing node. Android forwards
