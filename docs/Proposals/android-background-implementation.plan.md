@@ -139,7 +139,13 @@ found three blockers; the earlier route-controlled checks do not close them.
   public-WAN probe with production `e95c498` reproduces authenticated DM liveness
   loss by 65 seconds despite Waiting/Ready and one carrier. This is an open
   transport blocker, not a physical Android success or a proven OS restriction.
-  The authorized separate Moss PR is being investigated; no upstream merge.
+  Separate Moss candidates fix refused physical-carrier TCP upgrades and
+  retirement of unresponsive virtual sessions. Their focused regressions pass,
+  but candidate `95e2edc` still loses the authenticated route: after 120 idle
+  seconds the native call command returns `NotReady`. Neither a healthy carrier
+  nor those transport regressions establish sustained conversation availability.
+  The authorized separate Moss PR is being investigated; no upstream merge or
+  candidate pin until the actual idle-call check passes.
 
 Separately, Windows CI exposed an imported group attachment being rewritten by
 the generic live-history tail without its retained preview evidence. A native
@@ -147,7 +153,17 @@ regression reproduces the same occurrence conflict and a four-second storage
 check identifies the mutation. Group service now flushes live work before
 history import and acknowledges the saved suffix through the existing runtime
 boundary. The eight-case independent recovery suite and 110 group checks pass
-locally. Focused Windows checks must pass before closing that CI failure.
+locally; focused Windows checks also pass. Already affected review profiles
+are repaired automatically from an authorized healthy holder, but only when
+the original offer matches its protected identity, receipt and digest. Local
+ownership, read state, deletions and notification acknowledgements survive;
+main and preview remain undownloaded. Without that holder, recovery remains
+incomplete rather than claiming success from an empty source. The repair passes
+119 native group checks and nine independent-process scenarios, with 134/136
+changed production lines covered. Focused Windows repair acceptance is pending.
+The existing atomic `save_history` and `imported_history_row` boundaries exceed
+the 50-line preference; retaining their commit ordering avoids an unrelated
+refactor. New validators and test fixtures stay within the documented limits.
 
 ## Approved boundaries
 
