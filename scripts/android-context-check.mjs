@@ -26,6 +26,9 @@ run("java", args);
 run("javac", ["-d", classes, path.join(probe, "AudioPolicyProbe.java"),
   path.join(root, "android/app/src/main/java/app/mosh/mosh/MoshCallAudioPolicy.java")]);
 run("java", ["-cp", classes, "app.mosh.mosh.AudioPolicyProbe"]);
+run("javac", ["-d", classes, path.join(probe, "AccessPolicyProbe.java"),
+  path.join(root, "android/app/src/main/java/app/mosh/mosh/MoshAccessPolicy.java")]);
+run("java", ["-cp", classes, "app.mosh.mosh.AccessPolicyProbe"]);
 
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: root, stdio: "inherit", windowsHide: true });

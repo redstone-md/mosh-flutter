@@ -12,6 +12,7 @@ Future<CallViewCommand?> showCallDevices(
   final media = call.media!;
   return showMoshDialog<CallViewCommand>(
       context: context,
+      availableWhileLocked: true,
       builder: (context) => MoshDialog(
           title: l.callDevices,
           closeLabel: l.dialogClose,

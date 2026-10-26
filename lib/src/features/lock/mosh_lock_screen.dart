@@ -76,10 +76,15 @@ class _MoshLockScreenState extends ConsumerState<MoshLockScreen> {
       // (and we deliberately do not setState after the swap -- this widget
       // is about to be unmounted).
       widget.swapTo(widget.nextApp);
-    } on PlatformException {
-      // Another biometric cancel -- stay on the lock screen. The spinner
-      // flips back to the retry UI so the user can try again or quit.
-      if (mounted) setState(() => _state = LockState.canceled);
+    } on PlatformException catch (error) {
+      // Cancellation remains retryable; unavailable auth or persistence
+      // shows the existing failure UI without opening protected content.
+      if (mounted) {
+        setState(() => _state = error.code == 'AUTHENTICATION_UNAVAILABLE' ||
+                error.code == 'ACCESS_STATE_UNAVAILABLE'
+            ? LockState.failed
+            : LockState.canceled);
+      }
     } catch (_) {
       // Defensive: a non-PlatformException DEK error should NOT have reached
       // here from main() (those propagate), but a future caller or a flaky

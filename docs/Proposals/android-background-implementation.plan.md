@@ -65,7 +65,10 @@ preparatory changes do not establish background acceptance.
   No new key/wire/storage contract or Moss lifecycle has been implemented.
 - The owner approved the access/key contract on 2026-10-26; IVO-134/135 proceed
   from the implemented ownership layer while its physical acceptance stays open.
-- The owner chose current-administrator endorsements for disputed group-history
-  intervals, preserving original authorship while explicitly trusting the
-  administrator's assertion. Refine the exact wire/storage proposal for approval;
-  strict roots with unrecoverable offline-holder gaps were not selected.
+- The owner rejected manual administrator history approval on 2026-10-26.
+  That proposal is withdrawn before implementation. Recovery must be automatic;
+  the owner accepted current-authorized-holder trust for historical context,
+  with original authorship and independent recipient-access checks preserved.
+  A dishonest holder/colluding author can falsify context; receipts are not
+  independent proof of time. Refine the exact retained evidence and legacy
+  compatibility contract before wire/storage implementation.

@@ -9,10 +9,10 @@ This document changes no runtime, wire format, dependency or database.
 ## Decisions required before coding
 
 1. Approve the additive channel/common wire, storage and snapshot contracts below.
-2. Approve the exact [administrator-supplement contracts](android-history-admin-contract.plan.md).
-   The user selected current-administrator confirmation of disputed history on
-   2026-10-26. That trust policy is decided; these wire/storage/API details are
-   still proposed. Closing roots and an all-holder barrier are not selected.
+2. Resolve automatic group-history evidence and its exact trust boundary before
+   approving that part of the protocol. On 2026-10-26 the user rejected manual
+   administrator approval. The [earlier supplement proposal](android-history-admin-contract.plan.md)
+   is withdrawn; its review UI, bridge calls and approval queues must not ship.
 
 ## Existing boundaries and limits
 
@@ -46,7 +46,7 @@ payloads, metadata extension and current admission rules unchanged.
 No second history importer, private MLS snapshot import, new library or Moss API.
 
 Use existing room subscriptions for channel history and group discovery only.
-Group historical content, proofs and review bodies use recipient-directed
+Group historical content and proofs use recipient-directed
 encrypted Moss packets; a group exporter key alone is readable by newcomers
 and cannot enforce admission boundaries. Add a bounded single Mosh history
 owner and fixed `mosh-history-v1\0` carrier prefix; the existing directed packet
@@ -115,9 +115,9 @@ never initiate arbitrary peer dials from a claimed offer address.
 ### Record contract and original author
 
 `HistoryRecordV1`: `(kind, occurrence_key, message_id, claimed_sent_at_ms,
-claimed_label, author_key?, transport_peer?, content, origin?, history_proof?,
-admin_endorsement?)`. The endorsement never replaces the origin or original
-author signature; its exact binding is specified in the linked admin contract.
+claimed_label, author_key?, transport_peer?, content, origin?, history_proof?)`.
+The automatic group-evidence format still requires review. It must never replace
+the origin or original author signature with a forwarding holder's signature.
 `content` is exactly one of Text UTF-8 bytes, AttachmentOffer (full original and
 preview manifests), or ErasedTarget (proof/tombstone reference, no content).
 No delivery states, read markers, outbound attempts, downloaded paths, files,
@@ -201,9 +201,9 @@ complete global archive or knowledge of a deletion unavailable from every peer.
 Add an optional shared `history_sync` snapshot to groups/channels, retaining
 existing DM state values `waiting_for_source`, `importing`, `complete`. Include
 an optional reason (`source_unavailable`, `evidence_missing`, `unsupported`,
-`storage_refused`, `administrator_review_required`) without displaying internal
-keys or paths. Existing conversation operations remain; the admin contract
-proposes two bounded review calls. Regenerate bindings and reuse the notice.
+`storage_refused`) without displaying internal keys or paths. Existing
+conversation operations remain; no administrator-review bridge API is proposed.
+Regenerate bindings and reuse the notice.
 Complete means this available, verified frozen view is durable. New sources or
 known missing transitions can return it to waiting/importing. A missing proof
 or unsupported holder is never silently treated as complete.
@@ -211,11 +211,11 @@ or unsupported holder is never silently treated as complete.
 Old stores load optional fields absent. Old clients continue existing live
 operations, but cannot provide history evidence they never retained. A channel
 can recover their rows with honest legacy classification. For groups, lack of
-historical authorization evidence requires the selected administrator
-supplement where enough genuine original-author and membership evidence
-exists. An absent author signature or a missing verifiable admission interval
-is not manufactured by an update or a holder's page signature. Such records
-remain honestly classified; this is not a strict-closing-root gap policy.
+historical authorization evidence cannot be repaired by asking an administrator
+to approve a batch. An absent author signature or a missing verifiable admission
+interval is not manufactured by an update or a holder's page signature. Preserve
+local legacy rows and their honest classification. The automatic compatibility
+policy for remote legacy records remains a design gate, not silent completion.
 
 ## Private-group evidence and membership boundaries
 
@@ -228,7 +228,7 @@ sender alone is a claim, not authentication. Use dual-key SenderProof and org
 authorization for group scope. Room discovery may use exporter metadata without
 content. A recipient field on group-key ciphertext is routing, not isolation:
 new members know that key. Directed-send refusal waits/retries; never publish
-private historical content, attachment keys or review candidates to the group.
+private historical content or attachment keys to the group.
 Application MLS generations and another installation's private state are not
 used as a historical decryption mechanism.
 
@@ -270,29 +270,28 @@ All checks are relative to authenticated knowledge: an isolated stale replica
 cannot know an unseen removal. Instant global revocation requires freshness
 infrastructure and is not promised by an asynchronous P2P protocol.
 
-### Selected trust policy: current-administrator supplements
+### Automatic recovery; no administrator approval workflow
 
-The user chose authority-endorsed supplements, preserving full recovery where
-authorized copies and adequate original evidence are available. A currently
-verified administrator confirms a precise signed historical record and its
-claimed membership interval. A holder can relay that endorsement while the
-administrator is offline. The original author remains the original author.
-The exact proof, approval flow, revocation and persistence boundaries are in
-[the administrator contract](android-history-admin-contract.plan.md).
+Recovery discovers authorized retained copies, verifies them and imports them
+without a human approval step. Administrator availability must not become a new
+dependency when another holder has sufficient evidence. No history-request
+dashboard, approval queue, Confirm/Decline action or associated bridge API ships.
 
 A removed author can sign a new row claiming an old time/epoch. Author
 signatures and old member lists alone do not establish when that row existed;
 [RFC 9420 §8.2](https://www.rfc-editor.org/rfc/rfc9420.html#section-8.2)
-anchors Proposal/Commit history, not every application-message body. The chosen
-policy trusts the current administrator's historical assertion for this gap.
-It does not claim cryptographic pre-removal creation-time proof.
+anchors Proposal/Commit history, not every application-message body. A human
+review also cannot independently prove an unwitnessed record's creation time.
+Replacing the review button with blind automatic signing is not a solution.
 
-Do not automatically convert a valid old signature into an endorsement. An
-administrator may confirm matching protected local live evidence automatically;
-a disputed row without such evidence requires an explicit bounded review.
-Otherwise a departed signer could obtain approval for newly backdated text.
-No all-holder barrier delays membership changes; no closing-root omission
-silently excludes a legitimate row that the selected admin policy admits.
+Investigate retaining authenticated live-acceptance evidence automatically and
+binding history to membership transitions. Specify exactly whose assertions a
+receiver trusts, how evidence survives offline holders and membership changes,
+and what older installations can actually supply. A signed receipt alone does
+not prove an honest witness or a timestamp. No new trust assumption, permanent
+legacy gap or all-holder barrier is approved by rejecting the manual workflow.
+Complete this evidence/compatibility design before implementing group history;
+independent channel recovery and the approved Android access work can proceed.
 
 ## Verification before acceptance
 
@@ -304,11 +303,11 @@ offers without auto-download. Run through existing bridge on desktop/Android.
 
 Group adversarial cases: same-membership plaintext transplantation; new member
 requesting earlier rows; ordinary offline; removal/rejoin with absent interval;
-forged old-time row signed **after** removal without admin confirmation;
-precise approved historical supplement from an alternate offline holder;
-admin demotion, stale/forked authority and replay into another admission;
+forged old-time row signed **after** removal;
+automatic recovery from an alternate authorized holder without admin action;
+membership changes, stale/forked authority and replay into another admission;
 unavailable original authority; no provider snapshots/private secrets exchanged.
 Assert waiting rather than successful completion on every missing proof path.
 Focused tests cover bounds, canonical transcripts and atomic refusal behavior;
 real OpenMLS tests prove staged transition validation and post-recovery live
-traffic. Admin confirmation is tested as trusted policy, not proof of time.
+traffic. Assert that successful recovery never requires an administrator action.

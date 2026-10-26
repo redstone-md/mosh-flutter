@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert' show base64Encode;
 import 'dart:io';
+import 'package:mosh/src/features/lock/android_app_access.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -119,6 +120,7 @@ class ConversationController extends Notifier<ConversationControllerState> {
   /// every widget test. `catchError` never sees that throw, so the call is
   /// wrapped, not just the future.
   void markViewed() {
+    if (ref.read(androidAppAccessProvider)?.chatsInteractive == false) return;
     try {
       final future = ref.read(gatewayProvider).markViewed(target);
       unawaited(future.catchError((_) {}));

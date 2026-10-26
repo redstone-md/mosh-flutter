@@ -201,13 +201,17 @@ No protocol can recover data absent from every remaining copy.
   historical evidence before adding group history exports; a departed signer
   must not gain access or fabricate accepted history by backdating a message.
   Do not replace a receiver's MLS state with another device's private snapshot.
-  The owner accepted current-administrator endorsements for disputed historical
-  records on 2026-10-26. Preserve the original author's signature; the authorized
-  administrator attests the publication/admission interval. This deliberately
-  trusts that administrator's assertion and is not cryptographic proof of
-  pre-removal creation. Retained verified endorsements can be relayed by holders
-  while the administrator is offline. Preserve the distinct organization-group
-  authority checks; a forwarding holder's page signature is not an endorsement.
+  Recovery is automatic: no administrator review, per-batch approval or user
+  confirmation is required. On 2026-10-26 the owner rejected the manual workflow
+  and accepted recovery from a currently authorized holder, explicitly trusting
+  that holder's assertion of historical context. Preserve original author
+  signatures and independently check current membership and recipient access.
+  A dishonest current holder can lie about context or collude with a departed
+  author; neither its receipt nor a signed timestamp proves pre-removal creation
+  independently. Sufficient retained evidence must travel with the history;
+  do not sign arbitrary offered rows or manufacture missing legacy proof.
+  Preserve distinct organization-group authority checks. Exact automatic
+  evidence, wire/storage and legacy compatibility details still need review.
   Preserve original message identity, reject conflicting imports and keep live
   delivery working during recovery. Completion covers the verified available
   authorized history, not an invented global archive or channel total order.
@@ -260,9 +264,10 @@ No protocol can recover data absent from every remaining copy.
   backdated departed-member content, obsolete epochs, unauthorized sources and
   legacy unverifiable rows. Verify deletion precedence, local-only erasure,
   retained accepted tombstones and no unauthorized deletion authority.
-  For authority-endorsed history, reject missing/forged/unauthorized endorsements,
-  preserve original authorship and test both valid interval attestation and
-  revocation/stale-source limits. Do not label attested time as independently proven.
+  Verify automatic recovery without administrator interaction and with the
+  original author offline. Reject missing/forged/unauthorized evidence, preserve
+  original authorship and exercise revocation/stale-source limits. Do not label
+  a signed time claim as independently proven.
 - **Key migration.** Verify the same preexisting encrypted history and identity
   remain readable after migration, including interruption, refused writes,
   cancelled authentication and unavailable keys. Exercise warm and cold

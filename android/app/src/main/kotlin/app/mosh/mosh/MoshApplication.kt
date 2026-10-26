@@ -11,6 +11,7 @@ class MoshApplication : Application() {
 internal class MoshAndroidRuntime(application: Application) {
     val engine: FlutterEngine
     val presentation: MoshCallPresentation
+    val access: MoshAccess
     private val ringtone: MoshRingtone
 
     init {
@@ -19,6 +20,7 @@ internal class MoshAndroidRuntime(application: Application) {
         engine = FlutterEngine(application)
         val messenger = engine.dartExecutor.binaryMessenger
         presentation = MoshCallPresentation(messenger)
+        access = MoshAccess(application, messenger)
         ringtone = MoshRingtone(application, messenger)
         // FlutterActivity starts Dart with the original launch arguments. Creating
         // this owner alone must not bypass foreground authentication or run main().

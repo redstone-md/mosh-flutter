@@ -1,5 +1,14 @@
 # Group history: current-administrator supplements
 
+**WITHDRAWN — 2026-10-26.** The user rejected manual administrator approval of
+history recovery. Nothing below was approved for implementation. This document
+is retained as a rejected design record, not an active contract. Do not implement
+its review UI, approval queues, bridge methods or automatic blind-signing variant.
+The [active history proposal](android-history-contracts.plan.md) requires fully
+automatic recovery; its exact evidence and legacy trust policy remain unresolved.
+
+## Rejected proposal
+
 Date: 2026-10-26. Policy selected by the user: a current administrator confirms
 disputed historical records; retain the original author's signature and allow
 other holders to relay retained endorsements while that administrator is offline.

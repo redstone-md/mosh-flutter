@@ -1,4 +1,11 @@
 {
+  "appLockTitle": "App lock",
+  "appLockDelay": "Automatically lock",
+  "appLockImmediate": "Immediately",
+  "appLockMinutes": "{minutes} min",
+  "appLockReason": "Unlock Mosh",
+  "appLockSaveError": "Could not save the lock delay. Try again.",
+  "@appLockMinutes": {"placeholders": {"minutes": {"type": "int"}}},
   "@@locale": "en",
   "settingsSectionProfile": "Profile",
   "firstRunNameStep": "Name",
