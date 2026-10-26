@@ -10,6 +10,53 @@ import 'package:mosh/src/features/settings/app_lock_settings_card.dart';
 import '../../support/pump.dart';
 
 void main() {
+  testWidgets('expanded call hides protected dialogs during a valid chat grant',
+      (tester) async {
+    var revision = 0;
+    messenger(tester).setMockMethodCallHandler(AndroidAppAccess.channel,
+        (_) async => _snapshot(allowed: true, revision: ++revision));
+    final access = AndroidAppAccess();
+    await access.initialize();
+    final interactive = ValueNotifier(true);
+    addTearDown(() {
+      access.dispose();
+      interactive.dispose();
+      messenger(tester)
+          .setMockMethodCallHandler(AndroidAppAccess.channel, null);
+      appLockRouteObserver.setLocked(false);
+    });
+    late BuildContext home;
+    await pumpScreen(
+        tester,
+        ValueListenableBuilder<bool>(
+            valueListenable: interactive,
+            builder: (_, visible, __) => AndroidAppLockGate(
+                interactive: visible,
+                child: Builder(builder: (context) {
+                  home = context;
+                  return const Scaffold(body: Text('protected chat'));
+                }))),
+        observers: [appLockRouteObserver],
+        overrides: [androidAppAccessProvider.overrideWithValue(access)]);
+    unawaited(showDialog<void>(
+        context: home,
+        builder: (_) =>
+            const AlertDialog(content: Text('protected attachment'))));
+    await tester.pumpAndSettle();
+    unawaited(showDialog<void>(
+        context: home,
+        routeSettings: const RouteSettings(name: callAccessRoute),
+        builder: (_) => const AlertDialog(content: Text('call controls'))));
+    await tester.pumpAndSettle();
+    interactive.value = false;
+    await tester.pumpAndSettle();
+    expect(find.text('protected attachment'), findsNothing);
+    expect(find.text('protected chat'), findsNothing);
+    expect(find.text('call controls'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets(
       'canceled authentication keeps chats covered; unlock preserves drafts',
       (tester) async {

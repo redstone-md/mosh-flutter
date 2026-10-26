@@ -23,6 +23,8 @@ class _AndroidAppLockGateState extends ConsumerState<AndroidAppLockGate> {
   bool _mountedContent = false;
   bool _validatingVisibility = false;
   int _visibilityRequest = 0;
+  bool get _covered =>
+      _access?.covered == true || _validatingVisibility || !widget.interactive;
 
   @override
   void initState() {
@@ -30,13 +32,19 @@ class _AndroidAppLockGateState extends ConsumerState<AndroidAppLockGate> {
     _access = ref.read(androidAppAccessProvider);
     _access?.addListener(_changed);
     _updateVisibility();
-    if (_access != null) appLockRouteObserver.setLocked(_access!.covered);
+    if (_access != null) appLockRouteObserver.setLocked(_covered);
   }
 
   @override
   void didUpdateWidget(covariant AndroidAppLockGate oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.interactive != widget.interactive) _updateVisibility();
+    if (oldWidget.interactive != widget.interactive) {
+      _updateVisibility();
+      // Removing Navigator routes during its parent's build is unsafe.
+      scheduleMicrotask(() {
+        if (mounted) appLockRouteObserver.setLocked(_covered);
+      });
+    }
   }
 
   void _updateVisibility() {
@@ -54,11 +62,12 @@ class _AndroidAppLockGateState extends ConsumerState<AndroidAppLockGate> {
       if (!mounted || request != _visibilityRequest) return;
       access.setChatVisible(widget.interactive);
       setState(() => _validatingVisibility = false);
+      appLockRouteObserver.setLocked(_covered);
     }));
   }
 
   void _changed() {
-    appLockRouteObserver.setLocked(_access!.covered);
+    appLockRouteObserver.setLocked(_covered);
     if (mounted) setState(() {});
   }
 
@@ -72,8 +81,7 @@ class _AndroidAppLockGateState extends ConsumerState<AndroidAppLockGate> {
   Widget build(BuildContext context) {
     final access = _access;
     if (access == null) return widget.child;
-    final covered =
-        access.covered || _validatingVisibility || !widget.interactive;
+    final covered = _covered;
     _mountedContent |= !covered;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) access.protectedFrameReady();
