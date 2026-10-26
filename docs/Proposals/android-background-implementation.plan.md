@@ -76,8 +76,10 @@ preparatory changes do not establish background acceptance.
 - Waiting transport remains in [Moss PR #31](https://github.com/redstone-md/moss/pull/31),
   stacked on PR #30, without an upstream merge. The integration pins its verified
   candidate `fd6d7d7` passed all eight upstream CI jobs. Its carrier-loss recovery
-  successor `cc0784d` passes focused race/compatibility checks, vet, WASM and
-  C-shared compilation; complete upstream CI and WAN DM verification are running.
+  successor `e95c498` also confirms TCP upgrades before replacing a working relay
+  and consumes recovery only on fresh authenticated relay control. Focused
+  race/compatibility checks, vet, WASM and C-shared compilation pass; complete
+  upstream CI and final WAN DM/transfer verification are running.
   Public-network checks prove
   group/channel text and offer notifications over an actual Ready carrier after
   authenticated bidirectional route controls. Cold rendezvous latency and physical
@@ -101,9 +103,12 @@ preparatory changes do not establish background acceptance.
   after authenticated route controls. The DM transfer scenario exposed a
   separate carrier-loss recovery failure for an ordinary desktop caller. It is
   reproduced with real Noise/relay peers. Its narrow transport fix passes 20 race
-  repetitions and preserves ordinary direct-first behavior; complete upstream
-  and WAN verification remain in progress. The WAN download phase is not yet
-  accepted.
+  repetitions and preserves ordinary direct-first behavior. A second regression
+  proves sends survive refused TCP upgrades; first-frame replay and cancellation
+  are checked. A diagnostic WAN run then proved bidirectional DM delivery and
+  exposed missing attachment-notification ownership in Mosh. The host fix derives
+  ownership from the verified MLS signer, excludes our linked devices, and passes
+  real MLS/redb regressions. Final WAN download acceptance remains in progress.
 
 ## Approved boundaries
 
