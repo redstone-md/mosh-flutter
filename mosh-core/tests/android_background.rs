@@ -386,8 +386,13 @@ fn actual_waiting_carrier_receives_authenticated_call() {
         }
     };
     assert_eq!(ready["attachment_count"], 1);
+    // A message or UI poll could hide a route lost during real idle waiting.
+    std::thread::sleep(Duration::from_secs(120));
     let started = caller.ask(json!({"action":"call_start","argument":id}));
-    let call = started["call_id"].as_str().unwrap();
+    let Some(call) = started["call_id"].as_str() else {
+        public_carrier_diagnostics(&mut caller, &mut callee, &carrier, id);
+        panic!("call refused after idle waiting: {}", started["error"]);
+    };
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         call_entry(&mut callee, call, "incoming")
     }));
