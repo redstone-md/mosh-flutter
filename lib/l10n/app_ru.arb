@@ -1,4 +1,11 @@
 {
+  "appLockTitle": "Блокировка приложения",
+  "appLockDelay": "Блокировать автоматически",
+  "appLockImmediate": "Сразу",
+  "appLockMinutes": "{minutes} мин",
+  "appLockReason": "Разблокировать Mosh",
+  "appLockSaveError": "Не удалось сохранить задержку блокировки. Попробуйте ещё раз.",
+  "@appLockMinutes": {"placeholders": {"minutes": {"type": "int"}}},
   "@@locale": "ru",
   "settingsSectionProfile": "Профиль",
   "firstRunNameStep": "Имя",

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:mosh/src/features/lock/android_app_access.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -306,11 +307,13 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   }
 
   void _markViewed() {
+    if (ref.read(androidAppAccessProvider)?.chatsInteractive == false) return;
     _markedInitialView = true;
     _controller.markViewed();
   }
 
   void _resolvePendingOpen(ConversationSnapshot? snapshot) {
+    if (ref.read(androidAppAccessProvider)?.chatsInteractive == false) return;
     final attachments = snapshot?.attachments;
     if (attachments == null || attachments.isEmpty) return;
     switch (_controller.resolvePendingOpen(attachments)) {

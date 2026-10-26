@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/features/lock/android_app_access.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind, ConversationRef;
@@ -79,7 +80,8 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
         ConversationCount(id: entry.key, messageCount: entry.value),
     ];
 
-    final focused = await ref.read(windowFocusProvider)();
+    final focused = await ref.read(windowFocusProvider)() &&
+        ref.read(androidAppAccessProvider)?.chatsInteractive != false;
     // A newer run superseded this one: drop it.
     if (token != _runToken) return;
 
