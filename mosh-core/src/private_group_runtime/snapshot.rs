@@ -6,6 +6,7 @@ impl GroupSession {
     pub(super) fn snapshot(&mut self) -> GroupSnapshot {
         let authority = self.deletion_authority().ok();
         GroupSnapshot {
+            history_sync: None,
             deletion_summary: self.deletions.summary(),
             group_id: self.group_id.clone(),
             mesh_id: self.mesh_id.clone(),

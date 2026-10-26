@@ -7,6 +7,7 @@ import 'attachment_runtime.dart';
 import 'conversation/attachments.dart';
 import 'conversation/dm_offers.dart';
 import 'conversation/mesh.dart';
+import 'conversation/recovery.dart';
 import 'frb_generated.dart';
 import 'message_deletion/origin.dart';
 import 'message_deletion/types.dart';
@@ -208,6 +209,7 @@ class GroupNameStatus {
 }
 
 class GroupSnapshot {
+  final HistorySync? historySync;
   final DeletionSummary? deletionSummary;
   final String groupId;
   final String meshId;
@@ -241,6 +243,7 @@ class GroupSnapshot {
   final List<TypingMember> typingMembers;
 
   const GroupSnapshot({
+    this.historySync,
     this.deletionSummary,
     required this.groupId,
     required this.meshId,
@@ -266,6 +269,7 @@ class GroupSnapshot {
 
   @override
   int get hashCode =>
+      historySync.hashCode ^
       deletionSummary.hashCode ^
       groupId.hashCode ^
       meshId.hashCode ^
@@ -293,6 +297,7 @@ class GroupSnapshot {
       identical(this, other) ||
       other is GroupSnapshot &&
           runtimeType == other.runtimeType &&
+          historySync == other.historySync &&
           deletionSummary == other.deletionSummary &&
           groupId == other.groupId &&
           meshId == other.meshId &&

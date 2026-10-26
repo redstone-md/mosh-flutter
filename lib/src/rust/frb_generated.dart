@@ -4689,30 +4689,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   GroupSnapshot dco_decode_group_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 21)
-      throw Exception('unexpected arr length: expect 21 but see ${arr.length}');
+    if (arr.length != 22)
+      throw Exception('unexpected arr length: expect 22 but see ${arr.length}');
     return GroupSnapshot(
-      deletionSummary: dco_decode_opt_box_autoadd_deletion_summary(arr[0]),
-      groupId: dco_decode_String(arr[1]),
-      meshId: dco_decode_String(arr[2]),
-      label: dco_decode_opt_String(arr[3]),
-      displayName: dco_decode_String(arr[4]),
-      deviceFingerprint: dco_decode_String(arr[5]),
-      creatorFingerprint: dco_decode_String(arr[6]),
-      isAdmin: dco_decode_bool(arr[7]),
-      nameStatus: dco_decode_opt_box_autoadd_group_name_status(arr[8]),
-      state: dco_decode_String(arr[9]),
-      memberCount: dco_decode_usize(arr[10]),
-      inviteUri: dco_decode_opt_String(arr[11]),
-      messages: dco_decode_list_group_message(arr[12]),
-      attachments: dco_decode_list_attachment_view(arr[13]),
-      dmOffers: dco_decode_list_dm_offer(arr[14]),
-      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[15]),
-      events: dco_decode_list_snapshot_event(arr[16]),
-      needsRejoin: dco_decode_bool(arr[17]),
-      orgPubkey: dco_decode_opt_String(arr[18]),
-      memberPeerIds: dco_decode_list_String(arr[19]),
-      typingMembers: dco_decode_list_typing_member(arr[20]),
+      historySync: dco_decode_opt_box_autoadd_history_sync(arr[0]),
+      deletionSummary: dco_decode_opt_box_autoadd_deletion_summary(arr[1]),
+      groupId: dco_decode_String(arr[2]),
+      meshId: dco_decode_String(arr[3]),
+      label: dco_decode_opt_String(arr[4]),
+      displayName: dco_decode_String(arr[5]),
+      deviceFingerprint: dco_decode_String(arr[6]),
+      creatorFingerprint: dco_decode_String(arr[7]),
+      isAdmin: dco_decode_bool(arr[8]),
+      nameStatus: dco_decode_opt_box_autoadd_group_name_status(arr[9]),
+      state: dco_decode_String(arr[10]),
+      memberCount: dco_decode_usize(arr[11]),
+      inviteUri: dco_decode_opt_String(arr[12]),
+      messages: dco_decode_list_group_message(arr[13]),
+      attachments: dco_decode_list_attachment_view(arr[14]),
+      dmOffers: dco_decode_list_dm_offer(arr[15]),
+      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[16]),
+      events: dco_decode_list_snapshot_event(arr[17]),
+      needsRejoin: dco_decode_bool(arr[18]),
+      orgPubkey: dco_decode_opt_String(arr[19]),
+      memberPeerIds: dco_decode_list_String(arr[20]),
+      typingMembers: dco_decode_list_typing_member(arr[21]),
     );
   }
 
@@ -7051,6 +7052,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   GroupSnapshot sse_decode_group_snapshot(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_historySync = sse_decode_opt_box_autoadd_history_sync(deserializer);
     var var_deletionSummary =
         sse_decode_opt_box_autoadd_deletion_summary(deserializer);
     var var_groupId = sse_decode_String(deserializer);
@@ -7075,6 +7077,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_memberPeerIds = sse_decode_list_String(deserializer);
     var var_typingMembers = sse_decode_list_typing_member(deserializer);
     return GroupSnapshot(
+        historySync: var_historySync,
         deletionSummary: var_deletionSummary,
         groupId: var_groupId,
         meshId: var_meshId,
@@ -9719,6 +9722,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_group_snapshot(GroupSnapshot self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_history_sync(self.historySync, serializer);
     sse_encode_opt_box_autoadd_deletion_summary(
         self.deletionSummary, serializer);
     sse_encode_String(self.groupId, serializer);

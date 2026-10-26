@@ -5297,6 +5297,8 @@ impl SseDecode for crate::private_group_runtime::GroupNameStatus {
 impl SseDecode for crate::private_group_runtime::GroupSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_historySync =
+            <Option<crate::conversation::recovery::HistorySync>>::sse_decode(deserializer);
         let mut var_deletionSummary =
             <Option<crate::message_deletion::types::DeletionSummary>>::sse_decode(deserializer);
         let mut var_groupId = <String>::sse_decode(deserializer);
@@ -5326,6 +5328,7 @@ impl SseDecode for crate::private_group_runtime::GroupSnapshot {
         let mut var_typingMembers =
             <Vec<crate::private_group_runtime::wire_types::TypingMember>>::sse_decode(deserializer);
         return crate::private_group_runtime::GroupSnapshot {
+            history_sync: var_historySync,
             deletion_summary: var_deletionSummary,
             group_id: var_groupId,
             mesh_id: var_meshId,
@@ -8850,6 +8853,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_group_runtime::GroupNameSt
 impl flutter_rust_bridge::IntoDart for crate::private_group_runtime::GroupSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.history_sync.into_into_dart().into_dart(),
             self.deletion_summary.into_into_dart().into_dart(),
             self.group_id.into_into_dart().into_dart(),
             self.mesh_id.into_into_dart().into_dart(),
@@ -10940,6 +10944,10 @@ impl SseEncode for crate::private_group_runtime::GroupNameStatus {
 impl SseEncode for crate::private_group_runtime::GroupSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::conversation::recovery::HistorySync>>::sse_encode(
+            self.history_sync,
+            serializer,
+        );
         <Option<crate::message_deletion::types::DeletionSummary>>::sse_encode(
             self.deletion_summary,
             serializer,
