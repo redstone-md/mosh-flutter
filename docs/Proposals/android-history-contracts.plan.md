@@ -1,18 +1,19 @@
 # Android background: channel and group history contracts
 
-Status: proposed; **not approved for implementation**. Scope: [IVO-141](https://linear.app/ivoxygen/issue/IVO-141),
+Status: approved for implementation on 2026-10-26 after the owner's clarification
+about existing DM recovery and confirmation. Scope: [IVO-141](https://linear.app/ivoxygen/issue/IVO-141),
 [IVO-142](https://linear.app/ivoxygen/issue/IVO-142), [IVO-143](https://linear.app/ivoxygen/issue/IVO-143),
 under [IVO-132](https://linear.app/ivoxygen/issue/IVO-132). Date: 2026-10-26.
 Product baseline: [specification](android-background.spec.md).
 This document changes no runtime, wire format, dependency or database.
 
-## Decisions required before coding
+## Approved scope
 
-1. Approve the additive channel/common wire, storage and snapshot contracts below.
-2. Approve the exact [automatic group contract](android-history-automatic-contract.plan.md).
+1. The additive channel/common wire, storage and snapshot contracts below.
+2. The exact [automatic group contract](android-history-automatic-contract.plan.md).
    The user accepted trusting a current authorized holder's historical-context
-   assertion without administrator action. That policy is decided; these exact
-   evidence/wire/schema/snapshot changes still require approval. The
+   assertion without administrator action, followed by the concrete
+   evidence/wire/schema/snapshot scope after clarification. The
    [earlier administrator proposal](android-history-admin-contract.plan.md) stays
    withdrawn; its review UI, approval queues and bridge calls must not ship.
 

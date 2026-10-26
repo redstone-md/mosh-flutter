@@ -61,8 +61,8 @@ preparatory changes do not establish background acceptance.
 - Concrete [access](android-background-access-contract.plan.md),
   [execution](android-background-execution-contract.plan.md),
   [Moss](android-moss-waiting-contract.plan.md) and
-  [history](android-history-contracts.plan.md) proposals are prepared for approval.
-  No new key/wire/storage contract or Moss lifecycle has been implemented.
+  [history](android-history-contracts.plan.md) contracts are approved. Their
+  approval does not establish runtime implementation or physical acceptance.
 - The owner approved the access/key contract on 2026-10-26; IVO-134/135 proceed
   from the implemented ownership layer while its physical acceptance stays open.
 - The owner rejected manual administrator history approval on 2026-10-26.
@@ -71,4 +71,6 @@ preparatory changes do not establish background acceptance.
   with original authorship and independent recipient-access checks preserved.
   A dishonest holder/colluding author can falsify context; receipts are not
   independent proof of time. Refine the exact retained evidence and legacy
-  compatibility contract before wire/storage implementation.
+  compatibility contract before wire/storage implementation. The owner confirmed
+  the exact automatic history and execution contracts after the DM-reuse
+  clarification; IVO-141 proceeds with existing bounded DM mechanisms.

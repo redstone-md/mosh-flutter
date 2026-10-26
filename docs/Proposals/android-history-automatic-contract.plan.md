@@ -2,7 +2,8 @@
 
 2026-10-26. The user accepted automatic recovery trusting a **current authorized
 holder's historical-context assertion**, without administrator approval. That
-policy is decided; **the exact wire/schema/snapshot changes below are proposed**.
+policy and the exact wire/schema/snapshot scope below are approved for
+implementation after clarification of the existing DM recovery mechanism.
 Scope: [IVO-142](https://linear.app/ivoxygen/issue/IVO-142),
 [IVO-143](https://linear.app/ivoxygen/issue/IVO-143), using
 [the shared contract](android-history-contracts.plan.md). No runtime changes yet.
