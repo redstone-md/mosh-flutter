@@ -58,7 +58,6 @@ internal class MoshAccessState(context: Context) {
         require(deadline == null || deadline is Long || deadline is Int)
         require(requested in setOf("locked", "interactive", "grace"))
         require(value["bootCount"] == clock.boot())
-        policy.setDelay(delay)
-        policy.applyUiState(requested, foreground)
+        policy.saveUiState(delay, requested, foreground)
     }
 }

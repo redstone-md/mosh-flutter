@@ -64,17 +64,28 @@ public final class MoshAccessPolicy {
         if (allowed()) authenticated();
     }
 
+    public synchronized void saveUiState(int seconds, String state, boolean foreground) {
+        validateUiState(state, foreground);
+        setDelay(seconds);
+        applyUiState(state, foreground);
+    }
+
     /** UI state is not authentication, even if a delayed save says interactive. */
     public synchronized void applyUiState(String state, boolean foreground) {
+        validateUiState(state, foreground);
+        if (state.equals("interactive")) interactive();
+        else if (state.equals("grace")) departed();
+    }
+
+    private void validateUiState(String state, boolean foreground) {
         switch (state) {
             case "interactive":
                 if (!foreground) throw new IllegalStateException("Not foreground");
-                interactive();
                 break;
-            case "grace": departed(); break;
             case "locked":
                 if (allowed()) throw new IllegalStateException("Access remains allowed");
                 break;
+            case "grace": break;
             default: throw new IllegalArgumentException("Invalid access state");
         }
     }

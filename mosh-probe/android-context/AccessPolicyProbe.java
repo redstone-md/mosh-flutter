@@ -21,6 +21,7 @@ public final class AccessPolicyProbe {
         checkRestartFences(clock);
         checkStorageFailure(clock);
         checkExternalDeparture(clock);
+        checkRejectedSave(clock);
         System.out.println("Android app-lock deadline verified");
     }
 
@@ -91,6 +92,26 @@ public final class AccessPolicyProbe {
             "Returning before the bounded absence lost valid access");
     }
 
+    private static void checkRejectedSave(Clock clock) {
+        clock.now = 1_000;
+        Memory store = new Memory();
+        MoshAccessPolicy policy = new MoshAccessPolicy(store, clock);
+        policy.authenticated();
+        for (String state : new String[] {"interactive", "locked", "invalid"}) {
+            int writes = store.writes;
+            try {
+                policy.saveUiState(300, state, false);
+                throw new AssertionError("Invalid UI save reported success");
+            } catch (IllegalStateException | IllegalArgumentException expected) {
+                require(policy.snapshot().delaySeconds == 60, "Rejected save changed lock delay");
+                require(store.writes == writes, "Rejected save wrote preferences");
+            }
+        }
+        policy.saveUiState(300, "grace", false);
+        require(policy.snapshot().delaySeconds == 300 &&
+            policy.snapshot().deadlineElapsedMs == 301_000, "Valid delay/state save failed");
+    }
+
     private static void require(boolean condition, String message) {
         if (!condition) throw new AssertionError(message);
     }
@@ -98,10 +119,12 @@ public final class AccessPolicyProbe {
     private static final class Memory implements MoshAccessPolicy.Store {
         MoshAccessPolicy.Record record;
         boolean fail;
+        int writes;
         @Override public MoshAccessPolicy.Record read() { return record; }
         @Override public void write(MoshAccessPolicy.Record value) {
             if (fail) throw new IllegalStateException("Refused persistence");
             record = value;
+            writes++;
         }
     }
 
