@@ -17,7 +17,10 @@ public final class BackgroundDekChecks {
         require(context.getPackageName().endsWith(".linked_dm_test"),
             "Key fault tests require the isolated linked_dm_test application ID");
         File envelope = new File(context.getNoBackupFilesDir(), "background-dek-v1");
-        require(!envelope.exists(), "Use a fresh disposable test installation for key checks");
+        for (String suffix : new String[] {"", ".new", ".bak"}) {
+            require(!new File(envelope.getPath() + suffix).exists(),
+                "Use a fresh disposable test installation for key checks");
+        }
         KeyStore keys = KeyStore.getInstance("AndroidKeyStore");
         keys.load(null);
         require(!keys.containsAlias(ALIAS), "Use a fresh disposable test installation for key checks");
