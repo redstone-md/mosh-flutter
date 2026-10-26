@@ -12,6 +12,8 @@ use crate::private_group_runtime::{
 };
 
 static RUNTIME: RuntimeOwner<PrivateGroupRuntime> = RuntimeOwner::new("private group");
+#[path = "private_group_service.rs"]
+mod service;
 
 pub(crate) fn ensure_runtime(
 ) -> Result<MutexGuard<'static, PrivateGroupRuntime>, ConversationBridgeError> {
@@ -29,6 +31,7 @@ fn construct_runtime() -> Result<PrivateGroupRuntime, PrivateGroupError> {
     // Rehydrate saved groups from the encrypted store; with persistence
     // wired it rebuilds joined groups + their tails + MLS state.
     runtime.rehydrate();
+    service::start().map_err(PrivateGroupError::Moss)?;
     Ok(runtime)
 }
 
@@ -92,4 +95,10 @@ pub(crate) fn background_work() -> Result<(u32, u32), String> {
         .map_err(|_| "private group runtime lock poisoned".to_string())?
         .background_work()
         .map_err(|error| error.to_string())
+}
+
+/// Hydrate retained joined groups after native key startup, without UI polling.
+pub(crate) fn ensure_background_runtime() -> Result<(), String> {
+    drop(ensure_runtime().map_err(|error| error.to_string())?);
+    Ok(())
 }

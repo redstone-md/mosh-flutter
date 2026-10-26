@@ -3,6 +3,13 @@
 use super::*;
 
 impl PrivateGroupRuntime {
+    /// One native protocol turn; snapshots and read markers remain UI-owned.
+    pub(crate) fn service(&mut self) -> Result<(), PrivateGroupError> {
+        self.drain_inbound()?;
+        self.groups.persist_tail()?;
+        Ok(())
+    }
+
     pub(super) fn drain_inbound(&mut self) -> Result<(), PrivateGroupError> {
         let inbound = group_inbox().drain();
         for message in inbound {
