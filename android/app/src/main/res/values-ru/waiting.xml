@@ -1,0 +1,9 @@
+<resources>
+    <string name="mosh_notification_channel">Уведомления Mosh</string>
+    <string name="mosh_new_message">Новое сообщение</string>
+    <string name="mosh_waiting_channel">Фоновые сообщения и звонки</string>
+    <string name="mosh_waiting_starting">Подключение…</string>
+    <string name="mosh_waiting_ready">Ожидание сообщений и звонков</string>
+    <string name="mosh_waiting_limited">Фоновая доступность ограничена</string>
+    <string name="mosh_waiting_stop">Остановить ожидание</string>
+</resources>

@@ -26,6 +26,7 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
     private var activity: MainActivity? = null
     private var resumed = false
     private var revision = 0L
+    var disclosureChanged: (() -> Unit)? = null
     private val foreground get() = resumed && context.getSystemService(PowerManager::class.java).isInteractive &&
         !context.getSystemService(KeyguardManager::class.java).isDeviceLocked
 
@@ -157,6 +158,8 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
 
     private fun protect() { shield.protect() }
 
+    fun disclosureAllowed(): Boolean = try { state.policy.allowed() } catch (_: Exception) { false }
+
     private fun update(action: () -> Unit) {
         try { action(); publish() } catch (_: Exception) { publishFailure() }
     }
@@ -168,6 +171,7 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
         try {
             val value = snapshot()
             channel.invokeMethod("accessStateChanged", value)
+            disclosureChanged?.invoke()
             handler.removeCallbacks(expiry)
             val deadline = value["deadlineElapsedMs"] as? Long
             if (value["state"] == "grace" && deadline != null) {
@@ -177,6 +181,7 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
     }
 
     private fun publishFailure() {
+        disclosureChanged?.invoke()
         channel.invokeMethod("accessStateChanged", mapOf("error" to true, "revision" to ++revision,
             "shieldGeneration" to shield.generation))
     }

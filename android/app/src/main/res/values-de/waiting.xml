@@ -1,0 +1,9 @@
+<resources>
+    <string name="mosh_notification_channel">Mosh-Benachrichtigungen</string>
+    <string name="mosh_new_message">Neue Nachricht</string>
+    <string name="mosh_waiting_channel">Nachrichten und Anrufe im Hintergrund</string>
+    <string name="mosh_waiting_starting">Verbindung wird hergestellt…</string>
+    <string name="mosh_waiting_ready">Warte auf Nachrichten und Anrufe</string>
+    <string name="mosh_waiting_limited">Erreichbarkeit im Hintergrund eingeschränkt</string>
+    <string name="mosh_waiting_stop">Warten beenden</string>
+</resources>

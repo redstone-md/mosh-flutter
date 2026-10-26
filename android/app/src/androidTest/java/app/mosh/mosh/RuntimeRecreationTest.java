@@ -17,12 +17,14 @@ public final class RuntimeRecreationTest extends Instrumentation {
     private final ArrayBlockingQueue<MainActivity> resumed = new ArrayBlockingQueue<>(4);
     private boolean checkBackgroundDek;
     private boolean checkAccessExpiry;
+    private boolean checkWaitingNotifications;
 
     @Override
     public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
         checkBackgroundDek = arguments != null && "true".equals(arguments.getString("backgroundDek"));
         checkAccessExpiry = arguments != null && "true".equals(arguments.getString("accessExpiry"));
+        checkWaitingNotifications = arguments != null && "true".equals(arguments.getString("waitingNotifications"));
         start();
     }
 
@@ -36,6 +38,7 @@ public final class RuntimeRecreationTest extends Instrumentation {
         sendStatus(1, status);
         try {
             if (checkBackgroundDek) BackgroundDekChecks.run(getTargetContext());
+            if (checkWaitingNotifications) WaitingNotificationChecks.run(getTargetContext());
             checkRecreation();
             sendStatus(0, status);
         } catch (Throwable error) {
