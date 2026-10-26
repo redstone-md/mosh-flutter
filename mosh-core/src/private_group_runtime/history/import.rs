@@ -24,6 +24,18 @@ impl GroupSession {
             return Ok(());
         }
         let mut next = self.recovery.checkpoint.clone();
+        if checked.body.erased_fragment {
+            if !records.is_empty()
+                || fragment
+                    .as_ref()
+                    .is_none_or(|fragment| fragment.offset != 0)
+            {
+                return Err(PrivateGroupError::Codec(
+                    "invalid erased fragment replacement".into(),
+                ));
+            }
+            next.partial = None;
+        }
         next.progress
             .check(
                 &checked.frame.request_id,
@@ -50,7 +62,7 @@ impl GroupSession {
                 sent_at_ms: record.sent_at_ms,
                 digest: record.acceptance.record_hash.clone(),
             });
-            let (row, retained) = self.imported_history_row(record, &checked.sender.peer_id)?;
+            let (row, retained) = self.imported_history_row(record, &checked.sender)?;
             rows.push(row);
             evidence.extend(retained);
         }
@@ -68,7 +80,7 @@ impl GroupSession {
     fn imported_history_row(
         &mut self,
         record: GroupRecord,
-        holder: &str,
+        holder: &crate::sender_auth::VerifiedSender,
     ) -> Result<(StoredMessage<GroupMessage>, Vec<EvidenceWrite>), PrivateGroupError> {
         let store = self
             .persistence
@@ -100,7 +112,20 @@ impl GroupSession {
                 return Ok((row, Vec::new()));
             }
         }
+        let deletion = self.history_record_erasure(&record, &hex::encode(&holder.mls_signer))?;
         let mut message = record.message();
+        if let Some(deletion) = deletion {
+            let metadata = message
+                .metadata
+                .as_mut()
+                .ok_or(PrivateGroupError::NotReady)?;
+            metadata.deletion_key = Some(deletion.key);
+            metadata.deletion = Some(crate::message_deletion::DeletionMarker {
+                scope: deletion.scope,
+                status: deletion.status,
+                administrator: deletion.administrator,
+            });
+        }
         if let Some(metadata) = &mut message.metadata {
             metadata.is_own =
                 Some(record.acceptance.original_author_moss_key == self.device_fingerprint);
@@ -140,7 +165,7 @@ impl GroupSession {
         )?);
         let mut row = self.received_text_row(&message, &accepted)?;
         if let Some(evidence) = &mut row.history_evidence {
-            evidence.holder_key = holder.into();
+            evidence.holder_key = holder.peer_id.clone();
         }
         Ok((row, evidence))
     }
@@ -201,6 +226,8 @@ fn assemble_records(
                     .map_err(|e| PrivateGroupError::Codec(e.to_string()))?,
             );
         }
+    } else if next.partial.is_some() && records.len() == 1 && records[0].erased.is_some() {
+        next.partial = None;
     } else if next.partial.is_some() {
         return Err(PrivateGroupError::Codec(
             "group history partial record missing".into(),
@@ -208,3 +235,7 @@ fn assemble_records(
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "import_tests.rs"]
+pub(super) mod tests;

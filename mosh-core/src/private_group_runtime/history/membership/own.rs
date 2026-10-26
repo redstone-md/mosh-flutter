@@ -43,16 +43,16 @@ impl GroupSession {
         let bytes =
             serde_json::to_vec(&proof).map_err(|e| PrivateGroupError::Codec(e.to_string()))?;
         let sender = self.verify_application(&proof, &channel)?;
-        let mut membership = self
+        let mut checkpoint = self
             .native_membership_checkpoint(&sender, &bytes, &channel)?
-            .ok_or_else(|| {
-                PrivateGroupError::Codec("own membership evidence unavailable".into())
-            })?;
-        membership.writes.push(EvidenceWrite {
-            key,
-            bytes: serde_json::to_vec(&membership.checkpoint)
-                .map_err(|e| PrivateGroupError::Codec(e.to_string()))?,
-        });
-        Ok(membership)
+            .ok_or_else(|| PrivateGroupError::Codec("own membership evidence unavailable".into()))?
+            .checkpoint;
+        // Own interval proofs stay small even when an earlier original message
+        // first created this canonical membership record.
+        checkpoint.binding_channel = channel;
+        checkpoint.original_binding_proof_b64 = encode(&bytes);
+        checkpoint.checkpoint.binding_hash = hex::encode(Sha256::digest(&bytes));
+        self.write_checkpoint(key, checkpoint)?
+            .ok_or_else(|| PrivateGroupError::Codec("own membership evidence unavailable".into()))
     }
 }

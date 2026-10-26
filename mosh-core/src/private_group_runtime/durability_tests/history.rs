@@ -185,7 +185,7 @@ pub(super) fn member(fixture: &mut Fixture) -> (MlsSessionCrypto, SigningKey) {
     (sender, SigningKey::from_bytes(&[83; 32]))
 }
 
-fn text(
+pub(super) fn text(
     fixture: &Fixture,
     sender: &mut MlsSessionCrypto,
     identity: &SigningKey,

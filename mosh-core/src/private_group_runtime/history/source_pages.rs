@@ -7,6 +7,7 @@ use crate::conversation::recovery::{
     wire::{HistoryMessage, HistoryPull},
 };
 use crate::message_deletion::protocol::DeletionMessage;
+use sha2::Digest;
 
 impl GroupSession {
     pub(super) fn history_journal_page(
@@ -51,20 +52,26 @@ impl GroupSession {
         pull: &HistoryPull,
         recipient: &GroupScope,
         peer: &str,
-    ) -> Result<HistoryMessage<GroupRecord>, PrivateGroupError> {
+        partial_digest: Option<&str>,
+    ) -> Result<(HistoryMessage<GroupRecord>, bool), PrivateGroupError> {
         let mut records = Vec::new();
         let mut bytes = 0;
         let mut fragment = None;
+        let mut erased_reset = false;
         for index in pull.offset..total.min(pull.offset.saturating_add(PAGE_RECORDS)) {
             let record = self.frozen_history_record(prefix, index, recipient, peer)?;
             let serialized =
                 serde_json::to_vec(&record).map_err(|e| PrivateGroupError::Codec(e.to_string()))?;
             if bytes + serialized.len() > 8_000 {
                 if records.is_empty() {
+                    let reset = record.erased.is_some()
+                        && partial_digest
+                            != Some(hex::encode(sha2::Sha256::digest(&serialized)).as_str());
+                    erased_reset = reset && pull.fragment_offset != 0;
                     fragment = Some(
                         crate::conversation::recovery::fragment::fragment(
                             &serialized,
-                            pull.fragment_offset,
+                            if reset { 0 } else { pull.fragment_offset },
                         )
                         .map_err(PrivateGroupError::Codec)?,
                     );
@@ -79,13 +86,16 @@ impl GroupSession {
             bytes += serialized.len();
             records.push(record);
         }
-        Ok(HistoryMessage::Page {
-            manifest: pull.manifest.clone(),
-            total,
-            offset: pull.offset,
-            records,
-            fragment,
-        })
+        Ok((
+            HistoryMessage::Page {
+                manifest: pull.manifest.clone(),
+                total,
+                offset: pull.offset,
+                records,
+                fragment,
+            },
+            erased_reset,
+        ))
     }
 
     fn frozen_history_record(
@@ -105,6 +115,22 @@ impl GroupSession {
         let row = store
             .history_row::<GroupMessage>(GROUP_HISTORY, &key.row_key)?
             .ok_or_else(|| PrivateGroupError::Codec("group history row unavailable".into()))?;
+        if row
+            .message
+            .metadata
+            .as_ref()
+            .is_some_and(|metadata| metadata.deletion.is_some())
+        {
+            let erased = self.retained_history_record(&row, recipient, peer)?;
+            if erased.acceptance.record_hash != key.key.digest
+                || erased.sent_at_ms != key.key.sent_at_ms
+            {
+                return Err(PrivateGroupError::Codec(
+                    "erased frozen group binding differs".into(),
+                ));
+            }
+            return Ok(erased);
+        }
         if GroupRecord::key(&row, &self.deletions.context, &self.mesh_id)
             .map_err(PrivateGroupError::Codec)?
             .is_none_or(|actual| {

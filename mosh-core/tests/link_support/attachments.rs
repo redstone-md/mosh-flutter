@@ -55,6 +55,14 @@ fn kind(command: &Value) -> Kind {
 
 fn chat(action: &str, argument: &str, command: &Value) -> Value {
     match action {
+        "chat_leave" => {
+            conversation::leave(Ref {
+                kind: kind(command),
+                id: argument.into(),
+            })
+            .unwrap();
+            json!({})
+        }
         "chat_create" => serde_json::to_value(
             private_group::create_group(CreateGroupRequest {
                 label: Some("Preview test".into()),

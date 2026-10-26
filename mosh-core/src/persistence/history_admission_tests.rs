@@ -17,6 +17,49 @@ struct Message {
 }
 
 #[test]
+fn pending_group_associations_have_entry_and_byte_caps() {
+    let directory = TempDirectory::new("bounded-group-associations");
+    let store = Persistence::open_with_dek(&directory.path().join("history"), [49; 32]).unwrap();
+    let prefix = "group/bounded/pending-association/";
+    for index in 0..40 {
+        store
+            .save_pending_group_evidence(prefix, &format!("{prefix}{index:03}"), b"\"small\"")
+            .unwrap();
+    }
+    let count = (0..40)
+        .filter(|i| {
+            store
+                .group_history_evidence::<String>(&format!("{prefix}{i:03}"))
+                .unwrap()
+                .is_some()
+        })
+        .count();
+    assert_eq!(count, 32);
+    let large = serde_json::to_vec(&"x".repeat(200 * 1024)).unwrap();
+    for index in 40..46 {
+        store
+            .save_pending_group_evidence(prefix, &format!("{prefix}{index:03}"), &large)
+            .unwrap();
+    }
+    let retained = (0..46)
+        .filter_map(|i| {
+            store
+                .group_history_evidence::<String>(&format!("{prefix}{i:03}"))
+                .unwrap()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(retained.len(), 5);
+    assert!(retained.iter().map(String::len).sum::<usize>() <= 1024 * 1024);
+    assert!(store
+        .save_pending_group_evidence(
+            prefix,
+            &format!("{prefix}too-large"),
+            &vec![0; 256 * 1024 + 1]
+        )
+        .is_err());
+}
+
+#[test]
 fn a_refused_own_snapshot_cannot_commit_history_evidence_or_continuation() {
     let directory = TempDirectory::new("atomic-history-evidence");
     let store =

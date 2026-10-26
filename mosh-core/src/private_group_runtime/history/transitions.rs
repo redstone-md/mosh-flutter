@@ -9,13 +9,13 @@ pub(super) struct NativeTransition {
     pub(super) prior: MlsHistoryContext,
     pub(super) next: MlsHistoryContext,
     original_author_mls_key: String,
-    original_commit_b64: String,
+    pub(super) original_commit_b64: String,
     pub(super) previous_member_keys: Vec<String>,
     pub(super) next_member_keys: Vec<String>,
     self_removed: bool,
     // Native replay proves the own branch. Missing original org/dual-key
     // transition evidence stays unavailable to remote history verification.
-    original_signed_transition: Option<String>,
+    pub(super) original_signed_transition: Option<String>,
 }
 
 pub(in crate::private_group_runtime) fn persist_membership(
@@ -40,7 +40,13 @@ pub(in crate::private_group_runtime) fn persist_membership(
         group_id,
         commit,
     )?;
-    let mut evidence = vec![evidence];
+    let authority = super::authority::retained(store, group_id, previous, staged, commit)?;
+    let mut evidence = vec![super::authority::attach(
+        evidence,
+        authority
+            .as_ref()
+            .map(|authority| authority.original.clone()),
+    )?];
     evidence.extend(super::admission_commit::verified_association(
         store, group_id, previous, staged, commit,
     )?);
@@ -49,6 +55,7 @@ pub(in crate::private_group_runtime) fn persist_membership(
         group_id,
         HistoryAdmission {
             own_snapshot: Some(&staged.next.snapshot()),
+            org_authority: authority.as_ref().map(|authority| authority.guard()),
             evidence: &evidence,
             ..Default::default()
         },

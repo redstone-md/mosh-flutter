@@ -24,6 +24,7 @@ impl GroupSession {
         if envelope.group_id() != self.group_id {
             return Ok(());
         }
+        self.retain_transition_authority(&envelope)?;
         let own_fp = self.crypto.fingerprint();
         self.handle_admission_control(envelope, sender_peer_id.as_deref(), own_fp)
     }
@@ -104,12 +105,9 @@ impl GroupSession {
                 proposal_b64,
                 name_state_proof_b64,
                 ..
-            } if from_fingerprint != own_fp => self.accept_departure(
-                &from_fingerprint,
-                &proposal_b64,
-                name_state_proof_b64,
-                own_fp,
-            ),
+            } if from_fingerprint != own_fp => {
+                self.accept_departure(&from_fingerprint, &proposal_b64, name_state_proof_b64)
+            }
             ControlEnvelope::ResyncRequest {
                 from_fingerprint,
                 have_epoch,
@@ -149,6 +147,9 @@ impl GroupSession {
         // Drop replays / rogue duplicate admit attempts whose MLS
         // signer is already covered by the roster.
         if self.crypto.key_package_signer_is_member(&key_package)? {
+            if self.org_pubkey.is_none() || sender.is_some_and(|id| self.roster_contains(id)) {
+                self.replay_admission(&key_package)?;
+            }
             return Ok(());
         }
         if self.org_pubkey.is_some() {
@@ -245,7 +246,6 @@ impl GroupSession {
         from_fingerprint: &str,
         proposal_b64: &str,
         name_state_proof_b64: Option<String>,
-        own_fp: String,
     ) -> Result<(), PrivateGroupError> {
         if let Some(encoded) = name_state_proof_b64 {
             // A bad optional handoff must not prevent a valid MLS departure.
@@ -261,19 +261,9 @@ impl GroupSession {
             return Ok(());
         }
         let proposal = decode(proposal_b64)?;
-        let pre_epoch = self.crypto.epoch();
-        let commit_bytes = self.crypto.commit_departure(&proposal)?;
-        if let Some(epoch) = pre_epoch {
-            self.log_commit(epoch, &commit_bytes);
-        }
-        let commit_envelope = ControlEnvelope::Commit {
-            admission_binding: None,
-            group_id: self.group_id.clone(),
-            from_fingerprint: own_fp,
-            commit_b64: encode(&commit_bytes),
-            roster_version: self.own_roster_version(),
-        };
-        self.publish_control(&commit_envelope)
+        let mut candidate = self.crypto.receive_candidate()?;
+        let commit_bytes = candidate.commit_departure(&proposal)?;
+        self.publish_membership_change(candidate, commit_bytes)
     }
     fn accept_resync_request(
         &mut self,

@@ -24,7 +24,12 @@ impl GroupSession {
         checked: CheckedFrame,
         pull: Option<HistoryPull>,
     ) -> Result<(), PrivateGroupError> {
-        let message = match self.history_answer(&checked.frame, &checked.body.scope, pull) {
+        let (message, erased_fragment) = match self.history_answer(
+            &checked.frame,
+            &checked.body.scope,
+            pull,
+            checked.body.partial_digest.as_deref(),
+        ) {
             Ok(message) => message,
             Err(error) => {
                 dlog::write(
@@ -33,14 +38,21 @@ impl GroupSession {
                     &self.group_id,
                     &format!("group history source: {error}"),
                 );
-                HistoryMessage::Unavailable
+                (HistoryMessage::Unavailable, false)
             }
         };
-        self.reply_history(
+        let scope = self.own_history_scope()?;
+        self.dispatch_history_body(
             Some(checked.frame.sender_key),
             checked.frame.request_id,
             checked.frame.round,
-            message,
+            super::protocol::GroupBody {
+                scope,
+                message,
+                evidence: None,
+                partial_digest: None,
+                erased_fragment,
+            },
             checked.permit,
         )
     }
@@ -50,14 +62,18 @@ impl GroupSession {
         frame: &HistoryFrame,
         recipient: &GroupScope,
         pull: Option<HistoryPull>,
-    ) -> Result<HistoryMessage<GroupRecord>, PrivateGroupError> {
-        let current = self.history_manifest()?;
+        partial_digest: Option<&str>,
+    ) -> Result<(HistoryMessage<GroupRecord>, bool), PrivateGroupError> {
+        let current = self.history_manifest(recipient)?;
         let Some(pull) = pull else {
-            return Ok(HistoryMessage::Offer {
-                manifest: current.digest,
-                total: current.total,
-                deletion_digest: self.history_deletion_digest()?,
-            });
+            return Ok((
+                HistoryMessage::Offer {
+                    manifest: current.digest,
+                    total: current.total,
+                    deletion_digest: self.history_deletion_digest()?,
+                },
+                false,
+            ));
         };
         let prefix = format!(
             "{}\u{1}export-data\u{1}{}",
@@ -83,13 +99,15 @@ impl GroupSession {
                 &pull.deletion_digest,
                 &prefix,
                 &meta_key,
+                recipient,
             )?);
         }
         let Some(export) = export.filter(|e| e.matches(frame, &pull)) else {
-            return Ok(HistoryMessage::Unavailable);
+            return Ok((HistoryMessage::Unavailable, false));
         };
         if pull.journal {
             self.history_journal_page(&prefix, &pull)
+                .map(|message| (message, false))
         } else {
             self.history_content_page(
                 &prefix,
@@ -97,24 +115,19 @@ impl GroupSession {
                 &pull,
                 recipient,
                 &frame.sender_key,
+                partial_digest,
             )
         }
     }
 
-    fn history_manifest(&mut self) -> Result<Manifest, PrivateGroupError> {
-        if let Some((revision, manifest)) = &self.recovery.cache {
-            if *revision == self.messages.revision() {
-                return Ok(manifest.clone());
-            }
-        }
+    fn history_manifest(&self, recipient: &GroupScope) -> Result<Manifest, PrivateGroupError> {
         let manifest = self
             .persistence
             .as_ref()
             .ok_or(PrivateGroupError::NotReady)?
             .recovery_manifest(GROUP_HISTORY, &self.group_id, |row| {
-                GroupRecord::key(row, &self.deletions.context, &self.mesh_id)
+                self.eligible_history_key(row, recipient)
             })?;
-        self.recovery.cache = Some((self.messages.revision(), manifest.clone()));
         Ok(manifest)
     }
 
@@ -125,6 +138,7 @@ impl GroupSession {
         deletion_digest: &str,
         prefix: &str,
         meta_key: &str,
+        recipient: &GroupScope,
     ) -> Result<Export, PrivateGroupError> {
         let next = Export {
             round: frame.round,
@@ -146,7 +160,7 @@ impl GroupSession {
                     header: &next,
                     manifest: &next.manifest,
                 },
-                |row| GroupRecord::key(row, &self.deletions.context, &self.mesh_id),
+                |row| self.eligible_history_key(row, recipient),
                 self.deletions
                     .records
                     .values()
@@ -171,3 +185,7 @@ impl Export {
             && self.expires_ms > now_ms()
     }
 }
+
+#[cfg(test)]
+#[path = "source_tests.rs"]
+mod tests;

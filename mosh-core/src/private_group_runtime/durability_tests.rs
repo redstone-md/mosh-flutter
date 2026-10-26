@@ -35,16 +35,22 @@ mod history;
 #[path = "durability_tests/admission_binding.rs"]
 mod admission_binding;
 
+#[path = "durability_tests/admission_attacks.rs"]
+mod admission_attacks;
+
 #[path = "durability_tests/history_attachments.rs"]
 mod history_attachments;
+
+#[path = "durability_tests/history_transitions.rs"]
+mod history_transitions;
 
 #[path = "durability_tests/background.rs"]
 mod background;
 
-struct Fixture {
-    store: Arc<Persistence>,
-    runtime: PrivateGroupRuntime,
-    id: String,
+pub(super) struct Fixture {
+    pub(super) store: Arc<Persistence>,
+    pub(super) runtime: PrivateGroupRuntime,
+    pub(super) id: String,
     directory: TempDirectory,
 }
 
@@ -71,7 +77,7 @@ impl Fixture {
         }
     }
 
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let mut fixture = Self::empty();
         let _identity = crate::moss_ffi::replace_test_keystore(Some(fixture.store.clone()));
         fixture.id = fixture
@@ -122,7 +128,7 @@ impl Fixture {
         });
     }
 
-    fn restart(&mut self) {
+    pub(super) fn restart(&mut self) {
         let _identity = crate::moss_ffi::replace_test_keystore(Some(self.store.clone()));
         let attachments = Arc::new(AttachmentStore::new(self.directory.path()).unwrap());
         let moss = Arc::new(MossFfiRuntime::load_default().unwrap());

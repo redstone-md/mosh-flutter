@@ -59,6 +59,9 @@ pub(super) struct GroupSession {
     pub(super) plus_schedule: crate::plus::PlusSchedule,
     pub(super) deletions: crate::message_deletion::DeletionBook,
     pub(super) pending_join_package: Option<Vec<u8>>,
+    pub(super) join_retry: super::pending_join::JoinRetry,
+    pub(super) admission_replays:
+        std::collections::BTreeMap<String, super::history::welcome::AdmissionReplay>,
     pub(super) group_id: String,
     pub(super) mesh_id: String,
     pub(super) label: Option<String>,
@@ -81,6 +84,10 @@ pub(super) struct GroupSession {
     pub(super) recovery: crate::conversation::recovery::coordinator::Coordinator,
     pub(super) history_dispatch: crate::conversation::recovery::transport::DispatchGeneration,
     pub(super) history_head: Option<super::history::CurrentHead>,
+    pub(super) history_membership: Option<(
+        crate::mls_crypto::MlsHistoryContext,
+        super::history::NativeCheckpoint,
+    )>,
     // Epoch-ordered commit admission: dedups gossip duplicates and the
     // joiner's Welcome-carried admission commit, buffers out-of-order commits,
     // reports gaps for resync. Unbounded like its predecessor set — commits
@@ -145,6 +152,8 @@ impl GroupSession {
                 persistence.clone(),
             ),
             pending_join_package: None,
+            join_retry: Default::default(),
+            admission_replays: std::collections::BTreeMap::new(),
             control_channel: format!("{CONTROL_CHANNEL_PREFIX}{}", record.group_id),
             data_channel: format!("{DATA_CHANNEL_PREFIX}{}", record.group_id),
             blob_channel: format!("{BLOB_CHANNEL_PREFIX}{}", record.group_id),
@@ -174,6 +183,7 @@ impl GroupSession {
             recovery: Default::default(),
             history_dispatch: Default::default(),
             history_head: None,
+            history_membership: None,
             sequencer: CommitSequencer::new(),
             needs_rejoin: false,
             publications: HashMap::new(),
