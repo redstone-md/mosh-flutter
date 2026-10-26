@@ -4,6 +4,22 @@ use crate::conversation::{history::StoredMessage, recovery::occurrence::Occurren
 use serde::de::DeserializeOwned;
 
 impl Persistence {
+    pub(crate) fn history_occurrence(
+        &self,
+        tables: HistoryTables,
+        id: &str,
+        native_id: &str,
+    ) -> Result<Option<Occurrence>, PersistenceError> {
+        self.get(
+            CONVERSATION_OCCURRENCES,
+            &format!("{}:{id}\u{1}{native_id}", tables.label),
+        )?
+        .map(|bytes| {
+            serde_json::from_slice(&bytes).map_err(|e| PersistenceError::Json(e.to_string()))
+        })
+        .transpose()
+    }
+
     pub(super) fn admit_occurrence(
         &self,
         tx: &redb::WriteTransaction,
@@ -21,7 +37,13 @@ impl Persistence {
         if let Some(old) = old {
             let old: Occurrence =
                 serde_json::from_slice(&old).map_err(|e| PersistenceError::Json(e.to_string()))?;
-            if old != *occurrence {
+            if old.native_id != occurrence.native_id
+                || old.row_key != occurrence.row_key
+                || old.identity != occurrence.identity
+                || (old.content_digest.is_some()
+                    && occurrence.content_digest.is_some()
+                    && old.content_digest != occurrence.content_digest)
+            {
                 return Err(PersistenceError::Json(
                     "conflicting native history occurrence".into(),
                 ));
@@ -43,10 +65,6 @@ impl Persistence {
         id: &str,
         select: impl Fn(&StoredMessage<M>) -> Result<Option<Occurrence>, String>,
     ) -> Result<(), PersistenceError> {
-        let marker = format!("{}:{id}\u{1}occurrences-ready", tables.label);
-        if self.get(CONVERSATION_RECOVERY, &marker)?.is_some() {
-            return Ok(());
-        }
         self.write(|tx| {
             let table = tx.open_table(tables.messages).map_err(db_error)?;
             let prefix = format!("{id}\u{1}");
@@ -64,12 +82,7 @@ impl Persistence {
                     self.admit_occurrence(tx, tables, id, &occurrence)?;
                 }
             }
-            Self::update_row(
-                tx,
-                CONVERSATION_RECOVERY,
-                &marker,
-                Some(&encrypt_blob(&self.dek, b"1")?),
-            )
+            Ok(())
         })
     }
 }

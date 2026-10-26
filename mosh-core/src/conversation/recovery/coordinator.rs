@@ -28,12 +28,14 @@ pub(crate) struct Coordinator {
     pub(crate) last_progress: u64,
     pub(crate) error: Option<HistorySyncReason>,
     pub(crate) restored: bool,
+    pub(crate) occurrences_ready: bool,
     pub(crate) permit: Option<crate::conversation::recovery::slots::ImportPermit>,
     pub(crate) pending_bytes: usize,
     next_probe: u64,
     backoff: u64,
     peer_revision: u64,
     local_revision: u64,
+    failed_sources: BTreeMap<String, u64>,
 }
 
 impl Coordinator {
@@ -97,7 +99,8 @@ impl Coordinator {
 
     pub(crate) fn probed(&mut self, now: u64) {
         let delay = self.backoff.max(5000);
-        self.next_probe = now.saturating_add(delay + rand::random::<u64>() % (delay / 5 + 1));
+        self.next_probe =
+            now.saturating_add((delay + rand::random::<u64>() % (delay / 5 + 1)).min(60_000));
         self.backoff = delay.saturating_mul(2).min(60_000);
         self.last_probe = now;
     }
@@ -118,10 +121,12 @@ impl Coordinator {
             || frame.request_id != current.progress.request_id
             || current.source.is_some()
             || current.observed.get(&frame.sender_key) == Some(&view)
-            || manifest.len() != 64
-            || hex::decode(&manifest).is_err()
-            || deletion_digest.len() != 64
-            || hex::decode(&deletion_digest).is_err()
+            || self
+                .failed_sources
+                .get(&frame.sender_key)
+                .is_some_and(|until| *until > crate::conversation::now_ms())
+            || !super::manifest::canonical_hex(&manifest, 64)
+            || !super::manifest::canonical_hex(&deletion_digest, 64)
         {
             return Ok(None);
         }
@@ -152,5 +157,31 @@ impl Coordinator {
             );
             next.source = None;
         }
+    }
+}
+
+impl Coordinator {
+    pub(crate) fn source_timed_out(&self, now: u64) -> bool {
+        self.checkpoint.source.is_some()
+            && now.saturating_sub(self.last_progress) >= 10_000
+            && now.saturating_sub(self.last_probe) >= 2000
+    }
+
+    pub(crate) fn unavailable(&mut self, frame: &HistoryFrame, now: u64) {
+        if self.has_source(frame) {
+            self.last_progress = 0;
+            self.failed(now);
+        }
+    }
+
+    pub(crate) fn failed(&mut self, now: u64) {
+        if let Some(source) = &self.checkpoint.source {
+            if self.failed_sources.len() >= 16 {
+                self.failed_sources.pop_first();
+            }
+            self.failed_sources
+                .insert(source.clone(), now.saturating_add(60_000));
+        }
+        self.next_probe = 0;
     }
 }

@@ -1,5 +1,5 @@
 use super::*;
-use crate::conversation::recovery::{cursor::PAGE_RECORDS, manifest::HistoryKey};
+use crate::conversation::recovery::{cursor::PAGE_RECORDS, manifest::FrozenKey};
 
 #[derive(Clone, Serialize, Deserialize)]
 struct Export {
@@ -30,13 +30,16 @@ impl ChannelSession {
     pub(super) fn serve_history(
         &mut self,
         frame: &HistoryFrame,
-        manifest: String,
-        offset: usize,
-        fragment_offset: usize,
-        deletion_digest: String,
-        journal: bool,
-        journal_after: Option<String>,
+        pull: HistoryPull,
     ) -> Result<(), ChannelRuntimeError> {
+        let HistoryPull {
+            manifest,
+            offset,
+            fragment_offset,
+            deletion_digest,
+            journal,
+            journal_after,
+        } = pull;
         let current = self.history_manifest()?;
         let prefix = format!(
             "{}\u{1}export-data\u{1}{}",
@@ -129,16 +132,19 @@ impl ChannelSession {
                 .min(offset.saturating_add(PAGE_RECORDS))
         {
             let key = store
-                .recovery_state::<HistoryKey>(&format!("{prefix}\u{1}keys\u{1}{index:020}"))?
+                .recovery_state::<FrozenKey>(&format!("{prefix}\u{1}keys\u{1}{index:020}"))?
                 .ok_or_else(|| ChannelRuntimeError::Codec("frozen history key missing".into()))?;
             let row = store
-                .history_message::<ChannelMessage>(CHANNEL_HISTORY, &self.name, &key)?
+                .history_row::<ChannelMessage>(CHANNEL_HISTORY, &key.row_key)?
                 .ok_or_else(|| ChannelRuntimeError::Codec("history row unavailable".into()))?;
-            let record = ChannelRecord::from_stored(&row)
-                .ok_or_else(|| ChannelRuntimeError::Codec("history content unavailable".into()))?;
-            if crate::conversation::recovery::manifest::digest(&record)
+            let record = match ChannelRecord::from_stored(&row) {
+                Some(record) => record,
+                None => self.erased_history_record(&row, &key.key.digest)?,
+            };
+            if record
+                .binding_digest()
                 .map_err(ChannelRuntimeError::Codec)?
-                != key.digest
+                != key.key.digest
             {
                 return Err(ChannelRuntimeError::Codec(
                     "frozen history record changed".into(),
@@ -158,7 +164,7 @@ impl ChannelSession {
                 }
                 break;
             }
-            if fragment_offset != 0 {
+            if fragment_offset != 0 && !matches!(record.content, records::Content::Erased { .. }) {
                 return Err(ChannelRuntimeError::Codec(
                     "unexpected history fragment offset".into(),
                 ));

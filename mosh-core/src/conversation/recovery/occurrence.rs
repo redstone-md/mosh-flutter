@@ -6,5 +6,6 @@ pub(crate) struct Occurrence {
     pub native_id: String,
     pub row_key: String,
     pub identity: String,
-    pub content_digest: String,
+    /// None is reserved for a locally verified erased target.
+    pub content_digest: Option<String>,
 }

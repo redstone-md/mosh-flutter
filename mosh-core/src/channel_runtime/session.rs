@@ -50,6 +50,20 @@ impl ChannelSession {
                     ..Default::default()
                 });
             }
+            self.prepare_legacy_message(&mut envelope)?;
+            if self
+                .messages
+                .iter()
+                .any(|existing| existing.message_id == envelope.message_id)
+            {
+                // Native action targets cannot refer to two different authors.
+                if self.messages.holds_copy_of(&envelope) {
+                    return Ok(());
+                }
+                return Err(ChannelRuntimeError::Codec(
+                    "conflicting channel occurrence".into(),
+                ));
+            }
             if self.messages.holds_copy_of(&envelope) {
                 return Ok(());
             }

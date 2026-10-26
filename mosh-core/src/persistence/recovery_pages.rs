@@ -40,10 +40,27 @@ impl Persistence {
         &self,
         prefix: &str,
     ) -> Result<String, PersistenceError> {
+        self.recovery_digest_with_tail(prefix, None, &[])
+    }
+
+    pub(crate) fn recovery_digest_with_tail(
+        &self,
+        prefix: &str,
+        context: Option<&str>,
+        tail: &[crate::conversation::recovery::manifest::HistoryKey],
+    ) -> Result<String, PersistenceError> {
         let tx = self.db.begin_read().map_err(db_error)?;
         let table = tx.open_table(CONVERSATION_RECOVERY).map_err(db_error)?;
         let mut digest = Sha256::new();
-        digest.update(b"[");
+        if let Some(context) = context {
+            digest.update(b"[1,");
+            digest.update(
+                serde_json::to_vec(context).map_err(|e| PersistenceError::Json(e.to_string()))?,
+            );
+            digest.update(b",[");
+        } else {
+            digest.update(b"[");
+        }
         let mut first = true;
         for row in table
             .range(prefix..format!("{prefix}\u{10ffff}").as_str())
@@ -56,7 +73,20 @@ impl Persistence {
             first = false;
             digest.update(decrypt_blob(&self.dek, value.value())?);
         }
-        digest.update(b"]");
+        for key in tail {
+            if !first {
+                digest.update(b",");
+            }
+            first = false;
+            digest.update(
+                serde_json::to_vec(key).map_err(|e| PersistenceError::Json(e.to_string()))?,
+            );
+        }
+        digest.update(if context.is_some() {
+            b"]]".as_slice()
+        } else {
+            b"]".as_slice()
+        });
         Ok(hex::encode(digest.finalize()))
     }
 }

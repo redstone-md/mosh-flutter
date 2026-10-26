@@ -19,7 +19,7 @@ fn a_verified_source_journal_is_applied_before_old_content_becomes_visible() {
         .runtime
         .delete_messages(
             "journal-first",
-            &[sent.message_id.clone()],
+            std::slice::from_ref(&sent.message_id),
             DeleteScope::ForEveryone,
         )
         .unwrap();
@@ -35,18 +35,10 @@ fn a_verified_source_journal_is_applied_before_old_content_becomes_visible() {
         .unwrap()
         .clone();
     let digest = crate::conversation::recovery::manifest::digest(&vec![deletion.clone()]).unwrap();
+    drop(author);
     let mut reader = Fixture::new();
     reader.join("journal-first");
     let source = SigningKey::from_bytes(&[16; 32]);
-    reader.deliver(
-        "journal-first",
-        &source,
-        HistoryMessage::Offer {
-            manifest: "a".repeat(64),
-            total: 1,
-            deletion_digest: digest.clone(),
-        },
-    );
     let record = ChannelRecord {
         message_id: sent.message_id,
         sent_at_ms: original.sent_at_ms.unwrap(),
@@ -54,12 +46,30 @@ fn a_verified_source_journal_is_applied_before_old_content_becomes_visible() {
         from_fingerprint: original.from_fingerprint,
         content: records::Content::Text(original.body),
         origin: original.metadata.unwrap().origin,
+        legacy_id_absent: false,
     };
+    let key = crate::conversation::recovery::manifest::HistoryKey {
+        message_id: record.message_id.clone(),
+        sent_at_ms: record.sent_at_ms,
+        digest: crate::conversation::recovery::manifest::digest(&record).unwrap(),
+    };
+    let manifest =
+        crate::conversation::recovery::manifest::digest(&(1, "channel:journal-first", vec![key]))
+            .unwrap();
+    reader.deliver(
+        "journal-first",
+        &source,
+        HistoryMessage::Offer {
+            manifest: manifest.clone(),
+            total: 1,
+            deletion_digest: digest.clone(),
+        },
+    );
     reader.deliver(
         "journal-first",
         &source,
         HistoryMessage::Page {
-            manifest: "a".repeat(64),
+            manifest: manifest.clone(),
             total: 1,
             offset: 0,
             records: vec![record.clone()],
@@ -79,7 +89,7 @@ fn a_verified_source_journal_is_applied_before_old_content_becomes_visible() {
         "journal-first",
         &source,
         HistoryMessage::Journal {
-            manifest: "a".repeat(64),
+            manifest: manifest.clone(),
             deletion_digest: digest,
             page: DeletionMessage::State {
                 records: vec![deletion],
@@ -91,7 +101,7 @@ fn a_verified_source_journal_is_applied_before_old_content_becomes_visible() {
         "journal-first",
         &source,
         HistoryMessage::Page {
-            manifest: "a".repeat(64),
+            manifest: manifest.clone(),
             total: 1,
             offset: 0,
             records: vec![record],

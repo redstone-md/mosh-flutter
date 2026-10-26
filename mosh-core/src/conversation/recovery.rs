@@ -44,6 +44,8 @@ impl Default for HistorySync {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistoryEvidence {
     pub holder_key: String,
+    #[serde(default)]
+    pub legacy_original_id_absent: bool,
     pub classification: HistoryClassification,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<GroupHistoryReferences>,
@@ -74,3 +76,6 @@ pub enum GroupAcceptanceBasis {
     InheritedImport,
     Legacy,
 }
+
+#[cfg(test)]
+mod coordinator_tests;

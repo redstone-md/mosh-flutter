@@ -92,3 +92,6 @@ fn db_error(error: impl std::fmt::Display) -> PersistenceError {
 
 #[cfg(test)]
 mod history_admission_tests;
+
+#[cfg(test)]
+mod recovery_export_tests;

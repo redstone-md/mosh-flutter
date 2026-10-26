@@ -66,7 +66,7 @@ impl ChannelSession {
         .map_err(ChannelRuntimeError::Codec)?;
         let store = self.deletions.store.as_ref().unwrap();
         let prefix = format!(
-            "{}\u{1}journal\u{1}{}\u{1}",
+            "{}\u{1}request\u{1}{}\u{1}journal\u{1}",
             self.checkpoint_key(),
             frame.request_id
         );
