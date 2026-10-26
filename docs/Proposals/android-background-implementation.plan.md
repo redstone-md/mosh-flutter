@@ -116,6 +116,39 @@ preparatory changes do not establish background acceptance.
   Cold rendezvous latency and physical Android acceptance remain separate;
   these route-controlled checks do not prove them.
 
+## First Pixel acceptance, 2026-10-26
+
+The owner tested the signed `e78b286e` candidate on a Pixel 8 Pro running
+Android 17 `DP11.261002.005`, with notification and battery permissions allowed.
+Foreground calls ring and minimized message notifications arrive. Acceptance
+found three blockers; the earlier route-controlled checks do not close them.
+
+- Chat entry and return after expiry showed a canceled-authentication screen
+  without initiating a prompt. The existing lock screen now requests chat
+  authentication once per interactive entry, preserves explicit cancellation,
+  and excludes temporary dialogs and an ongoing credential prompt. Two failing
+  lifecycle regressions now pass; all 29 focused lock tests and analysis pass.
+  Changed executable lines have 39/40 coverage. Real Pixel retesting is pending.
+- One conversation notification always used `onlyAlertOnce`, so later messages
+  updated the first entry quietly. New durable revisions may now alert; equal
+  or stale revisions and privacy refresh stay quiet. The existing plugin builder
+  and OS notification revision provide this behavior without another store.
+  Actual Java/Kotlin and instrumentation compilation pass; the OS assertions
+  still require a device run. Android's interruption policy remains authoritative.
+- Desktop call admission becomes unavailable after waiting. An independent
+  public-WAN probe with production `e95c498` reproduces authenticated DM liveness
+  loss by 65 seconds despite Waiting/Ready and one carrier. This is an open
+  transport blocker, not a physical Android success or a proven OS restriction.
+  The authorized separate Moss PR is being investigated; no upstream merge.
+
+Separately, Windows CI exposed an imported group attachment being rewritten by
+the generic live-history tail without its retained preview evidence. A native
+regression reproduces the same occurrence conflict and a four-second storage
+check identifies the mutation. Group service now flushes live work before
+history import and acknowledges the saved suffix through the existing runtime
+boundary. The eight-case independent recovery suite and 110 group checks pass
+locally. Focused Windows checks must pass before closing that CI failure.
+
 ## Approved boundaries
 
 The [access](android-background-access-contract.plan.md),
