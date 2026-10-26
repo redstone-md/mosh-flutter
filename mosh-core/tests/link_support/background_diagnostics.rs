@@ -3,8 +3,38 @@ use super::Peer;
 use redb::{ReadableTable, TableDefinition};
 use serde_json::{json, Value};
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 impl Peer {
+    /// Observe only the durable queue; preserve failed reception before any UI poll.
+    #[allow(dead_code, reason = "Shared independent-installation harness.")]
+    pub fn wait_background_dm(&mut self, sender: &mut Peer, id: &str) -> Value {
+        let deadline = Instant::now() + Duration::from_secs(90);
+        loop {
+            let pending = self.ask(json!({"action":"background_pending"}));
+            if pending
+                .as_array()
+                .is_some_and(|entries| !entries.is_empty())
+            {
+                return pending;
+            }
+            if Instant::now() >= deadline {
+                let stored = self.stop_and_inspect_background("dm", id);
+                // The recipient is already stopped: this cannot drive reception.
+                let sent = sender.ask(json!({"action":"dm_poll","argument":id}));
+                let statuses: Vec<_> = sent["messages"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter(|row| row["body"] == "private background text")
+                    .map(|row| row["delivery_status"].clone())
+                    .collect();
+                panic!("background DM missing; receiver before poll: {stored}; sender after receiver stop: state={}, delivery={statuses:?}", sent["state"]);
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    }
+
     #[allow(
         dead_code,
         reason = "Manual actual-carrier acceptance failure diagnostics."
@@ -59,7 +89,8 @@ fn inspect_background(path: &Path, key: [u8; 32], kind: &str, id: &str) -> Value
             "message_id":message["message_id"],
             "is_own":message["metadata"]["is_own"],
             "history_basis":row["history_evidence"]["basis"],
-            "background_fixture_text":message["body"] == "New background text",
+            "background_fixture_text":message["body"] == "New background text"
+                || message["body"] == "private background text",
         }));
     }
     let mut notifications = Vec::new();

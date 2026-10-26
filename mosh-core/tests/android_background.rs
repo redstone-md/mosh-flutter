@@ -73,11 +73,7 @@ fn background_receipt(require_carrier: bool) {
     }
     sender.ask(json!({"action":"dm_send","argument":id,"body":"private background text"}));
     // Reading the durable queue does not poll/list a conversation or drive its pump.
-    let pending = wait(
-        &mut recipient,
-        json!({"action":"background_pending"}),
-        |s| s.as_array().is_some_and(|entries| !entries.is_empty()),
-    );
+    let pending = recipient.wait_background_dm(&mut sender, id);
     assert_eq!(pending.as_array().unwrap().len(), 1);
     assert_eq!(pending[0]["target"]["id"], id);
     assert_eq!(pending[0]["text"], "private background text");
@@ -129,9 +125,7 @@ fn background_attachment_policy(sender: &mut Peer, receiver: &mut Peer, id: &str
         sent["error"].is_null(),
         "attachment admission refused: {sent}"
     );
-    let pending = wait(receiver, json!({"action":"background_pending"}), |s| {
-        s.as_array().is_some_and(|entries| !entries.is_empty())
-    });
+    let pending = receiver.wait_background_dm(sender, id);
     let snapshot = receiver.ask(json!({"action":"dm_poll","argument":id}));
     let attachment = &snapshot["attachments"][0];
     assert_eq!(attachment["state"], "offered");
