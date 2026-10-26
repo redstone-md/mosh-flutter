@@ -39,6 +39,14 @@ central message archive. Private-group recovery respects membership intervals,
 including joining, removal and rejoining. Ordinary offline periods retain
 access; public channels expose available retained history.
 
+On 2026-10-26, the owner accepted current-administrator endorsements for disputed
+historical records. The author's original signature remains necessary; the
+authorized administrator attests the publication/admission interval. This trusts
+that authority rather than proving creation time cryptographically. Verified
+retained endorsements may be forwarded while the administrator is offline.
+Organization groups retain their distinct authority rules. Exact wire/storage
+contracts still require review before implementation.
+
 Mosh app lock protects chat access independently of background reception.
 Names and text are hidden in notifications by default while app lock is active;
 the user may explicitly allow their display, including message text on Android's
