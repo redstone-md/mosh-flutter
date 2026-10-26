@@ -80,31 +80,20 @@ fn native_acceptance_retains_the_exact_original_sender_proof_across_restart() {
         org_signing::peer_id_hex(&identity)
     );
     assert_eq!(accepted.context, sender.history_context().unwrap());
-    let reference =
-        serde_json::to_value(accepted.author_admission_instance.as_ref().unwrap()).unwrap();
-    let checkpoint_id = reference["verified_since_checkpoint_v1"]
-        .as_str()
-        .expect("a typed checkpoint cannot masquerade as an Add admission");
-    use sha2::{Digest, Sha256};
-    let checkpoint_key = format!(
-        "group/{}/evidence/membership/{checkpoint_id}",
-        hex::encode(Sha256::digest(fixture.id.as_bytes()))
-    );
-    let checkpoint: serde_json::Value = fixture
-        .store
-        .group_history_evidence(&checkpoint_key)
-        .unwrap()
-        .unwrap();
-    assert_eq!(checkpoint["checkpoint"]["context"]["epoch"], 1);
-    assert_eq!(
-        checkpoint["original_binding_proof_b64"],
-        encode(&original_proof)
-    );
+    verify_native_checkpoint(&fixture, &accepted, &original_proof);
     let saved = fixture.runtime.poll(&fixture.id).unwrap();
     assert_eq!(
         saved.messages[0].metadata.as_ref().unwrap().origin,
         accepted.origin
     );
+    let rows = fixture.store.list_group_messages(&fixture.id).unwrap();
+    let row: crate::conversation::history::StoredMessage<GroupMessage> =
+        serde_json::from_slice(&rows[0]).unwrap();
+    assert!(
+        row.history_evidence.as_ref().unwrap().group.is_some(),
+        "portable acceptance signatures must be retained with native provenance"
+    );
+    verify_portable_receipt(&fixture, &row);
 }
 
 #[test]
@@ -211,4 +200,98 @@ fn text(
         channel: session.data_channel.clone(),
         payload: serde_json::to_vec(&proof).unwrap(),
     }
+}
+
+fn verify_portable_receipt(
+    fixture: &Fixture,
+    row: &crate::conversation::history::StoredMessage<GroupMessage>,
+) {
+    use sha2::{Digest, Sha256};
+    let reference = row
+        .history_evidence
+        .as_ref()
+        .unwrap()
+        .group
+        .as_ref()
+        .unwrap();
+    let key = format!(
+        "group/{}/evidence/acceptance/{}",
+        hex::encode(Sha256::digest(fixture.id.as_bytes())),
+        reference.acceptance_evidence_hash
+    );
+    let receipt: serde_json::Value = fixture.store.group_history_evidence(&key).unwrap().unwrap();
+    let input = receipt_input(&receipt);
+    for prefix in ["mls", "moss"] {
+        crate::signature_verification::verify(
+            receipt[format!("holder_{prefix}_key")].as_str().unwrap(),
+            receipt[format!("{prefix}_signature")].as_str().unwrap(),
+            &input,
+        )
+        .unwrap();
+    }
+    let mut changed = receipt;
+    changed["record_hash"] = serde_json::Value::String("f".repeat(64));
+    assert!(crate::signature_verification::verify(
+        changed["holder_mls_key"].as_str().unwrap(),
+        changed["mls_signature"].as_str().unwrap(),
+        &receipt_input(&changed),
+    )
+    .is_err());
+}
+
+fn receipt_input(receipt: &serde_json::Value) -> Vec<u8> {
+    let reference = receipt["author_admission_instance"]
+        .as_object()
+        .unwrap()
+        .iter()
+        .next()
+        .unwrap();
+    let mut input = b"mosh-history-acceptance-v1\0".to_vec();
+    input.extend(
+        serde_json::to_vec(&(
+            &receipt["version"],
+            &receipt["evidence_id"],
+            &receipt["record_hash"],
+            &receipt["original_origin_hash"],
+            (
+                &receipt["historical_context"]["epoch"],
+                &receipt["historical_context"]["hash"],
+            ),
+            reference,
+            &receipt["holder_mls_key"],
+            &receipt["holder_moss_key"],
+            (
+                &receipt["accepted_head"]["epoch"],
+                &receipt["accepted_head"]["hash"],
+            ),
+            &receipt["basis"],
+            &receipt["first_evidence_hash"],
+            &receipt["predecessor_hash"],
+        ))
+        .unwrap(),
+    );
+    input
+}
+
+fn verify_native_checkpoint(fixture: &Fixture, accepted: &NativeAcceptance, original_proof: &[u8]) {
+    let reference =
+        serde_json::to_value(accepted.author_admission_instance.as_ref().unwrap()).unwrap();
+    let checkpoint_id = reference["verified_since_checkpoint_v1"]
+        .as_str()
+        .expect("a typed checkpoint cannot masquerade as an Add admission");
+    use sha2::{Digest, Sha256};
+    let checkpoint_key = format!(
+        "group/{}/evidence/membership/{checkpoint_id}",
+        hex::encode(Sha256::digest(fixture.id.as_bytes()))
+    );
+    let checkpoint: serde_json::Value = fixture
+        .store
+        .group_history_evidence(&checkpoint_key)
+        .unwrap()
+        .unwrap();
+    assert_eq!(checkpoint["checkpoint"]["context"]["epoch"], 1);
+    assert_eq!(
+        checkpoint["original_binding_proof_b64"],
+        encode(original_proof)
+    );
 }

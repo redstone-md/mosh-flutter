@@ -1,5 +1,6 @@
 //! Protected native receive facts. These are not remotely accepted receipts.
 use super::membership::MembershipReference;
+use super::receipts::AcceptanceEvidenceV1;
 use super::*;
 use crate::conversation::recovery::GroupAcceptanceBasis;
 use crate::mls_crypto::MlsHistoryContext;
@@ -16,6 +17,7 @@ pub(in crate::private_group_runtime) struct NativeAcceptance {
     pub(in crate::private_group_runtime) origin: Option<crate::message_deletion::MessageOrigin>,
     pub(in crate::private_group_runtime) context: MlsHistoryContext,
     pub(in crate::private_group_runtime) author_admission_instance: Option<MembershipReference>,
+    pub(super) receipt: Option<AcceptanceEvidenceV1>,
     original_org_roster_b64: Option<String>,
     basis: GroupAcceptanceBasis,
 }
@@ -37,31 +39,32 @@ impl NativeAcceptance {
     ) -> Result<(Self, Vec<EvidenceWrite>), PrivateGroupError> {
         let (admission, writes) =
             session.native_membership_checkpoint(sender, proof, &session.data_channel)?;
-        Ok((
-            Self {
-                record_hash: text_record_hash(session, message, sender)?,
-                original_sender_proof_b64: encode(proof),
-                original_author_mls_key: hex::encode(&sender.mls_signer),
-                original_author_moss_key: sender.peer_id.clone(),
-                origin: message.metadata.as_ref().and_then(|m| m.origin.clone()),
-                context: session.crypto.history_context()?,
-                // A verified-since checkpoint is explicitly distinct from a
-                // missing canonical Add; it never grants earlier entitlement.
-                author_admission_instance: admission,
-                original_org_roster_b64: session
-                    .org_history_guard(&sender.peer_id, false)?
-                    .map(|guard| encode(guard.roster_bytes)),
-                basis: GroupAcceptanceBasis::LiveAuthenticated,
-            },
-            writes,
-        ))
+        let mut accepted = Self {
+            record_hash: text_record_hash(session, message, sender)?,
+            original_sender_proof_b64: encode(proof),
+            original_author_mls_key: hex::encode(&sender.mls_signer),
+            original_author_moss_key: sender.peer_id.clone(),
+            origin: message.metadata.as_ref().and_then(|m| m.origin.clone()),
+            context: session.crypto.history_context()?,
+            // A verified-since checkpoint is explicitly distinct from a
+            // missing canonical Add; it never grants earlier entitlement.
+            author_admission_instance: admission,
+            receipt: None,
+            original_org_roster_b64: session
+                .org_history_guard(&sender.peer_id, false)?
+                .map(|guard| encode(guard.roster_bytes)),
+            basis: GroupAcceptanceBasis::LiveAuthenticated,
+        };
+        accepted.receipt = AcceptanceEvidenceV1::native(session, &accepted)?;
+        Ok((accepted, writes))
     }
 
     pub(super) fn first_write(
-        &self,
+        &mut self,
         store: &Persistence,
         key: String,
         already_held: bool,
+        group_id: &str,
     ) -> Result<Vec<EvidenceWrite>, PrivateGroupError> {
         if let Some(retained) = store.group_history_evidence::<Self>(&key)? {
             if retained.record_hash != self.record_hash {
@@ -69,17 +72,30 @@ impl NativeAcceptance {
                     "conflicting accepted group text".into(),
                 ));
             }
+            *self = retained;
             return Ok(Vec::new());
         }
         if already_held {
             // Existing imports/legacy rows retain their original provenance.
             return Ok(Vec::new());
         }
-        Ok(vec![EvidenceWrite {
+        let mut writes = vec![EvidenceWrite {
             key,
             bytes: serde_json::to_vec(self)
                 .map_err(|error| PrivateGroupError::Codec(error.to_string()))?,
-        }])
+        }];
+        if let Some(receipt) = &self.receipt {
+            writes.push(EvidenceWrite {
+                key: format!(
+                    "group/{}/evidence/acceptance/{}",
+                    hex::encode(Sha256::digest(group_id.as_bytes())),
+                    receipt.hash()?
+                ),
+                bytes: serde_json::to_vec(receipt)
+                    .map_err(|error| PrivateGroupError::Codec(error.to_string()))?,
+            });
+        }
+        Ok(writes)
     }
 }
 

@@ -13,6 +13,16 @@ pub(in crate::private_group_runtime) enum MembershipReference {
     VerifiedSinceCheckpointV1(String),
 }
 
+impl MembershipReference {
+    pub(super) fn tuple(&self) -> (&str, &str) {
+        match self {
+            Self::CommitV1(id) => ("commit_v1", id),
+            Self::GenesisV1(id) => ("genesis_v1", id),
+            Self::VerifiedSinceCheckpointV1(id) => ("verified_since_checkpoint_v1", id),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct VerifiedSinceCheckpointV1 {
     conversation: String,
