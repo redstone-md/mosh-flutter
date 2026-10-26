@@ -1,6 +1,79 @@
 use super::*;
 
 #[test]
+fn refused_buffered_successor_retries_from_the_last_accepted_own_snapshot() {
+    let directory = crate::test_temp_directory::TempDirectory::new("group-successor-refusal");
+    let store = Arc::new(
+        Persistence::open_with_dek(&directory.path().join("history.redb"), [19; 32]).unwrap(),
+    );
+    let mut admin = MlsSessionCrypto::new("admin").unwrap();
+    admin.create_group().unwrap();
+    let mut member = MlsSessionCrypto::new("member").unwrap();
+    let package = member.key_package_bytes().unwrap();
+    let (welcome, tree) = admin.add_peer(&package).unwrap();
+    member.join_welcome(&welcome, &tree).unwrap();
+    let mut dave = MlsSessionCrypto::new("dave").unwrap();
+    let first = admin
+        .add_members(&[&dave.key_package_bytes().unwrap()])
+        .unwrap();
+    let mut erin = MlsSessionCrypto::new("erin").unwrap();
+    let second = admin
+        .add_members(&[&erin.key_package_bytes().unwrap()])
+        .unwrap();
+    let mut sequencer = CommitSequencer::new();
+    sequence_commit(
+        &mut member,
+        &mut sequencer,
+        Some(&store),
+        "refused-next",
+        &encode(&second.commit_bytes),
+    )
+    .unwrap();
+
+    // Resume at the durable boundary after the predecessor was accepted.
+    member.process_commit(&first.commit_bytes).unwrap();
+    store
+        .put_group_transition("refused-next", b"own-record", &member.snapshot())
+        .unwrap();
+    let refusal = store.refuse_group_snapshot_writes();
+    assert!(sequence_commit(
+        &mut member,
+        &mut sequencer,
+        Some(&store),
+        "refused-next",
+        &encode(&first.commit_bytes)
+    )
+    .is_err());
+    assert_eq!(member.epoch(), Some(2));
+    drop(refusal);
+
+    sequence_commit(
+        &mut member,
+        &mut sequencer,
+        Some(&store),
+        "refused-next",
+        &encode(&first.commit_bytes),
+    )
+    .unwrap();
+    assert_eq!(
+        member.member_count(),
+        4,
+        "the buffered successor must remain retryable"
+    );
+    let restored = MlsSessionCrypto::restore(
+        "member",
+        &member.signer_public(),
+        &store
+            .get_group_mls_snapshot("refused-next")
+            .unwrap()
+            .unwrap(),
+        &member.group_id_bytes().unwrap(),
+    )
+    .unwrap();
+    assert_eq!(restored.epoch(), Some(3));
+}
+
+#[test]
 fn sequence_commit_handles_out_of_order_duplicates_and_logs() {
     let mut db_path: PathBuf = std::env::temp_dir();
     db_path.push(format!("mosh-seq-commit-{}.redb", std::process::id()));

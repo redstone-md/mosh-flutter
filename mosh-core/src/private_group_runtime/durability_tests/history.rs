@@ -1,0 +1,149 @@
+use super::*;
+use crate::private_group_runtime::history::{native_acceptance_key, NativeAcceptance};
+
+#[test]
+fn snapshot_refusal_keeps_incoming_group_text_invisible_and_retryable() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let (mut sender, identity) = member(&mut fixture);
+    let first = text(
+        &fixture,
+        &mut sender,
+        &identity,
+        "first",
+        "accepted after repair",
+    );
+    let repeated = MossReceivedMessage {
+        channel: first.channel.clone(),
+        payload: first.payload.clone(),
+    };
+
+    let refused = fixture.store.refuse_group_snapshot_writes();
+    inbox::deliver(first);
+    assert!(fixture
+        .runtime
+        .poll(&fixture.id)
+        .unwrap()
+        .messages
+        .is_empty());
+    assert!(fixture
+        .store
+        .group_history_evidence::<NativeAcceptance>(&native_acceptance_key(&fixture.id, "first"))
+        .unwrap()
+        .is_none());
+    drop(refused);
+    inbox::deliver(repeated);
+    let accepted = fixture.runtime.poll(&fixture.id).unwrap();
+    assert_eq!(accepted.messages.len(), 1);
+    assert_eq!(accepted.messages[0].body, "accepted after repair");
+
+    fixture.restart();
+    assert_eq!(fixture.runtime.poll(&fixture.id).unwrap().messages.len(), 1);
+    let next = text(
+        &fixture,
+        &mut sender,
+        &identity,
+        "second",
+        "live after restart",
+    );
+    inbox::deliver(next);
+    let snapshot = fixture.runtime.poll(&fixture.id).unwrap();
+    assert_eq!(snapshot.messages.len(), 2);
+    assert_eq!(snapshot.messages[1].body, "live after restart");
+}
+
+#[test]
+fn native_acceptance_retains_the_exact_original_sender_proof_across_restart() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let (mut sender, identity) = member(&mut fixture);
+    let frame = text(
+        &fixture,
+        &mut sender,
+        &identity,
+        "original",
+        "portable authorship",
+    );
+    let original_proof = frame.payload.clone();
+    inbox::deliver(frame);
+    assert_eq!(fixture.runtime.poll(&fixture.id).unwrap().messages.len(), 1);
+    fixture.restart();
+    let key = native_acceptance_key(&fixture.id, "original");
+    let accepted: NativeAcceptance = fixture.store.group_history_evidence(&key).unwrap().unwrap();
+    assert_eq!(accepted.original_sender_proof_b64, encode(&original_proof));
+    assert_eq!(
+        accepted.original_author_mls_key,
+        hex::encode(sender.signer_public())
+    );
+    assert_eq!(
+        accepted.original_author_moss_key,
+        org_signing::peer_id_hex(&identity)
+    );
+    assert_eq!(accepted.context, sender.history_context().unwrap());
+    assert!(
+        accepted.author_admission_instance.is_none(),
+        "an unknown Add binding cannot be manufactured"
+    );
+    let saved = fixture.runtime.poll(&fixture.id).unwrap();
+    assert_eq!(
+        saved.messages[0].metadata.as_ref().unwrap().origin,
+        accepted.origin
+    );
+}
+
+fn member(fixture: &mut Fixture) -> (MlsSessionCrypto, SigningKey) {
+    let mut sender = MlsSessionCrypto::new("Bob").unwrap();
+    let package = sender.key_package_bytes().unwrap();
+    let session = fixture.runtime.groups.get_mut(&fixture.id).unwrap();
+    let admitted = session.crypto.add_members(&[&package]).unwrap();
+    sender
+        .join_welcome(&admitted.welcome_bytes, &admitted.tree_bytes)
+        .unwrap();
+    session.write_extra(&fixture.store).unwrap();
+    (sender, SigningKey::from_bytes(&[83; 32]))
+}
+
+fn text(
+    fixture: &Fixture,
+    sender: &mut MlsSessionCrypto,
+    identity: &SigningKey,
+    id: &str,
+    body: &str,
+) -> MossReceivedMessage {
+    let session = fixture.runtime.groups.get(&fixture.id).unwrap();
+    let peer = org_signing::peer_id_hex(identity);
+    let origin = crate::message_deletion::MessageOrigin::sign_mls(
+        &format!("group:{}", fixture.id),
+        id,
+        body.as_bytes(),
+        sender,
+        None,
+        Some(&peer),
+    )
+    .unwrap();
+    let envelope = DataEnvelope {
+        origin: Some(origin),
+        group_id: fixture.id.clone(),
+        participant_id: "independent-bob".into(),
+        from_device: "Bob".into(),
+        from_fingerprint: peer,
+        message_id: Some(id.into()),
+        sent_at_ms: Some(now_ms()),
+        ciphertext_b64: encode(&sender.encrypt(body.as_bytes()).unwrap()),
+    };
+    let proof = crate::sender_auth::SenderProof::sign(
+        identity,
+        sender,
+        &OrgContext {
+            org_pubkey: "",
+            mesh_id: &session.mesh_id,
+            channel_kind: &session.data_channel,
+        },
+        serde_json::to_vec(&envelope).unwrap(),
+    )
+    .unwrap();
+    MossReceivedMessage {
+        channel: session.data_channel.clone(),
+        payload: serde_json::to_vec(&proof).unwrap(),
+    }
+}

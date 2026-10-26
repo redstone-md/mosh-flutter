@@ -340,6 +340,7 @@ mod commits;
 mod control;
 mod data;
 mod deletion;
+mod history;
 mod lifecycle;
 mod org_gate;
 mod pending_join;

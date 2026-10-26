@@ -16,6 +16,14 @@ impl GroupSession {
         // BEFORE processing it would blackhole the bytes of anything that
         // failed — a retransmission could never repair the session because
         // the hash of the failed frame was already filed as seen.
+        if message.channel == self.data_channel {
+            if self.seen.contains(&message.channel, &message.payload) {
+                return Ok(());
+            }
+            self.handle_data(message.payload.clone())?;
+            self.seen.seen_before(&message.channel, &message.payload);
+            return Ok(());
+        }
         if message.channel != self.control_channel
             && self.seen.seen_before(&message.channel, &message.payload)
         {
@@ -31,8 +39,6 @@ impl GroupSession {
             // failed late may still have changed membership.
             self.reconcile_admin();
             result
-        } else if message.channel == self.data_channel {
-            self.handle_data(message.payload)
         } else if message.channel == self.blob_channel {
             self.handle_blob(message.payload)
         } else {
