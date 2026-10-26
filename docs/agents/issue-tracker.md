@@ -1,51 +1,61 @@
-# Issue tracker: GitHub
+# Issue tracker: Linear
 
-Issues and specs for this repo live as GitHub issues in
-`redstone-md/mosh-flutter`. Use the `gh` CLI for all operations.
+The canonical tracker for this repository is
+[Mosh in Linear](https://linear.app/ivoxygen/project/mosh-32d1c33dc92a).
+Use the direct `mcp__linear__*` tools, rather than the `codex_apps` connector.
 
-## Conventions
+- Workspace: `ivoxygen`.
+- Team: `Ivoxygen` (`IVO`, ID `149c7831-e646-4972-8e83-4a9c24a652a5`).
+- Project: `Mosh` (`P-IVO-2`). Scope issue searches and new issues to this project.
 
-- **Create an issue**: `gh issue create --title "..." --body "..."`. Keep commands on one line; for longer bodies, use `--body-file <path>`.
-- **Read an issue**: `gh issue view <number> --comments`, filtering comments by `jq` when needed and fetching labels as part of the issue data.
-- **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
-- **Comment on an issue**: `gh issue comment <number> --body "..."`.
-- **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`.
-- **Close**: `gh issue close <number> --comment "..."`.
+## Operations
 
-Infer the repo from `git remote -v`; `gh` resolves the current repository
-when run inside this clone.
+- **Publish a spec/task**: check for an existing matching Linear issue, then
+  create or update it through `save_issue`. On creation set the team and project;
+  send Markdown with actual newlines. Apply the label required by the invoked
+  skill using [the triage mapping](triage-labels.md).
+- **Read a ticket**: use `get_issue` with its `IVO-*` identifier or Linear URL.
+  Fetch comments and relations when they are relevant to the task.
+- **Find work**: use `list_issues` with the Mosh project and relevant label,
+  status, assignee or parent filters. Follow pagination.
+- **Change a ticket**: use `save_issue` for status, assignee, labels and
+  relations; preserve unrelated fields and existing labels. Use `save_comment`
+  for an authorized comment. Read the available tool schema before calling it.
+- **Complete work**: verify the result before setting `Done`. A readiness label
+  is separate from workflow status and does not mean work has been implemented.
+- **Verify publication**: read back the description, project, status and labels,
+  then return the Linear identifier and URL.
 
-## Pull requests as a triage surface
+If the direct Linear MCP is unavailable, keep the prepared spec locally and
+report the access problem. Do not silently substitute GitHub Issues or another
+connector. An explicit user instruction naming a different destination takes
+precedence.
 
-**PRs as a request surface: no.** Set this to `yes` only if this repo treats
-external PRs as feature requests; `/triage` reads this flag.
+## GitHub boundary
 
-When set to `yes`, PRs run through the same labels and states as issues, using
-the `gh pr` equivalents:
+GitHub remains the source of code, pull requests, reviews, CI and releases.
+Use `gh` for those operations. **PRs as a request surface: no.**
+Existing GitHub issue links remain valid historical context; read an explicitly
+referenced GitHub issue when needed, but publish new project tasks/specs to
+Linear. Include the `IVO-*` identifier in related PRs. A GitHub PR number and a
+Linear issue identifier are different references.
 
-- **Read a PR**: `gh pr view <number> --comments` and `gh pr diff <number>`.
-- **List external PRs for triage**: `gh pr list --state open --json number,title,body,labels,author,authorAssociation,comments`, then keep only authors with `authorAssociation` of `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, or `NONE`.
-- **Comment / label / close**: `gh pr comment`, `gh pr edit --add-label` / `--remove-label`, `gh pr close`.
-
-GitHub shares one number space across issues and PRs. Resolve a bare `#42`
-with `gh pr view 42` and fall back to `gh issue view 42`.
-
-## When a skill says "publish to the issue tracker"
-
-Create a GitHub issue.
-
-## When a skill says "fetch the relevant ticket"
-
-Run `gh issue view <number> --comments`.
+When correcting a misplaced GitHub spec, verify its Linear replacement before
+closing the duplicate and retain a link to the canonical ticket. Do not bulk
+migrate or close unrelated historical issues.
 
 ## Wayfinding operations
 
-Used by `/wayfinder`. The **map** is a single issue with **child** issues as
-tickets.
-
-- **Map**: a single issue labelled `wayfinder:map`, holding the Notes / Decisions-so-far / Fog body. Create it with `gh issue create --label wayfinder:map`.
-- **Child ticket**: link the issue to the map as a GitHub sub-issue through the sub-issues API. If sub-issues are unavailable, put `Part of #<map>` at the top of the child body and add the child to a task list in the map body. Use `wayfinder:<type>` labels (`research`, `prototype`, `grilling`, or `task`). Once claimed, assign the ticket to the driving developer.
-- **Blocking**: use GitHub native issue dependencies as the canonical UI-visible representation. Add an edge with `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`, where `<blocker-db-id>` is the blocker's numeric database id, not its issue number or node id. If dependencies are unavailable, put `Blocked by: #<n>, #<n>` at the top of the child body. A ticket is unblocked when every blocker is closed.
-- **Frontier query**: list the map's open children, drop any with an open blocker or an assignee, and choose the first remaining ticket in map order.
-- **Claim**: `gh issue edit <n> --add-assignee @me` is the session's first write.
-- **Resolve**: comment with the answer, close the issue, then append a context pointer to the map's Decisions-so-far.
+- **Map**: one Linear issue labelled `wayfinder:map`, holding Notes,
+  Decisions-so-far and Fog.
+- **Child ticket**: create a Linear issue under the map with `parentId` and the
+  appropriate `wayfinder:<type>` label (`research`, `prototype`, `grilling` or
+  `task`). Retain the Mosh project and team.
+- **Blocking**: use native Linear `blockedBy`/`blocks` relations. A ticket is
+  unblocked when all blocking tickets are complete.
+- **Frontier**: list the map's children, exclude completed/canceled tickets,
+  tickets with an open blocker and tickets already assigned, then use map order.
+- **Claim**: when the workflow calls for claiming work, set its assignee through
+  `save_issue` before implementation.
+- **Resolve**: record the verified answer/result, set the appropriate completion
+  status and add a context pointer to the map's Decisions-so-far.

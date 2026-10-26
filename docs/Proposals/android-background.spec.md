@@ -310,6 +310,10 @@ No protocol can recover data absent from every remaining copy.
 
 ## Further Notes
 
+- Canonical ticket:
+  [Linear IVO-132](https://linear.app/ivoxygen/issue/IVO-132/android-fonovye-zvonki-uvedomleniya-i-polnaya-dogruzka-istorii).
+  The initial [GitHub publication](https://github.com/redstone-md/mosh-flutter/issues/100)
+  is superseded; Linear is the project issue tracker.
 - This is the refined Android/background and recovery specification associated
   with [issue 94](https://github.com/redstone-md/mosh-flutter/issues/94). It does
   not replace or close that issue's broader cross-platform measurement work.

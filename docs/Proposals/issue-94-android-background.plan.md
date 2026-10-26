@@ -4,7 +4,7 @@ Date: 2026-10-25.
 Status: Product interview complete; specification published. This change does
 not implement runtime behavior.
 Source baseline: `v0.24.3` (`45738d1173a04c11327a99cfa6d5d203c44b6f2a`).
-Specification: [issue 100](https://github.com/redstone-md/mosh-flutter/issues/100)
+Specification: [Linear IVO-132](https://linear.app/ivoxygen/issue/IVO-132/android-fonovye-zvonki-uvedomleniya-i-polnaya-dogruzka-istorii)
 and its [repository copy](android-background.spec.md).
 Related: [issue 94](https://github.com/redstone-md/mosh-flutter/issues/94),
 [initial research](issue-94-background-calls.research.md).
