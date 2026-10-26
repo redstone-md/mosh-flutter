@@ -186,6 +186,19 @@ of FCM. No STUN-provider removal is part of this design.
 - Android battery and network usage still need physical-phone measurement.
   Earlier desktop traffic reports do not establish Android drain.
 
+## Current-code boundaries for the remaining decisions
+
+- DM history recovery can use an available authenticated installation holding
+  the missing data, including a linked sibling or counterpart installation;
+  see [ADR 0032](../ADR/0032-dm-offline-recovery.md). Groups/channels do not have
+  equivalent durable missed-text catchup. Their successful publish forgets the
+  outbound attempt; group resync retrieves MLS commits, not old message bodies.
+- The existing Android lock screen is a cold-start DEK retry gate. No automatic
+  UI re-lock after backgrounding exists; its trigger policy must be chosen.
+- Original attachment downloads require an explicit request, but small image
+  previews are currently scheduled automatically. Background preview policy
+  and the effect of Stop waiting on active transfers remain product choices.
+
 ## Remaining design questions
 
 - Moss waiting lifecycle/interface, attachment selection and any intermediary's
