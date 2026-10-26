@@ -49,6 +49,35 @@ reduced when native access or consent changes. An older durable revision cannot
 overwrite a newer posted notification. Notification permission failure never
 acknowledges a delivery record.
 
+## Call presentation and media
+
+The same waiting adapter consumes durable native call revisions. AndroidX
+CallStyle supplies incoming/ongoing notifications and its older-Android fallback.
+Generic lockscreen versions retain Answer/Decline while omitting caller identity.
+Immutable explicit intents contain only a 256-bit one-use capability; session
+and call identifiers remain in the native encrypted ledger. Intent identity uses
+a hash so routine system intent diagnostics do not print that capability.
+Call intent data is removed before Flutter route handling; ordinary invitation
+deep links retain their existing behavior.
+
+A bounded application queue retains actions until that same Dart owner attaches.
+Full-screen presentation validates/selects a call without accepting it. Explicit
+Answer follows the current native capability, visible permission and acceptance
+path. Full-screen intent availability is checked on Android 14+; a denied grant
+retains an actionable notification. No chat authentication grant is created.
+An ephemeral native call-only flag covers even a chat grace period while a call
+is shown over keyguard. Actual device unlock or final call completion removes
+that window mode without changing the original chat deadline.
+
+Before capture, the visible Activity and actual microphone/camera permissions
+must allow typed foreground-service promotion. Promotion invalidates old work
+facts, so a delayed zero-call reply cannot remove a newly admitted media type.
+Idle waiting explicitly starts without microphone/camera types, including on
+Android 10–13. Current native user-work facts drop media types after the call.
+The existing ringtone player handles both Dart outgoing and native incoming
+audio with separate identities, original expiry, silent/vibrate and DND limits.
+No second player, engine, media owner or ringtone plugin is registered.
+
 ## Verification
 
 The Android instrumentation runner recreates the real Activity three times and

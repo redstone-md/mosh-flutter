@@ -27,12 +27,20 @@ class MainActivity : FlutterActivity() {
     override fun shouldRestoreAndSaveState(): Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val entry = intent
+        intent = MoshCallIntents.forFlutter(entry)
         super.onCreate(savedInstanceState)
         // Flutter installs its view during super.onCreate, before a PiP shield
         // can safely be added above it.
         callPresentation?.attach(this)
         access?.attach(this)
         waiting?.attach(this)
+        waiting?.callIntent(entry)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(MoshCallIntents.forFlutter(intent))
+        waiting?.callIntent(intent)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

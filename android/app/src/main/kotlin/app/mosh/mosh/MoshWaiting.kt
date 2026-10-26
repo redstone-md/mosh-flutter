@@ -7,9 +7,11 @@ import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
 import io.flutter.plugin.common.BinaryMessenger
+import io.flutter.plugin.common.MethodChannel
 
 /** One retained execution adapter. Native work facts never become user intent. */
-internal class MoshWaiting(private val context: Context, messenger: BinaryMessenger, access: MoshAccess) {
+internal class MoshWaiting(private val context: Context, messenger: BinaryMessenger,
+    private val access: MoshAccess, ringtone: MoshRingtone) {
     private val policy = MoshWaitingPolicy(MoshWaitingPreferences(context))
     private val execution = MoshWaitingExecution()
     private val notifications = MoshWaitingNotifications(context, policy, access::disclosureAllowed)
@@ -19,16 +21,24 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
     private var resumed = false
     private var revision = 0L
     private var restriction: String? = null
+    private val calls = MoshWaitingCalls(context, policy, access, ringtone, { resumed && activity != null }) {
+        channel.callActionsChanged()
+        publish()
+    }
+    private val media = MoshWaitingMedia(context, { calls.interactive }, ::start)
     val interactive: Boolean get() = resumed && activity != null &&
         context.getSystemService(PowerManager::class.java).isInteractive &&
         !context.getSystemService(KeyguardManager::class.java).isDeviceLocked
 
-    init { access.disclosureChanged = { execution.changed(); notifications.refreshPrivacy(); publish() } }
+    init { access.disclosureChanged = {
+        execution.changed(); notifications.refreshPrivacy(); calls.refreshPrivacy(); publish()
+    } }
 
-    fun attach(value: MainActivity) { activity = value }
+    fun attach(value: MainActivity) { activity = value; calls.attach(value) }
     fun detach(value: MainActivity) {
         if (activity !== value) return
         activity = null
+        calls.detach(value)
         paused()
     }
 
@@ -40,7 +50,7 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
         publish()
     }
 
-    fun paused() { resumed = false; execution.changed(); publish() }
+    fun paused() { resumed = false; media.paused(); execution.changed(); publish() }
 
     fun enable(): Map<String, Any?> {
         check(interactive) { "Waiting requires foreground setup" }
@@ -62,6 +72,7 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
     fun serviceChanged() {
         execution.changed()
         network.observe(MoshWaitingService.running)
+        media.serviceChanged()
         publish()
     }
 
@@ -70,11 +81,13 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
             value["actualMode"] as? String ?: error("Missing mode"),
             count(value["currentCalls"]), count(value["currentUserTransfers"]))
         if (accepted) {
+            calls.work(count(value["currentCalls"]))
+            if (count(value["currentCalls"]) == 0) MoshWaitingService.mediaTypes(false, false)
             val reachability = value["reachability"] as? String ?: "unavailable"
             if (!policy.snapshot().waitingEnabled && execution.canRelease(interactive)) {
                 MoshWaitingService.finishWaiting()
             } else MoshWaitingService.updateStatus(reachability == "ready",
-                value["limitation"] != null || status()["restriction"] != null)
+                value["limitation"] != null || status()["restriction"] != null, count(value["currentCalls"]) > 0)
         }
         return status()
     }
@@ -88,7 +101,18 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
         return status()
     }
 
-    fun publishNotification(value: Map<*, *>): String = notifications.publish(value)
+    fun publishNotification(value: Map<*, *>): String =
+        if (value["kind"] == "call") calls.publish(value) else notifications.publish(value)
+
+    fun callIntent(intent: Intent) = calls.accept(intent)
+    fun takeCallActions() = calls.take()
+    fun setMediaTypes(value: Map<*, *>, result: MethodChannel.Result) {
+        if (value["microphone"] == true || value["camera"] == true) {
+            execution.changed()
+            publish()
+        }
+        media.set(value, result)
+    }
 
     fun startupFailed(value: Map<*, *>): Map<String, Any?> {
         val reason = value["reason"] as? String
@@ -124,6 +148,7 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
         val allowed = notifications.allowed()
         return mapOf("revision" to ++revision, "intentRevision" to execution.revision(),
             "interactive" to interactive, "waitingEnabled" to choice.waitingEnabled,
+            "callInteractive" to calls.interactive,
             "serviceRunning" to MoshWaitingService.running, "setupComplete" to choice.setupComplete,
             "notificationsAllowed" to allowed, "batteryExempt" to exempt,
             "batteryExemptionOffered" to choice.batteryExemptionOffered,

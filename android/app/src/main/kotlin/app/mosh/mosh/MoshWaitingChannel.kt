@@ -9,6 +9,10 @@ internal class MoshWaitingChannel(messenger: BinaryMessenger, private val owner:
     init {
         channel.setMethodCallHandler { call, result ->
             try {
+                if (call.method == "setMediaTypes") {
+                    owner.setMediaTypes(call.arguments as Map<*, *>, result)
+                    return@setMethodCallHandler
+                }
                 val value = when (call.method) {
                     "status" -> owner.status()
                     "enable" -> owner.enable()
@@ -17,6 +21,7 @@ internal class MoshWaitingChannel(messenger: BinaryMessenger, private val owner:
                     "setNotificationPolicy" -> owner.setNotificationPolicy(call.arguments as Map<*, *>)
                     "publishNotification" -> owner.publishNotification(call.arguments as Map<*, *>)
                     "startupFailed" -> owner.startupFailed(call.arguments as Map<*, *>)
+                    "takeCallActions" -> owner.takeCallActions()
                     "requestBatteryExemption" -> owner.requestBatteryExemption()
                     else -> { result.notImplemented(); return@setMethodCallHandler }
                 }
@@ -28,4 +33,5 @@ internal class MoshWaitingChannel(messenger: BinaryMessenger, private val owner:
     }
 
     fun publish(value: Map<String, Any?>) { channel.invokeMethod("waitingStateChanged", value) }
+    fun callActionsChanged() { channel.invokeMethod("callActionsChanged", null) }
 }

@@ -26,6 +26,8 @@ final class WaitingNotificationChecks {
             unlocked.set(false);
             require("posted".equals(publisher.publish(pending)), "OS refused protected publication");
             hidden(notification(manager), true, true);
+            require(notification(manager).actions == null || notification(manager).actions.length == 0,
+                "Message created an unscoped action");
             policy.notificationPolicy(false, true);
             require("posted".equals(publisher.publish(message(2))), "Explicit text publication failed");
             Notification preview = notification(manager);
@@ -37,9 +39,37 @@ final class WaitingNotificationChecks {
             policy.notificationPolicy(false, false);
             publisher.refreshPrivacy();
             hidden(notification(manager), true, true);
+            checkCallStyle(context, policy);
         } finally {
             manager.cancel(TAG, 2);
         }
+    }
+
+    private static void checkCallStyle(Context context, MoshWaitingPolicy policy) {
+        Map<String, Object> value = message(3);
+        value.put("phase", "incoming");
+        value.put("answerCapability", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        value.put("declineCapability", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+        MoshCallNotificationBuilder builder = new MoshCallNotificationBuilder(context, policy, () -> false);
+        Notification call = builder.build(value, 20_000);
+        hidden(call, true, true);
+        require(call.visibility == Notification.VISIBILITY_PRIVATE, "System lock race can disclose caller");
+        require(call.actions != null && call.actions.length >= 2, "CallStyle has no Answer/Decline");
+        require(call.publicVersion != null && call.publicVersion.actions != null &&
+            call.publicVersion.actions.length >= 2, "Generic lockscreen call lost its actions");
+        for (Notification.Action action : call.actions) {
+            require(context.getPackageName().equals(action.actionIntent.getCreatorPackage()), "Foreign call action");
+            if (android.os.Build.VERSION.SDK_INT >= 31)
+                require(action.actionIntent.isImmutable(), "Mutable call PendingIntent");
+        }
+        require(MoshCallIntents.INSTANCE.capability(new android.content.Intent()
+            .putExtra("callId", "known-call")) == null, "Launcher accepted raw call ID");
+        android.content.Intent action = new android.content.Intent().setAction(MoshCallIntents.ANSWER)
+            .setData(android.net.Uri.parse("mosh-call://action/opaque"));
+        require(MoshCallIntents.INSTANCE.forFlutter(action).getData() == null, "Call action replaced the Flutter route");
+        android.content.Intent link = new android.content.Intent(android.content.Intent.ACTION_VIEW,
+            android.net.Uri.parse("mosh://join/invite"));
+        require(MoshCallIntents.INSTANCE.forFlutter(link).getData().equals(link.getData()), "Ordinary invite link lost");
     }
 
     private static Map<String, Object> message(int revision) {
@@ -62,13 +92,27 @@ final class WaitingNotificationChecks {
 
     private static void hidden(Notification value, boolean name, boolean text) {
         for (String key : value.extras.keySet()) {
-            String field = String.valueOf(value.extras.get(key));
+            hiddenField(value.extras.get(key), name, text);
+        }
+        require(value.tickerText == null, "Protected notification has a ticker");
+        if (value.publicVersion != null) hidden(value.publicVersion, true, true);
+    }
+
+    private static void hiddenField(Object value, boolean name, boolean text) {
+        if (value instanceof android.os.Bundle) {
+            android.os.Bundle bundle = (android.os.Bundle) value;
+            for (String key : bundle.keySet()) hiddenField(bundle.get(key), name, text);
+        } else if (value instanceof Iterable<?>) {
+            for (Object field : (Iterable<?>) value) hiddenField(field, name, text);
+        } else if (value instanceof Object[]) {
+            for (Object field : (Object[]) value) hiddenField(field, name, text);
+        } else {
+            if (android.os.Build.VERSION.SDK_INT >= 28 && value instanceof android.app.Person)
+                value = ((android.app.Person) value).getName();
+            String field = String.valueOf(value);
             require(!name || !field.contains(NAME), "Protected sender leaked through OS extras");
             require(!text || !field.contains(TEXT), "Protected message leaked through OS extras");
         }
-        require(value.tickerText == null, "Protected notification has a ticker");
-        require(value.actions == null || value.actions.length == 0, "Message created an unscoped action");
-        if (value.publicVersion != null) hidden(value.publicVersion, true, true);
     }
 
     private static void require(boolean value, String message) {

@@ -18,8 +18,8 @@ class MoshWaitingService : Service() {
         super.onCreate()
         try {
             val notification = MoshWaitingNotifications.ongoing(this)
-            if (Build.VERSION.SDK_INT >= 34) startForeground(MoshWaitingNotifications.FOREGROUND_ID,
-                notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            if (Build.VERSION.SDK_INT >= 29) startForeground(MoshWaitingNotifications.FOREGROUND_ID,
+                notification, if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0)
             else startForeground(MoshWaitingNotifications.FOREGROUND_ID, notification)
             current = this
             (application as MoshApplication).existingRuntime?.waiting?.serviceChanged()
@@ -29,6 +29,17 @@ class MoshWaitingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (current !== this) return START_NOT_STICKY
         val application = application as MoshApplication
+        if (intent?.action == MoshCallIntents.CONTROL) {
+            if (MoshCallIntents.capability(intent) == null) { finishWaiting(); return START_NOT_STICKY }
+            try {
+                val runtime = application.runtime
+                runtime.waiting.serviceChanged()
+                runtime.waiting.callIntent(intent)
+                runtime.startInBackground()
+            } catch (_: RuntimeException) { finishWaiting() }
+            catch (_: LinkageError) { finishWaiting() }
+            return START_NOT_STICKY
+        }
         if (intent?.action == STOP) {
             val owner = application.existingRuntime
             if (owner != null && owner.engine.dartExecutor.isExecutingDart) {
@@ -53,6 +64,7 @@ class MoshWaitingService : Service() {
             runtime.waiting.serviceChanged()
             runtime.startInBackground()
         } catch (_: RuntimeException) { finishWaiting(); return START_NOT_STICKY }
+        catch (_: LinkageError) { finishWaiting(); return START_NOT_STICKY }
         return START_STICKY
     }
 
@@ -78,6 +90,23 @@ class MoshWaitingService : Service() {
         private var current: MoshWaitingService? = null
         val running: Boolean get() = current != null
 
+        fun mediaTypes(microphone: Boolean, camera: Boolean): Boolean {
+            val service = current ?: return !microphone && !camera
+            return try {
+                val base = if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
+                var types = base
+                if (Build.VERSION.SDK_INT >= 30) {
+                    if (microphone) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                    if (camera) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+                }
+                val label = if (microphone || camera) R.string.mosh_call_active else R.string.mosh_waiting_starting
+                val notification = MoshWaitingNotifications.ongoing(service, label)
+                if (Build.VERSION.SDK_INT >= 29) service.startForeground(MoshWaitingNotifications.FOREGROUND_ID, notification, types)
+                else service.startForeground(MoshWaitingNotifications.FOREGROUND_ID, notification)
+                true
+            } catch (_: RuntimeException) { false }
+        }
+
         fun finishWaiting() {
             current?.let { service ->
                 service.stopForeground(STOP_FOREGROUND_REMOVE)
@@ -85,10 +114,11 @@ class MoshWaitingService : Service() {
             }
         }
 
-        fun updateStatus(ready: Boolean, limited: Boolean) {
+        fun updateStatus(ready: Boolean, limited: Boolean, inCall: Boolean = false) {
             current?.let { service ->
                 if (service.startupWake.isHeld) service.startupWake.release()
                 val label = when {
+                    inCall -> R.string.mosh_call_active
                     limited -> R.string.mosh_waiting_limited
                     ready -> R.string.mosh_waiting_ready
                     else -> R.string.mosh_waiting_starting

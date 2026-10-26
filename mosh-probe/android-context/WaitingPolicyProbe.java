@@ -19,7 +19,28 @@ public final class WaitingPolicyProbe {
         checkPrivacy(policy);
         checkRefusal(store);
         checkDrainFence();
+        checkActions();
         System.out.println("Android waiting intent, disclosure and consent verified");
+    }
+
+    private static void checkActions() {
+        java.util.concurrent.atomic.AtomicLong clock = new java.util.concurrent.atomic.AtomicLong();
+        MoshCallActions actions = new MoshCallActions(clock::get);
+        require(!actions.offer("known-call-id", true), "Raw call ID accepted as capability");
+        String capability = "a".repeat(64);
+        require(actions.offer(capability, true), "Valid intent lost before cold owner attached");
+        require(actions.offer(capability, true), "Repeated PendingIntent rejected instead of coalesced");
+        require(actions.take().size() == 1, "Repeated intent created duplicate actions");
+        require(actions.take().isEmpty(), "Action drain replayed consumed intent");
+        actions.offer(capability, false);
+        actions.offer(capability, true);
+        require(actions.take().get(0).interactiveAnswer, "Presentation swallowed a racing explicit Answer");
+        for (int i = 0; i < 16; i++) require(actions.offer(String.format("%064x", i), false), "Queue filled early");
+        require(!actions.offer("b".repeat(64), false), "Intent queue unbounded");
+        clock.set(120_001);
+        require(actions.take().isEmpty(), "Obsolete queued intent survived bounded initialization");
+        require(actions.offer(capability, true), "Expired queue did not release capacity");
+        require(actions.take().get(0).interactiveAnswer, "Activity Answer lost its presentation intent");
     }
 
     private static void checkDrainFence() {

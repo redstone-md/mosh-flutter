@@ -6,4 +6,8 @@
     <string name="mosh_waiting_ready">Ожидание сообщений и звонков</string>
     <string name="mosh_waiting_limited">Фоновая доступность ограничена</string>
     <string name="mosh_waiting_stop">Остановить ожидание</string>
+    <string name="mosh_call_incoming">Входящий звонок</string>
+    <string name="mosh_call_outgoing">Вызов…</string>
+    <string name="mosh_call_connecting">Подключение звонка…</string>
+    <string name="mosh_call_active">Идёт звонок</string>
 </resources>
