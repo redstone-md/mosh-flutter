@@ -40,4 +40,10 @@ void main() {
     );
     expect(map['biometricPromptNegativeButton'], 'Cancel');
   });
+
+  test('legacy DEK reads never reset or migrate the original wrapping', () {
+    final options = buildDekAndroidOptions().toMap();
+    expect(options['resetOnError'], 'false');
+    expect(options['migrateOnAlgorithmChange'], 'false');
+  });
 }

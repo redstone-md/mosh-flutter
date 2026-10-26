@@ -89,7 +89,7 @@ void main() {
     );
 
     expect(result, MobileDekResolution.minted);
-    expect(storage.readCount, 1);
+    expect(storage.readCount, 2);
     // The minted DEK must be written to the Keystore BEFORE the inject call
     // (so a crash between write and inject never leaves Rust with a DEK the
     // Keystore lacks).
@@ -128,6 +128,23 @@ void main() {
         reason: 'fail-closed branch must not call setHistoryDek');
   });
 
+  test('an acknowledged write without matching readback never opens history',
+      () async {
+    final storage = _UncommittedDekStorage();
+    final List<List<int>> injected = [];
+
+    await expectLater(
+      resolveHistoryDek(
+        storage: storage,
+        dbExists: () => false,
+        setHistoryDek: _recordingInject(injected),
+        mint: _fixedMint,
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(injected, isEmpty);
+  });
+
   test('stored DEK of wrong length fails fast (corrupt Keystore entry)',
       () async {
     final _FakeDekStorage storage =
@@ -155,3 +172,11 @@ void main() {
 
 /// base64 of `_fixedMint()`, computed once for the mint-branch write assertion.
 String _fixedMintEncoded() => base64Encode(_fixedMint());
+
+class _UncommittedDekStorage implements MobileDekStorage {
+  @override
+  Future<String?> readDek() async => null;
+
+  @override
+  Future<void> writeDek(String base64Dek) async {}
+}
