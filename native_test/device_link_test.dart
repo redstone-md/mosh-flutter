@@ -42,6 +42,7 @@ void main() {
   testWidgets(
       'real bridge creates a QR, rejects bad input and approves an independent desktop',
       (tester) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await pumpScreen(
         tester,
         Theme(
