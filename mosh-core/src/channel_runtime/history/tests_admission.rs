@@ -11,6 +11,7 @@ fn text(id: &str, body: &str) -> ChannelRecord {
         from_fingerprint: "22".repeat(32),
         content: records::Content::Text(body.into()),
         origin: None,
+        legacy_id_absent: false,
     }
 }
 fn page(fixture: &mut Fixture, room: &str, source: &SigningKey, rows: Vec<ChannelRecord>) {
@@ -19,7 +20,7 @@ fn page(fixture: &mut Fixture, room: &str, source: &SigningKey, rows: Vec<Channe
         room,
         source,
         HistoryMessage::Page {
-            manifest: "a".repeat(64),
+            manifest: fixture.manifest(room),
             total,
             offset: 0,
             records: rows,
@@ -34,7 +35,11 @@ fn refused_import_retries_without_advancing_or_authenticating_legacy_rows() {
     let mut f = Fixture::new();
     let source = SigningKey::from_bytes(&[19; 32]);
     f.join("refused-history");
-    f.offer("refused-history", &source, 1);
+    f.offer_rows(
+        "refused-history",
+        &source,
+        &[text("legacy-1", "unsigned original")],
+    );
     f.journal("refused-history", &source);
     let fault = f.store.refuse_message_writes(CHANNEL_HISTORY);
     page(
@@ -88,7 +93,11 @@ fn an_invalid_original_signature_cannot_hide_behind_the_holder_signature() {
         )
         .unwrap(),
     );
-    f.offer("original-proof", &holder, 2);
+    f.offer_rows(
+        "original-proof",
+        &holder,
+        &[text("other", "valid legacy"), record.clone()],
+    );
     f.journal("original-proof", &holder);
     let mut forged = record.clone();
     forged.content = records::Content::Text("forged".into());
@@ -125,7 +134,7 @@ fn changing_source_restarts_the_manifest_and_rejects_conflicting_native_ids_atom
     let first = SigningKey::from_bytes(&[22; 32]);
     let second = SigningKey::from_bytes(&[23; 32]);
     f.join("source-change");
-    f.offer("source-change", &first, 1);
+    f.offer_rows("source-change", &first, &[text("same-id", "original")]);
     f.journal("source-change", &first);
     page(
         &mut f,
@@ -133,7 +142,11 @@ fn changing_source_restarts_the_manifest_and_rejects_conflicting_native_ids_atom
         &first,
         vec![text("same-id", "original")],
     );
-    f.offer("source-change", &second, 2);
+    f.offer_rows(
+        "source-change",
+        &second,
+        &[text("same-id", "original"), text("new-id", "new")],
+    );
     f.journal("source-change", &second);
     page(
         &mut f,
@@ -164,7 +177,11 @@ fn personal_tombstones_win_over_a_later_holder_copy() {
     let first = SigningKey::from_bytes(&[24; 32]);
     let second = SigningKey::from_bytes(&[25; 32]);
     f.join("erased-history");
-    f.offer("erased-history", &first, 1);
+    f.offer_rows(
+        "erased-history",
+        &first,
+        &[text("erased-1", "private erasure")],
+    );
     f.journal("erased-history", &first);
     page(
         &mut f,
@@ -179,7 +196,11 @@ fn personal_tombstones_win_over_a_later_holder_copy() {
             crate::message_deletion::DeleteScope::ForMe,
         )
         .unwrap();
-    f.offer("erased-history", &second, 1);
+    f.offer_rows(
+        "erased-history",
+        &second,
+        &[text("erased-1", "private erasure")],
+    );
     f.journal("erased-history", &second);
     page(
         &mut f,

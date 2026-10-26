@@ -2,10 +2,12 @@
 use super::*;
 use crate::conversation::recovery::{
     manifest::Manifest,
-    wire::{HistoryFrame, HistoryMessage},
+    wire::{HistoryFrame, HistoryMessage, HistoryPull},
     HistorySync, HistorySyncReason, HistorySyncState,
 };
 
+mod admission;
+mod erased;
 mod journal;
 mod receive;
 mod records;
@@ -16,6 +18,19 @@ use crate::conversation::recovery::coordinator::Checkpoint;
 pub(super) use crate::conversation::recovery::coordinator::Coordinator as Recovery;
 
 impl ChannelSession {
+    pub(super) fn prepare_legacy_message(
+        &self,
+        message: &mut ChannelMessage,
+    ) -> Result<(), ChannelRuntimeError> {
+        if message.metadata.as_ref().is_none_or(|m| m.origin.is_none())
+            && message.message_id.is_none()
+        {
+            message.message_id =
+                Some(records::legacy_id(&self.name, message).map_err(ChannelRuntimeError::Codec)?);
+        }
+        Ok(())
+    }
+
     pub(super) fn history_state(&self) -> Option<HistorySync> {
         self.deletions.store.as_ref()?;
         Some(HistorySync {
@@ -116,7 +131,10 @@ impl ChannelSession {
             if now.saturating_sub(self.recovery.last_pull) >= 2000 {
                 self.pull_history(now)?;
             }
-        } else if self.recovery.probe_due(now) {
+        } else if self.recovery.source_timed_out(now) || self.recovery.probe_due(now) {
+            if self.recovery.source_timed_out(now) {
+                self.recovery.failed(now);
+            }
             self.recovery.permit = None;
             let next = self
                 .recovery
@@ -189,3 +207,9 @@ mod tests_admission;
 
 #[cfg(test)]
 mod tests_deletion;
+
+#[cfg(test)]
+mod tests_legacy;
+
+#[cfg(test)]
+mod tests_erased;

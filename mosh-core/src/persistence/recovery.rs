@@ -2,7 +2,6 @@
 use super::*;
 use crate::conversation::history::StoredMessage;
 use crate::conversation::recovery::manifest::{HistoryKey, Manifest};
-use crate::conversation::recovery::occurrence::Occurrence;
 use serde::{de::DeserializeOwned, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -41,26 +40,14 @@ impl Persistence {
         )
     }
 
-    pub(crate) fn commit_history_recovery<M: Serialize, R: Serialize>(
+    pub(crate) fn history_row<M: DeserializeOwned>(
         &self,
         tables: HistoryTables,
-        id: &str,
-        checkpoint_key: &str,
-        checkpoint: &R,
-        messages: &[StoredMessage<M>],
-        occurrences: &[Occurrence],
-    ) -> Result<(), PersistenceError> {
-        let state = serde_json::to_vec(checkpoint).map_err(json_error)?;
-        self.commit_history_admission(
-            tables,
-            id,
-            HistoryAdmission {
-                checkpoint: Some((checkpoint_key, &state)),
-                occurrences,
-                ..Default::default()
-            },
-            messages,
-        )
+        key: &str,
+    ) -> Result<Option<StoredMessage<M>>, PersistenceError> {
+        self.get(tables.messages, key)?
+            .map(|bytes| serde_json::from_slice(&bytes).map_err(json_error))
+            .transpose()
     }
 
     pub(crate) fn history_message<M: DeserializeOwned>(
@@ -86,7 +73,9 @@ impl Persistence {
         let tx = self.db.begin_read().map_err(db_error)?;
         let table = tx.open_table(tables.messages).map_err(db_error)?;
         let mut hash = Sha256::new();
-        hash.update(b"[");
+        hash.update(b"[1,");
+        hash.update(serde_json::to_vec(&format!("{}:{id}", tables.label)).map_err(json_error)?);
+        hash.update(b",[");
         let mut total = 0;
         let prefix = format!("{id}\u{1}");
         for row in table
@@ -105,7 +94,7 @@ impl Persistence {
                 total += 1;
             }
         }
-        hash.update(b"]");
+        hash.update(b"]]");
         Ok(Manifest {
             digest: hex::encode(hash.finalize()),
             total,
@@ -162,13 +151,17 @@ impl Persistence {
             .range(history_prefix.as_str()..format!("{history_prefix}\u{10ffff}").as_str())
             .map_err(db_error)?
         {
-            let (_, value) = row.map_err(db_error)?;
+            let (stored_key, value) = row.map_err(db_error)?;
             let message: StoredMessage<M> =
                 serde_json::from_slice(&decrypt_blob(&self.dek, value.value())?)
                     .map_err(json_error)?;
             if let Some(key) = select(&message).map_err(PersistenceError::Json)? {
+                let frozen = crate::conversation::recovery::manifest::FrozenKey {
+                    key,
+                    row_key: stored_key.value().into(),
+                };
                 let bytes =
-                    encrypt_blob(&self.dek, &serde_json::to_vec(&key).map_err(json_error)?)?;
+                    encrypt_blob(&self.dek, &serde_json::to_vec(&frozen).map_err(json_error)?)?;
                 Self::update_row(
                     tx,
                     CONVERSATION_RECOVERY,

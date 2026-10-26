@@ -39,6 +39,7 @@ fn a_refused_own_snapshot_cannot_commit_history_evidence_or_continuation() {
         preview_manifest: None,
         history_evidence: Some(HistoryEvidence {
             holder_key: "22".repeat(32),
+            legacy_original_id_absent: false,
             classification: HistoryClassification::OriginalOrigin,
             group: None,
         }),
@@ -113,5 +114,49 @@ fn a_refused_own_snapshot_cannot_commit_history_evidence_or_continuation() {
     assert!(
         saved.history_evidence.is_some(),
         "ordinary persistence retains accepted proof provenance"
+    );
+}
+
+#[test]
+fn changed_organization_or_membership_authority_refuses_the_whole_native_admission() {
+    let directory = TempDirectory::new("history-authority-guard");
+    let store = Persistence::open_with_dek(&directory.path().join("history"), [46; 32]).unwrap();
+    store
+        .put_org_roster("organization", b"new verified roster")
+        .unwrap();
+    let attempt = |roster: &[u8], head: Option<&[u8]>| {
+        store.commit_history_admission::<Message>(
+            GROUP_HISTORY,
+            "guarded",
+            HistoryAdmission {
+                state: Some(("guarded", b"{}")),
+                checkpoint: Some(("group:guarded:cursor", b"1")),
+                own_snapshot: Some(b"own candidate"),
+                org_authority: Some(history_admission::OrgAuthorityGuard {
+                    org_key: "organization",
+                    roster_bytes: roster,
+                }),
+                group_head: Some(history_admission::GroupHeadGuard {
+                    key: "group:guarded:head",
+                    expected: head,
+                }),
+                ..Default::default()
+            },
+            &[],
+        )
+    };
+    assert!(attempt(b"old verified roster", None).is_err());
+    assert!(store.list_conversations(GROUP_HISTORY).unwrap().is_empty());
+    assert!(store
+        .recovery_state::<u64>("group:guarded:cursor")
+        .unwrap()
+        .is_none());
+    assert!(attempt(b"new verified roster", Some(b"foreign branch")).is_err());
+    assert!(store.list_conversations(GROUP_HISTORY).unwrap().is_empty());
+    attempt(b"new verified roster", None).unwrap();
+    assert_eq!(store.list_conversations(GROUP_HISTORY).unwrap().len(), 1);
+    assert_eq!(
+        store.recovery_state::<u64>("group:guarded:cursor").unwrap(),
+        Some(1)
     );
 }

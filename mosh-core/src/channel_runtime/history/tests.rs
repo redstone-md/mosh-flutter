@@ -32,7 +32,17 @@ impl Fixture {
             _directory: directory,
         }
     }
+    pub fn restart(&mut self) {
+        let _identity = crate::moss_ffi::replace_test_keystore(Some(self.store.clone()));
+        self.runtime = ChannelRuntime::from_shared(
+            Arc::new(MossFfiRuntime::load_default().unwrap()),
+            Arc::new(AttachmentStore::new(self._directory.path()).unwrap()),
+            Some(self.store.clone()),
+        );
+        self.runtime.rehydrate();
+    }
     pub fn join(&mut self, id: &str) {
+        let _identity = crate::moss_ffi::replace_test_keystore(Some(self.store.clone()));
         self.runtime
             .join(JoinChannelRequest {
                 name: id.into(),
@@ -80,12 +90,48 @@ impl Fixture {
             },
         );
     }
+    pub fn manifest(&self, id: &str) -> String {
+        self.runtime
+            .channels
+            .get(id)
+            .unwrap()
+            .recovery
+            .checkpoint
+            .progress
+            .manifest
+            .clone()
+            .unwrap()
+    }
+    pub fn offer_rows(&mut self, id: &str, source: &SigningKey, rows: &[ChannelRecord]) {
+        let keys = rows
+            .iter()
+            .map(
+                |record| crate::conversation::recovery::manifest::HistoryKey {
+                    message_id: record.message_id.clone(),
+                    sent_at_ms: record.sent_at_ms,
+                    digest: crate::conversation::recovery::manifest::digest(record).unwrap(),
+                },
+            )
+            .collect::<Vec<_>>();
+        let manifest =
+            crate::conversation::recovery::manifest::digest(&(1, format!("channel:{id}"), keys))
+                .unwrap();
+        self.deliver(
+            id,
+            source,
+            HistoryMessage::Offer {
+                manifest,
+                total: rows.len(),
+                deletion_digest: EMPTY_JOURNAL.into(),
+            },
+        );
+    }
     pub fn journal(&mut self, id: &str, source: &SigningKey) {
         self.deliver(
             id,
             source,
             HistoryMessage::Journal {
-                manifest: "a".repeat(64),
+                manifest: self.manifest(id),
                 deletion_digest: EMPTY_JOURNAL.into(),
                 page: crate::message_deletion::protocol::DeletionMessage::State {
                     records: Vec::new(),

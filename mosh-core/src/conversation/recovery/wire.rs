@@ -2,6 +2,7 @@
 use ed25519_dalek::{Signer, SigningKey};
 use serde::{Deserialize, Serialize};
 
+use super::manifest::canonical_hex;
 use crate::conversation::{decode, encode, MAX_PUBLISH_BYTES};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,14 +27,7 @@ pub(crate) enum HistoryMessage<R> {
         total: usize,
         deletion_digest: String,
     },
-    Pull {
-        manifest: String,
-        offset: usize,
-        fragment_offset: usize,
-        deletion_digest: String,
-        journal: bool,
-        journal_after: Option<String>,
-    },
+    Pull(HistoryPull),
     Page {
         manifest: String,
         total: usize,
@@ -47,6 +41,16 @@ pub(crate) enum HistoryMessage<R> {
         page: crate::message_deletion::protocol::DeletionMessage,
     },
     Unavailable,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct HistoryPull {
+    pub manifest: String,
+    pub offset: usize,
+    pub fragment_offset: usize,
+    pub deletion_digest: String,
+    pub journal: bool,
+    pub journal_after: Option<String>,
 }
 
 impl HistoryFrame {
@@ -75,24 +79,29 @@ impl HistoryFrame {
             || self.mesh_id != mesh
             || self.channel != channel
             || self.round == 0
-            || self.request_id.len() != 32
-            || hex::decode(&self.request_id).is_err()
+            || !canonical_hex(&self.request_id, 32)
             || self.payload_b64.len() > MAX_PUBLISH_BYTES
         {
             return Err("invalid history frame scope".into());
         }
-        if self.sender_key.len() != 64
+        if !canonical_hex(&self.sender_key, 64)
+            || !canonical_hex(&self.signature, 128)
             || self
                 .recipient_key
                 .as_ref()
-                .is_some_and(|key| key.len() != 64 || hex::decode(key).is_err())
+                .is_some_and(|key| !canonical_hex(key, 64))
             || serde_json::to_vec(self).map_err(|e| e.to_string())?.len() > MAX_PUBLISH_BYTES - 128
         {
             return Err("history frame exceeds bounded carrier".into());
         }
         crate::signature_verification::verify(&self.sender_key, &self.signature, &self.input()?)?;
-        serde_json::from_slice(&decode(&self.payload_b64).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())
+        let message =
+            serde_json::from_slice(&decode(&self.payload_b64).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
+        if !matches!(message, HistoryMessage::Probe) && self.recipient_key.is_none() {
+            return Err("history reply has no exact recipient".into());
+        }
+        Ok(message)
     }
 
     fn input(&self) -> Result<Vec<u8>, String> {

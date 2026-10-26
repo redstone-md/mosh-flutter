@@ -10,12 +10,18 @@ pub(super) struct ChannelRecord {
     pub from_fingerprint: String,
     pub content: Content,
     pub origin: Option<crate::message_deletion::MessageOrigin>,
+    #[serde(default)]
+    pub legacy_id_absent: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) enum Content {
     Text(String),
-    Attachment(crate::conversation::previews::AttachmentOffer),
+    Attachment(Box<crate::conversation::previews::AttachmentOffer>),
+    Erased {
+        binding_digest: String,
+        deletion_key: String,
+    },
 }
 
 impl ChannelRecord {
@@ -28,21 +34,45 @@ impl ChannelRecord {
         {
             return None;
         }
-        Some(Self {
+        let origin = row.message.metadata.as_ref().and_then(|m| m.origin.clone());
+        let legacy_id_absent = origin.is_none()
+            && (row.message.message_id.is_none()
+                || is_legacy_id(&row.message_id)
+                || row
+                    .history_evidence
+                    .as_ref()
+                    .is_some_and(|e| e.legacy_original_id_absent));
+        let mut record = Self {
             message_id: row.message_id.clone(),
             sent_at_ms: row.sent_at_ms,
             from_device: row.message.from_device.clone(),
             from_fingerprint: row.message.from_fingerprint.clone(),
             content: if row.message.attachment.is_some() {
-                Content::Attachment(crate::conversation::previews::AttachmentOffer {
+                Content::Attachment(Box::new(crate::conversation::previews::AttachmentOffer {
                     manifest: row.attachment_manifest.clone()?,
                     preview_manifest: row.preview_manifest.clone(),
-                })
+                }))
             } else {
                 Content::Text(row.message.body.clone())
             },
-            origin: row.message.metadata.as_ref().and_then(|m| m.origin.clone()),
-        })
+            origin,
+            legacy_id_absent,
+        };
+        if legacy_id_absent && !record.message_id.starts_with("legacy-") {
+            record.message_id = format!(
+                "legacy-{}",
+                digest(&(
+                    &row.conversation_id,
+                    row.message.message_id.as_deref(),
+                    row.sent_at_ms,
+                    &record.from_device,
+                    &record.from_fingerprint,
+                    &record.content
+                ))
+                .ok()?
+            );
+        }
+        Some(record)
     }
 
     pub(super) fn key(row: &StoredMessage<ChannelMessage>) -> Result<Option<HistoryKey>, String> {
@@ -60,6 +90,27 @@ impl ChannelRecord {
     pub(super) fn occurrence(
         row: &StoredMessage<ChannelMessage>,
     ) -> Result<Option<crate::conversation::recovery::occurrence::Occurrence>, String> {
+        if let Some(metadata) = row
+            .message
+            .metadata
+            .as_ref()
+            .filter(|m| m.deletion.is_some())
+        {
+            if let Some(origin) = &metadata.origin {
+                return Ok(Some(
+                    crate::conversation::recovery::occurrence::Occurrence {
+                        native_id: row.message_id.clone(),
+                        row_key: format!(
+                            "{}\u{1}{:020}\u{1}{}",
+                            row.conversation_id, row.sent_at_ms, row.message_id
+                        ),
+                        identity: origin.key()?,
+                        content_digest: None,
+                    },
+                ));
+            }
+            return Ok(None);
+        }
         let Some(record) = Self::from_stored(row) else {
             return Ok(None);
         };
@@ -68,7 +119,7 @@ impl ChannelRecord {
             .as_ref()
             .map(|origin| origin.key())
             .transpose()?
-            .unwrap_or(format!("legacy-{}", digest(&record)?));
+            .unwrap_or(format!("legacy-{}", record.semantic_digest()?));
         Ok(Some(
             crate::conversation::recovery::occurrence::Occurrence {
                 native_id: record.message_id.clone(),
@@ -77,13 +128,33 @@ impl ChannelRecord {
                     row.conversation_id, row.sent_at_ms, row.message_id
                 ),
                 identity,
-                content_digest: digest(&record)?,
+                content_digest: Some(record.semantic_digest()?),
             },
         ))
     }
 
+    pub(super) fn semantic_digest(&self) -> Result<String, String> {
+        if self.origin.is_some() {
+            return digest(&(
+                &self.message_id,
+                &self.from_fingerprint,
+                &self.content,
+                &self.origin,
+            ));
+        }
+        digest(&(
+            &self.message_id,
+            (!self.legacy_id_absent).then_some(self.sent_at_ms),
+            &self.from_device,
+            &self.from_fingerprint,
+            &self.content,
+        ))
+    }
+
     pub(super) fn validate(&self, context: &str) -> Result<(), String> {
-        if self.message_id.is_empty()
+        if (matches!(self.content, Content::Erased { .. }) && self.origin.is_none())
+            || (self.legacy_id_absent && (self.origin.is_some() || !is_legacy_id(&self.message_id)))
+            || self.message_id.is_empty()
             || self.message_id.len() > 256
             || self.body().len() > MAX_BODY_LEN
             || self.from_device.len() > 1024
@@ -102,6 +173,20 @@ impl ChannelRecord {
         if let Some(origin) = &self.origin {
             match &self.content {
                 Content::Text(body) => origin.verify(context, &self.message_id, body.as_bytes())?,
+                Content::Erased {
+                    binding_digest,
+                    deletion_key,
+                } => {
+                    origin.verify_signature()?;
+                    if origin.conversation != context
+                        || origin.id != self.message_id
+                        || *deletion_key != origin.key()?
+                        || binding_digest.len() != 64
+                        || hex::decode(binding_digest).is_err()
+                    {
+                        return Err("invalid erased history target".into());
+                    }
+                }
                 Content::Attachment(offer) => {
                     if origin.id != self.message_id {
                         return Err("history attachment occurrence differs".into());
@@ -116,16 +201,24 @@ impl ChannelRecord {
         Ok(())
     }
 
+    pub(super) fn binding_digest(&self) -> Result<String, String> {
+        match &self.content {
+            Content::Erased { binding_digest, .. } => Ok(binding_digest.clone()),
+            _ => digest(self),
+        }
+    }
+
     pub(super) fn body(&self) -> &str {
         match &self.content {
             Content::Text(body) => body,
-            Content::Attachment(_) => "",
+            Content::Attachment(_) | Content::Erased { .. } => "",
         }
     }
 
     pub(super) fn row(self, id: &str) -> StoredMessage<ChannelMessage> {
         let (body, attachment, attachment_manifest, preview_manifest) = match self.content {
             Content::Text(body) => (body, None, None, None),
+            Content::Erased { .. } => (String::new(), None, None, None),
             Content::Attachment(offer) => (
                 String::new(),
                 Some(crate::conversation::attachments::descriptor_of(
@@ -162,4 +255,23 @@ impl ChannelRecord {
             preview_manifest,
         }
     }
+}
+
+fn is_legacy_id(id: &str) -> bool {
+    id.strip_prefix("legacy-")
+        .is_some_and(|hash| hash.len() == 64 && hex::decode(hash).is_ok())
+}
+
+pub(super) fn legacy_id(name: &str, message: &ChannelMessage) -> Result<String, String> {
+    Ok(format!(
+        "legacy-{}",
+        digest(&(
+            name,
+            Option::<String>::None,
+            message.sent_at_ms,
+            &message.from_device,
+            &message.from_fingerprint,
+            Content::Text(message.body.clone())
+        ))?
+    ))
 }

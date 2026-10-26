@@ -3,11 +3,42 @@ import 'package:mosh/src/features/conversation/conversation_banners.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/recovery.dart';
 
 import '../../support/message_builders.dart';
 import '../../support/pump.dart';
 
 void main() {
+  testWidgets(
+      'channels reuse the history notice until the available view is durable',
+      (tester) async {
+    for (final state in [
+      HistorySyncState.waitingForSource,
+      HistorySyncState.importing,
+      HistorySyncState.complete
+    ]) {
+      await pumpScreen(
+          tester,
+          ConversationBanners(
+            target: const ChannelTarget('history'),
+            snapshot: ChannelConversation(
+                const ChannelTarget('history'),
+                TestSnapshots.channel(
+                  name: 'history',
+                  deviceFingerprint: 'reader',
+                  messages: const [],
+                  historySync: HistorySync(state: state),
+                )),
+          ));
+      expect(
+          find.text('Waiting for message history'),
+          state == HistorySyncState.waitingForSource
+              ? findsOneWidget
+              : findsNothing);
+      expect(find.text('Importing message history'),
+          state == HistorySyncState.importing ? findsOneWidget : findsNothing);
+    }
+  });
   testWidgets(
       'history status waits for a source, imports, then hides after completion',
       (tester) async {

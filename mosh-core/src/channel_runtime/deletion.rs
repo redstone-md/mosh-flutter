@@ -141,7 +141,10 @@ impl ChannelSession {
         Ok(())
     }
 
-    fn publish_deletion(&mut self, message: &DeletionMessage) -> Result<(), ChannelRuntimeError> {
+    pub(super) fn publish_deletion(
+        &self,
+        message: &DeletionMessage,
+    ) -> Result<(), ChannelRuntimeError> {
         for message in crate::message_deletion::fragments::split(message)
             .map_err(ChannelRuntimeError::Codec)?
         {

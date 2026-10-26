@@ -12,6 +12,7 @@ import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'dm_revocation_banner.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/org_providers.dart' show orgAddPromptProvider;
+import 'package:mosh/src/rust/conversation/recovery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show DmHistorySyncState;
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
@@ -47,15 +48,10 @@ class ConversationBanners extends StatelessWidget {
                   ? loaded.source.deviceRevocation
                   : null),
           if (loaded is DmConversation && !loaded.revoked)
-            _historyBanner(l, loaded.source.historySync),
+            _historyBanner(l, _dmHistoryState(loaded.source.historySync)),
         ]),
-      ConversationKind.channel => DismissibleConversationNotice(
-          kind: ConversationNoticeKind.publicChannel,
-          icon: Icons.tag,
-          title: l.channelNoticeTitle,
-          body: l.channelNoticeBody,
-          accent: _channelNoticeAccent,
-        ),
+      ConversationKind.channel => _channelNotices(
+          l, loaded is ChannelConversation ? loaded.source.historySync : null),
       ConversationKind.group => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -78,17 +74,38 @@ class ConversationBanners extends StatelessWidget {
   }
 }
 
-Widget _historyBanner(AppLocalizations l, DmHistorySyncState? state) {
+HistorySyncState? _dmHistoryState(DmHistorySyncState? state) => switch (state) {
+      DmHistorySyncState.waitingForSource => HistorySyncState.waitingForSource,
+      DmHistorySyncState.importing => HistorySyncState.importing,
+      DmHistorySyncState.complete => HistorySyncState.complete,
+      null => null,
+    };
+
+Widget _channelNotices(AppLocalizations l, HistorySync? status) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DismissibleConversationNotice(
+          kind: ConversationNoticeKind.publicChannel,
+          icon: Icons.tag,
+          title: l.channelNoticeTitle,
+          body: l.channelNoticeBody,
+          accent: _channelNoticeAccent,
+        ),
+        _historyBanner(l, status?.state),
+      ],
+    );
+
+Widget _historyBanner(AppLocalizations l, HistorySyncState? state) {
   final copy = switch (state) {
-    DmHistorySyncState.waitingForSource => (
+    HistorySyncState.waitingForSource => (
         l.dmHistoryWaitingTitle,
         l.dmHistoryWaitingBody
       ),
-    DmHistorySyncState.importing => (
+    HistorySyncState.importing => (
         l.dmHistoryImportingTitle,
         l.dmHistoryImportingBody
       ),
-    DmHistorySyncState.complete || null => null,
+    HistorySyncState.complete || null => null,
   };
   if (copy == null) return const SizedBox.shrink();
   return CryptoNoticeBanner(

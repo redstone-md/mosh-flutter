@@ -25,8 +25,7 @@ impl HistoryCursor {
             || request != self.request_id
             || offset != self.cursor
             || records > PAGE_RECORDS
-            || manifest.len() != 64
-            || hex::decode(manifest).is_err()
+            || !super::manifest::canonical_hex(manifest, 64)
             || self.total.is_some_and(|old| old != total)
             || self.manifest.as_deref().is_some_and(|old| old != manifest)
         {

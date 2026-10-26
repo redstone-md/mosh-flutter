@@ -24,24 +24,7 @@ impl ChannelSession {
                     },
                 )?;
             }
-            HistoryMessage::Pull {
-                manifest,
-                offset,
-                fragment_offset,
-                deletion_digest,
-                journal,
-                journal_after,
-            } => {
-                self.serve_history(
-                    &frame,
-                    manifest,
-                    offset,
-                    fragment_offset,
-                    deletion_digest,
-                    journal,
-                    journal_after,
-                )?;
-            }
+            HistoryMessage::Pull(pull) => self.serve_history(&frame, pull)?,
             HistoryMessage::Offer {
                 manifest,
                 total,
@@ -67,9 +50,8 @@ impl ChannelSession {
                 return Ok(true);
             }
             HistoryMessage::Unavailable => {
-                if self.recovery.has_source(&frame) {
-                    self.recovery.last_progress = 0;
-                }
+                self.recovery
+                    .unavailable(&frame, crate::conversation::now_ms());
             }
         }
         Ok(false)
@@ -109,14 +91,14 @@ impl ChannelSession {
         };
         self.send_history(
             Some(source),
-            HistoryMessage::Pull {
+            HistoryMessage::Pull(HistoryPull {
                 manifest: checkpoint.progress.manifest.clone().unwrap_or_default(),
                 offset: checkpoint.progress.cursor,
                 fragment_offset: checkpoint.partial.as_ref().map_or(0, |p| p.offset()),
                 deletion_digest: checkpoint.deletion_digest.clone(),
                 journal: !checkpoint.journal_complete,
                 journal_after: checkpoint.journal_after.clone(),
-            },
+            }),
         )?;
         self.recovery.last_pull = now;
         Ok(())
@@ -157,12 +139,18 @@ impl ChannelSession {
                         .map_err(|e| ChannelRuntimeError::Codec(e.to_string()))?,
                 );
             }
+        } else if next.partial.is_some()
+            && records.len() == 1
+            && matches!(records[0].content, records::Content::Erased { .. })
+        {
+            next.partial = None;
         } else if next.partial.is_some() {
             return Err(ChannelRuntimeError::Codec(
                 "history partial record missing".into(),
             ));
         }
         let mut rows = Vec::new();
+        let mut receipts = Vec::new();
         let mut ids = std::collections::HashSet::new();
         for record in records {
             record
@@ -173,42 +161,49 @@ impl ChannelSession {
                     "duplicate history occurrence".into(),
                 ));
             }
-            if let Some(existing) = self
-                .messages
-                .iter()
-                .find(|m| m.message_id.as_ref() == Some(&record.message_id))
-            {
-                if existing
-                    .metadata
-                    .as_ref()
-                    .is_none_or(|m| m.deletion.is_none())
-                    && (existing.body != record.body()
-                        || existing.from_fingerprint != record.from_fingerprint
-                        || existing.sent_at_ms != Some(record.sent_at_ms))
-                {
-                    return Err(ChannelRuntimeError::Codec(
-                        "conflicting history occurrence".into(),
-                    ));
-                }
-            }
-            let classification = if record.origin.is_some() {
-                crate::conversation::recovery::HistoryClassification::OriginalOrigin
-            } else {
-                crate::conversation::recovery::HistoryClassification::LegacyUnsigned
-            };
-            let mut row = record.row(&self.name);
-            row.history_evidence = Some(crate::conversation::recovery::HistoryEvidence {
-                holder_key: frame.sender_key.clone(),
-                classification,
-                group: None,
+            receipts.push(HistoryKey {
+                message_id: record.message_id.clone(),
+                sent_at_ms: record.sent_at_ms,
+                digest: record
+                    .binding_digest()
+                    .map_err(ChannelRuntimeError::Codec)?,
             });
-            rows.push(row);
+            rows.push(self.history_row_for(record, &frame.sender_key)?);
         }
         next.progress
             .advance(&manifest, total, rows.len(), next.partial.is_some())
             .map_err(ChannelRuntimeError::Codec)?;
+        let prefix = format!(
+            "{}\u{1}request\u{1}{}\u{1}receipts\u{1}",
+            self.checkpoint_key(),
+            frame.request_id
+        );
+        if next.progress.complete
+            && self
+                .deletions
+                .store
+                .as_ref()
+                .unwrap()
+                .recovery_digest_with_tail(&prefix, Some(&self.deletions.context), &receipts)?
+                != manifest
+        {
+            return Err(ChannelRuntimeError::Codec(
+                "history frozen manifest differs".into(),
+            ));
+        }
+        let receipts = receipts
+            .iter()
+            .enumerate()
+            .map(|(index, key)| {
+                Ok(crate::persistence::history_admission::EvidenceWrite {
+                    key: format!("{prefix}{:020}", offset + index),
+                    bytes: serde_json::to_vec(key)
+                        .map_err(|e| ChannelRuntimeError::Codec(e.to_string()))?,
+                })
+            })
+            .collect::<Result<Vec<_>, ChannelRuntimeError>>()?;
         Recovery::finished(&mut next, &frame.sender_key);
-        self.save_checkpoint(next, &rows)?;
+        self.save_history_rows(next, &rows, &receipts)?;
         self.recovery.last_progress = crate::conversation::now_ms();
         self.pull_history(self.recovery.last_progress)
     }
@@ -218,15 +213,27 @@ impl ChannelSession {
         next: Checkpoint,
         rows: &[StoredMessage<ChannelMessage>],
     ) -> Result<(), ChannelRuntimeError> {
+        self.save_history_rows(next, rows, &[])
+    }
+
+    fn save_history_rows(
+        &mut self,
+        next: Checkpoint,
+        rows: &[StoredMessage<ChannelMessage>],
+        receipts: &[crate::persistence::history_admission::EvidenceWrite],
+    ) -> Result<(), ChannelRuntimeError> {
         let store =
             self.deletions.store.as_ref().ok_or_else(|| {
                 ChannelRuntimeError::Persistence("history store unavailable".into())
             })?;
-        store.prepare_history_occurrences(
-            CHANNEL_HISTORY,
-            &self.name,
-            ChannelRecord::occurrence,
-        )?;
+        if !self.recovery.occurrences_ready {
+            store.prepare_history_occurrences(
+                CHANNEL_HISTORY,
+                &self.name,
+                ChannelRecord::occurrence,
+            )?;
+            self.recovery.occurrences_ready = true;
+        }
         let occurrences = rows
             .iter()
             .map(ChannelRecord::occurrence)
@@ -235,13 +242,27 @@ impl ChannelSession {
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
-        store.commit_history_recovery(
+        let key = self.checkpoint_key();
+        let bytes =
+            serde_json::to_vec(&next).map_err(|e| ChannelRuntimeError::Codec(e.to_string()))?;
+        let cleanup = (next.progress.request_id != self.recovery.checkpoint.progress.request_id)
+            .then(|| {
+                format!(
+                    "{key}\u{1}request\u{1}{}\u{1}",
+                    self.recovery.checkpoint.progress.request_id
+                )
+            });
+        store.commit_history_admission(
             CHANNEL_HISTORY,
             &self.name,
-            &self.checkpoint_key(),
-            &next,
+            crate::persistence::HistoryAdmission {
+                checkpoint: Some((&key, &bytes)),
+                occurrences: &occurrences,
+                recovery: receipts,
+                remove_recovery_prefix: cleanup.as_deref(),
+                ..Default::default()
+            },
             rows,
-            &occurrences,
         )?;
         for row in rows {
             let key = HistoryKey {
@@ -266,7 +287,13 @@ impl ChannelSession {
                         );
                     }
                 }
-                if !self.messages.holds_copy_of(&saved.message) {
+                if saved
+                    .message
+                    .metadata
+                    .as_ref()
+                    .is_some_and(|m| m.deletion.is_some())
+                    || !self.messages.holds_copy_of(&saved.message)
+                {
                     self.messages.upsert(saved.message);
                 }
             }
