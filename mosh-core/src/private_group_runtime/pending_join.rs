@@ -7,15 +7,20 @@ use crate::org_runtime::PendingJoinRecovery;
 pub(super) struct JoinRetry {
     next: Option<std::time::Instant>,
     attempts: u8,
+    last_attempt: Option<std::time::Instant>,
+    peer_revision: u64,
 }
 
 impl GroupSession {
     pub(super) fn retry_pending_join(&mut self) -> Result<(), PrivateGroupError> {
-        if self
-            .join_retry
-            .next
-            .is_none_or(|at| std::time::Instant::now() >= at)
-        {
+        let now = std::time::Instant::now();
+        let route_changed = self.join_retry.peer_revision
+            != crate::moss_ffi::connected_peer_revision()
+            && self
+                .join_retry
+                .last_attempt
+                .is_none_or(|last| now.duration_since(last).as_secs() >= 3);
+        if route_changed || self.join_retry.next.is_none_or(|at| now >= at) {
             self.publish_pending_join()?;
         }
         Ok(())
@@ -27,17 +32,29 @@ impl GroupSession {
         };
         // Retain the original KeyPackage, signer and target. A retry must not
         // create another leaf or make a previously issued Welcome unusable.
-        let delay = (3u64 << self.join_retry.attempts.min(5)).min(60);
-        self.join_retry.attempts = self.join_retry.attempts.saturating_add(1);
-        self.join_retry.next =
-            Some(std::time::Instant::now() + std::time::Duration::from_secs(delay));
-        publish_join_package(
+        let result = publish_join_package(
             &self.node,
             &self.to_persisted_record(),
             package,
             &self.crypto,
             self.org_signer.as_ref(),
-        )
+        );
+        // An empty topic is a discovery wait, not a delivered join attempt.
+        // Probe it at most once per three seconds without escalating to a
+        // minute-long retry after the first subscribers finally appear.
+        let delay = if matches!(result, Ok(false)) {
+            self.join_retry.attempts = 0;
+            3
+        } else {
+            let delay = (3u64 << self.join_retry.attempts.min(5)).min(60);
+            self.join_retry.attempts = self.join_retry.attempts.saturating_add(1);
+            delay
+        };
+        let now = std::time::Instant::now();
+        self.join_retry.last_attempt = Some(now);
+        self.join_retry.peer_revision = crate::moss_ffi::connected_peer_revision();
+        self.join_retry.next = Some(now + std::time::Duration::from_secs(delay));
+        result.map(|_| ())
     }
 }
 
@@ -214,7 +231,7 @@ fn publish_join_package(
     package: &[u8],
     crypto: &MlsSessionCrypto,
     signer: Option<&SigningKey>,
-) -> Result<(), PrivateGroupError> {
+) -> Result<bool, PrivateGroupError> {
     let envelope = ControlEnvelope::KeyPackage {
         joiner_binding: Some(super::history::admission::joiner_binding(
             node, crypto, record, package,
@@ -225,11 +242,19 @@ fn publish_join_package(
         from_fingerprint: record.device_fingerprint.clone(),
         key_package_b64: encode(package),
     };
-    publish_control_message(
-        node,
+    let payload = super::wires::control_payload(
         &format!("{CONTROL_CHANNEL_PREFIX}{}", record.group_id),
         &record.mesh_id,
         org_context(record.org_pubkey.as_deref(), signer),
         &envelope,
-    )
+    )?;
+    match node.publish_room(
+        &record.mesh_id,
+        &format!("{CONTROL_CHANNEL_PREFIX}{}", record.group_id),
+        &payload,
+    ) {
+        Ok(()) => Ok(true),
+        Err(error) if error.is_no_peers() => Ok(false),
+        Err(error) => Err(PrivateGroupError::Moss(error.to_string())),
+    }
 }
