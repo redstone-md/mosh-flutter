@@ -32,7 +32,9 @@ impl ChannelSession {
             }
             return Ok(existing);
         }
-        Ok(imported_row(&self.name, record, holder, deletion))
+        let mut row = imported_row(&self.name, record, holder, deletion);
+        self.set_verified_ownership(&mut row.message)?;
+        Ok(row)
     }
 
     fn history_erasure(

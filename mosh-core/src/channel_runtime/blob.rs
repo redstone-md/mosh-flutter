@@ -74,7 +74,7 @@ impl ChannelSession {
         let Some(descriptor) = self.transfer.accept_offer(offer)? else {
             return Ok(());
         };
-        let message = self.messages.stamp(ChannelMessage {
+        let mut message = self.messages.stamp(ChannelMessage {
             metadata: origin.map(|origin| crate::message_deletion::MessageMetadata {
                 origin: Some(origin),
                 ..Default::default()
@@ -90,6 +90,7 @@ impl ChannelSession {
             retryable: None,
             retry_count: None,
         });
+        self.set_verified_ownership(&mut message)?;
         self.messages.push(message);
         Ok(())
     }

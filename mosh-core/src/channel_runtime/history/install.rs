@@ -37,6 +37,7 @@ impl ChannelSession {
                     self.recovery.checkpoint.progress.request_id
                 )
             });
+        let background_messages = self.history_background_messages(rows);
         store.commit_history_admission(
             CHANNEL_HISTORY,
             &self.name,
@@ -44,6 +45,7 @@ impl ChannelSession {
                 checkpoint: Some((&key, &bytes)),
                 occurrences: &occurrences,
                 recovery: receipts,
+                background_messages: &background_messages,
                 remove_recovery_prefix: cleanup.as_deref(),
                 ..Default::default()
             },
@@ -53,6 +55,23 @@ impl ChannelSession {
         self.recovery.installed(next);
         Ok(())
     }
+    fn history_background_messages(
+        &self,
+        rows: &[StoredMessage<ChannelMessage>],
+    ) -> Vec<crate::persistence::BackgroundMessageAdmission> {
+        rows.iter()
+            .filter_map(|row| {
+                crate::conversation::history::background::message(
+                    CHANNEL_HISTORY,
+                    &self.name,
+                    row.sent_at_ms,
+                    &row.message_id,
+                    &row.message,
+                )
+            })
+            .collect()
+    }
+
     fn prepare_history_index(&mut self) -> Result<(), ChannelRuntimeError> {
         let store =
             self.deletions.store.as_ref().ok_or_else(|| {

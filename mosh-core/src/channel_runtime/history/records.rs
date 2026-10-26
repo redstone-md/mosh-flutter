@@ -36,7 +36,7 @@ impl ChannelRecord {
         }
         let origin = row.message.metadata.as_ref().and_then(|m| m.origin.clone());
         let legacy_id_absent = origin.is_none()
-            && (row.message.message_id.is_none()
+            && (row.message.message_id.as_deref().is_none_or(str::is_empty)
                 || is_legacy_id(&row.message_id)
                 || row
                     .history_evidence
@@ -63,7 +63,7 @@ impl ChannelRecord {
                 "legacy-{}",
                 digest(&(
                     &row.conversation_id,
-                    row.message.message_id.as_deref(),
+                    Option::<&str>::None,
                     row.sent_at_ms,
                     &record.from_device,
                     &record.from_fingerprint,

@@ -2,6 +2,20 @@
 use super::*;
 
 impl ChannelRuntime {
+    pub(crate) fn service(&mut self) {
+        if let Err(error) = self
+            .drain_inbound()
+            .and_then(|_| self.channels.persist_tail().map_err(Into::into))
+        {
+            dlog::write(
+                LogLevel::Warn,
+                kinds::SERVICE,
+                "channel",
+                &error.to_string(),
+            );
+        }
+    }
+
     pub(crate) fn background_work(&mut self) -> Result<(u32, u32), ChannelRuntimeError> {
         self.channels.persist_tail()?;
         let transfers = self

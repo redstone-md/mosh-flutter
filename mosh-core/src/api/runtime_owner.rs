@@ -39,6 +39,39 @@ impl<T> RuntimeOwner<T> {
     pub(crate) fn initialized(&self) -> Option<&Mutex<T>> {
         self.cell.get()?.as_ref().ok()
     }
+
+    /// Called once by the constructor; never holds an owner while reconciling execution.
+    pub(crate) fn start_service(&'static self, interval: std::time::Duration, service: fn(&mut T))
+    where
+        T: Send + 'static,
+    {
+        let spawned = std::thread::Builder::new()
+            .name(format!("mosh-{}-service", self.name))
+            .spawn(move || loop {
+                std::thread::sleep(interval);
+                let Some(mutex) = self.initialized() else {
+                    continue;
+                };
+                if super::background::network_permitted() {
+                    let Ok(_authority) = super::background::execution_lease() else {
+                        return;
+                    };
+                    let Ok(mut runtime) = mutex.lock() else {
+                        return;
+                    };
+                    service(&mut runtime);
+                }
+                super::background::reconcile();
+            });
+        if let Err(error) = spawned {
+            crate::diagnostics_log::write(
+                crate::diagnostics_log::LogLevel::Error,
+                crate::diagnostics_log::kinds::SERVICE,
+                self.name,
+                &format!("could not start native service: {error}"),
+            );
+        }
+    }
 }
 
 #[cfg(test)]
