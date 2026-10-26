@@ -9,10 +9,12 @@ This document changes no runtime, wire format, dependency or database.
 ## Decisions required before coding
 
 1. Approve the additive channel/common wire, storage and snapshot contracts below.
-2. Resolve automatic group-history evidence and its exact trust boundary before
-   approving that part of the protocol. On 2026-10-26 the user rejected manual
-   administrator approval. The [earlier supplement proposal](android-history-admin-contract.plan.md)
-   is withdrawn; its review UI, bridge calls and approval queues must not ship.
+2. Approve the exact [automatic group contract](android-history-automatic-contract.plan.md).
+   The user accepted trusting a current authorized holder's historical-context
+   assertion without administrator action. That policy is decided; these exact
+   evidence/wire/schema/snapshot changes still require approval. The
+   [earlier administrator proposal](android-history-admin-contract.plan.md) stays
+   withdrawn; its review UI, approval queues and bridge calls must not ship.
 
 ## Existing boundaries and limits
 
@@ -115,9 +117,10 @@ never initiate arbitrary peer dials from a claimed offer address.
 ### Record contract and original author
 
 `HistoryRecordV1`: `(kind, occurrence_key, message_id, claimed_sent_at_ms,
-claimed_label, author_key?, transport_peer?, content, origin?, history_proof?)`.
-The automatic group-evidence format still requires review. It must never replace
-the origin or original author signature with a forwarding holder's signature.
+claimed_label, author_key?, transport_peer?, content, origin?, history_proof?,
+group_evidence?)`. Group evidence contains the selected acceptance object and
+current-holder vouch defined in the automatic contract. It never replaces the
+original author signature; exact formats remain pending implementation approval.
 `content` is exactly one of Text UTF-8 bytes, AttachmentOffer (full original and
 preview manifests), or ErasedTarget (proof/tombstone reference, no content).
 No delivery states, read markers, outbound attempts, downloaded paths, files,
@@ -211,11 +214,12 @@ or unsupported holder is never silently treated as complete.
 Old stores load optional fields absent. Old clients continue existing live
 operations, but cannot provide history evidence they never retained. A channel
 can recover their rows with honest legacy classification. For groups, lack of
-historical authorization evidence cannot be repaired by asking an administrator
-to approve a batch. An absent author signature or a missing verifiable admission
-interval is not manufactured by an update or a holder's page signature. Preserve
-local legacy rows and their honest classification. The automatic compatibility
-policy for remote legacy records remains a design gate, not silent completion.
+historical evidence is handled by the automatic contract: preserve readable
+local rows, original signatures and honest legacy provenance. Recover where
+retained facts establish an eligible context and independently verified
+recipient entitlement. An absent signature or missing admission evidence is not
+manufactured by an update, a sender timestamp or a holder's Page signature. No
+administrator action or silent completion fills an unavailable proof.
 
 ## Private-group evidence and membership boundaries
 
@@ -232,11 +236,12 @@ private historical content or attachment keys to the group.
 Application MLS generations and another installation's private state are not
 used as a historical decryption mechanism.
 
-Historical evidence is separate from current authorization. A retained proof
-must identify the actual historical MLS signer and original semantic content;
-the current forwarding member is not that author. Same-member recovery of
-newly proven rows can precede membership-transition work. Once a verified
-different head/membership is known, IVO-142 waits for IVO-143 evidence.
+Historical evidence is separate from current authorization. Original signatures
+bind author/content; a current-holder vouch asserts the historical context of
+its protected accepted copy, including inherited imports. Retain original
+evidence/provenance and never relabel imports as live. The current forwarding
+member is not the original author. Same-membership recovery may precede the
+full transition path; a known missing transition waits for IVO-143 evidence.
 
 Public transition record proposal: original TLS commit bytes, prior and next
 GroupContext hashes/epochs, full original signer keys, signed original
@@ -260,8 +265,8 @@ doesn't connect to the receiver's pinned anchor all leave recovery waiting.
 Reuse ADR 0032's scoped lifetime validation only after original authority,
 same-group binding and authenticated time have been verified.
 
-Recipient entitlement is the intersection of verified admission intervals with
-each record's proven interval. New admission excludes pre-admission history;
+Recipient entitlement intersects independently verified admission intervals
+with each record's holder-attested historical context. New admission excludes pre-admission history;
 ordinary offline preserves membership; removal denies new exports; rejoin is
 a new instance and cannot cover the absence interval. The holder rechecks
 current membership/known revocations on **every page**, not just the initial
@@ -284,14 +289,15 @@ anchors Proposal/Commit history, not every application-message body. A human
 review also cannot independently prove an unwitnessed record's creation time.
 Replacing the review button with blind automatic signing is not a solution.
 
-Investigate retaining authenticated live-acceptance evidence automatically and
-binding history to membership transitions. Specify exactly whose assertions a
-receiver trusts, how evidence survives offline holders and membership changes,
-and what older installations can actually supply. A signed receipt alone does
-not prove an honest witness or a timestamp. No new trust assumption, permanent
-legacy gap or all-holder barrier is approved by rejecting the manual workflow.
-Complete this evidence/compatibility design before implementing group history;
-independent channel recovery and the approved Android access work can proceed.
+The selected automatic policy retains native live/publication acceptance and
+inherited import provenance, then automatically signs an exact record/recipient
+vouch from a currently authorized holder. The receiver trusts that holder's
+historical-context assertion; a malicious current member may lie or collude.
+No signature or receipt is advertised as independent pre-removal-time proof.
+Membership/recipient entitlement remains verified separately, without guessed
+legacy admission facts. Source switching, offline retention, bounded transport
+and atomic admission are specified in the linked automatic contract. No human
+review, global closing barrier or hidden new trust tier is proposed.
 
 ## Verification before acceptance
 
