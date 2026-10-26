@@ -8,11 +8,11 @@ use sha2::{Digest, Sha256};
 pub(super) struct NativeTransition {
     pub(super) prior: MlsHistoryContext,
     pub(super) next: MlsHistoryContext,
-    original_author_mls_key: String,
+    pub(super) original_author_mls_key: String,
     pub(super) original_commit_b64: String,
     pub(super) previous_member_keys: Vec<String>,
     pub(super) next_member_keys: Vec<String>,
-    self_removed: bool,
+    pub(super) self_removed: bool,
     // Native replay proves the own branch. Missing original org/dual-key
     // transition evidence stays unavailable to remote history verification.
     pub(super) original_signed_transition: Option<String>,

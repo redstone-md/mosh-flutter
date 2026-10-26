@@ -28,8 +28,16 @@ impl GroupSession {
         &mut self,
         frame: HistoryFrame,
         directed: bool,
+        carrier: &crate::sender_auth::VerifiedSender,
     ) -> Result<(), PrivateGroupError> {
         let checked = self.check_history(frame)?;
+        if checked.sender.peer_id != carrier.peer_id
+            || checked.sender.mls_signer != carrier.mls_signer
+        {
+            return Err(PrivateGroupError::Codec(
+                "history carrier keys differ".into(),
+            ));
+        }
         if !directed && !matches!(checked.body.message, HistoryMessage::Probe) {
             return Err(PrivateGroupError::Codec(
                 "group history content requires directed carrier".into(),
@@ -63,14 +71,24 @@ impl GroupSession {
                 "group history recipient differs".into(),
             ));
         }
-        let sender = body.scope.membership.verify_current(self)?;
+        let sender = self.history_carrier_member(&body)?;
         if sender.peer_id != frame.sender_key {
             return Err(PrivateGroupError::Codec(
                 "group history member differs".into(),
             ));
         }
         if body.scope.head != self.current_history_head()? && body.evidence.is_none() {
-            self.request_transition_evidence(&frame, &body.scope)?;
+            if body.scope.head.context.epoch > self.crypto.history_context()?.epoch {
+                self.request_transition_evidence(&frame, &body.scope)?;
+            } else if matches!(body.message, HistoryMessage::Probe) {
+                let target = self.current_history_head()?;
+                self.answer_transition_evidence(
+                    &frame,
+                    body.scope.head.context.clone(),
+                    target,
+                    0,
+                )?;
+            }
             return Err(PrivateGroupError::NotReady);
         }
         Ok(CheckedFrame {
@@ -143,8 +161,14 @@ impl PrivateGroupRuntime {
                 continue;
             };
             let result = (|| {
-                let sender = session
-                    .verify_application(&directed.proof, &session.control_channel.clone())?;
+                let sender = directed
+                    .proof
+                    .verify(&OrgContext {
+                        org_pubkey: session.org_pubkey.as_deref().unwrap_or(""),
+                        mesh_id: &session.mesh_id,
+                        channel_kind: &session.control_channel,
+                    })
+                    .map_err(PrivateGroupError::Codec)?;
                 let ControlEnvelope::History { group_id, frame } = decode_json(&sender.payload)?
                 else {
                     return Err(PrivateGroupError::Codec(
@@ -159,7 +183,7 @@ impl PrivateGroupRuntime {
                         "directed group carrier differs".into(),
                     ));
                 }
-                session.queue_history(frame, true)
+                session.queue_history(frame, true, &sender)
             })();
             if let Err(error) = result {
                 dlog::write(

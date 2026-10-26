@@ -70,6 +70,12 @@ limited to 4,096 epochs ahead. The receiver stages every commit through its own
 OpenMLS state, compares the actual branch, and commits its own next snapshot,
 verified transition, and recovery head atomically. It never installs another
 member's ratchet. Source and target changes cannot combine unrelated fragments.
+A newly admitted holder also retains the exact original issuer-associated Add
+ciphertext with its protected Welcome anchor. A receiver that missed that Add
+accepts only scoped signed probes and bounded commit evidence from the unknown
+leaf. It stages those commits through its own tree before ordinary current-member
+checks can admit any offer, content, journal, or vouch from that holder. An unknown
+carrier cannot request historical content or replace the receiver's ratchet.
 Original organization signatures and verified roster authority survive relay;
 current roster authorization is checked again in the storage transaction.
 Removal and revocation use the same durable transition boundary.

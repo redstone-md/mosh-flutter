@@ -11,6 +11,7 @@ mod admission_commit;
 mod anchors;
 mod attachments;
 mod authority;
+mod bootstrap;
 mod eligibility;
 mod entitlements;
 mod erased;
