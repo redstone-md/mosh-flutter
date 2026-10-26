@@ -80,18 +80,25 @@ preparatory changes do not establish background acceptance.
   authenticated bidirectional route controls. Cold rendezvous latency and physical
   Android acceptance remain separate; local-tracker success does not prove them.
 - Host policy probes, Android production/instrumentation compilation, Flutter
-  analysis and focused native scenarios pass. The integrated Flutter checkpoint
-  passed 2054 tests with four skipped. Whole-branch checks and signed packaging
-  must be repeated after the remaining component integration; older prepared
-  APKs are not candidates for acceptance of the complete feature.
+  analysis and focused native scenarios pass. The reviewed Flutter checkpoint
+  passed 2072 tests with four skipped. Final CI and signed packaging are running;
+  older prepared APKs are not candidates for acceptance of the complete feature.
 - The adb collector and guide are ready. No physical Android device is connected.
   Actual Keystore migration, locked/background calls, notification actions,
   PiP, Doze, reclamation, reboot and OS-stop behavior remain acceptance gates.
   Physical phone/desktop baselines and resulting numeric budgets are still
   required. Compilation and host tests do not close these tickets.
-- Earlier standards/spec and CodeAnt reviews covered the prepared layers.
-  The final integration requires another complete review and resolution of
-  validated findings before handoff.
+- Final standards/spec review found and corrected new-holder history bootstrap
+  and repeated manifest scanning. Independent verification closed both findings;
+  changed production lines in the history review fixes have 93.6% line coverage.
+  CodeAnt's final integration review was triggered once. Its validated PiP
+  generation finding and six general suggestions are fixed; the earlier request
+  to exclude legitimate protected navigation from access-grace use was rejected.
+- Public-network group/channel notifications and incoming call actions passed
+  after authenticated route controls. The DM transfer scenario exposed a
+  separate carrier-loss recovery failure for an ordinary desktop caller. It is
+  reproduced with real Noise/relay peers; its narrow transport fix remains under
+  verification. The WAN download phase is not yet accepted.
 
 ## Approved boundaries
 

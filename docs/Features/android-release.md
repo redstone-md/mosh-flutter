@@ -51,7 +51,9 @@ libraries without matching Mosh libraries; final package checks reject that case
 - exactly one ABI, including real Flutter, app, Rust and Moss libraries;
 - every native LOAD segment and the APK ZIP support 16 KiB page alignment;
 - JNI Zero's native-only Java entry points and exact method signatures survive
-  shrinking in the final DEX, including `JniZero.init` and `CommonApis` callbacks.
+  shrinking in the final DEX, including `JniZero.init` and `CommonApis` callbacks;
+- Mosh's initialization, network-change and transfer-execution JNI signatures
+  match the exported entry points in the packaged Rust library.
 
 The matching WebRTC JAR includes JNI Zero without Chromium's consumer keep
 rules. The application therefore preserves
