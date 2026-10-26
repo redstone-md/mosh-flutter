@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 pub(crate) mod coordinator;
 pub(crate) mod cursor;
 pub(crate) mod fragment;
+pub(crate) mod journal;
 pub(crate) mod manifest;
 pub(crate) mod occurrence;
 pub(crate) mod slots;

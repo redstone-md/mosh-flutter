@@ -200,8 +200,23 @@ impl GroupSession {
                 channel_kind: &self.control_channel,
             })
             .map_err(PrivateGroupError::Codec)?;
-        let binding: Association = decode_json(&sender.payload)?;
-        if let Some(expected) = &binding.12 {
+        let (
+            domain,
+            version,
+            conversation,
+            mesh,
+            org,
+            group_id,
+            (prior_epoch, _prior_context_hash),
+            next_context,
+            commit_hash,
+            welcome_hash,
+            tree_hash,
+            admitted_key,
+            joiner_proof_hash,
+            _claimed_at,
+        ): Association = decode_json(&sender.payload)?;
+        if let Some(expected) = &joiner_proof_hash {
             let package = self
                 .pending_join_package
                 .as_ref()
@@ -221,20 +236,20 @@ impl GroupSession {
             }
         }
         let (group, epoch) = MlsSessionCrypto::admission_commit_header(&decode(commit)?)?;
-        if binding.0 != "mosh-history-admission-association-v1"
-            || binding.1 != 1
-            || binding.2 != self.deletions.context
-            || binding.3 != self.mesh_id
-            || binding.4 != self.org_pubkey
-            || binding.5 != hex::encode(&group)
+        if domain != "mosh-history-admission-association-v1"
+            || version != 1
+            || conversation != self.deletions.context
+            || mesh != self.mesh_id
+            || org != self.org_pubkey
+            || group_id != hex::encode(&group)
             || group != staged.context.group_id
-            || binding.6 .0 != epoch
+            || prior_epoch != epoch
             || epoch.checked_add(1) != Some(staged.context.epoch)
-            || binding.7 != (staged.context.epoch, staged.context.hash.clone())
-            || binding.8 != digest(commit)?
-            || binding.9 != digest(welcome)?
-            || binding.10 != digest(tree)?
-            || binding.11 != hex::encode(staged.next.signer_public())
+            || next_context != (staged.context.epoch, staged.context.hash.clone())
+            || commit_hash != digest(commit)?
+            || welcome_hash != digest(welcome)?
+            || tree_hash != digest(tree)?
+            || admitted_key != hex::encode(staged.next.signer_public())
             || sender.mls_signer != staged.author
             || (self.org_pubkey.is_some() && sender.peer_id != staged.author_identity)
         {

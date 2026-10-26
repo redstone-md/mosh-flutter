@@ -28,13 +28,28 @@ impl GroupSession {
                 channel_kind: &self.control_channel,
             })
             .map_err(PrivateGroupError::Codec)?;
-        let association: super::admission::Association = decode_json(&sender.payload)?;
-        if association.0 != "mosh-history-admission-association-v1"
-            || association.1 != 1
-            || association.2 != self.deletions.context
-            || association.3 != self.mesh_id
-            || association.4 != self.org_pubkey
-            || association.8 != hex::encode(Sha256::digest(decode(commit)?))
+        let (
+            domain,
+            version,
+            conversation,
+            mesh,
+            org,
+            _group_id,
+            _prior_context,
+            _next_context,
+            commit_hash,
+            _welcome_hash,
+            _tree_hash,
+            _admitted_key,
+            _joiner_proof_hash,
+            _claimed_at,
+        ): super::admission::Association = decode_json(&sender.payload)?;
+        if domain != "mosh-history-admission-association-v1"
+            || version != 1
+            || conversation != self.deletions.context
+            || mesh != self.mesh_id
+            || org != self.org_pubkey
+            || commit_hash != hex::encode(Sha256::digest(decode(commit)?))
         {
             return Err(PrivateGroupError::Codec(
                 "commit admission scope differs".into(),
@@ -86,18 +101,33 @@ pub(super) fn verified_association(
             channel_kind: &format!("{CONTROL_CHANNEL_PREFIX}{group}"),
         })
         .map_err(PrivateGroupError::Codec)?;
-    let binding: super::admission::Association = decode_json(&sender.payload)?;
+    let (
+        _domain,
+        _version,
+        conversation,
+        mesh,
+        org,
+        group_id,
+        prior_context,
+        next_context,
+        commit_hash,
+        _welcome_hash,
+        _tree_hash,
+        admitted_key,
+        _joiner_proof_hash,
+        _claimed_at,
+    ): super::admission::Association = decode_json(&sender.payload)?;
     if pending.conversation != format!("group:{group}")
-        || binding.2 != pending.conversation
-        || binding.3 != pending.mesh
-        || binding.4 != pending.org
-        || binding.5 != hex::encode(&staged.prior.group_id)
-        || binding.6 != (staged.prior.epoch, staged.prior.hash.clone())
-        || binding.7 != (staged.context.epoch, staged.context.hash.clone())
-        || binding.8 != hex::encode(Sha256::digest(commit))
+        || conversation != pending.conversation
+        || mesh != pending.mesh
+        || org != pending.org
+        || group_id != hex::encode(&staged.prior.group_id)
+        || prior_context != (staged.prior.epoch, staged.prior.hash.clone())
+        || next_context != (staged.context.epoch, staged.context.hash.clone())
+        || commit_hash != hex::encode(Sha256::digest(commit))
         || sender.mls_signer != staged.author
-        || prior.member_signers().contains(&binding.11)
-        || !staged.next.member_signers().contains(&binding.11)
+        || prior.member_signers().contains(&admitted_key)
+        || !staged.next.member_signers().contains(&admitted_key)
     {
         return Err(PrivateGroupError::Codec(
             "admission differs from own verified transition".into(),
@@ -107,7 +137,7 @@ pub(super) fn verified_association(
         key: format!(
             "group/{}/evidence/admission-association/{}",
             hex::encode(Sha256::digest(group.as_bytes())),
-            binding.8
+            commit_hash
         ),
         bytes: serde_json::to_vec(&pending).map_err(|e| PrivateGroupError::Codec(e.to_string()))?,
     }])
