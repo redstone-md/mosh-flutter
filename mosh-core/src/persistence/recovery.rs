@@ -59,6 +59,31 @@ impl Persistence {
             .transpose()
     }
 
+    pub(crate) fn group_evidence_page<R: DeserializeOwned>(
+        &self,
+        prefix: &str,
+    ) -> Result<Vec<R>, PersistenceError> {
+        let tx = self.db.begin_read().map_err(db_error)?;
+        let table = tx.open_table(GROUP_HISTORY_EVIDENCE).map_err(db_error)?;
+        let mut rows = Vec::new();
+        for row in table
+            .range(prefix..format!("{prefix}\u{10ffff}").as_str())
+            .map_err(db_error)?
+        {
+            if rows.len() == 32 {
+                return Err(PersistenceError::Json(
+                    "group interval budget exceeded".into(),
+                ));
+            }
+            let (_, bytes) = row.map_err(db_error)?;
+            rows.push(
+                serde_json::from_slice(&decrypt_blob(&self.dek, bytes.value())?)
+                    .map_err(json_error)?,
+            );
+        }
+        Ok(rows)
+    }
+
     pub(crate) fn recovery_state<R: DeserializeOwned>(
         &self,
         key: &str,

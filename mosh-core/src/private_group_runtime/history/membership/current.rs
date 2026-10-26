@@ -5,13 +5,30 @@ impl NativeCheckpoint {
     pub(in crate::private_group_runtime::history) fn reference(
         &self,
     ) -> Result<MembershipReference, PrivateGroupError> {
-        Ok(MembershipReference::VerifiedSinceCheckpointV1(
-            self.checkpoint.id()?,
+        Ok(self.canonical_reference.clone().unwrap_or(
+            MembershipReference::VerifiedSinceCheckpointV1(self.checkpoint.id()?),
         ))
     }
 
     pub(in crate::private_group_runtime::history) fn context(&self) -> &MlsHistoryContext {
         &self.checkpoint.context
+    }
+
+    pub(in crate::private_group_runtime::history) fn moss_key(&self) -> &str {
+        &self.checkpoint.moss_key
+    }
+
+    pub(in crate::private_group_runtime::history) fn mls_key(&self) -> &str {
+        &self.checkpoint.mls_key
+    }
+
+    pub(in crate::private_group_runtime::history) fn excludes_before_admission(
+        &self,
+        context: &MlsHistoryContext,
+    ) -> bool {
+        self.canonical_reference.is_some()
+            && context.group_id == self.checkpoint.context.group_id
+            && context.epoch < self.checkpoint.context.epoch
     }
 
     pub(in crate::private_group_runtime::history) fn verify_current(
@@ -66,6 +83,17 @@ impl NativeCheckpoint {
             ));
         }
         session.continuous_membership(&context.context, at, &context.mls_key)?;
+        if let Some((known, _)) = session.canonical_membership(at, &context.mls_key)? {
+            if self
+                .canonical_reference
+                .as_ref()
+                .is_some_and(|claimed| *claimed != known)
+            {
+                return Err(PrivateGroupError::Codec(
+                    "canonical admission differs from own branch".into(),
+                ));
+            }
+        }
         Ok(sender)
     }
 }

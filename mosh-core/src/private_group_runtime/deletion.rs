@@ -149,7 +149,10 @@ impl GroupSession {
         Ok(())
     }
 
-    fn publish_deletion(&mut self, message: &DeletionMessage) -> Result<(), PrivateGroupError> {
+    pub(super) fn publish_deletion(
+        &mut self,
+        message: &DeletionMessage,
+    ) -> Result<(), PrivateGroupError> {
         for message in
             crate::message_deletion::fragments::split(message).map_err(PrivateGroupError::Codec)?
         {

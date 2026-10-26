@@ -34,7 +34,9 @@ impl HolderVouchV1 {
         peer: &str,
     ) -> Result<Self, PrivateGroupError> {
         let member = session.validate_history_scope(recipient, peer)?;
-        recipient.membership.verify_at(session, &accepted.context)?;
+        let entitled = recipient
+            .entitled_at(session, &accepted.context)?
+            .ok_or(PrivateGroupError::NotReady)?;
         let receipt = accepted
             .receipt
             .as_ref()
@@ -55,7 +57,7 @@ impl HolderVouchV1 {
             recipient_mls_key: hex::encode(member.mls_signer),
             recipient_moss_key: member.peer_id,
             recipient_current_admission: instance.clone(),
-            recipient_entitled_admission: instance,
+            recipient_entitled_admission: entitled.reference()?,
             holder_current_head: session.current_history_head()?,
             holder_mls_key: hex::encode(session.crypto.signer_public()),
             holder_moss_key: session.device_fingerprint.clone(),
@@ -94,7 +96,12 @@ impl HolderVouchV1 {
             || self.recipient_mls_key != hex::encode(session.crypto.signer_public())
             || self.recipient_moss_key != session.device_fingerprint
             || self.recipient_current_admission != own.membership.reference()?
-            || self.recipient_entitled_admission != own.membership.reference()?
+            || Some(&self.recipient_entitled_admission)
+                != own
+                    .entitled_at(session, &accepted.context)?
+                    .map(|member| member.reference())
+                    .transpose()?
+                    .as_ref()
             || Some(&self.author_admission_instance) != accepted.author_admission_instance.as_ref()
             || self.acceptance_evidence_hash
                 != accepted
@@ -107,8 +114,6 @@ impl HolderVouchV1 {
                 "holder vouch entitlement differs".into(),
             ));
         }
-        own.membership
-            .verify_at(session, &self.historical_context)?;
         let input = self.input()?;
         crate::signature_verification::verify(&self.holder_mls_key, &self.mls_signature, &input)
             .map_err(PrivateGroupError::Codec)?;

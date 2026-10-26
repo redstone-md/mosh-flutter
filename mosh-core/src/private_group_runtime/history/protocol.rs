@@ -10,19 +10,27 @@ use sha2::{Digest, Sha256};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(in crate::private_group_runtime) struct CurrentHead {
-    pub(super) context: MlsHistoryContext,
-    pub(super) org_roster_version: Option<u64>,
-    pub(super) org_roster_hash: Option<String>,
+    pub(in crate::private_group_runtime) context: MlsHistoryContext,
+    pub(in crate::private_group_runtime) org_roster_version: Option<u64>,
+    pub(in crate::private_group_runtime) org_roster_hash: Option<String>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub(super) struct GroupScope {
     pub(super) head: CurrentHead,
     pub(super) membership: NativeCheckpoint,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) previous_memberships: Vec<NativeCheckpoint>,
 }
 #[derive(Serialize, Deserialize)]
 pub(super) struct GroupBody {
     pub(super) scope: GroupScope,
     pub(super) message: HistoryMessage<super::records::GroupRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) evidence: Option<super::transition_exchange::EvidenceMessage>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) partial_digest: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub(super) erased_fragment: bool,
 }
 #[derive(Serialize, Deserialize)]
 pub(super) struct DirectedHistory {
@@ -56,6 +64,38 @@ impl GroupSession {
     }
 
     pub(super) fn own_history_scope(&mut self) -> Result<GroupScope, PrivateGroupError> {
+        let context = self.crypto.history_context()?;
+        let checkpoint = if let Some((_, checkpoint)) = self
+            .history_membership
+            .as_ref()
+            .filter(|(head, _)| *head == context)
+        {
+            checkpoint.clone()
+        } else {
+            self.persist_own_history_membership(&context)?
+        };
+        let previous_memberships = self.previous_history_memberships(&checkpoint)?;
+        let scope = GroupScope {
+            head: self.current_history_head()?,
+            membership: checkpoint,
+            previous_memberships,
+        };
+        if serde_json::to_vec(&scope)
+            .map_err(|e| PrivateGroupError::Codec(e.to_string()))?
+            .len()
+            > 20_000
+        {
+            return Err(PrivateGroupError::Codec(
+                "group interval proof budget exceeded".into(),
+            ));
+        }
+        Ok(scope)
+    }
+
+    fn persist_own_history_membership(
+        &mut self,
+        context: &MlsHistoryContext,
+    ) -> Result<NativeCheckpoint, PrivateGroupError> {
         let own = self.own_history_membership()?;
         if !own.writes.is_empty() {
             let store = self
@@ -73,10 +113,8 @@ impl GroupSession {
                 &[],
             )?;
         }
-        Ok(GroupScope {
-            head: self.current_history_head()?,
-            membership: own.checkpoint,
-        })
+        self.history_membership = Some((context.clone(), own.checkpoint.clone()));
+        Ok(own.checkpoint)
     }
 
     pub(super) fn validate_history_scope(

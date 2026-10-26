@@ -84,6 +84,10 @@ pub(super) struct GroupSession {
     pub(super) recovery: crate::conversation::recovery::coordinator::Coordinator,
     pub(super) history_dispatch: crate::conversation::recovery::transport::DispatchGeneration,
     pub(super) history_head: Option<super::history::CurrentHead>,
+    pub(super) history_membership: Option<(
+        crate::mls_crypto::MlsHistoryContext,
+        super::history::NativeCheckpoint,
+    )>,
     // Epoch-ordered commit admission: dedups gossip duplicates and the
     // joiner's Welcome-carried admission commit, buffers out-of-order commits,
     // reports gaps for resync. Unbounded like its predecessor set — commits
@@ -179,6 +183,7 @@ impl GroupSession {
             recovery: Default::default(),
             history_dispatch: Default::default(),
             history_head: None,
+            history_membership: None,
             sequencer: CommitSequencer::new(),
             needs_rejoin: false,
             publications: HashMap::new(),

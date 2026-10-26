@@ -6,10 +6,10 @@ receiving, saving, or recovering a group message. An available ordinary member
 can supply its retained text and attachment offers while the original author
 and administrator are offline. This work is part of IVO-142/143 under IVO-132.
 
-The current implementation checkpoint covers recovery at a shared verified
-membership head. Membership-gap evidence exchange, canonical admission-instance
-selection and removal/rejoin scenarios remain in progress; this checkpoint is
-not acceptance of the whole Android specification.
+Recovery covers a shared verified membership head, missing membership commits,
+canonical admission instances, and retained removal/rejoin intervals. Native
+software verification is separate from Android OS/device acceptance and public
+network discovery latency; it is not acceptance of the whole Android specification.
 
 ## Original evidence and storage
 
@@ -45,17 +45,41 @@ approved exact admission-association tuple, and saves its own next snapshot and
 original association and exact targeted Welcome/Commit wire payloads before
 publishing. A repeated original KeyPackage replays those accepted bytes, including
 its original target, without another Add or epoch change. Pending joins retry the
-same package with a 3–60 second backoff, so discovery warming or a lost Welcome
-cannot strand an accepted join. Unverified future associations have a separate
+same package with a 3–60 second backoff. A missing room path keeps a bounded
+three-second retry cadence, and a newly usable discovery path wakes a pending
+join. Successful Welcome replay is throttled to three seconds. These retries
+reuse the accepted bytes without advancing the epoch. Unverified future associations have a separate
 32-entry/1 MiB budget and are indexed by commit and claimed full signer. Welcome checks the
 actual pinned author, group, next context, commit header, original byte hashes
 and own joiner proof. An invalid supplied association refuses admission; absence
 preserves legacy live compatibility without manufacturing the missing proof.
 
-Original native membership checkpoints are explicitly typed
-`verified_since_checkpoint_v1`; they never impersonate an original Add. Native
-transitions retain the verified own branch and full member keys. Missing or
-conflicting branches remain waiting rather than rolling the local state back.
+Admission references distinguish a native genesis, an exact verified Add/replace,
+and `verified_since_checkpoint_v1` for older installations without an original
+Add proof. Canonical references bind the exact group, original commit hash and
+full admitted MLS key. Copying a display name or old reference does not establish
+an entitlement. The current full MLS/Moss proof also authenticates retained old
+intervals from the same installation's Moss identity. At most 32 checkpoints and
+20 KiB of scope evidence are accepted. A later rejoin preserves known earlier
+rights, excludes the verified absence interval, and does not reveal prejoin
+messages. Missing evidence remains visibly incomplete.
+
+A member missing commits can ask an available holder for the original encrypted
+commits. Each record is bounded to 256 KiB, carried in 3,000-byte fragments, and
+limited to 4,096 epochs ahead. The receiver stages every commit through its own
+OpenMLS state, compares the actual branch, and commits its own next snapshot,
+verified transition, and recovery head atomically. It never installs another
+member's ratchet. Source and target changes cannot combine unrelated fragments.
+Original organization signatures and verified roster authority survive relay;
+current roster authorization is checked again in the storage transaction.
+Removal and revocation use the same durable transition boundary.
+
+Deletion excludes content from new manifests. For an already frozen manifest,
+an erased slot retains only its authenticated origin and record hash, and needs
+the original verified deletion before the receiver advances. If deletion replaces
+a partially transferred large row, that slot restarts once with its new digest;
+subsequent fragments continue normally. Deleted body or attachment keys do not
+return through recovery.
 
 ## Transport and verification
 
@@ -67,20 +91,26 @@ recipient. There is no group-key room fallback for historical content.
 
 `private_group_history_flow` exercises independent real bridge installations:
 ordinary-holder recovery with original author offline and holder restart,
-and original attachment offers without downloads. The explicit network acceptance
+original attachment offers without downloads, missing commit replay through an
+ordinary member, prejoin exclusion, removal/rejoin interval selection, and
+erasure during recovery. The explicit network acceptance
 case for native receipt/import notifications without UI polling requires a real
 signed reachable Waiting carrier and checks native readiness before sending;
 loopback NAT absence is reported unavailable and never counted as delivery.
 Native durability cases cover original proof retention, ratchet/snapshot refusal,
-published-row evidence and atomic outbound retirement. These are software
+published-row evidence, atomic outbound retirement, tampered admission bindings,
+changed interval/recipient/head proofs, organization authority, and notification
+queue refusal/retry before UI polling. These are software
 checks; real Android OS/device acceptance remains separate.
 
 The existing runtime/session size exceptions remain. New files stay below 400
 lines. The following recovery operations retain their entire bounded validation
-or transaction sequence in one function (51–84 physical lines): `save_history`,
+or transaction sequence in one function (51–100 physical lines): `save_history`,
 `persist_own_admission`, `verify_admission_association`, `import_history_journal`,
 `continuous_membership`, `import_history`, `imported_history_row`,
 `retained_history_record`, `GroupRecord::key`, `history_answer`,
-`write_publication`, `persist_received` and `own_history_membership`.
+`write_publication`, `persist_received`, `own_history_membership`,
+`install_transition_evidence`, `history_content_page`, and
+`publish_membership_change`.
 The ordered real-process scenarios likewise retain setup, action and observable
 assertions together. These exceptions do not increase wire or allocation bounds.

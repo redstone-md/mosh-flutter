@@ -132,6 +132,8 @@ impl GroupSession {
             "group/{}",
             hex::encode(Sha256::digest(self.group_id.as_bytes()))
         );
+        let cached: super::welcome::AdmissionReplay = decode_json(&replay.bytes)?;
+        let authority = self.original_transition_authority(cached.original_commit());
         let mut evidence = vec![
             replay,
             EvidenceWrite {
@@ -154,17 +156,20 @@ impl GroupSession {
                 bytes,
             });
         }
-        evidence.push(super::transitions::transition_write(
-            super::transitions::TransitionState {
-                previous: &self.crypto,
-                next: candidate,
-                prior: &prior,
-                context: &next,
-                author: &self.crypto.signer_public(),
-                removed: false,
-            },
-            &self.group_id,
-            &outcome.commit_bytes,
+        evidence.push(super::authority::attach(
+            super::transitions::transition_write(
+                super::transitions::TransitionState {
+                    previous: &self.crypto,
+                    next: candidate,
+                    prior: &prior,
+                    context: &next,
+                    author: &self.crypto.signer_public(),
+                    removed: false,
+                },
+                &self.group_id,
+                &outcome.commit_bytes,
+            )?,
+            authority,
         )?);
         store.commit_history_admission::<GroupMessage>(
             GROUP_HISTORY,

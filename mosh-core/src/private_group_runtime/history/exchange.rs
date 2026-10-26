@@ -53,6 +53,38 @@ impl GroupSession {
         permit: transport::DispatchPermit,
     ) -> Result<(), PrivateGroupError> {
         let scope = self.own_history_scope()?;
+        let partial_digest = matches!(&message, HistoryMessage::Pull(pull) if !pull.journal)
+            .then(|| {
+                self.recovery
+                    .checkpoint
+                    .partial
+                    .as_ref()
+                    .map(|partial| partial.digest().to_string())
+            })
+            .flatten();
+        self.dispatch_history_body(
+            recipient,
+            request_id,
+            round,
+            GroupBody {
+                scope,
+                message,
+                evidence: None,
+                partial_digest,
+                erased_fragment: false,
+            },
+            permit,
+        )
+    }
+
+    pub(super) fn dispatch_history_body(
+        &mut self,
+        recipient: Option<String>,
+        request_id: String,
+        round: u64,
+        body: GroupBody,
+        permit: transport::DispatchPermit,
+    ) -> Result<(), PrivateGroupError> {
         let mut frame = HistoryFrame {
             version: 1,
             conversation: self.deletions.context.clone(),
@@ -70,7 +102,7 @@ impl GroupSession {
                 self.node
                     .identity_signer()
                     .map_err(|e| PrivateGroupError::Moss(e.to_string()))?,
-                &GroupBody { scope, message },
+                &body,
             )
             .map_err(PrivateGroupError::Codec)?;
         let envelope = ControlEnvelope::History {

@@ -8,6 +8,14 @@ use sha2::{Digest, Sha256};
 pub(in crate::private_group_runtime) struct AdmissionReplay {
     welcome: Vec<u8>,
     commit: Vec<u8>,
+    #[serde(skip)]
+    last_replay: Option<std::time::Instant>,
+}
+
+impl AdmissionReplay {
+    pub(super) fn original_commit(&self) -> &[u8] {
+        &self.commit
+    }
 }
 
 impl GroupSession {
@@ -45,6 +53,7 @@ impl GroupSession {
         Ok(AdmissionReplay {
             welcome: payload(&welcome)?,
             commit: payload(&commit)?,
+            last_replay: None,
         })
     }
 
@@ -62,25 +71,34 @@ impl GroupSession {
         replay: AdmissionReplay,
     ) {
         // A persistence-free runtime has the same retry behavior with bounded RAM.
-        if self.admission_replays.len() >= 32 {
+        if !self.admission_replays.contains_key(&key) && self.admission_replays.len() >= 32 {
             self.admission_replays.pop_first();
         }
         self.admission_replays.insert(key, replay);
     }
 
     pub(in crate::private_group_runtime) fn replay_admission(
-        &self,
+        &mut self,
         package: &[u8],
     ) -> Result<(), PrivateGroupError> {
         let key = self.admission_replay_key(package);
-        let saved = self
-            .persistence
-            .as_ref()
-            .map(|store| store.group_history_evidence::<AdmissionReplay>(&key))
-            .transpose()?
-            .flatten();
-        if let Some(saved) = saved.as_ref().or_else(|| self.admission_replays.get(&key)) {
-            self.publish_admission_replay(saved)?;
+        let saved = if let Some(saved) = self.admission_replays.get(&key) {
+            Some(saved.clone())
+        } else if let Some(store) = &self.persistence {
+            store.group_history_evidence::<AdmissionReplay>(&key)?
+        } else {
+            None
+        };
+        if let Some(mut saved) = saved {
+            if saved
+                .last_replay
+                .is_some_and(|last| last.elapsed().as_secs() < 3)
+            {
+                return Ok(());
+            }
+            self.publish_admission_replay(&saved)?;
+            saved.last_replay = Some(std::time::Instant::now());
+            self.retain_admission_replay(key, saved);
         }
         Ok(())
     }

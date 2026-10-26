@@ -283,9 +283,11 @@ impl GroupSession {
             .filter(|identity| !roster.members.iter().any(|m| m.moss_peer_id == *identity))
             .collect();
         for peer_id in revoked {
-            let own_fp = self.crypto.fingerprint();
-            let pre_epoch = self.crypto.epoch();
-            let commit_bytes = match self.crypto.remove_members_by_identity(&peer_id) {
+            let mut candidate = match self.crypto.receive_candidate() {
+                Ok(candidate) => candidate,
+                Err(_) => continue,
+            };
+            let commit_bytes = match candidate.remove_members_by_identity(&peer_id) {
                 Ok(bytes) => bytes,
                 Err(error) => {
                     dlog::write(
@@ -297,17 +299,7 @@ impl GroupSession {
                     continue;
                 }
             };
-            if let Some(epoch) = pre_epoch {
-                self.log_commit(epoch, &commit_bytes);
-            }
-            let commit_envelope = ControlEnvelope::Commit {
-                admission_binding: None,
-                group_id: self.group_id.clone(),
-                from_fingerprint: own_fp,
-                commit_b64: encode(&commit_bytes),
-                roster_version: Some(roster.version),
-            };
-            if let Err(error) = self.publish_control(&commit_envelope) {
+            if let Err(error) = self.publish_membership_change(candidate, commit_bytes) {
                 dlog::write(
                     LogLevel::Error,
                     kinds::KICK,

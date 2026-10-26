@@ -37,7 +37,16 @@ fn a_repeated_key_package_replays_welcome_without_another_add() {
     drop(fault);
     assert_eq!(session.crypto.epoch(), epoch);
     assert_eq!(session.crypto.snapshot(), accepted);
+    session.handle_control(payload.clone(), None).unwrap();
+    let fault = fail_next_test_publish_on(&session.control_channel, "bounded replay publication");
     session.handle_control(payload, None).unwrap();
+    assert!(session
+        .node
+        .publish_room(&session.mesh_id, &session.control_channel, b"{}")
+        .unwrap_err()
+        .to_string()
+        .contains("bounded replay publication"));
+    drop(fault);
     assert_eq!(session.crypto.member_count(), 2);
     assert_eq!(session.crypto.epoch(), epoch);
 }
