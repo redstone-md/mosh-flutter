@@ -111,13 +111,8 @@ void main(List<String> args) async {
   // a build DSN; never throws.
   final crashReporting = CrashReporting(bridge: BridgeFacade());
   unawaited(crashReporting.resume());
-  // M-3 (ADR 0011): on Android, load/mint the at-rest history DEK from the
-  // Keystore via `flutter_secure_storage` and inject the 32 raw bytes into
-  // Rust via the frb `set_history_dek` BEFORE the runtime constructs
-  // (`Persistence::open_with_dek` instead of the OS keychain). Desktop/iOS
-  // keep the Rust desktop keychain path: initMobileDek is a no-op
-  // off-Android, so startup is never blocked on desktop.
-  //
+  // Load the native background DEK or migrate the original wrapping before
+  // constructing history. Only missing wrapping waits for a resumed Activity.
   // Subscribe to the `mosh://` link stream BEFORE runApp so the cold-start
   // initial link is captured (app_links delivers it just after the first
   // frame; the intake replays it once the GoRouter is mounted). Single
@@ -148,72 +143,61 @@ void main(List<String> args) async {
       ),
     ),
   );
-  // M-8 (ADR 0011): run the Android DEK init behind try/on PlatformException
-  // so a biometric cancel (which makes `flutter_secure_storage`'s `read()`
-  // throw from BiometricPrompt) does NOT crash main() and leave the splash
-  // placeholder on screen. On cancel we run a MoshLockScreen (fail-closed
-  // retry UI) instead; on success, MoshApp. ONLY PlatformException is
-  // caught: a real DEK error (the fail-closed StateError when the Keystore
-  // has no DEK, corrupt Keystore / wrong-length DEK) still propagates and
-  // crashes main() as today (ADR 0011 fail-closed). Desktop/iOS are
-  // unaffected -- initMobileDek is a no-op off-Android. Not `final`: the
-  // analyzer's definite-assignment rule is conservative about the try/catch
-  // re-assigning `root`.
-  Widget root;
+  final Widget root;
   if (Platform.isAndroid) {
-    // Foreground guard: do NOT touch the Android Keystore (via
-    // `flutter_secure_storage`) until the app is foreground
-    // (`AppLifecycleState.resumed`). When Android relaunches mosh in the
-    // BACKGROUND on a LOCKED device, `flutter_secure_storage` 10.3.1
-    // enters infinite recursion in its key-mismatch recovery path
-    // (handleKeyMismatch -> ... -> initializeStorageCipher), ending in
-    // StackOverflowError FATAL, which wipes the Keystore DEK and orphans
-    // `history.redb` (DB exists, DEK gone -> the fail-closed StateError
-    // blocks onboarding). On a normal foreground launch
-    // `initializeStorageCipher` succeeds and the recursion never starts; a
-    // locked-device background relaunch never fires `resumed`, so the
-    // Keystore is never called -- no StackOverflow, by design. `runApp`
-    // already ran above with the splash placeholder, so this await does
-    // NOT block the first frame.
-    await gate.waitUntilResumed();
-    try {
-      await initMobileDek();
-      await appAccess!.initialize();
-      root = MoshApp(relauncher: relauncher);
-    } on PlatformException catch (error) {
-      // Two failure modes collapse into this one PlatformException catch:
-      // (1) a biometric CANCEL (prompt dismissed) -- recoverable by
-      // re-prompting, so the lock screen's `canceled` state with a Retry
-      // button is correct; (2) `BIOMETRIC_UNAVAILABLE` -- the device has
-      // NO enrolled PIN/pattern/password/biometric, so re-prompting cannot
-      // mint a Keystore key. Distinguishing them avoids the prior hang:
-      // without branching, the default `initialState` (`authenticating`,
-      // the spinner shown only while a retry is in flight) left the lock
-      // screen on the spinner forever -- no Retry button, no message. The
-      // message match is the only field `flutter_secure_storage` surfaces
-      // for this case (verified on device).
-      final bool insecureDevice =
-          error.message?.contains('BIOMETRIC_UNAVAILABLE') ?? false;
-      await appAccess!.initialize();
-      root = MoshLockApp(
-          screen: MoshLockScreen(
-        retry: () async {
-          await initMobileDek();
-          await appAccess.initialize();
-        },
-        swapTo: (Widget next) => _appRoot.value = next,
-        nextApp: MoshApp(relauncher: relauncher),
-        initialState: insecureDevice
-            ? LockState.insecureDevice
-            : error.code == 'ACCESS_STATE_UNAVAILABLE'
-                ? LockState.failed
-                : LockState.canceled,
-      ));
-    }
+    root = await _androidStartupRoot(
+      access: appAccess!,
+      gate: gate,
+      relauncher: relauncher,
+    );
   } else {
     root = MoshApp(relauncher: relauncher, windowController: windowController);
   }
   _appRoot.value = root;
+}
+
+/// Background wrapping loads before any foreground wait. Only an absent wrapping
+/// enters legacy migration; key failures stay visible without opening history.
+Future<Widget> _androidStartupRoot({
+  required AndroidAppAccess access,
+  required LifecycleGate gate,
+  required DesktopAppRelauncher relauncher,
+}) async {
+  Future<void> initialize({bool repair = false}) async {
+    if (repair) {
+      await recoverMobileDek();
+    } else {
+      await initMobileDek(waitForForeground: gate.waitUntilResumed);
+    }
+    // Key loading/migration/repair never grants interactive chat access.
+    await access.initialize();
+  }
+
+  try {
+    await initialize();
+    return MoshApp(relauncher: relauncher);
+  } catch (error) {
+    await access.initialize();
+    final platform = error is PlatformException ? error : null;
+    final repair = const {
+      'DEK_KEY_MISSING',
+      'DEK_KEY_INVALID',
+      'DEK_ENVELOPE_INVALID',
+    }.contains(platform?.code);
+    final insecure =
+        platform?.message?.contains('BIOMETRIC_UNAVAILABLE') ?? false;
+    return MoshLockApp(
+        screen: MoshLockScreen(
+      retry: () => initialize(repair: repair),
+      swapTo: (next) => _appRoot.value = next,
+      nextApp: MoshApp(relauncher: relauncher),
+      initialState: insecure
+          ? LockState.insecureDevice
+          : platform?.code == 'DEK_FOREGROUND_REQUIRED'
+              ? LockState.canceled
+              : LockState.failed,
+    ));
+  }
 }
 
 /// The running app's root widget. Defaults to `const SizedBox()` (the
@@ -224,7 +208,7 @@ void main(List<String> args) async {
 /// callback, under the single `ProviderScope`, without a second `runApp`.
 final ValueNotifier<Widget> _appRoot = ValueNotifier<Widget>(const SizedBox());
 
-/// Foreground gate for the Android Keystore init (ADR 0011 follow-on).
+/// Foreground gate for the retained legacy reader during Android DEK migration.
 ///
 /// Completes a `Future` on the first observed `AppLifecycleState.resumed`,
 /// so `main()` can `await` it before touching `flutter_secure_storage` —
