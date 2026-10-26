@@ -1,4 +1,5 @@
 //! Protected native receive facts. These are not remotely accepted receipts.
+use super::membership::MembershipReference;
 use super::*;
 use crate::conversation::recovery::GroupAcceptanceBasis;
 use crate::mls_crypto::MlsHistoryContext;
@@ -14,7 +15,7 @@ pub(in crate::private_group_runtime) struct NativeAcceptance {
     pub(in crate::private_group_runtime) original_author_moss_key: String,
     pub(in crate::private_group_runtime) origin: Option<crate::message_deletion::MessageOrigin>,
     pub(in crate::private_group_runtime) context: MlsHistoryContext,
-    pub(in crate::private_group_runtime) author_admission_instance: Option<String>,
+    pub(in crate::private_group_runtime) author_admission_instance: Option<MembershipReference>,
     original_org_roster_b64: Option<String>,
     basis: GroupAcceptanceBasis,
 }
@@ -33,22 +34,27 @@ impl NativeAcceptance {
         message: &GroupMessage,
         sender: &VerifiedSender,
         proof: &[u8],
-    ) -> Result<Self, PrivateGroupError> {
-        Ok(Self {
-            record_hash: text_record_hash(session, message, sender)?,
-            original_sender_proof_b64: encode(proof),
-            original_author_mls_key: hex::encode(&sender.mls_signer),
-            original_author_moss_key: sender.peer_id.clone(),
-            origin: message.metadata.as_ref().and_then(|m| m.origin.clone()),
-            context: session.crypto.history_context()?,
-            // A current tree does not reveal its original Add commit. A later
-            // verified admission binding may supply it; never synthesize one.
-            author_admission_instance: None,
-            original_org_roster_b64: session
-                .org_history_guard(&sender.peer_id, false)?
-                .map(|guard| encode(guard.roster_bytes)),
-            basis: GroupAcceptanceBasis::LiveAuthenticated,
-        })
+    ) -> Result<(Self, Vec<EvidenceWrite>), PrivateGroupError> {
+        let (admission, writes) =
+            session.native_membership_checkpoint(sender, proof, &session.data_channel)?;
+        Ok((
+            Self {
+                record_hash: text_record_hash(session, message, sender)?,
+                original_sender_proof_b64: encode(proof),
+                original_author_mls_key: hex::encode(&sender.mls_signer),
+                original_author_moss_key: sender.peer_id.clone(),
+                origin: message.metadata.as_ref().and_then(|m| m.origin.clone()),
+                context: session.crypto.history_context()?,
+                // A verified-since checkpoint is explicitly distinct from a
+                // missing canonical Add; it never grants earlier entitlement.
+                author_admission_instance: admission,
+                original_org_roster_b64: session
+                    .org_history_guard(&sender.peer_id, false)?
+                    .map(|guard| encode(guard.roster_bytes)),
+                basis: GroupAcceptanceBasis::LiveAuthenticated,
+            },
+            writes,
+        ))
     }
 
     pub(super) fn first_write(

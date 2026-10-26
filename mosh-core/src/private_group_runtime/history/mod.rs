@@ -8,6 +8,7 @@ use crate::sender_auth::VerifiedSender;
 
 mod anchors;
 mod evidence;
+mod membership;
 mod transitions;
 pub(super) use evidence::{native_acceptance_key, NativeAcceptance};
 pub(super) use transitions::persist_membership;
@@ -23,16 +24,17 @@ impl GroupSession {
         let Some(store) = self.persistence.as_deref() else {
             return Ok(());
         };
-        let accepted = NativeAcceptance::text(self, message, sender, original_proof)?;
+        let (accepted, mut evidence) =
+            NativeAcceptance::text(self, message, sender, original_proof)?;
         let already_held = self.messages.holds_copy_of(message);
-        let evidence = accepted.first_write(
+        evidence.extend(accepted.first_write(
             store,
             native_acceptance_key(
                 &self.group_id,
                 message.message_id.as_deref().unwrap_or_default(),
             ),
             already_held,
-        )?;
+        )?);
         let rows = if already_held {
             Vec::new()
         } else {

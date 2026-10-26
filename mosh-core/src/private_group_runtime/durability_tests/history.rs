@@ -80,9 +80,25 @@ fn native_acceptance_retains_the_exact_original_sender_proof_across_restart() {
         org_signing::peer_id_hex(&identity)
     );
     assert_eq!(accepted.context, sender.history_context().unwrap());
-    assert!(
-        accepted.author_admission_instance.is_none(),
-        "an unknown Add binding cannot be manufactured"
+    let reference =
+        serde_json::to_value(accepted.author_admission_instance.as_ref().unwrap()).unwrap();
+    let checkpoint_id = reference["verified_since_checkpoint_v1"]
+        .as_str()
+        .expect("a typed checkpoint cannot masquerade as an Add admission");
+    use sha2::{Digest, Sha256};
+    let checkpoint_key = format!(
+        "group/{}/evidence/membership/{checkpoint_id}",
+        hex::encode(Sha256::digest(fixture.id.as_bytes()))
+    );
+    let checkpoint: serde_json::Value = fixture
+        .store
+        .group_history_evidence(&checkpoint_key)
+        .unwrap()
+        .unwrap();
+    assert_eq!(checkpoint["checkpoint"]["context"]["epoch"], 1);
+    assert_eq!(
+        checkpoint["original_binding_proof_b64"],
+        encode(&original_proof)
     );
     let saved = fixture.runtime.poll(&fixture.id).unwrap();
     assert_eq!(
