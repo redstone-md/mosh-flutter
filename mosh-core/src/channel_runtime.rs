@@ -325,6 +325,7 @@ impl ConversationSession for ChannelSession {
 
 // The session's own machinery: message handling and the blob topic.
 // Both are `impl ChannelSession` on the same struct.
+mod background;
 mod blob;
 mod deletion;
 mod history;

@@ -12,6 +12,17 @@ use crate::channel_runtime::{
 
 static RUNTIME: RuntimeOwner<ChannelRuntime> = RuntimeOwner::new("channel");
 
+pub(crate) fn background_work() -> Result<(u32, u32), String> {
+    let Some(runtime) = RUNTIME.initialized() else {
+        return Ok((0, 0));
+    };
+    runtime
+        .lock()
+        .map_err(|_| "channel runtime lock poisoned".to_owned())?
+        .background_work()
+        .map_err(|error| error.to_string())
+}
+
 pub(crate) fn ensure_runtime(
 ) -> Result<MutexGuard<'static, ChannelRuntime>, ConversationBridgeError> {
     RUNTIME.lock(construct_runtime)
