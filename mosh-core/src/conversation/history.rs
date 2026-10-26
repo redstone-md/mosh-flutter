@@ -16,7 +16,7 @@
 use std::collections::HashMap;
 
 #[path = "history_background.rs"]
-mod background;
+pub(crate) mod background;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};

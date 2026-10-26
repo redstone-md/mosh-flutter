@@ -28,6 +28,11 @@ pub(crate) fn ensure_runtime(
     RUNTIME.lock(construct_runtime)
 }
 
+pub(crate) fn ensure_background_runtime() -> Result<(), String> {
+    drop(ensure_runtime().map_err(|error| error.to_string())?);
+    Ok(())
+}
+
 fn construct_runtime() -> Result<ChannelRuntime, ChannelRuntimeError> {
     let resources =
         crate::api::shared_runtime::ensure_shared_resources().map_err(ChannelRuntimeError::Moss)?;
@@ -39,6 +44,10 @@ fn construct_runtime() -> Result<ChannelRuntime, ChannelRuntimeError> {
     // Rehydrate saved channels from the encrypted store; with persistence
     // wired it rebuilds joined channels + their tails.
     runtime.rehydrate();
+    RUNTIME.start_service(
+        std::time::Duration::from_millis(500),
+        ChannelRuntime::service,
+    );
     Ok(runtime)
 }
 

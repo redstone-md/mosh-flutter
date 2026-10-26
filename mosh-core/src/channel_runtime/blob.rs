@@ -71,12 +71,20 @@ impl ChannelSession {
             }
         }
         let message_id = origin.as_ref().map(|o| o.id.clone());
+        let is_own = origin
+            .as_ref()
+            .map(|origin| {
+                self.deletion_authority()
+                    .map(|authority| authority.is_author(origin))
+            })
+            .transpose()?;
         let Some(descriptor) = self.transfer.accept_offer(offer)? else {
             return Ok(());
         };
         let message = self.messages.stamp(ChannelMessage {
             metadata: origin.map(|origin| crate::message_deletion::MessageMetadata {
                 origin: Some(origin),
+                is_own,
                 ..Default::default()
             }),
             from_device,

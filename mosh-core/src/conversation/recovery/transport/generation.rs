@@ -41,13 +41,17 @@ impl DispatchPermit {
     pub(super) fn is_current(&self) -> bool {
         let execution = EXECUTION.lock().unwrap_or_else(|p| p.into_inner());
         let generation = self.owner.lock().unwrap_or_else(|p| p.into_inner());
-        *generation == self.owner_generation && execution.generation == self.execution_generation
+        *generation == self.owner_generation
+            && execution.generation == self.execution_generation
+            && crate::api::background::history_execution_allowed()
     }
 
     pub(super) fn claim(&self) -> Option<ActiveSend> {
         let mut execution = EXECUTION.lock().unwrap_or_else(|p| p.into_inner());
         let generation = self.owner.lock().unwrap_or_else(|p| p.into_inner());
-        if *generation != self.owner_generation || execution.generation != self.execution_generation
+        if *generation != self.owner_generation
+            || execution.generation != self.execution_generation
+            || !crate::api::background::history_execution_allowed()
         {
             return None;
         }
