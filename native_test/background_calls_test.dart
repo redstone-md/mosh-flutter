@@ -35,6 +35,7 @@ class _Host {
   var refuseMessages = false;
   var refuseCalls = false;
   var interactive = true, waitingEnabled = false;
+  var callInteractive = true;
 
   Future<void> start() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -55,6 +56,7 @@ class _Host {
         'revision': ++revision,
         'intentRevision': 1,
         'interactive': interactive,
+        'callInteractive': callInteractive,
         'waitingEnabled': waitingEnabled,
         'serviceRunning': waitingEnabled,
         'setupComplete': true,
@@ -86,10 +88,15 @@ class _Host {
     await installation
         .ask({'action': 'dm_accept', 'argument': invite.inviteUri});
     final deadline = DateTime.now().add(const Duration(seconds: 50));
-    while ((await dm.pollSession(sessionId: id)).state !=
-        DmSessionState.connected) {
+    while (true) {
+      final local = await dm.pollSession(sessionId: id);
+      final remote =
+          await installation.ask({'action': 'dm_poll', 'argument': id});
+      if (local.state == DmSessionState.connected &&
+          remote['state'] == 'connected') break;
       if (DateTime.now().isAfter(deadline)) {
-        throw StateError('Call peers did not connect');
+        throw StateError(
+            'Call peers did not connect: ${local.state}, ${remote['state']}');
       }
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
@@ -227,6 +234,12 @@ void main() {
     expect(incoming['id'], startsWith('background-call-'));
     expect(incoming.containsKey('sessionId'), false);
     expect(incoming.containsKey('callId'), false);
+    host.interactive = false;
+    host.waitingEnabled = true;
+    await host.platform.refresh();
+    await host.owner.refresh();
+    expect(host.owner.platform.state!.interactive, false);
+    expect(host.owner.platform.state!.callInteractive, true);
     final accepted = Completer<void>();
     host.owner.calls.onAnswer = (session, call) async {
       await dm.callAccept(sessionId: session, callId: call);

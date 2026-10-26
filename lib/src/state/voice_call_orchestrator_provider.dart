@@ -211,10 +211,10 @@ class VoiceCallOrchestratorNotifier
   Future<bool> _permitAnswer() async {
     final waiting = ref.read(androidWaitingOwnerProvider);
     if (waiting == null) return true;
-    if (waiting.platform.state?.interactive != true) return false;
+    if (waiting.platform.state?.callInteractive != true) return false;
     final native = ref.read(nativeCallOwnerProvider);
     if (native == null || !await native.requestMicrophone()) return false;
-    return ref.mounted && waiting.platform.state?.interactive == true;
+    return ref.mounted && waiting.platform.state?.callInteractive == true;
   }
 
   Future<void> declineCall(String id, String reason) {

@@ -36,9 +36,11 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
     this.video,
     this.onMinimize,
     this.floating = false,
+    this.peerOverride,
   });
 
   final String sessionId;
+  final String? peerOverride;
   final AppLocalizations l;
   final void Function(String? message)? onVoiceCallError;
   final VoidCallback? onOpenConversation;
@@ -91,6 +93,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
       widget.sessionId,
       dialog,
       fallback: widget.l.callPeerFallback,
+      peerOverride: widget.peerOverride,
       muted: state.muted,
       media: state.nativeMedia == null
           ? null

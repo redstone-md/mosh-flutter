@@ -4,6 +4,7 @@ class AndroidWaitingState {
     required this.revision,
     required this.intentRevision,
     required this.interactive,
+    bool? callInteractive,
     required this.waitingEnabled,
     required this.serviceRunning,
     required this.setupComplete,
@@ -13,10 +14,11 @@ class AndroidWaitingState {
     required this.showNamesWhenLocked,
     required this.showTextWhenLocked,
     this.restriction,
-  });
+  }) : callInteractive = callInteractive ?? interactive;
 
   final int revision, intentRevision;
   final bool interactive, waitingEnabled, serviceRunning, setupComplete;
+  final bool callInteractive;
   final bool notificationsAllowed, batteryExempt, batteryExemptionOffered;
   final bool showNamesWhenLocked, showTextWhenLocked;
   final String? restriction;
@@ -27,6 +29,7 @@ class AndroidWaitingState {
       revision: map['revision'] as int,
       intentRevision: map['intentRevision'] as int,
       interactive: map['interactive'] as bool,
+      callInteractive: map['callInteractive'] as bool?,
       waitingEnabled: map['waitingEnabled'] as bool,
       serviceRunning: map['serviceRunning'] as bool,
       setupComplete: map['setupComplete'] as bool,

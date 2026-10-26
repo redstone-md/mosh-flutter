@@ -48,7 +48,7 @@ class AndroidBackgroundCalls extends ChangeNotifier {
     }
     for (final action in List.of(_actions)) {
       if (action.interactiveAnswer &&
-          (platform.state?.interactive != true || onAnswer == null)) {
+          (platform.state?.callInteractive != true || onAnswer == null)) {
         continue;
       }
       final result = await commands.callAction(action.capability);
@@ -62,7 +62,7 @@ class AndroidBackgroundCalls extends ChangeNotifier {
           selected: result.action == BackgroundCallAction.answer);
       if (result.action == BackgroundCallAction.answer &&
           action.interactiveAnswer &&
-          platform.state?.interactive == true) {
+          platform.state?.callInteractive == true) {
         final answer = onAnswer;
         if (answer != null) {
           unawaited(Future<void>(() => answer(target.id, id)));

@@ -34,6 +34,15 @@ late capture. Decline and hangup reuse the existing native controls and do not
 open chats. A failed decline retains the existing retry semantics and gets new
 one-use buttons instead of reviving a spent capability.
 
+Android's `callInteractive` fact permits a resumed call-only Activity over the
+device keyguard. It never changes ordinary installation `interactive` or chat
+access. Native `callOnly` keeps protected chats covered even during a valid grace
+period, and the protected-frame acknowledgement continues to report no visible
+chats. A presentation-only Answer action validates/selects the call without
+performing acceptance or media capture. The Flutter call controls and PiP use
+the same name-privacy consent as Android notifications; a covered installation
+shows “Mosh” until names are explicitly enabled.
+
 Incoming ringing and its 30-second first-receipt deadline belong to the native
 owner. Retransmitted offers do not extend the deadline. Flutter retains the
 outgoing tone and current call presentation, including floating video and PiP;

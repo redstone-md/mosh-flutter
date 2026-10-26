@@ -24,7 +24,8 @@ void main() {
         (call) async => {
               'revision': 1,
               'intentRevision': 1,
-              'interactive': true,
+              'interactive': false,
+              'callInteractive': true,
               'waitingEnabled': false,
               'serviceRunning': false,
               'setupComplete': true,

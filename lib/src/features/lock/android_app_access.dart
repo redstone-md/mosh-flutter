@@ -22,7 +22,10 @@ class AndroidAppAccess extends ChangeNotifier {
   Future<void> _writes = Future.value();
   AndroidAccessState? get state => _state;
   bool get covered =>
-      _failed || _state?.allowed != true || _state?.deviceInteractive != true;
+      _failed ||
+      _state?.allowed != true ||
+      _state?.deviceInteractive != true ||
+      _state?.callOnly == true;
   bool get chatsInteractive =>
       !covered && _state!.deviceInteractive && _visible;
   bool get failed => _failed;

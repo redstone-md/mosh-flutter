@@ -61,13 +61,15 @@ class CallViewState {
       bool occupancyConflict = false,
       required String language,
       String? error,
+      String? peerOverride,
       CallMediaView? media}) {
     if (dialog is NoCallDialog) return null;
     return CallViewState(
       sessionId: sessionId,
       callId: dialog.callId,
       supersededCallId: dialog.supersededCallId,
-      peer: dialog.peerName.isEmpty ? fallback : dialog.peerName,
+      peer: peerOverride ??
+          (dialog.peerName.isEmpty ? fallback : dialog.peerName),
       phase: switch (dialog) {
         IncomingCallDialog(:final pending) => pending.answerPending
             ? CallViewPhase.confirming
