@@ -120,8 +120,8 @@ never initiate arbitrary peer dials from a claimed offer address.
 `HistoryRecordV1`: `(kind, occurrence_key, message_id, claimed_sent_at_ms,
 claimed_label, author_key?, transport_peer?, content, origin?, history_proof?,
 group_evidence?)`. Group evidence contains the selected acceptance object and
-current-holder vouch defined in the automatic contract. It never replaces the
-original author signature; exact formats remain pending implementation approval.
+current-holder vouch defined in the approved automatic contract. It never
+replaces the original author signature.
 `content` is exactly one of Text UTF-8 bytes, AttachmentOffer (full original and
 preview manifests), or ErasedTarget (proof/tombstone reference, no content).
 No delivery states, read markers, outbound attempts, downloaded paths, files,
@@ -249,13 +249,17 @@ GroupContext hashes/epochs, full original signer keys, signed original
 transition time and original org roster/version evidence where applicable.
 No closing-root requirement is introduced. Relaying authenticates only the
 carrier; authority comes from the original transition's verified prior state.
-Retain the public signed Welcome admission anchor/tree reference locally at
-join; do not import a holder's private snapshot or accept a self-signed foreign
-tree as the trust root. Replay exact next commits into the local staged state.
-For old public intervals, validate public state from the pinned admission
-anchor; OpenMLS `PublicGroup` can validate public commits without leaf secrets.
-An implementation must prove this traversal against the pinned 0.8.1 APIs;
-it cannot substitute a current roster for missing original authorization.
+Retain the verified Welcome context/member anchor locally at join; do not
+import a holder's private snapshot or accept a self-signed foreign tree as the
+trust root. Pinned OpenMLS 0.8.1 uses encrypted commits here: `PublicGroup`
+cannot replay those bytes. A continuously admitted receiver replays exact next
+commits through its own staged `MlsGroup`, atomically retaining verified
+membership intervals with its own next snapshot. Earlier intervals come from
+its protected local timeline, never a guessed tree or message timestamp.
+The plain Welcome envelope's raw commit hash is not itself authenticated;
+bind the canonical admission commit to the verified context before using that
+admission instance. Missing legacy bindings remain `evidence_missing`.
+Preserve original org transition authority separately from raw commit bytes.
 
 Plain groups derive authority from their verified full-key admin succession;
 org groups use separately retained signed org authority evidence. A signed org
