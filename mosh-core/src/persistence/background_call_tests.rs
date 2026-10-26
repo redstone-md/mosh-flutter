@@ -167,6 +167,7 @@ fn declined_and_active_actions_do_not_cross_phases_and_terminal_ack_retires_them
         .background_call_for_capability(hangup, "owner")
         .unwrap()
         .is_none());
+    drop(store); // Windows denies a second file handle while redb owns its lock.
     let bytes = std::fs::read(path).unwrap();
     assert!(!bytes
         .windows(hangup.len())
