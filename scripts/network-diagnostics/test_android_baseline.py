@@ -104,6 +104,32 @@ class CollectorTest(unittest.TestCase):
         self.assertEqual(report["build"]["apk_identity_status"], "verified-at-endpoints")
         self.assertEqual(report["build"]["apk_sha256"], ["a" * 64])
 
+    def test_modern_android_install_paths_keep_verified_apk_hashes(self):
+        class ModernPath(Phone):
+            def shell(self, command):
+                if command == ["pm", "path", "app.mosh.mosh"]:
+                    return "package:/data/app/~~aB_01-+=/app.mosh.mosh-xyZ_0==/base.apk"
+                return super().shell(command)
+
+        report = self.collect(ModernPath())
+        self.assertEqual(report["build"]["apk_identity_status"], "verified-at-endpoints")
+        self.assertEqual(report["build"]["apk_sha256"], ["a" * 64])
+
+    def test_shell_metacharacters_never_reach_apk_hash_command(self):
+        class InvalidPath:
+            def __init__(self, value):
+                self.value = value
+
+            def read(self, metric, *command):
+                if command != ("pm", "path", "app.mosh.mosh"):
+                    raise AssertionError("Unsafe path reached hash command")
+                return self.value
+
+        for character in (";", "$", "`", "'", '"', " ", "&", "|", "(", ")", "*", "?", "<", ">", "\\"):
+            with self.subTest(character=character):
+                path = "package:/data/app/~~token/unsafe" + character + "/base.apk"
+                self.assertIsNone(baseline.apk_identity(InvalidPath(path)))
+
     def test_refuses_a_work_profile_instead_of_attributing_its_traffic_to_primary_user(self):
         class WorkProfile(Phone):
             def shell(self, command):

@@ -52,7 +52,7 @@ def installed_package(adb):
 
 def apk_identity(adb):
     lines = adb.read("apk_path", "pm", "path", PACKAGE).splitlines()
-    if not lines or any(not re.fullmatch(r"package:/[A-Za-z0-9_./+=-]+\.apk", line) for line in lines):
+    if not lines or any(not re.fullmatch(r"package:/[A-Za-z0-9_./+=~-]+\.apk", line) for line in lines):
         return None
     hashes = {}
     for path in sorted({line[len("package:"):] for line in lines}):
