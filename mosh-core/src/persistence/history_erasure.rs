@@ -9,27 +9,40 @@ impl Persistence {
         key: &str,
         blob: &[u8],
     ) -> Result<(), PersistenceError> {
-        let erased = {
+        let existing = {
             let rows = tx.open_table(tables.messages).map_err(db_error)?;
-            let existing = rows.get(key).map_err(db_error)?;
-            match existing {
-                Some(value) => {
-                    let bytes = decrypt_blob(&self.dek, value.value())?;
-                    serde_json::from_slice::<serde_json::Value>(&bytes)
-                        .ok()
-                        .as_ref()
-                        .and_then(|value| value.pointer("/message/metadata/deletion"))
-                        .is_some_and(|v| !v.is_null())
-                }
-                None => false,
-            }
+            let bytes = rows
+                .get(key)
+                .map_err(db_error)?
+                .map(|value| decrypt_blob(&self.dek, value.value()))
+                .transpose()?;
+            bytes
         };
-        if !erased {
-            let bytes = decrypt_blob(&self.dek, blob)?;
-            let erased_bytes = self.erase_known_target(tx, tables, &bytes)?;
-            let guarded = encrypt_blob(&self.dek, &erased_bytes)?;
-            Self::update_row(tx, tables.messages, key, Some(&guarded))?;
+        let existing = existing
+            .as_deref()
+            .map(serde_json::from_slice::<serde_json::Value>)
+            .transpose()
+            .map_err(|e| PersistenceError::Json(e.to_string()))?;
+        if existing
+            .as_ref()
+            .and_then(|v| v.pointer("/message/metadata/deletion"))
+            .is_some_and(|v| !v.is_null())
+        {
+            return Ok(());
         }
+        let bytes = decrypt_blob(&self.dek, blob)?;
+        let mut incoming: serde_json::Value =
+            serde_json::from_slice(&bytes).map_err(|e| PersistenceError::Json(e.to_string()))?;
+        if incoming.get("history_evidence").is_none_or(|v| v.is_null()) {
+            if let Some(evidence) = existing.as_ref().and_then(|v| v.get("history_evidence")) {
+                incoming["history_evidence"] = evidence.clone();
+            }
+        }
+        let bytes =
+            serde_json::to_vec(&incoming).map_err(|e| PersistenceError::Json(e.to_string()))?;
+        let erased_bytes = self.erase_known_target(tx, tables, &bytes)?;
+        let guarded = encrypt_blob(&self.dek, &erased_bytes)?;
+        Self::update_row(tx, tables.messages, key, Some(&guarded))?;
         Ok(())
     }
 }

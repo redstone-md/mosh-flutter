@@ -7,6 +7,19 @@ use serde::{de::DeserializeOwned, Serialize};
 use sha2::{Digest, Sha256};
 
 impl Persistence {
+    #[allow(
+        dead_code,
+        reason = "Approved shared reader for the parallel IVO-142 group adapter."
+    )]
+    pub(crate) fn group_history_evidence<R: DeserializeOwned>(
+        &self,
+        key: &str,
+    ) -> Result<Option<R>, PersistenceError> {
+        self.get(GROUP_HISTORY_EVIDENCE, key)?
+            .map(|bytes| serde_json::from_slice(&bytes).map_err(json_error))
+            .transpose()
+    }
+
     pub(crate) fn recovery_state<R: DeserializeOwned>(
         &self,
         key: &str,
@@ -38,14 +51,13 @@ impl Persistence {
         occurrences: &[Occurrence],
     ) -> Result<(), PersistenceError> {
         let state = serde_json::to_vec(checkpoint).map_err(json_error)?;
-        self.commit_history_import(
+        self.commit_history_admission(
             tables,
             id,
-            super::dm_history::ImportState {
-                table: CONVERSATION_RECOVERY,
-                key: checkpoint_key,
-                bytes: &state,
+            HistoryAdmission {
+                checkpoint: Some((checkpoint_key, &state)),
                 occurrences,
+                ..Default::default()
             },
             messages,
         )
@@ -109,7 +121,17 @@ impl Persistence {
         journal: impl Iterator<Item = crate::message_deletion::DeletionRecord>,
     ) -> Result<(), PersistenceError> {
         self.write(|tx| {
-            self.delete_prefix(tx, CONVERSATION_RECOVERY, export.prefix)?;
+            self.reserve_recovery_export(
+                tx,
+                export.meta_key,
+                export.prefix,
+                crate::conversation::now_ms(),
+            )?;
+            self.delete_prefix(
+                tx,
+                CONVERSATION_RECOVERY,
+                &format!("{}\u{1}", export.prefix),
+            )?;
             self.freeze_history_rows(tx, tables, id, export.prefix, select)?;
             for record in journal {
                 let key = format!("{}\u{1}journal\u{1}{}", export.prefix, record.storage_key());

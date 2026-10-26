@@ -7,6 +7,7 @@ struct Export {
     request_id: String,
     manifest: Manifest,
     deletion_digest: String,
+    expires_ms: u64,
 }
 
 impl ChannelSession {
@@ -38,14 +39,18 @@ impl ChannelSession {
     ) -> Result<(), ChannelRuntimeError> {
         let current = self.history_manifest()?;
         let prefix = format!(
-            "{}\u{1}export\u{1}{}",
+            "{}\u{1}export-data\u{1}{}",
+            self.deletions.context, frame.sender_key
+        );
+        let meta_key = format!(
+            "{}\u{1}export-meta\u{1}{}",
             self.deletions.context, frame.sender_key
         );
         let store =
             self.deletions.store.as_ref().ok_or_else(|| {
                 ChannelRuntimeError::Persistence("history store unavailable".into())
             })?;
-        let mut export = store.recovery_state::<Export>(&format!("{prefix}\u{1}meta"))?;
+        let mut export = store.recovery_state::<Export>(&meta_key)?;
         if export.as_ref().is_none_or(|e| e.round < frame.round)
             && offset == 0
             && current.digest == manifest
@@ -56,6 +61,7 @@ impl ChannelSession {
                 request_id: frame.request_id.clone(),
                 manifest: current,
                 deletion_digest: deletion_digest.clone(),
+                expires_ms: crate::conversation::now_ms().saturating_add(120_000),
             };
             let authority = self.deletion_authority()?;
             store.freeze_recovery(
@@ -63,7 +69,7 @@ impl ChannelSession {
                 &self.name,
                 crate::persistence::FrozenExport {
                     prefix: &prefix,
-                    meta_key: &format!("{prefix}\u{1}meta"),
+                    meta_key: &meta_key,
                     header: &next,
                 },
                 ChannelRecord::key,
@@ -85,6 +91,7 @@ impl ChannelSession {
                 && e.manifest.digest == manifest
                 && e.deletion_digest == deletion_digest
                 && offset <= e.manifest.total
+                && e.expires_ms > crate::conversation::now_ms()
         }) else {
             return self.reply_history(
                 Some(frame.sender_key.clone()),

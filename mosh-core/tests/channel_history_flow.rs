@@ -172,6 +172,42 @@ fn a_large_history_uses_bounded_pages_without_losing_live_duplicates() {
 }
 
 #[test]
+fn a_fragmented_record_resumes_from_its_durable_partial_after_restart() {
+    let _network = isolated_network_scenario();
+    let mut holder = Peer::new_api();
+    let id = format!("history-fragment-{}", rand::random::<u64>());
+    holder.ask(json!({"action":"chat_join", "kind":"channel", "argument":id}));
+    let body = "\u{0001}".repeat(4090);
+    holder.ask(json!({"action":"chat_send", "kind":"channel", "argument":id, "body":body}));
+    holder.restart();
+    let mut reader = Peer::new_api();
+    reader.ask(json!({"action":"chat_join", "kind":"channel", "argument":id}));
+    let deadline = Instant::now() + Duration::from_secs(15);
+    let mut restarted = false;
+    loop {
+        poll(&mut holder, &id);
+        let snapshot = poll(&mut reader, &id);
+        if snapshot["messages"][0]["body"] == body {
+            assert!(
+                restarted,
+                "a partial import was observed before content visibility"
+            );
+            assert_eq!(snapshot["messages"].as_array().unwrap().len(), 1);
+            break;
+        }
+        if !restarted && snapshot["history_sync"]["state"] == "importing" {
+            reader.restart();
+            restarted = true;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "fragment recovery stalled: {snapshot}"
+        );
+        std::thread::sleep(Duration::from_millis(30));
+    }
+}
+
+#[test]
 #[ignore = "Subprocess entry point"]
 fn independent_installation_process() {
     peer_process();

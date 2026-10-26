@@ -67,7 +67,9 @@ impl ChannelSession {
                 return Ok(true);
             }
             HistoryMessage::Unavailable => {
-                self.recovery.last_progress = 0;
+                if self.recovery.has_source(&frame) {
+                    self.recovery.last_progress = 0;
+                }
             }
         }
         Ok(false)
@@ -80,27 +82,22 @@ impl ChannelSession {
         total: usize,
         deletion_digest: String,
     ) -> Result<(), ChannelRuntimeError> {
-        let current = &self.recovery.checkpoint;
-        if frame.round != current.round
-            || frame.request_id != current.progress.request_id
-            || current.source.is_some()
-            || current.observed.get(&frame.sender_key) == Some(&manifest)
-            || manifest.len() != 64
-            || hex::decode(&manifest).is_err()
-            || deletion_digest.len() != 64
-            || hex::decode(&deletion_digest).is_err()
-        {
+        let Some((next, permit)) = self
+            .recovery
+            .offered(
+                frame,
+                manifest,
+                total,
+                deletion_digest,
+                &self.device_fingerprint,
+                &self.deletions.context,
+            )
+            .map_err(ChannelRuntimeError::Codec)?
+        else {
             return Ok(());
-        }
-        let mut next = current.clone();
-        next.source = Some(frame.sender_key.clone());
-        next.progress.manifest = Some(manifest);
-        next.progress.total = Some(total);
-        next.progress.complete = false;
-        next.deletion_digest = deletion_digest;
-        next.journal_after = None;
-        next.journal_complete = false;
+        };
         self.save_checkpoint(next, &[])?;
+        self.recovery.permit = Some(permit);
         self.recovery.last_progress = crate::conversation::now_ms();
         self.pull_history(self.recovery.last_progress)
     }
@@ -203,19 +200,14 @@ impl ChannelSession {
             row.history_evidence = Some(crate::conversation::recovery::HistoryEvidence {
                 holder_key: frame.sender_key.clone(),
                 classification,
+                group: None,
             });
             rows.push(row);
         }
         next.progress
             .advance(&manifest, total, rows.len(), next.partial.is_some())
             .map_err(ChannelRuntimeError::Codec)?;
-        if next.progress.complete {
-            if next.observed.len() >= 16 {
-                next.observed.pop_first();
-            }
-            next.observed.insert(frame.sender_key.clone(), manifest);
-            next.source = None;
-        }
+        Recovery::finished(&mut next, &frame.sender_key);
         self.save_checkpoint(next, &rows)?;
         self.recovery.last_progress = crate::conversation::now_ms();
         self.pull_history(self.recovery.last_progress)
@@ -279,8 +271,7 @@ impl ChannelSession {
                 }
             }
         }
-        self.recovery.checkpoint = next;
-        self.recovery.error = None;
+        self.recovery.installed(next);
         Ok(())
     }
 }

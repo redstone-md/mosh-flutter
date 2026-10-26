@@ -1,12 +1,10 @@
 //! Public channel recovery over the existing room and shared durable importer.
 use super::*;
 use crate::conversation::recovery::{
-    cursor::HistoryCursor,
     manifest::Manifest,
     wire::{HistoryFrame, HistoryMessage},
     HistorySync, HistorySyncReason, HistorySyncState,
 };
-use std::collections::BTreeMap;
 
 mod journal;
 mod receive;
@@ -14,33 +12,8 @@ mod records;
 mod source;
 use records::ChannelRecord;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub(super) struct Checkpoint {
-    round: u64,
-    progress: HistoryCursor,
-    source: Option<String>,
-    observed: BTreeMap<String, String>,
-    #[serde(default)]
-    partial: Option<crate::conversation::recovery::fragment::PartialRecord>,
-    #[serde(default)]
-    deletion_digest: String,
-    #[serde(default)]
-    journal_after: Option<String>,
-    #[serde(default)]
-    journal_complete: bool,
-}
-
-#[derive(Default)]
-pub(super) struct Recovery {
-    checkpoint: Checkpoint,
-    pending: Vec<HistoryFrame>,
-    cache: Option<(u64, Manifest)>,
-    last_probe: u64,
-    last_pull: u64,
-    last_progress: u64,
-    error: Option<HistorySyncReason>,
-    restored: bool,
-}
+use crate::conversation::recovery::coordinator::Checkpoint;
+pub(super) use crate::conversation::recovery::coordinator::Coordinator as Recovery;
 
 impl ChannelSession {
     pub(super) fn history_state(&self) -> Option<HistorySync> {
@@ -88,9 +61,9 @@ impl ChannelSession {
         {
             return Ok(());
         }
-        if self.recovery.pending.len() < 32 {
-            self.recovery.pending.push(frame);
-        }
+        self.recovery
+            .queue(frame)
+            .map_err(ChannelRuntimeError::Codec)?;
         Ok(())
     }
 
@@ -104,8 +77,21 @@ impl ChannelSession {
                 return Ok(false);
             }
         }
+        if self.recovery.checkpoint.source.is_some() && self.recovery.permit.is_none() {
+            self.recovery.permit = crate::conversation::recovery::slots::ImportPermit::acquire(
+                &self.device_fingerprint,
+                &self.deletions.context,
+            );
+            if self.recovery.permit.is_none() {
+                return Ok(false);
+            }
+        }
+        self.recovery.observe(
+            crate::moss_ffi::connected_peer_revision(),
+            self.messages.revision(),
+        );
         let mut changed = false;
-        for frame in std::mem::take(&mut self.recovery.pending) {
+        for frame in self.recovery.drain() {
             match self.receive_history(frame) {
                 Ok(imported) => changed |= imported,
                 Err(error) => {
@@ -130,21 +116,14 @@ impl ChannelSession {
             if now.saturating_sub(self.recovery.last_pull) >= 2000 {
                 self.pull_history(now)?;
             }
-        } else if now.saturating_sub(self.recovery.last_probe) >= 5000 {
-            let mut next = self.recovery.checkpoint.clone();
-            next.round = next
-                .round
-                .checked_add(1)
-                .ok_or_else(|| ChannelRuntimeError::Codec("history round overflow".into()))?;
-            next.progress = HistoryCursor {
-                complete: next.progress.complete,
-                request_id: hex::encode(rand::random::<[u8; 16]>()),
-                ..Default::default()
-            };
-            next.source = None;
-            next.partial = None;
+        } else if self.recovery.probe_due(now) {
+            self.recovery.permit = None;
+            let next = self
+                .recovery
+                .begin_round()
+                .map_err(ChannelRuntimeError::Codec)?;
             self.save_checkpoint(next, &[])?;
-            self.recovery.last_probe = now;
+            self.recovery.probed(now);
             self.send_history(None, HistoryMessage::Probe)?;
         }
         Ok(changed)
@@ -201,3 +180,12 @@ impl ChannelSession {
         )
     }
 }
+
+#[cfg(test)]
+mod tests;
+
+#[cfg(test)]
+mod tests_admission;
+
+#[cfg(test)]
+mod tests_deletion;
