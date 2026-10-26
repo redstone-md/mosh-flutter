@@ -152,8 +152,12 @@ found three blockers; the earlier route-controlled checks do not close them.
   admission, durable incoming call, applied decline and subsequent durable
   message, with no preceding text to wake the route. Transient unavailable and
   handshaking states still occurred before recovery; this does not establish
-  continuous connectivity. Exact repository and full candidate CI checks are
-  still running. Keep the existing pin until those gates pass; no upstream
+  continuous connectivity. The exact repository case also passes with no
+  intermediate UI polls, as do full Go and all eight upstream CI jobs. However,
+  a clean 600-second idle check reproduces `NotReady`: authenticated liveness
+  was lost around 79 seconds and did not recover before the call. Sustained
+  waiting remains an open transport blocker. Keep the existing pin while
+  carrier eviction and bounded candidate recovery are investigated; no upstream
   merge is authorized. Physical Pixel retesting remains required.
 
 Separately, Windows CI exposed an imported group attachment being rewritten by
@@ -184,7 +188,7 @@ fixture shutdown paths match `origin/main`; no matched baseline executable or
 native crash stack establishes the cause or equivalent Flutter-exit behavior.
 Keep this existing teardown limitation separate from background reception.
 Full Mosh CI run `40409636711` passes on `7a71ec72`, using the retained
-`e95c498` Moss pin. That result does not validate candidate `9d1b5a3` or close
+`e95c498` Moss pin. That result does not validate candidate `ecfd484` or close
 the public-WAN and physical-device gates.
 
 ## Approved boundaries
