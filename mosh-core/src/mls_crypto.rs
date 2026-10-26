@@ -59,6 +59,13 @@ pub struct MlsSessionCrypto {
     forward_recovery: Option<std::sync::Arc<forward_recovery::ForwardRecovery>>,
 }
 
+/// A verified receive whose ratchet is installed only after native admission.
+pub(crate) struct StagedApplication {
+    pub(crate) next: MlsSessionCrypto,
+    pub(crate) body: Vec<u8>,
+    pub(crate) signer: Vec<u8>,
+}
+
 fn fingerprint_from_signature_key(bytes: &[u8]) -> String {
     hex::encode_upper(&bytes[..bytes.len().min(FINGERPRINT_LEN)])
 }
@@ -85,6 +92,9 @@ fn decode_key_package_impl(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod history_tests;
 
 fn decode_protocol_message(bytes: &[u8]) -> Result<ProtocolMessage, MlsCryptoError> {
     MlsMessageIn::tls_deserialize(&mut &bytes[..])
