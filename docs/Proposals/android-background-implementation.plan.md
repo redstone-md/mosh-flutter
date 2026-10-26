@@ -146,8 +146,14 @@ found three blockers; the earlier route-controlled checks do not close them.
   also corrects bounded lookup of already-connected contacts beyond the nearest
   20 and authenticated carrier-address reuse during explicit-target recovery.
   Both peers are authenticated immediately before waiting; route loss follows
-  that transition. Neither a healthy carrier
-  nor those transport regressions establish sustained conversation availability.
+  that transition. Candidate `9d1b5a3` additionally fixes stale-provider lookup
+  and route-attempt budgets, but the same public-WAN check remains red: ready
+  at 18 seconds, authenticated at 30 idle seconds, handshaking at 65 and carrier
+  unavailable at 120; native call admission is refused. A two-process control
+  also fails, excluding the unused third process as a necessary trigger.
+  Neither a healthy carrier nor those transport regressions establish sustained
+  conversation availability. Fresh carrier admission and presence publication
+  are being checked independently of the UI.
   The authorized separate Moss PR is being investigated; no upstream merge or
   candidate pin until the actual idle-call check passes.
 
@@ -178,6 +184,9 @@ API-owned engines are retained until process exit. Relevant production and
 fixture shutdown paths match `origin/main`; no matched baseline executable or
 native crash stack establishes the cause or equivalent Flutter-exit behavior.
 Keep this existing teardown limitation separate from background reception.
+Full Mosh CI run `40409636711` passes on `7a71ec72`, using the retained
+`e95c498` Moss pin. That result does not validate candidate `9d1b5a3` or close
+the public-WAN and physical-device gates.
 
 ## Approved boundaries
 
