@@ -18,6 +18,8 @@ pub(crate) struct GroupHeadGuard<'a> {
     pub expected: Option<&'a [u8]>,
 }
 
+type PlainHistoryWrite<'a> = (Rows, &'a str, &'a [u8]);
+
 #[derive(Default)]
 pub(crate) struct HistoryAdmission<'a> {
     pub org_authority: Option<OrgAuthorityGuard<'a>>,
@@ -31,6 +33,7 @@ pub(crate) struct HistoryAdmission<'a> {
     pub recovery: &'a [EvidenceWrite],
     pub evidence: &'a [EvidenceWrite],
     pub occurrences: &'a [Occurrence],
+    pub background_messages: &'a [BackgroundMessageAdmission],
     /// Complete namespace; the shared prefix eraser adds the delimiter itself.
     pub remove_recovery_prefix: Option<&'a str>,
 }
@@ -40,7 +43,7 @@ impl HistoryAdmission<'_> {
         &'a self,
         tables: HistoryTables,
         id: &'a str,
-    ) -> Result<Vec<(Rows, &'a str, &'a [u8])>, PersistenceError> {
+    ) -> Result<Vec<PlainHistoryWrite<'a>>, PersistenceError> {
         let mut writes = Vec::new();
         if let Some((key, bytes)) = self.state {
             writes.push((tables.conversations, key, bytes));
@@ -88,25 +91,67 @@ impl Persistence {
             })
             .collect::<Result<Vec<_>, _>>()?;
         let rows = self.prepare_history_rows(id, messages)?;
-        self.write(|tx| {
-            self.check_history_authority(tx, &admission)?;
-            for occurrence in admission.occurrences {
-                self.admit_occurrence(tx, tables, id, occurrence)?;
+        let changed = self.write(|tx| {
+            self.install_history_admission(tx, tables, id, &admission, &rows, &writes)
+        })?;
+        if changed {
+            crate::api::background::background_delivery_changed();
+        }
+        Ok(())
+    }
+
+    fn install_history_admission(
+        &self,
+        tx: &redb::WriteTransaction,
+        tables: HistoryTables,
+        id: &str,
+        admission: &HistoryAdmission<'_>,
+        rows: &[(String, Vec<u8>)],
+        writes: &[(Rows, &str, Vec<u8>)],
+    ) -> Result<bool, PersistenceError> {
+        self.check_history_authority(tx, admission)?;
+        let changed =
+            self.queue_history_background(tx, tables, id, admission.background_messages, rows)?;
+        for occurrence in admission.occurrences {
+            self.admit_occurrence(tx, tables, id, occurrence)?;
+        }
+        for (key, value) in rows {
+            self.write_history_row(tx, tables, key, value)?;
+        }
+        for (table, key, value) in writes {
+            Self::update_row(tx, *table, key, Some(value))?;
+        }
+        if admission.finalize_native {
+            self.retire_accepted_offers(tx, tables.conversations, id)?;
+        }
+        if let Some(prefix) = admission.remove_recovery_prefix {
+            self.delete_prefix(tx, CONVERSATION_RECOVERY, prefix)?;
+        }
+        Ok(changed)
+    }
+
+    fn queue_history_background(
+        &self,
+        tx: &redb::WriteTransaction,
+        tables: HistoryTables,
+        id: &str,
+        messages: &[BackgroundMessageAdmission],
+        rows: &[(String, Vec<u8>)],
+    ) -> Result<bool, PersistenceError> {
+        let mut changed = false;
+        for message in messages {
+            let key = Self::history_message_key(id, message.sent_at_ms, &message.message_id);
+            if message.tables.outbound_scope != tables.outbound_scope
+                || message.conversation_id != id
+                || !rows.iter().any(|(row_key, _)| *row_key == key)
+            {
+                return Err(PersistenceError::Json(
+                    "background fact does not match history admission".into(),
+                ));
             }
-            for (key, value) in &rows {
-                self.write_history_row(tx, tables, key, value)?;
-            }
-            for (table, key, value) in &writes {
-                Self::update_row(tx, *table, key, Some(value))?;
-            }
-            if admission.finalize_native {
-                self.retire_accepted_offers(tx, tables.conversations, id)?;
-            }
-            if let Some(prefix) = admission.remove_recovery_prefix {
-                self.delete_prefix(tx, CONVERSATION_RECOVERY, prefix)?;
-            }
-            Ok(())
-        })
+            changed |= self.queue_background_message(tx, message)?;
+        }
+        Ok(changed)
     }
 
     fn prepare_history_rows<M: serde::Serialize>(

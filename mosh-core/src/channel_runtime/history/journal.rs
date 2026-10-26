@@ -66,12 +66,10 @@ impl ChannelSession {
         for record in records {
             store.save_recovery(&format!("{prefix}{}", record.storage_key()), record)?;
         }
-        if complete {
-            if store.recovery_sequence_digest(&prefix)? != digest {
-                return Err(ChannelRuntimeError::Codec(
-                    "history deletion digest differs".into(),
-                ));
-            }
+        if complete && store.recovery_sequence_digest(&prefix)? != digest {
+            return Err(ChannelRuntimeError::Codec(
+                "history deletion digest differs".into(),
+            ));
         }
         Ok(())
     }

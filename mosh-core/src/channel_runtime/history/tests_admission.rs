@@ -247,14 +247,14 @@ fn another_holder_cannot_replace_the_first_unproved_receive_time_or_label() {
                 .unwrap(),
             );
         }
-        f.offer_rows(room, &first, &[record.clone()]);
+        f.offer_rows(room, &first, std::slice::from_ref(&record));
         f.journal(room, &first);
         page(&mut f, room, &first, vec![record.clone()]);
         record.sent_at_ms = 9999;
         if signed {
             record.from_device = "Another holder's label".into();
         }
-        f.offer_rows(room, &second, &[record.clone()]);
+        f.offer_rows(room, &second, std::slice::from_ref(&record));
         f.journal(room, &second);
         page(&mut f, room, &second, vec![record]);
         f.restart();
@@ -276,7 +276,7 @@ fn leaving_and_rejoining_starts_a_fresh_recovery_instead_of_restoring_a_deleted_
     let source = SigningKey::from_bytes(&[34; 32]);
     f.join("rejoin-history");
     let record = text("retained", "available from holder");
-    f.offer_rows("rejoin-history", &source, &[record.clone()]);
+    f.offer_rows("rejoin-history", &source, std::slice::from_ref(&record));
     f.journal("rejoin-history", &source);
     page(&mut f, "rejoin-history", &source, vec![record.clone()]);
     f.runtime.leave("rejoin-history").unwrap();
@@ -290,7 +290,7 @@ fn leaving_and_rejoining_starts_a_fresh_recovery_instead_of_restoring_a_deleted_
             .state,
         HistorySyncState::WaitingForSource,
     );
-    f.offer_rows("rejoin-history", &source, &[record.clone()]);
+    f.offer_rows("rejoin-history", &source, std::slice::from_ref(&record));
     f.journal("rejoin-history", &source);
     page(&mut f, "rejoin-history", &source, vec![record]);
     assert_eq!(f.runtime.poll("rejoin-history").unwrap().messages.len(), 1);

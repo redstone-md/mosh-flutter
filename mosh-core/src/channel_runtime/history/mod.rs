@@ -27,7 +27,7 @@ impl ChannelSession {
         message: &mut ChannelMessage,
     ) -> Result<(), ChannelRuntimeError> {
         if message.metadata.as_ref().is_none_or(|m| m.origin.is_none())
-            && message.message_id.is_none()
+            && message.message_id.as_deref().is_none_or(str::is_empty)
         {
             message.message_id =
                 Some(records::legacy_id(&self.name, message).map_err(ChannelRuntimeError::Codec)?);
@@ -225,3 +225,6 @@ mod tests_erased;
 
 #[cfg(test)]
 mod tests_journal_fragments;
+
+#[cfg(test)]
+mod tests_background;

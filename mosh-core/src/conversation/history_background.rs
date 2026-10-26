@@ -1,7 +1,7 @@
-//! Durable notification facts for already-authenticated incoming DM rows.
+//! Durable notification facts for already-authenticated incoming conversation rows.
 use super::*;
 
-pub(super) fn message<M: ConversationMessage>(
+pub(crate) fn message<M: ConversationMessage>(
     tables: HistoryTables,
     conversation_id: &str,
     sent_at_ms: u64,
@@ -9,7 +9,7 @@ pub(super) fn message<M: ConversationMessage>(
     message: &M,
 ) -> Option<crate::persistence::BackgroundMessageAdmission> {
     let metadata = message.metadata()?;
-    if tables.outbound_scope != "private_dm"
+    if !matches!(tables.outbound_scope, "private_dm" | "channel")
         || metadata.is_own != Some(false)
         || message.is_service()
         || metadata.deletion.is_some()
