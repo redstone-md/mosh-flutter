@@ -70,6 +70,11 @@ never import a holder's private MLS snapshot or accept a foreign self-signed
 tree as the anchor. An admission instance hashes MLS group ID, canonical
 Add/replace commit and admitted full key; genesis uses the pinned initial
 context/creator key. Intervals are `[admission_epoch, removal_epoch)`.
+Encrypted commits are verified through the receiver's own staged `MlsGroup`;
+retain the resulting intervals with its own advanced snapshot. `PublicGroup`
+cannot replay this application's encrypted commit log. A verified Welcome pins
+its context/members, but an unsigned outer commit hash cannot establish the
+canonical admission binding. Missing old bindings remain evidence_missing.
 New admissions retain an optional joiner dual-key binding over group/mesh,
 KeyPackage hash and full MLS/Moss keys, matched to the actual admitted leaf.
 

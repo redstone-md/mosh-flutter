@@ -15,7 +15,8 @@ preparatory changes do not establish background acceptance.
    import proposals, including the membership work completed by IVO-143.
 4. Prepare concrete key migration, UI authentication, Android execution and
    Moss waiting contracts. Obtain the approvals required by repository rules
-   before changing public APIs, dependencies or schemas. Do not edit Moss.
+   before changing public APIs, dependencies or schemas. Moss changes use only
+   the owner-approved separate worktree/PR exception, without a merge.
 5. Work through the remaining dependency frontier using separate task branches
    and merge verified changes into the integration branch. Keep each layer usable.
 6. Review the integration against standards and the complete spec, run the
@@ -25,7 +26,9 @@ preparatory changes do not establish background acceptance.
 
 - IVO-133 worktree: Android runtime/Activity/media ownership and its tests/docs.
 - IVO-147 worktree: Android resource collector, command-boundary tests and guide.
-- History proposal worktree: history contract proposal documents only.
+- IVO-141 worktree: shared bounded recovery/persistence and channel history.
+- IVO-142 worktree: own MLS staging and group evidence/recovery; reuse IVO-141.
+- IVO-136 worktree: separate upstream Moss lifecycle; original pin unchanged.
 - Integration owner: global spec clarifications, this plan, key/execution/Moss
   proposals, task graph state, merging and integration review.
 
@@ -79,7 +82,7 @@ preparatory changes do not establish background acceptance.
   the owner accepted current-authorized-holder trust for historical context,
   with original authorship and independent recipient-access checks preserved.
   A dishonest holder/colluding author can falsify context; receipts are not
-  independent proof of time. Refine the exact retained evidence and legacy
-  compatibility contract before wire/storage implementation. The owner confirmed
-  the exact automatic history and execution contracts after the DM-reuse
-  clarification; IVO-141 proceeds with existing bounded DM mechanisms.
+  independent proof of time. The owner confirmed the exact automatic history
+  and execution contracts after the DM-reuse clarification. IVO-141 proceeds
+  with existing bounded DM mechanisms; IVO-142 retains verified own-MLS facts
+  instead of trying to replay encrypted commits through OpenMLS PublicGroup.

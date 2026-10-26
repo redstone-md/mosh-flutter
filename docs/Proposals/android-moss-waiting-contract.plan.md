@@ -81,3 +81,22 @@ The separate branch starts at Mosh's pinned fcdc338 (existing pending Moss PR
 #30); a stacked PR isolates the new lifecycle from that unmerged dependency.
 Keep the original Mosh submodule pin unchanged during upstream implementation.
 Do not merge the new PR; retain maintainer review and the compatibility checks.
+
+## Implementation findings, 2026-10-26
+
+Carrier readiness means one authenticated attachment, not proof of delivery to
+every waiting leaf. User-originated sends/calls run in active mode; resolving
+the recipient's identity can reach its selected carrier using existing packets.
+Arbitrary routing between two waiting leaves on different carriers is not a new
+guarantee. Presence refresh is limited to the installation's own identity/rooms
+on its selected carrier; it does not restore broad overlay maintenance.
+
+Any changed active-origin routing applies only after the node explicitly calls
+the new activity setter, including active mode. Existing consumers that never
+call it retain their behavior, including consumers using known-peer discovery.
+Healthy known direct connections retain their ordinary startup path.
+
+The approved ABI has no explicit Android network-change signal. Connection
+loss can trigger immediate recovery; the OS-observed Wi-Fi/mobile transition
+requirement still needs integration evidence. Repeating the idempotent setter
+must not be presented as a network-change notification or used to reset backoff.
