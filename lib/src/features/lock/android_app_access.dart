@@ -19,6 +19,7 @@ class AndroidAppAccess extends ChangeNotifier {
   int? _shieldGeneration;
   bool _failed = false, _disposed = false, _visible = false, _marking = false;
   int _authentication = 0;
+  Future<void> _writes = Future.value();
   AndroidAccessState? get state => _state;
   bool get covered =>
       _failed || _state?.allowed != true || _state?.deviceInteractive != true;
@@ -83,16 +84,21 @@ class AndroidAppAccess extends ChangeNotifier {
     await _save(delay: seconds);
   }
 
-  Future<void> _save({int? delay, String? phase}) async {
-    final state = _state;
-    if (state == null) throw StateError('Access state unavailable');
-    try {
-      _accept(await channel.invokeMethod<Object?>(
-          'saveAccessState', state.record(delay: delay, phase: phase)));
-    } catch (_) {
-      _fail();
-      rethrow;
-    }
+  Future<void> _save({int? delay, String? phase}) {
+    final work = _writes.then((_) async {
+      if (_disposed) return;
+      final state = _state;
+      if (state == null) throw StateError('Access state unavailable');
+      try {
+        _accept(await channel.invokeMethod<Object?>(
+            'saveAccessState', state.record(delay: delay, phase: phase)));
+      } catch (_) {
+        _fail();
+        rethrow;
+      }
+    });
+    _writes = work.catchError((Object _) {});
+    return work;
   }
 
   void setChatVisible(bool visible) {
