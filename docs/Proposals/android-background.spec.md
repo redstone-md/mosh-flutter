@@ -201,6 +201,14 @@ No protocol can recover data absent from every remaining copy.
   historical evidence before adding group history exports; a departed signer
   must not gain access or fabricate accepted history by backdating a message.
   Do not replace a receiver's MLS state with another device's private snapshot.
+  Recovery is automatic: no administrator review, per-batch approval or user
+  confirmation is required. On 2026-10-26 the owner rejected the proposed manual
+  administrator workflow. Sufficient retained evidence must travel with the
+  history and be checked by the protocol. Do not substitute blind automatic
+  endorsement or quietly weaken the membership/backdating rules. The exact
+  automatic evidence and legacy compatibility policy still require design
+  review. Preserve distinct organization-group authority checks and original
+  author signatures; a forwarding holder's signature alone is not proof of time.
   Preserve original message identity, reject conflicting imports and keep live
   delivery working during recovery. Completion covers the verified available
   authorized history, not an invented global archive or channel total order.
@@ -253,6 +261,10 @@ No protocol can recover data absent from every remaining copy.
   backdated departed-member content, obsolete epochs, unauthorized sources and
   legacy unverifiable rows. Verify deletion precedence, local-only erasure,
   retained accepted tombstones and no unauthorized deletion authority.
+  Verify automatic recovery without administrator interaction and with the
+  original author offline. Reject missing/forged/unauthorized evidence, preserve
+  original authorship and exercise revocation/stale-source limits. Do not label
+  a signed time claim as independently proven.
 - **Key migration.** Verify the same preexisting encrypted history and identity
   remain readable after migration, including interruption, refused writes,
   cancelled authentication and unavailable keys. Exercise warm and cold

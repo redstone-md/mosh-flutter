@@ -39,6 +39,15 @@ central message archive. Private-group recovery respects membership intervals,
 including joining, removal and rejoining. Ordinary offline periods retain
 access; public channels expose available retained history.
 
+On 2026-10-26, the owner rejected manual administrator approval of recovered
+history. Recovery must discover authorized copies, verify retained evidence and
+import automatically without an approval queue or per-batch action. Preserve
+original authorship, membership boundaries and separate organization-group
+authority. The precise automatic evidence and legacy compatibility contract
+still requires review; the earlier administrator-supplement proposal is withdrawn.
+Neither a human decision nor blind automatic signing proves an unwitnessed
+record's creation time.
+
 Mosh app lock protects chat access independently of background reception.
 Names and text are hidden in notifications by default while app lock is active;
 the user may explicitly allow their display, including message text on Android's

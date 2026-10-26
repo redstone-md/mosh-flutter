@@ -63,6 +63,9 @@ preparatory changes do not establish background acceptance.
   [Moss](android-moss-waiting-contract.plan.md) and
   [history](android-history-contracts.plan.md) proposals are prepared for approval.
   No new key/wire/storage contract or Moss lifecycle has been implemented.
-- Group-history proof versus completeness is an explicit unresolved decision;
-  closing roots can omit legitimate messages held by offline participants.
-  Do not change the agreed full-history criterion without the owner's answer.
+- The owner approved the access/key contract on 2026-10-26; IVO-134/135 proceed
+  from the implemented ownership layer while its physical acceptance stays open.
+- The owner rejected manual administrator history approval on 2026-10-26.
+  That proposal is withdrawn before implementation. Recovery must be automatic;
+  refine retained evidence and legacy compatibility without blind signing or
+  silently weakening membership boundaries. Exact group contracts stay unapproved.

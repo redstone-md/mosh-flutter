@@ -9,9 +9,10 @@ This document changes no runtime, wire format, dependency or database.
 ## Decisions required before coding
 
 1. Approve the additive channel/common wire, storage and snapshot contracts below.
-2. Choose the group-history security/availability policy in the last section.
-   A membership chain and author signature alone do not meet IVO-143's cutoff
-   requirement. Approving the product spec did not resolve that technical choice.
+2. Resolve automatic group-history evidence and its exact trust boundary before
+   approving that part of the protocol. On 2026-10-26 the user rejected manual
+   administrator approval. The [earlier supplement proposal](android-history-admin-contract.plan.md)
+   is withdrawn; its review UI, bridge calls and approval queues must not ship.
 
 ## Existing boundaries and limits
 
@@ -44,11 +45,17 @@ serialization, message conversion and transport. DM retains its signed primary
 payloads, metadata extension and current admission rules unchanged.
 No second history importer, private MLS snapshot import, new library or Moss API.
 
-Use existing room subscriptions: channel blob topic, group control channel.
-Do not add a competing reader of the directed device-link inbox. Add a
-`History` variant to `ChannelBlobEnvelope` and a group `History` application
-variant carrying a versioned frame. Older clients ignore unknown variants;
-they can continue live messaging but cannot serve the new recovery protocol.
+Use existing room subscriptions for channel history and group discovery only.
+Group historical content and proofs use recipient-directed
+encrypted Moss packets; a group exporter key alone is readable by newcomers
+and cannot enforce admission boundaries. Add a bounded single Mosh history
+owner and fixed `mosh-history-v1\0` carrier prefix; the existing directed packet
+callback demultiplexes it before the generic call-packet inbox. Keep that one
+callback and device-link stream ownership. Reuse one node and existing
+`send_to_peer` API, with no group-room fallback for content. Add `History`
+variants to the channel blob and group control
+envelopes for their allowed room messages. Old clients ignore new variants
+and retain live messaging; they cannot serve the new recovery protocol.
 
 ### Packet and pagination contract
 
@@ -75,8 +82,9 @@ The frame signature proves the carrier, never the authors of its records.
 | EvidencePull / EvidencePage | Group only: exact next transition or authenticated public-history proof |
 | Unavailable | Same request/source scope; expired export, missing record, missing evidence or unsupported history |
 
-Each frame must fit `MAX_PUBLISH_BYTES` **after** all signatures, base64 and org
-wrappers. Reuse the existing bounded fragment machinery; proposed fragments
+Each frame, including a directed carrier, must fit `MAX_PUBLISH_BYTES`
+**after** all signatures, base64 and org wrappers. Reuse the existing bounded
+fragment machinery; proposed fragments
 carry at most 3 KiB of serialized record bytes. A record has at most 256 KiB
 including proofs; larger supported protocol records require a reviewed limit
 change, not unbounded assembly. Keep one partial record per active import,
@@ -108,6 +116,8 @@ never initiate arbitrary peer dials from a claimed offer address.
 
 `HistoryRecordV1`: `(kind, occurrence_key, message_id, claimed_sent_at_ms,
 claimed_label, author_key?, transport_peer?, content, origin?, history_proof?)`.
+The automatic group-evidence format still requires review. It must never replace
+the origin or original author signature with a forwarding holder's signature.
 `content` is exactly one of Text UTF-8 bytes, AttachmentOffer (full original and
 preview manifests), or ErasedTarget (proof/tombstone reference, no content).
 No delivery states, read markers, outbound attempts, downloaded paths, files,
@@ -191,8 +201,9 @@ complete global archive or knowledge of a deletion unavailable from every peer.
 Add an optional shared `history_sync` snapshot to groups/channels, retaining
 existing DM state values `waiting_for_source`, `importing`, `complete`. Include
 an optional reason (`source_unavailable`, `evidence_missing`, `unsupported`,
-`storage_refused`) without displaying internal keys or paths. Existing bridge
-operations remain; regenerate bindings and reuse the conversation notice.
+`storage_refused`) without displaying internal keys or paths. Existing
+conversation operations remain; no administrator-review bridge API is proposed.
+Regenerate bindings and reuse the notice.
 Complete means this available, verified frozen view is durable. New sources or
 known missing transitions can return it to waiting/importing. A missing proof
 or unsupported holder is never silently treated as complete.
@@ -200,20 +211,26 @@ or unsupported holder is never silently treated as complete.
 Old stores load optional fields absent. Old clients continue existing live
 operations, but cannot provide history evidence they never retained. A channel
 can recover their rows with honest legacy classification. For groups, lack of
-historical authorization evidence prohibits export across unproven intervals;
-upgrading cannot retrospectively manufacture that evidence. No downgrade from
-the new group validation to legacy row trust.
+historical authorization evidence cannot be repaired by asking an administrator
+to approve a batch. An absent author signature or a missing verifiable admission
+interval is not manufactured by an update or a holder's page signature. Preserve
+local legacy rows and their honest classification. The automatic compatibility
+policy for remote legacy records remains a design gate, not silent completion.
 
 ## Private-group evidence and membership boundaries
 
 For IVO-142, require same locally pinned MLS group/context, complete current
 source and recipient leaf keys, their dual-key proofs, and no known membership
 gap. For org groups also require current verified organization membership.
-Exchange data inside a fresh-nonce AES-256-GCM frame derived from the existing
-MLS exporter API with new label `mosh-history-v1`; AAD binds the signed frame
-header and exact epoch. Wrap it in existing SenderProof, plus OrgSigned where
-already required. Do not reuse the deletion label, public plaintext or application
-message generations. The exporter key is not retained as a history archive key.
+Exchange content only over recipient-directed encrypted Moss packets. Verify
+the sender's complete signed carrier and local recipient; the packet callback
+sender alone is a claim, not authentication. Use dual-key SenderProof and org
+authorization for group scope. Room discovery may use exporter metadata without
+content. A recipient field on group-key ciphertext is routing, not isolation:
+new members know that key. Directed-send refusal waits/retries; never publish
+private historical content or attachment keys to the group.
+Application MLS generations and another installation's private state are not
+used as a historical decryption mechanism.
 
 Historical evidence is separate from current authorization. A retained proof
 must identify the actual historical MLS signer and original semantic content;
@@ -223,8 +240,8 @@ different head/membership is known, IVO-142 waits for IVO-143 evidence.
 
 Public transition record proposal: original TLS commit bytes, prior and next
 GroupContext hashes/epochs, full original signer keys, signed original
-transition time, original org roster/version evidence where applicable, and
-the closing-root commitment described below. Relaying authenticates only the
+transition time and original org roster/version evidence where applicable.
+No closing-root requirement is introduced. Relaying authenticates only the
 carrier; authority comes from the original transition's verified prior state.
 Retain the public signed Welcome admission anchor/tree reference locally at
 join; do not import a holder's private snapshot or accept a self-signed foreign
@@ -253,78 +270,28 @@ All checks are relative to authenticated knowledge: an isolated stale replica
 cannot know an unseen removal. Instant global revocation requires freshness
 infrastructure and is not promised by an asynchronous P2P protocol.
 
-### Why the cutoff is an additional design decision
+### Automatic recovery; no administrator approval workflow
 
-A removed author retains its own signing key and may retain old epoch secrets.
-It can create a new row with an old timestamp/epoch and a valid original-author
-signature. Verifying a member list for that epoch only proves that key *was*
-a member; it does not prove that particular row already existed. Another
-participant's signature over a recovered page cannot prove the missing fact.
+Recovery discovers authorized retained copies, verifies them and imports them
+without a human approval step. Administrator availability must not become a new
+dependency when another holder has sufficient evidence. No history-request
+dashboard, approval queue, Confirm/Decline action or associated bridge API ships.
+
+A removed author can sign a new row claiming an old time/epoch. Author
+signatures and old member lists alone do not establish when that row existed;
 [RFC 9420 §8.2](https://www.rfc-editor.org/rfc/rfc9420.html#section-8.2)
-anchors proposal/commit history, not the complete application-message log.
-This attack conclusion is an inference from those protocol and storage facts.
+anchors Proposal/Commit history, not every application-message body. A human
+review also cannot independently prove an unwitnessed record's creation time.
+Replacing the review button with blind automatic signing is not a solution.
 
-Concrete stronger option: every updated membership-changing commit's MLS
-authenticated_data contains `(history_version=1, closed_epoch_context_hash,
-root, record_count, previous_closed_root_hash)`. `root` uses the
-[RFC 6962 §2.1](https://www.rfc-editor.org/rfc/rfc6962.html#section-2.1)
-Merkle tree over lexicographically sorted occurrence keys and canonical
-content-proof hashes (leaf `SHA256(0x00 || record_tuple)`, node
-`SHA256(0x01 || left || right)`, empty root `SHA256(empty)`). Require exact
-proof index/count and at most 64 sibling hashes. The commit's signature and
-subsequent confirmed transcript pin that root to **that accepted branch**.
-Keep all proofs/root payloads atomically with the actual MLS transition.
-Pinned OpenMLS 0.8.1 exposes `MlsGroup::set_aad` and `ProcessedMessage::aad`;
-no dependency update is needed to prototype and test the binding.
-
-The authorized committer determines the committed set. A valid inclusion proof
-prevents inserting a different row into an already pinned set. It is **not** a
-trusted wall clock, consensus, proof that the committer observed everything,
-or protection against a malicious authority creating a fork before the
-receiver has a trusted anchor. Current/prospective authorities remain a trust
-boundary. Org authority changes need their own authenticated branch policy;
-a group root cannot repair absent org revocation-order evidence.
-
-Critical availability cost: a legitimate message can be retained by an offline
-ordinary member yet be absent from the committer's closing set. That message
-cannot later get an inclusion proof for the closed root. Delaying a removal
-until every holder responds makes removal depend indefinitely on offline or
-malicious holders. Rewriting the closed root afterward defeats its cutoff.
-Keeping a separate unsigned/attested supplement does not fix that proof gap.
-
-## Recommended choice and exact blocking question
-
-Recommend preserving strict cutoff checks and honest incomplete status rather
-than silently accepting backdated rows. Proceed with channel/common contracts
-and same-membership proven group recovery after their approval; do not declare
-IVO-132/143 complete while the remaining policy is unresolved.
-
-Choose explicitly:
-
-* **Strict branch-anchored history:** authoritative closing roots, no wait for
-  every offline holder; unverifiable late/legacy rows stay local and missing
-  remotely. Membership changes remain available. This requires amending the
-  full-history acceptance promise for those rows and defining org branch trust.
-* **Authority-endorsed supplements:** a currently authorized admin can endorse
-  precise unanchored rows for stated admission intervals. Other holders relay
-  that evidence without the admin online. This permits more recovery but trusts
-  that authority's assertion; it cannot claim cryptographic pre-removal creation
-  proof or preserve IVO-143's present wording unchanged.
-* **All-holder closing barrier:** freeze the transition until every required
-  admitted holder has supplied its accepted set. This preserves more rows but
-  offline/malicious holders can block removal; it still assumes honest authority
-  and cannot recover absent copies or prior legacy evidence.
-
-**Question for approval:** which availability/trust cost should private-group
-history accept: strict anchored history with explicit gaps (recommended),
-current-admin endorsement of those gaps, or membership changes waiting for
-offline holders? None is an authorization to claim all three guarantees.
-
-The first option is a protocol direction, not a completed cryptographic design.
-Before IVO-143 implementation, resolve how org-roster transitions pin branch
-authority and how known-current epoch imports are classified when a later root
-omits them. No silently trusted timestamp, retroactive verification, or erasure
-of already authenticated local content may stand in for those decisions.
+Investigate retaining authenticated live-acceptance evidence automatically and
+binding history to membership transitions. Specify exactly whose assertions a
+receiver trusts, how evidence survives offline holders and membership changes,
+and what older installations can actually supply. A signed receipt alone does
+not prove an honest witness or a timestamp. No new trust assumption, permanent
+legacy gap or all-holder barrier is approved by rejecting the manual workflow.
+Complete this evidence/compatibility design before implementing group history;
+independent channel recovery and the approved Android access work can proceed.
 
 ## Verification before acceptance
 
@@ -336,9 +303,11 @@ offers without auto-download. Run through existing bridge on desktop/Android.
 
 Group adversarial cases: same-membership plaintext transplantation; new member
 requesting earlier rows; ordinary offline; removal/rejoin with absent interval;
-forged old-time row signed **after** removal; root/branch substitution;
-legitimate offline-holder row absent from closing set; stale org roles and
+forged old-time row signed **after** removal;
+automatic recovery from an alternate authorized holder without admin action;
+membership changes, stale/forked authority and replay into another admission;
 unavailable original authority; no provider snapshots/private secrets exchanged.
 Assert waiting rather than successful completion on every missing proof path.
 Focused tests cover bounds, canonical transcripts and atomic refusal behavior;
-real OpenMLS tests prove commit AAD/root binding and post-recovery live traffic.
+real OpenMLS tests prove staged transition validation and post-recovery live
+traffic. Assert that successful recovery never requires an administrator action.

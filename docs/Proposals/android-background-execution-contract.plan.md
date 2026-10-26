@@ -67,8 +67,9 @@ result and resolve its energy tradeoff before claiming the efficiency target.
 
 Use Android CallStyle notifications on supported releases and the existing
 authenticated call identity/expiry/participating-device state. Immutable,
-explicit PendingIntents carry the exact installation session and call ID; every
-action is revalidated against current native state before changing the call.
+explicit PendingIntents carry an opaque capability bound to the exact
+installation session and call ID; every action is revalidated against current
+native state before changing the call.
 Decline can execute without exposing chats; stale actions do nothing.
 
 Answer opens the existing Activity's call presentation, with protected chats
@@ -83,6 +84,98 @@ user/system grant; unavailable full-screen access retains an actionable call
 notification rather than pretending the screen opened. Preserve existing audio
 routes, ringtone, selected media owner, floating view and PiP. Native cancellation
 and expiry clear presentation/actions; answering never extends chat unlock time.
+
+Answer uses an immutable Activity PendingIntent directly, not a receiver/service
+that then launches UI. Bind each action to a random 128-bit one-use capability
+held in encrypted local state, in addition to the exact call/revision/action.
+The exported launcher must reject a forged intent containing only a known call
+ID. Decline/hangup may use non-exported receivers. No message text, caller name,
+conversation ID or call key belongs in generic notification extras; OS actions
+carry only the opaque capability. Revalidate after initialization and before
+acceptance/capture; an expired or replaced call consumes no newer call's action.
+
+## Proposed native bridge and durable delivery
+
+These additions require approval. Reuse existing conversation/call identifiers,
+snapshots, history codecs and native runtime owners; do not add a second store.
+Android attaches the application owner after a valid DEK is injected. Desktop
+does not start this owner or acquire new background loops by default.
+
+| API | Exact scope |
+| --- | --- |
+| `set_background_execution(interactive: bool, waiting_enabled: bool)` | Idempotently update desired execution and return actual BackgroundStatus |
+| `background_status()` | Current requested/actual mode, attachment reachability and active user-work state |
+| `watch_background_changes(StreamSink<u64>)` | One replaceable subscriber; coalesced revision hints, never success receipts |
+| `pending_background_notifications(limit: u32)` | Read at most 16 pending typed notifications from encrypted storage |
+| `ack_background_notification(id: String, revision: u64)` | Acknowledge only the exact successfully posted revision |
+| `apply_background_call_action(capability: String)` | Revalidate/consume the exact call action; report applied, stale or unavailable |
+
+`interactive` means an actually resumed Activity, independently of chat unlock;
+it is not inferred from a mounted widget or an incoming notification. Accepted
+calls and admitted user transfers are separate native facts and may require
+active mode with no visible Activity. Waiting/off intent cannot end that work.
+
+BackgroundStatus uses typed active/waiting/offline/unsupported states, plus
+actual carrier reachability and current calls/user-started transfers. Platform
+notification/exemption grants remain actual Android facts, not guesses in Rust.
+Notification entries contain an opaque ID/revision, typed conversation target,
+original occurrence or exact call identity, current call phase/expiry, optional
+display text and an action-specific capability. They contain no secret keys.
+Full local text may cross the app's own bridge; the Android publisher performs
+the final privacy reduction against the current native access state immediately
+before constructing OS fields. It must not trust a stale Dart lock snapshot.
+
+Add one encrypted `background_delivery` table, separate from history-recovery
+tables. Typed keys hold per-conversation pending summaries, exact call-action
+capabilities/revisions and notification acceptance watermarks. Reuse the existing
+DEK and transaction helpers. Do not serialize OS actions into readable history.
+No table row is a license to accept an unauthenticated conversation event.
+
+Queue a notification only with a successful durable incoming-message/import or
+authenticated call-state transition. Coalesce pending message summaries per
+conversation while preserving unread content; never mark read. The stream only
+signals that durable work changed, so a slow UI cannot require unbounded in-memory
+message copies. Read bounded batches from storage and yield to live user work.
+Failure to post due to permission/OS refusal is not acknowledged as delivery.
+Replaying an unacknowledged revision uses the same OS notification ID with
+only-alert-once behavior; no duplicate receipt or fresh obsolete call ring.
+
+On upgrade establish the initial watermark from existing durable history;
+opening the old store must not notify every old message as new. Preserve pending
+state across reclamation. Current action state and expiry win over persisted
+notification buttons. Clearing or previewing a notification does not mark read.
+
+Service work is driven by native owner changes, not full-history widget polling.
+Use the existing DM pump and add independent draining/maintenance to group and
+channel owners, with bounded work and no nested cross-runtime locks. A rejected
+subscriber or unsupported transport reports actual state; it does not create a
+second node. Foreground UI, waiting, an accepted call or a user-started transfer
+may keep the shared owner active. Stop waiting remains off when that work ends.
+
+## Platform adapter and long transfers
+
+Proposed application-owned channel: `app.mosh.mosh/waiting`.
+Methods: `status`, `enable`, `stop`, `requestBatteryExemption`,
+`publishNotification`, `setUserWork` and `setNotificationPolicy`.
+Inputs are typed maps with bounded strings and exact opaque IDs/revisions.
+`enable` requires a permitted foreground/user-entry path and completed setup;
+`stop` commits off intent before acknowledging. `setUserWork` mirrors verified
+native call/transfer state rather than inventing media ownership. Publication
+returns posted/blocked/failed; the last two never advance the durable watermark.
+Privacy preferences independently cover names and text and default to hiding
+both while app lock is active. Their synchronous native read is authoritative
+when publishing; permission/channel restrictions can limit disclosure further.
+
+User-started transfers use Android 14+ user-initiated data transfer jobs with
+their progress notification, scheduled from the actual foreground user action.
+Add `RUN_USER_INITIATED_JOBS` and a non-exported JobService protected by
+`BIND_JOB_SERVICE`. Existing transfer IDs/manifests remain the work identity;
+the job keeps the same native transfer running rather than creating another
+downloader. On Android 8–13 use the foreground data-transfer service path.
+Do not misuse idle waiting's specialUse category for an independently typed
+transfer or ignore modern dataSync execution quotas. OS interruption preserves
+durable transfer state and truthful progress, without setting waiting back on.
+No new automatic media/preview download is admitted by these execution rights.
 
 ## Privacy and attachments
 
@@ -105,8 +198,16 @@ Physical acceptance covers supported API/OEM, unplugged Doze, locked cold
 startup, task removal, ordinary reclaim, reboot, OS Stop, Force stop, permission
 refusal, stale actions and concurrent linked-device answers. Emulators/CI do not
 replace those conditions or battery/radio measurements.
+Also test notification replay/ack races, forged exported-Activity call intents,
+subscriber replacement, native-state privacy races, outbox refusal and no flood
+of upgrade-time history. Exercise actual user-started transfers through Stop
+waiting and supported job/service interruption without a second transfer owner.
 
 Sources checked on 2026-10-26 through Context7 and primary Android documentation:
 [service types](https://developer.android.com/develop/background-work/services/fgs/service-types),
 [Doze](https://developer.android.com/training/monitoring-device-state/doze-standby),
 [background starts](https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start).
+Additional primary sources:
+[notification trampolines](https://developer.android.com/about/versions/12/behavior-changes-12#notification-trampolines),
+[user-initiated transfers](https://developer.android.com/develop/background-work/background-tasks/uidt),
+[dataSync time limits](https://developer.android.com/develop/background-work/services/fgs/timeout).
