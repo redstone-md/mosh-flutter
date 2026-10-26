@@ -1,7 +1,9 @@
 # Moss waiting contract for IVO-136
 
-Status: proposal for upstream maintainer review, not an implemented capability.
-No Moss files or consumer repositories are modified by this document.
+Status: owner-approved on 2026-10-26 for implementation in a separate Moss
+worktree and a separate PR, without merging. Upstream review and Mosh integration
+are pending; this is not a shipped capability. This exception does not authorize
+changes to the original submodule checkout or other consumers.
 
 Mosh enables waiting after setup and automatically selects economical waiting
 when no interactive work, accepted call or user-started transfer needs active
@@ -74,6 +76,8 @@ Mosh integrates only a reviewed upstream commit, then exercises the existing
 real-process bridge scenario. Physical Android measures actual wakeups/radio,
 traffic and delivery latency; this API proposal does not establish battery goals.
 
-Required owner action: approve this proposed public contract and coordinate the
-upstream Moss implementation with its maintainer. Repository rules prohibit
-editing the submodule or sibling repositories as part of this Mosh change.
+The owner explicitly granted the repository-boundary exception for this work.
+The separate branch starts at Mosh's pinned fcdc338 (existing pending Moss PR
+#30); a stacked PR isolates the new lifecycle from that unmerged dependency.
+Keep the original Mosh submodule pin unchanged during upstream implementation.
+Do not merge the new PR; retain maintainer review and the compatibility checks.
