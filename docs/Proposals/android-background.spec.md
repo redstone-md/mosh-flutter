@@ -210,8 +210,9 @@ No protocol can recover data absent from every remaining copy.
   author; neither its receipt nor a signed timestamp proves pre-removal creation
   independently. Sufficient retained evidence must travel with the history;
   do not sign arbitrary offered rows or manufacture missing legacy proof.
-  Preserve distinct organization-group authority checks. Exact automatic
-  evidence, wire/storage and legacy compatibility details still need review.
+  Preserve distinct organization-group authority checks. The exact automatic
+  evidence, wire/storage and legacy compatibility contracts were subsequently
+  approved after clarification; further public-contract changes need review.
   Preserve original message identity, reject conflicting imports and keep live
   delivery working during recovery. Completion covers the verified available
   authorized history, not an invented global archive or channel total order.
