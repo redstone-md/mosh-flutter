@@ -11,6 +11,7 @@ struct Erasure<M> {
 impl<M: ConversationMessage> Erasure<M> {
     fn new(index: usize, message: M, context: &str) -> Self {
         let row = StoredMessage {
+            history_evidence: None,
             conversation_id: context.split_once(':').map_or(context, |(_, id)| id).into(),
             sent_at_ms: message.sent_at_ms().unwrap_or_default(),
             message_id: message.message_id().unwrap_or_default().into(),

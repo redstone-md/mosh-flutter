@@ -30,6 +30,7 @@ import 'chat_names/types.dart';
 import 'conversation/attachments.dart';
 import 'conversation/dm_offers.dart';
 import 'conversation/mesh.dart';
+import 'conversation/recovery.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -242,6 +243,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GroupNameStatus dco_decode_box_autoadd_group_name_status(dynamic raw);
 
   @protected
+  HistorySync dco_decode_box_autoadd_history_sync(dynamic raw);
+
+  @protected
+  HistorySyncReason dco_decode_box_autoadd_history_sync_reason(dynamic raw);
+
+  @protected
   JoinChannelRequest dco_decode_box_autoadd_join_channel_request(dynamic raw);
 
   @protected
@@ -435,6 +442,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GroupSnapshot dco_decode_group_snapshot(dynamic raw);
+
+  @protected
+  HistorySync dco_decode_history_sync(dynamic raw);
+
+  @protected
+  HistorySyncReason dco_decode_history_sync_reason(dynamic raw);
+
+  @protected
+  HistorySyncState dco_decode_history_sync_state(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -632,6 +648,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GroupNameStatus? dco_decode_opt_box_autoadd_group_name_status(dynamic raw);
+
+  @protected
+  HistorySync? dco_decode_opt_box_autoadd_history_sync(dynamic raw);
+
+  @protected
+  HistorySyncReason? dco_decode_opt_box_autoadd_history_sync_reason(
+      dynamic raw);
 
   @protected
   MeshInfo? dco_decode_opt_box_autoadd_mesh_info(dynamic raw);
@@ -976,6 +999,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  HistorySync sse_decode_box_autoadd_history_sync(SseDeserializer deserializer);
+
+  @protected
+  HistorySyncReason sse_decode_box_autoadd_history_sync_reason(
+      SseDeserializer deserializer);
+
+  @protected
   JoinChannelRequest sse_decode_box_autoadd_join_channel_request(
       SseDeserializer deserializer);
 
@@ -1194,6 +1224,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GroupSnapshot sse_decode_group_snapshot(SseDeserializer deserializer);
+
+  @protected
+  HistorySync sse_decode_history_sync(SseDeserializer deserializer);
+
+  @protected
+  HistorySyncReason sse_decode_history_sync_reason(
+      SseDeserializer deserializer);
+
+  @protected
+  HistorySyncState sse_decode_history_sync_state(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -1425,6 +1465,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GroupNameStatus? sse_decode_opt_box_autoadd_group_name_status(
+      SseDeserializer deserializer);
+
+  @protected
+  HistorySync? sse_decode_opt_box_autoadd_history_sync(
+      SseDeserializer deserializer);
+
+  @protected
+  HistorySyncReason? sse_decode_opt_box_autoadd_history_sync_reason(
       SseDeserializer deserializer);
 
   @protected
@@ -1795,6 +1843,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       GroupNameStatus self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_history_sync(
+      HistorySync self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_history_sync_reason(
+      HistorySyncReason self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_join_channel_request(
       JoinChannelRequest self, SseSerializer serializer);
 
@@ -2033,6 +2089,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_group_snapshot(GroupSnapshot self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_history_sync(HistorySync self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_history_sync_reason(
+      HistorySyncReason self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_history_sync_state(
+      HistorySyncState self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
@@ -2274,6 +2341,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_group_name_status(
       GroupNameStatus? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_history_sync(
+      HistorySync? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_history_sync_reason(
+      HistorySyncReason? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_mesh_info(

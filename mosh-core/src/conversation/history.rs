@@ -43,6 +43,8 @@ pub struct StoredMessage<M> {
     pub attachment_manifest: Option<AttachmentManifest>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preview_manifest: Option<AttachmentManifest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub history_evidence: Option<super::recovery::HistoryEvidence>,
 }
 
 /// Where a replayed conversation's rows land.
@@ -118,7 +120,9 @@ impl History {
                     local_author,
                     transfer,
                     stored.attachment_manifest,
-                    stored.preview_manifest,
+                    stored
+                        .preview_manifest
+                        .filter(|_| stored.history_evidence.is_none()),
                 );
                 log.upsert(message);
             }
@@ -261,6 +265,11 @@ impl History {
         p.put_conversation(self.tables, conversation_id, &json)
     }
 
+    /// A recovery transaction durably saved the complete visible suffix.
+    pub(crate) fn acknowledge(&mut self, id: &str, count: usize) {
+        self.persisted_counts.insert(id.to_owned(), count);
+    }
+
     /// Forgets how much of a conversation is written, so the next tail write
     /// starts from the beginning. For one that was deleted, or one about to be
     /// loaded again from scratch.
@@ -295,6 +304,7 @@ fn stored_row<M: ConversationMessage>(
         None => (None, None),
     };
     let record = StoredMessage {
+        history_evidence: None,
         conversation_id: conversation_id.to_string(),
         sent_at_ms,
         message_id: message_id.to_string(),

@@ -22,7 +22,9 @@ impl ChannelSession {
         &mut self,
         message: MossReceivedMessage,
     ) -> Result<(), ChannelRuntimeError> {
-        if self.seen.seen_before(&message.channel, &message.payload) {
+        if message.channel != self.blob_topic
+            && self.seen.seen_before(&message.channel, &message.payload)
+        {
             return Ok(());
         }
         if message.channel == self.topic {

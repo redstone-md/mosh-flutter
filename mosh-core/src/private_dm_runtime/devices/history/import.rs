@@ -133,6 +133,7 @@ impl PrivateDmSession {
             )
             .map_err(|_| invalid())?;
             rows.push(StoredMessage {
+                history_evidence: None,
                 conversation_id: self.session_id.clone(),
                 sent_at_ms: record.sent_at_ms,
                 message_id: record.message_id.clone(),

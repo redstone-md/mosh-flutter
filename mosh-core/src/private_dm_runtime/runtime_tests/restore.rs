@@ -104,6 +104,7 @@ fn restored_inbound_history_waits_for_live_peer() {
             read: None,
         };
         let record = crate::conversation::history::StoredMessage {
+            history_evidence: None,
             conversation_id: invite.session_id.clone(),
             sent_at_ms,
             message_id: message_id.to_string(),

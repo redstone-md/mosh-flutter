@@ -7,6 +7,7 @@ import '../attachment_runtime.dart';
 import '../conversation/attachments.dart';
 import '../conversation/dm_offers.dart';
 import '../conversation/mesh.dart';
+import '../conversation/recovery.dart';
 import '../frb_generated.dart';
 import '../message_deletion/origin.dart';
 import '../message_deletion/types.dart';
@@ -91,6 +92,7 @@ class ChannelMessage {
 }
 
 class ChannelSnapshot {
+  final HistorySync? historySync;
   final DeletionSummary? deletionSummary;
   final String name;
   final String topic;
@@ -104,6 +106,7 @@ class ChannelSnapshot {
   final List<SnapshotEvent> events;
 
   const ChannelSnapshot({
+    this.historySync,
     this.deletionSummary,
     required this.name,
     required this.topic,
@@ -119,6 +122,7 @@ class ChannelSnapshot {
 
   @override
   int get hashCode =>
+      historySync.hashCode ^
       deletionSummary.hashCode ^
       name.hashCode ^
       topic.hashCode ^
@@ -136,6 +140,7 @@ class ChannelSnapshot {
       identical(this, other) ||
       other is ChannelSnapshot &&
           runtimeType == other.runtimeType &&
+          historySync == other.historySync &&
           deletionSummary == other.deletionSummary &&
           name == other.name &&
           topic == other.topic &&
