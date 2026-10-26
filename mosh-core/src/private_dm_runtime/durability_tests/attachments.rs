@@ -85,3 +85,39 @@ fn published_voice_message_survives_a_refused_tail_save() {
         }),
     );
 }
+
+#[test]
+fn incoming_attachment_creates_one_durable_background_notice_without_downloading() {
+    let mut pair = Pair::new("background-offer");
+    let store = pair.bob.sessions.persistence().cloned().unwrap();
+    store.save_background_intent(false, true).unwrap();
+    let sent = pair
+        .alice
+        .send_attachment(
+            &pair.session_id,
+            "offered.bin".into(),
+            "application/octet-stream".into(),
+            vec![7; 1024],
+            None,
+            None,
+        )
+        .unwrap();
+    pair.bob.service();
+    let pending = store.pending_background_notifications(16).unwrap();
+    assert_eq!(pending.len(), 1, "an authenticated offer must notify");
+    assert_eq!(pending[0].target.id, pair.session_id);
+    let snapshot = pair.bob.poll_session(&pair.session_id).unwrap();
+    assert_eq!(snapshot.attachments[0].attachment_id, sent.attachment_id);
+    assert_eq!(snapshot.attachments[0].state, AttachmentState::Offered);
+    assert_eq!(snapshot.attachments[0].completed_chunks, 0);
+    assert!(snapshot.attachments[0].local_path.is_none());
+    assert_eq!(
+        snapshot.messages[0].metadata.as_ref().unwrap().is_own,
+        Some(false)
+    );
+    pair.bob.rehydrate();
+    pair.bob.service();
+    let restored = store.pending_background_notifications(16).unwrap();
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].revision, pending[0].revision);
+}

@@ -52,6 +52,9 @@ outgoing tone and current call presentation, including floating video and PiP;
 it yields incoming notifications and ringing to the Android application owner.
 Every OS publication applies the current native privacy policy. Names and text
 remain separate choices; notification actions do not extend chat access.
+DM attachment offers retain ownership from their verified MLS sender. Foreign
+offers can alert without downloading; offers from our own linked devices do not
+become contact notifications or contact-liveness evidence.
 
 Verification includes independent bridge installations receiving call offers
 without widget polling, exact capability replay/cancellation checks, real

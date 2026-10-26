@@ -61,6 +61,7 @@ impl PrivateDmSession {
     pub(super) fn accept_incoming_manifest(
         &mut self,
         from_device: String,
+        own: bool,
         manifest: impl Into<AttachmentOffer>,
     ) -> Result<(), PrivateDmRuntimeError> {
         let offer = manifest.into();
@@ -71,8 +72,9 @@ impl PrivateDmSession {
             return Ok(());
         };
         let message = self.messages.stamp(ChatMessage {
-            metadata: origin.map(|origin| crate::message_deletion::MessageMetadata {
-                origin: Some(origin),
+            metadata: Some(crate::message_deletion::MessageMetadata {
+                origin,
+                is_own: Some(own),
                 ..Default::default()
             }),
             from_device,

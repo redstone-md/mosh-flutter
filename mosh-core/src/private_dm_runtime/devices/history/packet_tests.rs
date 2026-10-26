@@ -191,6 +191,7 @@ impl Fixture {
     }
 }
 
+mod attachment_notifications;
 #[path = "../../calls/boundary_tests.rs"]
 mod calls;
 mod deletion;
@@ -353,6 +354,7 @@ fn signed_history_boundary_refuses_outsiders_tampering_conflicts_and_stale_roste
 #[test]
 #[ignore = "Independent installation worker, invoked by the signed boundary test."]
 fn history_packet_process() {
+    attachment_notifications::live_offers_use_verified_ownership(&mut Fixture::new());
     notifications::ownership_is_recomputed_from_verified_original_signers(&mut Fixture::new());
     export::frozen_metadata_survives_a_recovery_checkpoint(&mut Fixture::new());
     signed_refusals(&mut Fixture::new());
