@@ -3,6 +3,44 @@
 use super::*;
 use crate::org_runtime::PendingJoinRecovery;
 
+#[derive(Default)]
+pub(super) struct JoinRetry {
+    next: Option<std::time::Instant>,
+    attempts: u8,
+}
+
+impl GroupSession {
+    pub(super) fn retry_pending_join(&mut self) -> Result<(), PrivateGroupError> {
+        if self
+            .join_retry
+            .next
+            .is_none_or(|at| std::time::Instant::now() >= at)
+        {
+            self.publish_pending_join()?;
+        }
+        Ok(())
+    }
+
+    fn publish_pending_join(&mut self) -> Result<(), PrivateGroupError> {
+        let Some(package) = self.pending_join_package.as_ref().filter(|_| !self.joined) else {
+            return Ok(());
+        };
+        // Retain the original KeyPackage, signer and target. A retry must not
+        // create another leaf or make a previously issued Welcome unusable.
+        let delay = (3u64 << self.join_retry.attempts.min(5)).min(60);
+        self.join_retry.attempts = self.join_retry.attempts.saturating_add(1);
+        self.join_retry.next =
+            Some(std::time::Instant::now() + std::time::Duration::from_secs(delay));
+        publish_join_package(
+            &self.node,
+            &self.to_persisted_record(),
+            package,
+            &self.crypto,
+            self.org_signer.as_ref(),
+        )
+    }
+}
+
 struct JoinPreparation {
     request: JoinGroupRequest,
     invite: ParsedGroupInvite,
@@ -112,17 +150,7 @@ impl PrivateGroupRuntime {
     }
 
     pub(crate) fn publish_prepared_join(&mut self, id: &str) -> Result<(), PrivateGroupError> {
-        let session = self.group_mut(id)?;
-        if let Some(package) = &session.pending_join_package {
-            publish_join_package(
-                &session.node,
-                &session.to_persisted_record(),
-                package,
-                &session.crypto,
-                session.org_signer.as_ref(),
-            )?;
-        }
-        Ok(())
+        self.group_mut(id)?.publish_pending_join()
     }
 
     /// A prepared join has no new durable rows to delete on rollback.

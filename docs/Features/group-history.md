@@ -42,7 +42,12 @@ Neither a signature nor a holder receipt proves an independent creation time.
 New KeyPackages carry an optional dual-signed key-package binding over the exact
 TLS package and full MLS/Moss keys. The issuer stages its Add/replace, signs the
 approved exact admission-association tuple, and saves its own next snapshot and
-original association before publishing Welcome/Commit. Welcome checks the
+original association and exact targeted Welcome/Commit wire payloads before
+publishing. A repeated original KeyPackage replays those accepted bytes, including
+its original target, without another Add or epoch change. Pending joins retry the
+same package with a 3–60 second backoff, so discovery warming or a lost Welcome
+cannot strand an accepted join. Unverified future associations have a separate
+32-entry/1 MiB budget and are indexed by commit and claimed full signer. Welcome checks the
 actual pinned author, group, next context, commit header, original byte hashes
 and own joiner proof. An invalid supplied association refuses admission; absence
 preserves legacy live compatibility without manufacturing the missing proof.
@@ -62,8 +67,10 @@ recipient. There is no group-key room fallback for historical content.
 
 `private_group_history_flow` exercises independent real bridge installations:
 ordinary-holder recovery with original author offline and holder restart,
-native receipt/import notifications without UI polling, exact notification
-acknowledgement across restart, and original attachment offers without downloads.
+and original attachment offers without downloads. The explicit network acceptance
+case for native receipt/import notifications without UI polling requires a real
+signed reachable Waiting carrier and checks native readiness before sending;
+loopback NAT absence is reported unavailable and never counted as delivery.
 Native durability cases cover original proof retention, ratchet/snapshot refusal,
 published-row evidence and atomic outbound retirement. These are software
 checks; real Android OS/device acceptance remains separate.

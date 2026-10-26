@@ -354,38 +354,4 @@ impl GroupSession {
         }
         self.admit_history_member(participant_id, key_package, joiner_binding, own_fp)
     }
-
-    pub(super) fn broadcast_admission(
-        &mut self,
-        pre_epoch: Option<u64>,
-        outcome: &AddOutcome,
-        participant_id: String,
-        own_fp: String,
-        admission_binding: Option<crate::sender_auth::SenderProof>,
-    ) -> Result<(), PrivateGroupError> {
-        if let Some(epoch) = pre_epoch {
-            self.log_commit(epoch, &outcome.commit_bytes);
-        }
-        let commit_b64 = encode(&outcome.commit_bytes);
-        let welcome_envelope = ControlEnvelope::Welcome {
-            admission_binding: admission_binding.clone(),
-            group_id: self.group_id.clone(),
-            for_participant_id: participant_id,
-            from_fingerprint: own_fp.clone(),
-            welcome_b64: encode(&outcome.welcome_bytes),
-            commit_b64: commit_b64.clone(),
-            tree_b64: encode(&outcome.tree_bytes),
-        };
-        self.publish_control(&welcome_envelope)?;
-        // Existing members need the Commit on the control channel so their
-        // MLS tree advances; the Welcome above is consumed only by the joiner.
-        let commit_envelope = ControlEnvelope::Commit {
-            admission_binding,
-            group_id: self.group_id.clone(),
-            from_fingerprint: own_fp,
-            commit_b64,
-            roster_version: self.own_roster_version(),
-        };
-        self.publish_control(&commit_envelope)
-    }
 }

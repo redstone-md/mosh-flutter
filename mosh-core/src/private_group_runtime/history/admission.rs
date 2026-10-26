@@ -68,15 +68,20 @@ impl GroupSession {
         };
         let next = candidate.history_context()?;
         let binding = self.issue_admission_binding(&prior, &next, &outcome, package, joiner)?;
-        self.persist_own_admission(&candidate, &prior, &next, &outcome, &binding, joiner)?;
-        self.crypto = candidate;
-        self.broadcast_admission(
-            Some(prior.epoch),
+        let replay =
+            self.prepare_admission_replay(&outcome, participant, own_fp, binding.clone())?;
+        let replay_key = self.admission_replay_key(package);
+        self.persist_own_admission(
+            &candidate,
             &outcome,
-            participant,
-            own_fp,
-            Some(binding),
-        )
+            &binding,
+            joiner,
+            super::welcome::replay_write(&replay_key, &replay)?,
+        )?;
+        self.crypto = candidate;
+        self.log_commit(prior.epoch, &outcome.commit_bytes);
+        self.retain_admission_replay(replay_key, replay.clone());
+        self.publish_admission_replay(&replay)
     }
 
     fn issue_admission_binding(
@@ -113,27 +118,31 @@ impl GroupSession {
     fn persist_own_admission(
         &self,
         candidate: &MlsSessionCrypto,
-        prior: &MlsHistoryContext,
-        next: &MlsHistoryContext,
         outcome: &AddOutcome,
         binding: &SenderProof,
         joiner: Option<&SenderProof>,
+        replay: EvidenceWrite,
     ) -> Result<(), PrivateGroupError> {
         let Some(store) = self.persistence.as_deref() else {
             return Ok(());
         };
+        let prior = self.crypto.history_context()?;
+        let next = candidate.history_context()?;
         let prefix = format!(
             "group/{}",
             hex::encode(Sha256::digest(self.group_id.as_bytes()))
         );
-        let mut evidence = vec![EvidenceWrite {
-            key: format!(
-                "{prefix}/evidence/admission-association/{}",
-                hex::encode(Sha256::digest(&outcome.commit_bytes))
-            ),
-            bytes: serde_json::to_vec(binding)
-                .map_err(|e| PrivateGroupError::Codec(e.to_string()))?,
-        }];
+        let mut evidence = vec![
+            replay,
+            EvidenceWrite {
+                key: format!(
+                    "{prefix}/evidence/admission-association/{}",
+                    hex::encode(Sha256::digest(&outcome.commit_bytes))
+                ),
+                bytes: serde_json::to_vec(binding)
+                    .map_err(|e| PrivateGroupError::Codec(e.to_string()))?,
+            },
+        ];
         if let Some(joiner) = joiner {
             let bytes =
                 serde_json::to_vec(joiner).map_err(|e| PrivateGroupError::Codec(e.to_string()))?;
@@ -149,8 +158,8 @@ impl GroupSession {
             super::transitions::TransitionState {
                 previous: &self.crypto,
                 next: candidate,
-                prior,
-                context: next,
+                prior: &prior,
+                context: &next,
                 author: &self.crypto.signer_public(),
                 removed: false,
             },

@@ -29,6 +29,7 @@ mod source;
 mod source_pages;
 mod transitions;
 mod vouches;
+pub(super) mod welcome;
 pub(super) use evidence::{native_acceptance_key, NativeAcceptance};
 pub(super) use protocol::CurrentHead;
 pub(super) use transitions::persist_membership;

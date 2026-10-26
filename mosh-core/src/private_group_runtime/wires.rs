@@ -159,20 +159,35 @@ pub(super) fn publish_control_message<T: Serialize>(
     org: Option<(&str, &SigningKey)>,
     value: &T,
 ) -> Result<(), PrivateGroupError> {
-    match org {
+    let payload = control_payload(control_channel, mesh_id, org, value)?;
+    node.publish_room_best_effort(mesh_id, control_channel, &payload)
+        .map_err(|error| PrivateGroupError::Moss(error.to_string()))
+}
+
+pub(super) fn control_payload<T: Serialize>(
+    control_channel: &str,
+    mesh_id: &str,
+    org: Option<(&str, &SigningKey)>,
+    value: &T,
+) -> Result<Vec<u8>, PrivateGroupError> {
+    let payload =
+        serde_json::to_vec(value).map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
+    let payload = match org {
         Some((org_pubkey, signer)) => {
-            let payload = serde_json::to_vec(value)
-                .map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
-            let ctx = OrgContext {
+            let context = OrgContext {
                 org_pubkey,
                 mesh_id,
                 channel_kind: control_channel,
             };
-            let env = org_envelope::sign(signer, &ctx, &payload);
-            publish_json(node, mesh_id, control_channel, &env)
+            serde_json::to_vec(&org_envelope::sign(signer, &context, &payload))
+                .map_err(|error| PrivateGroupError::Codec(error.to_string()))?
         }
-        None => publish_json(node, mesh_id, control_channel, value),
+        None => payload,
+    };
+    if payload.len() > crate::conversation::MAX_PUBLISH_BYTES {
+        return Err(PrivateGroupError::PayloadTooLarge);
     }
+    Ok(payload)
 }
 
 /// The node identity key doubles as the org control-channel signer. Its

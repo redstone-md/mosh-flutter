@@ -149,6 +149,9 @@ impl GroupSession {
         // Drop replays / rogue duplicate admit attempts whose MLS
         // signer is already covered by the roster.
         if self.crypto.key_package_signer_is_member(&key_package)? {
+            if self.org_pubkey.is_none() || sender.is_some_and(|id| self.roster_contains(id)) {
+                self.replay_admission(&key_package)?;
+            }
             return Ok(());
         }
         if self.org_pubkey.is_some() {
