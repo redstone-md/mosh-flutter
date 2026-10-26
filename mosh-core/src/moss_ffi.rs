@@ -162,6 +162,8 @@ pub struct MossFfiRuntime {
     send_to_peer: Option<MossSendToPeerFn>,
     set_packet_callback: Option<MossSetPacketCallbackFn>,
     set_activity_mode: Option<MossSetActivityModeFn>,
+    #[cfg(target_os = "android")]
+    notify_network_changed: Option<MossNotifyNetworkChangedFn>,
 }
 
 pub struct MossNode {

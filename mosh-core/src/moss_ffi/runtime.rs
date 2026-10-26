@@ -54,6 +54,8 @@ impl MossFfiRuntime {
             send_to_peer: try_load_symbol(&library, b"Moss_SendToPeer\0"),
             set_packet_callback: try_load_symbol(&library, b"Moss_SetPacketCallback\0"),
             set_activity_mode: try_load_symbol(&library, b"Moss_SetActivityMode\0"),
+            #[cfg(target_os = "android")]
+            notify_network_changed: try_load_symbol(&library, b"Moss_NotifyNetworkChanged\0"),
             _library: ManuallyDrop::new(library),
         })
     }

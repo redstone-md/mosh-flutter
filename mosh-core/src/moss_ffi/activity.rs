@@ -35,6 +35,17 @@ impl MossNode {
         })
     }
 
+    #[cfg(target_os = "android")]
+    pub(crate) fn notify_network_changed(&self) -> Result<(), MossFfiError> {
+        let operation = self
+            .runtime
+            .notify_network_changed
+            .ok_or_else(|| MossFfiError::Symbol("Moss_NotifyNetworkChanged".into()))?;
+        let handle = self.handle()?;
+        // SAFETY: approved optional ABI, with the read lease fencing replacement.
+        check_code("notify_network_changed", unsafe { operation(*handle) })
+    }
+
     pub(crate) fn activity_snapshot(&self) -> Option<ActivitySnapshot> {
         if !self.supports_activity_mode() {
             return None;
