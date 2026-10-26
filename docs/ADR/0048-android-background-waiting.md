@@ -25,12 +25,23 @@ Waiting starts after initial setup; the app's Stop waiting action persists an
 off preference until explicit re-enabling and must not end an ongoing call.
 A refused battery exemption results in limited background availability, without
 repeated permission prompts or a claim of guaranteed reachability.
+Waiting must not start automatic media or clear-preview downloads. Transfers
+already initiated by the user continue, including after Stop waiting; the
+saved waiting preference stays off when that work finishes.
+
+On 2026-10-26, the owner expanded the completion boundary to include recovery
+of missed messages in private DMs, private groups and public channels. Live
+background notifications alone do not complete this slice. Source availability
+and historical access policy still need agreement; this does not authorize a
+server-side message archive.
 
 Mosh app lock protects chat access independently of background reception.
 Names and text are hidden in notifications by default while app lock is active;
 the user may explicitly allow their display, including message text on Android's
 lock screen. Android's own disclosure settings still take precedence, and
 showing a notification preview does not unlock the chat interface.
+The UI re-lock delay after backgrounding is configurable; its settings do not
+change the background key-access policy.
 
 The restriction is on Google-hosted event delivery through FCM. Google STUN
 remains permitted for address discovery; it does not receive Mosh chat messages

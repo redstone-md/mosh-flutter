@@ -13,6 +13,9 @@ The owner accepted interview questions 1, 2, 3, 4, 5, 7, 8 and 9 on
 opt-in message-text previews on the Android lock screen:
 
 Questions 10 through 12 were accepted on 2026-10-26.
+For questions 13 through 15 on the same date, the owner required complete
+missed-history recovery in this slice, added configurable app-lock delay, and
+accepted the background attachment policy below.
 
 - Mosh app lock protects interactive access to chats. It must not prevent
   background message reception or incoming calls. A user can accept an incoming
@@ -23,6 +26,11 @@ Questions 10 through 12 were accepted on 2026-10-26.
   call after minimizing, and notifications for new messages in private DMs,
   private groups and public channels. This does not change which conversation
   kinds support calls or which content is end-to-end encrypted.
+- Include recovery of messages missed while offline for private DMs, private
+  groups and public channels in the same completed slice. Group/channel history
+  recovery must not be deferred to a later slice or represented as complete
+  merely because live background notifications work. Source availability and
+  historical access rules still need explicit agreement.
 - The first implementation excludes FCM. Android background operation must work
   without Google Play services; this is not a ban on using Google STUN servers.
 - An untrusted intermediary may carry short encrypted wake signals, with
@@ -56,11 +64,23 @@ Questions 10 through 12 were accepted on 2026-10-26.
 - Initially enable waiting after setup. The app's Stop waiting action persists
   the disabled state until explicit re-enabling, including across restarts.
   It does not end an active call.
+- When app lock is enabled, re-lock interactive chat access after backgrounding
+  or Android screen locking. Make the background delay configurable, including
+  immediate locking and minute-based choices such as 1, 5 and 10 minutes, so a
+  brief app switch need not require authentication again. Temporary permission
+  dialogs and file pickers must not count as leaving Mosh. The default delay
+  and the relationship to immediate Android screen locking remain to settle.
+  Incoming call answer and call controls remain separate from chat unlocking.
+- Waiting receives text, call signaling and attachment offers without starting
+  automatic media or clear-preview downloads. Continue transfers already
+  initiated by the user, including after Stop waiting; disable waiting after
+  active user work ends without silently re-enabling its saved preference.
 
 These are target behavior decisions, not claims about the shipped release.
-The Android key-release policy is now explicit; the concrete storage mechanism,
-safe migration and UI re-lock timing still need design. No existing key or
-history may be replaced merely because a background startup cannot open it.
+The Android key-release and configurable UI-lock policies are now explicit;
+the concrete storage mechanism, safe migration and remaining timing defaults
+still need design. No existing key or history may be replaced merely because a
+background startup cannot open it.
 
 ## Notification privacy and Android lifecycle
 
@@ -99,8 +119,8 @@ Opening the app after an OS Force stop must not erase that separate preference.
 ## Selected direction: Moss waiting mode
 
 The owner chose a Moss waiting mode after comparing FCM, AyuGram and the
-existing relay carrier. Its Android service, lifecycle, attachment policy,
-runtime interface and dependency changes remain undecided.
+existing relay carrier. Its Android service, lifecycle, relay attachment
+selection, runtime interface and dependency changes remain undecided.
 
 The comparison must distinguish a system-assisted wake-up from an
 application-owned connection. AyuGram's
@@ -186,25 +206,60 @@ of FCM. No STUN-provider removal is part of this design.
 - Android battery and network usage still need physical-phone measurement.
   Earlier desktop traffic reports do not establish Android drain.
 
-## Current-code boundaries for the remaining decisions
+## Current-code gaps covered by this slice
 
 - DM history recovery can use an available authenticated installation holding
   the missing data, including a linked sibling or counterpart installation;
   see [ADR 0032](../ADR/0032-dm-offline-recovery.md). Groups/channels do not have
   equivalent durable missed-text catchup. Their successful publish forgets the
   outbound attempt; group resync retrieves MLS commits, not old message bodies.
+  The owner explicitly includes closing this gap in the same slice.
 - The existing Android lock screen is a cold-start DEK retry gate. No automatic
-  UI re-lock after backgrounding exists; its trigger policy must be chosen.
+  UI re-lock after backgrounding exists; implement the accepted configurable
+  lock policy independently of background key access.
 - Original attachment downloads require an explicit request, but small image
-  previews are currently scheduled automatically. Background preview policy
-  and the effect of Stop waiting on active transfers remain product choices.
+  previews are currently scheduled automatically. Apply the accepted waiting
+  policy without interrupting transfers initiated by the user.
+
+### Recovery authorization findings
+
+The expanded history scope requires a concrete protocol design, not only a
+background polling change:
+
+- Live group reception verifies the sender proof and MLS membership, then
+  persists semantic text and its portable message origin. It does not retain
+  the complete received proof and MLS epoch alongside every history row;
+  see `private_group_runtime/data.rs`, `authentication.rs` and
+  `conversation/history.rs` under `mosh-core/src/`.
+- `MessageOrigin` authenticates the content and author, but not a complete
+  historical authorization interval or original time. A valid content
+  signature alone cannot establish that a departed member authored a message
+  before removal. Group recovery must define historical eligibility, including
+  joining, removal and rejoining, without disclosing pre-join history by accident.
+- Existing group commit persistence and resync can supply epoch transitions;
+  they are not by themselves a complete authenticated history-export protocol.
+  Reuse bounded paging, durable cursors and atomic imports where appropriate,
+  while retaining conversation-specific authorization.
+- Recovery must preserve [ADR 0040](../ADR/0040-message-deletion.md): verified
+  deletion journals and local tombstones take precedence over imported text;
+  historical member status must not grant new deletion authority.
+- [ADR 0038](../ADR/0038-authenticated-group-senders-and-dm-offers.md) already
+  distinguishes verified live group traffic from legacy history. An update
+  cannot retrospectively supply missing original authentication evidence.
+
+These are findings about the baseline and requirements on the forthcoming
+design, not an approved wire format, schema or authorization policy.
 
 ## Remaining design questions
 
 - Moss waiting lifecycle/interface, attachment selection and any intermediary's
   trust, metadata, abuse limits and operating budget.
 - Background key-access implementation, safe migration and failure behavior;
-  UI re-lock timing and protection of interactive entry points.
+  default UI re-lock timing, Android screen-lock behavior and protection of
+  interactive entry points.
+- Complete missed-history recovery across all three conversation kinds:
+  available sources, historical authorization, durable cursors, deduplication,
+  deletion precedence and interruption/restart recovery.
 - Implementation of the accepted lifecycle states, network changes, persistent
   user-stop handling, persistent Stop waiting preference, call expiry and
   delayed-event handling.

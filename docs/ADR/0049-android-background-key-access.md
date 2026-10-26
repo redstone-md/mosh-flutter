@@ -29,8 +29,14 @@ the old wrapping policy through an allowed foreground flow, verify the new
 durable wrapping before retiring any old material, and keep the old recoverable
 path on failure or interruption. An unavailable/invalid key must not cause
 silent key regeneration, database replacement or biometric-recovery recursion.
-The concrete storage API and UI re-lock timing remain in the
+On 2026-10-26, the owner also accepted automatic UI re-lock with a configurable
+delay after backgrounding, including immediate and minute-based choices.
+Temporary system dialogs must not cause spurious re-locking. Incoming call
+controls remain available without unlocking the chats. The default delay and
+Android screen-lock interaction still need agreement.
+The concrete storage API and remaining UI timing decisions remain in the
 [design plan](../Proposals/issue-94-android-background.plan.md).
 
-This records the owner's answer to question 10. It amends the Android key-release
-policy in ADRs 0011 and 0034 when implemented; desktop key storage is unchanged.
+This records the owner's answers to questions 10 and 14. It amends the Android
+key-release policy in ADRs 0011 and 0034 when implemented; desktop key storage
+is unchanged.
