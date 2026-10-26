@@ -21,6 +21,10 @@ locking, task removal and ordinary process reclamation, beginning after the
 first Android unlock following reboot. Explicit user stopping requires manual
 opening rather than a restart loop. These remain physical-device acceptance
 targets, not guarantees established by the relay tests.
+Waiting starts after initial setup; the app's Stop waiting action persists an
+off preference until explicit re-enabling and must not end an ongoing call.
+A refused battery exemption results in limited background availability, without
+repeated permission prompts or a claim of guaranteed reachability.
 
 Mosh app lock protects chat access independently of background reception.
 Names and text are hidden in notifications by default while app lock is active;
@@ -34,8 +38,9 @@ or call offers. This is not a blanket prohibition on network contact with Google
 
 This direction extends the foreground-only Android scope of
 [ADR 0034](0034-android-linked-text-dm.md), retaining the native media ownership
-of [ADR 0044](0044-native-call-media-over-moss.md). It does not add shipped
-background guarantees. Android execution rights, key access before app unlock,
+of [ADR 0044](0044-native-call-media-over-moss.md). Key access before app unlock is
+defined by [ADR 0049](0049-android-background-key-access.md). This adds no shipped
+background guarantees. Android execution rights, safe key migration,
 attachment selection, replay/abuse limits, a proposed runtime API and physical
 phone energy/reliability checks remain open in the
 [design plan](../Proposals/issue-94-android-background.plan.md).

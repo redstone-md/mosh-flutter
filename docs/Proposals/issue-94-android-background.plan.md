@@ -12,6 +12,8 @@ The owner accepted interview questions 1, 2, 3, 4, 5, 7, 8 and 9 on
 2026-10-25, clarified the STUN boundary in question 6, and explicitly requested
 opt-in message-text previews on the Android lock screen:
 
+Questions 10 through 12 were accepted on 2026-10-26.
+
 - Mosh app lock protects interactive access to chats. It must not prevent
   background message reception or incoming calls. A user can accept an incoming
   call without unlocking the whole Mosh interface; answering does not expose
@@ -41,10 +43,24 @@ opt-in message-text previews on the Android lock screen:
   active. Provide settings to disclose names and message text, including full
   message-text previews on the Android lock screen when explicitly enabled.
   A preview or call answer must not unlock the chat interface.
+- After the first Android unlock following reboot, allow the background process
+  to obtain the database key without a new biometric prompt, including after
+  ordinary process reclamation and while the screen is locked again. Keep
+  encrypted storage and Keystore protection; biometric authentication gates
+  interactive chat access rather than each background database-key use. This
+  deliberately changes the biometric key-release policy; see
+  [ADR 0049](../ADR/0049-android-background-key-access.md).
+- Offer the background battery-optimization exemption once. On refusal, expose
+  limited background availability without repeated prompts or a false guarantee
+  that the phone remains reachable.
+- Initially enable waiting after setup. The app's Stop waiting action persists
+  the disabled state until explicit re-enabling, including across restarts.
+  It does not end an active call.
 
 These are target behavior decisions, not claims about the shipped release.
-The history-key layout, authentication policy and migration are not decided.
-They must not be weakened implicitly to make a background callback run.
+The Android key-release policy is now explicit; the concrete storage mechanism,
+safe migration and UI re-lock timing still need design. No existing key or
+history may be replaced merely because a background startup cannot open it.
 
 ## Notification privacy and Android lifecycle
 
@@ -76,8 +92,9 @@ Android Active apps/Task Manager Stop terminates the whole process without
 callbacks, unlike the app's Stop waiting action. Its lifecycle handling must
 respect user stopping too; see
 [Android user-stop behavior](https://developer.android.com/develop/background-work/services/fgs/handle-user-stopping).
-The persistence and re-enable semantics of the app's own Stop waiting action
-still need to be settled.
+The app's Stop waiting action instead persists a disabled preference before
+stopping waiting; it stays disabled until the user explicitly re-enables it.
+Opening the app after an OS Force stop must not erase that separate preference.
 
 ## Selected direction: Moss waiting mode
 
@@ -156,9 +173,10 @@ of FCM. No STUN-provider removal is part of this design.
 
 ## Existing boundaries
 
-- [ADR 0034](../ADR/0034-android-linked-text-dm.md) deliberately gates cold-start
-  history access on user authentication and makes no background delivery claim.
-  Warm locked operation and cold locked operation need separate checks.
+- [ADR 0034](../ADR/0034-android-linked-text-dm.md) describes the shipped cold-start
+  biometric key gate and makes no background delivery claim. ADR 0049 changes
+  the target policy, not the currently shipped implementation. Warm locked
+  operation and cold locked operation need separate checks.
 - [ADR 0044](../ADR/0044-native-call-media-over-moss.md) keeps the media owner
   native and media transport on Moss. A background owner must reuse the
   installation's existing runtime instead of creating another node.
@@ -172,10 +190,10 @@ of FCM. No STUN-provider removal is part of this design.
 
 - Moss waiting lifecycle/interface, attachment selection and any intermediary's
   trust, metadata, abuse limits and operating budget.
-- Background credentials, history-key protection, biometric policy, migration
-  and failure behavior; plaintext previews require real background key access.
+- Background key-access implementation, safe migration and failure behavior;
+  UI re-lock timing and protection of interactive entry points.
 - Implementation of the accepted lifecycle states, network changes, persistent
-  user-stop handling, app Stop waiting/re-enable semantics, call expiry and
+  user-stop handling, persistent Stop waiting preference, call expiry and
   delayed-event handling.
 - Notification and call actions, one call owner, device selection, permissions
   and integration with existing audio routes and PiP.
