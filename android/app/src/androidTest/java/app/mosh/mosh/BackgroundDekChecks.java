@@ -57,19 +57,21 @@ public final class BackgroundDekChecks {
         expectCode("DEK_ENVELOPE_INVALID", () -> storage.install(original));
         // Storage repair is exercised directly; channel authentication is a
         // separate Activity test. This does not claim biometric acceptance.
-        storage.recover(original);
+        expectCode("DEK_AUTH_CANCELED", () -> storage.recover(original, () -> false));
+        expectCode("DEK_ENVELOPE_INVALID", storage::read);
+        storage.recover(original, () -> true);
         require(Arrays.equals(original, storage.read()), "Repair changed the legacy DEK");
         keys.deleteEntry(ALIAS);
         expectCode("DEK_KEY_MISSING", storage::read);
         expectCode("DEK_KEY_MISSING", () -> storage.install(original));
         require(!keys.containsAlias(ALIAS), "Ordinary access regenerated a missing alias");
-        storage.recover(original);
+        storage.recover(original, () -> true);
         require(Arrays.equals(original, storage.read()), "Missing-alias repair changed the DEK");
         encoded = Files.readAllBytes(envelope.toPath());
         encoded[3] = '2';
         Files.write(envelope.toPath(), encoded);
         expectCode("DEK_ENVELOPE_VERSION", storage::read);
-        expectCode("DEK_ENVELOPE_VERSION", () -> storage.recover(original));
+        expectCode("DEK_ENVELOPE_VERSION", () -> storage.recover(original, () -> true));
     }
 
     private static void checkWrappingPolicy(KeyStore keys) throws Exception {

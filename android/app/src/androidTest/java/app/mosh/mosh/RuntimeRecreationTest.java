@@ -15,10 +15,14 @@ import java.util.concurrent.atomic.AtomicReference;
 /** Actual Activity/engine regression, using only the Android instrumentation API. */
 public final class RuntimeRecreationTest extends Instrumentation {
     private final ArrayBlockingQueue<MainActivity> resumed = new ArrayBlockingQueue<>(4);
+    private boolean checkBackgroundDek;
+    private boolean checkAccessExpiry;
 
     @Override
     public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
+        checkBackgroundDek = arguments != null && "true".equals(arguments.getString("backgroundDek"));
+        checkAccessExpiry = arguments != null && "true".equals(arguments.getString("accessExpiry"));
         start();
     }
 
@@ -31,6 +35,7 @@ public final class RuntimeRecreationTest extends Instrumentation {
         status.putInt("numtests", 1);
         sendStatus(1, status);
         try {
+            if (checkBackgroundDek) BackgroundDekChecks.run(getTargetContext());
             checkRecreation();
             sendStatus(0, status);
         } catch (Throwable error) {
@@ -50,6 +55,7 @@ public final class RuntimeRecreationTest extends Instrumentation {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             current = (MainActivity) startActivitySync(intent);
             waitForIdleSync();
+            if (checkAccessExpiry) AccessExpiryChecks.run(this, current);
             resumed.clear();
             AtomicReference<FlutterEngine> retained = new AtomicReference<>();
             MainActivity first = current;

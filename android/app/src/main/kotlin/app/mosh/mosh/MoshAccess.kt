@@ -14,14 +14,15 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
-/** Retained-engine owner for access state; key operations are added by IVO-135. */
+/** Retained-engine owner for independent chat authentication and history-key I/O. */
 internal class MoshAccess(private val context: Context, messenger: BinaryMessenger) {
     private val channel = MethodChannel(messenger, "app.mosh.mosh/access")
     private val state by lazy { MoshAccessState(context) }
     private val authentication = MoshChatAuthentication(context)
+    private val keys = MoshAccessKeys(context)
     private val shield = MoshAccessShield()
     private val handler = Handler(Looper.getMainLooper())
-    private val expiry = Runnable { publish() }
+    private val expiry = Runnable { protect(); publish() }
     private var activity: MainActivity? = null
     private var resumed = false
     private var revision = 0L
@@ -38,6 +39,7 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
                     return
                 }
                 if (intent.action != Intent.ACTION_SCREEN_OFF) return
+                keys.invalidateRepair()
                 authentication.cancel()
                 protect()
                 update { state.policy.departed() }
@@ -67,12 +69,26 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
                     }
                     result.success(null)
                 }
-                else -> result.notImplemented()
+                else -> if (!keys.dispatch(call, result, ::recoverKey)) result.notImplemented()
             }
         } catch (_: Exception) {
             protect()
             publishFailure()
             result.error("ACCESS_STATE_UNAVAILABLE", "Access state unavailable", null)
+        }
+    }
+
+    private fun recoverKey(bytes: ByteArray, result: MethodChannel.Result) {
+        val requestedActivity = activity
+        authentication.authenticate("Mosh") { outcome ->
+            if (outcome == "authenticated" && foreground && activity === requestedActivity) {
+                // Key repair is not an interactive-chat grant.
+                keys.recover(bytes, result)
+            } else {
+                bytes.fill(0)
+                val code = if (outcome == "unavailable") "DEK_AUTH_UNAVAILABLE" else "DEK_AUTH_CANCELED"
+                result.error(code, "History key unavailable", null)
+            }
         }
     }
 
@@ -93,6 +109,7 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
     }
 
     fun attach(activity: MainActivity) {
+        keys.invalidateRepair()
         this.activity = activity
         authentication.attach(activity)
         shield.attach(activity)
@@ -100,6 +117,7 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
 
     fun detach(activity: MainActivity) {
         if (this.activity !== activity) return
+        keys.invalidateRepair()
         authentication.detach(activity)
         shield.detach(activity)
         this.activity = null
@@ -113,7 +131,7 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
         publish()
     }
 
-    fun paused() { resumed = false; authentication.paused(); publish() }
+    fun paused() { resumed = false; keys.invalidateRepair(); authentication.paused(); publish() }
 
     fun stopped() {
         // Device-credential confirmation can stop this Activity on both API
@@ -126,6 +144,7 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
     }
 
     fun leaving() {
+        keys.invalidateRepair()
         if (authentication.credentialShowing) return
         authentication.cancel()
         protect()

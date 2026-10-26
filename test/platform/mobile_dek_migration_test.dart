@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState;
@@ -51,6 +52,8 @@ void main() {
       storage: storage,
       readLegacyDek: () =>
           fail('Cold loading must not touch biometric storage'),
+      waitForForeground: () =>
+          fail('A valid key must not wait for an Activity'),
       dbExists: () => true,
       setHistoryDek: (key) async => openedWith = List.of(key),
       mint: () => fail('Cold loading must not replace the key'),
@@ -191,5 +194,53 @@ void main() {
     } finally {
       binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     }
+  });
+
+  test('startup waits for foreground only when legacy migration requires it',
+      () async {
+    final resumed = Completer<void>();
+    final storage = _Storage();
+    var foreground = false;
+    List<int>? openedWith;
+    final loading = resolveHistoryDek(
+      storage: storage,
+      dbExists: () => true,
+      waitForForeground: () async {
+        await resumed.future;
+        foreground = true;
+      },
+      readLegacyDek: () async {
+        if (!foreground) {
+          throw PlatformException(code: 'DEK_FOREGROUND_REQUIRED');
+        }
+        return base64Encode(legacyKey);
+      },
+      setHistoryDek: (key) async => openedWith = List.of(key),
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(openedWith, isNull);
+    expect(storage.value, isNull);
+    resumed.complete();
+    expect(await loading, MobileDekResolution.migrated);
+    expect(openedWith, legacyKey);
+  });
+
+  test('canceled legacy authentication never becomes an automatic retry',
+      () async {
+    final storage = _Storage();
+    await expectLater(
+      resolveHistoryDek(
+        storage: storage,
+        dbExists: () => true,
+        readLegacyDek: () async =>
+            throw PlatformException(code: 'AUTHENTICATION_CANCELED'),
+        waitForForeground: () => fail('Cancellation must not re-prompt'),
+        setHistoryDek: (_) async =>
+            fail('Cancellation must keep history closed'),
+      ),
+      throwsA(isA<PlatformException>()
+          .having((error) => error.code, 'code', 'AUTHENTICATION_CANCELED')),
+    );
+    expect(storage.value, isNull);
   });
 }

@@ -12,6 +12,11 @@ this does not grant access to chat UI. Missing wrapping requires a resumed
 Activity before the original `flutter_secure_storage` reader is constructed.
 Cold background startup receives `DEK_FOREGROUND_REQUIRED`, including when
 there is no database, rather than generating a new identity or history key.
+Interactive startup waits for a resumed Activity only in that missing-wrap
+case. Legacy migration can require its original prompt followed by a separate
+native chat-unlock prompt once; subsequent valid-wrap loading never reads the
+legacy biometric storage again. Loading, minting and migration call only
+`AndroidAppAccess.initialize()`, preserving the native lock/grace policy.
 
 Migration authenticates and reads the original `history-dek-v1` from its original
 `app.mosh.mobile` namespace. Automatic reset and cipher migration are disabled.
@@ -35,6 +40,11 @@ invalid wrapping alias, preserving that same legacy DEK. Unsupported versions
 and a readable different key are refused. There is no automatic retry loop,
 legacy deletion, database reset or guessed replacement key. Channel failures
 contain sanitized codes without plaintext key values or provider diagnostics.
+Key I/O runs on one worker. Pausing, leaving, screen-off and Activity replacement
+revoke queued repair grants; the generation is checked inside the installation
+lock immediately before mutation. Key-only repair does not authenticate chats.
+On startup corruption, the failed lock screen's Retry is the explicit repair
+action; ordinary startup never invokes it automatically.
 
 ## Verification
 
@@ -48,6 +58,20 @@ refuses to run outside the disposable `.linked_dm_test` application ID. It
 requires a fresh disposable installation because it intentionally corrupts its
 test envelope and removes its test wrapping alias. Retain your normal Mosh
 installation; never enable these fault checks against its application ID.
+The runner executes key checks before starting Dart and removes only the fresh
+test artifacts it created. Enable them on the isolated build:
+
+```sh
+cd android
+./gradlew connectedDebugAndroidTest -PmoshLinkedDmTest -Pandroid.testInstrumentationRunnerArguments.backgroundDek=true
+```
+
+`AccessExpiryChecks` uses the same isolated runner with
+`-Pandroid.testInstrumentationRunnerArguments.accessExpiry=true`. It restores the
+non-secret lock preferences after exercising valid cold grace, an acknowledged
+visible frame, and native shielding before the expired locked-state event. No
+new Dart-frame acknowledgment is supplied at expiry. The deadline covers the
+native surface before publishing its new shield generation.
 
 Physical acceptance remains required for legacy biometric cancellation and
 migration with real existing messages, first unlock after reboot, cold relocked-

@@ -108,6 +108,7 @@ Future<String?> _readLegacyDek() {
 Future<MobileDekResolution> resolveHistoryDek({
   required MobileDekStorage storage,
   Future<String?> Function() readLegacyDek = _readLegacyDek,
+  Future<void> Function()? waitForForeground,
   required bool Function() dbExists,
   required Future<void> Function(List<int> dek) setHistoryDek,
   List<int> Function() mint = _secureMint32,
@@ -119,7 +120,7 @@ Future<MobileDekResolution> resolveHistoryDek({
   }
   // The production legacy reader refuses non-foreground calls, including on a
   // fresh installation. Missing background material never authorizes a mint.
-  final legacy = await readLegacyDek();
+  final legacy = await _readLegacyWhenAllowed(readLegacyDek, waitForForeground);
   if (legacy == null && dbExists()) {
     throw StateError(
       'history-dek-v1: DEK absent from Keystore but history DB exists; '
@@ -138,6 +139,21 @@ Future<MobileDekResolution> resolveHistoryDek({
   return legacy == null
       ? MobileDekResolution.minted
       : MobileDekResolution.migrated;
+}
+
+Future<String?> _readLegacyWhenAllowed(
+  Future<String?> Function() readLegacy,
+  Future<void> Function()? waitForForeground,
+) async {
+  try {
+    return await readLegacy();
+  } on PlatformException catch (error) {
+    if (error.code != 'DEK_FOREGROUND_REQUIRED' || waitForForeground == null) {
+      rethrow;
+    }
+    await waitForForeground();
+    return readLegacy();
+  }
 }
 
 Uint8List _decodeDek(String encoded) {
@@ -205,7 +221,9 @@ File _historyRedbPath() {
 /// Load the same installation DEK before opening Rust history. A valid native
 /// wrapping needs no Activity; missing wrapping requires foreground migration.
 /// Desktop and iOS retain their existing keychain path.
-Future<MobileDekResolution?> initMobileDek() async {
+Future<MobileDekResolution?> initMobileDek({
+  Future<void> Function()? waitForForeground,
+}) async {
   if (!Platform.isAndroid) {
     // Desktop (Windows/macOS/Linux) and iOS keep using Rust's
     // OsSecureSecretStore via Persistence::open; no DEK injection.
@@ -214,6 +232,7 @@ Future<MobileDekResolution?> initMobileDek() async {
   return resolveHistoryDek(
     storage: const AndroidBackgroundDekStorage(),
     readLegacyDek: _readLegacyDek,
+    waitForForeground: waitForForeground,
     dbExists: () => _historyRedbPath().existsSync(),
     setHistoryDek: (List<int> dek) => api.setHistoryDek(dek: dek),
   );

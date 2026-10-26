@@ -37,7 +37,7 @@ internal class MoshBackgroundDek(private val context: Context) {
     }
 
     /** Caller must first obtain a fresh authenticated foreground repair grant. */
-    fun recover(bytes: ByteArray): Unit = serialized {
+    fun recover(bytes: ByteArray, authorized: () -> Boolean): Unit = serialized {
         validate(bytes)
         try {
             if (matchesExisting(bytes)) return@serialized
@@ -46,6 +46,9 @@ internal class MoshBackgroundDek(private val context: Context) {
                 error is BackgroundDekException && error.code in REPAIRABLE
             if (!repairable) throw error
         }
+        // Check inside the installation lock, after reads and before alias/file
+        // mutation, so waiting behind another owner cannot revive a stale grant.
+        if (!authorized()) throw BackgroundDekException("DEK_AUTH_CANCELED")
         persist(bytes, true)
     }
 
