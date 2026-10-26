@@ -67,5 +67,8 @@ preparatory changes do not establish background acceptance.
   from the implemented ownership layer while its physical acceptance stays open.
 - The owner rejected manual administrator history approval on 2026-10-26.
   That proposal is withdrawn before implementation. Recovery must be automatic;
-  refine retained evidence and legacy compatibility without blind signing or
-  silently weakening membership boundaries. Exact group contracts stay unapproved.
+  the owner accepted current-authorized-holder trust for historical context,
+  with original authorship and independent recipient-access checks preserved.
+  A dishonest holder/colluding author can falsify context; receipts are not
+  independent proof of time. Refine the exact retained evidence and legacy
+  compatibility contract before wire/storage implementation.

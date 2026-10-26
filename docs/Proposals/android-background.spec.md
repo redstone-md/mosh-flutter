@@ -202,13 +202,16 @@ No protocol can recover data absent from every remaining copy.
   must not gain access or fabricate accepted history by backdating a message.
   Do not replace a receiver's MLS state with another device's private snapshot.
   Recovery is automatic: no administrator review, per-batch approval or user
-  confirmation is required. On 2026-10-26 the owner rejected the proposed manual
-  administrator workflow. Sufficient retained evidence must travel with the
-  history and be checked by the protocol. Do not substitute blind automatic
-  endorsement or quietly weaken the membership/backdating rules. The exact
-  automatic evidence and legacy compatibility policy still require design
-  review. Preserve distinct organization-group authority checks and original
-  author signatures; a forwarding holder's signature alone is not proof of time.
+  confirmation is required. On 2026-10-26 the owner rejected the manual workflow
+  and accepted recovery from a currently authorized holder, explicitly trusting
+  that holder's assertion of historical context. Preserve original author
+  signatures and independently check current membership and recipient access.
+  A dishonest current holder can lie about context or collude with a departed
+  author; neither its receipt nor a signed timestamp proves pre-removal creation
+  independently. Sufficient retained evidence must travel with the history;
+  do not sign arbitrary offered rows or manufacture missing legacy proof.
+  Preserve distinct organization-group authority checks. Exact automatic
+  evidence, wire/storage and legacy compatibility details still need review.
   Preserve original message identity, reject conflicting imports and keep live
   delivery working during recovery. Completion covers the verified available
   authorized history, not an invented global archive or channel total order.
