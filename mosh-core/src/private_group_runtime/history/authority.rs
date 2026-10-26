@@ -81,6 +81,15 @@ impl GroupSession {
 }
 
 impl OriginalAuthority {
+    pub(super) fn pinned(org: &str, mesh: &str, signed: &str, roster: &str) -> Self {
+        Self {
+            org: org.into(),
+            mesh: mesh.into(),
+            signed: signed.into(),
+            roster: roster.into(),
+        }
+    }
+
     fn verify(
         &self,
         group: &str,

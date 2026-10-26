@@ -11,6 +11,8 @@ pub(super) struct NativeAdmissionAnchor {
     original_author_identity: String,
     pub(super) own_mls_key: String,
     original_welcome_b64: String,
+    #[serde(default)]
+    original_add_commit_b64: Option<String>,
     original_tree_b64: String,
     pub(super) canonical_add_commit_hash: Option<String>,
     #[serde(default)]
@@ -68,6 +70,9 @@ impl GroupSession {
             original_author_identity: staged.author_identity.clone(),
             own_mls_key: hex::encode(staged.next.signer_public()),
             original_welcome_b64: welcome_b64.into(),
+            original_add_commit_b64: (admission_binding.is_some()
+                || self.incoming_org_control.is_some())
+            .then(|| commit_b64.to_owned()),
             original_tree_b64: tree_b64.into(),
             canonical_add_commit_hash: if admission_binding.is_some() {
                 Some(hex::encode(Sha256::digest(decode(commit_b64)?)))
@@ -148,5 +153,55 @@ impl GroupSession {
             &[],
         )?;
         Ok(())
+    }
+}
+
+impl NativeAdmissionAnchor {
+    pub(super) fn transition_for(
+        &self,
+        have: &MlsHistoryContext,
+        org: Option<&str>,
+        mesh: &str,
+    ) -> Result<Option<super::transitions::NativeTransition>, PrivateGroupError> {
+        if self.context.group_id != have.group_id
+            || have.epoch.checked_add(1) != Some(self.context.epoch)
+        {
+            return Ok(None);
+        }
+        let Some(commit) = &self.original_add_commit_b64 else {
+            return Ok(None);
+        };
+        if self.canonical_add_commit_hash.as_deref()
+            != Some(hex::encode(Sha256::digest(decode(commit)?)).as_str())
+        {
+            return Err(PrivateGroupError::Codec("pinned Add bytes differ".into()));
+        }
+        let authority = match (
+            org,
+            &self.original_org_signed_b64,
+            &self.original_org_roster_b64,
+        ) {
+            (Some(org), Some(signed), Some(roster)) => Some(encode(
+                &serde_json::to_vec(&super::authority::OriginalAuthority::pinned(
+                    org, mesh, signed, roster,
+                ))
+                .map_err(|e| PrivateGroupError::Codec(e.to_string()))?,
+            )),
+            (Some(_), _, _) => return Err(PrivateGroupError::NotReady),
+            _ => None,
+        };
+        // This is the original issuer-associated ciphertext, not a claim that
+        // the joiner replayed a prejoin tree. The receiver derives both member
+        // sets and the actual prior context through its own staged MLS commit.
+        Ok(Some(super::transitions::NativeTransition {
+            prior: have.clone(),
+            next: self.context.clone(),
+            original_author_mls_key: self.original_author_mls_key.clone(),
+            original_commit_b64: commit.clone(),
+            previous_member_keys: Vec::new(),
+            next_member_keys: Vec::new(),
+            self_removed: false,
+            original_signed_transition: authority,
+        }))
     }
 }

@@ -66,6 +66,15 @@ fn rejoining_preserves_earlier_entitlement_and_excludes_the_absence_interval() {
 
 #[test]
 fn an_ordinary_holder_replays_missing_membership_before_history() {
+    replay_missing_membership(false);
+}
+
+#[test]
+fn a_new_holder_recovers_a_continuously_admitted_offline_member_after_restart() {
+    replay_missing_membership(true);
+}
+
+fn replay_missing_membership(new_holder: bool) {
     let _network = isolated_network_scenario();
     let (mut author, mut holder, mut returning, id) = three_members();
     returning.stop();
@@ -83,12 +92,18 @@ fn an_ordinary_holder_replays_missing_membership_before_history() {
         std::thread::sleep(Duration::from_millis(50));
     }
     author.ask(json!({"action":"chat_send","kind":"group","argument":id,"body":"after offline membership transition"}));
-    wait_text(&mut [&mut holder], &id);
+    wait_text(&mut [&mut holder, &mut newcomer], &id);
     author.stop();
-    newcomer.stop();
-    holder.restart();
+    let source = if new_holder {
+        holder.stop();
+        &mut newcomer
+    } else {
+        newcomer.stop();
+        &mut holder
+    };
+    source.restart();
     returning.restart();
-    let recovered = wait_text(&mut [&mut holder, &mut returning], &id);
+    let recovered = wait_text(&mut [source, &mut returning], &id);
     assert_eq!(recovered["member_count"], 4);
     assert_eq!(
         recovered["messages"][0]["body"],

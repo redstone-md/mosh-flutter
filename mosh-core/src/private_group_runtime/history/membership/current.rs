@@ -35,15 +35,8 @@ impl NativeCheckpoint {
         &self,
         session: &mut GroupSession,
     ) -> Result<VerifiedSender, PrivateGroupError> {
-        let proof: SenderProof = decode_json(&decode(&self.original_binding_proof_b64)?)?;
-        let sender = session.verify_application(&proof, &self.binding_channel)?;
-        if sender.peer_id != self.checkpoint.moss_key
-            || hex::encode(&sender.mls_signer) != self.checkpoint.mls_key
-        {
-            return Err(PrivateGroupError::Codec(
-                "current membership binding differs".into(),
-            ));
-        }
+        let sender = self.verify_binding(session)?;
+        session.require_application_sender(&sender)?;
         Ok(sender)
     }
 
@@ -51,6 +44,28 @@ impl NativeCheckpoint {
         &self,
         session: &GroupSession,
         at: &MlsHistoryContext,
+    ) -> Result<VerifiedSender, PrivateGroupError> {
+        let sender = self.verify_binding(session)?;
+        let context = &self.checkpoint;
+        session.continuous_membership(&context.context, at, &context.mls_key)?;
+        if let Some((known, _)) = session.canonical_membership(at, &context.mls_key)? {
+            if self
+                .canonical_reference
+                .as_ref()
+                .is_some_and(|claimed| *claimed != known)
+            {
+                return Err(PrivateGroupError::Codec(
+                    "canonical admission differs from own branch".into(),
+                ));
+            }
+        }
+        Ok(sender)
+    }
+
+    /// Signatures bind keys and scope; only the caller's own MLS branch grants membership.
+    pub(in crate::private_group_runtime::history) fn verify_binding(
+        &self,
+        session: &GroupSession,
     ) -> Result<VerifiedSender, PrivateGroupError> {
         let context = &self.checkpoint;
         if context.conversation != session.deletions.context
@@ -81,18 +96,6 @@ impl NativeCheckpoint {
             return Err(PrivateGroupError::Codec(
                 "membership checkpoint keys differ".into(),
             ));
-        }
-        session.continuous_membership(&context.context, at, &context.mls_key)?;
-        if let Some((known, _)) = session.canonical_membership(at, &context.mls_key)? {
-            if self
-                .canonical_reference
-                .as_ref()
-                .is_some_and(|claimed| *claimed != known)
-            {
-                return Err(PrivateGroupError::Codec(
-                    "canonical admission differs from own branch".into(),
-                ));
-            }
         }
         Ok(sender)
     }

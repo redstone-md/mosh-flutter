@@ -43,6 +43,17 @@ impl GroupSession {
         let sender = proof
             .verify(&self.application_context(channel))
             .map_err(PrivateGroupError::Codec)?;
+        self.require_application_sender(&sender)?;
+        Ok(sender)
+    }
+
+    pub(super) fn require_application_sender(
+        &mut self,
+        sender: &VerifiedSender,
+    ) -> Result<(), PrivateGroupError> {
+        if !self.joined || !self.crypto.is_ready() {
+            return Err(PrivateGroupError::NotReady);
+        }
         let member = self.crypto.member_identity_for_signer(&sender.mls_signer);
         if member.is_none()
             || (self.org_pubkey.is_some()
@@ -53,7 +64,7 @@ impl GroupSession {
                 "sender is not an authorized group member".into(),
             ));
         }
-        Ok(sender)
+        Ok(())
     }
 
     pub(super) fn decrypt_application(
@@ -72,13 +83,19 @@ impl GroupSession {
     ) -> Result<(), PrivateGroupError> {
         let original_proof =
             serde_json::to_vec(&proof).map_err(|e| PrivateGroupError::Codec(e.to_string()))?;
-        let sender = self.verify_application(&proof, &self.control_channel.clone())?;
+        let sender = proof
+            .verify(&self.application_context(&self.control_channel))
+            .map_err(PrivateGroupError::Codec)?;
         let envelope: ControlEnvelope = decode_json(&sender.payload)?;
         if envelope.group_id() != self.group_id {
             return Ok(());
         }
+        if let ControlEnvelope::History { frame, .. } = envelope {
+            self.require_author(&frame.sender_key, &sender)?;
+            return self.queue_history(frame, false, &sender);
+        }
+        self.require_application_sender(&sender)?;
         match envelope {
-            ControlEnvelope::History { frame, .. } => self.queue_history(frame, false),
             ControlEnvelope::PlusMetadata { frame, .. } => self.receive_plus(&frame, sender),
             ControlEnvelope::MessageDeletion { frame, .. } => {
                 self.receive_deletion_frame(frame, &sender)

@@ -6,7 +6,6 @@ use crate::conversation::recovery::{
     wire::{HistoryFrame, HistoryMessage},
 };
 use crate::mls_crypto::MlsHistoryContext;
-use sha2::{Digest, Sha256};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(super) enum EvidenceMessage {
@@ -82,40 +81,7 @@ impl GroupSession {
                 have,
                 target,
                 offset,
-            } => {
-                if target != self.current_history_head()?
-                    || have.group_id != target.context.group_id
-                    || have.epoch >= target.context.epoch
-                    || target.context.epoch - have.epoch > 4096
-                {
-                    return Err(PrivateGroupError::Codec(
-                        "evidence pull head differs".into(),
-                    ));
-                }
-                let store = self
-                    .persistence
-                    .as_ref()
-                    .ok_or(PrivateGroupError::NotReady)?;
-                let transition = store
-                    .group_history_evidence::<super::transitions::NativeTransition>(&format!(
-                        "group/{}/transition/{:020}",
-                        hex::encode(Sha256::digest(self.group_id.as_bytes())),
-                        have.epoch
-                    ))?
-                    .filter(|transition| transition.prior == have)
-                    .ok_or(PrivateGroupError::NotReady)?;
-                let bytes = serde_json::to_vec(&transition)
-                    .map_err(|e| PrivateGroupError::Codec(e.to_string()))?;
-                self.send_transition_evidence(
-                    &checked.frame,
-                    EvidenceMessage::Page {
-                        have,
-                        target,
-                        fragment: fragment::fragment(&bytes, offset)
-                            .map_err(PrivateGroupError::Codec)?,
-                    },
-                )
-            }
+            } => self.answer_transition_evidence(&checked.frame, have, target, offset),
             EvidenceMessage::Page {
                 have,
                 target,
@@ -134,6 +100,35 @@ impl GroupSession {
                 self.accept_transition_fragment(&checked.frame, have, target, fragment)
             }
         }
+    }
+
+    pub(super) fn answer_transition_evidence(
+        &mut self,
+        frame: &HistoryFrame,
+        have: MlsHistoryContext,
+        target: CurrentHead,
+        offset: usize,
+    ) -> Result<(), PrivateGroupError> {
+        if target != self.current_history_head()?
+            || have.group_id != target.context.group_id
+            || have.epoch >= target.context.epoch
+            || target.context.epoch - have.epoch > 4096
+        {
+            return Err(PrivateGroupError::Codec(
+                "evidence pull head differs".into(),
+            ));
+        }
+        let transition = self.retained_transition(&have)?;
+        let bytes =
+            serde_json::to_vec(&transition).map_err(|e| PrivateGroupError::Codec(e.to_string()))?;
+        self.send_transition_evidence(
+            frame,
+            EvidenceMessage::Page {
+                have,
+                target,
+                fragment: fragment::fragment(&bytes, offset).map_err(PrivateGroupError::Codec)?,
+            },
+        )
     }
 
     fn accept_transition_fragment(
