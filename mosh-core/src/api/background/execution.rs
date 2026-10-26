@@ -20,6 +20,7 @@ struct Owner {
     state: Mutex<State>,
     node: Arc<MossNode>,
     store: Arc<Persistence>,
+    initialization_limitation: Option<String>,
 }
 
 struct State {
@@ -65,17 +66,15 @@ fn construct_owner() -> Result<Owner, String> {
     resources
         .shared_node
         .start_suspended_if_idle(!waiting_enabled);
-    // Hydrate the existing owners without list/snapshot calls or read markers.
-    drop(crate::api::private_dm::ensure_runtime().map_err(|e| e.to_string())?);
-    crate::api::private_group::ensure_background_runtime()?;
-    crate::api::channel::ensure_background_runtime()?;
     let node = resources
         .shared_node
         .acquire(0, None)
         .map_err(|e| e.to_string())?;
+    let initialization_limitation = hydrate_owners();
     Ok(Owner {
         node,
         store,
+        initialization_limitation,
         state: Mutex::new(State {
             interactive: false,
             waiting_enabled,
@@ -86,6 +85,22 @@ fn construct_owner() -> Result<Owner, String> {
             transfers: 0,
         }),
     })
+}
+
+fn hydrate_owners() -> Option<String> {
+    // Keep kind construction independent. A failed kind must not prevent the
+    // installation authority from stopping the kinds that already opened I/O.
+    let errors: Vec<_> = [
+        crate::api::private_dm::ensure_runtime()
+            .map(drop)
+            .map_err(|e| e.to_string()),
+        crate::api::private_group::ensure_background_runtime(),
+        crate::api::channel::ensure_background_runtime(),
+    ]
+    .into_iter()
+    .filter_map(Result::err)
+    .collect();
+    (!errors.is_empty()).then(|| errors.join("; "))
 }
 
 pub(super) fn set(interactive: bool, waiting_enabled: bool) -> Result<BackgroundStatus, String> {
@@ -293,11 +308,34 @@ pub(super) fn status() -> Result<BackgroundStatus, String> {
         .state
         .lock()
         .map_err(|_| "background execution unavailable")?;
-    let snapshot = owner.node.activity_snapshot();
+    let (actual, reachability, attachment_count) = native_state(&owner.node, &state);
+    let limitations: Vec<_> = [
+        state.limitation.as_deref(),
+        owner.initialization_limitation.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    Ok(BackgroundStatus {
+        revision: changes::revision(),
+        interactive: state.interactive,
+        waiting_enabled: state.waiting_enabled,
+        requested_mode: desired(&state),
+        actual_mode: actual,
+        reachability,
+        attachment_count,
+        current_calls: state.calls,
+        current_user_transfers: state.transfers,
+        limitation: (!limitations.is_empty()).then(|| limitations.join("; ")),
+    })
+}
+
+fn native_state(node: &MossNode, state: &State) -> (Mode, Reach, u32) {
+    let snapshot = node.activity_snapshot();
     let actual = match (&snapshot, state.applied_mode) {
         (_, Some(Mode::Unsupported)) => Mode::Unsupported,
         (Some(s), _) if s.activity_mode == ActivityMode::Waiting => Mode::Waiting,
-        (_, _) if !owner.node.transport_running() => Mode::Offline,
+        (_, _) if !node.transport_running() => Mode::Offline,
         _ => Mode::Active,
     };
     let reachability = match snapshot
@@ -315,16 +353,9 @@ pub(super) fn status() -> Result<BackgroundStatus, String> {
         Some("attaching") => Reach::Attaching,
         _ => Reach::Unavailable,
     };
-    Ok(BackgroundStatus {
-        revision: changes::revision(),
-        interactive: state.interactive,
-        waiting_enabled: state.waiting_enabled,
-        requested_mode: desired(&state),
-        actual_mode: actual,
+    (
+        actual,
         reachability,
-        attachment_count: snapshot.map_or(0, |s| s.waiting_attachment_count),
-        current_calls: state.calls,
-        current_user_transfers: state.transfers,
-        limitation: state.limitation.clone(),
-    })
+        snapshot.map_or(0, |s| s.waiting_attachment_count),
+    )
 }

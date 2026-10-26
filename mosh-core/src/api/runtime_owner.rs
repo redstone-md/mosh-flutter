@@ -7,6 +7,7 @@ use super::conversation_bridge::ConversationBridgeError;
 pub(crate) struct RuntimeOwner<T> {
     name: &'static str,
     cell: OnceLock<Result<Mutex<T>, String>>,
+    service: OnceLock<Result<(), String>>,
 }
 
 impl<T> RuntimeOwner<T> {
@@ -14,6 +15,7 @@ impl<T> RuntimeOwner<T> {
         Self {
             name,
             cell: OnceLock::new(),
+            service: OnceLock::new(),
         }
     }
 
@@ -40,8 +42,22 @@ impl<T> RuntimeOwner<T> {
         self.cell.get()?.as_ref().ok()
     }
 
-    /// Called once by the constructor; never holds an owner while reconciling execution.
+    /// Starts at most one service, explicitly from Android's installation owner.
+    /// Never holds a conversation lock while reconciling execution.
     pub(crate) fn start_service(
+        &'static self,
+        interval: std::time::Duration,
+        service: fn(&mut T),
+    ) -> Result<(), String>
+    where
+        T: Send + 'static,
+    {
+        self.service
+            .get_or_init(|| self.spawn_service(interval, service))
+            .clone()
+    }
+
+    fn spawn_service(
         &'static self,
         interval: std::time::Duration,
         service: fn(&mut T),
@@ -120,5 +136,26 @@ mod tests {
         let error = POISONED.lock(|| Ok::<_, String>(2)).unwrap_err();
         assert_eq!(error.message, "poisoned runtime lock poisoned");
         assert_eq!(*HEALTHY.lock(|| Ok::<_, String>(3)).unwrap(), 3);
+    }
+    #[test]
+    fn repeated_background_attach_keeps_one_service_owner() {
+        static SERVICE: RuntimeOwner<usize> = RuntimeOwner::new("once service");
+        drop(SERVICE.lock(|| Ok::<_, String>(0)).unwrap());
+        SERVICE
+            .start_service(std::time::Duration::from_millis(5), |value| *value += 1)
+            .unwrap();
+        SERVICE
+            .start_service(std::time::Duration::from_millis(5), |value| *value += 1000)
+            .unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            let value = *SERVICE.lock(|| Ok::<_, String>(0)).unwrap();
+            assert!(value < 1000, "a second attach spawned another service");
+            if value >= 5 {
+                break;
+            }
+            assert!(std::time::Instant::now() < deadline, "service did not run");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
     }
 }

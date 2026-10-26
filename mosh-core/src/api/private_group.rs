@@ -31,7 +31,6 @@ fn construct_runtime() -> Result<PrivateGroupRuntime, PrivateGroupError> {
     // Rehydrate saved groups from the encrypted store; with persistence
     // wired it rebuilds joined groups + their tails + MLS state.
     runtime.rehydrate();
-    service::start().map_err(PrivateGroupError::Moss)?;
     Ok(runtime)
 }
 
@@ -100,5 +99,5 @@ pub(crate) fn background_work() -> Result<(u32, u32), String> {
 /// Hydrate retained joined groups after native key startup, without UI polling.
 pub(crate) fn ensure_background_runtime() -> Result<(), String> {
     drop(ensure_runtime().map_err(|error| error.to_string())?);
-    Ok(())
+    service::start()
 }

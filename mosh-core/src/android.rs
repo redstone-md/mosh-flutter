@@ -55,6 +55,7 @@ pub extern "system" fn Java_app_mosh_mosh_MoshNative_initialize<'caller>(
 }
 
 /// Android default-network callbacks request a bounded native recheck.
+#[cfg(target_os = "android")]
 #[no_mangle]
 pub extern "system" fn Java_app_mosh_mosh_MoshNative_notifyNetworkChanged(
     _env: EnvUnowned<'_>,
