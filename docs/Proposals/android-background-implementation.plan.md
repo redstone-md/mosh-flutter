@@ -141,8 +141,12 @@ found three blockers; the earlier route-controlled checks do not close them.
   transport blocker, not a physical Android success or a proven OS restriction.
   Separate Moss candidates fix refused physical-carrier TCP upgrades and
   retirement of unresponsive virtual sessions. Their focused regressions pass,
-  but candidate `95e2edc` still loses the authenticated route: after 120 idle
-  seconds the native call command returns `NotReady`. Neither a healthy carrier
+  but candidates `95e2edc` and `e06a460` still lose the authenticated route:
+  after 120 idle seconds the native call command returns `NotReady`. The latter
+  also corrects bounded lookup of already-connected contacts beyond the nearest
+  20 and authenticated carrier-address reuse during explicit-target recovery.
+  Both peers are authenticated immediately before waiting; route loss follows
+  that transition. Neither a healthy carrier
   nor those transport regressions establish sustained conversation availability.
   The authorized separate Moss PR is being investigated; no upstream merge or
   candidate pin until the actual idle-call check passes.
@@ -160,10 +164,20 @@ ownership, read state, deletions and notification acknowledgements survive;
 main and preview remain undownloaded. Without that holder, recovery remains
 incomplete rather than claiming success from an empty source. The repair passes
 119 native group checks and nine independent-process scenarios, with 134/136
-changed production lines covered. Focused Windows repair acceptance is pending.
+changed production lines covered. Focused Windows run `40409663932` also passes
+the exact repair case, restart/export checks and three attachment-recovery runs.
 The existing atomic `save_history` and `imported_history_row` boundaries exceed
 the 50-line preference; retaining their commit ordering avoids an unrelated
 refactor. New validators and test fixtures stay within the documented limits.
+
+The focused native-media workflow passes three unchanged-criteria observations
+on each of Windows and macOS. The subsequent full native suites pass on all
+three desktop platforms; no production media fix is inferred for the earlier
+intermittent failures. macOS worker teardown separately logs Cubeb aborts after
+API-owned engines are retained until process exit. Relevant production and
+fixture shutdown paths match `origin/main`; no matched baseline executable or
+native crash stack establishes the cause or equivalent Flutter-exit behavior.
+Keep this existing teardown limitation separate from background reception.
 
 ## Approved boundaries
 
