@@ -8,7 +8,7 @@ use crate::persistence::history_admission::EvidenceWrite;
 use crate::sender_auth::VerifiedSender;
 use sha2::{Digest, Sha256};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(in crate::private_group_runtime) struct NativeAcceptance {
     pub(in crate::private_group_runtime) record_hash: String,
     pub(in crate::private_group_runtime) original_sender_proof_b64: String,
@@ -19,7 +19,9 @@ pub(in crate::private_group_runtime) struct NativeAcceptance {
     pub(in crate::private_group_runtime) author_admission_instance: Option<MembershipReference>,
     pub(super) receipt: Option<AcceptanceEvidenceV1>,
     original_org_roster_b64: Option<String>,
-    basis: GroupAcceptanceBasis,
+    pub(super) basis: GroupAcceptanceBasis,
+    #[serde(skip)]
+    pub(super) offer: Option<AttachmentOffer>,
 }
 
 pub(in crate::private_group_runtime) fn native_acceptance_key(group: &str, id: &str) -> String {
@@ -37,10 +39,47 @@ impl NativeAcceptance {
         sender: &VerifiedSender,
         proof: &[u8],
     ) -> Result<(Self, Vec<EvidenceWrite>), PrivateGroupError> {
-        let (admission, writes) =
-            session.native_membership_checkpoint(sender, proof, &session.data_channel)?;
+        Self::create(session, message, sender, proof, &session.data_channel, None)
+    }
+
+    pub(in crate::private_group_runtime) fn attachment(
+        session: &GroupSession,
+        message: &GroupMessage,
+        sender: &VerifiedSender,
+        proof: &[u8],
+        offer: AttachmentOffer,
+    ) -> Result<(Self, Vec<EvidenceWrite>), PrivateGroupError> {
+        Self::create(
+            session,
+            message,
+            sender,
+            proof,
+            &session.control_channel,
+            Some(offer),
+        )
+    }
+
+    fn create(
+        session: &GroupSession,
+        message: &GroupMessage,
+        sender: &VerifiedSender,
+        proof: &[u8],
+        channel: &str,
+        offer: Option<AttachmentOffer>,
+    ) -> Result<(Self, Vec<EvidenceWrite>), PrivateGroupError> {
+        let membership = session.native_membership_checkpoint(sender, proof, channel)?;
+        let (admission, writes) = membership
+            .map(|m| (Some(m.reference), m.writes))
+            .unwrap_or_default();
         let mut accepted = Self {
-            record_hash: text_record_hash(session, message, sender)?,
+            record_hash: semantic_record_hash(
+                &session.deletions.context,
+                &session.mesh_id,
+                message,
+                &hex::encode(&sender.mls_signer),
+                &sender.peer_id,
+                offer.as_ref(),
+            )?,
             original_sender_proof_b64: encode(proof),
             original_author_mls_key: hex::encode(&sender.mls_signer),
             original_author_moss_key: sender.peer_id.clone(),
@@ -54,6 +93,7 @@ impl NativeAcceptance {
                 .org_history_guard(&sender.peer_id, false)?
                 .map(|guard| encode(guard.roster_bytes)),
             basis: GroupAcceptanceBasis::LiveAuthenticated,
+            offer,
         };
         accepted.receipt = AcceptanceEvidenceV1::native(session, &accepted)?;
         Ok((accepted, writes))
@@ -99,10 +139,13 @@ impl NativeAcceptance {
     }
 }
 
-fn text_record_hash(
-    session: &GroupSession,
+pub(super) fn semantic_record_hash(
+    context: &str,
+    mesh_id: &str,
     message: &GroupMessage,
-    sender: &VerifiedSender,
+    author_mls_key: &str,
+    author_moss_key: &str,
+    offer: Option<&AttachmentOffer>,
 ) -> Result<String, PrivateGroupError> {
     let origin = message.metadata.as_ref().and_then(|m| m.origin.as_ref());
     let origin_hash = origin
@@ -117,16 +160,24 @@ fn text_record_hash(
     hash.update(b"mosh-history-record-binding-v1\0");
     hash.update(
         serde_json::to_vec(&(
-            &session.deletions.context,
-            &session.mesh_id,
+            context,
+            mesh_id,
             occurrence,
             &message.message_id,
-            "text",
-            hex::encode(Sha256::digest(message.body.as_bytes())),
+            if offer.is_some() {
+                "attachment_offer"
+            } else {
+                "text"
+            },
+            hex::encode(Sha256::digest(if let Some(offer) = offer {
+                serde_json::to_vec(offer).map_err(|e| PrivateGroupError::Codec(e.to_string()))?
+            } else {
+                message.body.as_bytes().to_vec()
+            })),
             origin_hash,
             Option::<String>::None,
-            hex::encode(&sender.mls_signer),
-            Some(&sender.peer_id),
+            author_mls_key,
+            Some(author_moss_key),
             message.sent_at_ms,
             &message.from_device,
         ))

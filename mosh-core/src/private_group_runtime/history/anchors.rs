@@ -13,6 +13,8 @@ struct NativeAdmissionAnchor {
     original_welcome_b64: String,
     original_tree_b64: String,
     canonical_add_commit_hash: Option<String>,
+    #[serde(default)]
+    original_admission_binding_b64: Option<String>,
     original_org_signed_b64: Option<String>,
     original_org_roster_b64: Option<String>,
 }
@@ -54,6 +56,7 @@ impl GroupSession {
         welcome_b64: &str,
         tree_b64: &str,
         commit_b64: &str,
+        admission_binding: Option<&crate::sender_auth::SenderProof>,
     ) -> Result<(), PrivateGroupError> {
         let Some(store) = self.persistence.as_deref() else {
             return Ok(());
@@ -66,7 +69,16 @@ impl GroupSession {
             own_mls_key: hex::encode(staged.next.signer_public()),
             original_welcome_b64: welcome_b64.into(),
             original_tree_b64: tree_b64.into(),
-            canonical_add_commit_hash: self.original_org_add_hash(staged, commit_b64)?,
+            canonical_add_commit_hash: if admission_binding.is_some() {
+                Some(hex::encode(Sha256::digest(decode(commit_b64)?)))
+            } else {
+                self.original_org_add_hash(staged, commit_b64)?
+            },
+            original_admission_binding_b64: admission_binding
+                .map(serde_json::to_vec)
+                .transpose()
+                .map_err(|e| PrivateGroupError::Codec(e.to_string()))?
+                .map(|bytes| encode(&bytes)),
             original_org_signed_b64: self
                 .incoming_org_control
                 .as_ref()

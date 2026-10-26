@@ -53,6 +53,15 @@ pub trait ConversationSession {
 
     fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord>;
 
+    /// A kind may atomically settle its publication with protected evidence.
+    fn write_send_override(
+        &self,
+        _store: &Persistence,
+        _message: &str,
+    ) -> Result<bool, PersistenceError> {
+        Ok(false)
+    }
+
     fn record(&self) -> Self::Record;
 
     /// Durable state of this kind that goes down beside the history. A DM and

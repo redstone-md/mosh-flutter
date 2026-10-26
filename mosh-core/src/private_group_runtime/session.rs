@@ -25,6 +25,14 @@ impl ConversationSession for GroupSession {
         &self.outbound_attempts
     }
 
+    fn write_send_override(
+        &self,
+        store: &Persistence,
+        message: &str,
+    ) -> Result<bool, crate::persistence::PersistenceError> {
+        self.write_publication(store, message)
+    }
+
     fn record(&self) -> PersistedGroupSession {
         self.to_persisted_record()
     }
@@ -70,6 +78,9 @@ pub(super) struct GroupSession {
     pub(super) crypto: MlsSessionCrypto,
     pub(super) messages: MessageLog<GroupMessage>,
     pub(super) seen: SeenFrames,
+    pub(super) recovery: crate::conversation::recovery::coordinator::Coordinator,
+    pub(super) history_dispatch: crate::conversation::recovery::transport::DispatchGeneration,
+    pub(super) history_head: Option<super::history::CurrentHead>,
     // Epoch-ordered commit admission: dedups gossip duplicates and the
     // joiner's Welcome-carried admission commit, buffers out-of-order commits,
     // reports gaps for resync. Unbounded like its predecessor set — commits
@@ -85,6 +96,7 @@ pub(super) struct GroupSession {
     pub(super) data_channel: String,
     pub(super) blob_channel: String,
     pub(super) transfer: Transfer,
+    pub(super) publications: HashMap<String, super::history::PublicationAcceptance>,
     pub(super) outbound_attempts: HashMap<String, OutboundAttemptRecord>,
     pub(super) dm_offers: DmOffers,
     /// Org binding (ADR 0008). Some = control traffic is enveloped, the MLS
@@ -159,8 +171,12 @@ impl GroupSession {
             transfer: Transfer::new(attachment_store),
             messages: MessageLog::default(),
             seen: SeenFrames::default(),
+            recovery: Default::default(),
+            history_dispatch: Default::default(),
+            history_head: None,
             sequencer: CommitSequencer::new(),
             needs_rejoin: false,
+            publications: HashMap::new(),
             outbound_attempts: HashMap::new(),
             dm_offers: DmOffers::default(),
             roster_cache: None,
@@ -171,5 +187,11 @@ impl GroupSession {
             member_names: HashMap::new(),
             typing_gate: TypingGate::default(),
         }
+    }
+}
+
+impl Drop for GroupSession {
+    fn drop(&mut self) {
+        self.history_dispatch.invalidate();
     }
 }

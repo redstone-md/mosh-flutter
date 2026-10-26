@@ -49,6 +49,7 @@ fn prepare_welcome(
     let package = session.pending_join_package.as_ref().unwrap();
     let outcome = admin.add_members(&[package.as_slice()]).unwrap();
     let envelope = ControlEnvelope::Welcome {
+        admission_binding: None,
         group_id: id.into(),
         for_participant_id: session.participant_id.clone(),
         from_fingerprint: admin.fingerprint(),

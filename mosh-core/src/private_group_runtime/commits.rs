@@ -31,9 +31,13 @@ impl GroupSession {
         }
         if message.channel == self.control_channel {
             let incoming = self.unwrap_control(message.payload)?;
+            let previous_epoch = self.crypto.epoch();
             self.incoming_org_control = incoming.original_org;
             let result = self.handle_control(incoming.payload, incoming.sender_peer_id);
             self.incoming_org_control = None;
+            if self.crypto.epoch() != previous_epoch {
+                self.history_dispatch.invalidate();
+            }
             // Control frames are the only ones that move the MLS tree, by any
             // route: a commit, a resync replay, a Welcome, or a departure we
             // committed ourselves. Derive the admin once, here, rather than at

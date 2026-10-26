@@ -81,6 +81,7 @@ fn the_signed_offer_fits_org_wrapping_and_sender_restarts_serve_the_preview() {
     let proof = session
         .sign_application(
             &ControlEnvelope::AttachmentManifest {
+                sent_at_ms: None,
                 group_id: fixture.id.clone(),
                 participant_id: session.participant_id.clone(),
                 from_device: session.display_name.clone(),

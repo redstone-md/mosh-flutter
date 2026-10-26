@@ -4,8 +4,16 @@ use crate::mls_crypto::MlsHistoryContext;
 use crate::persistence::history_admission::EvidenceWrite;
 use crate::sender_auth::VerifiedSender;
 use sha2::{Digest, Sha256};
+mod current;
+mod own;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(super) struct NativeMembership {
+    pub(super) reference: MembershipReference,
+    pub(super) checkpoint: NativeCheckpoint,
+    pub(super) writes: Vec<EvidenceWrite>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub(in crate::private_group_runtime) enum MembershipReference {
     CommitV1(String),
@@ -33,8 +41,8 @@ struct VerifiedSinceCheckpointV1 {
     binding_hash: String,
 }
 
-#[derive(Serialize, Deserialize)]
-struct NativeCheckpoint {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(super) struct NativeCheckpoint {
     checkpoint: VerifiedSinceCheckpointV1,
     binding_channel: String,
     original_binding_proof_b64: String,
@@ -67,12 +75,12 @@ impl GroupSession {
         sender: &VerifiedSender,
         proof: &[u8],
         channel: &str,
-    ) -> Result<(Option<MembershipReference>, Vec<EvidenceWrite>), PrivateGroupError> {
+    ) -> Result<Option<NativeMembership>, PrivateGroupError> {
         let Some(store) = self.persistence.as_deref() else {
-            return Ok((None, Vec::new()));
+            return Ok(None);
         };
         let Some(context) = self.checkpoint_context(store, sender)? else {
-            return Ok((None, Vec::new()));
+            return Ok(None);
         };
         let key = format!(
             "group/{}/local-membership/{}/{}/{:020}/{}",
@@ -84,10 +92,11 @@ impl GroupSession {
         );
         if let Some(retained) = store.group_history_evidence::<NativeCheckpoint>(&key)? {
             let id = retained.checkpoint.id()?;
-            return Ok((
-                Some(MembershipReference::VerifiedSinceCheckpointV1(id)),
-                Vec::new(),
-            ));
+            return Ok(Some(NativeMembership {
+                reference: MembershipReference::VerifiedSinceCheckpointV1(id),
+                checkpoint: retained,
+                writes: Vec::new(),
+            }));
         }
         let checkpoint = NativeCheckpoint {
             checkpoint: VerifiedSinceCheckpointV1 {
@@ -136,7 +145,7 @@ impl GroupSession {
         &self,
         key: String,
         checkpoint: NativeCheckpoint,
-    ) -> Result<(Option<MembershipReference>, Vec<EvidenceWrite>), PrivateGroupError> {
+    ) -> Result<Option<NativeMembership>, PrivateGroupError> {
         let id = checkpoint.checkpoint.id()?;
         let bytes = serde_json::to_vec(&checkpoint)
             .map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
@@ -144,9 +153,10 @@ impl GroupSession {
             "group/{}/evidence/membership/{id}",
             hex::encode(Sha256::digest(self.group_id.as_bytes()))
         );
-        Ok((
-            Some(MembershipReference::VerifiedSinceCheckpointV1(id)),
-            vec![
+        Ok(Some(NativeMembership {
+            reference: MembershipReference::VerifiedSinceCheckpointV1(id),
+            checkpoint,
+            writes: vec![
                 EvidenceWrite {
                     key,
                     bytes: bytes.clone(),
@@ -156,6 +166,6 @@ impl GroupSession {
                     bytes,
                 },
             ],
-        ))
+        }))
     }
 }

@@ -2,6 +2,32 @@ use super::*;
 use crate::private_group_runtime::history::{native_acceptance_key, NativeAcceptance};
 
 #[test]
+fn a_published_group_text_retains_local_publication_evidence_after_restart() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let sent = fixture
+        .runtime
+        .send(&fixture.id, "our accepted publication".into())
+        .unwrap();
+    assert_eq!(sent.delivery_status, MessageDeliveryStatus::Sent);
+    fixture.restart();
+    let accepted: NativeAcceptance = fixture
+        .store
+        .group_history_evidence(&native_acceptance_key(&fixture.id, &sent.message_id))
+        .unwrap()
+        .expect("a successfully published row needs durable native publication evidence");
+    assert_eq!(
+        serde_json::to_value(accepted).unwrap()["basis"],
+        "local_publication"
+    );
+    let snapshot = fixture.runtime.poll(&fixture.id).unwrap();
+    assert_eq!(
+        snapshot.messages[0].delivery_status,
+        Some(MessageDeliveryStatus::Sent)
+    );
+}
+
+#[test]
 fn snapshot_refusal_keeps_incoming_group_text_invisible_and_retryable() {
     let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let mut fixture = Fixture::new();
@@ -112,6 +138,7 @@ fn an_unsigned_welcome_commit_hint_cannot_blackhole_a_later_verified_commit() {
         .add_members(&[&carol.key_package_bytes().unwrap()])
         .unwrap();
     let welcome = ControlEnvelope::Welcome {
+        admission_binding: None,
         group_id: fixture.id.clone(),
         for_participant_id: session.participant_id.clone(),
         from_fingerprint: admin.fingerprint(),
@@ -135,6 +162,7 @@ fn an_unsigned_welcome_commit_hint_cannot_blackhole_a_later_verified_commit() {
     inbox::deliver(MossReceivedMessage {
         channel: control,
         payload: serde_json::to_vec(&ControlEnvelope::Commit {
+            admission_binding: None,
             group_id: fixture.id.clone(),
             from_fingerprint: admin.fingerprint(),
             commit_b64: encode(&later.commit_bytes),
@@ -145,7 +173,7 @@ fn an_unsigned_welcome_commit_hint_cannot_blackhole_a_later_verified_commit() {
     assert_eq!(fixture.runtime.poll(&fixture.id).unwrap().member_count, 3);
 }
 
-fn member(fixture: &mut Fixture) -> (MlsSessionCrypto, SigningKey) {
+pub(super) fn member(fixture: &mut Fixture) -> (MlsSessionCrypto, SigningKey) {
     let mut sender = MlsSessionCrypto::new("Bob").unwrap();
     let package = sender.key_package_bytes().unwrap();
     let session = fixture.runtime.groups.get_mut(&fixture.id).unwrap();

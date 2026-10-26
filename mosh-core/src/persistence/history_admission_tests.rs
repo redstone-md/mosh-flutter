@@ -44,6 +44,14 @@ fn a_refused_own_snapshot_cannot_commit_history_evidence_or_continuation() {
             group: None,
         }),
     };
+    store
+        .put_outbound_attempt(
+            GROUP_HISTORY.outbound_scope,
+            "group-test",
+            "one",
+            b"pending publication",
+        )
+        .unwrap();
     let fault = store.refuse_group_snapshot_writes();
     let admit = || {
         store.commit_history_admission(
@@ -53,6 +61,7 @@ fn a_refused_own_snapshot_cannot_commit_history_evidence_or_continuation() {
                 state: Some(("group-test", b"{}")),
                 checkpoint: Some(("group:test:local", b"1")),
                 own_snapshot: Some(b"own staged state"),
+                outbound_settlements: &["one"],
                 evidence: std::slice::from_ref(&evidence),
                 ..Default::default()
             },
@@ -60,6 +69,12 @@ fn a_refused_own_snapshot_cannot_commit_history_evidence_or_continuation() {
         )
     };
     assert!(admit().is_err());
+    assert_eq!(
+        store
+            .get_outbound_attempt(GROUP_HISTORY.outbound_scope, "group-test", "one")
+            .unwrap(),
+        Some(b"pending publication".to_vec())
+    );
     assert!(store
         .list_history_messages(GROUP_HISTORY, "group-test")
         .unwrap()
@@ -75,6 +90,10 @@ fn a_refused_own_snapshot_cannot_commit_history_evidence_or_continuation() {
         .is_none());
     drop(fault);
     admit().unwrap();
+    assert!(store
+        .get_outbound_attempt(GROUP_HISTORY.outbound_scope, "group-test", "one")
+        .unwrap()
+        .is_none());
     assert_eq!(
         store
             .list_history_messages(GROUP_HISTORY, "group-test")

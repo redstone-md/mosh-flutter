@@ -6,12 +6,31 @@ use crate::mls_crypto::StagedApplication;
 use crate::persistence::HistoryAdmission;
 use crate::sender_auth::VerifiedSender;
 
+pub(super) mod admission;
+mod admission_commit;
 mod anchors;
+mod attachments;
 mod evidence;
+mod exchange;
+mod import;
+mod ingress;
+mod install;
+mod intervals;
+mod journal;
 mod membership;
+mod original;
+mod protocol;
+mod publication;
+pub(super) use publication::PublicationAcceptance;
 mod receipts;
+mod records;
+mod recovery;
+mod source;
+mod source_pages;
 mod transitions;
+mod vouches;
 pub(super) use evidence::{native_acceptance_key, NativeAcceptance};
+pub(super) use protocol::CurrentHead;
 pub(super) use transitions::persist_membership;
 
 impl GroupSession {
@@ -22,11 +41,24 @@ impl GroupSession {
         original_proof: &[u8],
         sender: &VerifiedSender,
     ) -> Result<(), PrivateGroupError> {
+        if self.persistence.is_none() {
+            return Ok(());
+        }
+        let (accepted, evidence) = NativeAcceptance::text(self, message, sender, original_proof)?;
+        self.persist_received(staged, message, accepted, evidence)
+    }
+
+    pub(super) fn persist_received(
+        &self,
+        staged: &StagedApplication,
+        message: &GroupMessage,
+        mut accepted: NativeAcceptance,
+        mut evidence: Vec<crate::persistence::history_admission::EvidenceWrite>,
+    ) -> Result<(), PrivateGroupError> {
         let Some(store) = self.persistence.as_deref() else {
             return Ok(());
         };
-        let (mut accepted, mut evidence) =
-            NativeAcceptance::text(self, message, sender, original_proof)?;
+        let sender = accepted.original_author_moss_key.clone();
         let already_held = self.messages.holds_copy_of(message);
         evidence.extend(accepted.first_write(
             store,
@@ -44,14 +76,27 @@ impl GroupSession {
         };
         let record = serde_json::to_vec(&self.to_persisted_record())
             .map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
+        let background = rows
+            .iter()
+            .filter_map(|row| {
+                crate::conversation::history::background::message(
+                    GROUP_HISTORY,
+                    &self.group_id,
+                    row.sent_at_ms,
+                    &row.message_id,
+                    &row.message,
+                )
+            })
+            .collect::<Vec<_>>();
         store.commit_history_admission(
             GROUP_HISTORY,
             &self.group_id,
             HistoryAdmission {
-                org_authority: self.org_history_guard(&sender.peer_id, false)?,
+                org_authority: self.org_history_guard(&sender, false)?,
                 state: Some((&self.group_id, &record)),
                 own_snapshot: Some(&staged.next.snapshot()),
                 evidence: &evidence,
+                background_messages: &background,
                 ..Default::default()
             },
             &rows,
@@ -73,8 +118,11 @@ impl GroupSession {
             sent_at_ms: message.sent_at_ms.unwrap_or_default(),
             message_id: message.message_id.clone().unwrap_or_default(),
             message: message.clone(),
-            attachment_manifest: None,
-            preview_manifest: None,
+            attachment_manifest: accepted.offer.as_ref().map(|o| o.manifest.clone()),
+            preview_manifest: accepted
+                .offer
+                .as_ref()
+                .and_then(|o| o.preview_manifest.clone()),
             history_evidence: Some(HistoryEvidence {
                 holder_key: self.device_fingerprint.clone(),
                 classification: if has_origin {

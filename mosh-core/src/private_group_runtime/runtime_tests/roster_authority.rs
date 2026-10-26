@@ -71,6 +71,7 @@ fn org_commit_authority_follows_roster_with_lag_buffer() {
     let kp_c = c_crypto.key_package_bytes().unwrap();
     let b_commit = b_crypto.add_members(&[kp_c.as_slice()]).unwrap();
     let commit_from_b = |roster_version: Option<u64>| ControlEnvelope::Commit {
+        admission_binding: None,
         group_id: created.group_id.clone(),
         from_fingerprint: b_crypto.fingerprint(),
         commit_b64: encode(&b_commit.commit_bytes),
@@ -296,6 +297,7 @@ fn admin_departure_is_derived_from_the_commit_not_the_handoff() {
     let successor = view.cleo.member_fingerprints().into_iter().min().unwrap();
 
     view.deliver(&ControlEnvelope::Commit {
+        admission_binding: None,
         group_id: view.group_id.clone(),
         from_fingerprint: view.cleo.fingerprint(),
         commit_b64: encode(&leave_commit),
@@ -347,6 +349,7 @@ fn departures_are_committed_by_the_admin_then_by_the_successor() {
         .commit_departure(&decode(proposal_b64).unwrap())
         .unwrap();
     view.deliver(&ControlEnvelope::Commit {
+        admission_binding: None,
         group_id: group_id.clone(),
         from_fingerprint: view.dane.fingerprint(),
         commit_b64: encode(&commit),
