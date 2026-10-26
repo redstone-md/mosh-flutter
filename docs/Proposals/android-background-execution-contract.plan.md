@@ -1,6 +1,8 @@
 # Android execution proposal for IVO-137–146
 
-Status: proposed; no new service/permission or background guarantee ships yet.
+Status: approved for implementation on 2026-10-26; no new service/permission or
+background guarantee ships yet. The owner confirmed the combined technical
+contract request after clarification of the history mechanism.
 Depends on the approved implementation of IVO-133, key access in IVO-135 and the
 upstream waiting lifecycle in IVO-136. This is not a replacement for those tasks.
 
@@ -12,6 +14,15 @@ eligible to run; it never creates another node, database or media engine.
 Move group/channel servicing into their existing native owners, alongside the
 existing DM pump. Application-owned notification delivery consumes their events;
 it must not depend on a mounted chat, widget polling or a visible Activity.
+
+Reuse existing notification permissions/settings, `ic_stat_mosh`, channel IDs,
+ringtone and non-Android delivery. The installed `flutter_local_notifications`
+22.2.0 already supports channels, actions and foreground services, but its public
+Android styles omit CallStyle and its publication has no Mosh-native access-state
+check at the final OS boundary. Keep the Android-specific publisher small for
+those requirements; do not fork the plugin or build a second general-purpose
+notification system. Once that owner attaches, the old Android widget publisher
+must yield, so one incoming call cannot produce competing notifications.
 
 ## Waiting execution and permissions
 
@@ -96,7 +107,7 @@ acceptance/capture; an expired or replaced call consumes no newer call's action.
 
 ## Proposed native bridge and durable delivery
 
-These additions require approval. Reuse existing conversation/call identifiers,
+These additions are approved. Reuse existing conversation/call identifiers,
 snapshots, history codecs and native runtime owners; do not add a second store.
 Android attaches the application owner after a valid DEK is injected. Desktop
 does not start this owner or acquire new background loops by default.
@@ -190,8 +201,9 @@ clear-preview/media downloads, and preserve admitted user-started transfers.
 
 ## Approval and evidence
 
-The new Android service/receiver/permissions, access and lifecycle channel, and
-any native event/intent bridge changes need concrete review before edits.
+The new Android service/receiver/permissions, waiting lifecycle channel, native
+event/intent bridge and encrypted delivery table above are approved. Further
+public-contract/dependency/schema changes still need their own concrete review.
 Keep actual state separate from requested waiting, attachment readiness,
 permission restrictions and known-unavailable history holders.
 Physical acceptance covers supported API/OEM, unplugged Doze, locked cold
