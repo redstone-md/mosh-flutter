@@ -47,6 +47,7 @@ fn a_missing_original_legacy_id_has_a_stable_alias_without_changing_local_action
         Some("old-local-action")
     );
     let record = ChannelRecord::from_stored(&stored).unwrap();
+    let canonical_id = record.message_id.clone();
     assert!(record.message_id.starts_with("legacy-"));
     assert_ne!(record.message_id, "old-local-action");
     let holder = SigningKey::from_bytes(&[18; 32]);
@@ -91,6 +92,6 @@ fn a_missing_original_legacy_id_has_a_stable_alias_without_changing_local_action
         ChannelRecord::from_stored(&StoredMessage { message, ..stored })
             .unwrap()
             .message_id,
-        "old-local-action"
+        canonical_id
     );
 }

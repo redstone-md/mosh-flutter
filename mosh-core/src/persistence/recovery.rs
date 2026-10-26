@@ -1,9 +1,8 @@
 //! Encrypted frozen source keys and atomic shared history continuation.
 use super::*;
 use crate::conversation::history::StoredMessage;
-use crate::conversation::recovery::manifest::{HistoryKey, Manifest};
+use crate::conversation::recovery::manifest::{HistoryKey, Manifest, ManifestHash};
 use serde::{de::DeserializeOwned, Serialize};
-use sha2::{Digest, Sha256};
 
 impl Persistence {
     #[allow(
@@ -72,11 +71,8 @@ impl Persistence {
     ) -> Result<Manifest, PersistenceError> {
         let tx = self.db.begin_read().map_err(db_error)?;
         let table = tx.open_table(tables.messages).map_err(db_error)?;
-        let mut hash = Sha256::new();
-        hash.update(b"[1,");
-        hash.update(serde_json::to_vec(&format!("{}:{id}", tables.label)).map_err(json_error)?);
-        hash.update(b",[");
-        let mut total = 0;
+        let mut hash =
+            ManifestHash::new(&format!("{}:{id}", tables.label)).map_err(PersistenceError::Json)?;
         let prefix = format!("{id}\u{1}");
         for row in table
             .range(prefix.as_str()..format!("{prefix}\u{10ffff}").as_str())
@@ -87,18 +83,10 @@ impl Persistence {
                 serde_json::from_slice(&decrypt_blob(&self.dek, value.value())?)
                     .map_err(json_error)?;
             if let Some(key) = select(&message).map_err(PersistenceError::Json)? {
-                if total > 0 {
-                    hash.update(b",");
-                }
-                hash.update(serde_json::to_vec(&key).map_err(json_error)?);
-                total += 1;
+                hash.push(&key).map_err(PersistenceError::Json)?;
             }
         }
-        hash.update(b"]]");
-        Ok(Manifest {
-            digest: hex::encode(hash.finalize()),
-            total,
-        })
+        Ok(hash.finish())
     }
 
     pub(crate) fn freeze_recovery<M: DeserializeOwned, R: Serialize>(
@@ -116,12 +104,13 @@ impl Persistence {
                 export.prefix,
                 crate::conversation::now_ms(),
             )?;
-            self.delete_prefix(
-                tx,
-                CONVERSATION_RECOVERY,
-                &format!("{}\u{1}", export.prefix),
-            )?;
-            self.freeze_history_rows(tx, tables, id, export.prefix, select)?;
+            self.delete_prefix(tx, CONVERSATION_RECOVERY, export.prefix)?;
+            let frozen = self.freeze_history_rows(tx, tables, id, export.prefix, select)?;
+            if &frozen != export.manifest {
+                return Err(PersistenceError::Json(
+                    "history Offer changed before freeze".into(),
+                ));
+            }
             for record in journal {
                 let key = format!("{}\u{1}journal\u{1}{}", export.prefix, record.storage_key());
                 let bytes =
@@ -143,9 +132,10 @@ impl Persistence {
         id: &str,
         prefix: &str,
         select: impl Fn(&StoredMessage<M>) -> Result<Option<HistoryKey>, String>,
-    ) -> Result<(), PersistenceError> {
+    ) -> Result<Manifest, PersistenceError> {
         let table = tx.open_table(tables.messages).map_err(db_error)?;
-        let mut total = 0;
+        let mut hash =
+            ManifestHash::new(&format!("{}:{id}", tables.label)).map_err(PersistenceError::Json)?;
         let history_prefix = format!("{id}\u{1}");
         for row in table
             .range(history_prefix.as_str()..format!("{history_prefix}\u{10ffff}").as_str())
@@ -156,6 +146,7 @@ impl Persistence {
                 serde_json::from_slice(&decrypt_blob(&self.dek, value.value())?)
                     .map_err(json_error)?;
             if let Some(key) = select(&message).map_err(PersistenceError::Json)? {
+                let index = hash.push(&key).map_err(PersistenceError::Json)?;
                 let frozen = crate::conversation::recovery::manifest::FrozenKey {
                     key,
                     row_key: stored_key.value().into(),
@@ -165,13 +156,12 @@ impl Persistence {
                 Self::update_row(
                     tx,
                     CONVERSATION_RECOVERY,
-                    &format!("{prefix}\u{1}keys\u{1}{total:020}"),
+                    &format!("{prefix}\u{1}keys\u{1}{index:020}"),
                     Some(&bytes),
                 )?;
-                total += 1;
             }
         }
-        Ok(())
+        Ok(hash.finish())
     }
 }
 
@@ -179,6 +169,7 @@ pub(crate) struct FrozenExport<'a, R> {
     pub prefix: &'a str,
     pub meta_key: &'a str,
     pub header: &'a R,
+    pub manifest: &'a Manifest,
 }
 
 fn json_error(error: serde_json::Error) -> PersistenceError {
