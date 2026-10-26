@@ -118,6 +118,7 @@ impl PrivateGroupRuntime {
                 &session.node,
                 &session.to_persisted_record(),
                 package,
+                &session.crypto,
                 session.org_signer.as_ref(),
             )?;
         }
@@ -183,9 +184,13 @@ fn publish_join_package(
     node: &MossNode,
     record: &PersistedGroupSession,
     package: &[u8],
+    crypto: &MlsSessionCrypto,
     signer: Option<&SigningKey>,
 ) -> Result<(), PrivateGroupError> {
     let envelope = ControlEnvelope::KeyPackage {
+        joiner_binding: Some(super::history::admission::joiner_binding(
+            node, crypto, record, package,
+        )?),
         group_id: record.group_id.clone(),
         participant_id: record.participant_id.clone(),
         from_device: record.display_name.clone(),

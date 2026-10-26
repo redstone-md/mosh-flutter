@@ -71,7 +71,7 @@ impl MlsSessionCrypto {
         })
     }
 
-    pub(super) fn receive_candidate(&self) -> Result<Self, MlsCryptoError> {
+    pub(crate) fn receive_candidate(&self) -> Result<Self, MlsCryptoError> {
         let identity = Self::credential_identity(&self.credential.credential)
             .ok_or(MlsCryptoError::NotReady)?;
         let group_id = self.group_id_bytes().ok_or(MlsCryptoError::NotReady)?;

@@ -33,6 +33,7 @@ pub(crate) struct HistoryAdmission<'a> {
     pub recovery: &'a [EvidenceWrite],
     pub evidence: &'a [EvidenceWrite],
     pub occurrences: &'a [Occurrence],
+    pub outbound_settlements: &'a [&'a str],
     pub background_messages: &'a [BackgroundMessageAdmission],
     /// Complete namespace; the shared prefix eraser adds the delimiter itself.
     pub remove_recovery_prefix: Option<&'a str>,
@@ -117,6 +118,9 @@ impl Persistence {
         }
         for (key, value) in rows {
             self.write_history_row(tx, tables, key, value)?;
+        }
+        for message in admission.outbound_settlements {
+            self.write_outbound_row(tx, tables, id, message, None)?;
         }
         for (table, key, value) in writes {
             Self::update_row(tx, *table, key, Some(value))?;

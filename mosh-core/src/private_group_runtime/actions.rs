@@ -53,6 +53,21 @@ impl PrivateGroupRuntime {
         self.drain_inbound()?;
         let session = self.group_mut(group_id)?;
         let result = session.send_attachment(input)?;
+        if let Err(error) = self
+            .groups
+            .persist_send(group_id, &result.attachment_id, false)
+        {
+            dlog::write(
+                LogLevel::Error,
+                kinds::PERSIST,
+                group_id,
+                &error.to_string(),
+            );
+        } else {
+            self.group_mut(group_id)?
+                .publications
+                .remove(&result.attachment_id);
+        }
         self.groups.persist_tail_logged(KIND);
         Ok(result)
     }

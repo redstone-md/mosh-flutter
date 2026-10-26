@@ -6,7 +6,7 @@ use crate::mls_crypto::MlsHistoryContext;
 use ed25519_dalek::Signer as _;
 use sha2::{Digest, Sha256};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(super) struct AcceptanceEvidenceV1 {
     version: u8,
     evidence_id: String,
@@ -45,9 +45,19 @@ impl AcceptanceEvidenceV1 {
             holder_mls_key: hex::encode(session.crypto.signer_public()),
             holder_moss_key: session.device_fingerprint.clone(),
             accepted_head: accepted.context.clone(),
-            basis: GroupAcceptanceBasis::LiveAuthenticated,
-            first_evidence_hash: None,
-            predecessor_hash: None,
+            basis: accepted.basis,
+            first_evidence_hash: accepted
+                .receipt
+                .as_ref()
+                .map(|previous| {
+                    previous
+                        .first_evidence_hash
+                        .clone()
+                        .map(Ok)
+                        .unwrap_or_else(|| previous.hash())
+                })
+                .transpose()?,
+            predecessor_hash: accepted.receipt.as_ref().map(Self::hash).transpose()?,
             mls_signature: String::new(),
             moss_signature: String::new(),
         };
@@ -86,6 +96,35 @@ impl AcceptanceEvidenceV1 {
         Ok(input)
     }
 
+    pub(super) fn verify(&self, accepted: &NativeAcceptance) -> Result<(), PrivateGroupError> {
+        let origin = accepted
+            .origin
+            .as_ref()
+            .ok_or_else(|| PrivateGroupError::Codec("original origin unavailable".into()))?;
+        if self.version != 1
+            || !crate::conversation::recovery::manifest::canonical_hex(&self.evidence_id, 32)
+            || self.record_hash != accepted.record_hash
+            || self.original_origin_hash
+                != crate::conversation::recovery::manifest::digest(origin)
+                    .map_err(PrivateGroupError::Codec)?
+            || self.historical_context != accepted.context
+            || Some(&self.author_admission_instance) != accepted.author_admission_instance.as_ref()
+            || self.accepted_head.group_id != self.historical_context.group_id
+            || self.accepted_head.epoch < self.historical_context.epoch
+            || (self.accepted_head.epoch == self.historical_context.epoch
+                && self.accepted_head.hash != self.historical_context.hash)
+        {
+            return Err(PrivateGroupError::Codec(
+                "acceptance evidence binding differs".into(),
+            ));
+        }
+        let input = self.input()?;
+        crate::signature_verification::verify(&self.holder_mls_key, &self.mls_signature, &input)
+            .map_err(PrivateGroupError::Codec)?;
+        crate::signature_verification::verify(&self.holder_moss_key, &self.moss_signature, &input)
+            .map_err(PrivateGroupError::Codec)
+    }
+
     pub(super) fn hash(&self) -> Result<String, PrivateGroupError> {
         crate::conversation::recovery::manifest::digest(self).map_err(PrivateGroupError::Codec)
     }
@@ -102,9 +141,9 @@ impl NativeAcceptance {
                     )?)),
                     content_proof_hash: None,
                     acceptance_evidence_hash: receipt.hash()?,
-                    first_evidence_hash: None,
-                    predecessor_hash: None,
-                    basis: GroupAcceptanceBasis::LiveAuthenticated,
+                    first_evidence_hash: receipt.first_evidence_hash.clone(),
+                    predecessor_hash: receipt.predecessor_hash.clone(),
+                    basis: receipt.basis,
                 })
             })
             .transpose()

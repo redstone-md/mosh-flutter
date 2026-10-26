@@ -207,11 +207,13 @@ fn org_admission_enforces_identity_and_roster_with_replace_dedup() {
     let persistence =
         Arc::new(Persistence::open_with_dek(&db_path, [23u8; 32]).expect("store should open"));
 
-    let admin_seed = [71u8; 32];
-    persistence
-        .put_moss_identity(&identity_blob(admin_seed))
+    let _identity = crate::moss_ffi::replace_test_keystore(Some(persistence.clone()));
+    let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
+    let native = moss
+        .init_default_node("org-admission-identity", &Default::default())
         .unwrap();
-    let admin_peer = org_signing::peer_id_hex(&SigningKey::from_bytes(&admin_seed));
+    let admin_peer = native.public_key_hex().unwrap();
+    drop(native);
     let member_key = SigningKey::from_bytes(&[72u8; 32]);
     let member_peer = org_signing::peer_id_hex(&member_key);
     let stranger_key = SigningKey::from_bytes(&[73u8; 32]);
@@ -223,7 +225,6 @@ fn org_admission_enforces_identity_and_roster_with_replace_dedup() {
         ],
     );
 
-    let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
     let mut runtime =
         PrivateGroupRuntime::from_shared(moss, temp_store(), Some(persistence.clone()));
     let created = runtime
@@ -240,6 +241,10 @@ fn org_admission_enforces_identity_and_roster_with_replace_dedup() {
     {
         let session = runtime.groups.get(&created.group_id).unwrap();
         assert_eq!(session.crypto.member_identities(), vec![admin_peer.clone()]);
+        assert_eq!(
+            session.device_fingerprint, admin_peer,
+            "the native node must use the roster identity"
+        );
     }
     let (control_channel, mesh_id) = {
         let s = runtime.groups.get(&created.group_id).unwrap();
@@ -248,6 +253,7 @@ fn org_admission_enforces_identity_and_roster_with_replace_dedup() {
     let key_package_env = |identity: &str, participant: &str| {
         let mut crypto = MlsSessionCrypto::new(identity).unwrap();
         ControlEnvelope::KeyPackage {
+            joiner_binding: None,
             group_id: created.group_id.clone(),
             participant_id: participant.to_string(),
             from_device: "peer".to_string(),

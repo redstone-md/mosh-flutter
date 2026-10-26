@@ -96,35 +96,14 @@ impl GroupSession {
 
     pub(super) fn accept_incoming_manifest(
         &mut self,
-        from_device: String,
-        from_fingerprint: String,
-        manifest: impl Into<AttachmentOffer>,
+        message: GroupMessage,
+        offer: AttachmentOffer,
     ) -> Result<(), PrivateGroupError> {
-        let offer = manifest.into();
-        let manifest = &offer.manifest;
-        let origin = manifest.origin.clone();
-        let message_id = origin.as_ref().map(|o| o.id.clone());
-        let Some(descriptor) = self.transfer.accept_offer(offer)? else {
+        if self.messages.holds_copy_of(&message) {
             return Ok(());
-        };
-        let message = self.messages.stamp(GroupMessage {
-            metadata: origin.map(|origin| crate::message_deletion::MessageMetadata {
-                origin: Some(origin),
-                ..Default::default()
-            }),
-            from_device,
-            from_fingerprint,
-            body: String::new(),
-            message_id,
-            sent_at_ms: None,
-            attachment: Some(descriptor),
-            delivery_status: None,
-            delivery_error: None,
-            retryable: None,
-            retry_count: None,
-            name_change: None,
-        });
+        }
         self.messages.push(message);
+        self.transfer.accept_offer(offer)?;
         Ok(())
     }
 
@@ -157,6 +136,7 @@ impl GroupSession {
             preview,
         )?;
         let content_hash = outgoing.manifest.content_hash.clone();
+        let sent_at_ms = now_ms();
         let publication = (|| -> Result<_, PrivateGroupError> {
             let origin = outgoing
                 .sign_mls(
@@ -168,35 +148,33 @@ impl GroupSession {
                 .map_err(PrivateGroupError::Codec)?;
             let manifest_ciphertext_b64 = self.crypto.encrypt_json(&outgoing.offer())?;
             let envelope = ControlEnvelope::AttachmentManifest {
+                sent_at_ms: Some(sent_at_ms),
                 group_id: self.group_id.clone(),
                 participant_id: self.participant_id.clone(),
                 from_device: self.display_name.clone(),
                 from_fingerprint: self.device_fingerprint.clone(),
                 manifest_ciphertext_b64,
             };
+            let offer = outgoing.offer();
+            let message = self.attachment_history_message(
+                self.display_name.clone(),
+                self.device_fingerprint.clone(),
+                &offer,
+                Some(sent_at_ms),
+            );
+            let proof = self.sign_application(&envelope, &self.control_channel)?;
+            let sender = self.verify_application(&proof, &self.control_channel.clone())?;
+            let bytes =
+                serde_json::to_vec(&proof).map_err(|e| PrivateGroupError::Codec(e.to_string()))?;
+            let accepted =
+                self.prepare_attachment_publication(&message, offer.clone(), &sender, &bytes)?;
+            self.persist_provisional_offer(&message, &offer)?;
             self.publish_control(&envelope)?;
-            Ok(origin)
+            Ok((origin, message, accepted))
         })();
-        let (descriptor, origin) = self.transfer.record_published(outgoing, publication)?;
-        let message = self.messages.stamp(GroupMessage {
-            metadata: Some(crate::message_deletion::MessageMetadata {
-                origin: Some(origin),
-                is_own: Some(true),
-                ..Default::default()
-            }),
-            from_device: self.display_name.clone(),
-            from_fingerprint: self.device_fingerprint.clone(),
-            body: String::new(),
-            message_id: Some(attachment_id.clone()),
-            sent_at_ms: None,
-            attachment: Some(descriptor),
-            delivery_status: None,
-            delivery_error: None,
-            retryable: None,
-            retry_count: None,
-            name_change: None,
-        });
+        let (_, (_, message, accepted)) = self.transfer.record_published(outgoing, publication)?;
         self.messages.push(message);
+        self.publications.insert(attachment_id.clone(), accepted);
         Ok(AttachmentSendResult {
             conversation_id: self.group_id.clone(),
             attachment_id,

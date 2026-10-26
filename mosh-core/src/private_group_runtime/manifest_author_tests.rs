@@ -64,6 +64,7 @@ impl Fixture {
         let ciphertext = self.peer.encrypt_json(&manifest).unwrap();
         let session = self.runtime.groups.get_mut(&self.id).unwrap();
         let envelope = ControlEnvelope::AttachmentManifest {
+            sent_at_ms: None,
             group_id: self.id.clone(),
             participant_id: "bob-participant".into(),
             from_device: "Bob".into(),
