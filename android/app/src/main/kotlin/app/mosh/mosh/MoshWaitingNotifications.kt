@@ -67,15 +67,15 @@ internal class MoshWaitingNotifications(
         val generic = MoshNotificationFactory.message(context, "Mosh", context.getString(R.string.mosh_new_message), count)
         val notification = MoshNotificationFactory.message(context,
             if (names) clean(sender) ?: "Mosh" else "Mosh",
-            if (messages) clean(text) ?: context.getString(R.string.mosh_new_message)
+            if (messages) clean(text, 8192) ?: context.getString(R.string.mosh_new_message)
             else context.getString(R.string.mosh_new_message), count)
         return Notification.Builder.recoverBuilder(context, notification)
             .setVisibility(if (locked && (names || messages)) Notification.VISIBILITY_PUBLIC else Notification.VISIBILITY_PRIVATE)
             .setPublicVersion(generic).build()
     }
 
-    private fun clean(value: String?): String? = value?.replace(Regex("[\\p{Cc}&&[^\\n\\t]]"), "")
-        ?.take(240)?.takeIf { it.isNotBlank() }
+    private fun clean(value: String?, limit: Int = 240): String? = value?.replace(Regex("[\\p{Cc}&&[^\\n\\t]]"), "")
+        ?.take(limit)?.takeIf { it.isNotBlank() }
 
     companion object {
         const val MESSAGES = "mosh_notifications"

@@ -6,7 +6,7 @@ import android.content.Context;
 import com.dexterous.flutterlocalnotifications.FlutterLocalNotificationsPlugin;
 import com.dexterous.flutterlocalnotifications.models.NotificationDetails;
 import com.dexterous.flutterlocalnotifications.models.NotificationStyle;
-import com.dexterous.flutterlocalnotifications.models.styles.DefaultStyleInformation;
+import com.dexterous.flutterlocalnotifications.models.styles.BigTextStyleInformation;
 
 /** Uses the installed plugin's builder without registering another plugin/channel. */
 final class MoshNotificationFactory extends FlutterLocalNotificationsPlugin {
@@ -20,8 +20,9 @@ final class MoshNotificationFactory extends FlutterLocalNotificationsPlugin {
         details.channelName = context.getString(R.string.mosh_notification_channel);
         details.importance = NotificationManager.IMPORTANCE_HIGH;
         details.priority = 1;
-        details.style = NotificationStyle.Default;
-        details.styleInformation = new DefaultStyleInformation(false, false);
+        details.style = NotificationStyle.BigText;
+        details.styleInformation = new BigTextStyleInformation(false, false,
+            body, false, null, false, null, false);
         details.autoCancel = true;
         details.onlyAlertOnce = true;
         details.playSound = true;

@@ -41,9 +41,27 @@ final class WaitingNotificationChecks {
             hidden(notification(manager), true, true);
             checkCallStyle(context, policy);
             checkTransfers(context);
+            checkFullPreview(manager, policy, publisher);
         } finally {
             manager.cancel(TAG, 2);
         }
+    }
+
+    private static void checkFullPreview(NotificationManager manager, MoshWaitingPolicy policy,
+            MoshWaitingNotifications publisher) {
+        String text = TEXT.repeat(80);
+        Map<String, Object> value = message(3);
+        value.put("text", text);
+        policy.notificationPolicy(false, true);
+        require("posted".equals(publisher.publish(value)), "Full preview publication failed");
+        Notification preview = notification(manager);
+        require(text.contentEquals(preview.extras.getCharSequence(Notification.EXTRA_TEXT)),
+            "Explicit preview truncated message text");
+        require(text.contentEquals(preview.extras.getCharSequence(Notification.EXTRA_BIG_TEXT)),
+            "Expanded preview lost full message text");
+        policy.notificationPolicy(false, false);
+        publisher.refreshPrivacy();
+        hidden(notification(manager), true, true);
     }
 
     private static void checkTransfers(Context context) {

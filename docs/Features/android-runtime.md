@@ -53,6 +53,12 @@ reduced when native access or consent changes. An older durable revision cannot
 overwrite a newer posted notification. Notification permission failure never
 acknowledges a delivery record.
 
+Explicit message-text consent uses the installed plugin's expanded BigText
+template. Message bodies retain the native notification payload up to Android's
+own rendering limits; the short sender-label limit does not truncate them.
+Privacy reduction rebuilds both collapsed and expanded fields from the current
+policy, including the generic public version.
+
 ## Call presentation and media
 
 The same waiting adapter consumes durable native call revisions. AndroidX
