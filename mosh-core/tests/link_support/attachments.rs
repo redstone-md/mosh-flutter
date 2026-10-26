@@ -43,6 +43,22 @@ pub(super) fn command(action: &str, argument: &str, command: &Value) -> Value {
             conversation::deletion::DeleteScope::ForMe,
         )
         .map(|_| ()),
+        "attachment_user_download" => {
+            let admission =
+                mosh_core::api::background::transfers::prepare_user_attachment_transfer(
+                    reference,
+                    mosh_core::api::background::transfers::UserTransferDirection::Download,
+                    command["attachment_id"].as_str().map(str::to_owned),
+                    0,
+                )
+                .unwrap();
+            return match mosh_core::api::background::transfers::download_user_attachment(
+                admission.id.clone(),
+            ) {
+                Ok(()) => json!({"transfer_id":admission.id}),
+                Err(error) => json!({"error":error}),
+            };
+        }
         "attachment_download" => conversation::download_attachment(
             reference,
             command["attachment_id"].as_str().unwrap().into(),

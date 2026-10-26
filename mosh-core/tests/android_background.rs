@@ -150,6 +150,37 @@ fn background_attachment_policy(sender: &mut Peer, receiver: &mut Peer, id: &str
     let state = receiver.ask(json!({"action":"background_status"}));
     assert_eq!(state["actual_mode"], "offline");
     assert_eq!(state["current_user_transfers"], 0);
+    receiver.ask(json!({"action":"background_set","interactive":true,"waiting":true}));
+    let admitted = receiver.ask(
+        json!({"action":"attachment_user_download", "kind":"dm", "argument":id,
+        "attachment_id":attachment["attachment_id"]}),
+    );
+    assert!(
+        admitted["error"].is_null(),
+        "explicit native download refused: {admitted}"
+    );
+    let completed = wait(
+        receiver,
+        json!({"action":"dm_poll","argument":id}),
+        |snapshot| {
+            snapshot["attachments"].as_array().is_some_and(|rows| {
+                rows.iter().any(|row| {
+                    row["attachment_id"] == attachment["attachment_id"]
+                        && row["state"] == "available"
+                })
+            })
+        },
+    );
+    let received = &completed["attachments"][0];
+    assert_eq!(received["completed_chunks"], received["chunk_count"]);
+    let status = receiver.ask(json!({"action":"background_status"}));
+    let records = status["user_transfers"].as_array().unwrap();
+    let transfer = records
+        .iter()
+        .find(|record| record["id"] == admitted["transfer_id"])
+        .unwrap();
+    assert_eq!(transfer["state"], "complete");
+    assert_eq!(transfer["completed_bytes"], transfer["total_bytes"]);
     receiver.ask(json!({"action":"background_set","interactive":false,"waiting":true}));
 }
 

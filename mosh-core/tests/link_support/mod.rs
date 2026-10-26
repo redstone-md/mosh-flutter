@@ -1,4 +1,5 @@
 mod api;
+mod background_diagnostics;
 mod connection;
 pub(crate) mod crypto;
 mod dm;

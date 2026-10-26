@@ -135,9 +135,8 @@ fn pending(peer: &mut Peer, sender: &mut Peer, kind: &str, id: &str) -> Value {
         // installation must progress without conversation observations.
         sender.ask(json!({"action":"chat_poll","kind":kind,"argument":id}));
         if Instant::now() >= deadline {
-            let snapshot = peer.ask(json!({"action":"chat_poll","kind":kind,"argument":id}));
-            let execution = peer.ask(json!({"action":"background_status"}));
-            panic!("native service did not notify {id}: {snapshot}; execution={execution}");
+            let stored = peer.stop_and_inspect_background(kind, id);
+            panic!("native service did not notify {id}; stored before any final UI poll: {stored}");
         }
         std::thread::sleep(Duration::from_millis(50));
     }
