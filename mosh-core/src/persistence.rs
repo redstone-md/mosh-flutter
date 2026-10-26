@@ -21,6 +21,7 @@ mod deletion_tests;
 mod dm_devices;
 mod dm_history;
 pub(crate) mod history_admission;
+pub(crate) mod user_transfers;
 pub(crate) use history_admission::HistoryAdmission;
 mod group_commits;
 mod group_names;

@@ -70,6 +70,32 @@ void main() {
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
     });
 
+    testWidgets('$label: a paused transfer offers explicit Resume',
+        (tester) async {
+      final gateway = ScriptableGateway();
+      await pumpConversation(tester, testCase, gateway: gateway, messages: [
+        TestMessage(
+            body: 'paused file',
+            attachment: testAttachment(attachmentId: 'paused'))
+      ], attachments: [
+        testAttachmentView(
+            attachmentId: 'paused',
+            state: AttachmentState.paused,
+            completedChunks: 1,
+            chunkCount: 3)
+      ]);
+      expect(find.textContaining('Paused'), findsOneWidget);
+      expect(find.byTooltip('Resume download'), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+      await tester.tap(_action());
+      await tester.pump();
+      expect(
+          gateway
+              .lastCall(GatewayMethod.downloadAttachment)
+              ?.arg<String>('attachmentId'),
+          'paused');
+    });
+
     testWidgets('$label: a failed transfer says so', (tester) async {
       final file = testAttachment(
         attachmentId: 'att-3',

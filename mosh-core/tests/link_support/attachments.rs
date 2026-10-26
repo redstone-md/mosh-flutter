@@ -10,6 +10,17 @@ pub(super) fn command(action: &str, argument: &str, command: &Value) -> Value {
     if action.starts_with("chat_") {
         return chat(action, argument, command);
     }
+    if action == "attachment_range" {
+        let range = mosh_core::api::attachment_stream::stream_attachment_range(
+            command["kind"].as_str().unwrap().into(),
+            argument.into(),
+            command["attachment_id"].as_str().unwrap().into(),
+            0,
+            1,
+        )
+        .unwrap();
+        return json!({"state":format!("{:?}", range.state), "bytes":range.bytes.len()});
+    }
     let reference = Ref {
         kind: kind(command),
         id: argument.into(),

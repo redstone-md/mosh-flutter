@@ -22,6 +22,8 @@ mod preview_authentication;
 
 #[path = "transfer_execution_tests.rs"]
 mod execution;
+#[path = "transfer_receipt_tests.rs"]
+mod receipts;
 
 const FILE: &str = "clip.bin";
 

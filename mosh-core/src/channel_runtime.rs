@@ -146,6 +146,7 @@ impl ChannelRuntime {
         self.send_attachment_with_preview(
             name,
             crate::conversation::previews::AttachmentInput {
+                user_transfer_id: None,
                 file_name,
                 mime,
                 bytes,
@@ -303,6 +304,10 @@ impl ConversationSession for ChannelSession {
 
     fn transfer(&self) -> Option<&Transfer> {
         Some(&self.transfer)
+    }
+
+    fn transfer_mut(&mut self) -> Option<&mut Transfer> {
+        Some(&mut self.transfer)
     }
 
     fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord> {

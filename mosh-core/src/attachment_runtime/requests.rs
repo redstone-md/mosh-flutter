@@ -51,6 +51,7 @@ impl AttachmentRuntime {
         Some(ChunkRequest {
             attachment_id: attachment_id.to_string(),
             chunk_indices: indices,
+            execution: None,
         })
     }
 

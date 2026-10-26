@@ -21,6 +21,7 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
     private var resumed = false
     private var revision = 0L
     private var restriction: String? = null
+    private var transferInteractive: Boolean? = null
     private val calls = MoshWaitingCalls(context, policy, access, ringtone, { resumed && activity != null }) {
         channel.callActionsChanged()
         publish()
@@ -172,7 +173,17 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
         catch (_: RuntimeException) { restriction = "serviceStartRestricted" }
     }
 
-    private fun publish() { channel.publish(status()) }
+    private fun publish() {
+        val visible = interactive && !access.callOnly && access.disclosureAllowed()
+        if (visible != transferInteractive) {
+            try {
+                check(MoshNative.setTransferInteractive(visible) == 0)
+                transferInteractive = visible
+            } catch (_: RuntimeException) { restriction = "nativeUnavailable" }
+            catch (_: LinkageError) { restriction = "nativeUnavailable" }
+        }
+        channel.publish(status())
+    }
 
     private fun transferExecutionChanged() {
         execution.changed()

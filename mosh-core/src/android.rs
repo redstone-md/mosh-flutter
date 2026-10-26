@@ -1,6 +1,8 @@
 //! Android's JVM/application context outlives Activities and native audio threads.
 #[cfg(target_os = "android")]
 pub(crate) mod media;
+#[cfg(target_os = "android")]
+mod transfer_execution;
 use jni::{
     errors::{Error, ThrowRuntimeExAndDefault},
     objects::{JClass, JObject},

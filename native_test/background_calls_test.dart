@@ -47,6 +47,9 @@ class _Host {
         if (value['kind'] == 'call' && refuseCalls) return 'blocked';
         return 'posted';
       }
+      if (call.method == 'takeTransferActions') {
+        return <Object?>[];
+      }
       if (call.method == 'takeCallActions') {
         final taken = List.of(actions);
         actions.clear();

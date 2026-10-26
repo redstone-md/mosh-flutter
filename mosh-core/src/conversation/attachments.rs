@@ -41,6 +41,8 @@ pub enum AttachmentState {
     Offered,
     /// Chunks are in flight.
     Downloading,
+    /// User work is admitted but no current OS execution is permitted.
+    Paused,
     /// Transfer or verification failed; a retry is possible.
     Failed,
     /// Either side cancelled the transfer.
@@ -286,6 +288,27 @@ impl AttachmentSlots {
         Ok(())
     }
 
+    pub(crate) fn resume_sent(&mut self, id: &str) {
+        if let Some(slot) = self.slots.get_mut(id) {
+            if slot.direction == AttachmentDirection::Outgoing {
+                slot.cancelled = false;
+                slot.failed = false;
+            }
+        }
+    }
+
+    pub(crate) fn incoming(&self, attachment_id: &str) -> bool {
+        self.slots
+            .get(attachment_id)
+            .is_some_and(|slot| slot.direction == AttachmentDirection::Incoming)
+    }
+
+    pub(crate) fn expects_chunks(&self, attachment_id: &str) -> bool {
+        self.slots.get(attachment_id).is_some_and(|slot| {
+            slot.download_requested && !slot.cancelled && !slot.failed && slot.local_path.is_none()
+        })
+    }
+
     /// The attachments that still need chunks pulled in, with voice first.
     pub fn awaiting_chunks(&self) -> Vec<String> {
         let mut ids: Vec<(bool, String)> = self
@@ -294,6 +317,7 @@ impl AttachmentSlots {
             .filter(|(_, slot)| {
                 slot.direction == AttachmentDirection::Incoming
                     && slot.download_requested
+                    && !slot.failed
                     && slot.local_path.is_none()
                     && !slot.cancelled
             })

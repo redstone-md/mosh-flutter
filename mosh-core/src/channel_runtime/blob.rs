@@ -21,16 +21,7 @@ impl ChannelSession {
             ChannelBlobEnvelope::Request {
                 from_fingerprint,
                 request,
-            } if from_fingerprint != self.device_fingerprint => {
-                for frame in self.transfer.serve(&request) {
-                    let chunk = ChannelBlobEnvelope::Chunk {
-                        from_fingerprint: self.device_fingerprint.clone(),
-                        frame,
-                    };
-                    publish_json(&self.node, &self.mesh_id, &self.blob_topic, &chunk)?;
-                }
-                Ok(())
-            }
+            } if from_fingerprint != self.device_fingerprint => self.serve_blob_request(&request),
             ChannelBlobEnvelope::DmOffer { mut offer, origin } => {
                 offer.authenticated = match origin {
                     Some(proof) => {
@@ -107,6 +98,7 @@ impl ChannelSession {
         input: AttachmentInput,
     ) -> Result<AttachmentSendResult, ChannelRuntimeError> {
         let AttachmentInput {
+            user_transfer_id,
             file_name,
             mime,
             bytes,
@@ -127,6 +119,8 @@ impl ChannelSession {
             },
             preview,
         )?;
+        self.transfer
+            .bind_user_admission(user_transfer_id.as_deref(), &outgoing.manifest)?;
         let content_hash = outgoing.manifest.content_hash.clone();
         let publication = (|| -> Result<_, ChannelRuntimeError> {
             let origin = outgoing
@@ -173,7 +167,13 @@ impl ChannelSession {
     }
 
     pub(super) fn pump_attachment_requests(&mut self) {
-        for request in self.transfer.next_requests() {
+        for request in self.transfer.pending_serving_requests() {
+            let _ = self.serve_blob_request(&request);
+        }
+        for mut request in self.transfer.next_requests() {
+            if self.sign_blob_request(&mut request).is_err() {
+                continue;
+            }
             let envelope = ChannelBlobEnvelope::Request {
                 from_fingerprint: self.device_fingerprint.clone(),
                 request,
@@ -203,5 +203,65 @@ impl ChannelSession {
             mesh: mesh::mesh_info(&self.node),
             events: mesh::snapshot_events(),
         }
+    }
+}
+
+impl ChannelSession {
+    fn sign_blob_request(
+        &self,
+        request: &mut crate::attachment_runtime::ChunkRequest,
+    ) -> Result<(), ChannelRuntimeError> {
+        let context = format!("transfer:channel:{}", self.name);
+        let key = self
+            .node
+            .identity_signer()
+            .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))?;
+        let author = hex::encode(key.verifying_key().as_bytes());
+        request
+            .sign_execution(&author, |token, bytes| {
+                crate::message_deletion::MessageOrigin::sign(
+                    &context,
+                    token,
+                    bytes,
+                    key,
+                    self.deletions.store.as_ref(),
+                )
+            })
+            .map_err(ChannelRuntimeError::Codec)
+    }
+    fn verify_blob_request(
+        &self,
+        request: &crate::attachment_runtime::ChunkRequest,
+    ) -> Result<(), ChannelRuntimeError> {
+        let context = format!("transfer:channel:{}", self.name);
+        request
+            .verify_execution(&context)
+            .map_err(ChannelRuntimeError::Codec)?;
+        Ok(())
+    }
+}
+
+impl ChannelSession {
+    fn serve_blob_request(
+        &mut self,
+        request: &crate::attachment_runtime::ChunkRequest,
+    ) -> Result<(), ChannelRuntimeError> {
+        self.verify_blob_request(request)?;
+        for frame in self.transfer.serve(request) {
+            if !self.transfer.may_send_chunk(&frame.attachment_id) {
+                break;
+            }
+            let chunk = ChannelBlobEnvelope::Chunk {
+                from_fingerprint: self.device_fingerprint.clone(),
+                frame: frame.clone(),
+            };
+            let bytes = serde_json::to_vec(&chunk)
+                .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;
+            self.node
+                .publish_room(&self.mesh_id, &self.blob_topic, &bytes)
+                .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))?;
+            self.transfer.chunks_published(&[frame]);
+        }
+        Ok(())
     }
 }

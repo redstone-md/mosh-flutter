@@ -26,12 +26,18 @@ use crate::attachment_runtime::{
 };
 use crate::attachment_store::AttachmentStore;
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
+#[path = "transfer_checkpoint.rs"]
+mod checkpoint;
 #[path = "transfer_cleanup.rs"]
 mod cleanup;
+#[path = "transfer_execution.rs"]
+mod execution;
 #[path = "preview_transfer.rs"]
 mod previews;
 #[path = "transfer_restore.rs"]
 mod restore;
+#[path = "transfer_serving.rs"]
+mod serving;
 
 /// What went wrong moving an attachment's bytes. Each runtime maps this onto
 /// its own error, so the messages the app shows do not change.
@@ -87,6 +93,7 @@ pub struct Outgoing {
 /// Every attachment one conversation knows about: the transfers in flight, the
 /// slots the UI reads, and the files on disk.
 pub struct Transfer {
+    execution: Option<execution::Execution>,
     runtime: AttachmentRuntime,
     slots: AttachmentSlots,
     store: Arc<AttachmentStore>,
@@ -100,6 +107,7 @@ pub struct Transfer {
 
 impl Transfer {
     pub(crate) fn forget(&mut self, id: &str) {
+        self.forget_execution(id);
         self.forget_preview(id);
         self.runtime.forget(id);
         self.restored_outgoing.remove(id);
@@ -108,6 +116,7 @@ impl Transfer {
     }
     pub fn new(store: Arc<AttachmentStore>) -> Self {
         Self {
+            execution: None,
             runtime: AttachmentRuntime::new(),
             slots: AttachmentSlots::default(),
             store,
@@ -211,6 +220,13 @@ impl Transfer {
     /// The chunks to answer a peer's request with. Only the sender holds the
     /// outgoing transfer, so every other member answers with nothing.
     pub fn serve(&mut self, request: &ChunkRequest) -> Vec<ChunkFrame> {
+        if !self.admit_serving(request) {
+            return Vec::new();
+        }
+        self.serve_admitted(request)
+    }
+
+    pub(super) fn serve_admitted(&mut self, request: &ChunkRequest) -> Vec<ChunkFrame> {
         if let Some(manifest) = self.restored_outgoing.get(&request.attachment_id).cloned() {
             let restored = self
                 .store
@@ -247,6 +263,11 @@ impl Transfer {
     /// lands. A chunk that does not verify fails the slot instead of the call:
     /// the user can ask for the attachment again.
     pub fn ingest(&mut self, frame: &ChunkFrame) -> Result<(), TransferError> {
+        if !self.slots.expects_chunks(&frame.attachment_id)
+            || !self.may_download(&frame.attachment_id)
+        {
+            return Ok(());
+        }
         let attachment_id = frame.attachment_id.clone();
         let file_name = self.slots.file_name(&attachment_id);
         match self.runtime.ingest_chunk(frame) {
@@ -255,6 +276,8 @@ impl Transfer {
                 bytes,
                 ..
             }) => {
+                self.checkpoint_frame(frame)?;
+                self.flush_checkpoints()?;
                 let path = match self.store.write_blob(&content_hash, &file_name, &bytes) {
                     Ok(path) => path,
                     Err(_) if self.is_preview(&attachment_id) => {
@@ -262,10 +285,18 @@ impl Transfer {
                         self.retry_preview(&attachment_id);
                         return Ok(());
                     }
-                    Err(error) => return Err(error.into()),
+                    Err(error) => {
+                        self.slots.fail(&attachment_id);
+                        self.runtime.fail_incoming(&attachment_id);
+                        return Err(error.into());
+                    }
                 };
                 self.slots
                     .complete_download(&attachment_id, path.to_string_lossy().into_owned());
+                self.queue_completion(&attachment_id);
+            }
+            Ok(ChunkOutcome::Progress(_)) => {
+                self.checkpoint_frame(frame)?;
             }
             Ok(_) => {}
             Err(_) => {
@@ -283,9 +314,17 @@ impl Transfer {
     }
 
     pub(crate) fn next_requests_at(&mut self, now: Instant) -> Vec<ChunkRequest> {
+        if self.flush_checkpoints().is_err() {
+            return Vec::new();
+        }
         self.schedule_previews(now);
         let mut requests = Vec::new();
-        let mut awaiting = self.slots.awaiting_chunks();
+        let mut awaiting: Vec<_> = self
+            .slots
+            .awaiting_chunks()
+            .into_iter()
+            .filter(|id| self.may_download(id))
+            .collect();
         awaiting.sort_by_key(|id| self.request_priority(id));
         for (position, attachment_id) in awaiting.iter().enumerate() {
             let remaining = awaiting.len() - position;
@@ -298,17 +337,21 @@ impl Transfer {
                 requests.push(request);
             }
         }
+        self.decorate_requests(&mut requests);
         requests
     }
 
     /// The user asked for an attachment somebody else offered.
     pub fn start_download(&mut self, attachment_id: &str) -> Result<(), TransferError> {
+        self.require_download_admission(attachment_id)?;
         Ok(self
             .slots
             .start_download(attachment_id, &mut self.runtime)?)
     }
 
     pub fn cancel(&mut self, attachment_id: &str) -> Result<(), TransferError> {
+        self.flush_checkpoints()?;
+        self.cancel_execution(attachment_id)?;
         Ok(self.slots.cancel(attachment_id, &mut self.runtime)?)
     }
 
@@ -319,6 +362,11 @@ impl Transfer {
             .into_iter()
             .filter(|view| !self.is_preview(&view.attachment_id))
             .map(|mut view| {
+                if view.state == super::attachments::AttachmentState::Downloading
+                    && !self.may_download(&view.attachment_id)
+                {
+                    view.state = super::attachments::AttachmentState::Paused;
+                }
                 view.preview_path = self.preview_path(&view.attachment_id);
                 view
             })

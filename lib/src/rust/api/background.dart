@@ -6,6 +6,7 @@
 import '../frb_generated.dart';
 import '../persistence/background_calls/types.dart';
 import '../persistence/background_delivery.dart';
+import '../persistence/user_transfers/types.dart';
 import 'background/call_actions.dart';
 import 'background/types.dart';
 import 'conversation.dart';

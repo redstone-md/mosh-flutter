@@ -101,6 +101,9 @@ fn background_receipt(require_carrier: bool) {
         .unwrap()
         .iter()
         .all(|m| m["read"] != true));
+    if require_carrier {
+        background_attachment_policy(&mut sender, &mut recipient, id);
+    }
     // A foreground reply uses the same retained authenticated conversation.
     recipient.ask(json!({"action":"background_set","interactive":true,"waiting":true}));
     recipient.ask(json!({"action":"dm_send","argument":id,"body":"retained foreground reply"}));
@@ -112,6 +115,42 @@ fn background_receipt(require_carrier: bool) {
         json!([])
     );
     recipient.wait_dm_text(id, "private background text");
+}
+
+fn background_attachment_policy(sender: &mut Peer, receiver: &mut Peer, id: &str) {
+    let sent = sender.ask(json!({"action":"attachment_send","kind":"dm","argument":id,
+        "data":mosh_core::conversation::encode(include_bytes!("fixtures/preview.jpg")),
+        "miniature":mosh_core::conversation::encode(include_bytes!("fixtures/miniature.jpg")),
+        "preview":mosh_core::conversation::encode(include_bytes!("fixtures/preview.jpg"))}));
+    assert!(
+        sent["error"].is_null(),
+        "attachment admission refused: {sent}"
+    );
+    let pending = wait(receiver, json!({"action":"background_pending"}), |s| {
+        s.as_array().is_some_and(|entries| !entries.is_empty())
+    });
+    let snapshot = receiver.ask(json!({"action":"dm_poll","argument":id}));
+    let attachment = &snapshot["attachments"][0];
+    assert_eq!(attachment["state"], "offered");
+    assert_eq!(attachment["completed_chunks"], 0);
+    assert!(attachment["local_path"].is_null());
+    assert!(attachment["preview_path"].is_null());
+    receiver.ask(
+        json!({"action":"background_ack","id":pending[0]["id"],"revision":pending[0]["revision"]}),
+    );
+    receiver.ask(json!({"action":"background_set","interactive":false,"waiting":false}));
+    let range = receiver.ask(
+        json!({"action":"attachment_range","kind":"dm","argument":id,
+        "attachment_id":attachment["attachment_id"]}),
+    );
+    assert_eq!(
+        range["state"], "Unknown",
+        "a stale media HTTP request must not admit background work"
+    );
+    let state = receiver.ask(json!({"action":"background_status"}));
+    assert_eq!(state["actual_mode"], "offline");
+    assert_eq!(state["current_user_transfers"], 0);
+    receiver.ask(json!({"action":"background_set","interactive":false,"waiting":true}));
 }
 
 #[test]
@@ -305,9 +344,18 @@ fn actual_waiting_carrier_receives_authenticated_call() {
     // Keep the caller an ordinary desktop node, without opting into waiting.
     callee.ask(json!({"action":"background_set","interactive":true,"waiting":true}));
     callee.ask(json!({"action":"background_set","interactive":false,"waiting":true}));
-    let ready = wait(&mut callee, json!({"action":"background_status"}), |s| {
-        s["actual_mode"] == "waiting" && s["reachability"] == "ready"
-    });
+    let readiness = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        wait(&mut callee, json!({"action":"background_status"}), |s| {
+            s["actual_mode"] == "waiting" && s["reachability"] == "ready"
+        })
+    }));
+    let ready = match readiness {
+        Ok(ready) => ready,
+        Err(error) => {
+            public_carrier_diagnostics(&mut caller, &mut callee, &carrier, id);
+            std::panic::resume_unwind(error);
+        }
+    };
     assert_eq!(ready["attachment_count"], 1);
     let started = caller.ask(json!({"action":"call_start","argument":id}));
     let call = started["call_id"].as_str().unwrap();

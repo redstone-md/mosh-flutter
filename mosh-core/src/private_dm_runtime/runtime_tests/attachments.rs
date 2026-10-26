@@ -45,6 +45,7 @@ fn a_repeated_chunk_request_still_reaches_the_sender() {
         request: crate::attachment_runtime::ChunkRequest {
             attachment_id: "att-1".to_string(),
             chunk_indices: vec![0],
+            execution: None,
         },
     })
     .expect("blob request should serialize");
@@ -117,6 +118,7 @@ fn chunk_serving_falls_back_to_the_room_wire_when_the_stream_refuses() {
         request: crate::attachment_runtime::ChunkRequest {
             attachment_id: "att-stream-1".to_string(),
             chunk_indices: vec![0],
+            execution: None,
         },
     })
     .expect("blob request should serialize");

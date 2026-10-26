@@ -33,4 +33,5 @@ pub struct BackgroundStatus {
     pub current_calls: u32,
     pub current_user_transfers: u32,
     pub limitation: Option<String>,
+    pub user_transfers: Vec<super::transfers::UserTransfer>,
 }

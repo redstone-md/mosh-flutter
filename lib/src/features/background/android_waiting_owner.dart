@@ -6,6 +6,7 @@ import 'package:mosh/src/rust/api/background/types.dart';
 import 'background_commands.dart';
 import 'background_delivery_pump.dart';
 import 'android_background_calls.dart';
+import 'android_background_transfers.dart';
 import 'background_execution_mirror.dart';
 
 final androidWaitingOwnerProvider =
@@ -15,6 +16,7 @@ final androidWaitingOwnerProvider =
 class AndroidWaitingOwner extends ChangeNotifier {
   AndroidWaitingOwner(this.platform, this.commands) {
     calls = AndroidBackgroundCalls(commands, platform);
+    transfers = AndroidBackgroundTransfers(commands, platform);
     _mirror = BackgroundExecutionMirror(platform);
     delivery = BackgroundDeliveryPump(commands, platform, calls);
     platform.addListener(_platformChanged);
@@ -23,6 +25,7 @@ class AndroidWaitingOwner extends ChangeNotifier {
   final BackgroundCommands commands;
   late final BackgroundDeliveryPump delivery;
   late final AndroidBackgroundCalls calls;
+  late final AndroidBackgroundTransfers transfers;
   late final BackgroundExecutionMirror _mirror;
   BackgroundStatus? status;
   Object? failure;
@@ -137,6 +140,7 @@ class AndroidWaitingOwner extends ChangeNotifier {
       _dirty = true;
       return;
     }
+    await transfers.flushActions();
     final choice = (
       state?.interactive == true,
       state?.waitingEnabled == true && state?.serviceRunning == true
@@ -149,6 +153,7 @@ class AndroidWaitingOwner extends ChangeNotifier {
       status = await commands.status();
     }
     await _mirror.update(status!, state?.intentRevision);
+    await transfers.scheduleDeferred(status!);
     await calls.flushActions();
     final more = await delivery.flush();
     if (more) _dirty = true;

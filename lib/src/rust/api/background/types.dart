@@ -4,6 +4,8 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../../frb_generated.dart';
+import '../../persistence/user_transfers/types.dart';
+import '../conversation.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`
@@ -34,6 +36,7 @@ class BackgroundStatus {
   final int currentCalls;
   final int currentUserTransfers;
   final String? limitation;
+  final List<UserTransfer> userTransfers;
 
   const BackgroundStatus({
     required this.revision,
@@ -46,6 +49,7 @@ class BackgroundStatus {
     required this.currentCalls,
     required this.currentUserTransfers,
     this.limitation,
+    required this.userTransfers,
   });
 
   @override
@@ -59,7 +63,8 @@ class BackgroundStatus {
       attachmentCount.hashCode ^
       currentCalls.hashCode ^
       currentUserTransfers.hashCode ^
-      limitation.hashCode;
+      limitation.hashCode ^
+      userTransfers.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -75,5 +80,6 @@ class BackgroundStatus {
           attachmentCount == other.attachmentCount &&
           currentCalls == other.currentCalls &&
           currentUserTransfers == other.currentUserTransfers &&
-          limitation == other.limitation;
+          limitation == other.limitation &&
+          userTransfers == other.userTransfers;
 }

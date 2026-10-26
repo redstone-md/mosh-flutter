@@ -1241,5 +1241,15 @@
   "settingsBackgroundNotifications": "Разрешить уведомления",
   "settingsLockedNotificationNames": "Показывать имена, когда Mosh заблокирован",
   "settingsLockedNotificationText": "Показывать текст сообщений, когда Mosh заблокирован",
-  "settingsBackgroundActionError": "Не удалось применить настройку. Попробуйте ещё раз."
+  "settingsBackgroundActionError": "Не удалось применить настройку. Попробуйте ещё раз.",
+  "attachmentStatePaused": "Приостановлено",
+  "attachmentResumeDownload": "Продолжить загрузку",
+  "attachmentResumeDownloadAria": "Продолжить загрузку {fileName}",
+  "@attachmentResumeDownloadAria": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  }
 }

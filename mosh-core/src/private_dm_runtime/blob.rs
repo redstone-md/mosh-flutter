@@ -10,25 +10,7 @@ impl PrivateDmSession {
             BlobEnvelope::Request {
                 participant_id,
                 request,
-            } if participant_id != self.participant_id => {
-                // One route decision per request: `reach` asks moss for the
-                // whole mesh report, too dear to repeat for every chunk.
-                let mut stream_peer = self.blob_stream_peer(now_ms());
-                for frame in self.transfer.serve(&request) {
-                    let chunk = BlobEnvelope::Chunk {
-                        participant_id: self.participant_id.clone(),
-                        frame,
-                    };
-                    let bytes = serde_json::to_vec(&chunk)
-                        .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-                    let carrier = self.route_blob_frame(stream_peer.as_deref(), &bytes)?;
-                    if stream_peer.is_some() && carrier == Carrier::Room {
-                        self.stream_backoff_until_ms = now_ms() + STREAM_BACKOFF_MS;
-                        stream_peer = None;
-                    }
-                }
-                Ok(())
-            }
+            } if participant_id != self.participant_id => self.serve_blob_request(&request),
             BlobEnvelope::Chunk {
                 participant_id,
                 frame,
@@ -67,7 +49,7 @@ impl PrivateDmSession {
             stream,
             |payload| match transport.publish(&self.mesh_id, &self.blob_channel, payload) {
                 Ok(()) => Ok(()),
-                Err(PublishError::NoPeers(_)) => Ok(()),
+                Err(PublishError::NoPeers(error)) => Err(error),
                 Err(error) => Err(error.to_string()),
             },
             &self.blob_channel,
@@ -114,6 +96,7 @@ impl PrivateDmSession {
         input: AttachmentInput,
     ) -> Result<AttachmentSendResult, PrivateDmRuntimeError> {
         let AttachmentInput {
+            user_transfer_id,
             file_name,
             mime,
             bytes,
@@ -137,6 +120,8 @@ impl PrivateDmSession {
             },
             preview,
         )?;
+        self.transfer
+            .bind_user_admission(user_transfer_id.as_deref(), &outgoing.manifest)?;
         let content_hash = outgoing.manifest.content_hash.clone();
         let publication = (|| -> Result<_, PrivateDmRuntimeError> {
             let origin = outgoing
@@ -187,7 +172,13 @@ impl PrivateDmSession {
     }
 
     pub(super) fn pump_attachment_requests(&mut self) {
-        for request in self.transfer.next_requests() {
+        for request in self.transfer.pending_serving_requests() {
+            let _ = self.serve_blob_request(&request);
+        }
+        for mut request in self.transfer.next_requests() {
+            if self.sign_blob_request(&mut request).is_err() {
+                continue;
+            }
             let envelope = BlobEnvelope::Request {
                 participant_id: self.participant_id.clone(),
                 request,
@@ -218,5 +209,76 @@ impl PrivateDmSession {
         matches!(self.role, SessionRole::Bob)
             && self.session_id == session_id
             && self.participant_id != participant_id
+    }
+}
+
+impl PrivateDmSession {
+    fn sign_blob_request(
+        &self,
+        request: &mut crate::attachment_runtime::ChunkRequest,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        let context = format!("transfer:dm:{}", self.session_id);
+        let author = hex::encode(self.crypto.signer_public());
+        request
+            .sign_execution(&author, |token, bytes| {
+                crate::message_deletion::MessageOrigin::sign_mls(
+                    &context,
+                    token,
+                    bytes,
+                    &self.crypto,
+                    self.deletions.store.as_ref(),
+                    None,
+                )
+            })
+            .map_err(PrivateDmRuntimeError::Codec)
+    }
+    fn verify_blob_request(
+        &self,
+        request: &crate::attachment_runtime::ChunkRequest,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        let context = format!("transfer:dm:{}", self.session_id);
+        if let Some(author) = request
+            .verify_execution(&context)
+            .map_err(PrivateDmRuntimeError::Codec)?
+        {
+            let signer = hex::decode(author)
+                .map_err(|_| PrivateDmRuntimeError::Codec("invalid blob signer".into()))?;
+            if self.crypto.member_identity_for_signer(&signer).is_none() {
+                return Err(PrivateDmRuntimeError::Codec(
+                    "blob requester is not a current member".into(),
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl PrivateDmSession {
+    fn serve_blob_request(
+        &mut self,
+        request: &crate::attachment_runtime::ChunkRequest,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        self.verify_blob_request(request)?;
+        // One route decision per request: `reach` asks moss for the
+        // whole mesh report, too dear to repeat for every chunk.
+        let mut stream_peer = self.blob_stream_peer(now_ms());
+        for frame in self.transfer.serve(request) {
+            if !self.transfer.may_send_chunk(&frame.attachment_id) {
+                break;
+            }
+            let chunk = BlobEnvelope::Chunk {
+                participant_id: self.participant_id.clone(),
+                frame: frame.clone(),
+            };
+            let bytes = serde_json::to_vec(&chunk)
+                .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
+            let carrier = self.route_blob_frame(stream_peer.as_deref(), &bytes)?;
+            self.transfer.chunks_published(&[frame]);
+            if stream_peer.is_some() && carrier == Carrier::Room {
+                self.stream_backoff_until_ms = now_ms() + STREAM_BACKOFF_MS;
+                stream_peer = None;
+            }
+        }
+        Ok(())
     }
 }
