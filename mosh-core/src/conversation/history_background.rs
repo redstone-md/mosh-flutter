@@ -9,8 +9,10 @@ pub(crate) fn message<M: ConversationMessage>(
     message: &M,
 ) -> Option<crate::persistence::BackgroundMessageAdmission> {
     let metadata = message.metadata()?;
-    if !matches!(tables.outbound_scope, "private_dm" | "channel")
-        || metadata.is_own != Some(false)
+    if !matches!(
+        tables.outbound_scope,
+        "private_dm" | "private_group" | "channel"
+    ) || metadata.is_own != Some(false)
         || message.is_service()
         || metadata.deletion.is_some()
     {

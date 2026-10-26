@@ -6,6 +6,10 @@ central archive: if no holder is available, the channel waits and live messaging
 continues. Completion means the selected holder's available frozen view is saved,
 not that every message ever sent has been found.
 
+An installation-owned native service receives retained channel traffic and runs
+recovery without relying on mounted chat screens. It takes the same execution
+lease as other owners, respects explicit Stop, and never marks chats as read.
+
 The channel snapshot exposes the same history notice states as private DMs:
 `waiting_for_source`, `importing` and `complete`. A failed save or missing evidence
 keeps recovery waiting. Another source or changed available history can start a
@@ -43,6 +47,11 @@ first Pull verifies the selected manifest inside that transaction; a changed
 Offer is refused. The receiver atomically saves rows, occurrence conflicts,
 source receipts and its next cursor in the existing redb store under its DEK.
 Only then does memory advance. A refusal permits the same page to be retried.
+Eligible authenticated incoming messages are queued for background notification
+in that same transaction. The encrypted installation baseline, existing row and
+occurrence suppress duplicate alerts; own, service, deleted and unverified
+legacy messages cannot manufacture a notification. Notifications are coalesced
+per conversation and resolve their text from the current surviving history row.
 
 Limits are 16 records per page, one partial serialized record up to 256 KiB,
 3,000-byte fragment chunks, four active imports per installation, and 16 frozen
@@ -68,7 +77,7 @@ deletion during fragmented recovery. Focused native inbox/storage tests cover
 refused writes, source changes, original-proof tampering, legacy IDs, tombstones,
 durable journal fragments, leave/rejoin, and bounded import/export slots.
 
-The multi-step integration scenario functions may exceed the normal 50-line
+The multi-step integration and native durability scenario functions may exceed the normal 50-line
 function limit so each real-process setup, action and observable result stays
 together. Production recovery functions retain the normal size limits.
 
