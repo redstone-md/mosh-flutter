@@ -10,7 +10,7 @@ import com.dexterous.flutterlocalnotifications.models.styles.BigTextStyleInforma
 
 /** Uses the installed plugin's builder without registering another plugin/channel. */
 final class MoshNotificationFactory extends FlutterLocalNotificationsPlugin {
-    static Notification message(Context context, String title, String body, int count) {
+    static Notification message(Context context, String title, String body, int count, boolean alert) {
         NotificationDetails details = new NotificationDetails();
         details.id = 2;
         details.title = title;
@@ -24,7 +24,8 @@ final class MoshNotificationFactory extends FlutterLocalNotificationsPlugin {
         details.styleInformation = new BigTextStyleInformation(false, false,
             body, false, null, false, null, false);
         details.autoCancel = true;
-        details.onlyAlertOnce = true;
+        details.onlyAlertOnce = !alert;
+        details.silent = !alert;
         details.playSound = true;
         details.enableVibration = true;
         details.number = count;

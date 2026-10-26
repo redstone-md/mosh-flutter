@@ -26,19 +26,25 @@ final class WaitingNotificationChecks {
             unlocked.set(false);
             require("posted".equals(publisher.publish(pending)), "OS refused protected publication");
             hidden(notification(manager), true, true);
+            alerts(notification(manager), true);
             require(notification(manager).actions == null || notification(manager).actions.length == 0,
                 "Message created an unscoped action");
             policy.notificationPolicy(false, true);
             require("posted".equals(publisher.publish(message(2))), "Explicit text publication failed");
             Notification preview = notification(manager);
+            alerts(preview, true);
             hidden(preview, true, false);
             require(TEXT.contentEquals(preview.extras.getCharSequence(Notification.EXTRA_TEXT)), "Text consent ignored");
+            require("posted".equals(publisher.publish(message(2))), "Equal revision replay failed");
+            alerts(notification(manager), false);
             require("posted".equals(publisher.publish(message(1))), "Stale replay failed");
+            alerts(notification(manager), false);
             require(notification(manager).extras.getLong("mosh.deliveryRevision") == 2,
                 "Old durable revision overwrote newer OS notification");
             policy.notificationPolicy(false, false);
             publisher.refreshPrivacy();
             hidden(notification(manager), true, true);
+            alerts(notification(manager), false);
             checkCallStyle(context, policy);
             checkTransfers(context);
             checkFullPreview(manager, policy, publisher);
@@ -55,6 +61,7 @@ final class WaitingNotificationChecks {
         policy.notificationPolicy(false, true);
         require("posted".equals(publisher.publish(value)), "Full preview publication failed");
         Notification preview = notification(manager);
+        alerts(preview, true);
         require(text.contentEquals(preview.extras.getCharSequence(Notification.EXTRA_TEXT)),
             "Explicit preview truncated message text");
         require(text.contentEquals(preview.extras.getCharSequence(Notification.EXTRA_BIG_TEXT)),
@@ -62,6 +69,7 @@ final class WaitingNotificationChecks {
         policy.notificationPolicy(false, false);
         publisher.refreshPrivacy();
         hidden(notification(manager), true, true);
+        alerts(notification(manager), false);
     }
 
     private static void checkTransfers(Context context) {
@@ -154,6 +162,21 @@ final class WaitingNotificationChecks {
             require(!name || !field.contains(NAME), "Protected sender leaked through OS extras");
             require(!text || !field.contains(TEXT), "Protected message leaked through OS extras");
         }
+    }
+
+    private static void alerts(Notification notification, boolean expected) {
+        boolean onlyOnce = (notification.flags & Notification.FLAG_ONLY_ALERT_ONCE) != 0;
+        require(onlyOnce != expected, expected
+            ? "A new durable message revision cannot alert again"
+            : "A replay or privacy update can alert again");
+        if (!expected) {
+            require(notification.sound == null && notification.vibrate == null,
+                "A quiet update retained sound or vibration");
+        }
+        Notification generic = notification.publicVersion;
+        require(generic != null && generic.sound == null && generic.vibrate == null
+            && (generic.flags & Notification.FLAG_ONLY_ALERT_ONCE) != 0,
+            "The generic public version can alert independently");
     }
 
     private static void require(boolean value, String message) {

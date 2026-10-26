@@ -30,9 +30,12 @@ internal class MoshWaitingNotifications(
         val count = integer(arguments["messageCount"]).coerceIn(1, Int.MAX_VALUE.toLong()).toInt()
         val tag = "$TAG$id"
         val existing = manager.activeNotifications.firstOrNull { it.tag == tag && it.id == MESSAGE_ID }
-        if (existing != null && existing.notification.extras.getLong(REVISION) > revision) return "posted"
+        // Keep one conversation entry; only a newer durable message may alert again.
+        val previous = existing?.notification?.extras?.getLong(REVISION)
+        if (previous != null && previous > revision) return "posted"
         return try {
-            val notification = build(arguments["sender"] as? String, arguments["text"] as? String, count)
+            val notification = build(arguments["sender"] as? String, arguments["text"] as? String,
+                count, previous == null || revision > previous)
             notification.extras.putLong(REVISION, revision)
             manager.notify(tag, MESSAGE_ID, notification)
             "posted"
@@ -46,7 +49,7 @@ internal class MoshWaitingNotifications(
                 if (entry.id != MESSAGE_ID || entry.tag?.startsWith(TAG) != true) continue
                 val old = entry.notification
                 val notification = build(old.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
-                    old.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(), old.number)
+                    old.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(), old.number, false)
                 notification.extras.putLong(REVISION, old.extras.getLong(REVISION))
                 manager.notify(entry.tag, entry.id, notification)
             }
@@ -59,16 +62,16 @@ internal class MoshWaitingNotifications(
         }
     }
 
-    private fun build(sender: String?, text: String?, count: Int): Notification {
+    private fun build(sender: String?, text: String?, count: Int, alert: Boolean): Notification {
         val allowed = try { accessAllowed() } catch (_: RuntimeException) { false }
         val locked = context.getSystemService(KeyguardManager::class.java).isDeviceLocked
         val names = policy.namesAllowed(allowed, locked)
         val messages = policy.textAllowed(allowed, locked)
-        val generic = MoshNotificationFactory.message(context, "Mosh", context.getString(R.string.mosh_new_message), count)
+        val generic = MoshNotificationFactory.message(context, "Mosh", context.getString(R.string.mosh_new_message), count, false)
         val notification = MoshNotificationFactory.message(context,
             if (names) clean(sender) ?: "Mosh" else "Mosh",
             if (messages) clean(text, 8192) ?: context.getString(R.string.mosh_new_message)
-            else context.getString(R.string.mosh_new_message), count)
+            else context.getString(R.string.mosh_new_message), count, alert)
         return Notification.Builder.recoverBuilder(context, notification)
             .setVisibility(if (locked && (names || messages)) Notification.VISIBILITY_PUBLIC else Notification.VISIBILITY_PRIVATE)
             .setPublicVersion(generic).build()
