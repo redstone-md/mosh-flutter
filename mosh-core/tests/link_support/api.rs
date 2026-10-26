@@ -9,6 +9,8 @@ use super::OUTPUT_PREFIX;
 
 #[path = "attachments.rs"]
 mod attachments;
+#[path = "background.rs"]
+mod background;
 #[path = "calls.rs"]
 mod calls;
 #[path = "plus.rs"]
@@ -24,6 +26,11 @@ pub(super) fn run(dir: PathBuf) {
         let argument = command["argument"].as_str().unwrap_or_default().to_owned();
         let action = command["action"].as_str().unwrap();
         calls::reconcile(&mut call_probe);
+        if action.starts_with("background_") {
+            println!("{OUTPUT_PREFIX}{}", background::command(action, &command));
+            std::io::stdout().flush().unwrap();
+            continue;
+        }
         if action.starts_with("plus_") {
             println!(
                 "{OUTPUT_PREFIX}{}",

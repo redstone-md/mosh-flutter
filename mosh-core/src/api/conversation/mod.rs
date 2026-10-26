@@ -36,7 +36,8 @@ use crate::attachment_runtime::VoiceMeta;
 
 /// Which conversation kind a shared action addresses.
 #[frb(non_opaque)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum BridgeConversationKind {
     /// A private DM session (filed by session id).
     Dm,
@@ -51,7 +52,7 @@ pub enum BridgeConversationKind {
 /// `kind:id` string never crosses the bridge; this struct is its replacement
 /// (ADR 0024).
 #[frb(non_opaque)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BridgeConversationRef {
     pub kind: BridgeConversationKind,
     pub id: String,
@@ -75,6 +76,8 @@ pub struct BridgeAttachmentPayload {
 
 /// Send a text message into the conversation.
 pub fn send(reference: BridgeConversationRef, body: String) -> Result<(), ConversationBridgeError> {
+    let _authority =
+        super::background::admit_user_work().map_err(ConversationBridgeError::unavailable)?;
     match reference.kind {
         BridgeConversationKind::Dm => super::private_dm::ensure_runtime()?
             .send_message(&reference.id, body)
@@ -121,6 +124,8 @@ pub fn send_attachment(
     reference: BridgeConversationRef,
     payload: BridgeAttachmentPayload,
 ) -> Result<(), ConversationBridgeError> {
+    let _authority =
+        super::background::admit_user_work().map_err(ConversationBridgeError::unavailable)?;
     let input = crate::conversation::previews::AttachmentInput {
         file_name: payload.file_name,
         mime: payload.mime,
@@ -161,6 +166,8 @@ pub fn download_attachment(
     reference: BridgeConversationRef,
     attachment_id: String,
 ) -> Result<(), ConversationBridgeError> {
+    let _authority =
+        super::background::admit_user_work().map_err(ConversationBridgeError::unavailable)?;
     match reference.kind {
         BridgeConversationKind::Dm => super::private_dm::ensure_runtime()?
             .download_attachment(&reference.id, &attachment_id)

@@ -16,5 +16,5 @@ is not independent cryptographic proof of pre-removal creation time.
 
 The active exact proposals are the [shared history contract](android-history-contracts.plan.md)
 and [automatic group contract](android-history-automatic-contract.plan.md).
-Those wire/storage details still require approval; the rejected manual proposal
-confers no implementation authorization.
+The owner approved those concrete automatic contracts after clarification.
+The rejected manual proposal confers no implementation authorization.

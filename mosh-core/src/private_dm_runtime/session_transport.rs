@@ -139,7 +139,7 @@ impl PrivateDmSession {
             self.membership.is_some() && self.transport.reach(peer) != PeerTransport::None
         }) {
             if let Some(frame) = crate::stream_transport::frame_for_channel(&channel, payload) {
-                if self.transport.send_to_peer_stream(peer, &frame).is_ok() {
+                if self.transport.send_to_peer_frame(peer, &frame).is_ok() {
                     return Ok(());
                 }
             }

@@ -63,6 +63,44 @@ void main() {
     access.dispose();
   });
 
+  test('returning to chats cannot undo an in-flight lock-delay change',
+      () async {
+    final firstSave = Completer<void>();
+    var delay = 60;
+    var phase = 'grace';
+    var revision = 0;
+    var saves = 0;
+    messenger.setMockMethodCallHandler(AndroidAppAccess.channel, (call) async {
+      if (call.method == 'protectedFrameReady') return null;
+      if (call.method == 'saveAccessState') {
+        final value = call.arguments as Map;
+        delay = value['delaySeconds'] as int;
+        phase = value['state'] as String;
+      }
+      final response = {
+        ..._state(phase: phase, revision: ++revision),
+        'delaySeconds': delay,
+      };
+      if (call.method == 'saveAccessState' && ++saves == 1) {
+        await firstSave.future;
+      }
+      return response;
+    });
+    final access = AndroidAppAccess();
+    addTearDown(access.dispose);
+    await access.initialize();
+    access.setChatVisible(true);
+    final change = access.setDelay(300);
+    await Future<void>.delayed(Duration.zero);
+    final visibleFrame = access.protectedFrameReady();
+    await Future<void>.delayed(Duration.zero);
+    firstSave.complete();
+    await Future.wait([change, visibleFrame]);
+    await access.refresh();
+    expect(access.delaySeconds, 300);
+    expect(access.state!.state, 'interactive');
+  });
+
   tearDown(
       () => messenger.setMockMethodCallHandler(AndroidAppAccess.channel, null));
 }

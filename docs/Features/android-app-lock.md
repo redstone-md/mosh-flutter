@@ -10,6 +10,8 @@ Screen off, repeated background events and call controls retain that deadline.
 Before showing chats, resume validates it again; a delayed timer is insufficient.
 Only actually rendered, interactive chats end that absence. Call-only frames,
 notifications and background sync cannot refresh the grant.
+Here protected chat access includes the session list and settings: navigating
+those protected screens is ordinary interactive app use, not a call-only action.
 
 The non-secret `app.mosh.access.v1` preferences persist synchronously with
 `SharedPreferences.commit()`. They contain the approved version, delay, boot

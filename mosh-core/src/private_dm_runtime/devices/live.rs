@@ -145,7 +145,7 @@ impl PrivateDmSession {
             }
             let peer = client.device()?.moss_peer_id;
             if self.transport.reach(&peer) != PeerTransport::None
-                && self.transport.send_to_peer_stream(&peer, &frame).is_ok()
+                && self.transport.send_to_peer_frame(&peer, &frame).is_ok()
             {
                 sent = true;
             }

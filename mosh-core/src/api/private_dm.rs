@@ -131,6 +131,8 @@ pub fn list_sessions() -> Result<SessionListSnapshot, String> {
 /// outgoing-ringing state (SessionSnapshot.outgoing_call). The bridge
 /// returns CallStarted so the caller can begin capturing + sealing frames.
 pub fn call_start(session_id: String) -> Result<CallStarted, ConversationBridgeError> {
+    let _authority =
+        super::background::admit_user_work().map_err(ConversationBridgeError::unavailable)?;
     let mut runtime = ensure_runtime()?;
     runtime
         .call_start(&session_id)
@@ -141,6 +143,8 @@ pub fn call_start(session_id: String) -> Result<CallStarted, ConversationBridgeE
 /// Requests selection with an authenticated answer. Media remains pending until
 /// the caller confirms that this installation is the selected receiver.
 pub fn call_accept(session_id: String, call_id: String) -> Result<(), ConversationBridgeError> {
+    let _authority =
+        super::background::admit_user_work().map_err(ConversationBridgeError::unavailable)?;
     let mut runtime = ensure_runtime()?;
     runtime
         .call_accept(&session_id, &call_id)
@@ -192,10 +196,16 @@ fn start_service_thread() {
             let Some(mutex) = RUNTIME.initialized() else {
                 continue;
             };
-            let Ok(mut guard) = mutex.lock() else {
-                return;
-            };
-            guard.service();
+            if super::background::network_permitted() {
+                let Ok(_authority) = super::background::execution_lease() else {
+                    return;
+                };
+                let Ok(mut guard) = mutex.lock() else {
+                    return;
+                };
+                guard.service();
+            }
+            super::background::reconcile();
         });
     if let Err(error) = spawned {
         dlog::write(
@@ -205,6 +215,16 @@ fn start_service_thread() {
             &format!("could not start the DM service thread: {error}"),
         );
     }
+}
+
+pub(crate) fn background_work() -> Result<(u32, u32), String> {
+    let Some(runtime) = RUNTIME.initialized() else {
+        return Ok((0, 0));
+    };
+    runtime
+        .lock()
+        .map_err(|_| "private DM runtime unavailable".to_string())?
+        .background_work()
 }
 
 /// The call media hub, cached after the first call so the 20 ms audio loop

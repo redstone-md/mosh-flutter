@@ -121,7 +121,11 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
       if (ready) {
         final plugin = ref.read(flutterLocalNotificationsPluginProvider);
         for (final message in diff.newMessages) {
-          final body = notificationBody(message.id);
+          // Android disclosure belongs to the native privacy-aware publisher;
+          // this legacy fallback is always generic, including during a lock race.
+          final body = ref.read(androidAppAccessProvider) == null
+              ? notificationBody(message.id)
+              : const NotificationBody(title: 'Mosh', body: 'New message');
           try {
             await plugin.show(
               id: message.id.hashCode.abs(),

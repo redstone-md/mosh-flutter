@@ -22,6 +22,9 @@ impl Transfer {
     }
 
     pub(in crate::conversation) fn schedule_previews(&mut self, now: Instant) {
+        if !crate::api::background::automatic_downloads_allowed() {
+            return;
+        }
         let active = self
             .slots
             .views(&self.runtime)

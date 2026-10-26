@@ -26,7 +26,7 @@ final class ForegroundPoller {
 
   // Inactive still has a visible view, including biometric/file-picker prompts.
   static bool _visible(AppLifecycleState? state) =>
-      state != AppLifecycleState.hidden && state != AppLifecycleState.paused;
+      state == AppLifecycleState.resumed || state == AppLifecycleState.inactive;
 
   void _start() {
     if (_foreground) _timer ??= Timer.periodic(_interval, (_) => _refresh());
@@ -34,7 +34,7 @@ final class ForegroundPoller {
 
   void _changed(AppLifecycleState state) {
     final wasForeground = _foreground;
-    if (!_visible(state) || state == AppLifecycleState.detached) {
+    if (!_visible(state)) {
       _foreground = false;
       _timer?.cancel();
       _timer = null;
