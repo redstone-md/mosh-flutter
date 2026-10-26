@@ -1,7 +1,9 @@
 # Android access contract for IVO-134/135
 
-Status: proposed; implementation requires owner approval of the platform channel,
-key envelope and preference format below. No key policy has changed yet.
+Status: approved by the owner on 2026-10-26 for implementation, including the
+platform channel, key envelope, preference format and authentication API ranges.
+Implementation and physical-device acceptance are pending; no shipped key policy
+has changed yet.
 
 ## Boundaries
 
