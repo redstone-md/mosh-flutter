@@ -1,9 +1,13 @@
 # Moss waiting contract for IVO-136
 
-Status: owner-approved on 2026-10-26 for implementation in a separate Moss
-worktree and a separate PR, without merging. Upstream review and Mosh integration
-are pending; this is not a shipped capability. This exception does not authorize
-changes to the original submodule checkout or other consumers.
+Status: the owner-approved upstream implementation is complete in separate
+[Moss PR #31](https://github.com/redstone-md/moss/pull/31), without merging it.
+Mosh's integration candidate pins `88e49b290a500fad59402773b6c6145ffed734fc`
+after its eight CI jobs passed, including Linux/Windows, race and repeated soak.
+Mosh integration checks, upstream maintainer acceptance and physical Android
+acceptance remain required. This is not a shipped capability. Moss source edits
+remain confined to its separate worktree and PR; the downstream gitlink records
+the exact dependency under review.
 
 Mosh enables waiting after setup and automatically selects economical waiting
 when no interactive work, accepted call or user-started transfer needs active
@@ -83,7 +87,9 @@ traffic and delivery latency; this API proposal does not establish battery goals
 The owner explicitly granted the repository-boundary exception for this work.
 The separate branch starts at Mosh's pinned fcdc338 (existing pending Moss PR
 #30); a stacked PR isolates the new lifecycle from that unmerged dependency.
-Keep the original Mosh submodule pin unchanged during upstream implementation.
+The original Mosh pin remained unchanged during upstream implementation. The
+integration candidate now records the verified dependency for reproducible Mosh
+builds; this does not merge either upstream PR.
 Do not merge the new PR; retain maintainer review and the compatibility checks.
 
 ## Implementation findings, 2026-10-26
@@ -95,12 +101,17 @@ Arbitrary routing between two waiting leaves on different carriers is not a new
 guarantee. Presence refresh is limited to the installation's own identity/rooms
 on its selected carrier; it does not restore broad overlay maintenance.
 
-Any changed active-origin routing applies only after the node explicitly calls
-the new activity setter, including active mode. Existing consumers that never
-call it retain their behavior, including consumers using known-peer discovery.
-Healthy known direct connections retain their ordinary startup path.
+Waiting discovery and maintenance policy applies only after explicit integration.
+Known-peer discovery and healthy direct startup retain their ordinary paths.
+A separate common relay reliability fix upgrades large payloads over an existing
+reliable stream on either leg: ordinary desktop senders also need this when
+sending to a waiting recipient. This changes large-relay transport selection,
+including for ordinary consumers, without enabling the waiting policy. The real
+MTU-dropping relay regression and default-consumer suites cover that boundary;
+it must not be described as every non-opted-in transport path being unchanged.
 
-The approved ABI has no explicit Android network-change signal. Connection
-loss can trigger immediate recovery; the OS-observed Wi-Fi/mobile transition
-requirement still needs integration evidence. Repeating the idempotent setter
-must not be presented as a network-change notification or used to reset backoff.
+The separately approved [connectivity contract](android-moss-connectivity-contract.plan.md)
+adds an explicit network-change hint on the existing node. Android forwards
+coalesced default-network changes through that entry point. It does not repeat
+the activity setter to reset backoff, and a hint does not establish reachability.
+Physical Wi-Fi/mobile handover and restricted-OS acceptance remain unverified.
