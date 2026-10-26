@@ -6,7 +6,10 @@ policy and the exact wire/schema/snapshot scope below are approved for
 implementation after clarification of the existing DM recovery mechanism.
 Scope: [IVO-142](https://linear.app/ivoxygen/issue/IVO-142),
 [IVO-143](https://linear.app/ivoxygen/issue/IVO-143), using
-[the shared contract](android-history-contracts.plan.md). No runtime changes yet.
+[the shared contract](android-history-contracts.plan.md). The native recovery path
+and independent-installation checks are implemented in the current branch.
+Review and physical Android background acceptance remain pending; this document
+does not establish shipped behavior or handset reliability.
 
 ## Exact evidence and trust
 

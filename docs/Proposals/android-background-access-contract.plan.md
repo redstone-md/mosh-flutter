@@ -2,8 +2,9 @@
 
 Status: approved by the owner on 2026-10-26 for implementation, including the
 platform channel, key envelope, preference format and authentication API ranges.
-Implementation and physical-device acceptance are pending; no shipped key policy
-has changed yet.
+The access owner, key migration and policy probes are implemented in the current
+branch. Review and physical-device acceptance remain pending; this proposal does
+not establish that the key policy has shipped.
 
 ## Boundaries
 
