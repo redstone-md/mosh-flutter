@@ -15,6 +15,7 @@ pub(in crate::private_group_runtime) struct NativeAcceptance {
     pub(in crate::private_group_runtime) origin: Option<crate::message_deletion::MessageOrigin>,
     pub(in crate::private_group_runtime) context: MlsHistoryContext,
     pub(in crate::private_group_runtime) author_admission_instance: Option<String>,
+    original_org_roster_b64: Option<String>,
     basis: GroupAcceptanceBasis,
 }
 
@@ -43,6 +44,9 @@ impl NativeAcceptance {
             // A current tree does not reveal its original Add commit. A later
             // verified admission binding may supply it; never synthesize one.
             author_admission_instance: None,
+            original_org_roster_b64: session
+                .org_history_guard(&sender.peer_id, false)?
+                .map(|guard| encode(guard.roster_bytes)),
             basis: GroupAcceptanceBasis::LiveAuthenticated,
         })
     }

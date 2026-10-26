@@ -6,6 +6,7 @@ use crate::mls_crypto::StagedApplication;
 use crate::persistence::HistoryAdmission;
 use crate::sender_auth::VerifiedSender;
 
+mod anchors;
 mod evidence;
 mod transitions;
 pub(super) use evidence::{native_acceptance_key, NativeAcceptance};
@@ -43,6 +44,7 @@ impl GroupSession {
             GROUP_HISTORY,
             &self.group_id,
             HistoryAdmission {
+                org_authority: self.org_history_guard(&sender.peer_id, false)?,
                 state: Some((&self.group_id, &record)),
                 own_snapshot: Some(&staged.next.snapshot()),
                 evidence: &evidence,
@@ -72,6 +74,7 @@ impl GroupSession {
                 } else {
                     HistoryClassification::LegacyUnsigned
                 },
+                legacy_original_id_absent: false,
                 group: None,
             }),
         }

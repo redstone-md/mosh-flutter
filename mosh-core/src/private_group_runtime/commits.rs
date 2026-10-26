@@ -30,8 +30,10 @@ impl GroupSession {
             return Ok(());
         }
         if message.channel == self.control_channel {
-            let (payload, sender_peer_id) = self.unwrap_control(message.payload)?;
-            let result = self.handle_control(payload, sender_peer_id);
+            let incoming = self.unwrap_control(message.payload)?;
+            self.incoming_org_control = incoming.original_org;
+            let result = self.handle_control(incoming.payload, incoming.sender_peer_id);
+            self.incoming_org_control = None;
             // Control frames are the only ones that move the MLS tree, by any
             // route: a commit, a resync replay, a Welcome, or a departure we
             // committed ourselves. Derive the admin once, here, rather than at

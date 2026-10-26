@@ -2,16 +2,26 @@
 
 use super::*;
 
+pub(super) struct VerifiedControl {
+    pub(super) payload: Vec<u8>,
+    pub(super) sender_peer_id: Option<String>,
+    pub(super) original_org: Option<Vec<u8>>,
+}
+
 impl GroupSession {
-    /// Inbound control frame → (inner payload, verified sender peer-id).
+    /// Retain the original verified org wrapper beside its inner control frame.
     /// Org groups accept only valid `OrgSigned` frames; plain groups pass
     /// the payload through with no sender claim.
     pub(super) fn unwrap_control(
         &self,
         payload: Vec<u8>,
-    ) -> Result<(Vec<u8>, Option<String>), PrivateGroupError> {
+    ) -> Result<VerifiedControl, PrivateGroupError> {
         let Some(org_pubkey) = self.org_pubkey.as_deref() else {
-            return Ok((payload, None));
+            return Ok(VerifiedControl {
+                payload,
+                sender_peer_id: None,
+                original_org: None,
+            });
         };
         let env: OrgSigned = decode_json(&payload)?;
         let ctx = OrgContext {
@@ -21,7 +31,11 @@ impl GroupSession {
         };
         org_envelope::verify(&env, &ctx)
             .map_err(|e| PrivateGroupError::Codec(format!("org envelope rejected: {e}")))?;
-        Ok((env.payload, Some(env.peer_id)))
+        Ok(VerifiedControl {
+            payload: env.payload,
+            sender_peer_id: Some(env.peer_id),
+            original_org: Some(payload),
+        })
     }
 
     /// Latest verified roster for this group's org, re-verified only when

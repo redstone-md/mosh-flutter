@@ -38,6 +38,24 @@ impl MlsHistoryContext {
 }
 
 impl MlsSessionCrypto {
+    /// The exact unencrypted commit header is only an association constraint;
+    /// a new joiner has no pre-admission secrets to validate its ciphertext.
+    pub(crate) fn admission_commit_header(raw: &[u8]) -> Result<(Vec<u8>, u64), MlsCryptoError> {
+        let message = MlsMessageIn::tls_deserialize_exact(raw).map_err(MlsCryptoError::codec)?;
+        let message = message
+            .try_into_protocol_message()
+            .map_err(MlsCryptoError::codec)?;
+        if message.content_type() != ContentType::Commit {
+            return Err(MlsCryptoError::Codec(
+                "admission association requires a commit".into(),
+            ));
+        }
+        Ok((
+            message.group_id().as_slice().to_vec(),
+            message.epoch().as_u64(),
+        ))
+    }
+
     pub(crate) fn history_context(&self) -> Result<MlsHistoryContext, MlsCryptoError> {
         let group = self.group.as_ref().ok_or(MlsCryptoError::NotReady)?;
         if !group.is_active() {

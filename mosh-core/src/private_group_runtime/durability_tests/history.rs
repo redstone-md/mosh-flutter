@@ -91,6 +91,55 @@ fn native_acceptance_retains_the_exact_original_sender_proof_across_restart() {
     );
 }
 
+#[test]
+fn an_unsigned_welcome_commit_hint_cannot_blackhole_a_later_verified_commit() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::empty();
+    let mut admin = MlsSessionCrypto::new("Alice").unwrap();
+    admin.create_group().unwrap();
+    let invite = build_invite_uri("hint-mesh", "hint-group", &admin.fingerprint(), &None);
+    fixture.join(&invite, "Bob");
+    let session = fixture.runtime.groups.get_mut(&fixture.id).unwrap();
+    let package = session.pending_join_package.as_ref().unwrap();
+    let admission = admin.add_members(&[package]).unwrap();
+    let mut carol = MlsSessionCrypto::new("Carol").unwrap();
+    let later = admin
+        .add_members(&[&carol.key_package_bytes().unwrap()])
+        .unwrap();
+    let welcome = ControlEnvelope::Welcome {
+        group_id: fixture.id.clone(),
+        for_participant_id: session.participant_id.clone(),
+        from_fingerprint: admin.fingerprint(),
+        welcome_b64: encode(&admission.welcome_bytes),
+        tree_b64: encode(&admission.tree_bytes),
+        // This outer hint is unsigned; it need not be the admission commit.
+        commit_b64: encode(&later.commit_bytes),
+    };
+    inbox::deliver(MossReceivedMessage {
+        channel: session.control_channel.clone(),
+        payload: serde_json::to_vec(&welcome).unwrap(),
+    });
+    assert_eq!(fixture.runtime.poll(&fixture.id).unwrap().member_count, 2);
+    let control = fixture
+        .runtime
+        .groups
+        .get(&fixture.id)
+        .unwrap()
+        .control_channel
+        .clone();
+    inbox::deliver(MossReceivedMessage {
+        channel: control,
+        payload: serde_json::to_vec(&ControlEnvelope::Commit {
+            group_id: fixture.id.clone(),
+            from_fingerprint: admin.fingerprint(),
+            commit_b64: encode(&later.commit_bytes),
+            roster_version: None,
+        })
+        .unwrap(),
+    });
+    assert_eq!(fixture.runtime.poll(&fixture.id).unwrap().member_count, 3);
+}
+
 fn member(fixture: &mut Fixture) -> (MlsSessionCrypto, SigningKey) {
     let mut sender = MlsSessionCrypto::new("Bob").unwrap();
     let package = sender.key_package_bytes().unwrap();
