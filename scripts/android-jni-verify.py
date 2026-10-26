@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check native-only JNI Zero entry points in the final APK, after R8."""
+"""Check JNI Zero and Mosh native entry points in the final APK, after R8."""
 import argparse
 import re
 import subprocess
@@ -10,6 +10,12 @@ from pathlib import Path
 
 
 REQUIRED = {
+    "app.mosh.mosh.MoshNative": (
+        ("initialize", "void", ("android.content.Context",)),
+        ("notifyNetworkChanged", "int", ()),
+        ("setTransferExecution", "int", ("java.lang.String", "java.lang.String", "long", "boolean")),
+        ("setTransferInteractive", "int", ("boolean",)),
+    ),
     "org.jni_zero.JniZero": (
         ("init", "java.lang.Object[]", ()),
         ("crashIfMultiplexingMisaligned", "void", ("long", "long")),
@@ -52,7 +58,7 @@ def verify(apk, dexdump):
         for method in required:
             if method not in methods:
                 raise ValueError(f"Missing JNI method/signature: {name}.{method}")
-    print("JNI Zero classes and native-callable method signatures verified in APK DEX.")
+    print("JNI Zero and Mosh native-callable method signatures verified in APK DEX.")
 
 
 if __name__ == "__main__":

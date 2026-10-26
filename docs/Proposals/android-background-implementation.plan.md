@@ -69,8 +69,10 @@ preparatory changes do not establish background acceptance.
   offline membership changes, pre-join exclusion, rejoining and erasure.
 - OS transfer execution and reclamation recovery are integrated. Actual job or
   service callbacks grant execution; scheduling alone grants no byte access.
-  Native durable per-file admission/checkpoint integration is being completed
-  on its component branch before the next complete integration check.
+  Native per-file admission, authenticated receiver acknowledgements and partial
+  checkpoints survive restart. Automatic offers do not authorize originals or
+  previews. Actual Activity/access changes revoke foreground byte eligibility
+  synchronously, before asynchronous Dart lifecycle hints.
 - Waiting transport remains in [Moss PR #31](https://github.com/redstone-md/moss/pull/31),
   stacked on PR #30, without an upstream merge. The integration pins its verified
   candidate. A further public-network group bootstrap fix is under validation;
