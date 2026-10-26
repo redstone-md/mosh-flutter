@@ -1,6 +1,6 @@
 # Verified membership checkpoints for existing groups
 
-Status: proposed; not approved or implemented. Supplements the approved
+Status: approved by the owner on 2026-10-26; implementation in progress. Supplements the approved
 [automatic history contract](android-history-automatic-contract.plan.md)
 for IVO-142/143. No administrator interaction is introduced.
 
@@ -52,5 +52,5 @@ Verify upgrade followed by offline recovery, storage refusal/restart, forged
 remote checkpoints, attempted pre-checkpoint export, known removal and rejoin
 absence through real OpenMLS/persistence and independent bridge peers.
 
-AGENTS.md requires approval before changing public contracts or schemas. This
-typed evidence extension needs that approval before runtime implementation.
+AGENTS.md requires approval before changing public contracts or schemas. The owner explicitly approved this typed evidence extension on 2026-10-26.
+Physical acceptance and implementation verification remain required.

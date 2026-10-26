@@ -168,6 +168,7 @@ fn a_torn_send_row_rehydrates_as_a_plain_failure() {
     // What a crash between the two writes leaves behind: the message row
     // down as Pending, its attempt row never written.
     let stored = StoredMessage {
+        history_evidence: None,
         conversation_id: "torn-channel".to_string(),
         sent_at_ms: 100,
         message_id: "torn-1".to_string(),

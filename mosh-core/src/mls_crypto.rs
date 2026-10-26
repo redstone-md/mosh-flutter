@@ -7,12 +7,15 @@ use crate::mls_storage::PersistentProvider;
 
 mod commits;
 mod forward_recovery;
+mod history;
 mod membership;
 mod messages;
 mod metadata;
 mod roster;
 mod setup;
 mod storage;
+
+pub(crate) use history::{MlsHistoryContext, StagedAdmission, StagedMembership};
 
 const CIPHERSUITE: Ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
 const FINGERPRINT_LEN: usize = 16;
@@ -59,6 +62,13 @@ pub struct MlsSessionCrypto {
     forward_recovery: Option<std::sync::Arc<forward_recovery::ForwardRecovery>>,
 }
 
+/// A verified receive whose ratchet is installed only after native admission.
+pub(crate) struct StagedApplication {
+    pub(crate) next: MlsSessionCrypto,
+    pub(crate) body: Vec<u8>,
+    pub(crate) signer: Vec<u8>,
+}
+
 fn fingerprint_from_signature_key(bytes: &[u8]) -> String {
     hex::encode_upper(&bytes[..bytes.len().min(FINGERPRINT_LEN)])
 }
@@ -85,6 +95,9 @@ fn decode_key_package_impl(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod history_tests;
 
 fn decode_protocol_message(bytes: &[u8]) -> Result<ProtocolMessage, MlsCryptoError> {
     MlsMessageIn::tls_deserialize(&mut &bytes[..])

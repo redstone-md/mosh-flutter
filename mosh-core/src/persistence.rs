@@ -19,6 +19,8 @@ mod deletion_paging;
 mod deletion_tests;
 mod dm_devices;
 mod dm_history;
+pub(crate) mod history_admission;
+pub(crate) use history_admission::HistoryAdmission;
 mod group_commits;
 mod group_names;
 mod history;
@@ -32,6 +34,11 @@ mod outbound;
 mod outbound_guard;
 mod plus;
 mod records;
+mod recovery;
+pub(crate) use recovery::FrozenExport;
+mod recovery_exports;
+mod recovery_occurrences;
+mod recovery_pages;
 mod schema;
 #[cfg(test)]
 pub(crate) mod test_faults;
@@ -85,3 +92,9 @@ pub struct Persistence {
 fn db_error(error: impl std::fmt::Display) -> PersistenceError {
     PersistenceError::Db(error.to_string())
 }
+
+#[cfg(test)]
+mod history_admission_tests;
+
+#[cfg(test)]
+mod recovery_export_tests;

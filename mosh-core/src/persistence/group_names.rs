@@ -36,6 +36,7 @@ impl Persistence {
             .ok_or_else(|| PersistenceError::Json("missing name event id".into()))?;
         let key = Self::history_message_key(group, message.sent_at_ms.unwrap_or_default(), id);
         let event = crate::conversation::history::StoredMessage {
+            history_evidence: None,
             conversation_id: group.to_owned(),
             sent_at_ms: message.sent_at_ms.unwrap_or_default(),
             message_id: id.to_owned(),

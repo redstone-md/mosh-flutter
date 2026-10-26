@@ -147,20 +147,19 @@ impl GroupSession {
         if !self.commit_author_authorized(from_fingerprint, sender) {
             return Ok(());
         }
-        self.crypto.join_welcome_pinned(
+        let staged = self.crypto.stage_pinned_admission(
             &decode(welcome_b64)?,
             &decode(tree_b64)?,
             from_fingerprint,
             None,
             self.org_pubkey.as_ref().and(sender),
         )?;
+        self.persist_pinned_admission(&staged, welcome_b64, tree_b64, &commit_b64)?;
+        self.crypto = staged.next;
         self.joined = true;
         self.pending_join_package = None;
-        // The Welcome already carries the admission commit's state. The
-        // admin also broadcasts that same commit on the control channel
-        // for existing members, so mark it processed to skip re-applying
-        // it to ourselves (which would error on the already-merged epoch).
-        self.sequencer.mark_seen(commit_b64);
+        // The verified Welcome already advanced our epoch. Its old admission
+        // commit is stale; the unsigned outer hint must not poison dedup.
         Ok(())
     }
     fn accept_admission_commit(

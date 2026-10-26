@@ -5,12 +5,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(in crate::private_dm_runtime) struct HistoryImport {
-    pub request_id: String,
+    #[serde(flatten)]
+    pub progress: crate::conversation::recovery::cursor::HistoryCursor,
     pub source_device_id: String,
-    pub cursor: usize,
-    pub manifest: Option<String>,
-    pub total: Option<usize>,
-    pub complete: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub partial: Option<PartialText>,
 }
@@ -18,43 +15,47 @@ pub(in crate::private_dm_runtime) struct HistoryImport {
 impl HistoryImport {
     pub fn new(request_id: &str, source: &DeviceDescriptor) -> Self {
         Self {
-            request_id: format!("history-{request_id}"),
+            progress: crate::conversation::recovery::cursor::HistoryCursor {
+                request_id: format!("history-{request_id}"),
+                ..Default::default()
+            },
             source_device_id: source.device_id.clone(),
-            cursor: 0,
-            manifest: None,
-            total: None,
-            complete: false,
             partial: None,
         }
     }
 
     pub fn accept(&mut self, batch: &HistoryBatch) -> Result<Vec<super::records::TextRecord>> {
-        if self.complete
-            || batch.request_id != self.request_id
-            || batch.offset != self.cursor
-            || batch.records.len() > super::BATCH_RECORDS
-            || batch.manifest.len() != 64
-            || hex::decode(&batch.manifest).is_err()
-            || self.total.is_some_and(|total| total != batch.total)
-            || self
-                .manifest
-                .as_ref()
-                .is_some_and(|hash| hash != &batch.manifest)
-        {
-            return Err(invalid());
-        }
+        self.progress
+            .check(
+                &batch.request_id,
+                batch.offset,
+                &batch.manifest,
+                batch.total,
+                batch.records.len(),
+            )
+            .map_err(|_| invalid())?;
         let records = self.assemble(batch)?;
-        let next = self.cursor.checked_add(records.len()).ok_or_else(invalid)?;
-        if next > batch.total
-            || (records.is_empty() && self.partial.is_none() && next < batch.total)
-        {
-            return Err(invalid());
-        }
-        self.cursor = next;
-        self.total = Some(batch.total);
-        self.manifest = Some(batch.manifest.clone());
-        self.complete = next == batch.total;
+        self.progress
+            .advance(
+                &batch.manifest,
+                batch.total,
+                records.len(),
+                self.partial.is_some(),
+            )
+            .map_err(|_| invalid())?;
         Ok(records)
+    }
+}
+
+impl std::ops::Deref for HistoryImport {
+    type Target = crate::conversation::recovery::cursor::HistoryCursor;
+    fn deref(&self) -> &Self::Target {
+        &self.progress
+    }
+}
+impl std::ops::DerefMut for HistoryImport {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.progress
     }
 }
 

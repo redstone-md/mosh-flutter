@@ -25,6 +25,7 @@ impl ChannelRuntime {
                 }
             };
             let mut session = ChannelSession {
+                recovery: Default::default(),
                 plus_schedule: Default::default(),
                 deletions: crate::message_deletion::DeletionBook::new(
                     format!("channel:{}", rec.name),
@@ -101,6 +102,7 @@ impl ChannelRuntime {
         };
 
         let session = ChannelSession {
+            recovery: Default::default(),
             plus_schedule: Default::default(),
             deletions: crate::message_deletion::DeletionBook::new(
                 format!("channel:{normalized}"),

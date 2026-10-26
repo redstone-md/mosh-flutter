@@ -13,6 +13,7 @@ import 'package:mosh/src/rust/channel_runtime/types.dart'
     show ChannelMessage, ChannelSnapshot;
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
+import 'package:mosh/src/rust/conversation/recovery.dart' show HistorySync;
 import 'package:mosh/src/rust/conversation/mesh.dart'
     show MeshInfo, SnapshotEvent;
 import 'package:mosh/src/rust/outbound_delivery.dart'
@@ -257,9 +258,11 @@ class TestSnapshots {
     String meshId = 'testmesh',
     String displayName = 'me',
     MeshInfo? mesh,
+    HistorySync? historySync,
     List<SnapshotEvent> events = const [],
   }) =>
       ChannelSnapshot(
+        historySync: historySync,
         name: name,
         topic: topic,
         meshId: meshId,

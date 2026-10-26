@@ -95,6 +95,8 @@ pub(super) struct GroupSession {
     /// Verified-roster cache keyed by the raw stored bytes, so repeated
     /// control messages don't re-verify an unchanged roster.
     pub(super) roster_cache: Option<(Vec<u8>, Roster)>,
+    /// Exact verified org wrapper while admitting this control frame.
+    pub(super) incoming_org_control: Option<Vec<u8>>,
     /// Commits from authors ahead of our roster (ADR 0005), retried on
     /// every roster change and dropped once the author is provably not an
     /// admin at their claimed version.
@@ -162,6 +164,7 @@ impl GroupSession {
             outbound_attempts: HashMap::new(),
             dm_offers: DmOffers::default(),
             roster_cache: None,
+            incoming_org_control: None,
             roster_lag: Vec::new(),
             last_roster_version_seen: None,
             typing_members: HashMap::new(),

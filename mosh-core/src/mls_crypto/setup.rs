@@ -86,32 +86,45 @@ impl MlsSessionCrypto {
         full_signer: Option<&[u8]>,
         expected_identity: Option<&str>,
     ) -> Result<String, MlsCryptoError> {
-        let provider =
-            PersistentProvider::from_snapshot(&self.snapshot()).map_err(MlsCryptoError::codec)?;
-        let staged = Self::stage_welcome(&provider, welcome_bytes, tree_bytes)?;
-        let author = staged.welcome_sender().map_err(MlsCryptoError::openmls)?;
-        let signer = author.signature_key().as_slice();
-        if fingerprint_from_signature_key(signer) != fingerprint
-            || full_signer.is_some_and(|expected| expected != signer)
-        {
-            return Err(MlsCryptoError::OpenMls(
-                "Welcome author differs from invitation owner".into(),
-            ));
-        }
-        let name = Self::credential_identity(author.credential()).ok_or_else(|| {
-            MlsCryptoError::OpenMls("Welcome author requires a basic credential".into())
-        })?;
-        if expected_identity.is_some_and(|expected| expected != name) {
-            return Err(MlsCryptoError::OpenMls(
-                "Welcome credential differs from authorized sender".into(),
-            ));
-        }
-        let group = staged
-            .into_group(&provider)
-            .map_err(MlsCryptoError::openmls)?;
-        self.provider = provider;
-        self.group = Some(group);
-        Ok(name)
+        let staged = self.stage_pinned_admission(
+            welcome_bytes,
+            tree_bytes,
+            fingerprint,
+            full_signer,
+            expected_identity,
+        )?;
+        *self = staged.next;
+        Ok(staged.author_identity)
+    }
+
+    pub(crate) fn stage_pinned_admission(
+        &self,
+        welcome_bytes: &[u8],
+        tree_bytes: &[u8],
+        fingerprint: &str,
+        full_signer: Option<&[u8]>,
+        expected_identity: Option<&str>,
+    ) -> Result<StagedAdmission, MlsCryptoError> {
+        let identity = Self::credential_identity(&self.credential.credential)
+            .ok_or(MlsCryptoError::NotReady)?;
+        let mut candidate =
+            Self::restore_unjoined(&identity, &self.signer_public(), &self.snapshot())?;
+        candidate.forward_recovery = self.forward_recovery.clone();
+        let staged = Self::stage_welcome(&candidate.provider, welcome_bytes, tree_bytes)?;
+        let (author_identity, author) =
+            verified_welcome_author(&staged, fingerprint, full_signer, expected_identity)?;
+        let context = MlsHistoryContext::from_context(staged.group_context())?;
+        candidate.group = Some(
+            staged
+                .into_group(&candidate.provider)
+                .map_err(MlsCryptoError::openmls)?,
+        );
+        Ok(StagedAdmission {
+            next: candidate,
+            context,
+            author,
+            author_identity,
+        })
     }
 
     fn stage_welcome(
@@ -139,4 +152,30 @@ impl MlsSessionCrypto {
     pub(super) fn decode_key_package(&self, bytes: &[u8]) -> Result<KeyPackage, MlsCryptoError> {
         decode_key_package_impl(&self.provider, bytes)
     }
+}
+
+fn verified_welcome_author(
+    staged: &StagedWelcome,
+    fingerprint: &str,
+    full_signer: Option<&[u8]>,
+    expected_identity: Option<&str>,
+) -> Result<(String, Vec<u8>), MlsCryptoError> {
+    let author = staged.welcome_sender().map_err(MlsCryptoError::openmls)?;
+    let signer = author.signature_key().as_slice();
+    if fingerprint_from_signature_key(signer) != fingerprint
+        || full_signer.is_some_and(|expected| expected != signer)
+    {
+        return Err(MlsCryptoError::OpenMls(
+            "Welcome author differs from invitation owner".into(),
+        ));
+    }
+    let name = MlsSessionCrypto::credential_identity(author.credential()).ok_or_else(|| {
+        MlsCryptoError::OpenMls("Welcome author requires a basic credential".into())
+    })?;
+    if expected_identity.is_some_and(|expected| expected != name) {
+        return Err(MlsCryptoError::OpenMls(
+            "Welcome credential differs from authorized sender".into(),
+        ));
+    }
+    Ok((name, signer.to_vec()))
 }

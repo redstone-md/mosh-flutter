@@ -6,6 +6,9 @@ use crate::moss_ffi::{fail_next_test_publish, MOSS_TEST_LOCK};
 #[path = "org_join_ordering_tests.rs"]
 mod ordering;
 
+#[path = "org_admission_history_tests.rs"]
+mod admission_history;
+
 fn begin(fixture: &mut Fixture) -> (String, MlsSessionCrypto) {
     let mut admin = MlsSessionCrypto::new(fixture.own_peer()).unwrap();
     admin.create_group().unwrap();
@@ -107,7 +110,10 @@ fn a_volatile_group_welcome_preserves_its_restart_offer() {
     register(&mut fixture, &id);
     let fault = fixture.store.refuse_group_snapshot_writes();
     let snapshot = welcome(&mut fixture, &id, &mut admin);
-    assert_eq!(snapshot.member_count, 2);
+    assert_eq!(
+        snapshot.member_count, 0,
+        "refused admission must not install the MLS candidate"
+    );
     assert!(fixture.store.list_groups().unwrap().is_empty());
     fixture.restart();
     drop(fault);
@@ -121,6 +127,50 @@ fn a_volatile_group_welcome_preserves_its_restart_offer() {
         1
     );
     assert!(fixture.groups.list().unwrap().groups.is_empty());
+}
+
+#[test]
+fn pinned_welcome_retries_atomically_and_retains_original_org_authority() {
+    use sha2::{Digest, Sha256};
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let (id, mut admin) = begin(&mut fixture);
+    register(&mut fixture, &id);
+    let frame = prepare_welcome(&mut fixture, &id, &mut admin);
+    let exact_wrapper = frame.payload.clone();
+    let key = format!(
+        "group/{}/evidence/admission-anchor/{}",
+        hex::encode(Sha256::digest(id.as_bytes())),
+        admin.history_context().unwrap().hash
+    );
+    let refused = fixture.store.refuse_group_snapshot_writes();
+    inbox::deliver(frame.clone());
+    assert_eq!(fixture.groups.poll(&id).unwrap().member_count, 0);
+    assert!(fixture
+        .store
+        .group_history_evidence::<serde_json::Value>(&key)
+        .unwrap()
+        .is_none());
+    drop(refused);
+    inbox::deliver(frame);
+    assert_eq!(fixture.groups.poll(&id).unwrap().member_count, 2);
+    let anchor: serde_json::Value = fixture.store.group_history_evidence(&key).unwrap().unwrap();
+    assert_eq!(anchor["original_org_signed_b64"], encode(&exact_wrapper));
+    let original_roster = &fixture
+        .groups
+        .groups
+        .get(&id)
+        .unwrap()
+        .roster_cache
+        .as_ref()
+        .unwrap()
+        .0;
+    assert_eq!(anchor["original_org_roster_b64"], encode(original_roster));
+    assert!(anchor["canonical_add_commit_hash"]
+        .as_str()
+        .is_some_and(|hash| hash.len() == 64));
+    fixture.restart();
+    assert_eq!(fixture.groups.poll(&id).unwrap().member_count, 2);
 }
 
 #[test]
@@ -186,7 +236,7 @@ fn assert_cached_welcome_recovers(refuse_native_snapshot: bool) {
             channel: cached.channel.clone(),
             payload: cached.payload.clone(),
         });
-        assert_eq!(fixture.groups.poll(&id).unwrap().member_count, 2);
+        assert_eq!(fixture.groups.poll(&id).unwrap().member_count, 0);
         assert!(fixture.store.list_groups().unwrap().is_empty());
     }
     if refuse_native_snapshot {
@@ -230,12 +280,14 @@ fn group_restart_accepts_original_welcome_when_native_snapshot_writes_were_refus
 }
 
 #[test]
-fn an_unsaved_ready_group_resumes_from_its_encrypted_acceptance_snapshot() {
+fn refused_admission_resumes_its_own_key_package_and_requires_the_original_welcome() {
     let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let mut fixture = Fixture::new();
     let fault = fixture.store.refuse_group_snapshot_writes();
     let (id, mut admin) = begin(&mut fixture);
-    assert_eq!(welcome(&mut fixture, &id, &mut admin).member_count, 2);
+    let original_welcome = prepare_welcome(&mut fixture, &id, &mut admin);
+    inbox::deliver(original_welcome.clone());
+    assert_eq!(fixture.groups.poll(&id).unwrap().member_count, 0);
     register(&mut fixture, &id);
     assert!(fixture.store.list_groups().unwrap().is_empty());
     fixture.restart();
@@ -255,7 +307,9 @@ fn an_unsaved_ready_group_resumes_from_its_encrypted_acceptance_snapshot() {
         request,
     )
     .unwrap();
-    assert_eq!(recovered.member_count, 2);
+    assert_eq!(recovered.member_count, 0);
+    inbox::deliver(original_welcome);
+    assert_eq!(fixture.groups.poll(&id).unwrap().member_count, 2);
     assert_eq!(fixture.store.list_groups().unwrap().len(), 1);
 }
 

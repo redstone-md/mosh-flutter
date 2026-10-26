@@ -4462,6 +4462,8 @@ impl SseDecode for crate::channel_runtime::types::ChannelMessage {
 impl SseDecode for crate::channel_runtime::types::ChannelSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_historySync =
+            <Option<crate::conversation::recovery::HistorySync>>::sse_decode(deserializer);
         let mut var_deletionSummary =
             <Option<crate::message_deletion::types::DeletionSummary>>::sse_decode(deserializer);
         let mut var_name = <String>::sse_decode(deserializer);
@@ -4479,6 +4481,7 @@ impl SseDecode for crate::channel_runtime::types::ChannelSnapshot {
         let mut var_events =
             <Vec<crate::conversation::mesh::SnapshotEvent>>::sse_decode(deserializer);
         return crate::channel_runtime::types::ChannelSnapshot {
+            history_sync: var_historySync,
             deletion_summary: var_deletionSummary,
             name: var_name,
             topic: var_topic,
@@ -5079,6 +5082,47 @@ impl SseDecode for crate::private_group_runtime::GroupSnapshot {
             org_pubkey: var_orgPubkey,
             member_peer_ids: var_memberPeerIds,
             typing_members: var_typingMembers,
+        };
+    }
+}
+
+impl SseDecode for crate::conversation::recovery::HistorySync {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_state =
+            <crate::conversation::recovery::HistorySyncState>::sse_decode(deserializer);
+        let mut var_reason =
+            <Option<crate::conversation::recovery::HistorySyncReason>>::sse_decode(deserializer);
+        return crate::conversation::recovery::HistorySync {
+            state: var_state,
+            reason: var_reason,
+        };
+    }
+}
+
+impl SseDecode for crate::conversation::recovery::HistorySyncReason {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::conversation::recovery::HistorySyncReason::SourceUnavailable,
+            1 => crate::conversation::recovery::HistorySyncReason::EvidenceMissing,
+            2 => crate::conversation::recovery::HistorySyncReason::Unsupported,
+            3 => crate::conversation::recovery::HistorySyncReason::StorageRefused,
+            _ => unreachable!("Invalid variant for HistorySyncReason: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::conversation::recovery::HistorySyncState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::conversation::recovery::HistorySyncState::WaitingForSource,
+            1 => crate::conversation::recovery::HistorySyncState::Importing,
+            2 => crate::conversation::recovery::HistorySyncState::Complete,
+            _ => unreachable!("Invalid variant for HistorySyncState: {}", inner),
         };
     }
 }
@@ -5979,6 +6023,32 @@ impl SseDecode for Option<crate::private_group_runtime::GroupNameStatus> {
             return Some(<crate::private_group_runtime::GroupNameStatus>::sse_decode(
                 deserializer,
             ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::conversation::recovery::HistorySync> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::conversation::recovery::HistorySync>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::conversation::recovery::HistorySyncReason> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::conversation::recovery::HistorySyncReason>::sse_decode(deserializer),
+            );
         } else {
             return None;
         }
@@ -7604,6 +7674,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::channel_runtime::types::ChannelMes
 impl flutter_rust_bridge::IntoDart for crate::channel_runtime::types::ChannelSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.history_sync.into_into_dart().into_dart(),
             self.deletion_summary.into_into_dart().into_dart(),
             self.name.into_into_dart().into_dart(),
             self.topic.into_into_dart().into_dart(),
@@ -8397,6 +8468,72 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_group_runtime::GroupSnapsh
     for crate::private_group_runtime::GroupSnapshot
 {
     fn into_into_dart(self) -> crate::private_group_runtime::GroupSnapshot {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::conversation::recovery::HistorySync {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.state.into_into_dart().into_dart(),
+            self.reason.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::conversation::recovery::HistorySync
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::conversation::recovery::HistorySync>
+    for crate::conversation::recovery::HistorySync
+{
+    fn into_into_dart(self) -> crate::conversation::recovery::HistorySync {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::conversation::recovery::HistorySyncReason {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::SourceUnavailable => 0.into_dart(),
+            Self::EvidenceMissing => 1.into_dart(),
+            Self::Unsupported => 2.into_dart(),
+            Self::StorageRefused => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::conversation::recovery::HistorySyncReason
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::conversation::recovery::HistorySyncReason>
+    for crate::conversation::recovery::HistorySyncReason
+{
+    fn into_into_dart(self) -> crate::conversation::recovery::HistorySyncReason {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::conversation::recovery::HistorySyncState {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::WaitingForSource => 0.into_dart(),
+            Self::Importing => 1.into_dart(),
+            Self::Complete => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::conversation::recovery::HistorySyncState
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::conversation::recovery::HistorySyncState>
+    for crate::conversation::recovery::HistorySyncState
+{
+    fn into_into_dart(self) -> crate::conversation::recovery::HistorySyncState {
         self
     }
 }
@@ -9833,6 +9970,10 @@ impl SseEncode for crate::channel_runtime::types::ChannelMessage {
 impl SseEncode for crate::channel_runtime::types::ChannelSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::conversation::recovery::HistorySync>>::sse_encode(
+            self.history_sync,
+            serializer,
+        );
         <Option<crate::message_deletion::types::DeletionSummary>>::sse_encode(
             self.deletion_summary,
             serializer,
@@ -10337,6 +10478,52 @@ impl SseEncode for crate::private_group_runtime::GroupSnapshot {
         <Vec<String>>::sse_encode(self.member_peer_ids, serializer);
         <Vec<crate::private_group_runtime::wire_types::TypingMember>>::sse_encode(
             self.typing_members,
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::conversation::recovery::HistorySync {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::conversation::recovery::HistorySyncState>::sse_encode(self.state, serializer);
+        <Option<crate::conversation::recovery::HistorySyncReason>>::sse_encode(
+            self.reason,
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::conversation::recovery::HistorySyncReason {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::conversation::recovery::HistorySyncReason::SourceUnavailable => 0,
+                crate::conversation::recovery::HistorySyncReason::EvidenceMissing => 1,
+                crate::conversation::recovery::HistorySyncReason::Unsupported => 2,
+                crate::conversation::recovery::HistorySyncReason::StorageRefused => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::conversation::recovery::HistorySyncState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::conversation::recovery::HistorySyncState::WaitingForSource => 0,
+                crate::conversation::recovery::HistorySyncState::Importing => 1,
+                crate::conversation::recovery::HistorySyncState::Complete => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
             serializer,
         );
     }
@@ -10999,6 +11186,26 @@ impl SseEncode for Option<crate::private_group_runtime::GroupNameStatus> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::private_group_runtime::GroupNameStatus>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::conversation::recovery::HistorySync> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::conversation::recovery::HistorySync>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::conversation::recovery::HistorySyncReason> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::conversation::recovery::HistorySyncReason>::sse_encode(value, serializer);
         }
     }
 }

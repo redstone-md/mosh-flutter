@@ -31,6 +31,9 @@ pub(super) const ORG_ROSTERS: TableDefinition<&str, &[u8]> = TableDefinition::ne
 // Key: "<group_id>/<epoch:020>" — zero-padded so lexicographic order == numeric.
 pub(super) const GROUP_COMMIT_LOG: TableDefinition<&str, &[u8]> =
     TableDefinition::new("group_commit_log");
+pub(super) const CONVERSATION_RECOVERY: Rows = TableDefinition::new("conversation_recovery");
+pub(super) const CONVERSATION_OCCURRENCES: Rows = TableDefinition::new("conversation_occurrences");
+pub(super) const GROUP_HISTORY_EVIDENCE: Rows = TableDefinition::new("group_history_evidence");
 // Key: org pubkey hex -> serialized PersistedOrgRecord (bundle + node config).
 pub(super) const ORG_RECORDS: TableDefinition<&str, &[u8]> = TableDefinition::new("org_records");
 
@@ -75,8 +78,11 @@ pub const CHANNEL_HISTORY: HistoryTables = HistoryTables {
     label: "channel",
 };
 
-pub(super) const ALL_TABLES: [Rows; 21] = [
+pub(super) const ALL_TABLES: [Rows; 24] = [
     BACKGROUND_DELIVERY,
+    CONVERSATION_RECOVERY,
+    CONVERSATION_OCCURRENCES,
+    GROUP_HISTORY_EVIDENCE,
     PLUS_RECORDS,
     ATTACHMENT_GC,
     DELETION_ACCEPTANCE,

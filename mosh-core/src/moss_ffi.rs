@@ -32,6 +32,7 @@ pub use crate::stream_transport::STREAM_INBOX_CHANNEL_PREFIX;
 pub(crate) use activity::ActivityMode;
 #[cfg(test)]
 pub use callbacks::clear_moss_keystore;
+pub(crate) use callbacks::connected_peer_revision;
 #[cfg(test)]
 pub(crate) use callbacks::replace_test_keystore;
 pub use callbacks::{
