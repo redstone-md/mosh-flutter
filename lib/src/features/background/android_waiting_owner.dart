@@ -5,26 +5,32 @@ import 'package:mosh/src/platform/android_waiting_platform.dart';
 import 'package:mosh/src/rust/api/background/types.dart';
 import 'background_commands.dart';
 import 'background_delivery_pump.dart';
+import 'android_background_calls.dart';
+import 'background_execution_mirror.dart';
 
 final androidWaitingOwnerProvider =
     Provider<AndroidWaitingOwner?>((ref) => null);
 
 /// Process-owned execution and notification intake, independent of mounted chats.
 class AndroidWaitingOwner extends ChangeNotifier {
-  AndroidWaitingOwner(this.platform, this.commands)
-      : delivery = BackgroundDeliveryPump(commands, platform) {
+  AndroidWaitingOwner(this.platform, this.commands) {
+    calls = AndroidBackgroundCalls(commands, platform);
+    _mirror = BackgroundExecutionMirror(platform);
+    delivery = BackgroundDeliveryPump(commands, platform, calls);
     platform.addListener(_platformChanged);
   }
   final AndroidWaitingPlatform platform;
   final BackgroundCommands commands;
-  final BackgroundDeliveryPump delivery;
+  late final BackgroundDeliveryPump delivery;
+  late final AndroidBackgroundCalls calls;
+  late final BackgroundExecutionMirror _mirror;
   BackgroundStatus? status;
   Object? failure;
   bool _keyReady = false, _setupReady = false, _attached = false;
   bool _disposed = false, _dirty = false;
   Future<void>? _work;
   StreamSubscription<BigInt>? _subscription;
-  Object? _observedPlatform, _appliedExecution, _appliedWork;
+  Object? _appliedExecution;
   bool get attached => _attached;
 
   /// Foreground setup starts its quiet service before key/network work. A cold
@@ -126,6 +132,11 @@ class AndroidWaitingOwner extends ChangeNotifier {
   Future<void> _turn() async {
     final state = platform.state;
     if (!_keyReady || !_attached || !_setupReady) return;
+    if (state?.interactive == true && state?.setupComplete != true) {
+      await platform.enable();
+      _dirty = true;
+      return;
+    }
     final choice = (
       state?.interactive == true,
       state?.waitingEnabled == true && state?.serviceRunning == true
@@ -137,59 +148,18 @@ class AndroidWaitingOwner extends ChangeNotifier {
     } else {
       status = await commands.status();
     }
-    await _mirrorWork(status!, state?.intentRevision);
+    await _mirror.update(status!, state?.intentRevision);
+    await calls.flushActions();
     final more = await delivery.flush();
     if (more) _dirty = true;
     if (_subscription != null) failure = null;
     if (!_disposed) notifyListeners();
   }
 
-  Future<void> _mirrorWork(
-      BackgroundStatus current, int? intentRevision) async {
-    final facts = (
-      intentRevision,
-      current.requestedMode,
-      current.actualMode,
-      current.reachability,
-      current.attachmentCount,
-      current.currentCalls,
-      current.currentUserTransfers,
-      current.limitation
-    );
-    if (facts != _appliedWork) {
-      await platform.setUserWork({
-        'intentRevision': intentRevision,
-        'requestedMode': current.requestedMode.name,
-        'actualMode': current.actualMode.name,
-        'reachability': current.reachability.name,
-        'attachmentCount': current.attachmentCount,
-        'currentCalls': current.currentCalls,
-        'currentUserTransfers': current.currentUserTransfers,
-        'limitation': current.limitation,
-      });
-      _appliedWork = facts;
-    }
-  }
-
   void _platformChanged() {
-    final state = platform.state;
-    final facts = state == null
-        ? null
-        : (
-            state.intentRevision,
-            state.interactive,
-            state.waitingEnabled,
-            state.serviceRunning,
-            state.setupComplete,
-            state.notificationsAllowed,
-            state.batteryExempt,
-            state.showNamesWhenLocked,
-            state.showTextWhenLocked
-          );
-    if (facts != _observedPlatform) {
-      _observedPlatform = facts;
-      _schedule();
-    }
+    // Both new platform facts and queued call actions require a turn. The
+    // execution mirror deduplicates unchanged facts at its command boundary.
+    _schedule();
     notifyListeners();
   }
 
@@ -197,6 +167,7 @@ class AndroidWaitingOwner extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     platform.removeListener(_platformChanged);
+    calls.dispose();
     unawaited(_subscription?.cancel());
     super.dispose();
   }

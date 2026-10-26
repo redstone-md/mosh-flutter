@@ -6,10 +6,11 @@ import 'ringtone_player.dart';
 
 /// Ringtone and no-answer deadline belong to the call, not its window.
 class CallRinging {
-  CallRinging(this.player, this.onTimeout);
+  CallRinging(this.player, this.onTimeout, {this.incomingManaged = false});
 
   final RingtonePlayer player;
   final void Function(String callId) onTimeout;
+  final bool incomingManaged;
   RingtoneHandle? _handle;
   Timer? _timer;
   String? _callId;
@@ -17,6 +18,10 @@ class CallRinging {
   bool _timedOut = false;
 
   void update(CallDialog dialog, {required bool busy}) {
+    if (incomingManaged && dialog is IncomingCallDialog) {
+      dispose();
+      return;
+    }
     if (dialog is IncomingCallDialog && dialog.pending.answerPending) {
       dispose();
       return;

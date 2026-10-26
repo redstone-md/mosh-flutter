@@ -9,6 +9,7 @@ class AndroidWaitingPlatform extends ChangeNotifier {
   AndroidWaitingPlatform() {
     channel.setMethodCallHandler((call) async {
       if (call.method == 'waitingStateChanged') _accept(call.arguments);
+      if (call.method == 'callActionsChanged') notifyListeners();
     });
   }
 
@@ -26,6 +27,22 @@ class AndroidWaitingPlatform extends ChangeNotifier {
         'reason': reason,
         'intentRevision': _state?.intentRevision,
       });
+
+  Future<List<AndroidCallAction>> takeCallActions() async {
+    final values = await channel.invokeListMethod<Object?>('takeCallActions');
+    return (values ?? []).take(16).map(AndroidCallAction.fromMap).toList();
+  }
+
+  Future<String> publishCallNotification(Map<String, Object?> value) async =>
+      await channel.invokeMethod<String>('publishNotification', value) ??
+      'failed';
+
+  Future<bool> setMediaTypes(bool microphone, bool camera) async =>
+      await channel.invokeMethod<bool>('setMediaTypes', {
+        'microphone': microphone,
+        'camera': camera,
+      }) ??
+      false;
 
   Future<void> setUserWork(Map<String, Object?> facts) =>
       _read('setUserWork', facts);
@@ -73,5 +90,19 @@ class AndroidWaitingPlatform extends ChangeNotifier {
     _disposed = true;
     channel.setMethodCallHandler(null);
     super.dispose();
+  }
+}
+
+class AndroidCallAction {
+  const AndroidCallAction(this.capability, this.interactiveAnswer);
+  final String capability;
+  final bool interactiveAnswer;
+  factory AndroidCallAction.fromMap(Object? value) {
+    final map = value as Map<Object?, Object?>;
+    final capability = map['capability'] as String;
+    if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(capability)) {
+      throw const FormatException('Invalid call action');
+    }
+    return AndroidCallAction(capability, map['interactiveAnswer'] as bool);
   }
 }

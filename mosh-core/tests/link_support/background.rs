@@ -18,6 +18,10 @@ pub(super) fn command(action: &str, request: &Value) -> Value {
         "background_pending" => {
             serde_json::to_value(background::pending_background_notifications(16).unwrap()).unwrap()
         }
+        "background_call_action" => serde_json::to_value(background::apply_background_call_action(
+            request["capability"].as_str().unwrap().into(),
+        ))
+        .unwrap(),
         "background_ack" => {
             background::ack_background_notification(
                 request["id"].as_str().unwrap().into(),

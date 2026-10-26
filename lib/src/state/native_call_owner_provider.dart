@@ -10,10 +10,12 @@ import 'package:mosh/src/gateway/bridge_facade.dart';
 final nativeCallOwnerProvider = Provider<NativeCallOwner?>((ref) => null);
 
 class NativeCallOwner extends ChangeNotifier {
-  NativeCallOwner(this.bridge, this.requestMicrophone, {this.requestCamera});
+  NativeCallOwner(this.bridge, this.requestMicrophone,
+      {this.requestCamera, this.authorizeMedia});
   final BridgeFacade bridge;
   final Future<bool> Function() requestMicrophone;
   final Future<bool> Function()? requestCamera;
+  final Future<bool> Function(bool microphone, bool camera)? authorizeMedia;
   final _frames = StreamController<CallVideoFrame>.broadcast(sync: true);
   NativeCallSession? _retained;
   NativeCallSession? session;
@@ -30,6 +32,7 @@ class NativeCallOwner extends ChangeNotifier {
           bridge: bridge,
           requestMicrophone: requestMicrophone,
           requestCamera: requestCamera ?? () async => true,
+          authorizeMedia: authorizeMedia,
           onState: notifyListeners,
           onFrame: (frame) {
             if (session?.sessionId == frame.sessionId &&

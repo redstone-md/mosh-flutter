@@ -6,6 +6,7 @@
 import 'api/attachment_stream.dart';
 import 'api/audio_devices.dart';
 import 'api/background.dart';
+import 'api/background/call_actions.dart';
 import 'api/background/types.dart';
 import 'api/channel.dart';
 import 'api/conversation.dart';
@@ -48,6 +49,7 @@ import 'org_runtime.dart';
 import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 import 'persistence.dart';
+import 'persistence/background_calls/types.dart';
 import 'persistence/background_delivery.dart';
 import 'plus/checkout.dart';
 import 'plus/recovery_types.dart';
@@ -181,6 +183,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AudioDeviceInfo dco_decode_audio_device_info(dynamic raw);
 
   @protected
+  BackgroundCallAction dco_decode_background_call_action(dynamic raw);
+
+  @protected
+  BackgroundCallActionOutcome dco_decode_background_call_action_outcome(
+      dynamic raw);
+
+  @protected
+  BackgroundCallActionResult dco_decode_background_call_action_result(
+      dynamic raw);
+
+  @protected
+  BackgroundCallNotification dco_decode_background_call_notification(
+      dynamic raw);
+
+  @protected
+  BackgroundCallPhase dco_decode_background_call_phase(dynamic raw);
+
+  @protected
   BackgroundMode dco_decode_background_mode(dynamic raw);
 
   @protected
@@ -204,6 +224,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   AttachmentDescriptor dco_decode_box_autoadd_attachment_descriptor(
       dynamic raw);
+
+  @protected
+  BackgroundCallAction dco_decode_box_autoadd_background_call_action(
+      dynamic raw);
+
+  @protected
+  BackgroundCallNotification
+      dco_decode_box_autoadd_background_call_notification(dynamic raw);
 
   @protected
   bool dco_decode_box_autoadd_bool(dynamic raw);
@@ -627,7 +655,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       dynamic raw);
 
   @protected
+  BackgroundCallAction? dco_decode_opt_box_autoadd_background_call_action(
+      dynamic raw);
+
+  @protected
+  BackgroundCallNotification?
+      dco_decode_opt_box_autoadd_background_call_notification(dynamic raw);
+
+  @protected
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
+  BridgeConversationRef? dco_decode_opt_box_autoadd_bridge_conversation_ref(
+      dynamic raw);
 
   @protected
   CallAvailability? dco_decode_opt_box_autoadd_call_availability(dynamic raw);
@@ -946,6 +986,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AudioDeviceInfo sse_decode_audio_device_info(SseDeserializer deserializer);
 
   @protected
+  BackgroundCallAction sse_decode_background_call_action(
+      SseDeserializer deserializer);
+
+  @protected
+  BackgroundCallActionOutcome sse_decode_background_call_action_outcome(
+      SseDeserializer deserializer);
+
+  @protected
+  BackgroundCallActionResult sse_decode_background_call_action_result(
+      SseDeserializer deserializer);
+
+  @protected
+  BackgroundCallNotification sse_decode_background_call_notification(
+      SseDeserializer deserializer);
+
+  @protected
+  BackgroundCallPhase sse_decode_background_call_phase(
+      SseDeserializer deserializer);
+
+  @protected
   BackgroundMode sse_decode_background_mode(SseDeserializer deserializer);
 
   @protected
@@ -972,6 +1032,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   AttachmentDescriptor sse_decode_box_autoadd_attachment_descriptor(
       SseDeserializer deserializer);
+
+  @protected
+  BackgroundCallAction sse_decode_box_autoadd_background_call_action(
+      SseDeserializer deserializer);
+
+  @protected
+  BackgroundCallNotification
+      sse_decode_box_autoadd_background_call_notification(
+          SseDeserializer deserializer);
 
   @protected
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
@@ -1457,7 +1526,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  BackgroundCallAction? sse_decode_opt_box_autoadd_background_call_action(
+      SseDeserializer deserializer);
+
+  @protected
+  BackgroundCallNotification?
+      sse_decode_opt_box_autoadd_background_call_notification(
+          SseDeserializer deserializer);
+
+  @protected
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  BridgeConversationRef? sse_decode_opt_box_autoadd_bridge_conversation_ref(
+      SseDeserializer deserializer);
 
   @protected
   CallAvailability? sse_decode_opt_box_autoadd_call_availability(
@@ -1810,6 +1892,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       AudioDeviceInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_background_call_action(
+      BackgroundCallAction self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_background_call_action_outcome(
+      BackgroundCallActionOutcome self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_background_call_action_result(
+      BackgroundCallActionResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_background_call_notification(
+      BackgroundCallNotification self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_background_call_phase(
+      BackgroundCallPhase self, SseSerializer serializer);
+
+  @protected
   void sse_encode_background_mode(
       BackgroundMode self, SseSerializer serializer);
 
@@ -1839,6 +1941,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_attachment_descriptor(
       AttachmentDescriptor self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_background_call_action(
+      BackgroundCallAction self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_background_call_notification(
+      BackgroundCallNotification self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
@@ -2357,7 +2467,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       AttachmentDescriptor? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_background_call_action(
+      BackgroundCallAction? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_background_call_notification(
+      BackgroundCallNotification? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_bridge_conversation_ref(
+      BridgeConversationRef? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_call_availability(

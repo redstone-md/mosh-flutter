@@ -1,3 +1,4 @@
+import 'package:mosh/src/features/background/android_waiting_owner.dart';
 import 'call_media_view.dart';
 import 'call_notification_details.dart';
 import 'dart:async';
@@ -163,6 +164,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
   }
 
   Future<void> _notify(IncomingCallDialog dialog) async {
+    if (ref.read(androidWaitingOwnerProvider)?.attached == true) return;
     final generation = _notificationGeneration;
     try {
       if (!await ref.read(notificationsReadyProvider.future) || !mounted) {

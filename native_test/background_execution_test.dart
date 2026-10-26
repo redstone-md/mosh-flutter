@@ -86,6 +86,7 @@ void main() {
         };
     binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
         (call) async {
+      if (call.method == 'takeCallActions') return <Object?>[];
       if (call.method == 'setUserWork') {
         work.add(call.arguments as Map<Object?, Object?>);
       }

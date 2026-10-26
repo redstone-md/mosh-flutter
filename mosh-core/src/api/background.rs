@@ -1,11 +1,24 @@
 //! Installation execution, independent of chat unlock or mounted UI polling.
+pub(crate) mod call_actions;
 mod changes;
 mod execution;
 pub(crate) mod types;
 
 use crate::frb_generated::StreamSink;
+pub use crate::persistence::background_calls::{
+    BackgroundCallAction, BackgroundCallNotification, BackgroundCallPhase,
+};
 pub use crate::persistence::BackgroundNotification;
+pub(crate) use call_actions::owner_nonce as call_owner_nonce;
+pub use call_actions::{BackgroundCallActionOutcome, BackgroundCallActionResult};
 pub use types::{BackgroundMode, BackgroundReachability, BackgroundStatus};
+
+/// Only opaque one-use action capabilities authorize a notification action.
+pub fn apply_background_call_action(capability: String) -> BackgroundCallActionResult {
+    call_actions::apply(&capability).unwrap_or_else(|_| {
+        BackgroundCallActionResult::no(BackgroundCallActionOutcome::Unavailable)
+    })
+}
 
 pub fn set_background_execution(
     interactive: bool,

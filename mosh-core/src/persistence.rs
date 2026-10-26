@@ -5,6 +5,7 @@ use redb::{Database, ReadableTable};
 
 mod attachment_gc;
 mod attachment_refs;
+pub(crate) mod background_calls;
 pub(crate) mod background_delivery;
 mod chat_names;
 mod conversation_records;

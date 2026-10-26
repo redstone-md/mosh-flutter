@@ -1,3 +1,4 @@
+import 'package:mosh/src/state/notifications_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
@@ -68,5 +69,11 @@ class FirstRunGate extends ConsumerWidget {
 // Setup is durable before _ready is reached. Attach before any UI poll opens
 // ordinary mesh work; the service choice remains independently user-controlled.
 final _backgroundReadyProvider = FutureProvider<void>((ref) async {
-  await ref.read(androidWaitingOwnerProvider)?.attach(setupCompleted: true);
+  final waiting = ref.read(androidWaitingOwnerProvider);
+  if (waiting == null) return;
+  if (waiting.platform.state?.setupComplete != true &&
+      waiting.platform.state?.interactive == true) {
+    await ref.read(notificationsReadyProvider.future);
+  }
+  await waiting.attach(setupCompleted: true);
 });

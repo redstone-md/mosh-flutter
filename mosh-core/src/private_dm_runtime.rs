@@ -1,5 +1,6 @@
 mod admission_authentication;
 mod background;
+mod background_calls;
 mod call_media;
 mod compact_invite;
 pub(crate) mod contracts;
@@ -130,6 +131,7 @@ pub struct PrivateDmRuntime {
     native_media: Option<Arc<crate::native_call::Hub>>,
     lost_window_ms: u64,
     device_link: Option<devices::DeviceDmLink>,
+    background_calls: Option<Vec<crate::persistence::background_calls::BackgroundCallState>>,
 }
 
 struct PrivateDmSession {
@@ -285,6 +287,7 @@ impl PrivateDmRuntime {
             transport,
             lost_window_ms: LOST_WINDOW_MS,
             device_link: None,
+            background_calls: None,
         }
     }
 

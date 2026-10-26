@@ -12,7 +12,10 @@ impl Persistence {
         }
         let tx = self.db.begin_read().map_err(db_error)?;
         let rows = tx.open_table(BACKGROUND_DELIVERY).map_err(db_error)?;
-        let mut pending = Vec::new();
+        let mut pending = self.pending_call_notifications(limit)?;
+        if pending.len() == limit {
+            return Ok(pending);
+        }
         for row in rows.range(MESSAGE_PREFIX.."message0").map_err(db_error)? {
             let (_, bytes) = row.map_err(db_error)?;
             let summary: Summary = decode(&decrypt_blob(&self.dek, bytes.value())?)?;
@@ -37,6 +40,9 @@ impl Persistence {
             return Err(PersistenceError::Json(
                 "invalid background notification id".into(),
             ));
+        }
+        if id.starts_with("background-call-") {
+            return self.ack_call_notification(id, revision);
         }
         self.write(|tx| {
             let mut update = None;
@@ -100,6 +106,7 @@ impl Persistence {
             message_count: summary.message_count,
             sender: bounded(sender, 256),
             text: bounded(text, 8192),
+            call: None,
         }))
     }
 }

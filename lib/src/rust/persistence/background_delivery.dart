@@ -5,6 +5,7 @@
 
 import '../api/conversation.dart';
 import '../frb_generated.dart';
+import 'background_calls/types.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 class BackgroundNotification {
@@ -16,6 +17,7 @@ class BackgroundNotification {
   final int messageCount;
   final String? sender;
   final String? text;
+  final BackgroundCallNotification? call;
 
   const BackgroundNotification({
     required this.id,
@@ -26,6 +28,7 @@ class BackgroundNotification {
     required this.messageCount,
     this.sender,
     this.text,
+    this.call,
   });
 
   @override
@@ -37,7 +40,8 @@ class BackgroundNotification {
       sentAtMs.hashCode ^
       messageCount.hashCode ^
       sender.hashCode ^
-      text.hashCode;
+      text.hashCode ^
+      call.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -51,5 +55,6 @@ class BackgroundNotification {
           sentAtMs == other.sentAtMs &&
           messageCount == other.messageCount &&
           sender == other.sender &&
-          text == other.text;
+          text == other.text &&
+          call == other.call;
 }

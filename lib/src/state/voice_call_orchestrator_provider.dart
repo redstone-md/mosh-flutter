@@ -1,3 +1,4 @@
+import 'package:mosh/src/features/background/android_waiting_owner.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -131,7 +132,7 @@ class VoiceCallOrchestratorNotifier
     _native?.addListener(_nativeChanged);
     _ringing = CallRinging(ref.read(ringtonePlayerProvider), (id) {
       if (ref.mounted) unawaited(declineCall(id, kCallDeclineReasonNoAnswer));
-    });
+    }, incomingManaged: ref.read(androidWaitingOwnerProvider) != null);
     ref.onDispose(() {
       _ringing.dispose();
       _native?.removeListener(_nativeChanged);
@@ -201,7 +202,19 @@ class VoiceCallOrchestratorNotifier
       return Future.value();
     }
     return _control(id, (b) => b.callAccept(sessionId: sessionId, callId: id),
-        terminal: false);
+        terminal: false,
+        permit: ref.read(androidWaitingOwnerProvider) == null
+            ? null
+            : _permitAnswer);
+  }
+
+  Future<bool> _permitAnswer() async {
+    final waiting = ref.read(androidWaitingOwnerProvider);
+    if (waiting == null) return true;
+    if (waiting.platform.state?.interactive != true) return false;
+    final native = ref.read(nativeCallOwnerProvider);
+    if (native == null || !await native.requestMicrophone()) return false;
+    return ref.mounted && waiting.platform.state?.interactive == true;
   }
 
   Future<void> declineCall(String id, String reason) {
@@ -247,7 +260,8 @@ class VoiceCallOrchestratorNotifier
   Future<void> _control(String id, Future<void> Function(BridgeFacade) action,
       {bool terminal = true,
       bool closing = false,
-      bool preserveError = false}) async {
+      bool preserveError = false,
+      Future<bool> Function()? permit}) async {
     if (state.dialog.callId != id ||
         _controls.isBusy(id) ||
         (state.busy && !closing)) {
@@ -257,6 +271,8 @@ class VoiceCallOrchestratorNotifier
       if (!preserveError) _error = null;
       state = _stateFor(_snapshot);
       try {
+        if (permit != null && !await permit()) return;
+        if (!ref.mounted || state.dialog.callId != id) return;
         await action(ref.read(bridgeFacadeProvider));
         if (!ref.mounted || state.dialog.callId != id) return;
         if (terminal) {
@@ -278,6 +294,8 @@ class VoiceCallOrchestratorNotifier
     if (!ref.mounted) return;
     if (!_appOwned) ref.invalidate(activeSessionProvider(sessionId));
     ref.invalidate(conversationListProvider(ConversationKind.dm));
+    final waiting = ref.read(androidWaitingOwnerProvider);
+    if (waiting != null) unawaited(waiting.refresh().catchError((Object _) {}));
   }
 
   Ref get _bindingRef => ref;

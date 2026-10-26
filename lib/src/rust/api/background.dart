@@ -4,10 +4,18 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import '../persistence/background_calls/types.dart';
 import '../persistence/background_delivery.dart';
+import 'background/call_actions.dart';
 import 'background/types.dart';
 import 'conversation.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+
+/// Only opaque one-use action capabilities authorize a notification action.
+Future<BackgroundCallActionResult> applyBackgroundCallAction(
+        {required String capability}) =>
+    RustLib.instance.api
+        .crateApiBackgroundApplyBackgroundCallAction(capability: capability);
 
 Future<BackgroundStatus> setBackgroundExecution(
         {required bool interactive, required bool waitingEnabled}) =>

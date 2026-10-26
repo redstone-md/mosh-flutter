@@ -21,6 +21,7 @@ pub struct BackgroundNotification {
     pub message_count: u32,
     pub sender: Option<String>,
     pub text: Option<String>,
+    pub call: Option<super::background_calls::BackgroundCallNotification>,
 }
 
 /// Only the already-authenticated kind admission creates these facts.
@@ -147,7 +148,7 @@ impl Persistence {
             .transpose()
     }
 
-    fn background_tx_row<T: serde::de::DeserializeOwned>(
+    pub(super) fn background_tx_row<T: serde::de::DeserializeOwned>(
         &self,
         tx: &redb::WriteTransaction,
         key: &str,
@@ -207,10 +208,10 @@ impl Summary {
     }
 }
 
-fn encode(value: &impl Serialize) -> Result<Vec<u8>, PersistenceError> {
+pub(super) fn encode(value: &impl Serialize) -> Result<Vec<u8>, PersistenceError> {
     serde_json::to_vec(value).map_err(|error| PersistenceError::Json(error.to_string()))
 }
-fn decode<T: serde::de::DeserializeOwned>(value: &[u8]) -> Result<T, PersistenceError> {
+pub(super) fn decode<T: serde::de::DeserializeOwned>(value: &[u8]) -> Result<T, PersistenceError> {
     serde_json::from_slice(value).map_err(|error| PersistenceError::Json(error.to_string()))
 }
 

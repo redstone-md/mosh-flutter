@@ -12,6 +12,7 @@ class NativeCallSession {
       required this.bridge,
       required this.requestMicrophone,
       this.requestCamera = _allowCamera,
+      this.authorizeMedia,
       required this.onState,
       required this.onFrame,
       this.pollInterval = const Duration(milliseconds: 16)});
@@ -21,6 +22,7 @@ class NativeCallSession {
   final BridgeFacade bridge;
   final Future<bool> Function() requestMicrophone;
   final Future<bool> Function() requestCamera;
+  final Future<bool> Function(bool microphone, bool camera)? authorizeMedia;
   static Future<bool> _allowCamera() async => true;
   final void Function() onState;
   final void Function(CallVideoFrame) onFrame;
@@ -49,6 +51,8 @@ class NativeCallSession {
   Future<void> start({bool camera = false}) => _starting ??= _start(camera);
   Future<void> _start(bool camera) async {
     _camera = camera && await requestCamera();
+    if (_closed) return;
+    if (_camera) await _authorize(false, true);
     if (_closed) return;
     await bridge.nativeCallPrepare(
         sessionId: sessionId,
@@ -113,6 +117,8 @@ class NativeCallSession {
       try {
         await change();
         if (_closed) return;
+        await _authorize(_active && _microphone && _microphoneAllowed, _camera);
+        if (_closed) return;
         await bridge.nativeCallChoices(
             sessionId: sessionId,
             callId: callId,
@@ -132,6 +138,13 @@ class NativeCallSession {
         }
       }
     });
+  }
+
+  Future<void> _authorize(bool microphone, bool camera) async {
+    final authorize = authorizeMedia;
+    if (authorize != null && !await authorize(microphone, camera)) {
+      throw StateError('Android call service is unavailable');
+    }
   }
 
   Future<void> _poll() async {

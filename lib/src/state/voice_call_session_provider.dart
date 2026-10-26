@@ -1,3 +1,5 @@
+import 'package:mosh/src/features/background/android_waiting_owner.dart';
+import 'package:mosh/src/features/voice_call/call_selection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -14,6 +16,17 @@ class VoiceCallSessionNotifier extends Notifier<SessionSnapshot?> {
 
   @override
   SessionSnapshot? build() {
+    final waiting = ref.read(androidWaitingOwnerProvider);
+    if (waiting != null) {
+      void changed() {
+        state = waiting.calls.snapshot;
+        _selectedId = state?.sessionId;
+      }
+
+      waiting.calls.addListener(changed);
+      ref.onDispose(() => waiting.calls.removeListener(changed));
+      return waiting.calls.snapshot;
+    }
     ref.listen(conversationListProvider(ConversationKind.dm), (_, next) {
       if (next is AsyncData<ConversationList>) state = _pick(next.value);
     });
@@ -21,16 +34,8 @@ class VoiceCallSessionNotifier extends Notifier<SessionSnapshot?> {
   }
 
   SessionSnapshot? _pick(ConversationList? list) {
-    final calls = sessionsOf(list).where((session) =>
-        session.activeCall != null ||
-        session.pendingCall != null ||
-        session.outgoingCall != null);
-    for (final session in calls) {
-      if (session.sessionId == _selectedId) return session;
-    }
     final selected =
-        calls.where((session) => session.activeCall != null).firstOrNull ??
-            calls.firstOrNull;
+        selectCallSession(sessionsOf(list), selectedId: _selectedId);
     _selectedId = selected?.sessionId;
     return selected;
   }

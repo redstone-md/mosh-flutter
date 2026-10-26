@@ -56,4 +56,18 @@ void main() {
     expect(player.starts, 2);
     ringing.dispose();
   });
+  testWidgets('Android native incoming owner keeps one ringtone and deadline',
+      (tester) async {
+    final player = RecordingRingtone();
+    final expired = <String>[];
+    final ringing = CallRinging(player, expired.add, incomingManaged: true);
+    ringing.update(_incoming, busy: false);
+    await tester.pump(kIncomingNoAnswerTimeout * 2);
+    expect(player.starts, 0);
+    expect(expired, isEmpty);
+    ringing.update(_outgoing, busy: false);
+    expect(player.kinds, [RingtoneKind.outgoing]);
+    ringing.dispose();
+    expect(player.stops, 1);
+  });
 }

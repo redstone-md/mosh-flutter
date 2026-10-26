@@ -80,6 +80,28 @@ fn caller_gives_up_once_the_ring_budget_is_spent() {
     assert_eq!(logged.kind, "missed");
 }
 
+#[test]
+fn incoming_native_ring_expires_without_flutter_or_a_deadline_extension() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let (mut runtime, id) = lone_session(0);
+    let session = runtime.sessions.get_mut(&id).unwrap();
+    let mut call = CallState::ringing("incoming".into(), "k".into(), "n".into(), "Alice".into());
+    call.mark_offer_sent(1_000);
+    call.mark_offer_sent(30_999);
+    session.call = Some(call);
+    session.pump_call_signaling(30_999);
+    assert!(session.call.is_some());
+    session.pump_call_signaling(31_000);
+    assert!(session.call.is_none());
+    let event = session
+        .messages
+        .iter()
+        .find_map(|message| message.call_event.as_ref())
+        .unwrap();
+    assert_eq!(event.call_id, "incoming");
+    assert_eq!(event.kind, "missed");
+}
+
 // Voice media has its own queue, so the DM drain never carries it and the
 // audio loop never waits on the DM runtime.
 #[test]
