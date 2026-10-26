@@ -1,8 +1,11 @@
 # Issue 94: Android background operation
 
 Date: 2026-10-25.
-Status: Design interview in progress; implementation is not approved by this plan.
+Status: Product interview complete; specification published. This change does
+not implement runtime behavior.
 Source baseline: `v0.24.3` (`45738d1173a04c11327a99cfa6d5d203c44b6f2a`).
+Specification: [issue 100](https://github.com/redstone-md/mosh-flutter/issues/100)
+and its [repository copy](android-background.spec.md).
 Related: [issue 94](https://github.com/redstone-md/mosh-flutter/issues/94),
 [initial research](issue-94-background-calls.research.md).
 
@@ -286,7 +289,7 @@ These are findings about the baseline and requirements on the forthcoming
 design. The holder-availability and membership-window policies are accepted;
 the wire format, schema and their cryptographic enforcement remain to design.
 
-## Remaining design questions
+## Implementation preparation
 
 - Moss waiting lifecycle/interface, attachment selection and any intermediary's
   trust, metadata, abuse limits and operating budget.
@@ -304,6 +307,11 @@ the wire format, schema and their cryptographic enforcement remain to design.
 - Quantified delivery latency, idle traffic, CPU/wakeups and battery budgets;
   acceptance on physical phones under comparable conditions.
 
-Record a lasting architectural decision in an ADR once its alternatives and
-trade-offs are settled. Proceed to runtime implementation only after the owner
-confirms the completed design.
+The product interview ended on 2026-10-26. The owner also confirmed the testing
+boundaries recorded in the specification: real independent installations over
+the existing bridge/Moss, actual Android lifecycle and notification behavior,
+and existing adapters for focused lock/permission checks. The specification is
+published with `ready-for-agent`; this plan retains the research and decision
+history. Concrete public contracts, dependencies, schemas and upstream Moss
+changes still require the approvals prescribed by repository rules before
+the affected implementation begins.
