@@ -33,6 +33,10 @@ An OS user-requested exit fences automatic restart until a real Activity reopen;
 reopening never changes a separately saved Stop waiting choice. There is no
 restart alarm or watchdog. OEM task removal may be reported as a user-requested
 exit; it cannot safely be treated as permission to revive an application.
+Once observed, this stop is durably latched; eviction from Android's bounded
+exit history cannot clear it. Only a real Activity reopen clears the latch and
+acknowledges the observed exit in one preference commit. Storage refusal keeps
+automatic starts blocked.
 
 One default-network observer forwards coalesced hints to the existing native
 Moss owner on a bounded worker. Startup and handover use bounded partial wake
@@ -96,6 +100,20 @@ is no polling watchdog or automatic fresh UIDT from an invisible remote request.
 Native completion, cancellation or removal releases the OS job/service. Transfer
 completion never enables a saved Stop waiting choice.
 
+On Android 8–13, explicit work saves at most 32 opaque operation IDs and their
+direction in credential-encrypted preferences before acknowledging foreground
+scheduling. OS sticky restart restores these hints after ordinary process
+reclamation. After reboot, BOOT_COMPLETED restores them only after first unlock,
+independently of Stop waiting. Android 14+ jobs already persist through the OS.
+The encrypted native journal remains the authority for admission, checkpoints
+and byte access; a hint cannot create a download or bypass a cancellation.
+Fresh native terminal, absent or quiescent work retires its hint. Cancellation
+also removes it durably. This is OS-owned recovery, with no timer, alarm or
+second scheduler to revive a user-stopped application.
+These paths follow Android's [sticky-service restart](https://developer.android.com/reference/android/app/Service#START_STICKY),
+[first-unlock broadcasts](https://developer.android.com/privacy-and-security/direct-boot#get-notified-of-user-unlock)
+and [Task Manager Stop behavior](https://developer.android.com/develop/background-work/services/fgs/handle-user-stopping).
+
 Notifications expose only progress and an opaque operation ID. Cancel revokes
 the native grant synchronously; its opaque action is saved before acknowledgement.
 The same owner drains these actions before new deferred work, and acknowledges
@@ -142,3 +160,7 @@ The host probe also checks scheduling versus actual execution grants, stale stop
 fencing, cold process incarnations and durable action acknowledgements. Transfer
 Kotlin/Java and instrumentation compile against the SDK; no UIDT, dataSync,
 constraint-loss or OS Stop behavior has been executed on a phone yet.
+It also reconstructs opaque recovery state across owner replacement, checks
+storage refusal and bounds, and reproduces an OS-stop history eviction before
+verifying that the durable latch survives it. These host checks do not prove
+that a particular device restarts a service or resumes a transfer after reboot.

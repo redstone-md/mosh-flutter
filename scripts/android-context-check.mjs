@@ -36,6 +36,10 @@ run("javac", ["-d", classes, path.join(probe, "WaitingPolicyProbe.java"),
   path.join(root, "android/app/src/main/java/app/mosh/mosh/MoshTransferActions.java"),
   path.join(root, "android/app/src/main/java/app/mosh/mosh/MoshWaitingPolicy.java")]);
 run("java", ["-cp", classes, "app.mosh.mosh.WaitingPolicyProbe"]);
+run("javac", ["-d", classes, path.join(probe, "TransferRecoveryProbe.java"),
+  path.join(root, "android/app/src/main/java/app/mosh/mosh/MoshTransferRecovery.java"),
+  path.join(root, "android/app/src/main/java/app/mosh/mosh/MoshSystemStopPolicy.java")]);
+run("java", ["-cp", classes, "app.mosh.mosh.TransferRecoveryProbe"]);
 
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: root, stdio: "inherit", windowsHide: true });
