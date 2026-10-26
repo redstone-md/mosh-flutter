@@ -30,6 +30,10 @@ pub(crate) fn fragment(bytes: &[u8], offset: usize) -> Result<PageFragment, Stri
 }
 
 impl PartialRecord {
+    pub(crate) fn digest(&self) -> &str {
+        &self.digest
+    }
+
     pub(crate) fn offset(&self) -> usize {
         self.bytes.len()
     }

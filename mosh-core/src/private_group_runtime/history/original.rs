@@ -8,8 +8,23 @@ impl GroupRecord {
         &self,
         session: &GroupSession,
     ) -> Result<VerifiedSender, PrivateGroupError> {
+        let author = self.verify_original_author(session)?;
+        if let Some(offer) = &self.offer {
+            self.verify_original_offer(session, &author, offer)?;
+        } else {
+            self.verify_original_text(session, &author)?;
+        }
+        Ok(author)
+    }
+
+    pub(super) fn verify_original_author(
+        &self,
+        session: &GroupSession,
+    ) -> Result<VerifiedSender, PrivateGroupError> {
         let proof: SenderProof = decode_json(&decode(&self.acceptance.original_sender_proof_b64)?)?;
-        let channel = if self.offer.is_some() {
+        let channel = if self.offer.is_some()
+            || self.erased.as_ref().is_some_and(|erased| erased.attachment)
+        {
             &session.control_channel
         } else {
             &session.data_channel
@@ -27,11 +42,6 @@ impl GroupRecord {
             return Err(PrivateGroupError::Codec(
                 "original group author differs".into(),
             ));
-        }
-        if let Some(offer) = &self.offer {
-            self.verify_original_offer(session, &author, offer)?;
-        } else {
-            self.verify_original_text(session, &author)?;
         }
         Ok(author)
     }

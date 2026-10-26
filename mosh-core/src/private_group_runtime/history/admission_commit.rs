@@ -51,18 +51,13 @@ impl GroupSession {
             original_org: self.incoming_org_control.as_ref().map(|b| encode(b)),
             roster: self.roster_cache.as_ref().map(|r| encode(&r.0)),
         };
-        store.commit_history_admission::<GroupMessage>(
-            GROUP_HISTORY,
-            &self.group_id,
-            HistoryAdmission {
-                evidence: &[EvidenceWrite {
-                    key: pending_key(&self.group_id, &decode(commit)?),
-                    bytes: serde_json::to_vec(&pending)
-                        .map_err(|e| PrivateGroupError::Codec(e.to_string()))?,
-                }],
-                ..Default::default()
-            },
-            &[],
+        store.save_pending_group_evidence(
+            &format!(
+                "group/{}/pending-association/",
+                hex::encode(Sha256::digest(self.group_id.as_bytes()))
+            ),
+            &pending_key(&self.group_id, &decode(commit)?, &sender.mls_signer),
+            &serde_json::to_vec(&pending).map_err(|e| PrivateGroupError::Codec(e.to_string()))?,
         )?;
         Ok(())
     }
@@ -75,8 +70,11 @@ pub(super) fn verified_association(
     staged: &StagedMembership,
     commit: &[u8],
 ) -> Result<Vec<EvidenceWrite>, PrivateGroupError> {
-    let Some(pending) =
-        store.group_history_evidence::<PendingAssociation>(&pending_key(group, commit))?
+    let Some(pending) = store.group_history_evidence::<PendingAssociation>(&pending_key(
+        group,
+        commit,
+        &staged.author,
+    ))?
     else {
         return Ok(Vec::new());
     };
@@ -115,10 +113,11 @@ pub(super) fn verified_association(
     }])
 }
 
-fn pending_key(group: &str, commit: &[u8]) -> String {
+fn pending_key(group: &str, commit: &[u8], author: &[u8]) -> String {
     format!(
-        "group/{}/pending-association/{}",
+        "group/{}/pending-association/{}/{}",
         hex::encode(Sha256::digest(group.as_bytes())),
-        hex::encode(Sha256::digest(commit))
+        hex::encode(Sha256::digest(commit)),
+        hex::encode(author)
     )
 }

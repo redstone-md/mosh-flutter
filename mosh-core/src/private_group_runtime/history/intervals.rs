@@ -27,7 +27,28 @@ impl GroupSession {
             .persistence
             .as_deref()
             .ok_or(PrivateGroupError::NotReady)?;
-        let mut cursor = start.clone();
+        let (known, members) = self.earliest_history_context()?;
+        if at.epoch < known.epoch {
+            return if self.known_member_at(at, key)? == Some(true) {
+                Ok(())
+            } else {
+                Err(PrivateGroupError::Codec(
+                    "retained historical interval unavailable".into(),
+                ))
+            };
+        }
+        let mut cursor = if start.epoch < known.epoch {
+            known.clone()
+        } else {
+            start.clone()
+        };
+        if cursor.epoch > at.epoch
+            || (cursor == known && !members.iter().any(|member| member == key))
+        {
+            return Err(PrivateGroupError::Codec(
+                "record precedes verified membership".into(),
+            ));
+        }
         while cursor.epoch < head.epoch {
             let transition = store
                 .group_history_evidence::<super::transitions::NativeTransition>(&format!(
@@ -64,5 +85,39 @@ impl GroupSession {
             ));
         }
         Ok(())
+    }
+
+    /// A pinned own Welcome or an upgrade checkpoint may start after another
+    /// author's Add. Only the locally verified suffix can authorize a record.
+    fn earliest_history_context(
+        &self,
+    ) -> Result<(MlsHistoryContext, Vec<String>), PrivateGroupError> {
+        let mut cursor = self.crypto.history_context()?;
+        let mut members = self.crypto.member_signers();
+        let store = self
+            .persistence
+            .as_ref()
+            .ok_or(PrivateGroupError::NotReady)?;
+        for _ in 0..4096 {
+            let Some(epoch) = cursor.epoch.checked_sub(1) else {
+                break;
+            };
+            let Some(transition) = store
+                .group_history_evidence::<super::transitions::NativeTransition>(&format!(
+                    "group/{}/transition/{epoch:020}",
+                    hex::encode(Sha256::digest(self.group_id.as_bytes()))
+                ))?
+            else {
+                break;
+            };
+            if transition.next != cursor || transition.prior.epoch != epoch {
+                return Err(PrivateGroupError::Codec(
+                    "verified membership branch differs".into(),
+                ));
+            }
+            cursor = transition.prior;
+            members = transition.previous_member_keys;
+        }
+        Ok((cursor, members))
     }
 }

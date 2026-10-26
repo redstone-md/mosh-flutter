@@ -36,6 +36,14 @@ impl PrivateGroupRuntime {
             }
         }
         for session in self.groups.values_mut() {
+            if let Err(error) = session.retry_pending_join() {
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::FRAME,
+                    &session.group_id,
+                    &format!("group admission retry deferred: {error}"),
+                );
+            }
             if let Err(error) = session.apply_deletions() {
                 dlog::write(
                     LogLevel::Warn,

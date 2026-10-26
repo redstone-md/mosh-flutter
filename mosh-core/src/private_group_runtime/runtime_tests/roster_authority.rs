@@ -13,11 +13,13 @@ fn org_commit_authority_follows_roster_with_lag_buffer() {
     let persistence =
         Arc::new(Persistence::open_with_dek(&db_path, [29u8; 32]).expect("store should open"));
 
-    let admin_seed = [81u8; 32];
-    persistence
-        .put_moss_identity(&identity_blob(admin_seed))
+    let _identity = crate::moss_ffi::replace_test_keystore(Some(persistence.clone()));
+    let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
+    let native = moss
+        .init_default_node("org-authority-identity", &Default::default())
         .unwrap();
-    let admin_peer = org_signing::peer_id_hex(&SigningKey::from_bytes(&admin_seed));
+    let admin_peer = native.public_key_hex().unwrap();
+    drop(native);
     let member_b_key = SigningKey::from_bytes(&[82u8; 32]);
     let member_b = org_signing::peer_id_hex(&member_b_key);
     let member_c = hex::encode([0x83u8; 32]);
@@ -38,7 +40,6 @@ fn org_commit_authority_follows_roster_with_lag_buffer() {
     };
     put_roster(1, "member");
 
-    let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
     let mut runtime =
         PrivateGroupRuntime::from_shared(moss, temp_store(), Some(persistence.clone()));
     let created = runtime
@@ -146,11 +147,13 @@ fn roster_reconciliation_kicks_revoked_members_and_survives_restart() {
     let persistence =
         Arc::new(Persistence::open_with_dek(&db_path, [31u8; 32]).expect("store should open"));
 
-    let admin_seed = [91u8; 32];
-    persistence
-        .put_moss_identity(&identity_blob(admin_seed))
+    let _identity = crate::moss_ffi::replace_test_keystore(Some(persistence.clone()));
+    let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
+    let native = moss
+        .init_default_node("org-kick-identity", &Default::default())
         .unwrap();
-    let admin_peer = org_signing::peer_id_hex(&SigningKey::from_bytes(&admin_seed));
+    let admin_peer = native.public_key_hex().unwrap();
+    drop(native);
     let member_b_key = SigningKey::from_bytes(&[92u8; 32]);
     let member_b = org_signing::peer_id_hex(&member_b_key);
 
@@ -174,7 +177,6 @@ fn roster_reconciliation_kicks_revoked_members_and_survives_restart() {
     };
     put_roster(1, "admin", true);
 
-    let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
     let mut runtime =
         PrivateGroupRuntime::from_shared(moss, temp_store(), Some(persistence.clone()));
     let created = runtime

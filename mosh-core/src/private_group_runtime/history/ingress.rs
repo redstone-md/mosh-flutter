@@ -63,7 +63,16 @@ impl GroupSession {
                 "group history recipient differs".into(),
             ));
         }
-        let sender = self.validate_history_scope(&body.scope, &frame.sender_key)?;
+        let sender = body.scope.membership.verify_current(self)?;
+        if sender.peer_id != frame.sender_key {
+            return Err(PrivateGroupError::Codec(
+                "group history member differs".into(),
+            ));
+        }
+        if body.scope.head != self.current_history_head()? && body.evidence.is_none() {
+            self.request_transition_evidence(&frame, &body.scope)?;
+            return Err(PrivateGroupError::NotReady);
+        }
         Ok(CheckedFrame {
             frame,
             body,
@@ -74,6 +83,9 @@ impl GroupSession {
 
     pub(super) fn receive_history(&mut self, frame: HistoryFrame) -> Result<(), PrivateGroupError> {
         let checked = self.check_history(frame)?;
+        if checked.body.evidence.is_some() {
+            return self.receive_transition_evidence(checked);
+        }
         match checked.body.message.clone() {
             HistoryMessage::Probe => self.answer_history(checked, None),
             HistoryMessage::Pull(pull) => self.answer_history(checked, Some(pull)),

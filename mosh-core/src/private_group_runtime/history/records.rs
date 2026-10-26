@@ -19,6 +19,8 @@ pub(super) struct GroupRecord {
     pub(super) body: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) offer: Option<AttachmentOffer>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) erased: Option<super::erased::ErasedTarget>,
     pub(super) acceptance: NativeAcceptance,
     pub(super) author_checkpoint: NativeCheckpoint,
     pub(super) vouch: HolderVouchV1,
@@ -33,23 +35,23 @@ impl GroupSession {
     ) -> Result<GroupRecord, PrivateGroupError> {
         let store = self
             .persistence
-            .as_ref()
+            .clone()
             .ok_or(PrivateGroupError::NotReady)?;
         let acceptance: NativeAcceptance = store
             .group_history_evidence(&native_acceptance_key(&self.group_id, &row.message_id))?
             .ok_or_else(|| {
                 PrivateGroupError::Codec("original group acceptance unavailable".into())
             })?;
-        if row
+        let erased = if row
             .message
             .metadata
             .as_ref()
             .is_some_and(|m| m.deletion.is_some())
         {
-            return Err(PrivateGroupError::Codec(
-                "group erased evidence unavailable".into(),
-            ));
-        }
+            Some(self.erased_history_target(row, &acceptance)?)
+        } else {
+            None
+        };
         let reference = acceptance
             .author_admission_instance
             .as_ref()
@@ -74,6 +76,7 @@ impl GroupSession {
                     manifest,
                     preview_manifest: row.preview_manifest.clone(),
                 }),
+            erased,
             acceptance,
             author_checkpoint,
             vouch,
@@ -103,7 +106,7 @@ impl GroupRecord {
             .as_ref()
             .is_some_and(|m| m.deletion.is_some())
         {
-            return Err("group erased evidence unavailable".into());
+            return Ok(None);
         }
         let offer = row
             .attachment_manifest
@@ -142,6 +145,30 @@ impl GroupRecord {
         context: &str,
         mesh: &str,
     ) -> Result<Option<Occurrence>, String> {
+        if row
+            .message
+            .metadata
+            .as_ref()
+            .is_some_and(|metadata| metadata.deletion.is_some())
+        {
+            let Some(origin) = row
+                .message
+                .metadata
+                .as_ref()
+                .and_then(|metadata| metadata.origin.as_ref())
+            else {
+                return Ok(None);
+            };
+            return Ok(Some(Occurrence {
+                native_id: row.message_id.clone(),
+                row_key: format!(
+                    "{}\u{1}{:020}\u{1}{}",
+                    row.conversation_id, row.sent_at_ms, row.message_id
+                ),
+                identity: origin.key()?,
+                content_digest: None,
+            }));
+        }
         let Some(key) = Self::key(row, context, mesh)? else {
             return Ok(None);
         };
@@ -175,7 +202,11 @@ impl GroupRecord {
                 "invalid group history record bounds".into(),
             ));
         }
-        let author = self.verify_original_content(session)?;
+        let author = if self.erased.is_some() {
+            self.verify_erased_original(session)?
+        } else {
+            self.verify_original_content(session)?
+        };
         let member = self
             .author_checkpoint
             .verify_at(session, &self.acceptance.context)?;
@@ -183,15 +214,15 @@ impl GroupRecord {
             || member.mls_signer != author.mls_signer
             || Some(&self.author_checkpoint.reference()?)
                 != self.acceptance.author_admission_instance.as_ref()
-            || self.acceptance.context != *self.author_checkpoint.context()
-            || semantic_record_hash(
-                &session.deletions.context,
-                &session.mesh_id,
-                &self.message(),
-                &self.acceptance.original_author_mls_key,
-                &self.acceptance.original_author_moss_key,
-                self.offer.as_ref(),
-            )? != self.acceptance.record_hash
+            || (self.erased.is_none()
+                && semantic_record_hash(
+                    &session.deletions.context,
+                    &session.mesh_id,
+                    &self.message(),
+                    &self.acceptance.original_author_mls_key,
+                    &self.acceptance.original_author_moss_key,
+                    self.offer.as_ref(),
+                )? != self.acceptance.record_hash)
         {
             return Err(PrivateGroupError::Codec(
                 "group historical author interval differs".into(),

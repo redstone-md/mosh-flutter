@@ -4,6 +4,7 @@ use crate::mls_crypto::MlsHistoryContext;
 use crate::persistence::history_admission::EvidenceWrite;
 use crate::sender_auth::VerifiedSender;
 use sha2::{Digest, Sha256};
+mod canonical;
 mod current;
 mod own;
 
@@ -42,10 +43,12 @@ struct VerifiedSinceCheckpointV1 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct NativeCheckpoint {
+pub(in crate::private_group_runtime) struct NativeCheckpoint {
     checkpoint: VerifiedSinceCheckpointV1,
     binding_channel: String,
     original_binding_proof_b64: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    canonical_reference: Option<MembershipReference>,
 }
 
 impl VerifiedSinceCheckpointV1 {
@@ -79,9 +82,13 @@ impl GroupSession {
         let Some(store) = self.persistence.as_deref() else {
             return Ok(None);
         };
-        let Some(context) = self.checkpoint_context(store, sender)? else {
+        let Some(mut context) = self.checkpoint_context(store, sender)? else {
             return Ok(None);
         };
+        let canonical = self.canonical_membership(&context, &hex::encode(&sender.mls_signer))?;
+        if let Some((_, start)) = &canonical {
+            context = start.clone();
+        }
         let key = format!(
             "group/{}/local-membership/{}/{}/{:020}/{}",
             hex::encode(Sha256::digest(self.group_id.as_bytes())),
@@ -91,9 +98,8 @@ impl GroupSession {
             context.hash
         );
         if let Some(retained) = store.group_history_evidence::<NativeCheckpoint>(&key)? {
-            let id = retained.checkpoint.id()?;
             return Ok(Some(NativeMembership {
-                reference: MembershipReference::VerifiedSinceCheckpointV1(id),
+                reference: retained.reference()?,
                 checkpoint: retained,
                 writes: Vec::new(),
             }));
@@ -109,6 +115,7 @@ impl GroupSession {
             },
             binding_channel: channel.into(),
             original_binding_proof_b64: encode(proof),
+            canonical_reference: canonical.map(|(reference, _)| reference),
         };
         self.write_checkpoint(key, checkpoint)
     }
@@ -146,7 +153,8 @@ impl GroupSession {
         key: String,
         checkpoint: NativeCheckpoint,
     ) -> Result<Option<NativeMembership>, PrivateGroupError> {
-        let id = checkpoint.checkpoint.id()?;
+        let reference = checkpoint.reference()?;
+        let id = reference.tuple().1;
         let bytes = serde_json::to_vec(&checkpoint)
             .map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
         let public_key = format!(
@@ -154,9 +162,10 @@ impl GroupSession {
             hex::encode(Sha256::digest(self.group_id.as_bytes()))
         );
         Ok(Some(NativeMembership {
-            reference: MembershipReference::VerifiedSinceCheckpointV1(id),
+            reference,
             checkpoint,
             writes: vec![
+                super::known_context::context_write(&self.group_id, &self.crypto)?,
                 EvidenceWrite {
                     key,
                     bytes: bytes.clone(),

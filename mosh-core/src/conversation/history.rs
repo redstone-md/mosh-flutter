@@ -127,9 +127,16 @@ impl History {
                     local_author,
                     transfer,
                     stored.attachment_manifest,
-                    stored
-                        .preview_manifest
-                        .filter(|_| stored.history_evidence.is_none()),
+                    stored.preview_manifest.filter(|_| {
+                        stored.history_evidence.as_ref().is_none_or(|e| {
+                            e.group.as_ref().is_some_and(|g| {
+                                !matches!(
+                                    g.basis,
+                                    super::recovery::GroupAcceptanceBasis::InheritedImport
+                                )
+                            })
+                        })
+                    }),
                 );
                 log.upsert(message);
             }

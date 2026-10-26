@@ -5,14 +5,14 @@ use crate::persistence::history_admission::{EvidenceWrite, OrgAuthorityGuard};
 use sha2::{Digest, Sha256};
 
 #[derive(Serialize, Deserialize)]
-struct NativeAdmissionAnchor {
-    context: MlsHistoryContext,
+pub(super) struct NativeAdmissionAnchor {
+    pub(super) context: MlsHistoryContext,
     original_author_mls_key: String,
     original_author_identity: String,
-    own_mls_key: String,
+    pub(super) own_mls_key: String,
     original_welcome_b64: String,
     original_tree_b64: String,
-    canonical_add_commit_hash: Option<String>,
+    pub(super) canonical_add_commit_hash: Option<String>,
     #[serde(default)]
     original_admission_binding_b64: Option<String>,
     original_org_signed_b64: Option<String>,
@@ -139,7 +139,10 @@ impl GroupSession {
                 own_snapshot: Some(&staged.next.snapshot()),
                 finalize_native: true,
                 org_authority: authority,
-                evidence: &[evidence],
+                evidence: &[
+                    evidence,
+                    super::known_context::context_write(&self.group_id, &staged.next)?,
+                ],
                 ..Default::default()
             },
             &[],
