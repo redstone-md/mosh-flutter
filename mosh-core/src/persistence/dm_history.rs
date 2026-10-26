@@ -1,6 +1,14 @@
 //! Import text and its continuation cursor in one locally encrypted transaction.
 use super::*;
 use crate::conversation::history::StoredMessage;
+use crate::conversation::recovery::occurrence::Occurrence;
+
+pub(super) struct ImportState<'a> {
+    pub table: Rows,
+    pub key: &'a str,
+    pub bytes: &'a [u8],
+    pub occurrences: &'a [Occurrence],
+}
 
 impl Persistence {
     pub(crate) fn get_dm_history_message(
@@ -21,7 +29,27 @@ impl Persistence {
         record: &[u8],
         messages: &[StoredMessage<M>],
     ) -> Result<(), PersistenceError> {
-        let record = encrypt_blob(&self.dek, record)?;
+        self.commit_history_import(
+            DM_HISTORY,
+            session,
+            ImportState {
+                table: SESSIONS,
+                key: session,
+                bytes: record,
+                occurrences: &[],
+            },
+            messages,
+        )
+    }
+
+    pub(super) fn commit_history_import<M: serde::Serialize>(
+        &self,
+        tables: HistoryTables,
+        session: &str,
+        state: ImportState<'_>,
+        messages: &[StoredMessage<M>],
+    ) -> Result<(), PersistenceError> {
+        let record = encrypt_blob(&self.dek, state.bytes)?;
         let mut rows = Vec::with_capacity(messages.len());
         for message in messages {
             let json = serde_json::to_vec(message)
@@ -30,10 +58,13 @@ impl Persistence {
             rows.push((key, encrypt_blob(&self.dek, &json)?));
         }
         self.write(|tx| {
-            for (key, value) in &rows {
-                self.write_history_row(tx, DM_HISTORY, key, value)?;
+            for occurrence in state.occurrences {
+                self.admit_occurrence(tx, tables, session, occurrence)?;
             }
-            Self::update_row(tx, SESSIONS, session, Some(&record))
+            for (key, value) in &rows {
+                self.write_history_row(tx, tables, key, value)?;
+            }
+            Self::update_row(tx, state.table, state.key, Some(&record))
         })
     }
 }

@@ -83,6 +83,7 @@ impl ConversationMessage for ChannelMessage {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ChannelSnapshot {
+    pub history_sync: Option<crate::conversation::recovery::HistorySync>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deletion_summary: Option<crate::message_deletion::types::DeletionSummary>,
     pub name: String,
@@ -104,6 +105,9 @@ pub struct ChannelSnapshot {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub(super) enum ChannelBlobEnvelope {
+    History {
+        frame: crate::conversation::recovery::wire::HistoryFrame,
+    },
     PlusMetadata {
         frame: crate::plus::PlusFrame,
     },

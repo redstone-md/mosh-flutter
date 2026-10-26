@@ -9,6 +9,7 @@ import '../channel_runtime/types.dart';
 import '../conversation/attachments.dart';
 import '../conversation/dm_offers.dart';
 import '../conversation/mesh.dart';
+import '../conversation/recovery.dart';
 import '../frb_generated.dart';
 import '../message_deletion/origin.dart';
 import '../message_deletion/types.dart';

@@ -30,6 +30,7 @@ import 'chat_names/types.dart';
 import 'conversation/attachments.dart';
 import 'conversation/dm_offers.dart';
 import 'conversation/mesh.dart';
+import 'conversation/recovery.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'device_link/types.dart';
@@ -3845,6 +3846,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HistorySync dco_decode_box_autoadd_history_sync(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_history_sync(raw);
+  }
+
+  @protected
+  HistorySyncReason dco_decode_box_autoadd_history_sync_reason(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_history_sync_reason(raw);
+  }
+
+  @protected
   JoinChannelRequest dco_decode_box_autoadd_join_channel_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_join_channel_request(raw);
@@ -4084,20 +4097,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ChannelSnapshot dco_decode_channel_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
     return ChannelSnapshot(
-      deletionSummary: dco_decode_opt_box_autoadd_deletion_summary(arr[0]),
-      name: dco_decode_String(arr[1]),
-      topic: dco_decode_String(arr[2]),
-      meshId: dco_decode_String(arr[3]),
-      displayName: dco_decode_String(arr[4]),
-      deviceFingerprint: dco_decode_String(arr[5]),
-      messages: dco_decode_list_channel_message(arr[6]),
-      attachments: dco_decode_list_attachment_view(arr[7]),
-      dmOffers: dco_decode_list_dm_offer(arr[8]),
-      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[9]),
-      events: dco_decode_list_snapshot_event(arr[10]),
+      historySync: dco_decode_opt_box_autoadd_history_sync(arr[0]),
+      deletionSummary: dco_decode_opt_box_autoadd_deletion_summary(arr[1]),
+      name: dco_decode_String(arr[2]),
+      topic: dco_decode_String(arr[3]),
+      meshId: dco_decode_String(arr[4]),
+      displayName: dco_decode_String(arr[5]),
+      deviceFingerprint: dco_decode_String(arr[6]),
+      messages: dco_decode_list_channel_message(arr[7]),
+      attachments: dco_decode_list_attachment_view(arr[8]),
+      dmOffers: dco_decode_list_dm_offer(arr[9]),
+      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[10]),
+      events: dco_decode_list_snapshot_event(arr[11]),
     );
   }
 
@@ -4496,6 +4510,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       memberPeerIds: dco_decode_list_String(arr[19]),
       typingMembers: dco_decode_list_typing_member(arr[20]),
     );
+  }
+
+  @protected
+  HistorySync dco_decode_history_sync(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return HistorySync(
+      state: dco_decode_history_sync_state(arr[0]),
+      reason: dco_decode_opt_box_autoadd_history_sync_reason(arr[1]),
+    );
+  }
+
+  @protected
+  HistorySyncReason dco_decode_history_sync_reason(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return HistorySyncReason.values[raw as int];
+  }
+
+  @protected
+  HistorySyncState dco_decode_history_sync_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return HistorySyncState.values[raw as int];
   }
 
   @protected
@@ -5033,6 +5071,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   GroupNameStatus? dco_decode_opt_box_autoadd_group_name_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_group_name_status(raw);
+  }
+
+  @protected
+  HistorySync? dco_decode_opt_box_autoadd_history_sync(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_history_sync(raw);
+  }
+
+  @protected
+  HistorySyncReason? dco_decode_opt_box_autoadd_history_sync_reason(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_history_sync_reason(raw);
   }
 
   @protected
@@ -6031,6 +6082,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HistorySync sse_decode_box_autoadd_history_sync(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_history_sync(deserializer));
+  }
+
+  @protected
+  HistorySyncReason sse_decode_box_autoadd_history_sync_reason(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_history_sync_reason(deserializer));
+  }
+
+  @protected
   JoinChannelRequest sse_decode_box_autoadd_join_channel_request(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -6285,6 +6350,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   ChannelSnapshot sse_decode_channel_snapshot(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_historySync = sse_decode_opt_box_autoadd_history_sync(deserializer);
     var var_deletionSummary =
         sse_decode_opt_box_autoadd_deletion_summary(deserializer);
     var var_name = sse_decode_String(deserializer);
@@ -6298,6 +6364,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_mesh = sse_decode_opt_box_autoadd_mesh_info(deserializer);
     var var_events = sse_decode_list_snapshot_event(deserializer);
     return ChannelSnapshot(
+        historySync: var_historySync,
         deletionSummary: var_deletionSummary,
         name: var_name,
         topic: var_topic,
@@ -6745,6 +6812,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         orgPubkey: var_orgPubkey,
         memberPeerIds: var_memberPeerIds,
         typingMembers: var_typingMembers);
+  }
+
+  @protected
+  HistorySync sse_decode_history_sync(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_state = sse_decode_history_sync_state(deserializer);
+    var var_reason =
+        sse_decode_opt_box_autoadd_history_sync_reason(deserializer);
+    return HistorySync(state: var_state, reason: var_reason);
+  }
+
+  @protected
+  HistorySyncReason sse_decode_history_sync_reason(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return HistorySyncReason.values[inner];
+  }
+
+  @protected
+  HistorySyncState sse_decode_history_sync_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return HistorySyncState.values[inner];
   }
 
   @protected
@@ -7568,6 +7659,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_group_name_status(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  HistorySync? sse_decode_opt_box_autoadd_history_sync(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_history_sync(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  HistorySyncReason? sse_decode_opt_box_autoadd_history_sync_reason(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_history_sync_reason(deserializer));
     } else {
       return null;
     }
@@ -8695,6 +8810,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_history_sync(
+      HistorySync self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_history_sync(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_history_sync_reason(
+      HistorySyncReason self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_history_sync_reason(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_join_channel_request(
       JoinChannelRequest self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -8926,6 +9055,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_channel_snapshot(
       ChannelSnapshot self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_history_sync(self.historySync, serializer);
     sse_encode_opt_box_autoadd_deletion_summary(
         self.deletionSummary, serializer);
     sse_encode_String(self.name, serializer);
@@ -9257,6 +9387,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.orgPubkey, serializer);
     sse_encode_list_String(self.memberPeerIds, serializer);
     sse_encode_list_typing_member(self.typingMembers, serializer);
+  }
+
+  @protected
+  void sse_encode_history_sync(HistorySync self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_history_sync_state(self.state, serializer);
+    sse_encode_opt_box_autoadd_history_sync_reason(self.reason, serializer);
+  }
+
+  @protected
+  void sse_encode_history_sync_reason(
+      HistorySyncReason self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_history_sync_state(
+      HistorySyncState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -9904,6 +10055,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_group_name_status(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_history_sync(
+      HistorySync? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_history_sync(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_history_sync_reason(
+      HistorySyncReason? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_history_sync_reason(self, serializer);
     }
   }
 

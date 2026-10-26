@@ -31,6 +31,10 @@ mod outbound;
 mod outbound_guard;
 mod plus;
 mod records;
+mod recovery;
+pub(crate) use recovery::FrozenExport;
+mod recovery_occurrences;
+mod recovery_pages;
 mod schema;
 #[cfg(test)]
 pub(crate) mod test_faults;

@@ -180,6 +180,13 @@ impl<S: ConversationSession> ConversationRuntime<S> {
         self.final_records.insert(conversation_id.to_string());
     }
 
+    /// Called only after an atomic import saved the existing tail and new rows.
+    pub(crate) fn acknowledge_history(&mut self, id: &str) {
+        if let Some(session) = self.sessions.get(id) {
+            self.history.acknowledge(id, session.log().len());
+        }
+    }
+
     /// Forgets what the shell remembers about one conversation: how much of
     /// its history is already down, and whether its record is final. For one
     /// the user left, whose rows are being deleted anyway.
