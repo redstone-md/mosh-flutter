@@ -195,6 +195,7 @@ impl Fixture {
 mod calls;
 mod deletion;
 mod export;
+mod notifications;
 mod recovery;
 mod revocation;
 
@@ -352,6 +353,7 @@ fn signed_history_boundary_refuses_outsiders_tampering_conflicts_and_stale_roste
 #[test]
 #[ignore = "Independent installation worker, invoked by the signed boundary test."]
 fn history_packet_process() {
+    notifications::ownership_is_recomputed_from_verified_original_signers(&mut Fixture::new());
     export::frozen_metadata_survives_a_recovery_checkpoint(&mut Fixture::new());
     signed_refusals(&mut Fixture::new());
     conflicting_and_incomplete_batches(&mut Fixture::new());
