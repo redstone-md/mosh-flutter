@@ -32,6 +32,8 @@ run("java", ["-cp", classes, "app.mosh.mosh.AccessPolicyProbe"]);
 run("javac", ["-d", classes, path.join(probe, "WaitingPolicyProbe.java"),
   path.join(root, "android/app/src/main/java/app/mosh/mosh/MoshWaitingExecution.java"),
   path.join(root, "android/app/src/main/java/app/mosh/mosh/MoshCallActions.java"),
+  path.join(root, "android/app/src/main/java/app/mosh/mosh/MoshTransferExecution.java"),
+  path.join(root, "android/app/src/main/java/app/mosh/mosh/MoshTransferActions.java"),
   path.join(root, "android/app/src/main/java/app/mosh/mosh/MoshWaitingPolicy.java")]);
 run("java", ["-cp", classes, "app.mosh.mosh.WaitingPolicyProbe"]);
 

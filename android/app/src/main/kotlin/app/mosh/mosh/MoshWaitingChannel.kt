@@ -22,6 +22,11 @@ internal class MoshWaitingChannel(messenger: BinaryMessenger, private val owner:
                     "publishNotification" -> owner.publishNotification(call.arguments as Map<*, *>)
                     "startupFailed" -> owner.startupFailed(call.arguments as Map<*, *>)
                     "takeCallActions" -> owner.takeCallActions()
+                    "beginUserTransfer" -> owner.transfers.begin(call.arguments as Map<*, *>, false)
+                    "beginDeferredTransfer" -> owner.transfers.begin(call.arguments as Map<*, *>, true)
+                    "readTransferExecution" -> owner.transfers.snapshot()
+                    "takeTransferActions" -> owner.transfers.takeActions()
+                    "acknowledgeTransferActions" -> { owner.transfers.acknowledge(call.arguments as List<*>); null }
                     "requestBatteryExemption" -> owner.requestBatteryExemption()
                     else -> { result.notImplemented(); return@setMethodCallHandler }
                 }
@@ -34,4 +39,6 @@ internal class MoshWaitingChannel(messenger: BinaryMessenger, private val owner:
 
     fun publish(value: Map<String, Any?>) { channel.invokeMethod("waitingStateChanged", value) }
     fun callActionsChanged() { channel.invokeMethod("callActionsChanged", null) }
+    fun transferExecutionChanged() { channel.invokeMethod("transferExecutionChanged", null) }
+    fun transferActionsChanged() { channel.invokeMethod("transferActionsChanged", null) }
 }

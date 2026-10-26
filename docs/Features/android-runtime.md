@@ -78,6 +78,33 @@ The existing ringtone player handles both Dart outgoing and native incoming
 audio with separate identities, original expiry, silent/vibrate and DND limits.
 No second player, engine, media owner or ringtone plugin is registered.
 
+## User-started file transfers
+
+Attachment offers create no download. Explicit user work uses a UIDT JobScheduler
+job on Android 14+, or a separate correctly typed dataSync service earlier.
+An actual late authenticated receiver request uses an ordinary constrained job;
+an outstanding offer alone holds neither a job nor an active mesh. Scheduling
+acceptance does not authorize bytes: actual OS start/stop callbacks update a
+short native JNI grant, independently of Dart. Per-operation generations and a
+process incarnation fence stale callbacks. The worker, DEK and checkpoints remain
+with the existing native owner.
+
+Both entries post generic progress before starting that same engine and respect
+first unlock and OS user Stop. Native byte progress renews a two-minute execution
+lease; a stalled transfer releases eligibility and retains its checkpoint. There
+is no polling watchdog or automatic fresh UIDT from an invisible remote request.
+Native completion, cancellation or removal releases the OS job/service. Transfer
+completion never enables a saved Stop waiting choice.
+
+Notifications expose only progress and an opaque operation ID. Cancel revokes
+the native grant synchronously; its opaque action is saved before acknowledgement.
+The same owner drains these actions before new deferred work, and acknowledges
+their exact revisions only after native persistence. A delayed acknowledgement
+cannot erase a newer action. Resume opens the ordinary protected Activity and
+requires an eligible explicit user action. Notification content taps only open
+the app; they do not restart a transfer. Actual Android constraints pause work
+without claiming user cancellation.
+
 ## Verification
 
 The Android instrumentation runner recreates the real Activity three times and
@@ -110,3 +137,8 @@ instrumentation sources compile. On an isolated, notification-enabled device,
 pass `-e waitingNotifications true` to the instrumentation runner to exercise
 actual OS extras, privacy reduction and stale revision replay. That check has
 not been executed without a device.
+
+The host probe also checks scheduling versus actual execution grants, stale stop
+fencing, cold process incarnations and durable action acknowledgements. Transfer
+Kotlin/Java and instrumentation compile against the SDK; no UIDT, dataSync,
+constraint-loss or OS Stop behavior has been executed on a phone yet.

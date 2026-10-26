@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.RUN_USER_INITIATED_JOBS"/>
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
@@ -30,6 +32,11 @@
         <receiver android:name=".MoshWaitingBoot" android:exported="false">
             <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/></intent-filter>
         </receiver>
+        <service android:name=".MoshTransferJobService" android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE"/>
+        <service android:name=".MoshTransferLegacyService" android:exported="false"
+            android:stopWithTask="false" android:foregroundServiceType="dataSync"/>
+        <receiver android:name=".MoshTransferControl" android:exported="false"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"

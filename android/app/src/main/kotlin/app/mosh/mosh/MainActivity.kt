@@ -28,7 +28,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val entry = intent
-        intent = MoshCallIntents.forFlutter(entry)
+        intent = MoshTransferIntents.forFlutter(MoshCallIntents.forFlutter(entry))
         super.onCreate(savedInstanceState)
         // Flutter installs its view during super.onCreate, before a PiP shield
         // can safely be added above it.
@@ -36,11 +36,13 @@ class MainActivity : FlutterActivity() {
         access?.attach(this)
         waiting?.attach(this)
         waiting?.callIntent(entry)
+        waiting?.transfers?.accept(entry)
     }
 
     override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(MoshCallIntents.forFlutter(intent))
+        super.onNewIntent(MoshTransferIntents.forFlutter(MoshCallIntents.forFlutter(intent)))
         waiting?.callIntent(intent)
+        waiting?.transfers?.accept(intent)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

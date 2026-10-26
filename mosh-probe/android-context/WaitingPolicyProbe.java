@@ -20,7 +20,53 @@ public final class WaitingPolicyProbe {
         checkRefusal(store);
         checkDrainFence();
         checkActions();
+        checkTransferGrants();
+        checkTransferActions();
         System.out.println("Android waiting intent, disclosure and consent verified");
+    }
+
+    private static void checkTransferActions() {
+        final String[] saved = { "" };
+        MoshTransferActions.Store store = new MoshTransferActions.Store() {
+            public String read() { return saved[0]; }
+            public void write(String value) { saved[0] = value; }
+        };
+        String id = "transfer-11111111111111111111111111111111";
+        MoshTransferActions actions = new MoshTransferActions(store);
+        long first = actions.offer(id, "cancel");
+        actions = new MoshTransferActions(store);
+        require(actions.snapshot().size() == 1, "Restart lost unacknowledged cancellation");
+        long newer = actions.offer(id, "resume");
+        actions.acknowledge(id, first);
+        require(actions.snapshot().get(0).revision == newer, "Old acknowledgement erased newer action");
+        require(actions.snapshot().get(0).action.equals("resume"), "Action replacement lost");
+        actions.acknowledge(id, newer);
+        require(new MoshTransferActions(store).snapshot().isEmpty(), "Acknowledged action replayed");
+        MoshTransferActions refused = new MoshTransferActions(new MoshTransferActions.Store() {
+            public String read() { return ""; }
+            public void write(String value) { throw new IllegalStateException("Refused"); }
+        });
+        try { refused.offer(id, "cancel"); throw new AssertionError("Undurable action accepted"); }
+        catch (IllegalStateException expected) {
+            require(refused.snapshot().isEmpty(), "Refused action mutated memory");
+        }
+    }
+
+    private static void checkTransferGrants() {
+        MoshTransferExecution execution = new MoshTransferExecution();
+        String id = "transfer-11111111111111111111111111111111";
+        execution.scheduled(id);
+        require(!execution.snapshot().get(0).allowed, "Scheduling fabricated a running OS job");
+        long first = execution.started(id);
+        require(execution.snapshot().get(0).allowed, "Actual OS start did not grant execution");
+        execution.stopped(id, first, "constraints");
+        require(!execution.snapshot().get(0).allowed, "OS stop retained execution grant");
+        long second = execution.started(id);
+        require(!execution.stopped(id, first, "finished"), "Old invocation stopped replacement job");
+        require(execution.snapshot().get(0).allowed, "Stale stop removed actual grant");
+        execution.stopped(id, second, "finished");
+        require(!execution.snapshot().get(0).allowed, "Finished job retained grant");
+        require(!execution.incarnation.equals(new MoshTransferExecution().incarnation), "Process incarnation reused");
     }
 
     private static void checkActions() {

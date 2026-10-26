@@ -40,9 +40,32 @@ final class WaitingNotificationChecks {
             publisher.refreshPrivacy();
             hidden(notification(manager), true, true);
             checkCallStyle(context, policy);
+            checkTransfers(context);
         } finally {
             manager.cancel(TAG, 2);
         }
+    }
+
+    private static void checkTransfers(Context context) {
+        String id = "transfer-11111111111111111111111111111111";
+        Notification progress = MoshTransferNotifications.INSTANCE.build(context, id, "download", 2, 10, false);
+        require(progress.extras.getInt(Notification.EXTRA_PROGRESS) == 20, "Real byte progress lost");
+        require(progress.contentIntent != null && progress.actions.length == 1, "Transfer actions missing");
+        require(context.getPackageName().equals(progress.actions[0].actionIntent.getCreatorPackage()),
+            "Foreign transfer action");
+        if (android.os.Build.VERSION.SDK_INT >= 31)
+            require(progress.actions[0].actionIntent.isImmutable(), "Mutable transfer action");
+        hidden(progress, true, true);
+        Notification paused = MoshTransferNotifications.INSTANCE.build(context, id, "upload", 0, 0, true);
+        require((paused.flags & Notification.FLAG_ONGOING_EVENT) == 0, "Paused transfer claims ongoing execution");
+        android.content.Intent resume = new android.content.Intent().setAction(MoshTransferIntents.RESUME)
+            .setData(android.net.Uri.parse("mosh-transfer://resume/" + id))
+            .putExtra(MoshTransferIntents.ID, id);
+        require(id.equals(MoshTransferIntents.INSTANCE.id(resume)), "Opaque transfer action lost");
+        require(MoshTransferIntents.INSTANCE.forFlutter(resume).getData() == null,
+            "Transfer action replaced the Flutter route");
+        require(MoshTransferIntents.INSTANCE.id(new android.content.Intent()
+            .putExtra(MoshTransferIntents.ID, "/private/file")) == null, "Transfer accepts a file path as ID");
     }
 
     private static void checkCallStyle(Context context, MoshWaitingPolicy policy) {

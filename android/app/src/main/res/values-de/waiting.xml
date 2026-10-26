@@ -10,4 +10,9 @@
     <string name="mosh_call_outgoing">Anruf…</string>
     <string name="mosh_call_connecting">Anruf wird verbunden…</string>
     <string name="mosh_call_active">Anruf läuft</string>
+    <string name="mosh_transfer_channel">Dateiübertragungen</string>
+    <string name="mosh_transfer_upload">Datei wird gesendet</string>
+    <string name="mosh_transfer_download">Datei wird heruntergeladen</string>
+    <string name="mosh_transfer_paused">Dateiübertragung pausiert</string>
+    <string name="mosh_transfer_resume">Fortsetzen</string>
 </resources>

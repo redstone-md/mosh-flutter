@@ -26,6 +26,8 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
         publish()
     }
     private val media = MoshWaitingMedia(context, { calls.interactive }, ::start)
+    val transfers = MoshUserTransfers(context, { interactive }, ::transferExecutionChanged,
+        { channel.transferActionsChanged() })
     val interactive: Boolean get() = resumed && activity != null &&
         context.getSystemService(PowerManager::class.java).isInteractive &&
         !context.getSystemService(KeyguardManager::class.java).isDeviceLocked
@@ -71,7 +73,7 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
 
     fun serviceChanged() {
         execution.changed()
-        network.observe(MoshWaitingService.running)
+        network.observe(MoshWaitingService.running || transfers.runningCount > 0)
         media.serviceChanged()
         publish()
     }
@@ -81,6 +83,7 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
             value["actualMode"] as? String ?: error("Missing mode"),
             count(value["currentCalls"]), count(value["currentUserTransfers"]))
         if (accepted) {
+            transfers.work(value["transfers"])
             calls.work(count(value["currentCalls"]))
             if (count(value["currentCalls"]) == 0) MoshWaitingService.mediaTypes(false, false)
             val reachability = value["reachability"] as? String ?: "unavailable"
@@ -119,6 +122,7 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
         require(reason in setOf("keyUnavailable", "nativeUnavailable"))
         if (MoshWaitingNotifications.integer(value["intentRevision"]) == execution.revision()) {
             restriction = reason
+            transfers.unavailable()
             MoshWaitingService.finishWaiting()
             publish()
         }
@@ -169,6 +173,13 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
     }
 
     private fun publish() { channel.publish(status()) }
+
+    private fun transferExecutionChanged() {
+        execution.changed()
+        network.observe(MoshWaitingService.running || transfers.runningCount > 0)
+        channel.transferExecutionChanged()
+        publish()
+    }
 
     private fun count(value: Any?): Int = MoshWaitingNotifications.integer(value)
         .also { require(it <= Int.MAX_VALUE) }.toInt()

@@ -10,4 +10,9 @@
     <string name="mosh_call_outgoing">Calling…</string>
     <string name="mosh_call_connecting">Connecting call…</string>
     <string name="mosh_call_active">Call in progress</string>
+    <string name="mosh_transfer_channel">File transfers</string>
+    <string name="mosh_transfer_upload">Sending a file</string>
+    <string name="mosh_transfer_download">Downloading a file</string>
+    <string name="mosh_transfer_paused">File transfer paused</string>
+    <string name="mosh_transfer_resume">Resume</string>
 </resources>
