@@ -50,23 +50,38 @@ def installed_package(adb):
     return result
 
 
+def apk_identity(adb):
+    lines = adb.read("apk_path", "pm", "path", PACKAGE).splitlines()
+    if not lines or any(not re.fullmatch(r"package:/[A-Za-z0-9_./+=-]+\.apk", line) for line in lines):
+        return None
+    hashes = {}
+    for path in sorted({line[len("package:"):] for line in lines}):
+        digest = adb.read("apk_hash", "sha256sum", path).split()
+        hashes[path] = digest[0].lower() if digest and re.fullmatch(r"[a-fA-F0-9]{64}", digest[0]) else None
+    return hashes
+
+
+def verify_apk_identity(before, after):
+    if before is not None and after is not None:
+        changed = before.keys() != after.keys()
+        changed = changed or any(before[path] and after[path] and before[path] != after[path] for path in before)
+        if changed:
+            raise ValueError("Mosh APK identity changed during measurement; retry on one build")
+        if all(before.values()) and all(after.values()):
+            return {"apk_sha256": list(before.values()), "apk_identity_status": "verified-at-endpoints"}
+    return {"apk_sha256": [], "apk_identity_status": "unavailable"}
+
+
 def metadata(adb):
     if adb.read("android_user", "am", "get-current-user").strip() != "0":
         raise ValueError("This collector requires the primary Android user; work-profile UID attribution is unsupported")
-    package = installed_package(adb)
-    hashes = []
-    for line in adb.read("apk_path", "pm", "path", PACKAGE).splitlines():
-        if not re.fullmatch(r"package:/[A-Za-z0-9_./+=-]+\.apk", line):
-            continue
-        digest = adb.read("apk_hash", "sha256sum", line[len("package:"):]).split()
-        if digest and re.fullmatch(r"[a-fA-F0-9]{64}", digest[0]):
-            hashes.append(digest[0].lower())
+    package, identity = installed_package(adb), apk_identity(adb)
     properties = {}
     for key in ("ro.product.manufacturer", "ro.product.model", "ro.build.version.release",
                 "ro.build.version.sdk", "ro.build.version.security_patch", "ro.kernel.qemu"):
         value = adb.read("device_properties", "getprop", key).strip()
         properties[key] = value[:100] if value else None
-    return {"package": PACKAGE, **package, "apk_sha256": hashes, "device": properties}
+    return {"package": PACKAGE, **package, "device": properties}, identity
 
 
 def arguments(argv):
@@ -93,7 +108,7 @@ def arguments(argv):
 
 
 def collect(args, adb):
-    build = metadata(adb)
+    build, original_apk = metadata(adb)
     frequency = adb.read("clock_frequency", "getconf", "CLK_TCK").strip()
     frequency = int(frequency) if frequency.isdecimal() else 0
     print(f"Warmup: {args.warmup}s. Keep the chosen scenario unchanged.", flush=True)
@@ -107,6 +122,7 @@ def collect(args, adb):
     elapsed = time.monotonic() - interval_start
     if installed_package(adb) != {key: build[key] for key in ("uid", "version_code", "version_name")}:
         raise ValueError("Mosh installation changed during measurement; retry on one build")
+    build.update(verify_apk_identity(original_apk, apk_identity(adb)))
     scenario = {key: getattr(args, key) for key in ("phase", "network", "ui", "screen", "profile",
                                                   "waiting", "peers", "dms", "groups", "channels")}
     return {"collector": "mosh-android-baseline-v1", "build": build, "scenario": scenario,
