@@ -48,38 +48,53 @@ impl MlsSessionCrypto {
         commit_bytes: &[u8],
         expected: Option<&str>,
     ) -> Result<(), MlsCryptoError> {
-        let group = self.group.as_mut().ok_or(MlsCryptoError::NotReady)?;
+        *self = self.stage_membership(commit_bytes, expected)?.next;
+        Ok(())
+    }
+
+    /// Validate an exact next commit against own secrets without installing it.
+    pub(crate) fn stage_membership(
+        &self,
+        commit_bytes: &[u8],
+        expected: Option<&str>,
+    ) -> Result<StagedMembership, MlsCryptoError> {
+        let prior = self.history_context()?;
+        let mut candidate = self.receive_candidate()?;
+        let group = candidate.group.as_mut().ok_or(MlsCryptoError::NotReady)?;
         let message =
-            MlsMessageIn::tls_deserialize(&mut &commit_bytes[..]).map_err(MlsCryptoError::codec)?;
+            MlsMessageIn::tls_deserialize_exact(commit_bytes).map_err(MlsCryptoError::codec)?;
         let protocol_message = message
             .try_into_protocol_message()
             .map_err(MlsCryptoError::codec)?;
         let processed = group
-            .process_message(&self.provider, protocol_message)
+            .process_message(&candidate.provider, protocol_message)
             .map_err(MlsCryptoError::openmls)?;
-        if let Some(expected) = expected {
-            let signer = match processed.sender() {
-                Sender::Member(index) => group
-                    .members()
-                    .find(|member| member.index == *index)
-                    .map(|member| hex::encode(member.signature_key)),
-                _ => None,
-            };
-            if signer.as_deref() != Some(expected) {
-                return Err(MlsCryptoError::NotReady);
-            }
+        let author = match processed.sender() {
+            Sender::Member(index) => group
+                .members()
+                .find(|member| member.index == *index)
+                .map(|member| member.signature_key),
+            _ => None,
         }
-        match processed.into_content() {
-            ProcessedMessageContent::StagedCommitMessage(staged) => {
-                group
-                    .merge_staged_commit(&self.provider, *staged)
-                    .map_err(MlsCryptoError::openmls)?;
-                Ok(())
-            }
-            _ => Err(MlsCryptoError::OpenMls(
-                "expected staged commit".to_string(),
-            )),
+        .ok_or(MlsCryptoError::NotReady)?;
+        if expected.is_some_and(|expected| expected != hex::encode(&author)) {
+            return Err(MlsCryptoError::NotReady);
         }
+        let ProcessedMessageContent::StagedCommitMessage(staged) = processed.into_content() else {
+            return Err(MlsCryptoError::OpenMls("expected staged commit".into()));
+        };
+        let context = MlsHistoryContext::from_context(staged.group_context())?;
+        let removed = staged.self_removed();
+        group
+            .merge_staged_commit(&candidate.provider, *staged)
+            .map_err(MlsCryptoError::openmls)?;
+        Ok(StagedMembership {
+            next: candidate,
+            prior,
+            context,
+            author,
+            removed,
+        })
     }
 
     pub fn leave_proposal_bytes(&mut self) -> Result<Vec<u8>, MlsCryptoError> {

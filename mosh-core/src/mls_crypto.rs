@@ -7,12 +7,15 @@ use crate::mls_storage::PersistentProvider;
 
 mod commits;
 mod forward_recovery;
+mod history;
 mod membership;
 mod messages;
 mod metadata;
 mod roster;
 mod setup;
 mod storage;
+
+pub(crate) use history::{MlsHistoryContext, StagedAdmission, StagedMembership};
 
 const CIPHERSUITE: Ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
 const FINGERPRINT_LEN: usize = 16;
