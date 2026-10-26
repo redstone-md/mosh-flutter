@@ -41,7 +41,11 @@ impl<T> RuntimeOwner<T> {
     }
 
     /// Called once by the constructor; never holds an owner while reconciling execution.
-    pub(crate) fn start_service(&'static self, interval: std::time::Duration, service: fn(&mut T))
+    pub(crate) fn start_service(
+        &'static self,
+        interval: std::time::Duration,
+        service: fn(&mut T),
+    ) -> Result<(), String>
     where
         T: Send + 'static,
     {
@@ -56,21 +60,16 @@ impl<T> RuntimeOwner<T> {
                     let Ok(_authority) = super::background::execution_lease() else {
                         return;
                     };
-                    let Ok(mut runtime) = mutex.lock() else {
-                        return;
-                    };
-                    service(&mut runtime);
+                    if super::background::network_permitted() {
+                        let Ok(mut runtime) = mutex.lock() else {
+                            return;
+                        };
+                        service(&mut runtime);
+                    }
                 }
                 super::background::reconcile();
             });
-        if let Err(error) = spawned {
-            crate::diagnostics_log::write(
-                crate::diagnostics_log::LogLevel::Error,
-                crate::diagnostics_log::kinds::SERVICE,
-                self.name,
-                &format!("could not start native service: {error}"),
-            );
-        }
+        spawned.map(|_| ()).map_err(|error| error.to_string())
     }
 }
 

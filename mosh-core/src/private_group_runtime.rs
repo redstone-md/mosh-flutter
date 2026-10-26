@@ -188,6 +188,8 @@ impl ConversationMessage for GroupMessage {
 #[derive(Debug, Clone, Serialize)]
 pub struct GroupSnapshot {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub history_sync: Option<crate::conversation::recovery::HistorySync>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deletion_summary: Option<crate::message_deletion::types::DeletionSummary>,
     pub group_id: String,
     pub mesh_id: String,

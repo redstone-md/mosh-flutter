@@ -2,6 +2,8 @@
 use super::*;
 
 pub(super) fn ownership_is_recomputed_from_verified_original_signers(f: &mut Fixture) {
+    let store = f.runtime.sessions.persistence().cloned().unwrap();
+    store.save_background_intent(false, true).unwrap();
     let mut own = record("own-background", "own text");
     let mut incoming = record("incoming-background", "incoming text");
     let mut unsigned = record("unsigned-background", "unsigned text");
@@ -50,4 +52,17 @@ pub(super) fn ownership_is_recomputed_from_verified_original_signers(f: &mut Fix
             "{id}"
         );
     }
+    let pending = store.pending_background_notifications(16).unwrap();
+    assert_eq!(
+        pending.len(),
+        1,
+        "only an authenticated foreign original is an alert"
+    );
+    assert_eq!(pending[0].text.as_deref(), Some("incoming text"));
+    f.runtime.rehydrate();
+    assert!(
+        f.receive(&packet).is_err(),
+        "completed imported batch cannot replay"
+    );
+    assert_eq!(store.pending_background_notifications(16).unwrap().len(), 1);
 }
