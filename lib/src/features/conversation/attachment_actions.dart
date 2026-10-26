@@ -41,6 +41,11 @@ class AttachmentActions extends StatelessWidget {
           l.attachmentDownload,
           l.attachmentDownloadAria(file.fileName)
         ),
+      AttachmentTransferAction.resumeDownload => (
+          Icons.play_arrow,
+          l.attachmentResumeDownload,
+          l.attachmentResumeDownloadAria(file.fileName)
+        ),
       AttachmentTransferAction.retryDownload => (
           Icons.download,
           l.attachmentRetryDownload,

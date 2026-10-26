@@ -30,6 +30,7 @@ fn next_chunk_request_resumes_gaps_before_advancing() {
         .serve_chunks(&ChunkRequest {
             attachment_id: "a".to_string(),
             chunk_indices: vec![1],
+            execution: None,
         })
         .unwrap();
     receiver.ingest_chunk(&frames[0]).unwrap();
@@ -239,4 +240,33 @@ fn manifest_without_voice_omits_the_field() {
     };
     let json = serde_json::to_string(&manifest).expect("serialize");
     assert!(!json.contains("voice"), "voice must be omitted when None");
+}
+
+#[test]
+fn authenticated_short_chunk_does_not_advance_a_durable_checkpoint() {
+    let mut sender = AttachmentRuntime::new();
+    let manifest = sender
+        .prepare_outgoing(outgoing(
+            "short-authenticated",
+            payload(CHUNK_SIZE as usize * 2),
+        ))
+        .unwrap();
+    let mut receiver = AttachmentRuntime::new();
+    receiver.register_incoming(manifest.clone()).unwrap();
+    receiver.start_download(&manifest.attachment_id).unwrap();
+    let key = decode(&manifest.key_b64).unwrap();
+    let nonce = decode(&manifest.nonce_prefix_b64).unwrap();
+    let frame = ChunkFrame {
+        attachment_id: manifest.attachment_id.clone(),
+        chunk_index: 0,
+        ciphertext_b64: encode(&encrypt_chunk(&key, &nonce, 0, b"short").unwrap()),
+    };
+    assert!(receiver.ingest_chunk(&frame).is_err());
+    assert_eq!(
+        receiver
+            .incoming_progress(&manifest.attachment_id)
+            .unwrap()
+            .completed_chunks,
+        0
+    );
 }

@@ -1,8 +1,11 @@
 # Android incoming call ownership
 
-Integration status: the native ledger and application bridge are implemented.
-Android notification actions, media-service promotion and physical-phone
-acceptance must be integrated before this layer is released.
+Integration status: the native ledger, application bridge, Android notification
+and call actions, locked call-only entry and media-service promotion are
+implemented. Rust/Dart protocol checks, Android compilation and platform policy
+probes cover the software boundary. Actual handset notification/capture behavior,
+Doze, OEM restrictions and battery use still require physical-phone acceptance;
+compilation does not establish those results.
 
 The installation owner publishes authenticated native call transitions without
 opening a chat or polling the chat list. It uses the same DM protocol, current

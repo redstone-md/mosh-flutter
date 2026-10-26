@@ -88,6 +88,15 @@ impl AttachmentRuntime {
             frame.chunk_index,
             &ciphertext,
         )?;
+        let start = frame.chunk_index * u64::from(transfer.manifest.chunk_size);
+        let expected =
+            u64::from(transfer.manifest.chunk_size).min(transfer.manifest.total_size - start);
+        if plaintext.len() as u64 != expected {
+            transfer.state = TransferState::Failed;
+            return Err(AttachmentRuntimeError::ManifestMismatch(
+                "chunk length".into(),
+            ));
+        }
         transfer.chunks.insert(frame.chunk_index, plaintext);
 
         if transfer.chunks.len() as u64 != transfer.manifest.chunk_count {

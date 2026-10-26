@@ -8,6 +8,7 @@ fn input() -> AttachmentInput {
     let mut miniature = MINIATURE.to_vec();
     miniature.resize(1536, 0);
     AttachmentInput {
+        user_transfer_id: None,
         file_name: "Bildschirmfoto 2026-10-05 um 21.31.39.png".into(),
         mime: "image/png".into(),
         bytes: PREVIEW.to_vec(),

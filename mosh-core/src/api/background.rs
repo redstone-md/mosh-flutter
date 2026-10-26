@@ -2,6 +2,9 @@
 pub(crate) mod call_actions;
 mod changes;
 mod execution;
+#[cfg(any(target_os = "android", test))]
+pub(crate) mod transfer_grants;
+pub mod transfers;
 pub(crate) mod types;
 
 use crate::frb_generated::StreamSink;
@@ -56,7 +59,7 @@ pub fn ack_background_notification(id: String, revision: u64) -> Result<(), Stri
 pub(crate) use changes::changed as background_delivery_changed;
 pub(crate) use execution::{
     admit_user_work, automatic_downloads_allowed, execution_lease, history_execution_allowed,
-    network_permitted, reconcile,
+    managed_execution, network_permitted, reconcile,
 };
 
 #[cfg(target_os = "android")]

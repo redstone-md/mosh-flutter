@@ -74,18 +74,7 @@ impl GroupSession {
             BlobEnvelope::Request {
                 participant_id,
                 request,
-            } if participant_id != self.participant_id => {
-                // Only the original sender holds the outgoing transfer;
-                // every other member simply has nothing to serve.
-                for frame in self.transfer.serve(&request) {
-                    let chunk = BlobEnvelope::Chunk {
-                        participant_id: self.participant_id.clone(),
-                        frame,
-                    };
-                    publish_json(&self.node, &self.mesh_id, &self.blob_channel, &chunk)?;
-                }
-                Ok(())
-            }
+            } if participant_id != self.participant_id => self.serve_blob_request(&request),
             BlobEnvelope::Chunk {
                 participant_id,
                 frame,
@@ -112,6 +101,7 @@ impl GroupSession {
         input: AttachmentInput,
     ) -> Result<AttachmentSendResult, PrivateGroupError> {
         let AttachmentInput {
+            user_transfer_id,
             file_name,
             mime,
             bytes,
@@ -135,6 +125,8 @@ impl GroupSession {
             },
             preview,
         )?;
+        self.transfer
+            .bind_user_admission(user_transfer_id.as_deref(), &outgoing.manifest)?;
         let content_hash = outgoing.manifest.content_hash.clone();
         let sent_at_ms = now_ms();
         let publication = (|| -> Result<_, PrivateGroupError> {
@@ -183,12 +175,92 @@ impl GroupSession {
     }
 
     pub(super) fn pump_attachment_requests(&mut self) {
-        for request in self.transfer.next_requests() {
+        for request in self.transfer.pending_serving_requests() {
+            let _ = self.serve_blob_request(&request);
+        }
+        for mut request in self.transfer.next_requests() {
+            if self.sign_blob_request(&mut request).is_err() {
+                continue;
+            }
             let envelope = BlobEnvelope::Request {
                 participant_id: self.participant_id.clone(),
                 request,
             };
             let _ = publish_json(&self.node, &self.mesh_id, &self.blob_channel, &envelope);
         }
+    }
+}
+
+impl GroupSession {
+    fn sign_blob_request(
+        &self,
+        request: &mut crate::attachment_runtime::ChunkRequest,
+    ) -> Result<(), PrivateGroupError> {
+        let context = format!("transfer:group:{}", self.group_id);
+        let author = hex::encode(self.crypto.signer_public());
+        request
+            .sign_execution(&author, |token, bytes| {
+                crate::message_deletion::MessageOrigin::sign_mls(
+                    &context,
+                    token,
+                    bytes,
+                    &self.crypto,
+                    self.deletions.store.as_ref(),
+                    None,
+                )
+            })
+            .map_err(PrivateGroupError::Codec)
+    }
+    fn verify_blob_request(
+        &mut self,
+        request: &crate::attachment_runtime::ChunkRequest,
+    ) -> Result<(), PrivateGroupError> {
+        let context = format!("transfer:group:{}", self.group_id);
+        if let Some(author) = request
+            .verify_execution(&context)
+            .map_err(PrivateGroupError::Codec)?
+        {
+            let signer = hex::decode(author)
+                .map_err(|_| PrivateGroupError::Codec("invalid blob signer".into()))?;
+            let member = self.crypto.member_identity_for_signer(&signer);
+            if member.is_none()
+                || (self.org_pubkey.is_some()
+                    && !member
+                        .as_deref()
+                        .is_some_and(|peer| self.roster_contains(peer)))
+            {
+                return Err(PrivateGroupError::Codec(
+                    "blob requester is not a current member".into(),
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl GroupSession {
+    fn serve_blob_request(
+        &mut self,
+        request: &crate::attachment_runtime::ChunkRequest,
+    ) -> Result<(), PrivateGroupError> {
+        self.verify_blob_request(request)?;
+        // Only the original sender holds the outgoing transfer;
+        // every other member simply has nothing to serve.
+        for frame in self.transfer.serve(request) {
+            if !self.transfer.may_send_chunk(&frame.attachment_id) {
+                break;
+            }
+            let chunk = BlobEnvelope::Chunk {
+                participant_id: self.participant_id.clone(),
+                frame: frame.clone(),
+            };
+            let bytes = serde_json::to_vec(&chunk)
+                .map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
+            self.node
+                .publish_room(&self.mesh_id, &self.blob_channel, &bytes)
+                .map_err(|error| PrivateGroupError::Moss(error.to_string()))?;
+            self.transfer.chunks_published(&[frame]);
+        }
+        Ok(())
     }
 }

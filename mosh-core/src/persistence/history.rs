@@ -73,6 +73,7 @@ impl Persistence {
         id: &str,
     ) -> Result<(), PersistenceError> {
         self.write(|tx| {
+            self.delete_conversation_transfers(tx, tables, id)?;
             Self::update_row(tx, tables.conversations, id, None)?;
             if let Some(snapshot) = tables.snapshots {
                 Self::update_row(tx, snapshot, id, None)?;
@@ -94,6 +95,8 @@ impl Persistence {
                 OUTBOUND_ATTEMPTS,
                 &Self::outbound_attempt_prefix(tables.outbound_scope, id),
             )
-        })
+        })?;
+        crate::api::background::background_delivery_changed();
+        Ok(())
     }
 }

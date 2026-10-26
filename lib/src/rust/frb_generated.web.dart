@@ -10,6 +10,7 @@ import 'api/attachment_stream.dart';
 import 'api/audio_devices.dart';
 import 'api/background.dart';
 import 'api/background/call_actions.dart';
+import 'api/background/transfers.dart';
 import 'api/background/types.dart';
 import 'api/channel.dart';
 import 'api/conversation.dart';
@@ -53,6 +54,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 import 'persistence.dart';
 import 'persistence/background_calls/types.dart';
 import 'persistence/background_delivery.dart';
+import 'persistence/user_transfers/types.dart';
 import 'plus/checkout.dart';
 import 'plus/recovery_types.dart';
 import 'plus/types.dart';
@@ -609,6 +611,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<TypingMember> dco_decode_list_typing_member(dynamic raw);
 
   @protected
+  List<UserTransfer> dco_decode_list_user_transfer(dynamic raw);
+
+  @protected
   MeshInfo dco_decode_mesh_info(dynamic raw);
 
   @protected
@@ -868,6 +873,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void dco_decode_unit(dynamic raw);
+
+  @protected
+  UserTransfer dco_decode_user_transfer(dynamic raw);
+
+  @protected
+  UserTransferDirection dco_decode_user_transfer_direction(dynamic raw);
+
+  @protected
+  UserTransferState dco_decode_user_transfer_state(dynamic raw);
 
   @protected
   BigInt dco_decode_usize(dynamic raw);
@@ -1473,6 +1487,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  List<UserTransfer> sse_decode_list_user_transfer(
+      SseDeserializer deserializer);
+
+  @protected
   MeshInfo sse_decode_mesh_info(SseDeserializer deserializer);
 
   @protected
@@ -1768,6 +1786,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  UserTransfer sse_decode_user_transfer(SseDeserializer deserializer);
+
+  @protected
+  UserTransferDirection sse_decode_user_transfer_direction(
+      SseDeserializer deserializer);
+
+  @protected
+  UserTransferState sse_decode_user_transfer_state(
+      SseDeserializer deserializer);
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
@@ -2412,6 +2441,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       List<TypingMember> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_user_transfer(
+      List<UserTransfer> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_mesh_info(MeshInfo self, SseSerializer serializer);
 
   @protected
@@ -2711,6 +2744,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_user_transfer(UserTransfer self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_user_transfer_direction(
+      UserTransferDirection self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_user_transfer_state(
+      UserTransferState self, SseSerializer serializer);
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);

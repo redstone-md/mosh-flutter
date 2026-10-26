@@ -3,20 +3,42 @@
 use super::*;
 
 impl PrivateGroupRuntime {
+    pub(crate) fn download_manifest(
+        &mut self,
+        target: &str,
+        attachment: &str,
+    ) -> Result<Option<crate::attachment_runtime::AttachmentManifest>, PrivateGroupError> {
+        Ok(self
+            .group_mut(target)?
+            .transfer
+            .download_manifest(attachment))
+    }
+
+    pub(crate) fn bind_attachment_admission(
+        &mut self,
+        target: &str,
+        attachment: &str,
+        admission: &str,
+    ) -> Result<(), PrivateGroupError> {
+        self.group_mut(target)?
+            .transfer
+            .bind_download_admission(attachment, admission)?;
+        Ok(())
+    }
+
     /// Flush accepted work before a background transition. Main incoming slots
     /// prove user downloads/playback; automatic previews are excluded by views.
     /// Outgoing files have no terminal acknowledgement and cannot be counted.
     pub(crate) fn background_work(&mut self) -> Result<(u32, u32), PrivateGroupError> {
+        for session in self.groups.values_mut() {
+            session.transfer.refresh_execution()?;
+        }
         self.groups.persist_tail()?;
-        let transfers = self
+        let transfers: usize = self
             .groups
             .values()
-            .flat_map(|session| session.transfer.views())
-            .filter(|view| {
-                view.direction == "incoming"
-                    && view.state == crate::conversation::attachments::AttachmentState::Downloading
-            })
-            .count();
+            .map(|session| session.transfer.active_user_transfers())
+            .sum();
         Ok((0, u32::try_from(transfers).unwrap_or(u32::MAX)))
     }
 
@@ -34,6 +56,7 @@ impl PrivateGroupRuntime {
         self.send_attachment_with_preview(
             group_id,
             crate::conversation::previews::AttachmentInput {
+                user_transfer_id: None,
                 file_name,
                 mime,
                 bytes,

@@ -2249,5 +2249,15 @@
   "settingsBackgroundNotifications": "Allow notifications",
   "settingsLockedNotificationNames": "Show names when Mosh is locked",
   "settingsLockedNotificationText": "Show message text when Mosh is locked",
-  "settingsBackgroundActionError": "Could not apply this setting. Try again."
+  "settingsBackgroundActionError": "Could not apply this setting. Try again.",
+  "attachmentStatePaused": "Paused",
+  "attachmentResumeDownload": "Resume download",
+  "attachmentResumeDownloadAria": "Resume download {fileName}",
+  "@attachmentResumeDownloadAria": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  }
 }

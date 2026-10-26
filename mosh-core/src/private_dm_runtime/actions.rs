@@ -3,6 +3,29 @@
 use super::*;
 
 impl PrivateDmRuntime {
+    pub(crate) fn download_manifest(
+        &mut self,
+        target: &str,
+        attachment: &str,
+    ) -> Result<Option<crate::attachment_runtime::AttachmentManifest>, PrivateDmRuntimeError> {
+        Ok(self
+            .session_mut(target)?
+            .transfer
+            .download_manifest(attachment))
+    }
+
+    pub(crate) fn bind_attachment_admission(
+        &mut self,
+        target: &str,
+        attachment: &str,
+        admission: &str,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        self.session_mut(target)?
+            .transfer
+            .bind_download_admission(attachment, admission)?;
+        Ok(())
+    }
+
     /// Signals "I am typing" for one session, driven by the composer's input.
     /// The per-keystroke call is folded down to the refresh cadence inside the
     /// session; a publish the transport refuses is retried on the next call
@@ -69,6 +92,7 @@ impl PrivateDmRuntime {
         self.send_attachment_with_preview(
             session_id,
             crate::conversation::previews::AttachmentInput {
+                user_transfer_id: None,
                 file_name,
                 mime,
                 bytes,

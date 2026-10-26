@@ -1,4 +1,5 @@
 import 'package:mosh/src/gateway/conversation_target.dart';
+import 'attachment_execution.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/message_deletion/types.dart';
 import 'package:mosh/src/rust/api/conversation/deletion.dart' as deletion_api;
@@ -35,6 +36,8 @@ import 'package:mosh/src/rust/private_group_runtime.dart';
 /// Real `mosh_core`-backed conversation seam. See file doc for the lifecycle
 /// contract.
 class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
+  RealBridgeGateway({this.attachments});
+  final AttachmentExecution? attachments;
   @override
   Future<DeleteMessagesResult> deleteMessages(AnyConversationTarget target,
           {required List<String> messageIds, required DeleteScope scope}) =>
@@ -102,22 +105,24 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
     String? thumbnailBase64,
     String? previewBase64,
     VoiceMeta? voice,
-  }) =>
-      conversation_api.sendAttachment(
-        reference: _bridgeRef(target),
-        payload: BridgeAttachmentPayload(
-          fileName: fileName,
-          mime: mime,
-          dataBase64: dataBase64,
-          thumbnailBase64: thumbnailBase64,
-          previewBase64: previewBase64,
-          voice: voice,
-        ),
-      );
+  }) {
+    final reference = _bridgeRef(target);
+    final payload = BridgeAttachmentPayload(
+      fileName: fileName,
+      mime: mime,
+      dataBase64: dataBase64,
+      thumbnailBase64: thumbnailBase64,
+      previewBase64: previewBase64,
+      voice: voice,
+    );
+    return attachments?.send(reference, payload) ??
+        conversation_api.sendAttachment(reference: reference, payload: payload);
+  }
 
   @override
   Future<void> downloadAttachment(AnyConversationTarget target,
           {required String attachmentId}) =>
+      attachments?.download(_bridgeRef(target), attachmentId) ??
       conversation_api.downloadAttachment(
           reference: _bridgeRef(target), attachmentId: attachmentId);
 

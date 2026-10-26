@@ -7,19 +7,18 @@ impl PrivateDmRuntime {
         self.sync_background_calls()?;
         let mut calls = 0;
         let mut transfers = 0;
-        for session in self.sessions.values() {
+        for session in self.sessions.values_mut() {
+            session
+                .transfer
+                .refresh_execution()
+                .map_err(|error| error.to_string())?;
             calls += u32::from(
                 session
                     .call
                     .as_ref()
                     .is_some_and(|call| call.phase != CallPhase::Ringing),
             );
-            transfers += session
-                .transfer
-                .views()
-                .iter()
-                .filter(|view| view.state == AttachmentState::Downloading)
-                .count() as u32;
+            transfers += session.transfer.active_user_transfers() as u32;
         }
         Ok((calls, transfers))
     }

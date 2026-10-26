@@ -21,6 +21,10 @@ impl ConversationSession for PrivateDmSession {
         Some(&self.transfer)
     }
 
+    fn transfer_mut(&mut self) -> Option<&mut Transfer> {
+        Some(&mut self.transfer)
+    }
+
     fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord> {
         &self.outbound_attempts
     }

@@ -45,6 +45,7 @@ fn a_full_chunk_frame_fits_a_macos_datagram() {
         .serve_chunks(&ChunkRequest {
             attachment_id: manifest.attachment_id,
             chunk_indices: vec![0],
+            execution: None,
         })
         .unwrap();
 
@@ -87,6 +88,7 @@ fn authenticated_chunks_must_match_the_advertised_size() {
             .serve_chunks(&ChunkRequest {
                 attachment_id: "a".into(),
                 chunk_indices: vec![0],
+                execution: None,
             })
             .unwrap()
             .remove(0);
@@ -180,6 +182,7 @@ fn duplicate_chunk_is_idempotent() {
     let request = ChunkRequest {
         attachment_id: "a".to_string(),
         chunk_indices: vec![0],
+        execution: None,
     };
     let frames = sender.serve_chunks(&request).unwrap();
     let frame = frames.into_iter().next().unwrap();
@@ -201,6 +204,7 @@ fn corrupted_chunk_is_rejected() {
     let request = ChunkRequest {
         attachment_id: "a".to_string(),
         chunk_indices: vec![0],
+        execution: None,
     };
     let mut frame = sender.serve_chunks(&request).unwrap().remove(0);
     frame.ciphertext_b64 = encode(b"tampered ciphertext bytes here padding");
@@ -218,6 +222,7 @@ fn cancel_stops_serving_chunks() {
         .serve_chunks(&ChunkRequest {
             attachment_id: "a".to_string(),
             chunk_indices: vec![0],
+            execution: None,
         })
         .unwrap();
     assert!(frames.is_empty());

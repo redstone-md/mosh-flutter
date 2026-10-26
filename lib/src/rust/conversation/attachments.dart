@@ -62,6 +62,9 @@ enum AttachmentState {
   /// Chunks are in flight.
   downloading,
 
+  /// User work is admitted but no current OS execution is permitted.
+  paused,
+
   /// Transfer or verification failed; a retry is possible.
   failed,
 

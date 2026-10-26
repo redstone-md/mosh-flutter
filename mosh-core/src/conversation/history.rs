@@ -67,6 +67,10 @@ pub struct History {
 }
 
 impl History {
+    pub(crate) fn tables(&self) -> HistoryTables {
+        self.tables
+    }
+
     pub fn new(tables: HistoryTables) -> Self {
         Self {
             tables,

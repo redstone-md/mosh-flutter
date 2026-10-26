@@ -8,6 +8,10 @@ import 'package:mosh/src/features/background/background_commands.dart';
 import 'package:mosh/src/platform/android_waiting_platform.dart';
 import 'package:mosh/src/rust/api/background/types.dart';
 import 'package:mosh/src/rust/api/private_dm.dart' as setup;
+import 'package:mosh/src/rust/api/background/transfers.dart' as transfers;
+import 'package:mosh/src/rust/persistence/user_transfers/types.dart';
+import 'package:mosh/src/rust/api/conversation.dart';
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/frb_generated.dart';
 
 Future<void> until(bool Function() ready) async {
@@ -86,7 +90,10 @@ void main() {
         };
     binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
         (call) async {
-      if (call.method == 'takeCallActions') return <Object?>[];
+      if (const {'takeCallActions', 'takeTransferActions'}
+          .contains(call.method)) {
+        return <Object?>[];
+      }
       if (call.method == 'setUserWork') {
         work.add(call.arguments as Map<Object?, Object?>);
       }
@@ -123,5 +130,48 @@ void main() {
     expect(work.last['intentRevision'], intentRevision);
     expect(work.last['actualMode'], 'offline');
     expect(owner.failure, isNull);
+  });
+
+  test(
+      'real bridge keeps admission and refusal facts separate from transport completion',
+      () async {
+    final commands = BackgroundCommands();
+    await commands.setExecution(interactive: true, waitingEnabled: false);
+    final invite = await setup.createInvite(
+        request: const StartSessionRequest(
+            displayName: 'Transfer admission', listenPort: 0));
+    final admission = await transfers.prepareUserAttachmentTransfer(
+        reference: BridgeConversationRef(
+            kind: BridgeConversationKind.dm, id: invite.sessionId),
+        direction: UserTransferDirection.upload,
+        totalBytes: BigInt.from(3));
+    expect(admission.id, matches(RegExp(r'^transfer-[0-9a-f]{32}$')));
+    expect(admission.state, UserTransferState.prepared);
+    expect(admission.completedBytes, BigInt.zero);
+    await expectLater(
+        transfers.sendUserAttachment(
+            id: admission.id,
+            payload: const BridgeAttachmentPayload(
+                fileName: 'private.bin',
+                mime: 'application/octet-stream',
+                dataBase64: 'YWJj')),
+        throwsA(anything));
+    final refused = (await commands.status())
+        .userTransfers
+        .singleWhere((value) => value.id == admission.id);
+    expect(refused.state, UserTransferState.failed);
+    expect(refused.completedBytes, BigInt.zero);
+    await commands.cancelTransfer(admission.id);
+    final cancelled = (await commands.status())
+        .userTransfers
+        .singleWhere((value) => value.id == admission.id);
+    expect(cancelled.state, UserTransferState.cancelled);
+    await commands.setExecution(interactive: false, waitingEnabled: false);
+    await expectLater(
+        transfers.prepareUserAttachmentTransfer(
+            reference: admission.target,
+            direction: UserTransferDirection.upload,
+            totalBytes: BigInt.from(3)),
+        throwsA(anything));
   });
 }

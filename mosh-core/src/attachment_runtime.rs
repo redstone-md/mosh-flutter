@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::time::{Duration, Instant};
 
+pub(crate) mod execution;
 mod incoming;
 mod outgoing;
 mod requests;
@@ -115,6 +116,8 @@ pub struct OutgoingAttachment {
 pub struct ChunkRequest {
     pub attachment_id: String,
     pub chunk_indices: Vec<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution: Option<execution::RequestExecution>,
 }
 
 /// Sender -> receiver: one AES-GCM encrypted chunk on the blob channel.
@@ -248,6 +251,12 @@ impl AttachmentRuntime {
             if *state == TransferState::Active {
                 *state = TransferState::Cancelled;
             }
+        }
+    }
+
+    pub(crate) fn fail_incoming(&mut self, attachment_id: &str) {
+        if let Some(transfer) = self.incoming.get_mut(attachment_id) {
+            transfer.state = TransferState::Failed;
         }
     }
 

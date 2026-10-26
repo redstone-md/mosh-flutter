@@ -51,6 +51,10 @@ pub trait ConversationSession {
         None
     }
 
+    fn transfer_mut(&mut self) -> Option<&mut Transfer> {
+        None
+    }
+
     fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord>;
 
     /// A kind may atomically settle its publication with protected evidence.
@@ -142,6 +146,9 @@ impl<S: ConversationSession> ConversationRuntime<S> {
 
     pub fn insert(&mut self, conversation_id: String, mut session: S) {
         session.attach_persistence(self.persistence.clone());
+        if let (Some(store), Some(transfer)) = (self.persistence.clone(), session.transfer_mut()) {
+            transfer.attach_execution(store, self.history.tables(), &conversation_id);
+        }
         self.sessions.insert(conversation_id, session);
     }
 

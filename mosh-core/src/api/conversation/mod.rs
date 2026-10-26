@@ -124,9 +124,18 @@ pub fn send_attachment(
     reference: BridgeConversationRef,
     payload: BridgeAttachmentPayload,
 ) -> Result<(), ConversationBridgeError> {
+    send_attachment_admitted(reference, payload, None)
+}
+
+pub(crate) fn send_attachment_admitted(
+    reference: BridgeConversationRef,
+    payload: BridgeAttachmentPayload,
+    user_transfer_id: Option<String>,
+) -> Result<(), ConversationBridgeError> {
     let _authority =
         super::background::admit_user_work().map_err(ConversationBridgeError::unavailable)?;
     let input = crate::conversation::previews::AttachmentInput {
+        user_transfer_id,
         file_name: payload.file_name,
         mime: payload.mime,
         bytes: decode_base64(&payload.data_base64)?,

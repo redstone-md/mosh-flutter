@@ -2,6 +2,12 @@
 use super::*;
 
 impl AttachmentRuntime {
+    pub(crate) fn resume_outgoing(&mut self, id: &str) {
+        if let Some(transfer) = self.outgoing.get_mut(id) {
+            transfer.state = TransferState::Active;
+        }
+    }
+
     pub fn prepare_outgoing(
         &mut self,
         request: OutgoingAttachment,

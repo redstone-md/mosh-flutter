@@ -58,6 +58,9 @@ fn owner() -> Result<&'static Owner, String> {
 fn construct_owner() -> Result<Owner, String> {
     let resources = shared_runtime::ensure_shared_resources()?;
     let store = store()?;
+    store
+        .restore_current_transfer_index()
+        .map_err(|error| error.to_string())?;
     let waiting_enabled = store
         .saved_background_intent()
         .map_err(|e| e.to_string())?
@@ -153,7 +156,16 @@ pub(crate) fn execution_lease() -> Result<RwLockReadGuard<'static, ()>, String> 
         .map_err(|_| "background execution unavailable".into())
 }
 
+pub(crate) fn managed_execution() -> bool {
+    cfg!(target_os = "android") || OWNER.get().is_some()
+}
+
 pub(crate) fn automatic_downloads_allowed() -> bool {
+    #[cfg(target_os = "android")]
+    {
+        return super::transfer_grants::interactive();
+    }
+    #[cfg(not(target_os = "android"))]
     OWNER.get().is_none_or(|owner| {
         owner
             .state
@@ -327,6 +339,10 @@ pub(super) fn status() -> Result<BackgroundStatus, String> {
         current_calls: state.calls,
         current_user_transfers: state.transfers,
         limitation: (!limitations.is_empty()).then(|| limitations.join("; ")),
+        user_transfers: owner
+            .store
+            .current_user_transfers()
+            .map_err(|error| error.to_string())?,
     })
 }
 
