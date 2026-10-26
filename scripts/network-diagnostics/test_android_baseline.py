@@ -87,6 +87,7 @@ class CollectorTest(unittest.TestCase):
             data = archive.read("report.json")
         self.assertNotIn(b"SECRET", data)
         self.assertNotIn(b"OTHER_APP", data)
+        self.assertNotIn(b"/data/app/", data)
         return json.loads(data)
 
     def test_reports_only_selected_app_aggregates_with_explicit_metric_scope(self):
@@ -100,6 +101,8 @@ class CollectorTest(unittest.TestCase):
         self.assertEqual(report["battery"]["level_delta"], -1)
         self.assertEqual(report["scenario"]["dms"], 8)
         self.assertFalse(report["acceptance_complete"])
+        self.assertEqual(report["build"]["apk_identity_status"], "verified-at-endpoints")
+        self.assertEqual(report["build"]["apk_sha256"], ["a" * 64])
 
     def test_refuses_a_work_profile_instead_of_attributing_its_traffic_to_primary_user(self):
         class WorkProfile(Phone):
@@ -159,6 +162,58 @@ class CollectorTest(unittest.TestCase):
                          {"rx_bytes": 600, "rx_packets": 0, "tx_bytes": 80, "tx_packets": 0})
         self.assertEqual(report["wakeups"]["apk_wakeups_delta"], 1)
         self.assertEqual(report["wakelocks"]["partial_ms_delta"], 50)
+
+    def test_same_version_apk_replacement_is_rejected_even_when_cpu_is_unavailable(self):
+        class ReplacedApk(Phone):
+            def shell(self, command):
+                if command[:1] == ["cat"]:
+                    return "Permission denied"
+                if command[:1] == ["sha256sum"] and self.sample == 1:
+                    return "b" * 64 + " /data/app/fixture/base.apk"
+                return super().shell(command)
+
+        with self.assertRaisesRegex(ValueError, "APK identity changed"):
+            self.collect(ReplacedApk())
+
+    def test_same_version_install_path_replacement_is_rejected(self):
+        class ReplacedPath(Phone):
+            def shell(self, command):
+                value = super().shell(command)
+                if self.sample == 1 and command == ["pm", "path", "app.mosh.mosh"]:
+                    return "package:/data/app/replacement/base.apk"
+                return value
+
+        with self.assertRaisesRegex(ValueError, "APK identity changed"):
+            self.collect(ReplacedPath())
+
+    def test_missing_endpoint_hashes_never_certify_the_original_binary(self):
+        class MissingHash(Phone):
+            def __init__(self, missing_at):
+                super().__init__()
+                self.missing_at = missing_at
+
+            def shell(self, command):
+                endpoint = "before" if self.sample < 0 else "after"
+                if endpoint == self.missing_at and command[:1] == ["sha256sum"]:
+                    return "Permission denied"
+                return super().shell(command)
+
+        for endpoint in ("before", "after"):
+            with self.subTest(endpoint=endpoint):
+                report = self.collect(MissingHash(endpoint))
+                self.assertEqual(report["build"]["apk_identity_status"], "unavailable")
+                self.assertEqual(report["build"]["apk_sha256"], [])
+
+    def test_added_split_apk_is_rejected_with_the_same_version(self):
+        class AddedSplit(Phone):
+            def shell(self, command):
+                value = super().shell(command)
+                if self.sample == 1 and command == ["pm", "path", "app.mosh.mosh"]:
+                    return value + "\npackage:/data/app/fixture/split_config.arm64_v8a.apk"
+                return value
+
+        with self.assertRaisesRegex(ValueError, "APK identity changed"):
+            self.collect(AddedSplit())
 
 
 if __name__ == "__main__":
