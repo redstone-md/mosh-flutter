@@ -29,6 +29,8 @@ preparatory changes do not establish background acceptance.
 - IVO-141 worktree: shared bounded recovery/persistence and channel history.
 - IVO-142 worktree: own MLS staging and group evidence/recovery; reuse IVO-141.
 - IVO-136 worktree: separate upstream Moss lifecycle; original pin unchanged.
+- IVO-137 worktree: Android waiting owner, native execution/delivery boundary
+  and DM background reception; coordinate shared storage/bindings with IVO-141.
 - Integration owner: global spec clarifications, this plan, key/execution/Moss
   proposals, task graph state, merging and integration review.
 
@@ -63,6 +65,17 @@ preparatory changes do not establish background acceptance.
 - Flutter analysis and the JNI/context/deadline probe pass. After key integration
   the full Flutter suite passes: 2043 tests, four skipped. The debug ARM64 APK
   builds and its signature, JNI Zero, key owners and native libraries are checked.
+- Cold Android UI polling now waits for an attached foreground view. The
+  detached-start regression, immediate resume and inactive prompt behavior pass
+  nine focused tests; desktop hidden-window polling is preserved.
+- The signed ARM64 APK for the prepared key/runtime layer builds in
+  [run 40269179110](https://github.com/redstone-md/mosh-flutter/actions/runs/40269179110).
+  Its downloaded checksum, signature and JNI signatures are verified. It does
+  not contain the later waiting-service/history layers or establish acceptance.
+- Upstream waiting is isolated in [Moss PR #31](https://github.com/redstone-md/moss/pull/31),
+  stacked on PR #30, without a merge or Mosh pin change. Full Go, focused race,
+  natural routing repetitions and compiled C checks pass. Mosh integration and
+  physical availability/energy acceptance remain open.
 - CodeAnt review fixes serialize timer writes, preserve call-device sheets,
   cover native expiry before publication and redact legacy Android notifications.
   Protected settings/session-list use legitimately ends a valid grace period;

@@ -28,6 +28,10 @@ to discover an extra setting. Existing Moss consumers keep their defaults.
 - An older library with no symbol is reported as unsupported; Mosh does not
   silently label a full active mesh as economical waiting.
 
+The isolated implementation in [Moss PR #31](https://github.com/redstone-md/moss/pull/31)
+uses error -15 for an invalid mode and event 12 on the pinned base. These
+allocations require rechecking against divergent upstream branches before landing.
+
 ## Lifecycle invariants
 
 Preserve the node identity, UDP transport handle, callbacks, room subscriptions,
