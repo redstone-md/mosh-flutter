@@ -17,6 +17,7 @@ internal class MoshUserTransfers(private val context: Context,
     private val execution = MoshTransferExecution()
     private val running = mutableMapOf<String, Running>()
     private val jobs = MoshTransferJobs(context)
+    private val recovery = MoshTransferRecoveryStore(context)
     private val handler = Handler(Looper.getMainLooper())
     val runningCount: Int get() = running.size
     private val actions by lazy {
@@ -39,6 +40,7 @@ internal class MoshUserTransfers(private val context: Context,
         execution.scheduled(id)
         val accepted = try {
             if (!deferred && Build.VERSION.SDK_INT < 34) {
+                if (!recovery.admit(id, direction!!)) return false
                 context.startForegroundService(Intent(context, MoshTransferLegacyService::class.java)
                     .putExtra(MoshTransferIntents.ID, id).putExtra("direction", direction))
                 true
@@ -89,7 +91,7 @@ internal class MoshUserTransfers(private val context: Context,
         for (value in facts) {
             val id = value["id"] as? String ?: continue
             val work = running[id] ?: continue
-            if (value["state"] in setOf("complete", "failed", "cancelled", "paused", "waitingReceiver")) {
+            if (value["state"] in QUIESCENT) {
                 stopped(id, work.generation, "finished")
                 work.finish()
             } else {
@@ -98,6 +100,8 @@ internal class MoshUserTransfers(private val context: Context,
                 work.progress(value)
             }
         }
+        if (Build.VERSION.SDK_INT < 34) recovery.retain(facts.filter { it["state"] !in QUIESCENT }
+            .mapNotNull { it["id"] as? String }.toSet())
     }
 
     fun unavailable() {
@@ -108,7 +112,10 @@ internal class MoshUserTransfers(private val context: Context,
     }
 
     fun cancel(id: String) {
-        try { actions.offer(id, "cancel") }
+        try {
+            actions.offer(id, "cancel")
+            if (Build.VERSION.SDK_INT < 34) recovery.forget(id)
+        }
         finally {
             val work = running[id]
             if (work != null) { stopped(id, work.generation, "userStopped"); work.finish() }
@@ -145,5 +152,9 @@ internal class MoshUserTransfers(private val context: Context,
 
     private fun renew(work: Running) {
         work.expiry?.let { handler.removeCallbacks(it); handler.postDelayed(it, 120_000) }
+    }
+
+    companion object {
+        private val QUIESCENT = setOf("complete", "failed", "cancelled", "paused", "waitingReceiver")
     }
 }

@@ -26,33 +26,35 @@ class MoshTransferLegacyService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val id = MoshTransferIntents.id(intent)
-        val direction = intent?.getStringExtra("direction")?.takeIf { it in setOf("upload", "download") }
-        if (id == null || direction == null || Build.VERSION.SDK_INT >= 34 ||
+        if (Build.VERSION.SDK_INT >= 34 ||
             !getSystemService(UserManager::class.java).isUserUnlocked || MoshWaitingSystemStop(this).blocked()) {
             stopSelf(startId); return START_NOT_STICKY
         }
-        if (active.containsKey(id)) return START_NOT_STICKY
-        val work = Active(id, direction)
+        try {
+            val pending = MoshTransferRecoveryStore(this).snapshot()
+            for (entry in pending) if (!active.containsKey(entry.id)) start(Active(entry.id, entry.direction))
+        } catch (_: RuntimeException) { if (active.isEmpty()) stopSelf(startId) }
+        return if (active.isEmpty()) {
+            stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(startId); START_NOT_STICKY
+        } else START_STICKY
+    }
+
+    private fun start(work: Active) {
         try {
             promote(work)
             val runtime = (application as MoshApplication).runtime
-            work.generation = runtime.waiting.transfers.started(id, direction,
-                { facts -> progress(work, facts) }, { finish(work) }) ?: run {
-                if (active.isEmpty()) stopSelf(startId)
-                return START_NOT_STICKY
-            }
-            active[id] = work
+            work.generation = runtime.waiting.transfers.started(work.id, work.direction,
+                { facts -> progress(work, facts) }, { finish(work) }) ?: return
+            active[work.id] = work
             wake.acquire(120_000)
             runtime.startInBackground()
             handler.postDelayed({
-                if (active[id] === work && !work.observed) {
-                    owner?.stopped(id, work.generation, "unavailable"); finish(work)
+                if (active[work.id] === work && !work.observed) {
+                    owner?.stopped(work.id, work.generation, "unavailable"); finish(work)
                 }
             }, 30_000)
-        } catch (_: RuntimeException) { failed(work) }
-        catch (_: LinkageError) { failed(work) }
-        return START_NOT_STICKY
+        } catch (_: RuntimeException) { failed(work, false) }
+        catch (_: LinkageError) { failed(work, false) }
     }
 
     override fun onDestroy() {
@@ -92,8 +94,9 @@ class MoshTransferLegacyService : Service() {
         else { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() }
     }
 
-    private fun failed(work: Active) {
+    private fun failed(work: Active, stopWhenEmpty: Boolean = true) {
         if (work.generation != 0L) owner?.stopped(work.id, work.generation, "unavailable")
+        if (!stopWhenEmpty) { active.remove(work.id); return }
         finish(work)
         if (active.isEmpty()) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() }
     }
