@@ -128,6 +128,10 @@ Android version and artifact commit with each result.
 1. Update the existing release installation in place. Unlock Mosh and verify
    that its existing profile, history and attachments remain readable. A legacy
    installation may request its old key authentication once, then chat access.
+   Chat entry must initiate authentication without requiring Retry first.
+   After expiry, returning must prompt again; canceling leaves Retry available
+   without repeatedly reopening the prompt. A notification permission dialog
+   must preserve an already valid chat grant.
 2. In Settings → Connection → Background availability, allow notifications and
    background connection. Waiting is enabled after setup. In Settings → Privacy,
    leave the default one-minute app lock. First exchange a DM in both directions
@@ -137,7 +141,12 @@ Android version and artifact commit with each result.
    conversations. Names/text should be hidden by default; enable each disclosure
    choice separately and repeat. A preview must not create a read receipt.
    Attachment offers must not download their originals or clear previews.
-4. Call the phone with voice and video. Test Answer, Decline and caller cancel,
+   Send several separate messages to the same chat without dismissing its first
+   notification: the entry must update and fresh messages may alert again under
+   Android's interruption policy. A replay or privacy-only change must stay quiet.
+4. In a separate round, minimize and lock the phone for at least two minutes
+   without sending a message or reopening Mosh to wake the conversation first.
+   Call the phone with voice and video. Test Answer, Decline and caller cancel,
    then a call in the other direction. Check audio/video after minimizing and
    PiP, hang-up and retry. Answering a locked call must leave chats protected;
    returning before the configured lock delay must preserve its valid grace.
