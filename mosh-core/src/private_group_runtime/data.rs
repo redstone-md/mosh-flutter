@@ -12,26 +12,29 @@ impl GroupSession {
         }
         self.require_author(&envelope.from_fingerprint, &sender)?;
         let context = format!("group:{}", self.group_id);
-        let (plaintext, _) =
-            self.crypto
-                .decrypt_checked(&decode(&envelope.ciphertext_b64)?, |body, signer| {
-                    if signer != sender.mls_signer {
-                        return Err("group sender mismatch".into());
-                    }
-                    if let Some(origin) = &envelope.origin {
-                        origin.verify_from_signer(
-                            &context,
-                            envelope.message_id.as_deref().unwrap_or_default(),
-                            body,
-                            signer,
-                        )?;
-                    }
-                    Ok(())
-                })?;
-        // A delivered message contradicts "typing": the author's hint dies at
-        // once, whatever its deadline said.
-        self.clear_member_typing(&envelope.from_fingerprint);
-        let message = self.received_text(envelope, &plaintext);
+        let staged = self.crypto.stage_decrypt_checked(
+            &decode(&envelope.ciphertext_b64)?,
+            |body, signer| {
+                if signer != sender.mls_signer {
+                    return Err("group sender mismatch".into());
+                }
+                if let Some(origin) = &envelope.origin {
+                    origin.verify_from_signer(
+                        &context,
+                        envelope.message_id.as_deref().unwrap_or_default(),
+                        body,
+                        signer,
+                    )?;
+                }
+                Ok(())
+            },
+        )?;
+        let author = envelope.from_fingerprint.clone();
+        let message = self.received_text(envelope, &staged.body);
+        self.persist_received_text(&staged, &message, &payload, &sender)?;
+        self.crypto = staged.next;
+        // Durable delivery contradicts the author's typing hint.
+        self.clear_member_typing(&author);
         if self.messages.holds_copy_of(&message) {
             return Ok(());
         }

@@ -29,19 +29,21 @@ pub(super) fn sequence_commit(
     let commit_bytes = decode(commit_b64)?;
     let wire_epoch = MlsSessionCrypto::commit_epoch(&commit_bytes)?;
     if let Disposition::Apply = sequencer.offer(current, wire_epoch, commit_b64) {
-        crypto.process_commit(&commit_bytes)?;
+        accept_commit(crypto, persistence, group_id, &commit_bytes)?;
+        sequencer.drain_ready(wire_epoch);
         sequencer.confirm(commit_b64.to_string());
         log_group_commit(persistence, group_id, wire_epoch, &commit_bytes);
-        // Buffered successors may be applicable now.
-        while let Some(current) = crypto.epoch() {
-            let Some(next_b64) = sequencer.drain_ready(current) else {
-                break;
-            };
-            let next_bytes = decode(&next_b64)?;
-            crypto.process_commit(&next_bytes)?;
-            sequencer.confirm(next_b64);
-            log_group_commit(persistence, group_id, current, &next_bytes);
-        }
+    }
+    // Keep a ready successor buffered until its snapshot/evidence commits.
+    while let Some(current) = crypto.epoch() {
+        let Some(next_b64) = sequencer.peek_ready(current).map(str::to_owned) else {
+            break;
+        };
+        let next_bytes = decode(&next_b64)?;
+        accept_commit(crypto, persistence, group_id, &next_bytes)?;
+        sequencer.drain_ready(current);
+        sequencer.confirm(next_b64);
+        log_group_commit(persistence, group_id, current, &next_bytes);
     }
     // AlreadySeen, Buffered, or Apply all end here: report whatever gap
     // remains at the (possibly advanced) current epoch.
@@ -51,6 +53,18 @@ pub(super) fn sequence_commit(
     } else {
         SequenceOutcome::Done
     })
+}
+
+fn accept_commit(
+    crypto: &mut MlsSessionCrypto,
+    store: Option<&Persistence>,
+    group_id: &str,
+    bytes: &[u8],
+) -> Result<(), PrivateGroupError> {
+    let staged = crypto.stage_membership(bytes, None)?;
+    super::history::persist_membership(crypto, &staged, store, group_id, bytes)?;
+    *crypto = staged.next;
+    Ok(())
 }
 
 /// Feed an admin's resync replay through normal sequencing. Returns true when

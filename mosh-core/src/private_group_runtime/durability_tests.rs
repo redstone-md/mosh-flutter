@@ -29,6 +29,12 @@ mod deletion;
 #[path = "durability_tests/previews.rs"]
 mod previews;
 
+#[path = "durability_tests/history.rs"]
+mod history;
+
+#[path = "durability_tests/background.rs"]
+mod background;
+
 struct Fixture {
     store: Arc<Persistence>,
     runtime: PrivateGroupRuntime,

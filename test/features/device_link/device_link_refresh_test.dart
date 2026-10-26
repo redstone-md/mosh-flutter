@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/device_link/device_link_provider.dart';
 import 'package:mosh/src/features/device_link/device_link_state.dart';
@@ -33,6 +34,7 @@ void main() {
 
   testWidgets('production polling uses the same real refresh operation',
       (tester) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     harness.container.updateOverrides([
       deviceLinkCommandsProvider.overrideWithValue(harness.commands),
       deviceLinkPollIntervalProvider

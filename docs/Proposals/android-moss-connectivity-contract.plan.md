@@ -1,6 +1,6 @@
 # Android connectivity signal for Moss waiting
 
-Status: proposed; not approved or implemented. Scope: IVO-136/137 under
+Status: approved by the owner on 2026-10-26; implementation in progress. Scope: IVO-136/137 under
 [IVO-132](https://linear.app/ivoxygen/issue/IVO-132/android-fonovye-zvonki-uvedomleniya-i-polnaya-dogruzka-istorii).
 This supplements the approved [waiting contract](android-moss-waiting-contract.plan.md).
 
@@ -47,8 +47,9 @@ network/backoff, Stop races and unchanged non-opted consumers. Actual Wi-Fi to
 mobile transitions, Doze and delivery latency still require a physical phone.
 
 Repository approval is required because AGENTS.md says: "Ask before changing
-public contracts, dependencies, schemas or deleting tracked code." This proposal
-does not authorize implementation until the owner approves it.
+public contracts, dependencies, schemas or deleting tracked code." The owner explicitly approved this exact contract on 2026-10-26.
+Implementation still requires the verification below; approval does not prove
+physical network-transition acceptance.
 
 Source: [Android network-state callbacks](https://developer.android.com/develop/connectivity/network-ops/reading-network-state),
 checked after Context7 returned no exact default-callback reference.
