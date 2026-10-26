@@ -15,6 +15,9 @@
 
 use std::collections::HashMap;
 
+#[path = "history_background.rs"]
+mod background;
+
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -286,8 +289,22 @@ impl History {
         message: M,
         manifest: Option<AttachmentOffer>,
     ) -> Result<(), PersistenceError> {
+        let background = background::message(
+            self.tables,
+            conversation_id,
+            sent_at_ms,
+            message_id,
+            &message,
+        );
         let row = stored_row(conversation_id, sent_at_ms, message_id, message, manifest)?;
-        p.append_history_message(self.tables, conversation_id, sent_at_ms, message_id, &row)
+        p.append_history_message_with_background(
+            self.tables,
+            conversation_id,
+            sent_at_ms,
+            message_id,
+            &row,
+            background.as_ref(),
+        )
     }
 }
 

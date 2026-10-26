@@ -186,7 +186,7 @@ pub(super) fn send_packet(
     let framed =
         crate::stream_transport::frame_for_channel(DEVICE_CHANNEL, &packet).ok_or_else(invalid)?;
     transport
-        .send_to_peer_stream(peer, &framed)
+        .send_to_peer_frame(peer, &framed)
         .map_err(|_| invalid())
 }
 

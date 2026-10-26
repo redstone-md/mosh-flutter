@@ -56,6 +56,7 @@ impl From<MossFfiError> for SharedNodeError {
 struct SharedNodeState {
     node: Option<Arc<MossNode>>,
     refs: usize,
+    start_suspended: bool,
 }
 
 pub struct SharedMossNode {
@@ -70,6 +71,7 @@ impl SharedMossNode {
             state: Mutex::new(SharedNodeState {
                 node: None,
                 refs: 0,
+                start_suspended: false,
             }),
         })
     }
@@ -94,7 +96,7 @@ impl SharedMossNode {
         let mut state = self.lock();
         match state.node.as_ref() {
             None => {
-                let node = start_node(&self.moss, listen_port, static_peer)?;
+                let node = start_node(&self.moss, listen_port, static_peer, state.start_suspended)?;
                 state.node = Some(Arc::new(node));
             }
             Some(node) => {
@@ -124,6 +126,15 @@ impl SharedMossNode {
     /// The node if it is up, without taking a reference. For diagnostics.
     pub fn current(&self) -> Option<Arc<MossNode>> {
         self.lock().node.clone()
+    }
+
+    /// Configure cold Android off intent before any runtime can open rooms.
+    /// Existing transports are reconciled by the execution authority instead.
+    pub(crate) fn start_suspended_if_idle(&self, suspended: bool) {
+        let mut state = self.lock();
+        if state.node.is_none() {
+            state.start_suspended = suspended;
+        }
     }
 
     /// A poisoned lock means a panic while the node was being swapped. The
@@ -161,9 +172,10 @@ fn start_node(
     moss: &Arc<MossFfiRuntime>,
     listen_port: u16,
     static_peer: Option<String>,
+    suspended: bool,
 ) -> Result<MossNode, MossFfiError> {
     start_with_port_fallback(listen_port, |port| {
-        start_node_on(moss, port, static_peer.clone())
+        start_node_on(moss, port, static_peer.clone(), suspended)
     })
 }
 
@@ -219,6 +231,7 @@ fn start_node_on(
     moss: &Arc<MossFfiRuntime>,
     listen_port: u16,
     static_peer: Option<String>,
+    suspended: bool,
 ) -> Result<MossNode, MossFfiError> {
     let node = moss.init_default_node(
         SUBSTRATE_ROOM,
@@ -230,6 +243,16 @@ fn start_node_on(
     )?;
     node.set_message_callback()?;
     node.set_event_callback()?;
+    // The installation has one packet callback: DM relay frames and call media
+    // are dispatched to their existing owners before either starts receiving.
+    if let Err(error) = node.set_packet_callback() {
+        dlog::write(
+            LogLevel::Warn,
+            kinds::STREAM,
+            "packet-handler",
+            &format!("directed packets unavailable: {error}"),
+        );
+    }
     // The attachment stream handler (spec #8) must be registered on the
     // RECEIVE side before any counterpart streams a chunk at us — "first
     // stream use" would only cover the sender. Idempotent per node (moss
@@ -246,6 +269,10 @@ fn start_node_on(
         );
     }
     clear_event_log();
+    if suspended {
+        node.suspend_transport()?;
+        return Ok(node);
+    }
     if let Err(error) = node.start() {
         if let Some(reason) = node.last_error() {
             dlog::write(
@@ -335,6 +362,7 @@ mod tests {
         let mut state = SharedNodeState {
             node: None,
             refs: 2,
+            start_suspended: false,
         };
 
         drop_ref(&mut state);

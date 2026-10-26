@@ -3,35 +3,59 @@ use super::*;
 
 impl MossNode {
     pub fn subscribe(&self, channel: &str) -> Result<(), MossFfiError> {
-        self.call_string("subscribe", self.runtime.subscribe, channel)
+        self.call_string("subscribe", self.runtime.subscribe, channel, |r| {
+            r.global_subscriptions.insert(channel.to_string());
+        })
     }
 
     pub fn unsubscribe(&self, channel: &str) -> Result<(), MossFfiError> {
-        self.call_string("unsubscribe", self.runtime.unsubscribe, channel)
+        self.call_string("unsubscribe", self.runtime.unsubscribe, channel, |r| {
+            r.global_subscriptions.remove(channel);
+        })
     }
 
     pub fn leave_room(&self, mesh_id: &str) -> Result<(), MossFfiError> {
-        self.call_string("leave_room", self.runtime.leave_room, mesh_id)
+        self.call_string("leave_room", self.runtime.leave_room, mesh_id, |r| {
+            r.rooms.remove(mesh_id);
+            r.subscriptions.retain(|(room, _)| room != mesh_id);
+            r.discovery.remove(mesh_id);
+        })
     }
 
     pub fn connect(&self, address: &str) -> Result<(), MossFfiError> {
-        self.call_string("connect", self.runtime.connect, address)
+        self.call_string("connect", self.runtime.connect, address, |r| {
+            r.addresses.insert(address.to_string());
+        })
     }
 
     pub fn connect_to_peer(&self, peer_id_hex: &str) -> Result<(), MossFfiError> {
-        self.call_string("connect_to_peer", self.runtime.connect_to_peer, peer_id_hex)
+        self.call_string(
+            "connect_to_peer",
+            self.runtime.connect_to_peer,
+            peer_id_hex,
+            |r| {
+                r.peers.insert(peer_id_hex.to_string());
+            },
+        )
     }
 
     pub fn start(&self) -> Result<(), MossFfiError> {
-        check_code("start", unsafe { (self.runtime.start)(self.handle) })
+        let handle = self.handle()?;
+        check_code("start", unsafe { (self.runtime.start)(*handle) })
     }
 
     pub fn join_room(&self, mesh_id: &str) -> Result<(), MossFfiError> {
-        let mesh_id = c_string(mesh_id)?;
-
-        check_code("join_room", unsafe {
-            (self.runtime.join_room)(self.handle, mesh_id.as_ptr(), std::ptr::null(), 0)
-        })
+        let room = c_string(mesh_id)?;
+        self.register(
+            |handle| {
+                check_code("join_room", unsafe {
+                    (self.runtime.join_room)(handle, room.as_ptr(), std::ptr::null(), 0)
+                })
+            },
+            |r| {
+                r.rooms.insert(mesh_id.to_string());
+            },
+        )
     }
 
     pub fn publish_room(
@@ -47,10 +71,11 @@ impl MossNode {
 
         let mesh_id = c_string(mesh_id)?;
         let channel = c_string(channel)?;
+        let handle = self.handle()?;
 
         let published = check_publish_code(unsafe {
             (self.runtime.publish_room)(
-                self.handle,
+                *handle,
                 mesh_id.as_ptr(),
                 channel.as_ptr(),
                 payload.as_ptr(),
@@ -81,9 +106,10 @@ impl MossNode {
         }
 
         let channel = c_string(channel)?;
+        let handle = self.handle()?;
         let code = unsafe {
             (self.runtime.publish)(
-                self.handle,
+                *handle,
                 channel.as_ptr(),
                 payload.as_ptr(),
                 payload.len() as u32,
@@ -97,15 +123,25 @@ impl MossNode {
     }
 
     pub fn set_message_callback(&self) -> Result<(), MossFfiError> {
-        check_code("set_callback", unsafe {
-            (self.runtime.set_callback)(self.handle, Some(on_moss_message))
-        })
+        self.register(
+            |handle| {
+                check_code("set_callback", unsafe {
+                    (self.runtime.set_callback)(handle, Some(on_moss_message))
+                })
+            },
+            |r| r.messages = true,
+        )
     }
 
     pub fn set_event_callback(&self) -> Result<(), MossFfiError> {
-        check_code("set_event_callback", unsafe {
-            (self.runtime.set_event_callback)(self.handle, Some(on_moss_event))
-        })
+        self.register(
+            |handle| {
+                check_code("set_event_callback", unsafe {
+                    (self.runtime.set_event_callback)(handle, Some(on_moss_event))
+                })
+            },
+            |r| r.events = true,
+        )
     }
 
     pub fn subscribe_room(&self, mesh_id: &str, channel: &str) -> Result<(), MossFfiError> {
@@ -114,6 +150,10 @@ impl MossNode {
             self.runtime.subscribe_room,
             mesh_id,
             channel,
+            |r| {
+                r.subscriptions
+                    .insert((mesh_id.to_string(), channel.to_string()));
+            },
         )
     }
 
@@ -123,6 +163,10 @@ impl MossNode {
             self.runtime.unsubscribe_room,
             mesh_id,
             channel,
+            |r| {
+                r.subscriptions
+                    .remove(&(mesh_id.to_string(), channel.to_string()));
+            },
         )
     }
 
@@ -131,10 +175,14 @@ impl MossNode {
         name: &'static str,
         operation: MossSubscribe,
         value: &str,
+        update: impl FnOnce(&mut transport_owner::Registrations),
     ) -> Result<(), MossFfiError> {
         let value = c_string(value)?;
         // SAFETY: CString lives through the call and all operations share this ABI.
-        check_code(name, unsafe { operation(self.handle, value.as_ptr()) })
+        self.register(
+            |handle| check_code(name, unsafe { operation(handle, value.as_ptr()) }),
+            update,
+        )
     }
 
     fn call_room_channel(
@@ -143,20 +191,33 @@ impl MossNode {
         operation: MossRoomChannel,
         mesh_id: &str,
         channel: &str,
+        update: impl FnOnce(&mut transport_owner::Registrations),
     ) -> Result<(), MossFfiError> {
         let mesh_id = c_string(mesh_id)?;
         let channel = c_string(channel)?;
         // SAFETY: both CString arguments remain valid through the native call.
-        check_code(name, unsafe {
-            operation(self.handle, mesh_id.as_ptr(), channel.as_ptr())
-        })
+        self.register(
+            |handle| {
+                check_code(name, unsafe {
+                    operation(handle, mesh_id.as_ptr(), channel.as_ptr())
+                })
+            },
+            update,
+        )
     }
 }
 
 impl Drop for MossNode {
     fn drop(&mut self) {
-        unsafe {
-            (self.runtime.stop)(self.handle);
+        let state = self
+            .native
+            .get_mut()
+            .unwrap_or_else(|error| error.into_inner());
+        if let Some(handle) = state.handle.take() {
+            // SAFETY: exclusive ownership; all read leases and Arcs have ended.
+            unsafe {
+                (self.runtime.stop)(handle);
+            }
         }
     }
 }

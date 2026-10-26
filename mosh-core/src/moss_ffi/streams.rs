@@ -8,8 +8,9 @@ impl MossNode {
             .runtime
             .open_stream
             .ok_or_else(|| MossFfiError::Symbol(STREAM_SYMBOL.to_string()))?;
+        let handle = self.handle()?;
         check_code("open_stream", unsafe {
-            open(self.handle, peer.as_ptr(), stream_id)
+            open(*handle, peer.as_ptr(), stream_id)
         })
     }
 
@@ -24,9 +25,10 @@ impl MossNode {
             .runtime
             .send_stream
             .ok_or_else(|| MossFfiError::Symbol(STREAM_SYMBOL.to_string()))?;
+        let handle = self.handle()?;
         check_code("send_stream", unsafe {
             send(
-                self.handle,
+                *handle,
                 peer.as_ptr(),
                 stream_id,
                 payload.as_ptr(),
@@ -40,9 +42,16 @@ impl MossNode {
             .runtime
             .on_stream
             .ok_or_else(|| MossFfiError::Symbol(STREAM_SYMBOL.to_string()))?;
-        check_code("on_stream", unsafe {
-            on_stream(self.handle, stream_id, Some(on_stream_payload))
-        })
+        self.register(
+            |handle| {
+                check_code("on_stream", unsafe {
+                    on_stream(handle, stream_id, Some(on_stream_payload))
+                })
+            },
+            |r| {
+                r.streams.insert(stream_id);
+            },
+        )
     }
 }
 

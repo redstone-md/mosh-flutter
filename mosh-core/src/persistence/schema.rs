@@ -21,6 +21,7 @@ pub(super) const DEVICE_LINK: TableDefinition<&str, &[u8]> = TableDefinition::ne
 pub(super) const DEVICE_LINK_KEY: &str = "local-device-v1";
 pub(super) const CHAT_NAMES: Rows = TableDefinition::new("chat_names");
 pub(super) const PLUS_RECORDS: Rows = TableDefinition::new("plus_records");
+pub(super) const BACKGROUND_DELIVERY: Rows = TableDefinition::new("background_delivery");
 pub(super) const MESSAGE_DELETIONS: Rows = TableDefinition::new("message_deletions");
 pub(super) const MESSAGE_DELETION_TARGETS: Rows = TableDefinition::new("message_deletion_targets");
 pub(super) const ATTACHMENT_GC: Rows = TableDefinition::new("attachment_gc");
@@ -77,7 +78,8 @@ pub const CHANNEL_HISTORY: HistoryTables = HistoryTables {
     label: "channel",
 };
 
-pub(super) const ALL_TABLES: [Rows; 23] = [
+pub(super) const ALL_TABLES: [Rows; 24] = [
+    BACKGROUND_DELIVERY,
     CONVERSATION_RECOVERY,
     CONVERSATION_OCCURRENCES,
     GROUP_HISTORY_EVIDENCE,
