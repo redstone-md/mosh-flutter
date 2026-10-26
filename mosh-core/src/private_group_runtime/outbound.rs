@@ -112,6 +112,9 @@ impl PrivateGroupRuntime {
         persist_snapshot: bool,
     ) -> Result<GroupSendResult, PrivateGroupError> {
         self.persist_prepared(group_id, &prepared.message_id, persist_snapshot)?;
+        let publication = self
+            .group_mut(group_id)?
+            .prepare_publication(&prepared.message_id, &prepared.payload)?;
         let publish = {
             let session = self
                 .groups
@@ -125,6 +128,11 @@ impl PrivateGroupRuntime {
         let (group_id_owned, settled) = {
             let session = self.group_mut(group_id)?;
             let group_id_owned = session.group_id.clone();
+            if publish.is_ok() {
+                session
+                    .publications
+                    .insert(prepared.message_id.clone(), publication);
+            }
             let settled = session.outbox().settle(
                 &prepared.message_id,
                 publish.map_err(|error| error.to_string()),
@@ -142,6 +150,10 @@ impl PrivateGroupRuntime {
                 group_id,
                 &error.to_string(),
             );
+        } else {
+            self.group_mut(group_id)?
+                .publications
+                .remove(&prepared.message_id);
         }
         Ok(GroupSendResult {
             group_id: group_id_owned,

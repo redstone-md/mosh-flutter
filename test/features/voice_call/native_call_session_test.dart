@@ -250,6 +250,35 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
+  test(
+      'Android media authorization precedes capture and refuses late promotion',
+      () async {
+    final bridge = ScriptableBridge();
+    final promotion = Completer<bool>();
+    final owner = NativeCallOwner(bridge, () async => true,
+        authorizeMedia: (microphone, camera) => promotion.future);
+    await owner.bind('dm', 'call');
+    final active = owner.bind('dm', 'call', active: true);
+    await Future<void>.delayed(Duration.zero);
+    expect(bridge.countOf(BridgeMethod.nativeCallChoices), 0);
+    owner.unbind('dm', 'call');
+    promotion.complete(true);
+    await active;
+    expect(bridge.countOf(BridgeMethod.nativeCallChoices), 0);
+    owner.dispose();
+  });
+
+  test('Android refused camera service never opens native preview', () async {
+    final bridge = ScriptableBridge();
+    final owner = NativeCallOwner(bridge, () async => true,
+        requestCamera: () async => true,
+        authorizeMedia: (microphone, camera) async => false);
+    await expectLater(owner.bind('dm', 'call', video: true), throwsStateError);
+    expect(bridge.countOf(BridgeMethod.nativeCallPrepare), 0);
+    expect(owner.session, isNull);
+    owner.dispose();
+  });
+
   test('camera failure reconciles choice before immediate retry', () async {
     final bridge = ScriptableBridge();
     final session = _session(bridge);

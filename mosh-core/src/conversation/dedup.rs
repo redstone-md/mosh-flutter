@@ -24,9 +24,13 @@ pub struct SeenFrames {
 }
 
 impl SeenFrames {
+    pub(crate) fn contains(&self, channel: &str, payload: &[u8]) -> bool {
+        self.keys.contains(&Self::key(channel, payload))
+    }
+
     /// Records a frame and says whether it had already been recorded.
     pub fn seen_before(&mut self, channel: &str, payload: &[u8]) -> bool {
-        let key = format!("{channel}:{}", sha256_hex(payload));
+        let key = Self::key(channel, payload);
         if !self.keys.insert(key.clone()) {
             return true;
         }
@@ -37,6 +41,10 @@ impl SeenFrames {
             }
         }
         false
+    }
+
+    fn key(channel: &str, payload: &[u8]) -> String {
+        format!("{channel}:{}", sha256_hex(payload))
     }
 }
 

@@ -3,6 +3,23 @@
 use super::*;
 
 impl PrivateGroupRuntime {
+    /// Flush accepted work before a background transition. Main incoming slots
+    /// prove user downloads/playback; automatic previews are excluded by views.
+    /// Outgoing files have no terminal acknowledgement and cannot be counted.
+    pub(crate) fn background_work(&mut self) -> Result<(u32, u32), PrivateGroupError> {
+        self.groups.persist_tail()?;
+        let transfers = self
+            .groups
+            .values()
+            .flat_map(|session| session.transfer.views())
+            .filter(|view| {
+                view.direction == "incoming"
+                    && view.state == crate::conversation::attachments::AttachmentState::Downloading
+            })
+            .count();
+        Ok((0, u32::try_from(transfers).unwrap_or(u32::MAX)))
+    }
+
     /// Encrypts a file, stores the sender's copy, and broadcasts the manifest
     /// to every group member over the MLS-protected control channel.
     pub fn send_attachment(
@@ -36,6 +53,21 @@ impl PrivateGroupRuntime {
         self.drain_inbound()?;
         let session = self.group_mut(group_id)?;
         let result = session.send_attachment(input)?;
+        if let Err(error) = self
+            .groups
+            .persist_send(group_id, &result.attachment_id, false)
+        {
+            dlog::write(
+                LogLevel::Error,
+                kinds::PERSIST,
+                group_id,
+                &error.to_string(),
+            );
+        } else {
+            self.group_mut(group_id)?
+                .publications
+                .remove(&result.attachment_id);
+        }
         self.groups.persist_tail_logged(KIND);
         Ok(result)
     }

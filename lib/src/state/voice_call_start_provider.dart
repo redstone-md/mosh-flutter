@@ -1,3 +1,4 @@
+import 'package:mosh/src/features/background/android_waiting_owner.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/conversation_providers.dart';
@@ -43,6 +44,7 @@ class VoiceCallStartNotifier extends Notifier<bool> {
       }
       final started =
           await ref.read(bridgeFacadeProvider).callStart(sessionId: sessionId);
+      await ref.read(androidWaitingOwnerProvider)?.refresh();
       final native = ref.read(nativeCallOwnerProvider);
       if (native != null) {
         await native.bind(sessionId, started.callId, video: video);

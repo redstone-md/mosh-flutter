@@ -48,6 +48,18 @@ impl AttachmentRuntime {
             .incoming
             .get_mut(attachment_id)
             .ok_or_else(|| AttachmentRuntimeError::UnknownTransfer(attachment_id.to_string()))?;
+        if matches!(
+            transfer.state,
+            TransferState::Cancelled | TransferState::Failed
+        ) {
+            if transfer.state == TransferState::Failed {
+                transfer.chunks.clear();
+            }
+            transfer.state = TransferState::Active;
+            transfer.requested_at.clear();
+            transfer.request_cursor = 0;
+            transfer.priority_chunk = None;
+        }
         transfer.download_started = true;
         Ok(())
     }

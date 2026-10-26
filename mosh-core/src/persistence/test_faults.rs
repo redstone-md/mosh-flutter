@@ -11,6 +11,10 @@ pub(crate) struct TableFault {
 }
 
 impl Persistence {
+    pub(crate) fn refuse_background_delivery_writes(self: &Arc<Self>) -> TableFault {
+        self.refuse_table_writes(BACKGROUND_DELIVERY)
+    }
+
     pub(crate) fn refuse_message_writes(self: &Arc<Self>, tables: HistoryTables) -> TableFault {
         self.refuse_table_writes(tables.messages)
     }

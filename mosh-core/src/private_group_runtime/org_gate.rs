@@ -2,16 +2,26 @@
 
 use super::*;
 
+pub(super) struct VerifiedControl {
+    pub(super) payload: Vec<u8>,
+    pub(super) sender_peer_id: Option<String>,
+    pub(super) original_org: Option<Vec<u8>>,
+}
+
 impl GroupSession {
-    /// Inbound control frame → (inner payload, verified sender peer-id).
+    /// Retain the original verified org wrapper beside its inner control frame.
     /// Org groups accept only valid `OrgSigned` frames; plain groups pass
     /// the payload through with no sender claim.
     pub(super) fn unwrap_control(
         &self,
         payload: Vec<u8>,
-    ) -> Result<(Vec<u8>, Option<String>), PrivateGroupError> {
+    ) -> Result<VerifiedControl, PrivateGroupError> {
         let Some(org_pubkey) = self.org_pubkey.as_deref() else {
-            return Ok((payload, None));
+            return Ok(VerifiedControl {
+                payload,
+                sender_peer_id: None,
+                original_org: None,
+            });
         };
         let env: OrgSigned = decode_json(&payload)?;
         let ctx = OrgContext {
@@ -21,7 +31,11 @@ impl GroupSession {
         };
         org_envelope::verify(&env, &ctx)
             .map_err(|e| PrivateGroupError::Codec(format!("org envelope rejected: {e}")))?;
-        Ok((env.payload, Some(env.peer_id)))
+        Ok(VerifiedControl {
+            payload: env.payload,
+            sender_peer_id: Some(env.peer_id),
+            original_org: Some(payload),
+        })
     }
 
     /// Latest verified roster for this group's org, re-verified only when
@@ -48,6 +62,7 @@ impl GroupSession {
         }
         let roster = org_roster::verify(&bytes, org_pubkey, None)
             .map_err(|error| PrivateGroupError::Codec(format!("org roster rejected: {error}")))?;
+        self.history_dispatch.invalidate();
         self.roster_cache = Some((bytes, roster.clone()));
         Ok(roster)
     }
@@ -286,6 +301,7 @@ impl GroupSession {
                 self.log_commit(epoch, &commit_bytes);
             }
             let commit_envelope = ControlEnvelope::Commit {
+                admission_binding: None,
                 group_id: self.group_id.clone(),
                 from_fingerprint: own_fp,
                 commit_b64: encode(&commit_bytes),
@@ -311,6 +327,7 @@ impl GroupSession {
         sender_peer_id: Option<&str>,
         participant_id: String,
         key_package: &[u8],
+        joiner_binding: Option<&crate::sender_auth::SenderProof>,
         own_fp: String,
     ) -> Result<(), PrivateGroupError> {
         let Some(sender) = sender_peer_id else {
@@ -335,9 +352,7 @@ impl GroupSession {
             );
             return Ok(());
         }
-        let pre_epoch = self.crypto.epoch();
-        let outcome = self.crypto.replace_member(&identity, key_package)?;
-        self.broadcast_admission(pre_epoch, &outcome, participant_id, own_fp)
+        self.admit_history_member(participant_id, key_package, joiner_binding, own_fp)
     }
 
     pub(super) fn broadcast_admission(
@@ -346,12 +361,14 @@ impl GroupSession {
         outcome: &AddOutcome,
         participant_id: String,
         own_fp: String,
+        admission_binding: Option<crate::sender_auth::SenderProof>,
     ) -> Result<(), PrivateGroupError> {
         if let Some(epoch) = pre_epoch {
             self.log_commit(epoch, &outcome.commit_bytes);
         }
         let commit_b64 = encode(&outcome.commit_bytes);
         let welcome_envelope = ControlEnvelope::Welcome {
+            admission_binding: admission_binding.clone(),
             group_id: self.group_id.clone(),
             for_participant_id: participant_id,
             from_fingerprint: own_fp.clone(),
@@ -363,6 +380,7 @@ impl GroupSession {
         // Existing members need the Commit on the control channel so their
         // MLS tree advances; the Welcome above is consumed only by the joiner.
         let commit_envelope = ControlEnvelope::Commit {
+            admission_binding,
             group_id: self.group_id.clone(),
             from_fingerprint: own_fp,
             commit_b64,

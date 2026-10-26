@@ -12,9 +12,28 @@ use crate::channel_runtime::{
 
 static RUNTIME: RuntimeOwner<ChannelRuntime> = RuntimeOwner::new("channel");
 
+pub(crate) fn background_work() -> Result<(u32, u32), String> {
+    let Some(runtime) = RUNTIME.initialized() else {
+        return Ok((0, 0));
+    };
+    runtime
+        .lock()
+        .map_err(|_| "channel runtime lock poisoned".to_owned())?
+        .background_work()
+        .map_err(|error| error.to_string())
+}
+
 pub(crate) fn ensure_runtime(
 ) -> Result<MutexGuard<'static, ChannelRuntime>, ConversationBridgeError> {
     RUNTIME.lock(construct_runtime)
+}
+
+pub(crate) fn ensure_background_runtime() -> Result<(), String> {
+    drop(ensure_runtime().map_err(|error| error.to_string())?);
+    RUNTIME.start_service(
+        std::time::Duration::from_millis(500),
+        ChannelRuntime::service,
+    )
 }
 
 fn construct_runtime() -> Result<ChannelRuntime, ChannelRuntimeError> {

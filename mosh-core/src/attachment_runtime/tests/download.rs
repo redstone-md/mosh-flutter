@@ -143,7 +143,11 @@ fn stream_range_returns_pending_then_ready() {
     let request = receiver.next_chunk_request("a").unwrap();
     assert_eq!(request.chunk_indices.first().copied(), Some(2));
 
-    // Deliver every chunk, then the same range reads back exactly.
+    // Deliver the priority request already in flight, then the remaining
+    // sequential chunks. Request-window dedup must not hide a dropped fixture.
+    for frame in sender.serve_chunks(&request).unwrap() {
+        receiver.ingest_chunk(&frame).unwrap();
+    }
     while let Some(request) = receiver.next_chunk_request("a") {
         for frame in sender.serve_chunks(&request).unwrap() {
             let _ = receiver.ingest_chunk(&frame).unwrap();

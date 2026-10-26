@@ -12,6 +12,8 @@ use crate::private_group_runtime::{
 };
 
 static RUNTIME: RuntimeOwner<PrivateGroupRuntime> = RuntimeOwner::new("private group");
+#[path = "private_group_service.rs"]
+mod service;
 
 pub(crate) fn ensure_runtime(
 ) -> Result<MutexGuard<'static, PrivateGroupRuntime>, ConversationBridgeError> {
@@ -80,4 +82,22 @@ pub fn dismiss_dm_offer(group_id: String, offer_id: String) -> Result<(), Conver
     runtime
         .dismiss_dm_offer(&group_id, &offer_id)
         .map_err(ConversationBridgeError::from)
+}
+
+/// Inspect only an already-created runtime; background Stop must not open rooms.
+pub(crate) fn background_work() -> Result<(u32, u32), String> {
+    let Some(runtime) = RUNTIME.initialized() else {
+        return Ok((0, 0));
+    };
+    runtime
+        .lock()
+        .map_err(|_| "private group runtime lock poisoned".to_string())?
+        .background_work()
+        .map_err(|error| error.to_string())
+}
+
+/// Hydrate retained joined groups after native key startup, without UI polling.
+pub(crate) fn ensure_background_runtime() -> Result<(), String> {
+    drop(ensure_runtime().map_err(|error| error.to_string())?);
+    service::start()
 }

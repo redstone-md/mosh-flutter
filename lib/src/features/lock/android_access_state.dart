@@ -8,6 +8,7 @@ class AndroidAccessState {
         revision = value['revision'] as int,
         shieldGeneration = value['shieldGeneration'] as int,
         deviceInteractive = value['deviceInteractive'] == true,
+        callOnly = value['callOnly'] == true,
         allowed = value['allowed'] == true {
     if (value['version'] != 1 ||
         !delays.contains(delaySeconds) ||
@@ -20,7 +21,7 @@ class AndroidAccessState {
   final int delaySeconds, revision, shieldGeneration;
   final int? bootCount, deadlineElapsedMs;
   final String state;
-  final bool deviceInteractive, allowed;
+  final bool deviceInteractive, allowed, callOnly;
 
   Map<String, Object?> record({int? delay, String? phase}) => {
         'version': 1,

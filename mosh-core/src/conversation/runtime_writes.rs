@@ -137,9 +137,10 @@ impl<S: ConversationSession> ConversationRuntime<S> {
         let Some(session) = self.sessions.get(id) else {
             return Ok(());
         };
-        if !self
-            .history
-            .write_send(store, id, message, session.log(), session.attempts())?
+        if !session.write_send_override(store, message)?
+            && !self
+                .history
+                .write_send(store, id, message, session.log(), session.attempts())?
         {
             return Ok(());
         }

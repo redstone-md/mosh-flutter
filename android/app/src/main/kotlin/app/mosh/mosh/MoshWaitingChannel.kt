@@ -1,0 +1,44 @@
+package app.mosh.mosh
+
+import io.flutter.plugin.common.BinaryMessenger
+import io.flutter.plugin.common.MethodChannel
+
+internal class MoshWaitingChannel(messenger: BinaryMessenger, private val owner: MoshWaiting) {
+    private val channel = MethodChannel(messenger, "app.mosh.mosh/waiting")
+
+    init {
+        channel.setMethodCallHandler { call, result ->
+            try {
+                if (call.method == "setMediaTypes") {
+                    owner.setMediaTypes(call.arguments as Map<*, *>, result)
+                    return@setMethodCallHandler
+                }
+                val value = when (call.method) {
+                    "status" -> owner.status()
+                    "enable" -> owner.enable()
+                    "stop" -> owner.stop()
+                    "setUserWork" -> owner.setUserWork(call.arguments as Map<*, *>)
+                    "setNotificationPolicy" -> owner.setNotificationPolicy(call.arguments as Map<*, *>)
+                    "publishNotification" -> owner.publishNotification(call.arguments as Map<*, *>)
+                    "startupFailed" -> owner.startupFailed(call.arguments as Map<*, *>)
+                    "takeCallActions" -> owner.takeCallActions()
+                    "beginUserTransfer" -> owner.transfers.begin(call.arguments as Map<*, *>, false)
+                    "beginDeferredTransfer" -> owner.transfers.begin(call.arguments as Map<*, *>, true)
+                    "readTransferExecution" -> owner.transfers.snapshot()
+                    "takeTransferActions" -> owner.transfers.takeActions()
+                    "acknowledgeTransferActions" -> { owner.transfers.acknowledge(call.arguments as List<*>); null }
+                    "requestBatteryExemption" -> owner.requestBatteryExemption()
+                    else -> { result.notImplemented(); return@setMethodCallHandler }
+                }
+                result.success(value)
+            } catch (_: RuntimeException) {
+                result.error("WAITING_UNAVAILABLE", "Background availability could not be updated", null)
+            }
+        }
+    }
+
+    fun publish(value: Map<String, Any?>) { channel.invokeMethod("waitingStateChanged", value) }
+    fun callActionsChanged() { channel.invokeMethod("callActionsChanged", null) }
+    fun transferExecutionChanged() { channel.invokeMethod("transferExecutionChanged", null) }
+    fun transferActionsChanged() { channel.invokeMethod("transferActionsChanged", null) }
+}

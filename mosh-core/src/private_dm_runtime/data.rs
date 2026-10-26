@@ -73,13 +73,11 @@ impl PrivateDmSession {
         }
         let ack_id = envelope.message_id.clone();
         let message = self.messages.stamp(ChatMessage {
-            metadata: envelope
-                .origin
-                .map(|origin| crate::message_deletion::MessageMetadata {
-                    origin: Some(origin),
-                    is_own: Some(own),
-                    ..Default::default()
-                }),
+            metadata: Some(crate::message_deletion::MessageMetadata {
+                origin: envelope.origin,
+                is_own: Some(own),
+                ..Default::default()
+            }),
             from_device: author,
             body: String::from_utf8_lossy(&plaintext).into_owned(),
             message_id: envelope.message_id,

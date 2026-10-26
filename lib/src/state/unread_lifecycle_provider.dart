@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/features/lock/android_app_access.dart';
+import 'package:mosh/src/features/background/android_waiting_owner.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind, ConversationRef;
@@ -116,7 +117,7 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
 
     // OS toasts: one per diffed conversation when unfocused + the gate is
     // open. The body comes from the existing `notificationBody`.
-    if (!focused) {
+    if (!focused && ref.read(androidWaitingOwnerProvider)?.attached != true) {
       final ready = ref.read(notificationsReadyProvider).value ?? false;
       if (ready) {
         final plugin = ref.read(flutterLocalNotificationsPluginProvider);

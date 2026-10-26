@@ -255,23 +255,20 @@ impl AttachmentSlots {
         if slot.direction != AttachmentDirection::Incoming {
             return Err(SlotError::NotIncoming);
         }
+        attachments
+            .start_download(attachment_id)
+            .map_err(|error| SlotError::Transfer(error.to_string()))?;
         slot.download_requested = true;
         slot.failed = false;
         slot.cancelled = false;
-        attachments
-            .start_download(attachment_id)
-            .map_err(|error| SlotError::Transfer(error.to_string()))
+        Ok(())
     }
 
     /// Playback wants bytes, so the transfer has to run whether or not the
     /// user pressed download. An id with no slot is ignored: the stream call
     /// answers with whatever the transfer layer has.
     pub fn resume_for_stream(&mut self, attachment_id: &str, attachments: &mut AttachmentRuntime) {
-        if let Some(slot) = self.slots.get_mut(attachment_id) {
-            slot.download_requested = true;
-            slot.cancelled = false;
-        }
-        let _ = attachments.start_download(attachment_id);
+        let _ = self.start_download(attachment_id, attachments);
     }
 
     pub fn cancel(

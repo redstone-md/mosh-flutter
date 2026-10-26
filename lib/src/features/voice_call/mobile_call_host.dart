@@ -91,6 +91,7 @@ class _MobileCallHostState extends ConsumerState<MobileCallHost> {
         child: VoiceCallLayer(
             key: ValueKey(session),
             sessionId: session,
+            peerOverride: widget.call?.peer,
             l: AppLocalizations.of(context)!,
             compact: !_expanded,
             floating: !_expanded && _videoCall,

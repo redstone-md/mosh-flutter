@@ -1,3 +1,4 @@
+import 'package:mosh/src/state/notifications_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
@@ -5,6 +6,7 @@ import 'package:mosh/src/features/vpn/vpn_consent_overlay.dart';
 import 'package:mosh/src/state/auto_poll_provider.dart';
 
 import 'first_run_provider.dart';
+import 'package:mosh/src/features/background/android_waiting_owner.dart';
 import 'first_run_wizard.dart';
 
 /// Keep conversation routes unmounted until local setup is durable. The router
@@ -33,6 +35,14 @@ class FirstRunGate extends ConsumerWidget {
   }
 
   Widget _ready(WidgetRef ref) {
+    final waiting = ref.watch(androidWaitingOwnerProvider);
+    if (waiting != null) {
+      final ready = ref.watch(_backgroundReadyProvider);
+      if (ready.isLoading) {
+        return const Material(
+            child: Center(child: CircularProgressIndicator()));
+      }
+    }
     ref.watch(autoPollProvider);
     return ref.watch(firstRunShownProvider)
         ? child
@@ -55,3 +65,15 @@ class FirstRunGate extends ConsumerWidget {
     )));
   }
 }
+
+// Setup is durable before _ready is reached. Attach before any UI poll opens
+// ordinary mesh work; the service choice remains independently user-controlled.
+final _backgroundReadyProvider = FutureProvider<void>((ref) async {
+  final waiting = ref.read(androidWaitingOwnerProvider);
+  if (waiting == null) return;
+  if (waiting.platform.state?.setupComplete != true &&
+      waiting.platform.state?.interactive == true) {
+    await ref.read(notificationsReadyProvider.future);
+  }
+  await waiting.attach(setupCompleted: true);
+});

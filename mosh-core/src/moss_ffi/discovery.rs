@@ -7,6 +7,7 @@ impl MossNode {
         let Some(operation) = self.runtime.set_room_peer_discovery else {
             return Ok(());
         };
+        let room_name = room;
         let room = c_string(room)?;
         // String slices serialize infallibly; propagate allocation/serializer
         // failures through the adapter's existing runtime error boundary.
@@ -15,14 +16,21 @@ impl MossNode {
         let peers_json = c_string(&json)?;
         // SAFETY: the optional symbol uses Moss's int64/int32/pointer C ABI;
         // both CStrings and the loaded library live throughout this call.
-        check_code("set_room_peer_discovery", unsafe {
-            operation(
-                self.handle,
-                room.as_ptr(),
-                i32::from(!peers.is_empty()),
-                peers_json.as_ptr(),
-            )
-        })
+        self.register(
+            |handle| {
+                check_code("set_room_peer_discovery", unsafe {
+                    operation(
+                        handle,
+                        room.as_ptr(),
+                        i32::from(!peers.is_empty()),
+                        peers_json.as_ptr(),
+                    )
+                })
+            },
+            |r| {
+                r.discovery.insert(room_name.to_string(), peers.to_vec());
+            },
+        )
     }
 }
 

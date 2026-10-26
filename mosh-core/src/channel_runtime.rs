@@ -45,6 +45,7 @@ pub struct JoinChannelRequest {
 pub(crate) mod types;
 pub use types::*;
 struct ChannelSession {
+    recovery: history::Recovery,
     plus_schedule: crate::plus::PlusSchedule,
     pub(super) deletions: crate::message_deletion::DeletionBook,
     pub(super) name: String,
@@ -258,6 +259,28 @@ impl ChannelRuntime {
             let _ = session.sync_plus(crate::conversation::now_ms());
             session.pump_attachment_requests();
         }
+        if self.channels.persist_tail().is_err() {
+            // Cursor durability must never acknowledge an unsaved live suffix.
+            return Ok(());
+        }
+        let mut imported = Vec::new();
+        for session in self.channels.values_mut() {
+            match session.sync_history(crate::conversation::now_ms()) {
+                Ok(true) => imported.push(session.name.clone()),
+                Ok(false) => {}
+                Err(error) => {
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::PERSIST,
+                        &session.name,
+                        &format!("history: {error}"),
+                    );
+                }
+            }
+        }
+        for name in imported {
+            self.channels.acknowledge_history(&name);
+        }
         Ok(())
     }
 }
@@ -265,6 +288,7 @@ impl ChannelRuntime {
 impl ConversationSession for ChannelSession {
     fn attach_persistence(&mut self, store: Option<Arc<Persistence>>) {
         self.deletions.store = store;
+        self.restore_history();
     }
     type Message = ChannelMessage;
     type Record = PersistedChannelSession;
@@ -301,8 +325,10 @@ impl ConversationSession for ChannelSession {
 
 // The session's own machinery: message handling and the blob topic.
 // Both are `impl ChannelSession` on the same struct.
+mod background;
 mod blob;
 mod deletion;
+mod history;
 mod lifecycle;
 mod offers;
 mod plus;

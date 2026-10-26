@@ -30,6 +30,7 @@ fn persisted_message_round_trips_attachment_and_call() {
         read: None,
     };
     let pm = StoredMessage {
+        history_evidence: None,
         conversation_id: "conv".into(),
         sent_at_ms: 123,
         message_id: "123-000000".into(),

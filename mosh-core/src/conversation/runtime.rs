@@ -53,6 +53,15 @@ pub trait ConversationSession {
 
     fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord>;
 
+    /// A kind may atomically settle its publication with protected evidence.
+    fn write_send_override(
+        &self,
+        _store: &Persistence,
+        _message: &str,
+    ) -> Result<bool, PersistenceError> {
+        Ok(false)
+    }
+
     fn record(&self) -> Self::Record;
 
     /// Durable state of this kind that goes down beside the history. A DM and
@@ -178,6 +187,13 @@ impl<S: ConversationSession> ConversationRuntime<S> {
     /// The next unchanged tail need not re-encrypt the conversation state.
     pub fn mark_record_final(&mut self, conversation_id: &str) {
         self.final_records.insert(conversation_id.to_string());
+    }
+
+    /// Called only after an atomic import saved the existing tail and new rows.
+    pub(crate) fn acknowledge_history(&mut self, id: &str) {
+        if let Some(session) = self.sessions.get(id) {
+            self.history.acknowledge(id, session.log().len());
+        }
     }
 
     /// Forgets what the shell remembers about one conversation: how much of

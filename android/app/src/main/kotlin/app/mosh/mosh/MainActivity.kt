@@ -13,9 +13,12 @@ class MainActivity : FlutterActivity() {
     private var callPermissions: MoshCallPermissions? = null
     private var callPresentation: MoshCallPresentation? = null
     private var access: MoshAccess? = null
+    private var waiting: MoshWaiting? = null
 
-    override fun provideFlutterEngine(context: Context): FlutterEngine =
-        (application as MoshApplication).runtime.engine
+    override fun provideFlutterEngine(context: Context): FlutterEngine {
+        MoshWaitingSystemStop(this).reopened()
+        return (application as MoshApplication).runtime.engine
+    }
 
     override fun shouldDestroyEngineWithHost(): Boolean = false
 
@@ -24,11 +27,22 @@ class MainActivity : FlutterActivity() {
     override fun shouldRestoreAndSaveState(): Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val entry = intent
+        intent = MoshTransferIntents.forFlutter(MoshCallIntents.forFlutter(entry))
         super.onCreate(savedInstanceState)
         // Flutter installs its view during super.onCreate, before a PiP shield
         // can safely be added above it.
         callPresentation?.attach(this)
         access?.attach(this)
+        waiting?.attach(this)
+        waiting?.callIntent(entry)
+        waiting?.transfers?.accept(entry)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(MoshTransferIntents.forFlutter(MoshCallIntents.forFlutter(intent)))
+        waiting?.callIntent(intent)
+        waiting?.transfers?.accept(intent)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -36,6 +50,7 @@ class MainActivity : FlutterActivity() {
         callPermissions = MoshCallPermissions(this, flutterEngine.dartExecutor.binaryMessenger)
         callPresentation = (application as MoshApplication).runtime.presentation
         access = (application as MoshApplication).runtime.access
+        waiting = (application as MoshApplication).runtime.waiting
     }
 
     override fun onUserLeaveHint() {
@@ -61,10 +76,12 @@ class MainActivity : FlutterActivity() {
         access?.resumed()
         super.onResume()
         callPresentation?.resumed()
+        waiting?.resumed()
     }
 
     override fun onPause() {
         access?.paused()
+        waiting?.paused()
         callPresentation?.paused()
         super.onPause()
     }
@@ -92,6 +109,8 @@ class MainActivity : FlutterActivity() {
         callPresentation = null
         access?.detach(this)
         access = null
+        waiting?.detach(this)
+        waiting = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 }

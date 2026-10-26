@@ -1,8 +1,7 @@
 //! The group runtime tests: state machine, org authority, resync.
 use super::*;
 use crate::moss_ffi::{
-    drain_received_messages, fail_next_test_publish, no_peers_next_test_publish, MossFfiRuntime,
-    MOSS_TEST_LOCK,
+    drain_received_messages, no_peers_next_test_publish, MossFfiRuntime, MOSS_TEST_LOCK,
 };
 use crate::persistence::Persistence;
 use std::path::PathBuf;

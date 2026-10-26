@@ -6,6 +6,7 @@ import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
 import 'settings_disclosure.dart';
+import 'package:mosh/src/features/background/android_waiting_settings.dart';
 
 /// Optional adapter override for networks where VPN interferes with discovery.
 class ConnectionSettingsSection extends ConsumerWidget {
@@ -15,17 +16,20 @@ class ConnectionSettingsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final relauncher = DesktopAppRelauncherScope.of(context);
-    return SettingsDisclosure(
-      key: const PageStorageKey('connection-vpn'),
-      icon: Icons.lan_outlined,
-      title: l.settingsVpnTitle,
-      summary: l.settingsVpnSummary,
-      child: BindInterfaceField(
-        bridge: ref.watch(bridgeFacadeProvider),
-        l: l,
-        onAccept: relauncher.relaunch,
-        canRelaunch: relauncher.supported,
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      const AndroidWaitingSettings(),
+      SettingsDisclosure(
+        key: const PageStorageKey('connection-vpn'),
+        icon: Icons.lan_outlined,
+        title: l.settingsVpnTitle,
+        summary: l.settingsVpnSummary,
+        child: BindInterfaceField(
+          bridge: ref.watch(bridgeFacadeProvider),
+          l: l,
+          onAccept: relauncher.relaunch,
+          canRelaunch: relauncher.supported,
+        ),
       ),
-    );
+    ]);
   }
 }

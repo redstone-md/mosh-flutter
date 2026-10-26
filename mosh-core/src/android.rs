@@ -53,3 +53,13 @@ pub extern "system" fn Java_app_mosh_mosh_MoshNative_initialize<'caller>(
         .with_env(|env| initialize(env, application))
         .resolve::<ThrowRuntimeExAndDefault>();
 }
+
+/// Android default-network callbacks request a bounded native recheck.
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "system" fn Java_app_mosh_mosh_MoshNative_notifyNetworkChanged(
+    _env: EnvUnowned<'_>,
+    _class: JClass<'_>,
+) -> i32 {
+    crate::api::background::notify_network_changed()
+}

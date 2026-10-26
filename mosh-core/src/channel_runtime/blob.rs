@@ -7,6 +7,8 @@ impl ChannelSession {
         let envelope: ChannelBlobEnvelope = serde_json::from_slice(&payload)
             .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;
         match envelope {
+            ChannelBlobEnvelope::History { frame } => self.queue_history(frame),
+            _ if self.seen.seen_before(&self.blob_topic, &payload) => Ok(()),
             ChannelBlobEnvelope::MessageDeletion { frame } => self.receive_deletion_frame(frame),
             ChannelBlobEnvelope::PlusMetadata { frame } => self.receive_plus(&frame),
             ChannelBlobEnvelope::Manifest {
@@ -69,12 +71,20 @@ impl ChannelSession {
             }
         }
         let message_id = origin.as_ref().map(|o| o.id.clone());
+        let is_own = origin
+            .as_ref()
+            .map(|origin| {
+                self.deletion_authority()
+                    .map(|authority| authority.is_author(origin))
+            })
+            .transpose()?;
         let Some(descriptor) = self.transfer.accept_offer(offer)? else {
             return Ok(());
         };
         let message = self.messages.stamp(ChannelMessage {
             metadata: origin.map(|origin| crate::message_deletion::MessageMetadata {
                 origin: Some(origin),
+                is_own,
                 ..Default::default()
             }),
             from_device,
@@ -175,6 +185,7 @@ impl ChannelSession {
     pub(super) fn snapshot(&self) -> ChannelSnapshot {
         let authority = self.deletion_authority().ok();
         ChannelSnapshot {
+            history_sync: self.history_state(),
             deletion_summary: self.deletions.summary(),
             name: self.name.clone(),
             topic: self.topic.clone(),

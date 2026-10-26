@@ -24,6 +24,9 @@ import 'package:mosh/src/features/lock/mosh_lock_screen.dart';
 import 'package:mosh/src/platform/app_data_dir.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
+import 'package:mosh/src/platform/android_waiting_platform.dart';
+import 'package:mosh/src/features/background/android_waiting_owner.dart';
+import 'package:mosh/src/features/background/background_commands.dart';
 import 'package:mosh/src/features/onboarding/first_run_gate.dart';
 import 'package:mosh/src/features/voice_call/call_window_app.dart';
 import 'package:mosh/src/features/voice_call/android_pip_overlay.dart';
@@ -94,6 +97,9 @@ void main(List<String> args) async {
   // process (parallel to `_appRoot`).
   final LifecycleGate gate = LifecycleGate();
   final appAccess = Platform.isAndroid ? AndroidAppAccess() : null;
+  final waiting = Platform.isAndroid
+      ? AndroidWaitingOwner(AndroidWaitingPlatform(), BackgroundCommands())
+      : null;
   // M-5 (ADR 0010): resolve the app-private data directory ONCE via
   // `getApplicationSupportDirectory()` (path_provider) and hand it to Rust
   // via the frb `setAppDataDir` bridge call BEFORE the private-DM runtime
@@ -134,6 +140,8 @@ void main(List<String> args) async {
         crashReportingProvider.overrideWithValue(crashReporting),
         if (appAccess != null)
           androidAppAccessProvider.overrideWithValue(appAccess),
+        if (waiting != null)
+          androidWaitingOwnerProvider.overrideWithValue(waiting),
       ],
       child: ValueListenableBuilder<Widget>(
         valueListenable: _appRoot,
@@ -149,6 +157,7 @@ void main(List<String> args) async {
       access: appAccess!,
       gate: gate,
       relauncher: relauncher,
+      waiting: waiting!,
     );
   } else {
     root = MoshApp(relauncher: relauncher, windowController: windowController);
@@ -162,21 +171,29 @@ Future<Widget> _androidStartupRoot({
   required AndroidAppAccess access,
   required LifecycleGate gate,
   required DesktopAppRelauncher relauncher,
+  required AndroidWaitingOwner waiting,
 }) async {
   Future<void> initialize({bool repair = false}) async {
+    await waiting.prepare();
     if (repair) {
       await recoverMobileDek();
     } else {
-      await initMobileDek(waitForForeground: gate.waitUntilResumed);
+      await initMobileDek(waitForForeground: () async {
+        await waiting.startupFailed('keyUnavailable');
+        await gate.waitUntilResumed();
+        await waiting.prepare();
+      });
     }
     // Key loading/migration/repair never grants interactive chat access.
     await access.initialize();
+    await waiting.attach();
   }
 
   try {
     await initialize();
     return MoshApp(relauncher: relauncher);
   } catch (error) {
+    await waiting.startupFailed('keyUnavailable');
     await access.initialize();
     final platform = error is PlatformException ? error : null;
     final repair = const {

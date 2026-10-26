@@ -1,6 +1,79 @@
 use super::*;
 
 #[test]
+fn refused_buffered_successor_retries_from_the_last_accepted_own_snapshot() {
+    let directory = crate::test_temp_directory::TempDirectory::new("group-successor-refusal");
+    let store = Arc::new(
+        Persistence::open_with_dek(&directory.path().join("history.redb"), [19; 32]).unwrap(),
+    );
+    let mut admin = MlsSessionCrypto::new("admin").unwrap();
+    admin.create_group().unwrap();
+    let mut member = MlsSessionCrypto::new("member").unwrap();
+    let package = member.key_package_bytes().unwrap();
+    let (welcome, tree) = admin.add_peer(&package).unwrap();
+    member.join_welcome(&welcome, &tree).unwrap();
+    let mut dave = MlsSessionCrypto::new("dave").unwrap();
+    let first = admin
+        .add_members(&[&dave.key_package_bytes().unwrap()])
+        .unwrap();
+    let mut erin = MlsSessionCrypto::new("erin").unwrap();
+    let second = admin
+        .add_members(&[&erin.key_package_bytes().unwrap()])
+        .unwrap();
+    let mut sequencer = CommitSequencer::new();
+    sequence_commit(
+        &mut member,
+        &mut sequencer,
+        Some(&store),
+        "refused-next",
+        &encode(&second.commit_bytes),
+    )
+    .unwrap();
+
+    // Resume at the durable boundary after the predecessor was accepted.
+    member.process_commit(&first.commit_bytes).unwrap();
+    store
+        .put_group_transition("refused-next", b"own-record", &member.snapshot())
+        .unwrap();
+    let refusal = store.refuse_group_snapshot_writes();
+    assert!(sequence_commit(
+        &mut member,
+        &mut sequencer,
+        Some(&store),
+        "refused-next",
+        &encode(&first.commit_bytes)
+    )
+    .is_err());
+    assert_eq!(member.epoch(), Some(2));
+    drop(refusal);
+
+    sequence_commit(
+        &mut member,
+        &mut sequencer,
+        Some(&store),
+        "refused-next",
+        &encode(&first.commit_bytes),
+    )
+    .unwrap();
+    assert_eq!(
+        member.member_count(),
+        4,
+        "the buffered successor must remain retryable"
+    );
+    let restored = MlsSessionCrypto::restore(
+        "member",
+        &member.signer_public(),
+        &store
+            .get_group_mls_snapshot("refused-next")
+            .unwrap()
+            .unwrap(),
+        &member.group_id_bytes().unwrap(),
+    )
+    .unwrap();
+    assert_eq!(restored.epoch(), Some(3));
+}
+
+#[test]
 fn sequence_commit_handles_out_of_order_duplicates_and_logs() {
     let mut db_path: PathBuf = std::env::temp_dir();
     db_path.push(format!("mosh-seq-commit-{}.redb", std::process::id()));
@@ -134,11 +207,13 @@ fn org_admission_enforces_identity_and_roster_with_replace_dedup() {
     let persistence =
         Arc::new(Persistence::open_with_dek(&db_path, [23u8; 32]).expect("store should open"));
 
-    let admin_seed = [71u8; 32];
-    persistence
-        .put_moss_identity(&identity_blob(admin_seed))
+    let _identity = crate::moss_ffi::replace_test_keystore(Some(persistence.clone()));
+    let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
+    let native = moss
+        .init_default_node("org-admission-identity", &Default::default())
         .unwrap();
-    let admin_peer = org_signing::peer_id_hex(&SigningKey::from_bytes(&admin_seed));
+    let admin_peer = native.public_key_hex().unwrap();
+    drop(native);
     let member_key = SigningKey::from_bytes(&[72u8; 32]);
     let member_peer = org_signing::peer_id_hex(&member_key);
     let stranger_key = SigningKey::from_bytes(&[73u8; 32]);
@@ -150,7 +225,6 @@ fn org_admission_enforces_identity_and_roster_with_replace_dedup() {
         ],
     );
 
-    let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
     let mut runtime =
         PrivateGroupRuntime::from_shared(moss, temp_store(), Some(persistence.clone()));
     let created = runtime
@@ -167,6 +241,10 @@ fn org_admission_enforces_identity_and_roster_with_replace_dedup() {
     {
         let session = runtime.groups.get(&created.group_id).unwrap();
         assert_eq!(session.crypto.member_identities(), vec![admin_peer.clone()]);
+        assert_eq!(
+            session.device_fingerprint, admin_peer,
+            "the native node must use the roster identity"
+        );
     }
     let (control_channel, mesh_id) = {
         let s = runtime.groups.get(&created.group_id).unwrap();
@@ -175,6 +253,7 @@ fn org_admission_enforces_identity_and_roster_with_replace_dedup() {
     let key_package_env = |identity: &str, participant: &str| {
         let mut crypto = MlsSessionCrypto::new(identity).unwrap();
         ControlEnvelope::KeyPackage {
+            joiner_binding: None,
             group_id: created.group_id.clone(),
             participant_id: participant.to_string(),
             from_device: "peer".to_string(),

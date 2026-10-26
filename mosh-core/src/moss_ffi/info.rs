@@ -4,7 +4,8 @@ use super::*;
 impl MossNode {
     pub fn last_error(&self) -> Option<String> {
         let last_error = self.runtime.last_error?;
-        take_heap_string(unsafe { last_error(self.handle) }, &self.runtime.free)
+        let handle = self.handle().ok()?;
+        take_heap_string(unsafe { last_error(*handle) }, &self.runtime.free)
             .filter(|reason| !reason.is_empty())
     }
 
@@ -13,11 +14,18 @@ impl MossNode {
         if take_test_public_key_unavailable() {
             return None;
         }
+        if !self.transport_running() {
+            return self
+                .identity_signer
+                .as_ref()
+                .map(|key| hex::encode(key.verifying_key().to_bytes()));
+        }
         self.identity_public_key_hex()
     }
 
     pub(super) fn identity_public_key_hex(&self) -> Option<String> {
-        let ptr = unsafe { (self.runtime.get_public_key)(self.handle) };
+        let handle = self.handle().ok()?;
+        let ptr = unsafe { (self.runtime.get_public_key)(*handle) };
         if ptr.is_null() {
             return None;
         }
@@ -35,21 +43,23 @@ impl MossNode {
     }
 
     pub fn peer_rtt_ns(&self, peer_id: &str) -> Option<u64> {
-        let rtt =
-            unsafe { (self.runtime.peer_rtt?)(self.handle, c_string(peer_id).ok()?.as_ptr()) };
+        let handle = self.handle().ok()?;
+        let rtt = unsafe { (self.runtime.peer_rtt?)(*handle, c_string(peer_id).ok()?.as_ptr()) };
         u64::try_from(rtt).ok().filter(|nanos| *nanos > 0)
     }
 
     pub fn mesh_info_json(&self) -> Option<String> {
+        let handle = self.handle().ok()?;
         take_heap_string(
-            unsafe { (self.runtime.get_mesh_info)(self.handle) },
+            unsafe { (self.runtime.get_mesh_info)(*handle) },
             &self.runtime.free,
         )
     }
 
     pub fn nat_type(&self) -> Option<String> {
+        let handle = self.handle().ok()?;
         take_heap_string(
-            unsafe { (self.runtime.get_nat_type)(self.handle) },
+            unsafe { (self.runtime.get_nat_type)(*handle) },
             &self.runtime.free,
         )
     }

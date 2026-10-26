@@ -104,11 +104,34 @@ fn chat(action: &str, argument: &str, command: &Value) -> Value {
             Kind::Group => serde_json::to_value(private_group::list().unwrap()).unwrap(),
             Kind::Channel => serde_json::to_value(channel::list().unwrap()).unwrap(),
         },
+        "chat_send" => {
+            conversation::send(
+                Ref {
+                    kind: kind(command),
+                    id: argument.into(),
+                },
+                command["body"].as_str().unwrap().into(),
+            )
+            .unwrap();
+            json!({})
+        }
         "chat_viewed" => {
             conversation::mark_viewed(Ref {
                 kind: kind(command),
                 id: argument.into(),
             })
+            .unwrap();
+            json!({})
+        }
+        "chat_delete" => {
+            conversation::deletion::delete_messages(
+                Ref {
+                    kind: kind(command),
+                    id: argument.into(),
+                },
+                vec![command["message_id"].as_str().unwrap().into()],
+                conversation::deletion::DeleteScope::ForEveryone,
+            )
             .unwrap();
             json!({})
         }

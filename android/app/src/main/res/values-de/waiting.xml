@@ -1,0 +1,18 @@
+<resources>
+    <string name="mosh_notification_channel">Mosh-Benachrichtigungen</string>
+    <string name="mosh_new_message">Neue Nachricht</string>
+    <string name="mosh_waiting_channel">Nachrichten und Anrufe im Hintergrund</string>
+    <string name="mosh_waiting_starting">Verbindung wird hergestellt…</string>
+    <string name="mosh_waiting_ready">Warte auf Nachrichten und Anrufe</string>
+    <string name="mosh_waiting_limited">Erreichbarkeit im Hintergrund eingeschränkt</string>
+    <string name="mosh_waiting_stop">Warten beenden</string>
+    <string name="mosh_call_incoming">Eingehender Anruf</string>
+    <string name="mosh_call_outgoing">Anruf…</string>
+    <string name="mosh_call_connecting">Anruf wird verbunden…</string>
+    <string name="mosh_call_active">Anruf läuft</string>
+    <string name="mosh_transfer_channel">Dateiübertragungen</string>
+    <string name="mosh_transfer_upload">Datei wird gesendet</string>
+    <string name="mosh_transfer_download">Datei wird heruntergeladen</string>
+    <string name="mosh_transfer_paused">Dateiübertragung pausiert</string>
+    <string name="mosh_transfer_resume">Fortsetzen</string>
+</resources>

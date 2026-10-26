@@ -45,6 +45,31 @@ void main() {
     access.dispose();
   });
 
+  test('native call-only entry covers valid grace and acknowledges no chats',
+      () async {
+    final acknowledgements = <Map<Object?, Object?>>[];
+    var writes = 0;
+    messenger.setMockMethodCallHandler(AndroidAppAccess.channel, (call) async {
+      if (call.method == 'protectedFrameReady') {
+        acknowledgements.add(call.arguments as Map<Object?, Object?>);
+        return null;
+      }
+      if (call.method == 'saveAccessState') writes++;
+      return {..._state(phase: 'grace', revision: 1), 'callOnly': true};
+    });
+    final access = AndroidAppAccess();
+    addTearDown(access.dispose);
+    await access.initialize();
+    access.setChatVisible(true);
+    expect(access.covered, true);
+    expect(access.chatsInteractive, false);
+    await access.protectedFrameReady();
+    expect(acknowledgements.single['chatsVisible'], false);
+    expect(writes, 0);
+    expect(access.state!.state, 'grace');
+    expect(access.state!.deadlineElapsedMs, 61000);
+  });
+
   test('unreadable state and refused writes keep access covered', () async {
     messenger.setMockMethodCallHandler(AndroidAppAccess.channel,
         (_) async => throw PlatformException(code: 'ACCESS_STATE_UNAVAILABLE'));

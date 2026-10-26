@@ -78,6 +78,17 @@ impl Persistence {
                 Self::update_row(tx, snapshot, id, None)?;
             }
             self.delete_prefix(tx, tables.messages, id)?;
+            let kind = match tables.outbound_scope {
+                "private_dm" => "dm",
+                "private_group" => "group",
+                _ => "channel",
+            };
+            self.delete_prefix(tx, CONVERSATION_RECOVERY, &format!("{kind}:{id}"))?;
+            self.delete_prefix(
+                tx,
+                CONVERSATION_OCCURRENCES,
+                &format!("{}:{id}", tables.label),
+            )?;
             self.delete_prefix(
                 tx,
                 OUTBOUND_ATTEMPTS,

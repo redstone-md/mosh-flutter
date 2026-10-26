@@ -5,6 +5,8 @@ use redb::{Database, ReadableTable};
 
 mod attachment_gc;
 mod attachment_refs;
+pub(crate) mod background_calls;
+pub(crate) mod background_delivery;
 mod chat_names;
 mod conversation_records;
 mod crypto;
@@ -18,6 +20,8 @@ mod deletion_paging;
 mod deletion_tests;
 mod dm_devices;
 mod dm_history;
+pub(crate) mod history_admission;
+pub(crate) use history_admission::HistoryAdmission;
 mod group_commits;
 mod group_names;
 mod history;
@@ -31,12 +35,19 @@ mod outbound;
 mod outbound_guard;
 mod plus;
 mod records;
+mod recovery;
+pub(crate) use recovery::FrozenExport;
+mod recovery_exports;
+mod recovery_occurrences;
+mod recovery_pages;
 mod schema;
 #[cfg(test)]
 pub(crate) mod test_faults;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use background_delivery::BackgroundMessageAdmission;
+pub use background_delivery::BackgroundNotification;
 pub use crypto::{decrypt_blob, encrypt_blob};
 use schema::*;
 pub use schema::{HistoryTables, CHANNEL_HISTORY, DM_HISTORY, GROUP_HISTORY};
@@ -82,3 +93,9 @@ pub struct Persistence {
 fn db_error(error: impl std::fmt::Display) -> PersistenceError {
     PersistenceError::Db(error.to_string())
 }
+
+#[cfg(test)]
+mod history_admission_tests;
+
+#[cfg(test)]
+mod recovery_export_tests;

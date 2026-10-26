@@ -14,7 +14,7 @@ struct BoundPayload {
     payload_b64: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct SenderProof {
     #[serde(with = "compact_identity")]
     identity: OrgSigned,

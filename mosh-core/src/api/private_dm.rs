@@ -7,7 +7,6 @@ use super::runtime_owner::RuntimeOwner;
 use std::time::Duration;
 
 use crate::api::conversation_bridge::ConversationBridgeError;
-use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::private_dm_runtime::{
     AcceptInviteRequest, CallMedia, CallStarted, InviteCreated, PrivateDmRuntime,
     PrivateDmRuntimeError, SessionListSnapshot, SessionSnapshot, StartSessionRequest,
@@ -55,7 +54,7 @@ fn construct_runtime() -> Result<PrivateDmRuntime, PrivateDmRuntimeError> {
     // persistence wired it now rebuilds sessions + history instead of the
     // slice-one no-op.
     runtime.rehydrate();
-    start_service_thread();
+    start_service_thread().map_err(PrivateDmRuntimeError::Moss)?;
     Ok(runtime)
 }
 
@@ -131,6 +130,8 @@ pub fn list_sessions() -> Result<SessionListSnapshot, String> {
 /// outgoing-ringing state (SessionSnapshot.outgoing_call). The bridge
 /// returns CallStarted so the caller can begin capturing + sealing frames.
 pub fn call_start(session_id: String) -> Result<CallStarted, ConversationBridgeError> {
+    let _authority =
+        super::background::admit_user_work().map_err(ConversationBridgeError::unavailable)?;
     let mut runtime = ensure_runtime()?;
     runtime
         .call_start(&session_id)
@@ -141,6 +142,8 @@ pub fn call_start(session_id: String) -> Result<CallStarted, ConversationBridgeE
 /// Requests selection with an authenticated answer. Media remains pending until
 /// the caller confirms that this installation is the selected receiver.
 pub fn call_accept(session_id: String, call_id: String) -> Result<(), ConversationBridgeError> {
+    let _authority =
+        super::background::admit_user_work().map_err(ConversationBridgeError::unavailable)?;
     let mut runtime = ensure_runtime()?;
     runtime
         .call_accept(&session_id, &call_id)
@@ -184,27 +187,18 @@ const SERVICE_INTERVAL: Duration = Duration::from_millis(500);
 /// when this starts (it is called from inside the `RUNTIME` init), so each
 /// pass looks it up; a poisoned lock ends the thread, since every later
 /// call reports the runtime unavailable anyway.
-fn start_service_thread() {
-    let spawned = std::thread::Builder::new()
-        .name("mosh-dm-service".to_string())
-        .spawn(|| loop {
-            std::thread::sleep(SERVICE_INTERVAL);
-            let Some(mutex) = RUNTIME.initialized() else {
-                continue;
-            };
-            let Ok(mut guard) = mutex.lock() else {
-                return;
-            };
-            guard.service();
-        });
-    if let Err(error) = spawned {
-        dlog::write(
-            LogLevel::Error,
-            kinds::SERVICE,
-            "",
-            &format!("could not start the DM service thread: {error}"),
-        );
-    }
+fn start_service_thread() -> Result<(), String> {
+    RUNTIME.start_service(SERVICE_INTERVAL, PrivateDmRuntime::service)
+}
+
+pub(crate) fn background_work() -> Result<(u32, u32), String> {
+    let Some(runtime) = RUNTIME.initialized() else {
+        return Ok((0, 0));
+    };
+    runtime
+        .lock()
+        .map_err(|_| "private DM runtime unavailable".to_string())?
+        .background_work()
 }
 
 /// The call media hub, cached after the first call so the 20 ms audio loop

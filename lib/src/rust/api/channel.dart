@@ -9,6 +9,7 @@ import '../channel_runtime/types.dart';
 import '../conversation/attachments.dart';
 import '../conversation/dm_offers.dart';
 import '../conversation/mesh.dart';
+import '../conversation/recovery.dart';
 import '../frb_generated.dart';
 import '../message_deletion/origin.dart';
 import '../message_deletion/types.dart';
@@ -16,7 +17,7 @@ import '../outbound_delivery.dart';
 import 'conversation_bridge.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `construct_runtime`, `ensure_runtime`
+// These functions are ignored because they are not marked as `pub`: `background_work`, `construct_runtime`, `ensure_background_runtime`, `ensure_runtime`
 
 /// Join a public channel.
 Future<ChannelSnapshot> join({required JoinChannelRequest request}) =>

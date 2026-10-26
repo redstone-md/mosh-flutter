@@ -7,6 +7,7 @@ use super::conversation_bridge::ConversationBridgeError;
 pub(crate) struct RuntimeOwner<T> {
     name: &'static str,
     cell: OnceLock<Result<Mutex<T>, String>>,
+    service: OnceLock<Result<(), String>>,
 }
 
 impl<T> RuntimeOwner<T> {
@@ -14,6 +15,7 @@ impl<T> RuntimeOwner<T> {
         Self {
             name,
             cell: OnceLock::new(),
+            service: OnceLock::new(),
         }
     }
 
@@ -38,6 +40,52 @@ impl<T> RuntimeOwner<T> {
     /// Service threads wait for construction and terminate on lock poison.
     pub(crate) fn initialized(&self) -> Option<&Mutex<T>> {
         self.cell.get()?.as_ref().ok()
+    }
+
+    /// Starts at most one service, explicitly from Android's installation owner.
+    /// Never holds a conversation lock while reconciling execution.
+    pub(crate) fn start_service(
+        &'static self,
+        interval: std::time::Duration,
+        service: fn(&mut T),
+    ) -> Result<(), String>
+    where
+        T: Send + 'static,
+    {
+        self.service
+            .get_or_init(|| self.spawn_service(interval, service))
+            .clone()
+    }
+
+    fn spawn_service(
+        &'static self,
+        interval: std::time::Duration,
+        service: fn(&mut T),
+    ) -> Result<(), String>
+    where
+        T: Send + 'static,
+    {
+        let spawned = std::thread::Builder::new()
+            .name(format!("mosh-{}-service", self.name))
+            .spawn(move || loop {
+                std::thread::sleep(interval);
+                let Some(mutex) = self.initialized() else {
+                    continue;
+                };
+                if super::background::network_permitted() {
+                    let Ok(_authority) = super::background::execution_lease() else {
+                        return;
+                    };
+                    if super::background::network_permitted() {
+                        let Ok(mut runtime) = mutex.lock() else {
+                            return;
+                        };
+                        service(&mut runtime);
+                    }
+                }
+                super::background::reconcile();
+            });
+        spawned.map(|_| ()).map_err(|error| error.to_string())
     }
 }
 
@@ -88,5 +136,26 @@ mod tests {
         let error = POISONED.lock(|| Ok::<_, String>(2)).unwrap_err();
         assert_eq!(error.message, "poisoned runtime lock poisoned");
         assert_eq!(*HEALTHY.lock(|| Ok::<_, String>(3)).unwrap(), 3);
+    }
+    #[test]
+    fn repeated_background_attach_keeps_one_service_owner() {
+        static SERVICE: RuntimeOwner<usize> = RuntimeOwner::new("once service");
+        drop(SERVICE.lock(|| Ok::<_, String>(0)).unwrap());
+        SERVICE
+            .start_service(std::time::Duration::from_millis(5), |value| *value += 1)
+            .unwrap();
+        SERVICE
+            .start_service(std::time::Duration::from_millis(5), |value| *value += 1000)
+            .unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            let value = *SERVICE.lock(|| Ok::<_, String>(0)).unwrap();
+            assert!(value < 1000, "a second attach spawned another service");
+            if value >= 5 {
+                break;
+            }
+            assert!(std::time::Instant::now() < deadline, "service did not run");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
     }
 }

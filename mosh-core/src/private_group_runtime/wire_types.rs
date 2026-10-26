@@ -13,6 +13,10 @@ use crate::shared_node::SharedMossNode;
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub(super) enum ControlEnvelope {
+    History {
+        group_id: String,
+        frame: crate::conversation::recovery::wire::HistoryFrame,
+    },
     PlusMetadata {
         group_id: String,
         frame: crate::plus::SealedPlusFrame,
@@ -33,6 +37,8 @@ pub(super) enum ControlEnvelope {
         from_device: String,
         from_fingerprint: String,
         key_package_b64: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        joiner_binding: Option<crate::sender_auth::SenderProof>,
     },
     Welcome {
         group_id: String,
@@ -41,6 +47,8 @@ pub(super) enum ControlEnvelope {
         welcome_b64: String,
         commit_b64: String,
         tree_b64: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        admission_binding: Option<crate::sender_auth::SenderProof>,
     },
     Commit {
         group_id: String,
@@ -51,6 +59,8 @@ pub(super) enum ControlEnvelope {
         /// until that roster arrives instead of being dropped.
         #[serde(default)]
         roster_version: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        admission_binding: Option<crate::sender_auth::SenderProof>,
     },
     AdminHandoff {
         group_id: String,
@@ -72,6 +82,8 @@ pub(super) enum ControlEnvelope {
         from_device: String,
         from_fingerprint: String,
         manifest_ciphertext_b64: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        sent_at_ms: Option<u64>,
     },
     /// A private-DM invitation aimed at one group member.
     DmOffer {
@@ -110,6 +122,7 @@ impl ControlEnvelope {
         matches!(
             self,
             Self::AttachmentManifest { .. }
+                | Self::History { .. }
                 | Self::PlusMetadata { .. }
                 | Self::MessageDeletion { .. }
                 | Self::DmOffer { .. }
@@ -119,6 +132,7 @@ impl ControlEnvelope {
     }
     pub(super) fn group_id(&self) -> &str {
         match self {
+            Self::History { group_id, .. } => group_id,
             Self::PlusMetadata { group_id, .. } => group_id,
             Self::MessageDeletion { group_id, .. } => group_id,
             Self::NameMetadata { group_id, .. } => group_id,

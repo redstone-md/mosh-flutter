@@ -10,4 +10,10 @@ internal object MoshNative {
 
     @JvmStatic
     external fun initialize(application: Context)
+
+    @JvmStatic
+    external fun notifyNetworkChanged(): Int
+
+    @JvmStatic
+    external fun setTransferExecution(incarnation: String, id: String, generation: Long, allowed: Boolean): Int
 }

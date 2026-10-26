@@ -9,6 +9,7 @@ use std::{
     time::Duration,
 };
 
+mod activity;
 mod callbacks;
 mod config;
 mod discovery;
@@ -25,10 +26,13 @@ mod test_faults;
 mod test_network;
 #[cfg(test)]
 mod tests;
+mod transport_owner;
 
 pub use crate::stream_transport::STREAM_INBOX_CHANNEL_PREFIX;
+pub(crate) use activity::ActivityMode;
 #[cfg(test)]
 pub use callbacks::clear_moss_keystore;
+pub(crate) use callbacks::connected_peer_revision;
 #[cfg(test)]
 pub(crate) use callbacks::replace_test_keystore;
 pub use callbacks::{
@@ -84,6 +88,7 @@ pub enum MossFfiError {
     IdentityUnavailable,
     InjectedPublishFailure(String),
     NoPeers,
+    TransportOffline,
 }
 
 impl MossFfiError {
@@ -112,6 +117,7 @@ impl std::fmt::Display for MossFfiError {
             }
             Self::InjectedPublishFailure(message) => write!(formatter, "{message}"),
             Self::NoPeers => write!(formatter, "no peers yet, so the message did not go out"),
+            Self::TransportOffline => write!(formatter, "Mosh transport is offline"),
         }
     }
 }
@@ -155,11 +161,16 @@ pub struct MossFfiRuntime {
     on_stream: Option<MossOnStreamFn>,
     send_to_peer: Option<MossSendToPeerFn>,
     set_packet_callback: Option<MossSetPacketCallbackFn>,
+    set_activity_mode: Option<MossSetActivityModeFn>,
+    #[cfg(target_os = "android")]
+    notify_network_changed: Option<MossNotifyNetworkChangedFn>,
 }
 
 pub struct MossNode {
     runtime: Arc<MossFfiRuntime>,
-    handle: MossHandle,
+    native: RwLock<transport_owner::NativeNode>,
+    mesh_id: String,
+    config_json: String,
     identity_signer: Option<ed25519_dalek::SigningKey>,
 }
 
