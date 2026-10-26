@@ -134,6 +134,7 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
   Future<void> _openSheet() async {
     final choice = await showModalBottomSheet<MoshSelectOption<T>>(
       context: context,
+      routeSettings: RouteSettings(name: ModalRoute.of(context)?.settings.name),
       useSafeArea: true,
       isScrollControlled: true,
       builder: (context) => ConstrainedBox(
