@@ -12,7 +12,12 @@ fn absent_room_discovery_symbol_preserves_legacy_startup() {
     let node = Arc::new(runtime)
         .init_node("legacy-discovery", &node_config(0, None))
         .unwrap();
-    node.start().unwrap();
+    node.start().unwrap_or_else(|error| {
+        panic!(
+            "Moss startup failed: {error}; last error: {:?}",
+            node.last_error()
+        )
+    });
     node.set_room_known_peers("legacy-discovery", &["ab".repeat(32)])
         .unwrap();
     node.set_room_known_peers("legacy-discovery", &[]).unwrap();
