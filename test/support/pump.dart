@@ -34,10 +34,12 @@ Future<void> pumpScreen(
   List<Override> overrides = const [],
   ProviderContainer? container,
   bool settle = true,
+  List<NavigatorObserver> observers = const [],
 }) =>
     _pump(
       tester,
       MaterialApp(
+        navigatorObservers: observers,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         builder: (context, child) => ToastHost(child: child!),

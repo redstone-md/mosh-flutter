@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'dart:async' show unawaited;
 import 'dart:io' show Platform;
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
+import 'package:mosh/src/features/lock/app_lock_route_observer.dart';
 import 'package:mosh/src/features/voice_call/desktop_window_visibility.dart';
 
 import 'package:mosh/src/features/conversation/dm_screen.dart';
@@ -54,6 +55,7 @@ class AppRoutes {
 /// only declarative route -> screen mappings. `MoshApp` passes it to
 /// `MaterialApp.router` (which preserves locale/theme/localization wiring).
 final GoRouter appRouter = GoRouter(
+  observers: [appLockRouteObserver],
   // After FirstRunGate finishes, the app opens the StatefulShellRoute:
   // branch A (/sessions, the SessionRail) on the left and branch B
   // (/chat, ChatPaneWelcome with the inline NewSessionPanel) on the right
