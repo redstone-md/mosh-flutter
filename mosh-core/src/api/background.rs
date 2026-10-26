@@ -1,7 +1,7 @@
 //! Installation execution, independent of chat unlock or mounted UI polling.
 mod changes;
 mod execution;
-mod types;
+pub(crate) mod types;
 
 use crate::frb_generated::StreamSink;
 pub use crate::persistence::BackgroundNotification;

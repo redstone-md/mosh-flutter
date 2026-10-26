@@ -5,6 +5,8 @@
 
 import 'api/attachment_stream.dart';
 import 'api/audio_devices.dart';
+import 'api/background.dart';
+import 'api/background/types.dart';
 import 'api/channel.dart';
 import 'api/conversation.dart';
 import 'api/conversation/deletion.dart';
@@ -46,6 +48,7 @@ import 'org_runtime.dart';
 import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 import 'persistence.dart';
+import 'persistence/background_delivery.dart';
 import 'plus/checkout.dart';
 import 'plus/recovery_types.dart';
 import 'plus/types.dart';
@@ -142,6 +145,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustStreamSink<String> dco_decode_StreamSink_String_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<BigInt> dco_decode_StreamSink_u_64_Sse(dynamic raw);
+
+  @protected
   String dco_decode_String(dynamic raw);
 
   @protected
@@ -173,6 +179,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AudioDeviceInfo dco_decode_audio_device_info(dynamic raw);
+
+  @protected
+  BackgroundMode dco_decode_background_mode(dynamic raw);
+
+  @protected
+  BackgroundNotification dco_decode_background_notification(dynamic raw);
+
+  @protected
+  BackgroundReachability dco_decode_background_reachability(dynamic raw);
+
+  @protected
+  BackgroundStatus dco_decode_background_status(dynamic raw);
 
   @protected
   bool dco_decode_bool(dynamic raw);
@@ -475,6 +493,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AudioDeviceInfo> dco_decode_list_audio_device_info(dynamic raw);
+
+  @protected
+  List<BackgroundNotification> dco_decode_list_background_notification(
+      dynamic raw);
 
   @protected
   List<ChannelMessage> dco_decode_list_channel_message(dynamic raw);
@@ -883,6 +905,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  RustStreamSink<BigInt> sse_decode_StreamSink_u_64_Sse(
+      SseDeserializer deserializer);
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
@@ -918,6 +944,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AudioDeviceInfo sse_decode_audio_device_info(SseDeserializer deserializer);
+
+  @protected
+  BackgroundMode sse_decode_background_mode(SseDeserializer deserializer);
+
+  @protected
+  BackgroundNotification sse_decode_background_notification(
+      SseDeserializer deserializer);
+
+  @protected
+  BackgroundReachability sse_decode_background_reachability(
+      SseDeserializer deserializer);
+
+  @protected
+  BackgroundStatus sse_decode_background_status(SseDeserializer deserializer);
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
@@ -1260,6 +1300,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AudioDeviceInfo> sse_decode_list_audio_device_info(
+      SseDeserializer deserializer);
+
+  @protected
+  List<BackgroundNotification> sse_decode_list_background_notification(
       SseDeserializer deserializer);
 
   @protected
@@ -1721,6 +1765,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       RustStreamSink<String> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_StreamSink_u_64_Sse(
+      RustStreamSink<BigInt> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
@@ -1760,6 +1808,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_audio_device_info(
       AudioDeviceInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_background_mode(
+      BackgroundMode self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_background_notification(
+      BackgroundNotification self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_background_reachability(
+      BackgroundReachability self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_background_status(
+      BackgroundStatus self, SseSerializer serializer);
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
@@ -2129,6 +2193,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_audio_device_info(
       List<AudioDeviceInfo> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_background_notification(
+      List<BackgroundNotification> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_channel_message(
