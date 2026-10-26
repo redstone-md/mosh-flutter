@@ -1,9 +1,9 @@
 # Authenticated admission associations for plain groups
 
-Status: proposed; not approved or implemented. Supplements the approved
+Status: approved by the owner on 2026-10-26; implementation in progress. Supplements the approved
 [automatic history contract](android-history-automatic-contract.plan.md).
 
-Not implemented or assumed approved. Existing OrgSigned Welcome already signs its
+Implementation is authorized by the explicit owner approval; verification is still required. Existing OrgSigned Welcome already signs its
 entire original JSON, but plain Welcome has no authenticated commit association.
 Pinned GroupInfo verifies the new context and author, not its unsigned commit hint.
 
@@ -50,4 +50,4 @@ time, prejoin history grant, room content transport, or admin approval UI.
 
 Verification covers real OpenMLS KeyPackage/Welcome/commit flow; mismatched signer, scope, epoch, context and exact byte hashes; invalid supplied proofs; absent legacy fields; atomic storage refusal/restart; removal/rejoin and no pre-admission export.
 
-AGENTS.md requires approval before changing public contracts. These optional fields and fixed signing inputs require that approval before implementation. No new dependencies or encrypted tables are proposed.
+AGENTS.md requires approval before changing public contracts. The owner explicitly approved these optional fields and fixed signing inputs on 2026-10-26. Implementation verification remains required. No new dependencies or encrypted tables are proposed.
