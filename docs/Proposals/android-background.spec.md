@@ -18,9 +18,11 @@ without introducing a central message archive or exposing unauthorized history.
 ## Solution
 
 Provide background calls and message notifications inside the normal Mosh APK,
-without FCM or a Google Play services dependency. An economical, explicit opt-in
-Mosh waiting mode in Moss reuses its relay carrier instead of retaining the full
-ordinary mesh workload. A persistent quiet notification lets the user stop
+without FCM or a Google Play services dependency. Mosh automatically uses an
+economical waiting mode in Moss that reuses its relay carrier instead of retaining
+the full ordinary mesh workload. Opt-in is an integration choice for applications
+using Moss, not an extra setup step for the Mosh user. Waiting starts after setup.
+A persistent quiet notification lets the user stop
 waiting; the app accurately reports when Android restrictions limit availability.
 
 Separate the Mosh app lock from background key access. After the first Android
@@ -118,8 +120,10 @@ No protocol can recover data absent from every remaining copy.
   execution ownership must not depend on a mounted chat, Activity or Flutter
   polling widget, and must not create a second node, store or competing call
   owner. All three conversation kinds need independent background servicing.
-- **Explicit waiting mode.** Opt into an economical Moss lifecycle using the
-  existing relay carrier. Transition between waiting and active user work
+- **Automatic Mosh waiting mode.** Mosh opts into an economical Moss lifecycle
+  using the existing relay carrier and selects it automatically when appropriate.
+  Users do not need to find and enable a setting after setup. Other applications
+  must explicitly opt into this integration. Transition between waiting and active user work
   without losing authenticated state or stranding connections. Ordinary
   desktop, gaming and SSH defaults remain unchanged. The current Moss C API
   lacks this lifecycle; stop/start on the same handle is not a working substitute.

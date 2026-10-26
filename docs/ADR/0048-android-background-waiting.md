@@ -9,7 +9,9 @@ energy goal. Native checks confirmed that the existing relay carrier forwards
 encrypted traffic to a connected leaf; the current C API has no economical
 waiting mode. See the [feasibility evidence](../Proposals/issue-94-moss-wake.research.md).
 
-Use an explicit opt-in waiting mode in Moss and reuse its relay carrier.
+Mosh opts into an economical waiting mode in Moss and reuses its relay carrier.
+The integration is opt-in for applications using Moss, not for the Mosh user:
+Mosh selects waiting automatically when appropriate after initial setup.
 Existing defaults for desktop, gaming and SSH consumers remain unchanged.
 This keeps transport ownership in Moss and avoids selecting a separate push
 provider or hosted broker before one is shown necessary. A reduced startup
