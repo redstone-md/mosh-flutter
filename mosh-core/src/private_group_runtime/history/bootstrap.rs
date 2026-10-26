@@ -76,3 +76,7 @@ impl GroupSession {
 #[cfg(test)]
 #[path = "bootstrap_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "bootstrap_org_tests.rs"]
+mod org_tests;
