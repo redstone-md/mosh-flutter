@@ -2,6 +2,14 @@ name: Windows network diagnostics
 
 on:
   workflow_dispatch:
+    inputs:
+      suite:
+        description: Run collectors or focused native group-history checks.
+        type: choice
+        default: collectors
+        options:
+          - collectors
+          - group-history
   pull_request:
     paths:
       - '.github/workflows/network-diagnostics.yml'
@@ -12,6 +20,7 @@ permissions:
 
 jobs:
   diagnostics:
+    if: github.event_name != 'workflow_dispatch' || inputs.suite != 'group-history'
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -57,3 +66,32 @@ jobs:
             build/mosh-network-diagnostics.zip
             build/mosh-network-diagnostics.zip.sha256
           retention-days: 14
+
+  group-history:
+    name: Native group history (Windows, three attachment runs)
+    if: github.event_name == 'workflow_dispatch' && inputs.suite == 'group-history'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup
+        with:
+          flutter: 'false'
+          rust-cache-key: desktop
+      - name: Build the independent-installation harness
+        run: cargo build --manifest-path mosh-core/Cargo.toml --test private_group_history_flow
+      - name: Verify offline-author recovery from an ordinary holder
+        run: >-
+          node scripts/moss-test.mjs --test private_group_history_flow
+          an_offline_group_author_is_recovered_from_an_ordinary_holder_after_restart -- --exact
+      - name: Verify attachment recovery three times
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Attachment recovery: run $attempt of 3"
+            node scripts/moss-test.mjs --test private_group_history_flow \
+              attachment_recovery_keeps_original_offers_without_downloading_files -- --exact
+          done
