@@ -107,7 +107,7 @@ Future<String?> _readLegacyDek() {
 /// [setHistoryDek]. The production [readLegacyDek] refuses background access.
 Future<MobileDekResolution> resolveHistoryDek({
   required MobileDekStorage storage,
-  Future<String?> Function()? readLegacyDek,
+  Future<String?> Function() readLegacyDek = _readLegacyDek,
   required bool Function() dbExists,
   required Future<void> Function(List<int> dek) setHistoryDek,
   List<int> Function() mint = _secureMint32,
@@ -119,7 +119,7 @@ Future<MobileDekResolution> resolveHistoryDek({
   }
   // The production legacy reader refuses non-foreground calls, including on a
   // fresh installation. Missing background material never authorizes a mint.
-  final legacy = await readLegacyDek?.call();
+  final legacy = await readLegacyDek();
   if (legacy == null && dbExists()) {
     throw StateError(
       'history-dek-v1: DEK absent from Keystore but history DB exists; '

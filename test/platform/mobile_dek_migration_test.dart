@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
 
@@ -23,6 +24,7 @@ class _Storage implements MobileDekStorage {
 }
 
 void main() {
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
   final legacyKey = List<int>.generate(32, (index) => 255 - index);
 
   test('migrates the exact legacy key before opening existing history',
@@ -169,5 +171,25 @@ void main() {
       throwsA(isA<StateError>().having((error) => error.message, 'message',
           'history-dek-v1: malformed stored DEK')),
     );
+  });
+
+  test('default legacy policy refuses a cold mint even without any database',
+      () async {
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    try {
+      await expectLater(
+        resolveHistoryDek(
+          storage: _Storage(),
+          dbExists: () => false,
+          mint: () =>
+              fail('Absence of the legacy key has not been established'),
+          setHistoryDek: (_) async => fail('Cold startup must remain closed'),
+        ),
+        throwsA(isA<PlatformException>()
+            .having((error) => error.code, 'code', 'DEK_FOREGROUND_REQUIRED')),
+      );
+    } finally {
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    }
   });
 }

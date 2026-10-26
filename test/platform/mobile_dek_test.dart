@@ -84,6 +84,7 @@ void main() {
     final result = await resolveHistoryDek(
       storage: storage,
       dbExists: () => false,
+      readLegacyDek: () async => null,
       setHistoryDek: _recordingInject(injected),
       mint: _fixedMint,
     );
@@ -111,6 +112,7 @@ void main() {
       resolveHistoryDek(
         storage: storage,
         dbExists: () => true,
+        readLegacyDek: () async => null,
         setHistoryDek: _recordingInject(injected),
         mint: () => fail('mint must not run on the fail-closed branch'),
       ),
@@ -137,6 +139,7 @@ void main() {
       resolveHistoryDek(
         storage: storage,
         dbExists: () => false,
+        readLegacyDek: () async => null,
         setHistoryDek: _recordingInject(injected),
         mint: _fixedMint,
       ),
