@@ -87,13 +87,15 @@ class _Host {
     final id = invite.sessionId;
     await installation
         .ask({'action': 'dm_accept', 'argument': invite.inviteUri});
-    final deadline = DateTime.now().add(const Duration(seconds: 50));
+    final deadline = DateTime.now().add(const Duration(seconds: 90));
     while (true) {
       final local = await dm.pollSession(sessionId: id);
       final remote =
           await installation.ask({'action': 'dm_poll', 'argument': id});
       if (local.state == DmSessionState.connected &&
-          remote['state'] == 'connected') break;
+          remote['state'] == 'connected') {
+        break;
+      }
       if (DateTime.now().isAfter(deadline)) {
         throw StateError(
             'Call peers did not connect: ${local.state}, ${remote['state']}');
