@@ -44,3 +44,25 @@ preparatory changes do not establish background acceptance.
   missing. A collector, proposal or successful build does not complete a feature.
 - Waiting is automatic after setup in Mosh. Opt-in describes the application's
   integration with Moss; other Moss consumers retain their current defaults.
+
+## Prepared implementation, 2026-10-26
+
+- IVO-133: application-owned engine, ringtone and PiP configuration committed
+  as `64bc51eb`; actual call/message continuity through Activity recreation is
+  still a physical-phone acceptance requirement. No ticket is marked Done.
+- IVO-147: safe adb collector and guide committed as `47aab1c2`; review finding
+  about APK identity was fixed in `d4aa4a25`. Nine command-boundary tests pass.
+  Physical baseline, process-level gaps and numeric budgets remain open.
+- Flutter analysis, eight focused presentation tests and the JNI context probe
+  pass. The full Flutter suite passes: 2015 tests, four skipped.
+- Separate standards/spec reviews found no standards findings and one actionable
+  collector finding, now fixed. Their full reports are stored with implementation
+  evidence outside the repository; this is review of the prepared layer only.
+- Concrete [access](android-background-access-contract.plan.md),
+  [execution](android-background-execution-contract.plan.md),
+  [Moss](android-moss-waiting-contract.plan.md) and
+  [history](android-history-contracts.plan.md) proposals are prepared for approval.
+  No new key/wire/storage contract or Moss lifecycle has been implemented.
+- Group-history proof versus completeness is an explicit unresolved decision;
+  closing roots can omit legitimate messages held by offline participants.
+  Do not change the agreed full-history criterion without the owner's answer.

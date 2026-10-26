@@ -26,6 +26,7 @@ engine. Calls return typed platform errors without secret values in messages.
 | --- | --- | --- |
 | `readBackgroundDek` | none | 32 bytes, absent, or an error |
 | `installBackgroundDek` | exactly 32 bytes | success only after durable readback |
+| `recoverBackgroundDek` | exactly 32 legacy DEK bytes | explicit authenticated foreground repair, then durable readback |
 | `authenticateChats` | localized reason | authenticated / canceled / unavailable |
 | `readAccessState` | none | delay, boot marker, elapsed deadline and state |
 | `saveAccessState` | validated access state | success after synchronous persistence |
@@ -60,7 +61,10 @@ plaintext, attach to saved Activity state or include in crash reports.
   wrapping yields a valid key, show a recoverable error; never mint a replacement.
 - An existing valid new wrapping takes precedence. If it is damaged, cold
   background startup fails closed; an explicit authenticated foreground recovery
-  may reinstall the same legacy key, never a guessed or newly minted key.
+  may reinstall the same legacy key through `recoverBackgroundDek`, never a
+  guessed or newly minted key. This repair path requires a current foreground
+  authentication and successful legacy read; ordinary install/read cannot
+  overwrite a damaged envelope or recreate its missing alias automatically.
 
 ## Interactive authentication and grace
 
