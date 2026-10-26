@@ -155,4 +155,19 @@ void main() {
       throwsA(isA<StateError>()),
     );
   });
+
+  test('malformed stored key errors never disclose the encoded secret',
+      () async {
+    final storage = _Storage()..value = 'PRIVATE_KEY_MATERIAL%';
+    await expectLater(
+      resolveHistoryDek(
+        storage: storage,
+        dbExists: () => true,
+        setHistoryDek: (_) async =>
+            fail('Corrupt key must keep history closed'),
+      ),
+      throwsA(isA<StateError>().having((error) => error.message, 'message',
+          'history-dek-v1: malformed stored DEK')),
+    );
+  });
 }
