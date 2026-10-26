@@ -1,5 +1,6 @@
 //! Existing deletion authority is a prerequisite, never a source-granted right.
 use super::*;
+use crate::conversation::recovery::journal;
 use crate::message_deletion::protocol::DeletionMessage;
 use ed25519_dalek::Signer;
 
@@ -26,7 +27,9 @@ impl ChannelSession {
         {
             return Ok(());
         }
-        let Some(page) = self.assemble_history_journal(&mut next, page)? else {
+        let Some(page) =
+            journal::assemble(&mut next.partial, page).map_err(ChannelRuntimeError::Codec)?
+        else {
             self.save_checkpoint(next, &[])?;
             self.recovery.last_progress = crate::conversation::now_ms();
             return self.pull_history(self.recovery.last_progress);
@@ -40,7 +43,8 @@ impl ChannelSession {
                 "invalid history deletion journal".into(),
             ));
         };
-        validate_window(records, next.journal_after.as_deref(), after.as_deref())?;
+        journal::validate_window(records, next.journal_after.as_deref(), after.as_deref())
+            .map_err(ChannelRuntimeError::Codec)?;
         self.apply_history_deletions(&page, records, &frame.sender_key)?;
         self.retain_source_journal(&frame.request_id, records, &digest, after.is_none())?;
         next.journal_complete = after.is_none();
@@ -102,54 +106,4 @@ impl ChannelSession {
         .map_err(ChannelRuntimeError::Codec)?;
         Ok(())
     }
-
-    fn assemble_history_journal(
-        &self,
-        next: &mut Checkpoint,
-        page: DeletionMessage,
-    ) -> Result<Option<DeletionMessage>, ChannelRuntimeError> {
-        if let DeletionMessage::Fragment(fragment) = page {
-            return crate::conversation::recovery::fragment::PartialRecord::accept(
-                &mut next.partial,
-                fragment,
-            )
-            .map_err(ChannelRuntimeError::Codec)?
-            .map(|bytes| {
-                serde_json::from_slice(&bytes)
-                    .map_err(|e| ChannelRuntimeError::Codec(e.to_string()))
-            })
-            .transpose();
-        }
-        if next.partial.is_some() {
-            return Err(ChannelRuntimeError::Codec(
-                "history journal partial missing".into(),
-            ));
-        }
-        Ok(Some(page))
-    }
-}
-
-fn validate_window(
-    records: &[crate::message_deletion::DeletionRecord],
-    previous: Option<&str>,
-    next: Option<&str>,
-) -> Result<(), ChannelRuntimeError> {
-    let mut last = previous.map(str::to_owned);
-    for record in records {
-        let key = record.storage_key();
-        if last.as_ref().is_some_and(|old| old >= &key) {
-            return Err(ChannelRuntimeError::Codec(
-                "history journal keys are not ordered".into(),
-            ));
-        }
-        last = Some(key);
-    }
-    if records.len() > 16
-        || next.is_some_and(|next| records.is_empty() || last.as_deref() != Some(next))
-    {
-        return Err(ChannelRuntimeError::Codec(
-            "history journal makes no progress".into(),
-        ));
-    }
-    Ok(())
 }

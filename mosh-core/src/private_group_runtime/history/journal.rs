@@ -1,7 +1,7 @@
 //! Deletion signatures retain existing MLS authority before any recovered row is visible.
 use super::protocol::CheckedFrame;
 use super::*;
-use crate::conversation::recovery::{coordinator::Checkpoint, fragment::PartialRecord};
+use crate::conversation::recovery::journal;
 use crate::message_deletion::{protocol::DeletionMessage, DeletionContext};
 
 impl GroupSession {
@@ -26,7 +26,9 @@ impl GroupSession {
         {
             return Ok(());
         }
-        let Some(page) = assemble_journal(&mut next, page)? else {
+        let Some(page) =
+            journal::assemble(&mut next.partial, page).map_err(PrivateGroupError::Codec)?
+        else {
             self.save_history(next, &[], &[], &[])?;
             self.recovery.last_progress = now_ms();
             return self.pull_history(now_ms());
@@ -40,7 +42,8 @@ impl GroupSession {
                 "invalid group history deletion journal".into(),
             ));
         };
-        validate_window(records, next.journal_after.as_deref(), after.as_deref())?;
+        journal::validate_window(records, next.journal_after.as_deref(), after.as_deref())
+            .map_err(PrivateGroupError::Codec)?;
         let holder = hex::encode(&checked.sender.mls_signer);
         self.apply_history_deletions(&page, records, &holder)?;
         let prefix = format!(
@@ -94,49 +97,4 @@ impl GroupSession {
         .map_err(PrivateGroupError::Codec)?;
         Ok(())
     }
-}
-
-fn assemble_journal(
-    next: &mut Checkpoint,
-    page: DeletionMessage,
-) -> Result<Option<DeletionMessage>, PrivateGroupError> {
-    if let DeletionMessage::Fragment(fragment) = page {
-        return PartialRecord::accept(&mut next.partial, fragment)
-            .map_err(PrivateGroupError::Codec)?
-            .map(|bytes| {
-                serde_json::from_slice(&bytes).map_err(|e| PrivateGroupError::Codec(e.to_string()))
-            })
-            .transpose();
-    }
-    if next.partial.is_some() {
-        return Err(PrivateGroupError::Codec(
-            "group history journal partial missing".into(),
-        ));
-    }
-    Ok(Some(page))
-}
-
-fn validate_window(
-    records: &[crate::message_deletion::DeletionRecord],
-    previous: Option<&str>,
-    next: Option<&str>,
-) -> Result<(), PrivateGroupError> {
-    let mut last = previous.map(str::to_owned);
-    for record in records {
-        let key = record.storage_key();
-        if last.as_ref().is_some_and(|old| old >= &key) {
-            return Err(PrivateGroupError::Codec(
-                "history journal keys are not ordered".into(),
-            ));
-        }
-        last = Some(key);
-    }
-    if records.len() > 16
-        || next.is_some_and(|next| records.is_empty() || last.as_deref() != Some(next))
-    {
-        return Err(PrivateGroupError::Codec(
-            "history journal makes no progress".into(),
-        ));
-    }
-    Ok(())
 }

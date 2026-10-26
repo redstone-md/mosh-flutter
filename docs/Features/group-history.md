@@ -120,6 +120,7 @@ or transaction sequence in one function (51–100 physical lines): `save_history
 `retained_history_record`, `GroupRecord::key`, `history_answer`,
 `write_publication`, `persist_received`, `own_history_membership`,
 `install_transition_evidence`, `history_content_page`, and
-`publish_membership_change`.
-The ordered real-process scenarios likewise retain setup, action and observable
+`publish_membership_change`, `NativeCheckpoint::verify_binding`, and
+`NativeAdmissionAnchor::transition_for`.
+The ordered native and real-process scenarios likewise retain setup, action and observable
 assertions together. These exceptions do not increase wire or allocation bounds.
