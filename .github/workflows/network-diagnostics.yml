@@ -80,12 +80,29 @@ jobs:
         with:
           flutter: 'false'
           rust-cache-key: desktop
-      - name: Build the independent-installation harness
-        run: cargo build --manifest-path mosh-core/Cargo.toml --test private_group_history_flow
+      - name: Build and verify the independent-installation cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --manifest-path mosh-core/Cargo.toml --test private_group_history_flow
+          test_list=$(cargo test --manifest-path mosh-core/Cargo.toml --test private_group_history_flow -- --list | tr -d '\r')
+          for test_case in \
+            an_offline_group_author_is_recovered_from_an_ordinary_holder_after_restart \
+            an_imported_attachment_remains_recoverable_from_its_restarted_holder \
+            attachment_recovery_keeps_original_offers_without_downloading_files; do
+            if ! grep -Fxq "$test_case: test" <<< "$test_list"; then
+              echo "::error::Missing native recovery case: $test_case"
+              exit 1
+            fi
+          done
       - name: Verify offline-author recovery from an ordinary holder
         run: >-
           node scripts/moss-test.mjs --test private_group_history_flow
           an_offline_group_author_is_recovered_from_an_ordinary_holder_after_restart -- --exact
+      - name: Verify an imported offer survives its holder's restart
+        run: >-
+          node scripts/moss-test.mjs --test private_group_history_flow
+          an_imported_attachment_remains_recoverable_from_its_restarted_holder -- --exact
       - name: Verify attachment recovery three times
         shell: bash
         run: |
