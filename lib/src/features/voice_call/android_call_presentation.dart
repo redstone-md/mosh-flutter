@@ -16,6 +16,7 @@ class AndroidCallPresentation extends ChangeNotifier {
   static const channel = MethodChannel('app.mosh/call-presentation');
   String? _key;
   bool _video = false;
+  int _generation = 0;
   bool inPip = false;
   bool _disposed = false;
   void Function(String sessionId, String callId)? onClose;
@@ -68,21 +69,25 @@ class AndroidCallPresentation extends ChangeNotifier {
       final call = _call;
       if (call != null) onClose?.call(call.sessionId, call.callId);
     } else if (event.method == 'mode') {
+      final generation = args['generation'];
+      if (generation is! int || generation < _generation) return;
       if (_key == null && args['pip'] == true) return;
+      _generation = generation;
       inPip = args['pip'] == true;
       notifyListeners();
       if (inPip) {
         final key = _key;
-        unawaited(_ready(key));
+        unawaited(_ready(key, generation));
       }
     }
   }
 
-  Future<void> _ready(String? key) async {
+  Future<void> _ready(String? key, int generation) async {
     await WidgetsBinding.instance.endOfFrame;
-    if (_disposed || key != _key || !inPip) return;
+    if (_disposed || key != _key || !inPip || generation != _generation) return;
     try {
-      await channel.invokeMethod<void>('ready', {'call': key});
+      await channel
+          .invokeMethod<void>('ready', {'call': key, 'generation': generation});
     } catch (_) {
       // A closed Activity needs no presentation acknowledgement.
     }

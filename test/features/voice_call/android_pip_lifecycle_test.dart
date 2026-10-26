@@ -16,6 +16,42 @@ CallViewState _call(String id,
         media: video ? CallMediaView.fromSnapshot(nativeCallSnapshot()) : null);
 
 void main() {
+  testWidgets('only the latest PiP window can acknowledge its video frame',
+      (tester) async {
+    final messenger = tester.binding.defaultBinaryMessenger;
+    final calls = <MethodCall>[];
+    messenger.setMockMethodCallHandler(AndroidCallPresentation.channel,
+        (call) async {
+      calls.add(call);
+      return null;
+    });
+    final presentation = AndroidCallPresentation();
+    addTearDown(() {
+      presentation.dispose();
+      messenger.setMockMethodCallHandler(AndroidCallPresentation.channel, null);
+    });
+    presentation.update(_call('same-call', video: true));
+    await tester.pump();
+    calls.clear();
+    await _event(tester, 'mode', 'dm/same-call', pip: true, generation: 11);
+    await _event(tester, 'mode', 'dm/same-call', pip: true, generation: 12);
+    await tester.pump();
+    await tester.pump();
+    expect(
+        calls
+            .where((call) => call.method == 'ready')
+            .map((call) => call.arguments),
+        [
+          {'call': 'dm/same-call', 'generation': 12}
+        ],
+        reason: 'a frame from the previous Activity cannot clear a new shield');
+    await _event(tester, 'mode', 'dm/same-call', pip: false, generation: 11);
+    expect(presentation.inPip, isTrue,
+        reason: 'a previous window cannot restore protected routes');
+    await _event(tester, 'mode', 'dm/same-call', pip: false, generation: 12);
+    expect(presentation.inPip, isFalse);
+  });
+
   testWidgets(
       'only selected active video enables PiP; stale OS events cannot affect a replacement',
       (tester) async {
@@ -66,12 +102,12 @@ void main() {
 }
 
 Future<void> _event(WidgetTester tester, String method, String? key,
-    {bool? pip}) async {
+    {bool? pip, int generation = 1}) async {
   final reply = Completer<ByteData?>();
   tester.binding.defaultBinaryMessenger.handlePlatformMessage(
       AndroidCallPresentation.channel.name,
-      const StandardMethodCodec()
-          .encodeMethodCall(MethodCall(method, {'call': key, 'pip': pip})),
+      const StandardMethodCodec().encodeMethodCall(MethodCall(
+          method, {'call': key, 'pip': pip, 'generation': generation})),
       reply.complete);
   await reply.future;
 }

@@ -3,10 +3,7 @@ package app.mosh.mosh
 import android.app.PictureInPictureParams
 import android.content.pm.PackageManager
 import android.os.Build
-import android.graphics.Color
 import android.util.Rational
-import android.view.View
-import android.view.ViewGroup
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 
@@ -21,12 +18,14 @@ internal class MoshCallPresentation(messenger: BinaryMessenger) {
     private var enteredCall: String? = null
     private var closing = false
     private var resumed = false
-    private var shield: View? = null
+    private val shield = MoshAccessShield()
 
     init {
         channel.setMethodCallHandler { method, result ->
             if (method.method == "ready") {
-                if (method.argument<String>("call") == call) unshield()
+                if (method.argument<String>("call") == call) {
+                    shield.ready(method.argument<Number>("generation")?.toLong())
+                }
                 result.success(null)
                 return@setMethodCallHandler
             }
@@ -42,8 +41,9 @@ internal class MoshCallPresentation(messenger: BinaryMessenger) {
     }
 
     fun attach(activity: MainActivity) {
-        unshield()
+        this.activity?.let(shield::detach)
         this.activity = activity
+        shield.attach(activity)
         closing = false
         enteredCall = call.takeIf { activity.isInPictureInPictureMode }
         configureWindow()
@@ -52,7 +52,7 @@ internal class MoshCallPresentation(messenger: BinaryMessenger) {
 
     fun detach(activity: MainActivity) {
         if (this.activity !== activity) return
-        unshield()
+        shield.detach(activity)
         this.activity = null
         resumed = false
     }
@@ -90,14 +90,14 @@ internal class MoshCallPresentation(messenger: BinaryMessenger) {
 
     fun preparing() {
         if (!supported || !video || closing) return
-        shield()
+        shield.protect()
         mode(true)
     }
 
     fun changed(pip: Boolean) {
         if (pip) {
             enteredCall = call
-            shield()
+            shield.protect()
             mode(true)
         } else if (resumed) mode(false)
     }
@@ -125,20 +125,11 @@ internal class MoshCallPresentation(messenger: BinaryMessenger) {
     }
 
     private fun mode(pip: Boolean) {
-        channel.invokeMethod("mode", mapOf("call" to call, "pip" to pip))
+        channel.invokeMethod("mode", mapOf("call" to call, "pip" to pip,
+            "generation" to shield.generation))
     }
 
     // Flutter's mode callback is asynchronous. Cover the old chat until a frame
     // containing only video has actually painted; never shrink a chat into PiP.
-    private fun shield() {
-        val activity = activity ?: return
-        if (shield != null) return
-        shield = View(activity).apply { setBackgroundColor(Color.BLACK) }
-        activity.addContentView(shield, ViewGroup.LayoutParams(-1, -1))
-    }
-
-    private fun unshield() {
-        shield?.let { (it.parent as? ViewGroup)?.removeView(it) }
-        shield = null
-    }
+    private fun unshield() { shield.ready(shield.generation) }
 }

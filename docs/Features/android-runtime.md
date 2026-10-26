@@ -19,6 +19,9 @@ the application context. PiP attaches only its window and privacy shield to the
 current Activity, restores the existing call's parameters and drops that Activity
 reference on detach. Camera permission prompts remain Activity UI; disposing an
 outstanding prompt refuses that request without destroying the call owner.
+PiP reuses the native window shield and requires the current shield generation
+after a video frame paints. A delayed acknowledgement for the same call from an
+older Activity or PiP transition cannot uncover the new window.
 
 The non-exported specialUse service implements execution eligibility for
 [Android background waiting](../ADR/0048-android-background-waiting.md).

@@ -177,7 +177,8 @@ Future<void> _nativeEvent(
   final reply = Completer<ByteData?>();
   tester.binding.defaultBinaryMessenger.handlePlatformMessage(
       AndroidCallPresentation.channel.name,
-      const StandardMethodCodec().encodeMethodCall(MethodCall(method, args)),
+      const StandardMethodCodec()
+          .encodeMethodCall(MethodCall(method, {'generation': 1, ...args})),
       reply.complete);
   await reply.future;
 }
