@@ -137,25 +137,24 @@ found three blockers; the earlier route-controlled checks do not close them.
   still require a device run. Android's interruption policy remains authoritative.
 - Desktop call admission becomes unavailable after waiting. An independent
   public-WAN probe with production `e95c498` reproduces authenticated DM liveness
-  loss by 65 seconds despite Waiting/Ready and one carrier. This is an open
-  transport blocker, not a physical Android success or a proven OS restriction.
-  Separate Moss candidates fix refused physical-carrier TCP upgrades and
-  retirement of unresponsive virtual sessions. Their focused regressions pass,
-  but candidates `95e2edc` and `e06a460` still lose the authenticated route:
-  after 120 idle seconds the native call command returns `NotReady`. The latter
-  also corrects bounded lookup of already-connected contacts beyond the nearest
-  20 and authenticated carrier-address reuse during explicit-target recovery.
-  Both peers are authenticated immediately before waiting; route loss follows
-  that transition. Candidate `9d1b5a3` additionally fixes stale-provider lookup
-  and route-attempt budgets, but the same public-WAN check remains red: ready
-  at 18 seconds, authenticated at 30 idle seconds, handshaking at 65 and carrier
-  unavailable at 120; native call admission is refused. A two-process control
-  also fails, excluding the unused third process as a necessary trigger.
-  Neither a healthy carrier nor those transport regressions establish sustained
-  conversation availability. Fresh carrier admission and presence publication
-  are being checked independently of the UI.
-  The authorized separate Moss PR is being investigated; no upstream merge or
-  candidate pin until the actual idle-call check passes.
+  loss by 65 seconds despite Waiting/Ready and one carrier. Carrier teardown
+  removed established virtual application paths; the next migration scanned
+  only current peers and could announce Ready with nothing left to restore.
+  The separate Moss candidate `ecfd484` retains exact established application
+  interest across carrier loss, including subscribed-only paths and partially
+  migrated carriers. Recovery consumes that intent only after verified
+  replacement. Cold TCP candidates require mesh admission, and failed unused
+  candidates are retired without dropping useful paths. Bounded identity lookup
+  also checks connected contacts and alternate carrier records within the
+  existing deadline. No API, packet, dependency or persisted schema is added.
+  Focused regressions and independent review cover these corrections. A clean
+  production-library public-WAN check passes after 120 idle seconds: native call
+  admission, durable incoming call, applied decline and subsequent durable
+  message, with no preceding text to wake the route. Transient unavailable and
+  handshaking states still occurred before recovery; this does not establish
+  continuous connectivity. Exact repository and full candidate CI checks are
+  still running. Keep the existing pin until those gates pass; no upstream
+  merge is authorized. Physical Pixel retesting remains required.
 
 Separately, Windows CI exposed an imported group attachment being rewritten by
 the generic live-history tail without its retained preview evidence. A native
