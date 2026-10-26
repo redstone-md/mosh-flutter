@@ -1,12 +1,12 @@
 # ADR 0048: Android background waiting over Moss
 
 Date: 2026-10-25.
-Status: Accepted architectural direction; detailed design and implementation pending.
+Status: Accepted; implemented on `feat/android-background`, physical acceptance pending.
 
 Android needs incoming calls and message notifications without FCM or Google
 Play services, while retaining a full active mesh in idle conflicts with the
 energy goal. Native checks confirmed that the existing relay carrier forwards
-encrypted traffic to a connected leaf; the current C API has no economical
+encrypted traffic to a connected leaf; the baseline C API had no economical
 waiting mode. See the [feasibility evidence](../Proposals/issue-94-moss-wake.research.md).
 
 Mosh opts into an economical waiting mode in Moss and reuses its relay carrier.
@@ -66,11 +66,12 @@ This direction extends the foreground-only Android scope of
 [ADR 0034](0034-android-linked-text-dm.md), retaining the native media ownership
 of [ADR 0044](0044-native-call-media-over-moss.md). Key access before app unlock is
 defined by [ADR 0049](0049-android-background-key-access.md). This adds no shipped
-background guarantees. Android execution rights, safe key migration,
-attachment selection, replay/abuse limits, a proposed runtime API and physical
-phone energy/reliability checks remain open in the
-[design plan](../Proposals/issue-94-android-background.plan.md).
+background guarantees. The [implementation plan](../Proposals/android-background-implementation.plan.md)
+records the approved contracts, integrated execution/key/transport boundaries,
+software verification and remaining phone energy/reliability checks.
 
 Selecting this direction does not authorize edits to the Moss submodule or
 changes to its public API. Those require a concrete reviewed proposal and
 coordination with its maintainer before implementation.
+The owner subsequently approved the [Moss contract](../Proposals/android-moss-waiting-contract.plan.md)
+and a separate upstream PR without an upstream merge.

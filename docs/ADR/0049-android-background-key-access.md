@@ -1,7 +1,7 @@
 # ADR 0049: Android background key access and app lock
 
 Date: 2026-10-26.
-Status: Accepted security policy; implementation and migration pending.
+Status: Accepted; implemented on `feat/android-background`, physical migration acceptance pending.
 
 The shipped Android startup releases its history DEK only after biometric or
 device-credential authentication and an Activity foreground gate. That prevents
@@ -42,8 +42,10 @@ On return, check expiry before showing chats, including if a delayed timer
 could not run while the device slept. The requested
 [Telegram comparison](../Proposals/issue-94-android-background.plan.md#telegram-auto-lock-reference)
 confirms that screen off need not force immediate app lock.
-The concrete storage API and lifecycle timing mechanics remain in the
-[design plan](../Proposals/issue-94-android-background.plan.md).
+The approved storage API and lifecycle timing mechanics are implemented as
+described in [key access](../Features/android-key-access.md) and
+[app lock](../Features/android-app-lock.md). Real-phone migration and lifecycle
+acceptance remain required.
 
 This records the owner's answers to questions 10, 14 and 18. It amends the
 Android key-release policy in ADRs 0011 and 0034 when implemented; desktop key
