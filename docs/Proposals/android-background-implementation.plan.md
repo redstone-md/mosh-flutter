@@ -75,19 +75,22 @@ preparatory changes do not establish background acceptance.
   synchronously, before asynchronous Dart lifecycle hints.
 - Waiting transport remains in [Moss PR #31](https://github.com/redstone-md/moss/pull/31),
   stacked on PR #30, without an upstream merge. The integration pins its verified
-  candidate `fd6d7d7` passed all eight upstream CI jobs. Its carrier-loss recovery
-  successor `e95c498` also confirms TCP upgrades before replacing a working relay
-  and consumes recovery only on fresh authenticated relay control. Focused
-  race/compatibility checks, vet, WASM and C-shared compilation pass; complete
-  upstream CI and final WAN DM/transfer verification are running.
-  Public-network checks prove
-  group/channel text and offer notifications over an actual Ready carrier after
-  authenticated bidirectional route controls. Cold rendezvous latency and physical
-  Android acceptance remain separate; local-tracker success does not prove them.
+  production candidate `e95c498`. It confirms TCP upgrades before replacing a
+  working relay and consumes recovery only on fresh authenticated relay control.
+  Its complete local Go suite, race/compatibility checks, vet, WASM and C-shared
+  compilation pass. The [upstream CI](https://github.com/redstone-md/moss/actions/runs/40391160098)
+  passes all eight jobs at `6a055e4`; that successor changes only a test's
+  authenticated carrier-readiness precondition, with no runtime source change.
+  The unchanged deadline passes 100 single-CPU race repetitions. CodeAnt completed
+  review of exact production `e95c498`, with all six threads resolved.
 - Host policy probes, Android production/instrumentation compilation, Flutter
   analysis and focused native scenarios pass. The reviewed Flutter checkpoint
-  passed 2072 tests with four skipped. Final CI and signed packaging are running;
-  older prepared APKs are not candidates for acceptance of the complete feature.
+  passed 2072 tests with four skipped. The signed release APK at production
+  checkpoint `e78b286e` independently passes its checksum, certificate pin,
+  ARM64/API 26 manifest, non-debug flag, JNI Zero, all four native waiting/transfer
+  method signatures and exports, and 16 KiB alignment. Matching artifacts and
+  final CI results are recorded in [Mosh PR #101](https://github.com/redstone-md/mosh-flutter/pull/101).
+  Documentation-only follow-ups do not change that production checkpoint.
 - The adb collector and guide are ready. No physical Android device is connected.
   Actual Keystore migration, locked/background calls, notification actions,
   PiP, Doze, reclamation, reboot and OS-stop behavior remain acceptance gates.
@@ -100,15 +103,18 @@ preparatory changes do not establish background acceptance.
   generation finding and six general suggestions are fixed; the earlier request
   to exclude legitimate protected navigation from access-grace use was rejected.
 - Public-network group/channel notifications and incoming call actions passed
-  after authenticated route controls. The DM transfer scenario exposed a
-  separate carrier-loss recovery failure for an ordinary desktop caller. It is
-  reproduced with real Noise/relay peers. Its narrow transport fix passes 20 race
-  repetitions and preserves ordinary direct-first behavior. A second regression
-  proves sends survive refused TCP upgrades; first-frame replay and cancellation
-  are checked. A diagnostic WAN run then proved bidirectional DM delivery and
-  exposed missing attachment-notification ownership in Mosh. The host fix derives
-  ownership from the verified MLS signer, excludes our linked devices, and passes
-  real MLS/redb regressions. Final WAN download acceptance remains in progress.
+  after authenticated route controls. The final production WAN DM/transfer
+  scenario passes in 119.71 seconds: an actual Waiting/Ready carrier, durable
+  notifications without receiver UI polling, delivery without false reads,
+  attachment offers without automatic downloads, refusal while stopped/offline,
+  explicit native download completion, foreground reply and retained history
+  after cold restart. The offer's ownership comes from its verified MLS signer;
+  our linked devices cannot create a foreign-message notification, even with a
+  spoofed display name. Real MLS/redb regressions pass, with 19/19 changed
+  production lines covered. Transport regressions also check ordinary desktop
+  carrier-loss recovery, refused TCP upgrades, first-frame replay and cancellation.
+  Cold rendezvous latency and physical Android acceptance remain separate;
+  these route-controlled checks do not prove them.
 
 ## Approved boundaries
 
