@@ -38,7 +38,7 @@ fn background_counts_only_started_downloads_and_refuses_unsaved_work() {
 
 fn offer_attachment(fixture: &mut Fixture) {
     let mut sender = Transfer::new(Arc::new(
-        AttachmentStore::new(&fixture.directory.path().join("sender")).unwrap(),
+        AttachmentStore::new(fixture.directory.path().join("sender")).unwrap(),
     ));
     let prepared = sender
         .prepare_outgoing(OutgoingAttachment {
