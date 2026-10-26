@@ -30,7 +30,7 @@ mod deletion;
 mod previews;
 
 #[path = "durability_tests/history.rs"]
-mod history;
+pub(super) mod history;
 
 #[path = "durability_tests/admission_binding.rs"]
 mod admission_binding;

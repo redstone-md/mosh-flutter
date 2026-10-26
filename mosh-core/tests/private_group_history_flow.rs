@@ -14,6 +14,8 @@ mod erasure;
 mod intervals;
 #[path = "private_group_history_flow/offer_facts.rs"]
 mod offer_facts;
+#[path = "private_group_history_flow/repair.rs"]
+mod repair;
 
 #[test]
 fn an_offline_group_author_is_recovered_from_an_ordinary_holder_after_restart() {
@@ -43,15 +45,7 @@ fn recover_attachment(imported_holder: bool) {
     if imported_holder {
         holder.stop();
     }
-    assert_eq!(
-        author.ask(
-            json!({"action":"attachment_send", "kind":"group", "argument":id,
-        "data":mosh_core::conversation::encode(include_bytes!("fixtures/preview.jpg")),
-        "miniature":mosh_core::conversation::encode(include_bytes!("fixtures/miniature.jpg")),
-        "preview":mosh_core::conversation::encode(include_bytes!("fixtures/preview.jpg"))})
-        ),
-        json!({})
-    );
+    offer_facts::send_image(&mut author, &id);
     if imported_holder {
         // No live manifest remains in the publisher's room cache after restart.
         author.restart();

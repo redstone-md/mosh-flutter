@@ -173,7 +173,9 @@ fn an_unsigned_welcome_commit_hint_cannot_blackhole_a_later_verified_commit() {
     assert_eq!(fixture.runtime.poll(&fixture.id).unwrap().member_count, 3);
 }
 
-pub(super) fn member(fixture: &mut Fixture) -> (MlsSessionCrypto, SigningKey) {
+pub(in crate::private_group_runtime) fn member(
+    fixture: &mut Fixture,
+) -> (MlsSessionCrypto, SigningKey) {
     let mut sender = MlsSessionCrypto::new("Bob").unwrap();
     let package = sender.key_package_bytes().unwrap();
     let session = fixture.runtime.groups.get_mut(&fixture.id).unwrap();

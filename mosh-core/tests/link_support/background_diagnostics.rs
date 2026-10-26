@@ -92,6 +92,9 @@ fn inspect_background(path: &Path, key: [u8; 32], kind: &str, id: &str) -> Value
             "group_history_basis":row["history_evidence"]["group"]["basis"],
             "has_offer": !row["attachment_manifest"].is_null(),
             "has_preview": !row["preview_manifest"].is_null(),
+            "offer_digest": digest(&json!([row["attachment_manifest"],row["preview_manifest"]])),
+            "provenance_digest": digest(&row["history_evidence"]),
+            "metadata_digest": digest(&message["metadata"]),
             "background_fixture_text":message["body"] == "New background text"
                 || message["body"] == "private background text",
         }));
@@ -115,4 +118,9 @@ fn inspect_background(path: &Path, key: [u8; 32], kind: &str, id: &str) -> Value
 
 fn decode(key: &[u8; 32], bytes: &[u8]) -> Value {
     serde_json::from_slice(&mosh_core::persistence::decrypt_blob(key, bytes).unwrap()).unwrap()
+}
+
+fn digest(value: &Value) -> String {
+    use sha2::{Digest, Sha256};
+    hex::encode(Sha256::digest(serde_json::to_vec(value).unwrap()))
 }

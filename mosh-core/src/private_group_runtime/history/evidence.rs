@@ -112,7 +112,9 @@ impl NativeAcceptance {
                     "conflicting accepted group text".into(),
                 ));
             }
+            let offer = self.offer.take();
             *self = retained;
+            self.offer = offer;
             return Ok(Vec::new());
         }
         if already_held {

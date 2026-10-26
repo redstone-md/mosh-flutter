@@ -109,7 +109,9 @@ impl GroupSession {
                 ));
             }
             if let Some(row) = store.history_row::<GroupMessage>(GROUP_HISTORY, &indexed.row_key)? {
-                return Ok((row, Vec::new()));
+                return self
+                    .retained_or_repaired_row(row, &record)
+                    .map(|row| (row, Vec::new()));
             }
         }
         let deletion = self.history_record_erasure(&record, &hex::encode(&holder.mls_signer))?;
@@ -168,6 +170,60 @@ impl GroupSession {
             evidence.holder_key = holder.peer_id.clone();
         }
         Ok((row, evidence))
+    }
+
+    fn retained_or_repaired_row(
+        &self,
+        mut row: StoredMessage<GroupMessage>,
+        record: &GroupRecord,
+    ) -> Result<StoredMessage<GroupMessage>, PrivateGroupError> {
+        if row.conversation_id != self.group_id
+            || row.message_id != record.message_id
+            || row.sent_at_ms != record.sent_at_ms
+            || row.message.body != record.body
+        {
+            return Err(PrivateGroupError::Codec(
+                "retained group identity differs".into(),
+            ));
+        }
+        if row
+            .message
+            .metadata
+            .as_ref()
+            .is_some_and(|m| m.deletion.is_some())
+        {
+            return Ok(row);
+        }
+        if self.row_matches_original(&row, record) {
+            return Ok(row);
+        }
+        if row.preview_manifest.is_none() && row.attachment_manifest.is_some() {
+            row.preview_manifest = record
+                .offer
+                .as_ref()
+                .and_then(|o| o.preview_manifest.clone());
+            if row.preview_manifest.is_some() && self.row_matches_original(&row, record) {
+                // Keep ownership, read/deletion state and the first local
+                // receipt; only the lost original preview is reconstructed.
+                return Ok(row);
+            }
+        }
+        Err(PrivateGroupError::Codec(
+            "retained group content differs".into(),
+        ))
+    }
+
+    fn row_matches_original(
+        &self,
+        row: &StoredMessage<GroupMessage>,
+        record: &GroupRecord,
+    ) -> bool {
+        serde_json::to_value(&row.message.attachment).ok()
+            == serde_json::to_value(&record.message().attachment).ok()
+            && GroupRecord::key(row, &self.deletions.context, &self.mesh_id)
+                .ok()
+                .flatten()
+                .is_some_and(|key| key.digest == record.acceptance.record_hash)
     }
 
     fn history_manifest_receipts(
@@ -239,3 +295,7 @@ fn assemble_records(
 #[cfg(test)]
 #[path = "import_tests.rs"]
 pub(super) mod tests;
+
+#[cfg(test)]
+#[path = "repair_tests.rs"]
+mod repair_tests;
