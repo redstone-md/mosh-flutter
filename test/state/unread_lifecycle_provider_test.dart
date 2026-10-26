@@ -33,11 +33,42 @@ import 'package:mosh/src/state/notifications_provider.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 import 'package:mosh/src/state/unread_providers.dart';
 import 'package:mosh/src/state/window_focus_provider.dart';
+import 'package:mosh/src/features/lock/android_app_access.dart';
 
 part 'unread_lifecycle_provider_support.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('unreadLifecycleProvider', () {
+    test('locked Android keeps unread messages and hides channel details',
+        () async {
+      final access = AndroidAppAccess();
+      addTearDown(access.dispose);
+      final h = _Harness(appAccess: access);
+      addTearDown(h.container.dispose);
+      h.container
+          .read(activeConversationKeyProvider.notifier)
+          .set('channel:private-project');
+      for (final count in [1, 2]) {
+        h.gateway.seedChannels([
+          _channel(
+              name: 'private-project',
+              deviceFingerprint: 'ownfp',
+              messages:
+                  List.generate(count, (_) => _channelMsg('peer', 'peerfp'))),
+        ]);
+        await _poll(h.container);
+      }
+      expect(
+          h.container.read(unreadLifecycleProvider)['channel:private-project'],
+          1);
+      final show = h.notifications.shows.single;
+      expect(show.title, 'Mosh');
+      expect(show.body, 'New message');
+      expect(show.payload, isNull);
+      expect(show.details?.android?.ticker, isNull);
+    });
+
     test(
         'case 1: the first poll seeds lastSeen and fires no notification '
         'and leaves the unread map empty (first-seen never reports)', () async {
