@@ -90,6 +90,7 @@ jobs:
           for test_case in \
             an_offline_group_author_is_recovered_from_an_ordinary_holder_after_restart \
             an_imported_attachment_remains_recoverable_from_its_restarted_holder \
+            repair::a_healthy_holder_repairs_the_exact_offer_lost_by_an_older_group_tail_writer \
             attachment_recovery_keeps_original_offers_without_downloading_files; do
             if ! grep -Fxq "$test_case: test" <<< "$test_list"; then
               echo "::error::Missing native recovery case: $test_case"
@@ -104,6 +105,10 @@ jobs:
         run: >-
           node scripts/moss-test.mjs --test private_group_history_flow
           an_imported_attachment_remains_recoverable_from_its_restarted_holder -- --exact
+      - name: Verify repair of a previously damaged original offer
+        run: >-
+          node scripts/moss-test.mjs --test private_group_history_flow
+          repair::a_healthy_holder_repairs_the_exact_offer_lost_by_an_older_group_tail_writer -- --exact
       - name: Verify attachment recovery three times
         shell: bash
         run: |
