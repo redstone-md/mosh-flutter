@@ -18,17 +18,21 @@ class AndroidAppLockGate extends ConsumerStatefulWidget {
   ConsumerState<AndroidAppLockGate> createState() => _AndroidAppLockGateState();
 }
 
-class _AndroidAppLockGateState extends ConsumerState<AndroidAppLockGate> {
+class _AndroidAppLockGateState extends ConsumerState<AndroidAppLockGate>
+    with WidgetsBindingObserver {
   AndroidAppAccess? _access;
   bool _mountedContent = false;
   bool _validatingVisibility = false;
   int _visibilityRequest = 0;
+  int _authenticationEntry = 0;
+  bool _authenticating = false, _promptOnResume = false;
   bool get _covered =>
       _access?.covered == true || _validatingVisibility || !widget.interactive;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _access = ref.read(androidAppAccessProvider);
     _access?.addListener(_changed);
     _updateVisibility();
@@ -39,11 +43,33 @@ class _AndroidAppLockGateState extends ConsumerState<AndroidAppLockGate> {
   void didUpdateWidget(covariant AndroidAppLockGate oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.interactive != widget.interactive) {
+      if (widget.interactive && !_authenticating) _authenticationEntry++;
       _updateVisibility();
       // Removing Navigator routes during its parent's build is unsafe.
       scheduleMicrotask(() {
         if (mounted) appLockRouteObserver.setLocked(_covered);
       });
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _promptOnResume = !_authenticating;
+    } else if (state == AppLifecycleState.resumed) {
+      setState(() {
+        if (_promptOnResume) _authenticationEntry++;
+        _promptOnResume = false;
+      });
+    }
+  }
+
+  Future<void> _authenticate(String reason) async {
+    _authenticating = true;
+    try {
+      await _access!.authenticate(reason);
+    } finally {
+      _authenticating = false;
     }
   }
 
@@ -73,6 +99,7 @@ class _AndroidAppLockGateState extends ConsumerState<AndroidAppLockGate> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _access?.removeListener(_changed);
     super.dispose();
   }
@@ -99,8 +126,15 @@ class _AndroidAppLockGateState extends ConsumerState<AndroidAppLockGate> {
         const Material(child: Center(child: CircularProgressIndicator())),
       if (widget.interactive && covered && !_validatingVisibility)
         MoshLockScreen(
-            retry: () => access
-                .authenticate(AppLocalizations.of(context)!.appLockReason),
+            key: ValueKey(_authenticationEntry),
+            automaticallyAuthenticate: !access.failed,
+            authenticationReady: access.state?.deviceInteractive == true &&
+                access.state?.callOnly != true &&
+                (WidgetsBinding.instance.lifecycleState == null ||
+                    WidgetsBinding.instance.lifecycleState ==
+                        AppLifecycleState.resumed),
+            retry: () =>
+                _authenticate(AppLocalizations.of(context)!.appLockReason),
             swapTo: (_) {},
             nextApp: const SizedBox(),
             initialState: access.failed

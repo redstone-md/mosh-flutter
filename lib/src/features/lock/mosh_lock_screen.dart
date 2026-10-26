@@ -28,6 +28,8 @@ class MoshLockScreen extends ConsumerStatefulWidget {
     required this.swapTo,
     required this.nextApp,
     this.initialState = LockState.canceled,
+    this.automaticallyAuthenticate = false,
+    this.authenticationReady = true,
   });
 
   /// The DEK-init entry point to (re-)run on retry. Defaults to the real
@@ -51,6 +53,11 @@ class MoshLockScreen extends ConsumerStatefulWidget {
   /// state renders message-only (no Retry button).
   final LockState initialState;
 
+  /// Chat entry prompts once when the native Activity is ready. A canceled
+  /// request remains on Retry until a new entry creates another lock screen.
+  final bool automaticallyAuthenticate;
+  final bool authenticationReady;
+
   /// `main()` pumps this state directly when `initMobileDek()` throws a
   /// `BIOMETRIC_UNAVAILABLE` `PlatformException` -- the device has NO
   /// enrolled PIN/pattern/password/biometric, so re-prompting cannot help.
@@ -64,7 +71,39 @@ class MoshLockScreen extends ConsumerStatefulWidget {
 }
 
 class _MoshLockScreenState extends ConsumerState<MoshLockScreen> {
-  late LockState _state = widget.initialState;
+  late LockState _state = widget.automaticallyAuthenticate
+      ? LockState.authenticating
+      : widget.initialState;
+  bool _automaticallyAttempted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleAuthentication();
+  }
+
+  @override
+  void didUpdateWidget(covariant MoshLockScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _scheduleAuthentication();
+  }
+
+  void _scheduleAuthentication() {
+    if (!widget.automaticallyAuthenticate ||
+        !widget.authenticationReady ||
+        _automaticallyAttempted) {
+      return;
+    }
+    _automaticallyAttempted = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!widget.authenticationReady) {
+        _automaticallyAttempted = false;
+        return;
+      }
+      _retry();
+    });
+  }
 
   Future<void> _retry() async {
     setState(() => _state = LockState.authenticating);

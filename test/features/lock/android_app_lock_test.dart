@@ -89,6 +89,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'unsent draft');
     allowed = false;
+    outcome = 'canceled';
     await _event(tester, _snapshot(allowed: false, revision: ++revision));
     await tester.pumpAndSettle();
     expect(find.text('unsent draft'), findsNothing);

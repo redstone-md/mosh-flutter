@@ -24,6 +24,13 @@ without changing encrypted key material.
 API 30+ uses Android's platform BiometricPrompt with strong biometrics or device
 credentials. API 26–29 uses device-credential confirmation. A canceled request,
 detached Activity, stale callback or unavailable credential leaves chats covered.
+Opening locked chats automatically presents authentication once the Activity is
+ready, including returning after an expired grace period. A canceled request
+stays on Retry for that visit; returning after a later real background departure
+offers authentication again. Inactive-only system dialogs and an in-flight
+device-credential flow do not restart the prompt. Until native readiness is
+confirmed, the lock screen shows its waiting state rather than claiming that the
+user canceled authentication.
 The existing localized lock screen supplies Retry. Key access remains separate;
 loading or migrating a key never authenticates chats. A first legacy migration
 can therefore show its legacy key prompt and then the chat prompt once. Ordinary
