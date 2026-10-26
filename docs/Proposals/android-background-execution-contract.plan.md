@@ -13,6 +13,15 @@ Move group/channel servicing into their existing native owners, alongside the
 existing DM pump. Application-owned notification delivery consumes their events;
 it must not depend on a mounted chat, widget polling or a visible Activity.
 
+Reuse existing notification permissions/settings, `ic_stat_mosh`, channel IDs,
+ringtone and non-Android delivery. The installed `flutter_local_notifications`
+22.2.0 already supports channels, actions and foreground services, but its public
+Android styles omit CallStyle and its publication has no Mosh-native access-state
+check at the final OS boundary. Keep the Android-specific publisher small for
+those requirements; do not fork the plugin or build a second general-purpose
+notification system. Once that owner attaches, the old Android widget publisher
+must yield, so one incoming call cannot produce competing notifications.
+
 ## Waiting execution and permissions
 
 Use foreground service type `specialUse` on API 34+, with a manifest subtype

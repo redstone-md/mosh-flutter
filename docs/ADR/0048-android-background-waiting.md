@@ -43,10 +43,12 @@ On 2026-10-26, the owner rejected manual administrator approval of recovered
 history. Recovery must discover authorized copies, verify retained evidence and
 import automatically without an approval queue or per-batch action. Preserve
 original authorship, membership boundaries and separate organization-group
-authority. The precise automatic evidence and legacy compatibility contract
-still requires review; the earlier administrator-supplement proposal is withdrawn.
-Neither a human decision nor blind automatic signing proves an unwitnessed
-record's creation time.
+authority. The owner accepted recovery from a currently authorized holder,
+explicitly trusting that holder's historical-context assertion. Original author
+signatures remain distinct; a dishonest holder can lie or collude with a departed
+author. Its receipt does not independently prove pre-removal creation time.
+The precise automatic evidence and legacy compatibility contract still requires
+review; the earlier administrator-supplement proposal is withdrawn.
 
 Mosh app lock protects chat access independently of background reception.
 Names and text are hidden in notifications by default while app lock is active;

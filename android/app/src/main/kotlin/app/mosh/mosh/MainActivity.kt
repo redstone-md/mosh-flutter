@@ -2,6 +2,7 @@ package app.mosh.mosh
 
 import android.content.res.Configuration
 import android.content.Context
+import android.content.Intent
 import android.app.PictureInPictureUiState
 import android.os.Build
 import android.os.Bundle
@@ -11,6 +12,7 @@ import io.flutter.embedding.engine.FlutterEngine
 class MainActivity : FlutterActivity() {
     private var callPermissions: MoshCallPermissions? = null
     private var callPresentation: MoshCallPresentation? = null
+    private var access: MoshAccess? = null
 
     override fun provideFlutterEngine(context: Context): FlutterEngine =
         (application as MoshApplication).runtime.engine
@@ -26,15 +28,18 @@ class MainActivity : FlutterActivity() {
         // Flutter installs its view during super.onCreate, before a PiP shield
         // can safely be added above it.
         callPresentation?.attach(this)
+        access?.attach(this)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         callPermissions = MoshCallPermissions(this, flutterEngine.dartExecutor.binaryMessenger)
         callPresentation = (application as MoshApplication).runtime.presentation
+        access = (application as MoshApplication).runtime.access
     }
 
     override fun onUserLeaveHint() {
+        access?.leaving()
         callPresentation?.leaving()
         super.onUserLeaveHint()
     }
@@ -53,16 +58,19 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onResume() {
+        access?.resumed()
         super.onResume()
         callPresentation?.resumed()
     }
 
     override fun onPause() {
+        access?.paused()
         callPresentation?.paused()
         super.onPause()
     }
 
     override fun onStop() {
+        access?.stopped()
         callPresentation?.stopped()
         super.onStop()
     }
@@ -72,11 +80,18 @@ class MainActivity : FlutterActivity() {
         callPermissions?.complete(requestCode, grantResults)
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        access?.result(requestCode, resultCode)
+        super.onActivityResult(requestCode, resultCode, data)
+    }
+
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         callPermissions?.dispose()
         callPermissions = null
         callPresentation?.detach(this)
         callPresentation = null
+        access?.detach(this)
+        access = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 }

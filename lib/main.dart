@@ -31,6 +31,8 @@ import 'package:mosh/src/features/voice_call/process_call_window.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 import 'package:mosh/src/platform/native_menu_localization.dart';
 import 'package:mosh/src/features/lock/mosh_lock_app.dart';
+import 'package:mosh/src/features/lock/android_app_access.dart';
+import 'package:mosh/src/features/lock/android_app_lock_frame.dart';
 import 'package:mosh/src/state/production_provider_overrides.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
 import 'package:media_kit/media_kit.dart';
@@ -91,6 +93,7 @@ void main(List<String> args) async {
   // the Android branch awaits it. No `dispose()` -- it lives for the
   // process (parallel to `_appRoot`).
   final LifecycleGate gate = LifecycleGate();
+  final appAccess = Platform.isAndroid ? AndroidAppAccess() : null;
   // M-5 (ADR 0010): resolve the app-private data directory ONCE via
   // `getApplicationSupportDirectory()` (path_provider) and hand it to Rust
   // via the frb `setAppDataDir` bridge call BEFORE the private-DM runtime
@@ -134,10 +137,14 @@ void main(List<String> args) async {
       overrides: [
         ...productionOverrides,
         crashReportingProvider.overrideWithValue(crashReporting),
+        if (appAccess != null)
+          androidAppAccessProvider.overrideWithValue(appAccess),
       ],
       child: ValueListenableBuilder<Widget>(
         valueListenable: _appRoot,
-        builder: (BuildContext context, Widget value, _) => value,
+        builder: (BuildContext context, Widget value, _) => appAccess == null
+            ? value
+            : AndroidAppLockFrame(access: appAccess, child: value),
       ),
     ),
   );
@@ -171,6 +178,7 @@ void main(List<String> args) async {
     await gate.waitUntilResumed();
     try {
       await initMobileDek();
+      await appAccess!.initialize();
       root = MoshApp(relauncher: relauncher);
     } on PlatformException catch (error) {
       // Two failure modes collapse into this one PlatformException catch:
@@ -186,12 +194,20 @@ void main(List<String> args) async {
       // for this case (verified on device).
       final bool insecureDevice =
           error.message?.contains('BIOMETRIC_UNAVAILABLE') ?? false;
+      await appAccess!.initialize();
       root = MoshLockApp(
           screen: MoshLockScreen(
+        retry: () async {
+          await initMobileDek();
+          await appAccess.initialize();
+        },
         swapTo: (Widget next) => _appRoot.value = next,
         nextApp: MoshApp(relauncher: relauncher),
-        initialState:
-            insecureDevice ? LockState.insecureDevice : LockState.canceled,
+        initialState: insecureDevice
+            ? LockState.insecureDevice
+            : error.code == 'ACCESS_STATE_UNAVAILABLE'
+                ? LockState.failed
+                : LockState.canceled,
       ));
     }
   } else {
