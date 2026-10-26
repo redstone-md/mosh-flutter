@@ -28,7 +28,8 @@ preparatory changes do not establish background acceptance.
 - IVO-147 worktree: Android resource collector, command-boundary tests and guide.
 - IVO-141 worktree: shared bounded recovery/persistence and channel history.
 - IVO-142 worktree: own MLS staging and group evidence/recovery; reuse IVO-141.
-- IVO-136 worktree: separate upstream Moss lifecycle; original pin unchanged.
+- IVO-136 worktree: separate upstream Moss lifecycle and tests; integration pins
+  a reviewed candidate without merging the upstream PR.
 - IVO-137 worktree: Android waiting owner, native execution/delivery boundary
   and DM background reception; coordinate shared storage/bindings with IVO-141.
 - Integration owner: global spec clarifications, this plan, key/execution/Moss
@@ -50,52 +51,56 @@ preparatory changes do not establish background acceptance.
 - Waiting is automatic after setup in Mosh. Opt-in describes the application's
   integration with Moss; other Moss consumers retain their current defaults.
 
-## Prepared implementation, 2026-10-26
+## Integration status, 2026-10-26
 
-- IVO-133: application-owned engine, ringtone and PiP configuration committed
-  as `64bc51eb`; actual call/message continuity through Activity recreation is
-  still a physical-phone acceptance requirement. No ticket is marked Done.
-- IVO-147: safe adb collector and guide committed as `47aab1c2`; review finding
-  about APK identity was fixed in `d4aa4a25`. Nine command-boundary tests pass.
-  Physical baseline, process-level gaps and numeric budgets remain open.
-- IVO-134/135 app lock and same-DEK background access are integrated. Native
-  fresh-auth repair stays separate from chat unlock; cold reads never mint keys.
-  The key/lock host checks pass, but physical migration/Keystore acceptance and
-  bootstrap coverage remain open. No ticket is marked Done from compilation.
-- Flutter analysis and the JNI/context/deadline probe pass. After key integration
-  the full Flutter suite passes: 2043 tests, four skipped. The debug ARM64 APK
-  builds and its signature, JNI Zero, key owners and native libraries are checked.
-- Cold Android UI polling now waits for an attached foreground view. The
-  detached-start regression, immediate resume and inactive prompt behavior pass
-  nine focused tests; desktop hidden-window polling is preserved.
-- The signed ARM64 APK for the prepared key/runtime layer builds in
-  [run 40269179110](https://github.com/redstone-md/mosh-flutter/actions/runs/40269179110).
-  Its downloaded checksum, signature and JNI signatures are verified. It does
-  not contain the later waiting-service/history layers or establish acceptance.
-- Upstream waiting is isolated in [Moss PR #31](https://github.com/redstone-md/moss/pull/31),
-  stacked on PR #30, without a merge or Mosh pin change. Full Go, focused race,
-  natural routing repetitions and compiled C checks pass. Mosh integration and
-  physical availability/energy acceptance remain open.
-- CodeAnt review fixes serialize timer writes, preserve call-device sheets,
-  cover native expiry before publication and redact legacy Android notifications.
-  Protected settings/session-list use legitimately ends a valid grace period;
-  the contrary review suggestion is not accepted.
-- Separate standards/spec reviews found no standards findings and one actionable
-  collector finding, now fixed. Their full reports are stored with implementation
-  evidence outside the repository; this is review of the prepared layer only.
-- Concrete [access](android-background-access-contract.plan.md),
-  [execution](android-background-execution-contract.plan.md),
-  [Moss](android-moss-waiting-contract.plan.md) and
-  [history](android-history-contracts.plan.md) contracts are approved. Their
-  approval does not establish runtime implementation or physical acceptance.
-- The owner approved the access/key contract on 2026-10-26; IVO-134/135 proceed
-  from the implemented ownership layer while its physical acceptance stays open.
-- The owner rejected manual administrator history approval on 2026-10-26.
-  That proposal is withdrawn before implementation. Recovery must be automatic;
-  the owner accepted current-authorized-holder trust for historical context,
-  with original authorship and independent recipient-access checks preserved.
-  A dishonest holder/colluding author can falsify context; receipts are not
-  independent proof of time. The owner confirmed the exact automatic history
-  and execution contracts after the DM-reuse clarification. IVO-141 proceeds
-  with existing bounded DM mechanisms; IVO-142 retains verified own-MLS facts
-  instead of trying to replay encrypted commits through OpenMLS PublicGroup.
+- Ownership, same-DEK migration and timed chat access are integrated. A cold
+  service reuses the installation owner; key failure cannot mint another DEK.
+  UI polling waits for an attached foreground view. Desktop polling keeps its
+  existing behavior.
+- The quiet waiting service, native notification privacy, exact call actions,
+  CallStyle presentation and typed media promotion are integrated. Calls retain
+  the existing ringtone/media/PiP owners; answering does not unlock chats.
+  Explicit text consent uses expanded notifications, including full body text
+  within Android's rendering limits.
+- Channel recovery and membership-aware group recovery are integrated. Group
+  imports preserve original authorship, current source/recipient authorization,
+  admission and rejoin intervals, deletion precedence and the receiver's own
+  MLS transitions. Independent installations exercise alternate holders,
+  offline membership changes, pre-join exclusion, rejoining and erasure.
+- OS transfer execution and reclamation recovery are integrated. Actual job or
+  service callbacks grant execution; scheduling alone grants no byte access.
+  Native durable per-file admission/checkpoint integration is being completed
+  on its component branch before the next complete integration check.
+- Waiting transport remains in [Moss PR #31](https://github.com/redstone-md/moss/pull/31),
+  stacked on PR #30, without an upstream merge. The integration pins its verified
+  candidate. A further public-network group bootstrap fix is under validation;
+  earlier local-tracker success does not establish public-network acceptance.
+- Host policy probes, Android production/instrumentation compilation, Flutter
+  analysis and focused native scenarios pass. The integrated Flutter checkpoint
+  passed 2054 tests with four skipped. Whole-branch checks and signed packaging
+  must be repeated after the remaining component integration; older prepared
+  APKs are not candidates for acceptance of the complete feature.
+- The adb collector and guide are ready. No physical Android device is connected.
+  Actual Keystore migration, locked/background calls, notification actions,
+  PiP, Doze, reclamation, reboot and OS-stop behavior remain acceptance gates.
+  Physical phone/desktop baselines and resulting numeric budgets are still
+  required. Compilation and host tests do not close these tickets.
+- Earlier standards/spec and CodeAnt reviews covered the prepared layers.
+  The final integration requires another complete review and resolution of
+  validated findings before handoff.
+
+## Approved boundaries
+
+The [access](android-background-access-contract.plan.md),
+[execution](android-background-execution-contract.plan.md),
+[Moss](android-moss-waiting-contract.plan.md) and
+[history](android-history-contracts.plan.md) contracts are approved. Approval
+does not establish implementation or physical acceptance.
+
+Recovery is automatic, with no administrator review UI. The owner accepted
+current-authorized-holder trust for historical context, while retaining original
+authorship and independent recipient-access checks. A dishonest holder and
+colluding author can falsify context; receipts do not independently prove time.
+Group recovery retains verified own-MLS facts and never imports another device's
+private MLS snapshot. The withdrawn manual-administrator proposal is not part of
+the implementation.
