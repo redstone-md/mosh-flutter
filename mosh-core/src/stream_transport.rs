@@ -14,6 +14,8 @@ use crate::private_dm_runtime::transport::DmTransport;
 /// 100+ are the game preset, 200+ the TUN intranet. Attachment chunks are
 /// the first messenger stream, so they take the lowest free id.
 pub const ATTACHMENT_STREAM_ID: u32 = 2;
+// Base64 and channel framing stay bounded above the existing 64 KiB envelope.
+pub(crate) const MAX_FRAMED_BYTES: usize = crate::conversation::MAX_PUBLISH_BYTES * 2;
 
 /// Prefix reserved for frames the stream callback files. Runtime inboxes
 /// claim channels they recognise, so an unclaimed prefix lands in the
@@ -69,6 +71,22 @@ fn deframe(payload: &[u8]) -> Option<(String, Vec<u8>)> {
     let frame: StreamFrame = serde_json::from_slice(payload).ok()?;
     let bytes = decode(&frame.payload_b64).ok()?;
     Some((frame.channel, bytes))
+}
+
+/// Packet and stream carriers reuse the same frame. Only recognized DM/device
+/// channels enter that owner; untrusted packet sender keys grant no MLS access.
+pub(crate) fn directed_message(payload: &[u8]) -> Option<MossReceivedMessage> {
+    if payload.len() > MAX_FRAMED_BYTES || payload.first() != Some(&b'{') {
+        return None;
+    }
+    let (channel, payload) = deframe(payload)?;
+    if channel.len() > 256
+        || payload.len() > crate::conversation::MAX_PUBLISH_BYTES
+        || !crate::private_dm_runtime::transport::is_directed_dm_channel(&channel)
+    {
+        return None;
+    }
+    Some(MossReceivedMessage { channel, payload })
 }
 
 /// Which wire carried a blob frame.

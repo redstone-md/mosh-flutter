@@ -122,6 +122,12 @@ pub trait DmTransport: Send + Sync {
         Err(STREAMS_UNSUPPORTED.to_string())
     }
 
+    /// Existing framed DM/device messages may use the encrypted packet carrier
+    /// when a relay cannot carry streams. Alternate transports retain streams.
+    fn send_to_peer_frame(&self, peer_id: &str, payload: &[u8]) -> Result<(), String> {
+        self.send_to_peer_stream(peer_id, payload)
+    }
+
     /// Every frame that arrived since the last call, voice-call media
     /// excepted.
     fn drain(&self) -> Vec<MossReceivedMessage>;
@@ -162,11 +168,15 @@ pub fn reach_of(peer_moss_id: &str, info: &MeshInfo) -> PeerTransport {
 }
 
 pub(crate) fn is_private_dm_inbound(channel: &str) -> bool {
-    channel_session_id(channel).is_some()
+    is_directed_dm_channel(channel)
         // Stream-delivered frames (spec #8): the carrier deframes them in
         // drain, so the runtime sees the ordinary blob/data/control channel
         // inside — but the queue has to claim the frame when it lands.
         || crate::stream_transport::is_stream_inbound(channel)
+}
+
+pub(crate) fn is_directed_dm_channel(channel: &str) -> bool {
+    channel_session_id(channel).is_some() || channel == super::devices::DEVICE_CHANNEL
 }
 
 /// A voice-call media frame. Claimed by its own queue, not the DM's.
@@ -195,7 +205,13 @@ fn packet_inbox() -> &'static inbox::Inbox {
 /// in one process (the two peers a moss loopback test runs) share it.
 fn dm_inbox() -> &'static inbox::Inbox {
     static INBOX: std::sync::OnceLock<inbox::Inbox> = std::sync::OnceLock::new();
-    INBOX.get_or_init(|| inbox::register(is_private_dm_inbound))
+    INBOX.get_or_init(|| {
+        inbox::register_bounded(
+            is_private_dm_inbound,
+            256,
+            crate::stream_transport::MAX_FRAMED_BYTES,
+        )
+    })
 }
 
 const NODE_DOWN: &str = "moss node is not running";
@@ -226,6 +242,28 @@ impl MossDmTransport {
 }
 
 impl DmTransport for MossDmTransport {
+    fn send_to_peer_frame(&self, peer_id: &str, payload: &[u8]) -> Result<(), String> {
+        let node = self.node()?;
+        if self.reach(peer_id) == PeerTransport::Relayed {
+            return node
+                .send_to_peer(peer_id, payload)
+                .map_err(|error| error.to_string());
+        }
+        match node.send_stream(
+            peer_id,
+            crate::stream_transport::ATTACHMENT_STREAM_ID,
+            payload,
+        ) {
+            Ok(()) => Ok(()),
+            // Missing stream support or an explicit pre-send refusal is safe
+            // to retry on packets. Other failures may have partially sent.
+            Err(crate::moss_ffi::MossFfiError::Symbol(_))
+            | Err(crate::moss_ffi::MossFfiError::Operation { code: -6, .. }) => node
+                .send_to_peer(peer_id, payload)
+                .map_err(|error| error.to_string()),
+            Err(error) => Err(error.to_string()),
+        }
+    }
     fn set_room_known_peers(&self, room: &str, peers: &[String]) -> Result<(), String> {
         self.node()?
             .set_room_known_peers(room, peers)

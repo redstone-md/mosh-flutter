@@ -1,4 +1,5 @@
 mod admission_authentication;
+mod background;
 mod call_media;
 mod compact_invite;
 pub(crate) mod contracts;

@@ -14,9 +14,14 @@ impl MossNode {
             .set_packet_callback
             .ok_or_else(|| MossFfiError::Symbol("Moss_SetPacketCallback".into()))?;
         // SAFETY: the context-free function has the pinned MossPacketCallback ABI.
-        check_code("set_packet_callback", unsafe {
-            register(self.handle, Some(on_packet_payload))
-        })
+        self.register(
+            |handle| {
+                check_code("set_packet_callback", unsafe {
+                    register(handle, Some(on_packet_payload))
+                })
+            },
+            |r| r.packets = true,
+        )
     }
 
     /// Send one opaque packet to the selected Moss peer. Success means admission,
@@ -27,19 +32,22 @@ impl MossNode {
             .send_to_peer
             .ok_or_else(|| MossFfiError::Symbol("Moss_SendToPeer".into()))?;
         let peer = c_string(peer)?;
+        let handle = self.handle()?;
         let length = i32::try_from(payload.len()).map_err(|_| MossFfiError::Operation {
             name: "send_to_peer",
             code: -5,
         })?;
         // SAFETY: CString and payload live through the call, which copies the bytes.
         check_code("send_to_peer", unsafe {
-            send(self.handle, peer.as_ptr(), payload.as_ptr(), length)
+            send(*handle, peer.as_ptr(), payload.as_ptr(), length)
         })
     }
 }
 
 unsafe extern "C" fn on_packet_payload(sender: *const u8, data: *const u8, length: u32) {
-    if sender.is_null() || (data.is_null() && length != 0) {
+    // The history owner also applies its approved 32-frame/1 MiB queue budget;
+    // individual DM/call owners retain tighter frame limits.
+    if sender.is_null() || (data.is_null() && length != 0) || length > 1_048_576 {
         return;
     }
     // SAFETY: Moss passes a 32-byte sender key and length bytes, valid for this callback.
@@ -50,6 +58,10 @@ unsafe extern "C" fn on_packet_payload(sender: *const u8, data: *const u8, lengt
         // SAFETY: nonempty native buffers are nonnull and live through this callback.
         unsafe { std::slice::from_raw_parts(data, length as usize) }.to_vec()
     };
+    if let Some(message) = crate::stream_transport::directed_message(&payload) {
+        crate::inbox::deliver(message);
+        return;
+    }
     crate::inbox::deliver(MossReceivedMessage {
         channel: format!("{PACKET_INBOX_CHANNEL_PREFIX}{peer}"),
         payload,

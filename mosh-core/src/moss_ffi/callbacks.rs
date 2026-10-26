@@ -102,6 +102,9 @@ pub(super) unsafe extern "C" fn on_moss_event(event_type: i32, detail_json: *con
             .into_owned()
     };
     push_app_event(event_type, &detail);
+    if event_type == 12 {
+        crate::api::background::background_delivery_changed();
+    }
 }
 
 pub fn push_app_event(event_type: i32, detail_json: &str) {

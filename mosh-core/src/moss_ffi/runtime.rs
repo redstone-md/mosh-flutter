@@ -53,6 +53,7 @@ impl MossFfiRuntime {
             on_stream: try_load_symbol(&library, b"Moss_OnStream\0"),
             send_to_peer: try_load_symbol(&library, b"Moss_SendToPeer\0"),
             set_packet_callback: try_load_symbol(&library, b"Moss_SetPacketCallback\0"),
+            set_activity_mode: try_load_symbol(&library, b"Moss_SetActivityMode\0"),
             _library: ManuallyDrop::new(library),
         })
     }
@@ -74,6 +75,7 @@ impl MossFfiRuntime {
         mesh_id: &str,
         config_json: &str,
     ) -> Result<MossNode, MossFfiError> {
+        let room = mesh_id.to_string();
         let mesh_id = c_string(mesh_id)?;
         let config = c_string(config_json)?;
         // Moss Init calls these context-free callbacks synchronously. Serializing
@@ -95,7 +97,9 @@ impl MossFfiRuntime {
 
         let node = MossNode {
             runtime: Arc::clone(self),
-            handle,
+            native: RwLock::new(transport_owner::NativeNode::new(handle)),
+            mesh_id: room,
+            config_json: config_json.to_string(),
             identity_signer,
         };
         if !node.identity_signer.as_ref().is_some_and(|key| {

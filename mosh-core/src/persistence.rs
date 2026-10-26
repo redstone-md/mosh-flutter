@@ -5,6 +5,7 @@ use redb::{Database, ReadableTable};
 
 mod attachment_gc;
 mod attachment_refs;
+mod background_delivery;
 mod chat_names;
 mod conversation_records;
 mod crypto;
@@ -37,6 +38,8 @@ pub(crate) mod test_faults;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use background_delivery::BackgroundMessageAdmission;
+pub use background_delivery::BackgroundNotification;
 pub use crypto::{decrypt_blob, encrypt_blob};
 use schema::*;
 pub use schema::{HistoryTables, CHANNEL_HISTORY, DM_HISTORY, GROUP_HISTORY};

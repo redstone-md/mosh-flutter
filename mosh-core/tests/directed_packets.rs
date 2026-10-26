@@ -141,6 +141,19 @@ fn exchange(sender: &mut Peer, receiver: &mut Peer) {
         receiver.receive(b"stream-fixture"),
         format!("{STREAM_INBOX_CHANNEL_PREFIX}{}", sender.key)
     );
+    assert_eq!(
+        sender.ask(json!({"action":"framed", "peer":receiver.key})),
+        json!({"ok":true})
+    );
+    assert_eq!(receiver.receive(b"device-fixture"), "mosh-dm-devices-v1");
+    assert_eq!(
+        sender.ask(json!({"action":"packet", "peer":receiver.key})),
+        json!({"ok":true})
+    );
+    assert_eq!(
+        receiver.receive(b"packet-fixture"),
+        format!("{PACKET_INBOX_CHANNEL_PREFIX}{}", sender.key)
+    );
 }
 
 #[test]
@@ -174,6 +187,12 @@ fn packet_worker() {
                 .map(|_| json!({"ok":true})),
             "packet" => node
                 .send_to_peer(value["peer"].as_str().unwrap(), b"packet-fixture")
+                .map(|_| json!({"ok":true})),
+            "framed" => node
+                .send_to_peer(
+                    value["peer"].as_str().unwrap(),
+                    br#"{"channel":"mosh-dm-devices-v1","payload_b64":"ZGV2aWNlLWZpeHR1cmU="}"#,
+                )
                 .map(|_| json!({"ok":true})),
             "empty" => node
                 .send_to_peer(value["peer"].as_str().unwrap(), b"")
