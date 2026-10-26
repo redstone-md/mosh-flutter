@@ -59,8 +59,16 @@ impl HistoryFrame {
         key: &SigningKey,
         message: &HistoryMessage<R>,
     ) -> Result<(), String> {
+        self.seal_payload(key, message)
+    }
+
+    pub(crate) fn seal_payload<T: Serialize>(
+        &mut self,
+        key: &SigningKey,
+        payload: &T,
+    ) -> Result<(), String> {
         self.sender_key = hex::encode(key.verifying_key().as_bytes());
-        self.payload_b64 = encode(&serde_json::to_vec(message).map_err(|e| e.to_string())?);
+        self.payload_b64 = encode(&serde_json::to_vec(payload).map_err(|e| e.to_string())?);
         self.signature = hex::encode(key.sign(&self.input()?).to_bytes());
         if serde_json::to_vec(self).map_err(|e| e.to_string())?.len() > MAX_PUBLISH_BYTES - 128 {
             return Err("history frame exceeds publication limit".into());
@@ -74,6 +82,20 @@ impl HistoryFrame {
         mesh: &str,
         channel: &str,
     ) -> Result<HistoryMessage<R>, String> {
+        let message = self.open_payload(context, mesh, channel)?;
+        if !matches!(message, HistoryMessage::Probe) && self.recipient_key.is_none() {
+            return Err("history reply has no exact recipient".into());
+        }
+        Ok(message)
+    }
+
+    /// Kind adapters must separately enforce their Probe/exact-recipient rules.
+    pub(crate) fn open_payload<T: serde::de::DeserializeOwned>(
+        &self,
+        context: &str,
+        mesh: &str,
+        channel: &str,
+    ) -> Result<T, String> {
         if self.version != 1
             || self.conversation != context
             || self.mesh_id != mesh
@@ -95,13 +117,8 @@ impl HistoryFrame {
             return Err("history frame exceeds bounded carrier".into());
         }
         crate::signature_verification::verify(&self.sender_key, &self.signature, &self.input()?)?;
-        let message =
-            serde_json::from_slice(&decode(&self.payload_b64).map_err(|e| e.to_string())?)
-                .map_err(|e| e.to_string())?;
-        if !matches!(message, HistoryMessage::Probe) && self.recipient_key.is_none() {
-            return Err("history reply has no exact recipient".into());
-        }
-        Ok(message)
+        serde_json::from_slice(&decode(&self.payload_b64).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())
     }
 
     fn input(&self) -> Result<Vec<u8>, String> {

@@ -6,6 +6,7 @@ pub(crate) mod fragment;
 pub(crate) mod manifest;
 pub(crate) mod occurrence;
 pub(crate) mod slots;
+pub(crate) mod transport;
 pub(crate) mod wire;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

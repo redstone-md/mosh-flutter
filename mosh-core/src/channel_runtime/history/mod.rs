@@ -8,10 +8,14 @@ use crate::conversation::recovery::{
 
 mod admission;
 mod erased;
+mod import;
+mod install;
 mod journal;
 mod receive;
+mod record_validation;
 mod records;
 mod source;
+mod source_pages;
 use records::ChannelRecord;
 
 use crate::conversation::recovery::coordinator::Checkpoint;
@@ -105,26 +109,7 @@ impl ChannelSession {
             crate::moss_ffi::connected_peer_revision(),
             self.messages.revision(),
         );
-        let mut changed = false;
-        for frame in self.recovery.drain() {
-            match self.receive_history(frame) {
-                Ok(imported) => changed |= imported,
-                Err(error) => {
-                    self.recovery.error =
-                        Some(if matches!(error, ChannelRuntimeError::Persistence(_)) {
-                            HistorySyncReason::StorageRefused
-                        } else {
-                            HistorySyncReason::EvidenceMissing
-                        });
-                    dlog::write(
-                        LogLevel::Warn,
-                        kinds::FRAME,
-                        &self.name,
-                        &format!("history: {error}"),
-                    );
-                }
-            }
-        }
+        let changed = self.drain_history_frames();
         if self.recovery.checkpoint.source.is_some()
             && now.saturating_sub(self.recovery.last_progress) < 10_000
         {
@@ -145,6 +130,30 @@ impl ChannelSession {
             self.send_history(None, HistoryMessage::Probe)?;
         }
         Ok(changed)
+    }
+
+    fn drain_history_frames(&mut self) -> bool {
+        let mut changed = false;
+        for frame in self.recovery.drain() {
+            match self.receive_history(frame) {
+                Ok(imported) => changed |= imported,
+                Err(error) => {
+                    self.recovery.error =
+                        Some(if matches!(error, ChannelRuntimeError::Persistence(_)) {
+                            HistorySyncReason::StorageRefused
+                        } else {
+                            HistorySyncReason::EvidenceMissing
+                        });
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::FRAME,
+                        &self.name,
+                        &format!("history: {error}"),
+                    );
+                }
+            }
+        }
+        changed
     }
 
     fn checkpoint_key(&self) -> String {
@@ -213,3 +222,6 @@ mod tests_legacy;
 
 #[cfg(test)]
 mod tests_erased;
+
+#[cfg(test)]
+mod tests_journal_fragments;

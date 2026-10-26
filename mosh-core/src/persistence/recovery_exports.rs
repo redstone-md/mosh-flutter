@@ -50,7 +50,7 @@ impl Persistence {
             self.delete_prefix(
                 tx,
                 CONVERSATION_RECOVERY,
-                &format!("{data_base}{recipient}\u{1}"),
+                &format!("{data_base}{recipient}"),
             )?;
             Self::update_row(tx, CONVERSATION_RECOVERY, &key, None)?;
         }

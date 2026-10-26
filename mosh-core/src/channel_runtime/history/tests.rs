@@ -176,4 +176,17 @@ fn only_four_conversations_import_at_once() {
         1
     );
     assert!(snapshot.channels.iter().all(|c| c.messages.is_empty()));
+    fixture.runtime.leave("limited-0").unwrap();
+    fixture.offer("limited-4", &source, 1);
+    assert_eq!(
+        fixture
+            .runtime
+            .poll("limited-4")
+            .unwrap()
+            .history_sync
+            .unwrap()
+            .state,
+        HistorySyncState::Importing,
+        "leaving releases the installation-wide import slot",
+    );
 }

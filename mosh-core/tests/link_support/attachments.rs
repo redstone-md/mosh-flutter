@@ -123,6 +123,18 @@ fn chat(action: &str, argument: &str, command: &Value) -> Value {
             .unwrap();
             json!({})
         }
+        "chat_delete" => {
+            conversation::deletion::delete_messages(
+                Ref {
+                    kind: kind(command),
+                    id: argument.into(),
+                },
+                vec![command["message_id"].as_str().unwrap().into()],
+                conversation::deletion::DeleteScope::ForEveryone,
+            )
+            .unwrap();
+            json!({})
+        }
         _ => panic!("unknown chat command"),
     }
 }
