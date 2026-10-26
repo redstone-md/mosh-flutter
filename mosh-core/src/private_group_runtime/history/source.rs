@@ -64,8 +64,9 @@ impl GroupSession {
         pull: Option<HistoryPull>,
         partial_digest: Option<&str>,
     ) -> Result<(HistoryMessage<GroupRecord>, bool), PrivateGroupError> {
-        let current = self.history_manifest(recipient)?;
+        self.validate_history_scope(recipient, &frame.sender_key)?;
         let Some(pull) = pull else {
+            let current = self.history_manifest(recipient)?;
             return Ok((
                 HistoryMessage::Offer {
                     manifest: current.digest,
@@ -88,19 +89,20 @@ impl GroupSession {
             .as_ref()
             .ok_or(PrivateGroupError::NotReady)?
             .recovery_state::<Export>(&meta_key)?;
-        if export.as_ref().is_none_or(|e| e.round < frame.round)
-            && pull.offset == 0
-            && current.digest == pull.manifest
-            && self.history_deletion_digest()? == pull.deletion_digest
-        {
-            export = Some(self.freeze_history_export(
-                frame,
-                current,
-                &pull.deletion_digest,
-                &prefix,
-                &meta_key,
-                recipient,
-            )?);
+        if export.as_ref().is_none_or(|e| e.round < frame.round) && pull.offset == 0 {
+            let current = self.history_manifest(recipient)?;
+            if current.digest == pull.manifest
+                && self.history_deletion_digest()? == pull.deletion_digest
+            {
+                export = Some(self.freeze_history_export(
+                    frame,
+                    current,
+                    &pull.deletion_digest,
+                    &prefix,
+                    &meta_key,
+                    recipient,
+                )?);
+            }
         }
         let Some(export) = export.filter(|e| e.matches(frame, &pull)) else {
             return Ok((HistoryMessage::Unavailable, false));
@@ -120,7 +122,17 @@ impl GroupSession {
         }
     }
 
-    fn history_manifest(&self, recipient: &GroupScope) -> Result<Manifest, PrivateGroupError> {
+    fn history_manifest(&mut self, recipient: &GroupScope) -> Result<Manifest, PrivateGroupError> {
+        let recipient_key = crate::conversation::recovery::manifest::digest(recipient)
+            .map_err(PrivateGroupError::Codec)?;
+        let generation = super::source_cache::Generation {
+            messages: self.messages.revision(),
+            head: recipient.head.clone(),
+            deletions: self.history_deletion_digest()?,
+        };
+        if let Some(manifest) = self.history_exports.get(generation, &recipient_key) {
+            return Ok(manifest);
+        }
         let manifest = self
             .persistence
             .as_ref()
@@ -128,6 +140,7 @@ impl GroupSession {
             .recovery_manifest(GROUP_HISTORY, &self.group_id, |row| {
                 self.eligible_history_key(row, recipient)
             })?;
+        self.history_exports.insert(recipient_key, manifest.clone());
         Ok(manifest)
     }
 
@@ -189,3 +202,7 @@ impl Export {
 #[cfg(test)]
 #[path = "source_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "source_cache_tests.rs"]
+mod cache_tests;

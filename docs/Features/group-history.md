@@ -93,7 +93,10 @@ Only discovery is room-scoped. Content, original proofs and holder vouches use
 the existing encrypted recipient-directed Moss carrier. The shared transport
 queue bounds queued work to 32 frames and 1 MiB and performs network sends
 outside group/call owner locks. Every page rechecks the current group scope and
-recipient. There is no group-key room fallback for historical content.
+recipient. Up to 16 recipient-specific manifest summaries are cached per group;
+message revision, deletion digest, verified MLS/roster head and the exact
+recipient interval proof invalidate them. Accepted frozen exports serve their
+disk pages without rescanning the current history on every Pull. There is no group-key room fallback for historical content.
 
 `private_group_history_flow` exercises independent real bridge installations:
 ordinary-holder recovery with original author offline and holder restart,
