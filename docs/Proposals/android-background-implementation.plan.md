@@ -335,11 +335,15 @@ fresh-address caller behind a longer stale-address dial. All three findings
 have saved RED controls. Private follow-up work narrows coalescing to the same
 identity and address, uses the existing tracked join tail for replay, and
 preserves existing-admission exemptions without allowing new unlisted remotes.
-Final checks and both immutable follow-up reviews remain required. Those
-private corrections are not in `4acfaab`; the three P2s remain open there.
+Two of the three reproduce on `4acfaab`: a stale-address dial starves a
+fresh-address caller of the same identity, and strict mode refuses relays to
+peers admitted before it. Moss `34933b8` coalesces only the same identity at
+the same address; `b8970bf` gates only targets that are neither listed nor
+already admitted. The replay-coupling finding did not produce a caller-visible
+failure and is unchanged.
 
 These source diagnoses do not yet explain the entire public-network failure.
-Mosh now pins `4acfaab` to test the corrected migration on the Pixel; strict
+Mosh now pins `b8970bf` to test the corrected migration on the Pixel; strict
 sustained-network, physical Android and measured resource acceptance remain
 open.
 
