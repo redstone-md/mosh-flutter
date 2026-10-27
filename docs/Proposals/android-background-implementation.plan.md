@@ -291,11 +291,26 @@ fixture lets the receiver reconnect to its old core, making that provider valid
 again. Test-only `e0dfa7f5` holds recipient dispatch during the deliberate
 Noise-only check and revokes only the old receiver/core edge while preserving
 its stale provider record and origin link. The 2500 ms budget, single sends and
-topology assertions remain unchanged. Follow-up CI `40456684771` is running;
-an intermediate one-in-ten failure remains unexplained despite subsequent
-passing repetitions. Do not waive it. Keep the existing pin and withhold new
-installers; source review and these diagnostics do not close sustained-network
-or physical Android acceptance.
+topology assertions remain unchanged. Follow-up CI `40456684771` passes all
+eight jobs, but does not erase the intermediate one-in-ten failure.
+
+Failure-only traces now localize that residual to pending relay admission:
+same-identity physical replacement can close a carrier after its signed Request
+is written but before the core dispatches it. There is no established child
+route yet, so established-route handover protection does not apply. Two
+real-transport regressions reproduce the loss three times each. A private
+correction retains the same pending operation, signed session ID and deadline,
+and sends its control through the normally admitted replacement. It adds no
+payload retry, timer, public contract or topology allowance.
+
+A third regression reproduces an obsolete failed sender deleting the pending
+operation already claimed on its replacement. Corrected accounting and exact
+failed-claim cleanup pass five race repetitions together with cancellation,
+deadline and Stop checks. The correction remains private and mutable; fast
+failure, the original rare control, immutable review and exact-candidate CI
+still require validation. This source diagnosis does not yet explain the whole
+public-network failure. Keep the existing pin and withhold new installers;
+sustained-network and physical Android acceptance remain open.
 
 Separately, Windows CI exposed an imported group attachment being rewritten by
 the generic live-history tail without its retained preview evidence. A native
