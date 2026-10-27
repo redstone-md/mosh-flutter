@@ -140,25 +140,34 @@ found three blockers; the earlier route-controlled checks do not close them.
   loss by 65 seconds despite Waiting/Ready and one carrier. Carrier teardown
   removed established virtual application paths; the next migration scanned
   only current peers and could announce Ready with nothing left to restore.
-  The separate Moss candidate `ecfd484` retains exact established application
+  The separate Moss work retains exact established application
   interest across carrier loss, including subscribed-only paths and partially
   migrated carriers. Recovery consumes that intent only after verified
   replacement. Cold TCP candidates require mesh admission, and failed unused
   candidates are retired without dropping useful paths. Bounded identity lookup
   also checks connected contacts and alternate carrier records within the
   existing deadline. No API, packet, dependency or persisted schema is added.
-  Focused regressions and independent review cover these corrections. A clean
-  production-library public-WAN check passes after 120 idle seconds: native call
-  admission, durable incoming call, applied decline and subsequent durable
-  message, with no preceding text to wake the route. Transient unavailable and
-  handshaking states still occurred before recovery; this does not establish
-  continuous connectivity. The exact repository case also passes with no
-  intermediate UI polls, as do full Go and all eight upstream CI jobs. However,
-  a clean 600-second idle check reproduces `NotReady`: authenticated liveness
-  was lost around 79 seconds and did not recover before the call. Sustained
-  waiting remains an open transport blocker. Keep the existing pin while
-  carrier eviction and bounded candidate recovery are investigated; no upstream
-  merge is authorized. Physical Pixel retesting remains required.
+  Follow-up candidate `ae653e4` also bounds sequential known-carrier alternatives,
+  preserves first authenticated relay admission order, rejects conflicting
+  session bindings, and remembers at most 1024 retired session hashes. A delayed
+  old control cannot become a new admission or displace the newer route. Ordinary
+  explicit targets recovering a lost relay require mesh confirmation before
+  accepting a cold TCP path; ordinary cold startup remains unchanged.
+  Real regressions and independent review cover these corrections. Earlier
+  120-second idle checks passed, including the exact repository case without
+  intermediate UI polls. A subsequent 600-second endpoint call also passed,
+  but its journal revealed 79-second and 170-second availability gaps. The full
+  idle interval must therefore retain authenticated liveness; a final successful
+  call alone is insufficient. The clean `ae653e4` run fails this stricter check:
+  both installations lose liveness about 48 seconds after Waiting/Ready. It was
+  stopped after that definitive failure, before the call endpoint. No extra RPC
+  or traffic is used to inspect the existing logs. Full Go and all eight upstream
+  CI jobs for this candidate are still being evaluated. A separate metadata-only
+  probe will distinguish physical carrier closure from local path retirement
+  and sender recovery. The capped-core eviction fixture does not prove the
+  public fleet's occupancy or this failure's cause. Sustained waiting remains
+  open; keep the existing pin, with no upstream merge or new installer handoff.
+  Physical Pixel retesting remains required.
 
 Separately, Windows CI exposed an imported group attachment being rewritten by
 the generic live-history tail without its retained preview evidence. A native
@@ -187,8 +196,8 @@ API-owned engines are retained until process exit. Relevant production and
 fixture shutdown paths match `origin/main`; no matched baseline executable or
 native crash stack establishes the cause or equivalent Flutter-exit behavior.
 Keep this existing teardown limitation separate from background reception.
-Full Mosh CI run `40409636711` passes on `7a71ec72`, using the retained
-`e95c498` Moss pin. That result does not validate candidate `ecfd484` or close
+Full Mosh CI run `40423934412` passes on `17ae0a73`, using the retained
+`e95c498` Moss pin. That result does not validate candidate `ae653e4` or close
 the public-WAN and physical-device gates.
 
 ## Approved boundaries
