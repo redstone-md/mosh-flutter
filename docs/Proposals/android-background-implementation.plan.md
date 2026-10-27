@@ -226,8 +226,11 @@ consume the entire pending-recovery budget, and unused-candidate cleanup can
 retire a working rendezvous before replacement admission. Both require real
 regressions and correction. Exact-source CI `40446308970` is running. The clean
 two-installation 600-second public-network probe was stopped for these source
-corrections, without an endpoint or continuity verdict; both native workers
-exited normally. The probe requires a relayed
+corrections before the call endpoint. Its saved logs already show a continuity
+failure: both installations lose authentication about 65 seconds into idle.
+Both native workers exited normally; the wrapper's review-stop status is not
+the runtime verdict. No causal link to either review finding is established.
+The probe requires a relayed
 application path and one carrier before idle; no UI polling or message warms
 the final call. A separate four-node check on `759630d` confirms ordinary sender
 warming can discover a carrier through another directory; this does not prove
