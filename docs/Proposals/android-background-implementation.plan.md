@@ -246,9 +246,32 @@ replaces its physical peer and closes the old connection before the core admits
 the replacement. The core handles that EOF by deleting the forwarding route;
 the endpoint still considers its virtual session established. This is a local
 ordering failure, not yet an attribution of the public-network idle loss.
-Its correction must preserve a working carrier until replacement admission;
-crossed confirmation probes alone do not prove that both maps have committed.
-No wider deadline, repeated proof send or relaxed assertion is accepted.
+Candidate `94d1eb8` retains old application writes until a matching Pong on the
+new reader confirms counterpart admission. Captured confirmation packets replay
+before the wait; refusal restores only the exact live predecessor. Private
+session/stream reader keys preserve ordering, Waiting counts both physical
+connections, and ordinary MaxPeers still counts identities. Authenticated relay
+expiry retains application intent and wakes existing recovery. No timer, wire,
+ABI, dependency or deadline changes. The combined original/new checks pass three
+race repetitions in 105.880 seconds; changed-line coverage is 179/205 (87.3%),
+with vet and WASM passing.
+
+Immutable review still finds two P2s around EOF and worker draining: a buffered
+Pong can commit a new session already known closed, and the `readClosed` fast
+path can bypass an unfinished replacement owner. These require exact lifecycle
+controls and correction. A proposed eager relay cleanup on old EOF was rejected:
+a healthy remote handover may intentionally close old before our Pong arrives.
+Existing authenticated expiry feedback distinguishes actual retired routes;
+local EOF alone does not.
+
+The clean `94d1eb8` public run also fails strict idle continuity. Both actual
+process mappings match the frozen library. Initial authentication takes 4.46
+seconds; Waiting/Ready, one carrier and a relayed application path take 33.95
+seconds. Desktop authentication is lost about 97 idle seconds later, and the
+runner exits 1 before the call endpoint. Both owned workers are gone. This is a
+runtime failure, not a review abort; no causal attribution to the two P2s is
+established. Exact-source CI `40452738392` is running. Keep the existing pin and
+withhold new installers; bounded first-close metadata follows the corrections.
 
 Separately, Windows CI exposed an imported group attachment being rewritten by
 the generic live-history tail without its retained preview evidence. A native
