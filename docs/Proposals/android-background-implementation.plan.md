@@ -168,14 +168,27 @@ found three blockers; the earlier route-controlled checks do not close them.
   failed application-path migration and a refused call after 180 idle seconds.
   The active sender's nine identity lookups return no provider records. The
   remote closure and missing rendezvous records still require causal checks.
-  A separate real-node regression corrects an unrelated connected candidate
-  consuming the entire migration budget before a healthy common carrier can
-  run; useful retained carriers keep their original budget. That private fix
-  passes its regression and cancellation/admission controls, but does not fix
-  the post-Ready failure. The capped-core eviction fixture does not prove the
-  public fleet's occupancy or this failure's cause. Sustained waiting remains
-  open; keep the existing pin, with no upstream merge or new installer handoff.
-  Physical Pixel retesting remains required.
+  Follow-up real-node regressions reserve the migration budget for useful
+  carriers, retain the last verified carrier within the existing three-candidate
+  batch, and retire an unused failed readmission. The clean `728e070` source
+  passes full Go, focused race tests, vet, WASM and independent standards/spec
+  review. One private 180-second run retains authenticated liveness through
+  several physical carrier losses, then receives a call, applies native Decline
+  and durably receives text. Its subsequent 600-second run fails: after a raw
+  carrier EOF, a new relay request reaches the desktop and its synchronous
+  Accept write succeeds, but the phone does not observe the Accept before the
+  existing deadline. Actual packet callbacks stop; the final call is NotReady.
+  Local framed-write success does not prove remote receipt or forwarding.
+  A targeted real-node pressure control can drop that exact Accept in the
+  bounded mesh dispatch queue while transport-buffer drops remain zero; this
+  demonstrates the diagnostic seam, not the public failure's cause. Private
+  metadata will distinguish ingress, enqueue, drop and dispatch without bodies
+  or additional wire traffic. A matched 180-second Active control retains
+  liveness and receives the call and durable text; no background message notice
+  is expected while interactive. The capped-core eviction fixture does not
+  prove the public fleet's occupancy or this failure's cause. Sustained waiting
+  remains open; keep the existing pin, with no upstream merge or new installer
+  handoff. Physical Pixel retesting remains required.
 
 Separately, Windows CI exposed an imported group attachment being rewritten by
 the generic live-history tail without its retained preview evidence. A native
@@ -204,9 +217,9 @@ API-owned engines are retained until process exit. Relevant production and
 fixture shutdown paths match `origin/main`; no matched baseline executable or
 native crash stack establishes the cause or equivalent Flutter-exit behavior.
 Keep this existing teardown limitation separate from background reception.
-Full Mosh CI run `40423934412` passes on `17ae0a73`, using the retained
-`e95c498` Moss pin. That result does not validate candidate `ae653e4` or close
-the public-WAN and physical-device gates.
+Full Mosh CI run `40432133188` and Windows diagnostics `40432133165` pass on
+`2919392d`, using the retained `e95c498` Moss pin. Those results do not validate
+candidate `728e070` or close the public-WAN and physical-device gates.
 
 ## Approved boundaries
 
