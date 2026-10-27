@@ -283,9 +283,19 @@ The runner stops before any call/message endpoint, and both native workers
 exit normally. Waiting currently skips virtual-peer probes, so carrier health
 alone cannot establish end-to-end route health. A focused regression must
 distinguish missing retirement feedback from failed recovery before another
-long run. Exact-source CI `40454121728` is running. Keep the existing pin and
-withhold new installers; neither source review nor this diagnostic closes the
-sustained-network or physical Android gates.
+long run.
+
+Exact-source CI `40454121728` fails two controls. The cold-recovery fixture
+misses legitimate immediate repair after the old route retires. The stale-hint
+fixture lets the receiver reconnect to its old core, making that provider valid
+again. Test-only `e0dfa7f5` holds recipient dispatch during the deliberate
+Noise-only check and revokes only the old receiver/core edge while preserving
+its stale provider record and origin link. The 2500 ms budget, single sends and
+topology assertions remain unchanged. Follow-up CI `40456684771` is running;
+an intermediate one-in-ten failure remains unexplained despite subsequent
+passing repetitions. Do not waive it. Keep the existing pin and withhold new
+installers; source review and these diagnostics do not close sustained-network
+or physical Android acceptance.
 
 Separately, Windows CI exposed an imported group attachment being rewritten by
 the generic live-history tail without its retained preview evidence. A native
