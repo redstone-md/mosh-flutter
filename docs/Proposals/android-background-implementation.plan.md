@@ -197,8 +197,7 @@ distinct eligible addresses, counting a matching fresh/former address once.
 The real-node regression fails three times before the fix and passes five times
 under the race detector afterward. Matching-address, policy, replay, cancellation
 and stale-provider controls pass; independent Standards/Spec reviews find no
-issues. Exact-source CI `40441933418` passes both full platform suites and Mesh
-Race; the repeated mesh job is still running. An earlier identity-only room
+issues. All eight exact-source CI jobs in `40441933418` pass. An earlier identity-only room
 delivery failure remains unlocalized despite 30 exact race repetitions, 15
 timing-offset cases and 28 predecessor-sequence cases passing without changing
 their five-second assertions.
@@ -206,11 +205,34 @@ their five-second assertions.
 A separate real-node regression now proves an offline-contact barrier: a useful
 replacement carrier can carry an existing live conversation while the retained
 offline contact prevents publication of this installation's own identity/rooms.
-A private correction restores fresh-sender discovery and bidirectional delivery,
-preserves the offline recovery intent and keeps at most two physical carriers.
-Coalescing, current-incarnation and policy controls pass. Reversing contact order
-and the all-offline case still require verification before freezing this change.
-Neither candidate is integrated into Mosh or offered as a fixed installer.
+Clean candidate `65b6a9c` retains one verified installation carrier independently
+of offline contacts. Pending recovery keeps its original intent and uses fair
+shares of the existing attempt deadline. After ordinary work drains, a single
+verified carrier may truthfully report Waiting/Ready while old contacts remain
+pending; useful paths on another physical carrier still prevent settlement.
+The existing retry owner continues pending recovery without socket churn or
+Ready/Connecting flicker. Its bounded candidate rotation still tries a known
+working carrier before settling for rendezvous alone. No timer, query fanout,
+wire format, ABI or schema changes.
+
+Real-node regressions fail on the original source and pass under race checking
+for all three contact orders, including all offline. Fresh-sender discovery
+through the replacement directory, actual bidirectional delivery, returning
+contacts, same-ID replacement, publication coalescing, current policy, Active,
+Stop and cancellation are covered. Original common-carrier assertions also
+pass unchanged. Changed-line coverage is 170/174 (97.7%); vet and WASM pass.
+Independent review reports one P2 per axis: a settled useful carrier can still
+consume the entire pending-recovery budget, and unused-candidate cleanup can
+retire a working rendezvous before replacement admission. Both require real
+regressions and correction. Exact-source CI `40446308970` is running. The clean
+two-installation 600-second public-network probe was stopped for these source
+corrections, without an endpoint or continuity verdict; both native workers
+exited normally. The probe requires a relayed
+application path and one carrier before idle; no UI polling or message warms
+the final call. A separate four-node check on `759630d` confirms ordinary sender
+warming can discover a carrier through another directory; this does not prove
+provider-record replication or arbitrary fleet-wide reachability. Neither
+candidate is integrated into Mosh or offered as a fixed installer.
 
 Separately, Windows CI exposed an imported group attachment being rewritten by
 the generic live-history tail without its retained preview evidence. A native
