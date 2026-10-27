@@ -1,6 +1,7 @@
 # Android connectivity signal for Moss waiting
 
-Status: approved by the owner on 2026-10-26; implementation in progress. Scope: IVO-136/137 under
+Status: approved by the owner on 2026-10-26; implemented in the integration
+candidate, with physical network-transition acceptance still required. Scope: IVO-136/137 under
 [IVO-132](https://linear.app/ivoxygen/issue/IVO-132/android-fonovye-zvonki-uvedomleniya-i-polnaya-dogruzka-istorii).
 This supplements the approved [waiting contract](android-moss-waiting-contract.plan.md).
 

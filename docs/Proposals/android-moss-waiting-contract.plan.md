@@ -1,13 +1,14 @@
 # Moss waiting contract for IVO-136
 
-Status: the owner-approved upstream implementation is complete in separate
+Status: the owner-approved implementation is under review in separate
 [Moss PR #31](https://github.com/redstone-md/moss/pull/31), without merging it.
-Mosh's integration candidate pins `fd6d7d7916aa73c3f6b7079baba0d500a30d260e`
-after its eight CI jobs passed, including Linux/Windows, race and repeated soak.
-Mosh integration checks, upstream maintainer acceptance and physical Android
-acceptance remain required. This is not a shipped capability. Moss source edits
-remain confined to its separate worktree and PR; the downstream gitlink records
-the exact dependency under review.
+Sustained public-network waiting remains an open transport acceptance gate;
+passing CI and short delivery checks do not close it. The
+[integration plan](android-background-implementation.plan.md) records the latest
+runtime evidence. Upstream maintainer acceptance and physical Android acceptance
+also remain required. This is not a shipped capability. Moss source edits remain
+confined to its separate worktree and PR; Mosh's gitlink records the exact
+dependency under review.
 
 Mosh enables waiting after setup and automatically selects economical waiting
 when no interactive work, accepted call or user-started transfer needs active
