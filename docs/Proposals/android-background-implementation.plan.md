@@ -162,9 +162,17 @@ found three blockers; the earlier route-controlled checks do not close them.
   both installations lose liveness about 48 seconds after Waiting/Ready. It was
   stopped after that definitive failure, before the call endpoint. No extra RPC
   or traffic is used to inspect the existing logs. Full Go and all eight upstream
-  CI jobs for this candidate are still being evaluated. A separate metadata-only
-  probe will distinguish physical carrier closure from local path retirement
-  and sender recovery. The capped-core eviction fixture does not prove the
+  [CI jobs](https://github.com/redstone-md/moss/actions/runs/40429446955) pass for
+  this candidate; they do not override that runtime failure. A metadata probe
+  reproduces a carrier's raw network EOF before local retirement, followed by
+  failed application-path migration and a refused call after 180 idle seconds.
+  The active sender's nine identity lookups return no provider records. The
+  remote closure and missing rendezvous records still require causal checks.
+  A separate real-node regression corrects an unrelated connected candidate
+  consuming the entire migration budget before a healthy common carrier can
+  run; useful retained carriers keep their original budget. That private fix
+  passes its regression and cancellation/admission controls, but does not fix
+  the post-Ready failure. The capped-core eviction fixture does not prove the
   public fleet's occupancy or this failure's cause. Sustained waiting remains
   open; keep the existing pin, with no upstream merge or new installer handoff.
   Physical Pixel retesting remains required.
