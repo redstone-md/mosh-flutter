@@ -190,6 +190,28 @@ found three blockers; the earlier route-controlled checks do not close them.
   remains open; keep the existing pin, with no upstream merge or new installer
   handoff. Physical Pixel retesting remains required.
 
+The subsequent `124b9b3` probe isolates route-budget starvation: a stale advertised
+attachment consumes the remaining lookup deadline before the eligible former
+carrier can be tried. Candidate `759630d` divides that existing budget among
+distinct eligible addresses, counting a matching fresh/former address once.
+The real-node regression fails three times before the fix and passes five times
+under the race detector afterward. Matching-address, policy, replay, cancellation
+and stale-provider controls pass; independent Standards/Spec reviews find no
+issues. Exact-source CI `40441933418` passes both full platform suites and Mesh
+Race; the repeated mesh job is still running. An earlier identity-only room
+delivery failure remains unlocalized despite 30 exact race repetitions, 15
+timing-offset cases and 28 predecessor-sequence cases passing without changing
+their five-second assertions.
+
+A separate real-node regression now proves an offline-contact barrier: a useful
+replacement carrier can carry an existing live conversation while the retained
+offline contact prevents publication of this installation's own identity/rooms.
+A private correction restores fresh-sender discovery and bidirectional delivery,
+preserves the offline recovery intent and keeps at most two physical carriers.
+Coalescing, current-incarnation and policy controls pass. Reversing contact order
+and the all-offline case still require verification before freezing this change.
+Neither candidate is integrated into Mosh or offered as a fixed installer.
+
 Separately, Windows CI exposed an imported group attachment being rewritten by
 the generic live-history tail without its retained preview evidence. A native
 regression reproduces the same occurrence conflict and a four-second storage
@@ -219,7 +241,7 @@ native crash stack establishes the cause or equivalent Flutter-exit behavior.
 Keep this existing teardown limitation separate from background reception.
 Full Mosh CI run `40432133188` and Windows diagnostics `40432133165` pass on
 `2919392d`, using the retained `e95c498` Moss pin. Those results do not validate
-candidate `728e070` or close the public-WAN and physical-device gates.
+later Moss candidates or close the public-WAN and physical-device gates.
 
 ## Approved boundaries
 
