@@ -256,10 +256,12 @@ ABI, dependency or deadline changes. The combined original/new checks pass three
 race repetitions in 105.880 seconds; changed-line coverage is 179/205 (87.3%),
 with vet and WASM passing.
 
-Immutable review still finds two P2s around EOF and worker draining: a buffered
-Pong can commit a new session already known closed, and the `readClosed` fast
-path can bypass an unfinished replacement owner. These require exact lifecycle
-controls and correction. A proposed eager relay cleanup on old EOF was rejected:
+Immutable review found two P2s around EOF and worker draining: a buffered Pong
+could commit a session already known closed, and the `readClosed` fast path
+could bypass an unfinished replacement owner. Candidate `0c16e80` corrects both;
+real EOF controls fail three times before the fix and pass ten race repetitions
+after it. Both independent follow-up reviews find no remaining issues in that
+four-file correction. A proposed eager relay cleanup on old EOF was rejected:
 a healthy remote handover may intentionally close old before our Pong arrives.
 Existing authenticated expiry feedback distinguishes actual retired routes;
 local EOF alone does not.
@@ -270,8 +272,20 @@ seconds; Waiting/Ready, one carrier and a relayed application path take 33.95
 seconds. Desktop authentication is lost about 97 idle seconds later, and the
 runner exits 1 before the call endpoint. Both owned workers are gone. This is a
 runtime failure, not a review abort; no causal attribution to the two P2s is
-established. Exact-source CI `40452738392` is running. Keep the existing pin and
-withhold new installers; bounded first-close metadata follows the corrections.
+established.
+
+A bounded, private 180-second diagnostic on `0c16e80` reproduces authenticated
+loss on both installations after about 141 idle seconds. Several earlier
+physical carrier EOFs recover within 2–5 seconds. At the final failure, the
+sender loses its newly admitted route while the receiver retains that same
+virtual route over a live carrier; no authenticated close for it is observed.
+The runner stops before any call/message endpoint, and both native workers
+exit normally. Waiting currently skips virtual-peer probes, so carrier health
+alone cannot establish end-to-end route health. A focused regression must
+distinguish missing retirement feedback from failed recovery before another
+long run. Exact-source CI `40454121728` is running. Keep the existing pin and
+withhold new installers; neither source review nor this diagnostic closes the
+sustained-network or physical Android gates.
 
 Separately, Windows CI exposed an imported group attachment being rewritten by
 the generic live-history tail without its retained preview evidence. A native
