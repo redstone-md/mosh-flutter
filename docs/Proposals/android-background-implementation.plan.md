@@ -224,8 +224,8 @@ pass unchanged. Changed-line coverage is 170/174 (97.7%); vet and WASM pass.
 Independent review reports one P2 per axis: a settled useful carrier can still
 consume the entire pending-recovery budget, and unused-candidate cleanup can
 retire a working rendezvous before replacement admission. Both require real
-regressions and correction. Exact-source CI `40446308970` is running. The clean
-two-installation 600-second public-network probe was stopped for these source
+regressions and correction. All eight exact-source CI jobs in `40446308970`
+pass. The clean two-installation 600-second public-network probe was stopped for these source
 corrections before the call endpoint. Its saved logs already show a continuity
 failure: both installations lose authentication about 65 seconds into idle.
 Both native workers exited normally; the wrapper's review-stop status is not
@@ -236,6 +236,19 @@ the final call. A separate four-node check on `759630d` confirms ordinary sender
 warming can discover a carrier through another directory; this does not prove
 provider-record replication or arbitrary fleet-wide reachability. Neither
 candidate is integrated into Mosh or offered as a fixed installer.
+
+The two review corrections pass their focused real-node regressions, but their
+combined check exposes a separate same-ID carrier handover failure, also
+reproduced on pristine `65b6a9c`. A fresh matched relay session, present core
+route and equal endpoint public keys precede missing single-send callbacks.
+Bounded private close metadata identifies the first closure: one endpoint
+replaces its physical peer and closes the old connection before the core admits
+the replacement. The core handles that EOF by deleting the forwarding route;
+the endpoint still considers its virtual session established. This is a local
+ordering failure, not yet an attribution of the public-network idle loss.
+Its correction must preserve a working carrier until replacement admission;
+crossed confirmation probes alone do not prove that both maps have committed.
+No wider deadline, repeated proof send or relaxed assertion is accepted.
 
 Separately, Windows CI exposed an imported group attachment being rewritten by
 the generic live-history tail without its retained preview evidence. A native
