@@ -304,13 +304,32 @@ and sends its control through the normally admitted replacement. It adds no
 payload retry, timer, public contract or topology allowance.
 
 A third regression reproduces an obsolete failed sender deleting the pending
-operation already claimed on its replacement. Corrected accounting and exact
-failed-claim cleanup pass five race repetitions together with cancellation,
-deadline and Stop checks. The correction remains private and mutable; fast
-failure, the original rare control, immutable review and exact-candidate CI
-still require validation. This source diagnosis does not yet explain the whole
-public-network failure. Keep the existing pin and withhold new installers;
-sustained-network and physical Android acceptance remain open.
+operation already claimed on its replacement. Genuine EOF also removes a live
+pending owner, while a failed current write can incorrectly consume its entire
+timeout. The corrected pending controls pass five race repetitions, including
+cancellation, deadline and Stop, but initially leave one original failure in 50.
+
+The next failure-only trace identifies two simultaneous cold TCP dials selecting
+different connection halves at opposite endpoints. A caller-visible regression
+reproduces duplicate physical handshakes three times. Coalescing their overlap
+passes five races; the original unchanged 2500 ms case then passes 50 races in
+58.795 seconds. Candidate `6cf4ed2` freezes this work in two commits, with
+121/136 changed runtime lines covered, original compatibility and vet/WASM
+passing. Exact CI `40463195519` is running; it does not establish WAN acceptance.
+
+Independent review finds two P2s: synchronous replay couples pending-control
+writes to a shorter physical dial's completion, and the new allowlist preflight
+rejects previously admitted carriers/targets after strict mode is enabled. A
+separate real regression shows identity-wide coalescing can exhaust a short
+fresh-address caller behind a longer stale-address dial. All three findings
+have saved RED controls. Private follow-up work narrows coalescing to the same
+identity and address, uses the existing tracked join tail for replay, and
+preserves existing-admission exemptions without allowing new unlisted remotes.
+Final checks and both immutable follow-up reviews remain required.
+
+These source diagnoses do not yet explain the entire public-network failure.
+Keep the existing pin and withhold new installers; strict sustained-network,
+physical Android and measured resource acceptance remain open.
 
 Separately, Windows CI exposed an imported group attachment being rewritten by
 the generic live-history tail without its retained preview evidence. A native
