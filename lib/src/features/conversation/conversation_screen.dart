@@ -26,6 +26,7 @@ import 'package:mosh/src/features/shared/media_viewer.dart'
     show showMediaViewer;
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
+import 'package:mosh/src/platform/foreground_poller.dart' show appViewVisible;
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
@@ -62,6 +63,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   bool _mobileSearchOpen = false;
   bool? _showPeerStatus;
   bool _markedInitialView = false;
+  bool _onScreen = false;
 
   bool get _detailsDocked => MediaQuery.sizeOf(context).width >= 1280;
   bool get _detailsOpen => _showPeerStatus ?? _detailsDocked;
@@ -75,19 +77,41 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   void initState() {
     super.initState();
     _composer.addListener(_draftChanged);
-    _markActive();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncOnScreen();
   }
 
   void _draftChanged() => _composerRevision++;
 
+  /// The mobile shell keeps a chat left for the list mounted but offstage,
+  /// with tickers off. Only a chat on screen is active and sends view marks.
+  void _syncOnScreen() {
+    final onScreen = TickerMode.valuesOf(context).enabled;
+    if (onScreen == _onScreen) return;
+    _onScreen = onScreen;
+    _markedInitialView = false;
+    _markActive();
+  }
+
   /// Marks this conversation as the one on screen, so its unread badge
-  /// clears on the next read. Deferred by a microtask: Riverpod does not
-  /// allow writing to a provider during initState.
+  /// clears on the next read, or releases that mark once it is hidden.
+  /// Deferred by a microtask: Riverpod does not allow writing to a provider
+  /// while the tree builds.
   void _markActive() {
     final key = _target.key;
+    final onScreen = _onScreen;
     Future.microtask(() {
       if (!mounted) return;
-      ref.read(activeConversationKeyProvider.notifier).set(key);
+      final active = ref.read(activeConversationKeyProvider.notifier);
+      if (onScreen) {
+        active.set(key);
+      } else if (ref.read(activeConversationKeyProvider) == key) {
+        active.clear();
+      }
     });
   }
 
@@ -307,7 +331,13 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   }
 
   void _markViewed() {
-    if (ref.read(androidAppAccessProvider)?.chatsInteractive == false) return;
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    // A paused app's poll must not report a chat the user cannot see.
+    if (!_onScreen ||
+        (lifecycle != null && !appViewVisible(lifecycle)) ||
+        ref.read(androidAppAccessProvider)?.chatsInteractive == false) {
+      return;
+    }
     _markedInitialView = true;
     _controller.markViewed();
   }
