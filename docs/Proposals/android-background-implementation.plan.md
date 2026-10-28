@@ -383,6 +383,26 @@ Full Mosh CI run `40432133188` and Windows diagnostics `40432133165` pass on
 `2919392d`, using the retained `e95c498` Moss pin. Those results do not validate
 later Moss candidates or close the public-WAN and physical-device gates.
 
+## Second Pixel retest, 2026-10-28
+
+The owner retested `01c7aeea` (Moss `095cbe6`). Locked-screen message
+notifications arrive and a message sent while the app moves to the background
+is delivered. Four findings remain:
+
+- Read receipts left while the chat was not on screen. The mobile shell keeps
+  a chat left for the list mounted offstage, so its snapshot refresh still sent
+  view marks and kept it the active conversation. The screen now marks and
+  claims activity only while it is on screen and the app view is visible. Two
+  shell regressions failed before the change and pass after it.
+- Incoming calls neither ring nor notify while the app is minimized or locked.
+  The native call row and change signal are written on the same path as
+  messages; the failing step needs the device diagnostics log.
+- The first launch after the update showed the failed-authentication screen
+  before any prompt; Retry then prompted and succeeded. The underlying
+  platform error is not yet captured.
+- After setup, chat access prompted again. Key migration deliberately does not
+  grant interactive chat access, so this is the separate chat lock.
+
 ## Approved boundaries
 
 The [access](android-background-access-contract.plan.md),
