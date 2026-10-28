@@ -2192,6 +2192,9 @@
   "plusReservedThrough": "Future purchase dates are reserved through {date} UTC. Recover missing periods with the wallet that paid for them.",
   "plusOpenRecovery": "Open recovery page",
   "plusCopyRecovery": "Copy recovery link",
+  "plusOpenWallet": "Open in wallet",
+  "plusCopyPayment": "Copy payment link",
+  "plusWalletNotFound": "No wallet app opened the payment. Copy the link or scan the QR from another device.",
   "@plusPaidPrice": {
     "placeholders": {
       "amount": {

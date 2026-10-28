@@ -172,5 +172,7 @@ approve and perform actual mainnet payments in both assets to the configured rec
 early renewal, linked-device transfer and recovery on a new account. Confirm the
 mobile wallet browser's sign-in/consent on a real phone. A standard Solana Pay QR
 does not select a cluster; use Solana mainnet and the phone's ordinary Camera if a
-wallet's internal scanner treats the URI as an address. Keep the completed
+wallet's internal scanner treats the URI as an address. On a phone that holds the
+wallet, **Open in wallet** hands the same URI to the wallet app and **Copy payment
+link** copies it. Keep the completed
 [devnet pilot guide](plus-devnet-pilot-ru.md) as its historical acceptance record.
