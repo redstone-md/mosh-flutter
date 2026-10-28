@@ -394,9 +394,15 @@ is delivered. Four findings remain:
   view marks and kept it the active conversation. The screen now marks and
   claims activity only while it is on screen and the app view is visible. Two
   shell regressions failed before the change and pass after it.
-- Incoming calls neither ring nor notify while the app is minimized or locked.
-  The native call row and change signal are written on the same path as
-  messages; the failing step needs the device diagnostics log.
+- Incoming calls neither ring nor notify while the app is minimized or locked,
+  and the logcat shows no call notification while messages post. Android 12+
+  rejects a CallStyle notification that is neither a foreground-service
+  notification nor carries a full-screen intent (AOSP
+  `NotificationManagerService`). Mosh omitted the intent whenever
+  `canUseFullScreenIntent()` was false and swallowed the rejection. The intent
+  is now always requested; without the permission Android keeps it as a
+  persistent heads-up alert. A rejected call notification is now logged. A
+  real Android device is required to verify this.
 - The first launch after the update showed the failed-authentication screen
   before any prompt; Retry then prompted and succeeded. The underlying
   platform error is not yet captured.
