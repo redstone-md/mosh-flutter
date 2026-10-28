@@ -30,6 +30,7 @@ internal class MoshWaitingCalls(private val context: Context, policy: MoshWaitin
         val capability = MoshCallIntents.capability(intent) ?: return false
         val answer = intent.action == MoshCallIntents.ANSWER
         if (!actions.offer(capability, answer)) return false
+        if (answer) notifications.answered(capability)
         if (intent.action != MoshCallIntents.CONTROL && context.getSystemService(KeyguardManager::class.java).isDeviceLocked) window(true)
         changed()
         return true

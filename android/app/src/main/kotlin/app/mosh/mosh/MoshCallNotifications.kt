@@ -17,6 +17,7 @@ internal class MoshCallNotifications(private val context: Context, policy: MoshW
     private val handler = Handler(Looper.getMainLooper())
     private val entries = linkedMapOf<String, Entry>()
     private val latest = linkedMapOf<String, Long>()
+    private val answered = mutableSetOf<String>()
     private val expiry = Runnable { expire() }
     val hasCalls: Boolean get() = entries.isNotEmpty()
 
@@ -44,6 +45,8 @@ internal class MoshCallNotifications(private val context: Context, policy: MoshW
             remember(id, revision)
             return "posted"
         }
+        // An answered alert must not return before the next phase arrives.
+        if (phase == "incoming" && id in answered) return "posted"
         if (!manager.areNotificationsEnabled() ||
             manager.getNotificationChannel(CHANNEL)?.importance == NotificationManager.IMPORTANCE_NONE) return "blocked"
         if (id !in entries && entries.size >= 16) return "failed"
@@ -53,6 +56,7 @@ internal class MoshCallNotifications(private val context: Context, policy: MoshW
             val entry = Entry(value.toMap(), revision, deadline)
             show(id, entry)
             entries[id] = entry
+            answered -= id
             remember(id, revision)
             if (phase == "incoming" && canRing()) ringtone.incoming(id, deadline - SystemClock.elapsedRealtime())
             else ringtone.stopIncoming(id)
@@ -65,8 +69,20 @@ internal class MoshCallNotifications(private val context: Context, policy: MoshW
         }
     }
 
+    /** Like Telegram, an answer drops the alert at once; the entry and its deadline
+     * keep the call window until native state publishes the next phase. */
+    fun answered(capability: String) {
+        val id = entries.entries.firstOrNull { (_, entry) ->
+            entry.value["phase"] == "incoming" && entry.value["answerCapability"] == capability
+        }?.key ?: return
+        ringtone.stopIncoming(id)
+        answered += id
+        try { manager.cancel("mosh.call.$id", 3) } catch (_: RuntimeException) { /* The deadline still removes it. */ }
+    }
+
     fun refreshPrivacy() {
         for ((id, entry) in entries.toMap()) {
+            if (id in answered) continue
             try { show(id, entry) } catch (_: RuntimeException) { remove(id) }
         }
     }
@@ -85,6 +101,7 @@ internal class MoshCallNotifications(private val context: Context, policy: MoshW
         ringtone.stopIncoming(id)
         try { manager.cancel("mosh.call.$id", 3) } catch (_: RuntimeException) { /* OS expiry still bounds the incoming alert. */ }
         entries.remove(id)
+        answered -= id
         schedule()
         if (entries.isEmpty()) empty()
     }
