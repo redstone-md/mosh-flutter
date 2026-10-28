@@ -409,6 +409,23 @@ is delivered. Four findings remain:
 - After setup, chat access prompted again. Key migration deliberately does not
   grant interactive chat access, so this is the separate chat lock.
 
+## Third Pixel retest, 2026-10-28
+
+Calls now ring and post while minimized or locked, but no call window appears.
+The call notification used `setSilent(true)`; AndroidX then files it under a
+silent group with `GROUP_ALERT_SUMMARY`, and SystemUI suppresses both the
+heads-up and the full-screen intent for such a notification
+(`NO_FSI_SUPPRESSIVE_GROUP_ALERT_BEHAVIOR`). Calls now use their own
+`mosh_calls` channel at high importance with no channel sound or vibration,
+like Telegram's incoming-call channel; `MoshRingtone` keeps playing the
+ringtone. Only the incoming phase alerts. A real device must confirm the window.
+
+The fresh installation still failed authentication before the first prompt and
+prompted twice. The extra prompt was the legacy `flutter_secure_storage` reader,
+which requires biometrics even when it is empty. With no existing Android
+installations, the owner removed the legacy reader, its migration and repair;
+see [Android key access](../Features/android-key-access.md).
+
 ## Approved boundaries
 
 The [access](android-background-access-contract.plan.md),
