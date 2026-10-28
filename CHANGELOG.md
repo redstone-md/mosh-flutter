@@ -6,6 +6,13 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.25.1] - 2026-10-28
+
+### Added
+
+- Mosh+ payments on a phone can be opened directly in an installed wallet app
+  or copied as a link, instead of requiring a second device to scan the QR.
+
 ### Fixed
 
 - Android: the Back gesture in an open chat returns to the chat list instead of
