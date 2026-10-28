@@ -16,3 +16,7 @@ test('AOT preserves explicit devnet configuration', async () => {
     MOSH_PLUS_ISSUER_KEY: 'devnet-test-pin',
     MOSH_PLUS_SERVER_URL: 'http://127.0.0.1:8787' });
 });
+
+test('AOT keeps the store channel the manifest records', async () => {
+  await verifyPlusRuntimeConfig({ MOSH_DISTRIBUTION_CHANNEL: 'rustore' });
+});

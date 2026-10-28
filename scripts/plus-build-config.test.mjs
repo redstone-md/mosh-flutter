@@ -18,9 +18,15 @@ test('ordinary proof builds keep purchases disabled, configured builds preserve 
   }
 });
 
+test('the manifest names the distribution channel, GitHub when unset', () => {
+  assert.equal(plusBuildConfig({}).channel, 'github');
+  assert.equal(plusBuildConfig({ MOSH_DISTRIBUTION_CHANNEL: 'rustore' }).channel, 'rustore');
+});
+
 test('misconfigured builds fail before packaging', () => {
   for (const values of [
     { MOSH_PLUS_NETWORK: 'unknown' },
+    { MOSH_DISTRIBUTION_CHANNEL: 'web' },
     { MOSH_PLUS_SERVER_URL: 'https://billing.example' },
     { MOSH_PLUS_ISSUER_KEY: 'invalid' },
     ...['http://billing.example', 'https://name:secret@billing.example',

@@ -72,6 +72,15 @@ date they were published, and the comparison ignores pre-release and build
 suffixes, so the highest published version wins and an installed build is never
 told it is older than it is.
 
+Only a build from the GitHub release feed updates itself (2026-10-28,
+[IVO-152](https://linear.app/ivoxygen/issue/IVO-152)). A store build — Microsoft
+Store, F-Droid, RuStore, later Google Play and the App Store — is updated by the
+store that installed it, and most stores forbid an app that replaces its own
+binaries. Each build is compiled for one distribution channel,
+`MOSH_DISTRIBUTION_CHANNEL`, which defaults to `github` so existing builds and
+forks keep the updater. In any other channel About shows the installed version
+and nothing else: it never reads the release feed and offers no download.
+
 A background updater that installs when it decides to was rejected for the same
 reason the check is manual: a peer-to-peer messenger reports home as little as it
 can, and an update stays something a person asks for.

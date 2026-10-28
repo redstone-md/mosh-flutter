@@ -37,7 +37,8 @@ Windows и macOS universal собраны и проверены; пользов�
 ## Покупка
 
 1. Установите подготовленный обычный Windows EXE или macOS universal DMG.
-   В `plus-build.json` проверьте `solana-mainnet`, нужный commit и issuer key ID.
+   В `plus-build.json` проверьте канал (`github` для релиза на GitHub),
+   `solana-mainnet`, нужный commit и issuer key ID.
    `purchases_configured` должен быть `true` для покупки. CI-сборка без настроек
    billing не позволяет создать заказ — отправлять деньги по ней не нужно.
 2. Откройте **Настройки → Профиль** и прокрутите до карточки **Mosh+** под полем

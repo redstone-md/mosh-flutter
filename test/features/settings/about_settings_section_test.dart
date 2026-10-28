@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/distribution_channel.dart';
+import 'package:mosh/src/app/distribution_channel_provider.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/settings/about_update_notice.dart';
 import 'package:mosh/src/features/settings/app_package_info_provider.dart';
@@ -324,6 +326,24 @@ void main() {
     expect(find.text('Version unavailable'), findsOneWidget);
     expect(find.text('This is the newest release.'), findsNothing);
     expect(find.text('Checking for updates…'), findsNothing);
+    expect(reads, 0);
+  });
+
+  testWidgets('a store build shows its version and leaves updates to the store',
+      (tester) async {
+    var reads = 0;
+    await _pump(tester, load: () async => _package(), overrides: [
+      distributionChannelProvider
+          .overrideWithValue(DistributionChannel.msstore),
+      releaseFeedProvider
+          .overrideWithValue(GitHubReleaseFeed(read: (url) async {
+        reads++;
+        return '[{"tag_name":"v99.0.0","html_url":"https://example.test/r"}]';
+      })),
+    ]);
+
+    expect(find.text('Version 9.8.7-dev · build 42'), findsOneWidget);
+    expect(find.byType(TextButton), findsNothing);
     expect(reads, 0);
   });
 
