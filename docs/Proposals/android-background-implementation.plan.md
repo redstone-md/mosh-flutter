@@ -342,8 +342,13 @@ the same address; `b8970bf` gates only targets that are neither listed nor
 already admitted. The replay-coupling finding did not produce a caller-visible
 failure and is unchanged.
 
+Two CI flakes are also corrected. Masquerade auto-port startup bound TCP once
+and failed when another process held the same UDP number; `095cbe6` retries a
+fresh pairing as the plain listener already did. A lost LAN self-address tie
+could re-derive the same address; `03b06d7` keeps salting until it moves.
+
 These source diagnoses do not yet explain the entire public-network failure.
-Mosh now pins `b8970bf` to test the corrected migration on the Pixel; strict
+Mosh now pins `095cbe6` to test the corrected migration on the Pixel; strict
 sustained-network, physical Android and measured resource acceptance remain
 open.
 
