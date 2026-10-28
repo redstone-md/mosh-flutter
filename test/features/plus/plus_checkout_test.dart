@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -147,5 +149,32 @@ void main() {
     await tester.tap(find.text('Copy payment link'));
     await tester.pumpAndSettle();
     expect(copied, [payment]);
+  });
+
+  testWidgets('a wallet answer after the card closed is ignored',
+      (tester) async {
+    final answer = Completer<bool>();
+    final container = ProviderContainer(overrides: [
+      plusConfigProvider.overrideWithValue(testPlusConfig),
+      plusCommandsProvider.overrideWithValue(MemoryPlusCommands()),
+      plusBillingProvider.overrideWithValue(TestBilling()),
+      plusPollIntervalProvider.overrideWithValue(null),
+      plusWalletOpenerProvider.overrideWithValue((_) => answer.future),
+    ]);
+    addTearDown(container.dispose);
+    await pumpScreen(tester,
+        const Scaffold(body: SingleChildScrollView(child: PlusSettingsCard())),
+        container: container);
+    await container.read(plusProvider.notifier).purchase();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open in wallet'));
+    await tester.pump();
+
+    await pumpScreen(tester, const Scaffold(body: SizedBox()),
+        container: container);
+    answer.complete(false);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
   });
 }

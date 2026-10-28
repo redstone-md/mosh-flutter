@@ -152,22 +152,23 @@ class _PaymentLinkActions extends ConsumerWidget {
         ]);
   }
 
+  // Read from ref before awaiting: the card can close while the platform call
+  // is pending, and a ref is unusable once its widget is unmounted.
   Future<void> _open(WidgetRef ref, AppLocalizations l) async {
+    final toaster = ref.read(toasterProvider);
+    final openWallet = ref.read(plusWalletOpenerProvider);
     bool opened;
     try {
-      opened = await ref.read(plusWalletOpenerProvider)(Uri.parse(paymentUri));
+      opened = await openWallet(Uri.parse(paymentUri));
     } on PlatformException {
       opened = false;
     }
-    if (!opened) {
-      ref
-          .read(toasterProvider)
-          .show(l.plusWalletNotFound, kind: ToastKind.error);
-    }
+    if (!opened) toaster.show(l.plusWalletNotFound, kind: ToastKind.error);
   }
 
   Future<void> _copy(WidgetRef ref, AppLocalizations l) async {
+    final toaster = ref.read(toasterProvider);
     await Clipboard.setData(ClipboardData(text: paymentUri));
-    ref.read(toasterProvider).show(l.messageCopied);
+    toaster.show(l.messageCopied);
   }
 }
