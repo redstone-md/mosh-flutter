@@ -164,8 +164,21 @@ class _MobileShell extends StatelessWidget {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && currentIndex != 0) context.go(AppRoutes.sessions);
       },
-      child: IndexedStack(index: currentIndex, children: stackItems),
+      child: NotificationListener<NavigationNotification>(
+        onNotification: (notification) => _claimBack(context, notification),
+        child: IndexedStack(index: currentIndex, children: stackItems),
+      ),
     );
+  }
+
+  /// A branch Navigator that cannot pop reports `canHandlePop: false` after
+  /// the PopScope above, so with predictive back Android would close the app
+  /// from an open chat. While the chat branch is shown the shell handles Back,
+  /// so restate it upward -- the same rewrite Navigator does for nested ones.
+  bool _claimBack(BuildContext context, NavigationNotification notification) {
+    if (notification.canHandlePop || currentIndex == 0) return false;
+    const NavigationNotification(canHandlePop: true).dispatch(context);
+    return true;
   }
 
   Widget _branchContainer(bool isActive, Widget child) {

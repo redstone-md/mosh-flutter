@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter/material.dart' show AlertDialog, Text, showDialog;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
@@ -9,7 +10,42 @@ import 'package:mosh/src/routing/mosh_shell.dart';
 import '../../support/scriptable_gateway.dart';
 import 'shell_harness.dart';
 
+/// Records the last back-ownership value the framework reported to Android.
+/// With predictive back the system only routes Back into Flutter while it is
+/// true; otherwise Back closes the activity.
+List<bool> _recordFrameworkHandlesBack(WidgetTester tester) {
+  final reported = <bool>[];
+  tester.binding.defaultBinaryMessenger
+      .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+    if (call.method == 'SystemNavigator.setFrameworkHandlesBack') {
+      reported.add(call.arguments as bool);
+    }
+    return null;
+  });
+  addTearDown(() => tester.binding.defaultBinaryMessenger
+      .setMockMethodCallHandler(SystemChannels.platform, null));
+  return reported;
+}
+
 void main() {
+  testWidgets('an open mobile DM keeps system Back inside the app',
+      (tester) async {
+    final reported = _recordFrameworkHandlesBack(tester);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final gateway = ScriptableGateway()
+      ..seedSessions([shellSession(sessionId: 'alice', peer: 'Alice')]);
+    await pumpShellApp(tester,
+        gateway: gateway, physical: const Size(400, 800));
+
+    await tester.tap(find.text('Alice'));
+    await tester.pumpAndSettle();
+    expect(reported.last, isTrue);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(reported.last, isFalse);
+  });
+
   testWidgets('system Back returns from a mobile DM to the chat list',
       (tester) async {
     final gateway = ScriptableGateway()

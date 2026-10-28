@@ -6,6 +6,11 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Android: the Back gesture in an open chat returns to the chat list instead of
+  closing Mosh.
+
 ## [0.25.0] - 2026-10-28
 
 ### Added
