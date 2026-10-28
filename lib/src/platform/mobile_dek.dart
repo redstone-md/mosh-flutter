@@ -3,39 +3,10 @@ import 'dart:io' show Directory, File, Platform;
 import 'dart:math' show Random;
 import 'dart:typed_data' show Uint8List;
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/services.dart' show MethodChannel, PlatformException;
-import 'package:flutter/widgets.dart' show WidgetsBinding, AppLifecycleState;
-import 'package:flutter/foundation.dart'
-    show debugPrint, listEquals, visibleForTesting;
+import 'package:flutter/foundation.dart' show debugPrint, listEquals;
 import 'package:mosh/src/rust/api/private_dm.dart' as api show setHistoryDek;
 import 'package:mosh/src/platform/app_data_dir.dart' show appDataDir;
-
-/// The Keystore key the DEK is stored under. Mirrors the Rust constant
-/// `persistence::DEK_KEY` (`"history-dek-v1"`) so both sides address the same
-/// secret. Rust's `Persistence::open` uses this key on the desktop keychain;
-/// the mobile inject path uses it in the Android Keystore namespace below.
-const String _dekKey = 'history-dek-v1';
-
-/// The Android Keystore storage namespace. Mirrors the desktop
-/// `OsSecureSecretStore` SERVICE_NAME `app.mosh.desktop` so the mobile and
-/// desktop backends occupy symmetric namespaces (`app.mosh.mobile` /
-/// `app.mosh.desktop`) under the same `app.mosh.*` scheme.
-const String _storageNamespace = 'app.mosh.mobile';
-
-/// Original foreground-only wrapping for migration and explicit repair.
-/// Never reset or algorithm-migrate the retained recovery material.
-@visibleForTesting
-AndroidOptions buildDekAndroidOptions() => const AndroidOptions.biometric(
-      storageNamespace: _storageNamespace,
-      resetOnError: false,
-      migrateOnAlgorithmChange: false,
-      enforceBiometrics: true,
-      biometricType: AndroidBiometricType.biometricOrDeviceCredential,
-      biometricPromptTitle: 'Unlock Mosh',
-      biometricPromptSubtitle: 'Authenticate to access your conversations',
-      biometricPromptNegativeButton: 'Cancel',
-    );
 
 /// The DEK length in bytes (AES-256-GCM key). Must match the Rust
 /// `set_history_dek` validation (`dek.len() == 32`).
@@ -49,9 +20,6 @@ enum MobileDekResolution {
   /// No DEK was stored and no DB existed, so a fresh DEK was minted, written
   /// to the Keystore, and injected.
   minted,
-
-  /// The original foreground-authenticated DEK was durably migrated.
-  migrated,
 }
 
 /// Base64 storage boundary; writes promise durable commit before returning.
@@ -86,29 +54,13 @@ class AndroidBackgroundDekStorage implements MobileDekStorage {
         'installBackgroundDek',
         _decodeDek(base64Dek),
       );
-
-  Future<void> recoverDek(String base64Dek) => _channel.invokeMethod<void>(
-        'recoverBackgroundDek',
-        _decodeDek(base64Dek),
-      );
 }
 
-Future<String?> _readLegacyDek() {
-  if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
-    throw PlatformException(code: 'DEK_FOREGROUND_REQUIRED');
-  }
-  final storage = FlutterSecureStorage(aOptions: buildDekAndroidOptions());
-  return storage.read(key: _dekKey, aOptions: storage.aOptions);
-}
-
-/// Prefer the background wrapping; otherwise migrate the authenticated legacy
-/// key. Mint only after absence is established and no encrypted DB exists.
+/// Load the installation DEK, or mint one only when no encrypted DB exists.
 /// Both native durable readback and this adapter's exact-byte readback precede
-/// [setHistoryDek]. The production [readLegacyDek] refuses background access.
+/// [setHistoryDek].
 Future<MobileDekResolution> resolveHistoryDek({
   required MobileDekStorage storage,
-  Future<String?> Function() readLegacyDek = _readLegacyDek,
-  Future<void> Function()? waitForForeground,
   required bool Function() dbExists,
   required Future<void> Function(List<int> dek) setHistoryDek,
   List<int> Function() mint = _secureMint32,
@@ -118,17 +70,13 @@ Future<MobileDekResolution> resolveHistoryDek({
     await setHistoryDek(_decodeDek(stored));
     return MobileDekResolution.loaded;
   }
-  // The production legacy reader refuses non-foreground calls, including on a
-  // fresh installation. Missing background material never authorizes a mint.
-  final legacy = await _readLegacyWhenAllowed(readLegacyDek, waitForForeground);
-  if (legacy == null && dbExists()) {
+  if (dbExists()) {
     throw StateError(
       'history-dek-v1: DEK absent from Keystore but history DB exists; '
       'refusing to mint a fresh DEK that would orphan persisted history',
     );
   }
-
-  final dek = legacy == null ? Uint8List.fromList(mint()) : _decodeDek(legacy);
+  final dek = Uint8List.fromList(mint());
   if (dek.length != _dekLength) {
     throw StateError(
       'minted DEK has wrong length ${dek.length} (expected $_dekLength)',
@@ -136,24 +84,7 @@ Future<MobileDekResolution> resolveHistoryDek({
   }
   await _installAndCheck(storage, dek);
   await setHistoryDek(dek);
-  return legacy == null
-      ? MobileDekResolution.minted
-      : MobileDekResolution.migrated;
-}
-
-Future<String?> _readLegacyWhenAllowed(
-  Future<String?> Function() readLegacy,
-  Future<void> Function()? waitForForeground,
-) async {
-  try {
-    return await readLegacy();
-  } on PlatformException catch (error) {
-    if (error.code != 'DEK_FOREGROUND_REQUIRED' || waitForForeground == null) {
-      rethrow;
-    }
-    await waitForForeground();
-    return readLegacy();
-  }
+  return MobileDekResolution.minted;
 }
 
 Uint8List _decodeDek(String encoded) {
@@ -218,12 +149,10 @@ File _historyRedbPath() {
   return File('${moshDir.path}${Platform.pathSeparator}history.redb');
 }
 
-/// Load the same installation DEK before opening Rust history. A valid native
-/// wrapping needs no Activity; missing wrapping requires foreground migration.
+/// Load the installation DEK before opening Rust history. The native wrapping
+/// needs no Activity or authentication; chat access stays a separate grant.
 /// Desktop and iOS retain their existing keychain path.
-Future<MobileDekResolution?> initMobileDek({
-  Future<void> Function()? waitForForeground,
-}) async {
+Future<MobileDekResolution?> initMobileDek() async {
   if (!Platform.isAndroid) {
     // Desktop (Windows/macOS/Linux) and iOS keep using Rust's
     // OsSecureSecretStore via Persistence::open; no DEK injection.
@@ -231,26 +160,7 @@ Future<MobileDekResolution?> initMobileDek({
   }
   return resolveHistoryDek(
     storage: const AndroidBackgroundDekStorage(),
-    readLegacyDek: _readLegacyDek,
-    waitForForeground: waitForForeground,
     dbExists: () => _historyRedbPath().existsSync(),
     setHistoryDek: (List<int> dek) => api.setHistoryDek(dek: dek),
   );
-}
-
-/// Explicit foreground repair; ordinary cold reads never enter this path.
-Future<void> recoverMobileDek() async {
-  if (!Platform.isAndroid) return;
-  final encoded = await _readLegacyDek();
-  if (encoded == null) {
-    throw StateError('history-dek-v1: legacy recovery material is unavailable');
-  }
-  final dek = _decodeDek(encoded);
-  const storage = AndroidBackgroundDekStorage();
-  await storage.recoverDek(encoded);
-  final committed = await storage.readDek();
-  if (committed == null || !listEquals(_decodeDek(committed), dek)) {
-    throw StateError('history-dek-v1: recovered DEK readback mismatch');
-  }
-  await api.setHistoryDek(dek: dek);
 }

@@ -6,6 +6,11 @@ The access owner, key migration and policy probes are implemented in the current
 branch. Review and physical-device acceptance remain pending; this proposal does
 not establish that the key policy has shipped.
 
+Amended by the owner on 2026-10-28: Mosh has no existing Android installations,
+so the legacy flutter_secure_storage reader, its migration and the
+`recoverBackgroundDek` repair are removed. The native background wrapping is the
+only Android DEK store; sections below about the legacy reader are historical.
+
 ## Boundaries
 
 Keep one native runtime, database and DEK. Split interactive authentication from

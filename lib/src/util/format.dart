@@ -18,8 +18,7 @@ String shorten(String value, int head) {
 ///
 /// Dart's `Exception` interface does not expose a public `.message`, so
 /// this special-cases the two types the onboarding inline-error screens
-/// actually throw -- `PlatformException` (method-channel /
-/// flutter_secure_storage errors) and `StateError` (the fail-closed DEK
+/// actually throw -- `PlatformException` (method-channel errors) and `StateError` (the fail-closed DEK
 /// guard) -- to their bare `.message`, falling back to `.toString()` for
 /// everything else. A null error yields an empty string.
 String readableError(Object? error) {

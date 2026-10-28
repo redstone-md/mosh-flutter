@@ -125,9 +125,8 @@ Use Android and desktop artifacts from the same source commit, recorded in
 linked-device synchronization is a separate scenario. Record the phone model,
 Android version and artifact commit with each result.
 
-1. Update the existing release installation in place. Unlock Mosh and verify
-   that its existing profile, history and attachments remain readable. A legacy
-   installation may request its old key authentication once, then chat access.
+1. Install Mosh fresh; there is no in-place migration from earlier Android
+   builds. Startup must not prompt; after setup, chat access prompts once.
    Chat entry must initiate authentication without requiring Retry first.
    After expiry, returning must prompt again; canceling leaves Retry available
    without repeatedly reopening the prompt. A notification permission dialog

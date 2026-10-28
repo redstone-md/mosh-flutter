@@ -33,23 +33,7 @@ internal class MoshBackgroundDek(private val context: Context) {
 
     fun install(bytes: ByteArray): Unit = serialized {
         validate(bytes)
-        if (!matchesExisting(bytes)) persist(bytes, false)
-    }
-
-    /** Caller must first obtain a fresh authenticated foreground repair grant. */
-    fun recover(bytes: ByteArray, authorized: () -> Boolean): Unit = serialized {
-        validate(bytes)
-        try {
-            if (matchesExisting(bytes)) return@serialized
-        } catch (error: Exception) {
-            val repairable = error is InvalidKeyException || error is UnrecoverableKeyException ||
-                error is BackgroundDekException && error.code in REPAIRABLE
-            if (!repairable) throw error
-        }
-        // Check inside the installation lock, after reads and before alias/file
-        // mutation, so waiting behind another owner cannot revive a stale grant.
-        if (!authorized()) throw BackgroundDekException("DEK_AUTH_CANCELED")
-        persist(bytes, true)
+        if (!matchesExisting(bytes)) persist(bytes)
     }
 
     private fun <T> serialized(operation: () -> T): T = synchronized(LOCK) {
@@ -122,8 +106,8 @@ internal class MoshBackgroundDek(private val context: Context) {
         return true
     }
 
-    private fun persist(bytes: ByteArray, repair: Boolean) {
-        val cipher = encryptionCipher(repair)
+    private fun persist(bytes: ByteArray) {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, wrappingKey()) }
         cipher.updateAAD(aad)
         val encrypted = cipher.doFinal(bytes)
         if (cipher.iv.size != 12 || encrypted.size != 48) throw BackgroundDekException("DEK_ENVELOPE_INVALID")
@@ -143,29 +127,9 @@ internal class MoshBackgroundDek(private val context: Context) {
         }
     }
 
-    private fun encryptionCipher(repair: Boolean): Cipher {
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        try {
-            cipher.init(Cipher.ENCRYPT_MODE, wrappingKey(repair))
-        } catch (error: InvalidKeyException) {
-            if (!repair) throw error
-            keyStore().deleteEntry(ALIAS)
-            cipher.init(Cipher.ENCRYPT_MODE, wrappingKey(false))
-        }
-        return cipher
-    }
-
-    private fun wrappingKey(repair: Boolean): SecretKey {
+    private fun wrappingKey(): SecretKey {
         val keys = keyStore()
-        if (keys.containsAlias(ALIAS)) {
-            try {
-                return existingKey(keys)
-            } catch (error: Exception) {
-                if (!repair || error !is UnrecoverableKeyException &&
-                    (error !is BackgroundDekException || error.code != "DEK_KEY_INVALID")) throw error
-                keys.deleteEntry(ALIAS)
-            }
-        }
+        if (keys.containsAlias(ALIAS)) return existingKey(keys)
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
         generator.init(KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
             .setKeySize(256)
@@ -190,6 +154,5 @@ internal class MoshBackgroundDek(private val context: Context) {
         private val LOCK = Any()
         private val MAGIC = byteArrayOf(77, 66, 75, 49)
         private const val ALIAS = "app.mosh.mobile.background-dek.v1"
-        private val REPAIRABLE = setOf("DEK_KEY_MISSING", "DEK_KEY_INVALID", "DEK_ENVELOPE_INVALID")
     }
 }

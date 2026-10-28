@@ -6,24 +6,14 @@ unlock, as specified by [ADR 0049](../ADR/0049-android-background-key-access.md)
 and the [approved access contract](../Proposals/android-background-access-contract.plan.md).
 Other platforms keep their existing keychain path.
 
-`initMobileDek` first reads the native background wrapping. A valid wrapping
-opens the same encrypted history without an Activity or biometric prompt;
-this does not grant access to chat UI. Missing wrapping requires a resumed
-Activity before the original `flutter_secure_storage` reader is constructed.
-Cold background startup receives `DEK_FOREGROUND_REQUIRED`, including when
-there is no database, rather than generating a new identity or history key.
-Interactive startup waits for a resumed Activity only in that missing-wrap
-case. Legacy migration can require its original prompt followed by a separate
-native chat-unlock prompt once; subsequent valid-wrap loading never reads the
-legacy biometric storage again. Loading, minting and migration call only
-`AndroidAppAccess.initialize()`, preserving the native lock/grace policy.
-
-Migration authenticates and reads the original `history-dek-v1` from its original
-`app.mosh.mobile` namespace. Automatic reset and cipher migration are disabled.
-The original wrapping is retained. Only after the same DEK has been durably
-installed and read back byte-for-byte may the existing Rust bridge receive it.
-A fresh foreground installation may mint a key only after the legacy reader
-reports absence and the actual history database does not exist.
+`initMobileDek` reads the native background wrapping. A valid wrapping opens
+the encrypted history without an Activity or biometric prompt; this does not
+grant access to chat UI. When no wrapping exists and the history database does
+not exist either, a fresh installation mints a DEK, installs it durably and
+reads it back byte-for-byte before the Rust bridge receives it. A missing
+wrapping with an existing database fails closed and never mints. Loading and
+minting call only `AndroidAppAccess.initialize()`, preserving the native
+lock/grace policy, so chat access prompts once after setup.
 
 The native `MoshBackgroundDek` uses the approved credential-encrypted no-backup
 file, versioned `MBK1` AES-256-GCM envelope and installation-bound AAD. Android
@@ -31,27 +21,20 @@ Keystore generates the IV and wrapping key; per-use authentication is disabled.
 Operations serialize across owners. An existing file with a missing alias,
 unsupported envelope version, invalid tag or storage failure fails closed.
 Writes use `AtomicFile`, explicit file-descriptor sync, commit and decrypted
-readback. Ordinary installation never replaces a readable different DEK.
+readback. Installation never replaces a readable different DEK. Channel
+failures contain sanitized codes without plaintext key values or provider
+diagnostics. Key I/O runs on one worker.
 
-`recoverMobileDek` is a separate explicit foreground action. It reads the
-original legacy key and asks the native channel for a fresh strong-or-credential
-authentication before repair. Repair may replace a damaged envelope or missing/
-invalid wrapping alias, preserving that same legacy DEK. Unsupported versions
-and a readable different key are refused. There is no automatic retry loop,
-legacy deletion, database reset or guessed replacement key. Channel failures
-contain sanitized codes without plaintext key values or provider diagnostics.
-Key I/O runs on one worker. Pausing, leaving, screen-off and Activity replacement
-revoke queued repair grants; the generation is checked inside the installation
-lock immediately before mutation. Key-only repair does not authenticate chats.
-On startup corruption, the failed lock screen's Retry is the explicit repair
-action; ordinary startup never invokes it automatically.
+Mosh has no earlier Android installations, so there is no legacy
+`flutter_secure_storage` migration or repair path. A damaged wrapping shows the
+failed lock screen; there is no automatic reset or guessed replacement key.
 
 ## Verification
 
-Host tests exercise the existing storage/resolution and platform-channel
-boundaries: exact migration, write refusal/readback, interruption, cold loading,
-foreground refusal, malformed key material and missing/corrupt wrappings.
-They do not establish physical Keystore or biometric behavior.
+Host tests exercise the storage/resolution and platform-channel boundaries:
+cold loading, minting with readback, refusal to mint over existing history,
+malformed key material and missing/corrupt wrappings. They do not establish
+physical Keystore behavior.
 
 `BackgroundDekChecks` supplies actual Android Keystore/file fault checks and
 refuses to run outside the disposable `.linked_dm_test` application ID. It
@@ -73,7 +56,6 @@ visible frame, and native shielding before the expired locked-state event. No
 new Dart-frame acknowledgment is supplied at expiry. The deadline covers the
 native surface before publishing its new shield generation.
 
-Physical acceptance remains required for legacy biometric cancellation and
-migration with real existing messages, first unlock after reboot, cold relocked-
-screen reads, Keystore invalidation, explicit recovery and call continuity.
+Physical acceptance remains required for first unlock after reboot, cold
+relocked-screen reads, Keystore invalidation and call continuity.
 Compiling the native helper or passing host tests does not close IVO-135.

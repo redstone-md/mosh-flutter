@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show MethodChannel, PlatformException;
@@ -25,8 +24,6 @@ void main() {
     List<int>? openedWith;
     await resolveHistoryDek(
       storage: storage,
-      readLegacyDek: () =>
-          fail('The original biometric reader must remain idle'),
       dbExists: () => true,
       setHistoryDek: (bytes) async => openedWith = List.of(bytes),
     );
@@ -47,7 +44,6 @@ void main() {
     await expectLater(
       resolveHistoryDek(
         storage: storage,
-        readLegacyDek: () async => null,
         dbExists: () => false,
         mint: () => key,
         setHistoryDek: (_) async =>
@@ -68,17 +64,5 @@ void main() {
       throwsA(isA<PlatformException>()
           .having((error) => error.code, 'code', 'DEK_INVALID_LENGTH')),
     );
-  });
-
-  test('explicit repair sends only the validated original bytes', () async {
-    Uint8List? repairedWith;
-    binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
-        (call) async {
-      if (call.method != 'recoverBackgroundDek') fail('Unexpected method');
-      repairedWith = call.arguments as Uint8List;
-      return null;
-    });
-    await storage.recoverDek(base64Encode(key));
-    expect(repairedWith, key);
   });
 }

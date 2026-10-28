@@ -6,17 +6,14 @@ import android.os.Looper
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicLong
 
-/** Key I/O stays off the platform thread; lifecycle changes revoke queued repairs. */
+/** Key I/O stays off the platform thread. */
 internal class MoshAccessKeys(context: Context) {
     private val storage = MoshBackgroundDek(context)
     private val worker = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
-    private val repairGeneration = AtomicLong()
 
-    fun dispatch(call: MethodCall, result: MethodChannel.Result,
-                 authorizeRepair: (ByteArray, MethodChannel.Result) -> Unit): Boolean {
+    fun dispatch(call: MethodCall, result: MethodChannel.Result): Boolean {
         if (call.method !in METHODS) return false
         try {
             when (call.method) {
@@ -25,23 +22,11 @@ internal class MoshAccessKeys(context: Context) {
                     val bytes = validatedBytes(call.arguments)
                     execute(result, bytes) { storage.install(bytes); null }
                 }
-                "recoverBackgroundDek" -> authorizeRepair(validatedBytes(call.arguments), result)
             }
         } catch (error: BackgroundDekException) {
             result.error(error.code, "History key unavailable", null)
         }
         return true
-    }
-
-    fun invalidateRepair() { repairGeneration.incrementAndGet() }
-
-    /** Called only by the current successful native foreground auth callback. */
-    fun recover(bytes: ByteArray, result: MethodChannel.Result) {
-        val generation = repairGeneration.get()
-        execute(result, bytes) {
-            storage.recover(bytes) { generation == repairGeneration.get() }
-            null
-        }
     }
 
     private fun validatedBytes(arguments: Any?): ByteArray {
@@ -66,6 +51,6 @@ internal class MoshAccessKeys(context: Context) {
     }
 
     companion object {
-        private val METHODS = setOf("readBackgroundDek", "installBackgroundDek", "recoverBackgroundDek")
+        private val METHODS = setOf("readBackgroundDek", "installBackgroundDek")
     }
 }

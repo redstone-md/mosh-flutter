@@ -43,7 +43,6 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
                     return
                 }
                 if (intent.action != Intent.ACTION_SCREEN_OFF) return
-                keys.invalidateRepair()
                 authentication.cancel()
                 protect()
                 update { state.policy.departed() }
@@ -73,26 +72,12 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
                     }
                     result.success(null)
                 }
-                else -> if (!keys.dispatch(call, result, ::recoverKey)) result.notImplemented()
+                else -> if (!keys.dispatch(call, result)) result.notImplemented()
             }
         } catch (_: Exception) {
             protect()
             publishFailure()
             result.error("ACCESS_STATE_UNAVAILABLE", "Access state unavailable", null)
-        }
-    }
-
-    private fun recoverKey(bytes: ByteArray, result: MethodChannel.Result) {
-        val requestedActivity = activity
-        authentication.authenticate("Mosh") { outcome ->
-            if (outcome == "authenticated" && foreground && activity === requestedActivity) {
-                // Key repair is not an interactive-chat grant.
-                keys.recover(bytes, result)
-            } else {
-                bytes.fill(0)
-                val code = if (outcome == "unavailable") "DEK_AUTH_UNAVAILABLE" else "DEK_AUTH_CANCELED"
-                result.error(code, "History key unavailable", null)
-            }
         }
     }
 
@@ -113,7 +98,6 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
     }
 
     fun attach(activity: MainActivity) {
-        keys.invalidateRepair()
         this.activity = activity
         authentication.attach(activity)
         shield.attach(activity)
@@ -121,7 +105,6 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
 
     fun detach(activity: MainActivity) {
         if (this.activity !== activity) return
-        keys.invalidateRepair()
         authentication.detach(activity)
         shield.detach(activity)
         this.activity = null
@@ -135,7 +118,7 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
         publish()
     }
 
-    fun paused() { resumed = false; keys.invalidateRepair(); authentication.paused(); publish() }
+    fun paused() { resumed = false; authentication.paused(); publish() }
 
     fun stopped() {
         // Device-credential confirmation can stop this Activity on both API
@@ -148,7 +131,6 @@ internal class MoshAccess(private val context: Context, messenger: BinaryMesseng
     }
 
     fun leaving() {
-        keys.invalidateRepair()
         if (authentication.credentialShowing) return
         authentication.cancel()
         protect()

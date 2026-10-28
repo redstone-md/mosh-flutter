@@ -49,29 +49,23 @@ public final class BackgroundDekChecks {
         byte[] different = new byte[32];
         expectCode("DEK_CONFLICT", () -> storage.install(different));
         require(Arrays.equals(original, storage.read()), "Refused install changed the DEK");
-        byte[] encoded = Files.readAllBytes(envelope.toPath());
-        require(encoded.length == 64, "Invalid envelope size");
+        byte[] committed = Files.readAllBytes(envelope.toPath());
+        require(committed.length == 64, "Invalid envelope size");
+        byte[] encoded = committed.clone();
         encoded[63] ^= 1;
         Files.write(envelope.toPath(), encoded);
         expectCode("DEK_ENVELOPE_INVALID", storage::read);
         expectCode("DEK_ENVELOPE_INVALID", () -> storage.install(original));
-        // Storage repair is exercised directly; channel authentication is a
-        // separate Activity test. This does not claim biometric acceptance.
-        expectCode("DEK_AUTH_CANCELED", () -> storage.recover(original, () -> false));
-        expectCode("DEK_ENVELOPE_INVALID", storage::read);
-        storage.recover(original, () -> true);
-        require(Arrays.equals(original, storage.read()), "Repair changed the legacy DEK");
+        Files.write(envelope.toPath(), committed);
+        require(Arrays.equals(original, storage.read()), "Restored envelope changed the DEK");
         keys.deleteEntry(ALIAS);
         expectCode("DEK_KEY_MISSING", storage::read);
         expectCode("DEK_KEY_MISSING", () -> storage.install(original));
         require(!keys.containsAlias(ALIAS), "Ordinary access regenerated a missing alias");
-        storage.recover(original, () -> true);
-        require(Arrays.equals(original, storage.read()), "Missing-alias repair changed the DEK");
-        encoded = Files.readAllBytes(envelope.toPath());
+        encoded = committed.clone();
         encoded[3] = '2';
         Files.write(envelope.toPath(), encoded);
         expectCode("DEK_ENVELOPE_VERSION", storage::read);
-        expectCode("DEK_ENVELOPE_VERSION", () -> storage.recover(original, () -> true));
     }
 
     private static void checkWrappingPolicy(KeyStore keys) throws Exception {
