@@ -81,10 +81,25 @@ fn wait_call_view(
         }
         assert!(
             std::time::Instant::now() < until,
-            "call state did not converge: {sessions}"
+            "call observer did not converge: {:?}",
+            call_states(&sessions)
         );
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
+}
+
+fn call_states(sessions: &serde_json::Value) -> Vec<serde_json::Value> {
+    sessions["sessions"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|view| {
+            json!({"state":view["state"],
+            "active":!view["active_call"].is_null(),
+            "pending":!view["pending_call"].is_null(),
+            "outgoing":!view["outgoing_call"].is_null()})
+        })
+        .collect()
 }
 
 #[test]
@@ -287,11 +302,26 @@ fn native_stalled_camera_releases_capture_without_ending_receive_only_media() {
 #[ignore = "Requires the native owner; tests a selected caller that never starts negotiation"]
 fn native_missing_offer_ends_both_selected_calls_after_setup_timeout() {
     let _network = isolated_network_scenario();
-    let (mut caller, mut receiver, session, _id) = native_pair_prepared(false, false);
+    let (mut caller, mut receiver, session, id) = native_pair_prepared(false, false);
+    let started = std::time::Instant::now();
+    let native =
+        receiver.ask(json!({"action":"call_native_snapshot", "argument":session, "call_id":id}));
+    eprintln!(
+        "missing-offer receiver prepared: ready={}, failed={}",
+        native["ready"], native["failed"]
+    );
     // The owner tests its exact 15-second deadline with a controlled clock.
     // This process test allows both DM owners to observe and persist termination.
     wait_call_view(&mut receiver, &session, |view| {
         view["active_call"].is_null()
     });
+    eprintln!(
+        "missing-offer receiver ended after {}ms",
+        started.elapsed().as_millis()
+    );
     wait_call_view(&mut caller, &session, |view| view["active_call"].is_null());
+    eprintln!(
+        "missing-offer caller ended after {}ms",
+        started.elapsed().as_millis()
+    );
 }

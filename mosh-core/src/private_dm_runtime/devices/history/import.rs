@@ -127,12 +127,14 @@ impl PrivateDmSession {
                     message.metadata.get_or_insert_with(Default::default).origin = Some(origin);
                 }
             }
+            self.received_history_ownership(&mut message);
             crate::message_deletion::correlate_history_text(
                 &format!("dm:{}", self.session_id),
                 &mut message,
             )
             .map_err(|_| invalid())?;
             rows.push(StoredMessage {
+                history_evidence: None,
                 conversation_id: self.session_id.clone(),
                 sent_at_ms: record.sent_at_ms,
                 message_id: record.message_id.clone(),
@@ -142,6 +144,18 @@ impl PrivateDmSession {
             });
         }
         Ok(rows)
+    }
+    // Source-local UI flags are never receiving-installation authority. Only
+    // an original signer already bound to this conversation's topology proves
+    // ownership; unsigned/unknown authors remain unknown, not incoming alerts.
+    fn received_history_ownership(&self, message: &mut ChatMessage) {
+        if let Some(metadata) = message.metadata.as_mut() {
+            metadata.is_own = metadata.origin.as_ref().and_then(|origin| {
+                let topology = &self.membership.as_ref()?.topology;
+                topology.client(&origin.author)?;
+                Some(topology.own(&origin.author))
+            });
+        }
     }
 }
 

@@ -20,6 +20,11 @@ mod previews;
 #[path = "preview_authentication_tests.rs"]
 mod preview_authentication;
 
+#[path = "transfer_execution_tests.rs"]
+mod execution;
+#[path = "transfer_receipt_tests.rs"]
+mod receipts;
+
 const FILE: &str = "clip.bin";
 
 /// An attachment root of this test's own, removed when the test ends.

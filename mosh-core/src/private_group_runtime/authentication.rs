@@ -43,6 +43,17 @@ impl GroupSession {
         let sender = proof
             .verify(&self.application_context(channel))
             .map_err(PrivateGroupError::Codec)?;
+        self.require_application_sender(&sender)?;
+        Ok(sender)
+    }
+
+    pub(super) fn require_application_sender(
+        &mut self,
+        sender: &VerifiedSender,
+    ) -> Result<(), PrivateGroupError> {
+        if !self.joined || !self.crypto.is_ready() {
+            return Err(PrivateGroupError::NotReady);
+        }
         let member = self.crypto.member_identity_for_signer(&sender.mls_signer);
         if member.is_none()
             || (self.org_pubkey.is_some()
@@ -53,7 +64,7 @@ impl GroupSession {
                 "sender is not an authorized group member".into(),
             ));
         }
-        Ok(sender)
+        Ok(())
     }
 
     pub(super) fn decrypt_application(
@@ -70,11 +81,20 @@ impl GroupSession {
         &mut self,
         proof: SenderProof,
     ) -> Result<(), PrivateGroupError> {
-        let sender = self.verify_application(&proof, &self.control_channel.clone())?;
+        let original_proof =
+            serde_json::to_vec(&proof).map_err(|e| PrivateGroupError::Codec(e.to_string()))?;
+        let sender = proof
+            .verify(&self.application_context(&self.control_channel))
+            .map_err(PrivateGroupError::Codec)?;
         let envelope: ControlEnvelope = decode_json(&sender.payload)?;
         if envelope.group_id() != self.group_id {
             return Ok(());
         }
+        if let ControlEnvelope::History { frame, .. } = envelope {
+            self.require_author(&frame.sender_key, &sender)?;
+            return self.queue_history(frame, false, &sender);
+        }
+        self.require_application_sender(&sender)?;
         match envelope {
             ControlEnvelope::PlusMetadata { frame, .. } => self.receive_plus(&frame, sender),
             ControlEnvelope::MessageDeletion { frame, .. } => {
@@ -86,18 +106,9 @@ impl GroupSession {
                 ciphertext_b64,
                 ..
             } => self.accept_name_metadata(operation, epoch, &ciphertext_b64, sender),
-            ControlEnvelope::AttachmentManifest {
-                participant_id,
-                from_device,
-                from_fingerprint,
-                manifest_ciphertext_b64,
-                ..
-            } if participant_id != self.participant_id => self.accept_verified_manifest(
-                from_device,
-                from_fingerprint,
-                &manifest_ciphertext_b64,
-                sender,
-            ),
+            envelope @ ControlEnvelope::AttachmentManifest { .. } => {
+                self.accept_verified_manifest(envelope, sender, &original_proof)
+            }
             ControlEnvelope::TypingIndicator {
                 from_device,
                 from_fingerprint,
@@ -121,16 +132,29 @@ impl GroupSession {
 
     fn accept_verified_manifest(
         &mut self,
-        name: String,
-        fingerprint: String,
-        ciphertext: &str,
+        envelope: ControlEnvelope,
         sender: VerifiedSender,
+        original_proof: &[u8],
     ) -> Result<(), PrivateGroupError> {
-        self.require_author(&fingerprint, &sender)?;
+        let ControlEnvelope::AttachmentManifest {
+            participant_id,
+            from_device,
+            from_fingerprint,
+            manifest_ciphertext_b64,
+            sent_at_ms,
+            ..
+        } = envelope
+        else {
+            return Ok(());
+        };
+        if participant_id == self.participant_id {
+            return Ok(());
+        }
+        self.require_author(&from_fingerprint, &sender)?;
         let context = format!("group:{}", self.group_id);
-        let (body, _) = self
-            .crypto
-            .decrypt_checked(&decode(ciphertext)?, |body, signer| {
+        let staged = self.crypto.stage_decrypt_checked(
+            &decode(&manifest_ciphertext_b64)?,
+            |body, signer| {
                 if signer != sender.mls_signer {
                     return Err("group attachment signer mismatch".into());
                 }
@@ -141,10 +165,25 @@ impl GroupSession {
                     return Err("attachment author mismatch".into());
                 }
                 Ok(())
-            })?;
-        let manifest: AttachmentOffer = decode_json(&body)?;
-        self.require_author(&manifest.manifest.from_fingerprint, &sender)?;
-        self.accept_incoming_manifest(name, sender.peer_id, manifest)
+            },
+        )?;
+        let offer: AttachmentOffer = decode_json(&staged.body)?;
+        let message = self.attachment_history_message(
+            from_device,
+            sender.peer_id.clone(),
+            &offer,
+            sent_at_ms,
+        );
+        let (accepted, evidence) = super::history::NativeAcceptance::attachment(
+            self,
+            &message,
+            &sender,
+            original_proof,
+            offer.clone(),
+        )?;
+        self.persist_received(&staged, &message, accepted, evidence)?;
+        self.crypto = staged.next;
+        self.accept_incoming_manifest(message, offer)
     }
 
     fn accept_verified_typing(

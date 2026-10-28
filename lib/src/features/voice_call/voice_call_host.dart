@@ -1,3 +1,5 @@
+import 'package:mosh/src/features/background/android_waiting_owner.dart';
+import 'package:mosh/src/features/lock/android_app_access.dart';
 import 'call_media_view.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'call_video_frame.dart';
@@ -31,6 +33,8 @@ class VoiceCallHost extends ConsumerStatefulWidget {
 }
 
 class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
+  AndroidWaitingOwner? _waiting;
+  AndroidAppAccess? _access;
   late final CallWindowCoordinator _window;
   StreamSubscription<CallVideoFrame>? _frames;
   final _video = CallVideoRenderer();
@@ -42,6 +46,19 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
     super.initState();
     _window = CallWindowCoordinator(ref.read(callWindowFactoryProvider), _act,
         (error) => debugPrint('Call window unavailable: ${error.runtimeType}'));
+    _access = ref.read(androidAppAccessProvider);
+    _access?.addListener(_privacyChanged);
+    final waiting = _waiting = ref.read(androidWaitingOwnerProvider);
+    waiting?.platform.addListener(_privacyChanged);
+    if (waiting != null) {
+      waiting.calls.onAnswer = (session, call) async {
+        if (!mounted || waiting.platform.state?.callInteractive != true) return;
+        await ref
+            .read(voiceCallOrchestratorProvider(session).notifier)
+            .acceptCall(call);
+      };
+      unawaited(waiting.refresh().catchError((Object _) {}));
+    }
     _frames = ref.read(nativeCallOwnerProvider)?.frames.listen((frame) {
       if (_mobile) {
         unawaited(_video.receive(frame));
@@ -53,10 +70,17 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
 
   @override
   void dispose() {
+    _waiting?.calls.onAnswer = null;
+    _waiting?.platform.removeListener(_privacyChanged);
+    _access?.removeListener(_privacyChanged);
     unawaited(_frames?.cancel());
     unawaited(_window.dispose());
     _video.dispose();
     super.dispose();
+  }
+
+  void _privacyChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _act(CallViewCommand command) async {
@@ -106,6 +130,10 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
             selected!.sessionId,
             state.dialog,
             fallback: l.callPeerFallback,
+            peerOverride: _access?.covered == true &&
+                    _waiting?.platform.state?.showNamesWhenLocked != true
+                ? 'Mosh'
+                : null,
             muted: state.muted,
             media: state.nativeMedia == null
                 ? null

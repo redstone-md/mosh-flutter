@@ -2,6 +2,15 @@ name: Windows network diagnostics
 
 on:
   workflow_dispatch:
+    inputs:
+      suite:
+        description: Run collectors or focused native checks.
+        type: choice
+        default: collectors
+        options:
+          - collectors
+          - group-history
+          - native-media
   pull_request:
     paths:
       - '.github/workflows/network-diagnostics.yml'
@@ -12,6 +21,7 @@ permissions:
 
 jobs:
   diagnostics:
+    if: github.event_name != 'workflow_dispatch' || inputs.suite == 'collectors'
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -57,3 +67,115 @@ jobs:
             build/mosh-network-diagnostics.zip
             build/mosh-network-diagnostics.zip.sha256
           retention-days: 14
+
+  group-history:
+    name: Native group history (Windows, three attachment runs)
+    if: github.event_name == 'workflow_dispatch' && inputs.suite == 'group-history'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup
+        with:
+          flutter: 'false'
+          rust-cache-key: desktop
+      - name: Build and verify the independent-installation cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --manifest-path mosh-core/Cargo.toml --test private_group_history_flow
+          test_list=$(cargo test --manifest-path mosh-core/Cargo.toml --test private_group_history_flow -- --list | tr -d '\r')
+          for test_case in \
+            an_offline_group_author_is_recovered_from_an_ordinary_holder_after_restart \
+            an_imported_attachment_remains_recoverable_from_its_restarted_holder \
+            repair::a_healthy_holder_repairs_the_exact_offer_lost_by_an_older_group_tail_writer \
+            attachment_recovery_keeps_original_offers_without_downloading_files; do
+            if ! grep -Fxq "$test_case: test" <<< "$test_list"; then
+              echo "::error::Missing native recovery case: $test_case"
+              exit 1
+            fi
+          done
+      - name: Verify offline-author recovery from an ordinary holder
+        run: >-
+          node scripts/moss-test.mjs --test private_group_history_flow
+          an_offline_group_author_is_recovered_from_an_ordinary_holder_after_restart -- --exact
+      - name: Verify an imported offer survives its holder's restart
+        run: >-
+          node scripts/moss-test.mjs --test private_group_history_flow
+          an_imported_attachment_remains_recoverable_from_its_restarted_holder -- --exact
+      - name: Verify repair of a previously damaged original offer
+        run: >-
+          node scripts/moss-test.mjs --test private_group_history_flow
+          repair::a_healthy_holder_repairs_the_exact_offer_lost_by_an_older_group_tail_writer -- --exact
+      - name: Verify attachment recovery three times
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Attachment recovery: run $attempt of 3"
+            node scripts/moss-test.mjs --test private_group_history_flow \
+              attachment_recovery_keeps_original_offers_without_downloading_files -- --exact
+          done
+
+  native-media:
+    name: Native media diagnostic (${{ matrix.os }})
+    if: github.event_name == 'workflow_dispatch' && inputs.suite == 'native-media'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup
+        with:
+          flutter: 'false'
+          rust-cache-key: native-call
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .dart_tool/native-media/target
+            .dart_tool/native-sources
+            .dart_tool/native-tools
+          key: native-call-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mosh-media/**/Cargo.lock', 'third_party/*-patches/source.json', 'third_party/*-patches/mosh.patch') }}
+          restore-keys: native-call-${{ runner.os }}-${{ runner.arch }}-
+      - name: Build the packaged native engine
+        run: node scripts/native-media-build.mjs
+      - name: Build and observe the fixed native case
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS" in
+            macOS)
+              target=(--lib)
+              test_case=native_call::packets::packet_tests::native::relay_video_does_not_lose_fresh_decoded_frames
+              export MOSH_MEDIA_ENGINE="$PWD/.dart_tool/native-media/debug/libmosh_native_media.dylib"
+              ;;
+            Windows)
+              target=(--test device_link_flow)
+              test_case=link_call_controls::native_missing_offer_ends_both_selected_calls_after_setup_timeout
+              export MOSH_MEDIA_ENGINE="$PWD/.dart_tool/native-media/debug/mosh_native_media.dll"
+              export MOSH_CAMERA_CAPTURE="$PWD/mosh-core/target/debug/mosh-camera-test-driver.exe"
+              ;;
+            *) exit 1 ;;
+          esac
+          cargo build --manifest-path mosh-core/Cargo.toml --features native-media-tests --lib --bin mosh-camera-test-driver
+          test_list=$(cargo test --manifest-path mosh-core/Cargo.toml --features native-media-tests "${target[@]}" -- --list --ignored | tr -d '\r')
+          grep -Fxq "$test_case: test" <<< "$test_list"
+          for attempt in 1 2 3; do
+            echo "Native case: $test_case, run $attempt of 3"
+            log="$RUNNER_TEMP/mosh-native-case-$attempt.log"
+            if node scripts/moss-test.mjs --features native-media-tests "${target[@]}" "$test_case" -- --ignored --exact > "$log" 2>&1; then
+              grep -E '^test result:' "$log"
+            else
+              # Never publish the raw fixture log: native libraries may log keys.
+              grep -E '^remote video (expired|stalled)|^missing-offer |^call observer |^peer action |^test result:|^test [[:alnum:]_:]+ \.\.\. FAILED|^thread .*panicked at' "$log" | cut -c 1-12000 || true
+              echo "::error::Native case failed; raw log remains only on the ephemeral runner."
+              exit 1
+            fi
+          done

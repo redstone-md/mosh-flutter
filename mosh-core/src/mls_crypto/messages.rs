@@ -49,11 +49,25 @@ impl MlsSessionCrypto {
         ciphertext: &[u8],
         validate: impl FnOnce(&[u8], &[u8]) -> Result<(), String>,
     ) -> Result<(Vec<u8>, Vec<u8>), MlsCryptoError> {
+        let staged = self.stage_decrypt_checked(ciphertext, validate)?;
+        *self = staged.next;
+        Ok((staged.body, staged.signer))
+    }
+
+    /// Leave the live ratchet unchanged while the caller saves accepted content.
+    pub(crate) fn stage_decrypt_checked(
+        &self,
+        ciphertext: &[u8],
+        validate: impl FnOnce(&[u8], &[u8]) -> Result<(), String>,
+    ) -> Result<StagedApplication, MlsCryptoError> {
         let mut candidate = self.receive_candidate()?;
         let (body, signer) = candidate.decrypt_application(ciphertext, true)?;
         validate(&body, &signer).map_err(MlsCryptoError::OpenMls)?;
-        *self = candidate;
-        Ok((body, signer))
+        Ok(StagedApplication {
+            next: candidate,
+            body,
+            signer,
+        })
     }
 
     /// Return the verified leaf signer with its application plaintext.

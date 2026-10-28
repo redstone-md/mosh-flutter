@@ -1,0 +1,69 @@
+# Android incoming call ownership
+
+Integration status: the native ledger, application bridge, Android notification
+and call actions, locked call-only entry and media-service promotion are
+implemented. Rust/Dart protocol checks, Android compilation and platform policy
+probes cover the software boundary. Actual handset notification/capture behavior,
+Doze, OEM restrictions and battery use still require physical-phone acceptance;
+compilation does not establish those results.
+
+The installation owner publishes authenticated native call transitions without
+opening a chat or polling the chat list. It uses the same DM protocol, current
+linked-device selection and native media owner as foreground calls. Desktop
+keeps its existing presentation and protocol service.
+Both owners share the existing call-selection policy: unrelated notification
+revisions retain the selected call, while an explicit Answer selects its exact
+conversation. Replaying another conversation's cancellation cannot hide it.
+
+The encrypted `background_delivery` table retains each call notification's
+opaque OS identity, phase revision and one-use action capabilities. Capabilities
+contain 256 random bits. Native validation checks the exact current session,
+call, participating-device binding, phase, local expiry and process incarnation
+before consuming one. A known call ID cannot authorize an exported Activity
+intent. Reclamation invalidates old capabilities; cancellation is a newer
+revision of the same notification. Exact acknowledgements cannot erase a newer
+phase. Terminal acknowledged records are retired. Capabilities never enter call
+history or unencrypted notification metadata beyond their required action intent.
+Consumption and replacement of retry buttons share one encrypted transaction;
+permission refusal or a failed control cannot leave a consumed button stranded.
+
+Answer opens the existing Activity. The action returns a current call target;
+it does not accept the call, unlock chats or start capture. The existing call
+orchestrator requests microphone permission from a visible Activity, then calls
+the normal native accept operation, which rechecks current selection. Camera
+permission and media-service promotion precede their capture commands. Stale
+selection, missing permission or refused service promotion cannot authorize
+late capture. Decline and hangup reuse the existing native controls and do not
+open chats. A failed decline retains the existing retry semantics and gets new
+one-use buttons instead of reviving a spent capability.
+
+Android's `callInteractive` fact permits a resumed call-only Activity over the
+device keyguard. It never changes ordinary installation `interactive` or chat
+access. Native `callOnly` keeps protected chats covered even during a valid grace
+period, and the protected-frame acknowledgement continues to report no visible
+chats. A presentation-only Answer action validates/selects the call without
+performing acceptance or media capture. The Flutter call controls and PiP use
+the same name-privacy consent as Android notifications; a covered installation
+shows “Mosh” until names are explicitly enabled.
+
+Incoming ringing and its 30-second first-receipt deadline belong to the native
+owner. Retransmitted offers do not extend the deadline. Flutter retains the
+outgoing tone and current call presentation, including floating video and PiP;
+it yields incoming notifications and ringing to the Android application owner.
+Every OS publication applies the current native privacy policy. Names and text
+remain separate choices; notification actions do not extend chat access.
+DM attachment offers retain ownership from their verified MLS sender. Foreign
+offers can alert without downloading; offers from our own linked devices do not
+become contact notifications or contact-liveness evidence.
+
+Verification includes independent bridge installations receiving call offers
+without widget polling, exact capability replay/cancellation checks, real
+redb refusal and encrypted-at-rest checks, and media commands held behind the
+platform promotion boundary. These checks do not establish physical handset
+Doze, OEM delivery, lock-screen audio routing or energy acceptance.
+
+The native call synchronization and action-consumption methods retain their
+complete redb transaction closures together. They exceed the normal function
+length guidance to keep state validation, capability rotation and commit failure
+handling reviewable as one atomic operation. Independent-installation tests keep
+their protocol setup and assertions together for the same reason.

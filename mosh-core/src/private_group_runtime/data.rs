@@ -12,26 +12,29 @@ impl GroupSession {
         }
         self.require_author(&envelope.from_fingerprint, &sender)?;
         let context = format!("group:{}", self.group_id);
-        let (plaintext, _) =
-            self.crypto
-                .decrypt_checked(&decode(&envelope.ciphertext_b64)?, |body, signer| {
-                    if signer != sender.mls_signer {
-                        return Err("group sender mismatch".into());
-                    }
-                    if let Some(origin) = &envelope.origin {
-                        origin.verify_from_signer(
-                            &context,
-                            envelope.message_id.as_deref().unwrap_or_default(),
-                            body,
-                            signer,
-                        )?;
-                    }
-                    Ok(())
-                })?;
-        // A delivered message contradicts "typing": the author's hint dies at
-        // once, whatever its deadline said.
-        self.clear_member_typing(&envelope.from_fingerprint);
-        let message = self.received_text(envelope, &plaintext);
+        let staged = self.crypto.stage_decrypt_checked(
+            &decode(&envelope.ciphertext_b64)?,
+            |body, signer| {
+                if signer != sender.mls_signer {
+                    return Err("group sender mismatch".into());
+                }
+                if let Some(origin) = &envelope.origin {
+                    origin.verify_from_signer(
+                        &context,
+                        envelope.message_id.as_deref().unwrap_or_default(),
+                        body,
+                        signer,
+                    )?;
+                }
+                Ok(())
+            },
+        )?;
+        let author = envelope.from_fingerprint.clone();
+        let message = self.received_text(envelope, &staged.body);
+        self.persist_received_text(&staged, &message, &payload, &sender)?;
+        self.crypto = staged.next;
+        // Durable delivery contradicts the author's typing hint.
+        self.clear_member_typing(&author);
         if self.messages.holds_copy_of(&message) {
             return Ok(());
         }
@@ -71,18 +74,7 @@ impl GroupSession {
             BlobEnvelope::Request {
                 participant_id,
                 request,
-            } if participant_id != self.participant_id => {
-                // Only the original sender holds the outgoing transfer;
-                // every other member simply has nothing to serve.
-                for frame in self.transfer.serve(&request) {
-                    let chunk = BlobEnvelope::Chunk {
-                        participant_id: self.participant_id.clone(),
-                        frame,
-                    };
-                    publish_json(&self.node, &self.mesh_id, &self.blob_channel, &chunk)?;
-                }
-                Ok(())
-            }
+            } if participant_id != self.participant_id => self.serve_blob_request(&request),
             BlobEnvelope::Chunk {
                 participant_id,
                 frame,
@@ -93,35 +85,14 @@ impl GroupSession {
 
     pub(super) fn accept_incoming_manifest(
         &mut self,
-        from_device: String,
-        from_fingerprint: String,
-        manifest: impl Into<AttachmentOffer>,
+        message: GroupMessage,
+        offer: AttachmentOffer,
     ) -> Result<(), PrivateGroupError> {
-        let offer = manifest.into();
-        let manifest = &offer.manifest;
-        let origin = manifest.origin.clone();
-        let message_id = origin.as_ref().map(|o| o.id.clone());
-        let Some(descriptor) = self.transfer.accept_offer(offer)? else {
+        if self.messages.holds_copy_of(&message) {
             return Ok(());
-        };
-        let message = self.messages.stamp(GroupMessage {
-            metadata: origin.map(|origin| crate::message_deletion::MessageMetadata {
-                origin: Some(origin),
-                ..Default::default()
-            }),
-            from_device,
-            from_fingerprint,
-            body: String::new(),
-            message_id,
-            sent_at_ms: None,
-            attachment: Some(descriptor),
-            delivery_status: None,
-            delivery_error: None,
-            retryable: None,
-            retry_count: None,
-            name_change: None,
-        });
+        }
         self.messages.push(message);
+        self.transfer.accept_offer(offer)?;
         Ok(())
     }
 
@@ -130,6 +101,7 @@ impl GroupSession {
         input: AttachmentInput,
     ) -> Result<AttachmentSendResult, PrivateGroupError> {
         let AttachmentInput {
+            user_transfer_id,
             file_name,
             mime,
             bytes,
@@ -153,7 +125,10 @@ impl GroupSession {
             },
             preview,
         )?;
+        self.transfer
+            .bind_user_admission(user_transfer_id.as_deref(), &outgoing.manifest)?;
         let content_hash = outgoing.manifest.content_hash.clone();
+        let sent_at_ms = now_ms();
         let publication = (|| -> Result<_, PrivateGroupError> {
             let origin = outgoing
                 .sign_mls(
@@ -165,35 +140,33 @@ impl GroupSession {
                 .map_err(PrivateGroupError::Codec)?;
             let manifest_ciphertext_b64 = self.crypto.encrypt_json(&outgoing.offer())?;
             let envelope = ControlEnvelope::AttachmentManifest {
+                sent_at_ms: Some(sent_at_ms),
                 group_id: self.group_id.clone(),
                 participant_id: self.participant_id.clone(),
                 from_device: self.display_name.clone(),
                 from_fingerprint: self.device_fingerprint.clone(),
                 manifest_ciphertext_b64,
             };
+            let offer = outgoing.offer();
+            let message = self.attachment_history_message(
+                self.display_name.clone(),
+                self.device_fingerprint.clone(),
+                &offer,
+                Some(sent_at_ms),
+            );
+            let proof = self.sign_application(&envelope, &self.control_channel)?;
+            let sender = self.verify_application(&proof, &self.control_channel.clone())?;
+            let bytes =
+                serde_json::to_vec(&proof).map_err(|e| PrivateGroupError::Codec(e.to_string()))?;
+            let accepted =
+                self.prepare_attachment_publication(&message, offer.clone(), &sender, &bytes)?;
+            self.persist_provisional_offer(&message, &offer)?;
             self.publish_control(&envelope)?;
-            Ok(origin)
+            Ok((origin, message, accepted))
         })();
-        let (descriptor, origin) = self.transfer.record_published(outgoing, publication)?;
-        let message = self.messages.stamp(GroupMessage {
-            metadata: Some(crate::message_deletion::MessageMetadata {
-                origin: Some(origin),
-                is_own: Some(true),
-                ..Default::default()
-            }),
-            from_device: self.display_name.clone(),
-            from_fingerprint: self.device_fingerprint.clone(),
-            body: String::new(),
-            message_id: Some(attachment_id.clone()),
-            sent_at_ms: None,
-            attachment: Some(descriptor),
-            delivery_status: None,
-            delivery_error: None,
-            retryable: None,
-            retry_count: None,
-            name_change: None,
-        });
+        let (_, (_, message, accepted)) = self.transfer.record_published(outgoing, publication)?;
         self.messages.push(message);
+        self.publications.insert(attachment_id.clone(), accepted);
         Ok(AttachmentSendResult {
             conversation_id: self.group_id.clone(),
             attachment_id,
@@ -202,12 +175,92 @@ impl GroupSession {
     }
 
     pub(super) fn pump_attachment_requests(&mut self) {
-        for request in self.transfer.next_requests() {
+        for request in self.transfer.pending_serving_requests() {
+            let _ = self.serve_blob_request(&request);
+        }
+        for mut request in self.transfer.next_requests() {
+            if self.sign_blob_request(&mut request).is_err() {
+                continue;
+            }
             let envelope = BlobEnvelope::Request {
                 participant_id: self.participant_id.clone(),
                 request,
             };
             let _ = publish_json(&self.node, &self.mesh_id, &self.blob_channel, &envelope);
         }
+    }
+}
+
+impl GroupSession {
+    fn sign_blob_request(
+        &self,
+        request: &mut crate::attachment_runtime::ChunkRequest,
+    ) -> Result<(), PrivateGroupError> {
+        let context = format!("transfer:group:{}", self.group_id);
+        let author = hex::encode(self.crypto.signer_public());
+        request
+            .sign_execution(&author, |token, bytes| {
+                crate::message_deletion::MessageOrigin::sign_mls(
+                    &context,
+                    token,
+                    bytes,
+                    &self.crypto,
+                    self.deletions.store.as_ref(),
+                    None,
+                )
+            })
+            .map_err(PrivateGroupError::Codec)
+    }
+    fn verify_blob_request(
+        &mut self,
+        request: &crate::attachment_runtime::ChunkRequest,
+    ) -> Result<(), PrivateGroupError> {
+        let context = format!("transfer:group:{}", self.group_id);
+        if let Some(author) = request
+            .verify_execution(&context)
+            .map_err(PrivateGroupError::Codec)?
+        {
+            let signer = hex::decode(author)
+                .map_err(|_| PrivateGroupError::Codec("invalid blob signer".into()))?;
+            let member = self.crypto.member_identity_for_signer(&signer);
+            if member.is_none()
+                || (self.org_pubkey.is_some()
+                    && !member
+                        .as_deref()
+                        .is_some_and(|peer| self.roster_contains(peer)))
+            {
+                return Err(PrivateGroupError::Codec(
+                    "blob requester is not a current member".into(),
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl GroupSession {
+    fn serve_blob_request(
+        &mut self,
+        request: &crate::attachment_runtime::ChunkRequest,
+    ) -> Result<(), PrivateGroupError> {
+        self.verify_blob_request(request)?;
+        // Only the original sender holds the outgoing transfer;
+        // every other member simply has nothing to serve.
+        for frame in self.transfer.serve(request) {
+            if !self.transfer.may_send_chunk(&frame.attachment_id) {
+                break;
+            }
+            let chunk = BlobEnvelope::Chunk {
+                participant_id: self.participant_id.clone(),
+                frame: frame.clone(),
+            };
+            let bytes = serde_json::to_vec(&chunk)
+                .map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
+            self.node
+                .publish_room(&self.mesh_id, &self.blob_channel, &bytes)
+                .map_err(|error| PrivateGroupError::Moss(error.to_string()))?;
+            self.transfer.chunks_published(&[frame]);
+        }
+        Ok(())
     }
 }

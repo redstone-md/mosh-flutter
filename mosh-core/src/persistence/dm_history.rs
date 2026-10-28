@@ -1,7 +1,9 @@
 //! Import text and its continuation cursor in one locally encrypted transaction.
 use super::*;
-use crate::conversation::history::StoredMessage;
-
+use crate::conversation::{
+    history::{background, StoredMessage},
+    message_log::ConversationMessage,
+};
 impl Persistence {
     pub(crate) fn get_dm_history_message(
         &self,
@@ -15,25 +17,33 @@ impl Persistence {
         )
     }
 
-    pub(crate) fn commit_dm_history_import<M: serde::Serialize>(
+    pub(crate) fn commit_dm_history_import<M: ConversationMessage>(
         &self,
         session: &str,
         record: &[u8],
         messages: &[StoredMessage<M>],
     ) -> Result<(), PersistenceError> {
-        let record = encrypt_blob(&self.dek, record)?;
-        let mut rows = Vec::with_capacity(messages.len());
-        for message in messages {
-            let json = serde_json::to_vec(message)
-                .map_err(|error| PersistenceError::Json(error.to_string()))?;
-            let key = Self::history_message_key(session, message.sent_at_ms, &message.message_id);
-            rows.push((key, encrypt_blob(&self.dek, &json)?));
-        }
-        self.write(|tx| {
-            for (key, value) in &rows {
-                self.write_history_row(tx, DM_HISTORY, key, value)?;
-            }
-            Self::update_row(tx, SESSIONS, session, Some(&record))
-        })
+        let background_messages: Vec<_> = messages
+            .iter()
+            .filter_map(|row| {
+                background::message(
+                    DM_HISTORY,
+                    session,
+                    row.sent_at_ms,
+                    &row.message_id,
+                    &row.message,
+                )
+            })
+            .collect();
+        self.commit_history_admission(
+            DM_HISTORY,
+            session,
+            HistoryAdmission {
+                state: Some((session, record)),
+                background_messages: &background_messages,
+                ..Default::default()
+            },
+            messages,
+        )
     }
 }

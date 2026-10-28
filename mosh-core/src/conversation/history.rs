@@ -15,6 +15,9 @@
 
 use std::collections::HashMap;
 
+#[path = "history_background.rs"]
+pub(crate) mod background;
+
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -43,6 +46,8 @@ pub struct StoredMessage<M> {
     pub attachment_manifest: Option<AttachmentManifest>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preview_manifest: Option<AttachmentManifest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub history_evidence: Option<super::recovery::HistoryEvidence>,
 }
 
 /// Where a replayed conversation's rows land.
@@ -62,6 +67,10 @@ pub struct History {
 }
 
 impl History {
+    pub(crate) fn tables(&self) -> HistoryTables {
+        self.tables
+    }
+
     pub fn new(tables: HistoryTables) -> Self {
         Self {
             tables,
@@ -118,7 +127,16 @@ impl History {
                     local_author,
                     transfer,
                     stored.attachment_manifest,
-                    stored.preview_manifest,
+                    stored.preview_manifest.filter(|_| {
+                        stored.history_evidence.as_ref().is_none_or(|e| {
+                            e.group.as_ref().is_some_and(|g| {
+                                !matches!(
+                                    g.basis,
+                                    super::recovery::GroupAcceptanceBasis::InheritedImport
+                                )
+                            })
+                        })
+                    }),
                 );
                 log.upsert(message);
             }
@@ -261,6 +279,11 @@ impl History {
         p.put_conversation(self.tables, conversation_id, &json)
     }
 
+    /// A recovery transaction durably saved the complete visible suffix.
+    pub(crate) fn acknowledge(&mut self, id: &str, count: usize) {
+        self.persisted_counts.insert(id.to_owned(), count);
+    }
+
     /// Forgets how much of a conversation is written, so the next tail write
     /// starts from the beginning. For one that was deleted, or one about to be
     /// loaded again from scratch.
@@ -277,8 +300,22 @@ impl History {
         message: M,
         manifest: Option<AttachmentOffer>,
     ) -> Result<(), PersistenceError> {
+        let background = background::message(
+            self.tables,
+            conversation_id,
+            sent_at_ms,
+            message_id,
+            &message,
+        );
         let row = stored_row(conversation_id, sent_at_ms, message_id, message, manifest)?;
-        p.append_history_message(self.tables, conversation_id, sent_at_ms, message_id, &row)
+        p.append_history_message_with_background(
+            self.tables,
+            conversation_id,
+            sent_at_ms,
+            message_id,
+            &row,
+            background.as_ref(),
+        )
     }
 }
 
@@ -295,6 +332,7 @@ fn stored_row<M: ConversationMessage>(
         None => (None, None),
     };
     let record = StoredMessage {
+        history_evidence: None,
         conversation_id: conversation_id.to_string(),
         sent_at_ms,
         message_id: message_id.to_string(),

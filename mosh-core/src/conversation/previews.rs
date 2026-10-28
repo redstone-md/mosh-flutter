@@ -16,6 +16,7 @@ pub(crate) const PREVIEW_FILE_NAME: &str = "preview.jpg";
 
 /// Native input keeps the optional clear preview beside the original bytes.
 pub struct AttachmentInput {
+    pub(crate) user_transfer_id: Option<String>,
     pub file_name: String,
     pub mime: String,
     pub bytes: Vec<u8>,

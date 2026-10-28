@@ -5,7 +5,13 @@ import 'package:mosh/src/rust/conversation/attachments.dart';
 
 import 'conversation_state.dart';
 
-enum AttachmentTransferAction { download, retryDownload, retry, cancel }
+enum AttachmentTransferAction {
+  download,
+  resumeDownload,
+  retryDownload,
+  retry,
+  cancel
+}
 
 /// Interprets one attachment for message cards, the file index and opening.
 /// The runtime's failed/cancelled state takes precedence over cached paths.
@@ -67,6 +73,7 @@ class ConversationAttachment {
       {required bool busy}) {
     if (outgoing) return null;
     final action = switch (state) {
+      AttachmentState.paused => AttachmentTransferAction.resumeDownload,
       AttachmentState.offered => AttachmentTransferAction.download,
       AttachmentState.cancelled => AttachmentTransferAction.retryDownload,
       AttachmentState.failed => AttachmentTransferAction.retry,

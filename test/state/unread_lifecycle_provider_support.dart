@@ -10,6 +10,7 @@ class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
         int id,
         String? title,
         String? body,
+        String? payload,
         NotificationDetails? details,
       })> shows = [];
 
@@ -34,6 +35,7 @@ class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
       id: id,
       title: title,
       body: body,
+      payload: payload,
       details: notificationDetails,
     ));
   }
@@ -137,7 +139,8 @@ class _Harness {
   _Harness._internal(
       this.container, this.gateway, this.notifications, this.setFocus);
 
-  factory _Harness({bool notificationsReady = true}) {
+  factory _Harness(
+      {bool notificationsReady = true, AndroidAppAccess? appAccess}) {
     final gateway = ScriptableBridge();
     final notifications = _RecordingNotifications();
     // The focus flag is mutable; the seam closure reads it each call so a
@@ -145,6 +148,8 @@ class _Harness {
     var focused = true;
     final container = ProviderContainer(overrides: [
       bridgeFacadeProvider.overrideWithValue(gateway),
+      if (appAccess != null)
+        androidAppAccessProvider.overrideWithValue(appAccess),
       windowFocusProvider.overrideWithValue(() async => focused),
       flutterLocalNotificationsPluginProvider.overrideWithValue(notifications),
       notificationsReadyProvider

@@ -15,6 +15,8 @@
 import 'dart:convert' show base64, base64Decode, base64Encode;
 import 'dart:typed_data' show Uint8List;
 
+import 'package:flutter/services.dart' show PlatformException;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
 
@@ -89,7 +91,7 @@ void main() {
     );
 
     expect(result, MobileDekResolution.minted);
-    expect(storage.readCount, 1);
+    expect(storage.readCount, 2);
     // The minted DEK must be written to the Keystore BEFORE the inject call
     // (so a crash between write and inject never leaves Rust with a DEK the
     // Keystore lacks).
@@ -128,6 +130,23 @@ void main() {
         reason: 'fail-closed branch must not call setHistoryDek');
   });
 
+  test('an acknowledged write without matching readback never opens history',
+      () async {
+    final storage = _UncommittedDekStorage();
+    final List<List<int>> injected = [];
+
+    await expectLater(
+      resolveHistoryDek(
+        storage: storage,
+        dbExists: () => false,
+        setHistoryDek: _recordingInject(injected),
+        mint: _fixedMint,
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(injected, isEmpty);
+  });
+
   test('stored DEK of wrong length fails fast (corrupt Keystore entry)',
       () async {
     final _FakeDekStorage storage =
@@ -151,7 +170,53 @@ void main() {
     expect(injected, isEmpty,
         reason: 'a corrupt stored DEK must not be injected');
   });
+
+  test('damaged background wrapping never mints a replacement key', () async {
+    final storage = _FailingDekStorage();
+    await expectLater(
+      resolveHistoryDek(
+        storage: storage,
+        dbExists: () => false,
+        setHistoryDek: (_) async => fail('No history is opened on key failure'),
+        mint: () => fail('A failed wrapping must never authorize minting'),
+      ),
+      throwsA(isA<PlatformException>()
+          .having((error) => error.code, 'code', 'DEK_ENVELOPE_INVALID')),
+    );
+  });
+
+  test('malformed stored key errors never disclose the encoded secret',
+      () async {
+    await expectLater(
+      resolveHistoryDek(
+        storage: _FakeDekStorage(initial: 'PRIVATE_KEY_MATERIAL%'),
+        dbExists: () => true,
+        setHistoryDek: (_) async =>
+            fail('Corrupt key must keep history closed'),
+      ),
+      throwsA(isA<StateError>().having((error) => error.message, 'message',
+          'history-dek-v1: malformed stored DEK')),
+    );
+  });
 }
 
 /// base64 of `_fixedMint()`, computed once for the mint-branch write assertion.
 String _fixedMintEncoded() => base64Encode(_fixedMint());
+
+class _UncommittedDekStorage implements MobileDekStorage {
+  @override
+  Future<String?> readDek() async => null;
+
+  @override
+  Future<void> writeDek(String base64Dek) async {}
+}
+
+class _FailingDekStorage implements MobileDekStorage {
+  @override
+  Future<String?> readDek() async =>
+      throw PlatformException(code: 'DEK_ENVELOPE_INVALID');
+
+  @override
+  Future<void> writeDek(String base64Dek) async =>
+      fail('A failed wrapping must never be overwritten');
+}

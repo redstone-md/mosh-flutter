@@ -8,6 +8,7 @@ fn input() -> AttachmentInput {
     let mut miniature = MINIATURE.to_vec();
     miniature.resize(1536, 0);
     AttachmentInput {
+        user_transfer_id: None,
         file_name: "Bildschirmfoto 2026-10-05 um 21.31.39.png".into(),
         mime: "image/png".into(),
         bytes: PREVIEW.to_vec(),
@@ -81,6 +82,7 @@ fn the_signed_offer_fits_org_wrapping_and_sender_restarts_serve_the_preview() {
     let proof = session
         .sign_application(
             &ControlEnvelope::AttachmentManifest {
+                sent_at_ms: None,
                 group_id: fixture.id.clone(),
                 participant_id: session.participant_id.clone(),
                 from_device: session.display_name.clone(),

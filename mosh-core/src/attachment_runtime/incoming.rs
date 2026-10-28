@@ -48,6 +48,18 @@ impl AttachmentRuntime {
             .incoming
             .get_mut(attachment_id)
             .ok_or_else(|| AttachmentRuntimeError::UnknownTransfer(attachment_id.to_string()))?;
+        if matches!(
+            transfer.state,
+            TransferState::Cancelled | TransferState::Failed
+        ) {
+            if transfer.state == TransferState::Failed {
+                transfer.chunks.clear();
+            }
+            transfer.state = TransferState::Active;
+            transfer.requested_at.clear();
+            transfer.request_cursor = 0;
+            transfer.priority_chunk = None;
+        }
         transfer.download_started = true;
         Ok(())
     }
@@ -76,6 +88,15 @@ impl AttachmentRuntime {
             frame.chunk_index,
             &ciphertext,
         )?;
+        let start = frame.chunk_index * u64::from(transfer.manifest.chunk_size);
+        let expected =
+            u64::from(transfer.manifest.chunk_size).min(transfer.manifest.total_size - start);
+        if plaintext.len() as u64 != expected {
+            transfer.state = TransferState::Failed;
+            return Err(AttachmentRuntimeError::ManifestMismatch(
+                "chunk length".into(),
+            ));
+        }
         transfer.chunks.insert(frame.chunk_index, plaintext);
 
         if transfer.chunks.len() as u64 != transfer.manifest.chunk_count {

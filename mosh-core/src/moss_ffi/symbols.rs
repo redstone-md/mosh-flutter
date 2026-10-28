@@ -47,6 +47,9 @@ pub(super) type MossSendToPeerFn =
 pub(super) type PacketCallback = unsafe extern "C" fn(*const u8, *const u8, u32);
 pub(super) type MossSetPacketCallbackFn =
     unsafe extern "C" fn(MossHandle, Option<PacketCallback>) -> i32;
+pub(super) type MossSetActivityModeFn = unsafe extern "C" fn(MossHandle, i32) -> i32;
+#[cfg(target_os = "android")]
+pub(super) type MossNotifyNetworkChangedFn = unsafe extern "C" fn(MossHandle) -> i32;
 
 pub(super) fn load_symbol<T: Copy>(library: &Library, name: &[u8]) -> Result<T, MossFfiError> {
     let symbol: Symbol<T> =

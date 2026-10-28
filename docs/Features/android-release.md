@@ -51,7 +51,9 @@ libraries without matching Mosh libraries; final package checks reject that case
 - exactly one ABI, including real Flutter, app, Rust and Moss libraries;
 - every native LOAD segment and the APK ZIP support 16 KiB page alignment;
 - JNI Zero's native-only Java entry points and exact method signatures survive
-  shrinking in the final DEX, including `JniZero.init` and `CommonApis` callbacks.
+  shrinking in the final DEX, including `JniZero.init` and `CommonApis` callbacks;
+- Mosh's initialization, network-change and transfer-execution JNI signatures
+  match the exported entry points in the packaged Rust library.
 
 The matching WebRTC JAR includes JNI Zero without Chromium's consumer keep
 rules. The application therefore preserves
@@ -115,3 +117,52 @@ compatibility remains part of acceptance.
 
 See [linked Android text DM](android-linked-dm.md) for foreground messaging limits
 and [mainnet acceptance](plus-mainnet-ru.md) for the payment checklist.
+
+## Background acceptance (IVO-132)
+
+Use Android and desktop artifacts from the same source commit, recorded in
+`plus-build.json`. Keep separate profiles for the two conversation participants;
+linked-device synchronization is a separate scenario. Record the phone model,
+Android version and artifact commit with each result.
+
+1. Install Mosh fresh; there is no in-place migration from earlier Android
+   builds. Startup must not prompt; after setup, chat access prompts once.
+   Chat entry must initiate authentication without requiring Retry first.
+   After expiry, returning must prompt again; canceling leaves Retry available
+   without repeatedly reopening the prompt. A notification permission dialog
+   must preserve an already valid chat grant.
+2. In Settings → Connection → Background availability, allow notifications and
+   background connection. Waiting is enabled after setup. In Settings → Privacy,
+   leave the default one-minute app lock. First exchange a DM in both directions
+   while both apps are visible; this separates routing from background behavior.
+3. Minimize Mosh and lock the phone for more than a minute. Send text in a DM,
+   private group and public channel. Verify notifications without opening those
+   conversations. Names/text should be hidden by default; enable each disclosure
+   choice separately and repeat. A preview must not create a read receipt.
+   Attachment offers must not download their originals or clear previews.
+   Send several separate messages to the same chat without dismissing its first
+   notification: the entry must update and fresh messages may alert again under
+   Android's interruption policy. A replay or privacy-only change must stay quiet.
+4. In a separate round, minimize and lock the phone for at least two minutes
+   without sending a message or reopening Mosh to wake the conversation first.
+   Call the phone with voice and video. Test Answer, Decline and caller cancel,
+   then a call in the other direction. Check audio/video after minimizing and
+   PiP, hang-up and retry. Answering a locked call must leave chats protected;
+   returning before the configured lock delay must preserve its valid grace.
+5. Repeat reception after removing the task from Recents, changing Wi-Fi/mobile
+   connectivity and rebooting followed by the first Android unlock. Test Android
+   Stop/Force stop separately: reception must stay stopped until Mosh is opened.
+   Keep the app's saved Stop waiting preference off across reopening/reboot.
+6. Disconnect the phone, send text in all three conversation kinds, then restore
+   connectivity. Check automatic recovery, no duplicates and preserved deletions.
+   With a third participant, repeat with only an authorized alternate holder
+   online; separately check pre-join exclusion and removal/rejoin gaps in groups.
+7. Start an explicit file transfer and minimize Mosh. Check completion and retry
+   after interruption. Stop waiting during a transfer/call: admitted work must
+   continue, while future waiting remains off after that work ends.
+
+These are functional device checks. Actual idle/Doze delivery, OEM reclamation
+and comparable energy/network measurements remain separate acceptance gates;
+use the [Android collector guide](../../scripts/network-diagnostics/ANDROID.md).
+Report which step failed and whether sound, video or message delivery continued.
+Passing this sequence alone does not close the full specification.

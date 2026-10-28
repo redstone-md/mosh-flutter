@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-import 'package:mosh/main.dart' show LifecycleGate;
 import 'package:mosh/src/platform/app_data_dir.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
 import 'package:mosh/src/rust/api/private_dm.dart' as setup;
@@ -47,15 +46,7 @@ Future<void> initRuntime(WidgetTester tester, {required bool android}) async {
       await setAppDataDirBridge();
     });
     await tester.pumpWidget(const SizedBox.shrink());
-    final gate = LifecycleGate();
-    try {
-      await tester.runAsync(() async {
-        await gate.waitUntilResumed();
-        await initMobileDek();
-      });
-    } finally {
-      tester.binding.removeObserver(gate);
-    }
+    await tester.runAsync(initMobileDek);
     return;
   }
   const path = String.fromEnvironment('MOSH_TEST_DESKTOP_DIR');

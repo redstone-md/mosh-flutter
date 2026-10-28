@@ -71,6 +71,7 @@ pub struct MessageLog<M> {
     messages: Vec<M>,
     ids: MessageIdGen,
     erased_ids: std::collections::HashSet<String>,
+    revision: u64,
 }
 
 // Written out rather than derived: a derived `Default` would demand `M:
@@ -81,6 +82,7 @@ impl<M> Default for MessageLog<M> {
             messages: Vec::new(),
             ids: MessageIdGen::default(),
             erased_ids: Default::default(),
+            revision: 0,
         }
     }
 }
@@ -94,6 +96,10 @@ impl<M> Deref for MessageLog<M> {
 }
 
 impl<M: ConversationMessage> MessageLog<M> {
+    pub(crate) fn revision(&self) -> u64 {
+        self.revision
+    }
+
     /// Gives a message its send time and, if it has none, an id. Ids come from
     /// a running counter for same-millisecond ordering and a random suffix
     /// to prevent reuse after a restart or repeated clock value.
@@ -112,6 +118,7 @@ impl<M: ConversationMessage> MessageLog<M> {
 
     /// Appends a message that is already stamped.
     pub fn push(&mut self, message: M) {
+        self.revision = self.revision.wrapping_add(1);
         if message
             .message_id()
             .is_some_and(|id| self.erased_ids.contains(id))
@@ -130,6 +137,7 @@ impl<M: ConversationMessage> MessageLog<M> {
 
     /// Replaces the message with the same id, or appends it.
     pub fn upsert(&mut self, message: M) {
+        self.revision = self.revision.wrapping_add(1);
         self.remember_erasure(&message);
         if let Some(message_id) = message.message_id() {
             if let Some(existing) = self
@@ -148,6 +156,7 @@ impl<M: ConversationMessage> MessageLog<M> {
     }
 
     pub(crate) fn replace(&mut self, index: usize, message: M) {
+        self.revision = self.revision.wrapping_add(1);
         self.remember_erasure(&message);
         self.messages[index] = message;
     }
@@ -174,6 +183,7 @@ impl<M: ConversationMessage> MessageLog<M> {
     }
 
     pub fn find_mut(&mut self, message_id: &str) -> Option<&mut M> {
+        self.revision = self.revision.wrapping_add(1);
         self.messages
             .iter_mut()
             .find(|message| message.message_id() == Some(message_id))

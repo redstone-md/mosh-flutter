@@ -3,6 +3,45 @@
 use super::*;
 
 impl PrivateGroupRuntime {
+    pub(crate) fn download_manifest(
+        &mut self,
+        target: &str,
+        attachment: &str,
+    ) -> Result<Option<crate::attachment_runtime::AttachmentManifest>, PrivateGroupError> {
+        Ok(self
+            .group_mut(target)?
+            .transfer
+            .download_manifest(attachment))
+    }
+
+    pub(crate) fn bind_attachment_admission(
+        &mut self,
+        target: &str,
+        attachment: &str,
+        admission: &str,
+    ) -> Result<(), PrivateGroupError> {
+        self.group_mut(target)?
+            .transfer
+            .bind_download_admission(attachment, admission)?;
+        Ok(())
+    }
+
+    /// Flush accepted work before a background transition. Main incoming slots
+    /// prove user downloads/playback; automatic previews are excluded by views.
+    /// Outgoing files have no terminal acknowledgement and cannot be counted.
+    pub(crate) fn background_work(&mut self) -> Result<(u32, u32), PrivateGroupError> {
+        for session in self.groups.values_mut() {
+            session.transfer.refresh_execution()?;
+        }
+        self.groups.persist_tail()?;
+        let transfers: usize = self
+            .groups
+            .values()
+            .map(|session| session.transfer.active_user_transfers())
+            .sum();
+        Ok((0, u32::try_from(transfers).unwrap_or(u32::MAX)))
+    }
+
     /// Encrypts a file, stores the sender's copy, and broadcasts the manifest
     /// to every group member over the MLS-protected control channel.
     pub fn send_attachment(
@@ -17,6 +56,7 @@ impl PrivateGroupRuntime {
         self.send_attachment_with_preview(
             group_id,
             crate::conversation::previews::AttachmentInput {
+                user_transfer_id: None,
                 file_name,
                 mime,
                 bytes,
@@ -36,6 +76,21 @@ impl PrivateGroupRuntime {
         self.drain_inbound()?;
         let session = self.group_mut(group_id)?;
         let result = session.send_attachment(input)?;
+        if let Err(error) = self
+            .groups
+            .persist_send(group_id, &result.attachment_id, false)
+        {
+            dlog::write(
+                LogLevel::Error,
+                kinds::PERSIST,
+                group_id,
+                &error.to_string(),
+            );
+        } else {
+            self.group_mut(group_id)?
+                .publications
+                .remove(&result.attachment_id);
+        }
         self.groups.persist_tail_logged(KIND);
         Ok(result)
     }

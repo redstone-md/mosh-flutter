@@ -84,7 +84,14 @@ fn failed_send_rehydrates_as_retryable_message() {
                 org_pubkey: None,
             })
             .expect("group should be created");
-        let _publish_fail = fail_next_test_publish("simulated publish failure");
+        let channel = groups
+            .groups
+            .get(&created.group_id)
+            .unwrap()
+            .data_channel
+            .clone();
+        let _publish_fail =
+            crate::moss_ffi::fail_next_test_publish_on(&channel, "simulated publish failure");
         let result = groups
             .send(&created.group_id, "hello failed group".to_string())
             .expect("send should return failed result");
@@ -158,7 +165,14 @@ fn retry_message_reuses_message_id_and_clears_failed_attempt() {
                 org_pubkey: None,
             })
             .expect("group should be created");
-        let _publish_fail = fail_next_test_publish("simulated publish failure");
+        let channel = groups
+            .groups
+            .get(&created.group_id)
+            .unwrap()
+            .data_channel
+            .clone();
+        let _publish_fail =
+            crate::moss_ffi::fail_next_test_publish_on(&channel, "simulated publish failure");
         let failed = groups
             .send(&created.group_id, "retry this group message".to_string())
             .expect("failed send should still return a result");
@@ -216,6 +230,7 @@ fn a_failed_control_frame_is_retried_its_retransmission() {
     // fails, the transient shape a restart ("secret deleted for forward
     // secrecy") produces for real commits.
     let garbage_commit = serde_json::to_vec(&ControlEnvelope::Commit {
+        admission_binding: None,
         group_id: view.group_id.clone(),
         from_fingerprint: view.cleo.fingerprint(),
         commit_b64: encode(b"not-a-real-commit"),

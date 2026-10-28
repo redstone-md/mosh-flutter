@@ -73,16 +73,30 @@ impl Persistence {
         id: &str,
     ) -> Result<(), PersistenceError> {
         self.write(|tx| {
+            self.delete_conversation_transfers(tx, tables, id)?;
             Self::update_row(tx, tables.conversations, id, None)?;
             if let Some(snapshot) = tables.snapshots {
                 Self::update_row(tx, snapshot, id, None)?;
             }
             self.delete_prefix(tx, tables.messages, id)?;
+            let kind = match tables.outbound_scope {
+                "private_dm" => "dm",
+                "private_group" => "group",
+                _ => "channel",
+            };
+            self.delete_prefix(tx, CONVERSATION_RECOVERY, &format!("{kind}:{id}"))?;
+            self.delete_prefix(
+                tx,
+                CONVERSATION_OCCURRENCES,
+                &format!("{}:{id}", tables.label),
+            )?;
             self.delete_prefix(
                 tx,
                 OUTBOUND_ATTEMPTS,
                 &Self::outbound_attempt_prefix(tables.outbound_scope, id),
             )
-        })
+        })?;
+        crate::api::background::background_delivery_changed();
+        Ok(())
     }
 }

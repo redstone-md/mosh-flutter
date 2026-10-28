@@ -1,7 +1,9 @@
 mod api;
+mod background_diagnostics;
 mod connection;
 pub(crate) mod crypto;
 mod dm;
+mod history_repair;
 mod observation;
 mod protocol;
 mod recording;

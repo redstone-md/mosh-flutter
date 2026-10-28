@@ -29,10 +29,28 @@ mod deletion;
 #[path = "durability_tests/previews.rs"]
 mod previews;
 
-struct Fixture {
-    store: Arc<Persistence>,
-    runtime: PrivateGroupRuntime,
-    id: String,
+#[path = "durability_tests/history.rs"]
+pub(super) mod history;
+
+#[path = "durability_tests/admission_binding.rs"]
+mod admission_binding;
+
+#[path = "durability_tests/admission_attacks.rs"]
+mod admission_attacks;
+
+#[path = "durability_tests/history_attachments.rs"]
+mod history_attachments;
+
+#[path = "durability_tests/history_transitions.rs"]
+mod history_transitions;
+
+#[path = "durability_tests/background.rs"]
+mod background;
+
+pub(super) struct Fixture {
+    pub(super) store: Arc<Persistence>,
+    pub(super) runtime: PrivateGroupRuntime,
+    pub(super) id: String,
     directory: TempDirectory,
 }
 
@@ -59,7 +77,7 @@ impl Fixture {
         }
     }
 
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let mut fixture = Self::empty();
         let _identity = crate::moss_ffi::replace_test_keystore(Some(fixture.store.clone()));
         fixture.id = fixture
@@ -96,6 +114,7 @@ impl Fixture {
         let key_package = session.crypto.key_package_bytes().unwrap();
         let outcome = admin.add_members(&[key_package.as_slice()]).unwrap();
         let welcome = ControlEnvelope::Welcome {
+            admission_binding: None,
             group_id: self.id.clone(),
             for_participant_id: session.participant_id.clone(),
             from_fingerprint: admin.fingerprint(),
@@ -109,7 +128,7 @@ impl Fixture {
         });
     }
 
-    fn restart(&mut self) {
+    pub(super) fn restart(&mut self) {
         let _identity = crate::moss_ffi::replace_test_keystore(Some(self.store.clone()));
         let attachments = Arc::new(AttachmentStore::new(self.directory.path()).unwrap());
         let moss = Arc::new(MossFfiRuntime::load_default().unwrap());
@@ -170,9 +189,8 @@ fn refused_attachment_history_keeps_poll_and_list_available_until_repair() {
     let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let mut fixture = Fixture::new();
     let fault = fixture.store.refuse_message_writes(GROUP_HISTORY);
-    let sent = fixture
-        .runtime
-        .send_attachment(
+    let send = |fixture: &mut Fixture| {
+        fixture.runtime.send_attachment(
             &fixture.id,
             "durable.txt".into(),
             "text/plain".into(),
@@ -180,22 +198,39 @@ fn refused_attachment_history_keeps_poll_and_list_available_until_repair() {
             None,
             None,
         )
-        .unwrap();
-
-    let snapshot = fixture
+    };
+    assert!(matches!(
+        send(&mut fixture),
+        Err(PrivateGroupError::Persistence(_))
+    ));
+    assert!(fixture
         .runtime
         .poll(&fixture.id)
-        .expect("reads stay available");
-    assert_attachment(&snapshot, &sent.attachment_id);
-    let groups = fixture.runtime.list().unwrap().groups;
-    assert_attachment(&groups[0], &sent.attachment_id);
+        .unwrap()
+        .messages
+        .is_empty());
+    assert!(fixture.runtime.list().unwrap().groups[0]
+        .messages
+        .is_empty());
     drop(fault);
-    fixture.runtime.poll(&fixture.id).unwrap();
-    let saved = fixture.store.list_group_messages(&fixture.id).unwrap();
-    assert_eq!(saved.len(), 1);
+    let sent = send(&mut fixture).unwrap();
+    assert_attachment(
+        &fixture.runtime.poll(&fixture.id).unwrap(),
+        &sent.attachment_id,
+    );
+    assert_eq!(
+        fixture
+            .store
+            .list_group_messages(&fixture.id)
+            .unwrap()
+            .len(),
+        1
+    );
     fixture.restart();
-    let restored = fixture.runtime.poll(&fixture.id).unwrap();
-    assert_attachment(&restored, &sent.attachment_id);
+    assert_attachment(
+        &fixture.runtime.poll(&fixture.id).unwrap(),
+        &sent.attachment_id,
+    );
 }
 
 #[test]
@@ -227,7 +262,7 @@ fn refused_storage_does_not_publish_and_retains_a_deliberate_retry() {
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut fixture = Fixture::new();
     let fault = fixture.store.refuse_message_writes(GROUP_HISTORY);
-    let _publication = fail_next_test_publish("publication was deferred");
+    let _publication = fixture.refuse_data_publication("publication was deferred");
     let error = fixture
         .runtime
         .send(&fixture.id, "durable first".into())

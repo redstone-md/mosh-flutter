@@ -7,6 +7,7 @@ import 'call_video_renderer.dart';
 import 'call_view_state.dart';
 import 'mobile_call_frame.dart';
 import 'voice_call_layer.dart';
+import 'package:mosh/src/features/lock/android_app_lock_gate.dart';
 
 class MobileCallHost extends ConsumerStatefulWidget {
   const MobileCallHost(
@@ -66,7 +67,8 @@ class _MobileCallHostState extends ConsumerState<MobileCallHost> {
     _presentation?.update(call);
     final session = widget.session;
     return Stack(fit: StackFit.expand, children: [
-      widget.child,
+      AndroidAppLockGate(
+          interactive: session == null || !_expanded, child: widget.child),
       if (session != null)
         SafeArea(
             child: MobileCallFrame(
@@ -89,6 +91,7 @@ class _MobileCallHostState extends ConsumerState<MobileCallHost> {
         child: VoiceCallLayer(
             key: ValueKey(session),
             sessionId: session,
+            peerOverride: widget.call?.peer,
             l: AppLocalizations.of(context)!,
             compact: !_expanded,
             floating: !_expanded && _videoCall,

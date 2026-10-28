@@ -19,6 +19,7 @@ fn a_claimed_admin_cannot_replace_the_groups_invitation_key_with_its_own_welcome
     attacker.create_group().unwrap();
     let wrong = attacker.add_members(&[&package]).unwrap();
     let envelope = ControlEnvelope::Welcome {
+        admission_binding: None,
         group_id: fixture.id.clone(),
         for_participant_id: session.participant_id.clone(),
         from_fingerprint: genuine.fingerprint(),

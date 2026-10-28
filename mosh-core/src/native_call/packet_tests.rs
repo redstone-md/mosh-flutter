@@ -174,6 +174,10 @@ fn transport_refusal_is_reported_without_requeueing() {
 }
 
 #[cfg(feature = "native-media-tests")]
+#[path = "packet_trace.rs"]
+mod trace;
+
+#[cfg(feature = "native-media-tests")]
 mod native {
     use super::*;
     use crate::native_call::{
@@ -202,6 +206,7 @@ mod native {
         let mut decoded_pixels = vec![0; pixels.len()];
         let (mut caller, mut callee) = pair();
         let started = Instant::now();
+        let mut trace = trace::Trace::new(started);
         let interval = Duration::from_millis(66);
         let mut capture_at = started + interval;
         let mut decoded = started;
@@ -218,7 +223,7 @@ mod native {
                 assert!(caller.push(640, 360, &pixels));
                 tick += 1;
             }
-            forward(&mut caller, &mut callee, &sending, "b", &*a);
+            let emitted = forward(&mut caller, &mut callee, &sending, "b", &*a);
             forward(&mut callee, &mut caller, &returning, "a", &*b);
             let frame = callee.frame(sequence, &mut decoded_pixels);
             assert!(
@@ -232,11 +237,19 @@ mod native {
             if started.elapsed() >= WARMUP {
                 initial_sequence.get_or_insert(sequence);
             }
-            assert_fresh(sequence, decoded, &sending, &mut caller, &mut callee);
+            trace.observe(&sending, tick, sequence, emitted);
+            assert_fresh(
+                sequence,
+                decoded,
+                &sending,
+                &mut caller,
+                &mut callee,
+                &trace,
+            );
             std::thread::sleep(Duration::from_millis(10));
         }
         let sustained = sequence - initial_sequence.unwrap();
-        assert_sustained(sustained, tick, &sending, &mut caller, &mut callee);
+        assert_sustained(sustained, tick, &sending, &mut caller, &mut callee, &trace);
     }
 
     fn assert_sustained(
@@ -245,13 +258,15 @@ mod native {
         sender: &Sender,
         caller: &mut Engine,
         callee: &mut Engine,
+        trace: &trace::Trace,
     ) {
         assert!(
             decoded >= 30,
-            "remote video stalled: {decoded} decoded after warmup, {captured} total captured; {} packets lost; sender: {}; receiver: {}",
+            "remote video stalled: {decoded} decoded after warmup, {captured} total captured; {} packets lost; sender: {}; receiver: {}; trace: {}",
             sender.dropped(),
             caller.ask(json!({"action":"snapshot"})).unwrap(),
-            callee.ask(json!({"action":"snapshot"})).unwrap()
+            callee.ask(json!({"action":"snapshot"})).unwrap(),
+            trace.snapshot()
         );
     }
 
@@ -261,13 +276,15 @@ mod native {
         sender: &Sender,
         caller: &mut Engine,
         callee: &mut Engine,
+        trace: &trace::Trace,
     ) {
         assert!(
             sequence == 0 || decoded.elapsed() < Duration::from_secs(1),
-            "remote video expired at frame {sequence}; lost packets: {}; sender: {}; receiver: {}",
+            "remote video expired at frame {sequence}; lost packets: {}; sender: {}; receiver: {}; trace: {}",
             sender.dropped(),
             caller.ask(json!({"action":"snapshot"})).unwrap(),
-            callee.ask(json!({"action":"snapshot"})).unwrap()
+            callee.ask(json!({"action":"snapshot"})).unwrap(),
+            trace.snapshot()
         );
     }
 
@@ -306,7 +323,7 @@ mod native {
         sender: &Sender,
         peer: &str,
         receive: &dyn DmTransport,
-    ) {
+    ) -> (usize, usize) {
         let gathered = from.ask(json!({"action":"tick"})).unwrap();
         to.ask(json!({"action":"tick", "candidates":gathered["candidates"]}))
             .unwrap();
@@ -314,7 +331,10 @@ mod native {
             assert!(from.receive(unwrap(&message.payload, &[9; 16]).unwrap()));
         }
         let mut packet = [0; MAX_PACKET];
+        let (mut packets, mut bytes) = (0, 0);
         while let Some(length) = from.packet(&mut packet) {
+            packets += 1;
+            bytes += length + 20;
             sender.enqueue(
                 peer,
                 &[9; 16],
@@ -322,6 +342,7 @@ mod native {
                 from.priority(&packet[..length]),
             );
         }
+        (packets, bytes)
     }
 
     fn pattern(pixels: &mut [u8], tick: usize) {

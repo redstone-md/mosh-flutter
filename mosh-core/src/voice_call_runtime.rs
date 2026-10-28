@@ -50,10 +50,8 @@ pub struct CallState {
     pub remote_peer: String,
     /// The replaced outgoing call, so an already displayed cancel remains valid.
     pub merged_call_id: Option<String>,
-    /// Caller-only ring bookkeeping: when the first `CallOffer` went out and
-    /// when the last one did. The offer is retransmitted on a cadence until the
-    /// callee's `CallAccept` lands, and the ring budget is measured from the
-    /// first send. Both stay 0 on the callee.
+    /// Local ring deadline starts with the caller's first offer or the callee's
+    /// first authenticated receipt. Retransmits never extend that deadline.
     pub offer_first_ms: u64,
     pub offer_last_ms: u64,
     pub(crate) native_controls: std::collections::VecDeque<crate::native_call::types::Signal>,
@@ -137,9 +135,8 @@ impl CallState {
             .flatten()
     }
 
-    /// Stamp an outbound `CallOffer`. The first stamp also starts the ring
-    /// budget, so the caller gives up a fixed time after the call began rather
-    /// than a fixed time after the latest retransmit.
+    /// Stamp the first sent or received offer, then retain that ring deadline
+    /// across retransmissions. Incoming expiry does not depend on a Flutter UI.
     pub fn mark_offer_sent(&mut self, now_ms: u64) {
         if self.offer_first_ms == 0 {
             self.offer_first_ms = now_ms;

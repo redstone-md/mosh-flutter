@@ -57,6 +57,29 @@ message ownership. Message cards, the file index and open actions share its
 readiness, progress and allowed controls. A failed or cancelled transfer is
 not ready merely because a cached local path remains.
 
+## App access
+
+**Mosh app lock**:
+User authentication protecting access to the chat interface while background
+message reception and incoming calls remain available. Accepting a call does
+not unlock access to the chats.
+_Avoid_: going offline, ending a call, locking all background reception.
+
+**Mosh wake signal**:
+A short-lived hint that an installation may have pending Mosh activity. It is
+not itself a delivered message or an accepted call.
+_Avoid_: delivery receipt, call acceptance.
+
+**Mosh waiting mode**:
+A background availability state in which an installation waits for incoming
+Mosh activity. It differs from an ongoing call and deliberately going offline.
+_Avoid_: active call, offline mode.
+
+**Mosh notification preview**:
+User-authorized display of a sender or caller name, or message text, outside
+the chat interface. Allowing a preview does not unlock access to the chats.
+_Avoid_: unlocking Mosh, message read receipt.
+
 ## Calls
 
 **Mosh call**:

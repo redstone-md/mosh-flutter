@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/src/features/shared/mosh_dialog_motion.dart';
+import 'package:mosh/src/features/lock/app_lock_route_observer.dart';
 
 /// Uses Flutter's modal route for focus, barriers, safe areas and theme capture.
 Future<T?> showMoshDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   String? barrierLabel,
+  bool availableWhileLocked = false,
 }) {
   final navigator = Navigator.of(context, rootNavigator: true);
   return navigator.push<T>(
@@ -15,6 +17,9 @@ Future<T?> showMoshDialog<T>({
       barrierLabel: barrierLabel,
       themes: InheritedTheme.capture(from: context, to: navigator.context),
       reducedMotion: MediaQuery.disableAnimationsOf(context),
+      settings: availableWhileLocked
+          ? const RouteSettings(name: callAccessRoute)
+          : null,
     ),
   );
 }
@@ -26,6 +31,7 @@ class _MoshDialogRoute<T> extends DialogRoute<T> {
     required super.themes,
     required this.reducedMotion,
     super.barrierLabel,
+    super.settings,
   }) : super(
           barrierDismissible: true,
           traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,

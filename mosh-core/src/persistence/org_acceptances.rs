@@ -133,7 +133,7 @@ impl Persistence {
             .is_some_and(|snapshot| !snapshot.is_empty()))
     }
 
-    fn read_transaction_blob(
+    pub(super) fn read_transaction_blob(
         &self,
         tx: &redb::WriteTransaction,
         table: Rows,

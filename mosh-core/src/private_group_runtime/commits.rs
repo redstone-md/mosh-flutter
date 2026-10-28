@@ -16,14 +16,28 @@ impl GroupSession {
         // BEFORE processing it would blackhole the bytes of anything that
         // failed — a retransmission could never repair the session because
         // the hash of the failed frame was already filed as seen.
+        if message.channel == self.data_channel {
+            if self.seen.contains(&message.channel, &message.payload) {
+                return Ok(());
+            }
+            self.handle_data(message.payload.clone())?;
+            self.seen.seen_before(&message.channel, &message.payload);
+            return Ok(());
+        }
         if message.channel != self.control_channel
             && self.seen.seen_before(&message.channel, &message.payload)
         {
             return Ok(());
         }
         if message.channel == self.control_channel {
-            let (payload, sender_peer_id) = self.unwrap_control(message.payload)?;
-            let result = self.handle_control(payload, sender_peer_id);
+            let incoming = self.unwrap_control(message.payload)?;
+            let previous_epoch = self.crypto.epoch();
+            self.incoming_org_control = incoming.original_org;
+            let result = self.handle_control(incoming.payload, incoming.sender_peer_id);
+            self.incoming_org_control = None;
+            if self.crypto.epoch() != previous_epoch {
+                self.history_dispatch.invalidate();
+            }
             // Control frames are the only ones that move the MLS tree, by any
             // route: a commit, a resync replay, a Welcome, or a departure we
             // committed ourselves. Derive the admin once, here, rather than at
@@ -31,8 +45,6 @@ impl GroupSession {
             // failed late may still have changed membership.
             self.reconcile_admin();
             result
-        } else if message.channel == self.data_channel {
-            self.handle_data(message.payload)
         } else if message.channel == self.blob_channel {
             self.handle_blob(message.payload)
         } else {

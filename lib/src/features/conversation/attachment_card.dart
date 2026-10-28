@@ -284,6 +284,8 @@ String _attachmentStateLabel(
       return l.attachmentStateAvailable;
     case AttachmentState.downloading:
       return l.attachmentStateDownloading(percent);
+    case AttachmentState.paused:
+      return l.attachmentStatePaused;
     case AttachmentState.failed:
       return l.attachmentStateFailed;
     case AttachmentState.cancelled:

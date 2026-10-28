@@ -56,6 +56,7 @@ fn a_commit_from_an_unknown_author_asks_for_a_resync_instead_of_freezing() {
     let kp = newcomer.key_package_bytes().unwrap();
     let ahead = view.cleo.add_members(&[kp.as_slice()]).unwrap();
     view.deliver(&ControlEnvelope::Commit {
+        admission_binding: None,
         group_id: view.group_id.clone(),
         from_fingerprint: view.cleo.fingerprint(),
         commit_b64: encode(&ahead.commit_bytes),
@@ -132,6 +133,7 @@ fn a_roster_near_the_version_ceiling_rejects_an_unreachable_claim() {
     // buffer must not take it even though `own + HORIZON` would wrap.
     let commit_b64 = encode(b"whatever-commit-bytes");
     let env = ControlEnvelope::Commit {
+        admission_binding: None,
         group_id: created.group_id.clone(),
         from_fingerprint: "b-fingerprint".to_string(),
         commit_b64,

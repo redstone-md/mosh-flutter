@@ -1,4 +1,4 @@
-import 'dart:async' show Completer, unawaited;
+import 'dart:async' show unawaited;
 import 'dart:io' show Platform;
 
 // `hide LockState` resolves an ambiguous-import clash: material re-exports
@@ -9,7 +9,6 @@ import 'dart:io' show Platform;
 // would force `lock.LockState` at the two call sites).
 import 'package:flutter/material.dart' hide LockState;
 import 'package:mosh/src/features/plus/user_plus_badge.dart';
-import 'package:flutter/services.dart' show PlatformException;
 
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,6 +23,9 @@ import 'package:mosh/src/features/lock/mosh_lock_screen.dart';
 import 'package:mosh/src/platform/app_data_dir.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
+import 'package:mosh/src/platform/android_waiting_platform.dart';
+import 'package:mosh/src/features/background/android_waiting_owner.dart';
+import 'package:mosh/src/features/background/background_commands.dart';
 import 'package:mosh/src/features/onboarding/first_run_gate.dart';
 import 'package:mosh/src/features/voice_call/call_window_app.dart';
 import 'package:mosh/src/features/voice_call/android_pip_overlay.dart';
@@ -31,6 +33,8 @@ import 'package:mosh/src/features/voice_call/process_call_window.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 import 'package:mosh/src/platform/native_menu_localization.dart';
 import 'package:mosh/src/features/lock/mosh_lock_app.dart';
+import 'package:mosh/src/features/lock/android_app_access.dart';
+import 'package:mosh/src/features/lock/android_app_lock_frame.dart';
 import 'package:mosh/src/state/production_provider_overrides.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
 import 'package:media_kit/media_kit.dart';
@@ -83,14 +87,10 @@ void main(List<String> args) async {
   if (Platform.isWindows) {
     registerMoshUrlScheme();
   }
-  // Foreground gate (ADR 0011 follow-on): construct it RIGHT AFTER
-  // ensureInitialized() so its WidgetsBindingObserver is registered BEFORE
-  // runApp pumps the first frame -- an observer added after the first
-  // `resumed` transition would miss it. Constructed on all platforms
-  // (harmless: on desktop/iOS nothing awaits `waitUntilResumed()`); only
-  // the Android branch awaits it. No `dispose()` -- it lives for the
-  // process (parallel to `_appRoot`).
-  final LifecycleGate gate = LifecycleGate();
+  final appAccess = Platform.isAndroid ? AndroidAppAccess() : null;
+  final waiting = Platform.isAndroid
+      ? AndroidWaitingOwner(AndroidWaitingPlatform(), BackgroundCommands())
+      : null;
   // M-5 (ADR 0010): resolve the app-private data directory ONCE via
   // `getApplicationSupportDirectory()` (path_provider) and hand it to Rust
   // via the frb `setAppDataDir` bridge call BEFORE the private-DM runtime
@@ -108,13 +108,6 @@ void main(List<String> args) async {
   // a build DSN; never throws.
   final crashReporting = CrashReporting(bridge: BridgeFacade());
   unawaited(crashReporting.resume());
-  // M-3 (ADR 0011): on Android, load/mint the at-rest history DEK from the
-  // Keystore via `flutter_secure_storage` and inject the 32 raw bytes into
-  // Rust via the frb `set_history_dek` BEFORE the runtime constructs
-  // (`Persistence::open_with_dek` instead of the OS keychain). Desktop/iOS
-  // keep the Rust desktop keychain path: initMobileDek is a no-op
-  // off-Android, so startup is never blocked on desktop.
-  //
   // Subscribe to the `mosh://` link stream BEFORE runApp so the cold-start
   // initial link is captured (app_links delivers it just after the first
   // frame; the intake replays it once the GoRouter is mounted). Single
@@ -125,8 +118,8 @@ void main(List<String> args) async {
   // this stays green in tests. The handle lives for the process.
   startMoshDeepLinkIntake();
   // runApp FIRST with the splash placeholder (`_appRoot` defaults to
-  // `SizedBox()`) so the first frame is NOT blocked on the foreground-gate
-  // await below. The Android branch later resolves `root` and flips the
+  // `SizedBox()`) so the first frame is NOT blocked on key loading
+  // below. The Android branch later resolves `root` and flips the
   // tree via `_appRoot.value = root`; desktop/iOS flip it to `MoshApp`
   // synchronously.
   runApp(
@@ -134,136 +127,70 @@ void main(List<String> args) async {
       overrides: [
         ...productionOverrides,
         crashReportingProvider.overrideWithValue(crashReporting),
+        if (appAccess != null)
+          androidAppAccessProvider.overrideWithValue(appAccess),
+        if (waiting != null)
+          androidWaitingOwnerProvider.overrideWithValue(waiting),
       ],
       child: ValueListenableBuilder<Widget>(
         valueListenable: _appRoot,
-        builder: (BuildContext context, Widget value, _) => value,
+        builder: (BuildContext context, Widget value, _) => appAccess == null
+            ? value
+            : AndroidAppLockFrame(access: appAccess, child: value),
       ),
     ),
   );
-  // M-8 (ADR 0011): run the Android DEK init behind try/on PlatformException
-  // so a biometric cancel (which makes `flutter_secure_storage`'s `read()`
-  // throw from BiometricPrompt) does NOT crash main() and leave the splash
-  // placeholder on screen. On cancel we run a MoshLockScreen (fail-closed
-  // retry UI) instead; on success, MoshApp. ONLY PlatformException is
-  // caught: a real DEK error (the fail-closed StateError when the Keystore
-  // has no DEK, corrupt Keystore / wrong-length DEK) still propagates and
-  // crashes main() as today (ADR 0011 fail-closed). Desktop/iOS are
-  // unaffected -- initMobileDek is a no-op off-Android. Not `final`: the
-  // analyzer's definite-assignment rule is conservative about the try/catch
-  // re-assigning `root`.
-  Widget root;
+  final Widget root;
   if (Platform.isAndroid) {
-    // Foreground guard: do NOT touch the Android Keystore (via
-    // `flutter_secure_storage`) until the app is foreground
-    // (`AppLifecycleState.resumed`). When Android relaunches mosh in the
-    // BACKGROUND on a LOCKED device, `flutter_secure_storage` 10.3.1
-    // enters infinite recursion in its key-mismatch recovery path
-    // (handleKeyMismatch -> ... -> initializeStorageCipher), ending in
-    // StackOverflowError FATAL, which wipes the Keystore DEK and orphans
-    // `history.redb` (DB exists, DEK gone -> the fail-closed StateError
-    // blocks onboarding). On a normal foreground launch
-    // `initializeStorageCipher` succeeds and the recursion never starts; a
-    // locked-device background relaunch never fires `resumed`, so the
-    // Keystore is never called -- no StackOverflow, by design. `runApp`
-    // already ran above with the splash placeholder, so this await does
-    // NOT block the first frame.
-    await gate.waitUntilResumed();
-    try {
-      await initMobileDek();
-      root = MoshApp(relauncher: relauncher);
-    } on PlatformException catch (error) {
-      // Two failure modes collapse into this one PlatformException catch:
-      // (1) a biometric CANCEL (prompt dismissed) -- recoverable by
-      // re-prompting, so the lock screen's `canceled` state with a Retry
-      // button is correct; (2) `BIOMETRIC_UNAVAILABLE` -- the device has
-      // NO enrolled PIN/pattern/password/biometric, so re-prompting cannot
-      // mint a Keystore key. Distinguishing them avoids the prior hang:
-      // without branching, the default `initialState` (`authenticating`,
-      // the spinner shown only while a retry is in flight) left the lock
-      // screen on the spinner forever -- no Retry button, no message. The
-      // message match is the only field `flutter_secure_storage` surfaces
-      // for this case (verified on device).
-      final bool insecureDevice =
-          error.message?.contains('BIOMETRIC_UNAVAILABLE') ?? false;
-      root = MoshLockApp(
-          screen: MoshLockScreen(
-        swapTo: (Widget next) => _appRoot.value = next,
-        nextApp: MoshApp(relauncher: relauncher),
-        initialState:
-            insecureDevice ? LockState.insecureDevice : LockState.canceled,
-      ));
-    }
+    root = await _androidStartupRoot(
+      access: appAccess!,
+      relauncher: relauncher,
+      waiting: waiting!,
+    );
   } else {
     root = MoshApp(relauncher: relauncher, windowController: windowController);
   }
   _appRoot.value = root;
 }
 
+/// Loads the history key without an Activity; key failures stay visible
+/// without opening history.
+Future<Widget> _androidStartupRoot({
+  required AndroidAppAccess access,
+  required DesktopAppRelauncher relauncher,
+  required AndroidWaitingOwner waiting,
+}) async {
+  Future<void> initialize() async {
+    await waiting.prepare();
+    await initMobileDek();
+    // Key loading never grants interactive chat access.
+    await access.initialize();
+    await waiting.attach();
+  }
+
+  try {
+    await initialize();
+    return MoshApp(relauncher: relauncher);
+  } catch (_) {
+    await waiting.startupFailed('keyUnavailable');
+    await access.initialize();
+    return MoshLockApp(
+        screen: MoshLockScreen(
+      retry: initialize,
+      swapTo: (next) => _appRoot.value = next,
+      nextApp: MoshApp(relauncher: relauncher),
+      initialState: LockState.failed,
+    ));
+  }
+}
+
 /// The running app's root widget. Defaults to `const SizedBox()` (the
 /// splash placeholder `runApp` mounts first); `main()` flips it to the
 /// resolved `MoshApp` or `MoshLockScreen` AFTER `runApp` (so the first
-/// frame is not blocked on the foreground-gate await). The lock screen's
+/// frame is not blocked on key loading). The lock screen's
 /// retry-success path writes the real `MoshApp` here via its `swapTo`
 /// callback, under the single `ProviderScope`, without a second `runApp`.
 final ValueNotifier<Widget> _appRoot = ValueNotifier<Widget>(const SizedBox());
-
-/// Foreground gate for the Android Keystore init (ADR 0011 follow-on).
-///
-/// Completes a `Future` on the first observed `AppLifecycleState.resumed`,
-/// so `main()` can `await` it before touching `flutter_secure_storage` —
-/// eliminating the device-locked background-relaunch recursion that wiped
-/// the DEK and orphaned `history.redb`. The observer transition is the
-/// PRIMARY mechanism; the constructor also does a best-effort fast path
-/// reading `WidgetsBinding.instance.lifecycleState`, but on a cold start
-/// that may be null before the first frame, so the observer's first
-/// `resumed` is the relied-upon signal (warm starts complete eagerly).
-///
-/// DESIGN: the transition body is extracted into the `@visibleForTesting`
-/// `handleLifecycleState` method so a unit test can drive it without
-/// binding-internal APIs. The gate lives for the process (parallel to
-/// `_appRoot`), so it has no `dispose()`.
-class LifecycleGate with WidgetsBindingObserver {
-  LifecycleGate() {
-    WidgetsBinding.instance.addObserver(this);
-    // Best-effort fast path: if the binding already reports `resumed` (a warm
-    // start), complete eagerly. On a cold start `lifecycleState` may be
-    // null before the first frame, so the observer's first transition is
-    // the primary signal.
-    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
-      _resumed.complete();
-    }
-  }
-
-  final Completer<void> _resumed = Completer<void>();
-
-  /// Whether the gate has already observed a `resumed` (or completed
-  /// eagerly via the fast path). `@visibleForTesting` so the unit test can
-  /// assert the cold-start / post-resumed states synchronously without
-  /// awaiting a possibly never-completing future.
-  @visibleForTesting
-  bool get isCompleted => _resumed.isCompleted;
-
-  /// Waits until the app has observed at least one
-  /// `AppLifecycleState.resumed` (or was already `resumed` at construction
-  /// via the fast path).
-  Future<void> waitUntilResumed() => _resumed.future;
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    handleLifecycleState(state);
-  }
-
-  /// The state-transition body, extracted for deterministic unit testing
-  /// (drives the same completer the observer uses). `@visibleForTesting` so
-  /// it stays a stable test seam without exposing the gate's internals.
-  @visibleForTesting
-  void handleLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && !_resumed.isCompleted) {
-      _resumed.complete();
-    }
-  }
-}
 
 class MoshApp extends ConsumerWidget {
   const MoshApp({super.key, this.relauncher, this.windowController});

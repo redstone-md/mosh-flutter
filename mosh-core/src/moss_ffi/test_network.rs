@@ -36,6 +36,9 @@ fn configure(config: String, tracker: Option<&str>, scope: Option<u64>) -> Strin
     config["announce_jitter_sec"] = json!(1);
     config["dht_enabled"] = json!(false);
     config["lan_discovery_enabled"] = json!(false);
+    // Real local carrier fixtures retain signed NAT/reachability validation;
+    // only the production five-minute promotion delay is shortened.
+    config["nat"]["supernode_min_uptime_sec"] = json!(1);
     for flag in [
         "upnp_enabled",
         "natpmp_enabled",

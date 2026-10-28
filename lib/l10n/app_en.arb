@@ -1,4 +1,11 @@
 {
+  "appLockTitle": "App lock",
+  "appLockDelay": "Automatically lock",
+  "appLockImmediate": "Immediately",
+  "appLockMinutes": "{minutes} min",
+  "appLockReason": "Unlock Mosh",
+  "appLockSaveError": "Could not save the lock delay. Try again.",
+  "@appLockMinutes": {"placeholders": {"minutes": {"type": "int"}}},
   "@@locale": "en",
   "settingsSectionProfile": "Profile",
   "firstRunNameStep": "Name",
@@ -2227,5 +2234,30 @@
   "callLogOutgoingLabel": "Outgoing call",
   "callLogIncomingLabel": "Incoming call",
   "callMinimize": "Minimize call",
-  "callFloatingVideo": "Move or expand call video"
+  "callFloatingVideo": "Move or expand call video",
+  "settingsBackgroundTitle": "Background availability",
+  "settingsBackgroundEnabled": "Stay available in the background",
+  "settingsBackgroundOff": "Background waiting is off.",
+  "settingsBackgroundForeground": "Mosh is active while the app is open.",
+  "settingsBackgroundReady": "Background connection is established.",
+  "settingsBackgroundAttaching": "Connecting in the background…",
+  "settingsBackgroundUnavailable": "Background connection is unavailable.",
+  "settingsBackgroundUnsupported": "This build does not support background connections.",
+  "settingsBackgroundLimited": "Android is limiting background availability.",
+  "settingsBackgroundBattery": "Allow background connection",
+  "settingsBackgroundBatteryExplanation": "Allow Mosh to keep its connection while your phone sleeps. This can use more battery. Android may still stop the app.",
+  "settingsBackgroundNotifications": "Allow notifications",
+  "settingsLockedNotificationNames": "Show names when Mosh is locked",
+  "settingsLockedNotificationText": "Show message text when Mosh is locked",
+  "settingsBackgroundActionError": "Could not apply this setting. Try again.",
+  "attachmentStatePaused": "Paused",
+  "attachmentResumeDownload": "Resume download",
+  "attachmentResumeDownloadAria": "Resume download {fileName}",
+  "@attachmentResumeDownloadAria": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  }
 }

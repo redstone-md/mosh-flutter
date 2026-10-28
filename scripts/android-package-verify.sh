@@ -37,6 +37,15 @@ for library in libapp.so libflutter.so libmosh_core.so libmoss.so libmosh_native
   test -s "$WORK/lib/arm64-v8a/$library"
 done
 
+"$NDK" --dyn-syms --wide "$WORK/lib/arm64-v8a/libmosh_core.so" > "$WORK/core-symbols.txt"
+for method in initialize notifyNetworkChanged setTransferExecution setTransferInteractive; do
+  if ! awk '$7 != "UND" {print $8}' "$WORK/core-symbols.txt" |
+    grep -x "Java_app_mosh_mosh_MoshNative_$method" > /dev/null; then
+    echo "Missing Android native entry point: MoshNative.$method" >&2
+    exit 1
+  fi
+done
+
 for library in "$WORK"/lib/arm64-v8a/*.so; do
   "$NDK" --program-headers --wide "$library" > "$WORK/headers.txt"
   # Android 15+ can use 16 KiB pages: every LOAD segment must support them.

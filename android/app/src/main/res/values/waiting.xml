@@ -1,0 +1,19 @@
+<resources>
+    <string name="mosh_notification_channel">Mosh notifications</string>
+    <string name="mosh_call_channel">Incoming calls</string>
+    <string name="mosh_new_message">New message</string>
+    <string name="mosh_waiting_channel">Background messages and calls</string>
+    <string name="mosh_waiting_starting">Connecting…</string>
+    <string name="mosh_waiting_ready">Waiting for messages and calls</string>
+    <string name="mosh_waiting_limited">Background availability is limited</string>
+    <string name="mosh_waiting_stop">Stop waiting</string>
+    <string name="mosh_call_incoming">Incoming call</string>
+    <string name="mosh_call_outgoing">Calling…</string>
+    <string name="mosh_call_connecting">Connecting call…</string>
+    <string name="mosh_call_active">Call in progress</string>
+    <string name="mosh_transfer_channel">File transfers</string>
+    <string name="mosh_transfer_upload">Sending a file</string>
+    <string name="mosh_transfer_download">Downloading a file</string>
+    <string name="mosh_transfer_paused">File transfer paused</string>
+    <string name="mosh_transfer_resume">Resume</string>
+</resources>

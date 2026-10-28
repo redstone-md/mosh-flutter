@@ -8,6 +8,12 @@ impl Transfer {
     /// Serves a byte range for playback, pulling the attachment in whether or
     /// not the user ever pressed download.
     pub fn stream_range(&mut self, attachment_id: &str, start: u64, end: u64) -> StreamRange {
+        if crate::api::background::managed_execution()
+            && (self.slots.cached_descriptor(attachment_id).is_none()
+                && (!self.slots.expects_chunks(attachment_id) || !self.may_download(attachment_id)))
+        {
+            return StreamRange::Unknown;
+        }
         self.slots
             .resume_for_stream(attachment_id, &mut self.runtime);
         let range = self.runtime.stream_range(attachment_id, start, end);

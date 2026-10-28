@@ -1,4 +1,11 @@
 {
+  "appLockTitle": "Блокировка приложения",
+  "appLockDelay": "Блокировать автоматически",
+  "appLockImmediate": "Сразу",
+  "appLockMinutes": "{minutes} мин",
+  "appLockReason": "Разблокировать Mosh",
+  "appLockSaveError": "Не удалось сохранить задержку блокировки. Попробуйте ещё раз.",
+  "@appLockMinutes": {"placeholders": {"minutes": {"type": "int"}}},
   "@@locale": "ru",
   "settingsSectionProfile": "Профиль",
   "firstRunNameStep": "Имя",
@@ -1219,5 +1226,30 @@
   "callLogOutgoingLabel": "Исходящий звонок",
   "callLogIncomingLabel": "Входящий звонок",
   "callMinimize": "Свернуть звонок",
-  "callFloatingVideo": "Переместить или раскрыть видео звонка"
+  "callFloatingVideo": "Переместить или раскрыть видео звонка",
+  "settingsBackgroundTitle": "Работа в фоне",
+  "settingsBackgroundEnabled": "Оставаться на связи в фоне",
+  "settingsBackgroundOff": "Фоновое ожидание выключено.",
+  "settingsBackgroundForeground": "Mosh работает, пока приложение открыто.",
+  "settingsBackgroundReady": "Фоновое подключение установлено.",
+  "settingsBackgroundAttaching": "Подключение в фоне…",
+  "settingsBackgroundUnavailable": "Фоновое подключение недоступно.",
+  "settingsBackgroundUnsupported": "Эта сборка не поддерживает фоновые подключения.",
+  "settingsBackgroundLimited": "Android ограничивает работу Mosh в фоне.",
+  "settingsBackgroundBattery": "Разрешить работу в фоне",
+  "settingsBackgroundBatteryExplanation": "Разрешите Mosh поддерживать подключение, когда телефон спит. Это может увеличить расход батареи. Android всё равно может остановить приложение.",
+  "settingsBackgroundNotifications": "Разрешить уведомления",
+  "settingsLockedNotificationNames": "Показывать имена, когда Mosh заблокирован",
+  "settingsLockedNotificationText": "Показывать текст сообщений, когда Mosh заблокирован",
+  "settingsBackgroundActionError": "Не удалось применить настройку. Попробуйте ещё раз.",
+  "attachmentStatePaused": "Приостановлено",
+  "attachmentResumeDownload": "Продолжить загрузку",
+  "attachmentResumeDownloadAria": "Продолжить загрузку {fileName}",
+  "@attachmentResumeDownloadAria": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  }
 }

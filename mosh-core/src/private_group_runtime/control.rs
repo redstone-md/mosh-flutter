@@ -24,6 +24,7 @@ impl GroupSession {
         if envelope.group_id() != self.group_id {
             return Ok(());
         }
+        self.retain_transition_authority(&envelope)?;
         let own_fp = self.crypto.fingerprint();
         self.handle_admission_control(envelope, sender_peer_id.as_deref(), own_fp)
     }
@@ -38,16 +39,22 @@ impl GroupSession {
             ControlEnvelope::KeyPackage {
                 participant_id,
                 key_package_b64,
+                joiner_binding,
                 ..
-            } if self.participant_id != participant_id => {
-                self.accept_key_package(participant_id, &key_package_b64, sender, own_fp)
-            }
+            } if self.participant_id != participant_id => self.accept_key_package(
+                participant_id,
+                &key_package_b64,
+                joiner_binding.as_ref(),
+                sender,
+                own_fp,
+            ),
             ControlEnvelope::Welcome {
                 for_participant_id,
                 from_fingerprint,
                 welcome_b64,
                 tree_b64,
                 commit_b64,
+                admission_binding,
                 ..
             } if !self.joined && !self.is_admin && self.participant_id == for_participant_id => {
                 self.accept_welcome(
@@ -55,14 +62,19 @@ impl GroupSession {
                     &welcome_b64,
                     &tree_b64,
                     commit_b64,
+                    admission_binding.as_ref(),
                     sender,
                 )
             }
             ControlEnvelope::Welcome {
                 from_fingerprint,
                 commit_b64,
+                admission_binding,
                 ..
             } if self.joined && !self.is_admin => {
+                if let Some(binding) = &admission_binding {
+                    self.retain_admission_association(&commit_b64, binding)?;
+                }
                 self.accept_admission_commit(&from_fingerprint, commit_b64, sender)
             }
             other => self.handle_membership_control(other, sender, own_fp),
@@ -80,8 +92,12 @@ impl GroupSession {
                 from_fingerprint,
                 commit_b64,
                 roster_version,
+                admission_binding,
                 ..
             } if self.joined => {
+                if let Some(binding) = &admission_binding {
+                    self.retain_admission_association(&commit_b64, binding)?;
+                }
                 self.accept_commit(from_fingerprint, commit_b64, roster_version, sender, own_fp)
             }
             ControlEnvelope::SelfRemove {
@@ -89,12 +105,9 @@ impl GroupSession {
                 proposal_b64,
                 name_state_proof_b64,
                 ..
-            } if from_fingerprint != own_fp => self.accept_departure(
-                &from_fingerprint,
-                &proposal_b64,
-                name_state_proof_b64,
-                own_fp,
-            ),
+            } if from_fingerprint != own_fp => {
+                self.accept_departure(&from_fingerprint, &proposal_b64, name_state_proof_b64)
+            }
             ControlEnvelope::ResyncRequest {
                 from_fingerprint,
                 have_epoch,
@@ -117,6 +130,7 @@ impl GroupSession {
         &mut self,
         participant_id: String,
         key_package_b64: &str,
+        joiner_binding: Option<&crate::sender_auth::SenderProof>,
         sender: Option<&str>,
         own_fp: String,
     ) -> Result<(), PrivateGroupError> {
@@ -124,17 +138,30 @@ impl GroupSession {
             return Ok(());
         }
         let key_package = decode(key_package_b64)?;
+        if let Some(proof) = joiner_binding {
+            let verified = self.verify_joiner_binding(proof, &key_package)?;
+            if self.org_pubkey.is_some() && Some(verified.peer_id.as_str()) != sender {
+                return Err(PrivateGroupError::Codec("org joiner sender differs".into()));
+            }
+        }
         // Drop replays / rogue duplicate admit attempts whose MLS
         // signer is already covered by the roster.
         if self.crypto.key_package_signer_is_member(&key_package)? {
+            if self.org_pubkey.is_none() || sender.is_some_and(|id| self.roster_contains(id)) {
+                self.replay_admission(&key_package)?;
+            }
             return Ok(());
         }
         if self.org_pubkey.is_some() {
-            return self.admit_org_member(sender, participant_id, &key_package, own_fp);
+            return self.admit_org_member(
+                sender,
+                participant_id,
+                &key_package,
+                joiner_binding,
+                own_fp,
+            );
         }
-        let pre_epoch = self.crypto.epoch();
-        let outcome = self.crypto.add_members(&[key_package.as_slice()])?;
-        self.broadcast_admission(pre_epoch, &outcome, participant_id, own_fp)
+        self.admit_history_member(participant_id, &key_package, joiner_binding, own_fp)
     }
     fn accept_welcome(
         &mut self,
@@ -142,25 +169,40 @@ impl GroupSession {
         welcome_b64: &str,
         tree_b64: &str,
         commit_b64: String,
+        admission_binding: Option<&crate::sender_auth::SenderProof>,
         sender: Option<&str>,
     ) -> Result<(), PrivateGroupError> {
         if !self.commit_author_authorized(from_fingerprint, sender) {
             return Ok(());
         }
-        self.crypto.join_welcome_pinned(
+        let staged = self.crypto.stage_pinned_admission(
             &decode(welcome_b64)?,
             &decode(tree_b64)?,
             from_fingerprint,
             None,
             self.org_pubkey.as_ref().and(sender),
         )?;
+        if let Some(binding) = admission_binding {
+            self.verify_admission_association(
+                binding,
+                &staged,
+                welcome_b64,
+                tree_b64,
+                &commit_b64,
+            )?;
+        }
+        self.persist_pinned_admission(
+            &staged,
+            welcome_b64,
+            tree_b64,
+            &commit_b64,
+            admission_binding,
+        )?;
+        self.crypto = staged.next;
         self.joined = true;
         self.pending_join_package = None;
-        // The Welcome already carries the admission commit's state. The
-        // admin also broadcasts that same commit on the control channel
-        // for existing members, so mark it processed to skip re-applying
-        // it to ourselves (which would error on the already-merged epoch).
-        self.sequencer.mark_seen(commit_b64);
+        // The verified Welcome already advanced our epoch. Its old admission
+        // commit is stale; the unsigned outer hint must not poison dedup.
         Ok(())
     }
     fn accept_admission_commit(
@@ -204,7 +246,6 @@ impl GroupSession {
         from_fingerprint: &str,
         proposal_b64: &str,
         name_state_proof_b64: Option<String>,
-        own_fp: String,
     ) -> Result<(), PrivateGroupError> {
         if let Some(encoded) = name_state_proof_b64 {
             // A bad optional handoff must not prevent a valid MLS departure.
@@ -220,18 +261,9 @@ impl GroupSession {
             return Ok(());
         }
         let proposal = decode(proposal_b64)?;
-        let pre_epoch = self.crypto.epoch();
-        let commit_bytes = self.crypto.commit_departure(&proposal)?;
-        if let Some(epoch) = pre_epoch {
-            self.log_commit(epoch, &commit_bytes);
-        }
-        let commit_envelope = ControlEnvelope::Commit {
-            group_id: self.group_id.clone(),
-            from_fingerprint: own_fp,
-            commit_b64: encode(&commit_bytes),
-            roster_version: self.own_roster_version(),
-        };
-        self.publish_control(&commit_envelope)
+        let mut candidate = self.crypto.receive_candidate()?;
+        let commit_bytes = candidate.commit_departure(&proposal)?;
+        self.publish_membership_change(candidate, commit_bytes)
     }
     fn accept_resync_request(
         &mut self,

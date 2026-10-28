@@ -51,6 +51,7 @@ impl AttachmentRuntime {
         Some(ChunkRequest {
             attachment_id: attachment_id.to_string(),
             chunk_indices: indices,
+            execution: None,
         })
     }
 
@@ -103,7 +104,9 @@ impl IncomingTransfer {
             return gaps;
         }
         let end = (self.request_cursor + batch as u64).min(self.manifest.chunk_count);
-        let indices = (self.request_cursor..end).collect();
+        let indices = (self.request_cursor..end)
+            .filter(|&index| self.wanted(index, now))
+            .collect();
         self.request_cursor = end;
         indices
     }

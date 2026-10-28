@@ -30,7 +30,53 @@ const _listMethods = <BridgeMethod>[
 ];
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() {
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+  });
+  testWidgets('an Android UI mounted detached waits for resume before polling',
+      (tester) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.detached);
+    final bridge = ScriptableBridge();
+    final container = ProviderContainer(overrides: [
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      autoPollIntervalProvider
+          .overrideWithValue(const Duration(milliseconds: 100)),
+    ]);
+    addTearDown(container.dispose);
+    for (final kind in ConversationKind.values) {
+      await container.read(conversationListProvider(kind).future);
+    }
+    final before = {
+      for (final method in _listMethods) method: bridge.countOf(method),
+    };
+    container.read(autoPollProvider);
+    await tester.pump(const Duration(seconds: 1));
+    for (final entry in before.entries) {
+      expect(bridge.countOf(entry.key), entry.value,
+          reason: 'a detached Android UI must not queue bridge reads');
+    }
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    for (final entry in before.entries) {
+      expect(bridge.countOf(entry.key), entry.value + 1,
+          reason: 'resume refreshes immediately without duplicating reads');
+    }
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump(const Duration(milliseconds: 100));
+    for (final entry in before.entries) {
+      expect(bridge.countOf(entry.key), entry.value + 2,
+          reason: 'a visible permission prompt keeps foreground polling');
+    }
+    container.dispose();
+    await tester.pump();
+  });
+
   testWidgets('Android stops UI reads while paused and refreshes on resume',
       (tester) async {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);

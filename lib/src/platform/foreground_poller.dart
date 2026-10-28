@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+/// Inactive still has a visible view, including biometric/file-picker prompts.
+bool appViewVisible(AppLifecycleState? state) =>
+    state == AppLifecycleState.resumed || state == AppLifecycleState.inactive;
+
 /// Owns UI polling without changing the native transport's lifetime.
 /// Android resumes with an immediate read; desktops keep polling when hidden.
 final class ForegroundPoller {
@@ -11,7 +15,7 @@ final class ForegroundPoller {
         _refresh = refresh {
     if (defaultTargetPlatform == TargetPlatform.android) {
       _listener = AppLifecycleListener(onStateChange: _changed);
-      _foreground = _visible(WidgetsBinding.instance.lifecycleState);
+      _foreground = appViewVisible(WidgetsBinding.instance.lifecycleState);
     }
     _start();
   }
@@ -24,17 +28,13 @@ final class ForegroundPoller {
 
   bool get isForeground => _foreground;
 
-  // Inactive still has a visible view, including biometric/file-picker prompts.
-  static bool _visible(AppLifecycleState? state) =>
-      state != AppLifecycleState.hidden && state != AppLifecycleState.paused;
-
   void _start() {
     if (_foreground) _timer ??= Timer.periodic(_interval, (_) => _refresh());
   }
 
   void _changed(AppLifecycleState state) {
     final wasForeground = _foreground;
-    if (!_visible(state) || state == AppLifecycleState.detached) {
+    if (!appViewVisible(state)) {
       _foreground = false;
       _timer?.cancel();
       _timer = null;

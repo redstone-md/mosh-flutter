@@ -146,17 +146,24 @@ impl PrivateDmSession {
         ciphertext: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
         let context = format!("dm:{}", self.session_id);
-        let (body, _) = self
-            .crypto
-            .decrypt_checked(&decode(ciphertext)?, |body, signer| {
-                let manifest: AttachmentOffer =
-                    serde_json::from_slice(body).map_err(|e| e.to_string())?;
-                manifest.verify(&context, Some(signer))?;
-                Ok(())
-            })?;
+        let (body, signer) =
+            self.crypto
+                .decrypt_checked(&decode(ciphertext)?, |body, signer| {
+                    let manifest: AttachmentOffer =
+                        serde_json::from_slice(body).map_err(|e| e.to_string())?;
+                    manifest.verify(&context, Some(signer))?;
+                    Ok(())
+                })?;
         let manifest: AttachmentOffer = decode_json(&body)?;
-        self.note_authenticated_frame(&from_device);
-        self.accept_incoming_manifest(from_device, manifest)
+        let (author, own) = if self.devices_live() {
+            self.device_author(&signer)?
+        } else {
+            (from_device, false)
+        };
+        if !own {
+            self.note_authenticated_frame(&author);
+        }
+        self.accept_incoming_manifest(author, own, manifest)
     }
 
     fn accept_welcome(

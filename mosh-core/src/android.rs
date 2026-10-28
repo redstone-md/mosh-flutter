@@ -1,6 +1,8 @@
 //! Android's JVM/application context outlives Activities and native audio threads.
 #[cfg(target_os = "android")]
 pub(crate) mod media;
+#[cfg(target_os = "android")]
+mod transfer_execution;
 use jni::{
     errors::{Error, ThrowRuntimeExAndDefault},
     objects::{JClass, JObject},
@@ -52,4 +54,14 @@ pub extern "system" fn Java_app_mosh_mosh_MoshNative_initialize<'caller>(
     unowned_env
         .with_env(|env| initialize(env, application))
         .resolve::<ThrowRuntimeExAndDefault>();
+}
+
+/// Android default-network callbacks request a bounded native recheck.
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "system" fn Java_app_mosh_mosh_MoshNative_notifyNetworkChanged(
+    _env: EnvUnowned<'_>,
+    _class: JClass<'_>,
+) -> i32 {
+    crate::api::background::notify_network_changed()
 }

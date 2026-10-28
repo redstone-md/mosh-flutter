@@ -71,6 +71,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        testInstrumentationRunner = "app.mosh.mosh.RuntimeRecreationTest"
         // Slice-3 device-pass: restrict to arm64-v8a for now. The provisioned
         // libopus.a (see rust_builder/cargokit/gradle/plugin.gradle) is
         // aarch64-only, so Cargokit can only build libmosh_core.so for arm64.

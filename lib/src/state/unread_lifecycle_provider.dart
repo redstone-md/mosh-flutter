@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/features/lock/android_app_access.dart';
+import 'package:mosh/src/features/background/android_waiting_owner.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind, ConversationRef;
@@ -79,7 +81,8 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
         ConversationCount(id: entry.key, messageCount: entry.value),
     ];
 
-    final focused = await ref.read(windowFocusProvider)();
+    final focused = await ref.read(windowFocusProvider)() &&
+        ref.read(androidAppAccessProvider)?.chatsInteractive != false;
     // A newer run superseded this one: drop it.
     if (token != _runToken) return;
 
@@ -114,12 +117,16 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
 
     // OS toasts: one per diffed conversation when unfocused + the gate is
     // open. The body comes from the existing `notificationBody`.
-    if (!focused) {
+    if (!focused && ref.read(androidWaitingOwnerProvider)?.attached != true) {
       final ready = ref.read(notificationsReadyProvider).value ?? false;
       if (ready) {
         final plugin = ref.read(flutterLocalNotificationsPluginProvider);
         for (final message in diff.newMessages) {
-          final body = notificationBody(message.id);
+          // Android disclosure belongs to the native privacy-aware publisher;
+          // this legacy fallback is always generic, including during a lock race.
+          final body = ref.read(androidAppAccessProvider) == null
+              ? notificationBody(message.id)
+              : const NotificationBody(title: 'Mosh', body: 'New message');
           try {
             await plugin.show(
               id: message.id.hashCode.abs(),

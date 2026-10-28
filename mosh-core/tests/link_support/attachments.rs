@@ -10,6 +10,17 @@ pub(super) fn command(action: &str, argument: &str, command: &Value) -> Value {
     if action.starts_with("chat_") {
         return chat(action, argument, command);
     }
+    if action == "attachment_range" {
+        let range = mosh_core::api::attachment_stream::stream_attachment_range(
+            command["kind"].as_str().unwrap().into(),
+            argument.into(),
+            command["attachment_id"].as_str().unwrap().into(),
+            0,
+            1,
+        )
+        .unwrap();
+        return json!({"state":format!("{:?}", range.state), "bytes":range.bytes.len()});
+    }
     let reference = Ref {
         kind: kind(command),
         id: argument.into(),
@@ -32,6 +43,22 @@ pub(super) fn command(action: &str, argument: &str, command: &Value) -> Value {
             conversation::deletion::DeleteScope::ForMe,
         )
         .map(|_| ()),
+        "attachment_user_download" => {
+            let admission =
+                mosh_core::api::background::transfers::prepare_user_attachment_transfer(
+                    reference,
+                    mosh_core::api::background::transfers::UserTransferDirection::Download,
+                    command["attachment_id"].as_str().map(str::to_owned),
+                    0,
+                )
+                .unwrap();
+            return match mosh_core::api::background::transfers::download_user_attachment(
+                admission.id.clone(),
+            ) {
+                Ok(()) => json!({"transfer_id":admission.id}),
+                Err(error) => json!({"error":error}),
+            };
+        }
         "attachment_download" => conversation::download_attachment(
             reference,
             command["attachment_id"].as_str().unwrap().into(),
@@ -55,6 +82,14 @@ fn kind(command: &Value) -> Kind {
 
 fn chat(action: &str, argument: &str, command: &Value) -> Value {
     match action {
+        "chat_leave" => {
+            conversation::leave(Ref {
+                kind: kind(command),
+                id: argument.into(),
+            })
+            .unwrap();
+            json!({})
+        }
         "chat_create" => serde_json::to_value(
             private_group::create_group(CreateGroupRequest {
                 label: Some("Preview test".into()),
@@ -104,11 +139,34 @@ fn chat(action: &str, argument: &str, command: &Value) -> Value {
             Kind::Group => serde_json::to_value(private_group::list().unwrap()).unwrap(),
             Kind::Channel => serde_json::to_value(channel::list().unwrap()).unwrap(),
         },
+        "chat_send" => {
+            conversation::send(
+                Ref {
+                    kind: kind(command),
+                    id: argument.into(),
+                },
+                command["body"].as_str().unwrap().into(),
+            )
+            .unwrap();
+            json!({})
+        }
         "chat_viewed" => {
             conversation::mark_viewed(Ref {
                 kind: kind(command),
                 id: argument.into(),
             })
+            .unwrap();
+            json!({})
+        }
+        "chat_delete" => {
+            conversation::deletion::delete_messages(
+                Ref {
+                    kind: kind(command),
+                    id: argument.into(),
+                },
+                vec![command["message_id"].as_str().unwrap().into()],
+                conversation::deletion::DeleteScope::ForEveryone,
+            )
             .unwrap();
             json!({})
         }

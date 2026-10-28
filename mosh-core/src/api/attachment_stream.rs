@@ -63,6 +63,7 @@ pub fn stream_attachment_range(
     start: u64,
     end: u64,
 ) -> Result<AttachmentStreamRange, String> {
+    let _authority = super::background::execution_lease()?;
     let range = match kind.as_str() {
         "dm" => crate::api::private_dm::ensure_runtime()
             .map_err(|error| error.to_string())?

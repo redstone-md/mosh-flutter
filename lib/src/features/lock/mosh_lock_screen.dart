@@ -8,7 +8,7 @@ import 'package:mosh/src/platform/mobile_dek.dart' show initMobileDek;
 /// Visual state of [MoshLockScreen]: `authenticating` is the spinner while
 /// a retry is in flight; `canceled` is the rest state after a biometric
 /// cancel; `failed` is the belt-and-braces state for a
-/// non-`PlatformException` DEK error that slipped past `main()`'s gate
+/// authentication or DEK error that slipped past `main()`'s gate
 /// (rare -- such errors would normally crash `main()`); `insecureDevice`
 /// is the NOT-recoverable `BIOMETRIC_UNAVAILABLE` state (no enrolled
 /// device credential) -- see `MoshLockScreen.initialState`.
@@ -28,6 +28,8 @@ class MoshLockScreen extends ConsumerStatefulWidget {
     required this.swapTo,
     required this.nextApp,
     this.initialState = LockState.canceled,
+    this.automaticallyAuthenticate = false,
+    this.authenticationReady = true,
   });
 
   /// The DEK-init entry point to (re-)run on retry. Defaults to the real
@@ -51,6 +53,11 @@ class MoshLockScreen extends ConsumerStatefulWidget {
   /// state renders message-only (no Retry button).
   final LockState initialState;
 
+  /// Chat entry prompts once when the native Activity is ready. A canceled
+  /// request remains on Retry until a new entry creates another lock screen.
+  final bool automaticallyAuthenticate;
+  final bool authenticationReady;
+
   /// `main()` pumps this state directly when `initMobileDek()` throws a
   /// `BIOMETRIC_UNAVAILABLE` `PlatformException` -- the device has NO
   /// enrolled PIN/pattern/password/biometric, so re-prompting cannot help.
@@ -64,7 +71,39 @@ class MoshLockScreen extends ConsumerStatefulWidget {
 }
 
 class _MoshLockScreenState extends ConsumerState<MoshLockScreen> {
-  late LockState _state = widget.initialState;
+  late LockState _state = widget.automaticallyAuthenticate
+      ? LockState.authenticating
+      : widget.initialState;
+  bool _automaticallyAttempted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleAuthentication();
+  }
+
+  @override
+  void didUpdateWidget(covariant MoshLockScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _scheduleAuthentication();
+  }
+
+  void _scheduleAuthentication() {
+    if (!widget.automaticallyAuthenticate ||
+        !widget.authenticationReady ||
+        _automaticallyAttempted) {
+      return;
+    }
+    _automaticallyAttempted = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!widget.authenticationReady) {
+        _automaticallyAttempted = false;
+        return;
+      }
+      _retry();
+    });
+  }
 
   Future<void> _retry() async {
     setState(() => _state = LockState.authenticating);
@@ -76,10 +115,25 @@ class _MoshLockScreenState extends ConsumerState<MoshLockScreen> {
       // (and we deliberately do not setState after the swap -- this widget
       // is about to be unmounted).
       widget.swapTo(widget.nextApp);
-    } on PlatformException {
-      // Another biometric cancel -- stay on the lock screen. The spinner
-      // flips back to the retry UI so the user can try again or quit.
-      if (mounted) setState(() => _state = LockState.canceled);
+    } on PlatformException catch (error) {
+      // Cancellation remains retryable; unavailable auth or persistence
+      // shows the existing failure UI without opening protected content.
+      if (mounted) {
+        final insecure = error.code == 'BIOMETRIC_UNAVAILABLE' ||
+            (error.message?.contains('BIOMETRIC_UNAVAILABLE') ?? false);
+        const cancellations = {
+          'cancel',
+          'canceled',
+          'cancelled',
+          'AUTHENTICATION_CANCELED',
+          'AUTHENTICATION_CANCELLED',
+        };
+        setState(() => _state = insecure
+            ? LockState.insecureDevice
+            : cancellations.contains(error.code)
+                ? LockState.canceled
+                : LockState.failed);
+      }
     } catch (_) {
       // Defensive: a non-PlatformException DEK error should NOT have reached
       // here from main() (those propagate), but a future caller or a flaky

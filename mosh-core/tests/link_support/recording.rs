@@ -3,6 +3,23 @@ use super::Peer;
 impl Peer {
     #[allow(
         dead_code,
+        reason = "Manual real-carrier verification archives network metrics only."
+    )]
+    pub fn archive_network_recording(&self, destination: &std::path::Path) {
+        std::fs::create_dir_all(destination).unwrap();
+        for entry in std::fs::read_dir(&self.dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path
+                .extension()
+                .is_some_and(|extension| extension == "mossrec")
+            {
+                std::fs::copy(&path, destination.join(path.file_name().unwrap())).unwrap();
+            }
+        }
+    }
+
+    #[allow(
+        dead_code,
         reason = "Shared harness: only idle-presence scenarios record publications."
     )]
     pub fn new_recorded_api() -> Self {

@@ -98,6 +98,7 @@ impl PrivateDmSession {
             nonce.into(),
             control.name.clone(),
         );
+        call.mark_offer_sent(now_ms());
         call.caller_signer = control.signer.clone();
         call.remote_peer = control.peer.clone();
         self.call_occupancy

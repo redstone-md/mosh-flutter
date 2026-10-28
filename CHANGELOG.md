@@ -6,6 +6,36 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-10-28
+
+### Added
+
+- Android keeps chats and calls reachable while the app is closed, without
+  Google push services: Mosh waits on one economical relay connection and shows
+  message and call notifications from it.
+- Android incoming calls open a full-screen call window on the lock screen and
+  offer answer, decline and hang-up actions from the notification without
+  unlocking chats.
+- Groups and channels recover missed history from the retained copies of other
+  authorized participants.
+- File transfers can be paused, resumed and cancelled, and their progress
+  survives interruptions and Android reclaiming the app.
+- Android chats lock again after a configurable period of inactivity. Call
+  controls stay available while chats are locked.
+
+### Fixed
+
+- Messages are no longer lost while a connection moves from a direct path to a
+  relay, and messages from one peer keep their order across that change.
+- Chats send read marks only while they are on screen.
+
+### Upgrade notes
+
+- Android: uninstall any earlier Mosh build before installing 0.25.0. The
+  history key format changed, and an earlier installation opens to a locked
+  screen that cannot be unlocked. Desktop accounts, chats and Mosh+ purchases
+  update in place.
+
 ## [0.24.3] - 2026-10-25
 
 ### Fixed

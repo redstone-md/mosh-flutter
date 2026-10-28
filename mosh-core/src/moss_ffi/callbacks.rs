@@ -1,6 +1,7 @@
 //! Context-free C callbacks deliver into the shared inbox and bounded event ring.
 use super::*;
 const EVENT_RING_CAPACITY: usize = 64;
+static PEER_REVISION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 static EVENT_LOG: Mutex<Vec<MossEvent>> = Mutex::new(Vec::new());
 
 static MOSS_KEYSTORE: Mutex<Option<Arc<dyn MossKeyStore>>> = Mutex::new(None);
@@ -102,9 +103,19 @@ pub(super) unsafe extern "C" fn on_moss_event(event_type: i32, detail_json: *con
             .into_owned()
     };
     push_app_event(event_type, &detail);
+    if event_type == 12 {
+        crate::api::background::background_delivery_changed();
+    }
+}
+
+pub(crate) fn connected_peer_revision() -> u64 {
+    PEER_REVISION.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 pub fn push_app_event(event_type: i32, detail_json: &str) {
+    if matches!(event_type, 1 | 2 | 7) {
+        PEER_REVISION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
     let epoch_millis = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_millis() as u64)

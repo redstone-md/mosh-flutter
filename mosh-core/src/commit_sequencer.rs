@@ -92,6 +92,11 @@ impl CommitSequencer {
         self.buffered.remove(&current_epoch)
     }
 
+    /// Inspect the next entry without losing it if durable acceptance refuses.
+    pub(crate) fn peek_ready(&self, current_epoch: u64) -> Option<&str> {
+        self.buffered.get(&current_epoch).map(String::as_str)
+    }
+
     /// A buffered commit exists that cannot be applied yet — commits between
     /// `current_epoch` and the buffered head are missing.
     pub fn gap(&self, current_epoch: u64) -> bool {

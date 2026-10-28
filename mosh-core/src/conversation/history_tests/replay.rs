@@ -37,6 +37,7 @@ fn a_pending_message_with_no_attempt_row_comes_back_failed() {
         .with_id("m1");
     message.set_delivery(delivery_meta(MessageDeliveryStatus::Pending, None, 0));
     let stored = StoredMessage {
+        history_evidence: None,
         conversation_id: CONVERSATION.to_string(),
         sent_at_ms: 100,
         message_id: "m1".to_string(),

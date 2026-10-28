@@ -3,6 +3,61 @@
 use super::*;
 use crate::org_runtime::PendingJoinRecovery;
 
+#[derive(Default)]
+pub(super) struct JoinRetry {
+    next: Option<std::time::Instant>,
+    attempts: u8,
+    last_attempt: Option<std::time::Instant>,
+    peer_revision: u64,
+}
+
+impl GroupSession {
+    pub(super) fn retry_pending_join(&mut self) -> Result<(), PrivateGroupError> {
+        let now = std::time::Instant::now();
+        let route_changed = self.join_retry.peer_revision
+            != crate::moss_ffi::connected_peer_revision()
+            && self
+                .join_retry
+                .last_attempt
+                .is_none_or(|last| now.duration_since(last).as_secs() >= 3);
+        if route_changed || self.join_retry.next.is_none_or(|at| now >= at) {
+            self.publish_pending_join()?;
+        }
+        Ok(())
+    }
+
+    fn publish_pending_join(&mut self) -> Result<(), PrivateGroupError> {
+        let Some(package) = self.pending_join_package.as_ref().filter(|_| !self.joined) else {
+            return Ok(());
+        };
+        // Retain the original KeyPackage, signer and target. A retry must not
+        // create another leaf or make a previously issued Welcome unusable.
+        let result = publish_join_package(
+            &self.node,
+            &self.to_persisted_record(),
+            package,
+            &self.crypto,
+            self.org_signer.as_ref(),
+        );
+        // An empty topic is a discovery wait, not a delivered join attempt.
+        // Probe it at most once per three seconds without escalating to a
+        // minute-long retry after the first subscribers finally appear.
+        let delay = if matches!(result, Ok(false)) {
+            self.join_retry.attempts = 0;
+            3
+        } else {
+            let delay = (3u64 << self.join_retry.attempts.min(5)).min(60);
+            self.join_retry.attempts = self.join_retry.attempts.saturating_add(1);
+            delay
+        };
+        let now = std::time::Instant::now();
+        self.join_retry.last_attempt = Some(now);
+        self.join_retry.peer_revision = crate::moss_ffi::connected_peer_revision();
+        self.join_retry.next = Some(now + std::time::Duration::from_secs(delay));
+        result.map(|_| ())
+    }
+}
+
 struct JoinPreparation {
     request: JoinGroupRequest,
     invite: ParsedGroupInvite,
@@ -112,16 +167,7 @@ impl PrivateGroupRuntime {
     }
 
     pub(crate) fn publish_prepared_join(&mut self, id: &str) -> Result<(), PrivateGroupError> {
-        let session = self.group_mut(id)?;
-        if let Some(package) = &session.pending_join_package {
-            publish_join_package(
-                &session.node,
-                &session.to_persisted_record(),
-                package,
-                session.org_signer.as_ref(),
-            )?;
-        }
-        Ok(())
+        self.group_mut(id)?.publish_pending_join()
     }
 
     /// A prepared join has no new durable rows to delete on rollback.
@@ -183,20 +229,32 @@ fn publish_join_package(
     node: &MossNode,
     record: &PersistedGroupSession,
     package: &[u8],
+    crypto: &MlsSessionCrypto,
     signer: Option<&SigningKey>,
-) -> Result<(), PrivateGroupError> {
+) -> Result<bool, PrivateGroupError> {
     let envelope = ControlEnvelope::KeyPackage {
+        joiner_binding: Some(super::history::admission::joiner_binding(
+            node, crypto, record, package,
+        )?),
         group_id: record.group_id.clone(),
         participant_id: record.participant_id.clone(),
         from_device: record.display_name.clone(),
         from_fingerprint: record.device_fingerprint.clone(),
         key_package_b64: encode(package),
     };
-    publish_control_message(
-        node,
+    let payload = super::wires::control_payload(
         &format!("{CONTROL_CHANNEL_PREFIX}{}", record.group_id),
         &record.mesh_id,
         org_context(record.org_pubkey.as_deref(), signer),
         &envelope,
-    )
+    )?;
+    match node.publish_room(
+        &record.mesh_id,
+        &format!("{CONTROL_CHANNEL_PREFIX}{}", record.group_id),
+        &payload,
+    ) {
+        Ok(()) => Ok(true),
+        Err(error) if error.is_no_peers() => Ok(false),
+        Err(error) => Err(PrivateGroupError::Moss(error.to_string())),
+    }
 }

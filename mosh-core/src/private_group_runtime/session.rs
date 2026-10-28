@@ -21,8 +21,20 @@ impl ConversationSession for GroupSession {
         Some(&self.transfer)
     }
 
+    fn transfer_mut(&mut self) -> Option<&mut Transfer> {
+        Some(&mut self.transfer)
+    }
+
     fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord> {
         &self.outbound_attempts
+    }
+
+    fn write_send_override(
+        &self,
+        store: &Persistence,
+        message: &str,
+    ) -> Result<bool, crate::persistence::PersistenceError> {
+        self.write_publication(store, message)
     }
 
     fn record(&self) -> PersistedGroupSession {
@@ -51,6 +63,9 @@ pub(super) struct GroupSession {
     pub(super) plus_schedule: crate::plus::PlusSchedule,
     pub(super) deletions: crate::message_deletion::DeletionBook,
     pub(super) pending_join_package: Option<Vec<u8>>,
+    pub(super) join_retry: super::pending_join::JoinRetry,
+    pub(super) admission_replays:
+        std::collections::BTreeMap<String, super::history::welcome::AdmissionReplay>,
     pub(super) group_id: String,
     pub(super) mesh_id: String,
     pub(super) label: Option<String>,
@@ -70,6 +85,14 @@ pub(super) struct GroupSession {
     pub(super) crypto: MlsSessionCrypto,
     pub(super) messages: MessageLog<GroupMessage>,
     pub(super) seen: SeenFrames,
+    pub(super) recovery: crate::conversation::recovery::coordinator::Coordinator,
+    pub(super) history_dispatch: crate::conversation::recovery::transport::DispatchGeneration,
+    pub(super) history_head: Option<super::history::CurrentHead>,
+    pub(super) history_exports: super::history::ManifestCache,
+    pub(super) history_membership: Option<(
+        crate::mls_crypto::MlsHistoryContext,
+        super::history::NativeCheckpoint,
+    )>,
     // Epoch-ordered commit admission: dedups gossip duplicates and the
     // joiner's Welcome-carried admission commit, buffers out-of-order commits,
     // reports gaps for resync. Unbounded like its predecessor set — commits
@@ -85,6 +108,7 @@ pub(super) struct GroupSession {
     pub(super) data_channel: String,
     pub(super) blob_channel: String,
     pub(super) transfer: Transfer,
+    pub(super) publications: HashMap<String, super::history::PublicationAcceptance>,
     pub(super) outbound_attempts: HashMap<String, OutboundAttemptRecord>,
     pub(super) dm_offers: DmOffers,
     /// Org binding (ADR 0008). Some = control traffic is enveloped, the MLS
@@ -95,6 +119,8 @@ pub(super) struct GroupSession {
     /// Verified-roster cache keyed by the raw stored bytes, so repeated
     /// control messages don't re-verify an unchanged roster.
     pub(super) roster_cache: Option<(Vec<u8>, Roster)>,
+    /// Exact verified org wrapper while admitting this control frame.
+    pub(super) incoming_org_control: Option<Vec<u8>>,
     /// Commits from authors ahead of our roster (ADR 0005), retried on
     /// every roster change and dropped once the author is provably not an
     /// admin at their claimed version.
@@ -131,6 +157,8 @@ impl GroupSession {
                 persistence.clone(),
             ),
             pending_join_package: None,
+            join_retry: Default::default(),
+            admission_replays: std::collections::BTreeMap::new(),
             control_channel: format!("{CONTROL_CHANNEL_PREFIX}{}", record.group_id),
             data_channel: format!("{DATA_CHANNEL_PREFIX}{}", record.group_id),
             blob_channel: format!("{BLOB_CHANNEL_PREFIX}{}", record.group_id),
@@ -157,16 +185,29 @@ impl GroupSession {
             transfer: Transfer::new(attachment_store),
             messages: MessageLog::default(),
             seen: SeenFrames::default(),
+            recovery: Default::default(),
+            history_dispatch: Default::default(),
+            history_head: None,
+            history_exports: Default::default(),
+            history_membership: None,
             sequencer: CommitSequencer::new(),
             needs_rejoin: false,
+            publications: HashMap::new(),
             outbound_attempts: HashMap::new(),
             dm_offers: DmOffers::default(),
             roster_cache: None,
+            incoming_org_control: None,
             roster_lag: Vec::new(),
             last_roster_version_seen: None,
             typing_members: HashMap::new(),
             member_names: HashMap::new(),
             typing_gate: TypingGate::default(),
         }
+    }
+}
+
+impl Drop for GroupSession {
+    fn drop(&mut self) {
+        self.history_dispatch.invalidate();
     }
 }

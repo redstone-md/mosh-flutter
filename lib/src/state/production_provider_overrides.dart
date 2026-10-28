@@ -1,3 +1,4 @@
+import 'package:mosh/src/features/background/android_waiting_owner.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -54,9 +55,17 @@ final List<Override> productionOverrides = <Override>[
       Platform.isLinux ||
       Platform.isAndroid)
     nativeCallOwnerProvider.overrideWith((ref) {
-      final owner = NativeCallOwner(
-          ref.read(bridgeFacadeProvider), requestCallMicrophone,
-          requestCamera: requestCallCamera);
+      final owner =
+          NativeCallOwner(ref.read(bridgeFacadeProvider), requestCallMicrophone,
+              requestCamera: requestCallCamera,
+              authorizeMedia: Platform.isAndroid
+                  ? (microphone, camera) async {
+                      final waiting = ref.read(androidWaitingOwnerProvider);
+                      if (waiting == null) return false;
+                      await waiting.refresh();
+                      return waiting.platform.setMediaTypes(microphone, camera);
+                    }
+                  : null);
       ref.onDispose(owner.dispose);
       return owner;
     }),
