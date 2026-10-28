@@ -21,8 +21,12 @@ internal class MoshCallNotifications(private val context: Context, policy: MoshW
     val hasCalls: Boolean get() = entries.isNotEmpty()
 
     init {
-        manager.createNotificationChannel(NotificationChannel(MoshWaitingNotifications.MESSAGES,
-            context.getString(R.string.mosh_notification_channel), NotificationManager.IMPORTANCE_HIGH))
+        // MoshRingtone owns sound and vibration, so the channel stays silent but alerting:
+        // a silenced notification would lose its heads-up and full-screen call window.
+        manager.createNotificationChannel(NotificationChannel(CHANNEL,
+            context.getString(R.string.mosh_call_channel), NotificationManager.IMPORTANCE_HIGH).apply {
+            setSound(null, null); enableVibration(false)
+        })
     }
 
     fun publish(value: Map<*, *>): String {
@@ -41,7 +45,7 @@ internal class MoshCallNotifications(private val context: Context, policy: MoshW
             return "posted"
         }
         if (!manager.areNotificationsEnabled() ||
-            manager.getNotificationChannel(MoshWaitingNotifications.MESSAGES)?.importance == NotificationManager.IMPORTANCE_NONE) return "blocked"
+            manager.getNotificationChannel(CHANNEL)?.importance == NotificationManager.IMPORTANCE_NONE) return "blocked"
         if (id !in entries && entries.size >= 16) return "failed"
         return try {
             val previous = entries[id]?.deadline ?: Long.MAX_VALUE
@@ -75,7 +79,7 @@ internal class MoshCallNotifications(private val context: Context, policy: MoshW
     }
 
     private fun canRing(): Boolean = manager.currentInterruptionFilter == NotificationManager.INTERRUPTION_FILTER_ALL ||
-        manager.getNotificationChannel(MoshWaitingNotifications.MESSAGES)?.canBypassDnd() == true
+        manager.getNotificationChannel(CHANNEL)?.canBypassDnd() == true
 
     private fun remove(id: String) {
         ringtone.stopIncoming(id)
@@ -100,5 +104,9 @@ internal class MoshCallNotifications(private val context: Context, policy: MoshW
         handler.removeCallbacks(expiry)
         val next = entries.values.map { it.deadline }.filter { it > 0 }.minOrNull() ?: return
         handler.postDelayed(expiry, (next - SystemClock.elapsedRealtime()).coerceAtLeast(1))
+    }
+
+    companion object {
+        const val CHANNEL = "mosh_calls"
     }
 }

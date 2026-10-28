@@ -24,10 +24,10 @@ internal class MoshCallNotificationBuilder(private val context: Context,
     private fun content(value: Map<*, *>, remainingMs: Long, name: String, fullScreen: Boolean): NotificationCompat.Builder {
         val phase = value["phase"] as String
         val caller = Person.Builder().setName(name).build()
-        val builder = NotificationCompat.Builder(context, MoshWaitingNotifications.MESSAGES)
+        val builder = NotificationCompat.Builder(context, MoshCallNotifications.CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_mosh).setContentTitle(name).setContentText(context.getString(label(phase)))
             .setCategory(NotificationCompat.CATEGORY_CALL).setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setOngoing(true).setOnlyAlertOnce(true).setSilent(true)
+            .setOngoing(true).setOnlyAlertOnce(true).setSilent(phase != "incoming")
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         val answer = value["answerCapability"] as? String
         if (phase == "incoming") {
