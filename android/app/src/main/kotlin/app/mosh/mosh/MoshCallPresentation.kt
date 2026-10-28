@@ -99,18 +99,22 @@ internal class MoshCallPresentation(messenger: BinaryMessenger) {
             enteredCall = call
             shield.protect()
             mode(true)
-        } else if (resumed) mode(false)
+        } else if (resumed) restored()
     }
 
     fun resumed() {
         val activity = activity ?: return
         resumed = true
-        if (!activity.isInPictureInPictureMode) {
-            enteredCall = null
-            closing = false
-            unshield()
-            mode(false)
-        }
+        if (!activity.isInPictureInPictureMode) restored()
+    }
+
+    // Either callback order of a PiP exit returns to the full-size call: drop the
+    // shield and the close-on-stop ownership.
+    private fun restored() {
+        enteredCall = null
+        closing = false
+        unshield()
+        mode(false)
     }
 
     fun paused() { resumed = false }
