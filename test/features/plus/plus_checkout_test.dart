@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/plus/plus_checkout.dart';
 import 'package:mosh/src/features/plus/plus_provider.dart';
 import 'package:mosh/src/features/plus/plus_settings_card.dart';
 import 'package:mosh/src/rust/plus/types.dart';
@@ -97,6 +101,80 @@ void main() {
     await container.read(plusProvider.notifier).purchase();
     await tester.pumpAndSettle();
     expect(find.byType(QrImageView), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a phone hands the pending payment to a wallet app or copies it',
+      (tester) async {
+    final opened = <Uri>[];
+    var walletAnswers = true;
+    final copied = <String>[];
+    tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        copied.add((call.arguments as Map)['text'] as String);
+      }
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+    final container = ProviderContainer(overrides: [
+      plusConfigProvider.overrideWithValue(testPlusConfig),
+      plusCommandsProvider.overrideWithValue(MemoryPlusCommands()),
+      plusBillingProvider.overrideWithValue(TestBilling()),
+      plusPollIntervalProvider.overrideWithValue(null),
+      plusWalletOpenerProvider.overrideWithValue((payment) async {
+        opened.add(payment);
+        return walletAnswers;
+      }),
+    ]);
+    addTearDown(container.dispose);
+    await pumpScreen(tester,
+        const Scaffold(body: SingleChildScrollView(child: PlusSettingsCard())),
+        container: container);
+    await container.read(plusProvider.notifier).purchase();
+    await tester.pumpAndSettle();
+    final payment = testOrder['payment_uri'] as String;
+
+    await tester.tap(find.text('Open in wallet'));
+    await tester.pumpAndSettle();
+    expect(opened, [Uri.parse(payment)]);
+    expect(find.textContaining('No wallet app'), findsNothing);
+
+    walletAnswers = false;
+    await tester.tap(find.text('Open in wallet'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('No wallet app'), findsOneWidget);
+
+    await tester.tap(find.text('Copy payment link'));
+    await tester.pumpAndSettle();
+    expect(copied, [payment]);
+  });
+
+  testWidgets('a wallet answer after the card closed is ignored',
+      (tester) async {
+    final answer = Completer<bool>();
+    final container = ProviderContainer(overrides: [
+      plusConfigProvider.overrideWithValue(testPlusConfig),
+      plusCommandsProvider.overrideWithValue(MemoryPlusCommands()),
+      plusBillingProvider.overrideWithValue(TestBilling()),
+      plusPollIntervalProvider.overrideWithValue(null),
+      plusWalletOpenerProvider.overrideWithValue((_) => answer.future),
+    ]);
+    addTearDown(container.dispose);
+    await pumpScreen(tester,
+        const Scaffold(body: SingleChildScrollView(child: PlusSettingsCard())),
+        container: container);
+    await container.read(plusProvider.notifier).purchase();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open in wallet'));
+    await tester.pump();
+
+    await pumpScreen(tester, const Scaffold(body: SizedBox()),
+        container: container);
+    answer.complete(false);
+    await tester.pumpAndSettle();
+
     expect(tester.takeException(), isNull);
   });
 }
