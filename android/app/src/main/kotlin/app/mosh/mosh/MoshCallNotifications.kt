@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 
 /** Exact OS identity/revision and deadline; current native state remains authoritative. */
 internal class MoshCallNotifications(private val context: Context, policy: MoshWaitingPolicy,
@@ -54,7 +55,10 @@ internal class MoshCallNotifications(private val context: Context, policy: MoshW
             schedule()
             "posted"
         } catch (_: SecurityException) { "blocked" }
-        catch (_: RuntimeException) { "failed" }
+        catch (error: RuntimeException) {
+            Log.w("MoshCall", "Call notification not posted", error)
+            "failed"
+        }
     }
 
     fun refreshPrivacy() {

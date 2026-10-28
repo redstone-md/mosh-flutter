@@ -2,11 +2,9 @@ package app.mosh.mosh
 
 import android.app.KeyguardManager
 import android.app.Notification
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
 
@@ -38,8 +36,9 @@ internal class MoshCallNotificationBuilder(private val context: Context,
             val present = MoshCallIntents.activity(context, answer, false)
             builder.setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, decline, accept))
                 .setContentIntent(present).setTimeoutAfter(remainingMs)
-            val manager = context.getSystemService(NotificationManager::class.java)
-            if (fullScreen && (Build.VERSION.SDK_INT < 34 || manager.canUseFullScreenIntent())) builder.setFullScreenIntent(present, true)
+            // Android 12+ refuses an incoming CallStyle without a full-screen intent. Without
+            // the permission the system keeps the request as a persistent heads-up alert.
+            if (fullScreen) builder.setFullScreenIntent(present, true)
         } else {
             val hangup = MoshCallIntents.control(context, value["hangupCapability"] as String)
             builder.setStyle(NotificationCompat.CallStyle.forOngoingCall(caller, hangup))
