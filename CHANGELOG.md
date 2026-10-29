@@ -6,6 +6,12 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- Android: each release also includes `mosh-<version>-rustore-arm64-v8a.apk`,
+  the build submitted to RuStore. It installs over the GitHub APK and back
+  without losing data.
+
 ## [0.26.0] - 2026-10-29
 
 ### Added
