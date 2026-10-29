@@ -34,8 +34,8 @@ Initial release certificate SHA-256:
 
 The release uses Flutter AOT, default R8 shrinking, the committed Rust release
 profile and `--target-platform android-arm64`. Dart symbols and R8 mappings are
-uploaded separately as `mosh-android-symbols` (`mosh-android-symbols-rustore`
-for the RuStore build). APKs contain no debug entry point.
+uploaded separately as `mosh-android-symbols` (`mosh-android-symbols-<channel>`
+for a store build). APKs contain no debug entry point.
 The Android version code is `major * 1000000 + minor * 1000 + patch` (minor/patch
 at most 999); preview rebuilds keep that version code and the same signing key.
 An update can replace an equal-version APK. Published stable versions increase it.
@@ -54,7 +54,9 @@ libraries without matching Mosh libraries; final package checks reject that case
 - JNI Zero's native-only Java entry points and exact method signatures survive
   shrinking in the final DEX, including `JniZero.init` and `CommonApis` callbacks;
 - Mosh's initialization, network-change and transfer-execution JNI signatures
-  match the exported entry points in the packaged Rust library.
+  match the exported entry points in the packaged Rust library;
+- no Google Play Services, ML Kit or Firebase class is packaged, which
+  F-Droid-format repositories reject.
 
 The matching WebRTC JAR includes JNI Zero without Chromium's consumer keep
 rules. The application therefore preserves
@@ -78,24 +80,41 @@ The `mosh-android-release` artifact contains the APK, SHA-256 sidecar and
 configuration. Tagged
 releases publish those files beside the Windows and macOS installers.
 
-## RuStore build
+## Store builds
 
 The `distribution-channel` input picks the build. Every main push and release
-tag builds both; pre-release tags build only the GitHub APK, because
-`v1.2.3-rc.1` and `v1.2.3` share a version code. The RuStore build's artifact
-is `mosh-android-release-rustore`.
+tag builds all three; pre-release tags build only the GitHub APK, because
+`v1.2.3-rc.1` and `v1.2.3` share a version code. A store build's artifact is
+`mosh-android-release-<channel>`.
 
 | Channel | Release files | Who installs it |
 | --- | --- | --- |
 | `github` | `mosh-<version>-arm64-v8a.apk`, `plus-build.json` | People downloading from GitHub. |
+| `fdroid` | `mosh-<version>-fdroid-arm64-v8a.apk`, `plus-build-fdroid.json` | Taken from the release by IzzyOnDroid. The repository updates it. |
 | `rustore` | `mosh-<version>-rustore-arm64-v8a.apk`, `plus-build-rustore.json` | Uploaded to RuStore. RuStore updates it. |
 
-The RuStore build does not check GitHub for updates, and its Mosh+ card shows
-only the membership, without purchase (see [production Mosh+](plus-mainnet.md)).
-Both APKs have the same package id, version code
-and signing key, so either installs over the other and keeps its data. The
-package checks above run on both. Upload the RuStore APK in the RuStore
+Store builds do not check GitHub for updates. The `fdroid` build sells Mosh+
+like the GitHub one; the RuStore Mosh+ card shows only the membership, without
+purchase (see [production Mosh+](plus-mainnet.md)). Crash reports stay off in
+every build until the user turns them on. All APKs have the same package id,
+version code and signing key, so any installs over another and keeps its data.
+The package checks above run on all of them. Upload the RuStore APK in the RuStore
 developer console; the next upload needs a higher version code.
+
+### IzzyOnDroid and F-Droid
+
+[IzzyOnDroid](https://izzyondroid.org/docs/general/AppInclusionPolicy/) serves
+the signed `fdroid` APK from the GitHub release and the texts from
+`fastlane/metadata/android` (see [store listings](store-listings.md)). It
+rejects proprietary SDKs and self-updaters that are on by default, which is why
+the device-link scanner uses CameraX with zxing2 rather than ML Kit. Its usual
+budget is 30 MB per app; the arm64 APK is near 90 MB, so the submission asks
+for an exception.
+
+The main F-Droid catalog rebuilds apps from source with its own tools. Mosh
+cannot go there yet: the call engine builds Signal's WebRTC through
+depot_tools, which downloads Google's prebuilt clang and build tools, and
+media_kit downloads a prebuilt libmpv during the Gradle build (IVO-164).
 
 ## Installation and acceptance
 
