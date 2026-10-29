@@ -2158,6 +2158,7 @@
   "plusRecipient": "Recipient",
   "plusRefresh": "Check payment",
   "plusExpired": "Mosh+ has expired.",
+  "plusInactive": "Mosh+ is not active.",
   "plusUntil": "Mosh+ valid until {date} UTC",
   "plusPrice": "{amount} test tokens · Solana Devnet",
   "@plusUntil": {

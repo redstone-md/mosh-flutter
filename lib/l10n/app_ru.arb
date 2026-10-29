@@ -1150,6 +1150,7 @@
   "plusRecipient": "Получатель",
   "plusRefresh": "Проверить платёж",
   "plusExpired": "Срок Mosh+ истёк.",
+  "plusInactive": "Mosh+ не активен.",
   "plusUntil": "Mosh+ действует до {date} UTC",
   "plusPrice": "{amount} тестовых токенов · Solana Devnet",
   "@plusUntil": {
