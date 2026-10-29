@@ -5,6 +5,7 @@
 // bridge providers are scripted doubles sharing one conversation state.
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/main.dart';
@@ -43,13 +44,16 @@ SessionSnapshot shellSession(
 
 /// Pumps MoshApp at [physical] logical pixels (device pixel ratio 1), with
 /// the router reset to [location] (the rail by default) so a prior test's
-/// location does not leak.
+/// location does not leak. [bridge] replaces the bridge built over
+/// [gateway]; [overrides] adds providers after the defaults.
 Future<void> pumpShellApp(
   WidgetTester tester, {
   required ScriptableGateway gateway,
   required Size physical,
   DesktopWindowController? windowController,
   String location = AppRoutes.sessions,
+  ScriptableBridge? bridge,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = physical;
   tester.view.devicePixelRatio = 1.0;
@@ -61,7 +65,8 @@ Future<void> pumpShellApp(
       gatewayProvider.overrideWithValue(gateway),
       ...settingsAudioOverrides(),
       bridgeFacadeProvider.overrideWithValue(
-          ScriptableBridge(conversations: gateway.conversations)),
+          bridge ?? ScriptableBridge(conversations: gateway.conversations)),
+      ...overrides,
     ],
     child: MoshApp(windowController: windowController),
   ));
