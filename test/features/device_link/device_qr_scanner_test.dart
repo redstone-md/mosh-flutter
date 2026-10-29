@@ -117,6 +117,14 @@ void main() {
     expect(hardware.releases, 2);
   });
 
+  testWidgets('a camera that cannot stream is released and reported',
+      (tester) async {
+    final hardware = _install(ScannerPlatform(streamFails: true));
+    await _open(tester, (_) {});
+    expect(find.textContaining('The camera is unavailable'), findsOneWidget);
+    expect((hardware.starts, hardware.releases), (1, 1));
+  });
+
   for (final (name, hardware, message) in [
     (
       'denied permission',

@@ -81,6 +81,8 @@ class _DeviceQrScannerState extends State<DeviceQrScanner>
     } on CameraException catch (error) {
       // Closing the camera mid-open fails the open; that is not a failure.
       if (camera == null || _camera == camera) {
+        _camera = null;
+        camera?.dispose();
         _fail(error.code == 'CameraAccessDenied'
             ? _CameraFailure.denied
             : _CameraFailure.unavailable);

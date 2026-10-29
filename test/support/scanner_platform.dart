@@ -1,14 +1,18 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:camera_platform_interface/camera_platform_interface.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:zxing2/qrcode.dart';
 
 /// Camera hardware seam only. Frames are decoded by the real QR reader and
 /// device authorization still uses the real bridge.
 class ScannerPlatform extends CameraPlatform {
-  ScannerPlatform({this.errorCode, this.cameras = const [_back], this.opening});
+  ScannerPlatform(
+      {this.errorCode,
+      this.cameras = const [_back],
+      this.opening,
+      this.streamFails = false});
 
   /// The platform error opening the camera fails with, e.g.
   /// `CameraAccessDenied`.
@@ -16,6 +20,9 @@ class ScannerPlatform extends CameraPlatform {
 
   /// Holds the camera mid-open until completed.
   final Completer<void>? opening;
+
+  /// The camera opens but refuses to stream frames.
+  final bool streamFails;
   final List<CameraDescription> cameras;
   final frames = StreamController<CameraImageData>.broadcast();
   int starts = 0;
@@ -61,7 +68,9 @@ class ScannerPlatform extends CameraPlatform {
   @override
   Stream<CameraImageData> onStreamedFrameAvailable(int cameraId,
           {CameraImageStreamOptions? options}) =>
-      frames.stream;
+      streamFails
+          ? throw PlatformException(code: 'CameraStreamFailed')
+          : frames.stream;
 
   @override
   Widget buildPreview(int cameraId) => const SizedBox.expand();
