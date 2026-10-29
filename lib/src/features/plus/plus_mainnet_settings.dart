@@ -8,16 +8,15 @@ import 'plus_membership_status.dart';
 import 'plus_recovery_panel.dart';
 
 class PlusMainnetSettings extends ConsumerWidget {
-  const PlusMainnetSettings(
-      {super.key, required this.value, required this.config});
+  const PlusMainnetSettings({super.key, required this.value});
   final PlusState value;
-  final PlusConfig config;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final snapshot = value.snapshot;
     final controller = ref.read(plusProvider.notifier);
+    final canPurchase = ref.watch(plusCanPurchaseProvider);
     final recoveryIds =
         snapshot.recovery?.orders.map((order) => order.id).toSet() ?? {};
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -37,7 +36,7 @@ class PlusMainnetSettings extends ConsumerWidget {
             !recoveryIds.contains(order.id))
           PlusPendingPayment(
               order: order, busy: value.busy, onRefresh: controller.refresh),
-      if (config.canPurchase) ...[
+      if (canPurchase) ...[
         if (snapshot.checkoutIntent != null)
           TextButton(
               onPressed: value.busy ? null : controller.cancelCheckout,
@@ -55,7 +54,7 @@ class PlusMainnetSettings extends ConsumerWidget {
       if (snapshot.recovery case final session?)
         PlusRecoveryPanel(
             session: session, busy: value.busy, onRefresh: controller.refresh),
-      if (!config.canPurchase) ...[
+      if (!canPurchase) ...[
         const SizedBox(height: 12),
         Text(l.plusMainnetPrivacy),
       ],

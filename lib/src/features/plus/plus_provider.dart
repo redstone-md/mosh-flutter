@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/app/distribution_channel_provider.dart';
 import 'package:mosh/src/platform/foreground_poller.dart';
 import 'package:mosh/src/rust/plus/types.dart';
 import 'plus_billing.dart';
@@ -11,10 +12,19 @@ import 'plus_mainnet_flow.dart';
 export 'plus_config.dart';
 
 final plusConfigProvider = Provider((ref) => PlusConfig.fromEnvironment());
+
+/// Billing is reached only when the build names a server and its store permits
+/// the Mosh+ checkout; otherwise Mosh+ is native state and device sync alone.
+final plusCanPurchaseProvider = Provider((ref) =>
+    ref.watch(plusConfigProvider).canPurchase &&
+    ref.watch(distributionChannelProvider).sellsPlus);
 final plusCommandsProvider = Provider((ref) => PlusCommands());
 final plusPollIntervalProvider =
     Provider<Duration?>((ref) => const Duration(seconds: 5));
 final plusBillingProvider = Provider((ref) {
+  if (!ref.watch(plusCanPurchaseProvider)) {
+    throw StateError('Mosh+ billing is unavailable in this build');
+  }
   final client = PlusBilling(ref.watch(plusConfigProvider));
   ref.onDispose(client.close);
   return client;
@@ -138,13 +148,13 @@ class PlusController extends AsyncNotifier<PlusState> {
         if (!scope.mounted) return;
         _update(scope, snapshot);
         if (scope.read(plusConfigProvider).mainnet) {
-          if (scope.read(plusConfigProvider).canPurchase) {
+          if (scope.read(plusCanPurchaseProvider)) {
             await _mainnet(scope, commands)
                 .refresh(snapshot, automatic: automatic);
           }
           return;
         }
-        if (!scope.read(plusConfigProvider).canPurchase ||
+        if (!scope.read(plusCanPurchaseProvider) ||
             snapshot.active ||
             snapshot.order == null) {
           return;

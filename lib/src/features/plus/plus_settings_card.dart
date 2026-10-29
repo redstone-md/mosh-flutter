@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/distribution_channel_provider.dart';
 import 'package:mosh/src/features/settings/settings_card.dart';
 import 'package:mosh/src/rust/plus/types.dart';
 import 'plus_checkout.dart';
@@ -21,7 +22,7 @@ class _PlusSettingsCardState extends ConsumerState<PlusSettingsCard> {
   @override
   void initState() {
     super.initState();
-    if (ref.read(plusConfigProvider).enabled) {
+    if (ref.read(plusCanPurchaseProvider)) {
       final controller = ref.read(plusProvider.notifier);
       controller.openCheckout();
       _controller = controller;
@@ -46,7 +47,9 @@ class _PlusSettingsCardState extends ConsumerState<PlusSettingsCard> {
         child: ref.watch(plusProvider).when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, __) => _retry(l, () => ref.invalidate(plusProvider)),
-              data: (value) => _content(ref, value, config, l),
+              data: (value) => ref.watch(distributionChannelProvider).sellsPlus
+                  ? _content(ref, value, config, l)
+                  : _membership(value, l),
             ));
   }
 
@@ -56,7 +59,7 @@ class _PlusSettingsCardState extends ConsumerState<PlusSettingsCard> {
     final controller = ref.read(plusProvider.notifier);
     if (config.mainnet) {
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        PlusMainnetSettings(value: value, config: config),
+        PlusMainnetSettings(value: value),
         if (value.error != null) _retry(l, controller.refresh),
       ]);
     }
@@ -72,7 +75,7 @@ class _PlusSettingsCardState extends ConsumerState<PlusSettingsCard> {
             order: order, busy: value.busy, onRefresh: controller.refresh)
       else ...[
         if (expiry != null) Text(l.plusExpired),
-        if (config.canPurchase)
+        if (ref.watch(plusCanPurchaseProvider))
           PlusNewPayment(busy: value.busy, onPurchase: controller.purchase)
         else
           Text(l.plusUnavailable),
@@ -80,6 +83,22 @@ class _PlusSettingsCardState extends ConsumerState<PlusSettingsCard> {
       if (value.error != null) _retry(l, controller.refresh),
       const SizedBox(height: 12),
       Text(l.plusPrivacyHint),
+    ]);
+  }
+
+  /// A store that does not sell Mosh+ shows only what this device holds: a
+  /// membership bought elsewhere arrives through device sync.
+  Widget _membership(PlusState value, AppLocalizations l) {
+    final controller = ref.read(plusProvider.notifier);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (value.snapshot.active)
+        PlusMembershipStatus(
+            snapshot: value.snapshot,
+            busy: value.busy,
+            onVisibility: controller.visibility)
+      else
+        Text(l.plusInactive),
+      if (value.error != null) _retry(l, controller.refresh),
     ]);
   }
 
