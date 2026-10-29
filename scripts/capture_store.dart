@@ -3,17 +3,15 @@
 //
 // Writes phone shots (1080 × 1920) where F-Droid and RuStore read them, and
 // desktop shots (1920 × 1080) for Microsoft Store, in English and Russian.
-import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/voice_call/call_modal_card.dart';
 import 'package:mosh/src/routing/app_router.dart';
-import 'package:mosh/src/rust/native_call/types.dart' as native;
+import 'package:mosh/src/rust/api/diagnostics.dart' show NativeRuntimeStatus;
+import 'package:mosh/src/rust/persistence.dart' show PersistenceRuntimeStatus;
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/locale_preference_store.dart';
@@ -22,7 +20,9 @@ import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
 
 import '../test/features/routing/shell_harness.dart';
 import '../test/support/first_run_preview.dart';
+import '../test/support/gateway_snapshots.dart';
 import '../test/support/locale.dart';
+import '../test/support/native_call_fixture.dart';
 import '../test/support/message_builders.dart';
 import '../test/support/scriptable_bridge.dart';
 import '../test/support/scriptable_gateway.dart';
@@ -44,11 +44,11 @@ class _Listing {
   final List<(bool mine, String body)> chat;
   final ({
     String friend,
-    String hello,
+    String friendMessage,
     String group,
-    String plans,
+    String groupMessage,
     String channel,
-    String post
+    String channelMessage
   }) others;
 }
 
@@ -68,11 +68,11 @@ const _listings = [
       ],
       others: (
         friend: 'Leo Park',
-        hello: 'Thanks for the photos!',
+        friendMessage: 'Thanks for the photos!',
         group: 'Weekend plans',
-        plans: 'Saturday works for everyone.',
+        groupMessage: 'Saturday works for everyone.',
         channel: 'photography',
-        post: 'A few frames from the coast.',
+        channelMessage: 'A few frames from the coast.',
       )),
   _Listing(Locale('ru'), 'ru-RU',
       me: 'Саша',
@@ -89,27 +89,26 @@ const _listings = [
       ],
       others: (
         friend: 'Лёва Пак',
-        hello: 'Спасибо за фотографии!',
+        friendMessage: 'Спасибо за фотографии!',
         group: 'Планы на выходные',
-        plans: 'Суббота всем подходит.',
+        groupMessage: 'Суббота всем подходит.',
         channel: 'фото',
-        post: 'Пара кадров с побережья.',
+        channelMessage: 'Пара кадров с побережья.',
       )),
 ];
 
 /// A form factor: logical size, export scale and output directory.
 class _Device {
-  const _Device(this.size, this.scale, this.directory, {this.phone = false});
+  const _Device(this.name, this.size, this.scale, this.directory);
+  final String name;
   final Size size;
-  final bool phone;
   final double scale;
   final String Function(String folder) directory;
 }
 
-final _phone = _Device(const Size(360, 640), 3,
-    (folder) => 'fastlane/metadata/android/$folder/images/phoneScreenshots',
-    phone: true);
-final _desktop = _Device(const Size(1280, 720), 1.5,
+final _phone = _Device('phone', const Size(360, 640), 3,
+    (folder) => 'fastlane/metadata/android/$folder/images/phoneScreenshots');
+final _desktop = _Device('desktop', const Size(1280, 720), 1.5,
     (folder) => 'fastlane/metadata/msstore/$folder/screenshots');
 
 final _time = DateTime(2026, 10, 3, 9, 41);
@@ -135,10 +134,9 @@ ScriptableGateway _gateway(_Listing listing, {ActiveCall? call}) {
                   deliveryStatus: MessageDeliveryStatus.sent,
                   read: mine),
           ]),
-      TestSnapshots.dm(
-          sessionId: 'leo',
-          peerDisplayName: o.friend,
-          messages: [TestMessages.dm(fromDevice: o.friend, body: o.hello)]),
+      TestSnapshots.dm(sessionId: 'leo', peerDisplayName: o.friend, messages: [
+        TestMessages.dm(fromDevice: o.friend, body: o.friendMessage)
+      ]),
     ])
     ..seedGroups([
       TestSnapshots.group(
@@ -147,7 +145,9 @@ ScriptableGateway _gateway(_Listing listing, {ActiveCall? call}) {
           deviceFingerprint: 'self',
           messages: [
             TestMessages.group(
-                fromDevice: o.friend, fromFingerprint: 'leo', body: o.plans)
+                fromDevice: o.friend,
+                fromFingerprint: 'leo',
+                body: o.groupMessage)
           ]),
     ])
     ..seedChannels([
@@ -156,47 +156,48 @@ ScriptableGateway _gateway(_Listing listing, {ActiveCall? call}) {
           deviceFingerprint: 'self',
           messages: [
             TestMessages.channel(
-                fromDevice: o.friend, fromFingerprint: 'leo', body: o.post)
+                fromDevice: o.friend,
+                fromFingerprint: 'leo',
+                body: o.channelMessage)
           ]),
     ]);
 }
 
-/// Media state of a connected voice call, as the native owner reports it.
-native.Snapshot _callMedia() => native.Snapshot(
-    sessionId: 'maya',
-    callId: 'walk',
-    ready: true,
-    microphone: true,
-    microphoneRequested: true,
-    microphoneAvailable: true,
-    camera: false,
-    cameraRequested: false,
-    cameraStarting: false,
-    cameraFailed: false,
-    remoteCamera: false,
-    reconnecting: false,
-    failed: false,
-    videoWidth: 0,
-    videoHeight: 0,
-    videoFps: 0,
-    packetsDropped: BigInt.zero,
-    inputs: const [],
-    outputs: const [],
-    cameras: const []);
+/// The canned runtime with history persistence running, as in a real install.
+NativeRuntimeStatus _savingHistory() {
+  final canned = cannedNativeRuntimeStatus();
+  return NativeRuntimeStatus(
+      moss: canned.moss,
+      secureStorage: canned.secureStorage,
+      persistence: const PersistenceRuntimeStatus(
+          backend: 'redb+aes-256-gcm+os-keychain',
+          database: 'mosh.redb',
+          available: true,
+          encryptedAtRest: true),
+      openmlsSmoke: canned.openmlsSmoke,
+      openmlsRoundtrip: canned.openmlsRoundtrip);
+}
 
 Future<NativeCallOwner> _open(
     WidgetTester tester, _Listing listing, _Device device,
     {String location = AppRoutes.sessions, ActiveCall? call}) async {
   final gateway = _gateway(listing, call: call);
-  final bridge = ScriptableBridge(conversations: gateway.conversations);
+  final bridge = ScriptableBridge(conversations: gateway.conversations)
+    ..seedNativeRuntimeStatus(_savingHistory());
   // A phone hands calls to the Android owner, which shows the full-screen
   // call; desktop keeps the in-app call strip.
-  final phoneCall = call != null && device.phone;
+  final phoneCall = call != null && device == _phone;
   final owner = NativeCallOwner(bridge, () async => true);
   if (phoneCall) {
+    // The owner polls media state; this covers the frames pumped below.
     for (var i = 0; i < 20; i++) {
       bridge.respondNext(
-          BridgeMethod.nativeCallSnapshot, Future.value(_callMedia()));
+          BridgeMethod.nativeCallSnapshot,
+          Future.value(nativeCallSnapshot(
+              sessionId: 'maya',
+              callId: 'walk',
+              microphone: true,
+              remoteCamera: false)));
     }
   }
   await pumpShellApp(tester,
@@ -217,40 +218,31 @@ Future<NativeCallOwner> _open(
 Future<void> _save(
     WidgetTester tester, _Listing listing, _Device device, int index) async {
   expect(tester.takeException(), isNull);
-  await tester.pump();
-  final boundary = tester
-      .firstRenderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary));
-  await tester.runAsync(() async {
-    final image = await boundary.toImage(pixelRatio: device.scale);
-    try {
-      final png = await image.toByteData(format: ui.ImageByteFormat.png);
-      final file = File('${device.directory(listing.folder)}/$index.png');
-      await file.parent.create(recursive: true);
-      await file.writeAsBytes(png!.buffer.asUint8List());
-    } finally {
-      image.dispose();
-    }
-  });
+  await savePreviewPng(tester, find.byType(RepaintBoundary),
+      '${device.directory(listing.folder)}/$index.png',
+      pixelRatio: device.scale);
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pumpAndSettle();
 }
 
 void main() {
-  setUp(() {
-    const recorder = MethodChannel('com.llfbandit.record/messages');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(recorder, (call) async => null);
-  });
+  // The composer's voice recorder probes its plugin on build.
+  const recorder = MethodChannel('com.llfbandit.record/messages');
+  TestDefaultBinaryMessenger messenger() =>
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  setUp(
+      () => messenger().setMockMethodCallHandler(recorder, (_) async => null));
+  tearDown(() => messenger().setMockMethodCallHandler(recorder, null));
 
   for (final listing in _listings) {
-    _capture(listing, 'phone', _phone);
-    _capture(listing, 'desktop', _desktop);
+    _capture(listing, _phone);
+    _capture(listing, _desktop);
   }
 }
 
 /// The four store screens for one language and form factor, in listing order.
-void _capture(_Listing listing, String name, _Device device) {
-  final tag = '${listing.folder} $name';
+void _capture(_Listing listing, _Device device) {
+  final tag = '${listing.folder} ${device.name}';
 
   testWidgets('$tag chats', (tester) async {
     await prepareSetupPreview(tester);

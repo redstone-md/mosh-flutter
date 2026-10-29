@@ -44,7 +44,8 @@ SessionSnapshot shellSession(
 
 /// Pumps MoshApp at [physical] logical pixels (device pixel ratio 1), with
 /// the router reset to [location] (the rail by default) so a prior test's
-/// location does not leak.
+/// location does not leak. [bridge] replaces the bridge built over
+/// [gateway]; [overrides] adds providers after the defaults.
 Future<void> pumpShellApp(
   WidgetTester tester, {
   required ScriptableGateway gateway,

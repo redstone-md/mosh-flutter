@@ -2,10 +2,8 @@
 // flutter test scripts/capture_readme.dart --dart-define=SETUP_PREVIEW=true
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/onboarding/first_run_profile.dart';
@@ -102,27 +100,6 @@ ScriptableGateway _gateway() => ScriptableGateway()
         ]),
   ]);
 
-Future<void> _save(WidgetTester tester) async {
-  for (final element in find.byType(Image).evaluate()) {
-    await tester.runAsync(
-        () => precacheImage((element.widget as Image).image, element));
-  }
-  await tester.pump();
-  final boundary = tester
-      .firstRenderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary));
-  await tester.runAsync(() async {
-    final image = await boundary.toImage(pixelRatio: 1.5);
-    try {
-      final png = await image.toByteData(format: ui.ImageByteFormat.png);
-      final file = File('docs/assets/chat-desktop.png');
-      await file.parent.create(recursive: true);
-      await file.writeAsBytes(png!.buffer.asUint8List());
-    } finally {
-      image.dispose();
-    }
-  });
-}
-
 void main() {
   testWidgets('capture first-run setup with a sample display name',
       (tester) async {
@@ -155,7 +132,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Coffee after the walk?'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    await _save(tester);
+    await savePreviewPng(
+        tester, find.byType(RepaintBoundary), 'docs/assets/chat-desktop.png',
+        pixelRatio: 1.5);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
   });

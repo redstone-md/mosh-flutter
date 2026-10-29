@@ -73,3 +73,9 @@ for (const locale of locales) {
     }
   });
 }
+
+test('every Android changelog exists in both languages', async () => {
+  const [en, ru] = await Promise.all(
+    locales.map((locale) => readdir(new URL(`android/${locale}/changelogs/`, root))));
+  assert.deepEqual(en.sort(), ru.sort());
+});

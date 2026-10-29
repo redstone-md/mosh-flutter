@@ -30,18 +30,30 @@ Future<ByteData> _read(String path) async =>
 /// Capture the real Flutter tree only when the optional preview is requested.
 Future<void> saveSetupPreview(WidgetTester tester, String name) async {
   if (!_enabled) return;
+  await savePreviewPng(
+      tester, find.byKey(const ValueKey('setup-preview')), 'build/$name.png');
+}
+
+/// Writes the repaint boundary at [boundary] to [path] as a PNG, after its
+/// images have decoded. Preview scripts use it to export documentation and
+/// store screenshots.
+Future<void> savePreviewPng(WidgetTester tester, Finder boundary, String path,
+    {double pixelRatio = 1}) async {
   for (final element in find.byType(Image).evaluate()) {
     await tester.runAsync(
         () => precacheImage((element.widget as Image).image, element));
   }
   await tester.pump();
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-      find.byKey(const ValueKey('setup-preview')));
+  final render = tester.firstRenderObject<RenderRepaintBoundary>(boundary);
   await tester.runAsync(() async {
-    final picture = await boundary.toImage();
-    final png = await picture.toByteData(format: ui.ImageByteFormat.png);
-    picture.dispose();
-    await Directory('build').create();
-    await File('build/$name.png').writeAsBytes(png!.buffer.asUint8List());
+    final image = await render.toImage(pixelRatio: pixelRatio);
+    try {
+      final png = await image.toByteData(format: ui.ImageByteFormat.png);
+      final file = File(path);
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes(png!.buffer.asUint8List());
+    } finally {
+      image.dispose();
+    }
   });
 }
