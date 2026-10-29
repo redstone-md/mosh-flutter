@@ -33,8 +33,9 @@ jobs:
     name: Android APK (${{ inputs.distribution-channel }}, arm64, release signed)
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # No job-level CHANNEL: subosito/flutter-action reads that variable as
+    # the Flutter release channel.
     env:
-      CHANNEL: ${{ inputs.distribution-channel }}
       # A store build carries its channel in every published name, so the
       # release keeps both APKs and both manifests side by side.
       SUFFIX: ${{ inputs.distribution-channel != 'github' && format('-{0}', inputs.distribution-channel) || '' }}
@@ -79,7 +80,7 @@ jobs:
 
       - name: Verify AOT billing configuration
         env:
-          MOSH_DISTRIBUTION_CHANNEL: ${{ env.CHANNEL }}
+          MOSH_DISTRIBUTION_CHANNEL: ${{ inputs.distribution-channel }}
           MOSH_PLUS_NETWORK: solana-mainnet
           MOSH_PLUS_SERVER_URL: ${{ vars.MOSH_PLUS_SERVER_URL }}
           MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
@@ -88,7 +89,7 @@ jobs:
       - name: Build signed release APK
         shell: bash
         env:
-          MOSH_DISTRIBUTION_CHANNEL: ${{ env.CHANNEL }}
+          MOSH_DISTRIBUTION_CHANNEL: ${{ inputs.distribution-channel }}
           MOSH_PLUS_SERVER_URL: ${{ vars.MOSH_PLUS_SERVER_URL }}
           MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
