@@ -19,12 +19,13 @@ Future<void> main() async {
     throw StateError('The source PNG must have transparent corners.');
   }
   await _windows(logo);
+  await _msix(logo);
   await _apple(logo, 'macos/Runner/Assets.xcassets/AppIcon.appiconset',
       inset: true);
   await _apple(logo, 'ios/Runner/Assets.xcassets/AppIcon.appiconset',
       opaque: true);
   await _android(logo);
-  stdout.writeln('Generated Windows, macOS, iOS and Android app icons.');
+  stdout.writeln('Generated Windows, MSIX, macOS, iOS and Android app icons.');
 }
 
 img.Image _resize(img.Image logo, int size) => img.copyResize(logo,
@@ -39,6 +40,27 @@ Future<void> _windows(img.Image logo) async {
   ];
   await File('windows/runner/resources/app_icon.ico')
       .writeAsBytes(img.IcoEncoder().encodeImages(frames));
+}
+
+/// Logos the Microsoft Store package names in windows/msix/AppxManifest.xml;
+/// makepri picks the variant for the display scale or target size.
+Future<void> _msix(img.Image logo) async {
+  const sizes = {
+    'Square44x44Logo.scale-100': 44,
+    'Square44x44Logo.scale-200': 88,
+    'Square44x44Logo.targetsize-16_altform-unplated': 16,
+    'Square44x44Logo.targetsize-24_altform-unplated': 24,
+    'Square44x44Logo.targetsize-32_altform-unplated': 32,
+    'Square44x44Logo.targetsize-48_altform-unplated': 48,
+    'Square44x44Logo.targetsize-256_altform-unplated': 256,
+    'Square150x150Logo.scale-100': 150,
+    'Square150x150Logo.scale-200': 300,
+    'StoreLogo.scale-100': 50,
+    'StoreLogo.scale-200': 100,
+  };
+  for (final MapEntry(:key, :value) in sizes.entries) {
+    await _writePng('windows/msix/Assets/$key.png', _resize(logo, value));
+  }
 }
 
 Future<void> _apple(img.Image logo, String directory,

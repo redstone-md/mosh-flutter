@@ -2,8 +2,9 @@ name: Release
 
 # A pushed `v*` tag cuts a GitHub release: the tag must name the version
 # pubspec carries and CHANGELOG.md must have a section for it, the Windows
-# installer is built by the same reusable workflow CI runs, and the release
-# body is the curated changelog section plus what git says is in the tag.
+# installer and the Store MSIX are built by the same reusable workflow CI
+# runs, and the release body is the curated changelog section plus what git
+# says is in the tag.
 #
 # Cut one with:
 #   git tag -a v1.2.3 -m "Mosh 1.2.3" && git push origin v1.2.3
@@ -62,6 +63,17 @@ jobs:
       plus-issuer-key: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
     secrets: inherit
 
+  msix:
+    needs: verify
+    uses: ./.github/workflows/build-windows.yml
+    with:
+      upload-debug-files: true
+      distribution-channel: msstore
+      plus-network: solana-mainnet
+      plus-server-url: ${{ vars.MOSH_PLUS_SERVER_URL }}
+      plus-issuer-key: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
+    secrets: inherit
+
   dmg:
     needs: verify
     uses: ./.github/workflows/build-macos.yml
@@ -81,7 +93,7 @@ jobs:
     name: Publish GitHub release
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [verify, installer, dmg, apk]
+    needs: [verify, installer, msix, dmg, apk]
     permissions:
       contents: write
     steps:
@@ -94,6 +106,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: ${{ needs.installer.outputs.artifact }}
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.msix.outputs.artifact }}
           path: dist
 
       - uses: actions/download-artifact@v4
