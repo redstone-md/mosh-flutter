@@ -144,7 +144,9 @@ impl Coordinator {
 
     /// The source's view can move between its offer and the reader's first
     /// pull (new messages, acknowledged deletions); it then offers again in the
-    /// same round. Before anything is imported the reader follows that view.
+    /// same round. Before anything is imported the reader follows a view that
+    /// differs from the one it holds. A re-offer is not progress: the source
+    /// still has the original timeout to deliver.
     pub(crate) fn reoffered(
         &self,
         frame: &HistoryFrame,
@@ -158,6 +160,8 @@ impl Coordinator {
             || current.partial.is_some()
             || current.journal_after.is_some()
             || current.journal_complete
+            || (current.progress.manifest.as_deref() == Some(manifest)
+                && current.deletion_digest == deletion_digest)
             || !super::manifest::canonical_hex(manifest, 64)
             || !super::manifest::canonical_hex(deletion_digest, 64)
         {

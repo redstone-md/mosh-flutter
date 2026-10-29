@@ -57,8 +57,7 @@ impl ChannelSession {
             .reoffered(frame, &manifest, total, &deletion_digest)
         {
             self.save_checkpoint(next, &[])?;
-            self.recovery.last_progress = crate::conversation::now_ms();
-            return self.pull_history(self.recovery.last_progress);
+            return self.pull_history(crate::conversation::now_ms());
         }
         let Some((next, permit)) = self
             .recovery

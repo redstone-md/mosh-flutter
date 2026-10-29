@@ -75,3 +75,28 @@ fn an_inbox_obeys_both_its_frame_and_aggregate_byte_budgets() {
         "draining releases the bounded byte budget"
     );
 }
+
+#[test]
+fn only_a_changed_view_from_the_selected_source_is_followed_before_import() {
+    let mut coordinator = Coordinator::default();
+    let offer = frame(0);
+    coordinator.checkpoint.round = offer.round;
+    coordinator.checkpoint.progress.request_id = offer.request_id.clone();
+    coordinator.checkpoint.source = Some(offer.sender_key.clone());
+    coordinator.checkpoint.progress.manifest = Some("aa".repeat(32));
+    coordinator.checkpoint.deletion_digest = "bb".repeat(32);
+    let reoffer =
+        |c: &Coordinator, manifest: &str| c.reoffered(&offer, manifest, 1, &"bb".repeat(32));
+    assert!(
+        reoffer(&coordinator, &"aa".repeat(32)).is_none(),
+        "a replayed offer is not a new view"
+    );
+    let next = reoffer(&coordinator, &"cc".repeat(32)).unwrap();
+    assert_eq!(next.progress.manifest, Some("cc".repeat(32)));
+    assert_eq!(next.round, offer.round);
+    coordinator.checkpoint.journal_after = Some("page".into());
+    assert!(
+        reoffer(&coordinator, &"cc".repeat(32)).is_none(),
+        "an import in progress keeps its view"
+    );
+}
