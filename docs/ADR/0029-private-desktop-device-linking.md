@@ -204,7 +204,9 @@ cannot add another device or revive a removed installation. An independent
 legacy encoder under `cfg(test)` proves recovery without widening persistence
 visibility or adding test commands to the production bridge.
 
-Android uses `mobile_scanner` with its bundled model and internal lifecycle.
+Android scans with the `camera` plugin (CameraX) and decodes frames with zxing2,
+the same reader as image import. It replaced `mobile_scanner`, whose ML Kit and
+Play Services kept Mosh out of F-Droid-format repositories (IVO-158).
 Camera access starts only on the scan route; image/link import remains available.
 Flutter role forms, progress and roster presentation are separate widgets using
 existing settings surfaces, QR renderer and confirmation dialog.

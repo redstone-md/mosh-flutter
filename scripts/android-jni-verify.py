@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Check JNI Zero and Mosh native entry points in the final APK, after R8."""
+"""Check the final APK's DEX after R8: JNI Zero and Mosh native entry points
+survive, and no proprietary Google SDK is packaged."""
 import argparse
 import re
 import subprocess
@@ -26,6 +27,9 @@ REQUIRED = {
     ),
 }
 
+# F-Droid-format repositories (IzzyOnDroid) reject these closed SDKs.
+NONFREE = ("com.google.android.gms.", "com.google.mlkit.", "com.google.firebase.")
+
 
 def read_classes(apk, dexdump):
     classes = {}
@@ -46,6 +50,9 @@ def read_classes(apk, dexdump):
 
 def verify(apk, dexdump):
     classes = read_classes(apk, dexdump)
+    nonfree = sorted({name.rsplit(".", 1)[0] for name in classes if name.startswith(NONFREE)})
+    if nonfree:
+        raise ValueError("Proprietary Google SDK packaged: " + ", ".join(nonfree))
     for name, required in REQUIRED.items():
         if name not in classes:
             raise ValueError(f"Missing JNI class: {name}")
@@ -58,7 +65,8 @@ def verify(apk, dexdump):
         for method in required:
             if method not in methods:
                 raise ValueError(f"Missing JNI method/signature: {name}.{method}")
-    print("JNI Zero and Mosh native-callable method signatures verified in APK DEX.")
+    print("JNI Zero and Mosh native-callable method signatures verified in APK DEX; "
+          "no proprietary Google SDK packaged.")
 
 
 if __name__ == "__main__":

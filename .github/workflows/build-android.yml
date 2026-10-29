@@ -2,15 +2,16 @@ name: Build Android release
 
 # The signed arm64 APK, built the same way for a main push and a release tag.
 # The distribution channel picks the build: `github` updates itself from the
-# release feed, `rustore` is the RuStore upload (no self-update, Mosh+ shows
-# only the membership). Both use the same signing key, so either installs
-# over the other.
+# release feed, `fdroid` is the APK F-Droid-format repositories (IzzyOnDroid)
+# take from the release (no self-update), `rustore` is the RuStore upload (no
+# self-update, Mosh+ shows only the membership). All use the same signing key,
+# so any installs over another.
 
 on:
   workflow_call:
     inputs:
       distribution-channel:
-        description: Store the build is made for (github or rustore).
+        description: Store the build is made for (github, fdroid or rustore).
         type: string
         default: github
     outputs:
@@ -20,9 +21,9 @@ on:
   workflow_dispatch:
     inputs:
       distribution-channel:
-        description: github updates itself, rustore is the RuStore upload.
+        description: github updates itself, fdroid is for IzzyOnDroid, rustore is the RuStore upload.
         type: choice
-        options: [github, rustore]
+        options: [github, fdroid, rustore]
         default: github
 
 permissions:
@@ -37,7 +38,7 @@ jobs:
     # the Flutter release channel.
     env:
       # A store build carries its channel in every published name, so the
-      # release keeps both APKs and both manifests side by side.
+      # release keeps every APK and manifest side by side.
       SUFFIX: ${{ inputs.distribution-channel != 'github' && format('-{0}', inputs.distribution-channel) || '' }}
     outputs:
       artifact: mosh-android-release${{ env.SUFFIX }}

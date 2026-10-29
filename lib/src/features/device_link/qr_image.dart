@@ -1,3 +1,5 @@
+import 'dart:typed_data' show Int8List;
+
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:zxing2/qrcode.dart';
@@ -6,8 +8,63 @@ const _maxImageBytes = 10 * 1024 * 1024;
 const _maxPixels = 16 * 1024 * 1024;
 const _invalidQrImage = 'Invalid QR image';
 
+/// The luminance (Y) plane of one camera frame. Rows are [rowStride] bytes
+/// apart, which can exceed [width] when the camera pads them.
+@immutable
+class QrFrame {
+  const QrFrame(this.luma,
+      {required this.width, required this.height, required this.rowStride});
+  final Uint8List luma;
+  final int width;
+  final int height;
+  final int rowStride;
+
+  /// Whether the plane holds every row it claims; a broken frame holds no QR.
+  bool get complete =>
+      width > 0 &&
+      height > 0 &&
+      rowStride >= width &&
+      luma.length >= rowStride * (height - 1) + width;
+}
+
 /// Decode a desktop QR image off the UI thread.
 Future<String> decodeDeviceQr(Uint8List bytes) => compute(_decode, bytes);
+
+/// The QR text in a camera frame, or null when the frame holds none.
+Future<String?> decodeQrFrame(QrFrame frame) => compute(_decodeFrame, frame);
+
+String? _decodeFrame(QrFrame frame) {
+  if (!frame.complete) return null;
+  try {
+    return _read(_FrameLuminance(frame));
+  } on ReaderException {
+    return null;
+  }
+}
+
+/// zxing2 reads the camera's Y plane directly; it does not export a source
+/// for planes with padded rows.
+class _FrameLuminance extends LuminanceSource {
+  _FrameLuminance(this._frame) : super(_frame.width, _frame.height);
+  final QrFrame _frame;
+
+  @override
+  Int8List getRow(int y, Int8List? row) {
+    final start = y * _frame.rowStride;
+    return (row != null && row.length >= width ? row : Int8List(width))
+      ..setRange(0, width, _frame.luma, start);
+  }
+
+  @override
+  Int8List getMatrix() {
+    final matrix = Int8List(width * height);
+    for (var y = 0; y < height; y++) {
+      matrix.setRange(
+          y * width, (y + 1) * width, _frame.luma, y * _frame.rowStride);
+    }
+    return matrix;
+  }
+}
 
 String _decode(Uint8List bytes) {
   if (bytes.length > _maxImageBytes) {
@@ -37,15 +94,18 @@ String _decodeImage(Uint8List bytes) {
       image.height,
       pixels.buffer
           .asInt32List(pixels.offsetInBytes, pixels.lengthInBytes ~/ 4));
-  final hints = DecodeHints()..put(DecodeHintType.tryHarder);
-  final bitmap = BinaryBitmap(HybridBinarizer(source));
-  final reader = QRCodeReader();
   try {
-    return reader.decode(bitmap, hints: hints).text;
+    return _read(source);
   } on ReaderException {
     // Clean desktop screenshots can be sampled without perspective detection.
-    return reader
-        .decode(bitmap, hints: DecodeHints()..put(DecodeHintType.pureBarcode))
-        .text;
+    return _read(source, pure: true);
   }
 }
+
+/// Reads a QR from [source]; [pure] samples an upright code without
+/// perspective detection.
+String _read(LuminanceSource source, {bool pure = false}) => QRCodeReader()
+    .decode(BinaryBitmap(HybridBinarizer(source)),
+        hints: DecodeHints()
+          ..put(pure ? DecodeHintType.pureBarcode : DecodeHintType.tryHarder))
+    .text;

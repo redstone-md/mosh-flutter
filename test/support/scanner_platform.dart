@@ -1,38 +1,115 @@
 import 'dart:async';
+
+import 'package:camera_platform_interface/camera_platform_interface.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:zxing2/qrcode.dart';
 
-/// Camera hardware seam only. Device authorization still uses the real bridge.
-class ScannerPlatform extends MobileScannerPlatform {
-  ScannerPlatform({this.error});
-  final MobileScannerErrorCode? error;
-  final captures = StreamController<BarcodeCapture?>.broadcast();
+/// Camera hardware seam only. Frames are decoded by the real QR reader and
+/// device authorization still uses the real bridge.
+class ScannerPlatform extends CameraPlatform {
+  ScannerPlatform(
+      {this.errorCode,
+      this.cameras = const [_back],
+      this.opening,
+      this.streamFails = false});
+
+  /// The platform error opening the camera fails with, e.g.
+  /// `CameraAccessDenied`.
+  final String? errorCode;
+
+  /// Holds the camera mid-open until completed.
+  final Completer<void>? opening;
+
+  /// The camera opens but refuses to stream frames.
+  final bool streamFails;
+  final List<CameraDescription> cameras;
+  final frames = StreamController<CameraImageData>.broadcast();
   int starts = 0;
-  int stops = 0;
-  bool disposed = false;
+  int releases = 0;
+
+  static const _back = CameraDescription(
+      name: 'back',
+      lensDirection: CameraLensDirection.back,
+      sensorOrientation: 90);
 
   @override
-  Stream<BarcodeCapture?> get barcodesStream => captures.stream;
-  @override
-  Stream<TorchState> get torchStateStream => const Stream.empty();
-  @override
-  Stream<double> get zoomScaleStateStream => const Stream.empty();
-  @override
-  Widget buildCameraView() => const SizedBox.expand();
+  Future<List<CameraDescription>> availableCameras() async => cameras;
 
   @override
-  Future<MobileScannerViewAttributes> start(StartOptions options) async {
+  Future<int> createCameraWithSettings(
+      CameraDescription description, MediaSettings? settings) async {
     starts++;
-    if (error != null) throw MobileScannerException(errorCode: error!);
-    return const MobileScannerViewAttributes(
-      cameraDirection: CameraFacing.back,
-      currentTorchMode: TorchState.unavailable,
-      size: Size(640, 480),
-    );
+    await opening?.future;
+    if (errorCode != null) throw CameraException(errorCode!, null);
+    return starts;
   }
 
   @override
-  Future<void> stop() async => stops++;
+  Future<void> initializeCamera(int cameraId,
+      {ImageFormatGroup imageFormatGroup = ImageFormatGroup.unknown}) async {}
+
   @override
-  Future<void> dispose() async => disposed = true;
+  Stream<CameraInitializedEvent> onCameraInitialized(int cameraId) =>
+      Stream.value(CameraInitializedEvent(
+          cameraId, 640, 480, ExposureMode.auto, false, FocusMode.auto, false));
+
+  @override
+  Stream<CameraErrorEvent> onCameraError(int cameraId) =>
+      StreamController<CameraErrorEvent>().stream;
+
+  @override
+  Stream<DeviceOrientationChangedEvent> onDeviceOrientationChanged() =>
+      const Stream.empty();
+
+  @override
+  bool supportsImageStreaming() => true;
+
+  @override
+  Stream<CameraImageData> onStreamedFrameAvailable(int cameraId,
+          {CameraImageStreamOptions? options}) =>
+      streamFails
+          ? throw PlatformException(code: 'CameraStreamFailed')
+          : frames.stream;
+
+  @override
+  Widget buildPreview(int cameraId) => const SizedBox.expand();
+
+  @override
+  Future<void> dispose(int cameraId) async => releases++;
 }
+
+/// A YUV camera frame showing [text] as a QR code. Rows are padded past the
+/// visible width, as Android cameras often deliver them.
+CameraImageData qrCameraFrame(String text) {
+  final matrix = Encoder.encode(text, ErrorCorrectionLevel.l).matrix!;
+  const scale = 4, margin = 16;
+  final width = matrix.width * scale + 2 * margin;
+  final stride = width + 32;
+  final luma = Uint8List(stride * width)..fillRange(0, stride * width, 255);
+  for (var y = 0; y < matrix.height; y++) {
+    for (var x = 0; x < matrix.width; x++) {
+      if (matrix.get(x, y) != 1) continue;
+      for (var dy = 0; dy < scale; dy++) {
+        final row = (margin + y * scale + dy) * stride + margin + x * scale;
+        luma.fillRange(row, row + scale, 0);
+      }
+    }
+  }
+  return _frame(luma, width, stride);
+}
+
+/// A frame whose plane is shorter than its stated size.
+CameraImageData brokenCameraFrame() =>
+    _frame(Uint8List(100), 320, 320, height: 240);
+
+/// A frame without any QR code in view.
+CameraImageData blankCameraFrame() =>
+    _frame(Uint8List(320 * 240)..fillRange(0, 320 * 240, 200), 320, 320);
+
+CameraImageData _frame(Uint8List luma, int width, int stride, {int? height}) =>
+    CameraImageData(
+        format: const CameraImageFormat(ImageFormatGroup.yuv420, raw: 35),
+        width: width,
+        height: height ?? luma.length ~/ stride,
+        planes: [CameraImagePlane(bytes: luma, bytesPerRow: stride)]);

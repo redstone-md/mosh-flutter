@@ -1,6 +1,8 @@
+import 'dart:async';
+
+import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:mosh/src/features/device_link/device_qr_scanner.dart';
 
 import '../../support/device_link_fixture.dart';
@@ -21,87 +23,130 @@ Future<void> _open(WidgetTester tester, ValueChanged<String?> onResult) async {
                     child: const Text('Open scanner')),
               )));
   await tester.tap(find.text('Open scanner'));
-  await tester.pumpAndSettle();
+  await _settle(tester);
+}
+
+/// Lets camera calls and off-thread QR decoding finish.
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 3; i++) {
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)));
+    await tester.pumpAndSettle();
+  }
+}
+
+ScannerPlatform _install(ScannerPlatform hardware) {
+  final previous = CameraPlatform.instance;
+  CameraPlatform.instance = hardware;
+  addTearDown(() {
+    CameraPlatform.instance = previous;
+    hardware.frames.close();
+  });
+  return hardware;
 }
 
 void main() {
-  late MobileScannerPlatform previous;
-  setUp(() => previous = MobileScannerPlatform.instance);
-  tearDown(() => MobileScannerPlatform.instance = previous);
-
   testWidgets(
-      'camera ignores empty captures and returns one URI, then releases camera',
+      'camera ignores frames without a QR and returns one URI, then releases camera',
       (tester) async {
-    final hardware = ScannerPlatform();
-    addTearDown(hardware.captures.close);
-    MobileScannerPlatform.instance = hardware;
+    final hardware = _install(ScannerPlatform());
     final results = <String?>[];
     await _open(tester, results.add);
-    hardware.captures.add(
-        const BarcodeCapture(barcodes: [Barcode(), Barcode(rawValue: '')]));
-    await tester.pump();
+    hardware.frames.add(blankCameraFrame());
+    await _settle(tester);
     expect(results, isEmpty);
     final uri = deviceLinkQrFixture();
-    hardware.captures.add(BarcodeCapture(barcodes: [
-      Barcode(rawValue: uri),
-      const Barcode(rawValue: 'another capture')
-    ]));
-    hardware.captures.add(BarcodeCapture(barcodes: [Barcode(rawValue: uri)]));
-    await tester.pumpAndSettle();
+    hardware.frames
+      ..add(qrCameraFrame(uri))
+      ..add(qrCameraFrame(uri));
+    await _settle(tester);
     expect(results, [uri]);
     expect(find.text('Open scanner'), findsOneWidget);
-    await _finishExit(tester, hardware);
+    expect(find.byType(DeviceQrScanner), findsNothing);
+    expect(hardware.releases, hardware.starts);
+  });
+
+  testWidgets('a broken frame does not stop scanning', (tester) async {
+    final hardware = _install(ScannerPlatform());
+    final results = <String?>[];
+    await _open(tester, results.add);
+    hardware.frames.add(brokenCameraFrame());
+    await _settle(tester);
+    final uri = deviceLinkQrFixture();
+    hardware.frames.add(qrCameraFrame(uri));
+    await _settle(tester);
+    expect(results, [uri]);
+  });
+
+  testWidgets('leaving while the camera opens closes it; return reopens it',
+      (tester) async {
+    final opening = Completer<void>();
+    final hardware = _install(ScannerPlatform(opening: opening));
+    final results = <String?>[];
+    await _open(tester, results.add);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    opening.complete();
+    await _settle(tester);
+    expect((hardware.starts, hardware.releases), (1, 1));
+    expect(find.textContaining('unavailable'), findsNothing);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await _settle(tester);
+    expect(hardware.starts, 2);
+    final uri = deviceLinkQrFixture();
+    hardware.frames.add(qrCameraFrame(uri));
+    await _settle(tester);
+    expect(results, [uri]);
   });
 
   testWidgets(
       'camera stops in background and restarts on return; fallback cancels scan',
       (tester) async {
-    final hardware = ScannerPlatform();
-    addTearDown(hardware.captures.close);
-    MobileScannerPlatform.instance = hardware;
+    final hardware = _install(ScannerPlatform());
     final results = <String?>[];
     await _open(tester, results.add);
     expect(hardware.starts, 1);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    await tester.pumpAndSettle();
-    expect(hardware.stops, 1);
+    await _settle(tester);
+    expect(hardware.releases, 1);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(hardware.starts, 2);
     await tester.tap(find.text('Use an image or link'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(results, [null]);
-    await _finishExit(tester, hardware);
+    expect(hardware.releases, 2);
   });
 
-  for (final error in [
-    MobileScannerErrorCode.permissionDenied,
-    MobileScannerErrorCode.unsupported
+  testWidgets('a camera that cannot stream is released and reported',
+      (tester) async {
+    final hardware = _install(ScannerPlatform(streamFails: true));
+    await _open(tester, (_) {});
+    expect(find.textContaining('The camera is unavailable'), findsOneWidget);
+    expect((hardware.starts, hardware.releases), (1, 1));
+  });
+
+  for (final (name, hardware, message) in [
+    (
+      'denied permission',
+      () => ScannerPlatform(errorCode: 'CameraAccessDenied'),
+      'Allow camera access'
+    ),
+    (
+      'no camera',
+      () => ScannerPlatform(cameras: const []),
+      'The camera is unavailable'
+    ),
   ]) {
-    testWidgets('$error keeps the image/link alternative available',
+    testWidgets('$name keeps the image/link alternative available',
         (tester) async {
-      final hardware = ScannerPlatform(error: error);
-      addTearDown(hardware.captures.close);
-      MobileScannerPlatform.instance = hardware;
+      _install(hardware());
       final results = <String?>[];
       await _open(tester, results.add);
-      expect(
-          find.textContaining(error == MobileScannerErrorCode.permissionDenied
-              ? 'Allow camera access'
-              : 'The camera is unavailable'),
-          findsOneWidget);
+      expect(find.textContaining(message), findsOneWidget);
       await tester.tap(find.text('Use an image or link'));
-      await tester.pumpAndSettle();
+      await _settle(tester);
       expect(results, [null]);
       expect(tester.takeException(), isNull);
     });
   }
-}
-
-Future<void> _finishExit(WidgetTester tester, ScannerPlatform hardware) async {
-  await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-  await tester.pump();
-  expect(find.byType(DeviceQrScanner, skipOffstage: false), findsNothing);
-  expect(hardware.stops, greaterThanOrEqualTo(1));
-  expect(hardware.disposed, isTrue);
 }

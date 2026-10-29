@@ -8,10 +8,11 @@ Enter it on the trusted device and approve. Keep both online until the trusted
 device shows Device linked. The invitation is single-use and expires after five
 minutes. Keep it private.
 
-The Android scanner uses bundled `mobile_scanner`, so scanning does not require
-a model download. Camera permission is requested only when opening the scanner;
-returning to the form always leaves image/link import available. The plugin owns
-camera startup, background pause, foreground return and disposal. Desktop uses
+The Android scanner reads CameraX frames through the `camera` plugin and decodes
+them with zxing2, so scanning needs neither Google Play Services nor a model
+download. Camera permission is requested only when opening the scanner;
+returning to the form always leaves image/link import available. The scanner
+releases the camera when Mosh leaves the foreground and reopens it on return. Desktop uses
 image/link import. No platform or online status is inferred from device names.
 
 The QR renderer uses whole pixel modules so a desktop screenshot stays

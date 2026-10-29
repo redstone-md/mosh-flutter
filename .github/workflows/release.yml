@@ -102,11 +102,21 @@ jobs:
       distribution-channel: rustore
     secrets: inherit
 
+  # IzzyOnDroid picks this asset by name. Stable releases only, for the same
+  # shared version code as RuStore.
+  apk-fdroid:
+    needs: verify
+    if: needs.verify.outputs.prerelease != 'true'
+    uses: ./.github/workflows/build-android.yml
+    with:
+      distribution-channel: fdroid
+    secrets: inherit
+
   publish:
     name: Publish GitHub release
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [verify, installer, msix, dmg, apk, apk-rustore]
+    needs: [verify, installer, msix, dmg, apk, apk-rustore, apk-fdroid]
     # Runs when the store jobs were skipped for a pre-release.
     if: ${{ !cancelled() && !failure() }}
     permissions:
@@ -143,6 +153,12 @@ jobs:
         if: needs.apk-rustore.result == 'success'
         with:
           name: ${{ needs.apk-rustore.outputs.artifact }}
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        if: needs.apk-fdroid.result == 'success'
+        with:
+          name: ${{ needs.apk-fdroid.outputs.artifact }}
           path: dist
 
       - name: Release notes
