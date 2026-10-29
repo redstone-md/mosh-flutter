@@ -1,6 +1,7 @@
 # Windows release builds
 
-Every release tag publishes two Windows packages, both built by
+Every release tag publishes two Windows packages (pre-release tags only the
+installer: `v1.2.3-rc.1` and `v1.2.3` would both be MSIX `1.2.3.0`), built by
 `build-windows.yml` from the same sources. The `distribution-channel` input
 picks the package:
 

@@ -63,8 +63,11 @@ jobs:
       plus-issuer-key: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
     secrets: inherit
 
+  # Not for pre-releases: v1.2.3-rc.1 and v1.2.3 both map to MSIX 1.2.3.0,
+  # and the Store only accepts a higher version than the last upload.
   msix:
     needs: verify
+    if: needs.verify.outputs.prerelease != 'true'
     uses: ./.github/workflows/build-windows.yml
     with:
       upload-debug-files: true
@@ -94,6 +97,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [verify, installer, msix, dmg, apk]
+    # Runs when the MSIX job was skipped for a pre-release.
+    if: ${{ !cancelled() && !failure() }}
     permissions:
       contents: write
     steps:
@@ -109,6 +114,7 @@ jobs:
           path: dist
 
       - uses: actions/download-artifact@v4
+        if: needs.msix.result == 'success'
         with:
           name: ${{ needs.msix.outputs.artifact }}
           path: dist

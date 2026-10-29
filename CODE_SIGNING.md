@@ -1,9 +1,10 @@
 # Code signing policy
 
-Mosh desktop ships **without a trusted signature**. The SignPath Foundation
-application was declined, and no other certificate — Apple Developer ID
-included — exists today, so neither platform is signed by an identity
-the OS trusts. The SHA-256 checksums published beside every release
+Mosh desktop downloads from GitHub ship **without a trusted signature**. The
+SignPath Foundation application was declined, and no other certificate —
+Apple Developer ID included — exists today, so neither platform is signed by
+an identity the OS trusts. The Microsoft Store package is the exception:
+the Store signs it before anyone installs it. The SHA-256 checksums published beside every release
 artifact are the integrity check. The macOS app does carry a
 self-signed signature (below).
 
