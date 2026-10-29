@@ -94,7 +94,14 @@ Release builds read public repository variables `MOSH_PLUS_SERVER_URL` and
 `MOSH_PLUS_ISSUER_KEY`. No private key or treasury credentials enter Flutter or CI.
 `scripts/plus-build-config.mjs` validates the origin and RSA public pin before
 packaging and writes `plus-build.json` beside downloadable artifacts. It records
-commit, network, enabled verification/purchase configuration and issuer key ID.
+commit, distribution channel, network, enabled verification/purchase
+configuration and issuer key ID. The channel comes from
+`MOSH_DISTRIBUTION_CHANNEL` (`github` when unset; `msstore`, `fdroid`, `rustore`,
+`play` or `appstore` for store builds; the platform builders take it as
+`distribution-channel`). Each workflow passes the same value to the preflight
+and to `flutter build`, and the preflight compiles the app's configuration with
+it and fails if the app would read anything else. Only `github` builds update
+themselves (ADR 0045).
 Mainnet artifacts keep ordinary names; only explicit devnet builds have a devnet
 suffix. The macOS release installer remains universal (Intel and Apple Silicon).
 

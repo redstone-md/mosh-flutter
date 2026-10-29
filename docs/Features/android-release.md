@@ -73,7 +73,8 @@ source tree. For local Android builds, merge that target table into
 `~/.cargo/config.toml`; clean old hook outputs before rebuilding.
 
 The `mosh-android-release` artifact contains the APK, SHA-256 sidecar and
-`plus-build.json` with source commit and public billing configuration. Tagged
+`plus-build.json` with source commit, distribution channel and public billing
+configuration. Tagged
 releases publish those files beside the Windows and macOS installers.
 
 ## Installation and acceptance

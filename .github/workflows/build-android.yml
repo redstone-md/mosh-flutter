@@ -57,6 +57,7 @@ jobs:
 
       - name: Verify AOT billing configuration
         env:
+          MOSH_DISTRIBUTION_CHANNEL: github
           MOSH_PLUS_NETWORK: solana-mainnet
           MOSH_PLUS_SERVER_URL: ${{ vars.MOSH_PLUS_SERVER_URL }}
           MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
@@ -65,6 +66,7 @@ jobs:
       - name: Build signed release APK
         shell: bash
         env:
+          MOSH_DISTRIBUTION_CHANNEL: github
           MOSH_PLUS_SERVER_URL: ${{ vars.MOSH_PLUS_SERVER_URL }}
           MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
@@ -81,6 +83,7 @@ jobs:
           flutter build apk --release --target-platform android-arm64 \
             --build-number="$version_code" --split-debug-info=build/android-symbols \
             "--dart-define=SENTRY_DSN=$SENTRY_DSN" \
+            "--dart-define=MOSH_DISTRIBUTION_CHANNEL=$MOSH_DISTRIBUTION_CHANNEL" \
             --dart-define=MOSH_PLUS_NETWORK=solana-mainnet \
             "--dart-define=MOSH_PLUS_SERVER_URL=$MOSH_PLUS_SERVER_URL" \
             "--dart-define=MOSH_PLUS_ISSUER_KEY=$MOSH_PLUS_ISSUER_KEY"

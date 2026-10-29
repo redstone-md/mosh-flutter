@@ -18,6 +18,10 @@ on:
         description: Compile mosh-core with parallel codegen (CI proof builds, never releases).
         type: boolean
         default: false
+      distribution-channel:
+        description: Store the build is made for (github, msstore, ...); empty is github.
+        type: string
+        default: github
       plus-network:
         description: PLUS network (solana-mainnet or solana-devnet).
         type: string
@@ -99,6 +103,7 @@ jobs:
 
       - name: Validate PLUS configuration and record public manifest
         env:
+          MOSH_DISTRIBUTION_CHANNEL: ${{ inputs.distribution-channel }}
           MOSH_PLUS_NETWORK: ${{ inputs.plus-network }}
           MOSH_PLUS_SERVER_URL: ${{ inputs.plus-server-url }}
           MOSH_PLUS_ISSUER_KEY: ${{ inputs.plus-issuer-key }}
@@ -106,6 +111,7 @@ jobs:
 
       - name: Build Windows app (release)
         env:
+          MOSH_DISTRIBUTION_CHANNEL: ${{ inputs.distribution-channel }}
           MOSH_PLUS_NETWORK: ${{ inputs.plus-network }}
           MOSH_PLUS_SERVER_URL: ${{ inputs.plus-server-url }}
           MOSH_PLUS_ISSUER_KEY: ${{ inputs.plus-issuer-key }}
@@ -113,6 +119,7 @@ jobs:
         # crash reporting; without it the build cannot report at all.
         run: >-
           flutter build windows --release --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }}
+          "--dart-define=MOSH_DISTRIBUTION_CHANNEL=$env:MOSH_DISTRIBUTION_CHANNEL"
           "--dart-define=MOSH_PLUS_NETWORK=$env:MOSH_PLUS_NETWORK"
           "--dart-define=MOSH_PLUS_SERVER_URL=$env:MOSH_PLUS_SERVER_URL"
           "--dart-define=MOSH_PLUS_ISSUER_KEY=$env:MOSH_PLUS_ISSUER_KEY"

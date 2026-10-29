@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/distribution_channel_provider.dart';
 
 import 'about_update_notice.dart';
 import 'app_package_info_provider.dart';
 import 'settings_card.dart';
 
 /// Build identity and protection limits, rather than runtime security status.
+///
+/// Only a build that updates itself checks the release feed: a store build
+/// shows its version and leaves updates to the store that installed it.
 class AboutSettingsSection extends ConsumerWidget {
   const AboutSettingsSection({super.key});
 
@@ -16,13 +20,14 @@ class AboutSettingsSection extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final text = Theme.of(context).textTheme;
     final info = ref.watch(appPackageInfoProvider);
+    final selfUpdates = ref.watch(distributionChannelProvider).selfUpdates;
     return SettingsSurface(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _identity(context, l, info),
-          if (_hasVersion(info)) ...[
+          if (selfUpdates && _hasVersion(info)) ...[
             const SizedBox(height: 12),
             const AboutUpdateNotice(),
           ],

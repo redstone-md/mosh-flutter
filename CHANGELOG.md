@@ -6,6 +6,12 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- Builds record the distribution channel they were made for (`github` by
+  default). Store builds leave updates to their store: About shows the
+  installed version without checking GitHub for a newer release.
+
 ## [0.25.1] - 2026-10-28
 
 ### Added
