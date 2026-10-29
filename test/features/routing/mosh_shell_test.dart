@@ -73,6 +73,22 @@ void main() {
   });
 
   testWidgets(
+      'desktop (1200x900): a launch straight into a chat still shows the rail',
+      (tester) async {
+    // A mosh:// link that starts Mosh opens the chat branch first.
+    final gw = ScriptableGateway()
+      ..seedSessions([shellSession(sessionId: 'dave-1', peer: 'Dave')]);
+
+    await pumpShellApp(tester,
+        gateway: gw,
+        physical: const Size(1200, 900),
+        location: AppRoutes.dmFor('dave-1'));
+
+    expect(find.byType(DmScreen), findsOneWidget);
+    expect(find.byType(SessionsScreen), findsOneWidget);
+  });
+
+  testWidgets(
       'desktop (1200x900): tapping the titlebar "Connection status" button '
       'mounts PeerStatusDrawer and the close button unmounts it',
       (tester) async {

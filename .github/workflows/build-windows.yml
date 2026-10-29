@@ -1,11 +1,14 @@
 name: Build Windows installer
 
-# The one shippable Windows artifact, built the same way for a main push
+# The shippable Windows artifacts, built the same way for a main push
 # (proof it still packages) and for a release tag (what gets published).
-# Reusable so the two callers cannot drift.
+# Reusable so the callers cannot drift. The distribution channel picks the
+# package: `github` builds the Inno Setup installer, `msstore` the Microsoft
+# Store MSIX (scripts/windows-msix-package.ps1).
 #
 # The installer is UNSIGNED -- SmartScreen will warn. The SignPath
-# application was declined; see CODE_SIGNING.md for the policy.
+# application was declined; see CODE_SIGNING.md for the policy. The Store
+# signs the MSIX itself.
 
 on:
   workflow_call:
@@ -36,7 +39,7 @@ on:
         default: ''
     outputs:
       artifact:
-        description: Name of the uploaded artifact holding the setup .exe and its .sha256.
+        description: Name of the uploaded artifact holding the setup .exe or Store .msix and its .sha256.
         value: ${{ jobs.installer.outputs.artifact }}
   workflow_dispatch:
     inputs:
@@ -56,17 +59,27 @@ on:
         description: Compile mosh-core with parallel codegen for a proof build.
         type: boolean
         default: true
+      distribution-channel:
+        description: github builds the installer, msstore the Store MSIX.
+        type: choice
+        options: [github, msstore]
+        default: github
 
 permissions:
   contents: read
 
 jobs:
   installer:
-    name: Windows installer (release, unsigned)
+    name: Windows ${{ inputs.distribution-channel == 'msstore' && 'Store MSIX' || 'installer' }} (release, unsigned)
     runs-on: windows-latest
     timeout-minutes: 60
     outputs:
-      artifact: ${{ inputs.plus-issuer-key != '' && inputs.plus-network == 'solana-devnet' && 'mosh-windows-plus-devnet' || 'mosh-windows-setup' }}
+      artifact: ${{ env.ARTIFACT }}
+    env:
+      ARTIFACT: ${{ inputs.plus-issuer-key != '' && inputs.plus-network == 'solana-devnet' && (inputs.distribution-channel == 'msstore' && 'mosh-windows-msix-plus-devnet' || 'mosh-windows-plus-devnet') || (inputs.distribution-channel == 'msstore' && 'mosh-windows-msix' || 'mosh-windows-setup') }}
+      # A release collects every build's manifest into one folder, so only
+      # the GitHub builds keep the plain name.
+      PLUS_MANIFEST: build/${{ inputs.distribution-channel == 'msstore' && 'plus-build-msstore.json' || 'plus-build.json' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -107,7 +120,7 @@ jobs:
           MOSH_PLUS_NETWORK: ${{ inputs.plus-network }}
           MOSH_PLUS_SERVER_URL: ${{ inputs.plus-server-url }}
           MOSH_PLUS_ISSUER_KEY: ${{ inputs.plus-issuer-key }}
-        run: node scripts/plus-build-config.mjs build/plus-build.json
+        run: node scripts/plus-build-config.mjs $env:PLUS_MANIFEST
 
       - name: Build Windows app (release)
         env:
@@ -166,11 +179,13 @@ jobs:
 
       # The runner image does not guarantee Inno Setup; chocolatey is there.
       - name: Install Inno Setup
+        if: inputs.distribution-channel != 'msstore'
         run: choco install innosetup -y --no-progress
 
       # AppVersion comes from pubspec so the installer filename, the
       # Add/Remove Programs entry and the app cannot disagree on the version.
       - name: Build installer
+        if: inputs.distribution-channel != 'msstore'
         shell: pwsh
         run: |
           $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$').Matches[0].Groups[1].Value.Trim()
@@ -178,6 +193,7 @@ jobs:
           iscc /Q /DAppVersion=$version windows\installer\mosh.iss
 
       - name: Checksum
+        if: inputs.distribution-channel != 'msstore'
         shell: pwsh
         run: |
           Get-ChildItem build\installer\*.exe | ForEach-Object {
@@ -186,14 +202,29 @@ jobs:
             Write-Host "$hash  $($_.Name)"
           }
 
+      - name: Build Store MSIX
+        if: inputs.distribution-channel == 'msstore'
+        shell: pwsh
+        run: ./scripts/windows-msix-package.ps1
+
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.plus-issuer-key != '' && inputs.plus-network == 'solana-devnet' && 'mosh-windows-plus-devnet' || 'mosh-windows-setup' }}
+          name: ${{ env.ARTIFACT }}
           path: |
             build/installer/*.exe
             build/installer/*.sha256
-            build/plus-build.json
+            build/msix-dist/*
+            ${{ env.PLUS_MANIFEST }}
           if-no-files-found: error
+
+      # Never published: the Store package signed for a local install.
+      - uses: actions/upload-artifact@v4
+        if: inputs.distribution-channel == 'msstore'
+        with:
+          name: mosh-windows-msix-test
+          path: build/msix-test/*
+          if-no-files-found: error
+          retention-days: 7
 
       # Diagnostic installers need their original PDB: a later rebuild can
       # produce different code addresses even at the same source revision.

@@ -101,7 +101,8 @@ configuration and issuer key ID. The channel comes from
 `distribution-channel`). Each workflow passes the same value to the preflight
 and to `flutter build`, and the preflight compiles the app's configuration with
 it and fails if the app would read anything else. Only `github` builds update
-themselves (ADR 0045).
+themselves (ADR 0045). A store build names its manifest after the channel
+(`plus-build-msstore.json`), so the release keeps one manifest per build.
 Mainnet artifacts keep ordinary names; only explicit devnet builds have a devnet
 suffix. The macOS release installer remains universal (Intel and Apple Silicon).
 

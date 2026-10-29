@@ -6,11 +6,21 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-10-29
+
 ### Added
 
 - Builds record the distribution channel they were made for (`github` by
   default). Store builds leave updates to their store: About shows the
   installed version without checking GitHub for a newer release.
+- Windows: each release also includes `mosh-<version>-x64.msix`, the package
+  submitted to Microsoft Store, where Mosh installs without a SmartScreen
+  warning. To install from GitHub, keep using the setup `.exe`.
+
+### Fixed
+
+- Desktop: opening a `mosh://` link while Mosh is closed no longer leaves the
+  chat list as an empty pane.
 
 ## [0.25.1] - 2026-10-28
 
