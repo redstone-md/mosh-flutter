@@ -77,6 +77,23 @@ The `mosh-android-release` artifact contains the APK, SHA-256 sidecar and
 configuration. Tagged
 releases publish those files beside the Windows and macOS installers.
 
+## RuStore build
+
+The `distribution-channel` input picks the build. Every release tag and every
+main push build both:
+
+| Channel | Release files | Who installs it |
+| --- | --- | --- |
+| `github` | `mosh-<version>-arm64-v8a.apk`, `plus-build.json` | People downloading from GitHub. |
+| `rustore` | `mosh-<version>-rustore-arm64-v8a.apk`, `plus-build-rustore.json` | Uploaded to RuStore. RuStore updates it. |
+
+The RuStore build does not check GitHub for updates, and its Mosh+ card shows
+only the membership, without purchase (see [production Mosh+](plus-mainnet.md)).
+The app links to no app store. Both APKs have the same package id, version code
+and signing key, so either installs over the other and keeps its data. The
+package checks above run on both. Upload the RuStore APK in the RuStore
+developer console; the next upload needs a higher version code.
+
 ## Installation and acceptance
 
 The Activity initializes CPAL's JVM/application context before starting Dart.

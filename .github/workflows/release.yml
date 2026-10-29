@@ -2,8 +2,8 @@ name: Release
 
 # A pushed `v*` tag cuts a GitHub release: the tag must name the version
 # pubspec carries and CHANGELOG.md must have a section for it, the Windows
-# installer and the Store MSIX are built by the same reusable workflow CI
-# runs, and the release body is the curated changelog section plus what git
+# installer and the Store MSIX, and the GitHub and RuStore APKs, are built by
+# the same reusable workflows CI runs, and the release body is the curated changelog section plus what git
 # says is in the tag.
 #
 # Cut one with:
@@ -92,11 +92,18 @@ jobs:
     uses: ./.github/workflows/build-android.yml
     secrets: inherit
 
+  apk-rustore:
+    needs: verify
+    uses: ./.github/workflows/build-android.yml
+    with:
+      distribution-channel: rustore
+    secrets: inherit
+
   publish:
     name: Publish GitHub release
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [verify, installer, msix, dmg, apk]
+    needs: [verify, installer, msix, dmg, apk, apk-rustore]
     # Runs when the MSIX job was skipped for a pre-release.
     if: ${{ !cancelled() && !failure() }}
     permissions:
@@ -127,6 +134,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: ${{ needs.apk.outputs.artifact }}
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.apk-rustore.outputs.artifact }}
           path: dist
 
       - name: Release notes

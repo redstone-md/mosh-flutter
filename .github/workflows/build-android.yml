@@ -1,23 +1,45 @@
 name: Build Android release
 
+# The signed arm64 APK, built the same way for a main push and a release tag.
+# The distribution channel picks the build: `github` updates itself from the
+# release feed, `rustore` is the RuStore upload (no self-update, Mosh+ shows
+# only the membership). Both use the same signing key, so either installs
+# over the other.
+
 on:
   workflow_call:
+    inputs:
+      distribution-channel:
+        description: Store the build is made for (github or rustore).
+        type: string
+        default: github
     outputs:
       artifact:
         description: Signed arm64 APK, checksum and public build configuration.
         value: ${{ jobs.apk.outputs.artifact }}
   workflow_dispatch:
+    inputs:
+      distribution-channel:
+        description: github updates itself, rustore is the RuStore upload.
+        type: choice
+        options: [github, rustore]
+        default: github
 
 permissions:
   contents: read
 
 jobs:
   apk:
-    name: Android APK (arm64, release signed)
+    name: Android APK (${{ inputs.distribution-channel }}, arm64, release signed)
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      CHANNEL: ${{ inputs.distribution-channel }}
+      # A store build carries its channel in every published name, so the
+      # release keeps both APKs and both manifests side by side.
+      SUFFIX: ${{ inputs.distribution-channel != 'github' && format('-{0}', inputs.distribution-channel) || '' }}
     outputs:
-      artifact: mosh-android-release
+      artifact: mosh-android-release${{ env.SUFFIX }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,16 +79,16 @@ jobs:
 
       - name: Verify AOT billing configuration
         env:
-          MOSH_DISTRIBUTION_CHANNEL: github
+          MOSH_DISTRIBUTION_CHANNEL: ${{ env.CHANNEL }}
           MOSH_PLUS_NETWORK: solana-mainnet
           MOSH_PLUS_SERVER_URL: ${{ vars.MOSH_PLUS_SERVER_URL }}
           MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
-        run: node scripts/plus-build-config.mjs build/android-dist/plus-build.json
+        run: node scripts/plus-build-config.mjs "build/android-dist/plus-build$SUFFIX.json"
 
       - name: Build signed release APK
         shell: bash
         env:
-          MOSH_DISTRIBUTION_CHANNEL: github
+          MOSH_DISTRIBUTION_CHANNEL: ${{ env.CHANNEL }}
           MOSH_PLUS_SERVER_URL: ${{ vars.MOSH_PLUS_SERVER_URL }}
           MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
@@ -118,20 +140,20 @@ jobs:
         run: |
           set -euo pipefail
           version=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '[:space:]')
-          apk="mosh-$version-arm64-v8a.apk"
+          apk="mosh-$version$SUFFIX-arm64-v8a.apk"
           cp build/app/outputs/flutter-apk/app-release.apk "build/android-dist/$apk"
           cd build/android-dist
           sha256sum "$apk" > "$apk.sha256"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mosh-android-release
+          name: mosh-android-release${{ env.SUFFIX }}
           path: build/android-dist/
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mosh-android-symbols
+          name: mosh-android-symbols${{ env.SUFFIX }}
           path: |
             build/android-symbols/
             build/app/outputs/mapping/release/mapping.txt

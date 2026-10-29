@@ -349,6 +349,15 @@ jobs:
     uses: ./.github/workflows/build-android.yml
     secrets: inherit
 
+  # Same proof for the RuStore APK, so a broken store build fails on main
+  # instead of at release.
+  android-rustore:
+    if: github.repository == 'redstone-md/mosh-flutter' && github.event_name != 'pull_request'
+    uses: ./.github/workflows/build-android.yml
+    with:
+      distribution-channel: rustore
+    secrets: inherit
+
   # The darwin compile of mosh-core (keychain, coreaudio, unix cfg paths)
   # and its runtime behaviour under dlopen of the real universal dylib.
   # fmt is OS-independent and stays gated on the windows job.
