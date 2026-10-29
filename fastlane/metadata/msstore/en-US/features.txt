@@ -1,0 +1,7 @@
+Private chats and groups with end-to-end encryption (MLS).
+Public channels for open discussions.
+One-to-one voice and video calls.
+Files and voice messages, with transfers you can pause and resume.
+Several devices for one person: link a new device with a QR code and keep chatting.
+History is encrypted on the device. Read receipts and crash reports are off by default.
+English and Russian interface.

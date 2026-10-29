@@ -1,0 +1,1 @@
+Private chats, groups and calls that travel between devices over a peer-to-peer network, without a central message server, a phone number or an email address.

@@ -1,0 +1,22 @@
+Mosh is a messenger for private chats, groups and calls that works without a central message server. Devices find each other automatically through the Moss peer-to-peer network, and messages travel directly between them or through a relay when a direct path is blocked.
+
+You start with a display name. Mosh does not ask for a phone number or an email address, and each installation creates its own keys.
+
+Features:
+• Private chats and groups with end-to-end encryption (MLS).
+• Public channels for open discussions.
+• One-to-one voice and video calls.
+• Files and voice messages, with transfers you can pause and resume.
+• Several devices for one person: link a new device with a QR code and keep chatting.
+• On Android, messages and calls arrive while the app is closed, without Google services.
+• History is encrypted on the device. Read receipts and crash reports are off by default.
+• English and Russian interface.
+
+Privacy, honestly: private chats and groups are end-to-end encrypted. Public channels are signed, but their messages are not confidential. Devices find each other through public trackers, so Mosh does not provide anonymity, and participants can see which devices belong to a person.
+
+Mosh+ is an optional supporter badge shown next to your name. It does not unlock or limit any messaging or calling features.
+
+Mosh is free software under the GNU GPL v3. The source code is on GitHub.
+
+Website: https://mosh.run
+Privacy policy: https://mosh.run/privacy

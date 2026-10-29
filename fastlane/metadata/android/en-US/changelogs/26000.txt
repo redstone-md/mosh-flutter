@@ -1,0 +1,2 @@
+• Store builds leave updates to their store: About shows the installed version without checking GitHub.
+• Opening a mosh:// link while Mosh is closed no longer leaves the chat list empty.
