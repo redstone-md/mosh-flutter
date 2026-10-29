@@ -38,7 +38,13 @@ Invoke-Tool node scripts/msix-manifest.mjs "$layout/AppxManifest.xml"
 Copy-Item windows/msix/Assets "$work/pri" -Recurse
 Copy-Item "$layout/AppxManifest.xml" "$work/pri"
 Invoke-Tool "$bin/makepri.exe" createconfig /cf "$work/priconfig.xml" /dq en-US /pv 10.0.0 /o
+# The default config splits each scale into its own .pri for resource packs,
+# which a single .msix never loads; keep every logo in resources.pri.
+$config = [xml](Get-Content "$work/priconfig.xml")
+[void]$config.resources.RemoveChild($config.resources.packaging)
+$config.Save((Resolve-Path "$work/priconfig.xml"))
 Invoke-Tool "$bin/makepri.exe" new /pr "$work/pri" /cf "$work/priconfig.xml" /mn "$work/pri/AppxManifest.xml" /of "$layout/resources.pri" /o
+if (Get-ChildItem "$layout/resources.*.pri") { throw 'makepri split the logos into resource packs' }
 
 $msix = "$dist/$name.msix"
 Invoke-Tool "$bin/makeappx.exe" pack /d $layout /p $msix /h SHA256 /o
