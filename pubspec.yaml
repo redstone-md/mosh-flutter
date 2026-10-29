@@ -79,7 +79,10 @@ dependencies:
   qr_flutter: ^4.1.0
   zxing2: ^0.2.4
   sentry_flutter: ^9.30.1
-  mobile_scanner: ^7.4.2
+  # Android device-link scanner: CameraX frames decoded by zxing2 above. It
+  # replaced mobile_scanner, whose ML Kit and Play Services kept Mosh out of
+  # F-Droid-format repositories (IVO-158).
+  camera: ^0.12.2
 
 # record_macos 2.1.1 with one patch (InputHelper.swift, getInputSampleRates):
 # a virtual audio driver that reports the sample-rate range 0...DBL_MAX made
@@ -96,6 +99,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   super_native_extensions: ^0.10.0-dev.2
+  camera_platform_interface: ^2.15.0
 
 flutter:
   generate: true
