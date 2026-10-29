@@ -12,7 +12,7 @@ Features:
 • History is encrypted on the device. Read receipts and crash reports are off by default.
 • English and Russian interface.
 
-Private chats and groups are end-to-end encrypted, so only their members can read them. Public channels are open to anyone who joins, and a signature confirms who wrote each message. Devices find each other through public trackers: Mosh protects what you say, but does not hide that you are online. Contacts can see which devices are linked to your profile.
+Private chats and groups are end-to-end encrypted, so only their members can read them. Public channels are open to anyone who joins, and a signature confirms who wrote each message. Devices find each other through public trackers: Mosh protects what you say, but does not hide that you are online.
 
 Mosh+ is an optional supporter badge shown next to your name. It does not unlock or limit any messaging or calling features.
 
