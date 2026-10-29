@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 const _enabled = bool.fromEnvironment('SETUP_PREVIEW');
 
@@ -36,7 +37,9 @@ Future<void> saveSetupPreview(WidgetTester tester, String name) async {
 
 /// Writes the repaint boundary at [boundary] to [path] as a PNG, after its
 /// images have decoded. Preview scripts use it to export documentation and
-/// store screenshots.
+/// store screenshots. The capture is flattened onto the app background, as a
+/// window shows it: translucent hairlines over unpainted pixels would
+/// otherwise render white in image viewers.
 Future<void> savePreviewPng(WidgetTester tester, Finder boundary, String path,
     {double pixelRatio = 1}) async {
   for (final element in find.byType(Image).evaluate()) {
@@ -46,7 +49,15 @@ Future<void> savePreviewPng(WidgetTester tester, Finder boundary, String path,
   await tester.pump();
   final render = tester.firstRenderObject<RenderRepaintBoundary>(boundary);
   await tester.runAsync(() async {
-    final image = await render.toImage(pixelRatio: pixelRatio);
+    final layer = await render.toImage(pixelRatio: pixelRatio);
+    final recorder = ui.PictureRecorder();
+    Canvas(recorder)
+      ..drawColor(MoshColors.bg1, BlendMode.src)
+      ..drawImage(layer, Offset.zero, Paint());
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(layer.width, layer.height);
+    layer.dispose();
+    picture.dispose();
     try {
       final png = await image.toByteData(format: ui.ImageByteFormat.png);
       final file = File(path);
