@@ -8,10 +8,14 @@ import 'package:zxing2/qrcode.dart';
 /// Camera hardware seam only. Frames are decoded by the real QR reader and
 /// device authorization still uses the real bridge.
 class ScannerPlatform extends CameraPlatform {
-  ScannerPlatform({this.errorCode, this.cameras = const [_back]});
+  ScannerPlatform({this.errorCode, this.cameras = const [_back], this.opening});
 
-  /// The platform error `initialize` fails with, e.g. `CameraAccessDenied`.
+  /// The platform error opening the camera fails with, e.g.
+  /// `CameraAccessDenied`.
   final String? errorCode;
+
+  /// Holds the camera mid-open until completed.
+  final Completer<void>? opening;
   final List<CameraDescription> cameras;
   final frames = StreamController<CameraImageData>.broadcast();
   int starts = 0;
@@ -29,6 +33,7 @@ class ScannerPlatform extends CameraPlatform {
   Future<int> createCameraWithSettings(
       CameraDescription description, MediaSettings? settings) async {
     starts++;
+    await opening?.future;
     if (errorCode != null) throw CameraException(errorCode!, null);
     return starts;
   }
@@ -85,13 +90,17 @@ CameraImageData qrCameraFrame(String text) {
   return _frame(luma, width, stride);
 }
 
+/// A frame whose plane is shorter than its stated size.
+CameraImageData brokenCameraFrame() =>
+    _frame(Uint8List(100), 320, 320, height: 240);
+
 /// A frame without any QR code in view.
 CameraImageData blankCameraFrame() =>
     _frame(Uint8List(320 * 240)..fillRange(0, 320 * 240, 200), 320, 320);
 
-CameraImageData _frame(Uint8List luma, int width, int stride) =>
+CameraImageData _frame(Uint8List luma, int width, int stride, {int? height}) =>
     CameraImageData(
         format: const CameraImageFormat(ImageFormatGroup.yuv420, raw: 35),
         width: width,
-        height: luma.length ~/ stride,
+        height: height ?? luma.length ~/ stride,
         planes: [CameraImagePlane(bytes: luma, bytesPerRow: stride)]);

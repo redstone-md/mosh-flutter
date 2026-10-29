@@ -18,6 +18,13 @@ class QrFrame {
   final int width;
   final int height;
   final int rowStride;
+
+  /// Whether the plane holds every row it claims; a broken frame holds no QR.
+  bool get complete =>
+      width > 0 &&
+      height > 0 &&
+      rowStride >= width &&
+      luma.length >= rowStride * (height - 1) + width;
 }
 
 /// Decode a desktop QR image off the UI thread.
@@ -27,6 +34,7 @@ Future<String> decodeDeviceQr(Uint8List bytes) => compute(_decode, bytes);
 Future<String?> decodeQrFrame(QrFrame frame) => compute(_decodeFrame, frame);
 
 String? _decodeFrame(QrFrame frame) {
+  if (!frame.complete) return null;
   try {
     return _read(_FrameLuminance(frame));
   } on ReaderException {
@@ -90,14 +98,14 @@ String _decodeImage(Uint8List bytes) {
     return _read(source);
   } on ReaderException {
     // Clean desktop screenshots can be sampled without perspective detection.
-    return QRCodeReader()
-        .decode(BinaryBitmap(HybridBinarizer(source)),
-            hints: DecodeHints()..put(DecodeHintType.pureBarcode))
-        .text;
+    return _read(source, pure: true);
   }
 }
 
-String _read(LuminanceSource source) => QRCodeReader()
+/// Reads a QR from [source]; [pure] samples an upright code without
+/// perspective detection.
+String _read(LuminanceSource source, {bool pure = false}) => QRCodeReader()
     .decode(BinaryBitmap(HybridBinarizer(source)),
-        hints: DecodeHints()..put(DecodeHintType.tryHarder))
+        hints: DecodeHints()
+          ..put(pure ? DecodeHintType.pureBarcode : DecodeHintType.tryHarder))
     .text;

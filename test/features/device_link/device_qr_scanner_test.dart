@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -62,6 +64,38 @@ void main() {
     expect(find.text('Open scanner'), findsOneWidget);
     expect(find.byType(DeviceQrScanner), findsNothing);
     expect(hardware.releases, hardware.starts);
+  });
+
+  testWidgets('a broken frame does not stop scanning', (tester) async {
+    final hardware = _install(ScannerPlatform());
+    final results = <String?>[];
+    await _open(tester, results.add);
+    hardware.frames.add(brokenCameraFrame());
+    await _settle(tester);
+    final uri = deviceLinkQrFixture();
+    hardware.frames.add(qrCameraFrame(uri));
+    await _settle(tester);
+    expect(results, [uri]);
+  });
+
+  testWidgets('leaving while the camera opens closes it; return reopens it',
+      (tester) async {
+    final opening = Completer<void>();
+    final hardware = _install(ScannerPlatform(opening: opening));
+    final results = <String?>[];
+    await _open(tester, results.add);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    opening.complete();
+    await _settle(tester);
+    expect((hardware.starts, hardware.releases), (1, 1));
+    expect(find.textContaining('unavailable'), findsNothing);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await _settle(tester);
+    expect(hardware.starts, 2);
+    final uri = deviceLinkQrFixture();
+    hardware.frames.add(qrCameraFrame(uri));
+    await _settle(tester);
+    expect(results, [uri]);
   });
 
   testWidgets(

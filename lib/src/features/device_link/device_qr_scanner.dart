@@ -21,6 +21,8 @@ class _DeviceQrScannerState extends State<DeviceQrScanner>
     with WidgetsBindingObserver {
   CameraController? _camera;
   _CameraFailure? _failure;
+  bool _foreground = true;
+  bool _opening = false;
   bool _decoding = false;
   bool _returned = false;
 
@@ -34,6 +36,7 @@ class _DeviceQrScannerState extends State<DeviceQrScanner>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _foreground = false;
     _camera?.dispose();
     _camera = null;
     super.dispose();
@@ -43,38 +46,49 @@ class _DeviceQrScannerState extends State<DeviceQrScanner>
   /// Mosh leaves the foreground and open it again on return.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.inactive && _camera != null) {
-      final camera = _camera!;
+    if (state == AppLifecycleState.inactive) {
+      _foreground = false;
+      final camera = _camera;
+      if (camera == null) return;
       setState(() => _camera = null);
       camera.dispose();
-    } else if (state == AppLifecycleState.resumed &&
-        _camera == null &&
-        _failure == null) {
+    } else if (state == AppLifecycleState.resumed) {
+      _foreground = true;
       _start();
     }
   }
 
+  /// Opens the back camera and streams its frames. One open runs at a time;
+  /// when the app left the foreground meanwhile, it opens again on return.
   Future<void> _start() async {
+    if (_opening || _camera != null || _failure != null || !mounted) return;
+    _opening = true;
+    CameraController? camera;
     try {
       final cameras = await availableCameras();
+      if (!_foreground || !mounted) return;
       if (cameras.isEmpty) return _fail(_CameraFailure.unavailable);
-      final camera = CameraController(
+      camera = _camera = CameraController(
           cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.back,
               orElse: () => cameras.first),
-          ResolutionPreset.high,
+          ResolutionPreset.medium,
           enableAudio: false,
           imageFormatGroup: ImageFormatGroup.yuv420);
-      _camera = camera;
       await camera.initialize();
-      // The app may have left the foreground while the camera opened.
-      if (!mounted || _camera != camera) return;
+      if (_camera != camera) return;
       await camera.startImageStream(_scan);
       setState(() {});
     } on CameraException catch (error) {
-      _fail(error.code == 'CameraAccessDenied'
-          ? _CameraFailure.denied
-          : _CameraFailure.unavailable);
+      // Closing the camera mid-open fails the open; that is not a failure.
+      if (camera == null || _camera == camera) {
+        _fail(error.code == 'CameraAccessDenied'
+            ? _CameraFailure.denied
+            : _CameraFailure.unavailable);
+      }
+    } finally {
+      _opening = false;
     }
+    if (_foreground && _camera == null) _start();
   }
 
   void _fail(_CameraFailure failure) {
@@ -86,9 +100,15 @@ class _DeviceQrScannerState extends State<DeviceQrScanner>
     if (_decoding || _returned) return;
     _decoding = true;
     final luma = image.planes.first;
-    final uri = await decodeQrFrame(QrFrame(luma.bytes,
-        width: image.width, height: image.height, rowStride: luma.bytesPerRow));
-    _decoding = false;
+    final String? uri;
+    try {
+      uri = await decodeQrFrame(QrFrame(luma.bytes,
+          width: image.width,
+          height: image.height,
+          rowStride: luma.bytesPerRow));
+    } finally {
+      _decoding = false;
+    }
     if (uri == null || uri.isEmpty || _returned || !mounted) return;
     _returned = true;
     Navigator.of(context).pop(uri);
