@@ -112,6 +112,14 @@ impl GroupSession {
                 total,
                 deletion_digest,
             } => {
+                if let Some(next) =
+                    self.recovery
+                        .reoffered(&checked.frame, &manifest, total, &deletion_digest)
+                {
+                    self.save_history(next, &[], &[], &[])?;
+                    self.recovery.last_progress = now_ms();
+                    return self.pull_history(now_ms());
+                }
                 if let Some((next, permit)) = self
                     .recovery
                     .offered(

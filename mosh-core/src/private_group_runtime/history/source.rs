@@ -66,15 +66,7 @@ impl GroupSession {
     ) -> Result<(HistoryMessage<GroupRecord>, bool), PrivateGroupError> {
         self.validate_history_scope(recipient, &frame.sender_key)?;
         let Some(pull) = pull else {
-            let current = self.history_manifest(recipient)?;
-            return Ok((
-                HistoryMessage::Offer {
-                    manifest: current.digest,
-                    total: current.total,
-                    deletion_digest: self.history_deletion_digest()?,
-                },
-                false,
-            ));
+            return Ok((self.history_offer(recipient)?, false));
         };
         let prefix = format!(
             "{}\u{1}export-data\u{1}{}",
@@ -104,6 +96,11 @@ impl GroupSession {
                 )?);
             }
         }
+        // Nothing frozen for this round: this source changed since its offer,
+        // so it offers its current view instead of turning the reader away.
+        if pull.offset == 0 && export.as_ref().is_none_or(|e| e.round < frame.round) {
+            return Ok((self.history_offer(recipient)?, false));
+        }
         let Some(export) = export.filter(|e| e.matches(frame, &pull)) else {
             return Ok((HistoryMessage::Unavailable, false));
         };
@@ -120,6 +117,18 @@ impl GroupSession {
                 partial_digest,
             )
         }
+    }
+
+    fn history_offer(
+        &mut self,
+        recipient: &GroupScope,
+    ) -> Result<HistoryMessage<GroupRecord>, PrivateGroupError> {
+        let current = self.history_manifest(recipient)?;
+        Ok(HistoryMessage::Offer {
+            manifest: current.digest,
+            total: current.total,
+            deletion_digest: self.history_deletion_digest()?,
+        })
     }
 
     fn history_manifest(&mut self, recipient: &GroupScope) -> Result<Manifest, PrivateGroupError> {

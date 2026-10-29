@@ -52,6 +52,14 @@ impl ChannelSession {
         total: usize,
         deletion_digest: String,
     ) -> Result<(), ChannelRuntimeError> {
+        if let Some(next) = self
+            .recovery
+            .reoffered(frame, &manifest, total, &deletion_digest)
+        {
+            self.save_checkpoint(next, &[])?;
+            self.recovery.last_progress = crate::conversation::now_ms();
+            return self.pull_history(self.recovery.last_progress);
+        }
         let Some((next, permit)) = self
             .recovery
             .offered(
