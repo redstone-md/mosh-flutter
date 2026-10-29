@@ -113,7 +113,11 @@ final GoRouter appRouter = GoRouter(
               // is the left pane (fixed width 300); on mobile it is the only
               // pane when no chat is open. The row onTap navigates to a branch
               // B route, which go_router auto-activates (no goBranch call here).
+              // Preloaded for the same reason as branch B: a mosh:// link that
+              // starts Mosh lands in the chat branch first, and the desktop
+              // rail would stay an empty pane until the user left the chat.
               StatefulShellBranch(
+                preload: true,
                 routes: <RouteBase>[
                   GoRoute(
                     // DM sessions list.

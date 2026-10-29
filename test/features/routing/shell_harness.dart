@@ -42,18 +42,20 @@ SessionSnapshot shellSession(
     );
 
 /// Pumps MoshApp at [physical] logical pixels (device pixel ratio 1), with
-/// the router reset to the rail so a prior test's location does not leak.
+/// the router reset to [location] (the rail by default) so a prior test's
+/// location does not leak.
 Future<void> pumpShellApp(
   WidgetTester tester, {
   required ScriptableGateway gateway,
   required Size physical,
   DesktopWindowController? windowController,
+  String location = AppRoutes.sessions,
 }) async {
   tester.view.physicalSize = physical;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  appRouter.go(AppRoutes.sessions);
+  appRouter.go(location);
   await tester.pumpWidget(ProviderScope(
     overrides: [
       gatewayProvider.overrideWithValue(gateway),

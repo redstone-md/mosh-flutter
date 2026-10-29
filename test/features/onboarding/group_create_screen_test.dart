@@ -151,6 +151,7 @@ void main() {
       ..failAlways(BridgeMethod.createGroup, error: message);
     _stubClipboard();
     await pumpGroupStep(tester, bridge: throwing);
+    final listed = throwing.countOf(BridgeMethod.listGroups);
 
     await createNamed(tester, 'friends');
 
@@ -160,7 +161,7 @@ void main() {
     expect(find.text(message), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
     expect(find.byType(InviteResult), findsNothing);
-    expect(throwing.countOf(BridgeMethod.listGroups), 0);
+    expect(throwing.countOf(BridgeMethod.listGroups), listed);
   });
 
   testWidgets('Open group lands on the group just created', (tester) async {

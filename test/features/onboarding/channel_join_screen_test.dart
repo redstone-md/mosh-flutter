@@ -166,6 +166,7 @@ void main() {
     final throwing = ScriptableBridge()
       ..failAlways(BridgeMethod.joinChannel, error: message);
     await pumpJoinStep(tester, bridge: throwing);
+    final listed = throwing.countOf(BridgeMethod.listChannels);
 
     await join(tester, 'test-channel');
 
@@ -176,7 +177,7 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
     expect(find.byType(ChannelScreen), findsNothing);
     expect(find.byType(ChannelJoinStep), findsOneWidget);
-    // A failed join must not initialize or refresh the channel list.
-    expect(throwing.countOf(BridgeMethod.listChannels), 0);
+    // A failed join must not refresh the channel list the rail loaded.
+    expect(throwing.countOf(BridgeMethod.listChannels), listed);
   });
 }
