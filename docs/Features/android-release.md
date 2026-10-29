@@ -34,7 +34,8 @@ Initial release certificate SHA-256:
 
 The release uses Flutter AOT, default R8 shrinking, the committed Rust release
 profile and `--target-platform android-arm64`. Dart symbols and R8 mappings are
-uploaded separately as `mosh-android-symbols`. APKs contain no debug entry point.
+uploaded separately as `mosh-android-symbols` (`mosh-android-symbols-rustore`
+for the RuStore build). APKs contain no debug entry point.
 The Android version code is `major * 1000000 + minor * 1000 + patch` (minor/patch
 at most 999); preview rebuilds keep that version code and the same signing key.
 An update can replace an equal-version APK. Published stable versions increase it.
@@ -79,8 +80,10 @@ releases publish those files beside the Windows and macOS installers.
 
 ## RuStore build
 
-The `distribution-channel` input picks the build. Every release tag and every
-main push build both:
+The `distribution-channel` input picks the build. Every main push and release
+tag builds both; pre-release tags build only the GitHub APK, because
+`v1.2.3-rc.1` and `v1.2.3` share a version code. The RuStore build's artifact
+is `mosh-android-release-rustore`.
 
 | Channel | Release files | Who installs it |
 | --- | --- | --- |
@@ -89,7 +92,7 @@ main push build both:
 
 The RuStore build does not check GitHub for updates, and its Mosh+ card shows
 only the membership, without purchase (see [production Mosh+](plus-mainnet.md)).
-The app links to no app store. Both APKs have the same package id, version code
+Both APKs have the same package id, version code
 and signing key, so either installs over the other and keeps its data. The
 package checks above run on both. Upload the RuStore APK in the RuStore
 developer console; the next upload needs a higher version code.

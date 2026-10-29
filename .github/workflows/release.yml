@@ -2,9 +2,9 @@ name: Release
 
 # A pushed `v*` tag cuts a GitHub release: the tag must name the version
 # pubspec carries and CHANGELOG.md must have a section for it, the Windows
-# installer and the Store MSIX, and the GitHub and RuStore APKs, are built by
-# the same reusable workflows CI runs, and the release body is the curated changelog section plus what git
-# says is in the tag.
+# installer and Store MSIX and the GitHub and RuStore APKs are built by the
+# same reusable workflows CI runs, and the release body is the curated
+# changelog section plus what git says is in the tag.
 #
 # Cut one with:
 #   git tag -a v1.2.3 -m "Mosh 1.2.3" && git push origin v1.2.3
@@ -92,8 +92,11 @@ jobs:
     uses: ./.github/workflows/build-android.yml
     secrets: inherit
 
+  # Not for pre-releases either: v1.2.3-rc.1 and v1.2.3 share a version code,
+  # and RuStore only accepts a higher one than the last upload.
   apk-rustore:
     needs: verify
+    if: needs.verify.outputs.prerelease != 'true'
     uses: ./.github/workflows/build-android.yml
     with:
       distribution-channel: rustore
@@ -104,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [verify, installer, msix, dmg, apk, apk-rustore]
-    # Runs when the MSIX job was skipped for a pre-release.
+    # Runs when the store jobs were skipped for a pre-release.
     if: ${{ !cancelled() && !failure() }}
     permissions:
       contents: write
@@ -137,6 +140,7 @@ jobs:
           path: dist
 
       - uses: actions/download-artifact@v4
+        if: needs.apk-rustore.result == 'success'
         with:
           name: ${{ needs.apk-rustore.outputs.artifact }}
           path: dist
