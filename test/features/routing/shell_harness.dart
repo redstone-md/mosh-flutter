@@ -5,6 +5,7 @@
 // bridge providers are scripted doubles sharing one conversation state.
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/main.dart';
@@ -50,6 +51,8 @@ Future<void> pumpShellApp(
   required Size physical,
   DesktopWindowController? windowController,
   String location = AppRoutes.sessions,
+  ScriptableBridge? bridge,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = physical;
   tester.view.devicePixelRatio = 1.0;
@@ -61,7 +64,8 @@ Future<void> pumpShellApp(
       gatewayProvider.overrideWithValue(gateway),
       ...settingsAudioOverrides(),
       bridgeFacadeProvider.overrideWithValue(
-          ScriptableBridge(conversations: gateway.conversations)),
+          bridge ?? ScriptableBridge(conversations: gateway.conversations)),
+      ...overrides,
     ],
     child: MoshApp(windowController: windowController),
   ));
