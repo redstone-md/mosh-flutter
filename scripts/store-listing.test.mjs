@@ -50,7 +50,10 @@ for (const locale of locales) {
   });
 
   test(`${locale}: no listing names a price or asks to buy`, async () => {
+    const changelogs = await readdir(new URL(`${android}changelogs/`, root));
     for (const path of [
+      `${android}title.txt`,
+      ...changelogs.map((file) => `${android}changelogs/${file}`),
       `${android}short_description.txt`,
       `${android}full_description.txt`,
       `${msstore}short_description.txt`,
