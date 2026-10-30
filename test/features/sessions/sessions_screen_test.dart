@@ -19,6 +19,7 @@ import 'package:mosh/src/rust/conversation/dm_offers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 import '../../support/pump.dart';
+import '../../support/pump_route.dart';
 
 part 'sessions_screen_support.dart';
 

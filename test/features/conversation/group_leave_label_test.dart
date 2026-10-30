@@ -8,7 +8,7 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 
-import '../../support/pump.dart';
+import '../../support/pump_route.dart';
 
 GroupSnapshot _unlabelled(String groupId) => GroupSnapshot(
       groupId: groupId,

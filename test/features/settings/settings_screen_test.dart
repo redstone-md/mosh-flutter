@@ -10,7 +10,7 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/routing/mosh_shell.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
-import '../../support/pump.dart';
+import '../../support/pump_route.dart';
 import '../../support/message_builders.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';

@@ -16,7 +16,7 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 import '../../support/message_builders.dart';
-import '../../support/pump.dart';
+import '../../support/pump_route.dart';
 import '../../support/scriptable_gateway.dart';
 
 SessionSnapshot _snapshot({

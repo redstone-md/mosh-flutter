@@ -1,5 +1,8 @@
 # Flutter test runtime: measured continuation
 
+Follow-up: [screen/route harness dependency split](flutter-test-harness.md) records
+the later focused-run optimization separately from these measurements.
+
 Starting head: `93ef2f30c0d6de949a04648c127bdf62f83f4750`.
 Original: `3b2b88eb9fc49081be28b98c375c52fd7948adae`.
 This completes the runtime objective left unresolved by the

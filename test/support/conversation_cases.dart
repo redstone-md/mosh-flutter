@@ -27,6 +27,7 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 import 'pump.dart';
+import 'pump_route.dart';
 import 'package:mosh/src/rust/message_deletion/types.dart';
 import 'scriptable_bridge.dart';
 import 'scriptable_gateway.dart';

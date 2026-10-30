@@ -9,7 +9,7 @@ import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
-import '../../support/pump.dart';
+import '../../support/pump_route.dart';
 import '../../support/scriptable_gateway.dart';
 import '../../support/settings.dart';
 

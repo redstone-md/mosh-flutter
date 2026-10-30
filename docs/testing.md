@@ -84,3 +84,9 @@ make a runtime metric look better.
 
 The [runtime audit](Proposals/flutter-test-runtime.md) records the startup-cost
 experiment, preserved case identities and the measured full-run comparison.
+
+For standalone widgets, import `test/support/pump.dart` and use `pumpScreen`.
+Tests that navigate through the production routes import `pump_route.dart` and
+use `pumpRoute`. Both share the provider/frame implementation in `pump_scope.dart`.
+Keep route imports and re-exports out of the screen helper so a leaf test does
+not need the entire application graph. Actual route tests keep the real router.
