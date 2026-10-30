@@ -215,12 +215,12 @@ impl Engine {
             300_000..600_000 => (640, 360, 15),
             _ => (1280, 720, 30),
         };
-        self.endpoint.source.adapt_output_format(width, height, fps);
         self.endpoint.pc.set_send_rates(SendRates {
             min: None,
             start: Some(DataRate::from_bps(max.min(1_000_000))),
             max: Some(DataRate::from_bps(max)),
         })?;
+        self.endpoint.source.adapt_output_format(width, height, fps);
         Ok(json!({"ok":true}))
     }
 
