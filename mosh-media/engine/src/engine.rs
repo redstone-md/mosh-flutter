@@ -208,12 +208,14 @@ impl Engine {
             .as_u64()
             .filter(|max| (64_000..=3_000_000).contains(max))
             .ok_or_else(|| anyhow::anyhow!("invalid send budget"))?;
-        let constrained = max < 600_000;
-        self.endpoint.source.adapt_output_format(
-            if constrained { 640 } else { 1280 },
-            if constrained { 360 } else { 720 },
-            if constrained { 15 } else { 30 },
-        );
+        // A detailed 360p keyframe fills about a second of a relay budget,
+        // longer than the renderer keeps a frame, so relay video is sent at 270p.
+        let (width, height, fps) = match max {
+            ..300_000 => (480, 270, 15),
+            300_000..600_000 => (640, 360, 15),
+            _ => (1280, 720, 30),
+        };
+        self.endpoint.source.adapt_output_format(width, height, fps);
         self.endpoint.pc.set_send_rates(SendRates {
             min: None,
             start: Some(DataRate::from_bps(max.min(1_000_000))),

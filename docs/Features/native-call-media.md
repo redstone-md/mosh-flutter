@@ -188,8 +188,11 @@ Route and encoder limits apply before packets are transferred, independently of
 the 250 ms statistics refresh. Unknown routes use relay limits until a direct
 path is confirmed. Direct sending allows 500,000 bytes/s total
 and 450,000 video. Relayed sending allows 48,000 bytes/s total and 32,000 video;
-the engine's relay send-rate ceiling is 224 kbit/s and adapts to 360p15 on that
-path, versus up to 3 Mbit/s and 720p30 on direct paths. The shared capacity
+the engine's relay send-rate ceiling is 224 kbit/s and sends 270p15 on that
+path, versus up to 3 Mbit/s and 720p30 on direct paths. A budget under
+600 kbit/s sends 360p15. At 360p a detailed keyframe takes about a second of
+the relay budget, so the next frame missed the renderer's one-second expiry on
+slower machines. The shared capacity
 policy keeps the engine below the carrier's video allowance with room for
 packet framing. WebRTC supplies congestion adaptation.
 An idle sender waits for a queue notification without a periodic timer.
