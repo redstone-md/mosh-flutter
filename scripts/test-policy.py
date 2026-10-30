@@ -129,6 +129,33 @@ def test_source(name):
     return False
 
 
+def case_registrations(sources):
+    """Each case library has one group-scoped owner in its feature directory."""
+    owners = collections.defaultdict(list)
+    imports = re.compile(
+        r"\bimport\s+['\"]([\w]+_cases\.dart)['\"]\s+as\s+(\w+)\s*;"
+    )
+    for name, source in sources.items():
+        if not name.endswith('_test.dart'):
+            continue
+        code = mask(source)
+        for match in imports.finditer(source):
+            if code[match.start():match.start() + 6] != 'import':
+                continue
+            alias = re.escape(match[2])
+            groups = re.findall(r'\bgroup\s*\([^,]*,\s*' + alias +
+                                r'\.main\s*\)', code)
+            target = str(pathlib.PurePosixPath(name).parent / match[1])
+            owners[target].extend([name] * len(groups))
+    errors = []
+    for name, source in sources.items():
+        if name.endswith('_cases.dart') and re.search(r'\bvoid\s+main\s*\(', mask(source)):
+            if len(owners[name]) != 1:
+                errors.append(f'{name}: expected one group-scoped runner, found '
+                              f'{len(owners[name])}')
+    return errors
+
+
 def check(root, baseline):
     # Fail closed on shallow/missing history; do not quietly accept all tests.
     subprocess.run(['git', 'cat-file', '-e', baseline + '^{commit}'],
@@ -136,12 +163,11 @@ def check(root, baseline):
     names = subprocess.check_output(
         ['git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'],
         cwd=root).decode().split('\0')
-    errors = []
-    for name in sorted(set(filter(test_source, names))):
-        path = root / name
-        if not path.is_file():
-            continue
-        source = path.read_text()
+    sources = {name: (root / name).read_text()
+               for name in sorted(set(filter(test_source, names)))
+               if (root / name).is_file()}
+    errors = case_registrations(sources)
+    for name, source in sources.items():
         if not hazards(source):
             continue
         old = subprocess.run(['git', 'show', baseline + ':' + name], cwd=root,

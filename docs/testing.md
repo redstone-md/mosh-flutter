@@ -59,3 +59,28 @@ check; CI checks out full history. Run the guard examples with:
 ```sh
 python3 -B -m unittest discover -s scripts -p test_test_policy.py
 ```
+
+## Keep process startup proportional to the work
+
+Short related unit libraries can share a `*_test.dart` entry point. Keep their
+case declarations and private fixtures in sibling `*_cases.dart` libraries;
+register each synchronous `main` with `group('module', module.main)`. This scopes
+setup/teardown to the original module. The policy guard requires exactly one such
+runner per case library, so renaming a file cannot silently remove its tests.
+Use `flutter test path/to/module_cases.dart` to debug one case library directly.
+
+Group by feature and bounded runtime, not into one giant serial suite. Preserve
+separate processes for native initialization/fallback probes, actual HTTP and
+process-global contracts. A shared binding can change HTTP behavior even when
+all tests only import Flutter packages. Existing waits/skips are still subject
+to the baseline policy when moving a file; grouping does not exempt them.
+
+Prefer exact required frames over unbounded settling when the frame contract is
+known ([Flutter pumpAndSettle documentation](https://api.flutter.dev/flutter/flutter_test/WidgetTester/pumpAndSettle.html)).
+For real async work, await the readiness/completion future inside `runAsync`
+instead of sleeping ([Flutter runAsync documentation](https://api.flutter.dev/flutter/flutter_test/WidgetTester/runAsync.html)).
+Do not globally disable motion or fast-forward real network/hardware behavior to
+make a runtime metric look better.
+
+The [runtime audit](Proposals/flutter-test-runtime.md) records the startup-cost
+experiment, preserved case identities and the measured full-run comparison.

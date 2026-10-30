@@ -78,7 +78,7 @@ through the picked-message copy instead.
 
 ## Checks
 
-`message_selection_model_test.dart` covers the state model.
+`conversation_models_test.dart` (group `message_selection_model`) covers the state model.
 `message_selection_mode_test.dart` and `message_drag_selection_test.dart` cover
 the screen: the header swap, circles, bubble tint, taps, Shift, Escape, copy,
 mobile placement, draft retention, search narrowing,

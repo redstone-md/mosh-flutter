@@ -1,5 +1,9 @@
 # Test suite cleanup — 2026-10-30
 
+Runtime follow-up: [repeated measurements and process-startup reduction](flutter-test-runtime.md).
+The tables below preserve the initial cleanup measurements; the follow-up records
+the final measured improvement.
+
 ## Scope and checks
 
 Baseline: `3b2b88eb9fc49081be28b98c375c52fd7948adae` (clean `main`).
@@ -115,7 +119,7 @@ so no failure needed reproduction in a baseline worktree. Rust was enumerated,
 not executed; Rust sources, bindings and runtime behavior are unchanged.
 
 
-## Final verified result
+## First-pass verified result (before runtime grouping)
 
 Full-path decisions for the expanded Flutter UI scope are in the
 [UI evidence and case ledger](flutter-ui-test-cleanup.md). The initial bounded

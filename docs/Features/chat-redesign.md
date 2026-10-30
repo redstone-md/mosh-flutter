@@ -195,7 +195,7 @@ Physical Windows/Android runtime verification remains separate from widget tests
 
 ### `test/state/`
 
-- `conversation_providers_test.dart`
+- `conversation_state_test.dart` (group `conversation_providers`)
 
 ### `test/support/`
 

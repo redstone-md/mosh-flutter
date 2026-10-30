@@ -1,7 +1,7 @@
 // Tests for `frame_crypto` (lib/src/features/voice_call/frame_crypto.dart) --
 // the AES-GCM seal/open surface. The pure helpers
 // (buildFrame / parseFrame / direction bits) are covered separately by
-// `frame_codec_test.dart`.
+// `frame_codec_cases.dart`.
 // ignore_for_file: constant_identifier_names
 
 import 'dart:typed_data';

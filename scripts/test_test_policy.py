@@ -84,6 +84,27 @@ class TestPolicy(unittest.TestCase):
         original = 'test("x",\n timeout: Timeout(Duration(seconds: 4)))'
         self.assertTrue(policy.violations(original.replace('4', '5'), original))
 
+    def test_case_libraries_require_one_real_group_scoped_owner(self):
+        case = 'void main() { test("contract", () {}); }'
+        runner = ("import 'contract_cases.dart' as cases;\n"
+                  "group('contract', cases.main);")
+        sources = {'test/unit/contract_cases.dart': case}
+        self.assertTrue(policy.case_registrations(sources))
+        sources['test/unit/unit_test.dart'] = runner
+        self.assertEqual(policy.case_registrations(sources), [])
+        sources['test/unit/another_test.dart'] = runner
+        self.assertTrue(policy.case_registrations(sources))
+        del sources['test/unit/another_test.dart']
+        for invalid in [runner.replace("group('contract', cases.main)", 'cases.main()'),
+                        '// ' + runner.replace('\n', '\n// '),
+                        runner.replace("group('contract', cases.main)",
+                                       '\"group(contract, cases.main)\"')]:
+            sources['test/unit/unit_test.dart'] = invalid
+            self.assertTrue(policy.case_registrations(sources))
+        # Existing case-builder helpers declare no main and need no runner.
+        self.assertEqual(policy.case_registrations(
+            {'test/support/conversation_cases.dart': 'List cases() => [];'}), [])
+
     def test_file_scope_and_git_baseline(self):
         self.assertTrue(policy.test_source('test/support/helper.dart'))
         self.assertTrue(policy.test_source('mosh-core/src/foo/tests.rs'))
