@@ -142,6 +142,38 @@ impl Coordinator {
         Ok(Some((next, permit)))
     }
 
+    /// The source's view can move between its offer and the reader's first
+    /// pull (new messages, acknowledged deletions); it then offers again in the
+    /// same round. Before anything is imported the reader follows a view that
+    /// differs from the one it holds. A re-offer is not progress: the source
+    /// still has the original timeout to deliver.
+    pub(crate) fn reoffered(
+        &self,
+        frame: &HistoryFrame,
+        manifest: &str,
+        total: usize,
+        deletion_digest: &str,
+    ) -> Option<Checkpoint> {
+        let current = &self.checkpoint;
+        if !self.has_source(frame)
+            || current.progress.cursor != 0
+            || current.partial.is_some()
+            || current.journal_after.is_some()
+            || current.journal_complete
+            || (current.progress.manifest.as_deref() == Some(manifest)
+                && current.deletion_digest == deletion_digest)
+            || !super::manifest::canonical_hex(manifest, 64)
+            || !super::manifest::canonical_hex(deletion_digest, 64)
+        {
+            return None;
+        }
+        let mut next = current.clone();
+        next.progress.manifest = Some(manifest.into());
+        next.progress.total = Some(total);
+        next.deletion_digest = deletion_digest.into();
+        Some(next)
+    }
+
     pub(crate) fn finished(next: &mut Checkpoint, source: &str) {
         if next.progress.complete {
             if next.observed.len() >= 16 {

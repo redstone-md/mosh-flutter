@@ -91,6 +91,11 @@ impl ChannelSession {
                 &meta_key,
             )?);
         }
+        // Nothing frozen for this round: this source changed since its offer,
+        // so it offers its current view instead of turning the reader away.
+        if pull.is_first() && export.as_ref().is_none_or(|e| e.round < frame.round) {
+            return self.offer_history(frame);
+        }
         let Some(export) = export.filter(|e| e.matches(frame, &pull)) else {
             return self.reply_history(
                 Some(frame.sender_key.clone()),

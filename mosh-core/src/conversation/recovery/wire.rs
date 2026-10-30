@@ -53,6 +53,16 @@ pub(crate) struct HistoryPull {
     pub journal_after: Option<String>,
 }
 
+impl HistoryPull {
+    /// The opening pull of a round: journal from its start, nothing imported.
+    pub(crate) fn is_first(&self) -> bool {
+        self.offset == 0
+            && self.fragment_offset == 0
+            && self.journal
+            && self.journal_after.is_none()
+    }
+}
+
 impl HistoryFrame {
     pub(crate) fn seal<R: Serialize>(
         &mut self,

@@ -295,3 +295,24 @@ fn leaving_and_rejoining_starts_a_fresh_recovery_instead_of_restoring_a_deleted_
     page(&mut f, "rejoin-history", &source, vec![record]);
     assert_eq!(f.runtime.poll("rejoin-history").unwrap().messages.len(), 1);
 }
+
+#[test]
+fn a_source_that_changed_before_the_first_pull_can_offer_its_new_view() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut f = Fixture::new();
+    let source = SigningKey::from_bytes(&[14; 32]);
+    let rows = [text("kept", "retained")];
+    f.join("reoffer");
+    f.offer("reoffer", &source, 0);
+    // A message reached the source after its offer, so it offers its new view
+    // before the reader has pulled anything.
+    f.offer_rows("reoffer", &source, &rows);
+    f.journal("reoffer", &source);
+    page(&mut f, "reoffer", &source, rows.to_vec());
+    let snapshot = f.runtime.poll("reoffer").unwrap();
+    assert_eq!(snapshot.messages.len(), 1);
+    assert_eq!(
+        snapshot.history_sync.unwrap().state,
+        HistorySyncState::Complete
+    );
+}

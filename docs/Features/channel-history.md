@@ -43,8 +43,12 @@ authorization are unchanged. The channel uses its existing public room and blob
 topic; this channel transport is not suitable for private-group history.
 
 Source exports freeze ordered row locators and content bindings on disk. The
-first Pull verifies the selected manifest inside that transaction; a changed
-Offer is refused. The receiver atomically saves rows, occurrence conflicts,
+first Pull verifies the selected manifest inside that transaction. A source
+whose rows or deletion journal changed since its Offer (a new message, an
+acknowledged deletion) answers that Pull with a fresh Offer for the same round,
+and the receiver follows it while nothing has been imported. Refusing instead
+made the receiver avoid that source for a minute; private-group history uses
+the same rule. The receiver atomically saves rows, occurrence conflicts,
 source receipts and its next cursor in the existing redb store under its DEK.
 Only then does memory advance. A refusal permits the same page to be retried.
 Eligible authenticated incoming messages are queued for background notification
