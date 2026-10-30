@@ -24,11 +24,12 @@ Contribution" is not a Contribution.
 
 ## 2. Copyright license
 
-You grant the Maintainers, and the recipients of software they distribute, a
-perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-copyright license to reproduce, prepare derivative works of, publicly display,
-publicly perform, sublicense and distribute Your Contributions and such
-derivative works, under any license terms, including proprietary ones.
+You grant the Maintainers a perpetual, worldwide, non-exclusive, no-charge,
+royalty-free, irrevocable copyright license to reproduce, prepare derivative
+works of, publicly display, publicly perform, sublicense and distribute Your
+Contributions and such derivative works, under any license terms, including
+proprietary ones. Everyone else receives Your Contributions under the licenses
+the Maintainers distribute them with.
 
 ## 3. Patent license
 
