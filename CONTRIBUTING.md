@@ -9,9 +9,9 @@ Bug reports and ideas go to
 
 The copyright holders publish Mosh in application stores, which needs rights
 beyond the GPL-3.0 for every part of the code. To keep that possible, a pull
-request from anyone other
-than ForeverInLaw or Rxflex can be merged only after its author accepts the
-[Contributor License Agreement](CLA.md). You keep the copyright in your code.
+request from anyone other than ForeverInLaw or Rxflex can be merged only after
+its author accepts the [Contributor License Agreement](CLA.md). You keep the
+copyright in your code.
 
 To accept it, put this line in the pull request description:
 
