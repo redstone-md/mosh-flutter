@@ -39,3 +39,14 @@ Desktop-first Flutter + Riverpod, Rust via flutter_rust_bridge, Moss + OpenMLS.
 - Limits: 400 lines/file, 200/type, 50/function, nesting 3. Document exceptions.
 - Changed code: ≥80% line coverage, ≥70% branch coverage where available.
 - Run relevant checks yourself. Report changed files, simplifications and risks.
+
+## Test value
+- Test caller-visible contracts and distinct failure classes; preserve known
+  regressions. For deletions, record the full test path and evidence; name the
+  retained test when removing a duplicate.
+- Run `python3 scripts/test-policy.py` before committing test changes. CI rejects
+  focused tests. New skips/todos need a local reason and tracking issue; new
+  timeout/retry overrides and real sleeps need the same narrow exception.
+- Prefer completion events and controlled clocks. Keep real timing-contract,
+  network and platform gates explicit. Historical exceptions are frozen, not a
+  budget for new ones; see [test policy](docs/testing.md) for syntax and scope.
