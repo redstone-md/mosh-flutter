@@ -269,6 +269,9 @@ fn known_sibling_occupancy_blocks_an_incoming_call_in_the_same_dm(f: &mut Fixtur
         json!({"Occupied":{"caller":caller,"receiver":null}}),
     );
     apply(f, busy);
+    // Occupancy is a 15 s lease, and refusing the offer below sends a decline
+    // that a loaded runner can take longer than that to give up on.
+    assert_eq!(f.snapshot().call_availability, Some(CallAvailability::Busy));
     let contact = f.contact.device().device_id.clone();
     let peer = f.contact.device().moss_peer_id.clone();
     let offer = remote_control(
@@ -287,7 +290,6 @@ fn known_sibling_occupancy_blocks_an_incoming_call_in_the_same_dm(f: &mut Fixtur
         .unwrap()
         .handle_call_control(offer);
     assert!(f.snapshot().pending_call.is_none());
-    assert_eq!(f.snapshot().call_availability, Some(CallAvailability::Busy));
 }
 
 fn partition_conflict_preserves_the_existing_call_and_reports_admission(f: &mut Fixture) {
