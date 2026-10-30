@@ -172,22 +172,4 @@ void main() {
       expect(find.text('Incoming voice call...'), findsOneWidget);
     },
   );
-
-  testWidgets(
-    'renders the peer label and localized status',
-    (tester) async {
-      await _pump(
-        tester,
-        modal: IncomingCallModal(
-          pending: _pending(),
-          peerLabel: 'Alice',
-          onAccept: () {},
-          onDecline: (_) {},
-          l: await _l(),
-        ),
-      );
-      expect(find.text('Alice'), findsOneWidget);
-      expect(find.text('Incoming voice call...'), findsOneWidget);
-    },
-  );
 }

@@ -27,15 +27,11 @@ void main() {
     );
   });
 
-  testWidgets('lock renders with the E2EE tooltip', (tester) async {
-    await pumpScreen(tester, lockWith(fingerprint));
-    expect(find.byIcon(Icons.lock), findsOneWidget);
-    expect(find.byTooltip('End-to-end encrypted'), findsOneWidget);
-  });
-
   testWidgets('tapping the lock opens the dialog with emoji, hex, hint',
       (tester) async {
     await pumpScreen(tester, lockWith(fingerprint));
+    expect(find.byIcon(Icons.lock), findsOneWidget);
+    expect(find.byTooltip('End-to-end encrypted'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.lock));
     await tester.pumpAndSettle();
 

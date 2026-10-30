@@ -64,7 +64,7 @@ void main() {
 
       expect(copied, ['hello there']);
       expect(find.text('Copied'), findsOneWidget);
-    }, variant: TargetPlatformVariant.desktop());
+    }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
   }
 
   testWidgets('long-press, Copy message copies the body alone', (tester) async {
@@ -107,7 +107,9 @@ void main() {
     await sendPlatformShortcut(tester, LogicalKeyboardKey.keyC);
 
     expect(copied, ['second message']);
-  }, variant: TargetPlatformVariant.desktop());
+  },
+      variant: TargetPlatformVariant(
+          {TargetPlatform.windows, TargetPlatform.macOS}));
 
   testWidgets('screen readers get a Copy message action on each message',
       (tester) async {

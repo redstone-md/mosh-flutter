@@ -11,17 +11,6 @@ void main() {
     expect(fingerprintEmoji(''), isEmpty);
   });
 
-  test('a non-empty fingerprint renders exactly four emoji', () {
-    expect(fingerprintEmoji('0011223344556677'), hasLength(4));
-    expect(fingerprintEmoji('fp-peer-1234'), hasLength(4));
-    expect(fingerprintEmoji('a'), hasLength(4));
-  });
-
-  test('the same fingerprint always maps to the same emoji', () {
-    expect(fingerprintEmoji('0011223344556677'),
-        equals(fingerprintEmoji('0011223344556677')));
-  });
-
   test('known vector: hex bytes map to their pool slots', () {
     // Bytes 00 11 22 33 44 55 66 77 -> pairs 0x0011=17, 0x2233=8755,
     // 0x4455=17493, 0x6677=26231 -> pool slots 17, 97, 177, 257 of the

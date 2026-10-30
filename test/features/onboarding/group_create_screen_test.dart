@@ -23,8 +23,6 @@ import '../../support/scriptable_gateway.dart';
 import '../../support/start_menu.dart';
 
 const _card = 'Create a group';
-const _groupStepBody =
-    'Create a group with end-to-end encryption. You invite members once it exists.';
 const _groupFooter =
     'Anyone who has this link can join the group. Send it only to people you want in.';
 
@@ -62,17 +60,6 @@ void main() {
     await tester.tap(_createButton);
     await tester.pumpAndSettle();
   }
-
-  testWidgets('initial state renders lead, name field, and Create button',
-      (tester) async {
-    await pumpGroupStep(tester);
-
-    expect(find.byType(GroupCreateStep), findsOneWidget);
-    expect(find.text(_groupStepBody), findsOneWidget);
-    expect(find.text('Group name'), findsOneWidget);
-    expect(find.text('Create group'), findsOneWidget);
-    expect(find.byType(InviteResult), findsNothing);
-  });
 
   testWidgets('Create button is disabled until a name is typed',
       (tester) async {

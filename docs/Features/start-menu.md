@@ -83,5 +83,4 @@ keep their bridge calls. Illustrations and their prompts live in
 
 `test/features/onboarding/` covers the layout per width, hover, focus and
 reduced motion, every step through the menu, and the normalized channel
-route. `start_preview_test.dart` renders review frames with
-`--dart-define=START_PREVIEW=<dir>`.
+route.

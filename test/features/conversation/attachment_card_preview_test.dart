@@ -107,6 +107,7 @@ void main() {
     // thumbnail bytes and keeps the open surface.
     expect(find.byType(Image), findsOneWidget);
     expect(find.bySemanticsLabel('Open photo.png'), findsOneWidget);
+    expect(find.byIcon(Icons.play_arrow), findsNothing);
     await tester.tap(find.byType(Image));
     expect(_openCount, 1);
     expect(_opened, descriptor);
@@ -164,8 +165,7 @@ void main() {
     expect(find.text('photo2.png'), findsOneWidget);
   });
 
-  testWidgets(
-      'video with thumbnail renders the media preview (play overlay covered in the dedicated overlay test)',
+  testWidgets('video with thumbnail renders the media preview and play overlay',
       (tester) async {
     final descriptor = _descriptor(
       attachmentId: 'att-vid',
@@ -187,10 +187,8 @@ void main() {
       ),
     );
 
-    // The video-with-thumbnail branch takes the media path this atomic
-    // and renders Image.memory. The centered play overlay (in scope
-    // this atomic) is asserted in the dedicated overlay test file.
     expect(find.byType(Image), findsOneWidget);
+    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
   });
 
   testWidgets('video without thumbnail opens from the thumb button',

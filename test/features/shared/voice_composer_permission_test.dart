@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 const MethodChannel _recordChannel =
     MethodChannel('com.llfbandit.record/messages');
@@ -176,6 +177,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.pump(const Duration(milliseconds: 50));
 
+    expect(tester.widget<Text>(find.text('0:00')).style!.fontFeatures,
+        contains(FontFeature.tabularFigures()));
+    final dot = tester.widget<Container>(find.descendant(
+        of: find.byType(VoiceRecordingDot), matching: find.byType(Container)));
+    expect((dot.decoration! as BoxDecoration).color, MoshColors.danger);
     expect(started, hasLength(1), reason: 'the capture must really begin');
     expect(started.single, endsWith('.m4a'));
     expect(find.byIcon(Icons.stop), findsOneWidget);
@@ -219,6 +225,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.pump(const Duration(milliseconds: 50));
 
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(find.text('0:00')).style!.fontFeatures,
+        contains(FontFeature.tabularFigures()));
     // Review phase: play + discard + send icons.
     expect(find.byIcon(Icons.play_arrow), findsOneWidget);
     expect(find.byIcon(Icons.send), findsOneWidget);

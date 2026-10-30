@@ -41,18 +41,6 @@ void main() {
   }
 
   testWidgets(
-      'initial state shows Create button (no lastInvite) and no InviteResult',
-      (tester) async {
-    await pumpCreateStep(tester, _bridgeOffering('mosh://invite?x=1'));
-
-    expect(find.byType(ChatCreateStep), findsOneWidget);
-    expect(_create, findsOneWidget);
-    expect(find.byType(InviteResult), findsNothing);
-    // The replace label is not shown until an invite exists.
-    expect(find.text('Replace link'), findsNothing);
-  });
-
-  testWidgets(
       'tapping Create calls inviteFlowProvider.create() and surfaces the URI',
       (tester) async {
     const uri = 'mosh://invite?mesh=m&session=s#fp=Z';

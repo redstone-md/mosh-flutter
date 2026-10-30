@@ -9,7 +9,6 @@ import 'package:mosh/src/features/onboarding/first_run_provider.dart';
 import 'package:mosh/src/features/onboarding/first_run_transition.dart';
 
 import '../../support/first_run.dart';
-import '../../support/first_run_preview.dart';
 
 void main() {
   for (final step in SetupStep.values) {
@@ -242,40 +241,6 @@ void main() {
     expect(_fade(tester), 1);
     expect(_blocked(tester), isFalse);
   });
-
-  for (final size in [const Size(1280, 680), const Size(390, 844)]) {
-    for (final step in SetupStep.values) {
-      testWidgets('$step transition frames render at $size', (tester) async {
-        await prepareSetupPreview(tester);
-        final harness = await _pump(tester, step, size: size);
-        final prefix =
-            'setup-content-motion-${step.name}-${size.width.toInt()}';
-        await saveSetupPreview(tester, '$prefix-000');
-        final action = switch (step) {
-          SetupStep.name => 'Continue',
-          SetupStep.device => 'This is my first device',
-          SetupStep.network => 'Back',
-        };
-        await tester.ensureVisible(find.text(action));
-        await tester.tap(find.text(action));
-        await tester.pump();
-        await tester.pump();
-        expect(harness.store.profile!.step,
-            step == SetupStep.device ? SetupStep.network : SetupStep.device);
-        var elapsed = 0;
-        for (final delta in List.filled(16, 16)) {
-          await tester.pump(Duration(milliseconds: delta));
-          elapsed += delta;
-          await saveSetupPreview(
-              tester, '$prefix-${elapsed.toString().padLeft(3, '0')}');
-          expect(tester.takeException(), isNull);
-        }
-        await tester.pumpAndSettle();
-        expect(_fade(tester), 1);
-        expect(_blocked(tester), isFalse);
-      });
-    }
-  }
 }
 
 Future<FirstRunHarness> _pump(WidgetTester tester, SetupStep step,

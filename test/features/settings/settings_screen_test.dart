@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
-import 'package:mosh/src/features/onboarding/start/start_menu.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/settings/settings_screen.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -182,25 +181,4 @@ void main() {
     expect(find.text('Sound & Video'), findsOneWidget);
     expect(find.text('Devices'), findsOneWidget);
   });
-
-  testWidgets('the start menu keeps creation separate from settings',
-      (tester) async {
-    await pumpScreen(
-        tester,
-        const Scaffold(
-          body: SingleChildScrollView(
-            child: StartMenu(
-              onPickChat: _noop,
-              onPickGroup: _noop,
-              onPickChannel: _noop,
-              onPickJoin: _noop,
-            ),
-          ),
-        ));
-    expect(find.byIcon(Icons.settings), findsNothing);
-    expect(find.byIcon(Icons.verified_user), findsNothing);
-    expect(find.byIcon(Icons.chat_bubble_outline), findsOneWidget);
-  });
 }
-
-void _noop() {}

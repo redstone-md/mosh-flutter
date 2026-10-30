@@ -56,8 +56,5 @@ without touching a disposed context. `actionErrorReporter` does the same for
   disposal.
 - `app_toasts_test.dart` covers the desktop copy and a deletion failing after
   its chat closed.
-- `toast_motion_preview_test.dart` renders the motion frame by frame with
-  `--dart-define=TOAST_PREVIEW=<dir>` for visual review and checks that
-  captured frames release their native images.
 
 Real-device motion and screen reader output remain runtime checks.

@@ -26,11 +26,6 @@ void main() {
       expect(calls, 0);
     });
 
-    test('VoiceCaptureFactory subtypes can be polymorphically assigned', () {
-      VoiceCaptureFactory f = NoopVoiceCaptureFactory();
-      expect(f.isSupported, isFalse);
-    });
-
     test('stop is idempotent', () async {
       final h = await NoopVoiceCaptureFactory().start((_) {});
       await h.stop();

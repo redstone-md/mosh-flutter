@@ -124,23 +124,6 @@ void main() {
   );
 
   testWidgets(
-    'renders the peer label and Calling... status',
-    (tester) async {
-      await _pump(
-        tester,
-        modal: OutgoingCallModal(
-          call: _outgoing(),
-          peerLabel: 'Alice',
-          onCancel: () {},
-          l: await _l(),
-        ),
-      );
-      expect(find.text('Alice'), findsOneWidget);
-      expect(find.text('Calling...'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
     'renders only the cancel button (no accept button)',
     (tester) async {
       await _pump(

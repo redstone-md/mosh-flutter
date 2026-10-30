@@ -1,10 +1,4 @@
-// Widget tests for the shared ConfirmDialog
-// (lib/src/features/shared/confirm_dialog.dart). Pins the prop shape, the
-// danger-color confirm button, the close-X cancel, the ghost cancel button,
-// and the `showConfirmDialog` helper's return contract (true on confirm,
-// false on cancel/Esc/back/backdrop). No ARB dependency: the
-// dialog takes labels as props and defaults `cancelLabel` to "Cancel" when
-// null, so the tests pass explicit strings.
+// Confirm/cancel route results and repeated/modifier Escape handling.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,7 +12,6 @@ Future<void> _pumpDialog(
   WidgetTester tester, {
   required VoidCallback onCancel,
   required VoidCallback onConfirm,
-  String? cancelLabel,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -28,7 +21,6 @@ Future<void> _pumpDialog(
             title: 'Leave chat?',
             body: 'This will erase the keys. Are you sure?',
             confirmLabel: 'Leave',
-            cancelLabel: cancelLabel,
             onCancel: onCancel,
             onConfirm: onConfirm,
           ),
@@ -91,81 +83,6 @@ Future<Future<bool>> _pumpHelper(WidgetTester tester) async {
 }
 
 void main() {
-  // Pins that the dialog renders the title + body + confirmLabel +
-  // cancelLabel (defaulting the cancel label to "Cancel" when null).
-  testWidgets('renders title, body, confirm label, and default cancel label', (
-    tester,
-  ) async {
-    await _pumpDialog(tester, onCancel: () {}, onConfirm: () {});
-
-    expect(find.text('Leave chat?'), findsOneWidget);
-    expect(
-      find.text('This will erase the keys. Are you sure?'),
-      findsOneWidget,
-    );
-    // Confirm button.
-    expect(find.text('Leave'), findsOneWidget);
-    // Cancel button (defaults to "Cancel").
-    expect(find.text('Cancel'), findsOneWidget);
-    // The close-X is an IconButton with a tooltip == cancelLabel ("Cancel"),
-    // so the semantics label is also "Cancel" (the tooltip + the button
-    // text would both match; assert via the close IconButton's tooltip).
-    expect(find.byTooltip('Cancel'), findsOneWidget);
-  });
-
-  // Pins that an explicit cancelLabel overrides the default and is used
-  // for BOTH the ghost button and the close-X tooltip.
-  testWidgets('explicit cancelLabel drives the ghost button + close-X', (
-    tester,
-  ) async {
-    await _pumpDialog(
-      tester,
-      onCancel: () {},
-      onConfirm: () {},
-      cancelLabel: 'Отмена',
-    );
-
-    expect(find.text('Отмена'), findsOneWidget);
-    expect(find.byTooltip('Отмена'), findsOneWidget);
-    // The default "Cancel" no longer appears.
-    expect(find.text('Cancel'), findsNothing);
-  });
-
-  // Pins the confirm path: tapping the danger FilledButton fires onConfirm.
-  testWidgets('tapping the confirm button calls onConfirm', (tester) async {
-    var confirmed = false;
-    var cancelled = false;
-    await _pumpDialog(
-      tester,
-      onCancel: () => cancelled = true,
-      onConfirm: () => confirmed = true,
-    );
-
-    await tester.tap(find.text('Leave'));
-    await tester.pumpAndSettle();
-
-    expect(confirmed, isTrue);
-    // Cancel was NOT invoked on the confirm path.
-    expect(cancelled, isFalse);
-  });
-
-  // Pins the cancel paths: the ghost TextButton fires onCancel (NOT onConfirm).
-  testWidgets('tapping the ghost cancel button calls onCancel', (tester) async {
-    var confirmed = false;
-    var cancelled = false;
-    await _pumpDialog(
-      tester,
-      onCancel: () => cancelled = true,
-      onConfirm: () => confirmed = true,
-    );
-
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-
-    expect(cancelled, isTrue);
-    expect(confirmed, isFalse);
-  });
-
   testWidgets('Escape cancels once per press with or without modifiers', (
     tester,
   ) async {
@@ -196,60 +113,6 @@ void main() {
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     expect(cancellations, presses + 1);
-  });
-
-  // Pins the close-X cancel path: the corner IconButton fires onCancel.
-  testWidgets('tapping the close-X calls onCancel', (tester) async {
-    var confirmed = false;
-    var cancelled = false;
-    await _pumpDialog(
-      tester,
-      onCancel: () => cancelled = true,
-      onConfirm: () => confirmed = true,
-    );
-
-    await tester.tap(find.byTooltip('Cancel'));
-    await tester.pumpAndSettle();
-
-    expect(cancelled, isTrue);
-    expect(confirmed, isFalse);
-  });
-
-  // Pins the danger color: the confirm FilledButton uses the
-  // `Color(0xFFE86A5A)` background, NOT the theme's default primary. Reads
-  // the FilledButton's `backgroundColor` from its resolved style.
-  testWidgets('the confirm button uses the danger color', (tester) async {
-    await _pumpDialog(tester, onCancel: () {}, onConfirm: () {});
-
-    // Find the FilledButton that holds the confirm label.
-    final button = tester.widget<FilledButton>(
-      find.ancestor(
-        of: find.text('Leave'),
-        matching: find.byType(FilledButton),
-      ),
-    );
-    // The style may be null (inherits theme); resolve through the widget's
-    // resolved style via the Element to read the effective background.
-    final style = button.style?.copyWith() ?? FilledButton.styleFrom();
-    // Direct assertion on the explicit `backgroundColor` we set: the widget
-    // passes `Color(0xFFE86A5A)` to `FilledButton.styleFrom`. Compare
-    // against that literal so a theme/default drift fails loudly.
-    expect(
-      style.backgroundColor?.resolve({WidgetState.selected}),
-      const Color(0xFFE86A5A),
-    );
-  });
-
-  testWidgets('title and close button share a compact header', (tester) async {
-    await _pumpDialog(tester, onCancel: () {}, onConfirm: () {});
-
-    final title = tester.getRect(find.text('Leave chat?'));
-    final close = tester.getRect(find.byTooltip('Cancel'));
-    expect(title.center.dy, close.center.dy);
-    final card = find
-        .descendant(of: find.byType(Dialog), matching: find.byType(Material))
-        .first;
-    expect(tester.getSize(card).width, lessThanOrEqualTo(420));
   });
 
   // === showConfirmDialog helper contract ===

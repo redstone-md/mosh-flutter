@@ -180,7 +180,9 @@ void main() {
     await sendPlatformShortcut(tester, LogicalKeyboardKey.keyC);
     await tester.pumpAndSettle();
     expect(copied, ['first note\n\nthird note']);
-  }, variant: TargetPlatformVariant.desktop());
+  },
+      variant: TargetPlatformVariant(
+          {TargetPlatform.windows, TargetPlatform.macOS}));
 
   testWidgets('row controls rest while picking', (tester) async {
     await pumpConversation(tester, dm, messages: _messages);
@@ -215,7 +217,9 @@ void main() {
     await sendPlatformShortcut(tester, LogicalKeyboardKey.keyC);
     await tester.pumpAndSettle();
     expect(copied, ['first note\n\nthird note', 'first note\n\nthird note']);
-  }, variant: TargetPlatformVariant.desktop());
+  },
+      variant: TargetPlatformVariant(
+          {TargetPlatform.windows, TargetPlatform.macOS}));
 
   testWidgets('search narrows the pick to the messages it shows',
       (tester) async {

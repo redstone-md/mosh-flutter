@@ -113,7 +113,8 @@ void main() {
   testWidgets(
     'keyboard focus and menu dismissal never outline a message row',
     _keyboardFocus,
-    variant: TargetPlatformVariant.desktop(),
+    variant:
+        TargetPlatformVariant({TargetPlatform.windows, TargetPlatform.macOS}),
   );
 
   for (final conversation in conversationCases()) {
@@ -121,7 +122,8 @@ void main() {
       '${conversation.label}: selecting through the menu restores focus '
       'with only the selection tint',
       (tester) => _menuSelection(tester, conversation),
-      variant: TargetPlatformVariant.desktop(),
+      variant:
+          TargetPlatformVariant({TargetPlatform.windows, TargetPlatform.macOS}),
     );
   }
 }

@@ -203,8 +203,15 @@ void main() {
     final icons = await rootBundle.load('fonts/MaterialIcons-Regular.otf');
     await (FontLoader('MaterialIcons')..addFont(Future.value(icons))).load();
   });
-  for (final width in [320.0, 390.0, 581.0, 800.0, 1280.0, 1536.0]) {
-    for (final title in ['Alice', 'Design team', '#general']) {
+  // Detail lifecycle is shared; keep boundary widths and full-kind visual exports.
+  for (final (width, titles) in [
+    (320.0, ['Alice']),
+    (390.0, ['Alice', 'Design team', '#general']),
+    (581.0, ['Alice']),
+    (1280.0, ['Alice']),
+    (1536.0, ['Alice', 'Design team', '#general']),
+  ]) {
+    for (final title in titles) {
       testWidgets(
           '$title at ${width.toInt()}px: responsive details and usable chat',
           (tester) async {

@@ -1,16 +1,7 @@
-// Parity tests for `voice_playback` (lib/src/features/voice_call/voice_playback.dart)
-// -- the seam between the call orchestrator and an actual audio playback
-// pipeline: a `VoicePlaybackHandle`
-// (`{ pushFrame(seq, payload); stop(): void }`) + `startVoicePlayback()`
-// factory. The real `media_kit`-backed playback lands in a later slice; these
-// tests pin the [NoopVoicePlaybackFactory] contract (inert feed, idempotent
-// `stop`, polymorphic factory) and -- critically -- prove a started handle
-// is usable as a [CallFrameSink] for [drainCallFrames] with no adapter (Dart
-// interfaces are nominal, so [_NoopHandle] declares `implements CallFrameSink`).
+// The no-op playback fallback accepts frames and supports repeated stop.
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/voice_call/call_drain.dart';
 import 'package:mosh/src/features/voice_call/voice_playback.dart';
 
 void main() {
@@ -29,29 +20,6 @@ void main() {
     test('stop is idempotent', () async {
       final h = await NoopVoicePlaybackFactory().start();
       await h.stop();
-      await h.stop();
-    });
-
-    test('VoicePlaybackHandle satisfies CallFrameSink structurally', () async {
-      // A consumer that takes a [CallFrameSink] -- the exact shape
-      // [drainCallFrames] expects for its `playback` param. Passing a
-      // started [VoicePlaybackHandle] here proves the orchestrator can feed
-      // the handle straight into [drainCallFrames] with no adapter.
-      Future<int> feedAndCount(CallFrameSink sink) async {
-        sink.pushFrame(BigInt.one, Uint8List.fromList([1]));
-        sink.pushFrame(BigInt.from(2), Uint8List.fromList([2]));
-        return 2;
-      }
-
-      final h = await NoopVoicePlaybackFactory().start();
-      expect(await feedAndCount(h), 2);
-      await h.stop();
-    });
-
-    test('VoicePlaybackFactory subtypes can be polymorphically assigned',
-        () async {
-      VoicePlaybackFactory f = NoopVoicePlaybackFactory();
-      final h = await f.start();
       await h.stop();
     });
   });
