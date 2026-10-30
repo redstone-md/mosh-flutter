@@ -180,7 +180,8 @@ offline builds.
 | `test/support/` | Scripted dependencies shared by widget tests and previews |
 
 The [documentation index](docs/README.md) links to feature guides and decisions.
-See [AGENTS.md](AGENTS.md) for checks and contribution constraints, and the
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request and
+[AGENTS.md](AGENTS.md) for checks and contribution constraints, and the
 [architecture map](docs/Architecture.md) for runtime boundaries.
 The [visual asset notes](docs/assets/README.md) explain how to regenerate the
 screenshots and record the logo source and illustration prompts.
@@ -189,8 +190,20 @@ screenshots and record the logo source and illustration prompts.
 
 ---
 
-[GNU GPL v3](LICENSE). Bundled Inter fonts use the
-[SIL Open Font License](assets/fonts/Inter-OFL.txt).
+## License
+
+Mosh is free software under the [GNU GPL v3](LICENSE), with an
+[additional permission](LICENSE-STORE-EXCEPTION.md) that allows its builds to
+be distributed through application stores such as the App Store and Microsoft
+Store. Third-party components keep their own licenses; bundled Inter fonts use
+the [SIL Open Font License](assets/fonts/Inter-OFL.txt).
+
+Only the copyright holders, ForeverInLaw and Rxflex, can license Mosh's code on
+other terms, for example for a closed-source product. To ask about a
+commercial license, contact [ForeverInLaw](https://github.com/ForeverInLaw) or
+[Rxflex](https://github.com/Rxflex) on GitHub. Outside contributions are
+accepted under the [Contributor License Agreement](CLA.md); see
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 [Report a bug](https://github.com/redstone-md/mosh-flutter/issues) ·
 [Architecture](docs/Architecture.md)
