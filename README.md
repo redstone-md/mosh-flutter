@@ -192,18 +192,17 @@ screenshots and record the logo source and illustration prompts.
 
 ## License
 
-Mosh is free software under the [GNU GPL v3](LICENSE), with an
-[additional permission](LICENSE-STORE-EXCEPTION.md) that allows its own code to
-be distributed through application stores such as the App Store and Microsoft
-Store. Third-party components keep their own licenses: the call engine links
-Signal's RingRTC and is therefore AGPL-3.0, which the store permission does not
-cover, and bundled Inter fonts use the
+Mosh is free software under the [GNU GPL v3](LICENSE). Third-party components
+keep their own licenses: the call engine links Signal's RingRTC and is
+therefore AGPL-3.0, and bundled Inter fonts use the
 [SIL Open Font License](assets/fonts/Inter-OFL.txt).
 
 Only the copyright holders, ForeverInLaw and Rxflex, can license Mosh's own
-code on other terms, for example for a closed-source product. Such a license
-cannot include RingRTC. To ask about a
-commercial license, contact [ForeverInLaw](https://github.com/ForeverInLaw) or
+code on other terms. They publish the official builds in application stores.
+Some stores, such as Apple's App Store, impose terms that the GPL does not let
+other distributors accept. Publishing Mosh there, or in a closed-source
+product, needs a commercial license from them, which cannot include RingRTC. To ask about one, contact
+[ForeverInLaw](https://github.com/ForeverInLaw) or
 [Rxflex](https://github.com/Rxflex) on GitHub. Outside contributions are
 accepted under the [Contributor License Agreement](CLA.md); see
 [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -2,9 +2,8 @@
 
 This agreement is based on the Apache Software Foundation Individual
 Contributor License Agreement v2.2. It lets the Mosh copyright holders,
-ForeverInLaw and Rxflex (the "Maintainers"), offer Mosh under the GPL-3.0, with
-the [application store permission](LICENSE-STORE-EXCEPTION.md), and under
-separate commercial licenses. You keep the copyright in your Contribution.
+ForeverInLaw and Rxflex (the "Maintainers"), offer Mosh under the GPL-3.0,
+publish it in application stores and offer separate commercial licenses. You keep the copyright in your Contribution.
 
 You accept this agreement by stating so in your pull request, as
 [CONTRIBUTING.md](CONTRIBUTING.md) describes. It then applies to that
