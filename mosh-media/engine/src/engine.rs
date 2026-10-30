@@ -208,8 +208,8 @@ impl Engine {
             .as_u64()
             .filter(|max| (64_000..=3_000_000).contains(max))
             .ok_or_else(|| anyhow::anyhow!("invalid send budget"))?;
-        // A detailed 360p keyframe fills about a second of a relay budget,
-        // longer than the renderer keeps a frame, so relay video is sent at 270p.
+        // Under 300 kbit/s a detailed 360p keyframe takes about a second to
+        // send, longer than the renderer keeps a frame.
         let (width, height, fps) = match max {
             ..300_000 => (480, 270, 15),
             300_000..600_000 => (640, 360, 15),
