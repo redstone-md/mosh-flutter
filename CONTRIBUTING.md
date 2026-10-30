@@ -7,8 +7,9 @@ Bug reports and ideas go to
 
 ## Contributor License Agreement
 
-Mosh is offered under the GPL-3.0 and, by its copyright holders, under
-commercial licenses. To keep that possible, a pull request from anyone other
+The copyright holders publish Mosh in application stores, which needs rights
+beyond the GPL-3.0 for every part of the code. To keep that possible, a pull
+request from anyone other
 than ForeverInLaw or Rxflex can be merged only after its author accepts the
 [Contributor License Agreement](CLA.md). You keep the copyright in your code.
 

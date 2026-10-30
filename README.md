@@ -197,12 +197,5 @@ keep their own licenses: the call engine links Signal's RingRTC and is
 therefore AGPL-3.0, and bundled Inter fonts use the
 [SIL Open Font License](assets/fonts/Inter-OFL.txt).
 
-Only the copyright holders, ForeverInLaw and Rxflex, can license Mosh's own
-code on other terms. Such a license cannot include RingRTC. To ask about one,
-contact [ForeverInLaw](https://github.com/ForeverInLaw) or
-[Rxflex](https://github.com/Rxflex) on GitHub. Outside contributions are
-accepted under the [Contributor License Agreement](CLA.md); see
-[CONTRIBUTING.md](CONTRIBUTING.md).
-
 [Report a bug](https://github.com/redstone-md/mosh-flutter/issues) ·
 [Architecture](docs/Architecture.md)
