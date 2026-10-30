@@ -198,11 +198,8 @@ therefore AGPL-3.0, and bundled Inter fonts use the
 [SIL Open Font License](assets/fonts/Inter-OFL.txt).
 
 Only the copyright holders, ForeverInLaw and Rxflex, can license Mosh's own
-code on other terms. They publish the official builds in application stores.
-Some stores, such as Apple's App Store, impose terms that the GPL does not let
-other distributors accept. Publishing Mosh there, or in a closed-source
-product, needs a commercial license from them, which cannot include RingRTC. To ask about one, contact
-[ForeverInLaw](https://github.com/ForeverInLaw) or
+code on other terms. Such a license cannot include RingRTC. To ask about one,
+contact [ForeverInLaw](https://github.com/ForeverInLaw) or
 [Rxflex](https://github.com/Rxflex) on GitHub. Outside contributions are
 accepted under the [Contributor License Agreement](CLA.md); see
 [CONTRIBUTING.md](CONTRIBUTING.md).
