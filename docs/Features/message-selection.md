@@ -80,9 +80,14 @@ through the picked-message copy instead.
 
 `conversation_models_test.dart` (group `message_selection_model`) covers the state model.
 `message_selection_mode_test.dart` and `message_drag_selection_test.dart` cover
-the screen: the header swap, circles, bubble tint, taps, Shift, Escape, copy,
+the header swap, circles, bubble tint, taps, Shift, Escape, copy,
 mobile placement, draft retention, search narrowing,
 mouse and touch drags, and auto-scroll start and stop.
+Shared selection checks reuse `HostedMessageList` with the real list and host;
+screen wiring, mobile drafts, system Back and search/deletion keep real screens.
+The mobile draft matrix covers every kind on Android and all mobile variants on
+DM. Body/caption triple-click checks cover every kind on Windows and all desktop
+variants on DM, preserving both platform shortcuts and kind-specific metadata.
 `message_selection_controls_test.dart` covers selector accessibility, keyboard
 activation, pending deletion and large localized text.
 `message_selection_voice_test.dart` covers hidden capture, clip retention,
