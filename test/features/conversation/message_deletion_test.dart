@@ -3,6 +3,8 @@ import 'package:flutter/gestures.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/message_selection_bar.dart';
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
 import 'package:mosh/src/rust/message_deletion/types.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 import '../../support/conversation_cases.dart';
@@ -156,11 +158,14 @@ void main() {
     });
 
     // IVO-26: a confirmed deletion is one line; only a pending or refused
-    // request adds a status line under it.
+    // request adds a status line. The row shares this switch across kinds;
+    // confirmed also checks that each kind's snapshot preserves the marker.
     for (final (status, line) in [
-      (DeletionStatus.pending, 'Awaiting deletion'),
+      if (c.target.kind == ConversationKind.dm)
+        (DeletionStatus.pending, 'Awaiting deletion'),
       (DeletionStatus.confirmed, null),
-      (DeletionStatus.rejected, 'Deleted only for you'),
+      if (c.target.kind == ConversationKind.dm)
+        (DeletionStatus.rejected, 'Deleted only for you'),
     ]) {
       testWidgets(
           '${c.label}: a ${status.name} moderated deletion shows '

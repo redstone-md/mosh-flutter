@@ -93,6 +93,10 @@ activation, pending deletion and large localized text.
 `message_selection_voice_test.dart` covers hidden capture, clip retention,
 desktop controls and selection during permission or capture startup.
 `message_selection_switch_test.dart` covers chat switches during deletion.
+`message_deletion_test.dart` retains scopes, eligibility, refusals, file actions
+and marker wiring for each kind. Shared status captions use one representative;
+the [matrix audit](../Proposals/flutter-deletion-test-cleanup.md) records the
+retained regressions and removed duplicates.
 Physical pointer, trackpad and touch behavior remains a runtime check.
 
 The existing `ConversationMessageRow` and `ConversationScreenBody` retain their
