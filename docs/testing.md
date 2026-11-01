@@ -82,6 +82,12 @@ instead of sleeping ([Flutter runAsync documentation](https://api.flutter.dev/fl
 Do not globally disable motion or fast-forward real network/hardware behavior to
 make a runtime metric look better.
 
+Image tests can await `precacheImage` inside `runAsync` and then pump the loaded
+or error UI. Use the widget's actual `Image.image`, including resize and validation
+wrappers. Keep success/fallback assertions: completion also includes load failure.
+The [attachment preview audit](Proposals/flutter-attachment-preview-test-cleanup.md)
+records this replacement for fixed decode sleeps with real files and codecs.
+
 The [runtime audit](Proposals/flutter-test-runtime.md) records the startup-cost
 experiment, preserved case identities and the measured full-run comparison.
 
