@@ -36,8 +36,11 @@ No Rust API, storage format, transport or package dependency changes.
 
 ## Checks
 
-Widget tests exercise the real app across routes and setup, caption commands,
-keyboard access, focus/fullscreen events, DPI changes and Linux preferences.
+Widget tests exercise the real app across routes, selected diagnostics and
+setup/error states. Caption commands, keyboard access, focus/fullscreen events,
+DPI changes and Linux preferences use the real window frame and controller
+without mounting unrelated chat content; see the
+[fixture audit](../Proposals/flutter-titlebar-test-cleanup.md).
 The Windows build runs native hit-test regressions, including unconfigured
 call-window behavior, resize routing and replacing caption geometry. Linux
 debug builds and a real first-run render check the GTK runner integration.
