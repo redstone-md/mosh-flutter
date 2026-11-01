@@ -158,6 +158,10 @@ finish after either side upgrades. No fresh v1 request can be started or importe
   public platform seam only, to check empty/repeated captures, permission denial,
   unsupported cameras, background return and exit. Authorization still uses the
   real native bridge in the UI probe.
+  Scanner widget tests await stream/release signals and the actual route result;
+  only two historical no-result decode waits remain. The
+  [synchronization audit](../Proposals/flutter-scanner-test-cleanup.md) records
+  preserved regressions, remaining waits and before/after measurements.
 
 New production code requires 80% line coverage; branch coverage is required
 where the toolchain provides it. Windows/macOS installers need their own

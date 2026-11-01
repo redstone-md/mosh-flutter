@@ -9,7 +9,8 @@ import '../../support/device_link_fixture.dart';
 import '../../support/pump.dart';
 import '../../support/scanner_platform.dart';
 
-Future<void> _open(WidgetTester tester, ValueChanged<String?> onResult) async {
+Future<void> _open(WidgetTester tester, ValueChanged<String?> onResult,
+    {Completer<void>? returned}) async {
   await pumpScreen(
       tester,
       Builder(
@@ -19,18 +20,19 @@ Future<void> _open(WidgetTester tester, ValueChanged<String?> onResult) async {
                       onResult(await Navigator.of(context).push<String>(
                           MaterialPageRoute(
                               builder: (_) => const DeviceQrScanner())));
+                      returned?.complete();
                     },
                     child: const Text('Open scanner')),
               )));
   await tester.tap(find.text('Open scanner'));
-  await _settle(tester);
+  await tester.pumpAndSettle();
 }
 
-/// Lets camera calls and off-thread QR decoding finish.
-Future<void> _settle(WidgetTester tester) async {
+/// Historical wait for a no-result decode, whose completion is not exposed.
+/// Only called inside runAsync; successful scans await the actual route result.
+Future<void> _finishNegativeFrame(WidgetTester tester) async {
   for (var i = 0; i < 3; i++) {
-    await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 100)));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
     await tester.pumpAndSettle();
   }
 }
@@ -49,53 +51,70 @@ void main() {
   testWidgets(
       'camera ignores frames without a QR and returns one URI, then releases camera',
       (tester) async {
-    final hardware = _install(ScannerPlatform());
-    final results = <String?>[];
-    await _open(tester, results.add);
-    hardware.frames.add(blankCameraFrame());
-    await _settle(tester);
-    expect(results, isEmpty);
-    final uri = deviceLinkQrFixture();
-    hardware.frames
-      ..add(qrCameraFrame(uri))
-      ..add(qrCameraFrame(uri));
-    await _settle(tester);
-    expect(results, [uri]);
-    expect(find.text('Open scanner'), findsOneWidget);
-    expect(find.byType(DeviceQrScanner), findsNothing);
-    expect(hardware.releases, hardware.starts);
+    await tester.runAsync(() async {
+      final hardware = _install(ScannerPlatform());
+      final results = <String?>[];
+      final returned = Completer<void>();
+      await _open(tester, results.add, returned: returned);
+      await hardware.streaming;
+      hardware.frames.add(blankCameraFrame());
+      await _finishNegativeFrame(tester);
+      expect(results, isEmpty);
+      final uri = deviceLinkQrFixture();
+      hardware.frames
+        ..add(qrCameraFrame(uri))
+        ..add(qrCameraFrame(uri));
+      await returned.future;
+      await tester.pumpAndSettle();
+      await hardware.released;
+      expect(results, [uri]);
+      expect(find.text('Open scanner'), findsOneWidget);
+      expect(find.byType(DeviceQrScanner), findsNothing);
+      expect(hardware.releases, hardware.starts);
+    });
   });
 
   testWidgets('a broken frame does not stop scanning', (tester) async {
-    final hardware = _install(ScannerPlatform());
-    final results = <String?>[];
-    await _open(tester, results.add);
-    hardware.frames.add(brokenCameraFrame());
-    await _settle(tester);
-    final uri = deviceLinkQrFixture();
-    hardware.frames.add(qrCameraFrame(uri));
-    await _settle(tester);
-    expect(results, [uri]);
+    await tester.runAsync(() async {
+      final hardware = _install(ScannerPlatform());
+      final results = <String?>[];
+      final returned = Completer<void>();
+      await _open(tester, results.add, returned: returned);
+      await hardware.streaming;
+      hardware.frames.add(brokenCameraFrame());
+      await _finishNegativeFrame(tester);
+      final uri = deviceLinkQrFixture();
+      hardware.frames.add(qrCameraFrame(uri));
+      await returned.future;
+      await tester.pumpAndSettle();
+      expect(results, [uri]);
+    });
   });
 
   testWidgets('leaving while the camera opens closes it; return reopens it',
       (tester) async {
-    final opening = Completer<void>();
-    final hardware = _install(ScannerPlatform(opening: opening));
-    final results = <String?>[];
-    await _open(tester, results.add);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    opening.complete();
-    await _settle(tester);
-    expect((hardware.starts, hardware.releases), (1, 1));
-    expect(find.textContaining('unavailable'), findsNothing);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await _settle(tester);
-    expect(hardware.starts, 2);
-    final uri = deviceLinkQrFixture();
-    hardware.frames.add(qrCameraFrame(uri));
-    await _settle(tester);
-    expect(results, [uri]);
+    await tester.runAsync(() async {
+      final opening = Completer<void>();
+      final hardware = _install(ScannerPlatform(opening: opening));
+      final results = <String?>[];
+      final returned = Completer<void>();
+      await _open(tester, results.add, returned: returned);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      opening.complete();
+      await tester.pumpAndSettle();
+      await hardware.released;
+      expect((hardware.starts, hardware.releases), (1, 1));
+      expect(find.textContaining('unavailable'), findsNothing);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(hardware.starts, 2);
+      final uri = deviceLinkQrFixture();
+      await hardware.streaming;
+      hardware.frames.add(qrCameraFrame(uri));
+      await returned.future;
+      await tester.pumpAndSettle();
+      expect(results, [uri]);
+    });
   });
 
   testWidgets(
@@ -106,13 +125,13 @@ void main() {
     await _open(tester, results.add);
     expect(hardware.starts, 1);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    await _settle(tester);
+    await tester.pumpAndSettle();
     expect(hardware.releases, 1);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await _settle(tester);
+    await tester.pumpAndSettle();
     expect(hardware.starts, 2);
     await tester.tap(find.text('Use an image or link'));
-    await _settle(tester);
+    await tester.pumpAndSettle();
     expect(results, [null]);
     expect(hardware.releases, 2);
   });
@@ -144,7 +163,7 @@ void main() {
       await _open(tester, results.add);
       expect(find.textContaining(message), findsOneWidget);
       await tester.tap(find.text('Use an image or link'));
-      await _settle(tester);
+      await tester.pumpAndSettle();
       expect(results, [null]);
       expect(tester.takeException(), isNull);
     });

@@ -25,6 +25,15 @@ class ScannerPlatform extends CameraPlatform {
   final bool streamFails;
   final List<CameraDescription> cameras;
   final frames = StreamController<CameraImageData>.broadcast();
+  final _streamed = Completer<void>();
+  final _released = Completer<void>();
+
+  /// First stream subscription setup, before any frame is submitted.
+  Future<void> get streaming => _streamed.future;
+
+  /// First native dispose, including cancellation of an unfinished open.
+  Future<void> get released => _released.future;
+
   int starts = 0;
   int releases = 0;
 
@@ -67,16 +76,20 @@ class ScannerPlatform extends CameraPlatform {
 
   @override
   Stream<CameraImageData> onStreamedFrameAvailable(int cameraId,
-          {CameraImageStreamOptions? options}) =>
-      streamFails
-          ? throw PlatformException(code: 'CameraStreamFailed')
-          : frames.stream;
+      {CameraImageStreamOptions? options}) {
+    if (streamFails) throw PlatformException(code: 'CameraStreamFailed');
+    if (!_streamed.isCompleted) _streamed.complete();
+    return frames.stream;
+  }
 
   @override
   Widget buildPreview(int cameraId) => const SizedBox.expand();
 
   @override
-  Future<void> dispose(int cameraId) async => releases++;
+  Future<void> dispose(int cameraId) async {
+    releases++;
+    if (!_released.isCompleted) _released.complete();
+  }
 }
 
 /// A YUV camera frame showing [text] as a QR code. Rows are padded past the
