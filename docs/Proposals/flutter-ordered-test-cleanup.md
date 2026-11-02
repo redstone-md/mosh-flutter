@@ -124,3 +124,70 @@ Observed scoped median wall is10.0% lower and CPU11.0% lower; one pair moves
 in the other direction. These are local observations under shared-host load,
 not a whole-suite/CI speedup or a per-run guarantee. The following grouping
 control also validates the complete post-merge source before any renames.
+
+## 3. Bounded runner grouping
+
+After MERGE, all13 selected libraries contain **90 cases**, not the audit's92:
+the two badge registrations were already consolidated. Grouping itself removes
+no callback, assertion, event, helper or variant. Copies are byte/mode-identical
+to the current post-merge sources at `4a46800a`. Three peer-status comments are
+updated; five new entry points contain only namespace imports and scoped groups.
+
+| New runner under `test/features/` | Original libraries | Cases | Runners |
+| --- | --- | ---: | ---: |
+| `diagnostics/diagnostics_summary_contract_test.dart` | channel_group_diagnostics, summary_card, diagnostics_sections, diagnostics_summary | 34 | 4 -> 1 |
+| `diagnostics/diagnostics_network_events_test.dart` | mesh_diagnostics, event_log | 36 | 2 -> 1 |
+| `conversation/conversation_inline_widgets_test.dart` | unread_badge, typing_hint, conversation_search_box | 8 | 3 -> 1 |
+| `fingerprint/fingerprint_contract_test.dart` | fingerprint_emoji, fingerprint_lock | 8 | 2 -> 1 |
+| `device_link/device_list_contract_test.dart` | device_list, device_revocation | 4 | 2 -> 1 |
+
+Each original `_test.dart` becomes its sibling `_cases.dart`; names acquire only
+the source-stem group prefix within the stated owner. Private libraries/fixtures
+remain separate. Current references/consumers, synchronous registration,
+metadata/hooks and existing policy hazards were checked before freezing sources.
+Actual HTTP/native/global-contract probes remain isolated. Independent source
+reviews confirm local DTO/rendering work, controller/focus/dialog disposal and
+no binding-absence contract in the included pure helper cases.
+
+Main9->3 and secondary4->2 were measured separately, in that order. Each uses
+three A/B, B/A, A/B pairs plus candidate seed42. Commands are `flutter test
+--machine` with the original library paths or the stated driver paths; exact
+argv is saved in every raw `.time.json`. Full Counter maps are generated from
+the fresh post-merge full profile, not reconstructed from the older92-case list.
+All78 main and12 secondary identities/results/skips/multiplicities match in
+all14 scoped runs. Saved snapshot guards reject third-state edits.
+
+| Scoped median, seconds | Main before | Main after | Secondary before | Secondary after |
+| --- | ---: | ---: | ---: | ---: |
+| Command wall | 10.761 | 8.652 | 10.094 | 8.795 |
+| Descendant CPU | 32.725 | 19.674 | 21.539 | 15.790 |
+| Sum file spans | 56.380 | 19.272 | 25.469 | 12.475 |
+| Sum loading intervals | 46.244 | 13.983 | 21.392 | 9.299 |
+| Sum visible bodies | 9.838 | 5.381 | 4.170 | 3.194 |
+
+Main wall samples:10.247/10.761/11.194 before,8.346/8.652/9.039 after.
+Secondary:10.956/9.762/10.094 before,7.977/8.795/8.921 after.
+All six local pairs favor the candidate for wall and CPU. Main median wall
+is19.6% lower, CPU39.9%; secondary wall12.9%, CPU26.7%. These module savings
+do not establish complete-suite acceleration. Controls use the same flags,
+workspace and cached inputs, with no other team compiler running.
+
+Source hash/one-owner checks pass for all13 unchanged libraries. `flutter analyze`
+reports no issues; format validates815files with zero changes; policy passes.
+Native and platform integration remain outside these host widget/unit runs.
+
+Full commands before/after grouping both pass1876 with the same four native
+skips. Runner files decrease246 ->238. Exact full Counter normalization changes
+only the90 source-stem namespace maps; all other outcomes/multiplicities match.
+
+| Full grouping observation, seconds | Before | After |
+| --- | ---: | ---: |
+| Command wall | 140.584 | 140.142 |
+| Descendant CPU | 1148.585 | 1132.646 |
+| Sum file spans | 1075.237 | 1064.319 |
+| Sum loading intervals | 455.005 | 451.931 |
+| Sum visible bodies | 618.423 | 610.627 |
+
+One full pair does not establish a repeated whole-suite saving. The complete
+source comparison after all tranches supplies the later controls. No source
+body or test is lost by grouping, independently of these timing observations.

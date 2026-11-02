@@ -26,7 +26,7 @@ import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import '../../support/pump.dart';
 
 /// A minimal `SessionSnapshot` builder, mirroring the one in
-/// `diagnostics_sections_test.dart`. Only the fields the drawer's session
+/// `diagnostics_sections_cases.dart`. Only the fields the drawer's session
 /// branch reads are parameterized; the rest are the frb-required defaults
 /// (empty lists, null optionals).
 SessionSnapshot _session({
@@ -123,7 +123,7 @@ void main() {
     expect(find.text('CONNECTION STATUS'), findsOneWidget);
     // NoActiveSession fallback: `diagNoActiveTitle` is "No active session".
     // It renders twice -- once as the `Session` group label and once as
-    // the empty-state title (mirrors `diagnostics_sections_test.dart`'s
+    // the empty-state title (mirrors `diagnostics_sections_cases.dart`'s
     // NoActiveSession assertions, which also find both).
     expect(find.text('No active session'), findsNWidgets(2));
   });
@@ -145,7 +145,7 @@ void main() {
     // accessible name stays natural-case.
     expect(find.text('CONNECTION STATUS'), findsOneWidget);
     // SessionDiagnostics renders the peer display name in its Peer row
-    // (diagnostics_sections_test asserts the same value for this branch).
+    // (diagnostics_sections_cases asserts the same value for this branch).
     expect(find.text('alice'), findsWidgets);
     // The idle fallback must NOT render when a session is active.
     expect(find.text('No active session'), findsNothing);
