@@ -85,6 +85,12 @@ a fake-zone Completer can delay delivery even when its callback has fired.
 Do not globally disable motion or fast-forward real network/hardware behavior to
 make a runtime metric look better.
 
+For timer-driven unit behavior, use the existing test clock and advance the
+production interval through the required ticks. Keep real crypto and IO when
+they are part of the contract. Cancellation tests must actually deliver a late
+callback: a fake cancelling its own timer can otherwise hide a missing guard.
+See the [voice orchestrator audit](Proposals/flutter-voice-orchestrator-test-cleanup.md).
+
 Image tests can start loading and await `precacheImage` inside `runAsync`, then
 pump the loaded or error UI. Awaiting a decode that already started in the fake
 zone can deadlock. Use the widget's actual `Image.image`, including resize and
