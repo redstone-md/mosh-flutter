@@ -90,6 +90,9 @@ production interval through the required ticks. Keep real crypto and IO when
 they are part of the contract. Cancellation tests must actually deliver a late
 callback: a fake cancelling its own timer can otherwise hide a missing guard.
 See the [voice orchestrator audit](Proposals/flutter-voice-orchestrator-test-cleanup.md).
+Measure process wall and child CPU alongside case bodies before retaining a
+runtime optimization. Removing sleeps does not guarantee a cheaper runner; see
+the [rejected auto-poll clock experiments](Proposals/flutter-auto-poll-test-cleanup.md).
 
 Image tests can start loading and await `precacheImage` inside `runAsync`, then
 pump the loaded or error UI. Awaiting a decode that already started in the fake
