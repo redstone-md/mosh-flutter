@@ -1,9 +1,10 @@
 # Flutter test audit: next reductions
 
 Baseline: `3943074624ba144e732a458ca112b972f9b89887`, clean working tree.
-This is an audit, not an implemented optimization. Test bodies, runners,
-fixtures, production, dependencies, CI and timing defaults remain unchanged.
-Only this report, its identity inventory and the testing-document link change.
+This records the pre-change audit; that commit changed documentation only.
+The [ordered implementation](flutter-ordered-test-cleanup.md) records completed
+changes, preservation checks and measurements. Tables below retain their
+original baseline identities and proposed decisions.
 
 ## Findings and priority
 

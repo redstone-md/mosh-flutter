@@ -1,8 +1,11 @@
 # Small-suite grouping identity inventory
 
-Source: `3943074624ba144e732a458ca112b972f9b89887`. These are proposed
-KEEP/MOVE decisions, not an implemented move. All 92 exact file/full-name
-identities were verified in the fresh `flutter test --machine` baseline.
+Source: `3943074624ba144e732a458ca112b972f9b89887`. These 92 rows record the
+original grouping proposal, verified in its `flutter test --machine` baseline.
+The [ordered implementation](flutter-ordered-test-cleanup.md) subsequently
+merged two badge cases, grouped all 90 then-current cases and removed three
+covered diagnostics cases: 87 remain in these libraries. Current-library links
+below follow the renames; original identities and decisions remain historical.
 Protected contracts, isolation evidence, risks and checks are in the
 [audit](flutter-test-audit-2026-11-02.md#fewer-runners-without-deleting-checks).
 
@@ -17,7 +20,7 @@ proposals from the audit.
 
 4 runners -> 1; 34 cases retained. Honest connection/role/runtime state, DTO-to-summary errors/fallbacks and handwritten equality.
 
-### [channel_group_diagnostics_test.dart](../../test/features/diagnostics/channel_group_diagnostics_test.dart)
+### [channel_group_diagnostics_cases.dart](../../test/features/diagnostics/channel_group_diagnostics_cases.dart)
 
 Original file: `test/features/diagnostics/channel_group_diagnostics_test.dart`. Decision for every row: **KEEP/MOVE unchanged**.
 
@@ -27,7 +30,7 @@ Original file: `test/features/diagnostics/channel_group_diagnostics_test.dart`. 
 | `connected group shows its admin role and runtime evidence` |
 | `joining member has no invented label, connection or events` |
 
-### [summary_card_test.dart](../../test/features/diagnostics/summary_card_test.dart)
+### [summary_card_cases.dart](../../test/features/diagnostics/summary_card_cases.dart)
 
 Original file: `test/features/diagnostics/summary_card_test.dart`. Decision for every row: **KEEP/MOVE unchanged**.
 
@@ -38,7 +41,7 @@ Original file: `test/features/diagnostics/summary_card_test.dart`. Decision for 
 | `SummaryCard - error tone renders the Error state badge when an error is present` |
 | `RuntimeError renders the alert icon + "Runtime error" label + the message` |
 
-### [diagnostics_sections_test.dart](../../test/features/diagnostics/diagnostics_sections_test.dart)
+### [diagnostics_sections_cases.dart](../../test/features/diagnostics/diagnostics_sections_cases.dart)
 
 Original file: `test/features/diagnostics/diagnostics_sections_test.dart`. Decision for every row: **KEEP/MOVE unchanged**.
 
@@ -52,7 +55,7 @@ Original file: `test/features/diagnostics/diagnostics_sections_test.dart`. Decis
 | `SessionDiagnostics - Conversation details a pending session has no path and no peer id yet` |
 | `SessionDiagnostics - Conversation details an offline contact reads as offline with its last outcome` |
 
-### [diagnostics_summary_test.dart](../../test/features/diagnostics/diagnostics_summary_test.dart)
+### [diagnostics_summary_cases.dart](../../test/features/diagnostics/diagnostics_summary_cases.dart)
 
 Original file: `test/features/diagnostics/diagnostics_summary_test.dart`. Decision for every row: **KEEP/MOVE unchanged**.
 
@@ -83,7 +86,7 @@ Original file: `test/features/diagnostics/diagnostics_summary_test.dart`. Decisi
 
 2 runners -> 1; 36 cases retained. Mesh metrics, absent/unknown fields, exact external JSON/time formatting and bounded event rendering.
 
-### [mesh_diagnostics_test.dart](../../test/features/diagnostics/mesh_diagnostics_test.dart)
+### [mesh_diagnostics_cases.dart](../../test/features/diagnostics/mesh_diagnostics_cases.dart)
 
 Original file: `test/features/diagnostics/mesh_diagnostics_test.dart`. Decision for every row: **KEEP/MOVE unchanged**.
 
@@ -101,7 +104,7 @@ Original file: `test/features/diagnostics/mesh_diagnostics_test.dart`. Decision 
 | `MeshDiagnostics - full mesh MeshDiagnostics - library info (spec #5) no peer id keeps the RTT row off (channel/group panels)` |
 | `MeshDiagnostics - full mesh MeshDiagnostics - library info (spec #5) no library info keeps all the library rows off` |
 
-### [event_log_test.dart](../../test/features/diagnostics/event_log_test.dart)
+### [event_log_cases.dart](../../test/features/diagnostics/event_log_cases.dart)
 
 Original file: `test/features/diagnostics/event_log_test.dart`. Decision for every row: **KEEP/MOVE unchanged**.
 
@@ -137,7 +140,7 @@ Original file: `test/features/diagnostics/event_log_test.dart`. Decision for eve
 
 3 runners -> 1; 10 cases retained. Badge contrast/type scale/tabular/boundary, typing expiry/kind rules and search caret/prop wiring.
 
-### [unread_badge_test.dart](../../test/features/conversation/unread_badge_test.dart)
+### [unread_badge_cases.dart](../../test/features/conversation/unread_badge_cases.dart)
 
 Original file: `test/features/conversation/unread_badge_test.dart`. Decision for every row: **KEEP/MOVE unchanged**.
 
@@ -148,7 +151,7 @@ Original file: `test/features/conversation/unread_badge_test.dart`. Decision for
 | `the count renders with tabular figures` |
 | `counts over 99 collapse to 99+` |
 
-### [typing_hint_test.dart](../../test/features/conversation/typing_hint_test.dart)
+### [typing_hint_cases.dart](../../test/features/conversation/typing_hint_cases.dart)
 
 Original file: `test/features/conversation/typing_hint_test.dart`. Decision for every row: **KEEP/MOVE unchanged**.
 
@@ -159,7 +162,7 @@ Original file: `test/features/conversation/typing_hint_test.dart`. Decision for 
 | `the group hint identifies each member typing` |
 | `a channel never carries typing: nothing renders` |
 
-### [conversation_search_box_test.dart](../../test/features/conversation/conversation_search_box_test.dart)
+### [conversation_search_box_cases.dart](../../test/features/conversation/conversation_search_box_cases.dart)
 
 Original file: `test/features/conversation/conversation_search_box_test.dart`. Decision for every row: **KEEP/MOVE unchanged**.
 
@@ -172,7 +175,7 @@ Original file: `test/features/conversation/conversation_search_box_test.dart`. D
 
 2 runners -> 1; 8 cases retained. Independent literal security vectors and the actual encryption fingerprint dialog.
 
-### [fingerprint_emoji_test.dart](../../test/features/fingerprint/fingerprint_emoji_test.dart)
+### [fingerprint_emoji_cases.dart](../../test/features/fingerprint/fingerprint_emoji_cases.dart)
 
 Original file: `test/features/fingerprint/fingerprint_emoji_test.dart`. Decision for every row: **KEEP/MOVE unchanged**.
 
@@ -185,7 +188,7 @@ Original file: `test/features/fingerprint/fingerprint_emoji_test.dart`. Decision
 | `an odd-length single char falls back to code units and wraps` |
 | `hex letter case does not change the mapping` |
 
-### [fingerprint_lock_test.dart](../../test/features/fingerprint/fingerprint_lock_test.dart)
+### [fingerprint_lock_cases.dart](../../test/features/fingerprint/fingerprint_lock_cases.dart)
 
 Original file: `test/features/fingerprint/fingerprint_lock_test.dart`. Decision for every row: **KEEP/MOVE unchanged**.
 
@@ -198,7 +201,7 @@ Original file: `test/features/fingerprint/fingerprint_lock_test.dart`. Decision 
 
 2 runners -> 1; 4 cases retained. Readable device identities, own-device removal gate, named confirmation and pending/applied revocation.
 
-### [device_list_test.dart](../../test/features/device_link/device_list_test.dart)
+### [device_list_cases.dart](../../test/features/device_link/device_list_cases.dart)
 
 Original file: `test/features/device_link/device_list_test.dart`. Decision for every row: **KEEP/MOVE unchanged**.
 
@@ -206,7 +209,7 @@ Original file: `test/features/device_link/device_list_test.dart`. Decision for e
 | --- |
 | `long ids read as head…tail, never wrapped mid-id` |
 
-### [device_revocation_test.dart](../../test/features/device_link/device_revocation_test.dart)
+### [device_revocation_cases.dart](../../test/features/device_link/device_revocation_cases.dart)
 
 Original file: `test/features/device_link/device_revocation_test.dart`. Decision for every row: **KEEP/MOVE unchanged**.
 

@@ -38,7 +38,7 @@ flutter test --machine test/features/conversation/conversation_attachment_test.d
 ```
 
 Three interleaved pairs use A/B, B/A, A/B with byte-guarded original/candidate
-restoration. Candidate seed42 also passes all21. No timer/frame is changed.
+restoration. Candidate seed 42 also passes all 21. No timer/frame is changed.
 
 | Scoped observation, seconds | Before | After |
 | --- | ---: | ---: |
@@ -83,7 +83,7 @@ in `.git/test-audit/ordered-cleanup/`.
 Seven source files: ownership, unread badge, rail insets, group-create,
 chat-create, channel-join and Connection reopening. The audit's remaining
 11 MERGE rows apply exactly. Scoped registrations **61 -> 50**, five runners
-unchanged; with phase1 the whole expected count is1890 ->1876.
+unchanged; with phase 1 the whole expected count is 1890 -> 1876.
 
 Private AST editors guard original bytes and exact file/full symbolic paths,
 build proposed units in memory, remove complete invocation/loop nodes and
@@ -107,8 +107,8 @@ Scoped command: `flutter test --machine` with these five paths:
 - `test/features/onboarding/conversation_creation_test.dart`
 - `test/features/settings/connection_reopen_test.dart`
 
-Three A/B, B/A, A/B pairs plus candidate seed42 all pass. Exact Counter loss
-is precisely11 named registrations; all50 remaining outcomes/multiplicities
+Three A/B, B/A, A/B pairs plus candidate seed 42 all pass. Exact Counter loss
+is precisely 11 named registrations; all 50 remaining outcomes/multiplicities
 match, with no skip or failure. Raw labels are `merge-before/after-1/2/3`.
 
 | Scoped observation, seconds | Before | After |
@@ -120,14 +120,14 @@ match, with no skip or failure. Raw labels are `merge-before/after-1/2/3`.
 | Median sum loading intervals | 29.001 | 27.741 |
 | Median sum visible bodies | 27.996 | 24.721 |
 
-Observed scoped median wall is10.0% lower and CPU11.0% lower; one pair moves
+Observed scoped median wall is 10.0% lower and CPU 11.0% lower; one pair moves
 in the other direction. These are local observations under shared-host load,
 not a whole-suite/CI speedup or a per-run guarantee. The following grouping
 control also validates the complete post-merge source before any renames.
 
 ## 3. Bounded runner grouping
 
-After MERGE, all13 selected libraries contain **90 cases**, not the audit's92:
+After MERGE, all 13 selected libraries contain **90 cases**, not the audit's 92:
 the two badge registrations were already consolidated. Grouping itself removes
 no callback, assertion, event, helper or variant. Copies are byte/mode-identical
 to the current post-merge sources at `4a46800a`. Three peer-status comments are
@@ -149,13 +149,13 @@ Actual HTTP/native/global-contract probes remain isolated. Independent source
 reviews confirm local DTO/rendering work, controller/focus/dialog disposal and
 no binding-absence contract in the included pure helper cases.
 
-Main9->3 and secondary4->2 were measured separately, in that order. Each uses
-three A/B, B/A, A/B pairs plus candidate seed42. Commands are `flutter test
+Main 9 -> 3 and secondary 4 -> 2 were measured separately, in that order. Each uses
+three A/B, B/A, A/B pairs plus candidate seed 42. Commands are `flutter test
 --machine` with the original library paths or the stated driver paths; exact
 argv is saved in every raw `.time.json`. Full Counter maps are generated from
 the fresh post-merge full profile, not reconstructed from the older92-case list.
-All78 main and12 secondary identities/results/skips/multiplicities match in
-all14 scoped runs. Saved snapshot guards reject third-state edits.
+All 78 main and 12 secondary identities/results/skips/multiplicities match in
+all 14 scoped runs. Saved snapshot guards reject third-state edits.
 
 | Scoped median, seconds | Main before | Main after | Secondary before | Secondary after |
 | --- | ---: | ---: | ---: | ---: |
@@ -168,17 +168,17 @@ all14 scoped runs. Saved snapshot guards reject third-state edits.
 Main wall samples:10.247/10.761/11.194 before,8.346/8.652/9.039 after.
 Secondary:10.956/9.762/10.094 before,7.977/8.795/8.921 after.
 All six local pairs favor the candidate for wall and CPU. Main median wall
-is19.6% lower, CPU39.9%; secondary wall12.9%, CPU26.7%. These module savings
+is 19.6% lower, CPU 39.9%; secondary wall 12.9%, CPU 26.7%. These module savings
 do not establish complete-suite acceleration. Controls use the same flags,
 workspace and cached inputs, with no other team compiler running.
 
-Source hash/one-owner checks pass for all13 unchanged libraries. `flutter analyze`
-reports no issues; format validates815files with zero changes; policy passes.
+Source hash/one-owner checks pass for all 13 unchanged libraries. `flutter analyze`
+reports no issues; format validates 815 files with zero changes; policy passes.
 Native and platform integration remain outside these host widget/unit runs.
 
-Full commands before/after grouping both pass1876 with the same four native
-skips. Runner files decrease246 ->238. Exact full Counter normalization changes
-only the90 source-stem namespace maps; all other outcomes/multiplicities match.
+Full commands before/after grouping both pass 1876 with the same four native
+skips. Runner files decrease246 -> 238. Exact full Counter normalization changes
+only the 90 source-stem namespace maps; all other outcomes/multiplicities match.
 
 | Full grouping observation, seconds | Before | After |
 | --- | ---: | ---: |
@@ -200,32 +200,32 @@ are token-identical, not replacement smoke tests.
 
 | Runtime file under `test/features/` / full name | Retained contract |
 | --- | --- |
-| `conversation/conversation_filter_test.dart` / `isMobileBreakpoint 400 wide is mobile` | Same helper branch pinned at580; actual400px screen cases stay. |
-| `conversation/conversation_filter_test.dart` / `isMobileBreakpoint 800 wide is not` | Same helper branch pinned at581; actual desktop/search lifecycle cases stay. |
+| `conversation/conversation_filter_test.dart` / `isMobileBreakpoint 400 wide is mobile` | Same helper branch pinned at 580; actual 400px screen cases stay. |
+| `conversation/conversation_filter_test.dart` / `isMobileBreakpoint 800 wide is not` | Same helper branch pinned at 581; actual desktop/search lifecycle cases stay. |
 | `diagnostics/diagnostics_summary_contract_test.dart` / `diagnostics_sections DiagnosticsRow renders its label and value` | Retained `diagnostics_sections DiagnosticsGroup renders the uppercased label and its children` mounts the real Row and asserts Peer/alice. |
 | `diagnostics/diagnostics_network_events_test.dart` / `mesh_diagnostics peerBreakdown 2 direct / 3 relayed` | Retained `mesh_diagnostics MeshDiagnostics - full mesh renders the group label, the 4 metrics, and the 7 rows` invokes the same production helper/defaults and asserts the literal string. |
-| `diagnostics/diagnostics_network_events_test.dart` / `mesh_diagnostics relayBreakdown 1 capable / 4 routes` | Same retained full-mesh case invokes the actual relay helper with1/4 and asserts its literal string. |
+| `diagnostics/diagnostics_network_events_test.dart` / `mesh_diagnostics relayBreakdown 1 capable / 4 routes` | Same retained full-mesh case invokes the actual relay helper with 1/4 and asserts its literal string. |
 
 AST removes only these complete cases/single-child groups, checks all retained
 callbacks/helpers/loop dimensions, and pins implementation/fixture hashes.
-History322a4b5a/239fc66a/0cb53e1f and a second source reviewer confirm no separate
+History 322a4b5a/239fc66a/0cb53e1f and a second source reviewer confirm no separate
 interior/standalone regression. The now-unused mesh helper import is removed;
 its production functions stay used by the renderer. Stale headers are updated.
 
-Three actual driver scopes pass86 ->81, exactly five Counter identities gone;
-all remaining names/results/multiplicities match. This corresponds to34 ->29
-cases in the three edited source libraries and32 ->27 AST declarations.
-Grouping remains238runners; grouped libraries now contain87cases, not90.
+Three actual driver scopes pass 86 -> 81, exactly five Counter identities gone;
+all remaining names/results/multiplicities match. This corresponds to 34 -> 29
+cases in the three edited source libraries and 32 -> 27 AST declarations.
+Grouping remains 238 runners; grouped libraries now contain 87 cases, not 90.
 
-Same-command single observations: wall9.574 ->9.350s, CPU22.480 ->21.369s, file spans21.337 ->20.296s. Commands/JSON are `delete-before/after`. No speed claim is based on these cheap deletions.
+Same-command single observations: wall 9.574 -> 9.350s, CPU 22.480 -> 21.369s, file spans 21.337 -> 20.296s. Commands/JSON are `delete-before/after`. No speed claim is based on these cheap deletions.
 
 ## 5. Strengthen existing UI checks and await paste readiness
 
 No case or name is added or removed in this phase:
 
 - `conversation_search_box_cases.dart` / `an externally cleared query still reaches the field` now changes the host's query through its reused setQuery method, preserving the existing controller until the next widget update. It no longer edits that controller directly through enterText(''). The original caret test and all old assertions remain.
-- `event_log_cases.dart` / `EventLog - rows 3 events render newest first with time + name` now asserts strict vertical order e3 < e2 < e1, retaining every name/time/detail assertion and the separate last40 case.
-- `clipboard_file_paste_test.dart` / `the context menu Paste attaches a copied file, else pastes text` replaces100 x10ms polling with passive onAttach/text-controller observations. Each completion is created before the real menu tap in the same runAsync zone; one original widget pump follows. File IO, both actual menu gestures/pastes and all existing assertions remain, as do all seven unit cases.
+- `event_log_cases.dart` / `EventLog - rows 3 events render newest first with time + name` now asserts strict vertical order e3 < e2 < e1, retaining every name/time/detail assertion and the separate last 40 case.
+- `clipboard_file_paste_test.dart` / `the context menu Paste attaches a copied file, else pastes text` replaces 100 x 10ms polling with passive onAttach/text-controller observations. Each completion is created before the real menu tap in the same runAsync zone; one original widget pump follows. File IO, both actual menu gestures/pastes and all existing assertions remain, as do all seven unit cases.
 
 The file callback observes completed stream reading/ingest, not the entire
 PasteAttachmentAction Future/finally. The following real text paste and its
@@ -239,17 +239,91 @@ changes against immutable before/after snapshots. They confirm unchanged old
 assertions, test identities, controller lifetime/caret behavior and event
 ordering. These are source/trace proofs, not executed mutation-test results.
 
-Both rewritten test libraries pass in their42-case owners. Clipboard before
-and after pass the same8 cases with a lower30s CLI pilot cap (no metadata/global
-timeout change): wall7.953 ->8.091s, CPU11.521 ->11.832s. No speedup is claimed.
-The complete97-case affected scope then passes ordinary and seed42 ordering
+Both rewritten test libraries pass in their 42-case owners. Clipboard before
+and after pass the same 8 cases with a lower 30s CLI pilot cap (no metadata/global
+timeout change): wall 7.953 -> 8.091s, CPU 11.521 -> 11.832s. No speedup is claimed.
+The complete 97-case affected scope then passes ordinary and seed 42 ordering
 with default deadlines, preserving exact identities/results/multiplicities.
-Policy now sees97 delay sites versus98 initially;60 zero-delay sites remain.
+Policy now sees 97 delay sites versus 98 initially; 60 zero-delay sites remain.
 This removes a polling site, not a measured fixed second from every run.
 
-Final source checks:815 Dart files format with zero changes; flutter analyze
+Final source checks: 815 Dart files format with zero changes; flutter analyze
 has no issues, including configured unused diagnostics; policy and all seven
 allowed/forbidden examples pass. The invalid-baseline example's Git error is
 intentional. No new test abstraction, linter rule, dependency, timeout/retry or
 skip is introduced. The final whole-source controls below check all changes
 against the recorded original rather than attributing host variation to them.
+
+## Complete-source controls and final result
+
+Code under test: original `c5076e3f` versus final `31b6fbc7`. The guarded
+41-path controller restores original or final test bytes/modes, never Git's
+index, production, configs or unknown edits. Initial A1 ran before the tranches;
+then final B1/original A2/final B2/original A3/final B3 ran serially. Intermediate
+tranche captures are not pooled into these predeclared final-code samples.
+Every command is exactly `flutter test --machine`, with no new concurrency,
+timeout/retry flags, build configuration or required CLI.
+
+An independent parser verifies every full name/result/skip reason/multiplicity
+against the initial Counter minus the exact 19 ledger registrations. Only the
+13 library-to-owner namespace maps are normalized. All original captures pass
+1890 with 4skips/246 runners; all final captures pass 1871 with the same 4 skips and
+238 runners. All 87 remaining grouped cases and all retained merge destinations
+are present. There are zero failures or new gates. Original failures therefore
+needed no separate worktree reproduction.
+
+| Capture | Wall s | Descendant CPU s | File sum s | Loading sum s | Body sum s |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| A1 (baseline) | 153.038 | 1242.447 | 1162.784 | 492.836 | 668.242 |
+| B1 (candidate) | 142.710 | 1155.192 | 1086.527 | 470.183 | 614.466 |
+| A2 (baseline) | 139.610 | 1132.096 | 1063.703 | 455.991 | 605.958 |
+| B2 (candidate) | 136.182 | 1099.749 | 1034.422 | 441.494 | 591.180 |
+| A3 (baseline) | 131.536 | 1079.396 | 1002.182 | 421.480 | 579.113 |
+| B3 (candidate) | 129.932 | 1061.694 | 991.337 | 419.472 | 570.393 |
+
+| Ordinary median of 3, seconds | Original | Final | Observed change |
+| --- | ---: | ---: | ---: |
+| Command wall | 139.610 | 136.182 | -2.46% |
+| Descendant CPU | 1132.096 | 1099.749 | -2.86% |
+| Sum file spans | 1063.703 | 1034.422 | -2.75% |
+| Sum loading intervals | 455.991 | 441.494 | -3.18% |
+| Sum visible bodies | 605.958 | 591.180 | -2.44% |
+
+All three matched Ai/Bi pairs favor the candidate, but both adjacent reverse
+B->A controls also become faster. Original wall varies 131.536..153.038s
+with identical source, much more than the 3.428s median difference. These
+observations **do not establish stable whole-suite/CI acceleration or its
+causality**. The earlier audit's124.442s original-source sample remains in that
+report and is not pooled into this declared comparison. Bounded grouping
+savings and duplicate reductions remain independently measured/proven; do not
+promise the aggregate percentage on another host.
+
+Wall includes launcher/hooks/shutdown. Descendant CPU sums completed processes'
+user+system time, not unrelated agents' CPU; shared contention can still change
+execution cost. File/loading/body intervals overlap and are neither elapsed nor
+exclusive CPU; their independently calculated medians need not add. Raw argv
+and tracked configs are verified; process environment values were not recorded.
+
+Final composite source review matches all snapshots to immutable Git blobs.
+Grouping copied 13 current post-merge libraries byte-for-byte; four later files
+receive the documented DELETE/quality edits. Against the initial c507 source,
+eight ofthose13 final libraries remain byte-identical and five include the
+approved badge/diagnostics/search/event changes. All other final source matches
+its reviewed phase; the only normalization afterward was formatter whitespace.
+
+The [changed-file index](flutter-ordered-test-files.md) lists 13 renamed libraries,
+five scoped drivers and ten modified test files. Current references resolve to
+case libraries; historical audit identities remain explicitly historical.
+Final formatter/analyzer/policy/examples and all affected normal/seed 42 scopes
+pass. No production, dependency, schema, API, native/integration, CI or policy
+implementation changed. No push, publication or deploy occurred.
+
+Remaining limits: selective source equivalence, including ownership's normal
+unselected-tap scope; seed 42 is not every order; clipboard readiness is not its
+whole operation Future. Real Rust/Moss/native/device/OS suites were not run.
+The original four native DLL gates remain explicit, and timing/negative-frame
+contracts and waits marked KEEP in the audit remain. There is no changed-line
+coverage or executed mutation-testing claim for this test-only patch.
+
+Raw captures, immutable sources, commands, source/Counter proofs and independent
+`final-results.json` are retained in `.git/test-audit/ordered-cleanup/`.
