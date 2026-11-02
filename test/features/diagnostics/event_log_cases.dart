@@ -213,6 +213,14 @@ void main() {
       expect(find.text('peer_joined'), findsOneWidget);
       expect(find.text('tracker_update'), findsOneWidget);
       expect(find.text('relay_changed'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('relay_changed')).dy,
+        lessThan(tester.getTopLeft(find.text('tracker_update')).dy),
+      );
+      expect(
+        tester.getTopLeft(find.text('tracker_update')).dy,
+        lessThan(tester.getTopLeft(find.text('peer_joined')).dy),
+      );
       // Each event's local time renders exactly once.
       expect(find.text(_expectedTime(e1.epochMillis)), findsOneWidget);
       expect(find.text(_expectedTime(e2.epochMillis)), findsOneWidget);

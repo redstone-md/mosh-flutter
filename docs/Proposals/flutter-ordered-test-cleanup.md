@@ -218,3 +218,38 @@ cases in the three edited source libraries and32 ->27 AST declarations.
 Grouping remains238runners; grouped libraries now contain87cases, not90.
 
 Same-command single observations: wall9.574 ->9.350s, CPU22.480 ->21.369s, file spans21.337 ->20.296s. Commands/JSON are `delete-before/after`. No speed claim is based on these cheap deletions.
+
+## 5. Strengthen existing UI checks and await paste readiness
+
+No case or name is added or removed in this phase:
+
+- `conversation_search_box_cases.dart` / `an externally cleared query still reaches the field` now changes the host's query through its reused setQuery method, preserving the existing controller until the next widget update. It no longer edits that controller directly through enterText(''). The original caret test and all old assertions remain.
+- `event_log_cases.dart` / `EventLog - rows 3 events render newest first with time + name` now asserts strict vertical order e3 < e2 < e1, retaining every name/time/detail assertion and the separate last40 case.
+- `clipboard_file_paste_test.dart` / `the context menu Paste attaches a copied file, else pastes text` replaces100 x10ms polling with passive onAttach/text-controller observations. Each completion is created before the real menu tap in the same runAsync zone; one original widget pump follows. File IO, both actual menu gestures/pastes and all existing assertions remain, as do all seven unit cases.
+
+The file callback observes completed stream reading/ingest, not the entire
+PasteAttachmentAction Future/finally. The following real text paste and its
+assertions also require release of the shared in-flight guard. Observer reset
+uses finally; the draft listener/controller are cleaned up. The existing long
+clipboard widget callback retains its full required composer-constructor
+fixture rather than introducing another fixture abstraction solely for length.
+
+Independent source reviews reconstruct both quality files and the clipboard
+changes against immutable before/after snapshots. They confirm unchanged old
+assertions, test identities, controller lifetime/caret behavior and event
+ordering. These are source/trace proofs, not executed mutation-test results.
+
+Both rewritten test libraries pass in their42-case owners. Clipboard before
+and after pass the same8 cases with a lower30s CLI pilot cap (no metadata/global
+timeout change): wall7.953 ->8.091s, CPU11.521 ->11.832s. No speedup is claimed.
+The complete97-case affected scope then passes ordinary and seed42 ordering
+with default deadlines, preserving exact identities/results/multiplicities.
+Policy now sees97 delay sites versus98 initially;60 zero-delay sites remain.
+This removes a polling site, not a measured fixed second from every run.
+
+Final source checks:815 Dart files format with zero changes; flutter analyze
+has no issues, including configured unused diagnostics; policy and all seven
+allowed/forbidden examples pass. The invalid-baseline example's Git error is
+intentional. No new test abstraction, linter rule, dependency, timeout/retry or
+skip is introduced. The final whole-source controls below check all changes
+against the recorded original rather than attributing host variation to them.

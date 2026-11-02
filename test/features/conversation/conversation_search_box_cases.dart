@@ -28,11 +28,13 @@ class _HostState extends State<_Host> {
   /// Rebuilds without changing the query, standing in for a poll tick.
   void poll() => setState(() {});
 
+  void setQuery(String value) => setState(() => _search = value);
+
   @override
   Widget build(BuildContext context) {
     return ConversationSearchBox(
       search: _search,
-      onSearch: (value) => setState(() => _search = value),
+      onSearch: setQuery,
       l: AppLocalizations.of(context)!,
     );
   }
@@ -75,7 +77,7 @@ void main() {
     expect(_controller(tester).text, 'report');
 
     // The mobile close button clears through the host (onSearch('')).
-    await tester.enterText(find.byType(TextField), '');
+    hostKey.currentState!.setQuery('');
     await tester.pumpAndSettle();
     expect(_controller(tester).text, isEmpty);
   });

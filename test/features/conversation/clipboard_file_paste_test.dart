@@ -178,8 +178,15 @@ void main() {
               _ => null,
             });
     final attached = <PickedAttachment>[];
+    VoidCallback? observePaste;
     var reader = _copied(file);
     final draft = TextEditingController(text: 'draft ');
+    void observeDraft() => observePaste?.call();
+    draft.addListener(observeDraft);
+    addTearDown(() {
+      draft.removeListener(observeDraft);
+      draft.dispose();
+    });
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: ConversationComposer(
@@ -189,7 +196,10 @@ void main() {
           sendLabel: 'Send',
           onSend: () {},
           attachLabel: 'a',
-          onAttach: attached.add,
+          onAttach: (attachment) {
+            attached.add(attachment);
+            observePaste?.call();
+          },
           onAttachmentPickError: (_) => fail('nothing to report'),
           voiceRecordLabel: 'r',
           voiceDiscardLabel: 'd',
@@ -205,16 +215,25 @@ void main() {
       ),
     ));
 
-    // The paste reads a real file, so it needs real event-loop turns.
+    // Start the real file/text paste in the zone that owns its completion.
     Future<void> pasteFromMenu(bool Function() done) async {
       await tester.longPress(find.byType(TextField));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Paste'));
-      for (var i = 0; i < 100 && !done(); i++) {
-        await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 10)));
-        await tester.pump();
-      }
+      await tester.runAsync(() async {
+        final ready = Completer<void>();
+        void observe() {
+          if (!ready.isCompleted && done()) ready.complete();
+        }
+
+        observePaste = observe;
+        try {
+          await tester.tap(find.text('Paste'));
+          await ready.future;
+        } finally {
+          observePaste = null;
+        }
+      });
+      await tester.pump();
     }
 
     await pasteFromMenu(() => attached.isNotEmpty);
