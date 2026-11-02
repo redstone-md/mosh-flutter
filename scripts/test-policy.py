@@ -22,7 +22,8 @@ RULES = {
                        r'\b(?:skip|todo)\s*:|@Skip\s*\(|#\s*\[\s*ignore\b|'
                        r'\b(?:skipTest|skipIf|skipUnless|skipif|xfail)\s*\(|'
                        r'\b(?:unittest|pytest\s*\.\s*mark)\s*\.\s*skip\s*\('),
-    'timeout': re.compile(r'\b(?:timeout|testTimeout)\s*:|@Timeout\s*\('),
+    'timeout': re.compile(r'\b(?:timeout|testTimeout)\s*:|@Timeout\s*\(|'
+                          r'\.\s*timeout\s*\('),
     'retry': re.compile(r'\b(?:retry|retries)\s*:'),
     'wait': re.compile(r'\bFuture\s*(?:<[^>]*>)?\s*\.\s*delayed\s*\(|'
                        r'\b(?:sleep|setTimeout|setInterval)\s*\('),

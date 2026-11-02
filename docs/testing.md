@@ -23,7 +23,8 @@ cheap CI job. It always rejects `test/it/describe/group.only` and `only: true` /
 `solo: true`, including historical occurrences. Do not alias test entry points to
 evade the guard.
 
-New skip/todo/ignore annotations, test timeout/retry overrides, and real delays
+New skip/todo/ignore annotations, test timeout/retry overrides (including
+`Future.timeout` and `Stream.timeout` calls), and real delays
 require a reason and tracking issue on the same or immediately preceding line:
 
 ```dart
@@ -79,6 +80,8 @@ Prefer exact required frames over unbounded settling when the frame contract is
 known ([Flutter pumpAndSettle documentation](https://api.flutter.dev/flutter/flutter_test/WidgetTester/pumpAndSettle.html)).
 For real async work, await the readiness/completion future inside `runAsync`
 instead of sleeping ([Flutter runAsync documentation](https://api.flutter.dev/flutter/flutter_test/WidgetTester/runAsync.html)).
+Create completion futures in that real zone before triggering the operation;
+a fake-zone Completer can delay delivery even when its callback has fired.
 Do not globally disable motion or fast-forward real network/hardware behavior to
 make a runtime metric look better.
 

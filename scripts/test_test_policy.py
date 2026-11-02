@@ -26,7 +26,10 @@ class TestPolicy(unittest.TestCase):
             'timeout': ['test("x", timeout: Timeout(Duration(minutes: 4)))',
                         '@Timeout(Duration(minutes: 4))',
                         'test("x", { timeout: 9000 }, f)',
-                        'test("x", {"timeout": 9000}, f)'],
+                        'test("x", {"timeout": 9000}, f)',
+                        'await operation.timeout(Duration(seconds: 2))',
+                        'await operation . timeout (Duration(seconds: 2))',
+                        'await socket.timeout(Duration(seconds: 2), onTimeout: stop)'],
             'retry': ['test("x", retry: 3)', 'test("x", { retries: 2 }, f)',
                       'test("x", {"retries": 2}, f)'],
             'wait': ['await Future<void>.delayed(Duration(seconds: 1))',
@@ -48,6 +51,9 @@ class TestPolicy(unittest.TestCase):
             'test("x", () => { const config = {retry: 3, skip: true}; })',
             'testWidgets("x", (t) async { Widget(timeout: 3); })',
             'await operation.future', 'await tester.pump(Duration(seconds: 1))',
+            'operation.timeoutLabel()', 'operation.timeout',
+            'final text = "operation.timeout(Duration(seconds: 2))";',
+            '// operation.timeout(Duration(seconds: 2))',
             '// test.only("x", f)\n/* skip: true */',
             '# test.only("x", f)',
             'final text = "test.only(skip: true)";',
@@ -83,6 +89,17 @@ class TestPolicy(unittest.TestCase):
         self.assertTrue(policy.violations(source, source))
         original = 'test("x",\n timeout: Timeout(Duration(seconds: 4)))'
         self.assertTrue(policy.violations(original.replace('4', '5'), original))
+
+    def test_future_timeout_requires_local_exception_and_freezes_old_budget(self):
+        source = 'await result.timeout(const Duration(seconds: 2));'
+        valid = f'// test-policy: timeout {ISSUE} -- retain the existing callback deadline\n'
+        self.assertEqual(policy.violations(valid + source), [])
+        self.assertEqual(policy.violations(source, source), [])
+        for changed in [source.replace('2', '3'), source + '\n' + source]:
+            self.assertTrue(policy.violations(changed, source))
+        for comment in [valid + '\n', valid.replace('timeout', 'wait'),
+                        valid.replace(ISSUE, 'https://example.com/issue')]:
+            self.assertTrue(policy.violations(comment + source))
 
     def test_case_libraries_require_one_real_group_scoped_owner(self):
         case = 'void main() { test("contract", () {}); }'
