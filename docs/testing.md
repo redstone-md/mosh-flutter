@@ -82,9 +82,13 @@ instead of sleeping ([Flutter runAsync documentation](https://api.flutter.dev/fl
 Do not globally disable motion or fast-forward real network/hardware behavior to
 make a runtime metric look better.
 
-Image tests can await `precacheImage` inside `runAsync` and then pump the loaded
-or error UI. Use the widget's actual `Image.image`, including resize and validation
-wrappers. Keep success/fallback assertions: completion also includes load failure.
+Image tests can start loading and await `precacheImage` inside `runAsync`, then
+pump the loaded or error UI. Awaiting a decode that already started in the fake
+zone can deadlock. Use the widget's actual `Image.image`, including resize and
+validation wrappers. Keep success/fallback assertions: completion includes load
+failure. If initial rendering is the contract, observe the first layout frame
+before waiting; retain cache-hit checks immediately after reopening. See the
+[stability audit](Proposals/flutter-attachment-stability-test-cleanup.md).
 The [attachment preview audit](Proposals/flutter-attachment-preview-test-cleanup.md)
 records this replacement for fixed decode sleeps with real files and codecs.
 

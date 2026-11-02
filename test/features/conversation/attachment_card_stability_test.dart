@@ -52,12 +52,22 @@ Widget _card(AttachmentDescriptor descriptor, AttachmentView view,
 
 Finder get _preview => find.bySemanticsLabel('Open Sunshining Balve.jpg');
 
-Future<void> _decode(WidgetTester tester) async {
-  for (var i = 0; i < 10; i++) {
-    await tester
-        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
-    await tester.pump(const Duration(milliseconds: 50));
-  }
+// The first frame is observed before native completion can rebuild the image.
+Future<void> _pumpDecoded(WidgetTester tester, Widget screen,
+    {VoidCallback? firstFrame}) async {
+  await tester.runAsync(() async {
+    if (firstFrame != null) {
+      tester.binding.addPostFrameCallback((_) => firstFrame());
+    }
+    await pumpScreen(tester, screen, settle: false);
+    // Keep ResizeImage and the intrinsic-dimension validation providers intact.
+    await Future.wait<void>([
+      for (final element in find.byType(Image).evaluate())
+        precacheImage((element.widget as Image).image, element,
+            onError: (_, __) {}),
+    ]);
+  });
+  await tester.pump();
 }
 
 /// The cancel button's place within its card, independent of centering.
@@ -68,13 +78,17 @@ Rect _cancelInCard(WidgetTester tester) => tester
 void main() {
   testWidgets('the preview reserves its final height before any decode',
       (tester) async {
-    await pumpScreen(tester,
+    tester.binding.imageCache
+      ..clear()
+      ..clearLiveImages();
+    late final Size reserved;
+    await _pumpDecoded(tester,
         _card(_descriptor(_landscape), _view(AttachmentState.cancelled)),
-        settle: false);
-    final reserved = tester.getSize(_preview);
-    expect(reserved.height, closeTo(320 / 1.5, 0.5));
-
-    await _decode(tester);
+        firstFrame: () {
+      reserved = tester.getSize(_preview);
+      expect(reserved.height, closeTo(320 / 1.5, 0.5));
+      expect(tester.widget<RawImage>(find.byType(RawImage)).image, isNull);
+    });
     expect(tester.getSize(_preview), reserved);
 
     final directory = await tester
@@ -83,13 +97,14 @@ void main() {
     final clear = File('${directory!.path}/preview.jpg');
     await tester.runAsync(() =>
         clear.writeAsBytes(img.encodeJpg(img.Image(width: 320, height: 213))));
-    await pumpScreen(
+
+    await _pumpDecoded(
         tester,
         _card(_descriptor(_landscape),
             _view(AttachmentState.cancelled, preview: clear.path)),
-        settle: false);
-    expect(tester.getSize(_preview), reserved);
-    await _decode(tester);
+        firstFrame: () {
+      expect(tester.getSize(_preview), reserved);
+    });
     expect(tester.getSize(_preview), reserved);
   });
 
@@ -129,11 +144,12 @@ void main() {
         settle: false);
     expect(tester.getSize(_preview).height, kAttachmentPreviewMinHeight);
 
-    await pumpScreen(
+    late final double unknown;
+    await _pumpDecoded(
         tester, _card(_descriptor('AAAA'), _view(AttachmentState.offered)),
-        settle: false);
-    final unknown = tester.getSize(_preview).height;
-    await _decode(tester);
+        firstFrame: () {
+      unknown = tester.getSize(_preview).height;
+    });
     expect(tester.getSize(_preview).height, unknown);
     expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -142,9 +158,9 @@ void main() {
   testWidgets('a returning chat shows its decoded miniature in the first frame',
       (tester) async {
     final descriptor = _descriptor(_landscape);
-    await pumpScreen(tester, _card(descriptor, _view(AttachmentState.offered)),
-        settle: false);
-    await _decode(tester);
+
+    await _pumpDecoded(
+        tester, _card(descriptor, _view(AttachmentState.offered)));
     expect(tester.widget<RawImage>(find.byType(RawImage)).image, isNotNull);
 
     await pumpScreen(tester, const Scaffold(body: Text('elsewhere')));
