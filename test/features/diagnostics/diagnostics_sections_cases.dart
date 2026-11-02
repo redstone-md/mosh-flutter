@@ -1,21 +1,7 @@
-// Widget tests for the Diagnostics-drawer section primitives
-// (lib/src/features/diagnostics/diagnostics_sections.dart). Pumps the
-// widgets directly inside a localized `MaterialApp` (the established DM
-// widget-test pattern, scoped to the section -- no Riverpod /
-// DiagnosticsScreen) and asserts:
-//   - `DiagnosticsRow` renders its label + value.
-//   - `DiagnosticsGroup` renders its uppercased label + children.
-//   - `NoActiveSession` renders the "Session" group label + the empty-state
-//     title + description.
-//   - `SessionDiagnostics` (Conversation-details group ONLY): the Peer /
-//     MLS state / Transport / Peer id / Last connect / Role / Display /
-//     Session rows for each of the three states and three transports; a
-//     session whose peer id is not known yet says so next to its state, so
-//     "Connected" and "peer unknown" never share a card; no row mentions a
-//     relay the app runs itself.
-//
-// `MeshDiagnostics`, `EventLog`, and the channel/group sections are covered
-// by their own tests and are not asserted here.
+// Widget contracts for diagnostics groups, empty state and session details.
+// The group case also protects its DiagnosticsRow label and value.
+// Connected/direct, relayed, pending/no-peer and offline remain distinct.
+// Mesh, events and channel/group rendering have their own suites.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -66,17 +52,6 @@ Future<void> _pump(WidgetTester tester, Widget child) => pumpScreen(
     tester, Scaffold(body: SingleChildScrollView(child: Center(child: child))));
 
 void main() {
-  group('DiagnosticsRow', () {
-    testWidgets('renders its label and value', (tester) async {
-      await _pump(
-        tester,
-        const DiagnosticsRow(label: 'Peer', value: 'alice'),
-      );
-      expect(find.text('Peer'), findsOneWidget);
-      expect(find.text('alice'), findsOneWidget);
-    });
-  });
-
   group('DiagnosticsGroup', () {
     testWidgets('renders the uppercased label and its children',
         (tester) async {

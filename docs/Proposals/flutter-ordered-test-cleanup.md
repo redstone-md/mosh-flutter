@@ -191,3 +191,30 @@ only the90 source-stem namespace maps; all other outcomes/multiplicities match.
 One full pair does not establish a repeated whole-suite saving. The complete
 source comparison after all tranches supplies the later controls. No source
 body or test is lost by grouping, independently of these timing observations.
+
+## 4. Five justified DELETE decisions
+
+The original audit records evidence/history for each deletion. Current full
+runtime identities below include the new group prefixes; retained callbacks
+are token-identical, not replacement smoke tests.
+
+| Runtime file under `test/features/` / full name | Retained contract |
+| --- | --- |
+| `conversation/conversation_filter_test.dart` / `isMobileBreakpoint 400 wide is mobile` | Same helper branch pinned at580; actual400px screen cases stay. |
+| `conversation/conversation_filter_test.dart` / `isMobileBreakpoint 800 wide is not` | Same helper branch pinned at581; actual desktop/search lifecycle cases stay. |
+| `diagnostics/diagnostics_summary_contract_test.dart` / `diagnostics_sections DiagnosticsRow renders its label and value` | Retained `diagnostics_sections DiagnosticsGroup renders the uppercased label and its children` mounts the real Row and asserts Peer/alice. |
+| `diagnostics/diagnostics_network_events_test.dart` / `mesh_diagnostics peerBreakdown 2 direct / 3 relayed` | Retained `mesh_diagnostics MeshDiagnostics - full mesh renders the group label, the 4 metrics, and the 7 rows` invokes the same production helper/defaults and asserts the literal string. |
+| `diagnostics/diagnostics_network_events_test.dart` / `mesh_diagnostics relayBreakdown 1 capable / 4 routes` | Same retained full-mesh case invokes the actual relay helper with1/4 and asserts its literal string. |
+
+AST removes only these complete cases/single-child groups, checks all retained
+callbacks/helpers/loop dimensions, and pins implementation/fixture hashes.
+History322a4b5a/239fc66a/0cb53e1f and a second source reviewer confirm no separate
+interior/standalone regression. The now-unused mesh helper import is removed;
+its production functions stay used by the renderer. Stale headers are updated.
+
+Three actual driver scopes pass86 ->81, exactly five Counter identities gone;
+all remaining names/results/multiplicities match. This corresponds to34 ->29
+cases in the three edited source libraries and32 ->27 AST declarations.
+Grouping remains238runners; grouped libraries now contain87cases, not90.
+
+Same-command single observations: wall9.574 ->9.350s, CPU22.480 ->21.369s, file spans21.337 ->20.296s. Commands/JSON are `delete-before/after`. No speed claim is based on these cheap deletions.

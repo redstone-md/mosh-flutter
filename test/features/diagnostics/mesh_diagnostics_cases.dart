@@ -1,31 +1,9 @@
-// Widget + pure tests for `MeshDiagnostics` + `Metric`
-// (lib/src/features/diagnostics/mesh_diagnostics.dart) and the
-// `peerBreakdown` / `relayBreakdown` helpers
-// (diagnostics_helpers.dart). Pumps the widgets directly inside a
-// localized `MaterialApp` (the established DM widget-test pattern,
-// scoped to the section -- no Riverpod/DiagnosticsScreen) and asserts:
-//   - `peerBreakdown` / `relayBreakdown` pure: the exact "n direct /
-//     n relayed" and "n capable / n routes" strings.
-//   - `MeshDiagnostics` with `mesh == null` -> the "Moss network" group
-//     label + the "Mesh booting" empty-state title + description.
-//   - `MeshDiagnostics` with a full mesh -> the "Moss network" group
-//     label, the 4 Metric cells (Peers value = peerCount, NAT value =
-//     natType, Relay value = relayStatus, Supernode value ready/standby
-//     by `supernodeReady`), and the 7 rows (Advertised, Listen port,
-//     Known peers, Relay routes, Channels, Mesh id, Public key).
-//   - empty `advertisedAddr` -> Advertised row value "-".
-//   - empty `channels` -> Channels row value "-".
-//
-// Spec #5: with a `MossLibraryInfo` handed in, the group also renders the
-// Library version row, the Peer RTT row (DM panels only -- a null
-// peerMossId keeps it off), and the Field log row; a null RTT renders the
-// localized "unknown" fallback.
-//
-// `EventLog` is DEFERRED (separate atomic) and is not asserted here.
+// Widget contracts for mesh booting, metrics, absent fields and library facts.
+// The full-mesh case checks peer/relay helper output through real metrics.
+// Keep unknown RTT and the no-peer/no-library gates distinct.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/mesh_diagnostics.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart' show MossLibraryInfo;
 import 'package:mosh/src/rust/conversation/mesh.dart';
@@ -74,20 +52,6 @@ Future<void> _pump(WidgetTester tester, Widget child) => pumpScreen(
     ));
 
 void main() {
-  group('peerBreakdown', () {
-    test('2 direct / 3 relayed', () {
-      final m = _mesh(directPeerCount: 2, relayedPeerCount: 3);
-      expect(peerBreakdown(m), '2 direct / 3 relayed');
-    });
-  });
-
-  group('relayBreakdown', () {
-    test('1 capable / 4 routes', () {
-      final m = _mesh(relayCapablePeerCount: 1, relayRouteCount: 4);
-      expect(relayBreakdown(m), '1 capable / 4 routes');
-    });
-  });
-
   group('MeshDiagnostics - booting', () {
     testWidgets(
         'null mesh renders the Moss network group + booting empty-state',
