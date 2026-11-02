@@ -72,7 +72,9 @@ Use `flutter test path/to/module_cases.dart` to debug one case library directly.
 The [shared-widget runner audit](Proposals/flutter-shared-widget-runner-batches.md)
 records fourteen unchanged case libraries sharing five bounded entry points.
 The [next-reductions audit](Proposals/flutter-test-audit-2026-11-02.md) records
-the current baseline and unimplemented merge, deletion and grouping candidates.
+the starting baseline and merge, deletion and grouping candidates. The
+[ordered cleanup](Proposals/flutter-ordered-test-cleanup.md) records completed
+portions, preservation checks and measured results.
 
 Group by feature and bounded runtime, not into one giant serial suite. Preserve
 separate processes for native initialization/fallback probes, actual HTTP and
