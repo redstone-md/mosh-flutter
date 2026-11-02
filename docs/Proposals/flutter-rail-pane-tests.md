@@ -121,3 +121,19 @@ Raw JSON, commands, source snapshots, hashes and audit scripts are retained in
 `.git/test-audit/rail/`, outside the working tree/index. No optimization should
 be inferred from the unchanged green suite: the performance candidates were
 explicitly rejected on the whole-run results.
+
+## Recheck at `07cdf9a0`
+
+The same minimal six-fixture candidate was inadvertently reconsidered before
+this audit was read. Source/AST review again confirmed all thirteen names,
+assertions, events and timing contracts stayed unchanged. Three interleaved
+local pairs passed the same thirteen cases: median wall 15.074 -> 12.925s,
+child CPU 22.427 -> 19.846s, file spans 13.075 -> 10.672s, loading spans
+3.846 -> 4.532s and visible case bodies 8.251 -> 6.128s. This repeats the
+already known local result; it provides no new aggregate evidence.
+
+The fresh unmodified full baseline passed 1893 with the same four native skips,
+255 entry points, 152.408s wall and 1171.978s child CPU. No new full candidate
+cycle was run: the earlier paired full rejection above still governs this
+candidate. The test source was restored byte-for-byte. Raw snapshots, commands,
+AST audit and measurements are in `.git/test-audit/selection-rail-next/`.

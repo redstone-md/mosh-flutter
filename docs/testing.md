@@ -100,6 +100,8 @@ runtime optimization. Removing sleeps does not guarantee a cheaper runner; see
 the [rejected auto-poll clock experiments](Proposals/flutter-auto-poll-test-cleanup.md).
 The [eleven-runner Dart VM pilot](Proposals/dart-contract-test-runner.md) was also
 reverted: its isolated batch saving did not establish a complete-pipeline gain.
+Read the [rejected RailPane fixture experiments](Proposals/flutter-rail-pane-tests.md)
+before repeating that component-fixture pilot; local savings were already measured.
 Report module and whole-suite observations separately. On a shared host, other
 agents' builds can affect wall time and CPU/cache contention; do not attribute a
 wall difference to a patch without controlled evidence. The
