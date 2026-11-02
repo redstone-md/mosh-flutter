@@ -1,18 +1,6 @@
-// Widget tests for the channel-join step (ChannelJoinStep), opened the way
-// a person does: the start menu in the chat pane at /chat, then a tap on
-// the "Join a public channel" card (`pumpStartStep`). The bridge is
-// scripted.
-//
-// Test 1: initial state -- lead, unencrypted warning, field, button, the
-//   example names.
-// Test 2: Join is disabled while the name is empty; enabled on text.
-// Test 3: an example chip fills the field and enables Join.
-// Test 4: tapping Join calls the bridge's joinChannel and navigates to the
-//   channel screen.
-// Test 5: the route follows the name the core normalized (IVO-50).
-// Test 6: Back returns to the start menu.
-// Tests 7-8: a failed join shows a persistent inline error, worded by the
-//   bridge error's kind, never a SnackBar, and stays on the step.
+// Real start-menu channel flow: plaintext warning and required name,
+// examples, normalized joining, Back and distinct failure feedback.
+// The bridge is scripted; successful joining keeps real route wiring.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -53,7 +41,8 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('initial state renders lead, warning, field, button, examples',
+  testWidgets(
+      'Join button is disabled when name is empty and enabled after text entry',
       (tester) async {
     await pumpJoinStep(tester);
 
@@ -64,12 +53,6 @@ void main() {
     for (final name in ['news', 'dev', 'community']) {
       expect(find.widgetWithText(ActionChip, name), findsOneWidget);
     }
-  });
-
-  testWidgets(
-      'Join button is disabled when name is empty and enabled after text entry',
-      (tester) async {
-    await pumpJoinStep(tester);
 
     expect(joinButton(tester).onPressed, isNull);
 

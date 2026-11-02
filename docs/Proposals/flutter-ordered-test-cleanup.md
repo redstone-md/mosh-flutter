@@ -77,3 +77,50 @@ passes, and `flutter analyze` reports no issues. No unused import/helper was
 created. Physical/native/platform integration is outside this test-only change.
 Raw sources, commands, JSON, stderr, CPU/wall and identity checks are retained
 in `.git/test-audit/ordered-cleanup/`.
+
+## 2. Remaining assertion-preserving merges
+
+Seven source files: ownership, unread badge, rail insets, group-create,
+chat-create, channel-join and Connection reopening. The audit's remaining
+11 MERGE rows apply exactly. Scoped registrations **61 -> 50**, five runners
+unchanged; with phase1 the whole expected count is1890 ->1876.
+
+Private AST editors guard original bytes and exact file/full symbolic paths,
+build proposed units in memory, remove complete invocation/loop nodes and
+transfer assertions at their original phase. Separate audits compare complete
+expected units, unaffected callbacks, imports/helpers, dimensions and original
+suffixes. Ownership's video specialization keeps its three existing names;
+its image no-exception assertion now precedes the incoming tap. Badge keeps
+all three style fields and count100. App UI retains plaintext warning before
+input, all success/clipboard/refresh checks before reset, non-bridge failure
+before retry, both rail widths and initial/restored VPN controls.
+
+Independent reviewers inspect each other's immutable before/after snapshots.
+No fixture/clock/route/native seam changes; no new helper or abstraction.
+Only already stale group/channel numbered header comments are refreshed.
+
+Scoped command: `flutter test --machine` with these five paths:
+
+- `test/features/conversation/attachment_ownership_test.dart`
+- `test/features/conversation/unread_badge_test.dart`
+- `test/features/sessions/rail_insets_test.dart`
+- `test/features/onboarding/conversation_creation_test.dart`
+- `test/features/settings/connection_reopen_test.dart`
+
+Three A/B, B/A, A/B pairs plus candidate seed42 all pass. Exact Counter loss
+is precisely11 named registrations; all50 remaining outcomes/multiplicities
+match, with no skip or failure. Raw labels are `merge-before/after-1/2/3`.
+
+| Scoped observation, seconds | Before | After |
+| --- | ---: | ---: |
+| Wall samples | 23.203 / 20.018 / 21.584 | 19.297 / 23.405 / 19.433 |
+| Median command wall | 21.584 | 19.433 |
+| Median descendant CPU | 56.447 | 50.256 |
+| Median sum file spans | 57.047 | 51.527 |
+| Median sum loading intervals | 29.001 | 27.741 |
+| Median sum visible bodies | 27.996 | 24.721 |
+
+Observed scoped median wall is10.0% lower and CPU11.0% lower; one pair moves
+in the other direction. These are local observations under shared-host load,
+not a whole-suite/CI speedup or a per-run guarantee. The following grouping
+control also validates the complete post-merge source before any renames.

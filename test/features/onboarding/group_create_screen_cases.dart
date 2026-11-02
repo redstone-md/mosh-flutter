@@ -1,15 +1,5 @@
-// Widget tests for the group-create step (GroupCreateStep), opened the way
-// a person does: the start menu in the chat pane at /chat, then a tap on
-// the "Create a group" card (`pumpStartStep`). The bridge is scripted.
-//
-// Test 1: initial state -- lead, name field, Create button, no invite.
-// Test 2: the name is required: Create stays disabled until one is typed.
-// Test 3: tapping Create calls the bridge's createGroup, replaces the form
-//   with the InviteResult card (URI, Open group, footer) and auto-copies.
-// Test 4: "Create another group" returns to an empty form.
-// Test 5: Back returns to the start menu.
-// Test 6: a failed create shows a persistent inline error, no SnackBar.
-// Test 7: Open group lands on the group just created.
+// Real start-menu group flow: required name, create/autocopy/result/reset,
+// Back, inline failure and Open group navigation. The bridge is scripted.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -78,9 +68,7 @@ void main() {
     expect(button().onPressed, isNotNull);
   });
 
-  testWidgets(
-      'tapping Create creates via the bridge and shows the InviteResult card',
-      (tester) async {
+  testWidgets('Create another group returns to an empty form', (tester) async {
     final bridge = ScriptableBridge();
     await pumpGroupStep(tester, bridge: bridge);
     final copied = _stubClipboard();
@@ -103,12 +91,6 @@ void main() {
     // performs the post-create fetch. Pin both calls so this cannot pass on
     // provider initialization alone.
     expect(bridge.countOf(BridgeMethod.listGroups), 2);
-  });
-
-  testWidgets('Create another group returns to an empty form', (tester) async {
-    await pumpGroupStep(tester);
-    _stubClipboard();
-    await createNamed(tester, 'friends');
 
     final another = find.widgetWithText(TextButton, 'Create another group');
     await tester.ensureVisible(another);

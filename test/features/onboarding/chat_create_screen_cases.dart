@@ -126,36 +126,22 @@ void main() {
     expect(find.textContaining('Instance of'), findsNothing);
   });
 
-  testWidgets(
-      'a failed create surfaces a persistent inline error (role="alert") and no SnackBar',
+  testWidgets('the inline error clears on the next successful create attempt',
       (tester) async {
     const message = 'Invite service offline';
-    final bridge = ScriptableBridge()
-      ..failAlways(BridgeMethod.createPendingInvite, error: message);
+    const uri = 'mosh://invite?mesh=m&session=retry#fp=R';
+    final bridge = _bridgeOffering(uri)
+      ..failNext(BridgeMethod.createPendingInvite, error: message);
     await pumpCreateStep(tester, bridge);
 
+    // First attempt throws -> inline error surfaces.
     await tapCreate(tester);
-
     // A non-bridge error renders as its own text (the classifier's text
     // arm) and the inline error is the ONE source of feedback -- no
     // transient SnackBar.
     expect(find.text(message), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
     expect((await bridge.listSessions()).sessions, isEmpty);
-  });
-
-  testWidgets('the inline error clears on the next successful create attempt',
-      (tester) async {
-    const message = 'Invite service offline';
-    const uri = 'mosh://invite?mesh=m&session=retry#fp=R';
-    await pumpCreateStep(
-        tester,
-        _bridgeOffering(uri)
-          ..failNext(BridgeMethod.createPendingInvite, error: message));
-
-    // First attempt throws -> inline error surfaces.
-    await tapCreate(tester);
-    expect(find.text(message), findsOneWidget);
 
     // Second attempt succeeds -> the error is cleared at the start of the
     // attempt and the InviteResult renders instead.
