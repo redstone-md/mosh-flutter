@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
 
 import '../../support/conversation_cases.dart';
 import '../../support/scriptable_gateway.dart';
@@ -47,7 +49,10 @@ void main() {
       expect(gateway.argValues<String>(GatewayMethod.send, 'body'),
           ['first', 'second']);
       expect(_editable(tester).focusNode.hasFocus, isTrue);
-    }, variant: TargetPlatformVariant.all(excluding: {TargetPlatform.fuchsia}));
+    },
+        variant: testCase.target.kind == ConversationKind.dm
+            ? TargetPlatformVariant.all(excluding: {TargetPlatform.fuchsia})
+            : TargetPlatformVariant.only(TargetPlatform.windows));
 
     testWidgets(
         '${testCase.label}: completion preserves an identical new draft',
