@@ -123,39 +123,75 @@ void main() {
   }
 
   group('canRetry', () {
-    ConversationMessage message({
+    Future<ConversationMessage> message(
+      ConversationCase testCase, {
       bool own = true,
       MessageDeliveryStatus? status = MessageDeliveryStatus.failed,
       bool? retryable = true,
       String? messageId = 'm1',
-    }) =>
-        ConversationMessage(
-          fromDevice: 'me',
+      String? error = 'peer offline',
+    }) async {
+      final snapshot = await _read(testCase, messages: [
+        TestMessage(
+          fromDevice: own ? ownDevice : 'peer',
+          fromFingerprint: own ? ownFingerprint : 'fp-peer',
           body: 'boom',
-          own: own,
           deliveryStatus: status,
+          deliveryError: error,
           retryable: retryable,
           messageId: messageId,
-        );
+        ),
+      ]);
+      final mapped = snapshot.messages.single;
+      expect(mapped.body, 'boom', reason: testCase.label);
+      expect(mapped.own, own, reason: testCase.label);
+      expect(mapped.deliveryStatus, status, reason: testCase.label);
+      expect(mapped.deliveryError, error, reason: testCase.label);
+      expect(mapped.retryable, retryable, reason: testCase.label);
+      expect(mapped.messageId, messageId, reason: testCase.label);
+      return mapped;
+    }
 
-    test('an own failed message the runtime will retry can be retried', () {
-      expect(message().canRetry, isTrue);
+    test('an own failed message the runtime will retry can be retried',
+        () async {
+      for (final testCase in conversationCases()) {
+        expect((await message(testCase, error: '  peer offline  ')).canRetry,
+            isTrue,
+            reason: testCase.label);
+        expect((await message(testCase, error: null)).canRetry, isTrue,
+            reason: testCase.label);
+      }
     });
 
-    test("someone else's message cannot", () {
-      expect(message(own: false).canRetry, isFalse);
+    test("someone else's message cannot", () async {
+      for (final testCase in conversationCases()) {
+        expect((await message(testCase, own: false)).canRetry, isFalse,
+            reason: testCase.label);
+      }
     });
 
-    test('a message that did not fail cannot', () {
-      expect(message(status: MessageDeliveryStatus.sent).canRetry, isFalse);
+    test('a message that did not fail cannot', () async {
+      for (final testCase in conversationCases()) {
+        expect(
+            (await message(testCase, status: MessageDeliveryStatus.sent))
+                .canRetry,
+            isFalse,
+            reason: testCase.label);
+      }
     });
 
-    test('a failure the runtime will not retry cannot', () {
-      expect(message(retryable: false).canRetry, isFalse);
+    test('a failure the runtime will not retry cannot', () async {
+      for (final testCase in conversationCases()) {
+        expect((await message(testCase, retryable: false)).canRetry, isFalse,
+            reason: testCase.label);
+      }
     });
 
-    test('a message with no id cannot', () {
-      expect(message(messageId: null).canRetry, isFalse);
+    test('a message with no id cannot', () async {
+      for (final testCase in conversationCases()) {
+        expect((await message(testCase, messageId: null)).canRetry, isFalse,
+            reason: testCase.label);
+      }
     });
   });
 }

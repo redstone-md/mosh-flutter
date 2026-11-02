@@ -20,6 +20,24 @@ import '../../support/pump.dart';
 
 final BigInt _sentAt = BigInt.from(1700000000000);
 
+ConversationMessage _failed({
+  bool own = true,
+  String? messageId = 'm1',
+  String? deliveryError = 'peer offline',
+  bool? retryable = true,
+  MessageDeliveryStatus? deliveryStatus = MessageDeliveryStatus.failed,
+}) =>
+    ConversationMessage(
+      fromDevice: own ? 'me' : 'peer',
+      body: 'boom',
+      own: own,
+      sentAtMs: _sentAt,
+      messageId: messageId,
+      deliveryStatus: deliveryStatus,
+      deliveryError: deliveryError,
+      retryable: retryable,
+    );
+
 ConversationMessage _message({
   String fromDevice = 'bob',
   String? fromFingerprint = 'fp-bob-0123456789',
@@ -73,6 +91,54 @@ int _metaGaps(WidgetTester tester) => tester
 
 void main() {
   setUpAll(initializeDateFormatting);
+
+  group('Retry', () {
+    testWidgets('an own failed retryable message shows the trimmed error',
+        (tester) async {
+      await _pumpRow(tester,
+          message: _failed(deliveryError: '  peer offline  '),
+          kind: ConversationKind.dm);
+      expect(find.text('boom'), findsOneWidget);
+      expect(find.text('peer offline'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+    });
+
+    testWidgets('missing error text falls back to Failed to send',
+        (tester) async {
+      await _pumpRow(tester,
+          message: _failed(deliveryError: null), kind: ConversationKind.dm);
+      expect(find.text('Failed to send'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+    });
+
+    testWidgets('a message that did not fail shows no Retry', (tester) async {
+      await _pumpRow(tester,
+          message: _failed(
+              deliveryStatus: MessageDeliveryStatus.sent, deliveryError: null),
+          kind: ConversationKind.dm);
+      expect(find.text('Retry'), findsNothing);
+    });
+
+    testWidgets('a failure the runtime will not retry shows no Retry',
+        (tester) async {
+      await _pumpRow(tester,
+          message: _failed(retryable: false), kind: ConversationKind.dm);
+      expect(find.text('peer offline'), findsNothing);
+      expect(find.text('Retry'), findsNothing);
+    });
+
+    testWidgets('a failed message with no id shows no Retry', (tester) async {
+      await _pumpRow(tester,
+          message: _failed(messageId: null), kind: ConversationKind.dm);
+      expect(find.text('Retry'), findsNothing);
+    });
+
+    testWidgets("someone else's failed message shows no Retry", (tester) async {
+      await _pumpRow(tester,
+          message: _failed(own: false), kind: ConversationKind.dm);
+      expect(find.text('Retry'), findsNothing);
+    });
+  });
 
   group('avatar slot', () {
     testWidgets('the first row of a block shows the sender avatar',
