@@ -236,6 +236,13 @@ void main() {
     // and pushes DmScreen, which the test asserts via the DM screen composer.
     await pumpSessions(tester, gateway, bridge, useRouter: true);
 
+// Regression 40231a09: the shared row also hosts the dismiss action.
+    final offerRow = tester.widget<RailItem>(find.ancestor(
+      of: find.byTooltip('Dismiss invite'),
+      matching: find.byType(RailItem),
+    ));
+    expect(offerRow.title, 'alpha-peer');
+
     // The offer row renders with the offering peer's name + the
     // channel-host subtitle (`#drift-room`). The subtitle text appears in
     // the offer row AND the channel's own rail row (the channel is named
@@ -264,22 +271,6 @@ void main() {
         sessionCallsBeforeAccept + 1);
     // The DM screen rendered (its composer is a TextField).
     expect(find.byType(TextField), findsWidgets);
-  });
-
-  testWidgets(
-      'the offer row renders through the shared rail row, dismiss X included',
-      (tester) async {
-    final (gateway, bridge) = _channelOfferBridge();
-    await pumpSessions(tester, gateway, bridge, useRouter: true);
-
-    // One row shape: the offer row stops hand-rolling a `ListTile` and is a
-    // `RailItem` like every other row, with the dismiss X in its action
-    // slot beside the accept button.
-    final offerRow = tester.widget<RailItem>(find.ancestor(
-      of: find.byTooltip('Dismiss invite'),
-      matching: find.byType(RailItem),
-    ));
-    expect(offerRow.title, 'alpha-peer');
   });
 
   testWidgets(
