@@ -173,7 +173,9 @@ Physical Windows/Android runtime verification remains separate from widget tests
 
 ### `test/features/conversation/`
 
-- `conversation_close_flow_test.dart`
+- `conversation_close_flow_test.dart`: each kind's prompt and cancellation,
+  confirmed target dispatch, and send-drain/refused-leave recovery. Prompt checks
+  share the cancellation setup; see the [test audit](../Proposals/flutter-close-flow-test-cleanup.md).
 - `conversation_details_test.dart`
 - `conversation_filter_test.dart`
 - `conversation_grouping_test.dart`
