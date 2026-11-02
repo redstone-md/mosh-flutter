@@ -49,12 +49,15 @@ without touching a disposed context. `actionErrorReporter` does the same for
 
 ## Checks
 
-- `toaster_test.dart` covers bursts, repeats, lifetimes, pausing and
+- `toaster_cases.dart` covers bursts, repeats, lifetimes, pausing and
   dismissal.
-- `toast_host_test.dart` covers rendering, announcements, the close button,
+- `toast_host_cases.dart` covers rendering, announcements, the close button,
   swipes, hovering, taps around the stack, phones, reduced motion and
   disposal.
 - `app_toasts_test.dart` covers the desktop copy and a deletion failing after
   its chat closed.
+
+`flutter test test/features/shared/toasts/toast_contract_test.dart` runs both
+toast case libraries; either case file can also be run directly.
 
 Real-device motion and screen reader output remain runtime checks.

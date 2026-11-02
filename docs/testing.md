@@ -69,6 +69,8 @@ register each synchronous `main` with `group('module', module.main)`. This scope
 setup/teardown to the original module. The policy guard requires exactly one such
 runner per case library, so renaming a file cannot silently remove its tests.
 Use `flutter test path/to/module_cases.dart` to debug one case library directly.
+The [shared-widget runner audit](Proposals/flutter-shared-widget-runner-batches.md)
+records fourteen unchanged case libraries sharing five bounded entry points.
 
 Group by feature and bounded runtime, not into one giant serial suite. Preserve
 separate processes for native initialization/fallback probes, actual HTTP and
