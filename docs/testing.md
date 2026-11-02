@@ -63,7 +63,7 @@ python3 -B -m unittest discover -s scripts -p test_test_policy.py
 
 ## Keep process startup proportional to the work
 
-Short related unit libraries can share a `*_test.dart` entry point. Keep their
+Related unit or widget libraries can share a `*_test.dart` entry point. Keep their
 case declarations and private fixtures in sibling `*_cases.dart` libraries;
 register each synchronous `main` with `group('module', module.main)`. This scopes
 setup/teardown to the original module. The policy guard requires exactly one such
@@ -98,6 +98,11 @@ See the [voice orchestrator audit](Proposals/flutter-voice-orchestrator-test-cle
 Measure process wall and child CPU alongside case bodies before retaining a
 runtime optimization. Removing sleeps does not guarantee a cheaper runner; see
 the [rejected auto-poll clock experiments](Proposals/flutter-auto-poll-test-cleanup.md).
+Report module and whole-suite observations separately. On a shared host, other
+agents' builds can affect wall time and CPU/cache contention; do not attribute a
+wall difference to a patch without controlled evidence. The
+[onboarding runner audit](Proposals/flutter-onboarding-runner-cleanup.md) separates
+repeatable module savings from inconclusive whole-suite elapsed observations.
 
 Image tests can start loading and await `precacheImage` inside `runAsync`, then
 pump the loaded or error UI. Awaiting a decode that already started in the fake

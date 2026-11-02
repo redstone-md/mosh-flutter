@@ -122,10 +122,10 @@ test/features/conversation/conversation_keyboard_send_test.dart
 test/features/conversation/conversation_send_test.dart
 test/features/conversation/conversation_text_sends_test.dart
 test/features/lock/lock_language_test.dart
-test/features/onboarding/first_run_hierarchy_test.dart
-test/features/onboarding/first_run_responsive_test.dart
-test/features/onboarding/first_run_viewports_test.dart
-test/features/onboarding/first_run_wizard_test.dart
+test/features/onboarding/first_run_hierarchy_cases.dart
+test/features/onboarding/first_run_responsive_cases.dart
+test/features/onboarding/first_run_viewports_cases.dart
+test/features/onboarding/first_run_wizard_cases.dart
 test/features/settings/language_settings_test.dart
 test/features/shared/conversation_action_error_test.dart
 test/platform/native_menu_localization_test.dart
