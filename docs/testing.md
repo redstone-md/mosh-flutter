@@ -126,6 +126,8 @@ Tests that navigate through the production routes import `pump_route.dart` and
 use `pumpRoute`. Both share the provider/frame implementation in `pump_scope.dart`.
 Keep route imports and re-exports out of the screen helper so a leaf test does
 not need the entire application graph. Actual route tests keep the real router.
+The [shell/compact-rail merge audit](Proposals/flutter-ui-merge-test-cleanup.md)
+records consolidation that keeps the original layout and accessibility phases.
 
 For widget matrices, identify which code actually combines the dimensions.
 When interaction code is shared, cover its platform branches and each screen's

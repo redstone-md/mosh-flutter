@@ -210,3 +210,24 @@ Changed files:
 - `docs/Features/message-selection.md`
 - `docs/testing.md`
 - `docs/Proposals/flutter-message-selection-tests.md`
+
+## Further mapped-fixture pilot: not retained
+
+At `07cdf9a0`, a new pilot moved twelve drag and twelve DM body/caption/handle
+registrations to the existing `HostedMessageList`. It kept actual native DTO
+mapping, all platform/event/assertion sequences, forty 50ms scroll frames,
+non-DM PeerActions, working download tests and the full-screen dispose regression.
+An extracted shared setup was token-identical to the existing mode fixture;
+independent source review found no contract loss. All six focused samples passed
+all 59 exact names/outcomes with no skips.
+
+Three interleaved A/B, B/A, A/B pairs for the drag/behavior/mode runners gave
+median wall **16.344 -> 17.129s**, child CPU **49.213 -> 52.604s**, file spans
+**40.101 -> 43.384s**, loading **13.768 -> 15.947s**, visible bodies
+**26.292 -> 27.183s**. A smaller widget tree did not establish a cheaper block.
+No full candidate cycle was added. All four test/helper sources were restored
+byte-for-byte; the extra shared function/imports are not shipped. This does not
+revert the earlier accepted mode optimization above. Raw sources, full-path
+ledgers, AST audit and samples are in `.git/test-audit/selection-rail-next/`.
+The separate [UI fixture merges](flutter-ui-merge-test-cleanup.md) preserve the
+existing keyboard and routing regressions with fewer repeated preparations.

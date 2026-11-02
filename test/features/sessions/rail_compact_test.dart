@@ -59,10 +59,19 @@ void main() {
 
   testWidgets('an invitation expands the list instead of accepting',
       (tester) async {
-    await pumpRail(tester,
-        channels: const [],
-        store: _collapsed(),
-        seed: (bridge) => bridge.seedChannels([_withOffer()]));
+    final semantics = tester.ensureSemantics();
+    try {
+      await pumpRail(tester,
+          channels: const [],
+          store: _collapsed(),
+          seed: (bridge) => bridge.seedChannels([_withOffer()]));
+      final accessibleOffer =
+          tester.getSemantics(find.bySemanticsLabel(RegExp('alpha-peer')));
+      expect(accessibleOffer.label, isNot(contains('Accept')));
+      expect(accessibleOffer.hint, 'Expand chat list');
+    } finally {
+      semantics.dispose();
+    }
     final offer = find.byWidgetPredicate(
         (w) => w is CompactRailItem && w.item.action != null);
     await tester.tap(offer);
@@ -110,22 +119,5 @@ void main() {
     await tester.tap(find.byTooltip('Settings'));
     await tester.pumpAndSettle();
     expect(find.byType(SettingsScreen), findsOneWidget);
-  });
-
-  testWidgets('screen readers hear an invitation expands the list',
-      (tester) async {
-    final semantics = tester.ensureSemantics();
-    try {
-      await pumpRail(tester,
-          channels: const [],
-          store: _collapsed(),
-          seed: (bridge) => bridge.seedChannels([_withOffer()]));
-      final offer =
-          tester.getSemantics(find.bySemanticsLabel(RegExp('alpha-peer')));
-      expect(offer.label, isNot(contains('Accept')));
-      expect(offer.hint, 'Expand chat list');
-    } finally {
-      semantics.dispose();
-    }
   });
 }
