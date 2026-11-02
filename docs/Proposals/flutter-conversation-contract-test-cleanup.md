@@ -237,3 +237,46 @@ parsed measurements are in `.git/test-audit/conversation-next/ui-audit/`; inputs
 are immutable `baseline/`, `ui-candidate/`, `ui-target-{before,after}-{1,2}` and
 `ui-{before,after}-{1,2}` records. No tests/compiler/analyzer were launched by
 this independent audit, and no measured sample was discarded for its direction.
+
+## Final retained tree
+
+Code commits: `92fdae51` (retry contracts) and `d53915ed` (send/keyboard/call/header
+merges). Seven conversation files change: `conversation_snapshot_cases.dart`,
+`conversation_message_row_test.dart`, `conversation_message_retry_test.dart`,
+`conversation_keyboard_send_test.dart`, `conversation_send_test.dart`,
+`dm_message_row_call_event_test.dart`, `conversation_header_layout_test.dart`.
+The obsolete `call_log_entry_test.dart` and its private helpers disappear;
+the current Android call-presentation plan keeps the retained row runner path.
+
+Complete `flutter test --machine` runs pass **1893 with the same four native
+skips**, compared with 1921/four at `4998d309`. Entry points are **256 -> 255**.
+Exact runtime Counters differ only by the documented 35 old registrations and
+seven replacement registrations, including multiplicities and skip reasons.
+No original failure was found or relabeled as pre-existing.
+
+Retained-source full-run observations are 120.614s and 144.894s wall,
+965.777s and 1174.033s child CPU. The original observation is 147.939s /
+1202.088s. These shared-host samples do not establish a causal whole-suite
+speedup. File/loading/body sums are recorded separately in the
+[complete-pipeline experiment](dart-contract-test-runner.md), together with
+the rejected eleven-runner Dart pilot. That pilot's source/dependency/CI/policy
+changes were fully restored; its local batch speedup was insufficient evidence
+for the requested aggregate improvement.
+
+Final checks on the restored retained tree:
+
+- All seven affected runners pass **90** cases with random-order seed 42.
+- `flutter analyze`: no issues, including existing unused/dead-code checks.
+- `dart format --output=none --set-exit-if-changed lib test integration_test`:
+  805 files, zero changes.
+- `python3 -B scripts/test-policy.py`: passes. Its existing seven executable
+  examples also pass; the expected missing-baseline failure is tested explicitly.
+- Source hashes verify restoration of all 23 pilot files and 15 canonical
+  helpers. Production, dependencies, CI and AGENTS have no diff from the start.
+- `git diff --check`: passes. No push, deploy or publication.
+
+Real native/device integration and platform-specific runtime behavior were not
+run. The existing gates remain intact. Future kind-specific platform logic would
+require extending the keyboard matrix; the present decomposition depends on the
+reviewed common composer/gate implementation. The policy and critical-contract
+ledger remain the basis for preventing test accumulation, not an arbitrary cap.

@@ -98,6 +98,8 @@ See the [voice orchestrator audit](Proposals/flutter-voice-orchestrator-test-cle
 Measure process wall and child CPU alongside case bodies before retaining a
 runtime optimization. Removing sleeps does not guarantee a cheaper runner; see
 the [rejected auto-poll clock experiments](Proposals/flutter-auto-poll-test-cleanup.md).
+The [eleven-runner Dart VM pilot](Proposals/dart-contract-test-runner.md) was also
+reverted: its isolated batch saving did not establish a complete-pipeline gain.
 Report module and whole-suite observations separately. On a shared host, other
 agents' builds can affect wall time and CPU/cache contention; do not attribute a
 wall difference to a patch without controlled evidence. The
