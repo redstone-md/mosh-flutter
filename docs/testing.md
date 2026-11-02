@@ -110,3 +110,10 @@ wiring without automatically multiplying every kind by every platform. Retain
 combinations with distinct behavior or regression evidence. Prefer an existing
 component harness for shared interactions; keep real screen/route tests for
 navigation, provider wiring, permissions and mounted state.
+
+For layout matrices, seed unrelated preferences through the existing harness
+before mounting instead of repeatedly changing them through application state.
+Keep dedicated preference-change tests and independently restored starting
+states when layout depends on navigation history. The
+[first-run viewport audit](Proposals/flutter-first-run-viewport-fixture.md)
+checks geometry and saved state before applying this fixture change.

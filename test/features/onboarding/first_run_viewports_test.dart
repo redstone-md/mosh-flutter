@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/onboarding/first_run_profile.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
-import 'package:mosh/src/state/locale_provider.dart';
 
 import '../../support/first_run.dart';
 import '../../support/first_run_preview.dart';
+import '../../support/locale.dart';
 
 // One representative per sizing branch, including short landscape and large text.
 const _viewports = [
@@ -30,12 +30,10 @@ void main() {
           (tester) async {
         await prepareSetupPreview(tester);
         final harness = FirstRunHarness(
-            profile: FirstRunProfile(displayName: 'Лена', step: step));
+            profile: FirstRunProfile(displayName: 'Лена', step: step),
+            localeStore: MemoryLocalePreferenceStore(const Locale('ru')));
         await harness.pump(tester, size: size, scale: scale);
-        await harness.container
-            .read(localeProvider.notifier)
-            .setLocale(const Locale('ru'));
-        await tester.pumpAndSettle();
+
         expect(tester.takeException(), isNull);
         await saveSetupPreview(tester,
             'first-run-${step.name}-${size.width.toInt()}x${size.height.toInt()}-$scale');
