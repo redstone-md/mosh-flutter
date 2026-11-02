@@ -85,6 +85,11 @@ a fake-zone Completer can delay delivery even when its callback has fired.
 Do not globally disable motion or fast-forward real network/hardware behavior to
 make a runtime metric look better.
 
+For file-backed operations, draining the event queue does not signal I/O
+readiness. Await the fixture's open/progress event, attach expected errors before
+injecting failure, and await operation completion before deleting its files. See
+the [interrupted-download audit](Proposals/flutter-update-download-test-cleanup.md).
+
 For timer-driven unit behavior, use the existing test clock and advance the
 production interval through the required ticks. Keep real crypto and IO when
 they are part of the contract. Cancellation tests must actually deliver a late

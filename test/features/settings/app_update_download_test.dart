@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -96,14 +97,17 @@ void main() {
       '/assets/mosh-0.22.0-setup.exe'
     });
 
-    final download = downloaderFor(assets).download(windowsCandidate());
-    await pumpEventQueue();
-    final body = assets.open.single;
+    final progress = Completer<void>();
+    final download = downloaderFor(assets).download(windowsCandidate(),
+        onProgress: (_, __) => progress.complete());
+    final failed = expectLater(download, throwsA(isA<SocketException>()));
+    final body = await assets.firstHeldBody;
     body.add(bytes.sublist(0, 64));
+    await progress.future;
     body.addError(const SocketException('connection lost'));
     await body.close();
 
-    await expectLater(download, throwsA(isA<SocketException>()));
+    await failed;
     expect(staging.listSync(), isEmpty);
   });
 
