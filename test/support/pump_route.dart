@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/lock/app_lock_route_observer.dart';
 import 'package:mosh/src/features/shared/toasts/toast_host.dart';
 import 'package:mosh/src/routing/app_router.dart';
 
@@ -17,6 +18,8 @@ import 'pump_scope.dart';
 /// so `context.go(...)` lands on the same screens the app ships. The
 /// router is returned so a test can read where it ended up; it is a fresh
 /// one per pump, so tests do not leak a location into each other.
+/// Remounting replaces the widget tree but retains a caller-owned [container].
+/// The helper disposes each returned router at test teardown.
 Future<GoRouter> pumpRoute(
   WidgetTester tester,
   String location, {
@@ -25,10 +28,19 @@ Future<GoRouter> pumpRoute(
   bool settle = true,
   TransitionBuilder? builder,
 }) async {
+  // The production lock observer can belong to only one live Navigator.
+  await tester.pumpWidget(const SizedBox.shrink());
+  appLockRouteObserver.setLocked(false);
   final router = GoRouter(
     initialLocation: location,
+    observers: [appLockRouteObserver],
     routes: appRouter.configuration.routes,
   );
+  addTearDown(() async {
+    await tester.pumpWidget(const SizedBox.shrink());
+    router.dispose();
+    appLockRouteObserver.setLocked(false);
+  });
   await pumpScopedApp(
     tester,
     MaterialApp.router(

@@ -99,7 +99,6 @@ void main() {
       container: container,
       settle: false,
     );
-    addTearDown(router.dispose);
     await _frames(tester);
     expect(capture.starts, 1);
     expect(playback.starts, 1);

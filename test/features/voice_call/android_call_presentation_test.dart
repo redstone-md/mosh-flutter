@@ -167,7 +167,6 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       owner.dispose();
-      router.dispose();
     }, variant: TargetPlatformVariant.only(TargetPlatform.android));
   }
 }
