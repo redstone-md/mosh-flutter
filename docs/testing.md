@@ -137,6 +137,8 @@ Keep route imports and re-exports out of the screen helper so a leaf test does
 not need the entire application graph. Actual route tests keep the real router.
 The [onboarding UI audit](Proposals/flutter-onboarding-ui-pruning.md) records
 phase-preserving merges, local fixtures and the retained real-route failure checks.
+The [flow/settings audit](Proposals/flutter-flow-settings-test-cleanup.md) records
+network/navigation phase merges and a rejected transition-fixture pilot.
 The [shell/compact-rail merge audit](Proposals/flutter-ui-merge-test-cleanup.md)
 records consolidation that keeps the original layout and accessibility phases.
 

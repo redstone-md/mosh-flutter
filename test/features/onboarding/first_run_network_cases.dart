@@ -35,15 +35,6 @@ Future<void> _chooseEthernet(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('automatic routing never writes bypass consent or relaunches',
-      (tester) async {
-    final harness = _harness();
-    await harness.pump(tester);
-    await tapSetup(tester, 'Save and finish');
-    expect(harness.bridge.countOf(BridgeMethod.setVpnBypassConsent), 0);
-    expect(find.byType(SessionsScreen), findsOneWidget);
-  });
-
   testWidgets('Windows saves completion before starting the replacement',
       (tester) async {
     final harness = _harness();
@@ -107,19 +98,6 @@ void main() {
     });
   }
 
-  testWidgets('unsupported relaunch explains manual restart before chats',
-      (tester) async {
-    final harness = _harness();
-    await harness.pump(tester);
-    await _chooseEthernet(tester);
-    await tapSetup(tester, 'Save and finish');
-    expect(find.text('Restart Mosh to apply the connection'), findsOneWidget);
-    expect(harness.store.profile!.completed, isTrue);
-    expect(find.byType(SessionsScreen), findsNothing);
-    await tapSetup(tester, 'Understood');
-    expect(find.byType(SessionsScreen), findsOneWidget);
-  });
-
   testWidgets('failed bypass write keeps setup open and can retry',
       (tester) async {
     final harness = _harness()
@@ -130,8 +108,12 @@ void main() {
     expect(find.textContaining('Could not save'), findsOneWidget);
     expect(harness.store.profile!.completed, isFalse);
     await tapSetup(tester, 'Save and finish');
+    expect(find.text('Restart Mosh to apply the connection'), findsOneWidget);
+    expect(harness.store.profile!.completed, isTrue);
+    expect(find.byType(SessionsScreen), findsNothing);
     await tapSetup(tester, 'Understood');
     expect(harness.store.profile!.completed, isTrue);
+    expect(find.byType(SessionsScreen), findsOneWidget);
   });
 
   testWidgets('restart failure retains the saved choice and enables retry',
@@ -165,6 +147,9 @@ void main() {
     await tapSetup(tester, 'Retry');
     expect(find.text('Automatic · system connection'), findsOneWidget);
     expect(harness.bridge.countOf(BridgeMethod.setVpnBypassConsent), 0);
+    await tapSetup(tester, 'Save and finish');
+    expect(harness.bridge.countOf(BridgeMethod.setVpnBypassConsent), 0);
+    expect(find.byType(SessionsScreen), findsOneWidget);
   });
 
   testWidgets('resizing preserves the selected adapter and bypass explanation',

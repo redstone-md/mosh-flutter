@@ -42,23 +42,17 @@ void main() {
     expect(find.byType(MoshShell), findsNothing);
     expect(find.byType(SessionsScreen, skipOffstage: false), findsOneWidget);
     expect(find.text('Microphone'), findsOneWidget);
+    expect(find.text('Sound & Video'), findsNWidgets(2));
+    expect(find.text('Devices'), findsOneWidget);
+    expect(find.text('Connection'), findsOneWidget);
+    expect(find.text('Privacy'), findsOneWidget);
     await tester.tap(find.text('Back to chats'));
     await tester.pumpAndSettle();
     expect(router.routeInformationProvider.value.uri.path, AppRoutes.sessions);
     expect(tester.state(find.byType(SessionsScreen)), same(railState));
     expect(find.text('retained search'), findsOneWidget);
-  });
-
-  testWidgets('wide sidebar switches sections and remembers on reopening',
-      (tester) async {
-    _size(tester, const Size(1200, 850));
-    final router = await _route(tester, AppRoutes.sessions);
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
-    expect(find.text('Sound & Video'), findsNWidgets(2));
-    expect(find.text('Devices'), findsOneWidget);
-    expect(find.text('Connection'), findsOneWidget);
-    expect(find.text('Privacy'), findsOneWidget);
     await tester.tap(find.text('About'));
     await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsNothing);
@@ -139,9 +133,17 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sound & Video'));
     await tester.pumpAndSettle();
+    expect(find.text('Microphone'), findsOneWidget);
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.text('Connection'), findsOneWidget);
+    await tester.tap(find.text('Back to chats'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Microphone'), findsNothing);
+    expect(find.text('Sound & Video'), findsOneWidget);
+    expect(find.text('Devices'), findsOneWidget);
     await tester.tap(find.text('Sound & Video'));
     await tester.pumpAndSettle();
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
@@ -160,25 +162,5 @@ void main() {
     await tester.tap(find.text('Back to chats'));
     await tester.pumpAndSettle();
     expect(router.routeInformationProvider.value.uri.path, AppRoutes.sessions);
-  });
-
-  testWidgets('reopening narrow settings starts at the section list',
-      (tester) async {
-    _size(tester, const Size(390, 844));
-    await _route(tester, AppRoutes.sessions);
-    await tester.tap(find.byIcon(Icons.settings_outlined));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sound & Video'));
-    await tester.pumpAndSettle();
-    expect(find.text('Microphone'), findsOneWidget);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Back to chats'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.settings_outlined));
-    await tester.pumpAndSettle();
-    expect(find.text('Microphone'), findsNothing);
-    expect(find.text('Sound & Video'), findsOneWidget);
-    expect(find.text('Devices'), findsOneWidget);
   });
 }
