@@ -121,6 +121,9 @@ The [eleven-runner Dart VM pilot](Proposals/dart-contract-test-runner.md) was al
 reverted: its isolated batch saving did not establish a complete-pipeline gain.
 Read the [rejected RailPane fixture experiments](Proposals/flutter-rail-pane-tests.md)
 before repeating that component-fixture pilot; local savings were already measured.
+The [details phase audit](Proposals/flutter-layout-phase-test-audit.md) rejects
+five panel waits replaced by single pumps: nineteen UI checkpoints matched,
+but fewer local pump calls did not establish a scoped elapsed-time saving.
 Report module and whole-suite observations separately. On a shared host, other
 agents' builds can affect wall time and CPU/cache contention; do not attribute a
 wall difference to a patch without controlled evidence. The
