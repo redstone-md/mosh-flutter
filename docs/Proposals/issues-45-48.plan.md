@@ -121,7 +121,8 @@ test/features/conversation/conversation_leave_order_test.dart
 test/features/conversation/conversation_keyboard_send_test.dart
 test/features/conversation/conversation_send_test.dart
 test/features/conversation/conversation_text_sends_test.dart
-test/features/lock/lock_language_test.dart
+test/features/lock/lock_language_cases.dart
+test/features/lock/lock_ui_test.dart
 test/features/onboarding/first_run_hierarchy_cases.dart
 test/features/onboarding/first_run_responsive_cases.dart
 test/features/onboarding/first_run_viewports_cases.dart

@@ -80,6 +80,9 @@ records the next six bounded owners, all 117 retained cases and a balanced full-
 A/B/B/A comparison; native/global initialization probes keep separate workers.
 The [Mosh+ UI batch](Proposals/flutter-plus-ui-runner-cleanup.md) keeps ten UI
 contracts in one worker while real HTTP billing owners remain separate.
+The [startup-lock UI batch](Proposals/flutter-lock-ui-runner-cleanup.md) keeps
+fourteen UI contracts in one worker; Android access and lifecycle owners remain
+separate.
 
 Group by feature and bounded runtime, not into one giant serial suite. Preserve
 separate processes for native initialization/fallback probes, actual HTTP and
