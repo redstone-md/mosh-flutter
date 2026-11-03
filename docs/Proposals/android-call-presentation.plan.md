@@ -69,7 +69,6 @@ and still rejects media failure. The focused real-engine/Moss scenario passes.
 - `mosh-core/tests/link_support/call_controls_test.rs`
 - `pubspec.yaml`
 - `scripts/android-package-verify.sh`
-- `test/features/conversation/call_log_entry_test.dart`
 - `test/features/conversation/dm_message_row_call_event_test.dart`
 - `test/features/voice_call/android_call_presentation_test.dart`
 - `test/features/voice_call/android_pip_lifecycle_test.dart`

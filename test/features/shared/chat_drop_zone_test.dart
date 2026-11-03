@@ -185,13 +185,20 @@ void main() {
         (tester) async {
       PickedAttachment? attached;
       AttachmentPickError? errored;
+      late final Completer<void> completed;
       Uint8List?
           expectedBytes; // read inside runAsync (real I/O; fake clock stalls)
       await pumpZone(
         tester,
         disabled: false,
-        onAttach: (a) => attached = a,
-        onError: (e) => errored = e,
+        onAttach: (a) {
+          attached = a;
+          completed.complete();
+        },
+        onError: (e) {
+          errored = e;
+          completed.complete();
+        },
       );
       // Enter (so _status != idle -- performOperation requires non-idle on
       // non-Linux, per drop_target.dart), then drop the temp PNG path.
@@ -203,15 +210,12 @@ void main() {
       // file read (cross_file -> dart:io) + the `image` decode, which need
       // the live event loop. Under the test's fake clock that I/O stalls.
       await tester.runAsync(() async {
+        completed = Completer<void>();
         await _invokePlatformMethod(
           MethodCall('performOperation', [tempPng.path]),
         );
-        // Spin until the ingest future chain settles (readAsBytes ->
-        // ingestAttachment -> createThumbnail -> onAttach). Bounded so a
-        // stalled read fails fast instead of hanging the run.
-        for (var i = 0; i < 400 && attached == null && errored == null; i++) {
-          await Future<void>.delayed(const Duration(milliseconds: 5));
-        }
+        // test-policy: timeout https://github.com/redstone-md/mosh-flutter/issues/56 -- retain the previous 2s ingest callback bound without polling
+        await completed.future.timeout(const Duration(seconds: 2));
         // Read the expected bytes on the real runner too (dart:io under the
         // fake clock would stall, same as the drop's readAsBytes).
         expectedBytes = await tempPng.readAsBytes();
@@ -234,21 +238,28 @@ void main() {
     testWidgets('an unreadable dropped image reports its preview failure',
         (tester) async {
       AttachmentPickError? error;
+      late final Completer<void> completed;
       await pumpZone(
         tester,
         disabled: false,
-        onAttach: (_) => fail('unreadable image must not be sent'),
-        onError: (value) => error = value,
+        onAttach: (_) {
+          completed.complete();
+          fail('unreadable image must not be sent');
+        },
+        onError: (value) {
+          error = value;
+          completed.complete();
+        },
       );
       await _invokePlatformMethod(const MethodCall('entered', [400.0, 300.0]));
       await tester.pump();
       await tester.runAsync(() async {
+        completed = Completer<void>();
         await tempPng.writeAsBytes([1, 2, 3]);
         await _invokePlatformMethod(
             MethodCall('performOperation', [tempPng.path]));
-        for (var i = 0; i < 400 && error == null; i++) {
-          await Future<void>.delayed(const Duration(milliseconds: 5));
-        }
+        // test-policy: timeout https://github.com/redstone-md/mosh-flutter/issues/56 -- retain the previous 2s ingest callback bound without polling
+        await completed.future.timeout(const Duration(seconds: 2));
       });
       await tester.pump();
       expect(error, AttachmentPickError.previewUnavailable);

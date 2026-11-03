@@ -1,3 +1,4 @@
+import 'dart:async' show Completer;
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -20,20 +21,27 @@ void main() {
         Uint8List.fromList(img.encodePng(img.Image(width: 640, height: 480)));
     FilePickerPlatform.instance = TestFilePicker(bytes);
     PickedAttachment? picked;
+    late final Completer<void> completed;
     await pumpScreen(
         tester,
         Scaffold(
             body: AttachmentPicker(
           disabled: false,
           ariaLabel: 'Attach',
-          onPick: (value) => picked = value,
-          onError: (_) => fail('valid image rejected'),
+          onPick: (value) {
+            picked = value;
+            completed.complete();
+          },
+          onError: (_) {
+            completed.complete();
+            fail('valid image rejected');
+          },
         )));
     await tester.runAsync(() async {
+      completed = Completer<void>();
       await tester.tap(find.byIcon(Icons.attach_file));
-      for (var i = 0; i < 400 && picked == null; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
-      }
+      // test-policy: timeout https://github.com/redstone-md/mosh-flutter/issues/56 -- retain the previous 2s ingest callback bound without polling
+      await completed.future.timeout(const Duration(seconds: 2));
     });
     expect(picked, isNotNull);
     expect(base64Decode(picked!.dataBase64), bytes);
@@ -47,20 +55,27 @@ void main() {
     addTearDown(() => FilePickerPlatform.instance = previous);
     FilePickerPlatform.instance = TestFilePicker(Uint8List.fromList([1, 2, 3]));
     AttachmentPickError? error;
+    late final Completer<void> completed;
     await pumpScreen(
         tester,
         Scaffold(
             body: AttachmentPicker(
           disabled: false,
           ariaLabel: 'Attach',
-          onPick: (_) => fail('unreadable image sent'),
-          onError: (value) => error = value,
+          onPick: (_) {
+            completed.complete();
+            fail('unreadable image sent');
+          },
+          onError: (value) {
+            error = value;
+            completed.complete();
+          },
         )));
     await tester.runAsync(() async {
+      completed = Completer<void>();
       await tester.tap(find.byIcon(Icons.attach_file));
-      for (var i = 0; i < 400 && error == null; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
-      }
+      // test-policy: timeout https://github.com/redstone-md/mosh-flutter/issues/56 -- retain the previous 2s ingest callback bound without polling
+      await completed.future.timeout(const Duration(seconds: 2));
     });
     expect(error, AttachmentPickError.previewUnavailable);
     expect(tester.takeException(), isNull);

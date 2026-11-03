@@ -86,3 +86,6 @@ third_party/nokhwa.prepare-*/
 third_party/nokhwa-macos/
 third_party/nokhwa-macos.lock/
 third_party/nokhwa-macos.prepare-*/
+
+# Python bytecode
+__pycache__/

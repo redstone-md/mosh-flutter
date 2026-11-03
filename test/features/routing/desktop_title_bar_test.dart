@@ -4,15 +4,18 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show moshThemeData;
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/onboarding/first_run_profile.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'package:mosh/src/platform/desktop_window_controller.dart';
+import 'package:mosh/src/platform/desktop_window_frame.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/routing/mosh_title_bar.dart';
 
 import '../../support/desktop_window_platform.dart';
 import '../../support/first_run.dart';
+import '../../support/pump.dart';
 import '../../support/scriptable_gateway.dart';
 import 'shell_harness.dart';
 
@@ -32,6 +35,23 @@ Future<void> _app(WidgetTester tester, DesktopWindowController window,
         physical: size,
         windowController: window);
 
+Future<void> _frame(WidgetTester tester, DesktopWindowController window) async {
+  tester.view.physicalSize = const Size(400, 800);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  appRouter.go(AppRoutes.sessions);
+  await pumpScreen(
+      tester,
+      Theme(
+        data: moshThemeData,
+        child: DesktopWindowFrame(
+            controller: window,
+            router: appRouter,
+            child: const SizedBox.expand()),
+      ));
+}
+
 Finder _inBar(Finder matching) =>
     find.descendant(of: find.byType(MoshTitleBar), matching: matching);
 
@@ -44,7 +64,7 @@ void main() {
       ..maximizeCompletion = maximize.future
       ..restoreCompletion = restore.future;
     final window = await _window(platform);
-    await _app(tester, window);
+    await _frame(tester, window);
     for (var i = 0; i < 3; i++) {
       await tester.tap(find.byTooltip('Maximize'));
     }
@@ -70,7 +90,7 @@ void main() {
     final platform = DesktopWindowPlatform()
       ..maximizeCompletion = completion.future;
     final window = await _window(platform);
-    await _app(tester, window);
+    await _frame(tester, window);
     await tester.tap(find.byTooltip('Maximize'));
     await tester.tap(find.byTooltip('Maximize'));
     List<String> commands() => platform.calls
@@ -92,7 +112,7 @@ void main() {
         const MethodCall(
             'configuration', {'layout': 'close:minimize,maximize'}));
     final window = await _window(platform, target: TargetPlatform.linux);
-    await _app(tester, window);
+    await _frame(tester, window);
     expect(tester.getCenter(find.byTooltip('Close')).dx, lessThan(50));
     expect(find.byTooltip('Maximize'), findsOneWidget);
   });
@@ -176,7 +196,7 @@ void main() {
       (tester) async {
     final platform = DesktopWindowPlatform();
     final window = await _window(platform);
-    await _app(tester, window);
+    await _frame(tester, window);
     final ring = find.descendant(
         of: find.byTooltip('Close'), matching: find.byType(FocusRing));
     Focus.of(tester.element(ring)).requestFocus();
@@ -202,7 +222,7 @@ void main() {
     final platform = DesktopWindowPlatform()
       ..configuration = {'layout': 'close:minimize,maximize'};
     final window = await _window(platform, target: TargetPlatform.linux);
-    await _app(tester, window);
+    await _frame(tester, window);
     expect(tester.getCenter(find.byTooltip('Close')).dx, lessThan(50));
     await platform.send(DesktopWindowController.channel,
         const MethodCall('configuration', {'layout': ':close'}));
@@ -218,7 +238,7 @@ void main() {
     final platform = DesktopWindowPlatform()
       ..configuration = {'leadingInset': 78.0};
     final window = await _window(platform, target: TargetPlatform.macOS);
-    await _app(tester, window);
+    await _frame(tester, window);
     expect(find.byTooltip('Close'), findsNothing);
     expect(tester.getTopLeft(_inBar(find.byType(Image))).dx, greaterThan(78));
     await tester.tap(_inBar(find.byType(Image)));
@@ -259,7 +279,7 @@ void main() {
       (tester) async {
     final platform = DesktopWindowPlatform();
     final window = await _window(platform);
-    await _app(tester, window);
+    await _frame(tester, window);
     final first = platform.calls.lastWhere((c) => c.method == 'maximizeRegion');
     expect((first.arguments as Map)['left'], 308.0);
     tester.view.devicePixelRatio = 2;

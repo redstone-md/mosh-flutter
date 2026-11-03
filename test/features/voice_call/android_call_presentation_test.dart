@@ -16,7 +16,7 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import '../../support/message_builders.dart';
 import '../../support/native_call_fixture.dart';
-import '../../support/pump.dart';
+import '../../support/pump_route.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import '../../support/settings.dart';
@@ -167,7 +167,6 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       owner.dispose();
-      router.dispose();
     }, variant: TargetPlatformVariant.only(TargetPlatform.android));
   }
 }

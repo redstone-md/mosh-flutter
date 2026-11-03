@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/conversation/call_log_entry.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
@@ -59,14 +60,22 @@ void main() {
 
   testWidgets('completed incoming and outgoing calls show their direction',
       (tester) async {
-    final event = CallEvent(
-        kind: 'completed', durationMs: BigInt.from(86000), callId: 'call');
-    await _pumpRow(tester, _message(callEvent: event, own: true));
-    expect(find.text('Outgoing call · 1:26'), findsOneWidget);
-    expect(find.byIcon(Icons.call_made), findsOneWidget);
-    await _pumpRow(tester, _message(callEvent: event));
-    expect(find.text('Incoming call · 1:26'), findsOneWidget);
-    expect(find.byIcon(Icons.call_received), findsOneWidget);
+    for (final (durationMs, suffix) in [
+      (0, ''),
+      (65000, ' · 1:05'),
+    ]) {
+      final event = CallEvent(
+          kind: 'completed',
+          durationMs: BigInt.from(durationMs),
+          callId: 'call');
+      await _pumpRow(tester, _message(callEvent: event, own: true));
+      expect(find.text('Outgoing call$suffix'), findsOneWidget);
+      expect(find.byIcon(Icons.call_made), findsOneWidget);
+      await _pumpRow(tester, _message(callEvent: event));
+      expect(find.text('Incoming call$suffix'), findsOneWidget);
+      expect(find.byIcon(Icons.call_received), findsOneWidget);
+      expect(find.byIcon(Icons.call_missed), findsNothing);
+    }
   });
   testWidgets('a message with a call event shows the call pill',
       (tester) async {
@@ -74,6 +83,12 @@ void main() {
 
     expect(find.text('Missed call'), findsOneWidget);
     expect(find.byIcon(Icons.call_missed), findsOneWidget);
+    expect(find.byIcon(Icons.call_received), findsNothing);
+    expect(
+        find.descendant(
+            of: find.byType(CallLogEntry),
+            matching: find.textContaining(' · ')),
+        findsNothing);
   });
 
   testWidgets('a message without one shows no pill', (tester) async {
@@ -81,5 +96,14 @@ void main() {
 
     expect(find.text('Missed call'), findsNothing);
     expect(find.byIcon(Icons.call_missed), findsNothing);
+  });
+
+  test('formatCallDuration renders duration text', () {
+    expect(formatCallDuration(BigInt.zero), '');
+    expect(formatCallDuration(BigInt.from(999)), '');
+    expect(formatCallDuration(BigInt.from(1000)), '0:01');
+    expect(formatCallDuration(BigInt.from(65000)), '1:05');
+    expect(formatCallDuration(BigInt.from(86000)), '1:26');
+    expect(formatCallDuration(BigInt.from(3661000)), '61:01');
   });
 }

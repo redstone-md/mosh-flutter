@@ -37,7 +37,7 @@ void main() {
   for (final testCase in conversationCases()) {
     final label = testCase.label;
 
-    testWidgets('$label: a send that throws keeps the text and shows Retry',
+    testWidgets('$label: a successful retry clears the banner and the composer',
         (tester) async {
       final gateway = ScriptableGateway()
         ..failNext(GatewayMethod.send, error: Exception('send boom'));
@@ -55,16 +55,6 @@ void main() {
       expect(find.text(_retryLabel(tester)), findsOneWidget);
       // The text survives, so the user does not have to type it again.
       expect(_composer(tester).text, 'hello there');
-    });
-
-    testWidgets('$label: a successful retry clears the banner and the composer',
-        (tester) async {
-      final gateway = ScriptableGateway()
-        ..failNext(GatewayMethod.send, error: Exception('send boom'));
-      await pumpConversation(tester, testCase, gateway: gateway);
-
-      await _type(tester, 'hello there');
-      await _tapSend(tester);
 
       final retry = _retryLabel(tester);
       await tester.tap(find.text(retry));

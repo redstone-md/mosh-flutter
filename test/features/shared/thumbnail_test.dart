@@ -7,7 +7,6 @@
 //   - a corrupt .png (random bytes) -> null
 
 import 'dart:convert' show base64Decode;
-import 'dart:io' show File;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -78,49 +77,19 @@ void main() {
     });
   });
 
-  // The video branch (lib/src/features/shared/thumbnail.dart ->
-  // _createVideoThumbnail) uses media_kit's headless Player + screenshot(),
-  // which needs the libmpv-2.dll native backend. That DLL is a `flutter
-  // build windows` CMake artifact and is ABSENT from the `flutter test`
-  // isolate (see test/features/shared/media_kit_tracer_test.dart header
-  // for the full diagnosis). So in `flutter test` the video branch MUST
-  // hit its defensive try/catch and resolve null -- never fatal. A real
-  // mp4 capture is exercised via integration_test, not here.
+  // This isolate deliberately leaves MediaKit uninitialized. Player creation
+  // must fail nonfatally before consuming media; the initialized, real capture
+  // path is covered separately in media_kit_tracer_test.dart.
   group(
       'createThumbnail (video branch) -- media_kit unavailable in flutter test',
       () {
     test(
         'returns null for a video pick when media_kit native backend is unavailable',
         () async {
-      // Garbage bytes with a .mp4 extension: lookupMimeType sees 'video/mp4',
-      // so the helper dispatches to _createVideoThumbnail. media_kit's
-      // Player/MediaKit.ensureInitialized() throws (no libmpv-2.dll in the
-      // test isolate); the defensive try/catch catches it and resolves null.
+      // The .mp4 name reaches the video branch; uninitialized MediaKit makes
+      // Player construction throw before these bytes are consumed.
       final bytes = Uint8List.fromList(List.filled(128, 0x42));
       final result = await createThumbnail(bytes, 'clip.mp4');
-      expect(result, isNull);
-    });
-
-    test('returns null for a real .mp4 fixture when media_kit is unavailable',
-        () async {
-      // The 10889-byte test/fixtures/sample.mp4 (generated for the tracer
-      // bullet) is a valid mp4, but in `flutter test` libmpv is unavailable,
-      // so the branch still resolves null (proves the fallback holds for a
-      // real container, not just garbage bytes). Skipped if the fixture is
-      // absent (the orchestrator regenerates it).
-      final fixture = File('test/fixtures/sample.mp4');
-      if (!fixture.existsSync()) {
-        return;
-      }
-      final bytes = fixture.readAsBytesSync();
-      final result = await createThumbnail(bytes, 'sample.mp4');
-      expect(result, isNull);
-    }, timeout: const Timeout(Duration(seconds: 30)));
-
-    test('returns null for a non-image/non-video pick', () async {
-      // application/pdf: neither image/* nor video/* -> null (unchanged).
-      final bytes = Uint8List.fromList([1, 2, 3, 4]);
-      final result = await createThumbnail(bytes, 'doc.pdf');
       expect(result, isNull);
     });
   });

@@ -4,14 +4,19 @@ import 'package:flutter/gestures.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/conversation_app_bar.dart';
 import 'package:mosh/src/features/conversation/conversation_search_box.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/conversation/message_selection_bar.dart';
+import 'package:mosh/src/gateway/conversation_target.dart' show DmTarget;
+import 'package:mosh/src/state/conversation_providers.dart';
 
 import '../../support/conversation_cases.dart';
+import '../../support/hosted_message_list.dart';
 import '../../support/message_selection.dart';
+import '../../support/pump.dart';
 import '../../support/scriptable_gateway.dart';
 
 final _messages = [
@@ -35,6 +40,21 @@ Color? _bubbleColor(WidgetTester tester, String id) => (tester
         .widget<Container>(find.byKey(ValueKey('message-bubble-$id')))
         .decoration as BoxDecoration)
     .color;
+
+// Shared selection behavior needs the real list and host, without screen polling
+// and composer setup. Screen wiring, navigation and draft tests stay below.
+Future<void> _pumpSelectionList(WidgetTester tester) async {
+  final dm = conversationCases().first;
+  final container = ProviderContainer(overrides: [
+    dm.snapshotOverride(messages: _messages),
+  ]);
+  addTearDown(container.dispose);
+  final snapshot = ValueNotifier(
+      await container.read(conversationSnapshotProvider(dm.target).future));
+  addTearDown(snapshot.dispose);
+  await pumpScreen(tester, HostedMessageList(snapshot: snapshot),
+      container: container);
+}
 
 void main() {
   for (final c in conversationCases()) {
@@ -63,6 +83,8 @@ void main() {
 
   final dm = conversationCases().first;
 
+  // The responsive composer is shared: cover every kind on Android and all
+  // mobile platform variants on DM without multiplying the two dimensions.
   for (final c in conversationCases()) {
     testWidgets(
         '${c.label}: mobile actions replace the composer and keep its draft',
@@ -99,12 +121,15 @@ void main() {
       expect(tester.state<EditableTextState>(find.byType(EditableText)),
           same(editable));
       expect(tester.takeException(), isNull);
-    }, variant: TargetPlatformVariant.mobile());
+    },
+        variant: c.target is DmTarget
+            ? TargetPlatformVariant.mobile()
+            : TargetPlatformVariant.only(TargetPlatform.android));
   }
 
   testWidgets('a tap anywhere on a row picks it and tints only its bubble',
       (tester) async {
-    await pumpConversation(tester, dm, messages: _messages);
+    await _pumpSelectionList(tester);
     final firstColor = _bubbleColor(tester, 'm0');
     final secondColor = _bubbleColor(tester, 'm1');
     await startMessageSelection(tester, 'second note');
@@ -118,7 +143,7 @@ void main() {
   });
 
   testWidgets('the last deselection leaves the mode', (tester) async {
-    await pumpConversation(tester, dm, messages: _messages);
+    await _pumpSelectionList(tester);
     await startMessageSelection(tester, 'second note');
     await tester.tap(find.text('second note'));
     await tester.pumpAndSettle();
@@ -126,7 +151,7 @@ void main() {
   });
 
   testWidgets('Escape leaves the mode', (tester) async {
-    await pumpConversation(tester, dm, messages: _messages);
+    await _pumpSelectionList(tester);
     await startMessageSelection(tester, 'second note');
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
@@ -137,7 +162,7 @@ void main() {
       (tester) async {
     final semantics = tester.ensureSemantics();
     try {
-      await pumpConversation(tester, dm, messages: _messages);
+      await _pumpSelectionList(tester);
       await startMessageSelection(tester, 'second note');
       final labels = tester
           .getSemantics(find.text('first note'))
@@ -161,7 +186,7 @@ void main() {
 
   testWidgets('Shift extends the pick from the last picked row',
       (tester) async {
-    await pumpConversation(tester, dm, messages: _messages);
+    await _pumpSelectionList(tester);
     await startMessageSelection(tester, 'first note');
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
     await tester.tap(find.text('fourth note'));
@@ -170,20 +195,8 @@ void main() {
     _expectPicked(4);
   });
 
-  testWidgets('the copy shortcut copies picked messages oldest first',
-      (tester) async {
-    final copied = captureClipboard(tester);
-    await pumpConversation(tester, dm, messages: _messages);
-    await startMessageSelection(tester, 'third note');
-    await tester.tap(find.text('first note'));
-    await tester.pumpAndSettle();
-    await sendPlatformShortcut(tester, LogicalKeyboardKey.keyC);
-    await tester.pumpAndSettle();
-    expect(copied, ['first note\n\nthird note']);
-  }, variant: TargetPlatformVariant.desktop());
-
   testWidgets('row controls rest while picking', (tester) async {
-    await pumpConversation(tester, dm, messages: _messages);
+    await _pumpSelectionList(tester);
     await startMessageSelection(tester, 'second note');
     await tester.tap(find.text('third note'),
         buttons: kSecondaryMouseButton, kind: PointerDeviceKind.mouse);
@@ -195,18 +208,21 @@ void main() {
   testWidgets('the desktop toolbar copies picked messages oldest first',
       (tester) async {
     final copied = captureClipboard(tester);
-    await pumpConversation(tester, dm, messages: _messages);
+    await _pumpSelectionList(tester);
     await startMessageSelection(tester, 'third note');
     await tester.tap(find.text('first note'));
     await tester.pumpAndSettle();
     _expectPicked(2);
+    await sendPlatformShortcut(tester, LogicalKeyboardKey.keyC);
+    await tester.pumpAndSettle();
+    expect(copied, ['first note\n\nthird note']);
     final copy = find.descendant(of: _bar, matching: find.text('Copy'));
     expect(copy, findsOneWidget);
     expect(find.descendant(of: _bar, matching: find.text('Delete')),
         findsOneWidget);
     await tester.tap(copy);
     await tester.pumpAndSettle();
-    expect(copied, ['first note\n\nthird note']);
+    expect(copied, ['first note\n\nthird note', 'first note\n\nthird note']);
     _expectPicked(2);
     final focus = Focus.of(tester.element(copy));
     focus.requestFocus();
@@ -214,8 +230,14 @@ void main() {
     expect(focus.hasPrimaryFocus, isTrue);
     await sendPlatformShortcut(tester, LogicalKeyboardKey.keyC);
     await tester.pumpAndSettle();
-    expect(copied, ['first note\n\nthird note', 'first note\n\nthird note']);
-  }, variant: TargetPlatformVariant.desktop());
+    expect(copied, [
+      'first note\n\nthird note',
+      'first note\n\nthird note',
+      'first note\n\nthird note',
+    ]);
+  },
+      variant: TargetPlatformVariant(
+          {TargetPlatform.windows, TargetPlatform.macOS}));
 
   testWidgets('search narrows the pick to the messages it shows',
       (tester) async {

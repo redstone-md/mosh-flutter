@@ -27,40 +27,26 @@ class _RecordingCaptureFactory implements VoiceCaptureFactory {
   }
 }
 
-/// A capture handle that fires a queued frame via a Timer and records stop.
+/// Explicit frame delivery, including a callback queued before stop completed.
 class _FiringCaptureHandle implements VoiceCaptureHandle {
   _FiringCaptureHandle(this._onFrame, this._frames);
   final void Function(Uint8List) _onFrame;
   final List<Uint8List> _frames;
-  Timer? _timer;
-  int _i = 0;
   bool stopped = false;
 
-  void start() {
-    _scheduleNext();
-  }
-
-  void _scheduleNext() {
-    if (_i >= _frames.length) return;
-    _timer = Timer(const Duration(milliseconds: 30), () {
-      if (stopped) return;
-      _onFrame(_frames[_i]);
-      _i++;
-      _scheduleNext();
-    });
+  void fire() {
+    for (final frame in _frames) {
+      _onFrame(frame);
+    }
   }
 
   @override
   Future<void> stop() async {
     stopped = true;
-    _timer?.cancel();
-    _timer = null;
   }
 }
 
-/// A capture factory that fires `frames` on a 30ms cadence after start()
-/// returns, so tests can toggle mute / detach in between ticks. The handle
-/// is exposed for stop() observability.
+/// Records startup and lets the test choose when to deliver frames.
 class _FiringCaptureFactory implements VoiceCaptureFactory {
   _FiringCaptureFactory(this._frames);
   final List<Uint8List> _frames;
@@ -72,7 +58,6 @@ class _FiringCaptureFactory implements VoiceCaptureFactory {
       void Function(Uint8List opusFrame) onFrame) async {
     final h = _FiringCaptureHandle(onFrame, _frames);
     handle = h;
-    h.start();
     return h;
   }
 }
@@ -114,3 +99,22 @@ class _FailingPlaybackFactory implements VoicePlaybackFactory {
 
 /// Wires up a fresh orchestrator for an attach() call.
 VoiceCallOrchestrator _orchestrator() => VoiceCallOrchestrator();
+
+/// Drain this unit scenario in one clock zone and report its original failure.
+void _withClock(Future<void> Function(FakeAsync) body) {
+  fakeAsync((clock) {
+    var completed = false;
+    Object? failure;
+    StackTrace? stack;
+    body(clock).then<void>((_) => completed = true,
+        onError: (Object error, StackTrace trace) {
+      failure = error;
+      stack = trace;
+    });
+    clock.flushMicrotasks();
+    if (failure != null) Error.throwWithStackTrace(failure!, stack!);
+    expect(completed, isTrue,
+        reason: 'The unit scenario left unresolved work.');
+    expect(clock.pendingTimers, isEmpty);
+  });
+}

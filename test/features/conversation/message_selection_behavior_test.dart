@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/gateway/conversation_target.dart' show DmTarget;
 
 import '../../support/conversation_cases.dart';
 import '../../support/message_selection.dart';
@@ -32,6 +33,8 @@ void main() {
       expect(gateway.lastCall(GatewayMethod.downloadAttachment), isNotNull);
     }, variant: TargetPlatformVariant.mobile());
 
+    // Exercise each kind's sender/attachment layout on Windows, and the shared
+    // text-selection and Ctrl/Cmd paths on every desktop platform through DM.
     for (final caption in [false, true]) {
       testWidgets(
           '${conversation.label}: triple click copies the whole '
@@ -54,7 +57,10 @@ void main() {
         await sendPlatformShortcut(tester, LogicalKeyboardKey.keyC);
         expect(copied, [body]);
         expect(tester.takeException(), isNull);
-      }, variant: TargetPlatformVariant.desktop());
+      },
+          variant: conversation.target is DmTarget
+              ? TargetPlatformVariant.desktop()
+              : TargetPlatformVariant.only(TargetPlatform.windows));
     }
 
     testWidgets(

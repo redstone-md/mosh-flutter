@@ -195,13 +195,5 @@ void main() {
     testWidgets('581 wide is not', (tester) async {
       expect(await resultAtWidth(tester, 581), isFalse);
     });
-
-    testWidgets('400 wide is mobile', (tester) async {
-      expect(await resultAtWidth(tester, 400), isTrue);
-    });
-
-    testWidgets('800 wide is not', (tester) async {
-      expect(await resultAtWidth(tester, 800), isFalse);
-    });
   });
 }

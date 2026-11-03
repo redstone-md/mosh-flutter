@@ -79,6 +79,7 @@ void main() {
       (tester) async {
     await _pump(tester);
     await _tap(tester, 'If a VPN gets in the way');
+    expect(find.text('No connected physical adapter found.'), findsOneWidget);
     await _tap(tester, 'About');
     await _tap(tester, 'Connection');
     expect(tester.takeException(), isNull);
@@ -86,17 +87,6 @@ void main() {
     await _tap(tester, 'If a VPN gets in the way');
     expect(find.text('No connected physical adapter found.'), findsNothing);
     await _tap(tester, 'If a VPN gets in the way');
-    expect(find.text('No connected physical adapter found.'), findsOneWidget);
-  });
-
-  testWidgets('restored VPN expansion contains its actual controls',
-      (tester) async {
-    await _pump(tester);
-    await _tap(tester, 'If a VPN gets in the way');
-    expect(find.text('No connected physical adapter found.'), findsOneWidget);
-    await _tap(tester, 'About');
-    await _tap(tester, 'Connection');
-    expect(tester.takeException(), isNull);
     expect(find.text('No connected physical adapter found.'), findsOneWidget);
   });
 

@@ -46,33 +46,6 @@ Finder _onboardTitle() => find.descendant(
 
 void main() {
   testWidgets(
-      'desktop (1200x900): rail + welcome pane render side-by-side; '
-      'tapping a DM row swaps the chat pane while the rail STAYS',
-      (tester) async {
-    final gw = ScriptableGateway()
-      ..seedSessions([shellSession(sessionId: 'alice-1', peer: 'Alice')]);
-
-    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
-
-    // Desktop two-pane: the rail (SessionsScreen) AND the welcome pane
-    // (ChatPaneWelcome) BOTH render (the rail stays beside
-    // the chat even when no chat is open).
-    expect(find.byType(SessionsScreen), findsOneWidget);
-    expect(find.byType(ChatPaneWelcome), findsOneWidget);
-
-    // Tap the Alice DM row. On desktop the rail STAYS and the chat pane
-    // swaps to DmScreen.
-    await tester.tap(find.text('Alice'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(DmScreen), findsOneWidget);
-    // The rail is STILL mounted on desktop (the layout invariant).
-    expect(find.byType(SessionsScreen), findsOneWidget);
-    // The welcome pane was replaced by the DM in the chat branch.
-    expect(find.byType(ChatPaneWelcome), findsNothing);
-  });
-
-  testWidgets(
       'desktop (1200x900): a launch straight into a chat still shows the rail',
       (tester) async {
     // A mosh:// link that starts Mosh opens the chat branch first.
@@ -177,19 +150,33 @@ void main() {
   testWidgets(
       'desktop (1200x900): closing a DM routes to /chat so the inline '
       'NewSessionPanel reappears while the rail STAYS mounted', (tester) async {
-    final gw = ScriptableGateway()
-      ..seedSessions([shellSession(sessionId: 'frank-1', peer: 'Frank')]);
+    final semantics = tester.ensureSemantics();
+    try {
+      final gw = ScriptableGateway()
+        ..seedSessions([shellSession(sessionId: 'frank-1', peer: 'Frank')]);
 
-    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
+      await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
 
-    // Open Frank's DM. Desktop two-pane: rail STAYS, chat pane swaps to
-    // the DM (the welcome pane is replaced).
-    await tester.tap(find.text('Frank'));
-    await tester.pumpAndSettle();
+      // Both desktop panes render before opening a conversation.
+      expect(find.byType(SessionsScreen), findsOneWidget);
+      expect(find.byType(ChatPaneWelcome), findsOneWidget);
 
-    expect(find.byType(DmScreen), findsOneWidget);
-    expect(find.byType(SessionsScreen), findsOneWidget);
-    expect(find.byType(NewSessionPanel), findsNothing);
+      // Open Frank's DM. Desktop two-pane: rail STAYS, chat pane swaps to
+      // the DM (the welcome pane is replaced).
+      await tester.tap(find.text('Frank'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DmScreen), findsOneWidget);
+      expect(find.byType(SessionsScreen), findsOneWidget);
+      expect(find.byType(NewSessionPanel), findsNothing);
+      expect(find.byType(ChatPaneWelcome), findsNothing);
+      // The pushed chat route must not hide the other panes' semantics.
+      expect(find.bySemanticsLabel(RegExp('Start a conversation')),
+          findsOneWidget);
+      expect(find.semantics.byLabel(RegExp('Connection status')), findsOne);
+    } finally {
+      semantics.dispose();
+    }
 
     // Leave the DM (Icons.close -> ConfirmDialog -> "Delete chat"). On
     // desktop the screen's _leave routes to /chat, so branch B swaps back
@@ -285,26 +272,6 @@ void main() {
     expect(find.byType(StartMenu), findsOneWidget);
     expect(_onboardTitle(), findsOneWidget);
     expect(find.text('Start a private chat'), findsOneWidget);
-  });
-
-  // The DM is a pushed route in the chat branch; its ModalBarrier blocks the
-  // semantics of everything painted before it in the shell.
-  testWidgets(
-      'desktop (1200x900): with a DM open, screen readers still reach the '
-      'rail and the titlebar', (tester) async {
-    final handle = tester.ensureSemantics();
-    final gw = ScriptableGateway()
-      ..seedSessions([shellSession(sessionId: 'gina-1', peer: 'Gina')]);
-    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
-
-    await tester.tap(find.text('Gina'));
-    await tester.pumpAndSettle();
-    expect(find.byType(DmScreen), findsOneWidget);
-
-    expect(
-        find.bySemanticsLabel(RegExp('Start a conversation')), findsOneWidget);
-    expect(find.semantics.byLabel(RegExp('Connection status')), findsOne);
-    handle.dispose();
   });
 
   testWidgets(

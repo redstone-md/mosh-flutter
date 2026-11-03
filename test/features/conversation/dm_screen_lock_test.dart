@@ -20,7 +20,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import '../../support/message_builders.dart';
-import '../../support/pump.dart';
+import '../../support/pump_route.dart';
 
 /// A SessionSnapshot seeded connected over a direct path, with a
 /// fingerprint chosen for the lock to render.

@@ -63,22 +63,6 @@ void main() {
           ['first', 'second', 'after failed leave']);
     });
 
-    testWidgets('$label: the leave button asks before it does anything',
-        (tester) async {
-      final gateway = ScriptableGateway();
-      await pumpConversation(tester, testCase,
-          gateway: gateway, useRouter: true);
-
-      await tester.tap(find.byTooltip('More chat actions'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(testCase.leaveConfirmLabel));
-      await tester.pumpAndSettle();
-
-      expect(find.text(testCase.leaveTitle), findsOneWidget);
-      expect(find.text(testCase.leaveConfirmLabel), findsOneWidget);
-      expect(gateway.countOf(GatewayMethod.leave), 0);
-    });
-
     testWidgets('$label: confirming leaves the conversation', (tester) async {
       final gateway = ScriptableGateway();
       await pumpConversation(tester, testCase,
@@ -103,6 +87,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text(testCase.leaveConfirmLabel));
       await tester.pumpAndSettle();
+
+      expect(find.text(testCase.leaveTitle), findsOneWidget);
+      expect(find.text(testCase.leaveConfirmLabel), findsOneWidget);
+      expect(gateway.countOf(GatewayMethod.leave), 0);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 

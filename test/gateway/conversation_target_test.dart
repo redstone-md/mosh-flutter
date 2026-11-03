@@ -132,13 +132,6 @@ void main() {
         });
       }
 
-      test('every kind renders and parses back', () {
-        for (final kind in ConversationKind.values) {
-          final ref = ConversationRef(kind: kind, id: 'x');
-          expect(ConversationRef.tryParse(ref.key), ref);
-        }
-      });
-
       test('an id with colons in it survives the round trip', () {
         const ref =
             ConversationRef(kind: ConversationKind.channel, id: 'a:b:c');
@@ -176,20 +169,6 @@ void main() {
         }
         expect(ActiveConversation.parse(null), isNull);
       });
-    });
-  });
-
-  group('DmOfferHost', () {
-    // A DM holds no offer list, so `Gateway.dismissDmOffer` takes the narrower
-    // type. This is a compile-time guarantee; the test pins the hierarchy so a
-    // later change cannot quietly widen it.
-    test('a channel and a group are offer hosts', () {
-      expect(const ChannelTarget('general'), isA<DmOfferHost<Object?>>());
-      expect(const GroupTarget('g1'), isA<DmOfferHost<Object?>>());
-    });
-
-    test('a DM is not an offer host', () {
-      expect(const DmTarget('s1'), isNot(isA<DmOfferHost<Object?>>()));
     });
   });
 }

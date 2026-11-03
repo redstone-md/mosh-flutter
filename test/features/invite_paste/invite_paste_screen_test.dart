@@ -28,7 +28,7 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/state/gateway_provider.dart'
     show bridgeFacadeProvider, gatewayProvider;
-import '../../support/pump.dart';
+import '../../support/pump_route.dart';
 
 void main() {
   Future<void> pumpPasteStep(

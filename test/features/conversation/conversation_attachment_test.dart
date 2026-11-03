@@ -24,26 +24,6 @@ void main() {
   for (final testCase in conversationCases()) {
     final label = testCase.label;
 
-    testWidgets('$label: an offered file shows its name, size and state',
-        (tester) async {
-      final file = testAttachment(attachmentId: 'att-1');
-      await pumpConversation(
-        tester,
-        testCase,
-        messages: [TestMessage(body: 'here it is', attachment: file)],
-        attachments: [
-          testAttachmentView(
-            attachmentId: 'att-1',
-            state: AttachmentState.offered,
-          ),
-        ],
-      );
-
-      expect(find.text('report.pdf'), findsOneWidget);
-      expect(find.textContaining('1.5 KB'), findsOneWidget);
-      expect(find.textContaining('Ready to download'), findsOneWidget);
-    });
-
     testWidgets('$label: a downloading file shows progress', (tester) async {
       final file = testAttachment(
         attachmentId: 'att-2',
@@ -138,6 +118,9 @@ void main() {
         ],
       );
 
+      expect(find.text('report.pdf'), findsOneWidget);
+      expect(find.textContaining('1.5 KB'), findsOneWidget);
+      expect(find.textContaining('Ready to download'), findsOneWidget);
       expect(_actionEnabled(tester), isTrue);
 
       await tester.tap(_action());

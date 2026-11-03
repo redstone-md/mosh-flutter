@@ -178,12 +178,15 @@ void main() {
         descriptor: _descriptor(fileName: 'photo.png', mime: 'image/png'),
         src: Uri.file(file.path).toString(),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      final image = tester.element(find.byType(Image));
+      await precacheImage((image.widget as Image).image, image,
+          onError: (_, __) {});
       await tester.pump();
     });
 
     expect(find.byType(Image), findsOneWidget);
     expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
+    expect(tester.widget<RawImage>(find.byType(RawImage)).image, isNotNull);
   });
 
   // Pins the video mime branch: a placeholder card with

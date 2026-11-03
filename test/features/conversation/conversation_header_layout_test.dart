@@ -18,8 +18,7 @@ Future<void> _pumpHeader(WidgetTester tester) =>
     ]);
 
 void main() {
-  testWidgets('header actions follow call, search, menu with equal hit targets',
-      (tester) async {
+  testWidgets('clicking the chat name opens details', (tester) async {
     await _pumpHeader(tester);
     final icons = [Icons.phone_outlined, Icons.search, Icons.more_vert];
     final centers =
@@ -32,10 +31,6 @@ void main() {
           .first;
       expect(tester.getSize(target), const Size.square(40));
     }
-  });
-
-  testWidgets('clicking the chat name opens details', (tester) async {
-    await _pumpHeader(tester);
     await tester.tap(find.text('Alice'));
     await tester.pumpAndSettle();
     expect(find.byType(PeerStatusDrawer), findsOneWidget);

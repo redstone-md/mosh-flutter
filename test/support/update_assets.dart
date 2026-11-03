@@ -59,7 +59,10 @@ class ScriptedAssets {
   final Set<String> sizes;
 
   final List<Uri> asked = [];
-  final List<StreamController<List<int>>> open = [];
+  final _firstHeldBody = Completer<StreamController<List<int>>>();
+
+  Future<StreamController<List<int>>> get firstHeldBody =>
+      _firstHeldBody.future;
 
   Future<AssetStream> openUrl(Uri url) async {
     asked.add(url);
@@ -77,7 +80,7 @@ class ScriptedAssets {
       );
     }
     final controller = StreamController<List<int>>();
-    open.add(controller);
+    if (!_firstHeldBody.isCompleted) _firstHeldBody.complete(controller);
     return AssetStream(
       bytes: controller.stream,
       length: length,

@@ -232,27 +232,6 @@ void main() {
     expect(snapshot.name, 'general');
   });
 
-  // The outbound DM-offer sends no-op (no real peer to deliver to, matching
-  // the dismiss pair on the seam). Both must complete normally with no
-  // throw so the popover UI resolves.
-  test('the test bridge sendChannelDmOffer completes (no-op)', () async {
-    final bridge = ScriptableBridge();
-    await bridge.sendChannelDmOffer(
-      channelName: 'test',
-      peerFingerprint: 'FP',
-      inviteUri: 'mosh://invite?mesh=fakemesh&session=fake-session#fp=FP',
-    );
-  });
-
-  test('the test bridge sendGroupDmOffer completes (no-op)', () async {
-    final bridge = ScriptableBridge();
-    await bridge.sendGroupDmOffer(
-      groupId: 'g',
-      peerFingerprint: 'FP',
-      inviteUri: 'mosh://invite?mesh=fakemesh&session=fake-session#fp=FP',
-    );
-  });
-
   // FU-1: NativeRuntimeStatus is constructible in pure Dart (the five
   // sub-structs are non-opaque across flutter_rust_bridge), so the bridge
   // double's canned status carries real, field-readable values instead of

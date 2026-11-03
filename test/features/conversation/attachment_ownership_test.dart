@@ -24,27 +24,21 @@ AttachmentDescriptor _voice() => AttachmentDescriptor(
 
 void main() {
   for (final testCase in conversationCases()) {
-    for (final mime in ['image/png', 'video/mp4']) {
-      testWidgets(
-          '${testCase.label}: own $mime without transfer state does not download or open',
-          (tester) async {
-        final gateway = ScriptableGateway();
-        final file = testAttachment(attachmentId: 'own-media', mime: mime);
-        await pumpConversation(tester, testCase,
-            gateway: gateway, messages: [TestMessage.own(attachment: file)]);
+    testWidgets(
+        '${testCase.label}: own video/mp4 without transfer state does not download or open',
+        (tester) async {
+      final gateway = ScriptableGateway();
+      final file = testAttachment(attachmentId: 'own-media', mime: 'video/mp4');
+      await pumpConversation(tester, testCase,
+          gateway: gateway, messages: [TestMessage.own(attachment: file)]);
 
-        await tester.tap(_rowIcon(
-            true,
-            mime.startsWith('image/')
-                ? Icons.image_outlined
-                : Icons.play_arrow));
-        await tester.pump();
+      await tester.tap(_rowIcon(true, Icons.play_arrow));
+      await tester.pump();
 
-        expect(gateway.countOf(GatewayMethod.downloadAttachment), 0);
-        expect(find.byType(MediaViewer), findsNothing);
-        expect(tester.takeException(), isNull);
-      });
-    }
+      expect(gateway.countOf(GatewayMethod.downloadAttachment), 0);
+      expect(find.byType(MediaViewer), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets(
         '${testCase.label}: each row retains its ownership for the same attachment id',
@@ -60,6 +54,8 @@ void main() {
       await tester.pump();
       expect(gateway.countOf(GatewayMethod.downloadAttachment), 0);
       expect(find.byType(MediaViewer), findsNothing);
+
+      expect(tester.takeException(), isNull);
 
       await tester.tap(_rowIcon(false, Icons.image_outlined));
       await tester.pump();

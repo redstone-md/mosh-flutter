@@ -4,14 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
-import 'package:mosh/src/features/onboarding/start/start_menu.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/settings/settings_screen.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/routing/mosh_shell.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
-import '../../support/pump.dart';
+import '../../support/pump_route.dart';
 import '../../support/message_builders.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
@@ -43,23 +42,17 @@ void main() {
     expect(find.byType(MoshShell), findsNothing);
     expect(find.byType(SessionsScreen, skipOffstage: false), findsOneWidget);
     expect(find.text('Microphone'), findsOneWidget);
+    expect(find.text('Sound & Video'), findsNWidgets(2));
+    expect(find.text('Devices'), findsOneWidget);
+    expect(find.text('Connection'), findsOneWidget);
+    expect(find.text('Privacy'), findsOneWidget);
     await tester.tap(find.text('Back to chats'));
     await tester.pumpAndSettle();
     expect(router.routeInformationProvider.value.uri.path, AppRoutes.sessions);
     expect(tester.state(find.byType(SessionsScreen)), same(railState));
     expect(find.text('retained search'), findsOneWidget);
-  });
-
-  testWidgets('wide sidebar switches sections and remembers on reopening',
-      (tester) async {
-    _size(tester, const Size(1200, 850));
-    final router = await _route(tester, AppRoutes.sessions);
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
-    expect(find.text('Sound & Video'), findsNWidgets(2));
-    expect(find.text('Devices'), findsOneWidget);
-    expect(find.text('Connection'), findsOneWidget);
-    expect(find.text('Privacy'), findsOneWidget);
     await tester.tap(find.text('About'));
     await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsNothing);
@@ -140,9 +133,17 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sound & Video'));
     await tester.pumpAndSettle();
+    expect(find.text('Microphone'), findsOneWidget);
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.text('Connection'), findsOneWidget);
+    await tester.tap(find.text('Back to chats'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Microphone'), findsNothing);
+    expect(find.text('Sound & Video'), findsOneWidget);
+    expect(find.text('Devices'), findsOneWidget);
     await tester.tap(find.text('Sound & Video'));
     await tester.pumpAndSettle();
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
@@ -162,45 +163,4 @@ void main() {
     await tester.pumpAndSettle();
     expect(router.routeInformationProvider.value.uri.path, AppRoutes.sessions);
   });
-
-  testWidgets('reopening narrow settings starts at the section list',
-      (tester) async {
-    _size(tester, const Size(390, 844));
-    await _route(tester, AppRoutes.sessions);
-    await tester.tap(find.byIcon(Icons.settings_outlined));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sound & Video'));
-    await tester.pumpAndSettle();
-    expect(find.text('Microphone'), findsOneWidget);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Back to chats'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.settings_outlined));
-    await tester.pumpAndSettle();
-    expect(find.text('Microphone'), findsNothing);
-    expect(find.text('Sound & Video'), findsOneWidget);
-    expect(find.text('Devices'), findsOneWidget);
-  });
-
-  testWidgets('the start menu keeps creation separate from settings',
-      (tester) async {
-    await pumpScreen(
-        tester,
-        const Scaffold(
-          body: SingleChildScrollView(
-            child: StartMenu(
-              onPickChat: _noop,
-              onPickGroup: _noop,
-              onPickChannel: _noop,
-              onPickJoin: _noop,
-            ),
-          ),
-        ));
-    expect(find.byIcon(Icons.settings), findsNothing);
-    expect(find.byIcon(Icons.verified_user), findsNothing);
-    expect(find.byIcon(Icons.chat_bubble_outline), findsOneWidget);
-  });
 }
-
-void _noop() {}

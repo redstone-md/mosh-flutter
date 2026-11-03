@@ -78,16 +78,25 @@ through the picked-message copy instead.
 
 ## Checks
 
-`message_selection_model_test.dart` covers the state model.
+`conversation_models_test.dart` (group `message_selection_model`) covers the state model.
 `message_selection_mode_test.dart` and `message_drag_selection_test.dart` cover
-the screen: the header swap, circles, bubble tint, taps, Shift, Escape, copy,
+the header swap, circles, bubble tint, taps, Shift, Escape, copy,
 mobile placement, draft retention, search narrowing,
 mouse and touch drags, and auto-scroll start and stop.
+Shared selection checks reuse `HostedMessageList` with the real list and host;
+screen wiring, mobile drafts, system Back and search/deletion keep real screens.
+The mobile draft matrix covers every kind on Android and all mobile variants on
+DM. Body/caption triple-click checks cover every kind on Windows and all desktop
+variants on DM, preserving both platform shortcuts and kind-specific metadata.
 `message_selection_controls_test.dart` covers selector accessibility, keyboard
 activation, pending deletion and large localized text.
 `message_selection_voice_test.dart` covers hidden capture, clip retention,
 desktop controls and selection during permission or capture startup.
 `message_selection_switch_test.dart` covers chat switches during deletion.
+`message_deletion_test.dart` retains scopes, eligibility, refusals, file actions
+and marker wiring for each kind. Shared status captions use one representative;
+the [matrix audit](../Proposals/flutter-deletion-test-cleanup.md) records the
+retained regressions and removed duplicates.
 Physical pointer, trackpad and touch behavior remains a runtime check.
 
 The existing `ConversationMessageRow` and `ConversationScreenBody` retain their

@@ -9,7 +9,7 @@ import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
-import 'pump.dart';
+import 'pump_route.dart';
 import 'scriptable_gateway.dart';
 
 /// Pumps the app at the start menu on a desktop window and opens the step

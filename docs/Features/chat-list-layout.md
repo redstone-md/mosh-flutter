@@ -57,7 +57,7 @@ rail widgets whether to render the strip. `CompactRailItem` renders a
   semantics, restarts, phones, Ctrl+K and preserved state.
 - `rail_compact_test.dart` covers strip rows, invitations, organizations,
   failed loads, the empty state and Settings.
-- `rail_layout_test.dart` covers storage.
+- `preferences_test.dart` (group `rail_layout`) covers storage.
 - `rail_insets_test.dart` covers insets.
 - `rail_settings_button_return_test.dart` covers the press ink.
 

@@ -25,6 +25,7 @@ import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 import '../../support/pump.dart';
+import '../../support/pump_route.dart';
 import '../../support/scriptable_bridge.dart';
 
 /// One conversation of each kind: a DM with Alice, the `general` channel

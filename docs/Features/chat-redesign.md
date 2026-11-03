@@ -77,7 +77,11 @@ header identity with invitation actions in the menu.
 Tests cover recency, filtering, known names, runtime protection, file actions,
 details toggling and Escape, keyboard navigation, local date boundaries, bubble
 alignment and existing send/leave/attachment behavior. Layout tests exercise all
-three kinds at 320, 390, 581, 800, 1280 and 1536px.
+three kinds at 390 and 1536px, with independent DM boundary cases at 320, 581
+and 1280px. Desktop details checks share the existing per-kind header/rail
+scenario rather than mounting the application again for each kind.
+The [layout test audit](../Proposals/flutter-redesign-test-cleanup.md) records
+the retained contracts and local timing measurements.
 
 `chat_redesign_layout_test.dart` optionally exports screenshots with
 `--dart-define=MOSH_REDESIGN_SCREENSHOTS=/tmp/mosh-redesign-preview`.
@@ -169,7 +173,9 @@ Physical Windows/Android runtime verification remains separate from widget tests
 
 ### `test/features/conversation/`
 
-- `conversation_close_flow_test.dart`
+- `conversation_close_flow_test.dart`: each kind's prompt and cancellation,
+  confirmed target dispatch, and send-drain/refused-leave recovery. Prompt checks
+  share the cancellation setup; see the [test audit](../Proposals/flutter-close-flow-test-cleanup.md).
 - `conversation_details_test.dart`
 - `conversation_filter_test.dart`
 - `conversation_grouping_test.dart`
@@ -195,7 +201,7 @@ Physical Windows/Android runtime verification remains separate from widget tests
 
 ### `test/state/`
 
-- `conversation_providers_test.dart`
+- `conversation_refresh_test.dart` (group `conversation_providers`)
 
 ### `test/support/`
 

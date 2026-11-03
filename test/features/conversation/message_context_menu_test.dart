@@ -79,7 +79,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
     }
-  }, variant: TargetPlatformVariant.desktop());
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 
   testWidgets('copy-selected preserves the fragment across menu focus and copy',
       (tester) async {
@@ -196,7 +196,7 @@ void main() {
       expect(focus.hasFocus, isTrue);
     }
     expect(selected, 2);
-  }, variant: TargetPlatformVariant.desktop());
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 
   testWidgets('cross-message drag still copies only the selected range',
       (tester) async {

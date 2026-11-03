@@ -80,7 +80,7 @@ void main() {
         await tester.sendKeyEvent(LogicalKeyboardKey.enter);
         await tester.pumpAndSettle();
         expect(gateway.countOf(method), 1);
-      }, variant: TargetPlatformVariant.desktop());
+      }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
     }
   }
 }

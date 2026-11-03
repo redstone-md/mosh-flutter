@@ -22,8 +22,9 @@ AttachmentDescriptor _descriptor({String? thumbnail}) => AttachmentDescriptor(
     );
 
 Future<void> _pump(WidgetTester tester, String? preview, List<String> downloads,
-        {String? original, String? thumbnail}) =>
-    pumpScreen(
+    {String? original, String? thumbnail}) async {
+  await tester.runAsync(() async {
+    await pumpScreen(
         tester,
         Scaffold(
             body: Center(
@@ -46,6 +47,16 @@ Future<void> _pump(WidgetTester tester, String? preview, List<String> downloads,
           onCancel: (_) {},
           onOpen: (_) {},
         ))));
+    // Keep each widget's ResizeImage and dimension-validation provider intact.
+    // Expected decode errors still reach the Image's existing errorBuilder.
+    await Future.wait<void>([
+      for (final element in find.byType(Image).evaluate())
+        precacheImage((element.widget as Image).image, element,
+            onError: (_, __) {}),
+    ]);
+  });
+  await tester.pumpAndSettle();
+}
 
 ImageProvider<Object> _provider(Image image) => switch (image.image) {
       ResizeImage resized => resized.imageProvider,
@@ -61,9 +72,7 @@ void main() {
     final miniature =
         base64Encode(img.encodeJpg(img.Image(width: 320, height: 480)));
     await _pump(tester, null, [], thumbnail: miniature);
-    await tester
-        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
-    await tester.pumpAndSettle();
+
     expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
     expect(tester.widget<RawImage>(find.byType(RawImage)).image!.height, 480);
     expect(tester.takeException(), isNull);
@@ -75,9 +84,7 @@ void main() {
         base64Encode(img.encodePng(img.Image(width: 1, height: 4096)));
     expect(miniature.length, lessThan(2048));
     await _pump(tester, null, [], thumbnail: miniature);
-    await tester
-        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
-    await tester.pumpAndSettle();
+
     expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -94,11 +101,7 @@ void main() {
     final preview = File('${directory!.path}/preview.jpg');
     await tester.runAsync(() => preview.writeAsBytes(bytes));
     await _pump(tester, preview.path, []);
-    for (var i = 0; i < 20; i++) {
-      await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 30)));
-      await tester.pump(const Duration(milliseconds: 100));
-    }
+
     final image = tester.widget<RawImage>(find.byType(RawImage)).image!;
     expect(image.width, 24);
     expect(image.height, 16);
@@ -121,11 +124,7 @@ void main() {
           .writeAsBytes(img.encodeJpg(img.Image(width: 320, height: 240)));
     });
     await _pump(tester, preview.path, [], original: original.path);
-    for (var i = 0; i < 20; i++) {
-      await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 30)));
-      await tester.pump(const Duration(milliseconds: 100));
-    }
+
     final imagePaths = tester
         .widgetList<Image>(find.byType(Image))
         .map((image) => image.image)
@@ -152,9 +151,7 @@ void main() {
     await tester.runAsync(() => file.writeAsBytes(base64Decode(_miniature)));
     addTearDown(() => directory.delete(recursive: true));
     await _pump(tester, file.path, downloads);
-    await tester
-        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
-    await tester.pumpAndSettle();
+
     final image = _provider(tester.widget<Image>(find.byWidgetPredicate(
             (widget) => widget is Image && _provider(widget) is FileImage)))
         as FileImage;
@@ -170,9 +167,7 @@ void main() {
       (tester) async {
     await _pump(
         tester, '${Directory.systemTemp.path}/mosh-missing-preview.jpg', []);
-    await tester
-        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
-    await tester.pumpAndSettle();
+
     expect(find.byWidgetPredicate(_isMiniature), findsOneWidget);
     expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
     expect(find.text('photo.png'), findsOneWidget);

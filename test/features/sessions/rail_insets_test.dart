@@ -20,11 +20,7 @@ void main() {
         final rect = tester.getRect(find.byType(part).first);
         expect(rail.right - rect.right, rect.left - rail.left, reason: '$part');
       }
-    });
 
-    testWidgets('$label: filter chips line up with the search field',
-        (tester) async {
-      await pumpRail(tester, size: size);
       final search =
           tester.getRect(find.byKey(const ValueKey('chat-list-search')));
       final chip = tester.getRect(find.byType(ChoiceChip).first);
