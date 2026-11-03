@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """Guard new test hazards without rewriting historical native/timing suites."""
 import collections
+import importlib.util
 import pathlib
 import re
 import subprocess
 import sys
+
+RUST_SPEC = importlib.util.spec_from_file_location(
+    'rust_test_policy', pathlib.Path(__file__).with_name('rust-test-policy.py'))
+rust = importlib.util.module_from_spec(RUST_SPEC)
+RUST_SPEC.loader.exec_module(rust)
 
 BASELINE = '3b2b88eb9fc49081be28b98c375c52fd7948adae'
 # Mask comments and literals before looking for executable syntax. This is a
@@ -19,7 +25,8 @@ TEST_CALL = r'\b(?:test|testWidgets|it|describe|group)(?:\s*\.\s*\w+)*'
 RULES = {
     'focus': re.compile(TEST_CALL + r'\s*\.\s*only\s*\(|\b(?:solo|only)\s*:\s*true\b'),
     'skip': re.compile(TEST_CALL + r'\s*\.\s*(?:skip|todo)\s*\(|'
-                       r'\b(?:skip|todo)\s*:|@Skip\s*\(|#\s*\[\s*ignore\b|'
+                       r'\b(?:skip|todo)\s*:|@Skip\s*\(|'
+                       r'#\s*\[\s*(?:ignore\b|cfg_attr\s*\([^\]]*\bignore\b)|'
                        r'\b(?:skipTest|skipIf|skipUnless|skipif|xfail)\s*\(|'
                        r'\b(?:unittest|pytest\s*\.\s*mark)\s*\.\s*skip\s*\('),
     'timeout': re.compile(r'\b(?:timeout|testTimeout)\s*:|@Timeout\s*\(|'
@@ -36,7 +43,10 @@ APPROVAL = re.compile(
 )
 
 
-def mask(source):
+def mask(source, is_rust=False):
+    if is_rust:
+        return rust.mask(source)
+
     def replacement(match):
         text = match[0]
         # Quoted JS option keys are syntax, not test-name/fixture strings.
@@ -83,8 +93,8 @@ def enclosing_call(code, position):
     return ''
 
 
-def hazards(source):
-    code = mask(source)
+def hazards(source, is_rust=False):
+    code = mask(source, is_rust)
     found = []
     for rule, pattern in RULES.items():
         for match in pattern.finditer(code):
@@ -99,13 +109,14 @@ def hazards(source):
     return found
 
 
-def violations(source, original=''):
-    remaining = collections.Counter((r, s) for r, s, _ in hazards(original))
-    comments = [(source.count('\n', 0, m.start()) + 1, m[0])
-                for m in LEXEMES.finditer(source)
-                if m[0].startswith(('//', '/*', '#'))]
+def violations(source, original='', is_rust=False):
+    remaining = collections.Counter((r, s) for r, s, _ in hazards(original, is_rust))
+    comments = (rust.comments(source) if is_rust else [
+        (source.count('\n', 0, m.start()) + 1, m[0])
+        for m in LEXEMES.finditer(source)
+        if m[0].startswith(('//', '/*', '#'))])
     errors = []
-    for rule, signature, line in hazards(source):
+    for rule, signature, line in hazards(source, is_rust):
         if rule != 'focus' and remaining[rule, signature]:
             remaining[rule, signature] -= 1
             continue
@@ -125,9 +136,15 @@ def test_source(name):
         return name.startswith('scripts/') and (
             '.test.' in name or path.name.startswith('test_'))
     if path.suffix == '.rs':
-        return name.startswith(('mosh-core/', 'mosh-media/')) and (
-            '/tests/' in name or 'test' in path.stem)
+        return name.startswith(('mosh-core/', 'mosh-media/'))
     return False
+
+
+def scoped_source(name, source):
+    if (name.endswith('.rs') and '/tests/' not in name
+            and 'test' not in pathlib.PurePosixPath(name).stem):
+        return rust.test_source(source)
+    return source
 
 
 def case_registrations(sources):
@@ -169,11 +186,14 @@ def check(root, baseline):
                if (root / name).is_file()}
     errors = case_registrations(sources)
     for name, source in sources.items():
-        if not hazards(source):
+        is_rust = name.endswith('.rs')
+        source = scoped_source(name, source)
+        if not hazards(source, is_rust):
             continue
         old = subprocess.run(['git', 'show', baseline + ':' + name], cwd=root,
                              capture_output=True, text=True)
-        for line, rule in violations(source, old.stdout if old.returncode == 0 else ''):
+        original = scoped_source(name, old.stdout if old.returncode == 0 else '')
+        for line, rule in violations(source, original, is_rust):
             errors.append(f'{name}:{line}: {rule}: use event/clock waits or add '
                           'a local test-policy exception with issue URL and reason')
     return errors

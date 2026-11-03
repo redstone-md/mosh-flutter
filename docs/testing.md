@@ -50,12 +50,17 @@ waits without issues are retained debt, not approved patterns for new tests.
 
 Scope: Dart test/support, native and integration trees; Node/Python script test
 files; Rust `tests/` and files with `test` in their stem under `mosh-core/` and
-`mosh-media/`. Production, vendor and Moss sources are excluded. This lexical guard
-does not parse arbitrary aliases, computed options or Rust tests embedded in
-ordinary production modules. Review those manually, including runtime `return`
-gates: a green runner can otherwise hide a test that never asserted anything.
-It does not decide whether a test has value. Missing baseline history fails the
-check; CI checks out full history. Run the guard examples with:
+`mosh-media/`. Ordinary first-party Rust modules also include annotated test
+functions and items whose `cfg` predicates require `test`, including nested
+feature gates. Unrelated production code, vendor and Moss sources stay excluded.
+Rust masking handles raw strings, character literals, lifetimes and nested
+comments; local reasons/issues and frozen per-file counts apply to these inline
+regions too. Literal conditional `cfg_attr(..., ignore)` annotations are checked.
+The lexical guard does not expand macros or `cfg_attr`-generated test attributes,
+resolve indirect module paths, or interpret arbitrary aliases/computed options.
+Review those manually, including runtime `return` gates: a green runner can hide
+a test that never asserted anything. The guard does not decide test value.
+Missing baseline history fails the check; CI checks out full history. Run examples:
 
 ```sh
 python3 -B -m unittest discover -s scripts -p test_test_policy.py
