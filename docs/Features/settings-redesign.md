@@ -479,8 +479,9 @@ dependency changes.
 The release notice adds about_update_notice.dart, app_release_provider.dart,
 app_update_download.dart, app_update_apply.dart and app_update_install.dart,
 extends about_settings_section.dart and both ARBs, and is covered by
-about_settings_section_test.dart, app_release_provider_test.dart,
-app_update_download_test.dart and app_update_apply_test.dart. The Windows
+about_settings_section_test.dart and app_update_contract_test.dart, which registers
+app_release_provider_cases.dart, app_update_download_cases.dart and
+app_update_apply_cases.dart. The Windows
 installer script gains the `/RELAUNCH=1` entry that starts Mosh again after a
 self-update, and macOS hands the verified image to the system because the
 sandboxed app cannot replace its own bundle (ADR 0045). No dependency is

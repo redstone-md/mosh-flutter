@@ -83,6 +83,8 @@ contracts in one worker while real HTTP billing owners remain separate.
 The [startup-lock UI batch](Proposals/flutter-lock-ui-runner-cleanup.md) keeps
 fourteen UI contracts in one worker; Android access and lifecycle owners remain
 separate.
+The [update test batch](Proposals/flutter-update-unit-runner-cleanup.md) groups
+26 feed, installer, file IO and checksum cases; About UI keeps its own worker.
 
 Group by feature and bounded runtime, not into one giant serial suite. Preserve
 separate processes for native initialization/fallback probes, actual HTTP and
