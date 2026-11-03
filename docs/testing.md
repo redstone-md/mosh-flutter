@@ -155,3 +155,5 @@ Keep dedicated preference-change tests and independently restored starting
 states when layout depends on navigation history. The
 [first-run viewport audit](Proposals/flutter-first-run-viewport-fixture.md)
 checks geometry and saved state before applying this fixture change.
+Its recheck also records rejected sequential-step and locale-seeding proposals:
+initial provider loading can change the stable height even when fit checks pass.

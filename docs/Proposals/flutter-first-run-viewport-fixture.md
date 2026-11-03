@@ -158,3 +158,100 @@ Limits: default Flutter tests use the existing scripted native/disk seams.
 The optional `SETUP_PREVIEW` font/screenshot mode, native integration and live
 hardware/network runners are not run. Their code and gates stay unchanged.
 No production, Rust, generated binding, public API or dependency change is made.
+
+## Recheck at `77131ead`: two further proposals rejected
+
+Baseline `77131eaddd15a9ed5146b7cd98aec9ff57676197`, initially clean.
+The current viewport source is `first_run_viewports_cases.dart`, registered by
+`first_run_viewport_flow_test.dart` under `first_run_viewports`. All 18 paths in
+the original ledger above now have that group prefix; their final decision in
+this recheck is **KEEP**. All six sizes/scales and independent saved steps stay.
+
+The proposed 18 → 6 name→device→network flows are rejected before implementation.
+`SetupStableLayout` records the first child's natural height and does not reset
+it on step changes. `SetupStepTransition` also retains its initial/visited panels,
+and the scroll view retains its offset. A reached device/network screen therefore
+does not replace its independently restored counterpart. Existing tests at other
+sizes do not cover all six original cold-start combinations. The earlier warning
+in this audit applies directly; this is not a compiler-only or library-only check.
+
+A narrower trial changed only six callbacks in `first_run_responsive_cases.dart`:
+seed the existing Russian locale store instead of mounting English, switching
+to Russian and settling again. Each saved starting step and real app mount stayed
+independent. AST reconstruction recovered every original declaration token by
+restoring only the fixture and two preparation statements; every assertion,
+matrix, name, preview call and other callback/helper remained unchanged.
+
+Nevertheless, passive records after the original assertion/preview suffix found
+different progress-indicator geometry. Both 27-case diagnostic commands passed,
+with identical outcome Counters. No extra scrolling, focus operation or pump was
+inserted before observation. Card, viewport, frame, CTA, actual locale, encoded
+profile, scroll metrics and focus label matched in all six records; progress
+matched only in the two name records. The four mismatches were:
+
+| Size | Starting step | Original progress top | Seeded progress top |
+| --- | --- | ---: | ---: |
+| 900×700 | device | 120 px | 131 px |
+| 900×700 | network | 82 px | 114 px |
+| 1280×680 | device | 129 px | 140 px |
+| 1280×680 | network | 105 px | 122.02 px |
+
+The seeded locale can establish the stable height during initial provider loading;
+the original later locale change resets measurement after loading. A green set
+of fit inequalities does not demonstrate equivalent measured layout. The earlier
+18-case fixture proof at different dimensions cannot substitute for these records.
+The loading/baseline mechanism is inferred from source; the private baseline
+field itself was not instrumented.
+The trial was rejected and restored byte-for-byte, including file mode. A special
+step branch for only two matching records was not added without a measured benefit.
+
+All following full paths are under `test/features/onboarding/first_run_responsive_cases.dart`;
+their runtime owner is `test/features/onboarding/first_run_layout_test.dart`.
+
+| Full group/test path | Protected contract | Final decision and evidence |
+| --- | --- | --- |
+| `first_run_responsive SetupStep.name fits the first viewport at Size(1280.0, 680.0)` | Independently restored Russian name step fits without scrolling | KEEP; record matched, but no partial rewrite or measured saving retained. |
+| `first_run_responsive SetupStep.device fits the first viewport at Size(1280.0, 680.0)` | Independently restored Russian device step fits without scrolling | KEEP; proposed fixture moves progress by 11 px. |
+| `first_run_responsive SetupStep.network fits the first viewport at Size(1280.0, 680.0)` | Independently restored Russian network step fits without scrolling | KEEP; proposed fixture moves progress by 17.02 px. |
+| `first_run_responsive SetupStep.name fits the first viewport at Size(900.0, 700.0)` | Independently restored Russian name step fits without scrolling | KEEP; record matched, but no partial rewrite or measured saving retained. |
+| `first_run_responsive SetupStep.device fits the first viewport at Size(900.0, 700.0)` | Independently restored Russian device step fits without scrolling | KEEP; proposed fixture moves progress by 11 px. |
+| `first_run_responsive SetupStep.network fits the first viewport at Size(900.0, 700.0)` | Independently restored Russian network step fits without scrolling | KEEP; proposed fixture moves progress by 32 px. |
+
+Reviewed implementation, ADR 0036 and history `165fab59`, `35fd6d56`, `b2a855a9`,
+`eb9fa265`, `93ef2f30`, `b743f14a`, `5fa08c58` and the runner move `4998d309`.
+No known regression or test is deleted. All six wizard enlarged-Russian runtime
+switches, the responsive unsaved-name/resize switch, and the settings manual
+language/persistence/System case remain intact. Root owned edits and checks;
+one independent reviewer checked source/history, candidate reconstruction and
+diagnostic differences without editing tracked files or running a compiler.
+
+Original commands and complete wall / child CPU / overlapping file spans:
+
+| Command | Passed | Wall s | Child CPU s | File sum s |
+| --- | ---: | ---: | ---: | ---: |
+| `flutter test --machine test/features/onboarding/first_run_viewport_flow_test.dart` | 23 | 16.295 | 24.712 | 14.145 |
+| `flutter test --machine test/features/onboarding/first_run_layout_test.dart` | 27 | 12.366 | 18.071 | 10.482 |
+
+Diagnostic original/candidate wall was 14.059/13.152 s, CPU 21.365/20.106 s and
+file spans 11.783/10.925 s. These instrumented runs are recorded, not used as a
+speed comparison: source equivalence failed and the candidate was discarded.
+File sums exclude launcher work and overlap under parallel execution; they are
+neither complete wall nor exclusive CPU. Other agents use the same host.
+
+After restoration, seed 42 runs the viewport, layout and entry owners together:
+74 passes, zero skips/failures; the Counter exactly matches the three baseline
+owners. All test sources, helpers, runners and configuration match baseline Git.
+The complete suite therefore remains 1858 passes plus the same four native gates
+and 227 runners established by the preceding audit; it is not rerun here because
+no test-code change survives. No acceleration is claimed. There is no baseline
+test failure; the diagnostic-equivalence rejection is separate from test results.
+
+Final checks pass: `flutter analyze` (no issues, 10.8 s; includes unused-code
+diagnostics), format check over 816 files (zero changes), test policy and all seven
+policy examples, and `git diff --check`. No new lint rule or test was added.
+
+Raw records, snapshots, commands and independent review are private under
+`.git/test-audit/viewport-sequence-next/`. Only this audit and its testing-policy
+pointer change. Preview mode, native/device integration and Rust are unrun and
+unchanged. The existing policy guards remain sufficient; no dependency, new
+abstraction, timeout, sleep, skip, CI or production change is retained.
