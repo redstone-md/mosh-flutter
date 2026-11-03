@@ -1,6 +1,5 @@
-// Real start-menu channel flow: plaintext warning and required name,
-// examples, normalized joining, Back and distinct failure feedback.
-// The bridge is scripted; successful joining keeps real route wiring.
+// Public-channel warning, name/example controls, normalized route and distinct
+// failures. Common Back behavior lives in start_actions_test.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/channel_screen.dart';
 import 'package:mosh/src/features/onboarding/channel_join_step.dart';
-import 'package:mosh/src/features/onboarding/start/start_menu.dart';
+
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -16,6 +15,7 @@ import '../../support/gateway_snapshots.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import '../../support/start_menu.dart';
+import '../../support/pump.dart';
 
 const _card = 'Join a public channel';
 const _warning =
@@ -28,8 +28,18 @@ final _nameField = _inStep(find.byType(TextField));
 final _joinButton = _inStep(find.byType(FilledButton));
 
 void main() {
-  Future<void> pumpJoinStep(WidgetTester tester, {ScriptableBridge? bridge}) =>
-      pumpStartStep(tester, _card, bridge: bridge ?? ScriptableBridge());
+  Future<void> pumpJoinStep(WidgetTester tester,
+      {ScriptableBridge? bridge}) async {
+    tester.view
+      ..physicalSize = const Size(1280, 900)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pumpScreen(tester, Scaffold(body: const ChannelJoinStep()),
+        overrides: [
+          bridgeFacadeProvider.overrideWithValue(bridge ?? ScriptableBridge()),
+          gatewayProvider.overrideWithValue(ScriptableGateway()),
+        ]);
+  }
 
   FilledButton joinButton(WidgetTester tester) =>
       tester.widget<FilledButton>(_joinButton);
@@ -44,7 +54,7 @@ void main() {
   testWidgets(
       'Join button is disabled when name is empty and enabled after text entry',
       (tester) async {
-    await pumpJoinStep(tester);
+    await pumpStartStep(tester, _card, bridge: ScriptableBridge());
 
     expect(find.text('Join an open room by its name.'), findsOneWidget);
     expect(find.text(_warning), findsOneWidget);
@@ -59,12 +69,9 @@ void main() {
     await tester.enterText(_nameField, 'test-channel');
     await tester.pump();
     expect(joinButton(tester).onPressed, isNotNull);
-  });
-
-  testWidgets('tapping an example fills the field and enables Join',
-      (tester) async {
-    await pumpJoinStep(tester);
-
+    await tester.enterText(_nameField, '');
+    await tester.pump();
+    expect(joinButton(tester).onPressed, isNull);
     final chip = find.widgetWithText(ActionChip, 'dev');
     await tester.ensureVisible(chip);
     await tester.tap(chip);
@@ -72,22 +79,6 @@ void main() {
 
     expect(tester.widget<TextField>(_nameField).controller!.text, 'dev');
     expect(joinButton(tester).onPressed, isNotNull);
-  });
-
-  testWidgets(
-      'tapping Join with a name entered joins via the bridge and navigates to the channel screen',
-      (tester) async {
-    final bridge = ScriptableBridge();
-    await pumpJoinStep(tester, bridge: bridge);
-
-    await join(tester, 'test-channel');
-
-    expect(find.byType(ChannelScreen), findsOneWidget);
-    expect(find.byType(ChannelJoinStep), findsNothing);
-    expect(find.byType(SnackBar), findsNothing);
-    // Reading the notifier initializes the provider once, then the explicit
-    // post-join refresh performs the second fetch.
-    expect(bridge.countOf(BridgeMethod.listChannels), 2);
   });
 
   // IVO-50: the core lowercases and strips `#`; the route must follow the
@@ -105,19 +96,13 @@ void main() {
     final router = await pumpStartStep(tester, _card, container: container);
 
     await join(tester, '#News');
+    expect(find.byType(ChannelScreen), findsOneWidget);
+    expect(find.byType(ChannelJoinStep), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
+    expect(bridge.countOf(BridgeMethod.listChannels), 2);
 
     expect(router.routeInformationProvider.value.uri.path,
         AppRoutes.channelFor('news'));
-  });
-
-  testWidgets('Back returns to the start menu', (tester) async {
-    await pumpJoinStep(tester);
-
-    await tester.tap(find.text('Back'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(StartMenu), findsOneWidget);
-    expect(find.byType(ChannelJoinStep), findsNothing);
   });
 
   // The bridge throws the generated ConversationBridgeError (ticket 17); the
@@ -148,7 +133,7 @@ void main() {
     const message = 'Channel runtime offline';
     final throwing = ScriptableBridge()
       ..failAlways(BridgeMethod.joinChannel, error: message);
-    await pumpJoinStep(tester, bridge: throwing);
+    await pumpStartStep(tester, _card, bridge: throwing);
     final listed = throwing.countOf(BridgeMethod.listChannels);
 
     await join(tester, 'test-channel');

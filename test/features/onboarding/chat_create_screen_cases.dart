@@ -1,5 +1,5 @@
-// Drives the saved-invitation flow from the current start menu. Creation
-// retains the invitation and Open chat exposes the same conversation.
+// Local create/copy/error contracts; the real start-menu Open workflow waits
+// for durable admission before navigating to the created DM.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,7 +8,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/onboarding/chat_create_step.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
-import 'package:mosh/src/features/onboarding/start/start_menu.dart';
+
 import 'package:mosh/src/rust/api/conversation_bridge.dart'
     show ConversationBridgeError, ConversationBridgeErrorKind;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -16,6 +16,8 @@ import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import '../../support/start_menu.dart';
+import '../../support/pump.dart';
+import 'package:mosh/src/state/gateway_provider.dart';
 
 const _card = 'Start a private chat';
 
@@ -32,34 +34,22 @@ ScriptableBridge _bridgeOffering(String inviteUri) => ScriptableBridge()
 final _create = find.widgetWithText(FilledButton, 'Create invite link');
 
 void main() {
-  Future<void> pumpCreateStep(WidgetTester tester, BridgeFacade bridge) =>
-      pumpStartStep(tester, _card, bridge: bridge);
+  Future<void> pumpCreateStep(WidgetTester tester, BridgeFacade bridge) async {
+    tester.view
+      ..physicalSize = const Size(1280, 900)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pumpScreen(tester, Scaffold(body: ChatCreateStep(onOpened: (_) {})),
+        overrides: [
+          bridgeFacadeProvider.overrideWithValue(bridge),
+          gatewayProvider.overrideWithValue(ScriptableGateway()),
+        ]);
+  }
 
   Future<void> tapCreate(WidgetTester tester) async {
     await tester.tap(_create);
     await tester.pumpAndSettle();
   }
-
-  testWidgets(
-      'tapping Create calls inviteFlowProvider.create() and surfaces the URI',
-      (tester) async {
-    const uri = 'mosh://invite?mesh=m&session=s#fp=Z';
-    final bridge = _bridgeOffering(uri);
-    await pumpCreateStep(tester, bridge);
-
-    await tapCreate(tester);
-
-    // The saved card accompanies the independent Create new invitation action.
-    expect(_create, findsNothing);
-    expect(find.byType(InviteResult), findsOneWidget);
-    expect(find.text('Saved invitations'), findsOneWidget);
-    expect(find.text('Create new invitation'), findsOneWidget);
-    expect(find.text(uri), findsOneWidget);
-    expect(find.text('Replace link'), findsOneWidget);
-    expect(find.text('Open chat'), findsOneWidget);
-    // Creating an invitation keeps it out of recent chats.
-    expect((await bridge.listSessions()).sessions, isEmpty);
-  });
 
   testWidgets(
       'tapping Copy writes the URI to the clipboard, toasts and flips the label',
@@ -78,9 +68,18 @@ void main() {
     addTearDown(() => TestDefaultBinaryMessengerBinding
         .instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null));
-    await pumpCreateStep(tester, _bridgeOffering(uri));
+    final bridge = _bridgeOffering(uri);
+    await pumpCreateStep(tester, bridge);
     await tapCreate(tester);
 
+    expect(_create, findsNothing);
+    expect(find.byType(InviteResult), findsOneWidget);
+    expect(find.text('Saved invitations'), findsOneWidget);
+    expect(find.text('Create new invitation'), findsOneWidget);
+    expect(find.text(uri), findsOneWidget);
+    expect(find.text('Replace link'), findsOneWidget);
+    expect(find.text('Open chat'), findsOneWidget);
+    expect((await bridge.listSessions()).sessions, isEmpty);
     final copyButton = find.widgetWithText(OutlinedButton, 'Copy link');
     expect(copyButton, findsOneWidget);
     await tester.tap(copyButton);
@@ -93,16 +92,6 @@ void main() {
     expect(find.text('Copied'), findsNWidgets(2));
     expect(find.widgetWithText(OutlinedButton, 'Copy link'), findsNothing);
     await tester.pumpAndSettle(const Duration(seconds: 5));
-  });
-
-  testWidgets('Back returns to the start menu', (tester) async {
-    await pumpCreateStep(tester, _bridgeOffering('mosh://invite?back=1'));
-
-    await tester.tap(find.text('Back'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(StartMenu), findsOneWidget);
-    expect(find.byType(ChatCreateStep), findsNothing);
   });
 
   // The bridge throws the generated ConversationBridgeError (ticket 17); the
@@ -158,7 +147,13 @@ void main() {
 
     await tapCreate(tester);
     await tester.ensureVisible(find.text('Open chat'));
+    bridge.hold(BridgeMethod.openSession);
     await tester.tap(find.text('Open chat'));
+    await tester.pump();
+    expect(find.byType(ChatCreateStep), findsOneWidget);
+    expect(find.byType(DmScreen), findsNothing);
+    expect(bridge.countOf(BridgeMethod.openSession), 1);
+    bridge.release(BridgeMethod.openSession);
     await tester.pumpAndSettle();
 
     expect(find.byType(DmScreen), findsOneWidget);

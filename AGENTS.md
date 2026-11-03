@@ -44,6 +44,8 @@ Desktop-first Flutter + Riverpod, Rust via flutter_rust_bridge, Moss + OpenMLS.
 - Test caller-visible contracts and distinct failure classes; preserve known
   regressions. For deletions, record the full test path and evidence; name the
   retained test when removing a duplicate.
+- UI tests: use local widget fixtures for validation and feedback; retain real
+  routes for navigation, route lifetime and absence of navigation after failure.
 - Run `python3 scripts/test-policy.py` before committing test changes. CI rejects
   focused tests. New skips/todos need a local reason and tracking issue; new
   timeout/retry overrides and real sleeps need the same narrow exception.

@@ -15,7 +15,6 @@ import 'package:mosh/src/state/conversation_providers.dart';
 
 import '../../support/start_menu.dart';
 import '../../support/scriptable_bridge.dart';
-import '../../support/scriptable_gateway.dart';
 
 InviteCreated _invite(String id) => InviteCreated(
     inviteUri: 'mosh://invite?session=$id',
@@ -89,27 +88,6 @@ void main() {
     expect(_uri(invite.inviteUri), findsOneWidget);
     expect(find.textContaining('replace failed'), findsOneWidget);
     expect(find.byType(InviteResult), findsOneWidget);
-  });
-
-  testWidgets('Open waits for durable native admission before navigation',
-      (tester) async {
-    final gateway = ScriptableGateway();
-    final invite = _invite('alice');
-    final bridge = ScriptableBridge(conversations: gateway.conversations)
-      ..seedPendingInvites([invite]);
-    final opened = Completer<SessionSnapshot>();
-    bridge.respondNext(BridgeMethod.openSession, opened.future);
-    await pumpStartStep(tester, 'Start a private chat',
-        bridge: bridge, gateway: gateway);
-    await tester.ensureVisible(find.text('Open chat'));
-    await tester.tap(find.text('Open chat'));
-    await tester.pump();
-    expect(find.byType(ChatCreateStep), findsOneWidget);
-    expect(find.byType(DmScreen), findsNothing);
-    expect(bridge.countOf(BridgeMethod.openSession), 1);
-    opened.complete(gateway.conversations.sessions[invite.sessionId]!);
-    await tester.pumpAndSettle();
-    expect(find.byType(DmScreen), findsOneWidget);
   });
 
   testWidgets(

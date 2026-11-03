@@ -23,6 +23,11 @@ void main() {
     await tapSetup(tester, 'Continue');
     expect(find.text('Enter a name to continue.'), findsOneWidget);
     await tester.enterText(find.byType(TextFormField), '  Juno  ');
+    harness.store.writeError = StateError('disk');
+    await tapSetup(tester, 'Continue');
+    expect(find.textContaining('Could not save'), findsOneWidget);
+    expect(harness.store.profile!.step, SetupStep.name);
+    harness.store.writeError = null;
     await tapSetup(tester, 'Continue');
     expect(harness.store.profile!.displayName, 'Juno');
     expect(harness.store.profile!.step, SetupStep.device);
@@ -142,20 +147,6 @@ void main() {
     await tester.pumpAndSettle();
     await tapSetup(tester, 'Continue');
     expect(harness.store.profile!.step, SetupStep.network);
-  });
-
-  testWidgets('failed saving keeps the name form and offers retry',
-      (tester) async {
-    final harness = FirstRunHarness(profile: const FirstRunProfile());
-    await harness.pump(tester);
-    harness.store.writeError = StateError('disk');
-    await tester.enterText(find.byType(TextFormField), 'Juno');
-    await tapSetup(tester, 'Continue');
-    expect(find.textContaining('Could not save'), findsOneWidget);
-    expect(harness.store.profile!.step, SetupStep.name);
-    harness.store.writeError = null;
-    await tapSetup(tester, 'Continue');
-    expect(harness.store.profile!.step, SetupStep.device);
   });
 
   testWidgets('approval racing cancellation preserves the linked profile',

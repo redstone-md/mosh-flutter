@@ -1,5 +1,5 @@
-// Real start-menu group flow: required name, create/autocopy/result/reset,
-// Back, inline failure and Open group navigation. The bridge is scripted.
+// Group name validation, create/autocopy/result/reset, inline failure and
+// Open group navigation. Common Back behavior lives in start_actions_test.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,10 +7,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/features/onboarding/group_create_step.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
-import 'package:mosh/src/features/onboarding/start/start_menu.dart';
+
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import '../../support/start_menu.dart';
+import '../../support/pump.dart';
+import 'package:mosh/src/state/gateway_provider.dart';
 
 const _card = 'Create a group';
 const _groupFooter =
@@ -41,8 +43,18 @@ final _nameField = _inStep(find.byType(TextField));
 final _createButton = _inStep(find.byType(FilledButton));
 
 void main() {
-  Future<void> pumpGroupStep(WidgetTester tester, {ScriptableBridge? bridge}) =>
-      pumpStartStep(tester, _card, bridge: bridge ?? ScriptableBridge());
+  Future<void> pumpGroupStep(WidgetTester tester,
+      {ScriptableBridge? bridge}) async {
+    tester.view
+      ..physicalSize = const Size(1280, 900)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pumpScreen(tester, Scaffold(body: const GroupCreateStep()),
+        overrides: [
+          bridgeFacadeProvider.overrideWithValue(bridge ?? ScriptableBridge()),
+          gatewayProvider.overrideWithValue(ScriptableGateway()),
+        ]);
+  }
 
   Future<void> createNamed(WidgetTester tester, String name) async {
     await tester.enterText(_nameField, name);
@@ -51,9 +63,12 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Create button is disabled until a name is typed',
-      (tester) async {
-    await pumpGroupStep(tester);
+  testWidgets('Create another group returns to an empty form', (tester) async {
+    final bridge = ScriptableBridge();
+    await pumpGroupStep(tester, bridge: bridge);
+    final copied = _stubClipboard();
+
+    // The scripted bridge derives the invite URI from the name.
 
     FilledButton button() => tester.widget<FilledButton>(_createButton);
     expect(button().onPressed, isNull);
@@ -66,14 +81,6 @@ void main() {
     await tester.enterText(_nameField, 'friends');
     await tester.pump();
     expect(button().onPressed, isNotNull);
-  });
-
-  testWidgets('Create another group returns to an empty form', (tester) async {
-    final bridge = ScriptableBridge();
-    await pumpGroupStep(tester, bridge: bridge);
-    final copied = _stubClipboard();
-
-    // The scripted bridge derives the invite URI from the name.
     await createNamed(tester, 'friends');
 
     const uri = 'mosh://group/fake-group-friends';
@@ -100,16 +107,6 @@ void main() {
     expect(find.byType(InviteResult), findsNothing);
     expect(tester.widget<TextField>(_nameField).controller!.text, isEmpty);
     expect(tester.widget<FilledButton>(_createButton).onPressed, isNull);
-  });
-
-  testWidgets('Back returns to the start menu', (tester) async {
-    await pumpGroupStep(tester);
-
-    await tester.tap(find.text('Back'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(StartMenu), findsOneWidget);
-    expect(find.byType(GroupCreateStep), findsNothing);
   });
 
   testWidgets(
