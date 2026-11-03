@@ -527,6 +527,7 @@ layout with doubled text.
 
 The VPN restart correction updates `bind_interface_field.dart`,
 `mosh-core/src/api/shared_runtime.rs`, adapter and Connection tests, this
-document, the architecture map and ADR 0016. It adds
-`test/features/vpn/bind_interface_restart_test.dart` and
+document, the architecture map and ADR 0016. Its Flutter coverage lives in
+`test/features/vpn/bind_interface_restart_cases.dart`, registered by
+`test/features/vpn/bind_interface_contract_test.dart`; native coverage lives in
 `mosh-core/tests/vpn_bypass_restart.rs`.

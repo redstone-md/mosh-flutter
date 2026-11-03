@@ -85,6 +85,9 @@ fourteen UI contracts in one worker; Android access and lifecycle owners remain
 separate.
 The [update test batch](Proposals/flutter-update-unit-runner-cleanup.md) groups
 26 feed, installer, file IO and checksum cases; About UI keeps its own worker.
+The [VPN test batch](Proposals/flutter-vpn-runner-cleanup.md) keeps all 55
+controller, adapter, binding and consent cases in three bounded workers;
+unit and widget bindings remain separate.
 
 Group by feature and bounded runtime, not into one giant serial suite. Preserve
 separate processes for native initialization/fallback probes, actual HTTP and
