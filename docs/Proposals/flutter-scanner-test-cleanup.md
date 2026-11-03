@@ -1,5 +1,11 @@
 # Scanner synchronization cleanup
 
+Historical stage: the measurements and retained waits below describe the first
+scanner cleanup. The [review follow-up](flutter-final-test-validation.md) removes
+both remaining negative-frame sleeps by observing the exact real decoder Future
+through the explicitly approved optional seam. All seven contracts remain; the
+default production decoder is unchanged. No new scanner-only speedup is claimed.
+
 Baseline: `501c06e20f07a0f52850a923ffee546e7a6a388e`. Scope:
 `test/features/device_link/device_qr_scanner_test.dart` and its only camera fake,
 `test/support/scanner_platform.dart`. Production, dependencies, CI, native

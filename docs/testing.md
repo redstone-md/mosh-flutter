@@ -13,6 +13,10 @@ assertions when deadlines, backoff or expiry are the actual contract. Keep live
 network/native tests in their explicit native/integration runners; keep benchmarks
 out of ordinary unit tests. Never increase global timeouts to hide failures.
 
+The [final cleanup validation](Proposals/flutter-final-test-validation.md) records
+the immutable original/final revisions, six complete captures, review fixes and
+remaining platform/measurement limits. Earlier timing audits are historical.
+
 ## CI guard
 
 `python3 scripts/test-policy.py` uses only Python and Git. No existing configured

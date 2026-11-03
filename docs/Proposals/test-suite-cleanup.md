@@ -1,8 +1,9 @@
 # Test suite cleanup — 2026-10-30
 
-Runtime follow-up: [repeated measurements and process-startup reduction](flutter-test-runtime.md).
-The tables below preserve the initial cleanup measurements; the follow-up records
-the final measured improvement.
+Historical runtime follow-up: [repeated measurements and process-startup reduction](flutter-test-runtime.md).
+The tables below and that follow-up describe intermediate revisions. The
+[final original-to-final validation](flutter-final-test-validation.md) records
+the completed cleanup, review fixes and all six comparable full-suite captures.
 
 ## Scope and checks
 

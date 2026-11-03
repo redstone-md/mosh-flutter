@@ -220,9 +220,11 @@ Voice provider/setup waits are mostly 5-30ms; their current body sums are
 0.570s/0.228s. Prefer observable completion on a future determinism pass, but
 do not trade away setup/accept/end serialization (`6ee3db33`) or late audio
 drain protection (`3e1ddd0c`). Existing polling-clock experiments were rejected.
-Scanner's two negative-frame waits lack an observable no-result completion;
-their remaining 0.6s debt and why it is retained are already documented in the
-[scanner audit](flutter-scanner-test-cleanup.md). Do not repeat its finished work.
+At this audit revision, scanner's two negative-frame waits lacked an observable
+no-result completion; the retained 0.6s debt is documented in the historical
+[scanner audit](flutter-scanner-test-cleanup.md). The subsequent
+[review follow-up](flutter-final-test-validation.md) removes that debt with the
+explicitly approved real-decoder seam and verifies all seven scanner cases.
 
 ## KEEP decisions and implementation gates
 
