@@ -126,6 +126,8 @@ void main() {
               await orchestrator2.detach();
             }));
 
+    // Keep concurrent capture, real crypto and its complete nonce proof together.
+    // This existing multi-phase scenario is a test-body size exception.
     test(
         'seq increments per frame and the direction bit is applied',
         () => _withClock((clock) async {
@@ -156,19 +158,26 @@ void main() {
                 await orchestrator.detach();
 
                 final key = await importCallKey(kKeyB64);
-                final seqs = <BigInt>[];
-                final highBits = <BigInt>[];
+                final payloads = <BigInt, List<int>>{};
+                final expectedHigh =
+                    direction == 'callee' ? BigInt.one : BigInt.zero;
                 for (final frame in gateway.argValues<Uint8List>(
                     BridgeMethod.callSendFrame, 'frame')) {
                   final opened = await openFrame(key, kNoncePrefixB64, frame);
                   expect(opened, isNotNull);
-                  seqs.add(opened!.seq & SEQ_VALUE_MASK);
-                  highBits.add(opened.seq >> 63);
+                  final seq = opened!.seq & SEQ_VALUE_MASK;
+                  expect(payloads.containsKey(seq), isFalse,
+                      reason:
+                          'Consecutive callbacks must use distinct nonces.');
+                  payloads[seq] = opened.payload;
+                  expect(opened.seq >> 63, expectedHigh);
                 }
-                expect(seqs, [BigInt.zero, BigInt.one, BigInt.two]);
-                final expectedHigh =
-                    direction == 'callee' ? BigInt.one : BigInt.zero;
-                expect(highBits, [expectedHigh, expectedHigh, expectedHigh]);
+                // Crypto completion may reorder writes; capture order owns seq.
+                expect(payloads, {
+                  BigInt.zero: [10],
+                  BigInt.one: [20],
+                  BigInt.two: [30],
+                });
               }
             }));
 
