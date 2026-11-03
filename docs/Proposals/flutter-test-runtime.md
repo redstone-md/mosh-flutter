@@ -128,7 +128,8 @@ commands and deletion evidence retain their original filenames.
 - `flutter analyze`, including the existing unused-code diagnostics: no issues.
 - `dart format --output=none --set-exit-if-changed lib test integration_test`:
   798 files, zero formatting changes.
-- Six test-policy test methods pass; repository guard and `git diff --check` pass.
+- At `1f027781`, all six then-existing test-policy methods pass; repository guard
+  and `git diff --check` pass. Later policy additions have their own checks.
   Guard line coverage is 94% of 143 executable lines via stdlib trace; branch
   coverage tooling is not configured.
 - No Rust/native production/binding changes; no native platform suite was rerun.
