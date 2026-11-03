@@ -4,13 +4,15 @@ import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/device_link/device_qr_scanner.dart';
+import 'package:mosh/src/features/device_link/qr_image.dart';
 
 import '../../support/device_link_fixture.dart';
 import '../../support/pump.dart';
 import '../../support/scanner_platform.dart';
 
 Future<void> _open(WidgetTester tester, ValueChanged<String?> onResult,
-    {Completer<void>? returned}) async {
+    {Completer<void>? returned,
+    DeviceQrScanner scanner = const DeviceQrScanner()}) async {
   await pumpScreen(
       tester,
       Builder(
@@ -18,8 +20,7 @@ Future<void> _open(WidgetTester tester, ValueChanged<String?> onResult,
                 body: TextButton(
                     onPressed: () async {
                       onResult(await Navigator.of(context).push<String>(
-                          MaterialPageRoute(
-                              builder: (_) => const DeviceQrScanner())));
+                          MaterialPageRoute(builder: (_) => scanner)));
                       returned?.complete();
                     },
                     child: const Text('Open scanner')),
@@ -28,12 +29,36 @@ Future<void> _open(WidgetTester tester, ValueChanged<String?> onResult,
   await tester.pumpAndSettle();
 }
 
-/// Historical wait for a no-result decode, whose completion is not exposed.
-/// Only called inside runAsync; successful scans await the actual route result.
-Future<void> _finishNegativeFrame(WidgetTester tester) async {
-  for (var i = 0; i < 3; i++) {
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    await tester.pumpAndSettle();
+/// Observe the exact Future awaited by the scanner; QR decoding stays real.
+class _FrameDecodeProbe {
+  Completer<void> started = Completer<void>();
+  Future<void>? hold;
+  Future<String?>? pending;
+  int calls = 0;
+
+  Future<String?> decode(QrFrame frame) {
+    final future = _decode(frame, hold);
+    pending = future;
+    calls++;
+    if (!started.isCompleted) started.complete();
+    return future;
+  }
+
+  Future<String?> _decode(QrFrame frame, Future<void>? release) async {
+    final result = await decodeQrFrame(frame);
+    if (release != null) await release;
+    return result;
+  }
+
+  Future<void> sendAndWait(WidgetTester tester, ScannerPlatform hardware,
+      CameraImageData frame) async {
+    started = Completer<void>();
+    hardware.frames.add(frame);
+    await started.future;
+    await pending!;
+    // The scanner resumes its own await and clears _decoding before the next
+    // frame; no wall-clock interval or second decode acts as a barrier.
+    await tester.pump();
   }
 }
 
@@ -55,15 +80,35 @@ void main() {
       final hardware = _install(ScannerPlatform());
       final results = <String?>[];
       final returned = Completer<void>();
-      await _open(tester, results.add, returned: returned);
+      final release = Completer<void>();
+      final decoder = _FrameDecodeProbe()..hold = release.future;
+      addTearDown(() {
+        if (!release.isCompleted) release.complete();
+      });
+      await _open(tester, results.add,
+          returned: returned,
+          scanner: DeviceQrScanner(decodeFrame: decoder.decode));
       await hardware.streaming;
+      final scanner = tester.state(find.byType(DeviceQrScanner));
       hardware.frames.add(blankCameraFrame());
-      await _finishNegativeFrame(tester);
-      expect(results, isEmpty);
+      await decoder.started.future;
       final uri = deviceLinkQrFixture();
+      // A valid frame arriving during a slow negative decode is dropped.
+      hardware.frames.add(qrCameraFrame(uri));
+      await tester.pump();
+      expect(decoder.calls, 1);
+      expect(results, isEmpty);
+      decoder.hold = null;
+      release.complete();
+      await decoder.pending!;
+      await tester.pump();
+      expect(tester.state(find.byType(DeviceQrScanner)), same(scanner));
+      expect((hardware.starts, hardware.releases), (1, 0));
       hardware.frames
         ..add(qrCameraFrame(uri))
         ..add(qrCameraFrame(uri));
+      await tester.pump();
+      expect(decoder.calls, 2);
       await returned.future;
       await tester.pumpAndSettle();
       await hardware.released;
@@ -79,12 +124,20 @@ void main() {
       final hardware = _install(ScannerPlatform());
       final results = <String?>[];
       final returned = Completer<void>();
-      await _open(tester, results.add, returned: returned);
+      final decoder = _FrameDecodeProbe();
+      await _open(tester, results.add,
+          returned: returned,
+          scanner: DeviceQrScanner(decodeFrame: decoder.decode));
       await hardware.streaming;
-      hardware.frames.add(brokenCameraFrame());
-      await _finishNegativeFrame(tester);
+      final scanner = tester.state(find.byType(DeviceQrScanner));
+      await decoder.sendAndWait(tester, hardware, brokenCameraFrame());
+      expect(results, isEmpty);
+      expect(tester.state(find.byType(DeviceQrScanner)), same(scanner));
+      expect((hardware.starts, hardware.releases), (1, 0));
       final uri = deviceLinkQrFixture();
       hardware.frames.add(qrCameraFrame(uri));
+      await tester.pump();
+      expect(decoder.calls, 2);
       await returned.future;
       await tester.pumpAndSettle();
       expect(results, [uri]);

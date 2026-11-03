@@ -11,7 +11,9 @@ enum _CameraFailure { denied, unavailable }
 /// Frames come from the platform camera (CameraX on Android) and are decoded
 /// by zxing2, so the scanner needs no Google Play Services.
 class DeviceQrScanner extends StatefulWidget {
-  const DeviceQrScanner({super.key});
+  const DeviceQrScanner({super.key, this.decodeFrame = decodeQrFrame});
+
+  final Future<String?> Function(QrFrame frame) decodeFrame;
 
   @override
   State<DeviceQrScanner> createState() => _DeviceQrScannerState();
@@ -104,7 +106,7 @@ class _DeviceQrScannerState extends State<DeviceQrScanner>
     final luma = image.planes.first;
     final String? uri;
     try {
-      uri = await decodeQrFrame(QrFrame(luma.bytes,
+      uri = await widget.decodeFrame(QrFrame(luma.bytes,
           width: image.width,
           height: image.height,
           rowStride: luma.bytesPerRow));
