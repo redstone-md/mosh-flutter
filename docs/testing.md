@@ -75,6 +75,9 @@ The [next-reductions audit](Proposals/flutter-test-audit-2026-11-02.md) records
 the starting baseline and merge, deletion and grouping candidates. The
 [ordered cleanup](Proposals/flutter-ordered-test-cleanup.md) records completed
 portions, preservation checks and measured results.
+The [call/state consolidation](Proposals/flutter-call-state-runner-cleanup.md)
+records the next six bounded owners, all 117 retained cases and a balanced full-suite
+A/B/B/A comparison; native/global initialization probes keep separate workers.
 
 Group by feature and bounded runtime, not into one giant serial suite. Preserve
 separate processes for native initialization/fallback probes, actual HTTP and

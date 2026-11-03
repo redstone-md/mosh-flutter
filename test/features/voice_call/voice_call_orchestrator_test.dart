@@ -8,6 +8,11 @@ import 'package:fake_async/fake_async.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'call_capture_config_cases.dart' as call_capture_config;
+import 'record_voice_capture_cases.dart' as record_voice_capture;
+import 'voice_capture_cases.dart' as voice_capture;
+import 'voice_playback_cases.dart' as voice_playback;
+
 import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/features/voice_call/frame_codec.dart';
 import 'package:mosh/src/features/voice_call/frame_crypto.dart';
@@ -18,6 +23,10 @@ import 'package:mosh/src/features/voice_call/voice_playback.dart';
 part 'voice_call_orchestrator_support.dart';
 
 void main() {
+  group('call_capture_config', call_capture_config.main);
+  group('record_voice_capture', record_voice_capture.main);
+  group('voice_capture', voice_capture.main);
+  group('voice_playback', voice_playback.main);
   group('voice_call_orchestrator', () {
     test(
         'attach imports the call key and starts the poll',

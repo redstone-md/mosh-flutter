@@ -2,6 +2,12 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'session_providers_cases.dart' as session_providers;
+import 'chat_names_provider_cases.dart' as chat_names_provider;
+import 'conversation_providers_cases.dart' as conversation_providers;
+import 'notifications_provider_cases.dart' as notifications_provider;
+import 'unread_providers_cases.dart' as unread_providers;
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/conversation_providers.dart';
@@ -20,6 +26,11 @@ SessionListSnapshot _list(String id) => SessionListSnapshot(sessions: [
     ]);
 
 void main() {
+  group('session_providers', session_providers.main);
+  group('chat_names_provider', chat_names_provider.main);
+  group('conversation_providers', conversation_providers.main);
+  group('notifications_provider', notifications_provider.main);
+  group('unread_providers', unread_providers.main);
   test(
       'polling waits for the initial read while a mutation requests fresh data',
       () async {
