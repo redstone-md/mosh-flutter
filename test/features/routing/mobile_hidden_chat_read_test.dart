@@ -68,4 +68,19 @@ void main() {
     await _refreshAlice(tester, chat.container);
     expect(_marks(chat), greaterThan(marked));
   });
+
+  testWidgets('an open chat in an unfocused window stays unread',
+      (tester) async {
+    final chat = await _openAlice(tester);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    final marked = _marks(chat);
+
+    await _refreshAlice(tester, chat.container);
+
+    expect(_marks(chat), marked,
+        reason: 'a message nobody looked at must keep its badge and toast');
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await _refreshAlice(tester, chat.container);
+    expect(_marks(chat), greaterThan(marked));
+  });
 }

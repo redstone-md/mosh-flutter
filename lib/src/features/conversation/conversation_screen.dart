@@ -26,7 +26,6 @@ import 'package:mosh/src/features/shared/media_viewer.dart'
     show showMediaViewer;
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
-import 'package:mosh/src/platform/foreground_poller.dart' show appViewVisible;
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
@@ -340,9 +339,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   /// is picked up by the build in progress instead of a `setState`.
   void _markViewed({bool building = false}) {
     final lifecycle = WidgetsBinding.instance.lifecycleState;
-    // A paused app's poll must not report a chat the user cannot see.
+    // Only a focused, resumed app is looking at the chat. An unfocused
+    // window still shows it, but its new messages stay unread and toast.
     if (!_onScreen ||
-        (lifecycle != null && !appViewVisible(lifecycle)) ||
+        (lifecycle != null && lifecycle != AppLifecycleState.resumed) ||
         ref.read(androidAppAccessProvider)?.chatsInteractive == false) {
       return;
     }
