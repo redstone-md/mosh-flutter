@@ -1,4 +1,4 @@
-//! Outbound shape and inbound message handling.
+//! Outbound shape, inbound message handling and the conversation shell contract.
 
 use super::*;
 
@@ -101,4 +101,50 @@ impl ChannelSession {
     // Blob traffic stays on the room wire (spec #8, this slice): a channel
     // has no single direct peer to stream to, and the stream carrier is the
     // DM fast path only. The chunk protocol below is unchanged.
+}
+
+impl ConversationSession for ChannelSession {
+    fn attach_persistence(&mut self, store: Option<Arc<Persistence>>) {
+        self.deletions.store = store;
+        self.restore_history();
+    }
+    type Message = ChannelMessage;
+    type Record = PersistedChannelSession;
+
+    fn conversation_id(&self) -> &str {
+        &self.name
+    }
+
+    fn log(&self) -> &MessageLog<ChannelMessage> {
+        &self.messages
+    }
+
+    fn own_author(&self) -> &str {
+        &self.device_fingerprint
+    }
+
+    fn transfer(&self) -> Option<&Transfer> {
+        Some(&self.transfer)
+    }
+
+    fn transfer_mut(&mut self) -> Option<&mut Transfer> {
+        Some(&mut self.transfer)
+    }
+
+    fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord> {
+        &self.outbound_attempts
+    }
+
+    fn record(&self) -> PersistedChannelSession {
+        PersistedChannelSession {
+            name: self.name.clone(),
+            topic: self.topic.clone(),
+            blob_topic: self.blob_topic.clone(),
+            mesh_id: self.mesh_id.clone(),
+            display_name: self.display_name.clone(),
+            device_fingerprint: self.device_fingerprint.clone(),
+            listen_port: self.listen_port,
+            static_peer: self.static_peer.clone(),
+        }
+    }
 }

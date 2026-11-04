@@ -5048,6 +5048,8 @@ impl SseDecode for crate::channel_runtime::types::ChannelSnapshot {
             <Option<crate::conversation::recovery::HistorySync>>::sse_decode(deserializer);
         let mut var_deletionSummary =
             <Option<crate::message_deletion::types::DeletionSummary>>::sse_decode(deserializer);
+        let mut var_unread =
+            <Option<crate::conversation::read_marks::UnreadState>>::sse_decode(deserializer);
         let mut var_name = <String>::sse_decode(deserializer);
         let mut var_topic = <String>::sse_decode(deserializer);
         let mut var_meshId = <String>::sse_decode(deserializer);
@@ -5065,6 +5067,7 @@ impl SseDecode for crate::channel_runtime::types::ChannelSnapshot {
         return crate::channel_runtime::types::ChannelSnapshot {
             history_sync: var_historySync,
             deletion_summary: var_deletionSummary,
+            unread: var_unread,
             name: var_name,
             topic: var_topic,
             mesh_id: var_meshId,
@@ -5618,6 +5621,8 @@ impl SseDecode for crate::private_group_runtime::GroupSnapshot {
             <Option<crate::conversation::recovery::HistorySync>>::sse_decode(deserializer);
         let mut var_deletionSummary =
             <Option<crate::message_deletion::types::DeletionSummary>>::sse_decode(deserializer);
+        let mut var_unread =
+            <Option<crate::conversation::read_marks::UnreadState>>::sse_decode(deserializer);
         let mut var_groupId = <String>::sse_decode(deserializer);
         let mut var_meshId = <String>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
@@ -5647,6 +5652,7 @@ impl SseDecode for crate::private_group_runtime::GroupSnapshot {
         return crate::private_group_runtime::GroupSnapshot {
             history_sync: var_historySync,
             deletion_summary: var_deletionSummary,
+            unread: var_unread,
             group_id: var_groupId,
             mesh_id: var_meshId,
             label: var_label,
@@ -6907,6 +6913,19 @@ impl SseDecode for Option<u8> {
     }
 }
 
+impl SseDecode for Option<crate::conversation::read_marks::UnreadState> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::conversation::read_marks::UnreadState>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::attachment_runtime::VoiceMeta> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7307,6 +7326,8 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
         >>::sse_decode(deserializer);
         let mut var_deletionSummary =
             <Option<crate::message_deletion::types::DeletionSummary>>::sse_decode(deserializer);
+        let mut var_unread =
+            <Option<crate::conversation::read_marks::UnreadState>>::sse_decode(deserializer);
         let mut var_deviceRevocation = <Option<
             crate::private_dm_runtime::contracts::DmDeviceRevocationState,
         >>::sse_decode(deserializer);
@@ -7347,6 +7368,7 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
         return crate::private_dm_runtime::contracts::SessionSnapshot {
             call_availability: var_callAvailability,
             deletion_summary: var_deletionSummary,
+            unread: var_unread,
             device_revocation: var_deviceRevocation,
             history_sync: var_historySync,
             session_id: var_sessionId,
@@ -7506,6 +7528,18 @@ impl SseDecode for u8 {
 impl SseDecode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
+}
+
+impl SseDecode for crate::conversation::read_marks::UnreadState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_count = <u32>::sse_decode(deserializer);
+        let mut var_firstUnreadMessageId = <Option<String>>::sse_decode(deserializer);
+        return crate::conversation::read_marks::UnreadState {
+            count: var_count,
+            first_unread_message_id: var_firstUnreadMessageId,
+        };
+    }
 }
 
 impl SseDecode for crate::persistence::user_transfers::types::UserTransfer {
@@ -8704,6 +8738,7 @@ impl flutter_rust_bridge::IntoDart for crate::channel_runtime::types::ChannelSna
         [
             self.history_sync.into_into_dart().into_dart(),
             self.deletion_summary.into_into_dart().into_dart(),
+            self.unread.into_into_dart().into_dart(),
             self.name.into_into_dart().into_dart(),
             self.topic.into_into_dart().into_dart(),
             self.mesh_id.into_into_dart().into_dart(),
@@ -9465,6 +9500,7 @@ impl flutter_rust_bridge::IntoDart for crate::private_group_runtime::GroupSnapsh
         [
             self.history_sync.into_into_dart().into_dart(),
             self.deletion_summary.into_into_dart().into_dart(),
+            self.unread.into_into_dart().into_dart(),
             self.group_id.into_into_dart().into_dart(),
             self.mesh_id.into_into_dart().into_dart(),
             self.label.into_into_dart().into_dart(),
@@ -10433,6 +10469,7 @@ impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::Ses
         [
             self.call_availability.into_into_dart().into_dart(),
             self.deletion_summary.into_into_dart().into_dart(),
+            self.unread.into_into_dart().into_dart(),
             self.device_revocation.into_into_dart().into_dart(),
             self.history_sync.into_into_dart().into_dart(),
             self.session_id.into_into_dart().into_dart(),
@@ -10578,6 +10615,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_group_runtime::wire_types:
     for crate::private_group_runtime::wire_types::TypingMember
 {
     fn into_into_dart(self) -> crate::private_group_runtime::wire_types::TypingMember {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::conversation::read_marks::UnreadState {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.count.into_into_dart().into_dart(),
+            self.first_unread_message_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::conversation::read_marks::UnreadState
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::conversation::read_marks::UnreadState>
+    for crate::conversation::read_marks::UnreadState
+{
+    fn into_into_dart(self) -> crate::conversation::read_marks::UnreadState {
         self
     }
 }
@@ -11258,6 +11316,7 @@ impl SseEncode for crate::channel_runtime::types::ChannelSnapshot {
             self.deletion_summary,
             serializer,
         );
+        <Option<crate::conversation::read_marks::UnreadState>>::sse_encode(self.unread, serializer);
         <String>::sse_encode(self.name, serializer);
         <String>::sse_encode(self.topic, serializer);
         <String>::sse_encode(self.mesh_id, serializer);
@@ -11735,6 +11794,7 @@ impl SseEncode for crate::private_group_runtime::GroupSnapshot {
             self.deletion_summary,
             serializer,
         );
+        <Option<crate::conversation::read_marks::UnreadState>>::sse_encode(self.unread, serializer);
         <String>::sse_encode(self.group_id, serializer);
         <String>::sse_encode(self.mesh_id, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
@@ -12710,6 +12770,16 @@ impl SseEncode for Option<u8> {
     }
 }
 
+impl SseEncode for Option<crate::conversation::read_marks::UnreadState> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::conversation::read_marks::UnreadState>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::attachment_runtime::VoiceMeta> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -12988,6 +13058,7 @@ impl SseEncode for crate::private_dm_runtime::contracts::SessionSnapshot {
             self.deletion_summary,
             serializer,
         );
+        <Option<crate::conversation::read_marks::UnreadState>>::sse_encode(self.unread, serializer);
         <Option<crate::private_dm_runtime::contracts::DmDeviceRevocationState>>::sse_encode(
             self.device_revocation,
             serializer,
@@ -13130,6 +13201,14 @@ impl SseEncode for u8 {
 impl SseEncode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
+}
+
+impl SseEncode for crate::conversation::read_marks::UnreadState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.count, serializer);
+        <Option<String>>::sse_encode(self.first_unread_message_id, serializer);
+    }
 }
 
 impl SseEncode for crate::persistence::user_transfers::types::UserTransfer {

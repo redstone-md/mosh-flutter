@@ -1,8 +1,17 @@
-//! Channel lifecycle: rehydrate, join, leave, and the DM-offer hooks.
+//! Channel lifecycle: rehydrate, join, view, leave, and the DM-offer hooks.
 
 use super::*;
 
 impl ChannelRuntime {
+    /// The user has the channel on screen. No inbound drain first: only what
+    /// the last poll showed counts as seen.
+    pub fn mark_viewed(&mut self, name: &str) -> Result<(), ChannelRuntimeError> {
+        let normalized = normalize_name(name)?;
+        self.channel_ref(&normalized)?;
+        self.channels.mark_read(&normalized);
+        Ok(())
+    }
+
     /// Restore joined public channels and local scrollback from encrypted disk.
     pub fn rehydrate(&mut self) {
         for rec in self.channels.stored_records::<PersistedChannelSession>() {

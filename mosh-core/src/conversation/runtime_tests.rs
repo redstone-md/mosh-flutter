@@ -11,6 +11,8 @@ use crate::persistence::DM_HISTORY;
 
 #[path = "runtime_tests/durability.rs"]
 mod durability;
+#[path = "runtime_tests/read_marks.rs"]
+mod read_marks;
 
 const CONVERSATION: &str = "conv-1";
 
@@ -60,6 +62,10 @@ impl ConversationSession for TestSession {
 
     fn log(&self) -> &MessageLog<TestMessage> {
         &self.log
+    }
+
+    fn own_author(&self) -> &str {
+        "alice"
     }
 
     fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord> {

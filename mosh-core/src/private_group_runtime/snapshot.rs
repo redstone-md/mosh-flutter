@@ -8,6 +8,7 @@ impl GroupSession {
         GroupSnapshot {
             history_sync: self.history_state(),
             deletion_summary: self.deletions.summary(),
+            unread: None,
             group_id: self.group_id.clone(),
             mesh_id: self.mesh_id.clone(),
             label: self.label.clone(),

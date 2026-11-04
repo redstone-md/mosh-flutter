@@ -191,6 +191,10 @@ pub struct GroupSnapshot {
     pub history_sync: Option<crate::conversation::recovery::HistorySync>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deletion_summary: Option<crate::message_deletion::types::DeletionSummary>,
+    /// What arrived since the user last viewed this conversation. The poll
+    /// and the list fill it in; other answers leave it absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unread: Option<crate::conversation::read_marks::UnreadState>,
     pub group_id: String,
     pub mesh_id: String,
     pub label: Option<String>,
@@ -319,8 +323,17 @@ impl PrivateGroupRuntime {
     pub fn poll(&mut self, group_id: &str) -> Result<GroupSnapshot, PrivateGroupError> {
         self.drain_inbound()?;
         self.groups.persist_tail_logged(KIND);
-        let session = self.group_mut(group_id)?;
-        Ok(session.snapshot())
+        let mut snapshot = self.group_mut(group_id)?.snapshot();
+        snapshot.unread = self.groups.unread(group_id);
+        Ok(snapshot)
+    }
+
+    /// The user has the group on screen. No inbound drain first: only what
+    /// the last poll showed counts as seen.
+    pub fn mark_viewed(&mut self, group_id: &str) -> Result<(), PrivateGroupError> {
+        self.group_mut(group_id)?;
+        self.groups.mark_read(group_id);
+        Ok(())
     }
 
     pub fn list(&mut self) -> Result<GroupListSnapshot, PrivateGroupError> {
@@ -331,6 +344,9 @@ impl PrivateGroupRuntime {
             .values_mut()
             .map(GroupSession::snapshot)
             .collect();
+        for snapshot in &mut groups {
+            snapshot.unread = self.groups.unread(&snapshot.group_id);
+        }
         groups.sort_by(|a, b| a.group_id.cmp(&b.group_id));
         Ok(GroupListSnapshot { groups })
     }

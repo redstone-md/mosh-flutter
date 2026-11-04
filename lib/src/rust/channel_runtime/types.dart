@@ -7,6 +7,7 @@ import '../attachment_runtime.dart';
 import '../conversation/attachments.dart';
 import '../conversation/dm_offers.dart';
 import '../conversation/mesh.dart';
+import '../conversation/read_marks.dart';
 import '../conversation/recovery.dart';
 import '../frb_generated.dart';
 import '../message_deletion/origin.dart';
@@ -94,6 +95,10 @@ class ChannelMessage {
 class ChannelSnapshot {
   final HistorySync? historySync;
   final DeletionSummary? deletionSummary;
+
+  /// What arrived since the user last viewed this conversation. The poll
+  /// and the list fill it in; other answers leave it absent.
+  final UnreadState? unread;
   final String name;
   final String topic;
   final String meshId;
@@ -108,6 +113,7 @@ class ChannelSnapshot {
   const ChannelSnapshot({
     this.historySync,
     this.deletionSummary,
+    this.unread,
     required this.name,
     required this.topic,
     required this.meshId,
@@ -124,6 +130,7 @@ class ChannelSnapshot {
   int get hashCode =>
       historySync.hashCode ^
       deletionSummary.hashCode ^
+      unread.hashCode ^
       name.hashCode ^
       topic.hashCode ^
       meshId.hashCode ^
@@ -142,6 +149,7 @@ class ChannelSnapshot {
           runtimeType == other.runtimeType &&
           historySync == other.historySync &&
           deletionSummary == other.deletionSummary &&
+          unread == other.unread &&
           name == other.name &&
           topic == other.topic &&
           meshId == other.meshId &&

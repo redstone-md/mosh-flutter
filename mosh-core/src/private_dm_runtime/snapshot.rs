@@ -34,6 +34,7 @@ impl PrivateDmSession {
         SessionSnapshot {
             call_availability: None,
             deletion_summary: self.deletions.summary(),
+            unread: None,
             device_revocation: self.device_revocation_state(),
             history_sync,
             session_id: self.session_id.clone(),

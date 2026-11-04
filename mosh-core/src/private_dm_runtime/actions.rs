@@ -66,6 +66,9 @@ impl PrivateDmRuntime {
     /// by the symmetry rule a user who does not send receipts also ignores
     /// the ones addressed to it.
     pub fn mark_viewed(&mut self, session_id: &str) -> Result<(), PrivateDmRuntimeError> {
+        // Before the inbound drain: only what the last poll showed is seen.
+        self.session_mut(session_id)?;
+        self.sessions.mark_read(session_id);
         if !self.read_receipts_enabled() {
             return Ok(());
         }
@@ -163,6 +166,7 @@ impl PrivateDmRuntime {
         let availability = self.call_availability();
         let mut snapshot = self.session_mut(session_id)?.snapshot();
         snapshot.call_availability = availability;
+        snapshot.unread = self.sessions.unread(session_id);
         Ok(snapshot)
     }
 
@@ -184,6 +188,9 @@ impl PrivateDmRuntime {
                 snapshot
             })
             .collect();
+        for snapshot in &mut snapshots {
+            snapshot.unread = self.sessions.unread(&snapshot.session_id);
+        }
         snapshots.sort_by(|a, b| a.session_id.cmp(&b.session_id));
         Ok(SessionListSnapshot {
             sessions: snapshots,

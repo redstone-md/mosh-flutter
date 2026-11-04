@@ -7,6 +7,7 @@ import 'attachment_runtime.dart';
 import 'conversation/attachments.dart';
 import 'conversation/dm_offers.dart';
 import 'conversation/mesh.dart';
+import 'conversation/read_marks.dart';
 import 'conversation/recovery.dart';
 import 'frb_generated.dart';
 import 'message_deletion/origin.dart';
@@ -211,6 +212,10 @@ class GroupNameStatus {
 class GroupSnapshot {
   final HistorySync? historySync;
   final DeletionSummary? deletionSummary;
+
+  /// What arrived since the user last viewed this conversation. The poll
+  /// and the list fill it in; other answers leave it absent.
+  final UnreadState? unread;
   final String groupId;
   final String meshId;
   final String? label;
@@ -245,6 +250,7 @@ class GroupSnapshot {
   const GroupSnapshot({
     this.historySync,
     this.deletionSummary,
+    this.unread,
     required this.groupId,
     required this.meshId,
     this.label,
@@ -271,6 +277,7 @@ class GroupSnapshot {
   int get hashCode =>
       historySync.hashCode ^
       deletionSummary.hashCode ^
+      unread.hashCode ^
       groupId.hashCode ^
       meshId.hashCode ^
       label.hashCode ^
@@ -299,6 +306,7 @@ class GroupSnapshot {
           runtimeType == other.runtimeType &&
           historySync == other.historySync &&
           deletionSummary == other.deletionSummary &&
+          unread == other.unread &&
           groupId == other.groupId &&
           meshId == other.meshId &&
           label == other.label &&

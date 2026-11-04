@@ -6,6 +6,7 @@
 import '../attachment_runtime.dart';
 import '../conversation/attachments.dart';
 import '../conversation/mesh.dart';
+import '../conversation/read_marks.dart';
 import '../frb_generated.dart';
 import '../message_deletion/origin.dart';
 import '../message_deletion/types.dart';
@@ -372,6 +373,10 @@ class SessionSnapshot {
   /// Account-wide admission, including leases held by linked installations.
   final CallAvailability? callAvailability;
   final DeletionSummary? deletionSummary;
+
+  /// What arrived since the user last viewed this conversation. The poll
+  /// and the list fill it in; other answers leave it absent.
+  final UnreadState? unread;
   final DmDeviceRevocationState? deviceRevocation;
   final DmHistorySyncState? historySync;
   final String sessionId;
@@ -419,6 +424,7 @@ class SessionSnapshot {
   const SessionSnapshot({
     this.callAvailability,
     this.deletionSummary,
+    this.unread,
     this.deviceRevocation,
     this.historySync,
     required this.sessionId,
@@ -447,6 +453,7 @@ class SessionSnapshot {
   int get hashCode =>
       callAvailability.hashCode ^
       deletionSummary.hashCode ^
+      unread.hashCode ^
       deviceRevocation.hashCode ^
       historySync.hashCode ^
       sessionId.hashCode ^
@@ -477,6 +484,7 @@ class SessionSnapshot {
           runtimeType == other.runtimeType &&
           callAvailability == other.callAvailability &&
           deletionSummary == other.deletionSummary &&
+          unread == other.unread &&
           deviceRevocation == other.deviceRevocation &&
           historySync == other.historySync &&
           sessionId == other.sessionId &&

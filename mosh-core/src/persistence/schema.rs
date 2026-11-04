@@ -25,6 +25,8 @@ pub(super) const BACKGROUND_DELIVERY: Rows = TableDefinition::new("background_de
 pub(super) const MESSAGE_DELETIONS: Rows = TableDefinition::new("message_deletions");
 pub(super) const MESSAGE_DELETION_TARGETS: Rows = TableDefinition::new("message_deletion_targets");
 pub(super) const ATTACHMENT_GC: Rows = TableDefinition::new("attachment_gc");
+// Key: "<history label>:<conversation id>" -> what the user has seen of it.
+pub(super) const READ_MARKS: Rows = TableDefinition::new("read_marks");
 pub(super) const DELETION_ACCEPTANCE: Rows = TableDefinition::new("deletion_acceptance");
 // Key: org pubkey hex -> latest verified roster bytes (multi-org).
 pub(super) const ORG_ROSTERS: TableDefinition<&str, &[u8]> = TableDefinition::new("org_rosters");
@@ -78,7 +80,8 @@ pub const CHANNEL_HISTORY: HistoryTables = HistoryTables {
     label: "channel",
 };
 
-pub(super) const ALL_TABLES: [Rows; 24] = [
+pub(super) const ALL_TABLES: [Rows; 25] = [
+    READ_MARKS,
     CONVERSATION_RECOVERY,
     CONVERSATION_OCCURRENCES,
     GROUP_HISTORY_EVIDENCE,

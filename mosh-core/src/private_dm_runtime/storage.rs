@@ -17,6 +17,10 @@ impl ConversationSession for PrivateDmSession {
         &self.messages
     }
 
+    fn own_author(&self) -> &str {
+        &self.device_id
+    }
+
     fn transfer(&self) -> Option<&Transfer> {
         Some(&self.transfer)
     }
