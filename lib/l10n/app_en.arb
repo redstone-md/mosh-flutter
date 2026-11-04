@@ -2045,6 +2045,10 @@
   "chatNameWaiting": "Name change waiting to send",
   "chatNamePermissionDenied": "You don't have permission to rename this chat.",
   "chatNameRejected": "Name change rejected: admin rights changed.",
+  "chatUnreadDivider": "Unread messages",
+  "@chatUnreadDivider": {
+    "description": "Bar in a conversation above the first message that arrived since the user last viewed it"
+  },
   "chatNameChanged": "{actor} changed the group name to {name}",
   "@chatNameChanged": {
     "placeholders": {

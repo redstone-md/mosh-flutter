@@ -63,6 +63,11 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   bool _mobileSearchOpen = false;
   bool? _showPeerStatus;
   bool _markedInitialView = false;
+
+  /// Where the unread divider goes, taken when the conversation came on
+  /// screen. Viewing clears the core's count on the next poll; the divider
+  /// stays put until the conversation leaves the screen.
+  String? _firstUnreadId;
   bool _onScreen = false;
 
   bool get _detailsDocked => MediaQuery.sizeOf(context).width >= 1280;
@@ -280,7 +285,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     // Cover a cached snapshot once; later view marks come from the listener.
     if (!_markedInitialView &&
         ref.read(conversationSnapshotProvider(_target)).hasValue) {
-      _markViewed();
+      _markViewed(building: true);
     }
     final chrome = _chrome;
     final chat = MessageSelectionHost(
@@ -304,6 +309,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
           detailsDocked: _detailsDocked,
           chrome: chrome,
           composer: _composer,
+          firstUnreadId: _firstUnreadId,
           onSend: _send,
           onRetrySend: _retryFailedSend,
           onOpenAttachment: _openAttachment,
@@ -330,7 +336,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     ]);
   }
 
-  void _markViewed() {
+  /// Pass [building] when called from [build], where the new divider anchor
+  /// is picked up by the build in progress instead of a `setState`.
+  void _markViewed({bool building = false}) {
     final lifecycle = WidgetsBinding.instance.lifecycleState;
     // A paused app's poll must not report a chat the user cannot see.
     if (!_onScreen ||
@@ -338,8 +346,23 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         ref.read(androidAppAccessProvider)?.chatsInteractive == false) {
       return;
     }
+    if (!_markedInitialView) _anchorUnread(building);
     _markedInitialView = true;
     _controller.markViewed();
+  }
+
+  void _anchorUnread(bool building) {
+    final anchor = ref
+        .read(conversationSnapshotProvider(_target))
+        .value
+        ?.unread
+        ?.firstUnreadMessageId;
+    if (anchor == _firstUnreadId) return;
+    if (building) {
+      _firstUnreadId = anchor;
+    } else {
+      setState(() => _firstUnreadId = anchor);
+    }
   }
 
   void _resolvePendingOpen(ConversationSnapshot? snapshot) {

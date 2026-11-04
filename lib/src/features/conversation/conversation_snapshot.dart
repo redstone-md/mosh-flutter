@@ -9,6 +9,7 @@ import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show CallEvent, ChatMessage, SessionSnapshot, DmDeviceRevocationState;
+import 'package:mosh/src/rust/conversation/read_marks.dart' show UnreadState;
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/rust/private_group_runtime.dart'
@@ -150,6 +151,15 @@ sealed class ConversationSnapshot {
   /// sources are, which keeps a poll that changed nothing from rebuilding
   /// the conversation.
   Object get source;
+
+  /// What arrived since the user last viewed this conversation, as the
+  /// core reports it. Absent on answers other than the poll.
+  UnreadState? get unread => switch (this) {
+        DmConversation(:final source) => source.unread,
+        ChannelConversation(:final source) => source.unread,
+        GroupConversation(:final source) => source.unread,
+      };
+
   DeletionSummary? get deletionSummary => switch (this) {
         DmConversation(:final source) => source.deletionSummary,
         ChannelConversation(:final source) => source.deletionSummary,

@@ -1040,6 +1040,7 @@
   "chatNameWaiting": "Изменение названия ожидает отправки",
   "chatNamePermissionDenied": "Нет прав на переименование этого чата.",
   "chatNameRejected": "Название не изменено: права админа изменились.",
+  "chatUnreadDivider": "Непрочитанные сообщения",
   "chatNameChanged": "{actor} изменил название группы на {name}",
   "@chatNameChanged": {
     "placeholders": {

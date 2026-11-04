@@ -113,8 +113,11 @@ flowchart TD
 notifier serializes reads, skips overlapping background ticks and coalesces
 post-mutation refreshes. Answers from an older provider lifetime are discarded.
 `invalidateConversation` owns kind dispatch for snapshots; `refreshConversation`
-also updates the corresponding recent-chat list. `unreadCountsProvider` uses
-`ConversationRef.key` consistently for badges and clear-on-open behavior.
+also updates the corresponding recent-chat list. Unread counts come from the
+core's encrypted read marks ([ADR 0050](ADR/0050-persistent-read-marks.md)) on
+each poll and list snapshot. `unreadCountsProvider` keys them by
+`ConversationRef.key` for the rail badges; the conversation screen keeps the
+unread divider it opened with while `markViewed` clears the count.
 
 `ForegroundPoller` pauses Android UI reads while hidden and refreshes immediately
 on resume. Desktop UI polling retains its cadence. Protocol service threads keep
