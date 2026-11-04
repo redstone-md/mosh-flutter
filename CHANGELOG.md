@@ -6,11 +6,35 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-11-04
+
 ### Added
 
+- Unread messages are kept across a restart. Messages that arrived while Mosh
+  was closed, or that arrive while it reconnects, get a badge in the chat list
+  until you open the chat.
+- A chat with unread messages opens on an "Unread messages" bar above the
+  first new one.
 - Android: each release also includes `mosh-<version>-rustore-arm64-v8a.apk`,
   the build submitted to RuStore. It installs over the GitHub APK and back
   without losing data.
+- Android: each release also includes `mosh-<version>-fdroid-arm64-v8a.apk`
+  for IzzyOnDroid. It contains no Google SDKs and does not update itself.
+
+### Changed
+
+- Android: the QR scanner for linking devices uses the camera directly and no
+  longer needs Google Play Services.
+- Store builds that may not sell Mosh+ (RuStore) show only your membership
+  status, with no price or payment.
+- A chat that is open in a window you are not using no longer marks its new
+  messages as read or sends read receipts until you return to it.
+
+### Fixed
+
+- Video calls over a slow relay keep a fresh picture instead of freezing.
+- History shared by another member no longer stalls when the room changes
+  while it is being sent.
 
 ## [0.26.0] - 2026-10-29
 
