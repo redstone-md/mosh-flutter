@@ -118,12 +118,16 @@ fn hiding_a_seen_message_does_not_hide_the_next_one() {
 fn a_conversation_with_history_counts_what_is_recovered_after_it() {
     let scratch = Scratch::open("read-upgrade");
     let mut runtime = scratch.runtime();
-    runtime.insert(CONVERSATION.into(), TestSession::new(CONVERSATION));
     let last_stored = now_ms() - 60_000;
-    hear(&mut runtime, "bob", "old", last_stored);
-
-    assert_eq!(unread(&mut runtime).count, 0, "stored history is read");
+    let mut restored = TestSession::new(CONVERSATION);
+    let old = restored
+        .log
+        .stamp(TestMessage::new("bob", "hi").at(last_stored).with_id("old"));
+    restored.log.push(old);
+    runtime.insert(CONVERSATION.into(), restored);
+    // Recovered by the same poll that reports the conversation first.
     hear(&mut runtime, "bob", "recovered", last_stored + 30_000);
+
     assert_eq!(
         unread(&mut runtime),
         UnreadState {

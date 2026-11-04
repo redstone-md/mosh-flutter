@@ -15,7 +15,8 @@
 //! to the newest unread position rather than onto itself.
 //!
 //! Marks live in the encrypted store, so unread counts survive a restart.
-//! An absent mark is created, and saved, the first time it is asked for.
+//! A conversation's mark is loaded, or created and saved, when the runtime
+//! takes the conversation in, before anything new is drained into it.
 
 use std::collections::HashMap;
 
@@ -108,6 +109,16 @@ impl ReadMarks {
         own_author: &str,
     ) -> UnreadState {
         self.mark(store, id, log).state(log, own_author)
+    }
+
+    /// Loads the conversation's mark, or creates it from what [log] holds.
+    pub(crate) fn prime<M: ConversationMessage>(
+        &mut self,
+        store: Option<&Persistence>,
+        id: &str,
+        log: &[M],
+    ) {
+        self.mark(store, id, log);
     }
 
     /// Everything incoming is now seen. Saved only when that changes.

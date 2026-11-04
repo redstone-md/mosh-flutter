@@ -156,6 +156,10 @@ impl<S: ConversationSession> ConversationRuntime<S> {
         if let (Some(store), Some(transfer)) = (self.persistence.clone(), session.transfer_mut()) {
             transfer.attach_execution(store, self.history.tables(), &conversation_id);
         }
+        // Before any inbound drain: only what the conversation already holds
+        // (its replayed history, or nothing) is behind the read mark's floor.
+        self.read_marks
+            .prime(self.persistence.as_deref(), &conversation_id, session.log());
         self.sessions.insert(conversation_id, session);
     }
 
