@@ -2,8 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/util/unread.dart';
 
 List<ConversationCount> counts(List<List<Object>> entries) => entries
-    .map(
-        (e) => ConversationCount(id: e[0] as String, messageCount: e[1] as int))
+    .map((e) => ConversationCount(id: e[0] as String, unread: e[1] as int))
     .toList();
 
 void main() {
@@ -71,49 +70,6 @@ void main() {
       );
       expect(result.nextLastSeen['a'], 7);
       expect(result.nextLastSeen['b'], 2);
-    });
-  });
-
-  group('countMessagesFromOthers', () {
-    test('ignores messages sent by the local display name', () {
-      final count = countMessagesFromOthers(
-        [
-          MessageAuthor(fromDevice: 'Alice'),
-          MessageAuthor(fromDevice: 'Bob'),
-          MessageAuthor(fromDevice: 'Alice'),
-        ],
-        'Alice',
-      );
-
-      expect(count, 1);
-    });
-
-    test("counts a same-name peer's messages when fingerprints differ", () {
-      final count = countMessagesFromOthers(
-        [
-          MessageAuthor(fromDevice: 'Alice', fromFingerprint: 'AAAA'),
-          MessageAuthor(fromDevice: 'Alice', fromFingerprint: 'BBBB'),
-        ],
-        'Alice',
-        'AAAA',
-      );
-
-      expect(count, 1);
-    });
-
-    test(
-        'excludes own messages by fingerprint even after a display-name change',
-        () {
-      final count = countMessagesFromOthers(
-        [
-          MessageAuthor(fromDevice: 'OldName', fromFingerprint: 'AAAA'),
-          MessageAuthor(fromDevice: 'Bob', fromFingerprint: 'BBBB'),
-        ],
-        'NewName',
-        'AAAA',
-      );
-
-      expect(count, 1);
     });
   });
 

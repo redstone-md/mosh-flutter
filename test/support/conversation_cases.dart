@@ -21,6 +21,7 @@ import 'package:mosh/src/rust/outbound_delivery.dart'
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
+import 'package:mosh/src/rust/conversation/read_marks.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -165,10 +166,12 @@ class ConversationCase {
   final String leaveTitle;
   final String leaveConfirmLabel;
 
-  /// Feeds the screen a snapshot with these messages and transfers.
+  /// Feeds the screen a snapshot with these messages and transfers. [unread]
+  /// is read on every build, so a test can change what the core reports.
   final Override Function({
     List<TestMessage> messages,
     List<AttachmentView> attachments,
+    UnreadState? Function()? unread,
   }) snapshotOverride;
 }
 
@@ -190,6 +193,7 @@ List<ConversationCase> conversationCases({
         snapshotOverride: ({
           List<TestMessage> messages = const [],
           List<AttachmentView> attachments = const [],
+          UnreadState? Function()? unread,
         }) =>
             activeSessionProvider(dmId).overrideWith(
           (ref) async => SessionSnapshot(
@@ -203,6 +207,7 @@ List<ConversationCase> conversationCases({
             transport: PeerTransport.direct,
             fingerprint: ownFingerprint,
             messages: messages.map((m) => m.toDm()).toList(),
+            unread: unread?.call(),
             attachments: attachments,
             events: const [],
           ),
@@ -219,6 +224,7 @@ List<ConversationCase> conversationCases({
         snapshotOverride: ({
           List<TestMessage> messages = const [],
           List<AttachmentView> attachments = const [],
+          UnreadState? Function()? unread,
         }) =>
             channelSnapshotProvider(channelName).overrideWith(
           (ref) async => ChannelSnapshot(
@@ -228,6 +234,7 @@ List<ConversationCase> conversationCases({
             displayName: ownDevice,
             deviceFingerprint: ownFingerprint,
             messages: messages.map((m) => m.toChannel()).toList(),
+            unread: unread?.call(),
             attachments: attachments,
             dmOffers: const [],
             events: const [],
@@ -245,6 +252,7 @@ List<ConversationCase> conversationCases({
         snapshotOverride: ({
           List<TestMessage> messages = const [],
           List<AttachmentView> attachments = const [],
+          UnreadState? Function()? unread,
         }) =>
             groupSnapshotProvider(groupId).overrideWith(
           (ref) async => GroupSnapshot(
@@ -258,6 +266,7 @@ List<ConversationCase> conversationCases({
             state: 'ready',
             memberCount: BigInt.from(2),
             messages: messages.map((m) => m.toGroup()).toList(),
+            unread: unread?.call(),
             attachments: attachments,
             dmOffers: const [],
             events: const [],

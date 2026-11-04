@@ -121,6 +121,10 @@ pub struct SessionSnapshot {
     pub call_availability: Option<CallAvailability>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deletion_summary: Option<crate::message_deletion::types::DeletionSummary>,
+    /// What arrived since the user last viewed this conversation. The poll
+    /// and the list fill it in; other answers leave it absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unread: Option<crate::conversation::read_marks::UnreadState>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub device_revocation: Option<DmDeviceRevocationState>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

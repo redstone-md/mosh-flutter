@@ -17,6 +17,10 @@ impl ConversationSession for GroupSession {
         &self.messages
     }
 
+    fn own_author(&self) -> &str {
+        &self.device_fingerprint
+    }
+
     fn transfer(&self) -> Option<&Transfer> {
         Some(&self.transfer)
     }

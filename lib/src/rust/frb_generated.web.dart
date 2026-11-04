@@ -37,6 +37,7 @@ import 'chat_names/types.dart';
 import 'conversation/attachments.dart';
 import 'conversation/dm_offers.dart';
 import 'conversation/mesh.dart';
+import 'conversation/read_marks.dart';
 import 'conversation/recovery.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -359,6 +360,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_box_autoadd_u_8(dynamic raw);
+
+  @protected
+  UnreadState dco_decode_box_autoadd_unread_state(dynamic raw);
 
   @protected
   VoiceMeta dco_decode_box_autoadd_voice_meta(dynamic raw);
@@ -779,6 +783,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? dco_decode_opt_box_autoadd_u_8(dynamic raw);
 
   @protected
+  UnreadState? dco_decode_opt_box_autoadd_unread_state(dynamic raw);
+
+  @protected
   VoiceMeta? dco_decode_opt_box_autoadd_voice_meta(dynamic raw);
 
   @protected
@@ -873,6 +880,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void dco_decode_unit(dynamic raw);
+
+  @protected
+  UnreadState dco_decode_unread_state(dynamic raw);
 
   @protected
   UserTransfer dco_decode_user_transfer(dynamic raw);
@@ -1201,6 +1211,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_box_autoadd_u_8(SseDeserializer deserializer);
+
+  @protected
+  UnreadState sse_decode_box_autoadd_unread_state(SseDeserializer deserializer);
 
   @protected
   VoiceMeta sse_decode_box_autoadd_voice_meta(SseDeserializer deserializer);
@@ -1681,6 +1694,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? sse_decode_opt_box_autoadd_u_8(SseDeserializer deserializer);
 
   @protected
+  UnreadState? sse_decode_opt_box_autoadd_unread_state(
+      SseDeserializer deserializer);
+
+  @protected
   VoiceMeta? sse_decode_opt_box_autoadd_voice_meta(
       SseDeserializer deserializer);
 
@@ -1786,6 +1803,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  UnreadState sse_decode_unread_state(SseDeserializer deserializer);
 
   @protected
   UserTransfer sse_decode_user_transfer(SseDeserializer deserializer);
@@ -2130,6 +2150,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_u_8(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_unread_state(
+      UnreadState self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_voice_meta(
@@ -2637,6 +2661,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_u_8(int? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_unread_state(
+      UnreadState? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_voice_meta(
       VoiceMeta? self, SseSerializer serializer);
 
@@ -2744,6 +2772,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_unread_state(UnreadState self, SseSerializer serializer);
 
   @protected
   void sse_encode_user_transfer(UserTransfer self, SseSerializer serializer);

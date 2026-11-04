@@ -6,6 +6,7 @@
 import '../attachment_runtime.dart';
 import '../conversation/attachments.dart';
 import '../conversation/mesh.dart';
+import '../conversation/read_marks.dart';
 import '../frb_generated.dart';
 import '../message_deletion/origin.dart';
 import '../message_deletion/types.dart';

@@ -39,6 +39,7 @@ class ConversationScreenBody extends ConsumerWidget {
     this.detailsDocked = false,
     required this.chrome,
     required this.composer,
+    this.firstUnreadId,
     required this.onSend,
     required this.onRetrySend,
     required this.onOpenAttachment,
@@ -54,6 +55,9 @@ class ConversationScreenBody extends ConsumerWidget {
   final ConversationChrome chrome;
 
   final TextEditingController composer;
+
+  /// The message the unread divider goes above, if any.
+  final String? firstUnreadId;
 
   /// Sends what the composer holds.
   final VoidCallback onSend;
@@ -195,6 +199,7 @@ class ConversationScreenBody extends ConsumerWidget {
     return ConversationMessageListView(
       messages: visible,
       snapshot: snapshot,
+      firstUnreadId: firstUnreadId,
       attachmentCallbacks: controller.attachmentCallbacks(onOpenAttachment),
       onRetryMessage: controller.retryMessage,
       // A DM has one peer and it is already open, so its names do nothing.

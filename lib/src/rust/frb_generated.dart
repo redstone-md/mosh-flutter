@@ -34,6 +34,7 @@ import 'chat_names/types.dart';
 import 'conversation/attachments.dart';
 import 'conversation/dm_offers.dart';
 import 'conversation/mesh.dart';
+import 'conversation/read_marks.dart';
 import 'conversation/recovery.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -4449,6 +4450,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  UnreadState dco_decode_box_autoadd_unread_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_unread_state(raw);
+  }
+
+  @protected
   VoiceMeta dco_decode_box_autoadd_voice_meta(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_voice_meta(raw);
@@ -4564,21 +4571,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ChannelSnapshot dco_decode_channel_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
     return ChannelSnapshot(
       historySync: dco_decode_opt_box_autoadd_history_sync(arr[0]),
       deletionSummary: dco_decode_opt_box_autoadd_deletion_summary(arr[1]),
-      name: dco_decode_String(arr[2]),
-      topic: dco_decode_String(arr[3]),
-      meshId: dco_decode_String(arr[4]),
-      displayName: dco_decode_String(arr[5]),
-      deviceFingerprint: dco_decode_String(arr[6]),
-      messages: dco_decode_list_channel_message(arr[7]),
-      attachments: dco_decode_list_attachment_view(arr[8]),
-      dmOffers: dco_decode_list_dm_offer(arr[9]),
-      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[10]),
-      events: dco_decode_list_snapshot_event(arr[11]),
+      unread: dco_decode_opt_box_autoadd_unread_state(arr[2]),
+      name: dco_decode_String(arr[3]),
+      topic: dco_decode_String(arr[4]),
+      meshId: dco_decode_String(arr[5]),
+      displayName: dco_decode_String(arr[6]),
+      deviceFingerprint: dco_decode_String(arr[7]),
+      messages: dco_decode_list_channel_message(arr[8]),
+      attachments: dco_decode_list_attachment_view(arr[9]),
+      dmOffers: dco_decode_list_dm_offer(arr[10]),
+      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[11]),
+      events: dco_decode_list_snapshot_event(arr[12]),
     );
   }
 
@@ -4952,31 +4960,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   GroupSnapshot dco_decode_group_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 22)
-      throw Exception('unexpected arr length: expect 22 but see ${arr.length}');
+    if (arr.length != 23)
+      throw Exception('unexpected arr length: expect 23 but see ${arr.length}');
     return GroupSnapshot(
       historySync: dco_decode_opt_box_autoadd_history_sync(arr[0]),
       deletionSummary: dco_decode_opt_box_autoadd_deletion_summary(arr[1]),
-      groupId: dco_decode_String(arr[2]),
-      meshId: dco_decode_String(arr[3]),
-      label: dco_decode_opt_String(arr[4]),
-      displayName: dco_decode_String(arr[5]),
-      deviceFingerprint: dco_decode_String(arr[6]),
-      creatorFingerprint: dco_decode_String(arr[7]),
-      isAdmin: dco_decode_bool(arr[8]),
-      nameStatus: dco_decode_opt_box_autoadd_group_name_status(arr[9]),
-      state: dco_decode_String(arr[10]),
-      memberCount: dco_decode_usize(arr[11]),
-      inviteUri: dco_decode_opt_String(arr[12]),
-      messages: dco_decode_list_group_message(arr[13]),
-      attachments: dco_decode_list_attachment_view(arr[14]),
-      dmOffers: dco_decode_list_dm_offer(arr[15]),
-      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[16]),
-      events: dco_decode_list_snapshot_event(arr[17]),
-      needsRejoin: dco_decode_bool(arr[18]),
-      orgPubkey: dco_decode_opt_String(arr[19]),
-      memberPeerIds: dco_decode_list_String(arr[20]),
-      typingMembers: dco_decode_list_typing_member(arr[21]),
+      unread: dco_decode_opt_box_autoadd_unread_state(arr[2]),
+      groupId: dco_decode_String(arr[3]),
+      meshId: dco_decode_String(arr[4]),
+      label: dco_decode_opt_String(arr[5]),
+      displayName: dco_decode_String(arr[6]),
+      deviceFingerprint: dco_decode_String(arr[7]),
+      creatorFingerprint: dco_decode_String(arr[8]),
+      isAdmin: dco_decode_bool(arr[9]),
+      nameStatus: dco_decode_opt_box_autoadd_group_name_status(arr[10]),
+      state: dco_decode_String(arr[11]),
+      memberCount: dco_decode_usize(arr[12]),
+      inviteUri: dco_decode_opt_String(arr[13]),
+      messages: dco_decode_list_group_message(arr[14]),
+      attachments: dco_decode_list_attachment_view(arr[15]),
+      dmOffers: dco_decode_list_dm_offer(arr[16]),
+      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[17]),
+      events: dco_decode_list_snapshot_event(arr[18]),
+      needsRejoin: dco_decode_bool(arr[19]),
+      orgPubkey: dco_decode_opt_String(arr[20]),
+      memberPeerIds: dco_decode_list_String(arr[21]),
+      typingMembers: dco_decode_list_typing_member(arr[22]),
     );
   }
 
@@ -5708,6 +5717,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  UnreadState? dco_decode_opt_box_autoadd_unread_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_unread_state(raw);
+  }
+
+  @protected
   VoiceMeta? dco_decode_opt_box_autoadd_voice_meta(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_voice_meta(raw);
@@ -6011,34 +6026,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SessionSnapshot dco_decode_session_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 24)
-      throw Exception('unexpected arr length: expect 24 but see ${arr.length}');
+    if (arr.length != 25)
+      throw Exception('unexpected arr length: expect 25 but see ${arr.length}');
     return SessionSnapshot(
       callAvailability: dco_decode_opt_box_autoadd_call_availability(arr[0]),
       deletionSummary: dco_decode_opt_box_autoadd_deletion_summary(arr[1]),
+      unread: dco_decode_opt_box_autoadd_unread_state(arr[2]),
       deviceRevocation:
-          dco_decode_opt_box_autoadd_dm_device_revocation_state(arr[2]),
-      historySync: dco_decode_opt_box_autoadd_dm_history_sync_state(arr[3]),
-      sessionId: dco_decode_String(arr[4]),
-      meshId: dco_decode_String(arr[5]),
-      role: dco_decode_String(arr[6]),
-      displayName: dco_decode_String(arr[7]),
-      peerDisplayName: dco_decode_String(arr[8]),
-      state: dco_decode_dm_session_state(arr[9]),
-      transport: dco_decode_peer_transport(arr[10]),
-      peerMossId: dco_decode_opt_String(arr[11]),
-      lastConnectOutcome: dco_decode_opt_box_autoadd_connect_outcome(arr[12]),
-      inviteUri: dco_decode_opt_String(arr[13]),
-      inviteAvailable: dco_decode_bool(arr[14]),
-      fingerprint: dco_decode_String(arr[15]),
-      messages: dco_decode_list_chat_message(arr[16]),
-      attachments: dco_decode_list_attachment_view(arr[17]),
-      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[18]),
-      events: dco_decode_list_snapshot_event(arr[19]),
-      pendingCall: dco_decode_opt_box_autoadd_pending_call(arr[20]),
-      peerTypingUntilMs: dco_decode_opt_box_autoadd_u_64(arr[21]),
-      outgoingCall: dco_decode_opt_box_autoadd_outgoing_call(arr[22]),
-      activeCall: dco_decode_opt_box_autoadd_active_call(arr[23]),
+          dco_decode_opt_box_autoadd_dm_device_revocation_state(arr[3]),
+      historySync: dco_decode_opt_box_autoadd_dm_history_sync_state(arr[4]),
+      sessionId: dco_decode_String(arr[5]),
+      meshId: dco_decode_String(arr[6]),
+      role: dco_decode_String(arr[7]),
+      displayName: dco_decode_String(arr[8]),
+      peerDisplayName: dco_decode_String(arr[9]),
+      state: dco_decode_dm_session_state(arr[10]),
+      transport: dco_decode_peer_transport(arr[11]),
+      peerMossId: dco_decode_opt_String(arr[12]),
+      lastConnectOutcome: dco_decode_opt_box_autoadd_connect_outcome(arr[13]),
+      inviteUri: dco_decode_opt_String(arr[14]),
+      inviteAvailable: dco_decode_bool(arr[15]),
+      fingerprint: dco_decode_String(arr[16]),
+      messages: dco_decode_list_chat_message(arr[17]),
+      attachments: dco_decode_list_attachment_view(arr[18]),
+      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[19]),
+      events: dco_decode_list_snapshot_event(arr[20]),
+      pendingCall: dco_decode_opt_box_autoadd_pending_call(arr[21]),
+      peerTypingUntilMs: dco_decode_opt_box_autoadd_u_64(arr[22]),
+      outgoingCall: dco_decode_opt_box_autoadd_outgoing_call(arr[23]),
+      activeCall: dco_decode_opt_box_autoadd_active_call(arr[24]),
     );
   }
 
@@ -6145,6 +6161,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void dco_decode_unit(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return;
+  }
+
+  @protected
+  UnreadState dco_decode_unread_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return UnreadState(
+      count: dco_decode_u_32(arr[0]),
+      firstUnreadMessageId: dco_decode_opt_String(arr[1]),
+    );
   }
 
   @protected
@@ -6920,6 +6948,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  UnreadState sse_decode_box_autoadd_unread_state(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_unread_state(deserializer));
+  }
+
+  @protected
   VoiceMeta sse_decode_box_autoadd_voice_meta(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_voice_meta(deserializer));
@@ -7044,6 +7079,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_historySync = sse_decode_opt_box_autoadd_history_sync(deserializer);
     var var_deletionSummary =
         sse_decode_opt_box_autoadd_deletion_summary(deserializer);
+    var var_unread = sse_decode_opt_box_autoadd_unread_state(deserializer);
     var var_name = sse_decode_String(deserializer);
     var var_topic = sse_decode_String(deserializer);
     var var_meshId = sse_decode_String(deserializer);
@@ -7057,6 +7093,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return ChannelSnapshot(
         historySync: var_historySync,
         deletionSummary: var_deletionSummary,
+        unread: var_unread,
         name: var_name,
         topic: var_topic,
         meshId: var_meshId,
@@ -7461,6 +7498,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_historySync = sse_decode_opt_box_autoadd_history_sync(deserializer);
     var var_deletionSummary =
         sse_decode_opt_box_autoadd_deletion_summary(deserializer);
+    var var_unread = sse_decode_opt_box_autoadd_unread_state(deserializer);
     var var_groupId = sse_decode_String(deserializer);
     var var_meshId = sse_decode_String(deserializer);
     var var_label = sse_decode_opt_String(deserializer);
@@ -7485,6 +7523,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return GroupSnapshot(
         historySync: var_historySync,
         deletionSummary: var_deletionSummary,
+        unread: var_unread,
         groupId: var_groupId,
         meshId: var_meshId,
         label: var_label,
@@ -8633,6 +8672,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  UnreadState? sse_decode_opt_box_autoadd_unread_state(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_unread_state(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   VoiceMeta? sse_decode_opt_box_autoadd_voice_meta(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -8972,6 +9023,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_decode_opt_box_autoadd_call_availability(deserializer);
     var var_deletionSummary =
         sse_decode_opt_box_autoadd_deletion_summary(deserializer);
+    var var_unread = sse_decode_opt_box_autoadd_unread_state(deserializer);
     var var_deviceRevocation =
         sse_decode_opt_box_autoadd_dm_device_revocation_state(deserializer);
     var var_historySync =
@@ -9001,6 +9053,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return SessionSnapshot(
         callAvailability: var_callAvailability,
         deletionSummary: var_deletionSummary,
+        unread: var_unread,
         deviceRevocation: var_deviceRevocation,
         historySync: var_historySync,
         sessionId: var_sessionId,
@@ -9147,6 +9200,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_decode_unit(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  UnreadState sse_decode_unread_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_count = sse_decode_u_32(deserializer);
+    var var_firstUnreadMessageId = sse_decode_opt_String(deserializer);
+    return UnreadState(
+        count: var_count, firstUnreadMessageId: var_firstUnreadMessageId);
   }
 
   @protected
@@ -9873,6 +9935,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_unread_state(
+      UnreadState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_unread_state(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_voice_meta(
       VoiceMeta self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -9970,6 +10039,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_history_sync(self.historySync, serializer);
     sse_encode_opt_box_autoadd_deletion_summary(
         self.deletionSummary, serializer);
+    sse_encode_opt_box_autoadd_unread_state(self.unread, serializer);
     sse_encode_String(self.name, serializer);
     sse_encode_String(self.topic, serializer);
     sse_encode_String(self.meshId, serializer);
@@ -10280,6 +10350,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_history_sync(self.historySync, serializer);
     sse_encode_opt_box_autoadd_deletion_summary(
         self.deletionSummary, serializer);
+    sse_encode_opt_box_autoadd_unread_state(self.unread, serializer);
     sse_encode_String(self.groupId, serializer);
     sse_encode_String(self.meshId, serializer);
     sse_encode_opt_String(self.label, serializer);
@@ -11220,6 +11291,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_unread_state(
+      UnreadState? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_unread_state(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_voice_meta(
       VoiceMeta? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -11459,6 +11541,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         self.callAvailability, serializer);
     sse_encode_opt_box_autoadd_deletion_summary(
         self.deletionSummary, serializer);
+    sse_encode_opt_box_autoadd_unread_state(self.unread, serializer);
     sse_encode_opt_box_autoadd_dm_device_revocation_state(
         self.deviceRevocation, serializer);
     sse_encode_opt_box_autoadd_dm_history_sync_state(
@@ -11569,6 +11652,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_unit(void self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  void sse_encode_unread_state(UnreadState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.count, serializer);
+    sse_encode_opt_String(self.firstUnreadMessageId, serializer);
   }
 
   @protected

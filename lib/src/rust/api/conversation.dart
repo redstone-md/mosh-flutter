@@ -66,11 +66,11 @@ Future<void> leave({required BridgeConversationRef reference}) =>
 Future<void> typingSignal({required BridgeConversationRef reference}) =>
     RustLib.instance.api.crateApiConversationTypingSignal(reference: reference);
 
-/// Auto-trigger the read receipts when the conversation is open: receipts
-/// every counterpart message the local user has not yet receipted. The
-/// receipts themselves ride the DM control wire; a group and a channel
-/// have no read receipts in this slice, so those arms are silent no-ops.
-/// The sender's own ticks re-color on the OTHER side with its next poll.
+/// The conversation is on screen. Everything the last poll showed becomes
+/// read, so its unread count clears and stays cleared after a restart. In a
+/// DM this also sends read receipts for counterpart messages not yet
+/// receipted; groups and channels have no receipts in this slice. The
+/// sender's own ticks re-color on the OTHER side with its next poll.
 Future<void> markViewed({required BridgeConversationRef reference}) =>
     RustLib.instance.api.crateApiConversationMarkViewed(reference: reference);
 

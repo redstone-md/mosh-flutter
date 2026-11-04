@@ -207,6 +207,8 @@ mod deferred_resend;
 #[path = "state_tests/idle_presence.rs"]
 mod idle_presence;
 
+#[path = "state_tests/read_marks.rs"]
+mod read_marks;
 #[path = "state_tests/receipt_authorization.rs"]
 mod receipt_authorization;
 

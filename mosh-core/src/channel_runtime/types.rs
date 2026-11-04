@@ -86,6 +86,10 @@ pub struct ChannelSnapshot {
     pub history_sync: Option<crate::conversation::recovery::HistorySync>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deletion_summary: Option<crate::message_deletion::types::DeletionSummary>,
+    /// What arrived since the user last viewed this conversation. The poll
+    /// and the list fill it in; other answers leave it absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unread: Option<crate::conversation::read_marks::UnreadState>,
     pub name: String,
     pub topic: String,
     pub mesh_id: String,

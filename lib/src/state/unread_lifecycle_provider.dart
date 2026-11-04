@@ -14,17 +14,18 @@ import 'package:mosh/src/state/unread_providers.dart';
 import 'package:mosh/src/state/window_focus_provider.dart';
 import 'package:mosh/src/util/unread.dart';
 
-/// The unread-lifecycle provider. Exposes the `unread` map (keyed by
-/// [ConversationRef.key], the grammar [ConversationRef] owns) consumed by
-/// the sessions rail + the chat screens, and a `clearUnread(key)` mutation.
+/// The unread badges, keyed by [ConversationRef.key]. Each is the count the
+/// core reports, except for the conversation on screen in a focused window.
+/// A count that grows while the window is unfocused also raises an OS toast.
 final unreadLifecycleProvider =
     NotifierProvider<_UnreadLifecycleNotifier, Map<String, int>>(
   _UnreadLifecycleNotifier.new,
 );
 
 class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
-  // Poll-diff baseline. Persists
-  // across `build` re-runs because the Notifier instance is reused.
+  // The counts of the previous poll, so only growth raises a toast. Kept
+  // across `build` re-runs because the Notifier instance is reused; the
+  // first poll after launch is its baseline.
   Map<String, int> _lastSeen = {};
 
   // The exposed unread map, kept on the instance so `build` can return it
@@ -70,15 +71,13 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
     Map<String, int> groups,
     String? activeKey,
   ) async {
-    // Build the combined counts list (dm + group + channel, keyed by the
-    // same shapes the count maps use).
     final counts = <ConversationCount>[
-      for (final entry in dm.entries)
-        ConversationCount(id: entry.key, messageCount: entry.value),
-      for (final entry in groups.entries)
-        ConversationCount(id: entry.key, messageCount: entry.value),
-      for (final entry in channels.entries)
-        ConversationCount(id: entry.key, messageCount: entry.value),
+      for (final entry in [
+        ...dm.entries,
+        ...groups.entries,
+        ...channels.entries
+      ])
+        ConversationCount(id: entry.key, unread: entry.value),
     ];
 
     final focused = await ref.read(windowFocusProvider)() &&
@@ -89,67 +88,42 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
     final diff = diffConversations(counts, _lastSeen, activeKey, !focused);
     _lastSeen = diff.nextLastSeen;
 
-    // clearOnActive: if focused + an active key, clear its unread.
-    if (focused && activeKey != null) {
-      if (_unread.containsKey(activeKey)) {
-        _unread = {..._unread}..remove(activeKey);
-      }
-    }
-
-    if (diff.newMessages.isEmpty) {
-      state = _unread;
-      return;
-    }
-
-    // Apply newMessages to the unread map, skipping the active conversation
-    // when focused.
-    var next = _unread;
-    var mutated = false;
-    for (final message in diff.newMessages) {
-      if (message.id == activeKey && focused) continue;
-      if (!mutated) {
-        next = {..._unread};
-        mutated = true;
-      }
-      next[message.id] = (next[message.id] ?? 0) + message.delta;
-    }
-    if (mutated) _unread = next;
-
-    // OS toasts: one per diffed conversation when unfocused + the gate is
-    // open. The body comes from the existing `notificationBody`.
-    if (!focused && ref.read(androidWaitingOwnerProvider)?.attached != true) {
-      final ready = ref.read(notificationsReadyProvider).value ?? false;
-      if (ready) {
-        final plugin = ref.read(flutterLocalNotificationsPluginProvider);
-        for (final message in diff.newMessages) {
-          // Android disclosure belongs to the native privacy-aware publisher;
-          // this legacy fallback is always generic, including during a lock race.
-          final body = ref.read(androidAppAccessProvider) == null
-              ? notificationBody(message.id)
-              : const NotificationBody(title: 'Mosh', body: 'New message');
-          try {
-            await plugin.show(
-              id: message.id.hashCode.abs(),
-              title: body.title,
-              body: body.body,
-              notificationDetails: moshNotificationDetails,
-            );
-          } catch (_) {
-            // Notification host unavailable; the badge still updates.
-          }
-        }
-      }
-    }
-
+    _unread = {
+      for (final conversation in counts)
+        if (conversation.unread > 0 &&
+            !(focused && conversation.id == activeKey))
+          conversation.id: conversation.unread,
+    };
+    if (!focused) await _toast(diff.newMessages);
     state = _unread;
   }
 
-  /// Removes `key` from the exposed unread map. Called by the sessions rail
-  /// on select + the chat screens on open so the badge clears the moment a
-  /// conversation is opened (not waiting for the next poll).
-  void clearUnread(String key) {
-    if (!_unread.containsKey(key)) return;
-    _unread = {..._unread}..remove(key);
-    state = _unread;
+  /// One OS toast per conversation whose count grew, while the window is
+  /// unfocused and notifications are ready. The body comes from
+  /// `notificationBody`.
+  Future<void> _toast(List<NewMessages> grown) async {
+    if (grown.isEmpty ||
+        ref.read(androidWaitingOwnerProvider)?.attached == true ||
+        !(ref.read(notificationsReadyProvider).value ?? false)) {
+      return;
+    }
+    final plugin = ref.read(flutterLocalNotificationsPluginProvider);
+    for (final message in grown) {
+      // Android disclosure belongs to the native privacy-aware publisher;
+      // this legacy fallback is always generic, including during a lock race.
+      final body = ref.read(androidAppAccessProvider) == null
+          ? notificationBody(message.id)
+          : const NotificationBody(title: 'Mosh', body: 'New message');
+      try {
+        await plugin.show(
+          id: message.id.hashCode.abs(),
+          title: body.title,
+          body: body.body,
+          notificationDetails: moshNotificationDetails,
+        );
+      } catch (_) {
+        // Notification host unavailable; the badge still updates.
+      }
+    }
   }
 }

@@ -45,26 +45,22 @@ class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
       throw UnimplementedError(' ${invocation.memberName}');
 }
 
-ChatMessage _dmMsg(String fromDevice, {String body = 'x'}) =>
-    ChatMessage(fromDevice: fromDevice, body: body);
-
-SessionSnapshot _dmSession({
-  required String sessionId,
-  required String displayName,
-  required List<ChatMessage> messages,
-}) =>
+/// The fixtures carry the unread count the core reports; their messages
+/// play no part in it.
+SessionSnapshot _dmSession({required String sessionId, int unread = 0}) =>
     SessionSnapshot(
       inviteAvailable: false,
       sessionId: sessionId,
       meshId: 'm',
       role: 'inviter',
-      displayName: displayName,
+      displayName: 'me',
       peerDisplayName: '',
       state: DmSessionState.connected,
       transport: PeerTransport.direct,
       inviteUri: null,
       fingerprint: 'fp',
-      messages: messages,
+      messages: const [],
+      unread: UnreadState(count: unread),
       attachments: const [],
       mesh: null,
       events: const [],
@@ -73,50 +69,34 @@ SessionSnapshot _dmSession({
       activeCall: null,
     );
 
-ChannelMessage _channelMsg(String fromDevice, String fromFingerprint,
-        {String body = 'x'}) =>
-    ChannelMessage(
-        fromDevice: fromDevice, fromFingerprint: fromFingerprint, body: body);
-
-ChannelSnapshot _channel({
-  required String name,
-  required String deviceFingerprint,
-  required List<ChannelMessage> messages,
-}) =>
+ChannelSnapshot _channel({required String name, int unread = 0}) =>
     ChannelSnapshot(
       name: name,
       topic: '',
       meshId: 'm',
       displayName: 'me',
-      deviceFingerprint: deviceFingerprint,
-      messages: messages,
+      deviceFingerprint: 'ownfp',
+      messages: const [],
+      unread: UnreadState(count: unread),
       attachments: const [],
       dmOffers: const [],
       mesh: null,
       events: const [],
     );
 
-GroupMessage _groupMsg(String fromDevice, String fromFingerprint,
-        {String body = 'x'}) =>
-    GroupMessage(
-        fromDevice: fromDevice, fromFingerprint: fromFingerprint, body: body);
-
-GroupSnapshot _group({
-  required String groupId,
-  required String deviceFingerprint,
-  required List<GroupMessage> messages,
-}) =>
+GroupSnapshot _group({required String groupId, int unread = 0}) =>
     GroupSnapshot(
       groupId: groupId,
       meshId: 'm',
       label: null,
       displayName: 'me',
-      deviceFingerprint: deviceFingerprint,
-      creatorFingerprint: deviceFingerprint,
+      deviceFingerprint: 'ownfp',
+      creatorFingerprint: 'ownfp',
       isAdmin: false,
       state: 'ready',
       memberCount: BigInt.two,
-      messages: messages,
+      messages: const [],
+      unread: UnreadState(count: unread),
       attachments: const [],
       dmOffers: const [],
       mesh: null,

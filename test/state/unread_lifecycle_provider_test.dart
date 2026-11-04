@@ -1,9 +1,7 @@
-// Tests for `unreadLifecycleProvider` -- the unread lifecycle (clear on
-// active + window-focus OS toasts + lastSeen poll-diff). The lifecycle
-// watches the per-kind unread counts (one `unreadCountsProvider` entry per
-// kind) + activeConversationKeyProvider, so re-seeding the bridge's lists
-// drives growth by swapping its list snapshots and refreshing the list
-// entries.
+// Tests for `unreadLifecycleProvider` -- the badges the core's persisted
+// unread counts produce, hidden for the conversation on screen, plus the
+// window-focus OS toasts fired when a count grows. Re-seeding the bridge's
+// lists with new counts and refreshing them drives each poll.
 //
 // Seams overridden (mirrors the notifications seam convention):
 //  - `bridgeFacadeProvider` -> `ScriptableBridge` (mutable list snapshots).
@@ -23,6 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/scriptable_bridge.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart';
+import 'package:mosh/src/rust/conversation/read_marks.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
@@ -40,6 +39,22 @@ part 'unread_lifecycle_provider_support.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   group('unreadLifecycleProvider', () {
+    test('the first poll after a restart shows the unread counts the core kept',
+        () async {
+      final h = _Harness();
+      addTearDown(h.container.dispose);
+      h.gateway.seedSessions([_dmSession(sessionId: 'a', unread: 2)]);
+      h.gateway.seedChannels([_channel(name: 'general', unread: 1)]);
+      h.gateway.seedGroups([_group(groupId: 'quiet')]);
+
+      await _poll(h.container);
+
+      expect(h.container.read(unreadLifecycleProvider),
+          {'dm:a': 2, 'channel:general': 1});
+      expect(h.notifications.shows, isEmpty,
+          reason: 'what was kept across a restart is not news to toast');
+    });
+
     test('locked Android keeps unread messages and hides channel details',
         () async {
       final access = AndroidAppAccess();
@@ -50,18 +65,13 @@ void main() {
           .read(activeConversationKeyProvider.notifier)
           .set('channel:private-project');
       for (final count in [1, 2]) {
-        h.gateway.seedChannels([
-          _channel(
-              name: 'private-project',
-              deviceFingerprint: 'ownfp',
-              messages:
-                  List.generate(count, (_) => _channelMsg('peer', 'peerfp'))),
-        ]);
+        h.gateway
+            .seedChannels([_channel(name: 'private-project', unread: count)]);
         await _poll(h.container);
       }
       expect(
           h.container.read(unreadLifecycleProvider)['channel:private-project'],
-          1);
+          2);
       final show = h.notifications.shows.single;
       expect(show.title, 'Mosh');
       expect(show.body, 'New message');
@@ -69,121 +79,47 @@ void main() {
       expect(show.details?.android?.ticker, isNull);
     });
 
-    test(
-        'case 1: the first poll seeds lastSeen and fires no notification '
-        'and leaves the unread map empty (first-seen never reports)', () async {
-      final h = _Harness();
-      addTearDown(h.container.dispose);
-      // Seed a DM with one peer message + a channel with one peer message.
-      h.gateway.seedSessions([
-        _dmSession(
-            sessionId: 'a', displayName: 'me', messages: [_dmMsg('peer')]),
-      ]);
-      h.gateway.seedChannels([
-        _channel(
-          name: 'general',
-          deviceFingerprint: 'ownfp',
-          messages: [_channelMsg('peer', 'peerfp')],
-        ),
-      ]);
-
-      await _poll(h.container);
-
-      expect(h.container.read(unreadLifecycleProvider), isEmpty);
-      expect(h.notifications.shows, isEmpty);
-    });
-
-    test(
-        'case 2: a second poll with grown counts + focused + active key '
-        'clears the active conversation badge and fires no toast', () async {
-      final h = _Harness();
-      addTearDown(h.container.dispose);
-      h.setFocus(true);
-      // Mark 'dm:a' as the active conversation (mirrors the chat screen
-      // setting activeConversationKey on open).
-      h.container.read(activeConversationKeyProvider.notifier).set('dm:a');
-      // First poll: seed lastSeen (dm:a=1, channel:general=1).
-      h.gateway.seedSessions([
-        _dmSession(
-            sessionId: 'a', displayName: 'me', messages: [_dmMsg('peer')]),
-      ]);
-      h.gateway.seedChannels([
-        _channel(
-          name: 'general',
-          deviceFingerprint: 'ownfp',
-          messages: [_channelMsg('peer', 'peerfp')],
-        ),
-      ]);
-      await _poll(h.container);
-
-      // Second poll: both grow by one peer message.
-      h.gateway.seedSessions([
-        _dmSession(
-            sessionId: 'a',
-            displayName: 'me',
-            messages: [_dmMsg('peer'), _dmMsg('peer')]),
-      ]);
-      h.gateway.seedChannels([
-        _channel(
-          name: 'general',
-          deviceFingerprint: 'ownfp',
-          messages: [
-            _channelMsg('peer', 'peerfp'),
-            _channelMsg('peer', 'peerfp')
-          ],
-        ),
-      ]);
-      await _poll(h.container);
-
-      final unread = h.container.read(unreadLifecycleProvider);
-      // The active DM's badge is cleared (clearOnActive); the channel grew
-      // and is non-active, so its unread delta applies.
-      expect(unread['dm:a'], isNull);
-      expect(unread['channel:general'], 1);
-      expect(h.notifications.shows, isEmpty);
-    });
-
-    test(
-        'case 3: the same growth with the window unfocused fires one toast '
-        'per diffed non-active conversation with notificationBody text',
+    test('the conversation on screen in a focused window shows no badge',
         () async {
       final h = _Harness();
       addTearDown(h.container.dispose);
-      h.setFocus(false);
-      // 'dm:a' is active but does NOT grow this poll, so every diffed
-      // conversation is non-active (the toast loop fires one toast per
-      // grown conversation; with dm:a stable it is not in the diff).
       h.container.read(activeConversationKeyProvider.notifier).set('dm:a');
-      // First poll: seed lastSeen (dm:a=1, channel:general=1).
-      h.gateway.seedSessions([
-        _dmSession(
-            sessionId: 'a', displayName: 'me', messages: [_dmMsg('peer')]),
-      ]);
-      h.gateway.seedChannels([
-        _channel(
-          name: 'general',
-          deviceFingerprint: 'ownfp',
-          messages: [_channelMsg('peer', 'peerfp')],
-        ),
-      ]);
+      h.gateway.seedSessions([_dmSession(sessionId: 'a', unread: 1)]);
+      h.gateway.seedChannels([_channel(name: 'general', unread: 1)]);
+      await _poll(h.container);
+      h.gateway.seedSessions([_dmSession(sessionId: 'a', unread: 2)]);
+      h.gateway.seedChannels([_channel(name: 'general', unread: 2)]);
       await _poll(h.container);
 
-      // Second poll: only the channel grows (dm:a stays at 1).
-      h.gateway.seedChannels([
-        _channel(
-          name: 'general',
-          deviceFingerprint: 'ownfp',
-          messages: [
-            _channelMsg('peer', 'peerfp'),
-            _channelMsg('peer', 'peerfp')
-          ],
-        ),
-      ]);
+      expect(h.container.read(unreadLifecycleProvider), {'channel:general': 2});
+      expect(h.notifications.shows, isEmpty);
+    });
+
+    test('a badge clears once the core reports the conversation read',
+        () async {
+      final h = _Harness();
+      addTearDown(h.container.dispose);
+      h.gateway.seedChannels([_channel(name: 'general', unread: 3)]);
+      await _poll(h.container);
+      h.gateway.seedChannels([_channel(name: 'general')]);
       await _poll(h.container);
 
-      // One toast for the non-active channel; dm:a did not grow so no toast
-      // for it. Body uses notificationBody('channel:general') text.
-      expect(h.notifications.shows.length, 1);
+      expect(h.container.read(unreadLifecycleProvider), isEmpty);
+    });
+
+    test(
+        'a grown count in an unfocused window fires one toast per grown '
+        'conversation with notificationBody text', () async {
+      final h = _Harness();
+      addTearDown(h.container.dispose);
+      h.setFocus(false);
+      h.container.read(activeConversationKeyProvider.notifier).set('dm:a');
+      h.gateway.seedSessions([_dmSession(sessionId: 'a', unread: 1)]);
+      h.gateway.seedChannels([_channel(name: 'general', unread: 1)]);
+      await _poll(h.container);
+      h.gateway.seedChannels([_channel(name: 'general', unread: 2)]);
+      await _poll(h.container);
+
       final show = h.notifications.shows.single;
       expect(show.title, 'Mosh');
       expect(show.body, '#general - new message');
@@ -191,146 +127,32 @@ void main() {
       expect(show.details?.android?.channelName, 'Mosh notifications');
     });
 
-    test(
-        'case 4: the toast is NOT fired when the window is focused OR when '
-        'notificationsReady is false', () async {
-      // Focused branch: even with growth + a non-active conversation, no
-      // toast fires (the gate's `!focused` half).
-      final hFocused = _Harness();
-      addTearDown(hFocused.container.dispose);
-      hFocused.setFocus(true);
-      hFocused.gateway.seedChannels([
-        _channel(
-          name: 'general',
-          deviceFingerprint: 'ownfp',
-          messages: [_channelMsg('peer', 'peerfp')],
-        ),
-      ]);
-      await _poll(hFocused.container);
-      hFocused.gateway.seedChannels([
-        _channel(
-          name: 'general',
-          deviceFingerprint: 'ownfp',
-          messages: [
-            _channelMsg('peer', 'peerfp'),
-            _channelMsg('peer', 'peerfp')
-          ],
-        ),
-      ]);
-      await _poll(hFocused.container);
-      expect(hFocused.notifications.shows, isEmpty);
-
-      // Unfocused but the gate is closed: no toast either.
-      final hNotReady = _Harness(notificationsReady: false);
-      addTearDown(hNotReady.container.dispose);
-      hNotReady.setFocus(false);
-      hNotReady.gateway.seedChannels([
-        _channel(
-          name: 'general',
-          deviceFingerprint: 'ownfp',
-          messages: [_channelMsg('peer', 'peerfp')],
-        ),
-      ]);
-      await _poll(hNotReady.container);
-      hNotReady.gateway.seedChannels([
-        _channel(
-          name: 'general',
-          deviceFingerprint: 'ownfp',
-          messages: [
-            _channelMsg('peer', 'peerfp'),
-            _channelMsg('peer', 'peerfp')
-          ],
-        ),
-      ]);
-      await _poll(hNotReady.container);
-      expect(hNotReady.notifications.shows, isEmpty);
-      expect(
-        hNotReady.container.read(unreadLifecycleProvider)['channel:general'],
-        1,
-      );
+    test('no toast fires when the window is focused or notifications are off',
+        () async {
+      for (final (focused, ready) in [(true, true), (false, false)]) {
+        final h = _Harness(notificationsReady: ready);
+        addTearDown(h.container.dispose);
+        h.setFocus(focused);
+        for (final count in [1, 2]) {
+          h.gateway.seedChannels([_channel(name: 'general', unread: count)]);
+          await _poll(h.container);
+        }
+        expect(h.notifications.shows, isEmpty);
+        expect(h.container.read(unreadLifecycleProvider)['channel:general'], 2);
+      }
     });
 
-    test('case 5: a channel key toast body renders #name', () async {
-      final h = _Harness();
-      addTearDown(h.container.dispose);
-      h.setFocus(false);
-      h.gateway.seedChannels([
-        _channel(
-          name: 'watercooler',
-          deviceFingerprint: 'ownfp',
-          messages: [_channelMsg('peer', 'peerfp')],
-        ),
-      ]);
-      await _poll(h.container);
-      h.gateway.seedChannels([
-        _channel(
-          name: 'watercooler',
-          deviceFingerprint: 'ownfp',
-          messages: [
-            _channelMsg('peer', 'peerfp'),
-            _channelMsg('peer', 'peerfp')
-          ],
-        ),
-      ]);
-      await _poll(h.container);
-
-      expect(h.notifications.shows.length, 1);
-      expect(h.notifications.shows.single.title, 'Mosh');
-      expect(h.notifications.shows.single.body, '#watercooler - new message');
-    });
-
-    test('case 6: a first-seen conversation never notifies (no baseline)',
+    test('a conversation appearing mid-session shows its badge without a toast',
         () async {
       final h = _Harness();
       addTearDown(h.container.dispose);
       h.setFocus(false);
-      // A group appears for the first time with several peer messages;
-      // first-seen has no baseline so diffConversations reports nothing.
-      h.gateway.seedGroups([
-        _group(
-          groupId: 'g1',
-          deviceFingerprint: 'ownfp',
-          messages: [_groupMsg('peer', 'peerfp'), _groupMsg('peer', 'peerfp')],
-        ),
-      ]);
+      await _poll(h.container);
+      h.gateway.seedGroups([_group(groupId: 'g1', unread: 2)]);
       await _poll(h.container);
 
-      expect(h.container.read(unreadLifecycleProvider), isEmpty);
+      expect(h.container.read(unreadLifecycleProvider), {'group:g1': 2});
       expect(h.notifications.shows, isEmpty);
-    });
-
-    test('clearUnread(key) removes the key from the exposed unread map',
-        () async {
-      final h = _Harness();
-      addTearDown(h.container.dispose);
-      // Grow a non-active channel so the unread map gains an entry.
-      h.gateway.seedChannels([
-        _channel(
-          name: 'general',
-          deviceFingerprint: 'ownfp',
-          messages: [_channelMsg('peer', 'peerfp')],
-        ),
-      ]);
-      await _poll(h.container);
-      h.gateway.seedChannels([
-        _channel(
-          name: 'general',
-          deviceFingerprint: 'ownfp',
-          messages: [
-            _channelMsg('peer', 'peerfp'),
-            _channelMsg('peer', 'peerfp')
-          ],
-        ),
-      ]);
-      await _poll(h.container);
-      expect(h.container.read(unreadLifecycleProvider)['channel:general'], 1);
-
-      // clearUnread drops the key from the exposed unread map.
-      h.container
-          .read(unreadLifecycleProvider.notifier)
-          .clearUnread('channel:general');
-      expect(
-          h.container.read(unreadLifecycleProvider)['channel:general'], isNull);
     });
   });
 }

@@ -25,6 +25,7 @@ mod writes;
 
 use super::history::{History, Restore};
 use super::message_log::{ConversationMessage, MessageLog};
+use super::read_marks::{ReadMarks, UnreadState};
 use super::transfer::Transfer;
 use crate::attachment_store::AttachmentStore;
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
@@ -46,6 +47,10 @@ pub trait ConversationSession {
     fn conversation_id(&self) -> &str;
 
     fn log(&self) -> &MessageLog<Self::Message>;
+
+    /// The author this installation writes its own messages under, in the
+    /// form [`ConversationMessage::author`] reports.
+    fn own_author(&self) -> &str;
 
     fn transfer(&self) -> Option<&Transfer> {
         None
@@ -104,6 +109,7 @@ pub struct ConversationRuntime<S: ConversationSession> {
     final_records: HashSet<String>,
     sessions: HashMap<String, S>,
     pending: writes::PendingWrites,
+    read_marks: ReadMarks,
 }
 
 impl<S: ConversationSession> ConversationRuntime<S> {
@@ -119,6 +125,7 @@ impl<S: ConversationSession> ConversationRuntime<S> {
             final_records: HashSet::new(),
             sessions: HashMap::new(),
             pending: writes::PendingWrites::default(),
+            read_marks: ReadMarks::new(tables),
         }
     }
 
@@ -149,6 +156,10 @@ impl<S: ConversationSession> ConversationRuntime<S> {
         if let (Some(store), Some(transfer)) = (self.persistence.clone(), session.transfer_mut()) {
             transfer.attach_execution(store, self.history.tables(), &conversation_id);
         }
+        // Before any inbound drain: only what the conversation already holds
+        // (its replayed history, or nothing) is behind the read mark's floor.
+        self.read_marks
+            .prime(self.persistence.as_deref(), &conversation_id, session.log());
         self.sessions.insert(conversation_id, session);
     }
 
@@ -203,10 +214,35 @@ impl<S: ConversationSession> ConversationRuntime<S> {
         }
     }
 
+    /// What arrived since the user last viewed the conversation, or `None`
+    /// for one that is not open.
+    pub fn unread(&mut self, conversation_id: &str) -> Option<UnreadState> {
+        let session = self.sessions.get(conversation_id)?;
+        Some(self.read_marks.state(
+            self.persistence.as_deref(),
+            conversation_id,
+            session.log(),
+            session.own_author(),
+        ))
+    }
+
+    /// The user has the conversation on screen: everything in it is seen.
+    pub fn mark_read(&mut self, conversation_id: &str) {
+        if let Some(session) = self.sessions.get(conversation_id) {
+            self.read_marks.mark_read(
+                self.persistence.as_deref(),
+                conversation_id,
+                session.log(),
+                session.own_author(),
+            );
+        }
+    }
+
     /// Forgets what the shell remembers about one conversation: how much of
     /// its history is already down, and whether its record is final. For one
     /// the user left, whose rows are being deleted anyway.
     pub fn forget(&mut self, conversation_id: &str) {
+        self.read_marks.forget(conversation_id);
         self.history.forget(conversation_id);
         self.final_records.remove(conversation_id);
         self.pending.forget(conversation_id);

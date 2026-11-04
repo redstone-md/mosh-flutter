@@ -75,6 +75,7 @@ impl Persistence {
         self.write(|tx| {
             self.delete_conversation_transfers(tx, tables, id)?;
             Self::update_row(tx, tables.conversations, id, None)?;
+            Self::update_row(tx, READ_MARKS, &Self::read_mark_key(tables, id), None)?;
             if let Some(snapshot) = tables.snapshots {
                 Self::update_row(tx, snapshot, id, None)?;
             }

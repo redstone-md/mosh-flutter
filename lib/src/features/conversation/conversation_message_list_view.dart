@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -5,6 +7,7 @@ import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_date_divider.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
+import 'package:mosh/src/features/conversation/conversation_unread_divider.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
 import 'package:mosh/src/features/conversation/message_copy.dart';
 import 'package:mosh/src/features/conversation/selectable_message_row.dart';
@@ -107,6 +110,7 @@ class ConversationMessageListView extends StatefulWidget {
     required this.attachmentCallbacks,
     required this.onRetryMessage,
     this.peer,
+    this.firstUnreadId,
   });
 
   /// The messages to show, already filtered, oldest first.
@@ -125,6 +129,10 @@ class ConversationMessageListView extends StatefulWidget {
   /// Peer actions for the sender names. Null in a DM.
   final PeerActions? peer;
 
+  /// The message the unread divider goes above. The list scrolls it into
+  /// view whenever it changes.
+  final String? firstUnreadId;
+
   @override
   State<ConversationMessageListView> createState() =>
       _ConversationMessageListViewState();
@@ -134,6 +142,8 @@ class _ConversationMessageListViewState
     extends State<ConversationMessageListView> {
   final Set<String> _seenMessageIds = <String>{};
   final Set<String> _newIncomingIds = <String>{};
+  final ScrollController _scroll = ScrollController();
+  final GlobalKey _unreadDivider = GlobalKey();
   String? _lastTargetId;
 
   @override
@@ -143,11 +153,45 @@ class _ConversationMessageListViewState
     for (final m in widget.messages) {
       _seenMessageIds.add(_messageKey(m));
     }
+    _revealUnread();
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Brings the unread divider on screen, at the top so the unread messages
+  /// fill the view below it. A long backlog leaves it beyond what the lazy
+  /// list has built, so this pages up a viewport per frame until it exists.
+  /// Nothing moves when a search or filter hides the anchor.
+  void _revealUnread() {
+    final anchor = widget.firstUnreadId;
+    if (anchor == null || !widget.messages.any((m) => m.messageId == anchor)) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      final divider = _unreadDivider.currentContext;
+      if (divider != null) {
+        Scrollable.ensureVisible(divider, alignment: 1);
+        return;
+      }
+      final position = _scroll.position;
+      if (position.pixels >= position.maxScrollExtent) return;
+      _scroll.jumpTo(math.min(position.pixels + position.viewportDimension,
+          position.maxScrollExtent));
+      _revealUnread();
+    });
   }
 
   @override
   void didUpdateWidget(covariant ConversationMessageListView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.firstUnreadId != oldWidget.firstUnreadId) {
+      _revealUnread();
+    }
     if (widget.snapshot.target.id != _lastTargetId) {
       _lastTargetId = widget.snapshot.target.id;
       _seenMessageIds.clear();
@@ -179,6 +223,7 @@ class _ConversationMessageListViewState
     return MessageSelectionArea(
       key: ValueKey(widget.snapshot.target),
       child: ListView.builder(
+        controller: _scroll,
         padding: kChatScrollPadding,
         reverse: true,
         itemCount: rows.length,
@@ -192,6 +237,9 @@ class _ConversationMessageListViewState
               children: [
                 if (date != null && !DateUtils.isSameDay(date, previous))
                   ConversationDateDivider(date: date),
+                if (widget.firstUnreadId != null &&
+                    rows[index].message.messageId == widget.firstUnreadId)
+                  ConversationUnreadDivider(key: _unreadDivider),
                 SelectableMessageRow(
                     message: rows[index].message,
                     child: _buildRow(context, rows[index], kind, l)),

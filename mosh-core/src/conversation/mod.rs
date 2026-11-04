@@ -19,6 +19,7 @@ pub mod message_log;
 pub mod outbound;
 pub mod previews;
 pub mod read_events;
+pub mod read_marks;
 pub mod recovery;
 pub mod runtime;
 #[cfg(test)]

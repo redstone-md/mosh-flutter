@@ -247,17 +247,22 @@ pub fn typing_signal(reference: BridgeConversationRef) -> Result<(), Conversatio
     }
 }
 
-/// Auto-trigger the read receipts when the conversation is open: receipts
-/// every counterpart message the local user has not yet receipted. The
-/// receipts themselves ride the DM control wire; a group and a channel
-/// have no read receipts in this slice, so those arms are silent no-ops.
-/// The sender's own ticks re-color on the OTHER side with its next poll.
+/// The conversation is on screen. Everything the last poll showed becomes
+/// read, so its unread count clears and stays cleared after a restart. In a
+/// DM this also sends read receipts for counterpart messages not yet
+/// receipted; groups and channels have no receipts in this slice. The
+/// sender's own ticks re-color on the OTHER side with its next poll.
 pub fn mark_viewed(reference: BridgeConversationRef) -> Result<(), ConversationBridgeError> {
     match reference.kind {
         BridgeConversationKind::Dm => super::private_dm::ensure_runtime()?
             .mark_viewed(&reference.id)
             .map_err(Into::into),
-        BridgeConversationKind::Group | BridgeConversationKind::Channel => Ok(()),
+        BridgeConversationKind::Group => super::private_group::ensure_runtime()?
+            .mark_viewed(&reference.id)
+            .map_err(Into::into),
+        BridgeConversationKind::Channel => super::channel::ensure_runtime()?
+            .mark_viewed(&reference.id)
+            .map_err(Into::into),
     }
 }
 

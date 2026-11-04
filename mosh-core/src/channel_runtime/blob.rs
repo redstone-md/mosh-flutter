@@ -187,6 +187,7 @@ impl ChannelSession {
         ChannelSnapshot {
             history_sync: self.history_state(),
             deletion_summary: self.deletions.summary(),
+            unread: None,
             name: self.name.clone(),
             topic: self.topic.clone(),
             mesh_id: self.mesh_id.clone(),

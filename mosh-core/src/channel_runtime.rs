@@ -214,7 +214,9 @@ impl ChannelRuntime {
         self.drain_inbound()?;
         self.channels.persist_tail_logged(KIND);
         let normalized = normalize_name(name)?;
-        Ok(self.channel_ref(&normalized)?.snapshot())
+        let mut snapshot = self.channel_ref(&normalized)?.snapshot();
+        snapshot.unread = self.channels.unread(&normalized);
+        Ok(snapshot)
     }
 
     pub fn list(&mut self) -> Result<ChannelListSnapshot, ChannelRuntimeError> {
@@ -225,6 +227,9 @@ impl ChannelRuntime {
             .values()
             .map(ChannelSession::snapshot)
             .collect();
+        for snapshot in &mut channels {
+            snapshot.unread = self.channels.unread(&snapshot.name);
+        }
         channels.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(ChannelListSnapshot { channels })
     }
@@ -283,48 +288,6 @@ impl ChannelRuntime {
             self.channels.acknowledge_history(&name);
         }
         Ok(())
-    }
-}
-
-impl ConversationSession for ChannelSession {
-    fn attach_persistence(&mut self, store: Option<Arc<Persistence>>) {
-        self.deletions.store = store;
-        self.restore_history();
-    }
-    type Message = ChannelMessage;
-    type Record = PersistedChannelSession;
-
-    fn conversation_id(&self) -> &str {
-        &self.name
-    }
-
-    fn log(&self) -> &MessageLog<ChannelMessage> {
-        &self.messages
-    }
-
-    fn transfer(&self) -> Option<&Transfer> {
-        Some(&self.transfer)
-    }
-
-    fn transfer_mut(&mut self) -> Option<&mut Transfer> {
-        Some(&mut self.transfer)
-    }
-
-    fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord> {
-        &self.outbound_attempts
-    }
-
-    fn record(&self) -> PersistedChannelSession {
-        PersistedChannelSession {
-            name: self.name.clone(),
-            topic: self.topic.clone(),
-            blob_topic: self.blob_topic.clone(),
-            mesh_id: self.mesh_id.clone(),
-            display_name: self.display_name.clone(),
-            device_fingerprint: self.device_fingerprint.clone(),
-            listen_port: self.listen_port,
-            static_peer: self.static_peer.clone(),
-        }
     }
 }
 
