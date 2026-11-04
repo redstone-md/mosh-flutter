@@ -1,68 +1,21 @@
 import 'package:mosh/src/gateway/conversation_target.dart';
 
-/// A conversation and its current total message count.
+/// A conversation and its current unread count.
 class ConversationCount {
   final String id;
-  final int messageCount;
+  final int unread;
 
-  const ConversationCount({required this.id, required this.messageCount});
-
-  @override
-  bool operator ==(Object other) =>
-      other is ConversationCount &&
-      other.id == id &&
-      other.messageCount == messageCount;
-
-  @override
-  int get hashCode => Object.hash(id, messageCount);
-
-  @override
-  String toString() =>
-      'ConversationCount(id: $id, messageCount: $messageCount)';
-}
-
-/// Authorship info for a single stored message.
-///
-/// `fromFingerprint` is null for 1:1 DMs (no fingerprint carried) and
-/// non-null for channels/groups.
-class MessageAuthor {
-  final String fromDevice;
-  final String? fromFingerprint;
-
-  const MessageAuthor({required this.fromDevice, this.fromFingerprint});
+  const ConversationCount({required this.id, required this.unread});
 
   @override
   bool operator ==(Object other) =>
-      other is MessageAuthor &&
-      other.fromDevice == fromDevice &&
-      other.fromFingerprint == fromFingerprint;
+      other is ConversationCount && other.id == id && other.unread == unread;
 
   @override
-  int get hashCode => Object.hash(fromDevice, fromFingerprint);
+  int get hashCode => Object.hash(id, unread);
 
   @override
-  String toString() =>
-      'MessageAuthor(fromDevice: $fromDevice, fromFingerprint: $fromFingerprint)';
-}
-
-/// Counts messages NOT authored by the local participant.
-///
-/// When both `ownFingerprint` and `message.fromFingerprint` are present
-/// (channels/groups), identity is compared by fingerprint: display names
-/// are not unique, so a same-named peer must still count, and a renamed
-/// self must not. DMs carry no fingerprint and fall back to the display
-/// name (2-party, unambiguous).
-int countMessagesFromOthers(
-  List<MessageAuthor> messages,
-  String ownDeviceName, [
-  String? ownFingerprint,
-]) {
-  return messages.where((message) {
-    if (ownFingerprint != null && message.fromFingerprint != null) {
-      return message.fromFingerprint != ownFingerprint;
-    }
-    return message.fromDevice != ownDeviceName;
-  }).length;
+  String toString() => 'ConversationCount(id: $id, unread: $unread)';
 }
 
 /// Notification title/body for a conversation that gained messages.
@@ -134,9 +87,9 @@ class UnreadDiff {
   int get hashCode => Object.hash(newMessages, nextLastSeen);
 }
 
-/// Compares current per-conversation message counts against last-seen
-/// counts and reports which conversations gained messages worth
-/// notifying about.
+/// Compares current per-conversation unread counts against the previous
+/// poll's and reports which conversations gained messages worth notifying
+/// about.
 ///
 /// A conversation reports new messages when its count grew AND it is not
 /// the currently-active conversation — unless the window is unfocused,
@@ -152,12 +105,12 @@ UnreadDiff diffConversations(
   final newMessages = <NewMessages>[];
   final nextLastSeen = <String, int>{};
   for (final conversation in current) {
-    nextLastSeen[conversation.id] = conversation.messageCount;
+    nextLastSeen[conversation.id] = conversation.unread;
     final previous = lastSeen[conversation.id];
     if (previous == null) {
       continue;
     }
-    final delta = conversation.messageCount - previous;
+    final delta = conversation.unread - previous;
     if (delta <= 0) {
       continue;
     }

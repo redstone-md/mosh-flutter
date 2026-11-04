@@ -116,10 +116,9 @@ class SessionsRailList extends ConsumerWidget {
     return (
       unreadCount: unread[key] ?? 0,
       active: key == active,
-      onSelect: () {
-        ref.read(unreadLifecycleProvider.notifier).clearUnread(key);
-        ref.read(activeConversationKeyProvider.notifier).set(key);
-      },
+      // The badge hides once the selected conversation is the active one;
+      // the core clears its count when the screen marks it viewed.
+      onSelect: () => ref.read(activeConversationKeyProvider.notifier).set(key),
     );
   }
 

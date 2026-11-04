@@ -2,61 +2,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/conversation_providers.dart';
-import 'package:mosh/src/util/unread.dart';
 
 /// The unread count of every conversation in [list], keyed by the
 /// conversation's own key.
 ///
-/// Pure + synchronous so the provider body and the unit tests share one
-/// code path. A conversation with no not-own messages is present with a
-/// count of 0, which is what lets a badge clear instead of vanish.
-Map<String, int> unreadCounts(ConversationList list) {
-  final counts = <String, int>{};
-  switch (list) {
-    case DmConversationList(:final snapshot):
-      for (final session in snapshot.sessions) {
-        final authors = session.messages
-            .map((m) => MessageAuthor(
-                  fromDevice: m.fromDevice,
-                  fromFingerprint: null,
-                ))
-            .toList();
-        counts[_keyOf(ConversationKind.dm, session.sessionId)] =
-            countMessagesFromOthers(authors, session.displayName);
-      }
-    case ChannelConversationList(:final snapshot):
-      for (final channel in snapshot.channels) {
-        final authors = channel.messages
-            .map((m) => MessageAuthor(
-                  fromDevice: m.fromDevice,
-                  fromFingerprint: m.fromFingerprint,
-                ))
-            .toList();
-        counts[_keyOf(ConversationKind.channel, channel.name)] =
-            countMessagesFromOthers(
-          authors,
-          channel.displayName,
-          channel.deviceFingerprint,
-        );
-      }
-    case GroupConversationList(:final snapshot):
-      for (final group in snapshot.groups) {
-        final authors = group.messages
-            .map((m) => MessageAuthor(
-                  fromDevice: m.fromDevice,
-                  fromFingerprint: m.fromFingerprint,
-                ))
-            .toList();
-        counts[_keyOf(ConversationKind.group, group.groupId)] =
-            countMessagesFromOthers(
-          authors,
-          group.displayName,
-          group.deviceFingerprint,
-        );
-      }
-  }
-  return counts;
-}
+/// The core keeps what the user has seen in its encrypted store and reports
+/// the rest on each snapshot, so these counts survive a restart. A snapshot
+/// without that report counts as nothing unread.
+Map<String, int> unreadCounts(ConversationList list) => switch (list) {
+      DmConversationList(:final snapshot) => {
+          for (final session in snapshot.sessions)
+            _keyOf(ConversationKind.dm, session.sessionId):
+                session.unread?.count ?? 0,
+        },
+      ChannelConversationList(:final snapshot) => {
+          for (final channel in snapshot.channels)
+            _keyOf(ConversationKind.channel, channel.name):
+                channel.unread?.count ?? 0,
+        },
+      GroupConversationList(:final snapshot) => {
+          for (final group in snapshot.groups)
+            _keyOf(ConversationKind.group, group.groupId):
+                group.unread?.count ?? 0,
+        },
+    };
 
 /// The key one conversation is counted under. [ConversationRef] owns the
 /// grammar, so no key literal is written here.
