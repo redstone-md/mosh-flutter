@@ -6,7 +6,12 @@ import 'package:mosh/src/rust/conversation/read_marks.dart';
 import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
+import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
+import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
+
 import '../../support/conversation_cases.dart';
+import '../../support/message_builders.dart';
 import '../../support/pump.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
@@ -76,5 +81,38 @@ void main() {
     final list = tester.getRect(find.byType(ListView));
     expect(list.contains(divider.center), isTrue);
     expect(find.text('Message 5'), findsOneWidget);
+  });
+
+  testWidgets('a filter that hides the first unread keeps the newest in view',
+      (tester) async {
+    final messages = [
+      for (var i = 0; i < 80; i++)
+        ConversationMessage(
+          fromDevice: 'peer',
+          body: 'Message $i',
+          own: false,
+          messageId: 'm$i',
+          sentAtMs: BigInt.from(1700000000000 + i * 1000),
+        ),
+    ];
+    await pumpScreen(
+      tester,
+      ConversationMessageListView(
+        messages: messages.sublist(10),
+        snapshot: DmConversation(
+            const DmTarget('s1'), TestSnapshots.dm(sessionId: 's1')),
+        firstUnreadId: 'm5',
+        attachmentCallbacks: (_, {required bool own}) =>
+            ConversationAttachmentCallbacks(
+          busy: false,
+          onDownload: (_) {},
+          onCancel: (_) {},
+          onOpen: (_) {},
+        ),
+        onRetryMessage: (_) {},
+      ),
+    );
+
+    expect(find.text('Message 79'), findsOneWidget);
   });
 }

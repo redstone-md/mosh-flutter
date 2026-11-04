@@ -16,9 +16,6 @@ import 'package:mosh/src/gateway/conversation_target.dart'
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 
-/// How many viewports the list pages up looking for the unread divider.
-const int _maxRevealPages = 100;
-
 /// How long a gap can be before the next message starts a new block.
 const Duration conversationGroupWindow = Duration(minutes: 5);
 
@@ -156,7 +153,7 @@ class _ConversationMessageListViewState
     for (final m in widget.messages) {
       _seenMessageIds.add(_messageKey(m));
     }
-    if (widget.firstUnreadId != null) _revealUnread();
+    _revealUnread();
   }
 
   @override
@@ -168,7 +165,12 @@ class _ConversationMessageListViewState
   /// Brings the unread divider on screen, at the top so the unread messages
   /// fill the view below it. A long backlog leaves it beyond what the lazy
   /// list has built, so this pages up a viewport per frame until it exists.
-  void _revealUnread([int pages = 0]) {
+  /// Nothing moves when a search or filter hides the anchor.
+  void _revealUnread() {
+    final anchor = widget.firstUnreadId;
+    if (anchor == null || !widget.messages.any((m) => m.messageId == anchor)) {
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scroll.hasClients) return;
       final divider = _unreadDivider.currentContext;
@@ -177,21 +179,17 @@ class _ConversationMessageListViewState
         return;
       }
       final position = _scroll.position;
-      if (pages >= _maxRevealPages ||
-          position.pixels >= position.maxScrollExtent) {
-        return;
-      }
+      if (position.pixels >= position.maxScrollExtent) return;
       _scroll.jumpTo(math.min(position.pixels + position.viewportDimension,
           position.maxScrollExtent));
-      _revealUnread(pages + 1);
+      _revealUnread();
     });
   }
 
   @override
   void didUpdateWidget(covariant ConversationMessageListView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.firstUnreadId != null &&
-        widget.firstUnreadId != oldWidget.firstUnreadId) {
+    if (widget.firstUnreadId != oldWidget.firstUnreadId) {
       _revealUnread();
     }
     if (widget.snapshot.target.id != _lastTargetId) {
