@@ -1,0 +1,601 @@
+--- a/build.rs
++++ b/build.rs
+@@ -31,6 +31,7 @@ fn main() {
+     let mut rust_files = vec![
+         "src/peer_connection.rs",
+         "src/peer_connection_factory.rs",
++        "src/virtual_network.rs",
+         "src/audio_device_controller.rs",
+         "src/media_stream.rs",
+         "src/media_stream_track.rs",
+@@ -67,6 +68,7 @@ fn main() {
+     builder.files(&[
+         "src/peer_connection.cpp",
+         "src/peer_connection_factory.cpp",
++        "src/virtual_network.cpp",
+         "src/audio_device_controller.cpp",
+         "src/media_stream.cpp",
+         "src/media_stream_track.cpp",
+--- a/include/livekit/peer_connection_factory.h
++++ b/include/livekit/peer_connection_factory.h
+@@ -22,6 +22,7 @@
+ #include "api/task_queue/task_queue_factory.h"
+ #include "livekit/adm_proxy.h"
+ #include "livekit/audio_device_controller.h"
++#include "livekit/virtual_network.h"
+ #include "media_stream.h"
+ #include "rtp_parameters.h"
+ #include "rust/cxx.h"
+@@ -50,7 +51,8 @@ class PeerConnectionFactory {
+                         bool zero_playout_delay);
+   PeerConnectionFactory(std::shared_ptr<RtcRuntime> rtc_runtime,
+                         bool zero_playout_delay,
+-                        bool enable_warp);
++                        bool enable_warp,
++                        std::shared_ptr<VirtualNetwork> network = nullptr);
+   ~PeerConnectionFactory();
+ 
+   std::shared_ptr<PeerConnection> create_peer_connection(
+@@ -96,6 +98,8 @@ class PeerConnectionFactory {
+   // long as peer_factory_ does.
+   const VideoEncoderFactory* video_encoder_factory_ = nullptr;
+   webrtc::Environment env_;
++  // Virtual-network factories negotiate only AEAD SRTP profiles.
++  bool aead_srtp_only_ = false;
+ };
+ 
+ std::shared_ptr<PeerConnectionFactory> create_peer_connection_factory();
+@@ -104,4 +108,7 @@ create_peer_connection_factory_with_zero_playout_delay();
+ std::shared_ptr<PeerConnectionFactory>
+ create_peer_connection_factory_with_options(bool zero_playout_delay,
+                                             bool enable_warp);
++std::shared_ptr<PeerConnectionFactory>
++create_peer_connection_factory_with_network(
++    std::shared_ptr<VirtualNetwork> network);
+ }  // namespace livekit_ffi
+--- /dev/null
++++ b/include/livekit/virtual_network.h
+@@ -0,0 +1,87 @@
++/*
++ * Copyright 2026 Mosh contributors
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++// A network with one virtual IPv4 interface and UDP sockets only. Packets
++// a peer connection sends leave through a Rust sender, and the embedder
++// delivers incoming packets with receive(); no OS socket, DNS lookup or
++// interface enumeration is involved.
++
++#pragma once
++
++#include <cstdint>
++#include <map>
++#include <memory>
++
++#include "api/packet_socket_factory.h"
++#include "rtc_base/buffer.h"
++#include "rtc_base/ip_address.h"
++#include "rtc_base/network.h"
++#include "rtc_base/socket_address.h"
++#include "rtc_base/thread.h"
++#include "rust/cxx.h"
++
++namespace livekit_ffi {
++class VirtualNetwork;
++class VirtualNetworkSender;
++}  // namespace livekit_ffi
++#include "webrtc-sys/src/virtual_network.rs.h"
++
++namespace livekit_ffi {
++
++class VirtualSocket;
++
++class VirtualNetwork : public std::enable_shared_from_this<VirtualNetwork> {
++ public:
++  VirtualNetwork(uint32_t ipv4, rust::Box<VirtualNetworkSender> sender);
++
++  // Delivers a packet addressed to `local_port` from the peer's address.
++  // Callable from any thread; delivery happens on the network thread.
++  void receive(uint16_t local_port,
++               uint32_t remote_ipv4,
++               uint16_t remote_port,
++               rust::Slice<const uint8_t> data) const;
++
++  // Wires the network into a peer connection factory on `thread`.
++  void attach(webrtc::Thread* thread);
++  std::unique_ptr<webrtc::PacketSocketFactory> socket_factory();
++  std::unique_ptr<webrtc::NetworkManager> network_manager() const;
++
++  const webrtc::IPAddress& ip() const { return ip_; }
++
++  // Network-thread socket registry.
++  uint16_t bind(VirtualSocket* socket, uint16_t min_port, uint16_t max_port);
++  void unbind(uint16_t port);
++  bool send(uint16_t local_port,
++            const webrtc::SocketAddress& to,
++            const void* data,
++            size_t size) const;
++
++ private:
++  void deliver(uint16_t local_port,
++               const webrtc::SocketAddress& from,
++               webrtc::Buffer packet);
++
++  webrtc::IPAddress ip_;
++  rust::Box<VirtualNetworkSender> sender_;
++  webrtc::Thread* thread_ = nullptr;
++  std::map<uint16_t, VirtualSocket*> sockets_;
++};
++
++std::shared_ptr<VirtualNetwork> create_virtual_network(
++    uint32_t ipv4,
++    rust::Box<VirtualNetworkSender> sender);
++
++}  // namespace livekit_ffi
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -40,6 +40,7 @@ pub mod rtp_transceiver;
+ pub mod video_frame;
+ pub mod video_frame_buffer;
+ pub mod video_track;
++pub mod virtual_network;
+ pub mod webrtc;
+ pub mod yuv_helper;
+ 
+--- a/src/peer_connection_factory.cpp
++++ b/src/peer_connection_factory.cpp
+@@ -154,7 +154,8 @@ PeerConnectionFactory::PeerConnectionFactory(
+ PeerConnectionFactory::PeerConnectionFactory(
+     std::shared_ptr<RtcRuntime> rtc_runtime,
+     bool zero_playout_delay,
+-    bool enable_warp)
++    bool enable_warp,
++    std::shared_ptr<VirtualNetwork> network)
+     : rtc_runtime_(rtc_runtime),
+       env_(CreateEnvironment(zero_playout_delay, enable_warp)) {
+   webrtc::PeerConnectionFactoryDependencies dependencies;
+@@ -162,6 +163,12 @@ PeerConnectionFactory::PeerConnectionFactory(
+   dependencies.worker_thread = rtc_runtime_->worker_thread();
+   dependencies.signaling_thread = rtc_runtime_->signaling_thread();
+   dependencies.socket_factory = rtc_runtime_->network_thread()->socketserver();
++  if (network) {
++    aead_srtp_only_ = true;
++    network->attach(rtc_runtime_->network_thread());
++    dependencies.packet_socket_factory = network->socket_factory();
++    dependencies.network_manager = network->network_manager();
++  }
+   dependencies.event_log_factory = std::make_unique<webrtc::RtcEventLogFactory>();
+   dependencies.env = env_;
+ 
+@@ -221,7 +228,12 @@ std::shared_ptr<PeerConnection> PeerConnectionFactory::create_peer_connection(
+   std::shared_ptr<PeerConnection> pc = std::make_shared<PeerConnection>(
+       rtc_runtime_, peer_factory_, std::move(observer));
+ 
+-  if (!pc->Initialize(to_native_rtc_configuration(config))) {
++  auto native_config = to_native_rtc_configuration(config);
++  if (aead_srtp_only_) {
++    native_config.crypto_options.srtp.enable_aes128_sha1_80_crypto_cipher =
++        false;
++  }
++  if (!pc->Initialize(native_config)) {
+     throw std::runtime_error(serialize_error(to_error(webrtc::RTCError(
+         webrtc::RTCErrorType::INTERNAL_ERROR, "failed to initialize pc"))));
+   }
+@@ -316,4 +328,11 @@ create_peer_connection_factory_with_options(bool zero_playout_delay,
+                                                  enable_warp);
+ }
+ 
++std::shared_ptr<PeerConnectionFactory>
++create_peer_connection_factory_with_network(
++    std::shared_ptr<VirtualNetwork> network) {
++  return std::make_shared<PeerConnectionFactory>(RtcRuntime::create(), false,
++                                                 false, std::move(network));
++}
++
+ }  // namespace livekit_ffi
+--- a/src/peer_connection_factory.rs
++++ b/src/peer_connection_factory.rs
+@@ -87,6 +87,7 @@ pub mod ffi {
+ 
+         type PeerConnection = crate::peer_connection::ffi::PeerConnection;
+         type PeerConnectionFactory;
++        type VirtualNetwork = crate::virtual_network::ffi::VirtualNetwork;
+ 
+         fn create_peer_connection_factory() -> SharedPtr<PeerConnectionFactory>;
+         fn create_peer_connection_factory_with_zero_playout_delay(
+@@ -95,6 +96,10 @@ pub mod ffi {
+             zero_playout_delay: bool,
+             enable_warp: bool,
+         ) -> SharedPtr<PeerConnectionFactory>;
++        /// Every peer connection of this factory uses only `network`.
++        fn create_peer_connection_factory_with_network(
++            network: SharedPtr<VirtualNetwork>,
++        ) -> SharedPtr<PeerConnectionFactory>;
+ 
+         fn zero_playout_delay_enabled(self: &PeerConnectionFactory) -> bool;
+ 
+--- /dev/null
++++ b/src/virtual_network.cpp
+@@ -0,0 +1,298 @@
++/*
++ * Copyright 2026 Mosh contributors
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include "livekit/virtual_network.h"
++
++#include <cerrno>
++#include <utility>
++#include <vector>
++
++#include "api/async_dns_resolver.h"
++#include "api/task_queue/pending_task_safety_flag.h"
++#include "api/units/timestamp.h"
++#include "rtc_base/async_packet_socket.h"
++#include "rtc_base/network/received_packet.h"
++#include "rtc_base/network/sent_packet.h"
++#include "rtc_base/time_utils.h"
++
++namespace livekit_ffi {
++
++// One UDP port on the virtual interface. Lives on the network thread.
++class VirtualSocket : public webrtc::AsyncPacketSocket {
++ public:
++  VirtualSocket(std::shared_ptr<VirtualNetwork> network,
++                webrtc::SocketAddress local)
++      : network_(std::move(network)), local_(std::move(local)) {}
++
++  ~VirtualSocket() override { network_->unbind(local_.port()); }
++
++  void set_port(uint16_t port) { local_.SetPort(port); }
++
++  webrtc::SocketAddress GetLocalAddress() const override { return local_; }
++  webrtc::SocketAddress GetRemoteAddress() const override { return {}; }
++
++  int Send(const void*, size_t, const webrtc::AsyncSocketPacketOptions&)
++      override {
++    error_ = ENOTCONN;
++    return -1;
++  }
++
++  int SendTo(const void* data,
++             size_t size,
++             const webrtc::SocketAddress& to,
++             const webrtc::AsyncSocketPacketOptions& options) override {
++    if (state_ == STATE_CLOSED) {
++      error_ = EBADF;
++      return -1;
++    }
++    // A full queue drops the packet like a congested link would; WebRTC's
++    // own congestion control reacts to the loss.
++    network_->send(local_.port(), to, data, size);
++    webrtc::SentPacketInfo sent(options.packet_id, webrtc::TimeMillis(),
++                                options.info_signaled_after_sent);
++    NotifySentPacket(this, sent);
++    return static_cast<int>(size);
++  }
++
++  int Close() override {
++    state_ = STATE_CLOSED;
++    return 0;
++  }
++
++  State GetState() const override { return state_; }
++  int GetOption(webrtc::Socket::Option, int*) override { return -1; }
++  int SetOption(webrtc::Socket::Option, int) override { return 0; }
++  int GetError() const override { return error_; }
++  void SetError(int error) override { error_ = error; }
++
++  void deliver(const webrtc::SocketAddress& from,
++               const webrtc::Buffer& packet) {
++    if (state_ == STATE_CLOSED) {
++      return;
++    }
++    NotifyPacketReceived(webrtc::ReceivedIpPacket(
++        packet, from, webrtc::Timestamp::Micros(webrtc::TimeMicros())));
++  }
++
++ private:
++  std::shared_ptr<VirtualNetwork> network_;
++  webrtc::SocketAddress local_;
++  State state_ = STATE_BOUND;
++  int error_ = 0;
++};
++
++namespace {
++
++// Hostname candidates are never produced on the virtual network; any
++// lookup fails rather than reaching the system resolver.
++class NoDnsResolver : public webrtc::AsyncDnsResolverInterface,
++                      public webrtc::AsyncDnsResolverResult {
++ public:
++  void Start(const webrtc::SocketAddress&,
++             absl::AnyInvocable<void()> callback) override {
++    fail(std::move(callback));
++  }
++  void Start(const webrtc::SocketAddress&,
++             int,
++             absl::AnyInvocable<void()> callback) override {
++    fail(std::move(callback));
++  }
++  const webrtc::AsyncDnsResolverResult& result() const override {
++    return *this;
++  }
++  bool GetResolvedAddress(int, webrtc::SocketAddress*) const override {
++    return false;
++  }
++  int GetError() const override { return EAI_FAIL_CODE; }
++
++ private:
++  static constexpr int EAI_FAIL_CODE = -4;
++
++  void fail(absl::AnyInvocable<void()> callback) {
++    webrtc::Thread::Current()->PostTask(
++        webrtc::SafeTask(safety_.flag(), std::move(callback)));
++  }
++
++  webrtc::ScopedTaskSafety safety_;
++};
++
++class VirtualSocketFactory : public webrtc::PacketSocketFactory {
++ public:
++  explicit VirtualSocketFactory(std::shared_ptr<VirtualNetwork> network)
++      : network_(std::move(network)) {}
++
++  std::unique_ptr<webrtc::AsyncPacketSocket> CreateUdpSocket(
++      const webrtc::Environment&,
++      const webrtc::SocketAddress& address,
++      uint16_t min_port,
++      uint16_t max_port) override {
++    if (!address.IsAnyIP() && address.ipaddr() != network_->ip()) {
++      return nullptr;
++    }
++    auto socket = std::make_unique<VirtualSocket>(
++        network_, webrtc::SocketAddress(network_->ip(), 0));
++    uint16_t port = network_->bind(socket.get(), min_port, max_port);
++    if (port == 0) {
++      return nullptr;
++    }
++    socket->set_port(port);
++    return socket;
++  }
++
++  std::unique_ptr<webrtc::AsyncListenSocket> CreateServerTcpSocket(
++      const webrtc::Environment&,
++      const webrtc::SocketAddress&,
++      uint16_t,
++      uint16_t,
++      int) override {
++    return nullptr;
++  }
++
++  std::unique_ptr<webrtc::AsyncPacketSocket> CreateClientTcpSocket(
++      const webrtc::Environment&,
++      const webrtc::SocketAddress&,
++      const webrtc::SocketAddress&,
++      const webrtc::PacketSocketTcpOptions&) override {
++    return nullptr;
++  }
++
++  std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAsyncDnsResolver()
++      override {
++    return std::make_unique<NoDnsResolver>();
++  }
++
++ private:
++  std::shared_ptr<VirtualNetwork> network_;
++};
++
++// Reports exactly the virtual interface, so ICE gathers one host candidate
++// per socket and never enumerates the machine's adapters.
++class VirtualNetworkManager : public webrtc::NetworkManagerBase {
++ public:
++  explicit VirtualNetworkManager(webrtc::IPAddress ip) : ip_(ip) {}
++
++  void StartUpdating() override {
++    if (!listed_) {
++      listed_ = true;
++      auto network = std::make_unique<webrtc::Network>(
++          "mosh", "Mosh", webrtc::TruncateIP(ip_, 24), 24,
++          webrtc::ADAPTER_TYPE_ETHERNET);
++      network->AddIP(ip_);
++      std::vector<std::unique_ptr<webrtc::Network>> list;
++      list.push_back(std::move(network));
++      bool changed = false;
++      MergeNetworkList(std::move(list), &changed);
++      set_enumeration_permission(ENUMERATION_ALLOWED);
++      set_default_local_addresses(ip_, webrtc::IPAddress());
++    }
++    webrtc::Thread::Current()->PostTask(
++        webrtc::SafeTask(safety_.flag(), [this] { NotifyNetworksChanged(); }));
++  }
++
++  void StopUpdating() override {}
++
++ private:
++  webrtc::IPAddress ip_;
++  bool listed_ = false;
++  webrtc::ScopedTaskSafety safety_;
++};
++
++constexpr uint16_t kFirstEphemeralPort = 49152;
++
++}  // namespace
++
++VirtualNetwork::VirtualNetwork(uint32_t ipv4,
++                               rust::Box<VirtualNetworkSender> sender)
++    : ip_(ipv4), sender_(std::move(sender)) {}
++
++void VirtualNetwork::attach(webrtc::Thread* thread) {
++  thread_ = thread;
++}
++
++std::unique_ptr<webrtc::PacketSocketFactory> VirtualNetwork::socket_factory() {
++  return std::make_unique<VirtualSocketFactory>(shared_from_this());
++}
++
++std::unique_ptr<webrtc::NetworkManager> VirtualNetwork::network_manager()
++    const {
++  return std::make_unique<VirtualNetworkManager>(ip_);
++}
++
++uint16_t VirtualNetwork::bind(VirtualSocket* socket,
++                              uint16_t min_port,
++                              uint16_t max_port) {
++  if (min_port == 0 && max_port == 0) {
++    min_port = kFirstEphemeralPort;
++    max_port = UINT16_MAX;
++  }
++  for (uint32_t port = min_port; port <= max_port; ++port) {
++    if (sockets_.emplace(static_cast<uint16_t>(port), socket).second) {
++      return static_cast<uint16_t>(port);
++    }
++  }
++  return 0;
++}
++
++void VirtualNetwork::unbind(uint16_t port) {
++  sockets_.erase(port);
++}
++
++bool VirtualNetwork::send(uint16_t local_port,
++                          const webrtc::SocketAddress& to,
++                          const void* data,
++                          size_t size) const {
++  if (to.family() != AF_INET) {
++    return false;
++  }
++  rust::Slice<const uint8_t> bytes(static_cast<const uint8_t*>(data), size);
++  return sender_->send(local_port, to.ipaddr().v4AddressAsHostOrderInteger(),
++                       to.port(), bytes);
++}
++
++void VirtualNetwork::receive(uint16_t local_port,
++                             uint32_t remote_ipv4,
++                             uint16_t remote_port,
++                             rust::Slice<const uint8_t> data) const {
++  if (thread_ == nullptr) {
++    return;
++  }
++  std::weak_ptr<VirtualNetwork> weak =
++      std::const_pointer_cast<VirtualNetwork>(shared_from_this());
++  webrtc::SocketAddress from(webrtc::IPAddress(remote_ipv4), remote_port);
++  webrtc::Buffer packet(data.data(), data.size());
++  thread_->PostTask([weak, local_port, from, packet = std::move(packet)]() mutable {
++    if (auto network = weak.lock()) {
++      network->deliver(local_port, from, std::move(packet));
++    }
++  });
++}
++
++void VirtualNetwork::deliver(uint16_t local_port,
++                             const webrtc::SocketAddress& from,
++                             webrtc::Buffer packet) {
++  auto socket = sockets_.find(local_port);
++  if (socket != sockets_.end()) {
++    socket->second->deliver(from, packet);
++  }
++}
++
++std::shared_ptr<VirtualNetwork> create_virtual_network(
++    uint32_t ipv4,
++    rust::Box<VirtualNetworkSender> sender) {
++  return std::make_shared<VirtualNetwork>(ipv4, std::move(sender));
++}
++
++}  // namespace livekit_ffi
+--- /dev/null
++++ b/src/virtual_network.rs
+@@ -0,0 +1,70 @@
++// Copyright 2026 Mosh contributors
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++//! A virtual UDP network for a peer connection factory. The embedder
++//! carries the packets; nothing touches an OS socket.
++
++use crate::impl_thread_safety;
++
++#[cxx::bridge(namespace = "livekit_ffi")]
++pub mod ffi {
++    unsafe extern "C++" {
++        include!("livekit/virtual_network.h");
++
++        type VirtualNetwork;
++
++        fn create_virtual_network(
++            ipv4: u32,
++            sender: Box<VirtualNetworkSender>,
++        ) -> SharedPtr<VirtualNetwork>;
++
++        fn receive(
++            self: &VirtualNetwork,
++            local_port: u16,
++            remote_ipv4: u32,
++            remote_port: u16,
++            data: &[u8],
++        );
++    }
++
++    extern "Rust" {
++        type VirtualNetworkSender;
++
++        fn send(
++            self: &VirtualNetworkSender,
++            local_port: u16,
++            remote_ipv4: u32,
++            remote_port: u16,
++            data: &[u8],
++        ) -> bool;
++    }
++}
++
++impl_thread_safety!(ffi::VirtualNetwork, Send + Sync);
++
++/// Called on the network thread for every outgoing packet. Returns false
++/// when the packet was dropped.
++pub type SendPacket = dyn Fn(u16, u32, u16, &[u8]) -> bool + Send + Sync;
++
++pub struct VirtualNetworkSender(Box<SendPacket>);
++
++impl VirtualNetworkSender {
++    pub fn new(send: Box<SendPacket>) -> Box<Self> {
++        Box::new(Self(send))
++    }
++
++    fn send(&self, local_port: u16, remote_ipv4: u32, remote_port: u16, data: &[u8]) -> bool {
++        (self.0)(local_port, remote_ipv4, remote_port, data)
++    }
++}
