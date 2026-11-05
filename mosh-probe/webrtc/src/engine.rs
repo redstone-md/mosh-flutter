@@ -388,7 +388,7 @@ fn prefer_red(factory: &PeerConnectionFactory, pc: &PeerConnection) -> Result<()
     let mut codecs = factory
         .get_rtp_sender_capabilities(libwebrtc::MediaType::Audio)
         .codecs;
-    codecs.sort_by_key(|codec| codec.mime_type.to_ascii_lowercase() != "audio/red");
+    codecs.sort_by_key(|codec| !codec.mime_type.eq_ignore_ascii_case("audio/red"));
     for transceiver in pc.transceivers() {
         transceiver
             .set_codec_preferences(codecs.clone())
