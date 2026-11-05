@@ -28,6 +28,13 @@ pub fn select(factory: &PeerConnectionFactory, value: &Value) -> Value {
     json!({"input_ok": input_ok, "output_ok": output_ok})
 }
 
+/// Starts the microphone once recording is enabled. WebRTC asks the audio
+/// module to record when the call connects; a request made while recording
+/// was off is dropped, so a microphone turned on later never starts.
+pub fn start_recording(factory: &PeerConnectionFactory) -> bool {
+    factory.init_recording() && factory.start_recording()
+}
+
 /// Ranks RED (RFC 2198) ahead of plain Opus, as Chrome's RED trial does:
 /// each 20 ms packet repeats the previous frame, so a single lost packet is
 /// recovered whole. On the bench (30 ms, 224 kbit/s) it concealed 0.4% of
