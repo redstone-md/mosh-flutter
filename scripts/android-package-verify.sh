@@ -47,6 +47,14 @@ for library in "${libraries[@]}"; do
   test -s "$WORK/lib/arm64-v8a/$library"
 done
 
+if [[ "$jni_zero" == livekit.org.jni_zero ]]; then
+  # libwebrtc.jar's native methods resolve to the engine's exports.
+  "$NDK" --dyn-syms --wide "$WORK/lib/arm64-v8a/libmosh_native_media.so" |
+    awk '$7 != "UND" {print $8}' |
+    grep -q '^Java_livekit_org_webrtc_SoftwareVideoEncoderFactory_nativeCreateFactory' ||
+    { echo 'The libwebrtc engine does not export its JNI entry points' >&2; exit 1; }
+fi
+
 "$NDK" --dyn-syms --wide "$WORK/lib/arm64-v8a/libmosh_core.so" > "$WORK/core-symbols.txt"
 for method in initialize notifyNetworkChanged setTransferExecution setTransferInteractive; do
   if ! awk '$7 != "UND" {print $8}' "$WORK/core-symbols.txt" |
