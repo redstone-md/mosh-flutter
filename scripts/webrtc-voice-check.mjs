@@ -2,7 +2,9 @@
 // A voice call over two real Moss nodes with the engine given as argument,
 // measured by mosh-probe/media-bench: each peer gets its own PulseAudio
 // server whose null sinks are its microphone and speaker, a 1 kHz burst goes
-// into the caller's microphone every second, and the callee must hear them.
+// into the caller's microphone every second, and the callee must hear them:
+// once with the microphone on from the start, once switched on only after
+// the call connected (Android grants the permission mid-call).
 // Linux only (PulseAudio); CI runs it for the libwebrtc engine.
 import { spawnSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -29,20 +31,24 @@ for (const side of ["a", "b"]) {
     pulseEnv(side));
 }
 const bench = path.join(root, "mosh-probe/media-bench");
-let output;
+const outputs = [];
 try {
   run("cargo", ["build", "--locked", "--release", "--manifest-path", path.join(bench, "Cargo.toml")]);
-  output = run(path.join(bench, "target/release/mosh-media-bench"),
-    ["run", "--moss", "--engine", engine, "--seconds", String(seconds)]);
+  for (const scenario of [[], ["--late-microphone"]]) {
+    outputs.push(run(path.join(bench, "target/release/mosh-media-bench"),
+      ["run", "--moss", "--engine", engine, "--seconds", String(seconds), ...scenario]));
+  }
 } finally {
   // Their sockets are fixed paths: a server left running blocks the next check.
   for (const side of ["a", "b"]) spawnSync("pulseaudio", ["-k"], { env: pulseEnv(side) });
 }
-const result = JSON.parse(output.trim().split("\n").at(-1));
-console.log(JSON.stringify(result, null, 2));
-// One burst may straddle the start or the end of the window.
-if (result.bursts_heard < seconds - 2) throw new Error(`callee heard ${result.bursts_heard} of ${seconds} bursts`);
-if (!(result.mouth_to_ear_ms < 300)) throw new Error(`mouth-to-ear ${result.mouth_to_ear_ms} ms`);
+for (const output of outputs) {
+  const result = JSON.parse(output.trim().split("\n").at(-1));
+  console.log(JSON.stringify(result, null, 2));
+  // One burst may straddle the start or the end of the window.
+  if (result.bursts_heard < seconds - 2) throw new Error(`callee heard ${result.bursts_heard} of ${seconds} bursts`);
+  if (!(result.mouth_to_ear_ms < 300)) throw new Error(`mouth-to-ear ${result.mouth_to_ear_ms} ms`);
+}
 
 function run(command, args, env = {}) {
   const result = spawnSync(command, args, { cwd: root, env: { ...process.env, ...env }, encoding: "utf8",
