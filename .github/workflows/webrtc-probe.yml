@@ -1,0 +1,78 @@
+name: WebRTC engine probe
+
+# MOSH-60: the call engine on Google's libwebrtc through LiveKit's bindings
+# with Mosh's virtual network. Desktop runs the loopback test (ICE, DTLS-SRTP
+# and Opus with no OS socket); mobile targets prove the patched bindings build.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/webrtc-probe.yml'
+      - 'mosh-probe/webrtc/**'
+      - 'third_party/webrtc-sys-patches/**'
+      - 'third_party/libwebrtc-patches/**'
+      - 'scripts/livekit-webrtc-prepare.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    name: Loopback (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install clang 21 and system headers
+        if: runner.os == 'Linux'
+        run: |
+          # libwebrtc's hermetic libc++ needs clang 21 or later.
+          sudo mkdir -p /opt/llvm
+          curl --fail --location --silent --show-error \
+            https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/LLVM-21.1.8-Linux-X64.tar.xz \
+            | sudo tar -xJ --strip-components=1 -C /opt/llvm
+          echo "CC=/opt/llvm/bin/clang" >> "$GITHUB_ENV"
+          echo "CXX=/opt/llvm/bin/clang++" >> "$GITHUB_ENV"
+          sudo apt-get update -y
+          sudo apt-get install -y libglib2.0-dev libva-dev libdrm-dev libgbm-dev \
+            libx11-dev libxext-dev libxfixes-dev libxdamage-dev libxrandr-dev libxcomposite-dev
+      - name: Prepare patched bindings
+        run: node scripts/livekit-webrtc-prepare.mjs
+      - name: Virtual network loopback
+        run: cargo test --locked --manifest-path mosh-probe/webrtc/Cargo.toml --test loopback -- --nocapture
+
+  mobile:
+    name: Build (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: aarch64-linux-android
+          - os: macos-latest
+            target: aarch64-apple-ios
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare patched bindings
+        run: node scripts/livekit-webrtc-prepare.mjs
+      - run: rustup target add ${{ matrix.target }}
+      - name: Build for Android
+        if: contains(matrix.target, 'android')
+        run: |
+          cargo install cargo-ndk --locked
+          cargo ndk --target ${{ matrix.target }} build --locked --manifest-path mosh-probe/webrtc/Cargo.toml --lib
+      - name: Build for iOS
+        if: contains(matrix.target, 'ios')
+        run: cargo build --locked --manifest-path mosh-probe/webrtc/Cargo.toml --lib --target ${{ matrix.target }}

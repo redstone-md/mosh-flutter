@@ -1,0 +1,27 @@
+[package]
+name = "mosh-webrtc-probe"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+
+# Throwaway feasibility engine for MOSH-60: Google's libwebrtc through
+# LiveKit's bindings, with all packets carried by the embedder. It exports
+# the same C ABI as mosh-media/engine so the real-call tests can load it.
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+anyhow = "1"
+futures = "0.3"
+libwebrtc = "=0.4.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+
+[patch.crates-io]
+libwebrtc = { path = "../../third_party/libwebrtc" }
+webrtc-sys = { path = "../../third_party/webrtc-sys" }
+
+[profile.dev]
+debug = 0
