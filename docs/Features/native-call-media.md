@@ -60,7 +60,7 @@ name, and a build packages one of them. RingRTC (`mosh-media/engine`) is
 the default. `MOSH_CALL_ENGINE=webrtc` packages the replacement
 (`mosh-media/webrtc`, epic MOSH-70): Google's libwebrtc through LiveKit's
 bindings, linked against [our libwebrtc build](../../third_party/libwebrtc-build/README.md)
-without H.264. Its media is
+without its software H.264 (OpenH264, FFmpeg). Its media is
 DTLS-SRTP with the certificate fingerprint inside the MLS-authenticated
 description ([ADR 0051](../ADR/0051-dtls-srtp-with-mls-authenticated-fingerprints.md)),
 its packets cross the same virtual network over Moss, and it sends 20 ms

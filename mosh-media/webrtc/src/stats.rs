@@ -74,7 +74,15 @@ impl Measurements {
 
 fn codec(stats: &[RtcStats], id: &str) -> Option<String> {
     stats.iter().find_map(|entry| match entry {
-        RtcStats::Codec(c) if c.rtc.id == id => Some(c.codec.mime_type.clone()),
+        RtcStats::Codec(c) if c.rtc.id == id => {
+            // "video/VP9" → "VP9", as the call window shows it.
+            let mime = &c.codec.mime_type;
+            Some(
+                mime.split_once('/')
+                    .map_or(mime.as_str(), |(_, name)| name)
+                    .to_owned(),
+            )
+        }
         _ => None,
     })
 }

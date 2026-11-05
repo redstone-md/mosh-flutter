@@ -50,7 +50,7 @@ impl Frames {
 
     /// Our peers send upright pixels (Android rotates before sending), so
     /// the frame's rotation is always zero.
-    fn store(&self, frame: &BoxVideoFrame) -> bool {
+    fn store(&self, frame: &BoxVideoFrame) {
         let (width, height) = (frame.buffer.width(), frame.buffer.height());
         self.publish(width, height, Instant::now(), |pixels| {
             frame.buffer.to_argb(
@@ -60,9 +60,10 @@ impl Frames {
                 width as i32,
                 height as i32,
             );
-        })
+        });
     }
 
+    /// False, keeping the last frame, when the frame exceeds the ABI's bounds.
     fn publish(
         &self,
         width: u32,
@@ -99,8 +100,9 @@ impl Frames {
         true
     }
 
-    /// 1 with the frame copied, 2 when `pixels` is too small (`info` then
-    /// holds the size needed), 0 when nothing newer than `after` exists.
+    /// The ABI status: 1 with the frame copied, 2 when `pixels` is too small
+    /// (`info` then holds the size needed), 0 when nothing newer than
+    /// `after` exists, -1 when the store is poisoned.
     pub fn copy(&self, after: u64, pixels: &mut [u8], info: &mut FrameInfo) -> i32 {
         let Ok(held) = self.0.lock() else {
             return -1;
@@ -126,7 +128,8 @@ impl Frames {
     }
 }
 
-fn rgba_length(width: u32, height: u32) -> Option<usize> {
+/// The packed RGBA size of a frame within the ABI's bounds.
+pub fn rgba_length(width: u32, height: u32) -> Option<usize> {
     if width == 0 || height == 0 || width > 1920 || height > 1920 {
         return None;
     }

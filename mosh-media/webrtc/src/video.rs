@@ -16,7 +16,7 @@ use libwebrtc::{
     video_track::RtcVideoTrack,
 };
 
-use crate::{engine::transceiver, frames::MAX_RGBA_BYTES};
+use crate::{engine::transceiver, frames::rgba_length};
 
 /// The largest picture and frame rate a send budget carries. Under
 /// 300 kbit/s a detailed 360p keyframe takes about a second to send, longer
@@ -83,7 +83,7 @@ impl Camera {
             short_side: 720,
             epoch: Instant::now(),
         };
-        camera.limit()?;
+        camera.apply(false, camera.format, camera.short_side)?;
         Ok(camera)
     }
 
@@ -92,9 +92,9 @@ impl Camera {
         if on == self.on {
             return Ok(());
         }
-        self.on = on;
+        self.apply(on, self.format, self.short_side)?;
         self.track.set_enabled(on);
-        self.limit()
+        Ok(())
     }
 
     pub fn enabled(&self) -> bool {
@@ -102,25 +102,21 @@ impl Camera {
     }
 
     pub fn adapt(&mut self, max_bps: u64) -> Result<()> {
-        self.format = Format::for_budget(max_bps);
-        self.limit()
+        self.apply(self.on, Format::for_budget(max_bps), self.short_side)
     }
 
     /// Sends one camera frame while the camera is on.
     pub fn push(&mut self, width: u32, height: u32, pixels: &[u8]) -> Result<()> {
         anyhow::ensure!(
-            (1..=1920).contains(&width)
-                && (1..=1920).contains(&height)
-                && pixels.len() == width as usize * height as usize * 4
-                && pixels.len() <= MAX_RGBA_BYTES,
+            rgba_length(width, height) == Some(pixels.len()),
             "invalid camera frame"
         );
         if !self.on {
             return Ok(());
         }
-        if width.min(height) != self.short_side {
-            self.short_side = width.min(height);
-            self.limit()?;
+        let short_side = width.min(height);
+        if short_side != self.short_side {
+            self.apply(self.on, self.format, short_side)?;
         }
         let mut buffer = I420Buffer::new(width, height);
         let (stride_y, stride_u, stride_v) = buffer.strides();
@@ -147,26 +143,27 @@ impl Camera {
         Ok(())
     }
 
-    /// Applies the format to the encoder; libwebrtc's own congestion
-    /// control degrades further from there.
-    fn limit(&mut self) -> Result<()> {
+    /// Sets the sender to these limits and keeps them once libwebrtc accepts
+    /// them; its own congestion control degrades further from there.
+    fn apply(&mut self, on: bool, format: Format, short_side: u32) -> Result<()> {
         let mut parameters = self.sender.parameters();
         let encoding = parameters
             .encodings
             .first_mut()
             .context("video sender has no encoding")?;
-        encoding.active = self.on;
-        encoding.max_framerate = Some(self.format.fps);
-        encoding.scale_resolution_down_by = Some(self.format.scale(self.short_side));
+        encoding.active = on;
+        encoding.max_framerate = Some(format.fps);
+        encoding.scale_resolution_down_by = Some(format.scale(short_side));
         self.sender
             .set_parameters(parameters)
-            .map_err(|error| anyhow::anyhow!("video limits: {error:?}"))
+            .map_err(|error| anyhow::anyhow!("video limits: {error:?}"))?;
+        (self.on, self.format, self.short_side) = (on, format, short_side);
+        Ok(())
     }
 }
 
-/// Ranks the codecs this device encodes in hardware first, then VP9, which
-/// RingRTC also preferred: at relay rates it keeps 270p where VP8 drops to
-/// about 200p. Codecs only one side has fall out in negotiation.
+/// Ranks the codecs this device encodes in hardware first, then VP9: on
+/// the relay regression it keeps 480x270 where VP8 drops to 360x198. Codecs only one side has fall out in negotiation.
 fn prefer_codecs(factory: &PeerConnectionFactory, transceiver: &RtpTransceiver) -> Result<()> {
     let hardware: Vec<_> = factory
         .video_encoder_codecs(VideoEncoderBackend::Hardware)

@@ -151,6 +151,7 @@ impl Engine {
         }
     }
 
+    /// Applies the microphone and camera choices once the call has started.
     /// The track carries the microphone only while the device records, so
     /// the snapshot reports whether it actually does.
     fn apply_choices(&mut self) -> Result<()> {
