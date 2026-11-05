@@ -70,9 +70,10 @@ jobs:
       - run: rustup target add ${{ matrix.target }}
       - name: Build for Android
         if: contains(matrix.target, 'android')
+        working-directory: mosh-probe/webrtc
         run: |
           cargo install cargo-ndk --locked
-          cargo ndk --target ${{ matrix.target }} build --locked --manifest-path mosh-probe/webrtc/Cargo.toml --lib
+          cargo ndk --target ${{ matrix.target }} build --locked --lib
       - name: Build for iOS
         if: contains(matrix.target, 'ios')
         run: cargo build --locked --manifest-path mosh-probe/webrtc/Cargo.toml --lib --target ${{ matrix.target }}
