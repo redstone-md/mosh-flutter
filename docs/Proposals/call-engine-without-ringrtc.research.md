@@ -1,6 +1,7 @@
 # MOSH-60: call engine without RingRTC
 
-Research date: 2026-11-05. Epic: MOSH-70. Probe code: [mosh-probe/webrtc](../../mosh-probe/webrtc),
+Research date: 2026-11-05. Epic: MOSH-70. Probe code: `mosh-probe/webrtc`
+(since MOSH-71 the engine in [mosh-media/webrtc](../../mosh-media/webrtc)),
 [mosh-probe/media-bench](../../mosh-probe/media-bench), patches in
 [third_party/webrtc-sys-patches](../../third_party/webrtc-sys-patches/README.md).
 
@@ -78,8 +79,8 @@ patches, BSD) for every target we need.
   use the same LiveKit scripts that produce the prebuilts the CI jobs below
   pass with, so the remaining risk is CI time, not feasibility. MOSH-71 and
   MOSH-77 add those jobs.
-- **All five targets with LiveKit's prebuilts:** CI
-  ([webrtc-probe.yml](../../.github/workflows/webrtc-probe.yml)) runs the
+- **All five targets with LiveKit's prebuilts:** CI (then `webrtc-probe.yml`,
+  now part of [ci.yml](../../.github/workflows/ci.yml)) runs the
   loopback test on Linux, Windows and macOS and builds for Android arm64 and
   iOS arm64, all green. Windows needs the static CRT and Apple
   targets `-ObjC` (`mosh-probe/webrtc/.cargo/config.toml`), as in LiveKit.
