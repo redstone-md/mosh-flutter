@@ -156,7 +156,8 @@ jobs:
         run: |
           host=$(rustc -vV | sed -n 's/^host: //p')
           export CARGO_TARGET_DIR="$GITHUB_WORKSPACE/.dart_tool/native-media/target-webrtc"
-          export LK_CUSTOM_WEBRTC="$(node --input-type=module -e "import {prepareLibwebrtc} from '$GITHUB_WORKSPACE/scripts/livekit-webrtc-prepare.mjs'; console.log(await prepareLibwebrtc('$host'))")"
+          export LK_CUSTOM_WEBRTC="$(node "$GITHUB_WORKSPACE/scripts/livekit-webrtc-prepare.mjs" --libwebrtc "$host")"
+          test -n "$LK_CUSTOM_WEBRTC"
           cargo fmt --check
           cargo clippy --locked --all-targets -- -D warnings
           cargo test --locked -- --nocapture

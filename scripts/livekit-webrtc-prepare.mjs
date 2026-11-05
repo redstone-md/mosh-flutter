@@ -80,9 +80,14 @@ export async function prepareLibwebrtc(triple, {
 
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
+// `--libwebrtc <rust triple>` also prepares our libwebrtc build for that
+// target and prints its directory, for LK_CUSTOM_WEBRTC.
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  const offline = process.argv.includes("--offline");
+  const triple = process.argv[process.argv.indexOf("--libwebrtc") + 1];
   try {
-    await prepareLiveKitWebrtc({ offline: process.argv.includes("--offline") });
+    await prepareLiveKitWebrtc({ offline });
+    if (process.argv.includes("--libwebrtc")) console.log(await prepareLibwebrtc(triple, { offline }));
   } catch (error) {
     console.error(`livekit-webrtc-prepare: ${error.message}`);
     process.exitCode = 1;
