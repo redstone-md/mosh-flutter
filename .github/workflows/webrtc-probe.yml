@@ -46,7 +46,9 @@ jobs:
       - name: Prepare patched bindings
         run: node scripts/livekit-webrtc-prepare.mjs
       - name: Virtual network loopback
-        run: cargo test --locked --manifest-path mosh-probe/webrtc/Cargo.toml --test loopback -- --nocapture
+        # Cargo reads the crate's .cargo/config.toml only from its directory.
+        working-directory: mosh-probe/webrtc
+        run: cargo test --locked --test loopback -- --nocapture
 
   mobile:
     name: Build (${{ matrix.target }})
@@ -76,4 +78,5 @@ jobs:
           cargo ndk --target ${{ matrix.target }} build --locked --lib
       - name: Build for iOS
         if: contains(matrix.target, 'ios')
-        run: cargo build --locked --manifest-path mosh-probe/webrtc/Cargo.toml --lib --target ${{ matrix.target }}
+        working-directory: mosh-probe/webrtc
+        run: cargo build --locked --lib --target ${{ matrix.target }}
