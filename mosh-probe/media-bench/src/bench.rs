@@ -239,6 +239,8 @@ pub fn run(options: Options) -> Result<Value> {
         bench.tick(&mut pending)?;
     }
     let probe = audio::Probe::start(0, 1, options.shape.outage.is_some())?;
+    // The callee answers with its own bursts, so silence either way shows.
+    let back = audio::Probe::start(1, 0, false)?;
     let cpu_before = bench.cpu_seconds();
     let started = Instant::now();
     let mut next = started;
@@ -278,11 +280,14 @@ pub fn run(options: Options) -> Result<Value> {
         }),
         "mouth_to_ear_ms": audio::median(&mut delays),
         "bursts_heard": heard,
+        "bursts_heard_back": back.delays_ms().len(),
         "bursts_sent": options.seconds,
         "cpu_percent": cpu,
         "link": {"caller_to_callee": link(&bench.links[0]), "callee_to_caller": link(&bench.links[1])},
         "callee_audio": snapshots[1]["audio"],
         "caller_audio_sender": snapshots[0]["audio_sender"],
+        "caller_audio": snapshots[0]["audio"],
+        "callee_audio_sender": snapshots[1]["audio_sender"],
         "moss_carrier": [&snapshots[0]["carrier"], &snapshots[1]["carrier"]],
     }))
 }

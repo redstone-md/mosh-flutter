@@ -2,7 +2,7 @@
 // A voice call over two real Moss nodes with the engine given as argument,
 // measured by mosh-probe/media-bench: each peer gets its own PulseAudio
 // server whose null sinks are its microphone and speaker, a 1 kHz burst goes
-// into the caller's microphone every second, and the callee must hear them:
+// into each side's microphone every second, and the other must hear them:
 // once with the microphone on from the start, once switched on only after
 // the call connected (Android grants the permission mid-call).
 // Linux only (PulseAudio); CI runs it for the libwebrtc engine.
@@ -47,6 +47,7 @@ for (const output of outputs) {
   console.log(JSON.stringify(result, null, 2));
   // One burst may straddle the start or the end of the window.
   if (result.bursts_heard < seconds - 2) throw new Error(`callee heard ${result.bursts_heard} of ${seconds} bursts`);
+  if (result.bursts_heard_back < seconds - 2) throw new Error(`caller heard ${result.bursts_heard_back} of ${seconds} bursts`);
   if (!(result.mouth_to_ear_ms < 300)) throw new Error(`mouth-to-ear ${result.mouth_to_ear_ms} ms`);
 }
 
