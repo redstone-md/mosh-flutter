@@ -1,9 +1,11 @@
 package app.mosh.mosh
 
 import android.app.KeyguardManager
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import io.flutter.plugin.common.BinaryMessenger
@@ -146,6 +148,24 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
         return status()
     }
 
+    /** Android 14+ lets the user withhold full-screen intents; without them an
+     * incoming call only shows a heads-up alert, also on the lock screen. */
+    fun requestFullScreenCalls(): Map<String, Any?> {
+        val owner = activity
+        check(interactive && owner != null)
+        if (!fullScreenCallsAllowed()) {
+            try {
+                owner.startActivity(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                    Uri.parse("package:${context.packageName}")))
+            } catch (_: RuntimeException) { restriction = "fullScreenSettingsUnavailable" }
+        }
+        publish()
+        return status()
+    }
+
+    private fun fullScreenCallsAllowed(): Boolean = Build.VERSION.SDK_INT < 34 ||
+        context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
+
     fun status(): Map<String, Any?> {
         val choice = policy.snapshot()
         val exempt = context.getSystemService(PowerManager::class.java)
@@ -157,6 +177,7 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
             "serviceRunning" to MoshWaitingService.running, "setupComplete" to choice.setupComplete,
             "notificationsAllowed" to allowed, "batteryExempt" to exempt,
             "batteryExemptionOffered" to choice.batteryExemptionOffered,
+            "fullScreenCallsAllowed" to fullScreenCallsAllowed(),
             "showNamesWhenLocked" to choice.showNamesWhenLocked, "showTextWhenLocked" to choice.showTextWhenLocked,
             "restriction" to when {
                 policy.storageUnavailable() -> "storageUnavailable"

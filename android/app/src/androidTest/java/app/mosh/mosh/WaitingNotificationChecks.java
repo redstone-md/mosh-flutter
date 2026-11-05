@@ -111,6 +111,14 @@ final class WaitingNotificationChecks {
             if (android.os.Build.VERSION.SDK_INT >= 31)
                 require(action.actionIntent.isImmutable(), "Mutable call PendingIntent");
         }
+        // Android refuses an ongoing CallStyle that no foreground service hosts.
+        Map<String, Object> ongoing = message(4);
+        ongoing.put("phase", "active");
+        ongoing.put("hangupCapability", "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
+        Notification unhosted = builder.build(ongoing, 0, false);
+        require(!"android.app.Notification$CallStyle".equals(unhosted.extras.getString(Notification.EXTRA_TEMPLATE)),
+            "An unhosted ongoing call kept CallStyle");
+        require(unhosted.actions != null && unhosted.actions.length == 1, "An unhosted ongoing call lost Hang up");
         require(MoshCallIntents.INSTANCE.capability(new android.content.Intent()
             .putExtra("callId", "known-call")) == null, "Launcher accepted raw call ID");
         android.content.Intent action = new android.content.Intent().setAction(MoshCallIntents.ANSWER)

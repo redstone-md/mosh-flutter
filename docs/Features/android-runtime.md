@@ -66,6 +66,11 @@ policy, including the generic public version.
 
 The same waiting adapter consumes durable native call revisions. AndroidX
 CallStyle supplies incoming/ongoing notifications and its older-Android fallback.
+Android accepts an ongoing CallStyle only from a foreground service, so while a
+call lasts its notification replaces the waiting service's own (same id, no
+tag), as Telegram's call service does; the waiting one returns when the call
+ends. Without a running service the ongoing call posts a plain notification
+with Hang up instead.
 Generic lockscreen versions retain Answer/Decline while omitting caller identity.
 Immutable explicit intents contain only a 256-bit one-use capability; session
 and call identifiers remain in the native encrypted ledger. Intent identity uses
@@ -77,7 +82,9 @@ A bounded application queue retains actions until that same Dart owner attaches.
 Full-screen presentation validates/selects a call without accepting it. Explicit
 Answer follows the current native capability, visible permission and acceptance
 path. Full-screen intent availability is checked on Android 14+; a denied grant
-retains an actionable notification. No chat authentication grant is created.
+retains an actionable notification, and the background settings card offers
+"Show calls on the lock screen", which explains why and then opens Android's
+full-screen notification setting. No chat authentication grant is created.
 An ephemeral native call-only flag covers even a chat grace period while a call
 is shown over keyguard. Actual device unlock or final call completion removes
 that window mode without changing the original chat deadline.

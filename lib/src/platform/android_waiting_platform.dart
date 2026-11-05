@@ -28,6 +28,7 @@ class AndroidWaitingPlatform extends ChangeNotifier {
   Future<void> enable() => _read('enable');
   Future<void> stop() => _read('stop');
   Future<void> requestBatteryExemption() => _read('requestBatteryExemption');
+  Future<void> requestFullScreenCalls() => _read('requestFullScreenCalls');
 
   Future<void> startupFailed(String reason) => _read('startupFailed', {
         'reason': reason,

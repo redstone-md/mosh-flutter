@@ -1244,6 +1244,8 @@
   "settingsBackgroundLimited": "Android ограничивает работу Mosh в фоне.",
   "settingsBackgroundBattery": "Разрешить работу в фоне",
   "settingsBackgroundBatteryExplanation": "Разрешите Mosh поддерживать подключение, когда телефон спит. Это может увеличить расход батареи. Android всё равно может остановить приложение.",
+  "settingsBackgroundFullScreenCalls": "Показывать звонки на экране блокировки",
+  "settingsBackgroundFullScreenCallsExplanation": "Пока полноэкранные уведомления не разрешены, Android показывает входящий звонок Mosh только баннером. Разрешите их на следующем экране, и звонок будет открываться поверх экрана блокировки, как обычный телефонный.",
   "settingsBackgroundNotifications": "Разрешить уведомления",
   "settingsLockedNotificationNames": "Показывать имена, когда Mosh заблокирован",
   "settingsLockedNotificationText": "Показывать текст сообщений, когда Mosh заблокирован",

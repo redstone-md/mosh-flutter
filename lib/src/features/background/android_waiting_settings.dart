@@ -98,6 +98,10 @@ class _WaitingSettingsState extends ConsumerState<AndroidWaitingSettings> {
         TextButton(
             onPressed: _busy ? null : () => _run(() => _battery(owner, l)),
             child: Text(l.settingsBackgroundBattery)),
+      if (state != null && !state.fullScreenCallsAllowed)
+        TextButton(
+            onPressed: _busy ? null : () => _run(() => _fullScreen(owner, l)),
+            child: Text(l.settingsBackgroundFullScreenCalls)),
     ];
   }
 
@@ -128,21 +132,37 @@ class _WaitingSettingsState extends ConsumerState<AndroidWaitingSettings> {
     ]);
   }
 
-  Future<void> _battery(AndroidWaitingOwner owner, AppLocalizations l) async {
+  Future<void> _battery(AndroidWaitingOwner owner, AppLocalizations l) =>
+      _explainThen(
+          l,
+          l.settingsBackgroundBattery,
+          l.settingsBackgroundBatteryExplanation,
+          owner.platform.requestBatteryExemption);
+
+  Future<void> _fullScreen(AndroidWaitingOwner owner, AppLocalizations l) =>
+      _explainThen(
+          l,
+          l.settingsBackgroundFullScreenCalls,
+          l.settingsBackgroundFullScreenCallsExplanation,
+          owner.platform.requestFullScreenCalls);
+
+  /// Android's own settings screen follows only after the user agrees here.
+  Future<void> _explainThen(AppLocalizations l, String title, String body,
+      Future<void> Function() request) async {
     final agreed = await showMoshDialog<bool>(
         context: context,
         barrierLabel: l.dialogCancel,
         builder: (dialog) => ConfirmDialog(
-              title: l.settingsBackgroundBattery,
-              body: l.settingsBackgroundBatteryExplanation,
-              confirmLabel: l.settingsBackgroundBattery,
+              title: title,
+              body: body,
+              confirmLabel: title,
               cancelLabel: l.dialogCancel,
               dangerColor: Theme.of(context).colorScheme.primary,
               onCancel: () => Navigator.of(dialog).pop(false),
               onConfirm: () => Navigator.of(dialog).pop(true),
             ));
     if (agreed != true) return;
-    await owner.platform.requestBatteryExemption();
+    await request();
   }
 
   String _availability(AndroidWaitingOwner owner, AppLocalizations l) {

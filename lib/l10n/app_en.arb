@@ -2258,6 +2258,8 @@
   "settingsBackgroundLimited": "Android is limiting background availability.",
   "settingsBackgroundBattery": "Allow background connection",
   "settingsBackgroundBatteryExplanation": "Allow Mosh to keep its connection while your phone sleeps. This can use more battery. Android may still stop the app.",
+  "settingsBackgroundFullScreenCalls": "Show calls on the lock screen",
+  "settingsBackgroundFullScreenCallsExplanation": "Until you allow full-screen notifications, Android shows an incoming Mosh call only as a banner. Allow them in the next screen so a call opens over the lock screen like a phone call.",
   "settingsBackgroundNotifications": "Allow notifications",
   "settingsLockedNotificationNames": "Show names when Mosh is locked",
   "settingsLockedNotificationText": "Show message text when Mosh is locked",

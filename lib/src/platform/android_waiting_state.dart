@@ -11,6 +11,7 @@ class AndroidWaitingState {
     required this.notificationsAllowed,
     required this.batteryExempt,
     required this.batteryExemptionOffered,
+    this.fullScreenCallsAllowed = true,
     required this.showNamesWhenLocked,
     required this.showTextWhenLocked,
     this.restriction,
@@ -20,6 +21,9 @@ class AndroidWaitingState {
   final bool interactive, waitingEnabled, serviceRunning, setupComplete;
   final bool callInteractive;
   final bool notificationsAllowed, batteryExempt, batteryExemptionOffered;
+
+  /// Android 14+: incoming calls may open over the lock screen.
+  final bool fullScreenCallsAllowed;
   final bool showNamesWhenLocked, showTextWhenLocked;
   final String? restriction;
 
@@ -36,6 +40,7 @@ class AndroidWaitingState {
       notificationsAllowed: map['notificationsAllowed'] as bool,
       batteryExempt: map['batteryExempt'] as bool,
       batteryExemptionOffered: map['batteryExemptionOffered'] as bool? ?? false,
+      fullScreenCallsAllowed: map['fullScreenCallsAllowed'] as bool? ?? true,
       showNamesWhenLocked: map['showNamesWhenLocked'] as bool? ?? false,
       showTextWhenLocked: map['showTextWhenLocked'] as bool? ?? false,
       restriction: map['restriction'] as String?,

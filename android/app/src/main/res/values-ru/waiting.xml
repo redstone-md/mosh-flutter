@@ -11,6 +11,7 @@
     <string name="mosh_call_outgoing">Вызов…</string>
     <string name="mosh_call_connecting">Подключение звонка…</string>
     <string name="mosh_call_active">Идёт звонок</string>
+    <string name="mosh_call_hangup">Завершить</string>
     <string name="mosh_transfer_channel">Передача файлов</string>
     <string name="mosh_transfer_upload">Отправка файла</string>
     <string name="mosh_transfer_download">Загрузка файла</string>
