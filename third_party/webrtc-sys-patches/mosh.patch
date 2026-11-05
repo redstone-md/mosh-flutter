@@ -195,7 +195,7 @@
  set PATH=%cd%\depot_tools;%PATH%
  set DEPOT_TOOLS_WIN_TOOLCHAIN=0
  set GYP_GENERATORS=ninja,msvs-ninja
-@@ -46,7 +48,7 @@
+@@ -46,9 +48,13 @@
  set vs2019_install=C:\Program Files\Microsoft Visual Studio\2022\Enterprise
  
  if not exist src (
@@ -203,8 +203,14 @@
 +  call gclient.bat sync -D --no-history
  )
  
++rem A shallow checkout leaves build/util/lastchange.py no commit to date the
++rem build by, and lld-link rejects the negative /TIMESTAMP that follows.
++for /f %%t in ('git -C src\build log -1 --format^=%%ct') do >src\build\util\LASTCHANGE.committime echo %%t
++
  cd src
-@@ -80,7 +82,7 @@
+ rem Skip a patch that is already applied so the build can be rerun on the same
+ rem checkout. Stop when a patch neither applies nor is already applied, since
+@@ -80,7 +86,7 @@
  
  rem generate ninja for release
  call gn.bat gen %OUTPUT_DIR% --root="src" ^
