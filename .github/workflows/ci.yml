@@ -103,6 +103,109 @@ jobs:
           cargo test --manifest-path mosh-core/Cargo.toml --lib --features native-media-tests native_call:: -- --include-ignored --nocapture
           node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture
 
+  # The libwebrtc call engine (MOSH_CALL_ENGINE=webrtc, mosh-media/webrtc)
+  # on our libwebrtc builds: lint, its loopback test, call setup through
+  # mosh-core over MLS and real Moss, and on Linux a voice call over real
+  # Moss with PulseAudio devices.
+  native-call-webrtc:
+    name: libwebrtc call engine (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    env:
+      MOSH_CALL_ENGINE: webrtc
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup
+        with:
+          flutter: 'false'
+          rust-cache-key: native-call
+      - name: Linux toolchain, audio and system headers
+        if: runner.os == 'Linux'
+        run: |
+          # libwebrtc's hermetic libc++ needs clang 21 or later.
+          sudo mkdir -p /opt/llvm
+          curl --fail --location --silent --show-error \
+            https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/LLVM-21.1.8-Linux-X64.tar.xz \
+            | sudo tar -xJ --strip-components=1 -C /opt/llvm
+          echo "CC=/opt/llvm/bin/clang" >> "$GITHUB_ENV"
+          echo "CXX=/opt/llvm/bin/clang++" >> "$GITHUB_ENV"
+          sudo apt-get update -q
+          sudo apt-get install -y -q libasound2-dev libudev-dev libclang-dev pulseaudio \
+            libglib2.0-dev libva-dev libdrm-dev libgbm-dev libx11-dev libxext-dev \
+            libxfixes-dev libxdamage-dev libxrandr-dev libxcomposite-dev
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .dart_tool/native-media/target-webrtc
+            .dart_tool/native-sources
+            .dart_tool/native-tools
+            .dart_tool/libwebrtc
+          key: native-call-webrtc-${{ runner.os }}-${{ hashFiles('mosh-media/webrtc/Cargo.lock', 'third_party/libwebrtc-build/build.json', 'third_party/webrtc-sys-patches/mosh.patch', 'third_party/libwebrtc-patches/mosh.patch') }}
+          restore-keys: native-call-webrtc-${{ runner.os }}-
+      - name: Build packaged engine and camera helper
+        run: node scripts/native-media-build.mjs
+      - name: Engine format, lint and tests
+        shell: bash
+        working-directory: mosh-media/webrtc
+        run: |
+          host=$(rustc -vV | sed -n 's/^host: //p')
+          export CARGO_TARGET_DIR="$GITHUB_WORKSPACE/.dart_tool/native-media/target-webrtc"
+          export LK_CUSTOM_WEBRTC="$(node --input-type=module -e "import {prepareLibwebrtc} from '$GITHUB_WORKSPACE/scripts/livekit-webrtc-prepare.mjs'; console.log(await prepareLibwebrtc('$host'))")"
+          cargo fmt --check
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo test --locked -- --nocapture
+      - name: Build independent API peer
+        run: cargo build --manifest-path mosh-core/Cargo.toml --features native-media-tests --lib --bin mosh-camera-test-driver --test device_link_flow
+      - name: Call setup over MLS and real Moss
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Windows) engine=mosh_native_media.dll ;;
+            macOS) engine=libmosh_native_media.dylib ;;
+            Linux) engine=libmosh_native_media.so ;;
+          esac
+          export MOSH_MEDIA_ENGINE="$PWD/.dart_tool/native-media/debug/$engine"
+          node scripts/moss-test.mjs --test device_link_flow -- --ignored --nocapture native_selected_pair native_missing_offer
+      - name: Voice over real Moss
+        if: runner.os == 'Linux'
+        run: node scripts/webrtc-voice-check.mjs .dart_tool/native-media/debug/libmosh_native_media.so
+
+  # The libwebrtc engine builds for Android arm64 with our libwebrtc and
+  # packages its Java classes.
+  native-call-webrtc-android:
+    name: libwebrtc call engine (Android arm64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          flutter: 'false'
+          moss: none
+          rust-cache-key: native-call-android
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .dart_tool/native-media/target-webrtc
+            .dart_tool/native-sources
+            .dart_tool/libwebrtc
+          key: native-call-webrtc-android-${{ hashFiles('mosh-media/webrtc/Cargo.lock', 'third_party/libwebrtc-build/build.json', 'third_party/webrtc-sys-patches/mosh.patch', 'third_party/libwebrtc-patches/mosh.patch') }}
+          restore-keys: native-call-webrtc-android-
+      - name: Build the engine
+        env:
+          MOSH_CALL_ENGINE: webrtc
+        run: |
+          rustup target add aarch64-linux-android
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" > /dev/null
+          export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/28.2.13676358"
+          node scripts/android-native-media-build.mjs
+
   rust-core:
     name: Rust core (fmt + clippy + test)
     runs-on: windows-latest
