@@ -25,18 +25,13 @@ fn remote_control(
     remote_control_on(f, device, peer, id, sequence, action, None)
 }
 
-/// A control from a device whose engine speaks `protocol`; `None` omits the
-/// field the way clients that predate it do.
-fn remote_control_on(
-    f: &mut Fixture,
+/// Fills what a real client would: the offer's platform and the end's caller.
+fn with_defaults(
+    f: &Fixture,
     device: &str,
-    peer: &str,
     id: &str,
-    sequence: u64,
-    action: serde_json::Value,
-    protocol: Option<u32>,
-) -> ControlEnvelope {
-    let mut action = action;
+    mut action: serde_json::Value,
+) -> serde_json::Value {
     if let Some(offer) = action.get_mut("Offer") {
         if offer["native"].is_null() {
             offer["native"] = cfg!(any(
@@ -64,6 +59,21 @@ fn remote_control_on(
             end["caller"] = declared_caller.into();
         }
     }
+    action
+}
+
+/// A control from a device whose engine speaks `protocol`; `None` omits the
+/// field the way clients that predate it do.
+fn remote_control_on(
+    f: &mut Fixture,
+    device: &str,
+    peer: &str,
+    id: &str,
+    sequence: u64,
+    action: serde_json::Value,
+    protocol: Option<u32>,
+) -> ControlEnvelope {
+    let action = with_defaults(f, device, id, action);
     let crypto = f.peers.get_mut(device).unwrap();
     let mut control = json!({
         "session_id":f.session, "call_id":id, "signer":hex::encode(crypto.signer_public()),
@@ -384,5 +394,5 @@ fn call_boundary_process() {
         &mut Fixture::new(),
     );
     media_protocol::an_answer_from_another_engine_ends_the_outgoing_call(&mut Fixture::new());
-    media_protocol::a_decline_for_update_records_update_required(&mut Fixture::new());
+    media_protocol::an_engine_refusal_rings_on_then_asks_to_update(&mut Fixture::new());
 }

@@ -19,12 +19,21 @@ pub(super) struct CallControl {
 /// Reason and call event kind for peers whose media engines cannot talk.
 pub(super) const UPDATE_REQUIRED: &str = "update_required";
 
-/// The call event recorded when a call ends for `reason`.
+/// The call event recorded when a call ends for `reason`: an unanswered call
+/// that a device refused for its engine asks to update Mosh too.
 pub(super) fn end_kind(call: &crate::voice_call_runtime::CallState, reason: &str) -> &'static str {
-    if reason == UPDATE_REQUIRED {
+    let kind = call.end_kind();
+    if reason == UPDATE_REQUIRED || (call.refused_by_other_engine && kind == "missed") {
         UPDATE_REQUIRED
     } else {
-        call.end_kind()
+        kind
+    }
+}
+
+impl CallControl {
+    /// Whether the sender's media engine can connect to ours.
+    pub(super) fn same_media_protocol(&self) -> bool {
+        self.media_protocol == crate::native_call::media_protocol()
     }
 }
 
@@ -55,6 +64,16 @@ pub(super) enum CallAction {
         caller: String,
         reason: String,
     },
+}
+
+impl CallAction {
+    /// The reason a `Decline` or `End` gives; empty for other actions.
+    pub(super) fn end_reason(&self) -> &str {
+        match self {
+            Self::Decline { reason } | Self::End { reason, .. } => reason,
+            _ => "",
+        }
+    }
 }
 
 impl crate::voice_call_runtime::CallState {

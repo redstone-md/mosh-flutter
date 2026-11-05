@@ -119,7 +119,7 @@ impl PrivateDmSession {
         if call.phase != CallPhase::Outgoing {
             return Ok(());
         }
-        if control.media_protocol != crate::native_call::media_protocol() {
+        if !control.same_media_protocol() {
             return self.call_end(&control.call_id, UPDATE_REQUIRED);
         }
         self.publish_authenticated_call(
@@ -206,10 +206,11 @@ impl PrivateDmSession {
         if !permitted {
             return Ok(());
         }
-        let reason = match &control.action {
-            CallAction::Decline { reason } | CallAction::End { reason, .. } => reason.as_str(),
-            _ => "",
-        };
+        let reason = control.action.end_reason();
+        if reason == UPDATE_REQUIRED && call.phase == CallPhase::Outgoing {
+            self.ring_on_after_engine_refusal();
+            return Ok(());
+        }
         let (kind, duration) = (end_kind(call, reason), call.duration_ms(now_ms()));
         let caller = call.direction == crate::voice_call_runtime::CallDirection::Caller;
         let call_id = call.call_id.clone();
@@ -225,5 +226,13 @@ impl PrivateDmSession {
         }
         self.finish_call(kind, duration);
         Ok(())
+    }
+
+    /// ADR 0043: only an explicit refusal stops the other devices ringing, so
+    /// an engine refusal from one leaves the rest ringing.
+    fn ring_on_after_engine_refusal(&mut self) {
+        if let Some(call) = self.call.as_mut() {
+            call.refused_by_other_engine = true;
+        }
     }
 }

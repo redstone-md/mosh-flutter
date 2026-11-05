@@ -64,7 +64,11 @@ without H.264. It is voice only for now (video is MOSH-72). Its media is
 DTLS-SRTP with the certificate fingerprint inside the MLS-authenticated
 description ([ADR 0051](../ADR/0051-dtls-srtp-with-mls-authenticated-fingerprints.md)),
 its packets cross the same virtual network over Moss, and it sends 20 ms
-Opus with RED, so a single lost packet costs no audio. Echo cancellation,
+Opus with RED and without DTX, so a single lost packet costs no audio. On
+the bench that concealed 0.4 % of audio at 5 % loss and 1.3 % at 15 %, for
+about 21 kbit/s and 50 packets/s; DTX cost RED most of that gain and 40 ms
+packets added delay ([measurements](../Proposals/call-engine-without-ringrtc.research.md#measurements)).
+Echo cancellation,
 noise suppression and gain control are libwebrtc's own. On Android the app
 loads the engine from Java so libwebrtc's JNI code finds its classes;
 `android/app/src/<engine>` holds the engine-specific Kotlin.
@@ -73,7 +77,13 @@ Each engine reports its media protocol (RingRTC 1, libwebrtc 2) and every
 call control carries the sender's, absent meaning 1. Engines on different
 protocols cannot connect media, so a callee refuses such an offer instead
 of ringing, a caller ends the call when such a device answers, and both
-record an "update Mosh" call event (`update_required`) in the chat.
+record an "update Mosh" call event (`update_required`) in the chat. A
+refusal leaves the contact's other devices ringing (ADR 0043 stops them only
+for an explicit refusal); if none answers, the caller's call ends asking to
+update Mosh rather than as unanswered. Clients from before this protocol
+treat the refusal as a decline. The engine is chosen when the app is built,
+not at run time: both engines are one library name and ABI, and two
+libwebrtc copies cannot share a process.
 
 ## Ownership and encryption
 

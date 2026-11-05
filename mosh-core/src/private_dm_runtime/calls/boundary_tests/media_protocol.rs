@@ -1,6 +1,6 @@
 //! Devices whose engines speak different media protocols cannot connect
-//! media: the call ends with `update_required` instead of ringing on or
-//! connecting nothing.
+//! media: the call ends with `update_required` instead of ringing forever
+//! or connecting nothing.
 use super::*;
 
 const OTHER_ENGINE: u32 = 0xFFFF;
@@ -34,6 +34,7 @@ fn outgoing_call(f: &mut Fixture) {
         "Contact".into(),
     );
     call.caller_signer = hex::encode(session.crypto.signer_public());
+    call.mark_offer_sent(crate::private_dm_runtime::now_ms());
     session.call = Some(call);
 }
 
@@ -80,7 +81,7 @@ pub(super) fn an_answer_from_another_engine_ends_the_outgoing_call(f: &mut Fixtu
     assert_eq!(call_events(f), [("update_required".to_owned(), Some(true))]);
 }
 
-pub(super) fn a_decline_for_update_records_update_required(f: &mut Fixture) {
+pub(super) fn an_engine_refusal_rings_on_then_asks_to_update(f: &mut Fixture) {
     outgoing_call(f);
     let device = f.contact.device().device_id.clone();
     let peer = f.contact.device().moss_peer_id.clone();
@@ -93,6 +94,13 @@ pub(super) fn a_decline_for_update_records_update_required(f: &mut Fixture) {
         json!({"Decline":{"reason":"update_required"}}),
     );
     handle(f, decline);
+    assert!(
+        f.snapshot().outgoing_call.is_some(),
+        "the contact's other devices still ring"
+    );
+    let session = f.runtime.session_mut(&f.session).unwrap();
+    let rang = session.call.as_ref().unwrap().offer_first_ms;
+    session.pump_call_signaling(rang + crate::private_dm_runtime::CALL_RING_TIMEOUT_MS);
     assert!(f.snapshot().outgoing_call.is_none());
     assert_eq!(call_events(f), [("update_required".to_owned(), Some(true))]);
 }

@@ -20,7 +20,7 @@ impl PrivateDmSession {
         {
             return Ok(());
         }
-        if control.media_protocol != crate::native_call::media_protocol() {
+        if !control.same_media_protocol() {
             return self.refuse_other_engine(control);
         }
         if let Some(call) = &self.call {
