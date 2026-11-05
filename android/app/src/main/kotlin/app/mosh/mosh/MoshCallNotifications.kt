@@ -18,6 +18,8 @@ internal class MoshCallNotifications(private val context: Context, policy: MoshW
     private val entries = linkedMapOf<String, Entry>()
     private val latest = linkedMapOf<String, Long>()
     private val answered = mutableSetOf<String>()
+    /** The call whose ongoing notification the foreground service carries. */
+    private var hosted: String? = null
     private val expiry = Runnable { expire() }
     val hasCalls: Boolean get() = entries.isNotEmpty()
 
@@ -89,15 +91,30 @@ internal class MoshCallNotifications(private val context: Context, policy: MoshW
 
     private fun show(id: String, entry: Entry) {
         val remaining = if (entry.deadline > 0) (entry.deadline - SystemClock.elapsedRealtime()).coerceAtLeast(1) else 0
-        val notification = builder.build(entry.value, remaining)
+        if (entry.value["phase"] != "incoming") {
+            val ongoing = builder.build(entry.value, remaining)
+            ongoing.extras.putLong("mosh.deliveryRevision", entry.revision)
+            if (MoshWaitingService.showCall(ongoing)) {
+                hosted = id
+                manager.cancel("mosh.call.$id", 3)
+                return
+            }
+        } else if (hosted == id) release()
+        val notification = builder.build(entry.value, remaining, callStyle = entry.value["phase"] == "incoming")
         notification.extras.putLong("mosh.deliveryRevision", entry.revision)
         manager.notify("mosh.call.$id", 3, notification)
+    }
+
+    private fun release() {
+        hosted = null
+        MoshWaitingService.showCall(null)
     }
 
     private fun canRing(): Boolean = manager.currentInterruptionFilter == NotificationManager.INTERRUPTION_FILTER_ALL ||
         manager.getNotificationChannel(CHANNEL)?.canBypassDnd() == true
 
     private fun remove(id: String) {
+        if (hosted == id) release()
         ringtone.stopIncoming(id)
         try { manager.cancel("mosh.call.$id", 3) } catch (_: RuntimeException) { /* OS expiry still bounds the incoming alert. */ }
         entries.remove(id)

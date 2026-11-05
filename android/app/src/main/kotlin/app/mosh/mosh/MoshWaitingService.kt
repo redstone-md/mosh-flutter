@@ -1,5 +1,7 @@
 package app.mosh.mosh
 
+import android.app.Notification
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -17,6 +19,7 @@ class MoshWaitingService : Service() {
     override fun onCreate() {
         super.onCreate()
         try {
+            label = R.string.mosh_waiting_starting
             val notification = MoshWaitingNotifications.ongoing(this)
             if (Build.VERSION.SDK_INT >= 29) startForeground(MoshWaitingNotifications.FOREGROUND_ID,
                 notification, if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0)
@@ -78,6 +81,7 @@ class MoshWaitingService : Service() {
         if (startupWake.isHeld) startupWake.release()
         if (current === this) {
             current = null
+            call = null
             (application as MoshApplication).existingRuntime?.waiting?.serviceChanged()
         }
         super.onDestroy()
@@ -89,6 +93,26 @@ class MoshWaitingService : Service() {
         const val STOP = "app.mosh.mosh.STOP_WAITING"
         private var current: MoshWaitingService? = null
         val running: Boolean get() = current != null
+        /** The ongoing call notification standing in for the waiting one. */
+        private var call: Notification? = null
+        private var label = R.string.mosh_waiting_starting
+
+        private fun foreground(service: MoshWaitingService): Notification =
+            call ?: MoshWaitingNotifications.ongoing(service, label)
+
+        /** An ongoing CallStyle must belong to a foreground service, as in Telegram's
+         * VoIPService: it replaces this service's notification while the call lasts,
+         * and null brings the waiting one back. False when no service is running. */
+        fun showCall(notification: Notification?): Boolean {
+            val service = current ?: return false
+            call = notification
+            return try {
+                // The service's own id and no tag mark it as the foreground notification.
+                service.getSystemService(NotificationManager::class.java)
+                    .notify(MoshWaitingNotifications.FOREGROUND_ID, foreground(service))
+                true
+            } catch (_: RuntimeException) { false }
+        }
 
         fun mediaTypes(microphone: Boolean, camera: Boolean): Boolean {
             val service = current ?: return !microphone && !camera
@@ -99,8 +123,8 @@ class MoshWaitingService : Service() {
                     if (microphone) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
                     if (camera) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
                 }
-                val label = if (microphone || camera) R.string.mosh_call_active else R.string.mosh_waiting_starting
-                val notification = MoshWaitingNotifications.ongoing(service, label)
+                label = if (microphone || camera) R.string.mosh_call_active else R.string.mosh_waiting_starting
+                val notification = foreground(service)
                 if (Build.VERSION.SDK_INT >= 29) service.startForeground(MoshWaitingNotifications.FOREGROUND_ID, notification, types)
                 else service.startForeground(MoshWaitingNotifications.FOREGROUND_ID, notification)
                 true
@@ -117,13 +141,13 @@ class MoshWaitingService : Service() {
         fun updateStatus(ready: Boolean, limited: Boolean, inCall: Boolean = false) {
             current?.let { service ->
                 if (service.startupWake.isHeld) service.startupWake.release()
-                val label = when {
+                label = when {
                     inCall -> R.string.mosh_call_active
                     limited -> R.string.mosh_waiting_limited
                     ready -> R.string.mosh_waiting_ready
                     else -> R.string.mosh_waiting_starting
                 }
-                val notification = MoshWaitingNotifications.ongoing(service, label)
+                val notification = foreground(service)
                 try {
                     service.getSystemService(android.app.NotificationManager::class.java)
                         .notify(MoshWaitingNotifications.FOREGROUND_ID, notification)
