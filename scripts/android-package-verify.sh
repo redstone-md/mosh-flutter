@@ -49,9 +49,10 @@ done
 
 if [[ "$jni_zero" == livekit.org.jni_zero ]]; then
   # libwebrtc.jar's native methods resolve to the engine's exports.
-  "$NDK" --dyn-syms --wide "$WORK/lib/arm64-v8a/libmosh_native_media.so" |
-    awk '$7 != "UND" {print $8}' |
-    grep -q '^Java_livekit_org_webrtc_SoftwareVideoEncoderFactory_nativeCreateFactory' ||
+  # Through a file: under pipefail, grep -q closing early fails the pipeline.
+  "$NDK" --dyn-syms --wide "$WORK/lib/arm64-v8a/libmosh_native_media.so" > "$WORK/engine-symbols.txt"
+  awk '$7 != "UND" {print $8}' "$WORK/engine-symbols.txt" |
+    grep -x 'Java_livekit_org_webrtc_SoftwareVideoEncoderFactory_nativeCreateFactory@@JNI_WEBRTC' > /dev/null ||
     { echo 'The libwebrtc engine does not export its JNI entry points' >&2; exit 1; }
 fi
 
