@@ -2,6 +2,7 @@
 //! Create, command and drop an engine on one owner thread; Windows COM is thread-bound.
 use crate::carrier::MAX_PACKET;
 use crate::engine::{Config, Engine};
+use crate::frames::{FrameInfo, MAX_RGBA_BYTES};
 use serde_json::json;
 use std::{
     ffi::{CStr, CString, c_char, c_void},
@@ -147,55 +148,70 @@ pub unsafe extern "C" fn mosh_media_packet_priority(
     .unwrap_or(-1)
 }
 
-pub(crate) const MAX_RGBA_BYTES: usize = 1920 * 1080 * 4;
-
-/// Frame metadata in the layout mosh-core reads.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default)]
-pub struct FrameInfo {
-    pub sequence: u64,
-    pub width: u32,
-    pub height: u32,
-    pub rgba_bytes: u32,
-    pub age_ms: u32,
-}
-
-/// Voice only: camera frames are accepted and dropped until video lands.
-///
 /// # Safety
-/// Handle is live. Nothing is read.
+/// Handle is live; RGBA is readable for length bytes. No concurrent drop.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn mosh_media_push_rgba(
     handle: *mut c_void,
-    _width: u32,
-    _height: u32,
+    width: u32,
+    height: u32,
     rgba: *const u8,
     length: usize,
 ) -> i32 {
     if handle.is_null() || rgba.is_null() || length > MAX_RGBA_BYTES {
         return -1;
     }
-    1
+    catch_unwind(AssertUnwindSafe(|| {
+        // SAFETY: caller retains the handle and readable packed RGBA buffer.
+        let engine = unsafe { &*handle.cast::<Mutex<Engine>>() };
+        let pixels = unsafe { std::slice::from_raw_parts(rgba, length) };
+        engine.lock().map_or(-1, |mut engine| {
+            if engine.camera.push(width, height, pixels).is_ok() {
+                1
+            } else {
+                -1
+            }
+        })
+    }))
+    .unwrap_or(-1)
 }
 
-/// Voice only: there is never a decoded frame.
-///
 /// # Safety
-/// Info is aligned and writable.
+/// Handle is live; info is aligned/writable and disjoint from RGBA. RGBA is
+/// exclusively writable for capacity bytes. No concurrent drop.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn mosh_media_copy_frame(
     handle: *mut c_void,
-    _after: u64,
-    _rgba: *mut u8,
+    after: u64,
+    rgba: *mut u8,
     capacity: usize,
     info: *mut FrameInfo,
 ) -> i32 {
-    if handle.is_null() || info.is_null() || capacity > MAX_RGBA_BYTES {
+    if handle.is_null()
+        || info.is_null()
+        || capacity > MAX_RGBA_BYTES
+        || (capacity != 0 && rgba.is_null())
+    {
         return -1;
     }
-    // SAFETY: caller provides a retained aligned writable metadata allocation.
-    unsafe { info.write(FrameInfo::default()) };
-    0
+    catch_unwind(AssertUnwindSafe(|| {
+        // SAFETY: caller retains the live handle and disjoint writable output allocations.
+        let engine = unsafe { &*handle.cast::<Mutex<Engine>>() };
+        let pixels = if capacity == 0 {
+            &mut []
+        } else {
+            unsafe { std::slice::from_raw_parts_mut(rgba, capacity) }
+        };
+        let Ok(engine) = engine.lock() else {
+            return -1;
+        };
+        let mut metadata = FrameInfo::default();
+        let status = engine.frames.copy(after, pixels, &mut metadata);
+        // SAFETY: caller provides a retained aligned writable metadata allocation.
+        unsafe { info.write(metadata) };
+        status
+    }))
+    .unwrap_or(-1)
 }
 
 /// # Safety

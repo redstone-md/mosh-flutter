@@ -9,16 +9,18 @@ use libwebrtc::{
     audio_track::RtcAudioTrack,
     ice_candidate::IceCandidate,
     media_stream_track::MediaStreamTrack,
-    peer_connection::{AnswerOptions, BitrateSettings, OfferOptions, PeerConnection},
+    peer_connection::{AnswerOptions, BitrateSettings, OfferOptions, PeerConnection, TrackEvent},
     peer_connection_factory::{
         PeerConnectionFactory, RtcConfiguration, native::PeerConnectionFactoryExt,
     },
+    rtp_sender::RtpSender,
+    rtp_transceiver::RtpTransceiver,
     session_description::{SdpType, SessionDescription},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::{audio, carrier::Carrier, stats::Measurements};
+use crate::{audio, carrier::Carrier, frames::Frames, stats::Measurements, video::Camera};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MediaBinding {
@@ -56,12 +58,15 @@ pub struct Engine {
     pub carrier: Carrier,
     pc: PeerConnection,
     microphone: RtcAudioTrack,
+    pub camera: Camera,
+    pub frames: Frames,
     binding: MediaBinding,
     caller: bool,
     local: Option<Description>,
     remote: Option<Description>,
     started: bool,
     microphone_on: bool,
+    camera_on: bool,
     recording: bool,
     candidates: Receiver<String>,
     measurements: Measurements,
@@ -80,20 +85,29 @@ impl Engine {
         factory.set_adm_recording_enabled(false);
         factory.set_adm_playout_enabled(false);
         // Until an Engine exists, its Drop cannot release the audio module.
-        let (pc, microphone, candidates, measurements) =
-            connect(&factory).inspect_err(|_| factory.release_platform_adm())?;
+        let Connection {
+            pc,
+            microphone,
+            camera,
+            frames,
+            candidates,
+            measurements,
+        } = connect(&factory, runtime.handle()).inspect_err(|_| factory.release_platform_adm())?;
         Ok(Self {
             runtime,
             factory,
             carrier,
             pc,
             microphone,
+            camera,
+            frames,
             binding: config.binding,
             caller: config.caller,
             local: None,
             remote: None,
             started: false,
             microphone_on: false,
+            camera_on: false,
             recording: false,
             candidates,
             measurements,
@@ -110,14 +124,15 @@ impl Engine {
             }
             "choices" => {
                 self.microphone_on = value["microphone"].as_bool().context("microphone")?;
-                self.apply_choices();
+                self.camera_on = value["video"].as_bool().context("camera")?;
+                self.apply_choices()?;
                 Ok(json!({"ok": true}))
             }
             "start" => {
                 anyhow::ensure!(self.remote.is_some(), "negotiation is incomplete");
                 self.started = true;
                 self.factory.set_adm_playout_enabled(true);
-                self.apply_choices();
+                self.apply_choices()?;
                 Ok(json!({"ok": true}))
             }
             "tick" => self.tick(&value),
@@ -125,7 +140,7 @@ impl Engine {
                 let mut snapshot = self.measurements.snapshot();
                 snapshot["ready"] = self.started.into();
                 snapshot["microphone"] = self.recording.into();
-                snapshot["video_enabled"] = false.into();
+                snapshot["video_enabled"] = self.camera.enabled().into();
                 snapshot["queue_dropped"] = self.carrier.dropped().into();
                 Ok(snapshot)
             }
@@ -138,11 +153,12 @@ impl Engine {
 
     /// The track carries the microphone only while the device records, so
     /// the snapshot reports whether it actually does.
-    fn apply_choices(&mut self) {
+    fn apply_choices(&mut self) -> Result<()> {
         let on = self.started && self.microphone_on;
         self.factory.set_adm_recording_enabled(on);
         self.recording = on && audio::start_recording(&self.factory);
         self.microphone.set_enabled(self.recording);
+        self.camera.set_enabled(self.started && self.camera_on)
     }
 
     fn offer(&mut self) -> Result<Description> {
@@ -174,19 +190,7 @@ impl Engine {
             return self.local.clone().context("missing local description");
         }
         anyhow::ensure!(remote.offer != self.caller, "wrong description role");
-        anyhow::ensure!(remote.parameters.len() <= 16_384, "description too large");
-        let sdp = std::str::from_utf8(&remote.parameters)?;
-        anyhow::ensure!(
-            sdp.contains("a=fingerprint:"),
-            "description lacks a DTLS fingerprint"
-        );
-        let kind = if remote.offer {
-            SdpType::Offer
-        } else {
-            SdpType::Answer
-        };
-        let description = SessionDescription::parse(sdp, kind)
-            .map_err(|error| anyhow::anyhow!("sdp: {error:?}"))?;
+        let description = parse_description(&remote)?;
         self.runtime
             .block_on(self.pc.set_remote_description(description))
             .map_err(|error| anyhow::anyhow!("remote description: {error:?}"))?;
@@ -223,12 +227,8 @@ impl Engine {
                 "invalid candidate state"
             );
             for candidate in candidates {
-                let text = candidate.as_str().filter(|text| text.len() <= 2048);
-                let candidate: Candidate = serde_json::from_str(text.context("candidate")?)?;
-                let parsed = IceCandidate::parse(&candidate.mid, candidate.index, &candidate.sdp)
-                    .map_err(|error| anyhow::anyhow!("candidate: {error:?}"))?;
                 self.runtime
-                    .block_on(self.pc.add_ice_candidate(parsed))
+                    .block_on(self.pc.add_ice_candidate(parse_candidate(candidate)?))
                     .map_err(|error| anyhow::anyhow!("add candidate: {error:?}"))?;
             }
         }
@@ -242,7 +242,7 @@ impl Engine {
         Ok(json!({"candidates": candidates}))
     }
 
-    fn budget(&self, value: &Value) -> Result<Value> {
+    fn budget(&mut self, value: &Value) -> Result<Value> {
         let max = value["max_bps"]
             .as_u64()
             .filter(|max| (64_000..=3_000_000).contains(max))
@@ -254,6 +254,7 @@ impl Engine {
                 max_bitrate_bps: Some(max),
             })
             .map_err(|error| anyhow::anyhow!("budget: {error:?}"))?;
+        self.camera.adapt(max)?;
         Ok(json!({"ok": true}))
     }
 
@@ -270,27 +271,85 @@ impl Drop for Engine {
     }
 }
 
-/// The peer connection with its muted microphone track, sending Opus with RED.
+struct Connection {
+    pc: PeerConnection,
+    microphone: RtcAudioTrack,
+    camera: Camera,
+    frames: Frames,
+    candidates: Receiver<String>,
+    measurements: Measurements,
+}
+
+/// The peer connection with its muted microphone and camera tracks, sending
+/// Opus with RED, and the peer's decoded video.
 fn connect(
     factory: &PeerConnectionFactory,
-) -> Result<(
-    PeerConnection,
-    RtcAudioTrack,
-    Receiver<String>,
-    Measurements,
-)> {
+    runtime: &tokio::runtime::Handle,
+) -> Result<Connection> {
     let pc = factory
         .create_peer_connection(RtcConfiguration::default())
         .map_err(|error| anyhow::anyhow!("peer connection: {error:?}"))?;
     let candidates = gather_candidates(&pc);
     let measurements = Measurements::default();
     pc.on_ice_connection_state_change(Some(measurements.connection_observer()));
+    let frames = Frames::default();
+    let (watching, spawner) = (frames.clone(), runtime.clone());
+    pc.on_track(Some(Box::new(move |event: TrackEvent| {
+        if let MediaStreamTrack::Video(track) = event.track {
+            watching.watch(&spawner, track);
+        }
+    })));
     let microphone = factory.create_device_audio_track("microphone");
     microphone.set_enabled(false);
-    pc.add_track(MediaStreamTrack::Audio(microphone.clone()), &["mosh"])
+    let sender = pc
+        .add_track(MediaStreamTrack::Audio(microphone.clone()), &["mosh"])
         .map_err(|error| anyhow::anyhow!("audio track: {error:?}"))?;
-    audio::prefer_red(factory, &pc)?;
-    Ok((pc, microphone, candidates, measurements))
+    audio::prefer_red(factory, &transceiver(&pc, &sender)?)?;
+    let camera = {
+        let _context = runtime.enter();
+        Camera::new(factory, &pc)?
+    };
+    Ok(Connection {
+        pc,
+        microphone,
+        camera,
+        frames,
+        candidates,
+        measurements,
+    })
+}
+
+/// The transceiver `add_track` created for `sender`.
+pub fn transceiver(pc: &PeerConnection, sender: &RtpSender) -> Result<RtpTransceiver> {
+    let id = sender.track().map(|track| track.id());
+    pc.transceivers()
+        .into_iter()
+        .find(|transceiver| transceiver.sender().track().map(|track| track.id()) == id)
+        .context("track has no transceiver")
+}
+
+/// The peer's SDP, which must carry the DTLS fingerprint the handshake checks.
+fn parse_description(remote: &Description) -> Result<SessionDescription> {
+    anyhow::ensure!(remote.parameters.len() <= 16_384, "description too large");
+    let sdp = std::str::from_utf8(&remote.parameters)?;
+    anyhow::ensure!(
+        sdp.contains("a=fingerprint:"),
+        "description lacks a DTLS fingerprint"
+    );
+    let kind = if remote.offer {
+        SdpType::Offer
+    } else {
+        SdpType::Answer
+    };
+    SessionDescription::parse(sdp, kind).map_err(|error| anyhow::anyhow!("sdp: {error:?}"))
+}
+
+/// A candidate the peer gathered, as `gather_candidates` encodes it.
+fn parse_candidate(value: &Value) -> Result<IceCandidate> {
+    let text = value.as_str().filter(|text| text.len() <= 2048);
+    let candidate: Candidate = serde_json::from_str(text.context("candidate")?)?;
+    IceCandidate::parse(&candidate.mid, candidate.index, &candidate.sdp)
+        .map_err(|error| anyhow::anyhow!("candidate: {error:?}"))
 }
 
 /// Queues each gathered ICE candidate as JSON for the next tick.
@@ -308,3 +367,7 @@ fn gather_candidates(pc: &PeerConnection) -> Receiver<String> {
     })));
     candidates
 }
+
+#[cfg(test)]
+#[path = "engine_tests.rs"]
+mod tests;
