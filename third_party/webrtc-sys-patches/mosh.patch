@@ -151,6 +151,22 @@
 +    rust::Box<VirtualNetworkSender> sender);
 +
 +}  // namespace livekit_ffi
+--- a/libwebrtc/build_android.sh
++++ b/libwebrtc/build_android.sh
+@@ -154,11 +154,10 @@
+ # those class files. Stamp them back to Java 17 (major 61) before shadowing, like
+ # webrtc-sdk/android does for its Maven artifacts.
+ python3 "$COMMAND_DIR/tools/downgrade_android_class_version.py" "$COMMAND_DIR/prefixed-jni/libs/classes.jar"
+-cd "$COMMAND_DIR/prefixed-jni" && ./gradlew shadowJar
++# A subshell: the work directory need not be this script's directory.
++(cd "$COMMAND_DIR/prefixed-jni" && ./gradlew shadowJar)
+ cp "$COMMAND_DIR/prefixed-jni/build/libs/prefixed-jni-all.jar" "$ARTIFACTS_DIR/libwebrtc.jar"
+ 
+-cd ..
+-
+ cp "src/sdk/android/AndroidManifest.xml" "$ARTIFACTS_DIR"
+ 
+ cd src
 --- a/libwebrtc/build_linux.sh
 +++ b/libwebrtc/build_linux.sh
 @@ -136,8 +136,8 @@
