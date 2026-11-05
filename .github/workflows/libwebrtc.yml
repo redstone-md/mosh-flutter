@@ -1,0 +1,143 @@
+name: libwebrtc builds
+
+# Our libwebrtc for the call engine (mosh-media/webrtc): LiveKit's webrtc-sdk
+# fork at the commit pinned in third_party/libwebrtc-build/build.json, built
+# by LiveKit's scripts with our patches (no H.264). Archives are published
+# as assets of the pinned release, which native builds download and check
+# against the SHA-256 recorded beside it. A release is never replaced: a
+# change to the build bumps its name.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/libwebrtc.yml'
+      - 'third_party/libwebrtc-build/build.json'
+      - 'third_party/webrtc-sys-patches/**'
+      - 'scripts/libwebrtc-build.mjs'
+      - 'scripts/support/libwebrtc-targets.mjs'
+
+concurrency:
+  group: libwebrtc-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pending:
+    name: Find unpublished release
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.release.outputs.release }}
+      missing: ${{ steps.release.outputs.missing }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release=$(jq -r .release third_party/libwebrtc-build/build.json)
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          if gh release view "$release" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "missing=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "missing=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: pending
+    if: needs.pending.outputs.missing == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-linux-android
+            os: ubuntu-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-2022
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Free disk space
+        if: runner.os == 'Linux'
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          android: ${{ !contains(matrix.target, 'android') }}
+          tool-cache: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+      - name: Build tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          pip3 install setuptools
+          sudo apt-get update -y
+          sudo apt-get install -y ninja-build pkg-config openjdk-17-jdk
+      - name: Build tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+      - name: Build tools (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          pip3 install setuptools
+          Invoke-WebRequest -Uri "https://github.com/ninja-build/ninja/releases/download/v1.12.1/ninja-win.zip" -OutFile ninja.zip
+          Expand-Archive -Path ninja.zip -DestinationPath "$Env:RUNNER_TEMP\ninja"
+          "$Env:RUNNER_TEMP\ninja" | Out-File -Append -Encoding utf8 -FilePath $Env:GITHUB_PATH
+      - name: Build libwebrtc
+        # Windows: a short work path keeps Chromium's deep tree under MAX_PATH.
+        shell: bash
+        run: |
+          work="${{ runner.os == 'Windows' && 'C:/w' || format('{0}/libwebrtc-work', runner.temp) }}"
+          node scripts/libwebrtc-build.mjs --target ${{ matrix.target }} --work "$work" --output dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libwebrtc-${{ matrix.target }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish ${{ needs.pending.outputs.release }}
+    needs: [pending, build]
+    # Pushes and dispatches in this repository; never a fork's code.
+    if: github.repository == 'redstone-md/mosh-flutter'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: libwebrtc-*
+          merge-multiple: true
+          path: dist
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ needs.pending.outputs.release }}
+        run: |
+          cd dist
+          sha256sum *.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+          # A pre-release that is never "latest": the app's update check skips
+          # tags that are not versions, and this must not displace a Mosh build.
+          gh release create "$RELEASE" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --prerelease --latest=false --title "$RELEASE" \
+            --notes "libwebrtc for the call engine, built by .github/workflows/libwebrtc.yml (no H.264). Pin the SHA256SUMS in third_party/libwebrtc-build/build.json." \
+            *.tar.gz SHA256SUMS
