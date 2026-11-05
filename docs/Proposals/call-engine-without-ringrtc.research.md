@@ -10,16 +10,19 @@ Go ahead with MOSH-70 as planned: Google's libwebrtc (BSD) through LiveKit's
 `webrtc-sys`/`libwebrtc` crates (Apache-2.0), with Mosh's own libwebrtc builds
 on every platform. Nothing found blocks it:
 
-- Moss transport works with a ~500-line patch to the bindings and **no patch to
-  libwebrtc**: libwebrtc's own `PacketSocketFactory` and `NetworkManager`
-  dependencies take a virtual network.
+- Moss transport needs **no change to Google's libwebrtc** (the C++ library):
+  its own `PacketSocketFactory` and `NetworkManager` dependencies take a
+  virtual network. The patch is to LiveKit's two binding crates, about 730
+  diff lines including the new files.
 - The probe engine implements the existing `mosh_media_*` ABI, so mosh-core,
   MLS signalling, device selection (ADR 0043) and Moss routing stay unchanged.
-  The real-call test over Moss passes with it as-is.
-- On an identical emulated link it has 50–90 ms lower mouth-to-ear delay than
-  RingRTC in every scenario and similar CPU. With RED it also conceals less
-  under heavy loss. Packet rate (4× RingRTC's) is the one setting MOSH-71 must
-  tune (see [measurements](#measurements)).
+  mosh-core's real-call setup test passes with it as-is (microphone off), and
+  voice crosses two real Moss nodes in the bench.
+- Mouth-to-ear delay is 50–100 ms lower than RingRTC in every scenario, over
+  real Moss and on emulated links, and CPU is similar. Sound returns after an
+  outage within 80–95 ms. With RED it conceals less than RingRTC under heavy
+  loss. MOSH-71 must still choose Opus packet size, RED and DTX (see
+  [measurements](#measurements)).
 - One protocol change: SRTP keys come from DTLS whose certificate fingerprint
   MLS authenticates, because upstream libwebrtc has no SDES since M123
   ([ADR 0051](../ADR/0051-dtls-srtp-with-mls-authenticated-fingerprints.md)).
@@ -43,9 +46,13 @@ exposes no `PacketSocketFactory`, `NetworkManager` or `PortAllocator`
   AEAD profiles, and the safe wrappers in `libwebrtc`
   (`PeerConnectionFactory::with_virtual_network`).
 
-`strace` on the loopback test shows no `socket()` call of any address family.
-The patch is pinned like RingRTC's (`scripts/livekit-webrtc-prepare.mjs`,
-archive and tree checksums). It is small enough to propose upstream to LiveKit.
+A network serves exactly one factory: the factory binds it to its network
+thread, detaches it on teardown, and a second factory aborts the process.
+
+`strace` on the loopback test shows no `socket()` call of any address family;
+the test asserts `AEAD_AES_256_GCM` and a DTLS 1.3 cipher suite. The patch is
+pinned like RingRTC's (`scripts/livekit-webrtc-prepare.mjs`, archive and tree
+checksums). It is small enough to propose upstream to LiveKit.
 
 ## Own libwebrtc builds and platforms
 
@@ -54,13 +61,27 @@ points at another build with the same layout. LiveKit's scripts build the
 `webrtc-sdk/webrtc` fork at `m150_release` (Google upstream plus LiveKit's
 patches, BSD) for every target we need.
 
-- Built here from source with `build_linux.sh` and `rtc_use_h264=false`: sync
+- **Linux x64, our build:** `build_linux.sh` with `rtc_use_h264=false`. Sync
   8.5 min, build 4.4 min on 16 cores (45 CPU-min), 16 GB checkout. The probe
-  built against it passes the loopback test and is what the measurements use.
-  Its `LICENSE.md` lists only permissive components (no ffmpeg, no openh264).
-- CI ([webrtc-probe.yml](../../.github/workflows/webrtc-probe.yml)) runs the
+  built against it with `LK_CUSTOM_WEBRTC` passes the loopback test and is
+  what the measurements use. Its `LICENSE.md` lists only permissive components
+  (no ffmpeg, no openh264).
+- **Android arm64, our build:** `build_android.sh` (H.264 already off).
+  Syncing the Android dependencies into the same checkout and building took
+  6 min 43 s; `cargo ndk` then built the probe against it with
+  `LK_CUSTOM_WEBRTC` in 35 s. The library needs only system libraries
+  (`libOpenSLES`, `liblog`, `libc`, `libm`, `libdl`); libwebrtc and libc++ are
+  linked in. Its `LICENSE.md` has no ffmpeg or openh264. This is the build
+  MOSH-59 publishes for F-Droid; it replaces `third_party/webrtc-android-patches`.
+  Not run on a device here.
+- **Windows, macOS and iOS, our build:** not run here (no such hosts). They
+  use the same LiveKit scripts that produce the prebuilts the CI jobs below
+  pass with, so the remaining risk is CI time, not feasibility. MOSH-71 and
+  MOSH-77 add those jobs.
+- **All five targets with LiveKit's prebuilts:** CI
+  ([webrtc-probe.yml](../../.github/workflows/webrtc-probe.yml)) runs the
   loopback test on Linux, Windows and macOS and builds for Android arm64 and
-  iOS arm64 against LiveKit's prebuilts. Windows needs the static CRT and Apple
+  iOS arm64, all green. Windows needs the static CRT and Apple
   targets `-ObjC` (`mosh-probe/webrtc/.cargo/config.toml`), as in LiveKit.
 - Linux needs clang 21 or newer for libwebrtc's hermetic libc++. CI downloads
   LLVM 21; locally Chromium's pinned clang works.
@@ -95,13 +116,29 @@ no counterpart; MOSH-77 moves iOS to this engine and MOSH-76 deletes it.
 ## Measurements
 
 [media-bench](../../mosh-probe/media-bench/README.md) runs either engine behind
-the ABI as two processes joined by an emulated link and drives them as
-mosh-core does. Each peer has its own PulseAudio server; a 50 ms 1 kHz burst
-enters the caller's microphone every second and mouth-to-ear delay is the gap
-between its onset at that microphone and at the callee's speaker
-(calibration: 0.0 ms). Release builds, Linux x64, 16 cores, 30 s per run, two
-runs each. RingRTC is the current `mosh-media/engine`; libwebrtc is the probe
-on our own libwebrtc build.
+the ABI as two processes and drives them as mosh-core does, joined either by
+two real Moss nodes (`--moss`, the carrier of the existing `mosh-probe/media`
+host) or by an emulated link with delay, random loss and a rate cap. The
+`mosh-probe/media` stand itself has its own ABI and no audio path, so it
+could not load the current engine or measure mouth to ear. Each peer has its
+own PulseAudio server; a 50 ms 1 kHz burst enters the caller's microphone
+every second and mouth-to-ear delay is the gap between its onset at that
+microphone and at the callee's speaker. Calibration on one server reads
+0.0 ms; across the two servers both recordings run at the same 10 ms latency.
+Release builds, Linux x64, 16 cores, 30 s per run, two runs each. RingRTC is
+the current `mosh-media/engine`; libwebrtc is the probe on our own libwebrtc
+build. CPU includes the bench worker's 1 ms polling loop, the same for both.
+
+Over real Moss on loopback:
+
+| Engine | Mouth-to-ear | Bursts heard | Setup | CPU caller / callee | Moss packets sent (caller) | Moss drops |
+| --- | --- | --- | --- | --- | --- | --- |
+| RingRTC | 134–140 ms | 29/30 | 36 ms | 8.3 / 7.7 % | 497–509 | 0 |
+| libwebrtc | 75–78 ms | 29/30 | 29–30 ms | 10.8 / 6.4 % | 1558–1560 | 0 |
+| libwebrtc + RED | 76–79 ms | 29/30 | 29 ms | 10.1 / 5.8 % | 1577–1579 | 0 |
+
+On emulated links (the 224 kbit/s row is a rate cap with a 32 KB drop-tail
+queue standing in for a relay's flow budget, not a Moss relay):
 
 | Link (one-way delay, random loss, cap) | Engine | Mouth-to-ear | Bursts heard | Concealed | Setup | CPU caller / callee | Packets/s |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -121,15 +158,32 @@ on our own libwebrtc build.
 Chrome does with its RED field trial. Received audio payload goes from about
 10 to 20 kbit/s, still below RingRTC's fixed 32 kbit/s.
 
+Recovery after a 3 s outage (40 ms delay, every packet dropped; a continuous
+tone replaces the bursts). "Returns" is from the end of the outage to the
+speaker back at half its earlier level:
+
+| Engine | Returns | Speaker below 10 % during the outage |
+| --- | --- | --- |
+| RingRTC | 144–170 ms (2 of 5 runs); 42–61 ms in the other 3 | 2.98 s; 10–60 ms in the other 3 |
+| libwebrtc | 89–95 ms | 2.81–2.86 s |
+| libwebrtc + RED | 78–82 ms | 2.80–2.83 s |
+
+In three RingRTC runs its concealment never let the speaker fall below a tenth
+of the earlier level, so those runs show no measurable gap rather than a faster
+recovery. libwebrtc behaves the same in every run.
+
 Reading the table:
 
-- **Delay.** libwebrtc is 70–95 ms faster mouth to ear everywhere. RingRTC
+- **Delay.** libwebrtc is 55–100 ms faster mouth to ear everywhere, 50–70 ms
+  with RED. RingRTC
   configures Opus for 60 ms packets at a fixed 32 kbit/s with DTX and in-band
   FEC (`AudioEncoderConfig::default`); libwebrtc's default is 20 ms packets,
   adaptive bitrate, no DTX.
-- **Setup** (offer to ICE connected, before DTLS completes for libwebrtc) is
-  within noise except at 15 % loss, where lost DTLS flights cost a
-  retransmission. Add the DTLS round trips on relayed paths (ADR 0051).
+- **Setup** is offer to ICE connected. For libwebrtc that is before DTLS
+  completes, so the cost ADR 0051 adds is not in this column: DTLS 1.3 needs
+  one more round trip before media flows (a few tens of ms on these links,
+  more on relayed paths). It was not measured separately. At 15 % loss the
+  ICE checks themselves take longer.
 - **Loss.** "Concealed" is not strictly comparable: RingRTC reports the last
   stats interval, libwebrtc the whole call. At 5 % loss libwebrtc conceals less;
   at 15 % RingRTC conceals about half as much: its fixed 32 kbit/s leaves Opus
@@ -167,7 +221,7 @@ Reading the table:
 
 | Slice | Days | Notes |
 | --- | --- | --- |
-| MOSH-71 voice desktop↔desktop | 6–8 | Turn the probe into `mosh-media/engine` behind a developer flag; CI builds and caches our libwebrtc for Windows, macOS, Linux; Opus frame size and RED; engine version in the call protocol with an "update Mosh" outcome; relay test |
+| MOSH-71 voice desktop↔desktop | 6–8 | Move the probe into `mosh-media/engine` behind a developer flag (its ABI and carrier replace the RingRTC ones, so no copy remains); CI builds and caches our libwebrtc for Windows, macOS, Linux; Opus frame size and RED; engine version in the call protocol with an "update Mosh" outcome; relay test |
 | MOSH-72 video | 5–7 | `NativeVideoSource`/`NativeVideoStream`, RGBA↔I420, budget-driven resolution and frame rate, camera and PiP paths |
 | MOSH-75 Android | 6–9 | Our Android libwebrtc build (also for MOSH-59), JNI init, Android audio module with the existing AudioManager routing, Camera2 adapter |
 | MOSH-76 default, delete RingRTC and the legacy voice pipeline | 3–4 | Remove `third_party/ringrtc*`, `webrtc-android-patches`, `keys.rs`, `voice_call_runtime`; notices |

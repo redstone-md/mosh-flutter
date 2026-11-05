@@ -1,7 +1,9 @@
 # ADR 0051: DTLS-SRTP with MLS-authenticated fingerprints
 
 Date: 2026-11-05.
-Status: Accepted for MOSH-70.
+Status: Accepted for MOSH-70. Takes effect when the new engine ships (MOSH-71);
+until then [native call media](../Features/native-call-media.md) describes the
+RingRTC keys in use.
 
 The RingRTC engine disables DTLS and installs SRTP keys that Mosh derives
 itself: each side puts an X25519 public key into its media description, MLS
