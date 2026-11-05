@@ -2,7 +2,7 @@
 //! the caller's microphone sink, and their onsets in that sink's monitor
 //! and in the callee's speaker monitor are compared. Playback buffering
 //! cancels out; a calibration run measures what remains.
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::io::{Read, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -48,14 +48,16 @@ fn pacat(mode: &str, side: usize, device: &str) -> Result<Child> {
         .spawn()?)
 }
 
-/// Plays a 50 ms 1 kHz burst every second, paced in real time.
-fn play(mut input: impl Write + Send + 'static) {
+/// Plays a 50 ms 1 kHz burst every second, or a continuous tone, paced in
+/// real time.
+fn play(mut input: impl Write + Send + 'static, continuous: bool) {
+    let burst = if continuous { PERIOD } else { BURST };
     std::thread::spawn(move || {
         let start = Instant::now();
         for chunk in 0usize.. {
             let bytes: Vec<u8> = (chunk * CHUNK..(chunk + 1) * CHUNK)
                 .flat_map(|n| {
-                    let sample = if n % PERIOD < BURST {
+                    let sample = if n % PERIOD < burst {
                         ((n as f64 / RATE as f64) * std::f64::consts::TAU * 1000.0).sin() * 12_000.0
                     } else {
                         0.0
@@ -94,7 +96,8 @@ fn listen(mut output: impl Read + Send + 'static, onsets: Arc<Mutex<Vec<Instant>
 impl Probe {
     /// Bursts go into the `from` peer's microphone; its monitor is the
     /// reference and the `to` peer's speaker monitor is where they come out.
-    pub fn start(from: usize, to: usize) -> Result<Self> {
+    /// A continuous tone instead measures when sound returns after an outage.
+    pub fn start(from: usize, to: usize, continuous: bool) -> Result<Self> {
         let mut player = pacat("--playback", from, "mic")?;
         let mut reference_recorder = pacat("--record", from, "mic.monitor")?;
         let mut recorder = pacat(
@@ -108,14 +111,20 @@ impl Probe {
         )?;
         let reference = Arc::new(Mutex::new(Vec::new()));
         let heard = Arc::new(Mutex::new(Vec::new()));
-        listen(reference_recorder.stdout.take().unwrap(), reference.clone());
-        listen(recorder.stdout.take().unwrap(), heard.clone());
-        play(player.stdin.take().unwrap());
+        listen(reference_recorder.stdout.take().context("pacat stdout")?, reference.clone());
+        listen(recorder.stdout.take().context("pacat stdout")?, heard.clone());
+        play(player.stdin.take().context("pacat stdin")?, continuous);
         Ok(Self {
             children: vec![player, reference_recorder, recorder],
             reference,
             heard,
         })
+    }
+
+    /// How long after `at` the speaker first starts sounding again.
+    pub fn sound_returns_after(&self, at: Instant) -> Option<Duration> {
+        let heard = self.heard.lock().unwrap();
+        heard.iter().find(|onset| **onset >= at).map(|onset| onset.duration_since(at))
     }
 
     /// Delay from each burst at the microphone to its first onset at the speaker.

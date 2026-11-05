@@ -14,6 +14,8 @@ pub struct Options {
     pub seconds: u64,
     pub shape: Shape,
     pub budget_bps: Option<u64>,
+    /// Carry packets over two real Moss nodes instead of the emulated link.
+    pub moss: bool,
 }
 
 struct Worker {
@@ -31,9 +33,12 @@ pub struct Bench {
 impl Bench {
     fn spawn(options: &Options) -> Result<Self> {
         let (tx, events) = channel();
-        let caller = Self::worker(&options.engine, 0, &tx)?;
-        let callee = Self::worker(&options.engine, 1, &tx)?;
-        Ok(Self {
+        let mesh = options
+            .moss
+            .then(|| format!("mosh-bench-{}", std::process::id()));
+        let caller = Self::worker(&options.engine, 0, mesh.as_deref(), &tx)?;
+        let callee = Self::worker(&options.engine, 1, mesh.as_deref(), &tx)?;
+        let mut bench = Self {
             workers: [caller, callee],
             events,
             links: [
@@ -41,18 +46,35 @@ impl Bench {
                 Link::new(options.shape, 0x7f4a),
             ],
             replies: [None, None],
-        })
+        };
+        if options.moss {
+            let hello = [bench.reply(0, "hello")?, bench.reply(1, "hello")?];
+            for side in 0..2 {
+                let other = &hello[1 - side];
+                let address = format!("127.0.0.1:{}", other["port"]);
+                let connect =
+                    json!({"action": "connect", "address": address, "peer": other["peer"]});
+                bench.ask(side, connect)?;
+            }
+        }
+        Ok(bench)
     }
 
-    fn worker(engine: &str, side: usize, events: &Sender<(usize, u8, Vec<u8>)>) -> Result<Worker> {
+    fn worker(
+        engine: &str,
+        side: usize,
+        mesh: Option<&str>,
+        events: &Sender<(usize, u8, Vec<u8>)>,
+    ) -> Result<Worker> {
         let role = if side == 0 { "caller" } else { "callee" };
         let mut child = Command::new(std::env::current_exe()?)
             .args(["worker", engine, role])
+            .args(mesh)
             .env("PULSE_SERVER", audio::server(side))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()?;
-        let mut output = child.stdout.take().unwrap();
+        let mut output = child.stdout.take().context("worker stdout")?;
         let events = events.clone();
         std::thread::spawn(move || {
             while let Ok((kind, payload)) = frame::read(&mut output) {
@@ -61,7 +83,7 @@ impl Bench {
                 }
             }
         });
-        let input = BufWriter::new(child.stdin.take().unwrap());
+        let input = BufWriter::new(child.stdin.take().context("worker stdin")?);
         Ok(Worker { child, input })
     }
 
@@ -90,15 +112,19 @@ impl Bench {
             frame::COMMAND,
             command.to_string().as_bytes(),
         )?;
+        self.reply(side, command["action"].as_str().unwrap_or_default())
+    }
+
+    fn reply(&mut self, side: usize, action: &str) -> Result<Value> {
         let deadline = Instant::now() + Duration::from_secs(30);
         loop {
             if let Some(reply) = self.replies[side].take() {
                 if let Some(error) = reply["error"].as_str() {
-                    bail!("{} on side {side}: {error}", command["action"]);
+                    bail!("{action} on side {side}: {error}");
                 }
                 return Ok(reply);
             }
-            anyhow::ensure!(Instant::now() < deadline, "{} timed out", command["action"]);
+            anyhow::ensure!(Instant::now() < deadline, "{action} timed out");
             self.pump()?;
         }
     }
@@ -192,7 +218,7 @@ pub fn run(options: Options) -> Result<Value> {
     while Instant::now() < warmup {
         bench.tick(&mut pending)?;
     }
-    let probe = audio::Probe::start(0, 1)?;
+    let probe = audio::Probe::start(0, 1, options.shape.outage.is_some())?;
     let cpu_before = bench.cpu_seconds();
     let started = Instant::now();
     let mut next = started;
@@ -225,6 +251,9 @@ pub fn run(options: Options) -> Result<Value> {
     let heard = delays.len();
     Ok(json!({
         "setup_ms": setup.as_millis() as u64,
+        "recovery_ms": bench.links[0].outage_end()
+            .and_then(|end| probe.sound_returns_after(end))
+            .map(|after| after.as_millis() as u64),
         "mouth_to_ear_ms": audio::median(&mut delays),
         "bursts_heard": heard,
         "bursts_sent": options.seconds,
@@ -232,12 +261,13 @@ pub fn run(options: Options) -> Result<Value> {
         "link": {"caller_to_callee": link(&bench.links[0]), "callee_to_caller": link(&bench.links[1])},
         "callee_audio": snapshots[1]["audio"],
         "caller_audio_sender": snapshots[0]["audio_sender"],
+        "moss_carrier": [&snapshots[0]["carrier"], &snapshots[1]["carrier"]],
     }))
 }
 
 /// The harness's own delay: tone straight from the microphone sink to its monitor.
 pub fn calibrate(seconds: u64) -> Result<Value> {
-    let probe = audio::Probe::start(0, 0)?;
+    let probe = audio::Probe::start(0, 0, false)?;
     std::thread::sleep(Duration::from_secs(seconds));
     let mut delays = probe.delays_ms();
     let all = delays.clone();

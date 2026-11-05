@@ -9,4 +9,11 @@ publish = false
 [dependencies]
 anyhow = "1"
 libloading = "0.9"
+mosh-core = { path = "../../mosh-core" }
 serde_json = "1"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[profile.dev]
+debug = 0

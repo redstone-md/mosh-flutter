@@ -9,6 +9,8 @@ pub struct Shape {
     pub loss: f64,
     pub rate_bps: Option<u64>,
     pub queue_bytes: usize,
+    /// Drop everything for `.1`, starting `.0` after the link is created.
+    pub outage: Option<(Duration, Duration)>,
 }
 
 pub struct Link {
@@ -19,6 +21,7 @@ pub struct Link {
     in_flight: VecDeque<(Instant, Vec<u8>)>,
     next_send: Instant,
     seed: u64,
+    born: Instant,
     pub delivered: u64,
     pub lost: u64,
     pub overflowed: u64,
@@ -33,14 +36,24 @@ impl Link {
             in_flight: VecDeque::new(),
             next_send: Instant::now(),
             seed: seed | 1,
+            born: Instant::now(),
             delivered: 0,
             lost: 0,
             overflowed: 0,
         }
     }
 
+    /// When the outage, if any, ends.
+    pub fn outage_end(&self) -> Option<Instant> {
+        self.shape.outage.map(|(start, length)| self.born + start + length)
+    }
+
     pub fn push(&mut self, packet: Vec<u8>) {
-        if self.random() < self.shape.loss {
+        let blackout = self.shape.outage.is_some_and(|(start, length)| {
+            let since = self.born.elapsed();
+            since >= start && since < start + length
+        });
+        if blackout || self.random() < self.shape.loss {
             self.lost += 1;
             return;
         }

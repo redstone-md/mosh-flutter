@@ -1,11 +1,13 @@
 //! media-bench run --engine <lib> [--seconds 30] [--delay-ms 0] [--loss 0]
-//!                 [--rate-kbps N] [--budget-kbps N]
+//!                 [--rate-kbps N] [--budget-kbps N] [--moss]
+//!                 [--outage-at S --outage-ms N]
 //! media-bench calibrate
 mod audio;
 mod bench;
 mod engine;
 mod frame;
 mod link;
+mod moss;
 mod worker;
 
 use anyhow::{Context, Result};
@@ -20,7 +22,11 @@ fn main() -> Result<()> {
             .cloned()
     };
     match args.first().map(String::as_str) {
-        Some("worker") => worker::run(&args[1], args[2] == "caller"),
+        Some("worker") => worker::run(
+            &args[1],
+            args[2] == "caller",
+            args.get(3).map(String::as_str),
+        ),
         Some("calibrate") => {
             println!("{}", bench::calibrate(10)?);
             Ok(())
@@ -39,8 +45,15 @@ fn main() -> Result<()> {
                     loss: number("--loss", 0.0)?,
                     rate_bps: (rate > 0.0).then_some((rate * 1000.0) as u64),
                     queue_bytes: 32 * 1024,
+                    outage: flag("--outage-at").is_some().then(|| -> Result<_> {
+                        Ok((
+                            Duration::from_secs_f64(number("--outage-at", 0.0)?),
+                            Duration::from_millis(number("--outage-ms", 3000.0)? as u64),
+                        ))
+                    }).transpose()?,
                 },
                 budget_bps: (budget > 0.0).then_some((budget * 1000.0) as u64),
+                moss: args.iter().any(|a| a == "--moss"),
             };
             println!("{}", bench::run(options)?);
             Ok(())
