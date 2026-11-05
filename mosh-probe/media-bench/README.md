@@ -26,7 +26,18 @@ done
 cargo run --release -- calibrate
 cargo run --release -- run --engine <lib> --seconds 30 --delay-ms 30 --loss 0.05 \
   --rate-kbps 224 --budget-kbps 224
+cargo run --release -- run --engine <lib> --seconds 20 --delay-ms 40 \
+  --outage-at 10 --outage-ms 3000
+node scripts/moss-prepare.mjs   # then, from the repository root:
+mosh-probe/media-bench/target/release/mosh-media-bench run --moss --engine <lib>
 ```
+
+`--moss` replaces the emulated link with two real Moss nodes on loopback; the
+packets go through the media host's bounded carrier
+(`mosh-probe/media-host/src/transport.rs`). An outage drops every packet for
+its length and plays a continuous tone instead of bursts. `recovery` reports
+when the speaker is back at half its level from before the outage, and how
+long it stayed under a tenth of it.
 
 Mouth-to-ear: a 50 ms 1 kHz burst goes into the caller's `mic` every second.
 Its onset in that sink's monitor is compared with its onset in the callee's

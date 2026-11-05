@@ -13,10 +13,24 @@ const CHUNK: usize = RATE / 50;
 const BURST: usize = RATE / 20;
 const PERIOD: usize = RATE;
 
+/// RMS level per 10 ms window, timestamped.
+type Levels = Arc<Mutex<Vec<(Instant, f64)>>>;
+
 pub struct Probe {
     children: Vec<Child>,
     reference: Arc<Mutex<Vec<Instant>>>,
     heard: Arc<Mutex<Vec<Instant>>>,
+    /// The speaker's RMS level per 10 ms window.
+    levels: Levels,
+}
+
+/// What an outage did at the speaker.
+pub struct Recovery {
+    /// From the end of the outage to the first window back at half the
+    /// level heard before it.
+    pub returned: Option<Duration>,
+    /// How long the speaker stayed below a tenth of that level.
+    pub silent: Duration,
 }
 
 /// One PulseAudio server per peer, so each engine's default devices are
@@ -75,12 +89,19 @@ fn play(mut input: impl Write + Send + 'static, continuous: bool) {
 }
 
 /// Timestamps the start of every burst a recording hears.
-fn listen(mut output: impl Read + Send + 'static, onsets: Arc<Mutex<Vec<Instant>>>) {
+fn listen(
+    mut output: impl Read + Send + 'static,
+    onsets: Arc<Mutex<Vec<Instant>>>,
+    levels: Option<Levels>,
+) {
     std::thread::spawn(move || {
         let mut buffer = [0u8; CHUNK * 2];
         let mut quiet = 0usize;
         while output.read_exact(&mut buffer).is_ok() {
             let arrived = Instant::now();
+            if let Some(levels) = &levels {
+                record_levels(&buffer, arrived, levels);
+            }
             for (i, pair) in buffer.chunks_exact(2).enumerate() {
                 let level = i16::from_le_bytes([pair[0], pair[1]]).unsigned_abs();
                 if level > 1500 && quiet > RATE / 4 {
@@ -91,6 +112,21 @@ fn listen(mut output: impl Read + Send + 'static, onsets: Arc<Mutex<Vec<Instant>
             }
         }
     });
+}
+
+/// Appends one RMS value per 10 ms window of a 20 ms chunk.
+fn record_levels(chunk: &[u8], arrived: Instant, levels: &Mutex<Vec<(Instant, f64)>>) {
+    let window = RATE / 100;
+    let samples: Vec<f64> = chunk
+        .chunks_exact(2)
+        .map(|pair| f64::from(i16::from_le_bytes([pair[0], pair[1]])))
+        .collect();
+    let mut levels = levels.lock().unwrap();
+    for (index, part) in samples.chunks(window).enumerate() {
+        let rms = (part.iter().map(|s| s * s).sum::<f64>() / part.len() as f64).sqrt();
+        let behind = Duration::from_secs_f64((samples.len() - index * window) as f64 / RATE as f64);
+        levels.push((arrived - behind, rms));
+    }
 }
 
 impl Probe {
@@ -111,20 +147,48 @@ impl Probe {
         )?;
         let reference = Arc::new(Mutex::new(Vec::new()));
         let heard = Arc::new(Mutex::new(Vec::new()));
-        listen(reference_recorder.stdout.take().context("pacat stdout")?, reference.clone());
-        listen(recorder.stdout.take().context("pacat stdout")?, heard.clone());
+        let levels = Arc::new(Mutex::new(Vec::new()));
+        listen(
+            reference_recorder.stdout.take().context("pacat stdout")?,
+            reference.clone(),
+            None,
+        );
+        listen(
+            recorder.stdout.take().context("pacat stdout")?,
+            heard.clone(),
+            Some(levels.clone()),
+        );
         play(player.stdin.take().context("pacat stdin")?, continuous);
         Ok(Self {
             children: vec![player, reference_recorder, recorder],
             reference,
             heard,
+            levels,
         })
     }
 
-    /// How long after `at` the speaker first starts sounding again.
-    pub fn sound_returns_after(&self, at: Instant) -> Option<Duration> {
-        let heard = self.heard.lock().unwrap();
-        heard.iter().find(|onset| **onset >= at).map(|onset| onset.duration_since(at))
+    /// Compares the speaker during and after an outage with the two
+    /// seconds before it.
+    pub fn recovery(&self, start: Instant, end: Instant) -> Recovery {
+        let levels = self.levels.lock().unwrap();
+        let mut before: Vec<f64> = levels
+            .iter()
+            .filter(|(at, _)| *at < start && start.duration_since(*at) < Duration::from_secs(2))
+            .map(|(_, rms)| *rms)
+            .collect();
+        let reference = median(&mut before).unwrap_or(0.0);
+        let returned = levels
+            .iter()
+            .find(|(at, rms)| *at >= end && *rms >= reference / 2.0)
+            .map(|(at, _)| at.duration_since(end));
+        let quiet = levels
+            .iter()
+            .filter(|(at, rms)| *at >= start && *rms < reference / 10.0)
+            .count();
+        Recovery {
+            returned,
+            silent: Duration::from_millis(quiet as u64 * 10),
+        }
     }
 
     /// Delay from each burst at the microphone to its first onset at the speaker.

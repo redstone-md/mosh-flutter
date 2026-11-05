@@ -45,12 +45,15 @@ fn main() -> Result<()> {
                     loss: number("--loss", 0.0)?,
                     rate_bps: (rate > 0.0).then_some((rate * 1000.0) as u64),
                     queue_bytes: 32 * 1024,
-                    outage: flag("--outage-at").is_some().then(|| -> Result<_> {
-                        Ok((
-                            Duration::from_secs_f64(number("--outage-at", 0.0)?),
-                            Duration::from_millis(number("--outage-ms", 3000.0)? as u64),
-                        ))
-                    }).transpose()?,
+                    outage: flag("--outage-at")
+                        .is_some()
+                        .then(|| -> Result<_> {
+                            Ok((
+                                Duration::from_secs_f64(number("--outage-at", 0.0)?),
+                                Duration::from_millis(number("--outage-ms", 3000.0)? as u64),
+                            ))
+                        })
+                        .transpose()?,
                 },
                 budget_bps: (budget > 0.0).then_some((budget * 1000.0) as u64),
                 moss: args.iter().any(|a| a == "--moss"),

@@ -43,9 +43,11 @@ impl Link {
         }
     }
 
-    /// When the outage, if any, ends.
-    pub fn outage_end(&self) -> Option<Instant> {
-        self.shape.outage.map(|(start, length)| self.born + start + length)
+    /// When the outage, if any, starts and ends.
+    pub fn outage(&self) -> Option<(Instant, Instant)> {
+        self.shape
+            .outage
+            .map(|(start, length)| (self.born + start, self.born + start + length))
     }
 
     pub fn push(&mut self, packet: Vec<u8>) {

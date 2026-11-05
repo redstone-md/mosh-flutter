@@ -251,9 +251,11 @@ pub fn run(options: Options) -> Result<Value> {
     let heard = delays.len();
     Ok(json!({
         "setup_ms": setup.as_millis() as u64,
-        "recovery_ms": bench.links[0].outage_end()
-            .and_then(|end| probe.sound_returns_after(end))
-            .map(|after| after.as_millis() as u64),
+        "recovery": bench.links[0].outage().map(|(start, end)| {
+            let recovery = probe.recovery(start, end);
+            json!({"returned_ms": recovery.returned.map(|after| after.as_millis() as u64),
+                "silent_ms": recovery.silent.as_millis() as u64})
+        }),
         "mouth_to_ear_ms": audio::median(&mut delays),
         "bursts_heard": heard,
         "bursts_sent": options.seconds,
