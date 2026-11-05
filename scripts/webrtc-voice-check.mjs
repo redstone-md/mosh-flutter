@@ -24,15 +24,20 @@ for (const side of ["a", "b"]) {
     "set-default-source mic.monitor",
     "",
   ].join("\n"));
-  const runtime = path.join(pulse, `rt-${side}`);
-  await mkdir(runtime, { recursive: true });
+  await mkdir(path.join(pulse, `rt-${side}`), { recursive: true });
   run("pulseaudio", ["-n", "-F", path.join(pulse, `${side}.pa`), "--daemonize=yes", "--exit-idle-time=-1"],
-    { XDG_RUNTIME_DIR: runtime, HOME: runtime, DBUS_SESSION_BUS_ADDRESS: "disabled:" });
+    pulseEnv(side));
 }
 const bench = path.join(root, "mosh-probe/media-bench");
-run("cargo", ["build", "--locked", "--release", "--manifest-path", path.join(bench, "Cargo.toml")]);
-const output = run(path.join(bench, "target/release/mosh-media-bench"),
-  ["run", "--moss", "--engine", engine, "--seconds", String(seconds)]);
+let output;
+try {
+  run("cargo", ["build", "--locked", "--release", "--manifest-path", path.join(bench, "Cargo.toml")]);
+  output = run(path.join(bench, "target/release/mosh-media-bench"),
+    ["run", "--moss", "--engine", engine, "--seconds", String(seconds)]);
+} finally {
+  // Their sockets are fixed paths: a server left running blocks the next check.
+  for (const side of ["a", "b"]) spawnSync("pulseaudio", ["-k"], { env: pulseEnv(side) });
+}
 const result = JSON.parse(output.trim().split("\n").at(-1));
 console.log(JSON.stringify(result, null, 2));
 // One burst may straddle the start or the end of the window.
@@ -44,4 +49,10 @@ function run(command, args, env = {}) {
     stdio: ["ignore", "pipe", "inherit"] });
   if (result.status !== 0) throw new Error(`${command} failed (${result.status ?? result.error?.message})`);
   return result.stdout;
+}
+
+/** One side's PulseAudio server is found through its own runtime directory. */
+function pulseEnv(side) {
+  const runtime = path.join(pulse, `rt-${side}`);
+  return { ...process.env, XDG_RUNTIME_DIR: runtime, HOME: runtime, DBUS_SESSION_BUS_ADDRESS: "disabled:" };
 }
