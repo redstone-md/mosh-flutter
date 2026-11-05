@@ -125,6 +125,9 @@ impl Engine {
         microphone.set_enabled(false);
         pc.add_track(MediaStreamTrack::Audio(microphone.clone()), &["mosh"])
             .map_err(|error| anyhow::anyhow!("audio track: {error:?}"))?;
+        if std::env::var_os("MOSH_PROBE_RED").is_some() {
+            prefer_red(&factory, &pc)?;
+        }
         Ok(Self {
             runtime,
             factory,
@@ -377,4 +380,19 @@ impl Drop for Engine {
         self.pc.close();
         self.factory.release_platform_adm();
     }
+}
+
+/// Experiment: put RED (RFC 2198 audio redundancy) ahead of plain Opus,
+/// as Chrome does with its RED field trial.
+fn prefer_red(factory: &PeerConnectionFactory, pc: &PeerConnection) -> Result<()> {
+    let mut codecs = factory
+        .get_rtp_sender_capabilities(libwebrtc::MediaType::Audio)
+        .codecs;
+    codecs.sort_by_key(|codec| codec.mime_type.to_ascii_lowercase() != "audio/red");
+    for transceiver in pc.transceivers() {
+        transceiver
+            .set_codec_preferences(codecs.clone())
+            .map_err(|error| anyhow::anyhow!("codec preferences: {error:?}"))?;
+    }
+    Ok(())
 }

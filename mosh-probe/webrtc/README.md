@@ -24,3 +24,6 @@ Real calls through mosh-core, MLS and Moss:
 MOSH_MEDIA_ENGINE=$PWD/mosh-probe/webrtc/target/debug/libmosh_webrtc_probe.so \
   node scripts/moss-test.mjs --test device_link_flow native_selected_pair -- --ignored
 ```
+
+`MOSH_PROBE_RED=1` ranks RED (RFC 2198 audio redundancy) ahead of plain Opus,
+the setting the research note measures for lossy links.
