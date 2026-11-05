@@ -22,7 +22,7 @@ on every platform. Nothing found blocks it:
 - Mouth-to-ear delay is 50–100 ms lower than RingRTC in every scenario, over
   real Moss and on emulated links, and CPU is similar. Sound returns after an
   outage within 80–95 ms. With RED it conceals less than RingRTC under heavy
-  loss. MOSH-71 must still choose Opus packet size, RED and DTX (see
+  loss. MOSH-71 chose 20 ms Opus packets with RED and no DTX (see
   [measurements](#measurements)).
 - One protocol change: SRTP keys come from DTLS whose certificate fingerprint
   MLS authenticates, because upstream libwebrtc has no SDES since M123
@@ -194,8 +194,9 @@ Reading the table:
   15 % loss against RingRTC's 6 %, for 20–30 ms more delay. Use RED in MOSH-71.
 - **Packet rate.** 50 packets/s is four times RingRTC's (60 ms packets plus
   DTX on this mostly silent test signal). Each packet is a Moss envelope, which
-  matters on relays with per-flow budgets. Choose packet size and DTX in
-  MOSH-71: 40 or 60 ms packets trade 20–40 ms of delay for overhead.
+  matters on relays with per-flow budgets. 40 or 60 ms packets trade 20–40 ms
+  of delay for overhead. MOSH-71 kept 20 ms without DTX: on the bench, 40 ms
+  packets added delay and concealment, and DTX cost RED most of its gain.
 - **CPU** is the same order of magnitude; the caller side costs slightly more,
   the callee less.
 - **Not covered here:** echo cancellation and noise suppression quality need a
