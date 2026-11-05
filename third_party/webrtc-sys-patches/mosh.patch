@@ -36,16 +36,18 @@
    ~PeerConnectionFactory();
  
    std::shared_ptr<PeerConnection> create_peer_connection(
-@@ -96,6 +98,8 @@ class PeerConnectionFactory {
+@@ -96,6 +98,10 @@ class PeerConnectionFactory {
    // long as peer_factory_ does.
    const VideoEncoderFactory* video_encoder_factory_ = nullptr;
    webrtc::Environment env_;
++  // Detached in the destructor, while the network thread still runs.
++  std::shared_ptr<VirtualNetwork> network_;
 +  // Virtual-network factories negotiate only AEAD SRTP profiles.
 +  bool aead_srtp_only_ = false;
  };
  
  std::shared_ptr<PeerConnectionFactory> create_peer_connection_factory();
-@@ -104,4 +108,7 @@ create_peer_connection_factory_with_zero_playout_delay();
+@@ -104,4 +110,7 @@ create_peer_connection_factory_with_zero_playout_delay();
  std::shared_ptr<PeerConnectionFactory>
  create_peer_connection_factory_with_options(bool zero_playout_delay,
                                              bool enable_warp);
@@ -55,7 +57,7 @@
  }  // namespace livekit_ffi
 --- /dev/null
 +++ b/include/livekit/virtual_network.h
-@@ -0,0 +1,87 @@
+@@ -0,0 +1,93 @@
 +/*
 + * Copyright 2026 Mosh contributors
 + *
@@ -82,6 +84,7 @@
 +#include <cstdint>
 +#include <map>
 +#include <memory>
++#include <mutex>
 +
 +#include "api/packet_socket_factory.h"
 +#include "rtc_base/buffer.h"
@@ -112,8 +115,11 @@
 +               uint16_t remote_port,
 +               rust::Slice<const uint8_t> data) const;
 +
-+  // Wires the network into a peer connection factory on `thread`.
-+  void attach(webrtc::Thread* thread);
++  // Binds the network to one factory's network thread. Returns false when
++  // another factory already owns it.
++  bool attach(webrtc::Thread* thread);
++  // Called when that factory goes away; later receive() calls are dropped.
++  void detach();
 +  std::unique_ptr<webrtc::PacketSocketFactory> socket_factory();
 +  std::unique_ptr<webrtc::NetworkManager> network_manager() const;
 +
@@ -134,6 +140,8 @@
 +
 +  webrtc::IPAddress ip_;
 +  rust::Box<VirtualNetworkSender> sender_;
++  // Guards thread_: receive() may run on any thread while the factory ends.
++  mutable std::mutex thread_lock_;
 +  webrtc::Thread* thread_ = nullptr;
 +  std::map<uint16_t, VirtualSocket*> sockets_;
 +};
@@ -165,20 +173,32 @@
      : rtc_runtime_(rtc_runtime),
        env_(CreateEnvironment(zero_playout_delay, enable_warp)) {
    webrtc::PeerConnectionFactoryDependencies dependencies;
-@@ -162,6 +163,12 @@ PeerConnectionFactory::PeerConnectionFactory(
+@@ -162,6 +163,14 @@ PeerConnectionFactory::PeerConnectionFactory(
    dependencies.worker_thread = rtc_runtime_->worker_thread();
    dependencies.signaling_thread = rtc_runtime_->signaling_thread();
    dependencies.socket_factory = rtc_runtime_->network_thread()->socketserver();
 +  if (network) {
++    RTC_CHECK(network->attach(rtc_runtime_->network_thread()))
++        << "a virtual network serves one peer connection factory";
++    network_ = network;
 +    aead_srtp_only_ = true;
-+    network->attach(rtc_runtime_->network_thread());
 +    dependencies.packet_socket_factory = network->socket_factory();
 +    dependencies.network_manager = network->network_manager();
 +  }
    dependencies.event_log_factory = std::make_unique<webrtc::RtcEventLogFactory>();
    dependencies.env = env_;
  
-@@ -221,7 +228,12 @@ std::shared_ptr<PeerConnection> PeerConnectionFactory::create_peer_connection(
+@@ -208,6 +217,9 @@ PeerConnectionFactory::PeerConnectionFactory(
+ 
+ PeerConnectionFactory::~PeerConnectionFactory() {
+   RTC_LOG(LS_VERBOSE) << "PeerConnectionFactory::~PeerConnectionFactory()";
++  if (network_) {
++    network_->detach();
++  }
+ 
+   peer_factory_ = nullptr;
+   audio_device_ = nullptr;
+@@ -221,7 +233,12 @@ std::shared_ptr<PeerConnection> PeerConnectionFactory::create_peer_connection(
    std::shared_ptr<PeerConnection> pc = std::make_shared<PeerConnection>(
        rtc_runtime_, peer_factory_, std::move(observer));
  
@@ -192,7 +212,7 @@
      throw std::runtime_error(serialize_error(to_error(webrtc::RTCError(
          webrtc::RTCErrorType::INTERNAL_ERROR, "failed to initialize pc"))));
    }
-@@ -316,4 +328,11 @@ create_peer_connection_factory_with_options(bool zero_playout_delay,
+@@ -316,4 +333,11 @@ create_peer_connection_factory_with_options(bool zero_playout_delay,
                                                   enable_warp);
  }
  
@@ -227,7 +247,7 @@
  
 --- /dev/null
 +++ b/src/virtual_network.cpp
-@@ -0,0 +1,298 @@
+@@ -0,0 +1,312 @@
 +/*
 + * Copyright 2026 Mosh contributors
 + *
@@ -352,8 +372,9 @@
 +  static constexpr int EAI_FAIL_CODE = -4;
 +
 +  void fail(absl::AnyInvocable<void()> callback) {
-+    webrtc::Thread::Current()->PostTask(
-+        webrtc::SafeTask(safety_.flag(), std::move(callback)));
++    if (auto* thread = webrtc::Thread::Current()) {
++      thread->PostTask(webrtc::SafeTask(safety_.flag(), std::move(callback)));
++    }
 +  }
 +
 +  webrtc::ScopedTaskSafety safety_;
@@ -428,8 +449,10 @@
 +      set_enumeration_permission(ENUMERATION_ALLOWED);
 +      set_default_local_addresses(ip_, webrtc::IPAddress());
 +    }
-+    webrtc::Thread::Current()->PostTask(
-+        webrtc::SafeTask(safety_.flag(), [this] { NotifyNetworksChanged(); }));
++    if (auto* thread = webrtc::Thread::Current()) {
++      thread->PostTask(webrtc::SafeTask(safety_.flag(),
++                                        [this] { NotifyNetworksChanged(); }));
++    }
 +  }
 +
 +  void StopUpdating() override {}
@@ -448,8 +471,18 @@
 +                               rust::Box<VirtualNetworkSender> sender)
 +    : ip_(ipv4), sender_(std::move(sender)) {}
 +
-+void VirtualNetwork::attach(webrtc::Thread* thread) {
++bool VirtualNetwork::attach(webrtc::Thread* thread) {
++  std::lock_guard<std::mutex> lock(thread_lock_);
++  if (thread_ != nullptr) {
++    return false;
++  }
 +  thread_ = thread;
++  return true;
++}
++
++void VirtualNetwork::detach() {
++  std::lock_guard<std::mutex> lock(thread_lock_);
++  thread_ = nullptr;
 +}
 +
 +std::unique_ptr<webrtc::PacketSocketFactory> VirtualNetwork::socket_factory() {
@@ -496,6 +529,7 @@
 +                             uint32_t remote_ipv4,
 +                             uint16_t remote_port,
 +                             rust::Slice<const uint8_t> data) const {
++  std::lock_guard<std::mutex> lock(thread_lock_);
 +  if (thread_ == nullptr) {
 +    return;
 +  }

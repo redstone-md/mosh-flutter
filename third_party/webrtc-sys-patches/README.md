@@ -11,7 +11,12 @@ sockets whose packets leave through a Rust closure and arrive through
 `receive()`. A factory created with it gets libwebrtc's own
 `PacketSocketFactory` and `NetworkManager` dependencies, so ICE, DTLS and SRTP
 run unchanged while no OS socket, interface enumeration or DNS lookup happens.
-Such factories offer only AEAD SRTP profiles. libwebrtc itself is not patched.
+Such factories offer only AEAD SRTP profiles. A network serves one factory and
+is detached when that factory ends. Google's libwebrtc (the C++ library) is not
+patched; only these two binding crates are.
+
+The patch is a generated, reviewed artefact and, like lockfiles and upstream
+license texts, is exempt from the 400-line source file limit.
 
 Linux builds need clang 21 or later for libwebrtc's hermetic libc++. The probe
 README explains how to point `CC`/`CXX` at one.
