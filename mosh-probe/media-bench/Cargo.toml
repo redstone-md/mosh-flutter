@@ -1,0 +1,19 @@
+[package]
+name = "mosh-media-bench"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+
+# Compares call engines behind the mosh_media_* ABI on one emulated link.
+[dependencies]
+anyhow = "1"
+libloading = "0.9"
+mosh-core = { path = "../../mosh-core" }
+serde_json = "1"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[profile.dev]
+debug = 0

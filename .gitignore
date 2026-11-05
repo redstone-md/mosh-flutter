@@ -53,6 +53,12 @@ third_party/openmls.prepare-*/
 third_party/ringrtc/
 third_party/ringrtc.lock/
 third_party/ringrtc.prepare-*/
+third_party/webrtc-sys/
+third_party/webrtc-sys.lock/
+third_party/webrtc-sys.prepare-*/
+third_party/libwebrtc/
+third_party/libwebrtc.lock/
+third_party/libwebrtc.prepare-*/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies

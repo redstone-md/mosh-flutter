@@ -1,0 +1,95 @@
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -66,6 +66,8 @@ pub mod video_frame;
+ pub mod video_source;
+ pub mod video_stream;
+ pub mod video_track;
++#[cfg(not(target_arch = "wasm32"))]
++pub mod virtual_network;
+ 
+ #[cfg(not(target_arch = "wasm32"))]
+ pub mod native {
+--- a/src/native/peer_connection_factory.rs
++++ b/src/native/peer_connection_factory.rs
+@@ -67,6 +67,15 @@ impl PeerConnectionFactory {
+         Self { sys_handle }
+     }
+ 
++    /// Creates a [`PeerConnectionFactory`] whose peer connections use only
++    /// `network`. A network serves one factory; reusing it aborts the process.
++    pub fn with_virtual_network(network: &crate::virtual_network::VirtualNetwork) -> Self {
++        ensure_log_sink();
++        let sys_handle =
++            sys_pcf::ffi::create_peer_connection_factory_with_network(network.sys_handle.clone());
++        Self { sys_handle }
++    }
++
+     /// Creates a [`PeerConnectionFactory`] with the given runtime options.
+     /// `zero_playout_delay` enables the WebRTC-ForcePlayoutDelay field trial;
+     /// `enable_warp` enables WARP (SPED via the WebRTC-IceHandshakeDtls field
+--- a/src/peer_connection_factory.rs
++++ b/src/peer_connection_factory.rs
+@@ -91,6 +91,13 @@ impl PeerConnectionFactory {
+         Self { handle: imp_pcf::PeerConnectionFactory::with_zero_playout_delay() }
+     }
+ 
++    /// Creates a factory whose peer connections use only `network`. A network
++    /// serves one factory; reusing it aborts the process.
++    #[cfg(not(target_arch = "wasm32"))]
++    pub fn with_virtual_network(network: &crate::virtual_network::VirtualNetwork) -> Self {
++        Self { handle: imp_pcf::PeerConnectionFactory::with_virtual_network(network) }
++    }
++
+     /// Creates a native peer connection factory with the given runtime options.
+     /// `zero_playout_delay` and `enable_warp` (SPED + SNAP) are independent and
+     /// may be combined.
+--- /dev/null
++++ b/src/virtual_network.rs
+@@ -0,0 +1,47 @@
++// Copyright 2026 Mosh contributors
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++//! A network the embedder carries itself. A factory created with
++//! [`crate::peer_connection_factory::PeerConnectionFactory::with_virtual_network`]
++//! gathers one host candidate per socket on `ip`, sends every packet through
++//! the given closure and never opens an OS socket or resolves a hostname.
++
++use std::net::{Ipv4Addr, SocketAddrV4};
++
++use cxx::SharedPtr;
++use webrtc_sys::virtual_network::{ffi, VirtualNetworkSender};
++
++#[derive(Clone)]
++pub struct VirtualNetwork {
++    pub(crate) sys_handle: SharedPtr<ffi::VirtualNetwork>,
++}
++
++impl VirtualNetwork {
++    /// `send` runs on the network thread with the local port, the
++    /// destination and the payload. Returning false reports a drop.
++    pub fn new(
++        ip: Ipv4Addr,
++        send: impl Fn(u16, SocketAddrV4, &[u8]) -> bool + Send + Sync + 'static,
++    ) -> Self {
++        let sender = VirtualNetworkSender::new(Box::new(move |port, ip, remote_port, data| {
++            send(port, SocketAddrV4::new(Ipv4Addr::from(ip), remote_port), data)
++        }));
++        Self { sys_handle: ffi::create_virtual_network(u32::from(ip), sender) }
++    }
++
++    /// Delivers a packet from `from` to the socket bound on `local_port`.
++    pub fn receive(&self, local_port: u16, from: SocketAddrV4, data: &[u8]) {
++        self.sys_handle.receive(local_port, u32::from(*from.ip()), from.port(), data);
++    }
++}
