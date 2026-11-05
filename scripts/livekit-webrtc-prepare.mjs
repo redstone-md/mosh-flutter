@@ -6,16 +6,22 @@ import { preparePinnedSource } from "./support/pinned-source.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /** Prepare LiveKit's libwebrtc bindings with Mosh's virtual network. */
-export async function prepareLiveKitWebrtc({ offline = false } = {}) {
+export async function prepareLiveKitWebrtc({
+  destinationRoot = path.join(root, "third_party"),
+  cacheDir = path.join(root, ".dart_tool/native-sources"),
+  offline = false,
+} = {}) {
+  const prepared = [];
   for (const name of ["webrtc-sys", "libwebrtc"]) {
-    await preparePinnedSource({
+    prepared.push(await preparePinnedSource({
       specPath: path.join(root, "third_party", `${name}-patches`, "source.json"),
-      destination: path.join(root, "third_party", name),
-      cacheDir: path.join(root, ".dart_tool/native-sources"),
+      destination: path.join(destinationRoot, name),
+      cacheDir,
       label: name,
       offline,
-    });
+    }));
   }
+  return prepared;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
