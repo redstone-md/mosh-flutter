@@ -3,9 +3,8 @@
 The libwebrtc call engine (`mosh-media/webrtc`) links Google's libwebrtc as
 built from LiveKit's [webrtc-sdk fork](https://github.com/webrtc-sdk/webrtc)
 at the commit in [build.json](build.json), by LiveKit's own build scripts as
-patched in [webrtc-sys-patches](../webrtc-sys-patches/README.md): H.264 and
-the proprietary FFmpeg branding are left out. libwebrtc itself is not
-patched.
+patched in [webrtc-sys-patches](../webrtc-sys-patches/README.md): H.264 is
+left out, and with it FFmpeg. libwebrtc itself is not patched.
 
 [libwebrtc.yml](../../.github/workflows/libwebrtc.yml) builds Linux x64,
 Windows x64, macOS arm64 and x64 and Android arm64 when the release named in

@@ -16,8 +16,9 @@ is detached when that factory ends. Google's libwebrtc (the C++ library) is not
 patched; only these two binding crates are.
 
 It also changes LiveKit's libwebrtc build scripts in `libwebrtc/`: no H.264
-and Chromium FFmpeg branding, and a shallow Windows checkout. Our builds use
-them ([libwebrtc-build](../libwebrtc-build/README.md)).
+(so no FFmpeg branding either) and a shallow Windows checkout dated by its
+own commit, and they run from any work directory. Our builds use them
+([libwebrtc-build](../libwebrtc-build/README.md)).
 
 The patch is a generated, reviewed artefact and, like lockfiles and upstream
 license texts, is exempt from the 400-line source file limit.

@@ -44,8 +44,8 @@ else run("bash", [path.join(scripts, `build_${target.script}.sh`), ...args], wor
 const output = path.resolve(values.output);
 await mkdir(output, { recursive: true });
 const archive = path.join(output, target.archive);
-// Relative: GNU tar on Windows reads "C:" as a remote host.
-run("tar", ["-czf", path.relative(work, archive), target.directory], work);
+// A bare archive name: GNU tar on Windows reads "D:" in one as a remote host.
+run("tar", ["-czf", target.archive, "-C", work, target.directory], output);
 const digest = createHash("sha256").update(await readFile(archive)).digest("hex");
 console.log(`${digest}  ${target.archive}`);
 
