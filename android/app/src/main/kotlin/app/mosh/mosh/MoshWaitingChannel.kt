@@ -28,6 +28,7 @@ internal class MoshWaitingChannel(messenger: BinaryMessenger, private val owner:
                     "takeTransferActions" -> owner.transfers.takeActions()
                     "acknowledgeTransferActions" -> { owner.transfers.acknowledge(call.arguments as List<*>); null }
                     "requestBatteryExemption" -> owner.requestBatteryExemption()
+                    "requestFullScreenCalls" -> owner.requestFullScreenCalls()
                     else -> { result.notImplemented(); return@setMethodCallHandler }
                 }
                 result.success(value)
