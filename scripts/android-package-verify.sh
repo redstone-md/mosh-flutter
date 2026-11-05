@@ -33,7 +33,14 @@ unzip -q "$APK" 'lib/*' -d "$WORK"
 unzip -p "$APK" assets/native-media/WEBRTC-LICENSE.md > "$WORK/webrtc-license.txt"
 test -s "$WORK/webrtc-license.txt"
 test "$(find "$WORK/lib" -mindepth 1 -maxdepth 1 -type d | wc -l)" = 1
-for library in libapp.so libflutter.so libmosh_core.so libmoss.so libmosh_native_media.so libringrtc_rffi.so; do
+libraries=(libapp.so libflutter.so libmosh_core.so libmoss.so libmosh_native_media.so)
+# RingRTC ships its libwebrtc beside the engine; the libwebrtc engine links it in.
+if [[ "${MOSH_CALL_ENGINE:-ringrtc}" == webrtc ]]; then
+  test ! -e "$WORK/lib/arm64-v8a/libringrtc_rffi.so"
+else
+  libraries+=(libringrtc_rffi.so)
+fi
+for library in "${libraries[@]}"; do
   test -s "$WORK/lib/arm64-v8a/$library"
 done
 
