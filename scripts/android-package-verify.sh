@@ -34,9 +34,12 @@ unzip -p "$APK" assets/native-media/WEBRTC-LICENSE.md > "$WORK/webrtc-license.tx
 test -s "$WORK/webrtc-license.txt"
 test "$(find "$WORK/lib" -mindepth 1 -maxdepth 1 -type d | wc -l)" = 1
 libraries=(libapp.so libflutter.so libmosh_core.so libmoss.so libmosh_native_media.so)
-# RingRTC ships its libwebrtc beside the engine; the libwebrtc engine links it in.
+# RingRTC ships its libwebrtc beside the engine; the libwebrtc engine links
+# LiveKit's in, whose Java classes carry a package prefix.
+jni_zero=org.jni_zero
 if [[ "${MOSH_CALL_ENGINE:-ringrtc}" == webrtc ]]; then
   test ! -e "$WORK/lib/arm64-v8a/libringrtc_rffi.so"
+  jni_zero=livekit.org.jni_zero
 else
   libraries+=(libringrtc_rffi.so)
 fi
@@ -65,7 +68,8 @@ for library in "$WORK"/lib/arm64-v8a/*.so; do
   done < <(awk '/^[[:space:]]*LOAD / { print $NF }' "$WORK/headers.txt")
 done
 "$TOOLS/zipalign" -c -P 16 4 "$APK"
-python3 "$(dirname "$0")/android-jni-verify.py" "$APK" --dexdump "$TOOLS/dexdump"
+python3 "$(dirname "$0")/android-jni-verify.py" "$APK" --dexdump "$TOOLS/dexdump" \
+  --jni-zero-package "$jni_zero"
 python3 - "$APK" <<'PY'
 import sys, zipfile
 with zipfile.ZipFile(sys.argv[1]) as apk:
