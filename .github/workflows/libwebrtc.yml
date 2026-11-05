@@ -38,10 +38,14 @@ jobs:
         run: |
           release=$(jq -r .release third_party/libwebrtc-build/build.json)
           echo "release=$release" >> "$GITHUB_OUTPUT"
-          if gh release view "$release" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+          # Only a 404 means missing; any other failure must not start a rebuild.
+          if found=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$release" 2>&1); then
             echo "missing=false" >> "$GITHUB_OUTPUT"
-          else
+          elif grep -q 'HTTP 404' <<< "$found"; then
             echo "missing=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$found" >&2
+            exit 1
           fi
 
   build:
