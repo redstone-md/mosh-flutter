@@ -64,6 +64,11 @@ on:
         type: choice
         options: [github, msstore]
         default: github
+      call-engine:
+        description: Call engine to package; webrtc is the libwebrtc engine under test (MOSH-70).
+        type: choice
+        options: [ringrtc, webrtc]
+        default: ringrtc
 
 permissions:
   contents: read
@@ -76,6 +81,8 @@ jobs:
     outputs:
       artifact: ${{ env.ARTIFACT }}
     env:
+      # Empty for callers, which build the default engine.
+      MOSH_CALL_ENGINE: ${{ inputs.call-engine }}
       ARTIFACT: ${{ inputs.plus-issuer-key != '' && inputs.plus-network == 'solana-devnet' && (inputs.distribution-channel == 'msstore' && 'mosh-windows-msix-plus-devnet' || 'mosh-windows-plus-devnet') || (inputs.distribution-channel == 'msstore' && 'mosh-windows-msix' || 'mosh-windows-setup') }}
       # A release collects every build's manifest into one folder, so only
       # the GitHub builds keep the plain name.
