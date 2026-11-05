@@ -88,9 +88,7 @@ impl Engine {
         microphone.set_enabled(false);
         pc.add_track(MediaStreamTrack::Audio(microphone.clone()), &["mosh"])
             .map_err(|error| anyhow::anyhow!("audio track: {error:?}"))?;
-        if std::env::var_os("MOSH_PROBE_RED").is_some() {
-            audio::prefer_red(&factory, &pc)?;
-        }
+        audio::prefer_red(&factory, &pc)?;
         Ok(Self {
             runtime,
             factory,

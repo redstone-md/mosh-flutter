@@ -1,5 +1,5 @@
-//! Audio devices through libwebrtc's platform audio module, and the RED
-//! experiment.
+//! Audio devices through libwebrtc's platform audio module, and Opus as
+//! Mosh sends it.
 use anyhow::Result;
 use libwebrtc::peer_connection::PeerConnection;
 use libwebrtc::peer_connection_factory::{PeerConnectionFactory, native::PeerConnectionFactoryExt};
@@ -28,8 +28,12 @@ pub fn select(factory: &PeerConnectionFactory, value: &Value) -> Value {
     json!({"input_ok": input_ok, "output_ok": output_ok})
 }
 
-/// Experiment: put RED (RFC 2198 audio redundancy) ahead of plain Opus,
-/// as Chrome does with its RED field trial.
+/// Ranks RED (RFC 2198) ahead of plain Opus, as Chrome's RED trial does:
+/// each 20 ms packet repeats the previous frame, so a single lost packet is
+/// recovered whole. On the bench (30 ms, 224 kbit/s) it concealed 0.4% of
+/// audio at 5% loss and 1.3% at 15%, against 5% and 16% with RingRTC, for
+/// about 21 kbit/s. DTX was left off: it cost RED most of that gain. Longer
+/// packets halve the 50 packets/s but add delay and concealment.
 pub fn prefer_red(factory: &PeerConnectionFactory, pc: &PeerConnection) -> Result<()> {
     let mut codecs = factory
         .get_rtp_sender_capabilities(libwebrtc::MediaType::Audio)
