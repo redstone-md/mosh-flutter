@@ -50,7 +50,7 @@ pub(super) fn an_offer_from_another_engine_is_refused_once_with_update_required(
             sequence,
             json!({"Offer":{"key_b64":crate::private_dm_runtime::random_b64(32),
                 "nonce_prefix_b64":crate::private_dm_runtime::random_b64(4)}}),
-            Some(OTHER_ENGINE),
+            OTHER_ENGINE,
         );
         handle(f, offer);
     }
@@ -73,7 +73,7 @@ pub(super) fn an_answer_from_another_engine_ends_the_outgoing_call(f: &mut Fixtu
         "outgoing-call",
         1,
         json!("Answer"),
-        Some(OTHER_ENGINE),
+        OTHER_ENGINE,
     );
     handle(f, answer);
     let view = f.snapshot();

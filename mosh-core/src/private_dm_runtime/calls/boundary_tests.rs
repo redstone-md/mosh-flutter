@@ -22,7 +22,15 @@ fn remote_control(
     sequence: u64,
     action: serde_json::Value,
 ) -> ControlEnvelope {
-    remote_control_on(f, device, peer, id, sequence, action, None)
+    remote_control_on(
+        f,
+        device,
+        peer,
+        id,
+        sequence,
+        action,
+        crate::native_call::media_protocol(),
+    )
 }
 
 /// Fills what a real client would: the offer's platform and the end's caller.
@@ -62,8 +70,8 @@ fn with_defaults(
     action
 }
 
-/// A control from a device whose engine speaks `protocol`; `None` omits the
-/// field the way clients that predate it do.
+/// A control from a device whose engine speaks `protocol`. Fixture peers
+/// otherwise speak the loaded engine's protocol, whichever engine that is.
 fn remote_control_on(
     f: &mut Fixture,
     device: &str,
@@ -71,17 +79,15 @@ fn remote_control_on(
     id: &str,
     sequence: u64,
     action: serde_json::Value,
-    protocol: Option<u32>,
+    protocol: u32,
 ) -> ControlEnvelope {
     let action = with_defaults(f, device, id, action);
     let crypto = f.peers.get_mut(device).unwrap();
-    let mut control = json!({
+    let control = json!({
         "session_id":f.session, "call_id":id, "signer":hex::encode(crypto.signer_public()),
-        "sequence":sequence, "peer":peer, "name":"Other desktop", "action":action
+        "sequence":sequence, "peer":peer, "name":"Other desktop", "action":action,
+        "media_protocol":protocol
     });
-    if let Some(protocol) = protocol {
-        control["media_protocol"] = protocol.into();
-    }
     let ciphertext_b64 = crypto.encrypt_json(&control).unwrap();
     ControlEnvelope::CallControl {
         session_id: f.session.clone(),

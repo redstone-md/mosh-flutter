@@ -105,3 +105,21 @@ pub(super) const fn native_platform() -> bool {
         target_os = "android"
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_control_from_before_media_protocols_speaks_the_legacy_one() {
+        let control: CallControl = serde_json::from_value(serde_json::json!({
+            "session_id": "s", "call_id": "c", "signer": "a", "sequence": 1,
+            "peer": "p", "name": "n", "action": "Answer"
+        }))
+        .unwrap();
+        assert_eq!(
+            control.media_protocol,
+            crate::native_call::LEGACY_MEDIA_PROTOCOL
+        );
+    }
+}
