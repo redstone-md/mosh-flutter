@@ -16,6 +16,9 @@ pub struct Options {
     pub budget_bps: Option<u64>,
     /// Carry packets over two real Moss nodes instead of the emulated link.
     pub moss: bool,
+    /// The caller's microphone comes on only once the call is connected, as
+    /// when Android grants the permission mid-call.
+    pub late_microphone: bool,
 }
 
 struct Worker {
@@ -135,15 +138,13 @@ impl Bench {
         let answer = self.ask(1, json!({"action": "remote", "description": offer}))?;
         self.ask(0, json!({"action": "remote", "description": answer}))?;
         for side in 0..2 {
+            let microphone = side == 1 || !options.late_microphone;
             self.ask(
                 side,
-                json!({"action": "choices", "microphone": true, "video": false}),
+                json!({"action": "choices", "microphone": microphone, "video": false}),
             )?;
             self.ask(side, json!({"action": "start"}))?;
-            self.ask(
-                side,
-                json!({"action": "select", "input": null, "output": null}),
-            )?;
+            self.select(side)?;
             if let Some(max) = options.budget_bps {
                 self.ask(side, json!({"action": "budget", "max_bps": max}))?;
             }
@@ -158,6 +159,11 @@ impl Bench {
                     })
             });
             if connected {
+                if options.late_microphone {
+                    let on = json!({"action": "choices", "microphone": true, "video": false});
+                    self.ask(0, on)?;
+                    self.select(0)?;
+                }
                 return Ok(started.elapsed());
             }
             anyhow::ensure!(
@@ -165,6 +171,20 @@ impl Bench {
                 "never connected"
             );
         }
+    }
+
+    /// Selects the default devices as mosh-core does after every choice; it
+    /// mutes the microphone when that fails, so a running device must switch.
+    fn select(&mut self, side: usize) -> Result<()> {
+        let selected = self.ask(
+            side,
+            json!({"action": "select", "input": null, "output": null}),
+        )?;
+        anyhow::ensure!(
+            selected["input_ok"] == true && selected["output_ok"] == true,
+            "select on side {side}: {selected}"
+        );
+        Ok(())
     }
 
     fn tick(&mut self, pending: &mut [Vec<Value>; 2]) -> Result<()> {
@@ -219,6 +239,8 @@ pub fn run(options: Options) -> Result<Value> {
         bench.tick(&mut pending)?;
     }
     let probe = audio::Probe::start(0, 1, options.shape.outage.is_some())?;
+    // The callee answers with its own bursts, so silence either way shows.
+    let back = audio::Probe::start(1, 0, false)?;
     let cpu_before = bench.cpu_seconds();
     let started = Instant::now();
     let mut next = started;
@@ -258,11 +280,14 @@ pub fn run(options: Options) -> Result<Value> {
         }),
         "mouth_to_ear_ms": audio::median(&mut delays),
         "bursts_heard": heard,
+        "bursts_heard_back": back.delays_ms().len(),
         "bursts_sent": options.seconds,
         "cpu_percent": cpu,
         "link": {"caller_to_callee": link(&bench.links[0]), "callee_to_caller": link(&bench.links[1])},
         "callee_audio": snapshots[1]["audio"],
         "caller_audio_sender": snapshots[0]["audio_sender"],
+        "caller_audio": snapshots[0]["audio"],
+        "callee_audio_sender": snapshots[1]["audio_sender"],
         "moss_carrier": [&snapshots[0]["carrier"], &snapshots[1]["carrier"]],
     }))
 }

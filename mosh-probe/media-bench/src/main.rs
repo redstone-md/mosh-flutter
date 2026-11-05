@@ -1,5 +1,5 @@
 //! media-bench run --engine <lib> [--seconds 30] [--delay-ms 0] [--loss 0]
-//!                 [--rate-kbps N] [--budget-kbps N] [--moss]
+//!                 [--rate-kbps N] [--budget-kbps N] [--moss] [--late-microphone]
 //!                 [--outage-at S --outage-ms N]
 //! media-bench calibrate
 mod audio;
@@ -57,6 +57,7 @@ fn main() -> Result<()> {
                 },
                 budget_bps: (budget > 0.0).then_some((budget * 1000.0) as u64),
                 moss: args.iter().any(|a| a == "--moss"),
+                late_microphone: args.iter().any(|a| a == "--late-microphone"),
             };
             println!("{}", bench::run(options)?);
             Ok(())

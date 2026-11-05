@@ -62,6 +62,7 @@ pub struct Engine {
     remote: Option<Description>,
     started: bool,
     microphone_on: bool,
+    recording: bool,
     candidates: Receiver<String>,
     measurements: Measurements,
     next_stats: Instant,
@@ -93,6 +94,7 @@ impl Engine {
             remote: None,
             started: false,
             microphone_on: false,
+            recording: false,
             candidates,
             measurements,
             next_stats: Instant::now(),
@@ -122,7 +124,7 @@ impl Engine {
             "snapshot" => {
                 let mut snapshot = self.measurements.snapshot();
                 snapshot["ready"] = self.started.into();
-                snapshot["microphone"] = (self.started && self.microphone_on).into();
+                snapshot["microphone"] = self.recording.into();
                 snapshot["video_enabled"] = false.into();
                 snapshot["queue_dropped"] = self.carrier.dropped().into();
                 Ok(snapshot)
@@ -134,10 +136,13 @@ impl Engine {
         }
     }
 
-    fn apply_choices(&self) {
+    /// The track carries the microphone only while the device records, so
+    /// the snapshot reports whether it actually does.
+    fn apply_choices(&mut self) {
         let on = self.started && self.microphone_on;
-        self.microphone.set_enabled(on);
         self.factory.set_adm_recording_enabled(on);
+        self.recording = on && audio::start_recording(&self.factory);
+        self.microphone.set_enabled(self.recording);
     }
 
     fn offer(&mut self) -> Result<Description> {
@@ -145,9 +150,16 @@ impl Engine {
         if let Some(local) = &self.local {
             return Ok(local.clone());
         }
+        // The bindings' default sets the legacy offerToReceiveAudio to false,
+        // which makes the offer send-only and leaves the callee unheard.
+        let options = OfferOptions {
+            offer_to_receive_audio: None,
+            offer_to_receive_video: None,
+            ..OfferOptions::default()
+        };
         let offer = self
             .runtime
-            .block_on(self.pc.create_offer(OfferOptions::default()))
+            .block_on(self.pc.create_offer(options))
             .map_err(|error| anyhow::anyhow!("offer: {error:?}"))?;
         self.set_local(offer, true)
     }

@@ -38,11 +38,15 @@ impl Measurements {
                         } else { 0.0 },
                         "bytes_received": s.inbound.bytes_received,
                         "energy": s.inbound.audio_level,
+                        "total_energy": s.inbound.total_audio_energy,
                     });
                 }
                 RtcStats::OutboundRtp(s) if s.stream.kind == "audio" => {
                     audio_sender["packets_sent"] = s.sent.packets_sent.into();
                     audio_sender["bytes_sent"] = s.sent.bytes_sent.into();
+                }
+                RtcStats::MediaSource(s) if s.source.kind == "audio" => {
+                    audio_sender["microphone_energy"] = s.audio.total_audio_energy.into();
                 }
                 RtcStats::RemoteInboundRtp(s) if s.stream.kind == "audio" => {
                     audio_sender["rtt_ms"] = (s.remote_inbound.round_trip_time * 1000.0).into();
