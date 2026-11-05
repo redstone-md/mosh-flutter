@@ -2,7 +2,6 @@ package app.mosh.mosh
 
 import android.content.Context
 import org.json.JSONObject
-import org.webrtc.PeerConnectionFactory
 
 /** Application-scoped platform resources. Call ownership stays in Rust. */
 internal object MoshMedia {
@@ -13,12 +12,7 @@ internal object MoshMedia {
     @Synchronized
     fun initialize(context: Context) {
         if (initialized) return
-        PeerConnectionFactory.initialize(
-            PeerConnectionFactory.InitializationOptions.builder(context)
-                .setNativeLibraryName("ringrtc_rffi")
-                .setEnableInternalTracer(false)
-                .createInitializationOptions()
-        )
+        MoshEngine.initialize(context)
         audio = MoshCallAudio(context)
         camera = MoshCallCamera(context)
         register()

@@ -1,6 +1,6 @@
 --- a/build.rs
 +++ b/build.rs
-@@ -31,6 +31,7 @@ fn main() {
+@@ -31,6 +31,7 @@
      let mut rust_files = vec![
          "src/peer_connection.rs",
          "src/peer_connection_factory.rs",
@@ -8,7 +8,7 @@
          "src/audio_device_controller.rs",
          "src/media_stream.rs",
          "src/media_stream_track.rs",
-@@ -67,6 +68,7 @@ fn main() {
+@@ -67,6 +68,7 @@
      builder.files(&[
          "src/peer_connection.cpp",
          "src/peer_connection_factory.cpp",
@@ -26,7 +26,7 @@
  #include "media_stream.h"
  #include "rtp_parameters.h"
  #include "rust/cxx.h"
-@@ -50,7 +51,8 @@ class PeerConnectionFactory {
+@@ -50,7 +51,8 @@
                          bool zero_playout_delay);
    PeerConnectionFactory(std::shared_ptr<RtcRuntime> rtc_runtime,
                          bool zero_playout_delay,
@@ -36,7 +36,7 @@
    ~PeerConnectionFactory();
  
    std::shared_ptr<PeerConnection> create_peer_connection(
-@@ -96,6 +98,10 @@ class PeerConnectionFactory {
+@@ -96,6 +98,10 @@
    // long as peer_factory_ does.
    const VideoEncoderFactory* video_encoder_factory_ = nullptr;
    webrtc::Environment env_;
@@ -47,7 +47,7 @@
  };
  
  std::shared_ptr<PeerConnectionFactory> create_peer_connection_factory();
-@@ -104,4 +110,7 @@ create_peer_connection_factory_with_zero_playout_delay();
+@@ -104,4 +110,7 @@
  std::shared_ptr<PeerConnectionFactory>
  create_peer_connection_factory_with_options(bool zero_playout_delay,
                                              bool enable_warp);
@@ -151,9 +151,92 @@
 +    rust::Box<VirtualNetworkSender> sender);
 +
 +}  // namespace livekit_ffi
+--- a/libwebrtc/build_android.sh
++++ b/libwebrtc/build_android.sh
+@@ -154,11 +154,10 @@
+ # those class files. Stamp them back to Java 17 (major 61) before shadowing, like
+ # webrtc-sdk/android does for its Maven artifacts.
+ python3 "$COMMAND_DIR/tools/downgrade_android_class_version.py" "$COMMAND_DIR/prefixed-jni/libs/classes.jar"
+-cd "$COMMAND_DIR/prefixed-jni" && ./gradlew shadowJar
++# A subshell: the work directory need not be this script's directory.
++(cd "$COMMAND_DIR/prefixed-jni" && ./gradlew shadowJar)
+ cp "$COMMAND_DIR/prefixed-jni/build/libs/prefixed-jni-all.jar" "$ARTIFACTS_DIR/libwebrtc.jar"
+ 
+-cd ..
+-
+ cp "src/sdk/android/AndroidManifest.xml" "$ARTIFACTS_DIR"
+ 
+ cd src
+--- a/libwebrtc/build_linux.sh
++++ b/libwebrtc/build_linux.sh
+@@ -136,8 +136,7 @@
+   enable_libaom=true \
+   is_component_build=false \
+   enable_stripping=true \
+-  ffmpeg_branding=\"Chrome\" \
+-  rtc_use_h264=true \
++  rtc_use_h264=false \
+   rtc_use_h265=true \
+   rtc_use_pipewire=true \
+   symbol_level=0 \
+--- a/libwebrtc/build_macos.sh
++++ b/libwebrtc/build_macos.sh
+@@ -113,7 +113,7 @@
+   rtc_enable_symbol_export=true \
+   rtc_enable_objc_symbol_export=false \
+   rtc_include_dav1d_in_internal_decoder_factory = true \
+-  rtc_use_h264=true \
++  rtc_use_h264=false \
+   rtc_use_h265=true \
+   use_custom_libcxx=false \
+   use_clang_modules=false \
+--- a/libwebrtc/build_windows.cmd
++++ b/libwebrtc/build_windows.cmd
+@@ -2,6 +2,9 @@
+ 
+ setlocal enabledelayedexpansion
+ 
++rem Before the argument loop: shift moves %0 too.
++set COMMAND_DIR=%~dp0
++
+ set arch=
+ set profile=release
+ 
+@@ -36,7 +39,6 @@
+   git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git
+ )
+ 
+-set COMMAND_DIR=%~dp0
+ set PATH=%cd%\depot_tools;%PATH%
+ set DEPOT_TOOLS_WIN_TOOLCHAIN=0
+ set GYP_GENERATORS=ninja,msvs-ninja
+@@ -46,9 +48,13 @@
+ set vs2019_install=C:\Program Files\Microsoft Visual Studio\2022\Enterprise
+ 
+ if not exist src (
+-  call gclient.bat sync -D --with_branch_heads --with_tags
++  call gclient.bat sync -D --no-history
+ )
+ 
++rem A shallow checkout leaves build/util/lastchange.py no commit to date the
++rem build by, and lld-link rejects the negative /TIMESTAMP that follows.
++for /f %%t in ('git -C src\build log -1 --format^=%%ct') do >src\build\util\LASTCHANGE.committime echo %%t
++
+ cd src
+ rem Skip a patch that is already applied so the build can be rerun on the same
+ rem checkout. Stop when a patch neither applies nor is already applied, since
+@@ -80,7 +86,7 @@
+ 
+ rem generate ninja for release
+ call gn.bat gen %OUTPUT_DIR% --root="src" ^
+-  --args="is_debug=!debug! is_clang=true target_cpu=\"!arch!\" use_custom_libcxx=false rtc_libvpx_build_vp9=true enable_libaom=true rtc_include_tests=false rtc_build_examples=false rtc_build_tools=false is_component_build=false rtc_enable_protobuf=false rtc_use_h264=true ffmpeg_branding=\"Chrome\" symbol_level=0 enable_iterator_debugging=false"
++  --args="is_debug=!debug! is_clang=true target_cpu=\"!arch!\" use_custom_libcxx=false rtc_libvpx_build_vp9=true enable_libaom=true rtc_include_tests=false rtc_build_examples=false rtc_build_tools=false is_component_build=false rtc_enable_protobuf=false rtc_use_h264=false symbol_level=0 enable_iterator_debugging=false"
+ 
+ rem build
+ ninja.exe -C %OUTPUT_DIR% :default
 --- a/src/lib.rs
 +++ b/src/lib.rs
-@@ -40,6 +40,7 @@ pub mod rtp_transceiver;
+@@ -40,6 +40,7 @@
  pub mod video_frame;
  pub mod video_frame_buffer;
  pub mod video_track;
@@ -163,7 +246,7 @@
  
 --- a/src/peer_connection_factory.cpp
 +++ b/src/peer_connection_factory.cpp
-@@ -154,7 +154,8 @@ PeerConnectionFactory::PeerConnectionFactory(
+@@ -154,7 +154,8 @@
  PeerConnectionFactory::PeerConnectionFactory(
      std::shared_ptr<RtcRuntime> rtc_runtime,
      bool zero_playout_delay,
@@ -173,7 +256,7 @@
      : rtc_runtime_(rtc_runtime),
        env_(CreateEnvironment(zero_playout_delay, enable_warp)) {
    webrtc::PeerConnectionFactoryDependencies dependencies;
-@@ -162,6 +163,14 @@ PeerConnectionFactory::PeerConnectionFactory(
+@@ -162,6 +163,14 @@
    dependencies.worker_thread = rtc_runtime_->worker_thread();
    dependencies.signaling_thread = rtc_runtime_->signaling_thread();
    dependencies.socket_factory = rtc_runtime_->network_thread()->socketserver();
@@ -188,7 +271,7 @@
    dependencies.event_log_factory = std::make_unique<webrtc::RtcEventLogFactory>();
    dependencies.env = env_;
  
-@@ -208,6 +217,9 @@ PeerConnectionFactory::PeerConnectionFactory(
+@@ -208,6 +217,9 @@
  
  PeerConnectionFactory::~PeerConnectionFactory() {
    RTC_LOG(LS_VERBOSE) << "PeerConnectionFactory::~PeerConnectionFactory()";
@@ -198,7 +281,7 @@
  
    peer_factory_ = nullptr;
    audio_device_ = nullptr;
-@@ -221,7 +233,12 @@ std::shared_ptr<PeerConnection> PeerConnectionFactory::create_peer_connection(
+@@ -221,7 +233,12 @@
    std::shared_ptr<PeerConnection> pc = std::make_shared<PeerConnection>(
        rtc_runtime_, peer_factory_, std::move(observer));
  
@@ -212,7 +295,7 @@
      throw std::runtime_error(serialize_error(to_error(webrtc::RTCError(
          webrtc::RTCErrorType::INTERNAL_ERROR, "failed to initialize pc"))));
    }
-@@ -316,4 +333,11 @@ create_peer_connection_factory_with_options(bool zero_playout_delay,
+@@ -316,4 +333,11 @@
                                                   enable_warp);
  }
  
@@ -226,7 +309,7 @@
  }  // namespace livekit_ffi
 --- a/src/peer_connection_factory.rs
 +++ b/src/peer_connection_factory.rs
-@@ -87,6 +87,7 @@ pub mod ffi {
+@@ -87,6 +87,7 @@
  
          type PeerConnection = crate::peer_connection::ffi::PeerConnection;
          type PeerConnectionFactory;
@@ -234,7 +317,7 @@
  
          fn create_peer_connection_factory() -> SharedPtr<PeerConnectionFactory>;
          fn create_peer_connection_factory_with_zero_playout_delay(
-@@ -95,6 +96,10 @@ pub mod ffi {
+@@ -95,6 +96,10 @@
              zero_playout_delay: bool,
              enable_warp: bool,
          ) -> SharedPtr<PeerConnectionFactory>;

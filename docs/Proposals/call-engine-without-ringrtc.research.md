@@ -1,6 +1,7 @@
 # MOSH-60: call engine without RingRTC
 
-Research date: 2026-11-05. Epic: MOSH-70. Probe code: [mosh-probe/webrtc](../../mosh-probe/webrtc),
+Research date: 2026-11-05. Epic: MOSH-70. Probe code: `mosh-probe/webrtc`
+(since MOSH-71 the engine in [mosh-media/webrtc](../../mosh-media/webrtc)),
 [mosh-probe/media-bench](../../mosh-probe/media-bench), patches in
 [third_party/webrtc-sys-patches](../../third_party/webrtc-sys-patches/README.md).
 
@@ -21,7 +22,7 @@ on every platform. Nothing found blocks it:
 - Mouth-to-ear delay is 50–100 ms lower than RingRTC in every scenario, over
   real Moss and on emulated links, and CPU is similar. Sound returns after an
   outage within 80–95 ms. With RED it conceals less than RingRTC under heavy
-  loss. MOSH-71 must still choose Opus packet size, RED and DTX (see
+  loss. MOSH-71 chose 20 ms Opus packets with RED and no DTX (see
   [measurements](#measurements)).
 - One protocol change: SRTP keys come from DTLS whose certificate fingerprint
   MLS authenticates, because upstream libwebrtc has no SDES since M123
@@ -78,8 +79,8 @@ patches, BSD) for every target we need.
   use the same LiveKit scripts that produce the prebuilts the CI jobs below
   pass with, so the remaining risk is CI time, not feasibility. MOSH-71 and
   MOSH-77 add those jobs.
-- **All five targets with LiveKit's prebuilts:** CI
-  ([webrtc-probe.yml](../../.github/workflows/webrtc-probe.yml)) runs the
+- **All five targets with LiveKit's prebuilts:** CI (then `webrtc-probe.yml`,
+  now part of [ci.yml](../../.github/workflows/ci.yml)) runs the
   loopback test on Linux, Windows and macOS and builds for Android arm64 and
   iOS arm64, all green. Windows needs the static CRT and Apple
   targets `-ObjC` (`mosh-probe/webrtc/.cargo/config.toml`), as in LiveKit.
@@ -193,8 +194,9 @@ Reading the table:
   15 % loss against RingRTC's 6 %, for 20–30 ms more delay. Use RED in MOSH-71.
 - **Packet rate.** 50 packets/s is four times RingRTC's (60 ms packets plus
   DTX on this mostly silent test signal). Each packet is a Moss envelope, which
-  matters on relays with per-flow budgets. Choose packet size and DTX in
-  MOSH-71: 40 or 60 ms packets trade 20–40 ms of delay for overhead.
+  matters on relays with per-flow budgets. 40 or 60 ms packets trade 20–40 ms
+  of delay for overhead. MOSH-71 kept 20 ms without DTX: on the bench, 40 ms
+  packets added delay and concealment, and DTX cost RED most of its gain.
 - **CPU** is the same order of magnitude; the caller side costs slightly more,
   the callee less.
 - **Not covered here:** echo cancellation and noise suppression quality need a

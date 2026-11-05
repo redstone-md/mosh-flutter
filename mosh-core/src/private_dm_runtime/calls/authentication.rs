@@ -20,6 +20,7 @@ impl PrivateDmSession {
                 .ok_or(PrivateDmRuntimeError::NotReady)?,
             name: self.device_id.clone(),
             action,
+            media_protocol: crate::native_call::media_protocol(),
         };
         let ciphertext_b64 = self.crypto.encrypt_json(&control)?;
         self.record_dirty = true;

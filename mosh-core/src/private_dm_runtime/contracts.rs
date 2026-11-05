@@ -317,7 +317,7 @@ pub struct ActiveCall {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CallEvent {
-    /// "completed" or "missed".
+    /// "completed", "missed" or "update_required" (incompatible call engines).
     pub kind: String,
     pub duration_ms: u64,
     pub call_id: String,

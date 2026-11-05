@@ -10,6 +10,35 @@ pub(super) struct CallControl {
     pub peer: String,
     pub name: String,
     pub action: CallAction,
+    /// The sender's media engine protocol. Peers on different protocols
+    /// cannot connect media, so they end the call with `update_required`.
+    #[serde(default = "legacy_media_protocol")]
+    pub media_protocol: u32,
+}
+
+/// Reason and call event kind for peers whose media engines cannot talk.
+pub(super) const UPDATE_REQUIRED: &str = "update_required";
+
+/// The call event recorded when a call ends for `reason`: an unanswered call
+/// that a device refused for its engine asks to update Mosh too.
+pub(super) fn end_kind(call: &crate::voice_call_runtime::CallState, reason: &str) -> &'static str {
+    let kind = call.end_kind();
+    if reason == UPDATE_REQUIRED || (call.refused_by_other_engine && kind == "missed") {
+        UPDATE_REQUIRED
+    } else {
+        kind
+    }
+}
+
+impl CallControl {
+    /// Whether the sender's media engine can connect to ours.
+    pub(super) fn same_media_protocol(&self) -> bool {
+        self.media_protocol == crate::native_call::media_protocol()
+    }
+}
+
+fn legacy_media_protocol() -> u32 {
+    crate::native_call::LEGACY_MEDIA_PROTOCOL
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -35,6 +64,16 @@ pub(super) enum CallAction {
         caller: String,
         reason: String,
     },
+}
+
+impl CallAction {
+    /// The reason a `Decline` or `End` gives; empty for other actions.
+    pub(super) fn end_reason(&self) -> &str {
+        match self {
+            Self::Decline { reason } | Self::End { reason, .. } => reason,
+            _ => "",
+        }
+    }
 }
 
 impl crate::voice_call_runtime::CallState {
@@ -65,4 +104,22 @@ pub(super) const fn native_platform() -> bool {
         target_os = "linux",
         target_os = "android"
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_control_from_before_media_protocols_speaks_the_legacy_one() {
+        let control: CallControl = serde_json::from_value(serde_json::json!({
+            "session_id": "s", "call_id": "c", "signer": "a", "sequence": 1,
+            "peer": "p", "name": "n", "action": "Answer"
+        }))
+        .unwrap();
+        assert_eq!(
+            control.media_protocol,
+            crate::native_call::LEGACY_MEDIA_PROTOCOL
+        );
+    }
 }

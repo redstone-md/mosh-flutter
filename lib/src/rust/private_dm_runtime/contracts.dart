@@ -96,7 +96,7 @@ enum CallAvailability {
 }
 
 class CallEvent {
-  /// "completed" or "missed".
+  /// "completed", "missed" or "update_required" (incompatible call engines).
   final String kind;
   final BigInt durationMs;
   final String callId;

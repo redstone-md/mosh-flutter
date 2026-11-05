@@ -1,4 +1,7 @@
-use super::{protocol::CallControl, *};
+use super::{
+    protocol::{CallControl, UPDATE_REQUIRED},
+    *,
+};
 
 impl PrivateDmSession {
     pub(super) fn receive_call_offer(
@@ -16,6 +19,9 @@ impl PrivateDmSession {
             || self.call_occupancy.selected(&control.call_id)
         {
             return Ok(());
+        }
+        if !control.same_media_protocol() {
+            return self.refuse_other_engine(control);
         }
         if let Some(call) = &self.call {
             if call.phase == CallPhase::Outgoing && call.call_id != control.call_id {
@@ -45,6 +51,18 @@ impl PrivateDmSession {
         }
         self.install_incoming_call(control, key, nonce)?;
         Ok(())
+    }
+
+    /// Media engines on different protocols cannot connect: record why the
+    /// call did not ring and let the caller end it the same way.
+    fn refuse_other_engine(&mut self, control: &CallControl) -> Result<(), PrivateDmRuntimeError> {
+        self.append_call_event_message(&control.name, false, UPDATE_REQUIRED, 0, &control.call_id);
+        let decline = CallAction::Decline {
+            reason: UPDATE_REQUIRED.into(),
+        };
+        self.call_ends
+            .remember(&control.call_id, decline.clone(), now_ms());
+        self.publish_authenticated_call(&control.call_id, decline)
     }
 
     fn closed_call_offer(&self, id: &str) -> bool {

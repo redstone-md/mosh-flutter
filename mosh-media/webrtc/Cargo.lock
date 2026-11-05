@@ -804,11 +804,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "mosh-webrtc-probe"
+name = "mosh-webrtc-media"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "futures",
+ "jni",
  "libwebrtc",
  "serde",
  "serde_json",

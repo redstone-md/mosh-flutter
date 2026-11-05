@@ -18,6 +18,16 @@ artifact includes upstream WebRTC/Chromium components; their source and notices
 are available through RingRTC's pinned source/build definitions. All Rust
 transitive versions and source revisions are recorded in engine/Cargo.lock.
 
+Builds made with MOSH_CALL_ENGINE=webrtc bundle the libwebrtc engine
+(webrtc/) instead, under the same library name and without RingRTC. It uses
+LiveKit's webrtc-sys 0.3.53 and libwebrtc 0.4.0 crates under Apache-2.0, with
+the complete patches and verified digests in third_party/webrtc-sys-patches
+and third_party/libwebrtc-patches, and statically links Google's libwebrtc
+(BSD-3-Clause) as built from LiveKit's webrtc-sdk fork at the commit pinned in
+third_party/libwebrtc-build, without H.264. The bundled WEBRTC-LICENSE.md is
+that build's generated dependency license list; webrtc/Cargo.lock records the
+remaining Rust components.
+
 mosh-camera-capture uses nokhwa 0.10.11 and nokhwa-bindings-macos 0.2.4 under
 Apache-2.0. Their complete patches and verified archive/source digests are in
 third_party/nokhwa-patches and third_party/nokhwa-macos-patches. Their upstream

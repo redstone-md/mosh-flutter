@@ -1,4 +1,7 @@
-use super::{protocol::CallControl, *};
+use super::{
+    protocol::{end_kind, CallControl, UPDATE_REQUIRED},
+    *,
+};
 
 impl PrivateDmSession {
     pub(super) fn apply_call_control(
@@ -116,6 +119,9 @@ impl PrivateDmSession {
         if call.phase != CallPhase::Outgoing {
             return Ok(());
         }
+        if !control.same_media_protocol() {
+            return self.call_end(&control.call_id, UPDATE_REQUIRED);
+        }
         self.publish_authenticated_call(
             &control.call_id,
             CallAction::Selected {
@@ -200,7 +206,12 @@ impl PrivateDmSession {
         if !permitted {
             return Ok(());
         }
-        let (kind, duration) = (call.end_kind(), call.duration_ms(now_ms()));
+        let reason = control.action.end_reason();
+        if reason == UPDATE_REQUIRED && call.phase == CallPhase::Outgoing {
+            self.ring_on_after_engine_refusal();
+            return Ok(());
+        }
+        let (kind, duration) = (end_kind(call, reason), call.duration_ms(now_ms()));
         let caller = call.direction == crate::voice_call_runtime::CallDirection::Caller;
         let call_id = call.call_id.clone();
         let caller_signer = call.caller_signer.clone();
@@ -215,5 +226,13 @@ impl PrivateDmSession {
         }
         self.finish_call(kind, duration);
         Ok(())
+    }
+
+    /// ADR 0043: only an explicit refusal stops the other devices ringing, so
+    /// an engine refusal from one leaves the rest ringing.
+    fn ring_on_after_engine_refusal(&mut self) {
+        if let Some(call) = self.call.as_mut() {
+            call.refused_by_other_engine = true;
+        }
     }
 }

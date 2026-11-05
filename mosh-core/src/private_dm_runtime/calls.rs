@@ -146,7 +146,7 @@ impl PrivateDmSession {
         };
         let call_id = call.call_id.clone();
         let caller_signer = call.caller_signer.clone();
-        let (kind, duration) = (call.end_kind(), call.duration_ms(now_ms()));
+        let (kind, duration) = (protocol::end_kind(call, reason), call.duration_ms(now_ms()));
         self.call_ends.remember(
             &call_id,
             CallAction::End {

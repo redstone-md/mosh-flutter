@@ -2239,6 +2239,10 @@
   "plusSalesPaused": "Purchases paused",
   "plusPaymentDetails": "Payment details & terms",
   "callLogNoAnswerLabel": "No answer",
+  "callLogUpdateRequiredLabel": "Call failed: update Mosh",
+  "@callLogUpdateRequiredLabel": {
+    "description": "Call log pill for a call that could not connect because the two devices run incompatible Mosh versions."
+  },
   "callLogOutgoingLabel": "Outgoing call",
   "callLogIncomingLabel": "Incoming call",
   "callMinimize": "Minimize call",

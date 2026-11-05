@@ -56,6 +56,10 @@ pub struct CallState {
     pub offer_last_ms: u64,
     pub(crate) native_controls: std::collections::VecDeque<crate::native_call::types::Signal>,
     pub(crate) native_camera_sequence: u64,
+    /// A receiving device refused this outgoing call because its media engine
+    /// speaks another protocol. Others may still answer; if none does, the
+    /// call ends asking to update Mosh rather than as unanswered.
+    pub(crate) refused_by_other_engine: bool,
 }
 
 impl std::fmt::Debug for CallState {
@@ -92,6 +96,7 @@ impl CallState {
             offer_last_ms: 0,
             native_controls: Default::default(),
             native_camera_sequence: 0,
+            refused_by_other_engine: false,
         }
     }
 
@@ -117,6 +122,7 @@ impl CallState {
             offer_last_ms: 0,
             native_controls: Default::default(),
             native_camera_sequence: 0,
+            refused_by_other_engine: false,
         }
     }
 

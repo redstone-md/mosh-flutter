@@ -1,0 +1,12 @@
+{
+  "release": "libwebrtc-m150-9c3a138-1",
+  "repository": "https://github.com/webrtc-sdk/webrtc.git",
+  "commit": "9c3a1386f07e4348c28cd85c066821cebc3b56e4",
+  "archives": {
+    "android-arm64-release": "ff15daae71d450ef7f424744e03501a4e2fe082f190d3e2834f2fe5f4b22d744",
+    "linux-x64-release": "541df35bfceb70f64b0db3c94e83de3ee1528bd5e296a287f9c92f6cc468c46d",
+    "mac-arm64-release": "2415c51c705095200f2a6de92987b3bd94299d5176dff8f9d1dff713c30f22be",
+    "mac-x64-release": "c0076c805b131f8edaa2df998d87a4ff129928541c9f1d0eee66ef4201e63a8b",
+    "win-x64-release": "6f4a65c8288b4df0f8dce66bdf99dd5ad276c8c4cf66f5ecf64f0f073779a0e2"
+  }
+}

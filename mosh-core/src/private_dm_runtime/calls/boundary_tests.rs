@@ -7,6 +7,8 @@ use serde_json::json;
 mod boundary_races;
 #[path = "boundary_tests/history_direction.rs"]
 mod history_direction;
+#[path = "boundary_tests/media_protocol.rs"]
+mod media_protocol;
 #[path = "boundary_tests/native_controls.rs"]
 mod native_controls;
 #[path = "boundary_tests/selection_admission.rs"]
@@ -20,7 +22,24 @@ fn remote_control(
     sequence: u64,
     action: serde_json::Value,
 ) -> ControlEnvelope {
-    let mut action = action;
+    remote_control_on(
+        f,
+        device,
+        peer,
+        id,
+        sequence,
+        action,
+        crate::native_call::media_protocol(),
+    )
+}
+
+/// Fills what a real client would: the offer's platform and the end's caller.
+fn with_defaults(
+    f: &Fixture,
+    device: &str,
+    id: &str,
+    mut action: serde_json::Value,
+) -> serde_json::Value {
     if let Some(offer) = action.get_mut("Offer") {
         if offer["native"].is_null() {
             offer["native"] = cfg!(any(
@@ -48,13 +67,28 @@ fn remote_control(
             end["caller"] = declared_caller.into();
         }
     }
+    action
+}
+
+/// A control from a device whose engine speaks `protocol`. Fixture peers
+/// otherwise speak the loaded engine's protocol, whichever engine that is.
+fn remote_control_on(
+    f: &mut Fixture,
+    device: &str,
+    peer: &str,
+    id: &str,
+    sequence: u64,
+    action: serde_json::Value,
+    protocol: u32,
+) -> ControlEnvelope {
+    let action = with_defaults(f, device, id, action);
     let crypto = f.peers.get_mut(device).unwrap();
-    let ciphertext_b64 = crypto
-        .encrypt_json(&json!({
-            "session_id":f.session, "call_id":id, "signer":hex::encode(crypto.signer_public()),
-            "sequence":sequence, "peer":peer, "name":"Other desktop", "action":action
-        }))
-        .unwrap();
+    let control = json!({
+        "session_id":f.session, "call_id":id, "signer":hex::encode(crypto.signer_public()),
+        "sequence":sequence, "peer":peer, "name":"Other desktop", "action":action,
+        "media_protocol":protocol
+    });
+    let ciphertext_b64 = crypto.encrypt_json(&control).unwrap();
     ControlEnvelope::CallControl {
         session_id: f.session.clone(),
         ciphertext_b64,
@@ -362,4 +396,9 @@ fn call_boundary_process() {
     boundary_races::a_newer_offer_cannot_discard_an_older_authorized_end(&mut Fixture::new());
     boundary_races::native_failure_is_durable_before_releasing_media(&mut Fixture::new());
     boundary_races::local_end_is_durable_before_returning(&mut Fixture::new());
+    media_protocol::an_offer_from_another_engine_is_refused_once_with_update_required(
+        &mut Fixture::new(),
+    );
+    media_protocol::an_answer_from_another_engine_ends_the_outgoing_call(&mut Fixture::new());
+    media_protocol::an_engine_refusal_rings_on_then_asks_to_update(&mut Fixture::new());
 }

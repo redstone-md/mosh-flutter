@@ -9,6 +9,14 @@ use std::{
     sync::Mutex,
 };
 
+/// Media protocol spoken by this engine; mosh-core puts it into every call
+/// control so peers on different engines end the call instead of hanging.
+/// The RingRTC engine speaks 1.
+#[unsafe(no_mangle)]
+pub extern "C" fn mosh_media_protocol() -> u32 {
+    2
+}
+
 /// # Safety
 /// Config is a NUL-terminated JSON string retained through this call.
 #[unsafe(no_mangle)]
@@ -139,7 +147,7 @@ pub unsafe extern "C" fn mosh_media_packet_priority(
     .unwrap_or(-1)
 }
 
-const MAX_RGBA_BYTES: usize = 1920 * 1080 * 4;
+pub(crate) const MAX_RGBA_BYTES: usize = 1920 * 1080 * 4;
 
 /// Frame metadata in the layout mosh-core reads.
 #[repr(C)]
@@ -152,7 +160,7 @@ pub struct FrameInfo {
     pub age_ms: u32,
 }
 
-/// The voice-only prototype accepts camera frames and drops them.
+/// Voice only: camera frames are accepted and dropped until video lands.
 ///
 /// # Safety
 /// Handle is live. Nothing is read.
@@ -170,7 +178,7 @@ pub unsafe extern "C" fn mosh_media_push_rgba(
     1
 }
 
-/// The voice-only prototype never has a decoded frame.
+/// Voice only: there is never a decoded frame.
 ///
 /// # Safety
 /// Info is aligned and writable.
