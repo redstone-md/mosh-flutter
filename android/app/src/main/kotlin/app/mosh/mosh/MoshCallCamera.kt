@@ -6,15 +6,6 @@ import android.os.HandlerThread
 import java.nio.ByteBuffer
 import org.json.JSONArray
 import org.json.JSONObject
-import org.webrtc.Camera2Enumerator
-import org.webrtc.Camera1Enumerator
-import org.webrtc.CameraEnumerator
-import org.webrtc.CameraVideoCapturer
-import org.webrtc.CapturerObserver
-import org.webrtc.EglBase
-import org.webrtc.SurfaceTextureHelper
-import org.webrtc.VideoFrame
-import org.webrtc.YuvHelper
 
 /** Camera work never blocks the native call owner or the Flutter UI thread. */
 internal class MoshCallCamera(private val context: Context) {
@@ -61,7 +52,7 @@ internal class MoshCallCamera(private val context: Context) {
         val id = requested?.also { check(it in enumerator.deviceNames) }
             ?: enumerator.deviceNames.firstOrNull { enumerator.isFrontFacing(it) }
             ?: enumerator.deviceNames.firstOrNull() ?: error("No camera")
-        val events = object : CameraVideoCapturer.CameraEventsHandler {
+        val events = object : CameraEventsHandler {
             override fun onCameraError(error: String) = cameraFailed(generation)
             override fun onCameraDisconnected() = cameraFailed(generation)
             override fun onCameraFreezed(error: String) = cameraFailed(generation)
