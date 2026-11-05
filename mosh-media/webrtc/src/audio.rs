@@ -15,24 +15,56 @@ pub fn devices(factory: &PeerConnectionFactory) -> Value {
     json!({"inputs": inputs, "outputs": outputs})
 }
 
-/// Selects devices by id; a missing id means the system default.
+/// Selects devices by id; a missing id means the system default. A running
+/// device restarts around the change: the platform module refuses a new
+/// device while it is initialized.
 pub fn select(factory: &PeerConnectionFactory, value: &Value) -> Value {
-    let input_ok = match value["input"].as_str() {
+    let input_ok = restart_recording(factory, || match value["input"].as_str() {
         Some(id) => factory.set_recording_device_by_guid(id),
-        None => factory.set_recording_device(0),
-    };
-    let output_ok = match value["output"].as_str() {
+        None => {
+            factory.set_recording_device_by_guid(&factory.recording_device_guid(DEFAULT))
+                || factory.set_recording_device(0)
+        }
+    });
+    let output_ok = restart_playout(factory, || match value["output"].as_str() {
         Some(id) => factory.set_playout_device_by_guid(id),
-        None => factory.set_playout_device(0),
-    };
+        None => {
+            factory.set_playout_device_by_guid(&factory.playout_device_guid(DEFAULT))
+                || factory.set_playout_device(0)
+        }
+    });
     json!({"input_ok": input_ok, "output_ok": output_ok})
 }
+
+/// Index 0 is the system default on macOS and Linux but only the first
+/// endpoint on Windows. There this index names the default communication
+/// device, the one WebRTC uses until told otherwise; elsewhere it names no
+/// device, so selecting it fails and index 0 follows.
+const DEFAULT: u16 = u16::MAX;
 
 /// Starts the microphone once recording is enabled. WebRTC asks the audio
 /// module to record when the call connects; a request made while recording
 /// was off is dropped, so a microphone turned on later never starts.
 pub fn start_recording(factory: &PeerConnectionFactory) -> bool {
     factory.init_recording() && factory.start_recording()
+}
+
+fn restart_recording(factory: &PeerConnectionFactory, choose: impl FnOnce() -> bool) -> bool {
+    if !factory.recording_is_initialized() {
+        return choose();
+    }
+    factory.stop_recording();
+    let chosen = choose();
+    start_recording(factory) && chosen
+}
+
+fn restart_playout(factory: &PeerConnectionFactory, choose: impl FnOnce() -> bool) -> bool {
+    if !(factory.adm_playout_enabled() && factory.playout_is_initialized()) {
+        return choose();
+    }
+    factory.stop_playout();
+    let chosen = choose();
+    factory.init_playout() && factory.start_playout() && chosen
 }
 
 /// Ranks RED (RFC 2198) ahead of plain Opus, as Chrome's RED trial does:

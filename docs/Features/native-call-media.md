@@ -69,7 +69,12 @@ the bench that concealed 0.4 % of audio at 5 % loss and 1.3 % at 15 %, for
 about 21 kbit/s and 50 packets/s; DTX cost RED most of that gain and 40 ms
 packets added delay ([measurements](../Proposals/call-engine-without-ringrtc.research.md#measurements)).
 Echo cancellation,
-noise suppression and gain control are libwebrtc's own. On Android the app
+noise suppression and gain control are libwebrtc's own. The engine starts
+the microphone itself whenever it is switched on: libwebrtc asks for
+recording once, when the call connects, and that request is lost while the
+microphone is off. A device change restarts a running device, and "system
+default" is Windows' default communication device, not the first endpoint.
+On Android the app
 loads the engine from Java so libwebrtc's JNI code finds its classes;
 `android/app/src/<engine>` holds the engine-specific Kotlin.
 
@@ -260,7 +265,8 @@ With `MOSH_CALL_ENGINE=webrtc` (or `--engine webrtc`) the same commands and
 the Android build package the libwebrtc engine. Linux needs `CC`/`CXX` set
 to clang 21 or later for libwebrtc's hermetic libc++. CI checks that engine
 in its own jobs: lint and loopback, call setup through mosh-core over real
-Moss, a voice call between PulseAudio devices over two Moss nodes
+Moss, a voice call between PulseAudio devices over two Moss nodes, with the
+microphone on from the start and switched on only after connecting
 (`scripts/webrtc-voice-check.mjs`) and the Android arm64 build.
 
 ```sh
