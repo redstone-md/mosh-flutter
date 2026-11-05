@@ -1,6 +1,7 @@
 //! The loading process retains every buffer through its synchronous call.
 //! Create, command and drop an engine on one owner thread; Windows COM is thread-bound.
-use crate::engine::{Config, Engine, MAX_PACKET};
+use crate::carrier::MAX_PACKET;
+use crate::engine::{Config, Engine};
 use serde_json::json;
 use std::{
     ffi::{CStr, CString, c_char, c_void},
@@ -111,7 +112,7 @@ pub unsafe extern "C" fn mosh_media_copy_packet(
         let bytes = unsafe { std::slice::from_raw_parts_mut(data, capacity) };
         engine
             .lock()
-            .map_or(-1, |mut engine| engine.copy_packet(bytes))
+            .map_or(-1, |mut engine| engine.carrier.copy_packet(bytes))
     }))
     .unwrap_or(-1)
 }
@@ -133,7 +134,7 @@ pub unsafe extern "C" fn mosh_media_packet_priority(
         let bytes = unsafe { std::slice::from_raw_parts(data, length) };
         engine
             .lock()
-            .map_or(-1, |engine| i32::from(engine.priority(bytes)))
+            .map_or(-1, |engine| i32::from(engine.carrier.priority(bytes)))
     }))
     .unwrap_or(-1)
 }

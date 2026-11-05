@@ -1,12 +1,7 @@
 //! One call's peer connection on a virtual network. Media is DTLS-SRTP; the
 //! certificate fingerprint travels in the SDP inside the MLS-authenticated
 //! description, so only the selected device can complete the handshake.
-use std::net::{Ipv4Addr, SocketAddrV4};
-use std::sync::{
-    Arc, Mutex,
-    atomic::{AtomicU64, Ordering},
-    mpsc::{Receiver, sync_channel},
-};
+use std::sync::mpsc::{Receiver, sync_channel};
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
@@ -19,18 +14,11 @@ use libwebrtc::{
         PeerConnectionFactory, RtcConfiguration, native::PeerConnectionFactoryExt,
     },
     session_description::{SdpType, SessionDescription},
-    virtual_network::VirtualNetwork,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::packets::{encode, learn_audio_payloads};
-use crate::stats::Measurements;
-
-pub const MAX_PACKET: usize = 2007;
-const MAX_PACKET_AGE: Duration = Duration::from_millis(200);
-const CALLER_IP: Ipv4Addr = Ipv4Addr::new(192, 0, 2, 1);
-const CALLEE_IP: Ipv4Addr = Ipv4Addr::new(192, 0, 2, 2);
+use crate::{audio, carrier::Carrier, stats::Measurements};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MediaBinding {
@@ -65,7 +53,7 @@ struct Candidate {
 pub struct Engine {
     runtime: tokio::runtime::Runtime,
     factory: PeerConnectionFactory,
-    network: VirtualNetwork,
+    pub carrier: Carrier,
     pc: PeerConnection,
     microphone: RtcAudioTrack,
     binding: MediaBinding,
@@ -74,11 +62,7 @@ pub struct Engine {
     remote: Option<Description>,
     started: bool,
     microphone_on: bool,
-    packets: Receiver<(Instant, Vec<u8>)>,
-    pending_packet: Option<(Instant, Vec<u8>)>,
     candidates: Receiver<String>,
-    dropped: Arc<AtomicU64>,
-    audio_payloads: Mutex<[bool; 128]>,
     measurements: Measurements,
     next_stats: Instant,
 }
@@ -89,36 +73,15 @@ impl Engine {
             .worker_threads(1)
             .enable_all()
             .build()?;
-        let (send, packets) = sync_channel(128);
-        let dropped = Arc::new(AtomicU64::new(0));
-        let measured = dropped.clone();
-        let ip = if config.caller { CALLER_IP } else { CALLEE_IP };
-        let network = VirtualNetwork::new(ip, move |port, to, data| {
-            let bytes = encode(port, to.port(), data);
-            let sent = bytes.len() <= MAX_PACKET && send.try_send((Instant::now(), bytes)).is_ok();
-            if !sent {
-                measured.fetch_add(1, Ordering::Relaxed);
-            }
-            sent
-        });
-        let factory = PeerConnectionFactory::with_virtual_network(&network);
+        let carrier = Carrier::new(config.caller);
+        let factory = PeerConnectionFactory::with_virtual_network(carrier.network());
         factory.acquire_platform_adm();
         factory.set_adm_recording_enabled(false);
         factory.set_adm_playout_enabled(false);
         let pc = factory
             .create_peer_connection(RtcConfiguration::default())
             .map_err(|error| anyhow::anyhow!("peer connection: {error:?}"))?;
-        let (candidate_tx, candidates) = sync_channel(32);
-        pc.on_ice_candidate(Some(Box::new(move |candidate: IceCandidate| {
-            let encoded = serde_json::to_string(&Candidate {
-                mid: candidate.sdp_mid(),
-                index: candidate.sdp_mline_index(),
-                sdp: candidate.candidate(),
-            });
-            if let Ok(encoded) = encoded {
-                let _ = candidate_tx.try_send(encoded);
-            }
-        })));
+        let candidates = gather_candidates(&pc);
         let measurements = Measurements::default();
         pc.on_ice_connection_state_change(Some(measurements.connection_observer()));
         let microphone = factory.create_device_audio_track("microphone");
@@ -126,12 +89,12 @@ impl Engine {
         pc.add_track(MediaStreamTrack::Audio(microphone.clone()), &["mosh"])
             .map_err(|error| anyhow::anyhow!("audio track: {error:?}"))?;
         if std::env::var_os("MOSH_PROBE_RED").is_some() {
-            prefer_red(&factory, &pc)?;
+            audio::prefer_red(&factory, &pc)?;
         }
         Ok(Self {
             runtime,
             factory,
-            network,
+            carrier,
             pc,
             microphone,
             binding: config.binding,
@@ -140,11 +103,7 @@ impl Engine {
             remote: None,
             started: false,
             microphone_on: false,
-            packets,
-            pending_packet: None,
             candidates,
-            dropped,
-            audio_payloads: Mutex::new([false; 128]),
             measurements,
             next_stats: Instant::now(),
         })
@@ -175,11 +134,11 @@ impl Engine {
                 snapshot["ready"] = self.started.into();
                 snapshot["microphone"] = (self.started && self.microphone_on).into();
                 snapshot["video_enabled"] = false.into();
-                snapshot["queue_dropped"] = self.dropped.load(Ordering::Relaxed).into();
+                snapshot["queue_dropped"] = self.carrier.dropped().into();
                 Ok(snapshot)
             }
-            "devices" => Ok(self.devices()),
-            "select" => Ok(self.select(&value)),
+            "devices" => Ok(audio::devices(&self.factory)),
+            "select" => Ok(audio::select(&self.factory, &value)),
             "budget" => self.budget(&value),
             _ => anyhow::bail!("unknown media command"),
         }
@@ -242,7 +201,7 @@ impl Engine {
 
     fn set_local(&mut self, description: SessionDescription, offer: bool) -> Result<Description> {
         let sdp = description.to_string();
-        learn_audio_payloads(&sdp, &self.audio_payloads);
+        self.carrier.learn(&sdp);
         self.runtime
             .block_on(self.pc.set_local_description(description))
             .map_err(|error| anyhow::anyhow!("local description: {error:?}"))?;
@@ -281,34 +240,6 @@ impl Engine {
         Ok(json!({"candidates": candidates}))
     }
 
-    fn devices(&self) -> Value {
-        let inputs: Vec<_> = (0..self.factory.recording_devices().max(0) as u16)
-            .map(|i| {
-                json!({"id": self.factory.recording_device_guid(i),
-                    "name": self.factory.recording_device_name(i)})
-            })
-            .collect();
-        let outputs: Vec<_> = (0..self.factory.playout_devices().max(0) as u16)
-            .map(|i| {
-                json!({"id": self.factory.playout_device_guid(i),
-                    "name": self.factory.playout_device_name(i)})
-            })
-            .collect();
-        json!({"inputs": inputs, "outputs": outputs})
-    }
-
-    fn select(&self, value: &Value) -> Value {
-        let input_ok = match value["input"].as_str() {
-            Some(id) => self.factory.set_recording_device_by_guid(id),
-            None => self.factory.set_recording_device(0),
-        };
-        let output_ok = match value["output"].as_str() {
-            Some(id) => self.factory.set_playout_device_by_guid(id),
-            None => self.factory.set_playout_device(0),
-        };
-        json!({"input_ok": input_ok, "output_ok": output_ok})
-    }
-
     fn budget(&self, value: &Value) -> Result<Value> {
         let max = value["max_bps"]
             .as_u64()
@@ -324,54 +255,9 @@ impl Engine {
         Ok(json!({"ok": true}))
     }
 
-    pub fn priority(&self, packet: &[u8]) -> bool {
-        let Some(data) = packet.get(7..) else {
-            return true;
-        };
-        if data.len() < 2 || data[0] >> 6 != 2 || (192..=223).contains(&data[1]) {
-            return true;
-        }
-        self.audio_payloads
-            .lock()
-            .is_ok_and(|audio| audio[usize::from(data[1] & 127)])
-    }
-
+    /// Delivers a packet from Moss once negotiation has a remote side.
     pub fn receive(&self, bytes: &[u8]) -> bool {
-        if self.remote.is_none()
-            || bytes.len() < 7
-            || bytes.len() > MAX_PACKET
-            || &bytes[..3] != b"MV1"
-        {
-            return false;
-        }
-        let peer = if self.caller { CALLEE_IP } else { CALLER_IP };
-        let source = u16::from_be_bytes([bytes[3], bytes[4]]);
-        let destination = u16::from_be_bytes([bytes[5], bytes[6]]);
-        self.network
-            .receive(destination, SocketAddrV4::new(peer, source), &bytes[7..]);
-        true
-    }
-
-    pub fn copy_packet(&mut self, buffer: &mut [u8]) -> i32 {
-        loop {
-            let Some((queued, bytes)) = self
-                .pending_packet
-                .take()
-                .or_else(|| self.packets.try_recv().ok())
-            else {
-                return 0;
-            };
-            if queued.elapsed() > MAX_PACKET_AGE {
-                self.dropped.fetch_add(1, Ordering::Relaxed);
-                continue;
-            }
-            if buffer.len() < bytes.len() {
-                self.pending_packet = Some((queued, bytes));
-                return -2;
-            }
-            buffer[..bytes.len()].copy_from_slice(&bytes);
-            return bytes.len() as i32;
-        }
+        self.remote.is_some() && self.carrier.receive(bytes)
     }
 }
 
@@ -382,17 +268,18 @@ impl Drop for Engine {
     }
 }
 
-/// Experiment: put RED (RFC 2198 audio redundancy) ahead of plain Opus,
-/// as Chrome does with its RED field trial.
-fn prefer_red(factory: &PeerConnectionFactory, pc: &PeerConnection) -> Result<()> {
-    let mut codecs = factory
-        .get_rtp_sender_capabilities(libwebrtc::MediaType::Audio)
-        .codecs;
-    codecs.sort_by_key(|codec| !codec.mime_type.eq_ignore_ascii_case("audio/red"));
-    for transceiver in pc.transceivers() {
-        transceiver
-            .set_codec_preferences(codecs.clone())
-            .map_err(|error| anyhow::anyhow!("codec preferences: {error:?}"))?;
-    }
-    Ok(())
+/// Queues each gathered ICE candidate as JSON for the next tick.
+fn gather_candidates(pc: &PeerConnection) -> Receiver<String> {
+    let (sender, candidates) = sync_channel(32);
+    pc.on_ice_candidate(Some(Box::new(move |candidate: IceCandidate| {
+        let encoded = serde_json::to_string(&Candidate {
+            mid: candidate.sdp_mid(),
+            index: candidate.sdp_mline_index(),
+            sdp: candidate.candidate(),
+        });
+        if let Ok(encoded) = encoded {
+            let _ = sender.try_send(encoded);
+        }
+    })));
+    candidates
 }

@@ -134,9 +134,12 @@ async fn audio_crosses_only_the_virtual_network() {
         transport.dtls_state,
         Some(libwebrtc::stats::DtlsTransportState::Connected)
     );
+    assert_eq!(transport.srtp_cipher, "AEAD_AES_256_GCM");
+    // TLS_AES_* suites exist only in (D)TLS 1.3 (RFC 8446 B.4).
     assert!(
-        !transport.srtp_cipher.is_empty(),
-        "media is not SRTP-protected"
+        transport.dtls_cipher.starts_with("TLS_AES_"),
+        "{}",
+        transport.dtls_cipher
     );
     a.close();
     b.close();
