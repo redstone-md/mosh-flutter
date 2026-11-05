@@ -1,4 +1,7 @@
-use super::{protocol::CallControl, *};
+use super::{
+    protocol::{end_kind, CallControl, UPDATE_REQUIRED},
+    *,
+};
 
 impl PrivateDmSession {
     pub(super) fn apply_call_control(
@@ -116,6 +119,9 @@ impl PrivateDmSession {
         if call.phase != CallPhase::Outgoing {
             return Ok(());
         }
+        if control.media_protocol != crate::native_call::media_protocol() {
+            return self.call_end(&control.call_id, UPDATE_REQUIRED);
+        }
         self.publish_authenticated_call(
             &control.call_id,
             CallAction::Selected {
@@ -200,7 +206,11 @@ impl PrivateDmSession {
         if !permitted {
             return Ok(());
         }
-        let (kind, duration) = (call.end_kind(), call.duration_ms(now_ms()));
+        let reason = match &control.action {
+            CallAction::Decline { reason } | CallAction::End { reason, .. } => reason.as_str(),
+            _ => "",
+        };
+        let (kind, duration) = (end_kind(call, reason), call.duration_ms(now_ms()));
         let caller = call.direction == crate::voice_call_runtime::CallDirection::Caller;
         let call_id = call.call_id.clone();
         let caller_signer = call.caller_signer.clone();

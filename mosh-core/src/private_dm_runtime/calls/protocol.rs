@@ -10,6 +10,26 @@ pub(super) struct CallControl {
     pub peer: String,
     pub name: String,
     pub action: CallAction,
+    /// The sender's media engine protocol. Peers on different protocols
+    /// cannot connect media, so they end the call with `update_required`.
+    #[serde(default = "legacy_media_protocol")]
+    pub media_protocol: u32,
+}
+
+/// Reason and call event kind for peers whose media engines cannot talk.
+pub(super) const UPDATE_REQUIRED: &str = "update_required";
+
+/// The call event recorded when a call ends for `reason`.
+pub(super) fn end_kind(call: &crate::voice_call_runtime::CallState, reason: &str) -> &'static str {
+    if reason == UPDATE_REQUIRED {
+        UPDATE_REQUIRED
+    } else {
+        call.end_kind()
+    }
+}
+
+fn legacy_media_protocol() -> u32 {
+    crate::native_call::LEGACY_MEDIA_PROTOCOL
 }
 
 #[derive(Clone, Serialize, Deserialize)]

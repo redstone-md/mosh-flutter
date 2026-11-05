@@ -10,6 +10,8 @@ mod telemetry;
 pub(crate) mod types;
 mod worker;
 
+pub(crate) use library::{media_protocol, LEGACY_MEDIA_PROTOCOL};
+
 use crate::private_dm_runtime::transport::DmTransport;
 use state::State;
 use std::{

@@ -1228,6 +1228,7 @@
   "plusSalesPaused": "Продажи приостановлены",
   "plusPaymentDetails": "Условия и реквизиты",
   "callLogNoAnswerLabel": "Нет ответа",
+  "callLogUpdateRequiredLabel": "Звонок не состоялся: обновите Mosh",
   "callLogOutgoingLabel": "Исходящий звонок",
   "callLogIncomingLabel": "Входящий звонок",
   "callMinimize": "Свернуть звонок",

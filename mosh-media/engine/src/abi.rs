@@ -11,6 +11,14 @@ use std::{
     sync::Mutex,
 };
 
+/// Media protocol spoken by this engine; mosh-core puts it into every call
+/// control so peers on different engines end the call instead of hanging.
+/// The libwebrtc engine in ../webrtc speaks 2.
+#[unsafe(no_mangle)]
+pub extern "C" fn mosh_media_protocol() -> u32 {
+    1
+}
+
 /// # Safety
 /// Config is a NUL-terminated JSON string retained through this call.
 #[unsafe(no_mangle)]

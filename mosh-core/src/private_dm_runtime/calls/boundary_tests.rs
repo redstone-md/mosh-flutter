@@ -7,6 +7,8 @@ use serde_json::json;
 mod boundary_races;
 #[path = "boundary_tests/history_direction.rs"]
 mod history_direction;
+#[path = "boundary_tests/media_protocol.rs"]
+mod media_protocol;
 #[path = "boundary_tests/native_controls.rs"]
 mod native_controls;
 #[path = "boundary_tests/selection_admission.rs"]
@@ -19,6 +21,20 @@ fn remote_control(
     id: &str,
     sequence: u64,
     action: serde_json::Value,
+) -> ControlEnvelope {
+    remote_control_on(f, device, peer, id, sequence, action, None)
+}
+
+/// A control from a device whose engine speaks `protocol`; `None` omits the
+/// field the way clients that predate it do.
+fn remote_control_on(
+    f: &mut Fixture,
+    device: &str,
+    peer: &str,
+    id: &str,
+    sequence: u64,
+    action: serde_json::Value,
+    protocol: Option<u32>,
 ) -> ControlEnvelope {
     let mut action = action;
     if let Some(offer) = action.get_mut("Offer") {
@@ -49,12 +65,14 @@ fn remote_control(
         }
     }
     let crypto = f.peers.get_mut(device).unwrap();
-    let ciphertext_b64 = crypto
-        .encrypt_json(&json!({
-            "session_id":f.session, "call_id":id, "signer":hex::encode(crypto.signer_public()),
-            "sequence":sequence, "peer":peer, "name":"Other desktop", "action":action
-        }))
-        .unwrap();
+    let mut control = json!({
+        "session_id":f.session, "call_id":id, "signer":hex::encode(crypto.signer_public()),
+        "sequence":sequence, "peer":peer, "name":"Other desktop", "action":action
+    });
+    if let Some(protocol) = protocol {
+        control["media_protocol"] = protocol.into();
+    }
+    let ciphertext_b64 = crypto.encrypt_json(&control).unwrap();
     ControlEnvelope::CallControl {
         session_id: f.session.clone(),
         ciphertext_b64,
@@ -362,4 +380,9 @@ fn call_boundary_process() {
     boundary_races::a_newer_offer_cannot_discard_an_older_authorized_end(&mut Fixture::new());
     boundary_races::native_failure_is_durable_before_releasing_media(&mut Fixture::new());
     boundary_races::local_end_is_durable_before_returning(&mut Fixture::new());
+    media_protocol::an_offer_from_another_engine_is_refused_once_with_update_required(
+        &mut Fixture::new(),
+    );
+    media_protocol::an_answer_from_another_engine_ends_the_outgoing_call(&mut Fixture::new());
+    media_protocol::a_decline_for_update_records_update_required(&mut Fixture::new());
 }

@@ -169,6 +169,36 @@ impl Engine {
     }
 }
 
+/// Media protocol of the RingRTC engine and of clients that predate the field.
+pub(crate) const LEGACY_MEDIA_PROTOCOL: u32 = 1;
+
+/// The packaged engine's media protocol, carried in every call control.
+/// A build whose engine cannot load connects no media at all, so it keeps
+/// the legacy value and its signalling stays as before.
+pub(crate) fn media_protocol() -> u32 {
+    type Protocol = unsafe extern "C" fn() -> u32;
+    static PROTOCOL: OnceLock<u32> = OnceLock::new();
+    *PROTOCOL.get_or_init(|| {
+        // SAFETY: the pinned ABI declares this symbol with exactly this signature;
+        // the library stays mapped until process exit.
+        let protocol = media_library().and_then(|library| unsafe {
+            library
+                .get::<Protocol>(b"mosh_media_protocol\0")
+                .map(|protocol| protocol())
+                .map_err(error)
+        });
+        protocol.unwrap_or_else(|failure| {
+            crate::diagnostics_log::write(
+                crate::diagnostics_log::LogLevel::Error,
+                crate::diagnostics_log::kinds::CALL,
+                "media-protocol",
+                &format!("native media engine unavailable: {failure}"),
+            );
+            LEGACY_MEDIA_PROTOCOL
+        })
+    })
+}
+
 fn media_library() -> Result<&'static Library, String> {
     // Native dependencies have process-global state and thread-local cleanup.
     // Destroy each engine, but keep its executable code mapped until process exit.

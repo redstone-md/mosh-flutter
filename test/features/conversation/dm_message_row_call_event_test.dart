@@ -77,6 +77,16 @@ void main() {
       expect(find.byIcon(Icons.call_missed), findsNothing);
     }
   });
+  testWidgets('a call between incompatible versions asks to update Mosh',
+      (tester) async {
+    final event = CallEvent(
+        kind: 'update_required', durationMs: BigInt.zero, callId: 'call');
+    for (final own in [true, false]) {
+      await _pumpRow(tester, _message(callEvent: event, own: own));
+      expect(find.text('Call failed: update Mosh'), findsOneWidget);
+    }
+  });
+
   testWidgets('a message with a call event shows the call pill',
       (tester) async {
     await _pumpRow(tester, _message(callEvent: _missedCall()));
