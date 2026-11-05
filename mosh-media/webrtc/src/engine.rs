@@ -78,17 +78,9 @@ impl Engine {
         factory.acquire_platform_adm();
         factory.set_adm_recording_enabled(false);
         factory.set_adm_playout_enabled(false);
-        let pc = factory
-            .create_peer_connection(RtcConfiguration::default())
-            .map_err(|error| anyhow::anyhow!("peer connection: {error:?}"))?;
-        let candidates = gather_candidates(&pc);
-        let measurements = Measurements::default();
-        pc.on_ice_connection_state_change(Some(measurements.connection_observer()));
-        let microphone = factory.create_device_audio_track("microphone");
-        microphone.set_enabled(false);
-        pc.add_track(MediaStreamTrack::Audio(microphone.clone()), &["mosh"])
-            .map_err(|error| anyhow::anyhow!("audio track: {error:?}"))?;
-        audio::prefer_red(&factory, &pc)?;
+        // Until an Engine exists, its Drop cannot release the audio module.
+        let (pc, microphone, candidates, measurements) =
+            connect(&factory).inspect_err(|_| factory.release_platform_adm())?;
         Ok(Self {
             runtime,
             factory,
@@ -264,6 +256,29 @@ impl Drop for Engine {
         self.pc.close();
         self.factory.release_platform_adm();
     }
+}
+
+/// The peer connection with its muted microphone track, sending Opus with RED.
+fn connect(
+    factory: &PeerConnectionFactory,
+) -> Result<(
+    PeerConnection,
+    RtcAudioTrack,
+    Receiver<String>,
+    Measurements,
+)> {
+    let pc = factory
+        .create_peer_connection(RtcConfiguration::default())
+        .map_err(|error| anyhow::anyhow!("peer connection: {error:?}"))?;
+    let candidates = gather_candidates(&pc);
+    let measurements = Measurements::default();
+    pc.on_ice_connection_state_change(Some(measurements.connection_observer()));
+    let microphone = factory.create_device_audio_track("microphone");
+    microphone.set_enabled(false);
+    pc.add_track(MediaStreamTrack::Audio(microphone.clone()), &["mosh"])
+        .map_err(|error| anyhow::anyhow!("audio track: {error:?}"))?;
+    audio::prefer_red(factory, &pc)?;
+    Ok((pc, microphone, candidates, measurements))
 }
 
 /// Queues each gathered ICE candidate as JSON for the next tick.
