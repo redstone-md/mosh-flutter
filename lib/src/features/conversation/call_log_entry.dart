@@ -43,12 +43,12 @@ class CallLogEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final missed = event.kind == callEventKindMissed ||
+    final notConnected = event.kind == callEventKindMissed ||
         event.kind == callEventKindUpdateRequired;
     final duration = formatCallDuration(event.durationMs);
     // Calls that did not connect tint red; completed stays the on-surface color.
     final accent =
-        missed ? const Color(0xFFE5484D) : theme.colorScheme.onSurface;
+        notConnected ? const Color(0xFFE5484D) : theme.colorScheme.onSurface;
     // 15% gray pill background.
     final pillBg = const Color(0xFF7F7F7F).withValues(alpha: 0.15);
     final label = switch (event.kind) {
@@ -72,7 +72,7 @@ class CallLogEntry extends StatelessWidget {
             // Phone-off glyph for a missed call, phone for completed.
             outgoing
                 ? Icons.call_made
-                : (missed ? Icons.call_missed : Icons.call_received),
+                : (notConnected ? Icons.call_missed : Icons.call_received),
             size: 14,
             color: accent,
           ),
