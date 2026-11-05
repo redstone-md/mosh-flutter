@@ -24,6 +24,10 @@ tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
 
+[build-dependencies]
+# The version webrtc-sys builds with; see build.rs.
+webrtc-sys-build = "=0.3.21"
+
 [patch.crates-io]
 libwebrtc = { path = "../../third_party/libwebrtc" }
 webrtc-sys = { path = "../../third_party/webrtc-sys" }
