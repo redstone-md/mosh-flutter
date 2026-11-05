@@ -5,13 +5,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { prepareNativeCamera } from "./native-camera-prepare.mjs";
-import { callEngine } from "./support/call-engine.mjs";
+import { callEngine, defaultCallEngine } from "./support/call-engine.mjs";
 import { nativeProtoc } from "./support/native-protoc.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { values } = parseArgs({ options: { profile: { type: "string", default: "debug" },
   output: { type: "string" }, targets: { type: "string" }, offline: { type: "boolean", default: false },
-  engine: { type: "string", default: process.env.MOSH_CALL_ENGINE || "ringrtc" } } });
+  engine: { type: "string", default: defaultCallEngine } } });
 if (!["debug", "release"].includes(values.profile)) throw new Error("profile must be debug or release");
 const engine = callEngine(values.engine);
 await engine.prepare({ offline: values.offline });

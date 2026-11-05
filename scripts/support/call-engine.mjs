@@ -47,8 +47,11 @@ const engines = {
   },
 };
 
+/** The engine a build packages unless told otherwise. */
+export const defaultCallEngine = process.env.MOSH_CALL_ENGINE || "ringrtc";
+
 /** The engine named `name`: `ringrtc` or `webrtc`. */
-export function callEngine(name) {
+export function callEngine(name = defaultCallEngine) {
   const engine = engines[name];
   if (!engine) throw new Error(`Unknown call engine "${name}": use ringrtc or webrtc`);
   return engine;

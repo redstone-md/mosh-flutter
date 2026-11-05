@@ -8,14 +8,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prepareAndroidWebRtc } from './android-webrtc-build.mjs';
 import { prepareLibwebrtc, prepareLiveKitWebrtc } from './livekit-webrtc-prepare.mjs';
-import { callEngine } from './support/call-engine.mjs';
+import { callEngine, defaultCallEngine } from './support/call-engine.mjs';
 import { nativeProtoc } from './support/native-protoc.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ndk = process.env.ANDROID_NDK_HOME;
 if (!ndk) throw new Error('ANDROID_NDK_HOME is required');
 const target = 'aarch64-linux-android';
-const engineName = process.env.MOSH_CALL_ENGINE || 'ringrtc';
+const engineName = defaultCallEngine;
 const engine = callEngine(engineName);
 const tool = path.join(ndk, 'toolchains/llvm/prebuilt/linux-x86_64/bin');
 const targetRoot = path.join(root, '.dart_tool/native-media', engine.targetDirectory);
