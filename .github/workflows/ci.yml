@@ -124,7 +124,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           flutter: 'false'
-          rust-cache-key: native-call
+          rust-cache-key: native-call-webrtc
       - name: Linux toolchain, audio and system headers
         if: runner.os == 'Linux'
         run: |
