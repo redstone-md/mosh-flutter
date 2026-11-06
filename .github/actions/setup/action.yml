@@ -25,6 +25,19 @@ inputs:
 runs:
   using: composite
   steps:
+    # Runner networking drops crates.io and npm requests now and then
+    # ("Error in the HTTP2 framing layer", DNS failures, ETIMEDOUT). Retry
+    # longer, and fetch crates over HTTP/1.1, which avoids the HTTP/2 errors.
+    - name: Network retries
+      shell: bash
+      run: |
+        {
+          echo CARGO_NET_RETRY=10
+          echo CARGO_HTTP_MULTIPLEXING=false
+          echo npm_config_fetch_retries=5
+          echo npm_config_fetch_retry_mintimeout=20000
+        } >> "$GITHUB_ENV"
+
     - if: inputs.rust == 'true'
       name: Prepare pinned OpenMLS sources
       shell: bash
