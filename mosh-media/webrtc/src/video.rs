@@ -11,6 +11,7 @@ use libwebrtc::{
     peer_connection_factory::{PeerConnectionFactory, native::PeerConnectionFactoryExt},
     rtp_sender::{RtpSender, VideoEncoderBackend},
     rtp_transceiver::RtpTransceiver,
+    video_codec::VideoCodec,
     video_frame::{I420Buffer, VideoFrame, VideoRotation},
     video_source::{VideoResolution, native::NativeVideoSource},
     video_track::RtcVideoTrack,
@@ -162,14 +163,14 @@ impl Camera {
     }
 }
 
-/// Ranks the codecs this device encodes in hardware first, then VP9: on
-/// the relay regression it keeps 480x270 where VP8 drops to 360x198. Codecs only one side has fall out in negotiation.
+/// Ranks the codecs only this device's hardware encodes first, then VP9: on
+/// the relay regression it keeps 480x270 where VP8 drops to 360x198. Codecs
+/// only one side has fall out in negotiation.
 fn prefer_codecs(factory: &PeerConnectionFactory, transceiver: &RtpTransceiver) -> Result<()> {
-    let hardware: Vec<_> = factory
-        .video_encoder_codecs(VideoEncoderBackend::Hardware)
-        .iter()
-        .map(|codec| format!("video/{}", codec.as_str()))
-        .collect();
+    let hardware = hardware_only_mime_types(
+        &factory.video_encoder_codecs(VideoEncoderBackend::Hardware),
+        &factory.video_encoder_codecs(VideoEncoderBackend::Software),
+    );
     let mut codecs = factory
         .get_rtp_receiver_capabilities(MediaType::Video)
         .codecs;
@@ -177,6 +178,20 @@ fn prefer_codecs(factory: &PeerConnectionFactory, transceiver: &RtpTransceiver) 
     transceiver
         .set_codec_preferences(codecs)
         .map_err(|error| anyhow::anyhow!("video codec preferences: {error:?}"))
+}
+
+/// MIME types of the hardware codecs no software encoder here also
+/// provides. The Android and Apple hardware factories list libvpx's VP8 and
+/// VP9 and libaom's AV1 as fallbacks beside MediaCodec or VideoToolbox, so a
+/// listed codec there may be software; our libwebrtc has no software H.264
+/// or H.265, so those are the hardware's. On Linux NVENC's AV1 drops to the
+/// rest, though a negotiated AV1 still encodes on NVENC.
+fn hardware_only_mime_types(hardware: &[VideoCodec], software: &[VideoCodec]) -> Vec<String> {
+    hardware
+        .iter()
+        .filter(|codec| !software.contains(codec))
+        .map(|codec| format!("video/{}", codec.as_str()))
+        .collect()
 }
 
 fn rank(mime_type: &str, hardware: &[String]) -> u8 {
@@ -243,6 +258,25 @@ mod tests {
                 "video/rtx",
                 "video/AV1"
             ]
+        );
+    }
+
+    #[test]
+    fn software_codecs_listed_under_android_hardware_do_not_outrank_vp9() {
+        let hardware = hardware_only_mime_types(
+            &[
+                VideoCodec::VP8,
+                VideoCodec::AV1,
+                VideoCodec::VP9,
+                VideoCodec::H264,
+            ],
+            &[VideoCodec::VP8, VideoCodec::VP9, VideoCodec::AV1],
+        );
+        let mut codecs = ["video/VP8", "video/AV1", "video/VP9", "video/H264"];
+        codecs.sort_by_key(|codec| rank(codec, &hardware));
+        assert_eq!(
+            codecs,
+            ["video/H264", "video/VP9", "video/VP8", "video/AV1"]
         );
     }
 }
