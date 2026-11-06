@@ -85,15 +85,15 @@ fn pump(
     done(to)
 }
 
-fn latest(engine: &Engine) -> (FrameInfo, Vec<u8>) {
+/// The latest frame's metadata; an empty buffer copies no pixels.
+fn info(engine: &Engine) -> FrameInfo {
     let mut info = FrameInfo::default();
-    let mut pixels = vec![0; 1280 * 720 * 4];
-    assert!(engine.frames.copy(0, &mut pixels, &mut info) >= 0);
-    (info, pixels)
+    assert!(engine.frames.copy(0, &mut [], &mut info) >= 0);
+    info
 }
 
 fn sequence(engine: &Engine) -> u64 {
-    latest(engine).0.sequence
+    info(engine).sequence
 }
 
 const SMALL: (u32, u32) = (320, 180);
@@ -108,7 +108,9 @@ fn camera_frames_decode_on_the_peer_stop_with_the_camera_and_resume() {
             > 20),
         "remote video never decoded"
     );
-    let (info, pixels) = latest(&callee);
+    let mut pixels = vec![0; 320 * 180 * 4];
+    let mut info = FrameInfo::default();
+    assert_eq!(callee.frames.copy(0, &mut pixels, &mut info), 1);
     assert_eq!(
         (info.width, info.height, info.rgba_bytes),
         (320, 180, 320 * 180 * 4)
@@ -166,7 +168,7 @@ fn the_callee_sends_video_back() {
 }
 
 #[test]
-fn a_larger_camera_on_a_relayed_route_is_scaled_to_270p() {
+fn a_relayed_route_sends_a_larger_camera_at_most_at_270p15() {
     let (mut caller, mut callee) = pair();
     caller
         .command(json!({"action":"budget", "max_bps":224_000}))
@@ -179,14 +181,32 @@ fn a_larger_camera_on_a_relayed_route_is_scaled_to_270p() {
         SECONDS,
         |to| sequence(to) > 5
     ));
-    let switched = |to: &Engine| {
-        let info = latest(to).0;
-        (info.width, info.height) == (480, 270)
-    };
+    // libwebrtc may degrade further on its own; the route's cap applies to
+    // every frame from the switch on. The pump runs near 30 fps.
+    let switched = sequence(&callee);
+    let tallest = std::cell::Cell::new(0);
+    let flowing = pump(&mut caller, &mut callee, (640, 360), SECONDS, |to| {
+        let info = info(to);
+        if info.sequence > switched {
+            tallest.set(tallest.get().max(info.width.min(info.height)));
+        }
+        info.sequence > switched + 30
+    });
+    assert!(flowing, "video stalled after the camera switch");
+    let before = sequence(&callee);
+    pump(
+        &mut caller,
+        &mut callee,
+        (640, 360),
+        Duration::from_secs(3),
+        |_| false,
+    );
+    let rate = (sequence(&callee) - before) as f64 / 3.0;
+    assert!(rate <= 16.5, "a 30 fps camera was sent at {rate} fps");
     assert!(
-        pump(&mut caller, &mut callee, (640, 360), SECONDS, switched),
-        "a 640x360 camera was not sent at 480x270: {:?}",
-        latest(&callee).0
+        tallest.get() <= 270,
+        "a 640x360 camera was sent above 270p: {}",
+        tallest.get()
     );
 }
 
