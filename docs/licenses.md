@@ -17,15 +17,19 @@ when a shipped dependency brings a license outside these lists:
 - **Rust:** `cargo deny check licenses` with [deny.toml](../deny.toml) for
   `mosh-core`, `mosh-media/webrtc` and `mosh-media/capture`, dev dependencies
   excluded and all features on.
-- **Dart and Go:** [license-check.mjs](../scripts/license-check.mjs) reads the
-  license file of every non-dev Dart package outside the Flutter SDK and of
-  every Go module in Moss's `cmd/moss-ffi`. GPL, LGPL and AGPL texts, missing
-  files and unrecognised texts fail unless `REVIEWED` names the package.
+- **Dart and Go:** [license-check.mjs](../scripts/license-check.mjs) reads
+  every license file of each non-dev Dart package outside the Flutter SDK and
+  of each Go module in Moss's `cmd/moss-ffi`. GPL, LGPL and AGPL texts,
+  missing files and unrecognised texts fail unless `REVIEWED` names the
+  package.
 - **libwebrtc:** [libwebrtc-build.mjs](../scripts/libwebrtc-build.mjs) refuses
   to package a build whose generated `LICENSE.md` contains a GPL-family
   component, ffmpeg, openh264 or x264.
 
-An addition to `REVIEWED` or `deny.toml` needs a row below.
+An addition to `REVIEWED` or `deny.toml` needs a row below. Native libraries
+that Flutter plugins download (libmpv for media_kit) are outside these
+checks: review the row below when a `media_kit_libs_*` version moves in
+pubspec.lock.
 
 ## Shipped components
 
@@ -33,7 +37,7 @@ An addition to `REVIEWED` or `deny.toml` needs a row below.
 | --- | --- | --- |
 | Mosh (`lib/`, `mosh-core`, `mosh-media`) | GPL-3.0-or-later + store permission | Ours. |
 | Moss | MIT | Ours. |
-| Rust crates of `mosh-core`, the libwebrtc engine and the camera helper | MIT, Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, BSL-1.0, Unlicense, CC0 | Permissive. |
+| Rust crates of `mosh-core`, the libwebrtc engine and the camera helper | MIT, MIT-0, Apache-2.0 (also WITH LLVM-exception), 0BSD, BSD-1/2/3-Clause, ISC, Zlib, zlib-acknowledgement, Unicode-3.0, BSL-1.0, Unlicense, CC0-1.0 | Permissive. |
 | `hpke-rs` and its backends | MPL-2.0 | File-level copyleft, compatible with the GPL and the stores; its source is public and unmodified. |
 | `mozjpeg` (camera helper, desktop) | IJG | Needs the IJG acknowledgement, now in [THIRD_PARTY_NOTICES](../mosh-media/THIRD_PARTY_NOTICES.md). |
 | `r-efi` | MIT OR Apache-2.0 OR LGPL-2.1+ | Used under MIT or Apache-2.0. |
@@ -44,10 +48,10 @@ An addition to `REVIEWED` or `deny.toml` needs a row below.
 | `dbus`, `gtk` (Dart, Linux only) | MPL-2.0 | Compatible; not in Apple builds. |
 | Go modules of Moss | BSD, MIT, Apache-2.0, ISC, MPL-2.0 (anacrolix) | Permissive or file-level copyleft. |
 | `anacrolix/multiless`, `anacrolix/sync` | MPL-2.0 upstream, no file in the pinned versions | In `REVIEWED`; MOSH-79 moves Moss to versions with the file. |
-| libmpv and ffmpeg (media_kit `video-default` builds) | LGPL-2.1-or-later | Kept, linked dynamically (frameworks on Apple), as VLC ships libVLC on the App Store under the LGPL. The builds leave out GPL parts. MOSH-78 bundles the LGPL text and source links. |
+| libmpv and ffmpeg (media_kit) | LGPL-2.1-or-later; LGPL-3.0 on Windows | Kept, linked dynamically (frameworks on Apple), as VLC ships libVLC on the App Store under the LGPL. Apple and Android use the `default` builds of media-kit's libmpv-darwin-build and libmpv-android-video-build, made for playback without GPL parts; the Windows build configures ffmpeg with `--disable-gpl --enable-version3` and mpv with `-Dgpl=false`. MOSH-78 bundles the LGPL text and source links. |
 | Flutter engine and SDK packages | BSD-3-Clause and bundled components | Flutter bundles their notices in every build. |
 | Inter | SIL Open Font License 1.1 | Permissive for embedding. |
-| RingRTC call engine (`mosh-media/engine`) | AGPL-3.0-only | Not checked: never in Apple builds, which use the libwebrtc engine. MOSH-76 removes it, and then the AGPL mentions in the README, the media notices and CLA §4. |
+| RingRTC call engine (`mosh-media/engine`) | AGPL-3.0-only | Not checked, and outside the store permission. It is still the default engine, so the Microsoft Store MSIX and the RuStore APK ship it under its own AGPL terms. Apple store builds must use `MOSH_CALL_ENGINE=webrtc`. MOSH-76 makes libwebrtc the only engine and removes the AGPL mentions from the README, the media notices and CLA §4. |
 
 ## Notices
 
