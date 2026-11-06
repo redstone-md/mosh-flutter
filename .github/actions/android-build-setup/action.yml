@@ -20,19 +20,13 @@ outputs:
 runs:
   using: composite
   steps:
-    # Gradle needs a JDK; Flutter's Android toolchain expects 17+.
+    # Gradle needs a JDK; Flutter's Android toolchain expects 17+. The Gradle
+    # home is not cached: it took 2.5 GB of the 10 GB budget, and the release
+    # APK builds in 15 minutes without it (ADR 0015).
     - uses: actions/setup-java@v4
       with:
         distribution: temurin
         java-version: '21'
-
-    # Caches the Gradle home like setup-java's `cache: gradle` (same key), but
-    # saves it only from the default branch. The basic provider is the MIT
-    # one; the default provider is a proprietary library.
-    - uses: gradle/actions/setup-gradle@v6
-      with:
-        cache-provider: basic
-        add-job-summary: on-failure
 
     # Dart hooks retain HOME but deliberately filter Cargo environment variables.
     # Target-scoped Cargo config reaches the hook without patching its package.

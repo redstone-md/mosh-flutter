@@ -329,9 +329,7 @@ pull request rebuilt from nothing.
 Caches are now saved only from main; every other ref restores them. Plain
 caches are `actions/cache/restore` and `actions/cache/save` pairs with the
 save on main. `Swatinem/rust-cache` saves on main only, which replaces the
-same-repository PR saves above. Gradle moved from setup-java's cache to
-`gradle/actions/setup-gradle` with the MIT `basic` provider: the same key
-and paths, but read-only off the default branch.
+same-repository PR saves above.
 
 Main's own set was about 16 GB, so it would still evict itself. Only jobs on
 the critical path keep build caches: the desktop, Android and macOS app
@@ -358,3 +356,12 @@ repository's caches exceed 8 GB, the budget main's set is meant to stay under.
 Without their caches the call-engine jobs download the libwebrtc build,
 pinned sources and protoc on every run. These downloads now go through one
 checksummed downloader that retries dropped, truncated and 5xx responses.
+
+The first main run with this set saved 9.9 GB, over budget: the universal
+macOS cargokit build alone is 2.5 GB, and the Gradle home another 2.5 GB.
+The macOS entry stays, since it takes the DMG job from 42 to 13 minutes on
+the critical path. The Gradle home cache is gone (it had moved to
+`gradle/actions/setup-gradle` for its read-only mode): in that run every
+Android job missed it after a build-file change, and the signed release APKs
+still finished in 15 minutes, against a 28-minute critical path. Main's set
+is then about 7.5 GB.
