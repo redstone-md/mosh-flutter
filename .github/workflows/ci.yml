@@ -101,9 +101,9 @@ jobs:
         run: sudo apt-get update -q && sudo apt-get install -y -q libasound2-dev libudev-dev libclang-dev
       - name: Build packaged engine and camera helper
         run: node scripts/native-media-build.mjs
-      - name: macOS packaging command regressions
+      - name: Packaging and CI script regressions
         if: runner.os == 'Linux'
-        run: node --test scripts/macos-package.test.mjs scripts/msix-manifest.test.mjs scripts/plus-build-config.test.mjs scripts/store-listing.test.mjs
+        run: node --test scripts/macos-package.test.mjs scripts/msix-manifest.test.mjs scripts/plus-build-config.test.mjs scripts/store-listing.test.mjs scripts/cache-cleanup.test.mjs
       - name: Native Rust format, lint and tests
         shell: bash
         run: |
@@ -459,7 +459,7 @@ jobs:
           key: ${{ steps.android-setup.outputs.cargo-cache-key }}
 
       - uses: actions/cache/save@v4
-        if: matrix.engine == 'ringrtc' && steps.android-setup.outputs.webrtc-cache-hit != 'true' && github.ref == 'refs/heads/main'
+        if: matrix.engine != 'webrtc' && steps.android-setup.outputs.webrtc-cache-hit != 'true' && github.ref == 'refs/heads/main'
         with:
           path: .dart_tool/android-media/webrtc
           key: ${{ steps.android-setup.outputs.webrtc-cache-key }}

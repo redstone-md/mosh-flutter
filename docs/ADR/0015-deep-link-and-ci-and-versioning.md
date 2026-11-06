@@ -343,7 +343,13 @@ builds and the Rust core jobs. Removed:
   They take 11-17 minutes cold, against a critical path of about 28 minutes
   on pull requests and 43 on main.
 - the license, widget-test hook and network-diagnostics caches, and the Go
-  module cache, which the moss library cache already skips.
+  module cache: setup-go cannot make it read-only, and the moss library
+  cache skips the Go build everywhere but the license job.
 
-When a key changes, main saves a new entry and the old one is no longer
-read, so it is the first evicted and expires after 7 days unused.
+`taiki-e/cache-cargo-install-action` still saves from any ref, but only
+when its pinned tool version misses, a few megabytes per version bump.
+
+When a key's hash changes, main saves a new entry and nothing reads the old
+one again. [cache-cleanup.yml](../../.github/workflows/cache-cleanup.yml)
+runs after CI on main and deletes every main entry that a newer entry of the
+same key, its trailing hashes aside, has replaced.

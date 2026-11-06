@@ -106,9 +106,7 @@ jobs:
             .dart_tool/native-sources
             .dart_tool/native-tools
           key: native-app-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mosh-media/**/Cargo.lock', 'third_party/*-patches/source.json', 'third_party/*-patches/mosh.patch') }}
-          restore-keys: |
-            native-app-${{ runner.os }}-${{ runner.arch }}-
-            native-call-${{ runner.os }}-${{ runner.arch }}-
+          restore-keys: native-app-${{ runner.os }}-${{ runner.arch }}-
 
       # cargokit compiles mosh-core into the pod target's Xcode temp dir
       # (TARGET_TEMP_DIR, .../Pods.build/<config>/mosh_core.build), which the

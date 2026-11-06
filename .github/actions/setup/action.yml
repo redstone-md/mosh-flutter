@@ -48,8 +48,8 @@ runs:
 
     # moss-prepare pins GOTOOLCHAIN=go1.25.9; installing that exact version
     # makes the toolchain directive a no-op (no on-the-fly download). No Go
-    # cache: the moss library cache below skips the Go build, and the Go cache
-    # would be saved from pull requests too.
+    # cache: setup-go would save it from pull requests too, and the moss
+    # library cache below skips the Go build in every job but the license one.
     - if: inputs.moss != 'none' || inputs.go == 'true'
       uses: actions/setup-go@v5
       with:

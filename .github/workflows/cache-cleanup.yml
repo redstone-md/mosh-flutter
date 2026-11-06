@@ -1,0 +1,30 @@
+name: Cache cleanup
+
+# Deletes main's cache entries that a newer entry of the same key replaced
+# (ADR 0015, MOSH-80). Runs after every CI run on main, failed ones too: their
+# successful jobs have already saved.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    if: github.repository == 'redstone-md/mosh-flutter' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/cache-cleanup.mjs
+          sparse-checkout-cone-mode: false
+      - name: Delete superseded main caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/cache-cleanup.mjs
