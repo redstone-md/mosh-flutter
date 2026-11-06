@@ -14,6 +14,7 @@ and the Flutter/Rust bridge.
 | Video calls | [Issue 46 plan and acceptance](Proposals/issue-46-video-calls.plan.md), [interface and motion](Proposals/issue-46-call-interface.design.md), [native feasibility results](Proposals/issue-46-native-media.results.md) |
 | Architecture decisions | [ADRs](ADR/) |
 | Test maintenance | [Value, waiting and CI policy](testing.md) |
+| Licenses | [Dependency audit and the app store permission](licenses.md) |
 | Domain terms | [Domain glossary](../CONTEXT.md), [feature glossary](../GLOSSARY.md), [Flutter glossary](flutter-fork-glossary.md) |
 | Visual assets | [Sources and regeneration](assets/README.md), [store listings](Features/store-listings.md) |
 

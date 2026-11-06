@@ -47,6 +47,37 @@ jobs:
           python3 -B -m unittest discover -s scripts -p test_test_policy.py
           python3 scripts/test-policy.py
 
+  # Store builds rest on every shipped dependency allowing the app store
+  # exception in LICENSE (docs/licenses.md). cargo-deny reads the Rust graphs,
+  # which need the patched path sources in place.
+  licenses:
+    name: Dependency licenses
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup
+        with:
+          moss: none
+          go: 'true'
+          rust-cache-key: licenses
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.20.2
+      - name: Rust crates
+        run: |
+          node scripts/livekit-webrtc-prepare.mjs
+          node scripts/native-camera-prepare.mjs
+          for crate in mosh-core mosh-media/webrtc mosh-media/capture; do
+            cargo deny --manifest-path "$crate/Cargo.toml" --config deny.toml check licenses
+          done
+      - name: Dart packages and Go modules
+        run: |
+          node --test scripts/license-check.test.mjs
+          node scripts/license-check.mjs
+
   native-call-media:
     name: Native call media (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
