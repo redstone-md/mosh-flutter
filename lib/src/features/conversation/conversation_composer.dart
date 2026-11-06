@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, kLiveNumberFontFeatures;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart'
     show PasteAttachmentAction, readSystemClipboard;
@@ -21,6 +22,9 @@ const double kComposerButtonSize = 32;
 /// address it by key rather than by text.
 const Key kComposerSendButtonKey = Key('composer-send-button');
 
+/// The counter shows once this few characters are left.
+const int kComposerCounterThreshold = 200;
+
 /// The production input pick: mosh-core's audio-devices store. A top-level
 /// default (not inline) so the composer stays const-constructible.
 String? _storedComposerInputDeviceId() => audioInputDeviceId();
@@ -36,6 +40,8 @@ class ConversationComposer extends StatelessWidget {
     required this.placeholder,
     required this.sendLabel,
     required this.onSend,
+    this.maxTextChars,
+    required this.lengthLabel,
     required this.attachLabel,
     required this.onAttach,
     required this.onAttachmentPickError,
@@ -62,6 +68,15 @@ class ConversationComposer extends StatelessWidget {
   final String placeholder;
   final String sendLabel;
   final VoidCallback onSend;
+
+  /// The longest text the runtime accepts, in characters (Unicode scalar
+  /// values, as mosh-core counts them). Send stays off above it; null means
+  /// no limit and no counter.
+  final int? maxTextChars;
+
+  /// Reads the counter aloud. `remaining` is negative when the draft is over
+  /// the limit.
+  final String Function(int remaining) lengthLabel;
   final String attachLabel;
   final AttachmentPickedCallback onAttach;
   final AttachmentPickErrorCallback onAttachmentPickError;
@@ -112,7 +127,8 @@ class ConversationComposer extends StatelessWidget {
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: controller,
         builder: (context, value, _) {
-          final enabled = !disabled && value.text.trim().isNotEmpty;
+          final remaining = _remaining(value.text);
+          final enabled = _sendable(value.text);
           // The control group uses 16px corners around 8px control corners.
           return Container(
             constraints: const BoxConstraints(minHeight: 54),
@@ -179,9 +195,7 @@ class ConversationComposer extends StatelessWidget {
                         }
                       },
                       onSubmitted: (_) {
-                        if (!disabled && controller.text.trim().isNotEmpty) {
-                          onSend();
-                        }
+                        if (_sendable(controller.text)) onSend();
                       },
                       // A bare 13px field on the box's own background -- no
                       // border, no fill of its own.
@@ -202,6 +216,19 @@ class ConversationComposer extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (remaining != null &&
+                    remaining <= kComposerCounterThreshold) ...[
+                  const SizedBox(width: kComposerGap),
+                  Text(
+                    '$remaining',
+                    semanticsLabel: lengthLabel(remaining),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontFeatures: kLiveNumberFontFeatures,
+                      color: remaining < 0 ? MoshColors.danger : MoshColors.fg3,
+                    ),
+                  ),
+                ],
                 const SizedBox(width: kComposerGap),
                 // Moss 32px send button, dropping to bg-3/fg-4 when
                 // disabled. The painted square is 32x32; the theme's M3
@@ -243,6 +270,14 @@ class ConversationComposer extends StatelessWidget {
         },
       ),
     );
+  }
+
+  bool _sendable(String text) =>
+      !disabled && text.trim().isNotEmpty && (_remaining(text) ?? 0) >= 0;
+
+  int? _remaining(String text) {
+    final limit = maxTextChars;
+    return limit == null ? null : limit - text.runes.length;
   }
 }
 

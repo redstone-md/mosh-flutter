@@ -74,8 +74,31 @@ pub struct BridgeAttachmentPayload {
     pub voice: Option<VoiceMeta>,
 }
 
-/// Send a text message into the conversation.
+/// The longest text any conversation accepts, in characters (Unicode scalar
+/// values). Four bytes a character still leaves the encrypted envelope far
+/// under the 64 KiB network limit, so a text this long always fits.
+const MAX_TEXT_CHARS: u32 = 4096;
+
+/// The composer reads this so it can stop a text before it is sent.
+#[frb(sync)]
+pub fn max_text_chars() -> u32 {
+    MAX_TEXT_CHARS
+}
+
+fn admit_text(body: &str) -> Result<(), ConversationBridgeError> {
+    if body.chars().count() > MAX_TEXT_CHARS as usize {
+        return Err(ConversationBridgeError::new(
+            ConversationBridgeErrorKind::PayloadTooLarge,
+            format!("a text is at most {MAX_TEXT_CHARS} characters"),
+        ));
+    }
+    Ok(())
+}
+
+/// Send a text message into the conversation. A text over [`max_text_chars`]
+/// is refused before any runtime files it.
 pub fn send(reference: BridgeConversationRef, body: String) -> Result<(), ConversationBridgeError> {
+    admit_text(&body)?;
     let _authority =
         super::background::admit_user_work().map_err(ConversationBridgeError::unavailable)?;
     match reference.kind {

@@ -172,6 +172,24 @@
   "@chatComposerPlaceholder": {
     "description": "Placeholder for the message composer"
   },
+  "chatComposerCharactersLeft": "{count, plural, =1{1 character left} other{{count} characters left}}",
+  "@chatComposerCharactersLeft": {
+    "description": "Screen reader text for the composer counter near the length limit",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatComposerCharactersOver": "{count, plural, =1{1 character over the limit} other{{count} characters over the limit}}",
+  "@chatComposerCharactersOver": {
+    "description": "Screen reader text for the composer counter when the draft is over the length limit",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chatSendLabel": "Send",
   "@chatSendLabel": {
     "description": "Label for the send button"

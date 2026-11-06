@@ -19,7 +19,9 @@ void main() {
   Future<void> pump(WidgetTester tester,
       {required bool sending,
       required bool disabled,
-      required TextEditingController c}) async {
+      required TextEditingController c,
+      int maxTextChars = 4096,
+      VoidCallback? onSend}) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: ConversationComposer(
@@ -28,7 +30,9 @@ void main() {
           disabled: disabled,
           placeholder: 'p',
           sendLabel: 'Send',
-          onSend: () {},
+          onSend: onSend ?? () {},
+          maxTextChars: maxTextChars,
+          lengthLabel: (remaining) => '$remaining left',
           attachLabel: 'a',
           onAttach: noAttach,
           onAttachmentPickError: (_) {},
@@ -71,5 +75,40 @@ void main() {
     final FilledButton b = tester.widget(find.byType(FilledButton));
     expect(b.onPressed, isNotNull);
     expect(tester.widget<TextField>(find.byType(TextField)).enabled, isTrue);
+  });
+
+  testWidgets('the counter appears near the limit and counts characters',
+      (tester) async {
+    final c = TextEditingController(text: 'hi');
+    await pump(tester,
+        sending: false, disabled: false, c: c, maxTextChars: 300);
+    expect(find.text('298'), findsNothing);
+
+    c.text = '😀' * 150;
+    await tester.pump();
+    expect(find.text('150'), findsOneWidget);
+    expect(find.bySemanticsLabel('150 left'), findsOneWidget);
+  });
+
+  testWidgets('a text over the limit cannot be sent', (tester) async {
+    var sent = 0;
+    final c = TextEditingController(text: 'x' * 12);
+    await pump(tester,
+        sending: false,
+        disabled: false,
+        c: c,
+        maxTextChars: 10,
+        onSend: () => sent++);
+    expect(find.text('-2'), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNull);
+    await tester.showKeyboard(find.byType(TextField));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    expect(sent, 0);
+
+    c.text = 'x' * 10;
+    await tester.pump();
+    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNotNull);
   });
 }

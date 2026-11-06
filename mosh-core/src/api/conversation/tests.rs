@@ -9,8 +9,8 @@
 //! returning some other kind's error.
 
 use super::{
-    cancel_attachment, download_attachment, leave, retry, send, send_attachment,
-    BridgeAttachmentPayload, BridgeConversationKind, BridgeConversationRef,
+    admit_text, cancel_attachment, download_attachment, leave, max_text_chars, retry, send,
+    send_attachment, BridgeAttachmentPayload, BridgeConversationKind, BridgeConversationRef,
 };
 use crate::api::conversation_bridge::ConversationBridgeErrorKind;
 use crate::moss_ffi::{clear_moss_keystore, MOSS_TEST_LOCK};
@@ -226,6 +226,21 @@ fn send_attachment_rejects_an_undecodable_payload() {
         "message should say the payload was not base64; was: {}",
         error.message
     );
+}
+
+/// The limit counts characters, not bytes: a text of emoji at the limit is
+/// accepted up to the runtime, one character more is refused before it.
+#[test]
+fn send_refuses_a_text_over_the_limit_before_any_runtime() {
+    let limit = max_text_chars() as usize;
+    let error = send(
+        conv_ref(BridgeConversationKind::Channel, "any-channel"),
+        "😀".repeat(limit + 1),
+    )
+    .unwrap_err();
+    assert_eq!(error.kind, ConversationBridgeErrorKind::PayloadTooLarge);
+
+    assert!(admit_text(&"😀".repeat(limit)).is_ok());
 }
 
 /// All six actions against one real DM session living inside the real

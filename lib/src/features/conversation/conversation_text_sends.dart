@@ -6,6 +6,11 @@ import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
+/// The longest text a send accepts, in characters. Production supplies
+/// mosh-core's `max_text_chars`; null (tests without the native library)
+/// leaves the composer unbounded.
+final maxTextCharsProvider = Provider<int?>((ref) => null);
+
 final conversationTextSendsProvider = NotifierProvider.family<
     ConversationTextSends, ConversationTextSendState, AnyConversationTarget>(
   ConversationTextSends.new,

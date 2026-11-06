@@ -73,6 +73,12 @@ stateDiagram-v2
 
 ## A text on its way out
 
+A text is at most 4096 characters in every conversation kind
+(`max_text_chars` in `api/conversation`). The composer shows how many are left
+once 200 remain and keeps Send off above the limit; the bridge refuses a longer
+text before any runtime files it. Even at four bytes a character the encrypted
+envelope stays far under the 64 KiB network limit.
+
 A DM text first persists its admission as `Pending`. Refused admission returns
 `Persistence`, settles `Failed`, and does not publish. Accepted admission becomes
 `Queued`. The runtime's tick sends queued texts oldest first while
