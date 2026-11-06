@@ -170,6 +170,37 @@ fn a_refused_publish_leaves_the_text_queued_not_failed() {
     );
 }
 
+// A text too large for one network payload can never go out. It fails once
+// with the reason instead of being re-encrypted on every tick, and the texts
+// after it are not held behind it.
+#[test]
+fn an_oversized_text_fails_and_does_not_block_the_queue() {
+    let (_net, mut alice, mut bob) = memory_pair();
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+
+    let oversized = alice
+        .send_message(
+            &invite.session_id,
+            "x".repeat(crate::conversation::MAX_PUBLISH_BYTES),
+        )
+        .expect("admission does not depend on size");
+    assert_eq!(oversized.delivery_status, MessageDeliveryStatus::Failed);
+    assert_eq!(
+        oversized.delivery_error.as_deref(),
+        Some("message metadata exceeds the network payload limit")
+    );
+    let next = alice
+        .send_message(&invite.session_id, "after".to_string())
+        .expect("a text never fails to queue");
+    assert_eq!(next.delivery_status, MessageDeliveryStatus::Sent);
+    assert_eq!(
+        bodies_from(&mut bob, &invite.session_id, "Alice"),
+        vec!["after"]
+    );
+}
+
 // Closing the laptop must not lose what was typed: a queued text is on disk
 // as Queued, comes back Queued, and leaves once the pair connects.
 #[test]

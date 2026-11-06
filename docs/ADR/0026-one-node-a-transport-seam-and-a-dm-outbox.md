@@ -100,6 +100,11 @@ connect. The auto-resend of unacknowledged `Sent` messages is unchanged.
 defines. A text never reaches `Failed` from a transport refusal; Retry shows
 only for `Failed`, and a manual retry on a text re-queues it.
 
+A text whose envelope exceeds the 64 KiB publication limit is not a refusal:
+no retry can make it fit. It settles `Failed` with that reason and the pass
+goes on to the next queued text. Left `Queued`, it was re-encrypted and
+re-saved on every tick while every later text in the chat waited behind it.
+
 ## Consequences
 
 - One installation is one node. Telemetry shows a peer id with exactly one mesh
