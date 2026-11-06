@@ -180,36 +180,6 @@ jobs:
         if: runner.os == 'Linux'
         run: node scripts/webrtc-voice-check.mjs .dart_tool/native-media/debug/libmosh_native_media.so
 
-  # The libwebrtc engine builds for Android arm64 with our libwebrtc and
-  # packages its Java classes.
-  native-call-webrtc-android:
-    name: libwebrtc call engine (Android arm64)
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
-        with:
-          flutter: 'false'
-          moss: none
-          rust-cache-key: native-call-android
-      - uses: actions/cache@v4
-        with:
-          path: |
-            .dart_tool/native-media/target-webrtc
-            .dart_tool/native-sources
-            .dart_tool/libwebrtc
-          key: native-call-webrtc-android-${{ hashFiles('mosh-media/webrtc/Cargo.lock', 'third_party/libwebrtc-build/build.json', 'third_party/webrtc-sys-patches/mosh.patch', 'third_party/libwebrtc-patches/mosh.patch') }}
-          restore-keys: native-call-webrtc-android-
-      - name: Build the engine
-        env:
-          MOSH_CALL_ENGINE: webrtc
-        run: |
-          rustup target add aarch64-linux-android
-          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" > /dev/null
-          export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/28.2.13676358"
-          node scripts/android-native-media-build.mjs
-
   rust-core:
     name: Rust core (fmt + clippy + test)
     runs-on: windows-latest
@@ -434,10 +404,18 @@ jobs:
           Get-ChildItem -Path ([System.IO.Path]::GetTempPath()) -Directory -Filter 'mosh-native-link-*' |
             Remove-Item -Recurse -Force
 
+  # One APK per call engine until the libwebrtc engine becomes the default
+  # (MOSH-76).
   android-build:
-    name: Android APK (arm64, debug)
+    name: Android APK (arm64, debug, ${{ matrix.engine }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [ringrtc, webrtc]
+    env:
+      MOSH_CALL_ENGINE: ${{ matrix.engine }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -445,6 +423,16 @@ jobs:
 
       - id: android-setup
         uses: ./.github/actions/android-build-setup
+
+      - if: matrix.engine == 'webrtc'
+        uses: actions/cache@v4
+        with:
+          path: |
+            .dart_tool/native-media/target-webrtc
+            .dart_tool/native-sources
+            .dart_tool/libwebrtc
+          key: native-call-webrtc-android-${{ hashFiles('mosh-media/webrtc/Cargo.lock', 'third_party/libwebrtc-build/build.json', 'third_party/webrtc-sys-patches/mosh.patch', 'third_party/libwebrtc-patches/mosh.patch') }}
+          restore-keys: native-call-webrtc-android-
 
       # --target-platform is REQUIRED, not an optimisation: jniLibs only
       # carries an arm64-v8a libmoss.so, so a default all-ABI build would
@@ -461,7 +449,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mosh-debug-arm64-apk
+          name: mosh-debug-arm64-${{ matrix.engine }}-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
 

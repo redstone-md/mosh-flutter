@@ -299,7 +299,7 @@ setup and the camera tests through mosh-core over real Moss (the same
 two Moss nodes, heard in both
 directions, with the microphone on from the start and switched on only after
 connecting
-(`scripts/webrtc-voice-check.mjs`) and the Android arm64 build.
+(`scripts/webrtc-voice-check.mjs`) and a debug Android arm64 APK built beside the RingRTC one.
 
 ```sh
 node scripts/native-media-build.mjs
