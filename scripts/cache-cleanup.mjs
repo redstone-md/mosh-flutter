@@ -16,11 +16,10 @@ const family = (key) => key.replace(/(-[0-9a-f]{8,})+$/, "");
  */
 export function staleCaches(entries) {
   const newest = new Map();
-  for (const entry of entries) {
-    const current = newest.get(family(entry.key));
-    if (!current || entry.createdAt > current.createdAt) newest.set(family(entry.key), entry);
+  for (const { key, createdAt } of entries) {
+    if (!(newest.get(family(key)) >= createdAt)) newest.set(family(key), createdAt);
   }
-  return entries.filter((entry) => newest.get(family(entry.key)) !== entry).map(({ id }) => id);
+  return entries.filter(({ key, createdAt }) => createdAt < newest.get(family(key))).map(({ id }) => id);
 }
 
 /** Main's caches should leave this much of the 10 GB for stale and PR entries. */
