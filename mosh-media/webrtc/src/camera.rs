@@ -1,5 +1,5 @@
 //! Share libwebrtc's libyuv with Android's bounded camera adapter.
-use crate::abi::MAX_RGBA_BYTES;
+use crate::frames::MAX_RGBA_BYTES;
 use libwebrtc::native::yuv_helper::i420_to_abgr;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 

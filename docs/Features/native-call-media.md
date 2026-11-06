@@ -60,7 +60,7 @@ name, and a build packages one of them. RingRTC (`mosh-media/engine`) is
 the default. `MOSH_CALL_ENGINE=webrtc` packages the replacement
 (`mosh-media/webrtc`, epic MOSH-70): Google's libwebrtc through LiveKit's
 bindings, linked against [our libwebrtc build](../../third_party/libwebrtc-build/README.md)
-without H.264. It is voice only for now (video is MOSH-72). Its media is
+without its software H.264 (OpenH264, FFmpeg). Its media is
 DTLS-SRTP with the certificate fingerprint inside the MLS-authenticated
 description ([ADR 0051](../ADR/0051-dtls-srtp-with-mls-authenticated-fingerprints.md)),
 its packets cross the same virtual network over Moss, and it sends 20 ms
@@ -78,6 +78,26 @@ The offer leaves the legacy offerToReceiveAudio unset: the bindings' default
 of false made it send-only, so the callee was never heard. The call log
 records when the microphone starts or stops capturing sound, when the peer's
 audio starts or stops arriving, and the selected devices.
+
+Video in that engine takes the same RGBA camera frames and returns the
+peer's latest decoded frame as RGBA, so mosh-core, the capture helper and
+the call window are unchanged. Frames enter libwebrtc as I420; the send
+budget sets the sender's frame-rate limit and downscale (720p30 direct,
+360p15 between 300 and 600 kbit/s, 270p15 relayed, measured on the
+frame's shorter side so portrait cameras fit the same box), and
+libwebrtc's congestion control degrades from there. A camera that is off
+pauses the sender, so a voice call sends no video at all (LiveKit's video
+source would otherwise feed black frames until the first camera frame).
+Codecs are ranked per call: whatever this device encodes in hardware
+(VideoToolbox on Apple, MediaCodec on Android, VAAPI or NVENC on Linux
+when present), then VP9, then the rest; negotiation keeps the first one
+both sides can send and receive. Two Macs should therefore use hardware
+H.264 and a Mac with a Windows PC VP9; the macOS CI job runs whatever
+VideoToolbox offers its runner, the Linux and Windows jobs VP9. VP9 is RingRTC's choice too: on the relay
+regression both engines send 480x270 at 15 fps and decode about 120
+frames in the measured eight seconds without loss, where VP8 dropped
+libwebrtc to 360x198. The call log's `encoder` statistics report the
+codec, its implementation and whether it is hardware.
 On Android the app
 loads the engine from Java so libwebrtc's JNI code finds its classes;
 `android/app/src/<engine>` holds the engine-specific Kotlin.
@@ -268,8 +288,10 @@ with executable permission on the helper. Do not ship the test camera driver.
 With `MOSH_CALL_ENGINE=webrtc` (or `--engine webrtc`) the same commands and
 the Android build package the libwebrtc engine. Linux needs `CC`/`CXX` set
 to clang 21 or later for libwebrtc's hermetic libc++. CI checks that engine
-in its own jobs: lint and loopback, call setup through mosh-core over real
-Moss, a voice call between PulseAudio devices over two Moss nodes, heard in both
+in its own jobs: lint and engine tests, the relay video regression, call
+setup and the camera tests through mosh-core over real Moss (the same
+`native_` tests as RingRTC), a voice call between PulseAudio devices over
+two Moss nodes, heard in both
 directions, with the microphone on from the start and switched on only after
 connecting
 (`scripts/webrtc-voice-check.mjs`) and the Android arm64 build.

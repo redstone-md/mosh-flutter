@@ -1,8 +1,8 @@
 //! Audio devices through libwebrtc's platform audio module, and Opus as
 //! Mosh sends it.
 use anyhow::Result;
-use libwebrtc::peer_connection::PeerConnection;
 use libwebrtc::peer_connection_factory::{PeerConnectionFactory, native::PeerConnectionFactoryExt};
+use libwebrtc::rtp_transceiver::RtpTransceiver;
 use serde_json::{Value, json};
 
 pub fn devices(factory: &PeerConnectionFactory) -> Value {
@@ -74,15 +74,12 @@ fn restart_playout(factory: &PeerConnectionFactory, choose: impl FnOnce() -> boo
 /// across runs, for about 21 kbit/s. DTX was left off: it cost RED most of
 /// that gain. Longer packets cut the 50 packets/s but add delay and
 /// concealment. docs/Features/native-call-media.md records the choice.
-pub fn prefer_red(factory: &PeerConnectionFactory, pc: &PeerConnection) -> Result<()> {
+pub fn prefer_red(factory: &PeerConnectionFactory, transceiver: &RtpTransceiver) -> Result<()> {
     let mut codecs = factory
         .get_rtp_sender_capabilities(libwebrtc::MediaType::Audio)
         .codecs;
     codecs.sort_by_key(|codec| !codec.mime_type.eq_ignore_ascii_case("audio/red"));
-    for transceiver in pc.transceivers() {
-        transceiver
-            .set_codec_preferences(codecs.clone())
-            .map_err(|error| anyhow::anyhow!("codec preferences: {error:?}"))?;
-    }
-    Ok(())
+    transceiver
+        .set_codec_preferences(codecs)
+        .map_err(|error| anyhow::anyhow!("codec preferences: {error:?}"))
 }
