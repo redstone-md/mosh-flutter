@@ -10,6 +10,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { disallowedSections } from "./license-check.mjs";
 import { prepareLiveKitWebrtc } from "./livekit-webrtc-prepare.mjs";
 import { libwebrtcTarget } from "./support/libwebrtc-targets.mjs";
 
@@ -41,6 +42,9 @@ target_os = ["${os}"]
 const args = ["--arch", target.arch, "--profile", "release"];
 if (target.script === "windows") run("cmd", ["/c", path.join(scripts, "build_windows.cmd"), ...args], work);
 else run("bash", [path.join(scripts, `build_${target.script}.sh`), ...args], work);
+// Store builds bundle this list as WEBRTC-LICENSE.md (docs/licenses.md).
+const disallowed = disallowedSections(await readFile(path.join(work, target.directory, "LICENSE.md"), "utf8"));
+if (disallowed.length) throw new Error(`libwebrtc contains ${disallowed.join(", ")}`);
 const output = path.resolve(values.output);
 await mkdir(output, { recursive: true });
 const archive = path.join(output, target.archive);
