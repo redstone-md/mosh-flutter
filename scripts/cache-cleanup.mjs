@@ -23,11 +23,17 @@ export function staleCaches(entries) {
   return entries.filter((entry) => newest.get(family(entry.key)) !== entry).map(({ id }) => id);
 }
 
+/** Main's caches should leave this much of the 10 GB for stale and PR entries. */
+const BUDGET_BYTES = 8 * 1024 ** 3;
+
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  const gh = (...args) => execFileSync("gh", ["cache", ...args], { encoding: "utf8" });
-  const entries = JSON.parse(gh("list", "--ref", "refs/heads/main", "--limit", "1000",
+  const gh = (...args) => execFileSync("gh", args, { encoding: "utf8" });
+  const entries = JSON.parse(gh("cache", "list", "--ref", "refs/heads/main", "--limit", "1000",
     "--json", "id,key,createdAt"));
   const stale = staleCaches(entries);
-  for (const id of stale) gh("delete", String(id));
-  console.log(`cache-cleanup: ${entries.length} main entries, deleted ${stale.length} superseded`);
+  for (const id of stale) gh("cache", "delete", String(id));
+  const { active_caches_size_in_bytes: used } = JSON.parse(gh("api", `repos/${process.env.GH_REPO}/actions/cache/usage`));
+  const gigabytes = (used / 1024 ** 3).toFixed(1);
+  console.log(`cache-cleanup: ${entries.length} main entries, deleted ${stale.length} superseded, ${gigabytes} GB in use`);
+  if (used > BUDGET_BYTES) console.log(`::warning::Actions caches use ${gigabytes} GB, over the 8 GB budget (ADR 0015)`);
 }

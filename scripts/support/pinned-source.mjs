@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { copyFile, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { withSourceLock } from "./source-lock.mjs";
+import { downloadVerified } from "./verified-download.mjs";
 
 const stampName = ".mosh-source.json";
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -58,10 +59,7 @@ async function loadArchive(spec, cacheDir, label, offline) {
     if (offline) throw new Error(`${label} archive checksum mismatch`);
   }
   if (offline) throw new Error(`Offline archive missing: ${archive}`);
-  const response = await fetch(spec.url, { signal: AbortSignal.timeout(60_000) });
-  if (!response.ok) throw new Error(`Download failed: ${response.status} ${spec.url}`);
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (sha256(bytes) !== spec.archiveSha256) throw new Error(`${label} archive checksum mismatch`);
+  const bytes = await downloadVerified(spec.url, spec.archiveSha256, { timeoutMs: 60_000 });
   const staging = await mkdtemp(path.join(cacheDir, "archive-"));
   try {
     const downloaded = path.join(staging, "source.crate");

@@ -103,7 +103,7 @@ jobs:
         run: node scripts/native-media-build.mjs
       - name: Packaging and CI script regressions
         if: runner.os == 'Linux'
-        run: node --test scripts/macos-package.test.mjs scripts/msix-manifest.test.mjs scripts/plus-build-config.test.mjs scripts/store-listing.test.mjs scripts/cache-cleanup.test.mjs
+        run: node --test scripts/macos-package.test.mjs scripts/msix-manifest.test.mjs scripts/plus-build-config.test.mjs scripts/store-listing.test.mjs scripts/cache-cleanup.test.mjs scripts/verified-download.test.mjs
       - name: Native Rust format, lint and tests
         shell: bash
         run: |

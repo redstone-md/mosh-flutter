@@ -352,4 +352,9 @@ when its pinned tool version misses, a few megabytes per version bump.
 When a key's hash changes, main saves a new entry and nothing reads the old
 one again. [cache-cleanup.yml](../../.github/workflows/cache-cleanup.yml)
 runs after CI on main and deletes every main entry that a newer entry of the
-same key, its trailing hashes aside, has replaced.
+same key, its trailing hashes aside, has replaced. It warns when the
+repository's caches exceed 8 GB, the budget main's set is meant to stay under.
+
+Without their caches the call-engine jobs download the libwebrtc build,
+pinned sources and protoc on every run. These downloads now go through one
+checksummed downloader that retries dropped, truncated and 5xx responses.

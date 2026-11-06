@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { withSourceLock } from "./source-lock.mjs";
+import { downloadVerified } from "./verified-download.mjs";
 
 const artifacts = {
   "linux-x64": ["linux-x86_64", "121f6c7afe1d4d0e3ea6aab9432038599250134cbf4474cb1167d2c7decd4278"],
@@ -28,11 +29,8 @@ export async function nativeProtoc(root) {
     const archive = path.join(directory, name);
     let bytes = await readFile(archive).catch(() => null);
     if (!bytes || hash(bytes) !== spec[1]) {
-      const response = await fetch(`https://github.com/protocolbuffers/protobuf/releases/download/v36.2/${name}`,
-        { signal: AbortSignal.timeout(60_000) });
-      if (!response.ok) throw new Error(`protoc download failed: ${response.status}`);
-      bytes = Buffer.from(await response.arrayBuffer());
-      if (hash(bytes) !== spec[1]) throw new Error("protoc archive checksum mismatch");
+      bytes = await downloadVerified(`https://github.com/protocolbuffers/protobuf/releases/download/v36.2/${name}`,
+        spec[1], { timeoutMs: 60_000 });
       await writeFile(archive, bytes);
     }
     const command = process.platform === "darwin" ? "/usr/bin/ditto" : process.platform === "win32"
