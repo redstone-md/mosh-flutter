@@ -121,10 +121,16 @@ jobs:
 
       # Preserve expensive native compilation even if package validation fails.
       - uses: actions/cache/save@v4
-        if: steps.android-setup.outputs.cargo-cache-hit != 'true'
+        if: steps.android-setup.outputs.cargo-cache-hit != 'true' && github.ref == 'refs/heads/main'
         with:
           path: build/mosh_core/build
           key: ${{ steps.android-setup.outputs.cargo-cache-key }}
+
+      - uses: actions/cache/save@v4
+        if: inputs.call-engine != 'webrtc' && steps.android-setup.outputs.webrtc-cache-hit != 'true' && github.ref == 'refs/heads/main'
+        with:
+          path: .dart_tool/android-media/webrtc
+          key: ${{ steps.android-setup.outputs.webrtc-cache-key }}
 
       - name: Prove release signing refuses missing credentials
         shell: bash

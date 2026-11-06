@@ -98,7 +98,8 @@ jobs:
           rust-cache-key: macos
 
       # Reuse both release slices and the debug engine used by menu tests.
-      - uses: actions/cache@v4
+      - id: native-app
+        uses: actions/cache/restore@v4
         with:
           path: |
             .dart_tool/native-media/target
@@ -113,7 +114,8 @@ jobs:
       # (TARGET_TEMP_DIR, .../Pods.build/<config>/mosh_core.build), which the
       # cargo cache above does not see. Keyed on the lockfile and toolchain;
       # a stale hit is safe, cargo re-fingerprints.
-      - uses: actions/cache@v4
+      - id: cargokit
+        uses: actions/cache/restore@v4
         with:
           path: build/macos/**/mosh_core.build
           key: cargokit-macos-release-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
@@ -131,7 +133,7 @@ jobs:
       # because its vendored configure cannot cross-compile opus for the
       # x86_64 slice. Built once and cached on the script + crate version.
       - id: opus
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: third_party/opus-macos-universal
           key: opus-macos-universal-audiopus_sys-0.1.8-${{ hashFiles('scripts/opus-prepare-macos.sh') }}
@@ -139,6 +141,12 @@ jobs:
       - if: steps.opus.outputs.cache-hit != 'true'
         name: Build libopus.a (macOS universal)
         run: bash scripts/opus-prepare-macos.sh
+
+      - if: steps.opus.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: third_party/opus-macos-universal
+          key: ${{ steps.opus.outputs.cache-primary-key }}
 
       # CI builds only prove the app still packages; release.yml builds the
       # shipped artifact with the profile as committed. Fat LTO stays here
@@ -177,6 +185,21 @@ jobs:
           "--dart-define=MOSH_PLUS_NETWORK=$MOSH_PLUS_NETWORK"
           "--dart-define=MOSH_PLUS_SERVER_URL=$MOSH_PLUS_SERVER_URL"
           "--dart-define=MOSH_PLUS_ISSUER_KEY=$MOSH_PLUS_ISSUER_KEY"
+
+      - if: steps.native-app.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .dart_tool/native-media/target
+            .dart_tool/native-sources
+            .dart_tool/native-tools
+          key: ${{ steps.native-app.outputs.cache-primary-key }}
+
+      - if: steps.cargokit.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: build/macos/**/mosh_core.build
+          key: ${{ steps.cargokit.outputs.cache-primary-key }}
 
       - name: Test native menu localization
         if: ${{ !inputs.universal }}
