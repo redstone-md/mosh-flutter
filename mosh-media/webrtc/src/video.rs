@@ -11,6 +11,7 @@ use libwebrtc::{
     peer_connection_factory::{PeerConnectionFactory, native::PeerConnectionFactoryExt},
     rtp_sender::{RtpSender, VideoEncoderBackend},
     rtp_transceiver::RtpTransceiver,
+    video_codec::VideoCodec,
     video_frame::{I420Buffer, VideoFrame, VideoRotation},
     video_source::{VideoResolution, native::NativeVideoSource},
     video_track::RtcVideoTrack,
@@ -163,13 +164,13 @@ impl Camera {
 }
 
 /// Ranks the codecs this device encodes in hardware first, then VP9: on
-/// the relay regression it keeps 480x270 where VP8 drops to 360x198. Codecs only one side has fall out in negotiation.
+/// the relay regression it keeps 480x270 where VP8 drops to 360x198. Codecs
+/// only one side has fall out in negotiation.
 fn prefer_codecs(factory: &PeerConnectionFactory, transceiver: &RtpTransceiver) -> Result<()> {
-    let hardware: Vec<_> = factory
-        .video_encoder_codecs(VideoEncoderBackend::Hardware)
-        .iter()
-        .map(|codec| format!("video/{}", codec.as_str()))
-        .collect();
+    let hardware = only_in_hardware(
+        &factory.video_encoder_codecs(VideoEncoderBackend::Hardware),
+        &factory.video_encoder_codecs(VideoEncoderBackend::Software),
+    );
     let mut codecs = factory
         .get_rtp_receiver_capabilities(MediaType::Video)
         .codecs;
@@ -177,6 +178,18 @@ fn prefer_codecs(factory: &PeerConnectionFactory, transceiver: &RtpTransceiver) 
     transceiver
         .set_codec_preferences(codecs)
         .map_err(|error| anyhow::anyhow!("video codec preferences: {error:?}"))
+}
+
+/// The hardware codecs, as MIME types, that no software encoder here also
+/// provides. Android's hardware factory lists libvpx's VP8, VP9 and AV1 as
+/// fallbacks beside MediaCodec, so those cannot tell hardware apart; our
+/// libwebrtc has no software H.264, so a listed H.264 is MediaCodec's.
+fn only_in_hardware(hardware: &[VideoCodec], software: &[VideoCodec]) -> Vec<String> {
+    hardware
+        .iter()
+        .filter(|codec| !software.contains(codec))
+        .map(|codec| format!("video/{}", codec.as_str()))
+        .collect()
 }
 
 fn rank(mime_type: &str, hardware: &[String]) -> u8 {
@@ -243,6 +256,26 @@ mod tests {
                 "video/rtx",
                 "video/AV1"
             ]
+        );
+    }
+
+    #[test]
+    fn software_codecs_listed_under_android_hardware_do_not_outrank_vp9() {
+        // Android's hardware factory wraps MediaCodec with libvpx fallbacks.
+        let hardware = only_in_hardware(
+            &[
+                VideoCodec::VP8,
+                VideoCodec::AV1,
+                VideoCodec::VP9,
+                VideoCodec::H264,
+            ],
+            &[VideoCodec::VP8, VideoCodec::VP9, VideoCodec::AV1],
+        );
+        let mut codecs = ["video/VP8", "video/AV1", "video/VP9", "video/H264"];
+        codecs.sort_by_key(|codec| rank(codec, &hardware));
+        assert_eq!(
+            codecs,
+            ["video/H264", "video/VP9", "video/VP8", "video/AV1"]
         );
     }
 }
