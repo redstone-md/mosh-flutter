@@ -43,12 +43,17 @@ val callEngine = (System.getenv("MOSH_CALL_ENGINE")?.takeIf(String::isNotBlank) 
     check(it == "ringrtc" || it == "webrtc") { "MOSH_CALL_ENGINE must be ringrtc or webrtc, not $it" }
 }
 
+// CI sets MOSH_ANDROID_NDK_VERSION to the NDK its runner image ships, the one
+// Rust builds with, so Gradle does not download Flutter's default every run.
+val androidNdkVersion = providers.environmentVariable("MOSH_ANDROID_NDK_VERSION").orNull
+    ?: flutter.ndkVersion
+
 android {
     sourceSets.getByName("main").assets.srcDir(rootProject.projectDir.parentFile.resolve(".dart_tool/android-media/assets"))
     sourceSets.getByName("main").java.srcDir("src/$callEngine/kotlin")
     namespace = "app.mosh.mosh"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = androidNdkVersion
 
     compileOptions {
         // flutter_local_notifications (v22.x) requires core library
@@ -148,7 +153,7 @@ val repositoryRoot = rootProject.projectDir.parentFile
 val mossCheckout = repositoryRoot.resolve("moss")
 val mossPreparationScript = repositoryRoot.resolve("scripts/moss-prepare-android.mjs")
 val mossOutput = project.file("src/main/jniLibs/arm64-v8a/libmoss.so")
-val mossNdkVersion = flutter.ndkVersion
+val mossNdkVersion = androidNdkVersion
 val mossNdkRoot = providers.provider {
     resolveNdkRoot(mossNdkVersion, rootProject.file("local.properties"))
 }

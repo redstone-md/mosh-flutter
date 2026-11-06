@@ -34,6 +34,13 @@ runs:
         fi
         cat scripts/support/android-cargo-config.toml >> "$config"
 
+    # Gradle and the Rust builds share the runner's newest preinstalled NDK.
+    # Flutter's default NDK is not on the image, and downloading it on every
+    # run cost minutes and failed on corrupt archives.
+    - name: Use the runner's NDK
+      shell: bash
+      run: echo "MOSH_ANDROID_NDK_VERSION=$(basename "$ANDROID_NDK_LATEST_HOME")" >> "$GITHUB_ENV"
+
     - uses: ./.github/actions/setup
       with:
         moss: android
