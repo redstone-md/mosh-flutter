@@ -1,3 +1,34 @@
+Mosh is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. The license text follows the additional permission below.
+
+Third-party components bundled with Mosh keep their own licenses; they are
+listed in docs/licenses.md.
+
+
+           Additional permission under GNU GPL version 3 section 7
+
+Application stores such as the Apple App Store, the Mac App Store, Google
+Play, the Microsoft Store and RuStore distribute software under terms of
+service or usage rules that restrict what recipients may do with it.
+
+As an additional permission under section 7, the copyright holders of Mosh
+allow you to convey Mosh, or a work based on it, through any such store,
+even where the store's terms impose restrictions on recipients that this
+License would otherwise forbid, provided that the Corresponding Source of the
+version you convey is available to everyone, free of charge, under the terms
+of this License as section 6 describes.
+
+The copyright holders are ForeverInLaw and Rxflex, who grant this permission
+on their own behalf and under the rights CLA.md gives them in contributions.
+It does not extend to third-party components distributed under their own
+licenses.
+
+If you modify Mosh, you may extend this permission to your version. If you
+do not wish to, remove it from your version, as section 7 allows.
+
+
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 

@@ -192,10 +192,16 @@ screenshots and record the logo source and illustration prompts.
 
 ## License
 
-Mosh is free software under the [GNU GPL v3](LICENSE). Third-party components
-keep their own licenses: the call engine links Signal's RingRTC and is
-therefore AGPL-3.0, and bundled Inter fonts use the
-[SIL Open Font License](assets/fonts/Inter-OFL.txt).
+Mosh is free software under the [GNU GPL v3](LICENSE), with an additional
+permission to publish it through app stores such as the App Store, Google Play
+and the Microsoft Store, as long as its source stays available. Third-party
+components keep their own licenses, listed in [docs/licenses.md](docs/licenses.md):
+the call engine links Signal's RingRTC and is therefore AGPL-3.0, and bundled
+Inter fonts use the [SIL Open Font License](assets/fonts/Inter-OFL.txt).
+
+ForeverInLaw and Rxflex hold the copyright in Mosh and can also license it on
+other terms. To ask about a license other than the GPL, write to
+[contact@redstone.md](mailto:contact@redstone.md).
 
 [Report a bug](https://github.com/redstone-md/mosh-flutter/issues) ·
 [Architecture](docs/Architecture.md)
