@@ -163,11 +163,11 @@ impl Camera {
     }
 }
 
-/// Ranks the codecs this device encodes in hardware first, then VP9: on
+/// Ranks the codecs only this device's hardware encodes first, then VP9: on
 /// the relay regression it keeps 480x270 where VP8 drops to 360x198. Codecs
 /// only one side has fall out in negotiation.
 fn prefer_codecs(factory: &PeerConnectionFactory, transceiver: &RtpTransceiver) -> Result<()> {
-    let hardware = only_in_hardware(
+    let hardware = hardware_only_mime_types(
         &factory.video_encoder_codecs(VideoEncoderBackend::Hardware),
         &factory.video_encoder_codecs(VideoEncoderBackend::Software),
     );
@@ -180,11 +180,13 @@ fn prefer_codecs(factory: &PeerConnectionFactory, transceiver: &RtpTransceiver) 
         .map_err(|error| anyhow::anyhow!("video codec preferences: {error:?}"))
 }
 
-/// The hardware codecs, as MIME types, that no software encoder here also
-/// provides. Android's hardware factory lists libvpx's VP8, VP9 and AV1 as
-/// fallbacks beside MediaCodec, so those cannot tell hardware apart; our
-/// libwebrtc has no software H.264, so a listed H.264 is MediaCodec's.
-fn only_in_hardware(hardware: &[VideoCodec], software: &[VideoCodec]) -> Vec<String> {
+/// MIME types of the hardware codecs no software encoder here also
+/// provides. The Android and Apple hardware factories list libvpx's VP8 and
+/// VP9 and libaom's AV1 as fallbacks beside MediaCodec or VideoToolbox, so a
+/// listed codec there may be software; our libwebrtc has no software H.264
+/// or H.265, so those are the hardware's. On Linux NVENC's AV1 drops to the
+/// rest, though a negotiated AV1 still encodes on NVENC.
+fn hardware_only_mime_types(hardware: &[VideoCodec], software: &[VideoCodec]) -> Vec<String> {
     hardware
         .iter()
         .filter(|codec| !software.contains(codec))
@@ -261,8 +263,7 @@ mod tests {
 
     #[test]
     fn software_codecs_listed_under_android_hardware_do_not_outrank_vp9() {
-        // Android's hardware factory wraps MediaCodec with libvpx fallbacks.
-        let hardware = only_in_hardware(
+        let hardware = hardware_only_mime_types(
             &[
                 VideoCodec::VP8,
                 VideoCodec::AV1,

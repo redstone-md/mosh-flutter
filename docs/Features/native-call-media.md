@@ -91,10 +91,12 @@ source would otherwise feed black frames until the first camera frame).
 Codecs are ranked per call: whatever this device encodes in hardware
 (VideoToolbox on Apple, MediaCodec on Android, VAAPI or NVENC on Linux
 when present), then VP9, then the rest; negotiation keeps the first one
-both sides can send and receive. Android's hardware factory also lists its
-libvpx fallbacks, so there only codecs no software encoder provides count:
-H.264 when MediaCodec has it (our libwebrtc has no software H.264). A
-negotiated VP9 still encodes on MediaCodec where the phone supports it. Two Macs should therefore use hardware
+both sides can send and receive. The Android and Apple hardware factories
+also list their software VP8, VP9 and AV1, so only codecs without a
+software encoder rank first: in practice H.264 and H.265, which our
+libwebrtc encodes only in hardware. A negotiated VP9 or AV1 still encodes
+in hardware where the device has it, since libwebrtc tries the hardware
+factory before software. Two Macs should therefore use hardware
 H.264 and a Mac with a Windows PC VP9; the macOS CI job runs whatever
 VideoToolbox offers its runner, the Linux and Windows jobs VP9. VP9 is RingRTC's choice too: on the relay
 regression both engines send 480x270 at 15 fps and decode about 120
