@@ -194,7 +194,6 @@ void main() {
           sending: false,
           placeholder: 'p',
           sendLabel: 'Send',
-          lengthLabel: (remaining) => '$remaining',
           onSend: () {},
           attachLabel: 'a',
           onAttach: (attachment) {

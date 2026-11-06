@@ -75,21 +75,20 @@ pub struct BridgeAttachmentPayload {
 }
 
 /// The longest text any conversation accepts, in characters (Unicode scalar
-/// values). Four bytes a character still leaves the encrypted envelope far
-/// under the 64 KiB network limit, so a text this long always fits.
-const MAX_TEXT_CHARS: u32 = 4096;
-
-/// The composer reads this so it can stop a text before it is sent.
+/// values). The composer reads it to stop a text before it is sent.
 #[frb(sync)]
 pub fn max_text_chars() -> u32 {
-    MAX_TEXT_CHARS
+    crate::conversation::MAX_TEXT_CHARS as u32
 }
 
 fn admit_text(body: &str) -> Result<(), ConversationBridgeError> {
-    if body.chars().count() > MAX_TEXT_CHARS as usize {
+    if !crate::conversation::text_fits(body) {
         return Err(ConversationBridgeError::new(
             ConversationBridgeErrorKind::PayloadTooLarge,
-            format!("a text is at most {MAX_TEXT_CHARS} characters"),
+            format!(
+                "a text is at most {} characters",
+                crate::conversation::MAX_TEXT_CHARS
+            ),
         ));
     }
     Ok(())

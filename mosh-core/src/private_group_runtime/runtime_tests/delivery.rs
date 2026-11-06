@@ -279,3 +279,30 @@ fn a_failed_control_frame_is_retried_its_retransmission() {
         "garbage never admits anything"
     );
 }
+
+#[test]
+fn a_text_is_limited_in_characters_not_bytes() {
+    let _guard = MOSS_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    drain_received_messages();
+    let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+    let mut groups = PrivateGroupRuntime::from_shared(runtime, temp_store(), None);
+    let created = groups
+        .create_group(CreateGroupRequest {
+            label: Some("Limit Club".to_string()),
+            display_name: "Alice".to_string(),
+            listen_port: 0,
+            static_peer: None,
+            org_pubkey: None,
+        })
+        .expect("group should be created");
+    let at_limit = "😀".repeat(crate::conversation::MAX_TEXT_CHARS);
+    groups
+        .send(&created.group_id, at_limit.clone())
+        .expect("4096 emoji are 4096 characters");
+    assert!(matches!(
+        groups.send(&created.group_id, at_limit + "😀"),
+        Err(PrivateGroupError::BodyTooLarge)
+    ));
+}

@@ -40,8 +40,7 @@ class ConversationComposer extends StatelessWidget {
     required this.placeholder,
     required this.sendLabel,
     required this.onSend,
-    this.maxTextChars,
-    required this.lengthLabel,
+    this.textLimit,
     required this.attachLabel,
     required this.onAttach,
     required this.onAttachmentPickError,
@@ -69,14 +68,8 @@ class ConversationComposer extends StatelessWidget {
   final String sendLabel;
   final VoidCallback onSend;
 
-  /// The longest text the runtime accepts, in characters (Unicode scalar
-  /// values, as mosh-core counts them). Send stays off above it; null means
-  /// no limit and no counter.
-  final int? maxTextChars;
-
-  /// Reads the counter aloud. `remaining` is negative when the draft is over
-  /// the limit.
-  final String Function(int remaining) lengthLabel;
+  /// The text limit and how its counter reads; null means no counter.
+  final ComposerTextLimit? textLimit;
   final String attachLabel;
   final AttachmentPickedCallback onAttach;
   final AttachmentPickErrorCallback onAttachmentPickError;
@@ -127,8 +120,8 @@ class ConversationComposer extends StatelessWidget {
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: controller,
         builder: (context, value, _) {
-          final remaining = _remaining(value.text);
-          final enabled = _sendable(value.text);
+          final remaining = textLimit?.remaining(value.text);
+          final enabled = _sendable(value.text, remaining);
           // The control group uses 16px corners around 8px control corners.
           return Container(
             constraints: const BoxConstraints(minHeight: 54),
@@ -195,7 +188,10 @@ class ConversationComposer extends StatelessWidget {
                         }
                       },
                       onSubmitted: (_) {
-                        if (_sendable(controller.text)) onSend();
+                        final text = controller.text;
+                        if (_sendable(text, textLimit?.remaining(text))) {
+                          onSend();
+                        }
                       },
                       // A bare 13px field on the box's own background -- no
                       // border, no fill of its own.
@@ -221,7 +217,7 @@ class ConversationComposer extends StatelessWidget {
                   const SizedBox(width: kComposerGap),
                   Text(
                     '$remaining',
-                    semanticsLabel: lengthLabel(remaining),
+                    semanticsLabel: textLimit!.label(remaining),
                     style: TextStyle(
                       fontSize: 12,
                       fontFeatures: kLiveNumberFontFeatures,
@@ -272,13 +268,23 @@ class ConversationComposer extends StatelessWidget {
     );
   }
 
-  bool _sendable(String text) =>
-      !disabled && text.trim().isNotEmpty && (_remaining(text) ?? 0) >= 0;
+  bool _sendable(String text, int? remaining) =>
+      !disabled && text.trim().isNotEmpty && (remaining ?? 0) >= 0;
+}
 
-  int? _remaining(String text) {
-    final limit = maxTextChars;
-    return limit == null ? null : limit - text.runes.length;
-  }
+/// The longest text a send accepts and how the counter near it reads.
+class ComposerTextLimit {
+  const ComposerTextLimit({required this.maxChars, required this.label});
+
+  /// In characters (Unicode scalar values), as mosh-core counts them.
+  final int maxChars;
+
+  /// Reads the counter aloud; `remaining` is negative over the limit.
+  final String Function(int remaining) label;
+
+  /// What is left of the limit for [draft], counted as it will be sent:
+  /// the send trims the draft first.
+  int remaining(String draft) => maxChars - draft.trim().runes.length;
 }
 
 /// The platform's editing menu, with Paste routed through [paste] so it

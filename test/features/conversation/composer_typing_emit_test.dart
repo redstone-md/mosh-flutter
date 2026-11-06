@@ -27,7 +27,6 @@ void main() {
           disabled: false,
           placeholder: 'p',
           sendLabel: 'Send',
-          lengthLabel: (remaining) => '$remaining',
           onSend: () {},
           onTyping: () => typing.add('tick'),
           attachLabel: 'a',

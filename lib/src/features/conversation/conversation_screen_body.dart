@@ -232,10 +232,14 @@ class ConversationScreenBody extends ConsumerWidget {
         placeholder: l.chatComposerPlaceholder,
         sendLabel: l.chatSendLabel,
         onSend: onSend,
-        maxTextChars: maxTextChars,
-        lengthLabel: (remaining) => remaining < 0
-            ? l.chatComposerCharactersOver(-remaining)
-            : l.chatComposerCharactersLeft(remaining),
+        textLimit: maxTextChars == null
+            ? null
+            : ComposerTextLimit(
+                maxChars: maxTextChars,
+                label: (remaining) => remaining < 0
+                    ? l.chatComposerCharactersOver(-remaining)
+                    : l.chatComposerCharactersLeft(remaining),
+              ),
         onTyping: controller.signalTyping,
         attachLabel: l.chatAttachLabel,
         onAttach: controller.sendAttachment,

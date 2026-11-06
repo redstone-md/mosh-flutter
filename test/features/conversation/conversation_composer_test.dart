@@ -31,8 +31,8 @@ void main() {
           placeholder: 'p',
           sendLabel: 'Send',
           onSend: onSend ?? () {},
-          maxTextChars: maxTextChars,
-          lengthLabel: (remaining) => '$remaining left',
+          textLimit: ComposerTextLimit(
+              maxChars: maxTextChars, label: (remaining) => '$remaining left'),
           attachLabel: 'a',
           onAttach: noAttach,
           onAttachmentPickError: (_) {},
@@ -106,7 +106,8 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     expect(sent, 0);
 
-    c.text = 'x' * 10;
+    // The send trims the draft, so trailing whitespace does not count.
+    c.text = '${'x' * 10}\n  ';
     await tester.pump();
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNotNull);
