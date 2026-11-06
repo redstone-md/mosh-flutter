@@ -317,3 +317,44 @@ uploaded the installer successfully, then spent 17 minutes archiving pub cache
 and reached the 60-minute job limit during SDK cache cleanup. `flutter pub get`
 took about one minute in that run; omitting the pub archive avoids that measured
 cleanup cost without changing build inputs or the job timeout.
+
+## Update 2026-11-06: cache budget (MOSH-80)
+
+The repository has 10 GB of Actions cache, and GitHub evicts the least
+recently used entries above it. A single run saved more than that: PR #124's
+run filled the cache and evicted every main entry. Entries saved on a pull
+request ref are visible to no other ref, so the next main run and every other
+pull request rebuilt from nothing.
+
+Caches are now saved only from main; every other ref restores them. Plain
+caches are `actions/cache/restore` and `actions/cache/save` pairs with the
+save on main. `Swatinem/rust-cache` saves on main only, which replaces the
+same-repository PR saves above. Gradle moved from setup-java's cache to
+`gradle/actions/setup-gradle` with the MIT `basic` provider: the same key
+and paths, but read-only off the default branch.
+
+Main's own set was about 16 GB, so it would still evict itself. Only jobs on
+the critical path keep build caches: the desktop, Android and macOS app
+builds and the Rust core jobs. Removed:
+
+- the Flutter SDK (1.6-1.8 GB per OS). Installing it takes 50-95 seconds,
+  and restoring it hardly less. The Linux pub cache stays.
+- the Cargo and engine target caches of the call-engine jobs (about 6 GB).
+  They take 11-17 minutes cold, against a critical path of about 28 minutes
+  on pull requests and 43 on main.
+- the license, widget-test hook and network-diagnostics caches, and the Go
+  module cache: setup-go cannot make it read-only, and the moss library
+  cache skips the Go build everywhere but the license job.
+
+`taiki-e/cache-cargo-install-action` still saves from any ref, but only
+when its pinned tool version misses, a few megabytes per version bump.
+
+When a key's hash changes, main saves a new entry and nothing reads the old
+one again. [cache-cleanup.yml](../../.github/workflows/cache-cleanup.yml)
+runs after CI on main and deletes every main entry that a newer entry of the
+same key, its trailing hashes aside, has replaced. It warns when the
+repository's caches exceed 8 GB, the budget main's set is meant to stay under.
+
+Without their caches the call-engine jobs download the libwebrtc build,
+pinned sources and protoc on every run. These downloads now go through one
+checksummed downloader that retries dropped, truncated and 5xx responses.

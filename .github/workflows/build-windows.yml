@@ -100,7 +100,8 @@ jobs:
       # plugin's CMake binary dir (named after the plugin, mosh_core), which
       # the cargo cache above does not see. Keyed on the lockfile and
       # toolchain; a stale hit is safe, cargo re-fingerprints.
-      - uses: actions/cache@v4
+      - id: cargokit
+        uses: actions/cache/restore@v4
         with:
           path: build/windows/x64/plugins/mosh_core/cargokit_build
           key: cargokit-windows-release-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
@@ -143,6 +144,12 @@ jobs:
           "--dart-define=MOSH_PLUS_NETWORK=$env:MOSH_PLUS_NETWORK"
           "--dart-define=MOSH_PLUS_SERVER_URL=$env:MOSH_PLUS_SERVER_URL"
           "--dart-define=MOSH_PLUS_ISSUER_KEY=$env:MOSH_PLUS_ISSUER_KEY"
+
+      - if: steps.cargokit.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: build/windows/x64/plugins/mosh_core/cargokit_build
+          key: ${{ steps.cargokit.outputs.cache-primary-key }}
 
       - name: Test native Windows chrome, icons and call window classes
         shell: pwsh

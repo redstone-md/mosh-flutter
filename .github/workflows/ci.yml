@@ -23,8 +23,11 @@ permissions:
 # be proven there.
 #
 # Toolchains, caches and the moss library come from .github/actions/setup so
-# every job pins the same versions. The moss build and the cargo target dirs
-# are cached; a job pays for them only when the submodule or lockfile moves.
+# every job pins the same versions. Caches are saved only from main and fit
+# its 10 GB with room, so pull requests restore main's and save nothing.
+# Only jobs on the critical path (the desktop, Android and macOS app builds
+# and the Rust core) keep build caches; the call-engine, license and widget
+# test jobs build cold and still finish well before it.
 #
 # Job order: every job starts at once. The repo is public, so runner minutes
 # are free and wall-clock is the only cost; gating the platform builds behind
@@ -62,7 +65,7 @@ jobs:
         with:
           moss: none
           go: 'true'
-          rust-cache-key: licenses
+          rust-cache-key: none
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny@0.20.2
@@ -93,22 +96,14 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           flutter: 'false'
-          rust-cache-key: native-call
+          rust-cache-key: none
       - if: runner.os == 'Linux'
         run: sudo apt-get update -q && sudo apt-get install -y -q libasound2-dev libudev-dev libclang-dev
-      - uses: actions/cache@v4
-        with:
-          path: |
-            .dart_tool/native-media/target
-            .dart_tool/native-sources
-            .dart_tool/native-tools
-          key: native-call-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mosh-media/**/Cargo.lock', 'third_party/*-patches/source.json', 'third_party/*-patches/mosh.patch') }}
-          restore-keys: native-call-${{ runner.os }}-${{ runner.arch }}-
       - name: Build packaged engine and camera helper
         run: node scripts/native-media-build.mjs
-      - name: macOS packaging command regressions
+      - name: Packaging and CI script regressions
         if: runner.os == 'Linux'
-        run: node --test scripts/macos-package.test.mjs scripts/msix-manifest.test.mjs scripts/plus-build-config.test.mjs scripts/store-listing.test.mjs
+        run: node --test scripts/macos-package.test.mjs scripts/msix-manifest.test.mjs scripts/plus-build-config.test.mjs scripts/store-listing.test.mjs scripts/cache-cleanup.test.mjs scripts/verified-download.test.mjs
       - name: Native Rust format, lint and tests
         shell: bash
         run: |
@@ -156,7 +151,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           flutter: 'false'
-          rust-cache-key: native-call-webrtc
+          rust-cache-key: none
       - name: Linux toolchain, audio and system headers
         if: runner.os == 'Linux'
         run: |
@@ -171,15 +166,6 @@ jobs:
           sudo apt-get install -y -q libasound2-dev libudev-dev libclang-dev pulseaudio \
             libglib2.0-dev libva-dev libdrm-dev libgbm-dev libx11-dev libxext-dev \
             libxfixes-dev libxdamage-dev libxrandr-dev libxcomposite-dev
-      - uses: actions/cache@v4
-        with:
-          path: |
-            .dart_tool/native-media/target-webrtc
-            .dart_tool/native-sources
-            .dart_tool/native-tools
-            .dart_tool/libwebrtc
-          key: native-call-webrtc-${{ runner.os }}-${{ hashFiles('mosh-media/webrtc/Cargo.lock', 'third_party/libwebrtc-build/build.json', 'third_party/webrtc-sys-patches/mosh.patch', 'third_party/libwebrtc-patches/mosh.patch') }}
-          restore-keys: native-call-webrtc-${{ runner.os }}-
       - name: Build packaged engine and camera helper
         run: node scripts/native-media-build.mjs
       - name: Engine format, lint and tests
@@ -330,13 +316,6 @@ jobs:
       - name: GTK headers for native-asset hooks
         run: sudo apt-get update -q && sudo apt-get install -y -q libgtk-3-dev
 
-      # The hook's Rust build output, keyed on the resolved packages.
-      - uses: actions/cache@v4
-        with:
-          path: .dart_tool/hooks_runner/shared
-          key: native-hooks-linux-${{ hashFiles('pubspec.lock') }}
-          restore-keys: native-hooks-linux-
-
       # The generated lib/l10n/app_localizations*.dart are gitignored, so
       # the drift signal is gen-l10n exiting 0: a broken ARB fails here,
       # before the tests that would fail on it less legibly.
@@ -380,7 +359,7 @@ jobs:
         run: flutter build windows --debug
 
       - name: Save Windows debug build cache
-        if: steps.cargokit-cache.outputs.cache-hit != 'true'
+        if: steps.cargokit-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@v4
         with:
           path: build/windows/x64/plugins/mosh_core/cargokit_build
@@ -456,7 +435,8 @@ jobs:
         uses: ./.github/actions/android-build-setup
 
       - if: matrix.engine == 'webrtc'
-        uses: actions/cache@v4
+        id: webrtc-engine
+        uses: actions/cache/restore@v4
         with:
           path: |
             .dart_tool/native-media/target-webrtc
@@ -473,10 +453,25 @@ jobs:
         run: flutter build apk --debug --target-platform android-arm64
 
       - uses: actions/cache/save@v4
-        if: steps.android-setup.outputs.cargo-cache-hit != 'true'
+        if: steps.android-setup.outputs.cargo-cache-hit != 'true' && github.ref == 'refs/heads/main'
         with:
           path: build/mosh_core/build
           key: ${{ steps.android-setup.outputs.cargo-cache-key }}
+
+      - uses: actions/cache/save@v4
+        if: matrix.engine != 'webrtc' && steps.android-setup.outputs.webrtc-cache-hit != 'true' && github.ref == 'refs/heads/main'
+        with:
+          path: .dart_tool/android-media/webrtc
+          key: ${{ steps.android-setup.outputs.webrtc-cache-key }}
+
+      - uses: actions/cache/save@v4
+        if: matrix.engine == 'webrtc' && steps.webrtc-engine.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        with:
+          path: |
+            .dart_tool/native-media/target-webrtc
+            .dart_tool/native-sources
+            .dart_tool/libwebrtc
+          key: ${{ steps.webrtc-engine.outputs.cache-primary-key }}
 
       - uses: actions/upload-artifact@v4
         with:

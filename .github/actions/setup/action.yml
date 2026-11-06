@@ -1,7 +1,9 @@
 name: Setup toolchain
 description: >-
-  Go + Rust + Flutter and the moss shared library, every piece cached. One
-  home for the toolchain pins so a job never drifts from the others.
+  Go + Rust + Flutter and the moss shared library. One home for the toolchain
+  pins so a job never drifts from the others. Caches are restored everywhere
+  and saved only from main: the repository has 10 GB of cache, and entries a
+  pull request saves are visible to no other ref, so they only evict main's.
 
 inputs:
   flutter:
@@ -19,7 +21,8 @@ inputs:
   rust-cache-key:
     description: >-
       Cargo cache namespace. Jobs building the same targets on the same OS
-      share one cache instead of each saving their own copy.
+      share one cache instead of each saving their own copy. `none` skips the
+      cache, for jobs that finish within the critical path without it.
     default: desktop
 
 runs:
@@ -44,12 +47,14 @@ runs:
       run: node scripts/openmls-prepare.mjs
 
     # moss-prepare pins GOTOOLCHAIN=go1.25.9; installing that exact version
-    # makes the toolchain directive a no-op (no on-the-fly download).
+    # makes the toolchain directive a no-op (no on-the-fly download). No Go
+    # cache: setup-go would save it from pull requests too, and the moss
+    # library cache below skips the Go build in every job but the license one.
     - if: inputs.moss != 'none' || inputs.go == 'true'
       uses: actions/setup-go@v5
       with:
         go-version: '1.25.9'
-        cache-dependency-path: moss/go.sum
+        cache: false
 
     # rust-toolchain.toml is the single source of truth for the channel and
     # components; `rustup show` installs whatever it names.
@@ -65,36 +70,49 @@ runs:
       shell: bash
       run: brew install autoconf automake libtool coreutils
 
-    - if: inputs.rust == 'true'
+    - if: inputs.rust == 'true' && inputs.rust-cache-key != 'none'
       uses: Swatinem/rust-cache@v2
       with:
         workspaces: mosh-core
         shared-key: ${{ inputs.rust-cache-key }}
         cache-on-failure: true
-        save-if: ${{ github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
+        save-if: ${{ github.ref == 'refs/heads/main' }}
 
     # Pinned, not `channel: stable`: a runner picking up a newer Flutter
-    # than the one the release was built with is a drift nobody asked for,
-    # and a moving version defeats the SDK cache.
+    # than the one the release was built with is a drift nobody asked for.
+    # The SDK is not cached: installing it takes 50-95 s, restoring it hardly
+    # less, and it took 1.6-1.8 GB of cache per OS.
     - if: inputs.flutter == 'true'
+      id: flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: 3.44.8
         channel: stable
-        cache: true
-        # Windows pub-cache compression took 17 minutes after installer upload.
-        pub-cache: ${{ runner.os != 'Windows' }}
+
+    # Windows pub-cache compression took 17 minutes after installer upload.
+    - if: inputs.flutter == 'true' && runner.os != 'Windows'
+      id: pub-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ steps.flutter.outputs.PUB-CACHE-PATH }}
+        key: ${{ steps.flutter.outputs.PUB-CACHE-KEY }}-${{ hashFiles('**/pubspec.lock') }}
 
     - if: inputs.flutter == 'true'
       shell: bash
       run: flutter pub get
+
+    - if: steps.pub-cache.outcome == 'success' && steps.pub-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ steps.flutter.outputs.PUB-CACHE-PATH }}
+        key: ${{ steps.pub-cache.outputs.cache-primary-key }}
 
     # The moss library is a cgo build of the submodule: minutes per job, and
     # byte-identical for the same sources and Go version. Cache it on the
     # sources so only a submodule bump rebuilds it.
     - if: inputs.moss == 'desktop'
       id: moss-desktop
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       with:
         path: moss-runtime
         key: moss-desktop-${{ runner.os }}-go1.25.9-${{ hashFiles('moss/**/*.go', 'moss/go.sum', 'scripts/moss-prepare.mjs') }}
@@ -103,9 +121,15 @@ runs:
       shell: bash
       run: node scripts/moss-prepare.mjs
 
+    - if: inputs.moss == 'desktop' && steps.moss-desktop.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+      uses: actions/cache/save@v4
+      with:
+        path: moss-runtime
+        key: ${{ steps.moss-desktop.outputs.cache-primary-key }}
+
     - if: inputs.moss == 'android'
       id: moss-android
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       with:
         path: android/app/src/main/jniLibs/arm64-v8a/libmoss.so
         key: moss-android-arm64-go1.25.9-${{ hashFiles('moss/**/*.go', 'moss/go.sum', 'scripts/moss-prepare-android.mjs') }}
@@ -119,3 +143,9 @@ runs:
         export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
         echo "Using NDK: $ANDROID_NDK_HOME"
         node scripts/moss-prepare-android.mjs
+
+    - if: inputs.moss == 'android' && steps.moss-android.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+      uses: actions/cache/save@v4
+      with:
+        path: android/app/src/main/jniLibs/arm64-v8a/libmoss.so
+        key: ${{ steps.moss-android.outputs.cache-primary-key }}

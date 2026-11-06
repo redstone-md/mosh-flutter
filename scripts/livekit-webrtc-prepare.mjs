@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { libwebrtcTarget } from "./support/libwebrtc-targets.mjs";
 import { preparePinnedSource } from "./support/pinned-source.mjs";
+import { downloadVerified } from "./support/verified-download.mjs";
 import { withSourceLock } from "./support/source-lock.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -57,10 +58,7 @@ export async function prepareLibwebrtc(triple, {
     if (!bytes || digest(bytes) !== sha256) {
       if (offline) throw new Error(`Offline archive missing or corrupt: ${archive}`);
       const url = `https://github.com/redstone-md/mosh-flutter/releases/download/${spec.release}/${target.archive}`;
-      const response = await fetch(url, { signal: AbortSignal.timeout(600_000) });
-      if (!response.ok) throw new Error(`Download failed: ${response.status} ${url}`);
-      bytes = Buffer.from(await response.arrayBuffer());
-      if (digest(bytes) !== sha256) throw new Error(`${target.archive} checksum mismatch`);
+      bytes = await downloadVerified(url, sha256);
       await writeFile(archive, bytes);
     }
     const staging = await mkdtemp(path.join(destination, "extract-"));

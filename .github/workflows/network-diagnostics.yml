@@ -135,15 +135,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           flutter: 'false'
-          rust-cache-key: native-call
-      - uses: actions/cache@v4
-        with:
-          path: |
-            .dart_tool/native-media/target
-            .dart_tool/native-sources
-            .dart_tool/native-tools
-          key: native-call-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mosh-media/**/Cargo.lock', 'third_party/*-patches/source.json', 'third_party/*-patches/mosh.patch') }}
-          restore-keys: native-call-${{ runner.os }}-${{ runner.arch }}-
+          rust-cache-key: none
       - name: Build the packaged native engine
         run: node scripts/native-media-build.mjs
       - name: Build and observe the fixed native case
