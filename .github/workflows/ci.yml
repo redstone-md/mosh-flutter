@@ -97,8 +97,11 @@ jobs:
         with:
           flutter: 'false'
           rust-cache-key: none
+      # bindgen loads the runner's preinstalled libclang 18; no -dev package.
       - if: runner.os == 'Linux'
-        run: sudo apt-get update -q && sudo apt-get install -y -q libasound2-dev libudev-dev libclang-dev
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libasound2-dev libudev-dev
       - name: Build packaged engine and camera helper
         run: node scripts/native-media-build.mjs
       - name: Packaging and CI script regressions
@@ -152,7 +155,7 @@ jobs:
         with:
           flutter: 'false'
           rust-cache-key: none
-      - name: Linux toolchain, audio and system headers
+      - name: Linux toolchain
         if: runner.os == 'Linux'
         run: |
           # libwebrtc's hermetic libc++ needs clang 21 or later.
@@ -162,10 +165,16 @@ jobs:
             | sudo tar -xJ --strip-components=1 -C /opt/llvm
           echo "CC=/opt/llvm/bin/clang" >> "$GITHUB_ENV"
           echo "CXX=/opt/llvm/bin/clang++" >> "$GITHUB_ENV"
-          sudo apt-get update -q
-          sudo apt-get install -y -q libasound2-dev libudev-dev libclang-dev pulseaudio \
-            libglib2.0-dev libva-dev libdrm-dev libgbm-dev libx11-dev libxext-dev \
-            libxfixes-dev libxdamage-dev libxrandr-dev libxcomposite-dev
+      # bindgen loads the runner's preinstalled libclang 18; the voice check
+      # plays and records through pacat from pulseaudio-utils.
+      - name: Linux audio and system headers
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/apt-install
+        with:
+          packages: >-
+            libasound2-dev libudev-dev pulseaudio pulseaudio-utils libglib2.0-dev
+            libva-dev libdrm-dev libgbm-dev libx11-dev libxext-dev libxfixes-dev
+            libxdamage-dev libxrandr-dev libxcomposite-dev
       - name: Build packaged engine and camera helper
         run: node scripts/native-media-build.mjs
       - name: Engine format, lint and tests
@@ -314,7 +323,9 @@ jobs:
       # flutter test runs native-asset hooks: super_native_extensions builds
       # its Rust (gtk-rs on Linux) through the runner's rustup.
       - name: GTK headers for native-asset hooks
-        run: sudo apt-get update -q && sudo apt-get install -y -q libgtk-3-dev
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-3-dev
 
       # The generated lib/l10n/app_localizations*.dart are gitignored, so
       # the drift signal is gen-l10n exiting 0: a broken ARB fails here,

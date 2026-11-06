@@ -105,6 +105,17 @@ impl PrivateDmRuntime {
         for message_id in queued {
             self.sessions.persist_send(session_id, &message_id, true)?;
             if let Err(error) = self.session_mut(session_id)?.publish_queued(&message_id) {
+                // No retry can shrink a text: fail it once, and let the texts
+                // behind it go instead of re-encrypting it on every tick.
+                if matches!(error, PrivateDmRuntimeError::PayloadTooLarge) {
+                    self.session_mut(session_id)?.outbox().settle(
+                        &message_id,
+                        Err(error.to_string()),
+                        OnSent::Retain,
+                    )?;
+                    self.sessions.persist_send(session_id, &message_id, true)?;
+                    continue;
+                }
                 dlog::write(
                     LogLevel::Warn,
                     kinds::OUTBOX,
