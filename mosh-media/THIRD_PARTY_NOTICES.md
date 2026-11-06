@@ -33,6 +33,8 @@ Apache-2.0. Their complete patches and verified archive/source digests are in
 third_party/nokhwa-patches and third_party/nokhwa-macos-patches. Their upstream
 copyright and license headers are retained. The bundled Apache-2.0.txt contains
 the upstream license; capture/Cargo.lock records the remaining Rust components.
+Its JPEG decoding uses mozjpeg: this software is based in part on the work of
+the Independent JPEG Group.
 
 X25519, HKDF, SHA-256 and zeroization use the x25519-dalek, hkdf, sha2 and
 zeroize crates at the locked revisions. Their license declarations and upstream
