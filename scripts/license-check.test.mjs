@@ -39,8 +39,11 @@ test("every license file of a package counts", () => {
   ]);
 });
 
-test("a reviewed package passes whatever its license file says", () => {
-  assert.deepEqual(audit([{ id: "go:github.com/anacrolix/sync", texts: [] }]), []);
+test("a review covers only the version it was made for", () => {
+  assert.deepEqual(audit([
+    { id: "go:github.com/anacrolix/sync@v0.4.0", texts: [] },
+    { id: "go:github.com/anacrolix/sync@v0.6.0", texts: [] },
+  ]), ["go:github.com/anacrolix/sync@v0.6.0: no license file"]);
 });
 
 test("libwebrtc notices name every copyleft or H.264 component", () => {

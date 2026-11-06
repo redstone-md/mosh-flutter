@@ -11,10 +11,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-/** Packages decided by hand; docs/licenses.md has the reasoning. */
+/**
+ * Package versions decided by hand; docs/licenses.md has the reasoning. Any
+ * other version is audited again.
+ */
 const REVIEWED = new Map([
-  ["go:github.com/anacrolix/multiless", "MPL-2.0 since v0.4.0; the pinned commit predates its LICENCE"],
-  ["go:github.com/anacrolix/sync", "MPL-2.0 since v0.5.0; v0.4.0 predates its LICENCE"],
+  ["go:github.com/anacrolix/multiless@v0.3.1-0.20221221005021-2d12701f83f7",
+    "MPL-2.0 since v0.4.0; this commit predates its LICENCE"],
+  ["go:github.com/anacrolix/sync@v0.4.0", "MPL-2.0 since v0.5.0; v0.4.0 predates its LICENCE"],
 ]);
 
 /** Path packages of this repository, under the root LICENSE. */
@@ -39,7 +43,7 @@ const identify = (text) => LICENSES.find(([, pattern]) => pattern.test(text))?.[
 
 /**
  * Problems with `packages`, each `{ id, texts }` where id is
- * "<ecosystem>:<name>" and texts its license files' contents.
+ * "<ecosystem>:<name>@<version>" and texts its license files' contents.
  */
 export function audit(packages) {
   return packages.flatMap(({ id, texts }) => {
@@ -93,13 +97,13 @@ function dartPackages() {
     pending.push(...entry.dependencies);
   }
   return [...seen].filter((entry) => entry.source !== "sdk" && !OWN_DART_PACKAGES.has(entry.name))
-    .map(({ name }) => ({ id: `dart:${name}`, texts: licenseTexts(roots.get(name)) }));
+    .map(({ name, version }) => ({ id: `dart:${name}@${version}`, texts: licenseTexts(roots.get(name)) }));
 }
 
 /** Third-party Go modules in the Moss library Mosh links. */
 function goModules() {
   const output = execFileSync("go", ["list", "-deps", "-f",
-    "{{with .Module}}{{if not .Main}}{{.Path}}\t{{.Dir}}{{end}}{{end}}", "./cmd/moss-ffi"],
+    "{{with .Module}}{{if not .Main}}{{.Path}}@{{.Version}}\t{{.Dir}}{{end}}{{end}}", "./cmd/moss-ffi"],
   { cwd: path.join(root, "moss"), encoding: "utf8" });
   const modules = new Map(output.split("\n").filter(Boolean).map((line) => line.split("\t")));
   return [...modules].map(([name, directory]) => ({ id: `go:${name}`, texts: licenseTexts(directory) }));

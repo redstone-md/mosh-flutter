@@ -20,8 +20,8 @@ when a shipped dependency brings a license outside these lists:
 - **Dart and Go:** [license-check.mjs](../scripts/license-check.mjs) reads
   every license file of each non-dev Dart package outside the Flutter SDK and
   of each Go module in Moss's `cmd/moss-ffi`. GPL, LGPL and AGPL texts,
-  missing files and unrecognised texts fail unless `REVIEWED` names the
-  package.
+  missing files and unrecognised texts fail unless `REVIEWED` names that
+  package version.
 - **libwebrtc:** [libwebrtc-build.mjs](../scripts/libwebrtc-build.mjs) refuses
   to package a build whose generated `LICENSE.md` contains a GPL-family
   component, ffmpeg, openh264 or x264.
