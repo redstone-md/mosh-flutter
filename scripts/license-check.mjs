@@ -17,12 +17,16 @@ const REVIEWED = new Map([
   ["go:github.com/anacrolix/sync", "MPL-2.0 since v0.5.0; v0.4.0 predates its LICENCE"],
 ]);
 
-// Most specific first: MPL-2.0 quotes the GPL family's names in its own text.
+/** Path packages of this repository, under the root LICENSE. */
+const OWN_DART_PACKAGES = new Set(["mosh_core"]);
+
+// Strongest first. The GPL family is matched by its upper-case titles, which
+// MPL-2.0 does not contain although it names those licenses in its text.
 const LICENSES = [
-  ["MPL-2.0", /^\s*Mozilla Public License,? version 2\.0/i],
-  ["AGPL", /GNU AFFERO GENERAL PUBLIC LICENSE/i],
-  ["LGPL", /GNU (LESSER|LIBRARY) GENERAL PUBLIC LICENSE/i],
-  ["GPL", /GNU GENERAL PUBLIC LICENSE/i],
+  ["AGPL", /GNU AFFERO GENERAL PUBLIC LICENSE/],
+  ["LGPL", /GNU (LESSER|LIBRARY) GENERAL PUBLIC LICENSE/],
+  ["GPL", /GNU GENERAL PUBLIC LICENSE/],
+  ["MPL-2.0", /Mozilla Public License,? version 2\.0/i],
   ["Apache-2.0", /Apache License,?\s+Version 2\.0/i],
   ["BSD", /Redistribution and use in source and binary forms/i],
   ["MIT", /Permission is hereby granted, free of charge/i],
@@ -34,16 +38,17 @@ const COPYLEFT = new Set(["AGPL", "LGPL", "GPL"]);
 const identify = (text) => LICENSES.find(([, pattern]) => pattern.test(text))?.[0];
 
 /**
- * Problems with `packages`, each `{ id, text }` where id is
- * "<ecosystem>:<name>" and text the license file, or null without one.
+ * Problems with `packages`, each `{ id, texts }` where id is
+ * "<ecosystem>:<name>" and texts its license files' contents.
  */
 export function audit(packages) {
-  return packages.flatMap(({ id, text }) => {
+  return packages.flatMap(({ id, texts }) => {
     if (REVIEWED.has(id)) return [];
-    if (text === null) return [`${id}: no license file`];
-    const license = identify(text);
-    if (!license) return [`${id}: license not recognised`];
-    return COPYLEFT.has(license) ? [`${id}: ${license} is not allowed without a review`] : [];
+    if (!texts.length) return [`${id}: no license file`];
+    const licenses = texts.map(identify);
+    if (licenses.includes(undefined)) return [`${id}: license not recognised`];
+    const copyleft = licenses.find((license) => COPYLEFT.has(license));
+    return copyleft ? [`${id}: ${copyleft} is not allowed without a review`] : [];
   });
 }
 
@@ -61,13 +66,16 @@ export function disallowedSections(notices) {
   });
 }
 
-function licenseText(directory) {
-  const file = readdirSync(directory).find((name) => /^(LICEN[CS]E|COPYING)/i.test(name)
-    && statSync(path.join(directory, name)).isFile());
-  return file ? readFileSync(path.join(directory, file), "utf8") : null;
+function licenseTexts(directory) {
+  return readdirSync(directory)
+    .filter((name) => /^(LICEN[CS]E|COPYING)/i.test(name) && statSync(path.join(directory, name)).isFile())
+    .map((name) => readFileSync(path.join(directory, name), "utf8"));
 }
 
-/** The app's non-dev Dart packages outside the Flutter SDK, ours excluded. */
+/**
+ * The app's non-dev Dart packages, ours excluded. The Flutter SDK's own
+ * packages bundle their notices; the hosted packages they use are checked.
+ */
 function dartPackages() {
   const output = execFileSync("flutter", ["pub", "deps", "--json"], { cwd: root, encoding: "utf8" });
   const { packages } = JSON.parse(output.slice(output.indexOf("{")));
@@ -80,11 +88,12 @@ function dartPackages() {
   const pending = appRoot.dependencies.filter((name) => !appRoot.devDependencies.includes(name));
   while (pending.length) {
     const entry = byName.get(pending.pop());
-    if (seen.has(entry.name) || entry.source === "sdk" || entry.name === "mosh_core") continue;
-    seen.add(entry.name);
+    if (seen.has(entry)) continue;
+    seen.add(entry);
     pending.push(...entry.dependencies);
   }
-  return [...seen].map((name) => ({ id: `dart:${name}`, text: licenseText(roots.get(name)) }));
+  return [...seen].filter((entry) => entry.source !== "sdk" && !OWN_DART_PACKAGES.has(entry.name))
+    .map(({ name }) => ({ id: `dart:${name}`, texts: licenseTexts(roots.get(name)) }));
 }
 
 /** Third-party Go modules in the Moss library Mosh links. */
@@ -93,7 +102,7 @@ function goModules() {
     "{{with .Module}}{{if not .Main}}{{.Path}}\t{{.Dir}}{{end}}{{end}}", "./cmd/moss-ffi"],
   { cwd: path.join(root, "moss"), encoding: "utf8" });
   const modules = new Map(output.split("\n").filter(Boolean).map((line) => line.split("\t")));
-  return [...modules].map(([name, directory]) => ({ id: `go:${name}`, text: licenseText(directory) }));
+  return [...modules].map(([name, directory]) => ({ id: `go:${name}`, texts: licenseTexts(directory) }));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

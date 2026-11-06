@@ -13,6 +13,9 @@ inputs:
   moss:
     description: Which moss shared library to provide -- desktop, android or none.
     default: desktop
+  go:
+    description: Install Go even without a moss library, for jobs that inspect the module graph.
+    default: 'false'
   rust-cache-key:
     description: >-
       Cargo cache namespace. Jobs building the same targets on the same OS
@@ -29,7 +32,7 @@ runs:
 
     # moss-prepare pins GOTOOLCHAIN=go1.25.9; installing that exact version
     # makes the toolchain directive a no-op (no on-the-fly download).
-    - if: inputs.moss != 'none'
+    - if: inputs.moss != 'none' || inputs.go == 'true'
       uses: actions/setup-go@v5
       with:
         go-version: '1.25.9'

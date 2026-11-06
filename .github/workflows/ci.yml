@@ -61,11 +61,8 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           moss: none
+          go: 'true'
           rust-cache-key: licenses
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25.9'
-          cache-dependency-path: moss/go.sum
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny@0.20.2

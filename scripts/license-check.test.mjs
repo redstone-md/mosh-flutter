@@ -10,17 +10,17 @@ const LGPL = "                   GNU LESSER GENERAL PUBLIC LICENSE\n            
 
 test("permissive and MPL-2.0 packages pass", () => {
   assert.deepEqual(audit([
-    { id: "dart:riverpod", text: MIT },
-    { id: "go:github.com/anacrolix/torrent", text: MPL },
+    { id: "dart:riverpod", texts: [MIT] },
+    { id: "go:github.com/anacrolix/torrent", texts: [MPL] },
   ]), []);
 });
 
 test("copyleft, unrecognised and missing licenses are reported", () => {
   assert.deepEqual(audit([
-    { id: "dart:gpl_package", text: GPL },
-    { id: "dart:lgpl_package", text: LGPL },
-    { id: "dart:custom", text: "All rights reserved." },
-    { id: "go:example.com/bare", text: null },
+    { id: "dart:gpl_package", texts: [GPL] },
+    { id: "dart:lgpl_package", texts: [LGPL] },
+    { id: "dart:custom", texts: ["All rights reserved."] },
+    { id: "go:example.com/bare", texts: [] },
   ]), [
     "dart:gpl_package: GPL is not allowed without a review",
     "dart:lgpl_package: LGPL is not allowed without a review",
@@ -29,8 +29,18 @@ test("copyleft, unrecognised and missing licenses are reported", () => {
   ]);
 });
 
+test("every license file of a package counts", () => {
+  assert.deepEqual(audit([
+    { id: "dart:dual", texts: [MIT, GPL] },
+    { id: "go:example.com/bundled", texts: [`${MPL}\n\nBundled parser:\n${GPL}`] },
+  ]), [
+    "dart:dual: GPL is not allowed without a review",
+    "go:example.com/bundled: GPL is not allowed without a review",
+  ]);
+});
+
 test("a reviewed package passes whatever its license file says", () => {
-  assert.deepEqual(audit([{ id: "go:github.com/anacrolix/sync", text: null }]), []);
+  assert.deepEqual(audit([{ id: "go:github.com/anacrolix/sync", texts: [] }]), []);
 });
 
 test("libwebrtc notices name every copyleft or H.264 component", () => {
