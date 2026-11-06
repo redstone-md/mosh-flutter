@@ -1,0 +1,46 @@
+name: Install apt packages
+description: >-
+  Installs Ubuntu packages without recommends from .deb files cached on main
+  (ADR 0015). The Azure Ubuntu mirror sometimes serves 40 kB/s; with the cache
+  only the first main run after a runner image or package list change downloads.
+
+inputs:
+  packages:
+    description: Space-separated package names.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # One entry per job: the job id keeps the cache-cleanup families apart.
+    - id: key
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        hash=$(echo "$ImageOS $ImageVersion $PACKAGES" | sha256sum | cut -c1-16)
+        echo "key=apt-$GITHUB_JOB-$hash" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/cache/restore@v4
+      id: restore
+      with:
+        path: /tmp/apt-archives/*.deb
+        key: ${{ steps.key.outputs.key }}
+
+    - shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        archives=/tmp/apt-archives
+        mkdir -p "$archives/partial"
+        sudo chown _apt "$archives/partial"
+        sudo apt-get update -q
+        # shellcheck disable=SC2086 # one word per package
+        sudo apt-get install -y -q --no-install-recommends \
+          -o Dir::Cache::Archives="$archives" $PACKAGES
+
+    - if: steps.restore.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+      uses: actions/cache/save@v4
+      with:
+        path: /tmp/apt-archives/*.deb
+        key: ${{ steps.key.outputs.key }}

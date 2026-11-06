@@ -365,3 +365,11 @@ the critical path. The Gradle home cache is gone (it had moved to
 Android job missed it after a build-file change, and the signed release APKs
 still finished in 15 minutes, against a 28-minute critical path. Main's set
 is then about 7.5 GB.
+
+Linux system packages go through `.github/actions/apt-install`: no
+recommends, and the downloaded `.deb` files cached on main per job, keyed by
+runner image and package list. On runs where the Azure Ubuntu mirror served
+40 kB/s, the libwebrtc job's 73 MB of packages took 30 minutes instead of 2.
+29 MB of that was `libclang-18-dev`, which is gone: bindgen loads the
+libclang 18 that the runner image already ships. The rest is about 38 MB, so
+an uncached run on a slow mirror still takes about 15 minutes.
