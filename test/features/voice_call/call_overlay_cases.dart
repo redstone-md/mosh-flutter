@@ -66,9 +66,13 @@ ProviderContainer _containerFor(String sessionId) {
     activeSessionProvider(sessionId)
         .overrideWith((ref) => Future.value(_activeSession(sessionId))),
   ]);
-  addTearDown(media.dispose);
+  _media[container] = media;
   return container;
 }
+
+/// The call media of each container, released with the widget tree: the
+/// application-level owner outlives the overlay, its poll timer must not.
+final _media = Expando<NativeCallOwner>();
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -77,7 +81,8 @@ Future<void> _pump(
 }) =>
     pumpScreen(
       tester,
-      Scaffold(body: overlay),
+      ReleasesCallMedia(
+          media: _media[container], child: Scaffold(body: overlay)),
       container: container,
     );
 

@@ -49,14 +49,6 @@ impl DmTransport for MemoryTransport {
 
     fn close_room(&self, _room: &str, _channels: &[String], _label: &str) {}
 
-    fn subscribe(&self, _room: &str, _channel: &str) -> Result<(), String> {
-        Ok(())
-    }
-
-    fn unsubscribe(&self, _room: &str, _channel: &str) -> Result<(), String> {
-        Ok(())
-    }
-
     fn publish(&self, _room: &str, channel: &str, payload: &[u8]) -> Result<(), PublishError> {
         let mut state = self.net.lock();
         let refused = state

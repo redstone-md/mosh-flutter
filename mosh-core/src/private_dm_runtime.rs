@@ -115,8 +115,8 @@ pub struct PrivateDmRuntime {
     sessions: ConversationRuntime<PrivateDmSession>,
     /// The one door every DM frame goes through, in and out.
     transport: Arc<dyn DmTransport>,
-    /// Voice frames for the live calls; shared with the audio loop, which
-    /// never takes this runtime's lock.
+    /// The native call engine's hub, created with the first call that
+    /// prepares media.
     native_media: Option<Arc<crate::native_call::Hub>>,
     lost_window_ms: u64,
     device_link: Option<devices::DeviceDmLink>,
@@ -373,7 +373,6 @@ mod field_log_tests;
 #[path = "private_dm_runtime/reachability_tests.rs"]
 mod reachability_tests;
 
-#[cfg(test)]
 #[cfg(test)]
 #[path = "private_dm_runtime/runtime_tests.rs"]
 mod tests;

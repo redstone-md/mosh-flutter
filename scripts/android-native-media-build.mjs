@@ -36,6 +36,8 @@ const notices = [[path.join(root, 'LICENSE'), 'GPL-3.0.txt'],
 await prepareLiveKitWebrtc();
 const webrtc = await prepareLibwebrtc(target);
 build({ ...env, LK_CUSTOM_WEBRTC: webrtc });
+// A checkout that built the previous engine still has its library here.
+await rm(path.join(output, 'libringrtc_rffi.so'), { force: true });
 await copyFile(path.join(webrtc, 'libwebrtc.jar'), path.join(media, 'engine/libwebrtc.jar'));
 notices.push([path.join(webrtc, 'LICENSE.md'), 'WEBRTC-LICENSE.md']);
 await copyFile(path.join(targetRoot, target, 'release/libmosh_native_media.so'),

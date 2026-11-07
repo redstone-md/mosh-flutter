@@ -67,10 +67,6 @@ pub trait DmTransport: Send + Sync {
     /// in a log line.
     fn close_room(&self, room: &str, channels: &[String], label: &str);
 
-    fn subscribe(&self, room: &str, channel: &str) -> Result<(), String>;
-
-    fn unsubscribe(&self, room: &str, channel: &str) -> Result<(), String>;
-
     /// Hand one frame to the transport. `Ok` means the transport accepted it,
     /// not that anyone received it.
     fn publish(&self, room: &str, channel: &str, payload: &[u8]) -> Result<(), PublishError>;
@@ -287,18 +283,6 @@ impl DmTransport for MossDmTransport {
                 &format!("could not close its room: {error}"),
             ),
         }
-    }
-
-    fn subscribe(&self, room: &str, channel: &str) -> Result<(), String> {
-        self.node()?
-            .subscribe_room(room, channel)
-            .map_err(|error| error.to_string())
-    }
-
-    fn unsubscribe(&self, room: &str, channel: &str) -> Result<(), String> {
-        self.node()?
-            .unsubscribe_room(room, channel)
-            .map_err(|error| error.to_string())
     }
 
     fn publish(&self, room: &str, channel: &str, payload: &[u8]) -> Result<(), PublishError> {

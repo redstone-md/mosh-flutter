@@ -39,10 +39,7 @@ final List<Override> productionOverrides = <Override>[
       : const CpalRingtonePlayer()),
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux)
     callWindowFactoryProvider.overrideWithValue(ProcessCallWindow.open),
-  if (Platform.isWindows ||
-      Platform.isMacOS ||
-      Platform.isLinux ||
-      Platform.isAndroid)
+  if (_callEngine)
     nativeCallOwnerProvider.overrideWith((ref) {
       final owner =
           NativeCallOwner(ref.read(bridgeFacadeProvider), requestCallMicrophone,
@@ -60,6 +57,14 @@ final List<Override> productionOverrides = <Override>[
     }),
   autoPollIntervalProvider.overrideWithValue(kAutoPollInterval),
   // The one place the conversation module's call slots meet the module
-  // that fills them.
-  conversationCallBindingProvider.overrideWithValue(voiceCallBinding),
+  // that fills them. Without a call engine (iOS until MOSH-77) a call would
+  // connect with no media, so the slots stay unbound.
+  if (_callEngine)
+    conversationCallBindingProvider.overrideWithValue(voiceCallBinding),
 ];
+
+/// Platforms that package the native call engine (`mosh-media/webrtc`).
+final bool _callEngine = Platform.isWindows ||
+    Platform.isMacOS ||
+    Platform.isLinux ||
+    Platform.isAndroid;

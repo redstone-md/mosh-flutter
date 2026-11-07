@@ -92,8 +92,9 @@ final voiceCallOrchestratorProvider = NotifierProvider.autoDispose
   VoiceCallOrchestratorNotifier.new,
 );
 
-/// One selected DM's call state. Audio replacement is serialized by the
-/// application-level audio owner; ringtone lifetime is independent of widgets.
+/// One selected DM's call state. Media belongs to the application-level
+/// [NativeCallOwner], bound here per call; ringtone lifetime is independent
+/// of widgets.
 class VoiceCallOrchestratorNotifier
     extends Notifier<VoiceCallOrchestratorState> {
   VoiceCallOrchestratorNotifier(this.sessionId);
@@ -118,9 +119,9 @@ class VoiceCallOrchestratorNotifier
     }, incomingManaged: ref.read(androidWaitingOwnerProvider) != null);
     ref.onDispose(() {
       _ringing.dispose();
+      // The native owner outlives this notifier: a call keeps its media
+      // when the DM's view goes away.
       _native?.removeListener(_nativeChanged);
-      final id = _attachedCallId;
-      if (id != null) _native?.unbind(sessionId, id);
     });
     ref.listen(personalChatNameProvider(DmTarget(sessionId).ref), (_, __) {
       state = _stateFor(_snapshot);

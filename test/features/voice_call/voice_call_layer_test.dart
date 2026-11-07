@@ -243,24 +243,26 @@ void main() {
         ..seedNativeCallSnapshot(nativeCallSnapshot(
             sessionId: 'sess-1', callId: 'call-1', microphone: true));
       final media = NativeCallOwner(bridge, () async => true);
-      addTearDown(media.dispose);
       gateway.seedSessions([_activeSnapshot('sess-1')]);
       final l = await AppLocalizations.delegate.load(const Locale('en'));
       late WidgetRef ref;
       // Same as above: the active-call overlay opens a frame later.
       await pumpScreen(
           tester,
-          Scaffold(
-            body: Column(
-              children: [
-                VoiceCallLayer(sessionId: 'sess-1', l: l),
-                Consumer(
-                  builder: (context, r, _) {
-                    ref = r;
-                    return const SizedBox.shrink();
-                  },
-                ),
-              ],
+          ReleasesCallMedia(
+            media: media,
+            child: Scaffold(
+              body: Column(
+                children: [
+                  VoiceCallLayer(sessionId: 'sess-1', l: l),
+                  Consumer(
+                    builder: (context, r, _) {
+                      ref = r;
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
           overrides: [

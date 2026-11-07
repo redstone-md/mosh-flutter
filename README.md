@@ -157,6 +157,8 @@ flutter pub get
 Then run `flutter run -d windows` or `flutter run -d macos` on the matching
 platform. Moss is built from the pinned submodule, including both macOS
 architectures.
+On Linux, `flutter run -d linux` also builds the call engine, whose libwebrtc
+needs clang 21 or later: set `CC` and `CXX` to it.
 
 Moss preparation also reconstructs the pinned, patched OpenMLS source. Flutter
 native builds and CI prepare it automatically. Before running Cargo or bridge

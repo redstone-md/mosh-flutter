@@ -115,14 +115,6 @@ impl DmTransport for RefusingStreamTransport {
 
     fn close_room(&self, _room: &str, _channels: &[String], _label: &str) {}
 
-    fn subscribe(&self, _room: &str, _channel: &str) -> Result<(), String> {
-        Ok(())
-    }
-
-    fn unsubscribe(&self, _room: &str, _channel: &str) -> Result<(), String> {
-        Ok(())
-    }
-
     fn publish(&self, _room: &str, _channel: &str, _payload: &[u8]) -> Result<(), PublishError> {
         Err(PublishError::Other(
             "transport publish is not under test".to_string(),
