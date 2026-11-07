@@ -33,12 +33,13 @@ unzip -q "$APK" 'lib/*' -d "$WORK"
 unzip -p "$APK" assets/native-media/WEBRTC-LICENSE.md > "$WORK/webrtc-license.txt"
 test -s "$WORK/webrtc-license.txt"
 test "$(find "$WORK/lib" -mindepth 1 -maxdepth 1 -type d | wc -l)" = 1
-# Exactly these libraries: the engine links LiveKit's libwebrtc in.
-test "$(cd "$WORK/lib/arm64-v8a" && ls | sort | tr '\n' ' ')" = \
-  'libapp.so libflutter.so libmosh_core.so libmosh_native_media.so libmoss.so '
-for library in "$WORK"/lib/arm64-v8a/*.so; do
-  test -s "$library"
+# Plugins bundle their own libraries beside these. The engine links LiveKit's
+# libwebrtc in, so RingRTC's separate library must be gone.
+for library in libapp.so libflutter.so libmosh_core.so libmoss.so libmosh_native_media.so; do
+  test -s "$WORK/lib/arm64-v8a/$library" || { echo "Missing native library: $library" >&2; exit 1; }
 done
+test ! -e "$WORK/lib/arm64-v8a/libringrtc_rffi.so" ||
+  { echo 'The release APK still bundles RingRTC' >&2; exit 1; }
 
 # libwebrtc.jar's native methods resolve to the engine's exports.
 # Through a file: under pipefail, grep -q closing early fails the pipeline.
