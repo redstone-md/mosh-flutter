@@ -256,8 +256,9 @@ a packet) and `stale` (older than 200 ms when drained). `stalls_max_ms` holds
 the longest pauses since the previous line: `step` (one owner step),
 `lock_wait` (the owner waiting for the call state lock, which Dart's commands
 and frame reads also take) and `drain` (between drains; about 2 ms is the
-baseline). While the engine keeps
-dropping, the line repeats every 10 seconds even if the call status holds.
+baseline). While the engine or the
+sender keeps dropping, the line repeats every 10 seconds even if the call
+status holds.
 Route and encoder limits apply before packets are transferred, independently of
 the 250 ms statistics refresh. Unknown routes use relay limits until a direct
 path is confirmed. Direct sending allows 500,000 bytes/s total

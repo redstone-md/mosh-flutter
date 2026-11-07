@@ -74,8 +74,8 @@ pub(super) struct Pipeline {
     pub stalls: Stalls,
 }
 
-/// While the engine keeps dropping packets, log at this pace even when the
-/// call's status holds still.
+/// While the engine or the sender keeps dropping packets, log at this pace
+/// even when the call's status holds still.
 const LOSS_LOG_INTERVAL: Duration = Duration::from_secs(10);
 
 #[derive(Default)]
@@ -162,7 +162,8 @@ impl Monitor {
         let dropped = ["full", "stale"]
             .iter()
             .filter_map(|cause| engine["queue_dropped"][cause].as_u64())
-            .sum();
+            .sum::<u64>()
+            + pipeline.sender_dropped;
         let losing = self.logged.is_some_and(|(at, logged)| {
             dropped > logged && now.saturating_duration_since(at) >= LOSS_LOG_INTERVAL
         });
@@ -284,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    fn engine_losses_are_logged_with_the_longest_gaps_while_status_holds() {
+    fn losses_are_logged_with_the_longest_stalls_while_status_holds() {
         let now = Instant::now();
         let state = State::default();
         let route = PeerTransport::Direct;
@@ -312,10 +313,24 @@ mod tests {
             .unwrap();
         assert!(event.contains("\"engine_dropped\":{\"full\":2,\"stale\":5}"));
         assert!(event.contains("\"stalls_max_ms\":{\"drain\":4,\"lock_wait\":31,\"step\":310}"));
-        let quiet = later + Duration::from_secs(20);
+        let sender_losing = Pipeline {
+            sender_dropped: 3,
+            ..stalled(40, 2)
+        };
+        let event = monitor
+            .observe(
+                route,
+                &state,
+                &engine(2, 5),
+                sender_losing,
+                later + Duration::from_secs(10),
+            )
+            .unwrap();
+        assert!(event.contains("\"sender_dropped\":3"));
+        let quiet = later + Duration::from_secs(30);
         assert!(
             monitor
-                .observe(route, &state, &engine(2, 5), stalled(40, 2), quiet)
+                .observe(route, &state, &engine(2, 5), sender_losing, quiet)
                 .is_none(),
             "no new losses, no line"
         );
