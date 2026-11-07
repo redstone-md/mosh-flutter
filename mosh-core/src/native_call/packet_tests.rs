@@ -161,7 +161,7 @@ fn packets_older_than_the_queue_deadline_are_never_sent() {
 fn transport_refusal_is_reported_without_requeueing() {
     let net = MemoryNet::new();
     let sender = Sender::new(net.endpoint("local"));
-    sender.enqueue("missing", &[9; 16], &[2; 16], true);
+    sender.sink("missing", &[9; 16])(&[2; 16], true);
     let deadline = Instant::now() + Duration::from_secs(1);
     while sender.dropped() == 0 {
         assert!(
@@ -178,10 +178,14 @@ fn transport_refusal_is_reported_without_requeueing() {
 mod trace;
 
 #[cfg(feature = "native-media-tests")]
+#[path = "packet_stall_tests.rs"]
+mod stall;
+
+#[cfg(feature = "native-media-tests")]
 mod native {
     use super::*;
     use crate::native_call::{
-        library::{Engine, MAX_PACKET},
+        library::{Engine, Sink},
         types::Binding,
     };
     use crate::private_dm_runtime::transport::PeerTransport;
@@ -204,7 +208,11 @@ mod native {
         let mut pixels = vec![0; 640 * 360 * 4];
         pattern(&mut pixels, 0);
         let mut decoded_pixels = vec![0; pixels.len()];
-        let (mut caller, mut callee) = pair();
+        let (mut caller, mut callee) = pair(
+            true,
+            sending.sink("b", &[9; 16]),
+            returning.sink("a", &[9; 16]),
+        );
         let started = Instant::now();
         let mut trace = trace::Trace::new(started);
         let interval = Duration::from_millis(66);
@@ -223,8 +231,8 @@ mod native {
                 assert!(caller.push(640, 360, &pixels));
                 tick += 1;
             }
-            let emitted = forward(&mut caller, &mut callee, &sending, "b", &*a);
-            forward(&mut callee, &mut caller, &returning, "a", &*b);
+            forward(&mut caller, &mut callee, &*a);
+            forward(&mut callee, &mut caller, &*b);
             let frame = callee.frame(sequence, &mut decoded_pixels);
             assert!(
                 sequence > 0 || started.elapsed() < Duration::from_secs(3),
@@ -237,7 +245,7 @@ mod native {
             if started.elapsed() >= WARMUP {
                 initial_sequence.get_or_insert(sequence);
             }
-            trace.observe(&sending, tick, sequence, emitted);
+            trace.observe(&sending, tick, sequence);
             assert_fresh(
                 sequence,
                 decoded,
@@ -288,7 +296,7 @@ mod native {
         );
     }
 
-    fn pair() -> (Engine, Engine) {
+    pub(super) fn pair(relayed: bool, caller_sink: Sink, callee_sink: Sink) -> (Engine, Engine) {
         let binding = Binding {
             session_id: "dm".into(),
             call_id: "call".into(),
@@ -296,8 +304,8 @@ mod native {
             callee: "b".into(),
             media_session: vec![9; 16],
         };
-        let mut caller = Engine::new(&binding, true).unwrap();
-        let mut callee = Engine::new(&binding, false).unwrap();
+        let mut caller = Engine::new(&binding, true, caller_sink).unwrap();
+        let mut callee = Engine::new(&binding, false, callee_sink).unwrap();
         let offer = caller.ask(json!({"action":"offer"})).unwrap();
         let answer = callee
             .ask(json!({"action":"remote", "description":offer}))
@@ -311,38 +319,23 @@ mod native {
         for engine in [&mut caller, &mut callee] {
             engine.ask(json!({"action":"start"})).unwrap();
             engine
-                .ask(json!({"action":"budget", "max_bps":capacity(true).encoder_bits_per_second}))
+                .ask(
+                    json!({"action":"budget", "max_bps":capacity(relayed).encoder_bits_per_second}),
+                )
                 .unwrap();
         }
         (caller, callee)
     }
 
-    fn forward(
-        from: &mut Engine,
-        to: &mut Engine,
-        sender: &Sender,
-        peer: &str,
-        receive: &dyn DmTransport,
-    ) -> (usize, usize) {
+    /// Signals and inbound packets, as the owner step carries them; outgoing
+    /// packets leave through each engine's sink.
+    pub(super) fn forward(from: &mut Engine, to: &mut Engine, receive: &dyn DmTransport) {
         let gathered = from.ask(json!({"action":"tick"})).unwrap();
         to.ask(json!({"action":"tick", "candidates":gathered["candidates"]}))
             .unwrap();
         for message in receive.drain_call_packets() {
             assert!(from.receive(unwrap(&message.payload, &[9; 16]).unwrap()));
         }
-        let mut packet = [0; MAX_PACKET];
-        let (mut packets, mut bytes) = (0, 0);
-        while let Some(length) = from.packet(&mut packet) {
-            packets += 1;
-            bytes += length + 20;
-            sender.enqueue(
-                peer,
-                &[9; 16],
-                &packet[..length],
-                from.priority(&packet[..length]),
-            );
-        }
-        (packets, bytes)
     }
 
     fn pattern(pixels: &mut [u8], tick: usize) {

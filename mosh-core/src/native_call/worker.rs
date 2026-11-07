@@ -249,12 +249,15 @@ impl Owner {
             return Ok(());
         }
         if self.connection.is_none() && context.caller {
-            self.install(Connection::new(context.clone(), None)?, state)?;
+            self.install(Connection::new(context.clone(), None, &self.sender)?, state)?;
         }
         for signal in state.inbound.drain(..).collect::<Vec<_>>() {
             if self.connection.is_none() {
                 if let Signal::Description(offer) = signal {
-                    self.install(Connection::new(context.clone(), Some(offer))?, state)?;
+                    self.install(
+                        Connection::new(context.clone(), Some(offer), &self.sender)?,
+                        state,
+                    )?;
                 }
                 continue;
             }

@@ -7,8 +7,6 @@ pub(super) struct Trace {
     previous: Instant,
     last_sample: u128,
     max_gap_ms: u128,
-    max_burst_packets: usize,
-    max_burst_bytes: usize,
     samples: VecDeque<Value>,
 }
 
@@ -19,27 +17,17 @@ impl Trace {
             previous: started,
             last_sample: 0,
             max_gap_ms: 0,
-            max_burst_packets: 0,
-            max_burst_bytes: 0,
             samples: VecDeque::new(),
         }
     }
 
-    pub(super) fn observe(
-        &mut self,
-        sender: &Sender,
-        captured: usize,
-        decoded: u64,
-        burst: (usize, usize),
-    ) {
+    pub(super) fn observe(&mut self, sender: &Sender, captured: usize, decoded: u64) {
         let now = Instant::now();
         let elapsed = now.duration_since(self.started).as_millis();
         self.max_gap_ms = self
             .max_gap_ms
             .max(now.duration_since(self.previous).as_millis());
         self.previous = now;
-        self.max_burst_packets = self.max_burst_packets.max(burst.0);
-        self.max_burst_bytes = self.max_burst_bytes.max(burst.1);
         if elapsed.saturating_sub(self.last_sample) < 100 {
             return;
         }
@@ -58,7 +46,6 @@ impl Trace {
     }
 
     pub(super) fn snapshot(&self) -> Value {
-        json!({"max_loop_gap_ms":self.max_gap_ms,"max_burst_packets":self.max_burst_packets,
-            "max_burst_bytes":self.max_burst_bytes,"samples":self.samples})
+        json!({"max_loop_gap_ms":self.max_gap_ms,"samples":self.samples})
     }
 }

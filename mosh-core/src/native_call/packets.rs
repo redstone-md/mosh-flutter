@@ -91,34 +91,15 @@ struct Shared {
     queue: Mutex<Queue>,
     changed: Condvar,
 }
-pub(crate) struct Sender(Arc<Shared>);
-
-impl Sender {
-    pub fn new(transport: Arc<dyn DmTransport>) -> Self {
-        let shared = Arc::new(Shared {
-            queue: Mutex::new(Queue {
-                relayed: true,
-                ..Default::default()
-            }),
-            changed: Condvar::new(),
-        });
-        let worker = shared.clone();
-        std::thread::spawn(move || send_loop(worker, transport));
-        Self(shared)
-    }
-
-    pub fn enqueue(&self, peer: &str, nonce: &[u8], packet: &[u8], priority: bool) {
+impl Shared {
+    fn enqueue(&self, peer: &str, nonce: &[u8], packet: &[u8], priority: bool) {
         if nonce.len() != 16 || packet.len() > super::library::MAX_PACKET {
             return;
         }
         let mut bytes = b"MCN1".to_vec();
         bytes.extend(nonce);
         bytes.extend(packet);
-        let mut queue = self
-            .0
-            .queue
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+        let mut queue = self.queue.lock().unwrap_or_else(|error| error.into_inner());
         let full = if priority {
             queue.priority.len() >= 32
         } else {
@@ -136,7 +117,29 @@ impl Sender {
             bytes,
             queued: Instant::now(),
         });
-        self.0.changed.notify_one();
+        self.changed.notify_one();
+    }
+}
+pub(crate) struct Sender(Arc<Shared>);
+
+impl Sender {
+    pub fn new(transport: Arc<dyn DmTransport>) -> Self {
+        let shared = Arc::new(Shared {
+            queue: Mutex::new(Queue {
+                relayed: true,
+                ..Default::default()
+            }),
+            changed: Condvar::new(),
+        });
+        let worker = shared.clone();
+        std::thread::spawn(move || send_loop(worker, transport));
+        Self(shared)
+    }
+
+    /// Queues `peer`'s engine packets from any thread.
+    pub fn sink(&self, peer: &str, nonce: &[u8]) -> super::library::Sink {
+        let (shared, peer, nonce) = (self.0.clone(), peer.to_owned(), nonce.to_vec());
+        Box::new(move |packet, priority| shared.enqueue(&peer, &nonce, packet, priority))
     }
 
     pub fn reset(&self) {

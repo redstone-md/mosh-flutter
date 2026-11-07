@@ -244,10 +244,17 @@ video never blocks newly queued audio/control. The deadline accommodates a maxim
 2,027-byte wrapped packet's 63.4 ms refill time on a depleted relay video budget,
 with headroom for keyframe bursts and delayed thread wakeups. Eight 1,473-byte
 fragments need about 368 ms with no credit, or 268 ms with a full bucket.
-The engine packet queue expires packets after 200 ms, so delayed polling does
-not discard fresh frame fragments
-before they reach the sender. Both queues remain bounded; the one-second decoded
-frame freshness limit is unchanged.
+The engine packet queue holds 128 packets and expires them after 200 ms. A
+dedicated egress thread drains it every 2 ms straight into the sender, without
+the call state or engine locks, so a slow owner step (camera frames, statistics,
+device enumeration) cannot age fresh frame fragments out. Both queues remain
+bounded; the one-second decoded frame freshness limit is unchanged.
+
+The `native media:` log line reports `engine_dropped` as `full` (queue refused
+a packet) and `stale` (older than 200 ms when drained), with
+`owner_gap_max_ms` and `drain_gap_max_ms`, the longest pauses between owner
+steps and between drains since the previous line. While the engine keeps
+dropping, the line repeats every 10 seconds even if the call status holds.
 Route and encoder limits apply before packets are transferred, independently of
 the 250 ms statistics refresh. Unknown routes use relay limits until a direct
 path is confirmed. Direct sending allows 500,000 bytes/s total

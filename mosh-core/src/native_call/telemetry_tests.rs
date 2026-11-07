@@ -12,12 +12,12 @@ fn relay_budget_and_route_changes_apply_while_statistics_are_throttled() {
         callee: "b".into(),
         media_session: vec![9; 16],
     };
-    let mut engine = Engine::new(&binding, true).unwrap();
     let net = MemoryNet::new();
     let transport = net.endpoint("a");
     net.endpoint("b");
     net.link("a", "b", PeerTransport::Relayed);
     let sender = Sender::new(transport.clone());
+    let mut engine = Engine::new(&binding, true, sender.sink("b", &[9; 16])).unwrap();
     let mut reporter = Reporter::new();
     // Freeze the statistics gate closed, independent of native startup time.
     reporter.statistics = Instant::now() + Duration::from_secs(60);
