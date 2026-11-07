@@ -6,8 +6,8 @@ Desktop-first Flutter + Riverpod, Rust via flutter_rust_bridge, Moss + OpenMLS.
 - Read `docs/Architecture.md`, relevant ADRs and the nearest `AGENTS.md`.
 - Flutter: `lib/`. Rust: `mosh-core/`. Native probes: `mosh-probe/`.
 - Do not modify `moss/` sources or sibling repositories.
-- Issues/specs: use the direct Linear MCP for the Mosh project. Before tracker
-  reads, publication, triage or status changes, read
+- Issues/specs: use the itsaplan MCP, project `MOSH`. Before tracker reads,
+  publication, triage or status changes, read
   [tracker instructions](docs/agents/issue-tracker.md) and
   [triage labels](docs/agents/triage-labels.md).
 

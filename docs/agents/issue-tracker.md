@@ -1,61 +1,76 @@
-# Issue tracker: Linear
+# Issue tracker: itsaplan
 
-The canonical tracker for this repository is
-[Mosh in Linear](https://linear.app/ivoxygen/project/mosh-32d1c33dc92a).
-Use the direct `mcp__linear__*` tools, rather than the `codex_apps` connector.
+The canonical tracker for this repository is the `Mosh` project in itsaplan:
+project key `MOSH` (team `Redstone`, ref `redstone.MOSH`). Issues are named
+`MOSH-<number>`. Use the `mcp__itsaplan__*` tools. Linear is no longer used.
 
-- Workspace: `ivoxygen`.
-- Team: `Ivoxygen` (`IVO`, ID `149c7831-e646-4972-8e83-4a9c24a652a5`).
-- Project: `Mosh` (`P-IVO-2`). Scope issue searches and new issues to this project.
+Ids other than the issue key (columns, types, labels, members) are per
+project: resolve them with `get_project` and never reuse them from memory.
+
+## States
+
+Select a column by its `stateType`, not its name:
+
+| Column | `stateType` | Use |
+|---|---|---|
+| Backlog | `backlog` | Captured, not planned |
+| Todo | `unstarted` | Specified and planned |
+| In Progress | `started` | Work has begun |
+| In Review | `started` | A PR is open |
+| Done | `completed` | Verified result |
+| Canceled | `canceled` | Not done |
 
 ## Operations
 
-- **Publish a spec/task**: check for an existing matching Linear issue, then
-  create or update it through `save_issue`. On creation set the team and project;
-  send Markdown with actual newlines. Apply the label required by the invoked
-  skill using [the triage mapping](triage-labels.md).
-- **Read a ticket**: use `get_issue` with its `IVO-*` identifier or Linear URL.
-  Fetch comments and relations when they are relevant to the task.
-- **Find work**: use `list_issues` with the Mosh project and relevant label,
-  status, assignee or parent filters. Follow pagination.
-- **Change a ticket**: use `save_issue` for status, assignee, labels and
-  relations; preserve unrelated fields and existing labels. Use `save_comment`
-  for an authorized comment. Read the available tool schema before calling it.
-- **Complete work**: verify the result before setting `Done`. A readiness label
-  is separate from workflow status and does not mean work has been implemented.
-- **Verify publication**: read back the description, project, status and labels,
-  then return the Linear identifier and URL.
+- **Read a ticket**: `get_issue_by_number` with `projectKey: "MOSH"` and the
+  number. It returns the internal id other tools take, the subtasks and links.
+  Read comments with `list_issue_activity` when they matter.
+- **Find work**: `list_issues` with `projectKey: "MOSH"` and column, label,
+  type or `parentId` filters; `search_issues` for text.
+- **Publish a spec/task**: check for an existing matching issue, then
+  `create_issue` or `update_issue`. Send Markdown with actual newlines. Apply
+  the label required by the invoked skill using
+  [the triage mapping](triage-labels.md).
+- **Change a ticket**: `update_issue` for column, assignee, labels and parent;
+  it replaces the label list, so keep the existing labels. `add_comment` only
+  for an authorized comment.
+- **Work on a ticket**: move it to In Progress when work starts and to In Review
+  when its PR opens. Set Done only after the result is verified; a readiness
+  label is separate from the column and does not mean the work is done.
+- **Verify publication**: read back the description, column and labels, then
+  return the `MOSH-<number>` key.
 
-If the direct Linear MCP is unavailable, keep the prepared spec locally and
-report the access problem. Do not silently substitute GitHub Issues or another
-connector. An explicit user instruction naming a different destination takes
+If the itsaplan MCP is unavailable, keep the prepared spec locally and report
+the access problem. Do not silently substitute GitHub Issues or another
+tracker. An explicit user instruction naming a different destination takes
 precedence.
 
 ## GitHub boundary
 
 GitHub remains the source of code, pull requests, reviews, CI and releases.
 Use `gh` for those operations. **PRs as a request surface: no.**
-Existing GitHub issue links remain valid historical context; read an explicitly
-referenced GitHub issue when needed, but publish new project tasks/specs to
-Linear. Include the `IVO-*` identifier in related PRs. A GitHub PR number and a
-Linear issue identifier are different references.
+Existing GitHub issue links and older Linear `IVO-*` references remain valid
+historical context; publish new project tasks/specs to itsaplan. Put the
+`MOSH-<number>` key in related PRs. A GitHub PR number and an itsaplan issue
+key are different references.
 
-When correcting a misplaced GitHub spec, verify its Linear replacement before
+When correcting a misplaced GitHub spec, verify its itsaplan replacement before
 closing the duplicate and retain a link to the canonical ticket. Do not bulk
 migrate or close unrelated historical issues.
 
 ## Wayfinding operations
 
-- **Map**: one Linear issue labelled `wayfinder:map`, holding Notes,
+- **Map**: one issue labelled `wayfinder:map`, holding Notes,
   Decisions-so-far and Fog.
-- **Child ticket**: create a Linear issue under the map with `parentId` and the
+- **Child ticket**: an issue with `parentId` set to the map and the
   appropriate `wayfinder:<type>` label (`research`, `prototype`, `grilling` or
-  `task`). Retain the Mosh project and team.
-- **Blocking**: use native Linear `blockedBy`/`blocks` relations. A ticket is
-  unblocked when all blocking tickets are complete.
-- **Frontier**: list the map's children, exclude completed/canceled tickets,
+  `task`).
+- **Blocking**: `link_issues` with a `blocks` link. A ticket is unblocked when
+  every issue blocking it is in a `completed` column.
+- **Frontier**: list the map's subtasks, exclude completed/canceled tickets,
   tickets with an open blocker and tickets already assigned, then use map order.
-- **Claim**: when the workflow calls for claiming work, set its assignee through
-  `save_issue` before implementation.
-- **Resolve**: record the verified answer/result, set the appropriate completion
-  status and add a context pointer to the map's Decisions-so-far.
+- **Claim**: when the workflow calls for claiming work, set its assignee with
+  `update_issue` before implementation.
+- **Resolve**: record the verified answer/result, move it to the right
+  completed or canceled column and add a context pointer to the map's
+  Decisions-so-far.
