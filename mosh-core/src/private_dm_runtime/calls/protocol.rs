@@ -21,7 +21,7 @@ pub(super) const UPDATE_REQUIRED: &str = "update_required";
 
 /// The call event recorded when a call ends for `reason`: an unanswered call
 /// that a device refused for its engine asks to update Mosh too.
-pub(super) fn end_kind(call: &crate::voice_call_runtime::CallState, reason: &str) -> &'static str {
+pub(super) fn end_kind(call: &crate::private_dm_runtime::CallState, reason: &str) -> &'static str {
     let kind = call.end_kind();
     if reason == UPDATE_REQUIRED || (call.refused_by_other_engine && kind == "missed") {
         UPDATE_REQUIRED
@@ -44,11 +44,9 @@ fn legacy_media_protocol() -> u32 {
 #[derive(Clone, Serialize, Deserialize)]
 pub(super) enum CallAction {
     Media(crate::native_call::types::Signal),
-    Offer {
-        key_b64: String,
-        nonce_prefix_b64: String,
-        native: bool,
-    },
+    /// Braced so an older client's offer, which carried its own media keys,
+    /// still parses and ends with `update_required` instead of ringing on.
+    Offer {},
     Answer,
     Occupied {
         caller: String,
@@ -76,15 +74,11 @@ impl CallAction {
     }
 }
 
-impl crate::voice_call_runtime::CallState {
+impl crate::private_dm_runtime::CallState {
     pub(super) fn outbound_control(&self) -> Option<CallAction> {
-        use crate::voice_call_runtime::{CallDirection, CallPhase};
+        use crate::private_dm_runtime::{CallDirection, CallPhase};
         Some(match self.phase {
-            CallPhase::Outgoing => CallAction::Offer {
-                key_b64: self.key_b64.clone(),
-                nonce_prefix_b64: self.nonce_prefix_b64.clone(),
-                native: native_platform(),
-            },
+            CallPhase::Outgoing => CallAction::Offer {},
             CallPhase::Accepting => CallAction::Answer,
             CallPhase::Active if self.direction == CallDirection::Caller => CallAction::Selected {
                 receiver: self.selected_signer.clone()?,
@@ -95,15 +89,6 @@ impl crate::voice_call_runtime::CallState {
             },
         })
     }
-}
-
-pub(super) const fn native_platform() -> bool {
-    cfg!(any(
-        target_os = "windows",
-        target_os = "macos",
-        target_os = "linux",
-        target_os = "android"
-    ))
 }
 
 #[cfg(test)]

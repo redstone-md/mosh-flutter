@@ -372,33 +372,29 @@ command. `VoiceCallHost` lives in the router's persistent outer ShellRoute,
 below the first-run gate and root Navigator. Native device dialogs therefore
 use the real modal/back stack, while all conversation/settings routes share one host. It
 selects the originating call from the app-wide DM list, so navigation does not
-replace or dispose the audio owner. Capture, playback and ringtone retain their
-independent factory providers. Audio replacement waits for the previous startup
-and teardown, and cancelled work cannot send or play frames.
+rebind or release the call's native media. The ringtone keeps its own factory
+provider.
 
 Desktop call controls run in a separate process of the same executable. This
 isolates each renderer and lets the parent terminate an unresponsive child. Stdio
 carries presentation metadata and commands without listening ports. The child
 starts only the shared view and ordinary window plugins, without initializing
-Rust or storage. Display metadata contains no call keys or audio handles; commands
+Rust or storage. Display metadata contains no media handles; commands
 carry both session and call IDs. Main-process state remains authoritative.
 An application-level strip keeps messaging usable and can restore the window.
 Ringtone and no-answer timeout belong to the call state. The supplied PCM recording
 uses CPAL's selected output device. See [voice calls](Features/voice-calls.md).
 
-Dart seals and opens call frames with the existing cryptography package and
-reorders playback with its jitter buffer. Raw bytes cross `BridgeFacade` every
-20 ms. Rust's `CallMedia` hub publishes/drains active calls through a separate lock,
-so audio does not wait on the DM owner. Native Opus/CPAL handle encoding and
-playback. Playback buffers 60 ms, emits silence on underrun, and jitter skips a
-gap once three later frames wait. Rust owns call signaling and mirrors active
-calls into the hub. The wire is `[seq:u64 BE][ciphertext+tag]`, with AES-GCM nonce
-`[prefix:4][seq:8]` and a direction bit in the sequence.
+Media runs in the native call engine, libwebrtc in `mosh-media/webrtc`, which
+mosh-core loads through the `mosh_media_*` ABI and feeds over Moss
+([native call media](Features/native-call-media.md)). Rust owns call signaling
+and the engine; Dart only commands it and renders its frames.
 
 Accepted video-call ownership lives in [ADR 0043](ADR/0043-one-device-per-user-in-a-call.md)
 and [ADR 0044](ADR/0044-native-call-media-over-moss.md). The
 [issue 46 plan](Proposals/issue-46-video-calls.plan.md) defines stages and acceptance.
-The target uses one native audio/video engine over Moss. The voice pipeline above remains current.
+Every call uses that one native audio/video engine over Moss. iOS has none yet
+(MOSH-77).
 
 ## Security, builds and checks
 
@@ -451,7 +447,7 @@ CI checks drift. Flutter `gen-l10n` generates English/Russian localizations from
 ARB files. Cargokit links the same core as desktop/Android dynamic libraries and
 iOS static libraries. Windows integration tests require debug; Android builds
 require `--target-platform android-arm64`. macOS releases prepare universal Moss
-and Opus libraries before packaging; the reusable build workflow owns signing and
+libraries before packaging; the reusable build workflow owns signing and
 DMG generation.
 
 Required checks live in [AGENTS.md](../AGENTS.md). Native runtime tests use real

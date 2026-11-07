@@ -32,18 +32,7 @@ A new Flutter FFI plugin project.
   # _AudioUnitInitialize and friends.
   s.frameworks = 'CoreAudio', 'AudioToolbox'
 
-  # audiopus_sys links a prebuilt universal libopus.a (built by
-  # scripts/opus-prepare-macos.sh; its own vendored build cannot cross-
-  # compile opus for the x86_64 slice), and OPUS_NO_PKG keeps a stray
-  # brew opus from winning over it. The path must be resolved at pod
-  # install time through File.realpath (__dir__ alone is lexical and
-  # the podspec is evaluated through CocoaPods' .symlinks layout), and
-  # the script itself guards loudly so a missing prebuilt is one-glance
-  # diagnosable in the build log.
-  opus_lib_dir = File.expand_path('../../third_party/opus-macos-universal', File.realpath(__dir__))
-
-  build_rust = %(test -d "#{opus_lib_dir}" || { echo "opus prebuilt missing at #{opus_lib_dir} -- run scripts/opus-prepare-macos.sh first" >&2; exit 1; }
-LIBOPUS_LIB_DIR="#{opus_lib_dir}" OPUS_NO_PKG=1 sh "$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh" ../../mosh-core mosh-core)
+  build_rust = %(sh "$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh" ../../mosh-core mosh-core)
 
   s.script_phase = {
     :name => 'Build Rust library',

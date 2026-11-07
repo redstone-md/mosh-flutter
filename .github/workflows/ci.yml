@@ -26,7 +26,7 @@ permissions:
 # every job pins the same versions. Caches are saved only from main and fit
 # its 10 GB with room, so pull requests restore main's and save nothing.
 # Only jobs on the critical path (the desktop, Android and macOS app builds
-# and the Rust core) keep build caches; the call-engine, license and widget
+# and the Rust core) keep build caches; the call-media, license and widget
 # test jobs build cold and still finish well before it.
 #
 # Job order: every job starts at once. The repo is public, so runner minutes
@@ -81,6 +81,10 @@ jobs:
           node --test scripts/license-check.test.mjs
           node scripts/license-check.mjs
 
+  # The call engine (mosh-media/webrtc) on our libwebrtc builds and the
+  # camera helper: lint, their tests, the relay video regression, call setup
+  # and video calls through mosh-core over MLS and real Moss, and on Linux a
+  # voice call over real Moss with PulseAudio devices.
   native-call-media:
     name: Native call media (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -89,64 +93,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - uses: ./.github/actions/setup
-        with:
-          flutter: 'false'
-          rust-cache-key: none
-      # bindgen loads the runner's preinstalled libclang 18; no -dev package.
-      - if: runner.os == 'Linux'
-        uses: ./.github/actions/apt-install
-        with:
-          packages: libasound2-dev libudev-dev
-      - name: Build packaged engine and camera helper
-        run: node scripts/native-media-build.mjs
-      - name: Packaging and CI script regressions
-        if: runner.os == 'Linux'
-        run: node --test scripts/macos-package.test.mjs scripts/msix-manifest.test.mjs scripts/plus-build-config.test.mjs scripts/store-listing.test.mjs scripts/cache-cleanup.test.mjs scripts/verified-download.test.mjs
-      - name: Native Rust format, lint and tests
-        shell: bash
-        run: |
-          export CARGO_TARGET_DIR="$PWD/.dart_tool/native-media/target"
-          export PROTOC="$(node --input-type=module -e 'import {nativeProtoc} from "./scripts/support/native-protoc.mjs"; console.log(await nativeProtoc(process.cwd()))')"
-          for crate in engine capture; do
-            cargo fmt --manifest-path "mosh-media/$crate/Cargo.toml" --check
-            cargo clippy --manifest-path "mosh-media/$crate/Cargo.toml" --all-targets -- -D warnings
-            cargo test --manifest-path "mosh-media/$crate/Cargo.toml"
-          done
-      - name: Build independent API peer and capture driver
-        run: cargo build --manifest-path mosh-core/Cargo.toml --features native-media-tests --lib --bin mosh-camera-test-driver --test device_link_flow
-      - name: Real MLS, Moss and native SRTP calls
-        shell: bash
-        run: |
-          case "$RUNNER_OS" in
-            Windows) engine=mosh_native_media.dll; helper=mosh-camera-test-driver.exe ;;
-            macOS) engine=libmosh_native_media.dylib; helper=mosh-camera-test-driver ;;
-            Linux) engine=libmosh_native_media.so; helper=mosh-camera-test-driver ;;
-          esac
-          export MOSH_MEDIA_ENGINE="$PWD/.dart_tool/native-media/debug/$engine"
-          export MOSH_CAMERA_CAPTURE="$PWD/mosh-core/target/debug/$helper"
-          cargo test --manifest-path mosh-core/Cargo.toml --lib --features native-media-tests native_call:: -- --include-ignored --nocapture
-          node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture
-
-  # The libwebrtc call engine (MOSH_CALL_ENGINE=webrtc, mosh-media/webrtc)
-  # on our libwebrtc builds: lint, its engine tests, the relay video
-  # regression, call setup and video calls through mosh-core over MLS and
-  # real Moss, and on Linux a voice call over real Moss with PulseAudio
-  # devices.
-  native-call-webrtc:
-    name: libwebrtc call engine (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
-    env:
-      MOSH_CALL_ENGINE: webrtc
     steps:
       - uses: actions/checkout@v4
         with:
@@ -177,17 +123,23 @@ jobs:
             libxdamage-dev libxrandr-dev libxcomposite-dev
       - name: Build packaged engine and camera helper
         run: node scripts/native-media-build.mjs
-      - name: Engine format, lint and tests
+      - name: Packaging and CI script regressions
+        if: runner.os == 'Linux'
+        run: node --test scripts/macos-package.test.mjs scripts/msix-manifest.test.mjs scripts/plus-build-config.test.mjs scripts/store-listing.test.mjs scripts/cache-cleanup.test.mjs scripts/verified-download.test.mjs
+      - name: Engine and camera helper format, lint and tests
         shell: bash
-        working-directory: mosh-media/webrtc
         run: |
           host=$(rustc -vV | sed -n 's/^host: //p')
-          export CARGO_TARGET_DIR="$GITHUB_WORKSPACE/.dart_tool/native-media/target-webrtc"
-          export LK_CUSTOM_WEBRTC="$(node "$GITHUB_WORKSPACE/scripts/livekit-webrtc-prepare.mjs" --libwebrtc "$host")"
+          export CARGO_TARGET_DIR="$PWD/.dart_tool/native-media/target"
+          export PROTOC="$(node --input-type=module -e 'import {nativeProtoc} from "./scripts/support/native-protoc.mjs"; console.log(await nativeProtoc(process.cwd()))')"
+          export LK_CUSTOM_WEBRTC="$(node scripts/livekit-webrtc-prepare.mjs --libwebrtc "$host")"
           test -n "$LK_CUSTOM_WEBRTC"
-          cargo fmt --check
-          cargo clippy --locked --all-targets -- -D warnings
-          cargo test --locked -- --nocapture
+          for crate in webrtc capture; do
+            (cd "mosh-media/$crate" &&
+              cargo fmt --check &&
+              cargo clippy --locked --all-targets -- -D warnings &&
+              cargo test --locked -- --nocapture)
+          done
       - name: Build independent API peer and capture driver
         run: cargo build --manifest-path mosh-core/Cargo.toml --features native-media-tests --lib --bin mosh-camera-test-driver --test device_link_flow
       - name: Calls and video over MLS and real Moss
@@ -224,7 +176,7 @@ jobs:
         run: cargo fmt --manifest-path mosh-core/Cargo.toml --check
 
       - name: Pinned source preparation tests
-        run: node --test scripts/openmls-prepare.test.mjs scripts/ringrtc-prepare.test.mjs scripts/livekit-webrtc-prepare.test.mjs scripts/source-lock.test.mjs
+        run: node --test scripts/openmls-prepare.test.mjs scripts/livekit-webrtc-prepare.test.mjs scripts/source-lock.test.mjs
 
       # Strict lint gate (ADR 0015): warnings fail the job.
       - name: Clippy check
@@ -425,18 +377,10 @@ jobs:
           Get-ChildItem -Path ([System.IO.Path]::GetTempPath()) -Directory -Filter 'mosh-native-link-*' |
             Remove-Item -Recurse -Force
 
-  # One APK per call engine until the libwebrtc engine becomes the default
-  # (MOSH-76).
   android-build:
-    name: Android APK (arm64, debug, ${{ matrix.engine }})
+    name: Android APK (arm64, debug)
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        engine: [ringrtc, webrtc]
-    env:
-      MOSH_CALL_ENGINE: ${{ matrix.engine }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -445,16 +389,15 @@ jobs:
       - id: android-setup
         uses: ./.github/actions/android-build-setup
 
-      - if: matrix.engine == 'webrtc'
-        id: webrtc-engine
+      - id: webrtc-engine
         uses: actions/cache/restore@v4
         with:
           path: |
-            .dart_tool/native-media/target-webrtc
+            .dart_tool/native-media/target
             .dart_tool/native-sources
             .dart_tool/libwebrtc
-          key: native-call-webrtc-android-${{ hashFiles('mosh-media/webrtc/Cargo.lock', 'third_party/libwebrtc-build/build.json', 'third_party/webrtc-sys-patches/mosh.patch', 'third_party/libwebrtc-patches/mosh.patch') }}
-          restore-keys: native-call-webrtc-android-
+          key: native-call-media-android-${{ hashFiles('mosh-media/webrtc/Cargo.lock', 'third_party/libwebrtc-build/build.json', 'third_party/webrtc-sys-patches/mosh.patch', 'third_party/libwebrtc-patches/mosh.patch') }}
+          restore-keys: native-call-media-android-
 
       # --target-platform is REQUIRED, not an optimisation: jniLibs only
       # carries an arm64-v8a libmoss.so, so a default all-ABI build would
@@ -470,23 +413,17 @@ jobs:
           key: ${{ steps.android-setup.outputs.cargo-cache-key }}
 
       - uses: actions/cache/save@v4
-        if: matrix.engine != 'webrtc' && steps.android-setup.outputs.webrtc-cache-hit != 'true' && github.ref == 'refs/heads/main'
-        with:
-          path: .dart_tool/android-media/webrtc
-          key: ${{ steps.android-setup.outputs.webrtc-cache-key }}
-
-      - uses: actions/cache/save@v4
-        if: matrix.engine == 'webrtc' && steps.webrtc-engine.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        if: steps.webrtc-engine.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
         with:
           path: |
-            .dart_tool/native-media/target-webrtc
+            .dart_tool/native-media/target
             .dart_tool/native-sources
             .dart_tool/libwebrtc
           key: ${{ steps.webrtc-engine.outputs.cache-primary-key }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mosh-debug-arm64-${{ matrix.engine }}-apk
+          name: mosh-debug-arm64-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
 

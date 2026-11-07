@@ -1,10 +1,6 @@
 *.sh text eol=lf
 third_party/openmls-patches/* text eol=lf
 third_party/openmls-patches/*.patch -whitespace
-third_party/ringrtc-patches/* text eol=lf
-third_party/ringrtc-patches/*.patch -whitespace
-third_party/webrtc-android-patches/* text eol=lf
-third_party/webrtc-android-patches/*.patch -whitespace
 third_party/webrtc-sys-patches/* text eol=lf
 third_party/webrtc-sys-patches/*.patch -whitespace
 third_party/libwebrtc-patches/* text eol=lf

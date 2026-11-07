@@ -1,7 +1,7 @@
 //! Reuse the isolated signed-device fixture: real MLS identities, Moss and redb.
 use super::*;
+use crate::private_dm_runtime::CallState;
 use crate::private_dm_runtime::{contracts::CallAvailability, wire::ControlEnvelope};
-use crate::voice_call_runtime::CallState;
 use serde_json::json;
 #[path = "boundary_tests/boundary_races.rs"]
 mod boundary_races;
@@ -158,12 +158,7 @@ fn selected_call(f: &mut Fixture) {
             .signer_public(),
     );
     let session = f.runtime.session_mut(&f.session).unwrap();
-    let mut call = CallState::outgoing(
-        "selected-call".into(),
-        crate::private_dm_runtime::random_b64(32),
-        crate::private_dm_runtime::random_b64(4),
-        "Contact".into(),
-    );
+    let mut call = CallState::outgoing("selected-call".into(), "Contact".into());
     call.caller_signer = hex::encode(session.crypto.signer_public());
     call.selected_signer = Some(receiver);
     call.remote_peer = f.contact.device().moss_peer_id.clone();
@@ -308,15 +303,7 @@ fn known_sibling_occupancy_blocks_an_incoming_call_in_the_same_dm(f: &mut Fixtur
     assert_eq!(f.snapshot().call_availability, Some(CallAvailability::Busy));
     let contact = f.contact.device().device_id.clone();
     let peer = f.contact.device().moss_peer_id.clone();
-    let offer = remote_control(
-        f,
-        &contact,
-        &peer,
-        "another-call",
-        1,
-        json!({"Offer":{
-        "key_b64":crate::private_dm_runtime::random_b64(32), "nonce_prefix_b64":crate::private_dm_runtime::random_b64(4)}}),
-    );
+    let offer = remote_control(f, &contact, &peer, "another-call", 1, json!({"Offer":{}}));
     // The offline fixture may refuse transmission of busy; it must refuse admission.
     let _ = f
         .runtime
@@ -379,7 +366,6 @@ fn call_boundary_process() {
     native_controls::reordered_camera_state_cannot_reenable_a_stopped_remote_track(
         &mut Fixture::new(),
     );
-    native_controls::unsupported_media_installation_does_not_ring_or_select(&mut Fixture::new());
     native_controls::current_removal_evidence_ends_only_the_selected_pair(&mut Fixture::new());
     native_controls::selected_device_removal_releases_native_call(&mut Fixture::new());
     native_controls::local_removal_revokes_retained_native_call(&mut Fixture::new());

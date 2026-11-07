@@ -38,8 +38,8 @@ when Mosh is stopped, or guarantee calls after dismissing/locking its Activity.
   for an older call's control.
   Automatic setup-failure completion uses the same serialized terminal path.
   The main window retains its navigation and dialog Escape shortcuts.
-- The microphone button becomes available after capture and playback start.
-  Muting suppresses outgoing frames. A setup error retains hang-up controls when
+- The microphone button follows the engine's microphone state, and muting is
+  the engine's microphone choice. A setup error retains hang-up controls when
   signaling also fails.
 - Incoming calls time out after 30 seconds. Answer, decline, cancel and end stop
   the ringtone immediately. Failed controls remain retryable.
@@ -97,15 +97,10 @@ promotes another session that still contains a call; there is no call-waiting UI
 When there is no retained owner, selection prefers an already active call over
 pending or outgoing calls, irrespective of the DM list order.
 
-The legacy mobile/baseline voice path uses one shared audio orchestrator to
-serialize replacement. Cancellation stops frame
-work immediately; startup and teardown must finish before another capture or
-player opens. Delayed controls, setup failures and drain responses are tied to
-their session and call IDs and cannot affect a replacement call.
+Delayed controls and setup failures are tied to their session and call IDs
+and cannot affect a replacement call.
 Starting a call refreshes the DM list before admission; a failed fresh read
 blocks the start even if an older cached list contained no calls.
-Cancellation starts capture and playback teardown independently, so waiting for
-one handle cannot delay release of the other. Replacement still waits for both.
 
 Every desktop starts the same executable with `--mosh-call-window` in a separate
 process. `MOSH_CALL_WINDOW=1` also identifies child startup on hosts that omit Dart
@@ -199,29 +194,18 @@ platforms use the plugin's cancellation support. See its
 
 ## Checks
 
-Widget tests use the existing scriptable gateway and bridge plus observable audio
-factories under `test/support/`. They cover messaging, navigation, call-ID binding,
-late accept, remote termination, audio replacement, setup failure, timeout and
-window startup after termination.
+Widget tests use the existing scriptable gateway and bridge under `test/support/`,
+with a real `NativeCallOwner` over the bridge's scripted native calls where media
+matters. They cover messaging, navigation, call-ID binding, late accept, remote
+termination, media rebinding, setup failure, timeout and window startup after
+termination.
 Terminal buttons remain available during acceptance and wait for that call's
 control operation. Bringing either desktop window forward restores it only when
 minimized, preserving an already maximized window's geometry.
 
-The native UI test uses a real independent installation process, Moss discovery,
-AES-GCM, Opus, `record` capture and CPAL playback. It covers decline, cancel,
-incoming acceptance, bidirectional audio, navigation, message delivery, mute,
-remote end and a repeated call.
-The peer probe releases its audio when its originating session no longer contains
-the call. Stale controls from another session cannot reset its media sequence.
-
-Prepare Moss, compile the native peer fixture, then run on a desktop with usable
-input/output devices:
-
-```sh
-node scripts/moss-prepare.mjs
-cargo test --manifest-path mosh-core/Cargo.toml --test device_link_flow --no-run
-node scripts/moss-test.mjs --voice-ui
-```
+The native call UI test (`node scripts/moss-test.mjs --native-call-ui`, see
+[native call media](native-call-media.md#build-and-checks)) runs a real
+independent installation process with Moss discovery and the call engine.
 
 The Node runner creates the test data directory and passes it through
 `MOSH_CALL_UI_TEST_DATA_DIR`. It removes the directory after the desktop process
@@ -235,18 +219,15 @@ its main entrypoint directly in each engine or process. `flutter test` inserts a
 leaves child engines waiting for a separate test connection. Linux builds also
 need the project's existing plugin prerequisites, including libcurl, libmpv and
 a JDK with JNI headers. Headless Linux can use PulseAudio's null sink and sine
-source, Xvfb and Openbox. With `MOSH_TEST_WINDOW_ACTIONS=1`, the scenario additionally
-uses `xdotool` and `xprop` to check OS close in all phases and audio while minimized.
-The normal scenario does not require those window-manager tools.
+source, Xvfb and Openbox.
 
 Behavioral test bodies and end-to-end scenario methods may exceed the 50-line
 function limit to keep their setup, actions and assertions together.
 The native peer's command dispatcher retains
 the same exception so its public-action routing stays in one place. Production
-functions remain within the limit. `VoiceCallOrchestratorNotifier` has a temporary
-215-line type allowance: it owns the existing audio lifecycle and serialized
-controls during the native-engine migration. Keeping those together preserves
-the single call owner; the replacement adapter will remove the old audio setup.
+functions remain within the limit. `VoiceCallOrchestratorNotifier` keeps a
+210-line type allowance: it owns the call dialog, the native media binding and
+the serialized controls, and splitting them would break the single call owner.
 
 ## Verification on Linux, 2026-10-06
 

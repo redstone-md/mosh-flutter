@@ -5,7 +5,7 @@ impl PrivateDmSession {
         let Some(call) = self.call.take() else {
             return;
         };
-        let confirmed = call.direction == crate::voice_call_runtime::CallDirection::Caller
+        let confirmed = call.direction == crate::private_dm_runtime::CallDirection::Caller
             || call.phase == CallPhase::Active
             || self.call_controls.confirmed_closed(&call.call_id);
         self.call_controls.close(&call.call_id, confirmed);
@@ -14,10 +14,7 @@ impl PrivateDmSession {
         }
         self.record_dirty = true;
         self.call_occupancy.finish(&call.call_id, confirmed);
-        let _ = self
-            .transport
-            .unsubscribe(&self.mesh_id, &voice_call_channel(&call.call_id));
-        let own = call.direction == crate::voice_call_runtime::CallDirection::Caller;
+        let own = call.direction == crate::private_dm_runtime::CallDirection::Caller;
         let caller = if own {
             &self.device_id
         } else {

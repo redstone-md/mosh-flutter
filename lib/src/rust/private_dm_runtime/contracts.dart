@@ -49,10 +49,8 @@ class ActiveCall {
   final String callId;
   final String? supersededCallId;
 
-  /// "caller" or "callee" — drives the nonce direction bit.
+  /// "caller" or "callee".
   final String direction;
-  final String keyB64;
-  final String noncePrefixB64;
 
   /// Unix millis when the call became Active; the running timer
   /// renders from this anchor.
@@ -62,8 +60,6 @@ class ActiveCall {
     required this.callId,
     this.supersededCallId,
     required this.direction,
-    required this.keyB64,
-    required this.noncePrefixB64,
     required this.startedAtMs,
   });
 
@@ -72,8 +68,6 @@ class ActiveCall {
       callId.hashCode ^
       supersededCallId.hashCode ^
       direction.hashCode ^
-      keyB64.hashCode ^
-      noncePrefixB64.hashCode ^
       startedAtMs.hashCode;
 
   @override
@@ -84,8 +78,6 @@ class ActiveCall {
           callId == other.callId &&
           supersededCallId == other.supersededCallId &&
           direction == other.direction &&
-          keyB64 == other.keyB64 &&
-          noncePrefixB64 == other.noncePrefixB64 &&
           startedAtMs == other.startedAtMs;
 }
 
@@ -123,22 +115,14 @@ class CallEvent {
 class CallStarted {
   final String sessionId;
   final String callId;
-  final String keyB64;
-  final String noncePrefixB64;
 
   const CallStarted({
     required this.sessionId,
     required this.callId,
-    required this.keyB64,
-    required this.noncePrefixB64,
   });
 
   @override
-  int get hashCode =>
-      sessionId.hashCode ^
-      callId.hashCode ^
-      keyB64.hashCode ^
-      noncePrefixB64.hashCode;
+  int get hashCode => sessionId.hashCode ^ callId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -146,9 +130,7 @@ class CallStarted {
       other is CallStarted &&
           runtimeType == other.runtimeType &&
           sessionId == other.sessionId &&
-          callId == other.callId &&
-          keyB64 == other.keyB64 &&
-          noncePrefixB64 == other.noncePrefixB64;
+          callId == other.callId;
 }
 
 class ChatMessage {

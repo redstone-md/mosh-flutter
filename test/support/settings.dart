@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/rust/api/audio_devices.dart';
 import 'package:mosh/src/state/audio_device_picks_provider.dart';
+import 'package:mosh/src/state/camera_device_picks_provider.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
 import 'package:record/record.dart' show InputDevice;
 
@@ -57,4 +58,19 @@ List<Override> settingsAudioOverrides({
             const AudioDeviceInfo(id: 'speaker', name: 'Desk speakers'),
           ]),
       if (ringtone != null) ringtonePlayerProvider.overrideWithValue(ringtone),
+    ];
+
+/// The default camera without native storage.
+class MemoryDefaultCamera extends DefaultCameraNotifier {
+  @override
+  String? build() => null;
+
+  @override
+  void set(String? id) => state = id;
+}
+
+/// Desktop settings list cameras; these answer without native hardware.
+List<Override> settingsCameraOverrides() => [
+      cameraDevicesProvider.overrideWith((ref) async => const []),
+      defaultCameraProvider.overrideWith(MemoryDefaultCamera.new),
     ];

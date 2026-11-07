@@ -154,16 +154,11 @@ node scripts/moss-prepare.mjs
 flutter pub get
 ```
 
-On macOS, prepare the native audio library before the first build:
-
-```sh
-brew install autoconf automake libtool
-bash scripts/opus-prepare-macos.sh
-```
-
 Then run `flutter run -d windows` or `flutter run -d macos` on the matching
 platform. Moss is built from the pinned submodule, including both macOS
 architectures.
+On Linux, `flutter run -d linux` also builds the call engine, whose libwebrtc
+needs clang 21 or later: set `CC` and `CXX` to it.
 
 Moss preparation also reconstructs the pinned, patched OpenMLS source. Flutter
 native builds and CI prepare it automatically. Before running Cargo or bridge
@@ -195,9 +190,8 @@ screenshots and record the logo source and illustration prompts.
 Mosh is free software under the [GNU GPL v3](LICENSE), with an additional
 permission to publish it through app stores such as the App Store, Google Play
 and the Microsoft Store, as long as its source stays available. Third-party
-components keep their own licenses, listed in [docs/licenses.md](docs/licenses.md):
-the call engine links Signal's RingRTC and is therefore AGPL-3.0, and bundled
-Inter fonts use the [SIL Open Font License](assets/fonts/Inter-OFL.txt).
+components keep their own licenses, listed in [docs/licenses.md](docs/licenses.md);
+the bundled Inter fonts use the [SIL Open Font License](assets/fonts/Inter-OFL.txt).
 
 ForeverInLaw and Rxflex hold the copyright in Mosh and, through the
 [Contributor License Agreement](CLA.md), the right to license contributions, so

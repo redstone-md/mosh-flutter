@@ -1,13 +1,13 @@
-// Step-5 tests for the voice-call orchestrator provider. Each
-// test wires a ProviderContainer that overrides activeSessionProvider with
-// a mutable controller, bridgeFacadeProvider with a scripted bridge, and the
-// capture/playback factories + error sink with recording fakes. The
-// orchestrator's attach is fire-and-forget (async); a listen(...) keeps the
-// provider alive so it rebuilds when the watched async provider resolves,
-// and assertions wait a microtask so the recording handles' start resolves.
+// Tests for the voice-call orchestrator provider. Each test wires a
+// ProviderContainer that overrides activeSessionProvider with a mutable
+// controller, bridgeFacadeProvider with a scripted bridge and, where media
+// matters, the native call owner. The orchestrator's binding is
+// fire-and-forget (async); a listen(...) keeps the provider alive so it
+// rebuilds when the watched async provider resolves.
 library;
 
-import 'dart:typed_data';
+import 'dart:async';
+
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import '../support/native_call_fixture.dart';
 
@@ -16,8 +16,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
 import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
-import 'package:mosh/src/features/voice_call/voice_capture.dart';
-import 'package:mosh/src/features/voice_call/voice_playback.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import '../support/scriptable_bridge.dart';
@@ -44,183 +42,6 @@ void main() {
 
       expect(
           container.read(voiceCallOrchestratorProvider('sess-1')).muted, false);
-    });
-
-    test('an ActiveCall appears -> attach runs (capture/playback start)',
-        () async {
-      final gateway = ScriptableBridge();
-      final controller =
-          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
-      final capture = _RecordingCaptureFactory();
-      final playback = _RecordingPlaybackFactory();
-      final container = _container(
-        controller: controller,
-        gateway: gateway,
-        captureFactory: capture,
-        playbackFactory: playback,
-      );
-      addTearDown(container.dispose);
-
-      final sub = _subscribe(container);
-      addTearDown(sub.close);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-
-      expect(capture.startCalls, 1);
-      expect(playback.startCalls, 1);
-    });
-
-    test('toggling mute updates state and the orchestrator flag', () async {
-      final gateway = ScriptableBridge();
-      final controller =
-          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
-      final container = _container(controller: controller, gateway: gateway);
-      addTearDown(container.dispose);
-
-      final sub = _subscribe(container);
-      addTearDown(sub.close);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-
-      container
-          .read(voiceCallOrchestratorProvider('sess-1').notifier)
-          .toggleMute();
-      expect(
-          container.read(voiceCallOrchestratorProvider('sess-1')).muted, true);
-      container
-          .read(voiceCallOrchestratorProvider('sess-1').notifier)
-          .toggleMute();
-      expect(
-          container.read(voiceCallOrchestratorProvider('sess-1')).muted, false);
-    });
-
-    test('a new ActiveCall (different callId) re-attaches (old detached)',
-        () async {
-      final gateway = ScriptableBridge();
-      final controller =
-          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
-      final capture = _RecordingCaptureFactory();
-      final playback = _RecordingPlaybackFactory();
-      final container = _container(
-        controller: controller,
-        gateway: gateway,
-        captureFactory: capture,
-        playbackFactory: playback,
-      );
-      addTearDown(container.dispose);
-
-      final sub = _subscribe(container);
-      addTearDown(sub.close);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      expect(capture.startCalls, 1);
-      final firstHandle = capture.lastHandle;
-
-      // Change the ActiveCall to a new callId, invalidate the session so the
-      // orchestrator re-runs build, then wait for the new attach.
-      controller.snapshot = _session('sess-1', activeCall: _activeCall('b'));
-      container.invalidate(activeSessionProvider('sess-1'));
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-
-      expect(capture.startCalls, 2);
-      expect(firstHandle!.stopCalls, 1);
-    });
-
-    // Regression: the 1 s auto-poll re-runs the notifier's build for the
-    // same call. Riverpod runs `ref.onDispose` callbacks on every rebuild,
-    // so a detach registered there killed the audio one poll after attach
-    // while the call (and its overlay) stayed up.
-    test('a re-poll of the same ActiveCall keeps the orchestrator attached',
-        () async {
-      final gateway = ScriptableBridge();
-      final controller =
-          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
-      final capture = _RecordingCaptureFactory();
-      final playback = _RecordingPlaybackFactory();
-      final container = _container(
-        controller: controller,
-        gateway: gateway,
-        captureFactory: capture,
-        playbackFactory: playback,
-      );
-      addTearDown(container.dispose);
-
-      final sub = _subscribe(container);
-      addTearDown(sub.close);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      expect(capture.startCalls, 1);
-      final firstHandle = capture.lastHandle;
-
-      container.invalidate(activeSessionProvider('sess-1'));
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      container.invalidate(activeSessionProvider('sess-1'));
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-
-      expect(capture.startCalls, 1);
-      expect(firstHandle!.stopCalls, 0);
-      expect(
-        container.read(voiceCallOrchestratorProvider('sess-1')).dialog,
-        isA<ActiveCallDialog>(),
-      );
-    });
-
-    test('ActiveCall disappears -> orchestrator detached (handle stopped)',
-        () async {
-      final gateway = ScriptableBridge();
-      final controller =
-          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
-      final capture = _RecordingCaptureFactory();
-      final playback = _RecordingPlaybackFactory();
-      final container = _container(
-        controller: controller,
-        gateway: gateway,
-        captureFactory: capture,
-        playbackFactory: playback,
-      );
-      addTearDown(container.dispose);
-
-      final sub = _subscribe(container);
-      addTearDown(sub.close);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      expect(capture.startCalls, 1);
-      final firstHandle = capture.lastHandle;
-
-      controller.snapshot = _session('sess-1');
-      container.invalidate(activeSessionProvider('sess-1'));
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-
-      expect(firstHandle!.stopCalls, 1);
-    });
-
-    test('setup failure surfaces an audioSetup error + tears the call down',
-        () async {
-      final gateway = ScriptableBridge();
-      final controller =
-          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
-      final capture = _FailingCaptureFactory('boom');
-      final playback = _RecordingPlaybackFactory();
-      final container = _container(
-        controller: controller,
-        gateway: gateway,
-        captureFactory: capture,
-        playbackFactory: playback,
-      );
-      addTearDown(container.dispose);
-
-      final sub = _subscribe(container);
-      addTearDown(sub.close);
-      // attach's catch -> onError(audioSetup) + endCall -> gateway.callEnd;
-      // the failing capture.start throws after importCallKey + playback start
-      // resolve, so wait long enough for the async chain to settle.
-      await Future<void>.delayed(const Duration(milliseconds: 30));
-
-      final st = container.read(voiceCallOrchestratorProvider('sess-1'));
-      expect(st.error, isNotNull);
-      expect(st.error!.source, CallErrorSource.audioSetup);
-      expect(gateway.countOf(BridgeMethod.callEnd), 1);
-      expect(gateway.lastCall(BridgeMethod.callEnd)?.arg<String>('sessionId'),
-          'sess-1');
-      expect(
-          gateway.lastCall(BridgeMethod.callEnd)?.arg<String>('callId'), 'a');
-      expect(gateway.lastCall(BridgeMethod.callEnd)?.arg<String>('reason'),
-          'setup_failed');
     });
 
     test('dialog derives from the snapshot (pending/outgoing/active/none)',
@@ -306,17 +127,14 @@ void main() {
     });
 
     test('clearError clears the surfaced error and is idempotent', () async {
-      final gateway = ScriptableBridge();
+      final gateway = ScriptableBridge()
+        ..failNext(BridgeMethod.nativeCallPrepare);
+      final owner = NativeCallOwner(gateway, () async => false);
+      addTearDown(owner.dispose);
       final controller =
           _SessionController(_session('sess-1', activeCall: _activeCall('a')));
-      final capture = _FailingCaptureFactory('boom');
-      final playback = _RecordingPlaybackFactory();
-      final container = _container(
-        controller: controller,
-        gateway: gateway,
-        captureFactory: capture,
-        playbackFactory: playback,
-      );
+      final container =
+          _container(controller: controller, gateway: gateway, native: owner);
       addTearDown(container.dispose);
 
       final sub = _subscribe(container);
@@ -353,20 +171,12 @@ void main() {
       final gateway = ScriptableBridge();
       final controller =
           _SessionController(_session('sess-1', activeCall: _activeCall('a')));
-      final capture = _RecordingCaptureFactory();
-      final playback = _RecordingPlaybackFactory();
-      final container = _container(
-        controller: controller,
-        gateway: gateway,
-        captureFactory: capture,
-        playbackFactory: playback,
-      );
+      final container = _container(controller: controller, gateway: gateway);
       addTearDown(container.dispose);
 
       final sub = _subscribe(container);
       addTearDown(sub.close);
       await Future<void>.delayed(const Duration(milliseconds: 10));
-      expect(capture.startCalls, 1);
 
       final notifier =
           container.read(voiceCallOrchestratorProvider('sess-1').notifier);

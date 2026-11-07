@@ -62,14 +62,6 @@ runs:
       shell: bash
       run: rustup show
 
-    # audiopus_sys builds its vendored libopus through autotools; the
-    # macOS runner image ships neither autoreconf nor libtool. RingRTC's
-    # prebuilt downloader also requires GNU realpath from coreutils.
-    # The vendored Opus build on Windows uses the available CMake.
-    - if: runner.os == 'macOS'
-      shell: bash
-      run: brew install autoconf automake libtool coreutils
-
     - if: inputs.rust == 'true' && inputs.rust-cache-key != 'none'
       uses: Swatinem/rust-cache@v2
       with:

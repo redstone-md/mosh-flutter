@@ -22,7 +22,9 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/notifications_provider.dart';
 import 'package:mosh/src/state/chat_names_provider.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
+import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
+import '../../support/native_call_fixture.dart';
 
 SessionSnapshot _outgoingSnapshot(String sessionId) => TestSnapshots.dm(
       sessionId: sessionId,
@@ -52,8 +54,6 @@ SessionSnapshot _activeSnapshot(String sessionId) => TestSnapshots.dm(
       role: 'caller',
       peerDisplayName: 'Alice',
       fingerprint: 'fp',
-      // Valid 32-byte base64 key + 8-byte nonce prefix so the
-      // orchestrator's importCallKey succeeds when it auto-attaches.
       activeCall: TestCalls.active(callId: 'call-1'),
     );
 
@@ -239,29 +239,36 @@ void main() {
     'toggling mute in the active-call overlay flips the orchestrator mute flag',
     (tester) async {
       final gateway = ScriptableGateway();
-      final bridge = ScriptableBridge(conversations: gateway.conversations);
+      final bridge = ScriptableBridge(conversations: gateway.conversations)
+        ..seedNativeCallSnapshot(nativeCallSnapshot(
+            sessionId: 'sess-1', callId: 'call-1', microphone: true));
+      final media = NativeCallOwner(bridge, () async => true);
       gateway.seedSessions([_activeSnapshot('sess-1')]);
       final l = await AppLocalizations.delegate.load(const Locale('en'));
       late WidgetRef ref;
       // Same as above: the active-call overlay opens a frame later.
       await pumpScreen(
           tester,
-          Scaffold(
-            body: Column(
-              children: [
-                VoiceCallLayer(sessionId: 'sess-1', l: l),
-                Consumer(
-                  builder: (context, r, _) {
-                    ref = r;
-                    return const SizedBox.shrink();
-                  },
-                ),
-              ],
+          ReleasesCallMedia(
+            media: media,
+            child: Scaffold(
+              body: Column(
+                children: [
+                  VoiceCallLayer(sessionId: 'sess-1', l: l),
+                  Consumer(
+                    builder: (context, r, _) {
+                      ref = r;
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
           overrides: [
             gatewayProvider.overrideWithValue(gateway),
-            bridgeFacadeProvider.overrideWithValue(bridge)
+            bridgeFacadeProvider.overrideWithValue(bridge),
+            nativeCallOwnerProvider.overrideWithValue(media),
           ],
           settle: false);
       await tester.pump(const Duration(milliseconds: 50));
@@ -272,7 +279,7 @@ void main() {
         isFalse,
       );
       await tester.tap(find.byIcon(Icons.mic));
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 10));
       // The toggle hit the orchestrator notifier; the provider state flipped.
       expect(
         ref.read(voiceCallOrchestratorProvider('sess-1')).muted,

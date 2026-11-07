@@ -31,8 +31,6 @@ const _outgoing = OutgoingCall(callId: 'call-out');
 final _active = ActiveCall(
   callId: 'call-live',
   direction: 'caller',
-  keyB64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
-  noncePrefixB64: 'AAAAAAAAAAA=',
   startedAtMs: BigInt.from(1000),
 );
 
@@ -114,8 +112,6 @@ void main() {
       final other = ActiveCall(
         callId: 'call-next',
         direction: 'callee',
-        keyB64: _active.keyB64,
-        noncePrefixB64: _active.noncePrefixB64,
         startedAtMs: _active.startedAtMs,
       );
       expect(first, isNot(callDialogFor(_snapshot(activeCall: other))));

@@ -3,7 +3,7 @@ use crate::native_call::{
     types::{Choices, Context},
     Hub,
 };
-use crate::voice_call_runtime::CallDirection;
+use crate::private_dm_runtime::CallDirection;
 
 impl PrivateDmRuntime {
     pub(crate) fn prepare_native_call(
@@ -90,7 +90,7 @@ impl PrivateDmRuntime {
         if let Err(error) = self.sessions.persist_tail() {
             self.log_persistence_failure(KIND, &error);
         }
-        self.sync_call_media();
+        self.sync_native_media();
     }
 }
 

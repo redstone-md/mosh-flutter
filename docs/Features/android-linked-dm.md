@@ -45,8 +45,7 @@ flowchart LR
 ## Run the physical acceptance scenario
 
 Use a local checkout with Flutter, Dart, Rust, Node, Go, Android SDK/NDK and
-`adb`. Prepare Opus using `scripts/opus-prepare-android.sh` on Linux or
-`third_party/build-opus-android.ps1` on Windows. Run
+`adb`. Run
 `node scripts/moss-prepare.mjs` for the desktop runtime. Connect a physical
 arm64 Android phone through USB, enable USB debugging, enroll a screen lock
 and leave it unlocked. The phone and desktop must have a working Moss

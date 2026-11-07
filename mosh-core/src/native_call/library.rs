@@ -169,12 +169,15 @@ impl Engine {
     }
 }
 
-/// Media protocol of the RingRTC engine and of clients that predate the field.
+/// Media protocol of the engine before libwebrtc and of clients that predate
+/// the field; a peer on it ends the call with `update_required`.
 pub(crate) const LEGACY_MEDIA_PROTOCOL: u32 = 1;
 
+/// What a build whose engine cannot load speaks. It is not the legacy value,
+/// so an older client's offer does not ring a call neither side can carry.
+const NO_ENGINE_MEDIA_PROTOCOL: u32 = 0;
+
 /// The packaged engine's media protocol, carried in every call control.
-/// A build whose engine cannot load connects no media at all, so it keeps
-/// the legacy value and its signalling stays as before.
 pub(crate) fn media_protocol() -> u32 {
     type Protocol = unsafe extern "C" fn() -> u32;
     static PROTOCOL: OnceLock<u32> = OnceLock::new();
@@ -194,7 +197,7 @@ pub(crate) fn media_protocol() -> u32 {
                 "media-protocol",
                 &format!("native media engine unavailable: {failure}"),
             );
-            LEGACY_MEDIA_PROTOCOL
+            NO_ENGINE_MEDIA_PROTOCOL
         })
     })
 }

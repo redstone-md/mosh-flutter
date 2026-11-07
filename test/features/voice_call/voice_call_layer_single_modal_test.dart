@@ -3,9 +3,6 @@
 // re-emitting the same active call) and count the routes on screen.
 library;
 
-import 'dart:async';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,12 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/voice_call_layer.dart';
-import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
-import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
-    show voiceCaptureFactoryProvider;
 import '../../support/message_builders.dart';
 import '../../support/pump.dart';
 import '../../support/scriptable_bridge.dart';
@@ -48,15 +42,6 @@ class _Session {
   SessionSnapshot snapshot = _snapshot();
 }
 
-class _NeverCaptureFactory implements VoiceCaptureFactory {
-  @override
-  bool get isSupported => true;
-
-  @override
-  Future<VoiceCaptureHandle> start(void Function(Uint8List) onFrame) =>
-      Completer<VoiceCaptureHandle>().future;
-}
-
 /// Re-emits the session the way the auto-poll does and lets the layer's
 /// post-frame open + the dialog route's first build run.
 Future<void> _poll(WidgetTester tester, ProviderContainer container) async {
@@ -79,9 +64,6 @@ void main() {
           ScriptableBridge(conversations: gateway.conversations)),
       activeSessionProvider(_sessionId)
           .overrideWith((ref) => Future.value(session.snapshot)),
-      // A capture that never comes up keeps the orchestrator's 20 ms frame
-      // poll out of the test's pending-timer check.
-      voiceCaptureFactoryProvider.overrideWithValue(_NeverCaptureFactory()),
     ]);
     addTearDown(container.dispose);
   });

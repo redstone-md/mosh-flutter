@@ -62,7 +62,7 @@ The matching WebRTC JAR includes JNI Zero without Chromium's consumer keep
 rules. The application therefore preserves
 `CalledByNative`, `CalledByNativeUnchecked` and `AccessedByNative` members using
 the pinned upstream rule pattern. Without these rules R8 removed `JniZero`,
-causing `ClassNotFoundException` and a fatal abort in RingRTC's `JNI_OnLoad`.
+causing `ClassNotFoundException` and a fatal abort in libwebrtc's `JNI_OnLoad`.
 `android-jni-verify.py` inspects actual DEX definitions and static signatures;
 finding a class in the input JAR or in arbitrary APK strings is insufficient.
 
@@ -125,11 +125,10 @@ exercises the production JNI entry point with a real host JVM, including a
 missing context, repeat initialization and garbage collection. This checks
 ownership/bootstrap, not Android hardware enumeration or playback.
 
-Gradle also builds the pinned RingRTC/WebRTC engine for native Android ↔ desktop
-audio/video, stages both shared libraries and uses the Java API from the same
-build. The APK verifier requires those libraries and checks their LOAD segments.
-CI caches the small checksummed WebRTC products; a cache miss builds its pinned
-source/dependency graph locally without remote-execution credentials.
+Gradle also builds the call engine (`mosh-media/webrtc`, libwebrtc linked in)
+for native Android ↔ desktop audio/video, stages it with the other shared
+libraries and uses the Java API of the same libwebrtc build. The APK verifier
+requires exactly those libraries and checks their LOAD segments.
 
 For calls, test both directions against Windows/macOS with both apps foreground:
 voice, video, camera off/on, front/back selection, denied camera permission,

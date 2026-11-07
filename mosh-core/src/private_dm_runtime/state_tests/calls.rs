@@ -10,13 +10,13 @@ fn a_call_start_failure_frees_the_call_slot() {
     accept(&mut bob, &invite);
     connect(&mut alice, &mut bob, &invite.session_id);
 
-    net.refuse_subscribes(ALICE_ID, true);
+    net.fail_publishes(ALICE_ID, true);
     let error = alice
         .call_start(&invite.session_id)
-        .expect_err("a subscribe that fails must fail the start");
+        .expect_err("an offer that cannot be published must fail the start");
     assert!(
         matches!(error, PrivateDmRuntimeError::Moss(_)),
-        "the subscribe failure surfaces, got {error:?}"
+        "the publish failure surfaces, got {error:?}"
     );
     {
         let session = alice
@@ -30,7 +30,7 @@ fn a_call_start_failure_frees_the_call_slot() {
     }
 
     // The slot is free: a retry once the transport heals starts cleanly.
-    net.refuse_subscribes(ALICE_ID, false);
+    net.fail_publishes(ALICE_ID, false);
     let call = alice
         .call_start(&invite.session_id)
         .expect("the healed transport accepts a retry");
@@ -198,30 +198,4 @@ fn a_failed_decline_keeps_the_call_for_a_retry() {
             "the decline reaches the caller and drops its call"
         );
     }
-}
-
-// A valid offer whose subscription fails must remain retryable.
-#[test]
-fn a_ring_whose_subscribe_failed_is_retried_by_the_next_offer() {
-    let (net, mut alice, mut bob) = memory_pair();
-    let invite = invite(&mut alice);
-    accept(&mut bob, &invite);
-    connect(&mut alice, &mut bob, &invite.session_id);
-    net.refuse_subscribes(BOB_ID, true);
-    let call = alice.call_start(&invite.session_id).expect("start");
-    assert!(bob
-        .poll_session(&invite.session_id)
-        .expect("failed ring")
-        .pending_call
-        .is_none());
-    net.refuse_subscribes(BOB_ID, false);
-    alice.drain_inbound_at(now_ms() + CALL_RESEND_MS + 1);
-    assert_eq!(
-        bob.poll_session(&invite.session_id)
-            .expect("retried ring")
-            .pending_call
-            .expect("ring held")
-            .call_id,
-        call.call_id
-    );
 }

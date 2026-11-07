@@ -5,21 +5,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { prepareNativeCamera } from "./native-camera-prepare.mjs";
-import { callEngine, defaultCallEngine } from "./support/call-engine.mjs";
+import { prepareLibwebrtc, prepareLiveKitWebrtc } from "./livekit-webrtc-prepare.mjs";
 import { nativeProtoc } from "./support/native-protoc.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { values } = parseArgs({ options: { profile: { type: "string", default: "debug" },
-  output: { type: "string" }, targets: { type: "string" }, offline: { type: "boolean", default: false },
-  engine: { type: "string", default: defaultCallEngine } } });
+  output: { type: "string" }, targets: { type: "string" }, offline: { type: "boolean", default: false } } });
 if (!["debug", "release"].includes(values.profile)) throw new Error("profile must be debug or release");
-const engine = callEngine(values.engine);
-await engine.prepare({ offline: values.offline });
+await prepareLiveKitWebrtc({ offline: values.offline });
 await prepareNativeCamera({ offline: values.offline });
 const env = { ...process.env, PROTOC: await nativeProtoc(root) };
-// Both engines build a library of the same name, so each keeps its own
-// target directory: one could otherwise pass the other's output as fresh.
-const targetRoot = path.join(root, ".dart_tool/native-media", engine.targetDirectory);
+const targetRoot = path.join(root, ".dart_tool/native-media/target");
 const host = run("rustc", ["-vV"], { capture: true }).match(/^host: (.+)$/m)?.[1];
 if (!host) throw new Error("Cannot determine Rust host target");
 const targets = values.targets?.split(",").filter(Boolean) ?? [host];
@@ -31,9 +27,16 @@ await mkdir(output, { recursive: true });
 const artifacts = [process.platform === "win32" ? "mosh_native_media.dll"
   : process.platform === "darwin" ? "libmosh_native_media.dylib" : "libmosh_native_media.so",
   process.platform === "win32" ? "mosh-camera-capture.exe" : "mosh-camera-capture"];
+if (targets.some((target) => target.includes("linux-gnu"))) {
+  const version = run(process.env.CXX ?? "c++", ["--version"], { capture: true });
+  if (Number(version.match(/clang version (\d+)/)?.[1] ?? 0) < 21) {
+    throw new Error("libwebrtc's hermetic libc++ needs clang 21 or later: set CC and CXX to it");
+  }
+}
 for (const target of targets) {
-  const targetEnv = { ...env, ...await engine.targetEnv(target, { offline: values.offline }) };
-  for (const crate of [engine.crate, "capture"]) {
+  // Points webrtc-sys at our libwebrtc build for this target.
+  const targetEnv = { ...env, LK_CUSTOM_WEBRTC: await prepareLibwebrtc(target, { offline: values.offline }) };
+  for (const crate of ["webrtc", "capture"]) {
     // Cargo reads a crate's .cargo/config.toml (link flags) only from its directory.
     run("cargo", ["build", "--locked", "--manifest-path", path.join(root, "mosh-media", crate, "Cargo.toml"),
       "--target-dir", targetRoot, "--target", target, ...(values.profile === "release" ? ["--release"] : [])],
@@ -49,13 +52,13 @@ for (const name of artifacts) {
   if (process.platform !== "win32") await chmod(destination, 0o755);
 }
 const licenses = path.join(output, "licenses");
-// The other engine may have built into this output before.
+// An earlier engine may have left its notices in this output.
 await rm(licenses, { recursive: true, force: true });
 await mkdir(licenses, { recursive: true });
 for (const [source, name] of [[path.join(root, "LICENSE"), "GPL-3.0.txt"],
   [path.join(root, "third_party/nokhwa/LICENSE"), "Apache-2.0.txt"],
   [path.join(root, "mosh-media/THIRD_PARTY_NOTICES.md"), "THIRD_PARTY_NOTICES.md"],
-  ...await engine.licenses(targets[0], { offline: values.offline })]) {
+  [path.join(await prepareLibwebrtc(targets[0], { offline: values.offline }), "LICENSE.md"), "WEBRTC-LICENSE.md"]]) {
   await copyFile(source, path.join(licenses, name));
 }
 console.log(`native.media=${output}`);

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +12,9 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
+import '../../support/native_call_fixture.dart';
 import '../../support/message_builders.dart';
 import '../../support/pump.dart';
 import '../../support/pump_route.dart';
@@ -58,10 +59,14 @@ void main() {
   });
 
   testWidgets(
-      'navigation preserves one audio owner and controls the original DM',
+      'navigation preserves one media owner and controls the original DM',
       (tester) async {
     final gateway = ScriptableGateway();
-    final bridge = ScriptableBridge(conversations: gateway.conversations);
+    final bridge = ScriptableBridge(conversations: gateway.conversations)
+      ..seedNativeCallSnapshot(nativeCallSnapshot(
+          sessionId: 'origin', callId: 'original-call', microphone: true));
+    final media = NativeCallOwner(bridge, () async => true);
+    addTearDown(media.dispose);
     final active = TestSnapshots.dm(
         sessionId: 'origin',
         peerDisplayName: 'Alice',
@@ -75,17 +80,15 @@ void main() {
       TestSnapshots.group(
           groupId: 'group', deviceFingerprint: 'SELF', messages: [])
     ]);
-    final capture = RecordingCapture();
-    final playback = RecordingPlayback();
     final window = RecordingCallWindow();
     var windows = 0;
     late Future<void> Function(CallViewCommand) command;
     final container = ProviderContainer(overrides: [
       ...settingsAudioOverrides(),
+      ...settingsCameraOverrides(),
       gatewayProvider.overrideWithValue(gateway),
       bridgeFacadeProvider.overrideWithValue(bridge),
-      voiceCaptureFactoryProvider.overrideWithValue(capture),
-      voicePlaybackFactoryProvider.overrideWithValue(playback),
+      nativeCallOwnerProvider.overrideWithValue(media),
       callWindowFactoryProvider.overrideWithValue((handler) async {
         windows++;
         command = handler;
@@ -100,11 +103,8 @@ void main() {
       settle: false,
     );
     await _frames(tester);
-    expect(capture.starts, 1);
-    expect(playback.starts, 1);
+    expect(bridge.countOf(BridgeMethod.nativeCallPrepare), 1);
     expect(windows, 1);
-    expect(jsonEncode(window.views.last.toMap()),
-        isNot(contains(active.activeCall!.keyB64)));
 
     for (final route in [
       AppRoutes.dmFor('other'),
@@ -121,9 +121,8 @@ void main() {
       await _frames(tester);
       expect(find.byTooltip('Mute'), findsNothing);
       expect(find.byIcon(Icons.open_in_new), findsNothing);
-      expect(capture.starts, 1);
-      expect(playback.starts, 1);
-      expect(capture.stops, 0);
+      expect(bridge.countOf(BridgeMethod.nativeCallPrepare), 1);
+      expect(media.session?.callId, 'original-call');
       expect(window.closes, 0);
     }
     await command(window.views.last.command(CallViewAction.mute));
@@ -136,12 +135,11 @@ void main() {
         'origin');
     expect(bridge.lastCall(BridgeMethod.callEnd)!.arg<String>('callId'),
         'original-call');
-    expect(capture.stops, 1);
-    expect(playback.stops, 1);
+    expect(media.session, isNull);
     expect(window.closes, 1);
     expect(find.byTooltip('Mute'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets(
       'remote end and a delayed accept cannot revive old controls or ringtone',

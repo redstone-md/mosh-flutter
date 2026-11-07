@@ -1,24 +1,23 @@
 use super::*;
 
-const NATIVE: bool = cfg!(any(
-    target_os = "windows",
-    target_os = "macos",
-    target_os = "linux"
-));
+/// A media protocol no engine speaks.
+const OTHER_ENGINE: u32 = 0xFFFF;
 
-fn offer(f: &mut Fixture, id: &str, native: bool) {
+fn offer(f: &mut Fixture, id: &str, protocol: u32) {
     let device = f.contact.device().device_id.clone();
     let peer = f.contact.device().moss_peer_id.clone();
-    let control = remote_control(
-        f,
-        &device,
-        &peer,
-        id,
-        1,
-        json!({"Offer": {"key_b64": crate::private_dm_runtime::random_b64(32),
-            "nonce_prefix_b64": crate::private_dm_runtime::random_b64(4), "native": native}}),
-    );
-    apply(f, control);
+    let control = remote_control_on(f, &device, &peer, id, 1, json!({"Offer": {}}), protocol);
+    if protocol == OTHER_ENGINE {
+        // The offline fixture may refuse to transmit the update_required
+        // decline; the outcome under test is local.
+        let _ = f
+            .runtime
+            .session_mut(&f.session)
+            .unwrap()
+            .handle_call_control(control);
+    } else {
+        apply(f, control);
+    }
 }
 
 fn select(f: &mut Fixture, id: &str, device: &str, receiver: &str, sequence: u64) {
@@ -68,7 +67,7 @@ fn unsolicited_selection_cannot_reserve_a_device(f: &mut Fixture) {
 
 fn dismissed_offer_remembers_only_its_original_caller(f: &mut Fixture) {
     admit_second_contact(f);
-    offer(f, "known-call", NATIVE);
+    offer(f, "known-call", crate::native_call::media_protocol());
     f.runtime
         .session_mut(&f.session)
         .unwrap()
@@ -93,7 +92,7 @@ fn dismissed_offer_remembers_only_its_original_caller(f: &mut Fixture) {
 }
 
 fn selected_sibling_heartbeats_keep_the_admitted_call_busy(f: &mut Fixture) {
-    offer(f, "known-call", NATIVE);
+    offer(f, "known-call", crate::native_call::media_protocol());
     let caller = f.contact.device().device_id.clone();
     let receiver = sibling(f);
     select(f, "known-call", &caller, &receiver, 2);
@@ -121,14 +120,14 @@ fn selected_sibling_heartbeats_keep_the_admitted_call_busy(f: &mut Fixture) {
 }
 
 fn unsupported_offer_cannot_establish_selection_authority(f: &mut Fixture) {
-    offer(f, "unsupported-call", !NATIVE);
+    offer(f, "unsupported-call", OTHER_ENGINE);
     let caller = f.contact.device().device_id.clone();
     select(f, "unsupported-call", &caller, &sibling(f), 2);
     assert_eq!(f.snapshot().call_availability, None);
 }
 
 fn restart_restores_busy_only_from_a_trusted_sibling(f: &mut Fixture) {
-    offer(f, "known-call", NATIVE);
+    offer(f, "known-call", crate::native_call::media_protocol());
     let caller_device = f.contact.device().device_id.clone();
     let receiver = sibling(f);
     select(f, "known-call", &caller_device, &receiver, 2);

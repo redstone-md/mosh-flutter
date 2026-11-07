@@ -276,18 +276,9 @@ class TestSnapshots {
       );
 }
 
-/// Voice-call builders. The `active` call stamps a valid 32-byte base64
-/// key and 8-byte nonce prefix so the orchestrator's `importCallKey`
-/// succeeds when it auto-attaches (invalid key material would fail the
-/// crypto import and sink the call).
+/// Voice-call builders.
 class TestCalls {
   TestCalls._();
-
-  /// Valid 32-byte zero key, base64-encoded (44 chars, decoded length 32).
-  static const String keyB64 = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
-
-  /// Valid 8-byte zero nonce prefix, base64-encoded.
-  static const String noncePrefixB64 = 'AAAAAAAAAAA=';
 
   /// An active, connected call.
   static ActiveCall active({
@@ -298,8 +289,6 @@ class TestCalls {
       ActiveCall(
         callId: callId,
         direction: direction,
-        keyB64: keyB64,
-        noncePrefixB64: noncePrefixB64,
         startedAtMs: startedAtMs ?? BigInt.zero,
       );
 }

@@ -27,8 +27,6 @@
 // Section: imports
 
 use crate::api::shared_runtime::*;
-use crate::api::voice_call_opus_encode::*;
-use crate::api::voice_call_playback::*;
 use crate::api::voice_call_ringtone::*;
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
@@ -52,7 +50,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 653944842;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 844762892;
 
 // Section: executor
 
@@ -561,41 +559,6 @@ fn wire__crate__api__private_dm__call_decline_impl(
         },
     )
 }
-fn wire__crate__api__private_dm__call_drain_frames_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "call_drain_frames",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_session_id = <String>::sse_decode(&mut deserializer);
-            let api_call_id = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok =
-                        crate::api::private_dm::call_drain_frames(api_session_id, api_call_id)?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
 fn wire__crate__api__private_dm__call_end_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -633,45 +596,6 @@ fn wire__crate__api__private_dm__call_end_impl(
                         Ok(output_ok)
                     })(),
                 )
-            }
-        },
-    )
-}
-fn wire__crate__api__private_dm__call_send_frame_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "call_send_frame",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_session_id = <String>::sse_decode(&mut deserializer);
-            let api_call_id = <String>::sse_decode(&mut deserializer);
-            let api_frame = <Vec<u8>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::private_dm::call_send_frame(
-                        api_session_id,
-                        api_call_id,
-                        api_frame,
-                    )?;
-                    Ok(output_ok)
-                })())
             }
         },
     )
@@ -4122,218 +4046,6 @@ fn wire__crate__api__conversation__typing_signal_impl(
         },
     )
 }
-fn wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "voice_call_opus_encode",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_encoder = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallOpusEncoder>,
-            >>::sse_decode(&mut deserializer);
-            let api_pcm16 = <Vec<u8>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, String>((move || {
-                let mut api_encoder_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_encoder,
-                            0,
-                            false,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_encoder_guard = Some(api_encoder.lockable_decode_sync_ref()),
-                        _ => unreachable!(),
-                    }
-                }
-                let api_encoder_guard = api_encoder_guard.unwrap();
-                let output_ok = crate::api::voice_call_opus_encode::voice_call_opus_encode(
-                    &*api_encoder_guard,
-                    api_pcm16,
-                )?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "voice_call_opus_encoder_new",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            deserializer.end();
-            transform_result_sse::<_, String>((move || {
-                let output_ok = crate::api::voice_call_opus_encode::voice_call_opus_encoder_new()?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "voice_call_playback_push_frame",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_p = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>,
-            >>::sse_decode(&mut deserializer);
-            let api__seq = <u128>::sse_decode(&mut deserializer);
-            let api_opus = <Vec<u8>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, String>((move || {
-                let mut api_p_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_p, 0, false,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_p_guard = Some(api_p.lockable_decode_sync_ref()),
-                        _ => unreachable!(),
-                    }
-                }
-                let api_p_guard = api_p_guard.unwrap();
-                let output_ok = crate::api::voice_call_playback::voice_call_playback_push_frame(
-                    &*api_p_guard,
-                    api__seq,
-                    api_opus,
-                )?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "voice_call_playback_start",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_output_device_id = <Option<String>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, String>((move || {
-                let output_ok = crate::api::voice_call_playback::voice_call_playback_start(
-                    api_output_device_id,
-                )?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "voice_call_playback_stop",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_p = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, String>((move || {
-                let mut api_p_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_p, 0, false,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_p_guard = Some(api_p.lockable_decode_sync_ref()),
-                        _ => unreachable!(),
-                    }
-                }
-                let api_p_guard = api_p_guard.unwrap();
-                let output_ok =
-                    crate::api::voice_call_playback::voice_call_playback_stop(&*api_p_guard)?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
 fn wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -4463,13 +4175,7 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SharedResources>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallOpusEncoder>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallRingtone>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>
 );
 
 // Section: dart2rust
@@ -4492,31 +4198,11 @@ impl SseDecode for SharedResources {
     }
 }
 
-impl SseDecode for VoiceCallOpusEncoder {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallOpusEncoder>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
 impl SseDecode for VoiceCallRingtone {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <RustOpaqueMoi<
             flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallRingtone>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode for VoicePlayback {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>,
         >>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
     }
@@ -4533,27 +4219,7 @@ impl SseDecode
 }
 
 impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallOpusEncoder>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallRingtone>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4586,14 +4252,6 @@ impl SseDecode for String {
     }
 }
 
-impl SseDecode for u128 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <String>::sse_decode(deserializer);
-        return inner.parse().unwrap();
-    }
-}
-
 impl SseDecode for crate::private_dm_runtime::contracts::AcceptInviteRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4616,15 +4274,11 @@ impl SseDecode for crate::private_dm_runtime::contracts::ActiveCall {
         let mut var_callId = <String>::sse_decode(deserializer);
         let mut var_supersededCallId = <Option<String>>::sse_decode(deserializer);
         let mut var_direction = <String>::sse_decode(deserializer);
-        let mut var_keyB64 = <String>::sse_decode(deserializer);
-        let mut var_noncePrefixB64 = <String>::sse_decode(deserializer);
         let mut var_startedAtMs = <u64>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::ActiveCall {
             call_id: var_callId,
             superseded_call_id: var_supersededCallId,
             direction: var_direction,
-            key_b64: var_keyB64,
-            nonce_prefix_b64: var_noncePrefixB64,
             started_at_ms: var_startedAtMs,
         };
     }
@@ -5013,13 +4667,9 @@ impl SseDecode for crate::private_dm_runtime::contracts::CallStarted {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_sessionId = <String>::sse_decode(deserializer);
         let mut var_callId = <String>::sse_decode(deserializer);
-        let mut var_keyB64 = <String>::sse_decode(deserializer);
-        let mut var_noncePrefixB64 = <String>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::CallStarted {
             session_id: var_sessionId,
             call_id: var_callId,
-            key_b64: var_keyB64,
-            nonce_prefix_b64: var_noncePrefixB64,
         };
     }
 }
@@ -6023,18 +5673,6 @@ impl SseDecode for Vec<crate::private_dm_runtime::contracts::InviteCreated> {
             ans_.push(
                 <crate::private_dm_runtime::contracts::InviteCreated>::sse_decode(deserializer),
             );
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<Vec<u8>> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<Vec<u8>>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -7722,270 +7360,266 @@ fn pde_ffi_dispatcher_primary_impl(
         12 => wire__crate__api__plus__bind_checkout_offer_impl(port, ptr, rust_vec_len, data_len),
         13 => wire__crate__api__private_dm__call_accept_impl(port, ptr, rust_vec_len, data_len),
         14 => wire__crate__api__private_dm__call_decline_impl(port, ptr, rust_vec_len, data_len),
-        15 => {
-            wire__crate__api__private_dm__call_drain_frames_impl(port, ptr, rust_vec_len, data_len)
-        }
-        16 => wire__crate__api__private_dm__call_end_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__private_dm__call_send_frame_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__private_dm__call_start_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__device_link__cancel_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__conversation__cancel_attachment_impl(
+        15 => wire__crate__api__private_dm__call_end_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__private_dm__call_start_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__device_link__cancel_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__conversation__cancel_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        21 => wire__crate__api__plus__cancel_checkout_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__background__transfers__cancel_user_attachment_transfer_impl(
+        19 => wire__crate__api__plus__cancel_checkout_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__background__transfers__cancel_user_attachment_transfer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        23 => wire__crate__api__plus__complete_issuance_impl(port, ptr, rust_vec_len, data_len),
-        24 => {
+        21 => wire__crate__api__plus__complete_issuance_impl(port, ptr, rust_vec_len, data_len),
+        22 => {
             wire__crate__api__plus__complete_order_issuance_impl(port, ptr, rust_vec_len, data_len)
         }
-        25 => wire__crate__api__plus__configure_issuer_impl(port, ptr, rust_vec_len, data_len),
-        26 => {
+        23 => wire__crate__api__plus__configure_issuer_impl(port, ptr, rust_vec_len, data_len),
+        24 => {
             wire__crate__api__plus__configure_mainnet_issuer_impl(port, ptr, rust_vec_len, data_len)
         }
-        27 => wire__crate__api__plus__confirm_series_registered_impl(
+        25 => wire__crate__api__plus__confirm_series_registered_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        28 => wire__crate__api__diagnostics__crash_reporting_salt_impl(
+        26 => wire__crate__api__diagnostics__crash_reporting_salt_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        29 => wire__crate__api__org__create_group_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__private_group__create_group_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__private_dm__create_invite_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__private_dm__create_pending_invite_impl(
+        27 => wire__crate__api__org__create_group_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__private_group__create_group_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__private_dm__create_invite_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__private_dm__create_pending_invite_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        34 => wire__crate__api__conversation__deletion__delete_messages_impl(
+        32 => wire__crate__api__conversation__deletion__delete_messages_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__api__vpn__detect_vpn_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__diagnostics__disable_crash_reporting_impl(
+        33 => wire__crate__api__vpn__detect_vpn_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__diagnostics__disable_crash_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__api__channel__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__org__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__private_group__dismiss_dm_offer_impl(
+        35 => wire__crate__api__channel__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__org__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__private_group__dismiss_dm_offer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        40 => wire__crate__api__org__dismiss_group_offer_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__conversation__download_attachment_impl(
+        38 => wire__crate__api__org__dismiss_group_offer_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__conversation__download_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        42 => wire__crate__api__background__transfers__download_user_attachment_impl(
+        40 => wire__crate__api__background__transfers__download_user_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        43 => wire__crate__api__diagnostics__enable_crash_reporting_impl(
+        41 => wire__crate__api__diagnostics__enable_crash_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => wire__crate__api__shared_runtime__ensure_shared_resources_impl(
+        42 => wire__crate__api__shared_runtime__ensure_shared_resources_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        45 => wire__crate__api__native_call__frame_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__vpn__get_bind_interface_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__vpn__get_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__org__group_invite_members_impl(port, ptr, rust_vec_len, data_len),
-        49 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__device_link__join_link_impl(port, ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__org__join_org_impl(port, ptr, rust_vec_len, data_len),
-        53 => wire__crate__api__conversation__leave_impl(port, ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__org__leave_org_impl(port, ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__channel__list_impl(port, ptr, rust_vec_len, data_len),
-        56 => wire__crate__api__org__list_impl(port, ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__private_group__list_impl(port, ptr, rust_vec_len, data_len),
-        58 => wire__crate__api__native_call__list_cameras_impl(port, ptr, rust_vec_len, data_len),
-        59 => wire__crate__api__network__list_interfaces_impl(port, ptr, rust_vec_len, data_len),
-        61 => wire__crate__api__private_dm__list_pending_invites_impl(
+        43 => wire__crate__api__native_call__frame_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__vpn__get_bind_interface_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__vpn__get_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__org__group_invite_members_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__device_link__join_link_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__org__join_org_impl(port, ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__conversation__leave_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__org__leave_org_impl(port, ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__channel__list_impl(port, ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__org__list_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__private_group__list_impl(port, ptr, rust_vec_len, data_len),
+        56 => wire__crate__api__native_call__list_cameras_impl(port, ptr, rust_vec_len, data_len),
+        57 => wire__crate__api__network__list_interfaces_impl(port, ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__private_dm__list_pending_invites_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        62 => wire__crate__api__private_dm__list_sessions_impl(port, ptr, rust_vec_len, data_len),
-        63 => wire__crate__api__conversation__mark_viewed_impl(port, ptr, rust_vec_len, data_len),
-        65 => {
+        60 => wire__crate__api__private_dm__list_sessions_impl(port, ptr, rust_vec_len, data_len),
+        61 => wire__crate__api__conversation__mark_viewed_impl(port, ptr, rust_vec_len, data_len),
+        63 => {
             wire__crate__api__diagnostics__moss_library_info_impl(port, ptr, rust_vec_len, data_len)
         }
-        66 => wire__crate__api__diagnostics__native_runtime_status_impl(
+        64 => wire__crate__api__diagnostics__native_runtime_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        67 => wire__crate__api__private_dm__open_session_impl(port, ptr, rust_vec_len, data_len),
-        68 => wire__crate__api__background__pending_background_notifications_impl(
+        65 => wire__crate__api__private_dm__open_session_impl(port, ptr, rust_vec_len, data_len),
+        66 => wire__crate__api__background__pending_background_notifications_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        69 => wire__crate__api__conversation__names__personal_names_impl(
+        67 => wire__crate__api__conversation__names__personal_names_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        70 => wire__crate__api__channel__poll_impl(port, ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__org__poll_impl(port, ptr, rust_vec_len, data_len),
-        72 => wire__crate__api__private_group__poll_impl(port, ptr, rust_vec_len, data_len),
-        73 => wire__crate__api__private_dm__poll_session_impl(port, ptr, rust_vec_len, data_len),
-        74 => wire__crate__api__native_call__prepare_impl(port, ptr, rust_vec_len, data_len),
-        75 => wire__crate__api__plus__prepare_checkout_impl(port, ptr, rust_vec_len, data_len),
-        76 => wire__crate__api__plus__prepare_issuance_impl(port, ptr, rust_vec_len, data_len),
-        77 => {
+        68 => wire__crate__api__channel__poll_impl(port, ptr, rust_vec_len, data_len),
+        69 => wire__crate__api__org__poll_impl(port, ptr, rust_vec_len, data_len),
+        70 => wire__crate__api__private_group__poll_impl(port, ptr, rust_vec_len, data_len),
+        71 => wire__crate__api__private_dm__poll_session_impl(port, ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__native_call__prepare_impl(port, ptr, rust_vec_len, data_len),
+        73 => wire__crate__api__plus__prepare_checkout_impl(port, ptr, rust_vec_len, data_len),
+        74 => wire__crate__api__plus__prepare_issuance_impl(port, ptr, rust_vec_len, data_len),
+        75 => {
             wire__crate__api__plus__prepare_order_issuance_impl(port, ptr, rust_vec_len, data_len)
         }
-        78 => wire__crate__api__plus__prepare_recovery_impl(port, ptr, rust_vec_len, data_len),
-        79 => wire__crate__api__plus__prepare_recovery_issuance_impl(
+        76 => wire__crate__api__plus__prepare_recovery_impl(port, ptr, rust_vec_len, data_len),
+        77 => wire__crate__api__plus__prepare_recovery_issuance_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        80 => wire__crate__api__plus__prepare_series_impl(port, ptr, rust_vec_len, data_len),
-        81 => wire__crate__api__background__transfers__prepare_user_attachment_transfer_impl(
+        78 => wire__crate__api__plus__prepare_series_impl(port, ptr, rust_vec_len, data_len),
+        79 => wire__crate__api__background__transfers__prepare_user_attachment_transfer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        82 => wire__crate__api__private_dm__read_receipts_enabled_impl(
+        80 => wire__crate__api__private_dm__read_receipts_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        83 => wire__crate__api__conversation__names__rename_impl(port, ptr, rust_vec_len, data_len),
-        84 => wire__crate__api__private_dm__replace_invite_impl(port, ptr, rust_vec_len, data_len),
-        85 => wire__crate__api__conversation__names__reset_name_impl(
+        81 => wire__crate__api__conversation__names__rename_impl(port, ptr, rust_vec_len, data_len),
+        82 => wire__crate__api__private_dm__replace_invite_impl(port, ptr, rust_vec_len, data_len),
+        83 => wire__crate__api__conversation__names__reset_name_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        86 => wire__crate__api__background__transfers__resume_user_attachment_transfer_impl(
+        84 => wire__crate__api__background__transfers__resume_user_attachment_transfer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        87 => wire__crate__api__conversation__retry_impl(port, ptr, rust_vec_len, data_len),
-        88 => wire__crate__api__device_link__revoke_impl(port, ptr, rust_vec_len, data_len),
-        89 => wire__crate__api__plus__save_order_impl(port, ptr, rust_vec_len, data_len),
-        90 => wire__crate__api__plus__save_recovery_status_impl(port, ptr, rust_vec_len, data_len),
-        91 => wire__crate__api__plus__save_schedule_impl(port, ptr, rust_vec_len, data_len),
-        92 => wire__crate__api__conversation__send_impl(port, ptr, rust_vec_len, data_len),
-        93 => {
+        85 => wire__crate__api__conversation__retry_impl(port, ptr, rust_vec_len, data_len),
+        86 => wire__crate__api__device_link__revoke_impl(port, ptr, rust_vec_len, data_len),
+        87 => wire__crate__api__plus__save_order_impl(port, ptr, rust_vec_len, data_len),
+        88 => wire__crate__api__plus__save_recovery_status_impl(port, ptr, rust_vec_len, data_len),
+        89 => wire__crate__api__plus__save_schedule_impl(port, ptr, rust_vec_len, data_len),
+        90 => wire__crate__api__conversation__send_impl(port, ptr, rust_vec_len, data_len),
+        91 => {
             wire__crate__api__conversation__send_attachment_impl(port, ptr, rust_vec_len, data_len)
         }
-        94 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        95 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        96 => {
+        92 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        93 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        94 => {
             wire__crate__api__private_group__send_dm_offer_impl(port, ptr, rust_vec_len, data_len)
         }
-        97 => wire__crate__api__background__transfers__send_user_attachment_impl(
+        95 => wire__crate__api__background__transfers__send_user_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        98 => {
+        96 => {
             wire__crate__api__private_dm__set_app_data_dir_impl(port, ptr, rust_vec_len, data_len)
         }
-        99 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
+        97 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        101 => wire__crate__api__background__set_background_execution_impl(
+        99 => wire__crate__api__background__set_background_execution_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        102 => wire__crate__api__native_call__set_choices_impl(port, ptr, rust_vec_len, data_len),
-        104 => {
+        100 => wire__crate__api__native_call__set_choices_impl(port, ptr, rust_vec_len, data_len),
+        102 => {
             wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len)
         }
-        105 => wire__crate__api__shared_runtime__set_history_dek_impl(
+        103 => wire__crate__api__shared_runtime__set_history_dek_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        106 => wire__crate__api__private_dm__set_read_receipts_enabled_impl(
+        104 => wire__crate__api__private_dm__set_read_receipts_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        107 => wire__crate__api__plus__set_visible_impl(port, ptr, rust_vec_len, data_len),
-        108 => {
+        105 => wire__crate__api__plus__set_visible_impl(port, ptr, rust_vec_len, data_len),
+        106 => {
             wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len)
         }
-        109 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        110 => wire__crate__api__native_call__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        111 => wire__crate__api__plus__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        112 => wire__crate__api__diagnostics__start_panic_reporting_impl(
+        107 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        108 => wire__crate__api__native_call__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        109 => wire__crate__api__plus__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        110 => wire__crate__api__diagnostics__start_panic_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        113 => wire__crate__api__diagnostics__stop_panic_reporting_impl(
+        111 => wire__crate__api__diagnostics__stop_panic_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        114 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
+        112 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        115 => {
+        113 => {
             wire__crate__api__conversation__typing_signal_impl(port, ptr, rust_vec_len, data_len)
         }
-        123 => wire__crate__api__background__watch_background_changes_impl(
+        116 => wire__crate__api__background__watch_background_changes_impl(
             port,
             ptr,
             rust_vec_len,
@@ -8011,44 +7645,19 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        33 => wire__crate__api__native_call__default_camera_id_impl(ptr, rust_vec_len, data_len),
-        60 => {
+        31 => wire__crate__api__native_call__default_camera_id_impl(ptr, rust_vec_len, data_len),
+        58 => {
             wire__crate__api__audio_devices__list_output_devices_impl(ptr, rust_vec_len, data_len)
         }
-        64 => wire__crate__api__conversation__max_text_chars_impl(ptr, rust_vec_len, data_len),
-        100 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
-        103 => wire__crate__api__native_call__set_default_camera_impl(ptr, rust_vec_len, data_len),
-        116 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
+        62 => wire__crate__api__conversation__max_text_chars_impl(ptr, rust_vec_len, data_len),
+        98 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
+        101 => wire__crate__api__native_call__set_default_camera_impl(ptr, rust_vec_len, data_len),
+        114 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        117 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        118 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        119 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        120 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        121 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        122 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
+        115 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
@@ -8075,24 +7684,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<SharedResources>> for SharedRe
 }
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<VoiceCallOpusEncoder> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<VoiceCallOpusEncoder>
-{
-}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<VoiceCallOpusEncoder>> for VoiceCallOpusEncoder {
-    fn into_into_dart(self) -> FrbWrapper<VoiceCallOpusEncoder> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<VoiceCallRingtone> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
@@ -8103,21 +7694,6 @@ impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<
 
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<VoiceCallRingtone>> for VoiceCallRingtone {
     fn into_into_dart(self) -> FrbWrapper<VoiceCallRingtone> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<VoicePlayback> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<VoicePlayback> {}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<VoicePlayback>> for VoicePlayback {
-    fn into_into_dart(self) -> FrbWrapper<VoicePlayback> {
         self.into()
     }
 }
@@ -8152,8 +7728,6 @@ impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::Act
             self.call_id.into_into_dart().into_dart(),
             self.superseded_call_id.into_into_dart().into_dart(),
             self.direction.into_into_dart().into_dart(),
-            self.key_b64.into_into_dart().into_dart(),
-            self.nonce_prefix_b64.into_into_dart().into_dart(),
             self.started_at_ms.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -8698,8 +8272,6 @@ impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::Cal
         [
             self.session_id.into_into_dart().into_dart(),
             self.call_id.into_into_dart().into_dart(),
-            self.key_b64.into_into_dart().into_dart(),
-            self.nonce_prefix_b64.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -10847,29 +10419,10 @@ impl SseEncode for SharedResources {
     }
 }
 
-impl SseEncode for VoiceCallOpusEncoder {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallOpusEncoder>,
-        >>::sse_encode(
-            flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self),
-            serializer,
-        );
-    }
-}
-
 impl SseEncode for VoiceCallRingtone {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallRingtone>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
-    }
-}
-
-impl SseEncode for VoicePlayback {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
     }
 }
 
@@ -10885,29 +10438,7 @@ impl SseEncode
 }
 
 impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallOpusEncoder>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
-    }
-}
-
-impl SseEncode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallRingtone>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
-    }
-}
-
-impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -10938,13 +10469,6 @@ impl SseEncode for String {
     }
 }
 
-impl SseEncode for u128 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.to_string(), serializer);
-    }
-}
-
 impl SseEncode for crate::private_dm_runtime::contracts::AcceptInviteRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -10961,8 +10485,6 @@ impl SseEncode for crate::private_dm_runtime::contracts::ActiveCall {
         <String>::sse_encode(self.call_id, serializer);
         <Option<String>>::sse_encode(self.superseded_call_id, serializer);
         <String>::sse_encode(self.direction, serializer);
-        <String>::sse_encode(self.key_b64, serializer);
-        <String>::sse_encode(self.nonce_prefix_b64, serializer);
         <u64>::sse_encode(self.started_at_ms, serializer);
     }
 }
@@ -11294,8 +10816,6 @@ impl SseEncode for crate::private_dm_runtime::contracts::CallStarted {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.session_id, serializer);
         <String>::sse_encode(self.call_id, serializer);
-        <String>::sse_encode(self.key_b64, serializer);
-        <String>::sse_encode(self.nonce_prefix_b64, serializer);
     }
 }
 
@@ -12100,16 +11620,6 @@ impl SseEncode for Vec<crate::private_dm_runtime::contracts::InviteCreated> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::private_dm_runtime::contracts::InviteCreated>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<Vec<u8>> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <Vec<u8>>::sse_encode(item, serializer);
         }
     }
 }
@@ -13358,8 +12868,6 @@ mod io {
 
     use super::*;
     use crate::api::shared_runtime::*;
-    use crate::api::voice_call_opus_encode::*;
-    use crate::api::voice_call_playback::*;
     use crate::api::voice_call_ringtone::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
@@ -13396,20 +12904,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallOpusEncoder>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallOpusEncoder>>::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
         ptr: *const std::ffi::c_void,
     ) {
@@ -13421,20 +12915,6 @@ mod io {
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallRingtone>>::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>::decrement_strong_count(ptr as _);
     }
 }
 #[cfg(not(target_family = "wasm"))]
@@ -13450,8 +12930,6 @@ mod web {
 
     use super::*;
     use crate::api::shared_runtime::*;
-    use crate::api::voice_call_opus_encode::*;
-    use crate::api::voice_call_playback::*;
     use crate::api::voice_call_ringtone::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
@@ -13490,20 +12968,6 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallOpusEncoder>>::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallOpusEncoder>>::decrement_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
     pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
         ptr: *const std::ffi::c_void,
     ) {
@@ -13515,20 +12979,6 @@ mod web {
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallRingtone>>::decrement_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>::decrement_strong_count(ptr as _);
     }
 }
 #[cfg(target_family = "wasm")]

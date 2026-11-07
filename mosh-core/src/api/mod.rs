@@ -10,7 +10,7 @@
 //!
 //! The facade stays intentionally thin: it delegates to the existing
 //! runtimes (`mosh_runtime`, `private_dm_runtime`, `channel_runtime`,
-//! `private_group_runtime`, `org_runtime`, `voice_call_runtime`, etc.)
+//! `private_group_runtime`, `org_runtime`, etc.)
 //! and does not introduce new domain logic. Argument and return types are
 //! kept bridge-friendly so `flutter_rust_bridge` can generate the Dart
 //! bindings without manual glue.
@@ -50,22 +50,12 @@ pub mod network;
 /// commands.
 pub mod vpn;
 
-/// Facade for the voice-call Opus encoder (real mic capture pipeline:
-/// `record` PCM16 -> Rust Opus encode -> Opus packet). See
-/// `voice_call_opus_encode`.
-pub mod voice_call_opus_encode;
-
 /// Facade for the audio-device picks: `list_output_devices` (cpal
 /// enumeration) and the stored input/output device ids
 /// (`audio-devices.json` in the data dir). The input id is consumed by
 /// Dart (`record`'s `RecordConfig.device`); the output id resolves to a
-/// cpal device inside the playback/ringtone starts.
+/// cpal device inside the ringtone start.
 pub mod audio_devices;
-
-/// Facade for the voice-call Opus decoder + cpal output (real playback
-/// pipeline: Opus packet -> Rust decode -> ring buffer -> cpal stream with
-/// drift-resync). See `voice_call_playback`.
-pub mod voice_call_playback;
 
 /// Facade for the CPAL-backed bundled voice-call ringtone.
 pub mod voice_call_ringtone;

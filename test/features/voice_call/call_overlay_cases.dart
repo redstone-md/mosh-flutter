@@ -20,19 +20,19 @@ import 'package:mosh/src/state/session_providers.dart'
     show activeSessionProvider;
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
     show voiceCallOrchestratorProvider;
+import 'package:mosh/src/state/native_call_owner_provider.dart';
+import '../../support/native_call_fixture.dart';
 import '../../support/pump.dart';
 import '../../support/scriptable_bridge.dart';
 
 ActiveCall _active({required int startedAtMs}) => ActiveCall(
       callId: 'call-1',
       direction: 'caller',
-      keyB64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
-      noncePrefixB64: 'AAAAAA==',
       startedAtMs: BigInt.from(startedAtMs),
     );
 
-/// An active-session snapshot seeded so the orchestrator attaches and reports
-/// `muted: false` until a test flips it via `toggleMute`.
+/// An active-session snapshot seeded so the orchestrator binds the call's
+/// media and reports `muted: false` until a test flips it via `toggleMute`.
 SessionSnapshot _activeSession(String sessionId) => SessionSnapshot(
       inviteAvailable: false,
       sessionId: sessionId,
@@ -53,13 +53,26 @@ Future<AppLocalizations> _l() =>
     AppLocalizations.delegate.load(const Locale('en'));
 
 /// Builds a container that wires the orchestrator for [sessionId] with an
-/// active call so the overlay can read its (live) mute flag.
-ProviderContainer _containerFor(String sessionId) =>
-    ProviderContainer(overrides: [
-      bridgeFacadeProvider.overrideWithValue(ScriptableBridge()),
-      activeSessionProvider(sessionId)
-          .overrideWith((ref) => Future.value(_activeSession(sessionId))),
-    ]);
+/// active call whose media is ready, so the overlay can read its (live)
+/// mute flag.
+ProviderContainer _containerFor(String sessionId) {
+  final bridge = ScriptableBridge()
+    ..seedNativeCallSnapshot(nativeCallSnapshot(
+        sessionId: sessionId, callId: 'call-1', microphone: true));
+  final media = NativeCallOwner(bridge, () async => true);
+  final container = ProviderContainer(overrides: [
+    bridgeFacadeProvider.overrideWithValue(bridge),
+    nativeCallOwnerProvider.overrideWithValue(media),
+    activeSessionProvider(sessionId)
+        .overrideWith((ref) => Future.value(_activeSession(sessionId))),
+  ]);
+  _media[container] = media;
+  return container;
+}
+
+/// The call media of each container, released with the widget tree: the
+/// application-level owner outlives the overlay, its poll timer must not.
+final _media = Expando<NativeCallOwner>();
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -68,7 +81,8 @@ Future<void> _pump(
 }) =>
     pumpScreen(
       tester,
-      Scaffold(body: overlay),
+      ReleasesCallMedia(
+          media: _media[container], child: Scaffold(body: overlay)),
       container: container,
     );
 
@@ -97,7 +111,8 @@ void main() {
       );
 
       await tester.tap(find.byIcon(Icons.mic));
-      await tester.pump();
+      // The microphone choice goes to the engine before the state flips.
+      await tester.pump(const Duration(milliseconds: 10));
 
       // The toggle hit the orchestrator notifier; the icon swaps live.
       expect(
@@ -231,7 +246,7 @@ void main() {
       container
           .read(voiceCallOrchestratorProvider(sessionId).notifier)
           .toggleMute();
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 10));
       expect(find.byIcon(Icons.mic_off), findsOneWidget);
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.mic), findsNothing);

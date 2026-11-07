@@ -16,7 +16,7 @@ import '../private_dm_runtime/transport.dart';
 import 'conversation_bridge.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `background_work`, `call_media`, `construct_runtime`, `ensure_runtime`, `start_service_thread`
+// These functions are ignored because they are not marked as `pub`: `background_work`, `construct_runtime`, `ensure_runtime`, `start_service_thread`
 
 /// Inject the at-rest history DEK from the mobile platform channel (ADR
 /// 0011). See `api::shared_runtime::set_history_dek` for the full
@@ -101,25 +101,6 @@ Future<void> callEnd(
         required String reason}) =>
     RustLib.instance.api.crateApiPrivateDmCallEnd(
         sessionId: sessionId, callId: callId, reason: reason);
-
-/// Publish one sealed voice-call frame for an active call. The Dart capture
-/// loop drives it every 20 ms; the caller seals the frame before sending.
-/// A call id is unique on its own; `session_id` stays for the bridge
-/// contract.
-Future<void> callSendFrame(
-        {required String sessionId,
-        required String callId,
-        required List<int> frame}) =>
-    RustLib.instance.api.crateApiPrivateDmCallSendFrame(
-        sessionId: sessionId, callId: callId, frame: frame);
-
-/// The sealed frames the peer sent for an active call since the last drain.
-/// The Dart playback loop drives it every 20 ms, then opens the frames and
-/// queues them into the jitter buffer.
-Future<List<Uint8List>> callDrainFrames(
-        {required String sessionId, required String callId}) =>
-    RustLib.instance.api
-        .crateApiPrivateDmCallDrainFrames(sessionId: sessionId, callId: callId);
 
 /// Whether this user sends read receipts (and therefore sees others').
 /// One app-level answer covering every DM; read from the plain JSON

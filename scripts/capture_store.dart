@@ -16,7 +16,6 @@ import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/locale_preference_store.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
-import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
 
 import '../test/features/routing/shell_harness.dart';
 import '../test/support/first_run_preview.dart';
@@ -26,7 +25,6 @@ import '../test/support/native_call_fixture.dart';
 import '../test/support/message_builders.dart';
 import '../test/support/scriptable_bridge.dart';
 import '../test/support/scriptable_gateway.dart';
-import '../test/support/voice_call_fakes.dart';
 
 /// One listing language: where its files go and the sample conversation.
 class _Listing {
@@ -208,8 +206,6 @@ Future<NativeCallOwner> _open(
       overrides: [
         localePreferenceStoreProvider
             .overrideWithValue(MemoryLocalePreferenceStore(listing.locale)),
-        voiceCaptureFactoryProvider.overrideWithValue(RecordingCapture()),
-        voicePlaybackFactoryProvider.overrideWithValue(RecordingPlayback()),
         if (phoneCall) nativeCallOwnerProvider.overrideWithValue(owner),
       ]);
   return owner;

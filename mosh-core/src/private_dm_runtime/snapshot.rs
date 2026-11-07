@@ -81,8 +81,6 @@ impl PrivateDmSession {
                         call_id: call.call_id.clone(),
                         superseded_call_id: call.presentation_alias(),
                         direction: call.direction.as_str().to_string(),
-                        key_b64: call.key_b64.clone(),
-                        nonce_prefix_b64: call.nonce_prefix_b64.clone(),
                         started_at_ms: call.started_at_ms,
                     })
                 } else {

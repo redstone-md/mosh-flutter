@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use super::super::admission_authentication::sign_key_package;
-use super::{is_call_media_inbound, DmTransport, PeerTransport, PublishError};
+use super::{DmTransport, PeerTransport, PublishError};
 use crate::conversation::mesh::{MeshInfo, PeerDetail};
 use crate::moss_ffi::MossReceivedMessage;
 use crate::stream_transport::{passthrough_or_deframe, stream_inbox_channel};
@@ -18,8 +18,6 @@ type DropRule = Arc<dyn Fn(&str, &[u8]) -> bool + Send + Sync>;
 #[derive(Default)]
 struct Endpoint {
     inbox: Vec<MossReceivedMessage>,
-    /// Voice-call media, queued apart the way the moss inbox claims it.
-    media_inbox: Vec<MossReceivedMessage>,
     packet_inbox: Vec<MossReceivedMessage>,
     connect_requests: Vec<String>,
     room_discovery: HashMap<String, Vec<String>>,
@@ -29,9 +27,6 @@ struct Endpoint {
     /// The transport turns the next publish into a hard failure (the way
     /// moss answers a real transport fault, not a soft no-peers refusal).
     fail_publishes: bool,
-    /// `subscribe` answers an error, the way moss would when the room or
-    /// the node behind it is gone.
-    refuse_subscribes: bool,
     /// Every stream send this endpoint tried, delivered or not.
     stream_attempts: usize,
     /// The stream fast path refuses, the way a moss stream refuses a peer it
@@ -174,13 +169,6 @@ impl MemoryNet {
     pub fn fail_publishes(&self, from: &str, fail: bool) {
         if let Some(endpoint) = self.lock().endpoints.get_mut(from) {
             endpoint.fail_publishes = fail;
-        }
-    }
-
-    /// Make `from`'s subscribes fail, or stop doing so.
-    pub fn refuse_subscribes(&self, from: &str, refuse: bool) {
-        if let Some(endpoint) = self.lock().endpoints.get_mut(from) {
-            endpoint.refuse_subscribes = refuse;
         }
     }
 

@@ -9,9 +9,6 @@ import 'package:mosh/src/features/voice_call/call_dialog.dart';
 import 'package:mosh/src/features/voice_call/call_control_gate.dart';
 import 'package:mosh/src/features/voice_call/call_ringing.dart';
 import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
-import 'package:mosh/src/features/voice_call/voice_call_orchestrator.dart';
-import 'package:mosh/src/features/voice_call/voice_capture.dart';
-import 'package:mosh/src/features/voice_call/voice_playback.dart';
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -86,34 +83,22 @@ class VoiceCallOrchestratorState {
       );
 }
 
-final voiceCaptureFactoryProvider = Provider<VoiceCaptureFactory>(
-  (ref) => const NoopVoiceCaptureFactory(),
-);
-final voicePlaybackFactoryProvider = Provider<VoicePlaybackFactory>(
-  (ref) => const NoopVoicePlaybackFactory(),
-);
 final ringtonePlayerProvider = Provider<RingtonePlayer>(
   (ref) => const NoopRingtonePlayer(),
 );
-
-final _callAudioProvider = Provider<VoiceCallOrchestrator>((ref) {
-  final audio = VoiceCallOrchestrator();
-  ref.onDispose(() => unawaited(audio.detach()));
-  return audio;
-});
 
 final voiceCallOrchestratorProvider = NotifierProvider.autoDispose
     .family<VoiceCallOrchestratorNotifier, VoiceCallOrchestratorState, String>(
   VoiceCallOrchestratorNotifier.new,
 );
 
-/// One selected DM's call state. Audio replacement is serialized by the
-/// application-level audio owner; ringtone lifetime is independent of widgets.
+/// One selected DM's call state. Media belongs to the application-level
+/// [NativeCallOwner], bound here per call; ringtone lifetime is independent
+/// of widgets.
 class VoiceCallOrchestratorNotifier
     extends Notifier<VoiceCallOrchestratorState> {
   VoiceCallOrchestratorNotifier(this.sessionId);
   final String sessionId;
-  late VoiceCallOrchestrator _audio;
   late CallRinging _ringing;
   SessionSnapshot? _snapshot;
   String? _attachedCallId;
@@ -127,7 +112,6 @@ class VoiceCallOrchestratorNotifier
 
   @override
   VoiceCallOrchestratorState build() {
-    _audio = ref.read(_callAudioProvider);
     _native = ref.read(nativeCallOwnerProvider);
     _native?.addListener(_nativeChanged);
     _ringing = CallRinging(ref.read(ringtonePlayerProvider), (id) {
@@ -135,9 +119,9 @@ class VoiceCallOrchestratorNotifier
     }, incomingManaged: ref.read(androidWaitingOwnerProvider) != null);
     ref.onDispose(() {
       _ringing.dispose();
+      // The native owner outlives this notifier: a call keeps its media
+      // when the DM's view goes away.
       _native?.removeListener(_nativeChanged);
-      final id = _attachedCallId;
-      if (id != null) unawaited(_audio.detach(call: (sessionId, id)));
     });
     ref.listen(personalChatNameProvider(DmTarget(sessionId).ref), (_, __) {
       state = _stateFor(_snapshot);
@@ -174,17 +158,11 @@ class VoiceCallOrchestratorNotifier
     final busy = _controls.isBusy(dialog.callId) ||
         (_acceptedCallId != null && _acceptedCallId == dialog.callId);
     _ringing.update(dialog, busy: busy);
-    if (_native == null) {
-      _attach(dialog is ActiveCallDialog ? dialog.active : null);
-    } else {
-      _attachNative(dialog);
-    }
+    if (_native != null) _attachNative(dialog);
     return VoiceCallOrchestratorState(
       dialog: dialog,
-      muted: _native?.session?.muted ??
-          (_attachedCallId == null ? false : _audio.isMuted),
-      audioReady: _native?.session?.snapshot?.ready ??
-          (_attachedCallId != null && _audio.isAttached),
+      muted: _native?.session?.muted ?? false,
+      audioReady: _native?.session?.snapshot?.ready ?? false,
       audioFailed: _failedCallId != null,
       busy: busy || (_native?.session?.busy ?? false),
       occupancyConflict: session?.callAvailability == CallAvailability.conflict,
@@ -299,7 +277,6 @@ class VoiceCallOrchestratorNotifier
   }
 
   Ref get _bindingRef => ref;
-  VoiceCallOrchestratorState get _view => state;
   void _publishMediaState() {
     if (ref.mounted) state = _stateFor(_snapshot);
   }

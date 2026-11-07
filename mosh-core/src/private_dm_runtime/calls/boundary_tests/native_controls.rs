@@ -1,5 +1,5 @@
 use super::*;
-use crate::voice_call_runtime::CallPhase;
+use crate::private_dm_runtime::CallPhase;
 
 pub(super) fn media_retries_cannot_suppress_the_callers_selection(f: &mut Fixture) {
     let device = f.contact.device().device_id.clone();
@@ -7,12 +7,7 @@ pub(super) fn media_retries_cannot_suppress_the_callers_selection(f: &mut Fixtur
     let caller = hex::encode(f.peers.get(&device).unwrap().signer_public());
     let session = f.runtime.session_mut(&f.session).unwrap();
     let receiver = hex::encode(session.crypto.signer_public());
-    let mut call = CallState::ringing(
-        "media-race".into(),
-        "k".into(),
-        "n".into(),
-        "Contact".into(),
-    );
+    let mut call = CallState::ringing("media-race".into(), "Contact".into());
     call.caller_signer = caller.clone();
     call.remote_peer = peer.clone();
     call.phase = CallPhase::Accepting;
@@ -132,7 +127,7 @@ pub(super) fn selected_device_removal_releases_native_call(f: &mut Fixture) {
         .native_context()
         .is_none());
     f.runtime.reconcile_call_authority();
-    f.runtime.sync_call_media();
+    f.runtime.sync_native_media();
     assert!(f.snapshot().active_call.is_none());
     assert!(f.snapshot().call_availability.is_none());
 }
@@ -160,23 +155,6 @@ pub(super) fn local_removal_revokes_retained_native_call(f: &mut Fixture) {
         .is_none());
     f.runtime.reconcile_call_authority();
     assert!(f.snapshot().active_call.is_none());
-}
-
-pub(super) fn unsupported_media_installation_does_not_ring_or_select(f: &mut Fixture) {
-    let device = f.contact.device().device_id.clone();
-    let peer = f.contact.device().moss_peer_id.clone();
-    let offer = remote_control(
-        f,
-        &device,
-        &peer,
-        "incompatible",
-        1,
-        json!({"Offer":{
-        "native": !cfg!(any(target_os = "windows", target_os = "macos", target_os = "linux")), "key_b64":crate::private_dm_runtime::random_b64(32),
-        "nonce_prefix_b64":crate::private_dm_runtime::random_b64(4)}}),
-    );
-    apply(f, offer);
-    assert!(f.snapshot().pending_call.is_none());
 }
 
 pub(super) fn reordered_camera_state_cannot_reenable_a_stopped_remote_track(f: &mut Fixture) {

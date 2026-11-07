@@ -8,7 +8,7 @@ use mosh_core::moss_ffi::{
 use serde_json::{Value, json};
 use std::sync::Arc;
 
-#[path = "../../media-host/src/transport.rs"]
+#[path = "transport.rs"]
 mod transport;
 
 pub struct Carrier {

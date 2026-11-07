@@ -93,6 +93,5 @@ fn memory_call_packets_honor_drop_rules_without_reporting_send_failure() {
     assert_eq!(packets[0].payload, b"kept");
     assert!(b.drain_call_packets().is_empty());
     assert!(b.drain().is_empty());
-    assert!(b.drain_media().is_empty());
     assert!(b.send_call_packet("a", b"unreachable").is_err());
 }
