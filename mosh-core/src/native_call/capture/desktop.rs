@@ -118,9 +118,9 @@ impl Capture {
 }
 impl Drop for Capture {
     fn drop(&mut self) {
-        let exited = self.helper.try_wait().ok().flatten();
         drop(self.stdin.take());
-        let status = self.helper.stop().map_or_else(
+        let stopped = self.helper.stop();
+        let status = stopped.exit.map_or_else(
             |error| format!("unknown ({error})"),
             |exit| exit.to_string(),
         );
@@ -137,7 +137,7 @@ impl Drop for Capture {
         let message = format!(
             "camera capture stopped: reason={}; exit={status}; terminated_by_owner={}; stderr={}",
             self.failure.as_deref().unwrap_or("camera disabled"),
-            exited.is_none(),
+            stopped.killed,
             String::from_utf8_lossy(&stderr).trim(),
         );
         dlog::write(level, kinds::CALL, "", &message);

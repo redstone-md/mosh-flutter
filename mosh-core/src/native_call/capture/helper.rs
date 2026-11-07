@@ -27,6 +27,13 @@ impl fmt::Display for Exit {
     }
 }
 
+/// How `Helper::stop` ended the helper.
+pub(super) struct Stopped {
+    pub exit: io::Result<Exit>,
+    /// False when the helper had already exited, so no signal was sent.
+    pub killed: bool,
+}
+
 pub(super) struct Helper {
     child: Child,
     reaped: bool,
@@ -53,24 +60,29 @@ impl Helper {
         }
         match self.child.try_wait() {
             Ok(status) => Ok(status.map(Exit::Status)),
-            Err(error) => self.reap(error).map(Some),
+            Err(error) => self.exited_elsewhere(error).map(Some),
         }
     }
 
     /// Kills the helper unless it is known to have exited, then waits for it.
-    pub fn stop(&mut self) -> io::Result<Exit> {
+    pub fn stop(&mut self) -> Stopped {
         if let Ok(Some(exit)) = self.try_wait() {
-            return Ok(exit);
+            return Stopped {
+                exit: Ok(exit),
+                killed: false,
+            };
         }
         let _ = self.child.kill();
-        self.child
+        let exit = self
+            .child
             .wait()
             .map(Exit::Status)
-            .or_else(|error| self.reap(error))
+            .or_else(|error| self.exited_elsewhere(error));
+        Stopped { exit, killed: true }
     }
 
     /// Turns `ECHILD` into an exit with unknown status; other errors stay errors.
-    fn reap(&mut self, error: io::Error) -> io::Result<Exit> {
+    fn exited_elsewhere(&mut self, error: io::Error) -> io::Result<Exit> {
         if !collected_elsewhere(&error) {
             return Err(error);
         }
@@ -100,10 +112,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn helper_reaped_elsewhere_stops_without_error() {
+    fn helper_reaped_elsewhere_is_never_signalled() {
         let mut helper = Helper::new(std::process::Command::new("true").spawn().unwrap());
         reap_elsewhere(helper.id());
         assert!(matches!(helper.try_wait(), Ok(Some(Exit::Unknown))));
-        assert!(matches!(helper.stop(), Ok(Exit::Unknown)));
+        let stopped = helper.stop();
+        assert!(matches!(stopped.exit, Ok(Exit::Unknown)));
+        assert!(
+            !stopped.killed,
+            "a collected pid may already belong to another process"
+        );
+    }
+
+    #[test]
+    fn running_helper_is_killed_and_waited_for() {
+        let mut helper = Helper::new(
+            std::process::Command::new("sleep")
+                .arg("30")
+                .spawn()
+                .unwrap(),
+        );
+        let stopped = helper.stop();
+        assert!(stopped.killed);
+        assert!(matches!(stopped.exit, Ok(Exit::Status(status)) if !status.success()));
     }
 }
