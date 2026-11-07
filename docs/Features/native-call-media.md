@@ -105,7 +105,9 @@ loads the engine from Java (`MoshEngine.kt`) so libwebrtc's JNI code finds
 its classes.
 
 The engine reports its media protocol (2; the engine before it spoke 1)
-and every call control carries the sender's, absent meaning 1. Engines on different
+and every call control carries the sender's, absent meaning 1. A build whose
+engine fails to load, iOS included until MOSH-77, speaks 0, so it rings
+neither an older client nor a current one. Engines on different
 protocols cannot connect media, so a callee refuses such an offer instead
 of ringing, a caller ends the call when such a device answers, and both
 record an "update Mosh" call event (`update_required`) in the chat. A

@@ -33,6 +33,8 @@ fn outgoing_call(f: &mut Fixture) {
     session.call = Some(call);
 }
 
+// An older client speaks the legacy protocol. A build whose engine failed to
+// load must not take it for its own and ring a call neither side can carry.
 pub(super) fn an_offer_from_another_engine_is_refused_once_with_update_required(f: &mut Fixture) {
     let device = f.contact.device().device_id.clone();
     let peer = f.contact.device().moss_peer_id.clone();
@@ -45,7 +47,7 @@ pub(super) fn an_offer_from_another_engine_is_refused_once_with_update_required(
             sequence,
             // An older client's offer still carries its own media keys.
             json!({"Offer":{"key_b64":"a2V5", "nonce_prefix_b64":"bm9uYw==", "native":true}}),
-            OTHER_ENGINE,
+            crate::native_call::LEGACY_MEDIA_PROTOCOL,
         );
         handle(f, offer);
     }

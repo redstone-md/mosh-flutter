@@ -27,10 +27,13 @@ await mkdir(output, { recursive: true });
 const artifacts = [process.platform === "win32" ? "mosh_native_media.dll"
   : process.platform === "darwin" ? "libmosh_native_media.dylib" : "libmosh_native_media.so",
   process.platform === "win32" ? "mosh-camera-capture.exe" : "mosh-camera-capture"];
-for (const target of targets) {
-  if (target.includes("linux-gnu") && !process.env.CXX?.includes("clang")) {
+if (targets.some((target) => target.includes("linux-gnu"))) {
+  const version = run(process.env.CXX ?? "c++", ["--version"], { capture: true });
+  if (Number(version.match(/clang version (\d+)/)?.[1] ?? 0) < 21) {
     throw new Error("libwebrtc's hermetic libc++ needs clang 21 or later: set CC and CXX to it");
   }
+}
+for (const target of targets) {
   // Points webrtc-sys at our libwebrtc build for this target.
   const targetEnv = { ...env, LK_CUSTOM_WEBRTC: await prepareLibwebrtc(target, { offline: values.offline }) };
   for (const crate of ["webrtc", "capture"]) {
