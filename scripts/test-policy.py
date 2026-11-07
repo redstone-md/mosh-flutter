@@ -37,7 +37,9 @@ RULES = {
 }
 APPROVAL = re.compile(
     r'test-policy: (skip|timeout|retry|wait) '
-    r'(https://(?:linear\.app/[\w-]+/issue/[A-Z][A-Z0-9]*-\d+(?:/[^\s]*)?|'
+    # An itsaplan key (MOSH-19), or a Linear or GitHub issue URL.
+    r'(MOSH-\d+(?![\w-])|'
+    r'https://(?:linear\.app/[\w-]+/issue/[A-Z][A-Z0-9]*-\d+(?:/[^\s]*)?|'
     r'github\.com/[^/\s]+/[^/\s]+/issues/\d+))'
     r' -- (\S[^\n]{9,})'
 )

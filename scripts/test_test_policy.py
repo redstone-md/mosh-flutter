@@ -228,6 +228,13 @@ mod checks {
         self.assertTrue(policy.violations(valid.replace('wait', 'focus') +
                                          'test.only("x", f)'))
 
+    def test_an_itsaplan_key_tracks_an_exception(self):
+        source = 'await sleep(2);'
+        valid = '// test-policy: wait MOSH-19 -- real-process carrier deadline\n'
+        self.assertEqual(policy.violations(valid + source), [])
+        for key in ['MOSH-', 'MOSH-19x', 'IVO-19', 'mosh-19']:
+            self.assertTrue(policy.violations(valid.replace('MOSH-19', key) + source))
+
     def test_baseline_freezes_expression_and_multiplicity_but_never_focus(self):
         original = 'await sleep(2);'
         self.assertEqual(policy.violations(original, original), [])
