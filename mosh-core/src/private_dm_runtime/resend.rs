@@ -46,9 +46,9 @@ impl PrivateDmSession {
         resend: Option<u32>,
     ) -> Result<(), PrivateDmRuntimeError> {
         let body = self.queued_body(message_id)?;
-        // Send, Retry and a text queued by an older build all publish here.
+        // An older build admitted longer texts; Retry must not publish one.
         if !crate::conversation::text_fits(&body) {
-            return Err(PrivateDmRuntimeError::PayloadTooLarge);
+            return Err(PrivateDmRuntimeError::BodyTooLarge);
         }
         let sent_at_ms = self
             .outbound_attempts

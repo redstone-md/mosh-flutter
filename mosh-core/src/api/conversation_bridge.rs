@@ -98,7 +98,9 @@ impl std::error::Error for ConversationBridgeError {}
 impl From<PrivateDmRuntimeError> for ConversationBridgeError {
     fn from(error: PrivateDmRuntimeError) -> Self {
         let kind = match &error {
-            PrivateDmRuntimeError::PayloadTooLarge => ConversationBridgeErrorKind::PayloadTooLarge,
+            PrivateDmRuntimeError::BodyTooLarge | PrivateDmRuntimeError::PayloadTooLarge => {
+                ConversationBridgeErrorKind::PayloadTooLarge
+            }
             PrivateDmRuntimeError::Deletion(error) => return deletion_error(error),
             PrivateDmRuntimeError::Revoked => ConversationBridgeErrorKind::Revoked,
             PrivateDmRuntimeError::Moss(_) => ConversationBridgeErrorKind::Unavailable,
@@ -124,13 +126,14 @@ impl From<PrivateDmRuntimeError> for ConversationBridgeError {
 impl From<ChannelRuntimeError> for ConversationBridgeError {
     fn from(error: ChannelRuntimeError) -> Self {
         let kind = match &error {
-            ChannelRuntimeError::PayloadTooLarge => ConversationBridgeErrorKind::PayloadTooLarge,
+            ChannelRuntimeError::BodyTooLarge | ChannelRuntimeError::PayloadTooLarge => {
+                ConversationBridgeErrorKind::PayloadTooLarge
+            }
             ChannelRuntimeError::Deletion(error) => return deletion_error(error),
             ChannelRuntimeError::Moss(_) => ConversationBridgeErrorKind::Unavailable,
             ChannelRuntimeError::Codec(_) => ConversationBridgeErrorKind::Internal,
             ChannelRuntimeError::Persistence(_) => ConversationBridgeErrorKind::Persistence,
             ChannelRuntimeError::InvalidName(_) => ConversationBridgeErrorKind::InvalidInput,
-            ChannelRuntimeError::BodyTooLarge => ConversationBridgeErrorKind::InvalidInput,
             ChannelRuntimeError::MissingChannel(_) => {
                 ConversationBridgeErrorKind::MissingConversation
             }
@@ -148,14 +151,15 @@ impl From<ChannelRuntimeError> for ConversationBridgeError {
 impl From<PrivateGroupError> for ConversationBridgeError {
     fn from(error: PrivateGroupError) -> Self {
         let kind = match &error {
-            PrivateGroupError::PayloadTooLarge => ConversationBridgeErrorKind::PayloadTooLarge,
+            PrivateGroupError::BodyTooLarge | PrivateGroupError::PayloadTooLarge => {
+                ConversationBridgeErrorKind::PayloadTooLarge
+            }
             PrivateGroupError::Deletion(error) => return deletion_error(error),
             PrivateGroupError::Moss(_) => ConversationBridgeErrorKind::Unavailable,
             PrivateGroupError::Codec(_) => ConversationBridgeErrorKind::Internal,
             PrivateGroupError::Persistence(_) => ConversationBridgeErrorKind::Persistence,
             PrivateGroupError::OpenMls(_) => ConversationBridgeErrorKind::Internal,
             PrivateGroupError::InvalidInvite(_) => ConversationBridgeErrorKind::InvalidInput,
-            PrivateGroupError::BodyTooLarge => ConversationBridgeErrorKind::InvalidInput,
             PrivateGroupError::MissingGroup(_) => ConversationBridgeErrorKind::MissingConversation,
             PrivateGroupError::MissingMessage(_) => ConversationBridgeErrorKind::MissingMessage,
             PrivateGroupError::DuplicateGroup(_) => ConversationBridgeErrorKind::InvalidInput,
@@ -287,7 +291,6 @@ mod tests {
             ChannelRuntimeError::InvalidName("".into()),
             Kind::InvalidInput,
         );
-        assert_maps(ChannelRuntimeError::BodyTooLarge, Kind::InvalidInput);
         assert_maps(
             ChannelRuntimeError::MissingChannel("general".into()),
             Kind::MissingConversation,
@@ -326,7 +329,6 @@ mod tests {
             PrivateGroupError::InvalidInvite("no fragment".into()),
             Kind::InvalidInput,
         );
-        assert_maps(PrivateGroupError::BodyTooLarge, Kind::InvalidInput);
         assert_maps(
             PrivateGroupError::MissingGroup("g-1".into()),
             Kind::MissingConversation,
@@ -386,6 +388,14 @@ mod tests {
         );
         assert_maps(PrivateGroupError::PayloadTooLarge, Kind::PayloadTooLarge);
         assert_maps(ChannelRuntimeError::PayloadTooLarge, Kind::PayloadTooLarge);
+    }
+
+    /// The screen says "too large to send", not "that was not accepted".
+    #[test]
+    fn a_text_over_the_limit_is_too_large_in_every_kind() {
+        assert_maps(PrivateDmRuntimeError::BodyTooLarge, Kind::PayloadTooLarge);
+        assert_maps(ChannelRuntimeError::BodyTooLarge, Kind::PayloadTooLarge);
+        assert_maps(PrivateGroupError::BodyTooLarge, Kind::PayloadTooLarge);
     }
 
     #[test]

@@ -8,15 +8,15 @@ import '../frb_generated.dart';
 import 'conversation_bridge.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `admit_text`, `decode_base64`, `send_attachment_admitted`
+// These functions are ignored because they are not marked as `pub`: `decode_base64`, `send_attachment_admitted`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`
 
 /// The longest text any conversation accepts, in characters (Unicode scalar
 /// values). The composer reads it to stop a text before it is sent.
 int maxTextChars() => RustLib.instance.api.crateApiConversationMaxTextChars();
 
-/// Send a text message into the conversation. A text over [`max_text_chars`]
-/// is refused before any runtime files it.
+/// Send a text message into the conversation. Each runtime refuses a text
+/// over [`max_text_chars`] as `PayloadTooLarge`.
 Future<void> send(
         {required BridgeConversationRef reference, required String body}) =>
     RustLib.instance.api

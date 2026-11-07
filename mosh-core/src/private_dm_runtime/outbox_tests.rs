@@ -170,31 +170,68 @@ fn a_refused_publish_leaves_the_text_queued_not_failed() {
     );
 }
 
-// A text over the limit, such as one an older build left Failed, can never
-// go out, Retry included. It fails once with the reason instead of being
-// re-encrypted on every tick, and the texts after it are not held behind it.
+// 4096 emoji are 4096 characters but 16 KiB: the limit counts characters.
+// A longer text is refused before anything is filed.
 #[test]
-fn an_oversized_text_fails_and_does_not_block_the_queue() {
+fn a_text_is_limited_in_characters_not_bytes() {
     let (_net, mut alice, mut bob) = memory_pair();
     let invite = invite(&mut alice);
     accept(&mut bob, &invite);
     connect(&mut alice, &mut bob, &invite.session_id);
 
-    let oversized = alice
-        .send_message(
-            &invite.session_id,
-            "x".repeat(crate::conversation::MAX_TEXT_CHARS + 1),
+    let at_limit = "😀".repeat(crate::conversation::MAX_TEXT_CHARS);
+    let sent = alice
+        .send_message(&invite.session_id, at_limit.clone())
+        .expect("a text at the limit is sent");
+    assert_eq!(sent.delivery_status, MessageDeliveryStatus::Sent);
+    assert!(matches!(
+        alice.send_message(&invite.session_id, at_limit + "😀"),
+        Err(PrivateDmRuntimeError::BodyTooLarge)
+    ));
+    assert_eq!(bodies_from(&mut bob, &invite.session_id, "Alice").len(), 1);
+}
+
+// An older build admitted longer texts. Retry fails one once with the reason
+// instead of re-encrypting it on every tick, and the texts after it go.
+#[test]
+fn a_longer_text_from_an_older_build_fails_and_does_not_block_the_queue() {
+    let (net, mut alice, mut bob) = memory_pair();
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+
+    net.link(ALICE_ID, BOB_ID, PeerTransport::None);
+    let old = alice
+        .send_message(&invite.session_id, "typed on an older build".to_string())
+        .expect("send should queue");
+    // The shape an older build leaves behind.
+    let session = alice
+        .sessions
+        .get_mut(&invite.session_id)
+        .expect("Alice session");
+    let message = session
+        .messages
+        .find_mut(&old.message_id)
+        .expect("filed text");
+    message.body = "x".repeat(crate::conversation::MAX_TEXT_CHARS + 1);
+    session
+        .outbox()
+        .settle(
+            &old.message_id,
+            Err("older build".to_string()),
+            OnSent::Retain,
         )
-        .expect("admission does not depend on size");
-    assert_eq!(oversized.delivery_status, MessageDeliveryStatus::Failed);
-    assert_eq!(
-        oversized.delivery_error.as_deref(),
-        Some("message metadata exceeds the network payload limit")
-    );
+        .expect("settle");
+
+    net.link_both(ALICE_ID, BOB_ID, PeerTransport::Direct);
     let retried = alice
-        .retry_message(&invite.session_id, &oversized.message_id)
+        .retry_message(&invite.session_id, &old.message_id)
         .expect("a retry is admitted");
     assert_eq!(retried.delivery_status, MessageDeliveryStatus::Failed);
+    assert_eq!(
+        retried.delivery_error.as_deref(),
+        Some("private DM message too large")
+    );
     let next = alice
         .send_message(&invite.session_id, "after".to_string())
         .expect("a text never fails to queue");

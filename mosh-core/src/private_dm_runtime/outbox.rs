@@ -10,6 +10,9 @@ impl PrivateDmRuntime {
         session_id: &str,
         body: String,
     ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
+        if !crate::conversation::text_fits(&body) {
+            return Err(PrivateDmRuntimeError::BodyTooLarge);
+        }
         self.drain_inbound();
         let message_id = self.session_mut(session_id)?.file_text(body)?;
         self.admit_queued(session_id, &message_id)?;
@@ -107,7 +110,10 @@ impl PrivateDmRuntime {
             if let Err(error) = self.session_mut(session_id)?.publish_queued(&message_id) {
                 // No retry can shrink a text: fail it once, and let the texts
                 // behind it go instead of re-encrypting it on every tick.
-                if matches!(error, PrivateDmRuntimeError::PayloadTooLarge) {
+                if matches!(
+                    error,
+                    PrivateDmRuntimeError::BodyTooLarge | PrivateDmRuntimeError::PayloadTooLarge
+                ) {
                     self.session_mut(session_id)?.outbox().settle(
                         &message_id,
                         Err(error.to_string()),
