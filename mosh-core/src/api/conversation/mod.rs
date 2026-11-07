@@ -81,23 +81,9 @@ pub fn max_text_chars() -> u32 {
     crate::conversation::MAX_TEXT_CHARS as u32
 }
 
-fn admit_text(body: &str) -> Result<(), ConversationBridgeError> {
-    if !crate::conversation::text_fits(body) {
-        return Err(ConversationBridgeError::new(
-            ConversationBridgeErrorKind::PayloadTooLarge,
-            format!(
-                "a text is at most {} characters",
-                crate::conversation::MAX_TEXT_CHARS
-            ),
-        ));
-    }
-    Ok(())
-}
-
-/// Send a text message into the conversation. A text over [`max_text_chars`]
-/// is refused before any runtime files it.
+/// Send a text message into the conversation. Each runtime refuses a text
+/// over [`max_text_chars`] as `PayloadTooLarge`.
 pub fn send(reference: BridgeConversationRef, body: String) -> Result<(), ConversationBridgeError> {
-    admit_text(&body)?;
     let _authority =
         super::background::admit_user_work().map_err(ConversationBridgeError::unavailable)?;
     match reference.kind {

@@ -10,6 +10,9 @@ impl PrivateDmRuntime {
         session_id: &str,
         body: String,
     ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
+        if !crate::conversation::text_fits(&body) {
+            return Err(PrivateDmRuntimeError::BodyTooLarge);
+        }
         self.drain_inbound();
         let message_id = self.session_mut(session_id)?.file_text(body)?;
         self.admit_queued(session_id, &message_id)?;
@@ -29,7 +32,10 @@ impl PrivateDmRuntime {
     }
 
     /// Puts a failed message back in the queue. A message that is already
-    /// waiting its turn is left alone and reported as it stands.
+    /// waiting its turn is left alone and reported as it stands. Retry admits
+    /// a text again, so one an older build filed over the limit is refused;
+    /// what that build already sent still resends, as received DMs take any
+    /// length.
     pub fn retry_message(
         &mut self,
         session_id: &str,
@@ -47,6 +53,9 @@ impl PrivateDmRuntime {
                 MessageDeliveryStatus::Queued | MessageDeliveryStatus::Pending
             ) {
                 return self.send_result(session_id, message_id);
+            }
+            if !crate::conversation::text_fits(&session.queued_body(message_id)?) {
+                return Err(PrivateDmRuntimeError::BodyTooLarge);
             }
             session.outbox().reopen(message_id)?;
         }

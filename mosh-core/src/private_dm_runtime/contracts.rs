@@ -342,6 +342,8 @@ pub struct SendMessageResult {
 
 #[derive(Debug)]
 pub enum PrivateDmRuntimeError {
+    /// A text over [`crate::conversation::MAX_TEXT_CHARS`].
+    BodyTooLarge,
     PayloadTooLarge,
     Deletion(crate::message_deletion::DeletionError),
     Revoked,
