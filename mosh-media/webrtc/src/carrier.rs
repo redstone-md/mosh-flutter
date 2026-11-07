@@ -1,6 +1,6 @@
 //! The engine's side of Moss: the virtual network, `MV1` framing (source
-//! port, destination port, UDP payload) and the bounded outgoing queue the
-//! owner drains with `copy_packet`.
+//! port, destination port, UDP payload) and the bounded outgoing queue that
+//! mosh-core's egress thread drains with `copy_packet`.
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::sync::{
     Arc, Mutex,
@@ -14,7 +14,7 @@ use serde_json::{Value, json};
 
 pub const MAX_PACKET: usize = 2007;
 const MAX_PACKET_AGE: Duration = Duration::from_millis(200);
-const QUEUE: usize = 128;
+const QUEUE_CAPACITY: usize = 128;
 const CALLER_IP: Ipv4Addr = Ipv4Addr::new(192, 0, 2, 1);
 const CALLEE_IP: Ipv4Addr = Ipv4Addr::new(192, 0, 2, 2);
 
@@ -47,7 +47,7 @@ impl Carrier {
         &self.network
     }
 
-    /// The queue the owner drains; it never waits for the engine.
+    /// The outgoing queue; draining it never waits for the engine.
     pub fn outgoing(&self) -> &Arc<Outgoing> {
         &self.outgoing
     }
@@ -67,7 +67,7 @@ impl Carrier {
     }
 }
 
-/// Outgoing packets between libwebrtc's network thread and the owner.
+/// Outgoing packets between libwebrtc's network thread and the egress thread.
 pub struct Outgoing {
     send: SyncSender<(Instant, Vec<u8>)>,
     lane: Mutex<Lane>,
@@ -83,7 +83,7 @@ struct Lane {
 
 impl Outgoing {
     fn new() -> Self {
-        let (send, packets) = sync_channel(QUEUE);
+        let (send, packets) = sync_channel(QUEUE_CAPACITY);
         Self {
             send,
             lane: Mutex::new(Lane {
@@ -106,7 +106,7 @@ impl Outgoing {
     }
 
     /// Packets dropped before Moss: refused by a full queue, or older than
-    /// the packet age when the owner came for them.
+    /// the packet age when drained.
     pub fn dropped(&self) -> Value {
         json!({
             "full": self.full.load(Ordering::Relaxed),
@@ -184,7 +184,7 @@ mod tests {
     #[test]
     fn drops_before_moss_are_counted_by_cause() {
         let outgoing = Outgoing::new();
-        for _ in 0..QUEUE {
+        for _ in 0..QUEUE_CAPACITY {
             assert!(outgoing.offer(Instant::now(), vec![1; 7]));
         }
         assert!(

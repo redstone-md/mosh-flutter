@@ -14,10 +14,6 @@ pub(super) struct Reporter {
     budget: u64,
     connected_once: bool,
     diagnostics: super::diagnostics::Monitor,
-    /// The previous owner step and the longest gap between steps since the
-    /// last statistics.
-    stepped: Instant,
-    owner_gap: Duration,
 }
 
 impl Reporter {
@@ -29,8 +25,6 @@ impl Reporter {
             budget: 0,
             connected_once: false,
             diagnostics: Default::default(),
-            stepped: Instant::now(),
-            owner_gap: Duration::ZERO,
         }
     }
     fn refresh_devices(&mut self, engine: &mut Engine, state: &mut State) -> Result<(), String> {
@@ -84,8 +78,6 @@ impl Reporter {
             engine.ask(json!({"action":"budget","max_bps":budget}))?;
             self.budget = budget;
         }
-        self.owner_gap = self.owner_gap.max(self.stepped.elapsed());
-        self.stepped = Instant::now();
         if self.statistics.elapsed() < Duration::from_millis(250) {
             return Ok(());
         }
@@ -113,7 +105,7 @@ impl Reporter {
         state.snapshot.video_fps = encoder["fps"].as_f64().unwrap_or(0.0);
         let pipeline = super::diagnostics::Pipeline {
             sender_dropped: sender.dropped(),
-            owner_gap: std::mem::take(&mut self.owner_gap),
+            owner: std::mem::take(&mut state.timing),
             drain_gap: engine.take_longest_drain_gap(),
         };
         self.diagnostics.update(route, state, &snapshot, pipeline);

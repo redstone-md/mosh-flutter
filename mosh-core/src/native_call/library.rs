@@ -64,31 +64,15 @@ impl Engine {
         // SAFETY: these signatures match the pinned Mosh ABI. Retain the library through drop.
         let (create, command, free, drop_engine, receive, priority, copy_packet, push, copy_frame) = unsafe {
             (
-                *library
-                    .get::<Create>(b"mosh_media_create\0")
-                    .map_err(error)?,
-                *library
-                    .get::<Command>(b"mosh_media_command\0")
-                    .map_err(error)?,
-                *library.get::<Free>(b"mosh_media_free\0").map_err(error)?,
-                *library
-                    .get::<DropEngine>(b"mosh_media_drop\0")
-                    .map_err(error)?,
-                *library
-                    .get::<Receive>(b"mosh_media_receive\0")
-                    .map_err(error)?,
-                *library
-                    .get::<Receive>(b"mosh_media_packet_priority\0")
-                    .map_err(error)?,
-                *library
-                    .get::<CopyPacket>(b"mosh_media_copy_packet\0")
-                    .map_err(error)?,
-                *library
-                    .get::<Push>(b"mosh_media_push_rgba\0")
-                    .map_err(error)?,
-                *library
-                    .get::<CopyFrame>(b"mosh_media_copy_frame\0")
-                    .map_err(error)?,
+                symbol::<Create>(library, b"mosh_media_create\0")?,
+                symbol::<Command>(library, b"mosh_media_command\0")?,
+                symbol::<Free>(library, b"mosh_media_free\0")?,
+                symbol::<DropEngine>(library, b"mosh_media_drop\0")?,
+                symbol::<Receive>(library, b"mosh_media_receive\0")?,
+                symbol::<Receive>(library, b"mosh_media_packet_priority\0")?,
+                symbol::<CopyPacket>(library, b"mosh_media_copy_packet\0")?,
+                symbol::<Push>(library, b"mosh_media_push_rgba\0")?,
+                symbol::<CopyFrame>(library, b"mosh_media_copy_frame\0")?,
             )
         };
         // SAFETY: config is retained until this synchronous create returns.
@@ -96,7 +80,7 @@ impl Engine {
         if handle.is_null() {
             return Err("native media creation failed".into());
         }
-        let queue = Outgoing {
+        let queue = Packets {
             handle,
             copy_packet,
             priority,
@@ -238,7 +222,7 @@ fn media_library() -> Result<&'static Library, String> {
 }
 
 /// The engine's outgoing packet queue. The ABI lets any thread drain it.
-struct Outgoing {
+struct Packets {
     handle: *mut c_void,
     copy_packet: CopyPacket,
     priority: Receive,
@@ -246,9 +230,9 @@ struct Outgoing {
 
 // SAFETY: `copy_packet` and `packet_priority` never touch the engine's owner
 // state, and `Engine::drop` joins the draining thread before the handle goes.
-unsafe impl Send for Outgoing {}
+unsafe impl Send for Packets {}
 
-impl Outgoing {
+impl Packets {
     fn copy(&self, buffer: &mut [u8; MAX_PACKET]) -> Option<usize> {
         // SAFETY: the engine outlives this thread; the buffer is exclusively writable.
         let length = unsafe { (self.copy_packet)(self.handle, buffer.as_mut_ptr(), buffer.len()) };
@@ -269,7 +253,7 @@ struct Egress {
 }
 
 impl Egress {
-    fn start(queue: Outgoing, mut sink: Sink) -> Result<Self, String> {
+    fn start(queue: Packets, mut sink: Sink) -> Result<Self, String> {
         let stop = Arc::new(AtomicBool::new(false));
         let longest_gap_ms = Arc::new(AtomicU64::new(0));
         let (stopping, longest) = (stop.clone(), longest_gap_ms.clone());
@@ -298,14 +282,25 @@ impl Egress {
 
     fn stop(&mut self) {
         self.stop.store(true, Ordering::Release);
-        if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
+        if self
+            .thread
+            .take()
+            .is_some_and(|thread| thread.join().is_err())
+        {
+            crate::diagnostics_log::write(
+                crate::diagnostics_log::LogLevel::Error,
+                crate::diagnostics_log::kinds::CALL,
+                "",
+                "native media egress panicked; outgoing packets stopped",
+            );
         }
     }
 }
 
 impl Drop for Engine {
     fn drop(&mut self) {
+        // The egress thread borrows the handle, so it stops before the handle goes;
+        // fields drop only after this body, too late for that.
         self.egress.stop();
         // SAFETY: owner returns the unique handle before unloading its library.
         unsafe { (self.drop_engine)(self.handle) };
@@ -387,6 +382,15 @@ pub(crate) fn i420_to_rgba(width: u32, height: u32, planar: &[u8]) -> Result<Vec
     } else {
         Err("I420 conversion failed".into())
     }
+}
+
+/// # Safety
+/// `T` is the symbol's pinned ABI signature.
+unsafe fn symbol<T: Copy>(library: &Library, name: &[u8]) -> Result<T, String> {
+    // SAFETY: the caller pins `T` to the symbol's signature.
+    unsafe { library.get::<T>(name) }
+        .map(|symbol| *symbol)
+        .map_err(error)
 }
 
 fn error(error: impl std::fmt::Display) -> String {

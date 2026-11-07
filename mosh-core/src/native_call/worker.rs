@@ -1,6 +1,7 @@
 use super::{
     capture::{Capture, Query},
     connection::Connection,
+    diagnostics::OwnerTiming,
     packets::Sender,
     state::State,
     types::{Choices, Context, Signal},
@@ -29,14 +30,21 @@ struct Owner {
 pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
     let mut owner = Owner::new(transport.clone());
     loop {
+        let waiting = Instant::now();
         let mut state = shared.lock().unwrap_or_else(|error| error.into_inner());
+        let lock_wait = waiting.elapsed();
         if state.shutdown {
             return;
         }
+        let stepping = Instant::now();
         if let Err(_error) = owner.step(&mut state, &*transport) {
             state.snapshot.failed = true;
         }
         state.applied = state.revision;
+        state.timing.include(OwnerTiming {
+            step: stepping.elapsed(),
+            lock_wait,
+        });
         drop(state);
         std::thread::sleep(Duration::from_millis(10));
     }
@@ -109,6 +117,7 @@ impl Owner {
             state.frames = Default::default();
             state.sequences = [0; 2];
             state.outbound.clear();
+            state.timing = Default::default();
             self.captured = 0;
             self.negotiation_since = None;
         }

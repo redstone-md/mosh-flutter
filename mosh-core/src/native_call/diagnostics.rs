@@ -41,13 +41,28 @@ impl Status {
     }
 }
 
+/// The owner thread's longest step and longest wait for the call state lock,
+/// which Dart's commands and frame reads also take.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct OwnerTiming {
+    pub step: Duration,
+    pub lock_wait: Duration,
+}
+
+impl OwnerTiming {
+    pub fn include(&mut self, other: Self) {
+        self.step = self.step.max(other.step);
+        self.lock_wait = self.lock_wait.max(other.lock_wait);
+    }
+}
+
 /// Where outgoing media waits on its way to Moss.
 #[derive(Clone, Copy, Default)]
 pub(super) struct Pipeline {
     pub sender_dropped: u64,
-    /// Longest gap between two owner steps.
-    pub owner_gap: Duration,
-    /// Longest gap between two drains of the engine's outgoing queue.
+    pub owner: OwnerTiming,
+    /// Longest gap between two drains of the engine's outgoing queue; the
+    /// 2 ms drain interval is its floor.
     pub drain_gap: Duration,
 }
 
@@ -60,8 +75,8 @@ pub(super) struct Monitor {
     status: Option<Status>,
     captured: Growth,
     heard: Growth,
-    /// Longest gaps since the previous line.
-    owner_gap: Duration,
+    /// Longest timings since the previous line.
+    owner: OwnerTiming,
     drain_gap: Duration,
     logged: Option<(Instant, u64)>,
 }
@@ -114,7 +129,7 @@ impl Monitor {
         pipeline: Pipeline,
         now: Instant,
     ) -> Option<String> {
-        self.owner_gap = self.owner_gap.max(pipeline.owner_gap);
+        self.owner.include(pipeline.owner);
         self.drain_gap = self.drain_gap.max(pipeline.drain_gap);
         let age = state.frames[1].as_ref().map(|frame| {
             u128::from(frame.frame.source_age_ms)
@@ -151,13 +166,14 @@ impl Monitor {
         let metrics = json!({"video_age_ms": age.map(|age| age.min(u128::from(u32::MAX)) as u32),
             "decoded": engine["decoded"], "sender_dropped": pipeline.sender_dropped,
             "engine_dropped": engine["queue_dropped"],
-            "owner_gap_max_ms": self.owner_gap.as_millis(),
+            "owner_step_max_ms": self.owner.step.as_millis(),
+            "owner_lock_wait_max_ms": self.owner.lock_wait.as_millis(),
             "drain_gap_max_ms": self.drain_gap.as_millis(), "audio": engine["audio"],
             "audio_sender": engine["audio_sender"],
             "video": engine["video"], "encoder": engine["encoder"]});
         let message = status.describe(state, &metrics);
         self.status = Some(status);
-        self.owner_gap = Duration::ZERO;
+        self.owner = OwnerTiming::default();
         self.drain_gap = Duration::ZERO;
         self.logged = Some((now, dropped));
         Some(message)
@@ -270,8 +286,11 @@ mod tests {
         let state = State::default();
         let route = PeerTransport::Direct;
         let engine = |full: u64, stale: u64| json!({"connection":"Connected", "queue_dropped": {"full": full, "stale": stale}});
-        let stalled = |owner_ms: u64, drain_ms: u64| Pipeline {
-            owner_gap: Duration::from_millis(owner_ms),
+        let stalled = |step_ms: u64, drain_ms: u64| Pipeline {
+            owner: OwnerTiming {
+                step: Duration::from_millis(step_ms),
+                lock_wait: Duration::from_millis(step_ms / 10),
+            },
             drain_gap: Duration::from_millis(drain_ms),
             ..Default::default()
         };
@@ -279,7 +298,7 @@ mod tests {
         let event = monitor
             .observe(route, &state, &engine(0, 0), stalled(20, 3), now)
             .unwrap();
-        assert!(event.contains("\"owner_gap_max_ms\":20"));
+        assert!(event.contains("\"owner_step_max_ms\":20"));
         let soon = now + Duration::from_secs(9);
         assert!(monitor
             .observe(route, &state, &engine(0, 5), stalled(310, 4), soon)
@@ -289,7 +308,8 @@ mod tests {
             .observe(route, &state, &engine(2, 5), stalled(40, 2), later)
             .unwrap();
         assert!(event.contains("\"engine_dropped\":{\"full\":2,\"stale\":5}"));
-        assert!(event.contains("\"owner_gap_max_ms\":310"));
+        assert!(event.contains("\"owner_step_max_ms\":310"));
+        assert!(event.contains("\"owner_lock_wait_max_ms\":31"));
         assert!(event.contains("\"drain_gap_max_ms\":4"));
         let quiet = later + Duration::from_secs(20);
         assert!(
