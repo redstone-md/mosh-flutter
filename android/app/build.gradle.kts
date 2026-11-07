@@ -37,12 +37,6 @@ private fun resolveNdkRoot(version: String, localPropertiesFile: File): File {
         ?: File("__missing_moss_ndk__")
 }
 
-// The packaged call engine (scripts/support/call-engine.mjs): its native
-// library, libwebrtc Java classes and the Kotlin that loads them.
-val callEngine = (System.getenv("MOSH_CALL_ENGINE")?.takeIf(String::isNotBlank) ?: "ringrtc").also {
-    check(it == "ringrtc" || it == "webrtc") { "MOSH_CALL_ENGINE must be ringrtc or webrtc, not $it" }
-}
-
 // CI sets MOSH_ANDROID_NDK_VERSION to the NDK its runner image ships, the one
 // Rust builds with, so Gradle does not download Flutter's default every run.
 val androidNdkVersion = providers.environmentVariable("MOSH_ANDROID_NDK_VERSION").orNull
@@ -50,7 +44,6 @@ val androidNdkVersion = providers.environmentVariable("MOSH_ANDROID_NDK_VERSION"
 
 android {
     sourceSets.getByName("main").assets.srcDir(rootProject.projectDir.parentFile.resolve(".dart_tool/android-media/assets"))
-    sourceSets.getByName("main").java.srcDir("src/$callEngine/kotlin")
     namespace = "app.mosh.mosh"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = androidNdkVersion
@@ -127,7 +120,7 @@ kotlin {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-    implementation(files(rootProject.projectDir.parentFile.resolve(".dart_tool/android-media/engine-$callEngine/libwebrtc.jar")))
+    implementation(files(rootProject.projectDir.parentFile.resolve(".dart_tool/android-media/engine/libwebrtc.jar")))
 }
 
 flutter {
@@ -201,7 +194,6 @@ val nativeMediaPreparation = tasks.register<Exec>("prepareNativeMediaAndroid") {
     workingDir(repositoryRoot)
     doFirst {
         environment("ANDROID_NDK_HOME", mossNdkRoot.get().absolutePath)
-        environment("MOSH_CALL_ENGINE", callEngine)
         commandLine(mossNode.get().absolutePath,
             repositoryRoot.resolve("scripts/android-native-media-build.mjs").absolutePath)
     }

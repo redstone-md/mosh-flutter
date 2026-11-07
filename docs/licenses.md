@@ -51,7 +51,6 @@ pubspec.lock.
 | libmpv and ffmpeg (media_kit) | LGPL-2.1-or-later; LGPL-3.0 on Windows | Kept, linked dynamically (frameworks on Apple), as VLC ships libVLC on the App Store under the LGPL. Apple and Android use the `default` builds of media-kit's libmpv-darwin-build and libmpv-android-video-build, made for playback without GPL parts; the Windows build configures ffmpeg with `--disable-gpl --enable-version3` and mpv with `-Dgpl=false`. MOSH-78 bundles the LGPL text and source links. |
 | Flutter engine and SDK packages | BSD-3-Clause and bundled components | Flutter bundles their notices in every build. |
 | Inter | SIL Open Font License 1.1 | Permissive for embedding. |
-| RingRTC call engine (`mosh-media/engine`) | AGPL-3.0-only | Not checked, and outside the store permission. It is still the default engine, so the Microsoft Store MSIX and the RuStore APK ship it under its own AGPL terms. Apple store builds must use `MOSH_CALL_ENGINE=webrtc`. MOSH-76 makes libwebrtc the only engine and removes the AGPL mentions from the README, the media notices and CLA §4. |
 
 ## Notices
 

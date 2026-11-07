@@ -48,8 +48,7 @@ Contribution or work terminate on the date the litigation is filed.
 ## 4. Open source commitment
 
 Every Contribution the Maintainers distribute also remains available under the
-free license of the part of Mosh it changes: the GPL-3.0 or a later version for
-most of Mosh, and the AGPL-3.0 for the call engine.
+GPL-3.0 or a later version, the free license of Mosh.
 
 ## 5. Your representations
 

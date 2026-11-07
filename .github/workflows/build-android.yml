@@ -25,11 +25,6 @@ on:
         type: choice
         options: [github, fdroid, rustore]
         default: github
-      call-engine:
-        description: Call engine to package; webrtc is the libwebrtc engine under test (MOSH-70).
-        type: choice
-        options: [ringrtc, webrtc]
-        default: ringrtc
 
 permissions:
   contents: read
@@ -42,8 +37,6 @@ jobs:
     # No job-level CHANNEL: subosito/flutter-action reads that variable as
     # the Flutter release channel.
     env:
-      # Empty for callers, which build the default engine.
-      MOSH_CALL_ENGINE: ${{ inputs.call-engine }}
       # A store build carries its channel in every published name, so the
       # release keeps every APK and manifest side by side.
       SUFFIX: ${{ inputs.distribution-channel != 'github' && format('-{0}', inputs.distribution-channel) || '' }}
@@ -125,12 +118,6 @@ jobs:
         with:
           path: build/mosh_core/build
           key: ${{ steps.android-setup.outputs.cargo-cache-key }}
-
-      - uses: actions/cache/save@v4
-        if: inputs.call-engine != 'webrtc' && steps.android-setup.outputs.webrtc-cache-hit != 'true' && github.ref == 'refs/heads/main'
-        with:
-          path: .dart_tool/android-media/webrtc
-          key: ${{ steps.android-setup.outputs.webrtc-cache-key }}
 
       - name: Prove release signing refuses missing credentials
         shell: bash

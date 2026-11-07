@@ -23,19 +23,12 @@ include("../native-media.cmake")
 # (mosh_core.dll) matches cargo's cdylib output filename (cargo normalizes hyphens
 # to underscores for cdylib output). The build_tool also normalizes packageName
 # the same way, so both sides agree on "mosh_core.dll".
-# The packaged call engine (MOSH_CALL_ENGINE, scripts/support/call-engine.mjs)
-# brings its own license: RingRTC's AGPL or libwebrtc's notices.
-if("$ENV{MOSH_CALL_ENGINE}" STREQUAL "webrtc")
-  set(MOSH_ENGINE_LICENSE "WEBRTC-LICENSE.md")
-else()
-  set(MOSH_ENGINE_LICENSE "AGPL-3.0.txt")
-endif()
 set(mosh_core_bundled_libraries
   "${${PROJECT_NAME}_cargokit_lib}"
   "${MOSH_NATIVE_ENGINE}"
   "${MOSH_NATIVE_CAPTURE}"
   "${MOSH_NATIVE_DIRECTORY}/licenses/THIRD_PARTY_NOTICES.md"
-  "${MOSH_NATIVE_DIRECTORY}/licenses/${MOSH_ENGINE_LICENSE}"
+  "${MOSH_NATIVE_DIRECTORY}/licenses/WEBRTC-LICENSE.md"
   "${MOSH_NATIVE_DIRECTORY}/licenses/GPL-3.0.txt"
   "${MOSH_NATIVE_DIRECTORY}/licenses/Apache-2.0.txt"
   PARENT_SCOPE

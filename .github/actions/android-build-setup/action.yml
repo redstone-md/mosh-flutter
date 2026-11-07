@@ -11,12 +11,6 @@ outputs:
   cargo-cache-hit:
     description: Whether that exact native compiler cache already exists.
     value: ${{ steps.cargokit.outputs.cache-hit }}
-  webrtc-cache-key:
-    description: Resolved key of the RingRTC WebRTC products the build makes.
-    value: ${{ steps.android-webrtc.outputs.cache-primary-key }}
-  webrtc-cache-hit:
-    description: Whether those WebRTC products came from the cache.
-    value: ${{ steps.android-webrtc.outputs.cache-hit }}
 runs:
   using: composite
   steps:
@@ -72,23 +66,7 @@ runs:
 
     - name: Verify Android JVM bootstrap
       shell: bash
-      run: |
-        node scripts/android-context-check.mjs
-        node --test scripts/native-source-check.test.mjs
-
-    # Cache only verified native products, not Chromium's 20+ GiB source tree.
-    # The Gradle build makes them, so the workflow saves them after it.
-    - id: android-webrtc
-      uses: actions/cache/restore@v4
-      with:
-        path: .dart_tool/android-media/webrtc
-        key: android-webrtc-${{ hashFiles('third_party/webrtc-android-patches/**', 'third_party/ringrtc-patches/source.json', 'scripts/android-webrtc-build.mjs', 'scripts/support/native-source-check.mjs') }}
-
-    - name: Make room for the pinned WebRTC source build
-      shell: bash
-      run: |
-        # These are unused preinstalled tools on the disposable Android runner.
-        sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /opt/hostedtoolcache/CodeQL
+      run: node scripts/android-context-check.mjs
 
     # audiopus_sys links a prebuilt arm64 libopus.a from
     # third_party/opus-android-arm64 (gitignored: a build artifact). Built

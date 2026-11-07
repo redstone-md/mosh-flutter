@@ -34,7 +34,7 @@ mosh-probe/media-bench/target/release/mosh-media-bench run --moss --engine <lib>
 
 `--moss` replaces the emulated link with two real Moss nodes on loopback; the
 packets go through the media host's bounded carrier
-(`mosh-probe/media-host/src/transport.rs`). An outage drops every packet for
+(`src/transport.rs`). An outage drops every packet for
 its length and plays a continuous tone instead of bursts. `recovery` reports
 when the speaker is back at half its level from before the outage, and how
 long it stayed under a tenth of it.

@@ -6,9 +6,8 @@ license = "GPL-3.0-or-later"
 publish = false
 
 # The call engine on Google's libwebrtc through LiveKit's bindings, every
-# packet carried by mosh-core over Moss. It exports the same C ABI and file
-# name as the RingRTC engine in ../engine, so packaging and mosh-core load
-# either one; scripts/native-media-build.mjs picks which (MOSH_CALL_ENGINE).
+# packet carried by mosh-core over Moss through the mosh_media_* C ABI;
+# scripts/native-media-build.mjs packages it.
 [lib]
 name = "mosh_native_media"
 crate-type = ["cdylib", "rlib"]

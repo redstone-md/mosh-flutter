@@ -50,9 +50,6 @@ third_party/opus-macos-universal/
 third_party/openmls/
 third_party/openmls.lock/
 third_party/openmls.prepare-*/
-third_party/ringrtc/
-third_party/ringrtc.lock/
-third_party/ringrtc.prepare-*/
 third_party/webrtc-sys/
 third_party/webrtc-sys.lock/
 third_party/webrtc-sys.prepare-*/

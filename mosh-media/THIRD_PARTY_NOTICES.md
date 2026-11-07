@@ -1,32 +1,21 @@
 # Native call media notices
 
 The desktop application bundles mosh-native-media and mosh-camera-capture.
-Android bundles the same engine with its pinned WebRTC native library and Java
-API; Camera2/Camera1 adapters replace the desktop capture helper. Its APK assets
-include these notices, GPL/AGPL texts and WebRTC's generated dependency licenses
-under `native-media/`. Android WebRTC pins and complete source patches are in
-`third_party/webrtc-android-patches`.
+Android bundles the same engine with the Java API of its libwebrtc build;
+Camera2/Camera1 adapters replace the desktop capture helper. Its APK assets
+include these notices, the GPL text and libwebrtc's generated dependency
+licenses under `native-media/`.
 Their source, build scripts, source patches and exact Cargo lockfiles are in
 https://github.com/redstone-md/mosh-flutter/tree/main/mosh-media (use the tag or
 commit matching the binary). Existing Mosh code retains the root GPL-3.0 license.
 
-mosh-native-media uses Signal RingRTC 2.72.1 and its pinned Signal components,
-under AGPL-3.0. The combined desktop distribution must satisfy those terms;
-process/library separation is an ownership boundary, not a license exemption.
-The bundled AGPL-3.0.txt contains RingRTC's license. RingRTC's prebuilt WebRTC
-artifact includes upstream WebRTC/Chromium components; their source and notices
-are available through RingRTC's pinned source/build definitions. All Rust
-transitive versions and source revisions are recorded in engine/Cargo.lock.
-
-Builds made with MOSH_CALL_ENGINE=webrtc bundle the libwebrtc engine
-(webrtc/) instead, under the same library name and without RingRTC. It uses
-LiveKit's webrtc-sys 0.3.53 and libwebrtc 0.4.0 crates under Apache-2.0, with
-the complete patches and verified digests in third_party/webrtc-sys-patches
-and third_party/libwebrtc-patches, and statically links Google's libwebrtc
-(BSD-3-Clause) as built from LiveKit's webrtc-sdk fork at the commit pinned in
-third_party/libwebrtc-build, without H.264. The bundled WEBRTC-LICENSE.md is
-that build's generated dependency license list; webrtc/Cargo.lock records the
-remaining Rust components.
+mosh-native-media (webrtc/) uses LiveKit's webrtc-sys 0.3.53 and libwebrtc
+0.4.0 crates under Apache-2.0, with the complete patches and verified digests
+in third_party/webrtc-sys-patches and third_party/libwebrtc-patches, and
+statically links Google's libwebrtc (BSD-3-Clause) as built from LiveKit's
+webrtc-sdk fork at the commit pinned in third_party/libwebrtc-build, without
+H.264. The bundled WEBRTC-LICENSE.md is that build's generated dependency
+license list; webrtc/Cargo.lock records the remaining Rust components.
 
 mosh-camera-capture uses nokhwa 0.10.11 and nokhwa-bindings-macos 0.2.4 under
 Apache-2.0. Their complete patches and verified archive/source digests are in
@@ -35,10 +24,6 @@ copyright and license headers are retained. The bundled Apache-2.0.txt contains
 the upstream license; capture/Cargo.lock records the remaining Rust components.
 Its JPEG decoding uses mozjpeg: this software is based in part on the work of
 the Independent JPEG Group.
-
-X25519, HKDF, SHA-256 and zeroization use the x25519-dalek, hkdf, sha2 and
-zeroize crates at the locked revisions. Their license declarations and upstream
-source links are retained in their Cargo manifests and the engine lockfile.
 
 These files accompany the libraries/helper in desktop packages. Corresponding
 source includes the complete application and native libraries, pinned upstream

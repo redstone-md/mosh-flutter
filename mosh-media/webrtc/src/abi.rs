@@ -12,7 +12,7 @@ use std::{
 
 /// Media protocol spoken by this engine; mosh-core puts it into every call
 /// control so peers on different engines end the call instead of hanging.
-/// The RingRTC engine speaks 1.
+/// 1 was the engine before this one.
 #[unsafe(no_mangle)]
 pub extern "C" fn mosh_media_protocol() -> u32 {
     2

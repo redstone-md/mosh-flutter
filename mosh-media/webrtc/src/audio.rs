@@ -70,7 +70,7 @@ fn restart_playout(factory: &PeerConnectionFactory, choose: impl FnOnce() -> boo
 /// Ranks RED (RFC 2198) ahead of plain Opus, as Chrome's RED trial does:
 /// each 20 ms packet repeats the previous frame, so a single lost packet is
 /// recovered whole. On the bench (30 ms, 224 kbit/s) it concealed 0.4% of
-/// audio at 5% loss and 1.3% at 15%, where RingRTC conceals 5-12% and 6-16%
+/// audio at 5% loss and 1.3% at 15%, where the previous engine concealed 5-12% and 6-16%
 /// across runs, for about 21 kbit/s. DTX was left off: it cost RED most of
 /// that gain. Longer packets cut the 50 packets/s but add delay and
 /// concealment. docs/Features/native-call-media.md records the choice.
