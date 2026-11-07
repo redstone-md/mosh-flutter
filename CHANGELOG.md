@@ -6,6 +6,17 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.28.1] - 2026-11-07
+
+### Fixed
+
+- Video calls keep sending video while the device is busy with the camera or
+  call statistics. Before, parts of the outgoing video were dropped on the
+  device, so the other side saw choppy video and packet loss. Voice keeps
+  priority over video on the way out.
+- macOS and Linux: the camera list stays up to date during a call instead of
+  failing to refresh.
+
 ## [0.28.0] - 2026-11-07
 
 ### Added
