@@ -191,10 +191,22 @@ fn a_text_is_limited_in_characters_not_bytes() {
     assert_eq!(bodies_from(&mut bob, &invite.session_id, "Alice").len(), 1);
 }
 
-// An older build admitted longer texts. Retry fails one once with the reason
-// instead of re-encrypting it on every tick, and the texts after it go.
+/// Gives a filed text the longer body an older build could admit.
+fn lengthen_as_an_older_build(alice: &mut PrivateDmRuntime, session_id: &str, message_id: &str) {
+    alice
+        .sessions
+        .get_mut(session_id)
+        .expect("Alice session")
+        .messages
+        .find_mut(message_id)
+        .expect("filed text")
+        .body = "x".repeat(crate::conversation::MAX_TEXT_CHARS + 1);
+}
+
+// Retry admits a text again, so it is held to the limit like a send; the
+// text stays Failed and the queue behind it moves.
 #[test]
-fn a_longer_text_from_an_older_build_fails_and_does_not_block_the_queue() {
+fn retry_refuses_a_longer_text_an_older_build_left_failed() {
     let (net, mut alice, mut bob) = memory_pair();
     let invite = invite(&mut alice);
     accept(&mut bob, &invite);
@@ -204,17 +216,11 @@ fn a_longer_text_from_an_older_build_fails_and_does_not_block_the_queue() {
     let old = alice
         .send_message(&invite.session_id, "typed on an older build".to_string())
         .expect("send should queue");
-    // The shape an older build leaves behind.
-    let session = alice
+    lengthen_as_an_older_build(&mut alice, &invite.session_id, &old.message_id);
+    alice
         .sessions
         .get_mut(&invite.session_id)
-        .expect("Alice session");
-    let message = session
-        .messages
-        .find_mut(&old.message_id)
-        .expect("filed text");
-    message.body = "x".repeat(crate::conversation::MAX_TEXT_CHARS + 1);
-    session
+        .expect("Alice session")
         .outbox()
         .settle(
             &old.message_id,
@@ -224,22 +230,48 @@ fn a_longer_text_from_an_older_build_fails_and_does_not_block_the_queue() {
         .expect("settle");
 
     net.link_both(ALICE_ID, BOB_ID, PeerTransport::Direct);
-    let retried = alice
-        .retry_message(&invite.session_id, &old.message_id)
-        .expect("a retry is admitted");
-    assert_eq!(retried.delivery_status, MessageDeliveryStatus::Failed);
+    assert!(matches!(
+        alice.retry_message(&invite.session_id, &old.message_id),
+        Err(PrivateDmRuntimeError::BodyTooLarge)
+    ));
     assert_eq!(
-        retried.delivery_error.as_deref(),
-        Some("private DM message too large")
+        status_of(&mut alice, &invite.session_id, &old.message_id),
+        Some(MessageDeliveryStatus::Failed)
     );
-    let next = alice
+    alice
         .send_message(&invite.session_id, "after".to_string())
         .expect("a text never fails to queue");
-    assert_eq!(next.delivery_status, MessageDeliveryStatus::Sent);
     assert_eq!(
         bodies_from(&mut bob, &invite.session_id, "Alice"),
         vec!["after"]
     );
+}
+
+// A longer text an older build already sent is on the wire, and received DMs
+// take any length: unacked, it resends like any other and spends its slots.
+#[test]
+fn an_unacked_longer_text_from_an_older_build_still_resends() {
+    let (_net, mut alice, mut bob) = memory_pair();
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+    let sent = alice
+        .send_message(&invite.session_id, "sent by an older build".to_string())
+        .expect("send should go out");
+    assert_eq!(sent.delivery_status, MessageDeliveryStatus::Sent);
+    lengthen_as_an_older_build(&mut alice, &invite.session_id, &sent.message_id);
+
+    let session = alice
+        .sessions
+        .get_mut(&invite.session_id)
+        .expect("Alice session");
+    session
+        .outbound_attempts
+        .get_mut(&sent.message_id)
+        .expect("attempt retained")
+        .last_send_ms = 0;
+    session.pump_unacked_resends(now_ms());
+    assert_eq!(session.outbound_attempts[&sent.message_id].auto_resends, 1);
 }
 
 // Closing the laptop must not lose what was typed: a queued text is on disk

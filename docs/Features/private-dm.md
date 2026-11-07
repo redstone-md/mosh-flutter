@@ -80,8 +80,9 @@ used to cap a body at 4096 bytes, which held Cyrillic to about 2048
 characters. The composer shows how many are left once 200 remain, counting the
 trimmed draft as it will be sent, and keeps Send off above the limit. Each
 runtime refuses a longer text before filing it (`BodyTooLarge`), and the bridge
-reports it as `PayloadTooLarge`, "too large to send". A DM text an older build
-filed fails once on Retry. Even at four bytes a character the encrypted
+reports it as `PayloadTooLarge`, "too large to send". Retry refuses a longer
+DM text an older build filed; one it already sent still resends, since received
+DMs take any length. Even at four bytes a character the encrypted
 envelope stays far under the 64 KiB network limit.
 
 A DM text first persists its admission as `Pending`. Refused admission returns

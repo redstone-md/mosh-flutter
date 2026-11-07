@@ -32,7 +32,10 @@ impl PrivateDmRuntime {
     }
 
     /// Puts a failed message back in the queue. A message that is already
-    /// waiting its turn is left alone and reported as it stands.
+    /// waiting its turn is left alone and reported as it stands. Retry admits
+    /// a text again, so one an older build filed over the limit is refused;
+    /// what that build already sent still resends, as received DMs take any
+    /// length.
     pub fn retry_message(
         &mut self,
         session_id: &str,
@@ -50,6 +53,9 @@ impl PrivateDmRuntime {
                 MessageDeliveryStatus::Queued | MessageDeliveryStatus::Pending
             ) {
                 return self.send_result(session_id, message_id);
+            }
+            if !crate::conversation::text_fits(&session.queued_body(message_id)?) {
+                return Err(PrivateDmRuntimeError::BodyTooLarge);
             }
             session.outbox().reopen(message_id)?;
         }
@@ -110,10 +116,7 @@ impl PrivateDmRuntime {
             if let Err(error) = self.session_mut(session_id)?.publish_queued(&message_id) {
                 // No retry can shrink a text: fail it once, and let the texts
                 // behind it go instead of re-encrypting it on every tick.
-                if matches!(
-                    error,
-                    PrivateDmRuntimeError::BodyTooLarge | PrivateDmRuntimeError::PayloadTooLarge
-                ) {
+                if matches!(error, PrivateDmRuntimeError::PayloadTooLarge) {
                     self.session_mut(session_id)?.outbox().settle(
                         &message_id,
                         Err(error.to_string()),

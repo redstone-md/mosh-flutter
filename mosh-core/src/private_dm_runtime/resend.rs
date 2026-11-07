@@ -46,10 +46,6 @@ impl PrivateDmSession {
         resend: Option<u32>,
     ) -> Result<(), PrivateDmRuntimeError> {
         let body = self.queued_body(message_id)?;
-        // An older build admitted longer texts; Retry must not publish one.
-        if !crate::conversation::text_fits(&body) {
-            return Err(PrivateDmRuntimeError::BodyTooLarge);
-        }
         let sent_at_ms = self
             .outbound_attempts
             .get(message_id)
@@ -85,7 +81,7 @@ impl PrivateDmSession {
     }
 
     /// Personal erasure keeps the delivery copy of an already published DM.
-    fn queued_body(&self, message_id: &str) -> Result<String, PrivateDmRuntimeError> {
+    pub(super) fn queued_body(&self, message_id: &str) -> Result<String, PrivateDmRuntimeError> {
         self.messages
             .iter()
             .find(|message| message.message_id.as_deref() == Some(message_id))
