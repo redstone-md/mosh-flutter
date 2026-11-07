@@ -294,7 +294,12 @@ fn two_local_moss_peers_exchange_payload() {
     assert_eq!(received.channel, TEST_CHANNEL);
 }
 
+/// Port 0 is probed here as the shared node does, never handed to Moss.
 fn node_config(port: u16, static_peer: Option<&str>) -> String {
+    let port = match port {
+        0 => dual_protocol_port(),
+        port => port,
+    };
     let peers = match static_peer {
         Some(peer) => format!("[\"{peer}\"]"),
         None => "[]".to_string(),

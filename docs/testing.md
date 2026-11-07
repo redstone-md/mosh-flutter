@@ -32,11 +32,12 @@ New skip/todo/ignore annotations, test timeout/retry overrides (including
 require a reason and tracking issue on the same or immediately preceding line:
 
 ```dart
-// test-policy: timeout https://linear.app/ivoxygen/issue/IVO-123/example -- real peer negotiation has a bounded external deadline
+// test-policy: timeout MOSH-123 -- real peer negotiation has a bounded external deadline
 ```
 
 Use the appropriate category (`skip`, `timeout`, `retry`, `wait`) and an actual
-Linear issue URL or historical GitHub issue URL. Focus cannot be exempted. Scope
+itsaplan issue key (`MOSH-123`), or a historical Linear or GitHub issue URL.
+Focus cannot be exempted. Scope
 exceptions to the exact operation; no file-wide suppressions. For a skip, also
 retain the runtime reason/platform predicate. An issue link is accountability,
 not permission to hide a useful flaky regression. Fix determinism first.

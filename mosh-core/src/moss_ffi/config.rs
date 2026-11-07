@@ -57,3 +57,25 @@ pub fn node_config_json(config: &MossNodeConfig) -> String {
     let config = test_network::from_environment(config);
     config
 }
+
+/// A port currently free for both TCP and UDP (their port spaces are
+/// separate), or 0 to let Moss pick when no probe succeeds. Hand Moss this
+/// rather than 0: its default Masq listener binds TCP first, then UDP on that
+/// number, which Windows can forbid. The port is released before Moss binds
+/// it, so a racer can still take it; the shared node retries its start.
+pub fn dual_protocol_port() -> u16 {
+    const PROBE_ATTEMPTS: usize = 16;
+    (0..PROBE_ATTEMPTS)
+        .find_map(|_| {
+            // Probe UDP first: on Windows, the OS ephemeral UDP allocator avoids
+            // excluded ranges (e.g. WinNAT/Hyper-V), whereas probing TCP first can
+            // return a port that is forbidden for UDP (WSAEACCES 10013).
+            let udp = std::net::UdpSocket::bind(("0.0.0.0", 0)).ok()?;
+            let port = udp.local_addr().ok()?.port();
+            let tcp = std::net::TcpListener::bind(("0.0.0.0", port)).ok()?;
+            drop(tcp);
+            drop(udp);
+            Some(port)
+        })
+        .unwrap_or(0)
+}
