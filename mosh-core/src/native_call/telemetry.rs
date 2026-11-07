@@ -103,10 +103,11 @@ impl Reporter {
         state.snapshot.video_width = encoder["width"].as_u64().unwrap_or(0) as u32;
         state.snapshot.video_height = encoder["height"].as_u64().unwrap_or(0) as u32;
         state.snapshot.video_fps = encoder["fps"].as_f64().unwrap_or(0.0);
+        let mut stalls = std::mem::take(&mut state.stalls);
+        stalls.drain = engine.take_longest_drain_gap();
         let pipeline = super::diagnostics::Pipeline {
             sender_dropped: sender.dropped(),
-            owner: std::mem::take(&mut state.timing),
-            drain_gap: engine.take_longest_drain_gap(),
+            stalls,
         };
         self.diagnostics.update(route, state, &snapshot, pipeline);
         Ok(())

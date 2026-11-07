@@ -1,6 +1,6 @@
 use super::{
     capture::Captured,
-    diagnostics::OwnerTiming,
+    diagnostics::Stalls,
     types::{Choices, Context, Frame, Signal, Snapshot},
 };
 use std::{collections::VecDeque, sync::Arc, time::Instant};
@@ -25,8 +25,8 @@ pub(crate) struct State {
     pub shutdown: bool,
     pub revision: u64,
     pub applied: u64,
-    /// Accumulated by the owner thread until the next statistics.
-    pub timing: OwnerTiming,
+    /// Owner stalls accumulated until the next statistics.
+    pub stalls: Stalls,
 }
 
 impl State {

@@ -251,11 +251,11 @@ device enumeration) cannot age fresh frame fragments out. Both queues remain
 bounded; the one-second decoded frame freshness limit is unchanged.
 
 The `native media:` log line reports `engine_dropped` as `full` (queue refused
-a packet) and `stale` (older than 200 ms when drained), with the longest
-values since the previous line of `owner_step_max_ms` (one owner step),
-`owner_lock_wait_max_ms` (the owner waiting for the call state lock, which
-Dart's commands and frame reads also take) and `drain_gap_max_ms` (between
-drains; about 2 ms is the baseline). While the engine keeps
+a packet) and `stale` (older than 200 ms when drained). `stalls_max_ms` holds
+the longest pauses since the previous line: `step` (one owner step),
+`lock_wait` (the owner waiting for the call state lock, which Dart's commands
+and frame reads also take) and `drain` (between drains; about 2 ms is the
+baseline). While the engine keeps
 dropping, the line repeats every 10 seconds even if the call status holds.
 Route and encoder limits apply before packets are transferred, independently of
 the 250 ms statistics refresh. Unknown routes use relay limits until a direct

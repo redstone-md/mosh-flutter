@@ -41,18 +41,29 @@ impl Status {
     }
 }
 
-/// The owner thread's longest step and longest wait for the call state lock,
-/// which Dart's commands and frame reads also take.
+/// The longest pauses on outgoing media's way to Moss.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub(crate) struct OwnerTiming {
+pub(crate) struct Stalls {
+    /// One owner step.
     pub step: Duration,
+    /// The owner waiting for the call state lock, which Dart's commands and
+    /// frame reads also take.
     pub lock_wait: Duration,
+    /// Between two drains of the engine's outgoing queue; the 2 ms drain
+    /// interval is its floor.
+    pub drain: Duration,
 }
 
-impl OwnerTiming {
+impl Stalls {
     pub fn include(&mut self, other: Self) {
         self.step = self.step.max(other.step);
         self.lock_wait = self.lock_wait.max(other.lock_wait);
+        self.drain = self.drain.max(other.drain);
+    }
+
+    fn describe(&self) -> Value {
+        json!({"step": self.step.as_millis(), "lock_wait": self.lock_wait.as_millis(),
+            "drain": self.drain.as_millis()})
     }
 }
 
@@ -60,10 +71,7 @@ impl OwnerTiming {
 #[derive(Clone, Copy, Default)]
 pub(super) struct Pipeline {
     pub sender_dropped: u64,
-    pub owner: OwnerTiming,
-    /// Longest gap between two drains of the engine's outgoing queue; the
-    /// 2 ms drain interval is its floor.
-    pub drain_gap: Duration,
+    pub stalls: Stalls,
 }
 
 /// While the engine keeps dropping packets, log at this pace even when the
@@ -75,9 +83,8 @@ pub(super) struct Monitor {
     status: Option<Status>,
     captured: Growth,
     heard: Growth,
-    /// Longest timings since the previous line.
-    owner: OwnerTiming,
-    drain_gap: Duration,
+    /// The longest stalls since the previous line.
+    stalls: Stalls,
     logged: Option<(Instant, u64)>,
 }
 
@@ -129,8 +136,7 @@ impl Monitor {
         pipeline: Pipeline,
         now: Instant,
     ) -> Option<String> {
-        self.owner.include(pipeline.owner);
-        self.drain_gap = self.drain_gap.max(pipeline.drain_gap);
+        self.stalls.include(pipeline.stalls);
         let age = state.frames[1].as_ref().map(|frame| {
             u128::from(frame.frame.source_age_ms)
                 + now.saturating_duration_since(frame.received).as_millis()
@@ -166,15 +172,12 @@ impl Monitor {
         let metrics = json!({"video_age_ms": age.map(|age| age.min(u128::from(u32::MAX)) as u32),
             "decoded": engine["decoded"], "sender_dropped": pipeline.sender_dropped,
             "engine_dropped": engine["queue_dropped"],
-            "owner_step_max_ms": self.owner.step.as_millis(),
-            "owner_lock_wait_max_ms": self.owner.lock_wait.as_millis(),
-            "drain_gap_max_ms": self.drain_gap.as_millis(), "audio": engine["audio"],
+            "stalls_max_ms": self.stalls.describe(), "audio": engine["audio"],
             "audio_sender": engine["audio_sender"],
             "video": engine["video"], "encoder": engine["encoder"]});
         let message = status.describe(state, &metrics);
         self.status = Some(status);
-        self.owner = OwnerTiming::default();
-        self.drain_gap = Duration::ZERO;
+        self.stalls = Stalls::default();
         self.logged = Some((now, dropped));
         Some(message)
     }
@@ -287,18 +290,18 @@ mod tests {
         let route = PeerTransport::Direct;
         let engine = |full: u64, stale: u64| json!({"connection":"Connected", "queue_dropped": {"full": full, "stale": stale}});
         let stalled = |step_ms: u64, drain_ms: u64| Pipeline {
-            owner: OwnerTiming {
+            stalls: Stalls {
                 step: Duration::from_millis(step_ms),
                 lock_wait: Duration::from_millis(step_ms / 10),
+                drain: Duration::from_millis(drain_ms),
             },
-            drain_gap: Duration::from_millis(drain_ms),
             ..Default::default()
         };
         let mut monitor = Monitor::default();
         let event = monitor
             .observe(route, &state, &engine(0, 0), stalled(20, 3), now)
             .unwrap();
-        assert!(event.contains("\"owner_step_max_ms\":20"));
+        assert!(event.contains("\"stalls_max_ms\":{\"drain\":3,\"lock_wait\":2,\"step\":20}"));
         let soon = now + Duration::from_secs(9);
         assert!(monitor
             .observe(route, &state, &engine(0, 5), stalled(310, 4), soon)
@@ -308,9 +311,7 @@ mod tests {
             .observe(route, &state, &engine(2, 5), stalled(40, 2), later)
             .unwrap();
         assert!(event.contains("\"engine_dropped\":{\"full\":2,\"stale\":5}"));
-        assert!(event.contains("\"owner_step_max_ms\":310"));
-        assert!(event.contains("\"owner_lock_wait_max_ms\":31"));
-        assert!(event.contains("\"drain_gap_max_ms\":4"));
+        assert!(event.contains("\"stalls_max_ms\":{\"drain\":4,\"lock_wait\":31,\"step\":310}"));
         let quiet = later + Duration::from_secs(20);
         assert!(
             monitor

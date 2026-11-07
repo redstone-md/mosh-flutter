@@ -1,7 +1,7 @@
 use super::{
     capture::{Capture, Query},
     connection::Connection,
-    diagnostics::OwnerTiming,
+    diagnostics::Stalls,
     packets::Sender,
     state::State,
     types::{Choices, Context, Signal},
@@ -41,9 +41,10 @@ pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
             state.snapshot.failed = true;
         }
         state.applied = state.revision;
-        state.timing.include(OwnerTiming {
+        state.stalls.include(Stalls {
             step: stepping.elapsed(),
             lock_wait,
+            ..Default::default()
         });
         drop(state);
         std::thread::sleep(Duration::from_millis(10));
@@ -117,7 +118,7 @@ impl Owner {
             state.frames = Default::default();
             state.sequences = [0; 2];
             state.outbound.clear();
-            state.timing = Default::default();
+            state.stalls = Default::default();
             self.captured = 0;
             self.negotiation_since = None;
         }
