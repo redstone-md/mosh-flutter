@@ -167,14 +167,15 @@ fn interrupted_history_waits_for_source_resumes_and_keeps_live_text_once() {
 }
 
 #[test]
-fn history_transfers_text_larger_than_a_signed_packet_without_changing_it() {
+fn history_transfers_the_longest_text_without_changing_it() {
     let _network = isolated_network_scenario();
     let mut original = Peer::new();
     let mut counterpart = Peer::new();
     let mut linked = Peer::new();
     let invite = existing_dm(&mut original, &mut counterpart);
     let session = invite["session_id"].as_str().unwrap();
-    let body = "Snow: ☃\n".repeat(20_000);
+    // Exactly the 4096-character send limit, multi-byte included.
+    let body = "Snow: ☃\n".repeat(512);
     send(&mut original, session, &body);
     let before = original.ask(json!({"action":"dm_poll","argument":session}));
     pair(&mut original, &mut linked);
