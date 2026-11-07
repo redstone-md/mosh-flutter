@@ -29,7 +29,7 @@ impl ChannelRecord {
             || (self.legacy_id_absent && (self.origin.is_some() || !is_legacy_id(&self.message_id)))
             || self.message_id.is_empty()
             || self.message_id.len() > 256
-            || self.body().len() > MAX_BODY_LEN
+            || !crate::conversation::text_fits(self.body())
             || self.from_device.len() > 1024
             || self.from_fingerprint.len() > 128
         {

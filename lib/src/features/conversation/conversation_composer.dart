@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, kLiveNumberFontFeatures;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart'
     show PasteAttachmentAction, readSystemClipboard;
@@ -21,6 +22,9 @@ const double kComposerButtonSize = 32;
 /// address it by key rather than by text.
 const Key kComposerSendButtonKey = Key('composer-send-button');
 
+/// The counter shows once this few characters are left.
+const int kComposerCounterThreshold = 200;
+
 /// The production input pick: mosh-core's audio-devices store. A top-level
 /// default (not inline) so the composer stays const-constructible.
 String? _storedComposerInputDeviceId() => audioInputDeviceId();
@@ -36,6 +40,7 @@ class ConversationComposer extends StatelessWidget {
     required this.placeholder,
     required this.sendLabel,
     required this.onSend,
+    this.textLimit,
     required this.attachLabel,
     required this.onAttach,
     required this.onAttachmentPickError,
@@ -62,6 +67,9 @@ class ConversationComposer extends StatelessWidget {
   final String placeholder;
   final String sendLabel;
   final VoidCallback onSend;
+
+  /// The text limit and how its counter reads; null means no counter.
+  final ComposerTextLimit? textLimit;
   final String attachLabel;
   final AttachmentPickedCallback onAttach;
   final AttachmentPickErrorCallback onAttachmentPickError;
@@ -112,7 +120,8 @@ class ConversationComposer extends StatelessWidget {
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: controller,
         builder: (context, value, _) {
-          final enabled = !disabled && value.text.trim().isNotEmpty;
+          final remaining = textLimit?.remaining(value.text);
+          final enabled = _sendable(value.text, remaining);
           // The control group uses 16px corners around 8px control corners.
           return Container(
             constraints: const BoxConstraints(minHeight: 54),
@@ -179,7 +188,8 @@ class ConversationComposer extends StatelessWidget {
                         }
                       },
                       onSubmitted: (_) {
-                        if (!disabled && controller.text.trim().isNotEmpty) {
+                        final text = controller.text;
+                        if (_sendable(text, textLimit?.remaining(text))) {
                           onSend();
                         }
                       },
@@ -202,6 +212,19 @@ class ConversationComposer extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (remaining != null &&
+                    remaining <= kComposerCounterThreshold) ...[
+                  const SizedBox(width: kComposerGap),
+                  Text(
+                    '$remaining',
+                    semanticsLabel: textLimit!.label(remaining),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontFeatures: kLiveNumberFontFeatures,
+                      color: remaining < 0 ? MoshColors.danger : MoshColors.fg3,
+                    ),
+                  ),
+                ],
                 const SizedBox(width: kComposerGap),
                 // Moss 32px send button, dropping to bg-3/fg-4 when
                 // disabled. The painted square is 32x32; the theme's M3
@@ -244,6 +267,24 @@ class ConversationComposer extends StatelessWidget {
       ),
     );
   }
+
+  bool _sendable(String text, int? remaining) =>
+      !disabled && text.trim().isNotEmpty && (remaining ?? 0) >= 0;
+}
+
+/// The longest text a send accepts and how the counter near it reads.
+class ComposerTextLimit {
+  const ComposerTextLimit({required this.maxChars, required this.label});
+
+  /// In characters (Unicode scalar values), as mosh-core counts them.
+  final int maxChars;
+
+  /// Reads the counter aloud; `remaining` is negative over the limit.
+  final String Function(int remaining) label;
+
+  /// What is left of the limit for [draft], counted as it will be sent:
+  /// the send trims the draft first.
+  int remaining(String draft) => maxChars - draft.trim().runes.length;
 }
 
 /// The platform's editing menu, with Paste routed through [paste] so it

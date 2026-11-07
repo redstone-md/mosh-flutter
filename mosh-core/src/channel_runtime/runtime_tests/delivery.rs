@@ -292,3 +292,30 @@ fn retry_message_reuses_message_id_and_clears_failed_attempt() {
 
     let _ = std::fs::remove_file(&db_path);
 }
+
+#[test]
+fn a_text_is_limited_in_characters_not_bytes() {
+    let _guard = MOSS_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    drain_received_messages();
+    let native = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+    let mut runtime = ChannelRuntime::from_shared(native, temp_store(), None);
+    runtime
+        .join(JoinChannelRequest {
+            name: "text-limit".into(),
+            display_name: "Alice".into(),
+            listen_port: 0,
+            static_peer: None,
+        })
+        .unwrap();
+    let at_limit = "😀".repeat(crate::conversation::MAX_TEXT_CHARS);
+    runtime
+        .send("text-limit", at_limit.clone())
+        .expect("4096 emoji are 4096 characters");
+    assert!(matches!(
+        runtime.send("text-limit", at_limit + "😀"),
+        Err(ChannelRuntimeError::BodyTooLarge)
+    ));
+    runtime.leave("text-limit").unwrap();
+}

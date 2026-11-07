@@ -195,7 +195,7 @@ impl GroupRecord {
     ) -> Result<(), PrivateGroupError> {
         if self.message_id.is_empty()
             || self.message_id.len() > 256
-            || self.body.len() > MAX_BODY_LEN
+            || !crate::conversation::text_fits(&self.body)
             || self.from_device.len() > 1024
         {
             return Err(PrivateGroupError::Codec(

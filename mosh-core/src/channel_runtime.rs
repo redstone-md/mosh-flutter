@@ -32,7 +32,6 @@ const TOPIC_PREFIX: &str = "public-channel/";
 const BLOB_PREFIX: &str = "channel-blob/";
 const MESH_PREFIX: &str = "channel/";
 const MAX_NAME_LEN: usize = 64;
-const MAX_BODY_LEN: usize = 4096;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JoinChannelRequest {

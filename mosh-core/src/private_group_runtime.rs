@@ -54,7 +54,6 @@ fn group_inbox() -> &'static inbox::Inbox {
 }
 pub(crate) const INVITE_PREFIX: &str = "mosh://group";
 pub(crate) const MAX_LABEL_LEN: usize = 64;
-pub(crate) const MAX_BODY_LEN: usize = 4096;
 pub(crate) const INVITE_FINGERPRINT_LEN: usize = 32;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

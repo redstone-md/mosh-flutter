@@ -117,8 +117,12 @@ class ConversationScreenBody extends ConsumerWidget {
                       async, state, controller, l, sendBusy || sends.closing)),
               TypingHint(names: typingNamesOf(async.value)),
               MessageSelectionComposer(
-                child: _composer(l, sendBusy, controller,
-                    sends.closing || _revoked(async.value)),
+                child: _composer(
+                    l,
+                    sendBusy,
+                    controller,
+                    sends.closing || _revoked(async.value),
+                    ref.watch(maxTextCharsProvider)),
               ),
             ],
           ),
@@ -219,6 +223,7 @@ class ConversationScreenBody extends ConsumerWidget {
     bool sendBusy,
     ConversationController controller,
     bool disabled,
+    int? maxTextChars,
   ) =>
       ConversationComposer(
         disabled: disabled,
@@ -227,6 +232,14 @@ class ConversationScreenBody extends ConsumerWidget {
         placeholder: l.chatComposerPlaceholder,
         sendLabel: l.chatSendLabel,
         onSend: onSend,
+        textLimit: maxTextChars == null
+            ? null
+            : ComposerTextLimit(
+                maxChars: maxTextChars,
+                label: (remaining) => remaining < 0
+                    ? l.chatComposerCharactersOver(-remaining)
+                    : l.chatComposerCharactersLeft(remaining),
+              ),
         onTyping: controller.signalTyping,
         attachLabel: l.chatAttachLabel,
         onAttach: controller.sendAttachment,

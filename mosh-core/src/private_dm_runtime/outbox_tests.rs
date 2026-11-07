@@ -170,9 +170,9 @@ fn a_refused_publish_leaves_the_text_queued_not_failed() {
     );
 }
 
-// A text too large for one network payload can never go out. It fails once
-// with the reason instead of being re-encrypted on every tick, and the texts
-// after it are not held behind it.
+// A text over the limit, such as one an older build left Failed, can never
+// go out, Retry included. It fails once with the reason instead of being
+// re-encrypted on every tick, and the texts after it are not held behind it.
 #[test]
 fn an_oversized_text_fails_and_does_not_block_the_queue() {
     let (_net, mut alice, mut bob) = memory_pair();
@@ -183,7 +183,7 @@ fn an_oversized_text_fails_and_does_not_block_the_queue() {
     let oversized = alice
         .send_message(
             &invite.session_id,
-            "x".repeat(crate::conversation::MAX_PUBLISH_BYTES),
+            "x".repeat(crate::conversation::MAX_TEXT_CHARS + 1),
         )
         .expect("admission does not depend on size");
     assert_eq!(oversized.delivery_status, MessageDeliveryStatus::Failed);
@@ -191,6 +191,10 @@ fn an_oversized_text_fails_and_does_not_block_the_queue() {
         oversized.delivery_error.as_deref(),
         Some("message metadata exceeds the network payload limit")
     );
+    let retried = alice
+        .retry_message(&invite.session_id, &oversized.message_id)
+        .expect("a retry is admitted");
+    assert_eq!(retried.delivery_status, MessageDeliveryStatus::Failed);
     let next = alice
         .send_message(&invite.session_id, "after".to_string())
         .expect("a text never fails to queue");

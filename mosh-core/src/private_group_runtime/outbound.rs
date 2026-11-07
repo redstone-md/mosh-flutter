@@ -8,7 +8,7 @@ impl PrivateGroupRuntime {
         group_id: &str,
         body: String,
     ) -> Result<GroupSendResult, PrivateGroupError> {
-        if body.len() > MAX_BODY_LEN {
+        if !crate::conversation::text_fits(&body) {
             return Err(PrivateGroupError::BodyTooLarge);
         }
         self.drain_inbound()?;

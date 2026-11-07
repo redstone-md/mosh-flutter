@@ -8,6 +8,9 @@ import 'package:mosh/src/features/onboarding/first_run_provider.dart';
 
 import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
     show conversationCallBindingProvider;
+import 'package:mosh/src/features/conversation/conversation_text_sends.dart'
+    show maxTextCharsProvider;
+import 'package:mosh/src/rust/api/conversation.dart' show maxTextChars;
 import 'package:mosh/src/features/voice_call/cpal_ringtone.dart'
     show CpalRingtonePlayer;
 import 'package:mosh/src/features/voice_call/android_ringtone.dart';
@@ -41,6 +44,7 @@ final List<Override> productionOverrides = <Override>[
       return presentation;
     }),
   firstRunEnabledProvider.overrideWithValue(true),
+  maxTextCharsProvider.overrideWith((ref) => maxTextChars()),
   voiceCaptureFactoryProvider
       .overrideWithValue(const RecordVoiceCaptureFactory()),
   voicePlaybackFactoryProvider

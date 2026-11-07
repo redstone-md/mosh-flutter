@@ -75,6 +75,19 @@ fn changed_signed_headers_are_rejected_before_consuming_the_genuine_text() {
     assert_eq!(snapshot.messages[0].sent_at_ms, Some(42));
 }
 
+// History export refuses a text over the limit, so a live frame must too.
+#[test]
+fn a_text_no_honest_client_could_send_is_refused() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut view = MemberView::open(0);
+    let mut envelope = text(&mut view);
+    let oversized = "x".repeat(crate::conversation::MAX_TEXT_CHARS + 1);
+    envelope.ciphertext_b64 = encode(&view.cleo.encrypt(oversized.as_bytes()).unwrap());
+    let payload = view.cleo_application(&envelope, &view.session().data_channel);
+    assert!(deliver_text(&mut view, payload).is_err());
+    assert!(view.session().messages.is_empty());
+}
+
 #[test]
 fn a_members_proof_cannot_relabel_another_leafs_ciphertext_or_consume_its_ratchet() {
     let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());

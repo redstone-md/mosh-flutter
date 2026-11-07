@@ -60,6 +60,9 @@ impl ChannelSession {
     ) -> Result<ChannelMessage, ChannelRuntimeError> {
         let mut envelope: ChannelMessage = serde_json::from_slice(payload)
             .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;
+        if !crate::conversation::text_fits(&envelope.body) {
+            return Err(ChannelRuntimeError::BodyTooLarge);
+        }
         let origin = envelope.metadata.as_ref().and_then(|m| m.origin.clone());
         envelope.metadata = None;
         if let Some(origin) = origin {
