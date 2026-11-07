@@ -121,4 +121,28 @@ void registerNativeBindingTests() {
     expect(bridge.argValues<bool>(BridgeMethod.nativeCallChoices, 'microphone'),
         isNotEmpty);
   });
+
+  test('a mute that fails after the call screen is gone reports nothing',
+      () async {
+    final bridge = ScriptableBridge();
+    final owner = NativeCallOwner(bridge, () async => true);
+    final controller =
+        _SessionController(_session('sess-1', activeCall: _activeCall('call')));
+    final container =
+        _container(controller: controller, gateway: bridge, native: owner);
+    final sub = _subscribe(container);
+    addTearDown(owner.dispose);
+    await container.read(activeSessionProvider('sess-1').future);
+    await pumpEventQueue();
+    final choice = Completer<void>();
+    bridge.respondNext(BridgeMethod.nativeCallChoices, choice.future);
+    container
+        .read(voiceCallOrchestratorProvider('sess-1').notifier)
+        .toggleMute();
+    await pumpEventQueue();
+    sub.close();
+    container.dispose();
+    choice.completeError(Exception('engine gone'));
+    await pumpEventQueue();
+  });
 }

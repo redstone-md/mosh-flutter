@@ -15,27 +15,36 @@ extension _VoiceCallMediaBinding on VoiceCallOrchestratorNotifier {
     }
     _attachedCallId = dialog.callId;
     if (_failedCallId == dialog.callId) return;
-    unawaited(native
-        .bind(sessionId, dialog.callId,
-            superseded: dialog.supersededCallId,
-            active: dialog is ActiveCallDialog)
-        .catchError((Object error) {
-      if (_bindingRef.mounted && _attachedCallId == dialog.callId) {
-        _failedCallId = dialog.callId;
-        _fail(error, CallErrorSource.audioSetup);
-      }
-    }));
+    unawaited(
+      native
+          .bind(
+        sessionId,
+        dialog.callId,
+        superseded: dialog.supersededCallId,
+        active: dialog is ActiveCallDialog,
+      )
+          .catchError((Object error) {
+        if (_bindingRef.mounted && _attachedCallId == dialog.callId) {
+          _failedCallId = dialog.callId;
+          _fail(error, CallErrorSource.audioSetup);
+        }
+      }),
+    );
   }
 
   void _toggleMute() {
     final native = _native?.session;
     if (native == null) return;
-    unawaited(native.toggleMicrophone().catchError(
-        (Object error) => _fail(error, CallErrorSource.audioSetup)));
+    unawaited(
+      native.toggleMicrophone().catchError((Object error) {
+        if (_bindingRef.mounted) _fail(error, CallErrorSource.audioSetup);
+      }),
+    );
   }
 
   Future<void> _mediaCommand(
-      Future<void> Function(NativeCallSession) command) async {
+    Future<void> Function(NativeCallSession) command,
+  ) async {
     final client = _native?.session;
     if (client == null || client.sessionId != sessionId) return;
     try {

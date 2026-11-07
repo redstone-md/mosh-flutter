@@ -6,6 +6,8 @@
 // rebuilds when the watched async provider resolves.
 library;
 
+import 'dart:async';
+
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import '../support/native_call_fixture.dart';
 
