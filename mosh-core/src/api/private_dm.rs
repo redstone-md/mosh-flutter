@@ -1,15 +1,15 @@
 //! Private dm bridge operations. Shared resources and runtime ownership live in
 //! `shared_runtime` and `runtime_owner` (ADRs 0016 and 0024).
 
-use std::sync::{Arc, MutexGuard, OnceLock};
+use std::sync::MutexGuard;
 
 use super::runtime_owner::RuntimeOwner;
 use std::time::Duration;
 
 use crate::api::conversation_bridge::ConversationBridgeError;
 use crate::private_dm_runtime::{
-    AcceptInviteRequest, CallMedia, CallStarted, InviteCreated, PrivateDmRuntime,
-    PrivateDmRuntimeError, SessionListSnapshot, SessionSnapshot, StartSessionRequest,
+    AcceptInviteRequest, CallStarted, InviteCreated, PrivateDmRuntime, PrivateDmRuntimeError,
+    SessionListSnapshot, SessionSnapshot, StartSessionRequest,
 };
 
 static RUNTIME: RuntimeOwner<PrivateDmRuntime> = RuntimeOwner::new("private DM");
@@ -199,35 +199,6 @@ pub(crate) fn background_work() -> Result<(u32, u32), String> {
         .lock()
         .map_err(|_| "private DM runtime unavailable".to_string())?
         .background_work()
-}
-
-/// The call media hub, cached after the first call so the 20 ms audio loop
-/// never takes the runtime lock again.
-fn call_media() -> Result<Arc<CallMedia>, String> {
-    static CALL_MEDIA: OnceLock<Arc<CallMedia>> = OnceLock::new();
-    if let Some(media) = CALL_MEDIA.get() {
-        return Ok(Arc::clone(media));
-    }
-    let guard = ensure_runtime().map_err(|error| error.to_string())?;
-    let media = guard.call_media();
-    Ok(Arc::clone(CALL_MEDIA.get_or_init(|| media)))
-}
-
-/// Publish one sealed voice-call frame for an active call. The Dart capture
-/// loop drives it every 20 ms; the caller seals the frame before sending.
-/// A call id is unique on its own; `session_id` stays for the bridge
-/// contract.
-pub fn call_send_frame(session_id: String, call_id: String, frame: Vec<u8>) -> Result<(), String> {
-    let _ = session_id;
-    call_media()?.send(&call_id, &frame)
-}
-
-/// The sealed frames the peer sent for an active call since the last drain.
-/// The Dart playback loop drives it every 20 ms, then opens the frames and
-/// queues them into the jitter buffer.
-pub fn call_drain_frames(session_id: String, call_id: String) -> Result<Vec<Vec<u8>>, String> {
-    let _ = session_id;
-    Ok(call_media()?.drain(&call_id))
 }
 
 /// Whether this user sends read receipts (and therefore sees others').

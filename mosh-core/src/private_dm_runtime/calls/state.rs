@@ -1,7 +1,6 @@
-//! Per-session voice-call state. Owned by `PrivateDmRuntime`; one instance
-//! per private-DM session. A pure state machine: the media frames of an
-//! active call live in the call media hub (`private_dm_runtime::CallMedia`),
-//! not here, so the audio loop never waits on the runtime.
+//! Per-session call state. Owned by `PrivateDmRuntime`; one instance per
+//! private-DM session. A pure state machine: media runs in the native call
+//! engine (`native_call`), which reads the phase from here.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CallDirection {
@@ -14,14 +13,6 @@ impl CallDirection {
         match self {
             CallDirection::Caller => "caller",
             CallDirection::Callee => "callee",
-        }
-    }
-
-    /// The bit our own frames carry at the top of their sequence number.
-    pub(crate) fn seq_direction_bit(self) -> u64 {
-        match self {
-            CallDirection::Caller => 0,
-            CallDirection::Callee => 1 << 63,
         }
     }
 }
@@ -38,8 +29,6 @@ pub struct CallState {
     pub call_id: String,
     pub direction: CallDirection,
     pub phase: CallPhase,
-    pub key_b64: String,
-    pub nonce_prefix_b64: String,
     /// Unix millis the call entered `Active`, set when both sides have agreed.
     pub started_at_ms: u64,
     /// Counterparty device id captured on offer/accept.
@@ -74,18 +63,11 @@ impl std::fmt::Debug for CallState {
 }
 
 impl CallState {
-    pub fn outgoing(
-        call_id: String,
-        key_b64: String,
-        nonce_prefix_b64: String,
-        remote_device: String,
-    ) -> Self {
+    pub fn outgoing(call_id: String, remote_device: String) -> Self {
         Self {
             call_id,
             direction: CallDirection::Caller,
             phase: CallPhase::Outgoing,
-            key_b64,
-            nonce_prefix_b64,
             started_at_ms: 0,
             remote_device,
             caller_signer: String::new(),
@@ -100,18 +82,11 @@ impl CallState {
         }
     }
 
-    pub fn ringing(
-        call_id: String,
-        key_b64: String,
-        nonce_prefix_b64: String,
-        remote_device: String,
-    ) -> Self {
+    pub fn ringing(call_id: String, remote_device: String) -> Self {
         Self {
             call_id,
             direction: CallDirection::Callee,
             phase: CallPhase::Ringing,
-            key_b64,
-            nonce_prefix_b64,
             started_at_ms: 0,
             remote_device,
             caller_signer: String::new(),
@@ -175,7 +150,7 @@ mod tests {
 
     #[test]
     fn become_active_records_timestamp() {
-        let mut call = CallState::outgoing("c".into(), "k".into(), "n".into(), "peer".into());
+        let mut call = CallState::outgoing("c".into(), "peer".into());
         assert_eq!(call.phase, CallPhase::Outgoing);
         call.become_active(1_000);
         assert_eq!(call.phase, CallPhase::Active);
@@ -186,9 +161,9 @@ mod tests {
     fn end_kind_is_missed_until_active_regardless_of_reason() {
         // A call that never reached Active is "missed" however it ends — a peer
         // hangup ("hangup") of an unanswered call must not log as "completed".
-        let mut ringing = CallState::ringing("c".into(), "k".into(), "n".into(), "peer".into());
+        let mut ringing = CallState::ringing("c".into(), "peer".into());
         assert_eq!(ringing.end_kind(), "missed");
-        let mut outgoing = CallState::outgoing("c".into(), "k".into(), "n".into(), "peer".into());
+        let mut outgoing = CallState::outgoing("c".into(), "peer".into());
         assert_eq!(outgoing.end_kind(), "missed");
 
         ringing.become_active(1_000);
@@ -199,7 +174,7 @@ mod tests {
 
     #[test]
     fn duration_ms_anchors_on_started_at() {
-        let mut call = CallState::outgoing("c".into(), "k".into(), "n".into(), "peer".into());
+        let mut call = CallState::outgoing("c".into(), "peer".into());
         assert_eq!(call.duration_ms(5_000), 0);
         call.become_active(2_000);
         assert_eq!(call.duration_ms(5_000), 3_000);

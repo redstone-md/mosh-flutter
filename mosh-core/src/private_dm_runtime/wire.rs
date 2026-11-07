@@ -6,7 +6,6 @@ use crate::attachment_runtime::{ChunkFrame, ChunkRequest};
 pub const CONTROL_CHANNEL_PREFIX: &str = "mls-control/";
 pub const DATA_CHANNEL_PREFIX: &str = "mls-data/";
 pub const BLOB_CHANNEL_PREFIX: &str = "mls-blob/";
-pub const VOICE_CALL_CHANNEL_PREFIX: &str = "voice-call/";
 
 pub fn control_channel(session_id: &str) -> String {
     format!("{CONTROL_CHANNEL_PREFIX}{session_id}")
@@ -20,19 +19,11 @@ pub fn blob_channel(session_id: &str) -> String {
     format!("{BLOB_CHANNEL_PREFIX}{session_id}")
 }
 
-pub fn voice_call_channel(call_id: &str) -> String {
-    format!("{VOICE_CALL_CHANNEL_PREFIX}{call_id}")
-}
-
 pub fn channel_session_id(channel: &str) -> Option<&str> {
     channel
         .strip_prefix(CONTROL_CHANNEL_PREFIX)
         .or_else(|| channel.strip_prefix(DATA_CHANNEL_PREFIX))
         .or_else(|| channel.strip_prefix(BLOB_CHANNEL_PREFIX))
-}
-
-pub fn channel_call_id(channel: &str) -> Option<&str> {
-    channel.strip_prefix(VOICE_CALL_CHANNEL_PREFIX)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -288,16 +279,5 @@ mod tests {
             serde_json::from_slice::<ControlEnvelope>(&bytes).unwrap(),
             ControlEnvelope::ReadReceipt { .. }
         ));
-    }
-
-    #[test]
-    fn voice_call_channel_uses_a_distinct_prefix() {
-        let channel = voice_call_channel("call-xyz");
-        assert_eq!(channel, "voice-call/call-xyz");
-        assert_eq!(channel_call_id(&channel), Some("call-xyz"));
-        assert!(channel_session_id(&channel).is_none());
-        assert!(channel_call_id(&control_channel("s")).is_none());
-        assert!(channel_call_id(&data_channel("s")).is_none());
-        assert!(channel_call_id(&blob_channel("s")).is_none());
     }
 }

@@ -28,16 +28,7 @@ impl PrivateDmSession {
                 self.receive_native_media(&control, signal.clone());
                 Ok(())
             }
-            CallAction::Offer {
-                key_b64,
-                nonce_prefix_b64,
-                native,
-            } => {
-                if *native != protocol::native_platform() {
-                    return Ok(());
-                }
-                self.receive_call_offer(&control, key_b64, nonce_prefix_b64)
-            }
+            CallAction::Offer {} => self.receive_call_offer(&control),
             CallAction::Answer => self.receive_call_answer(&control),
             CallAction::Occupied { .. } => Ok(()),
             CallAction::Selected { receiver } => {
@@ -64,7 +55,7 @@ impl PrivateDmSession {
         else {
             return;
         };
-        let remote = if call.direction == crate::voice_call_runtime::CallDirection::Caller {
+        let remote = if call.direction == crate::private_dm_runtime::CallDirection::Caller {
             call.selected_signer.as_deref()
         } else {
             Some(call.caller_signer.as_str())
@@ -79,7 +70,7 @@ impl PrivateDmSession {
                 || binding.caller != call.caller_signer
                 || call.selected_signer.as_ref() != Some(&binding.callee)
                 || description.offer
-                    != (call.direction == crate::voice_call_runtime::CallDirection::Callee)
+                    != (call.direction == crate::private_dm_runtime::CallDirection::Callee)
             {
                 return;
             }
@@ -104,7 +95,7 @@ impl PrivateDmSession {
         else {
             return Ok(());
         };
-        if call.direction != crate::voice_call_runtime::CallDirection::Caller {
+        if call.direction != crate::private_dm_runtime::CallDirection::Caller {
             return Ok(());
         }
         if call.phase == CallPhase::Active {
@@ -154,7 +145,7 @@ impl PrivateDmSession {
             return Ok(());
         };
         if call.caller_signer != control.signer
-            || call.direction != crate::voice_call_runtime::CallDirection::Callee
+            || call.direction != crate::private_dm_runtime::CallDirection::Callee
         {
             return Ok(());
         }
@@ -164,9 +155,6 @@ impl PrivateDmSession {
         if receiver != own {
             self.observe_call_selection(control, receiver);
             self.call = None;
-            let _ = self
-                .transport
-                .unsubscribe(&self.mesh_id, &voice_call_channel(&control.call_id));
             return Ok(());
         }
         if call.phase != CallPhase::Accepting {
@@ -200,7 +188,7 @@ impl PrivateDmSession {
             control.signer == call.caller_signer
                 || call.selected_signer.as_ref() == Some(&control.signer)
         } else {
-            call.direction == crate::voice_call_runtime::CallDirection::Caller
+            call.direction == crate::private_dm_runtime::CallDirection::Caller
                 || control.signer == call.caller_signer
         };
         if !permitted {
@@ -212,7 +200,7 @@ impl PrivateDmSession {
             return Ok(());
         }
         let (kind, duration) = (end_kind(call, reason), call.duration_ms(now_ms()));
-        let caller = call.direction == crate::voice_call_runtime::CallDirection::Caller;
+        let caller = call.direction == crate::private_dm_runtime::CallDirection::Caller;
         let call_id = call.call_id.clone();
         let caller_signer = call.caller_signer.clone();
         self.call_controls.close(&call_id, true);

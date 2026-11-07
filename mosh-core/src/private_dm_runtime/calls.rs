@@ -8,6 +8,7 @@ mod offer;
 mod protocol;
 mod receive;
 mod signaling;
+pub(crate) mod state;
 mod terminal;
 
 use super::*;
@@ -29,17 +30,8 @@ impl PrivateDmSession {
     pub(super) fn publish_call_offer(
         &mut self,
         call_id: &str,
-        key_b64: &str,
-        nonce_prefix_b64: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
-        self.publish_authenticated_call(
-            call_id,
-            CallAction::Offer {
-                key_b64: key_b64.into(),
-                nonce_prefix_b64: nonce_prefix_b64.into(),
-                native: protocol::native_platform(),
-            },
-        )
+        self.publish_authenticated_call(call_id, CallAction::Offer {})
     }
 
     pub(super) fn publish_call_accept(
@@ -59,26 +51,11 @@ impl PrivateDmSession {
             ));
         }
         let call_id = self.crypto.random_token("call")?;
-        let key_b64 = random_b64(32);
-        let nonce_prefix_b64 = random_b64(4);
-        let mut call = CallState::outgoing(
-            call_id.clone(),
-            key_b64.clone(),
-            nonce_prefix_b64.clone(),
-            String::new(),
-        );
+        let mut call = CallState::outgoing(call_id.clone(), String::new());
         call.caller_signer = hex::encode(self.crypto.signer_public());
         self.call = Some(call);
-        if let Err(error) = self
-            .transport
-            .subscribe(&self.mesh_id, &voice_call_channel(&call_id))
-            .map_err(PrivateDmRuntimeError::Moss)
-            .and_then(|()| self.publish_call_offer(&call_id, &key_b64, &nonce_prefix_b64))
-        {
+        if let Err(error) = self.publish_call_offer(&call_id) {
             self.call = None;
-            let _ = self
-                .transport
-                .unsubscribe(&self.mesh_id, &voice_call_channel(&call_id));
             return Err(error);
         }
         self.call
@@ -88,8 +65,6 @@ impl PrivateDmSession {
         Ok(CallStarted {
             session_id: self.session_id.clone(),
             call_id,
-            key_b64,
-            nonce_prefix_b64,
         })
     }
 
@@ -264,7 +239,7 @@ impl PrivateDmRuntime {
     ) -> Result<(), PrivateDmRuntimeError> {
         self.drain_inbound();
         let outcome = self.session_mut(session_id)?.call_accept(call_id);
-        self.sync_call_media();
+        self.sync_native_media();
         outcome
     }
 
@@ -276,7 +251,7 @@ impl PrivateDmRuntime {
     ) -> Result<(), PrivateDmRuntimeError> {
         self.drain_inbound();
         let outcome = self.session_mut(session_id)?.call_decline(call_id, reason);
-        self.sync_call_media();
+        self.sync_native_media();
         self.sessions.persist_tail()?;
         outcome
     }
@@ -289,7 +264,7 @@ impl PrivateDmRuntime {
     ) -> Result<(), PrivateDmRuntimeError> {
         self.drain_inbound();
         let outcome = self.session_mut(session_id)?.call_end(call_id, reason);
-        self.sync_call_media();
+        self.sync_native_media();
         self.sessions.persist_tail()?;
         outcome
     }

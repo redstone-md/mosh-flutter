@@ -15,10 +15,6 @@ fn answering_waits_for_the_callers_device_confirmation_before_media() {
     assert!(waiting.active_call.is_none(), "an answer is not selection");
     assert!(waiting.pending_call.is_some(), "retain the pending call");
     assert!(waiting.pending_call.expect("pending answer").answer_pending);
-    bob.call_media()
-        .send(&call.call_id, &[0; 24])
-        .expect("unconfirmed media is ignored");
-    assert!(alice.call_media().drain(&call.call_id).is_empty());
 
     let caller = alice.poll_session(&invite.session_id).expect("confirm");
     assert!(caller.active_call.is_some());

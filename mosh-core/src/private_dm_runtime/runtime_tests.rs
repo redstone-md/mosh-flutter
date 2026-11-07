@@ -94,65 +94,6 @@ fn wait_until_ready(alice: &mut PrivateDmRuntime, bob: &mut PrivateDmRuntime, se
     panic!("sessions did not become ready");
 }
 
-fn wait_for_pending_call(runtime: &mut PrivateDmRuntime, session_id: &str, call_id: &str) {
-    for _ in 0..60 {
-        let snapshot = runtime.poll_session(session_id).expect("poll should pass");
-        if snapshot
-            .pending_call
-            .as_ref()
-            .is_some_and(|call| call.call_id == call_id)
-        {
-            return;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    panic!("pending call did not arrive");
-}
-
-fn wait_for_active_call(
-    alice: &mut PrivateDmRuntime,
-    bob: &mut PrivateDmRuntime,
-    session_id: &str,
-    call_id: &str,
-) {
-    for _ in 0..60 {
-        let alice_active = alice
-            .poll_session(session_id)
-            .expect("Alice poll should pass")
-            .active_call
-            .as_ref()
-            .is_some_and(|call| call.call_id == call_id);
-        let bob_active = bob
-            .poll_session(session_id)
-            .expect("Bob poll should pass")
-            .active_call
-            .as_ref()
-            .is_some_and(|call| call.call_id == call_id);
-        if alice_active && bob_active {
-            return;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    panic!("call did not become active");
-}
-
-fn wait_for_call_frame(runtime: &PrivateDmRuntime, call_id: &str) -> Vec<u8> {
-    for _ in 0..60 {
-        let frames = runtime.call_media().drain(call_id);
-        if let Some(frame) = frames.into_iter().next() {
-            return frame;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    panic!("voice frame did not arrive");
-}
-
-fn test_call_frame(seq: u64, payload: &[u8]) -> Vec<u8> {
-    let mut frame = seq.to_be_bytes().to_vec();
-    frame.extend_from_slice(payload);
-    frame
-}
-
 fn wait_for_message(
     runtime: &mut PrivateDmRuntime,
     session_id: &str,

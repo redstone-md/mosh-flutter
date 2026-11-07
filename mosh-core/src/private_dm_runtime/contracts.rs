@@ -306,10 +306,8 @@ pub struct OutgoingCall {
 pub struct ActiveCall {
     pub call_id: String,
     pub superseded_call_id: Option<String>,
-    /// "caller" or "callee" — drives the nonce direction bit.
+    /// "caller" or "callee".
     pub direction: String,
-    pub key_b64: String,
-    pub nonce_prefix_b64: String,
     /// Unix millis when the call became Active; the running timer
     /// renders from this anchor.
     pub started_at_ms: u64,
@@ -327,8 +325,6 @@ pub struct CallEvent {
 pub struct CallStarted {
     pub session_id: String,
     pub call_id: String,
-    pub key_b64: String,
-    pub nonce_prefix_b64: String,
 }
 
 #[frb(non_opaque)]

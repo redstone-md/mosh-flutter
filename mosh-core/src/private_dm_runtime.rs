@@ -1,7 +1,6 @@
 mod admission_authentication;
 mod background;
 mod background_calls;
-mod call_media;
 mod compact_invite;
 pub(crate) mod contracts;
 mod devices;
@@ -33,9 +32,7 @@ use crate::mls_crypto::MlsSessionCrypto;
 use crate::outbound_delivery::OutboundAttemptRecord;
 use crate::persistence::{Persistence, DM_HISTORY};
 use crate::read_receipts::ReadReceiptsSetting;
-use crate::voice_call_runtime::{CallPhase, CallState};
-pub use call_media::CallMedia;
-use call_media::LiveCall;
+pub(crate) use calls::state::{CallDirection, CallPhase, CallState};
 pub use contracts::{
     AcceptInviteRequest, ActiveCall, AttachmentDescriptor, AttachmentSendResult, AttachmentState,
     AttachmentView, CallEvent, CallStarted, ChatMessage, CloseSessionResult, ConnectOutcome,
@@ -47,8 +44,8 @@ use invite::{build_invite_uri, listen_address, ParsedInvite};
 use transport::PublishError;
 pub use transport::{DmTransport, MossDmTransport, PeerTransport};
 use wire::{
-    blob_channel, channel_session_id, control_channel, data_channel, decode_json,
-    voice_call_channel, BlobEnvelope, ChannelKind, ControlEnvelope, DataEnvelope,
+    blob_channel, channel_session_id, control_channel, data_channel, decode_json, BlobEnvelope,
+    ChannelKind, ControlEnvelope, DataEnvelope,
 };
 
 /// What a DM calls itself in a log line about its room.
@@ -111,13 +108,6 @@ fn queued_in_order(attempts: &HashMap<String, OutboundAttemptRecord>) -> Vec<Str
     queued.into_iter().map(|(_, id)| id.clone()).collect()
 }
 
-fn random_b64(bytes: usize) -> String {
-    use rand::RngCore;
-    let mut buf = vec![0u8; bytes];
-    rand::thread_rng().fill_bytes(&mut buf);
-    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &buf)
-}
-
 use crate::moss_ffi::{MossFfiRuntime, MossReceivedMessage};
 use crate::shared_node::SharedMossNode;
 
@@ -127,7 +117,6 @@ pub struct PrivateDmRuntime {
     transport: Arc<dyn DmTransport>,
     /// Voice frames for the live calls; shared with the audio loop, which
     /// never takes this runtime's lock.
-    media: Arc<CallMedia>,
     native_media: Option<Arc<crate::native_call::Hub>>,
     lost_window_ms: u64,
     device_link: Option<devices::DeviceDmLink>,
@@ -282,7 +271,6 @@ impl PrivateDmRuntime {
     ) -> Self {
         Self {
             sessions: ConversationRuntime::new(attachment_store, persistence, DM_HISTORY),
-            media: CallMedia::new(Arc::clone(&transport)),
             native_media: None,
             transport,
             lost_window_ms: LOST_WINDOW_MS,
@@ -386,9 +374,6 @@ mod field_log_tests;
 mod reachability_tests;
 
 #[cfg(test)]
-#[path = "private_dm_runtime/call_media_tests.rs"]
-mod call_media_tests;
-
 #[cfg(test)]
 #[path = "private_dm_runtime/runtime_tests.rs"]
 mod tests;

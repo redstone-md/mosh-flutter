@@ -1,12 +1,10 @@
 # ADR 0051: DTLS-SRTP with MLS-authenticated fingerprints
 
 Date: 2026-11-05.
-Status: Accepted for MOSH-70. In effect for the libwebrtc engine
-(`mosh-media/webrtc`, MOSH-71), which builds select with `MOSH_CALL_ENGINE`;
-the default RingRTC engine keeps the keys described in
-[native call media](../Features/native-call-media.md) until MOSH-76.
+Status: Accepted for MOSH-70. In effect for every call since MOSH-76 made the
+libwebrtc engine (`mosh-media/webrtc`) the only one.
 
-The RingRTC engine disables DTLS and installs SRTP keys that Mosh derives
+The RingRTC engine disabled DTLS and installed SRTP keys that Mosh derived
 itself: each side puts an X25519 public key into its media description, MLS
 authenticates the description, and HKDF over the shared secret and the
 selected-pair binding yields one AES-256-GCM key per direction. That needs

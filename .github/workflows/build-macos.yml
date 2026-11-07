@@ -118,26 +118,6 @@ jobs:
         name: Add Rust macos target
         run: rustup target add x86_64-apple-darwin
 
-      # audiopus_sys links a prebuilt universal libopus.a from
-      # third_party/opus-macos-universal (gitignored: a build artifact),
-      # because its vendored configure cannot cross-compile opus for the
-      # x86_64 slice. Built once and cached on the script + crate version.
-      - id: opus
-        uses: actions/cache/restore@v4
-        with:
-          path: third_party/opus-macos-universal
-          key: opus-macos-universal-audiopus_sys-0.1.8-${{ hashFiles('scripts/opus-prepare-macos.sh') }}
-
-      - if: steps.opus.outputs.cache-hit != 'true'
-        name: Build libopus.a (macOS universal)
-        run: bash scripts/opus-prepare-macos.sh
-
-      - if: steps.opus.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@v4
-        with:
-          path: third_party/opus-macos-universal
-          key: ${{ steps.opus.outputs.cache-primary-key }}
-
       # CI builds only prove the app still packages; release.yml builds the
       # shipped artifact with the profile as committed. Fat LTO stays here
       # too (changing lto rebuilds every dependency), but mosh-core's own

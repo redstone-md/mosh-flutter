@@ -50,17 +50,7 @@ impl DmTransport for MemoryTransport {
     fn close_room(&self, _room: &str, _channels: &[String], _label: &str) {}
 
     fn subscribe(&self, _room: &str, _channel: &str) -> Result<(), String> {
-        let refused = self
-            .net
-            .lock()
-            .endpoints
-            .get(&self.peer_id)
-            .is_some_and(|endpoint| endpoint.refuse_subscribes);
-        if refused {
-            Err("subscribe refused".to_string())
-        } else {
-            Ok(())
-        }
+        Ok(())
     }
 
     fn unsubscribe(&self, _room: &str, _channel: &str) -> Result<(), String> {
@@ -94,12 +84,7 @@ impl DmTransport for MemoryTransport {
                 continue;
             }
             if let Some(endpoint) = state.endpoints.get_mut(&to) {
-                let queue = if is_call_media_inbound(channel) {
-                    &mut endpoint.media_inbox
-                } else {
-                    &mut endpoint.inbox
-                };
-                queue.push(MossReceivedMessage {
+                endpoint.inbox.push(MossReceivedMessage {
                     channel: channel.to_string(),
                     payload: payload.to_vec(),
                 });
@@ -180,15 +165,6 @@ impl DmTransport for MemoryTransport {
             .into_iter()
             .map(passthrough_or_deframe)
             .collect()
-    }
-
-    fn drain_media(&self) -> Vec<MossReceivedMessage> {
-        let mut state = self.net.lock();
-        state
-            .endpoints
-            .get_mut(&self.peer_id)
-            .map(|endpoint| std::mem::take(&mut endpoint.media_inbox))
-            .unwrap_or_default()
     }
 
     fn enable_call_packets(&self) -> Result<(), String> {

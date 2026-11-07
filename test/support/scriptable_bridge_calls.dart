@@ -32,21 +32,4 @@ mixin _BridgeCalls on _ScriptableBridgeState {
   }) =>
       runScripted(BridgeMethod.callEnd,
           {'sessionId': sessionId, 'callId': callId, 'reason': reason}, () {});
-
-  @override
-  Future<void> callSendFrame({
-    required String sessionId,
-    required String callId,
-    required Uint8List frame,
-  }) =>
-      runScripted(BridgeMethod.callSendFrame,
-          {'sessionId': sessionId, 'callId': callId, 'frame': frame}, () {});
-
-  @override
-  Future<List<Uint8List>> callDrainFrames({
-    required String sessionId,
-    required String callId,
-  }) =>
-      runScripted(BridgeMethod.callDrainFrames,
-          {'sessionId': sessionId, 'callId': callId}, () => _callFrames);
 }

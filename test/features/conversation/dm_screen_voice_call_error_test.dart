@@ -1,8 +1,6 @@
 // Integration coverage for active-call audio setup failures: the error must
 // use the DM screen's inline ChatErrorBanner without creating a text-send
 // retry action.
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -11,7 +9,6 @@ import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
     show conversationCallBindingProvider;
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
-import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import 'package:mosh/src/features/voice_call/voice_call_binding.dart'
     show voiceCallBinding;
 import '../../support/scriptable_bridge.dart';
@@ -20,18 +17,8 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
-import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
+import 'package:mosh/src/state/native_call_owner_provider.dart';
 import '../../support/pump.dart';
-
-class _FailingCaptureFactory implements VoiceCaptureFactory {
-  @override
-  bool get isSupported => true;
-
-  @override
-  Future<VoiceCaptureHandle> start(void Function(Uint8List opusFrame) onFrame) {
-    return Future.error(Exception('audio setup boom'));
-  }
-}
 
 SessionSnapshot _activeSnapshot(String sessionId) => SessionSnapshot(
       inviteAvailable: false,
@@ -49,8 +36,6 @@ SessionSnapshot _activeSnapshot(String sessionId) => SessionSnapshot(
       activeCall: ActiveCall(
         callId: 'call-1',
         direction: 'caller',
-        keyB64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
-        noncePrefixB64: 'AAAAAAAAAAA=',
         startedAtMs: BigInt.zero,
       ),
     );
@@ -62,7 +47,11 @@ void main() {
     const sessionId = 'sess-voice-error';
     final gateway = ScriptableGateway();
     gateway.seedSessions([_activeSnapshot(sessionId)]);
-    final bridge = ScriptableBridge(conversations: gateway.conversations);
+    final bridge = ScriptableBridge(conversations: gateway.conversations)
+      ..failNext(BridgeMethod.nativeCallPrepare,
+          error: Exception('audio setup boom'));
+    final owner = NativeCallOwner(bridge, () async => true);
+    addTearDown(owner.dispose);
 
     await pumpScreen(
         tester, const VoiceCallHost(child: DmScreen(sessionId: sessionId)),
@@ -72,8 +61,7 @@ void main() {
           activeSessionProvider(sessionId).overrideWith(
             (ref) async => _activeSnapshot(sessionId),
           ),
-          voiceCaptureFactoryProvider
-              .overrideWithValue(_FailingCaptureFactory()),
+          nativeCallOwnerProvider.overrideWithValue(owner),
           // The error comes out of the call layer, so this screen needs
           // the voice-call module bound to the conversation's call slots.
           conversationCallBindingProvider.overrideWithValue(voiceCallBinding),
@@ -84,9 +72,9 @@ void main() {
     expect(find.textContaining('audio setup boom'), findsOneWidget);
     final l = AppLocalizations.of(tester.element(find.byType(DmScreen)))!;
     expect(find.text(l.chatErrorRetry), findsNothing);
-    expect(bridge.countOf(BridgeMethod.callEnd), 1);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
-  });
+    // A desktop: Android presents the call in its own full-screen frame.
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 }

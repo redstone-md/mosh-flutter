@@ -1,5 +1,5 @@
 name: Prepare Android build
-description: Pinned toolchains and shared arm64 Moss, Opus and Cargokit preparation.
+description: Pinned toolchains and shared arm64 Moss and Cargokit preparation.
 inputs:
   build-mode:
     description: Native build cache namespace (debug or release).
@@ -67,28 +67,6 @@ runs:
     - name: Verify Android JVM bootstrap
       shell: bash
       run: node scripts/android-context-check.mjs
-
-    # audiopus_sys links a prebuilt arm64 libopus.a from
-    # third_party/opus-android-arm64 (gitignored: a build artifact). Built
-    # once from the crate's vendored source and cached on the script.
-    - id: opus
-      uses: actions/cache/restore@v4
-      with:
-        path: third_party/opus-android-arm64
-        key: opus-android-arm64-audiopus_sys-0.1.8-${{ hashFiles('scripts/opus-prepare-android.sh') }}
-
-    - if: steps.opus.outputs.cache-hit != 'true'
-      name: Build libopus.a (android/arm64)
-      shell: bash
-      run: |
-        export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
-        bash scripts/opus-prepare-android.sh
-
-    - if: steps.opus.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-      uses: actions/cache/save@v4
-      with:
-        path: third_party/opus-android-arm64
-        key: ${{ steps.opus.outputs.cache-primary-key }}
 
     # cargokit compiles mosh-core into the plugin's Gradle build dir
     # (build/<plugin>/build), which the cargo cache above does not see.

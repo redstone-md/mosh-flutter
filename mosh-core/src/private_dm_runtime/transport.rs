@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use super::wire::{channel_call_id, channel_session_id};
+use super::wire::channel_session_id;
 use crate::conversation::mesh::{self, MeshInfo};
 use crate::conversation::runtime;
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
@@ -128,14 +128,8 @@ pub trait DmTransport: Send + Sync {
         self.send_to_peer_stream(peer_id, payload)
     }
 
-    /// Every frame that arrived since the last call, voice-call media
-    /// excepted.
+    /// Every frame that arrived since the last call.
     fn drain(&self) -> Vec<MossReceivedMessage>;
-
-    /// Every voice-call media frame that arrived since the last call. Kept
-    /// apart from [`DmTransport::drain`] so the audio loop never waits on the
-    /// DM runtime (`CallMedia`).
-    fn drain_media(&self) -> Vec<MossReceivedMessage>;
 
     fn enable_call_packets(&self) -> Result<(), String> {
         Err("transport has no directed call packets".into())
@@ -179,17 +173,6 @@ pub(crate) fn is_directed_dm_channel(channel: &str) -> bool {
     channel_session_id(channel).is_some() || channel == super::devices::DEVICE_CHANNEL
 }
 
-/// A voice-call media frame. Claimed by its own queue, not the DM's.
-pub(crate) fn is_call_media_inbound(channel: &str) -> bool {
-    channel_call_id(channel).is_some()
-}
-
-/// The voice-call media queue, claimed once for the process.
-fn media_inbox() -> &'static inbox::Inbox {
-    static INBOX: std::sync::OnceLock<inbox::Inbox> = std::sync::OnceLock::new();
-    INBOX.get_or_init(|| inbox::register(is_call_media_inbound))
-}
-
 fn packet_inbox() -> &'static inbox::Inbox {
     static INBOX: std::sync::OnceLock<inbox::Inbox> = std::sync::OnceLock::new();
     INBOX.get_or_init(|| {
@@ -230,7 +213,6 @@ impl MossDmTransport {
         // lands before its owner is registered goes to the unclaimed tail,
         // and no drain will ever see it.
         dm_inbox();
-        media_inbox();
         Arc::new(Self { shared_node })
     }
 
@@ -389,10 +371,6 @@ impl DmTransport for MossDmTransport {
                 crate::stream_transport::passthrough_or_deframe(message)
             })
             .collect()
-    }
-
-    fn drain_media(&self) -> Vec<MossReceivedMessage> {
-        media_inbox().drain()
     }
 
     fn enable_call_packets(&self) -> Result<(), String> {

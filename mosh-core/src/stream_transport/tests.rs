@@ -156,10 +156,6 @@ impl DmTransport for RefusingStreamTransport {
     fn drain(&self) -> Vec<MossReceivedMessage> {
         Vec::new()
     }
-
-    fn drain_media(&self) -> Vec<MossReceivedMessage> {
-        Vec::new()
-    }
 }
 
 const STREAM_REFUSAL: &str = "stub stream refusal";

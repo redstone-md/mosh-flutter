@@ -24,8 +24,7 @@ pub(super) fn outgoing_and_incoming_history_retain_the_caller(f: &mut Fixture) {
         &peer,
         "incoming-history",
         2,
-        json!({"Offer":{"key_b64": crate::private_dm_runtime::random_b64(32),
-            "nonce_prefix_b64": crate::private_dm_runtime::random_b64(4)}}),
+        json!({"Offer":{}}),
     );
     apply(f, offer);
     f.runtime

@@ -1,7 +1,7 @@
 # Native audio/video calls
 
-Windows, macOS, Linux and Android use one native RingRTC audio/video engine per selected
-call. The DM header has voice and video actions. A video start opens local
+Windows, macOS, Linux and Android use one native libwebrtc audio/video engine per
+selected call. The DM header has voice and video actions. A video start opens local
 preview; media is sent only after the caller confirms the answering installation.
 An incoming call starts with camera off. Camera and microphone choices are
 independent, and permission refusal preserves reception and other capabilities.
@@ -31,9 +31,8 @@ Microphone, speaker and camera on/off commands preserve the native owner's
 current ID, so an older presentation snapshot cannot undo asynchronous fallback.
 
 Android ARM64 uses the same authenticated native protocol, virtual Moss network,
-codecs and SRTP key agreement as desktop. Its pinned WebRTC source build enables
-the native factory (the official Android binary has a null stub) and uses WebRTC's
-Android AudioRecord/AudioTrack module. AudioManager selects a communication route
+codecs and DTLS-SRTP as desktop. It links the Android build of the same libwebrtc
+and uses its AudioRecord/AudioTrack module. AudioManager selects a communication route
 and its paired microphone; independent desktop microphone selection is not an
 Android call capability. A stale output pick falls back to the system route.
 Camera2 capture publishes one latest RGBA frame through JNI, with generation
@@ -50,16 +49,15 @@ only permission UI and the PiP shield attach to it. See
 A dialog receives Back before minimization. Opening the peer returns to its DM;
 the compact strip can restore the view. Foreground Android ↔ desktop calls are
 the acceptance target. Suspended/killed-app ringing is not implemented by this
-change. iOS retains the legacy voice pipeline and cannot answer native offers.
+change. iOS has no call engine yet (MOSH-77): it reports the earlier media
+protocol, so a call between it and another device ends asking to update Mosh.
 Older Android builds also require an update; incompatible offers still do not ring.
 
-## Engines and media protocol
+## Engine and media protocol
 
-Two engines implement the same `mosh_media_*` ABI under the same library
-name, and a build packages one of them. RingRTC (`mosh-media/engine`) is
-the default. `MOSH_CALL_ENGINE=webrtc` packages the replacement
-(`mosh-media/webrtc`, epic MOSH-70): Google's libwebrtc through LiveKit's
-bindings, linked against [our libwebrtc build](../../third_party/libwebrtc-build/README.md)
+The engine (`mosh-media/webrtc`, epic MOSH-70) implements the `mosh_media_*`
+ABI that mosh-core loads: Google's libwebrtc through LiveKit's bindings,
+linked against [our libwebrtc build](../../third_party/libwebrtc-build/README.md)
 without its software H.264 (OpenH264, FFmpeg). Its media is
 DTLS-SRTP with the certificate fingerprint inside the MLS-authenticated
 description ([ADR 0051](../ADR/0051-dtls-srtp-with-mls-authenticated-fingerprints.md)),
@@ -98,26 +96,24 @@ libwebrtc encodes only in hardware. A negotiated VP9 or AV1 still encodes
 in hardware where the device has it, since libwebrtc tries the hardware
 factory before software. Two Macs should therefore use hardware
 H.264 and a Mac with a Windows PC VP9; the macOS CI job runs whatever
-VideoToolbox offers its runner, the Linux and Windows jobs VP9. VP9 is RingRTC's choice too: on the relay
-regression both engines send 480x270 at 15 fps and decode about 120
-frames in the measured eight seconds without loss, where VP8 dropped
-libwebrtc to 360x198. The call log's `encoder` statistics report the
+VideoToolbox offers its runner, the Linux and Windows jobs VP9. On the relay
+regression VP9 sends 480x270 at 15 fps and decodes about 120 frames in the
+measured eight seconds without loss, where VP8 dropped to 360x198. The call log's `encoder` statistics report the
 codec, its implementation and whether it is hardware.
 On Android the app
-loads the engine from Java so libwebrtc's JNI code finds its classes;
-`android/app/src/<engine>` holds the engine-specific Kotlin.
+loads the engine from Java (`MoshEngine.kt`) so libwebrtc's JNI code finds
+its classes.
 
-Each engine reports its media protocol (RingRTC 1, libwebrtc 2) and every
-call control carries the sender's, absent meaning 1. Engines on different
+The engine reports its media protocol (2; the engine before it spoke 1)
+and every call control carries the sender's, absent meaning 1. Engines on different
 protocols cannot connect media, so a callee refuses such an offer instead
 of ringing, a caller ends the call when such a device answers, and both
 record an "update Mosh" call event (`update_required`) in the chat. A
 refusal leaves the contact's other devices ringing (ADR 0043 stops them only
 for an explicit refusal); if none answers, the caller's call ends asking to
 update Mosh rather than as unanswered. Clients from before this protocol
-treat the refusal as a decline. The engine is chosen when the app is built,
-not at run time: both engines are one library name and ABI, and two
-libwebrtc copies cannot share a process.
+treat the refusal as a decline. An offer from such a client still carries
+its own media keys; they are ignored.
 
 ## Ownership and encryption
 
@@ -133,17 +129,17 @@ run separately, so they cannot block camera off, decoding or device commands.
 The native `Owner` is a documented exception to the 200-line type limit so
 capture, negotiation and engine lifetimes stay in one thread-bound state machine.
 
-`mosh-media/engine` is a separate Rust dependency graph. RingRTC's mandatory
-Signal/hax dependencies conflict with OpenMLS's graph, so they cannot share the
-core manifest. The library exposes bounded C commands, binary packets and RGBA.
+`mosh-media/webrtc` is a separate Rust dependency graph, loaded as its own
+library, so libwebrtc's C++ build and global state stay out of the core
+manifest. The library exposes bounded C commands, binary packets and RGBA.
 Its factory owns audio DSP, capture/playback and video processing in one session.
 
-Only public negotiation descriptions cross MLS. Each selected session generates
-fresh X25519 material, rejects non-contributory keys and derives directional
-SRTP keys with HKDF/SHA-256. The transcript binds the DM, call, selected caller
-and receiver leaf signers, fresh media nonce, roles and crypto suite. Private
-DH/SRTP keys stay in the engine and are zeroized on teardown. Neither Dart nor
-the renderer receives them. Current signed roster removals and MLS membership
+Only public negotiation descriptions cross MLS. Media is DTLS-SRTP, and the
+certificate fingerprint travels inside the MLS-authenticated description, so
+only the selected device can complete the handshake
+([ADR 0051](../ADR/0051-dtls-srtp-with-mls-authenticated-fingerprints.md)).
+DTLS and SRTP keys stay in the engine; neither Dart nor the renderer receives
+them. Current signed roster removals and MLS membership
 are reconciled against the selected pair; loss of authorization clears that
 call and releases both media paths. Locally failed/end calls persist their
 closed-ID book before media synchronization.
@@ -159,7 +155,7 @@ Authenticated own-sibling occupancy remains independent of a local offer.
 After restart, offer evidence is empty, so only own-sibling occupancy can restore
 Busy for an ongoing call on another device; counterpart selection alone cannot.
 
-RingRTC receives only a virtual UDP interface. Actual packets use Moss directed
+libwebrtc receives only a virtual UDP interface. Actual packets use Moss directed
 peer packets, with a call nonce and selected-peer check before native decoding.
 No engine ICE server or another mandatory server is configured. Moss supplies
 its own automatic discovery, NAT traversal and relays.
@@ -277,8 +273,8 @@ builds both isolated crates and packages the library/helper and license notices.
 An explicit/system `protoc` is accepted; otherwise the hook downloads a locally
 scoped, SHA-256-verified protoc 36.2. Windows builds need Visual Studio's desktop
 C++ tools, Rust, Flutter and Node; no global protobuf installation is required.
-macOS also needs `brew install coreutils` for RingRTC's GNU realpath downloader,
-alongside the existing autoconf/automake/libtool build prerequisites.
+Linux needs `CC`/`CXX` set to clang 21 or later for libwebrtc's hermetic
+libc++.
 
 macOS builds each requested architecture and uses `lipo` for universal output.
 The engine is signed as a framework; the helper inherits the main app sandbox
@@ -290,16 +286,13 @@ way; see [voice calls](voice-calls.md).
 Windows places the DLL/helper beside the executable; Linux places both in `lib`,
 with executable permission on the helper. Do not ship the test camera driver.
 
-With `MOSH_CALL_ENGINE=webrtc` (or `--engine webrtc`) the same commands and
-the Android build package the libwebrtc engine. Linux needs `CC`/`CXX` set
-to clang 21 or later for libwebrtc's hermetic libc++. CI checks that engine
-in its own jobs: lint and engine tests, the relay video regression, call
-setup and the camera tests through mosh-core over real Moss (the same
-`native_` tests as RingRTC), a voice call between PulseAudio devices over
-two Moss nodes, heard in both
-directions, with the microphone on from the start and switched on only after
-connecting
-(`scripts/webrtc-voice-check.mjs`) and a debug Android arm64 APK built beside the RingRTC one.
+CI runs one native call media job per OS: lint and the engine and camera
+helper tests, the relay video regression, call setup and the camera tests
+through mosh-core over real Moss, and on Linux a voice call between
+PulseAudio devices over two Moss nodes, heard in both directions, with the
+microphone on from the start and switched on only after connecting
+(`scripts/webrtc-voice-check.mjs`). A separate job builds a debug Android
+arm64 APK.
 
 ```sh
 node scripts/native-media-build.mjs

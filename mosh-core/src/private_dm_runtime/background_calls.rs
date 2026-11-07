@@ -43,7 +43,7 @@ impl PrivateDmRuntime {
             Action::Decline => session.call_decline(&current.call_id, "user_declined"),
             Action::Hangup => session.call_end(&current.call_id, "user_hangup"),
         };
-        self.sync_call_media();
+        self.sync_native_media();
         self.sessions
             .persist_tail()
             .map_err(|error| error.to_string())?;

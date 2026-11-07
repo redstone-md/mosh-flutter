@@ -33,8 +33,7 @@ impl PrivateDmRuntime {
         }
     }
 
-    /// Hand one frame to the session it names. Voice-call media never comes
-    /// here: it has its own queue (`CallMedia`).
+    /// Hand one frame to the session it names.
     ///
     /// A single bad inbound frame must never abort the drain — otherwise it
     /// would also fail the caller (e.g. send_message drains first). After a
@@ -116,7 +115,7 @@ impl PrivateDmRuntime {
         if let Err(error) = self.sessions.persist_tail() {
             self.log_persistence_failure(KIND, &error);
         }
-        self.sync_call_media();
+        self.sync_native_media();
         self.pump_native_media();
     }
 
@@ -126,32 +125,6 @@ impl PrivateDmRuntime {
         error: &crate::persistence::PersistenceError,
     ) {
         dlog::write(LogLevel::Error, kinds::PERSIST, id, &error.to_string());
-    }
-
-    /// The call media hub the audio loop sends and drains through.
-    pub fn call_media(&self) -> Arc<CallMedia> {
-        Arc::clone(&self.media)
-    }
-
-    /// Tell the media hub which calls are live. Run after every tick and
-    /// every call action: the call state machine lives here, the hub only
-    /// mirrors its active calls.
-    pub(super) fn sync_call_media(&mut self) {
-        let live = self
-            .sessions
-            .values()
-            .filter_map(|session| {
-                let call = session.call.as_ref()?;
-                (call.phase == CallPhase::Active).then(|| LiveCall {
-                    call_id: call.call_id.clone(),
-                    room: session.mesh_id.clone(),
-                    own_direction_bit: call.direction.seq_direction_bit(),
-                })
-            })
-            .collect();
-        self.media.sync(live);
-        self.media.collect();
-        self.sync_native_media();
     }
 }
 

@@ -12,10 +12,6 @@ import 'package:mosh/src/features/voice_call/cpal_ringtone.dart'
     show CpalRingtonePlayer;
 import 'package:mosh/src/features/voice_call/android_ringtone.dart';
 import 'package:mosh/src/features/voice_call/android_call_presentation.dart';
-import 'package:mosh/src/features/voice_call/cpal_voice_playback.dart'
-    show CpalVoicePlaybackFactory;
-import 'package:mosh/src/features/voice_call/record_voice_capture.dart'
-    show RecordVoiceCaptureFactory;
 import 'package:mosh/src/features/voice_call/voice_call_binding.dart'
     show voiceCallBinding;
 import 'dart:io' show Platform;
@@ -24,15 +20,12 @@ import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
 import 'package:mosh/src/state/auto_poll_provider.dart'
     show autoPollIntervalProvider, kAutoPollInterval;
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
-    show
-        ringtonePlayerProvider,
-        voiceCaptureFactoryProvider,
-        voicePlaybackFactoryProvider;
+    show ringtonePlayerProvider;
 
-/// Provider bindings used by the production application root: the native
-/// voice factories, the live auto-poll cadence (both default to inert so
-/// `flutter test` gets no native handles and no live timer), and the
-/// conversation module's call slots, which default to unbound.
+/// Provider bindings used by the production application root: the ringtone
+/// and the native call owner, the live auto-poll cadence (all default to
+/// inert so `flutter test` gets no native handles and no live timer), and
+/// the conversation module's call slots, which default to unbound.
 final List<Override> productionOverrides = <Override>[
   if (Platform.isAndroid)
     androidCallPresentationProvider.overrideWith((ref) {
@@ -41,10 +34,6 @@ final List<Override> productionOverrides = <Override>[
       return presentation;
     }),
   firstRunEnabledProvider.overrideWithValue(true),
-  voiceCaptureFactoryProvider
-      .overrideWithValue(const RecordVoiceCaptureFactory()),
-  voicePlaybackFactoryProvider
-      .overrideWithValue(const CpalVoicePlaybackFactory()),
   ringtonePlayerProvider.overrideWithValue(Platform.isAndroid
       ? const AndroidRingtonePlayer()
       : const CpalRingtonePlayer()),

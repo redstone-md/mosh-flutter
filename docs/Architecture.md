@@ -386,19 +386,16 @@ An application-level strip keeps messaging usable and can restore the window.
 Ringtone and no-answer timeout belong to the call state. The supplied PCM recording
 uses CPAL's selected output device. See [voice calls](Features/voice-calls.md).
 
-Dart seals and opens call frames with the existing cryptography package and
-reorders playback with its jitter buffer. Raw bytes cross `BridgeFacade` every
-20 ms. Rust's `CallMedia` hub publishes/drains active calls through a separate lock,
-so audio does not wait on the DM owner. Native Opus/CPAL handle encoding and
-playback. Playback buffers 60 ms, emits silence on underrun, and jitter skips a
-gap once three later frames wait. Rust owns call signaling and mirrors active
-calls into the hub. The wire is `[seq:u64 BE][ciphertext+tag]`, with AES-GCM nonce
-`[prefix:4][seq:8]` and a direction bit in the sequence.
+Media runs in the native call engine, libwebrtc in `mosh-media/webrtc`, which
+mosh-core loads through the `mosh_media_*` ABI and feeds over Moss
+([native call media](Features/native-call-media.md)). Rust owns call signaling
+and the engine; Dart only commands it and renders its frames.
 
 Accepted video-call ownership lives in [ADR 0043](ADR/0043-one-device-per-user-in-a-call.md)
 and [ADR 0044](ADR/0044-native-call-media-over-moss.md). The
 [issue 46 plan](Proposals/issue-46-video-calls.plan.md) defines stages and acceptance.
-The target uses one native audio/video engine over Moss. The voice pipeline above remains current.
+Every call uses that one native audio/video engine over Moss. iOS has none yet
+(MOSH-77).
 
 ## Security, builds and checks
 
@@ -451,7 +448,7 @@ CI checks drift. Flutter `gen-l10n` generates English/Russian localizations from
 ARB files. Cargokit links the same core as desktop/Android dynamic libraries and
 iOS static libraries. Windows integration tests require debug; Android builds
 require `--target-platform android-arm64`. macOS releases prepare universal Moss
-and Opus libraries before packaging; the reusable build workflow owns signing and
+libraries before packaging; the reusable build workflow owns signing and
 DMG generation.
 
 Required checks live in [AGENTS.md](../AGENTS.md). Native runtime tests use real

@@ -1,4 +1,3 @@
-import 'dart:typed_data' show Uint8List;
 import 'package:mosh/src/rust/api/native_call.dart' as native_call_api;
 import 'package:mosh/src/rust/native_call/types.dart' as native_media;
 import 'package:mosh/src/rust/chat_names/types.dart';
@@ -39,9 +38,7 @@ import 'package:mosh/src/rust/api/private_dm.dart' as api
         acceptInvite,
         callAccept,
         callDecline,
-        callDrainFrames,
         callEnd,
-        callSendFrame,
         callStart,
         createInvite,
         createPendingInvite,
@@ -338,17 +335,4 @@ class BridgeFacade with NativeCallBridge {
     required String reason,
   }) =>
       api.callEnd(sessionId: sessionId, callId: callId, reason: reason);
-
-  Future<void> callSendFrame({
-    required String sessionId,
-    required String callId,
-    required Uint8List frame,
-  }) =>
-      api.callSendFrame(sessionId: sessionId, callId: callId, frame: frame);
-
-  Future<List<Uint8List>> callDrainFrames({
-    required String sessionId,
-    required String callId,
-  }) =>
-      api.callDrainFrames(sessionId: sessionId, callId: callId);
 }

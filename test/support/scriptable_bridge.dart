@@ -1,6 +1,5 @@
 import 'dart:async' show StreamController;
 import 'package:mosh/src/rust/chat_names/types.dart';
-import 'dart:typed_data' show Uint8List;
 import 'package:mosh/src/rust/native_call/types.dart' as native_media;
 
 import 'package:mosh/src/gateway/bridge_facade.dart';
@@ -94,8 +93,6 @@ enum BridgeMethod {
   callAccept,
   callDecline,
   callEnd,
-  callSendFrame,
-  callDrainFrames,
 }
 
 /// One recorded call to the bridge facade.
@@ -135,7 +132,7 @@ abstract class _ScriptableBridgeState
   VpnDetection? _vpnDetection;
   String? _bindInterface;
   VpnBypassConsent? _vpnConsent;
-  List<Uint8List> _callFrames = const [];
+  native_media.Snapshot? _nativeCallSnapshot;
   bool _readReceiptsEnabled = false;
   String? _crashReportingSalt;
 
@@ -211,7 +208,9 @@ abstract class _ScriptableBridgeState
 
   void seedVpnConsent(VpnBypassConsent? consent) => _vpnConsent = consent;
 
-  void seedCallFrames(List<Uint8List> frames) => _callFrames = frames;
+  /// What `nativeCallSnapshot` answers unless a test scripts a response.
+  void seedNativeCallSnapshot(native_media.Snapshot? snapshot) =>
+      _nativeCallSnapshot = snapshot;
 
   void seedReadReceiptsEnabled(bool enabled) => _readReceiptsEnabled = enabled;
 

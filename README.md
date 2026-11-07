@@ -154,13 +154,6 @@ node scripts/moss-prepare.mjs
 flutter pub get
 ```
 
-On macOS, prepare the native audio library before the first build:
-
-```sh
-brew install autoconf automake libtool
-bash scripts/opus-prepare-macos.sh
-```
-
 Then run `flutter run -d windows` or `flutter run -d macos` on the matching
 platform. Moss is built from the pinned submodule, including both macOS
 architectures.

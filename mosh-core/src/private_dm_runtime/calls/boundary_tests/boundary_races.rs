@@ -27,15 +27,7 @@ fn occupied(f: &mut Fixture, id: &str, sequence: u64) -> ControlEnvelope {
 pub(super) fn canceled_local_presentation_tracks_the_selected_sibling(f: &mut Fixture) {
     let contact = f.contact.device().device_id.clone();
     let peer = f.contact.device().moss_peer_id.clone();
-    let offer = remote_control(
-        f,
-        &contact,
-        &peer,
-        "race-call",
-        1,
-        json!({"Offer":{
-        "key_b64":crate::private_dm_runtime::random_b64(32), "nonce_prefix_b64":crate::private_dm_runtime::random_b64(4)}}),
-    );
+    let offer = remote_control(f, &contact, &peer, "race-call", 1, json!({"Offer":{}}));
     apply(f, offer);
     // Local presentation ended before its decline could reach the caller.
     f.runtime
@@ -109,15 +101,7 @@ pub(super) fn a_newer_offer_cannot_discard_an_older_authorized_end(f: &mut Fixtu
         1,
         json!({"End":{"reason":"hangup"}}),
     );
-    let newer = remote_control(
-        f,
-        &contact,
-        &peer,
-        "another-call",
-        2,
-        json!({"Offer":{
-        "key_b64":crate::private_dm_runtime::random_b64(32), "nonce_prefix_b64":crate::private_dm_runtime::random_b64(4)}}),
-    );
+    let newer = remote_control(f, &contact, &peer, "another-call", 2, json!({"Offer":{}}));
     apply(f, newer);
     apply(f, end);
     assert!(f.snapshot().active_call.is_none());
@@ -140,15 +124,7 @@ fn late_offer_after_restart_cannot_reopen(f: &mut Fixture) {
     f.runtime.rehydrate();
     let contact = f.contact.device().device_id.clone();
     let peer = f.contact.device().moss_peer_id.clone();
-    let late = remote_control(
-        f,
-        &contact,
-        &peer,
-        "selected-call",
-        1,
-        json!({"Offer":{
-        "key_b64":crate::private_dm_runtime::random_b64(32), "nonce_prefix_b64":crate::private_dm_runtime::random_b64(4)}}),
-    );
+    let late = remote_control(f, &contact, &peer, "selected-call", 1, json!({"Offer":{}}));
     apply(f, late);
     assert!(f.snapshot().pending_call.is_none());
 }

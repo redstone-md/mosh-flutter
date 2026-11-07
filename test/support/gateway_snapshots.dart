@@ -299,6 +299,4 @@ String orgPubkeyFromBundleUri(String bundleUri) {
 CallStarted cannedCallStarted(String sessionId) => CallStarted(
       sessionId: sessionId,
       callId: 'fake-call',
-      keyB64: 'fake-key',
-      noncePrefixB64: 'fake-nonce',
     );

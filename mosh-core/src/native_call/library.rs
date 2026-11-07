@@ -169,7 +169,8 @@ impl Engine {
     }
 }
 
-/// Media protocol of the RingRTC engine and of clients that predate the field.
+/// Media protocol of the engine before libwebrtc and of clients that predate
+/// the field; a peer on it ends the call with `update_required`.
 pub(crate) const LEGACY_MEDIA_PROTOCOL: u32 = 1;
 
 /// The packaged engine's media protocol, carried in every call control.

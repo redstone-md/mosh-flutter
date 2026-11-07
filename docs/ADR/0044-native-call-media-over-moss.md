@@ -9,6 +9,12 @@ audio module; Camera2/JNI adapts capture behind the existing bounded frame seam.
 Desktop uses Cubeb and its helper process as before. This does not add a second
 network stack or claim background/killed-app incoming-call support.
 
+2026-11-07 (MOSH-76): the engine is libwebrtc through LiveKit's bindings
+(`mosh-media/webrtc`, MOSH-70) on every platform, with DTLS-SRTP
+([ADR 0051](0051-dtls-srtp-with-mls-authenticated-fingerprints.md)). RingRTC
+and the Dart voice pipeline (Opus frames sealed in Dart, `record` capture and
+CPAL playback) are deleted; the boundary and frame IPC below are unchanged.
+
 For [issue 46](https://github.com/redstone-md/mosh-flutter/issues/46), use one
 established native engine for audio and video, with all network media carried
 by Moss. The main process retains the media owner and its capture, codec,
