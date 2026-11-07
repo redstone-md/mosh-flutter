@@ -9,7 +9,8 @@ project: resolve them with `get_project` and never reuse them from memory.
 
 ## States
 
-Select a column by its `stateType`, not its name:
+Select a column by its `stateType`, not its name. In Progress and In Review
+share `started`, so between those two pick by name from `get_project`:
 
 | Column | `stateType` | Use |
 |---|---|---|
