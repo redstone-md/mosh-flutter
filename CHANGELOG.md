@@ -6,6 +6,32 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-11-07
+
+### Added
+
+- Android: the background settings offer to show incoming calls on the lock
+  screen. Android 14 and later may otherwise show them only as a banner.
+
+### Changed
+
+- Calls run on a new call engine built on libwebrtc, which also picks hardware
+  video encoding where the device has it. Calls do not connect between 0.28.0
+  and 0.27.0 or older: the chat asks the person on the older version to
+  update Mosh.
+- Mosh no longer includes RingRTC, so no part of the app is under AGPL-3.0.
+- A message holds up to 4096 characters. The composer shows how many remain
+  once fewer than 200 are left and keeps Send off above the limit.
+
+### Fixed
+
+- Switching the microphone or speaker during a call works, and "System
+  default" on Windows uses the default communication device.
+- Android: active and outgoing calls show their ongoing call notification
+  again.
+- A direct message too large to send fails with a reason instead of holding
+  back every later message in the chat.
+
 ## [0.27.0] - 2026-11-04
 
 ### Added
