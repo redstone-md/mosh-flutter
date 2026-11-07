@@ -244,20 +244,17 @@ fn a_malformed_frame_does_not_discard_the_valid_frames_behind_it() {
         channel: "public-channel/drain-channel".to_string(),
         payload: b"not-json".to_vec(),
     };
+    // A text no honest client could send is malformed too.
+    let oversized = peer_message(&"x".repeat(crate::conversation::MAX_TEXT_CHARS + 1));
     let valid = peer_message("lands after the malformed frame");
     crate::inbox::deliver(malformed);
+    crate::inbox::deliver(oversized);
     crate::inbox::deliver(valid);
 
     channels
         .drain_inbound()
         .expect("a malformed frame must not fail the drain");
     let snapshot = channels.poll("drain-channel").expect("poll should pass");
-    assert!(
-        snapshot
-            .messages
-            .iter()
-            .any(|message| message.body == "lands after the malformed frame"),
-        "the valid frame behind the malformed one must land, got {:?}",
-        snapshot.messages
-    );
+    let bodies: Vec<_> = snapshot.messages.iter().map(|m| m.body.as_str()).collect();
+    assert_eq!(bodies, ["lands after the malformed frame"]);
 }

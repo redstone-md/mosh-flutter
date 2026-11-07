@@ -37,8 +37,10 @@ pub(crate) const MAX_PUBLISH_BYTES: usize = 65_536;
 /// envelope far under [`MAX_PUBLISH_BYTES`].
 pub(crate) const MAX_TEXT_CHARS: usize = 4096;
 
-/// Whether `body` is within [`MAX_TEXT_CHARS`]. Send paths and history
-/// validation share it, so what one device sends another accepts.
+/// Whether `body` is within [`MAX_TEXT_CHARS`]. Sends, received channel and
+/// group texts and history validation share it, so what one device keeps
+/// another accepts. Received DMs are not held to it: older clients could
+/// send longer ones.
 pub(crate) fn text_fits(body: &str) -> bool {
     body.chars().count() <= MAX_TEXT_CHARS
 }

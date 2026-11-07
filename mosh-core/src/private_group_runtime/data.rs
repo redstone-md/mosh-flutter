@@ -18,6 +18,9 @@ impl GroupSession {
                 if signer != sender.mls_signer {
                     return Err("group sender mismatch".into());
                 }
+                if !crate::conversation::text_fits(&String::from_utf8_lossy(body)) {
+                    return Err("group text over the limit".into());
+                }
                 if let Some(origin) = &envelope.origin {
                     origin.verify_from_signer(
                         &context,
