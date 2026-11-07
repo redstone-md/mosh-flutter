@@ -141,7 +141,7 @@ impl Engine {
                 snapshot["ready"] = self.started.into();
                 snapshot["microphone"] = self.recording.into();
                 snapshot["video_enabled"] = self.camera.enabled().into();
-                snapshot["queue_dropped"] = self.carrier.dropped().into();
+                snapshot["queue_dropped"] = self.carrier.outgoing().dropped();
                 Ok(snapshot)
             }
             "devices" => Ok(audio::devices(&self.factory)),
@@ -208,7 +208,7 @@ impl Engine {
 
     fn set_local(&mut self, description: SessionDescription, offer: bool) -> Result<Description> {
         let sdp = description.to_string();
-        self.carrier.learn(&sdp);
+        self.carrier.outgoing().learn(&sdp);
         self.runtime
             .block_on(self.pc.set_local_description(description))
             .map_err(|error| anyhow::anyhow!("local description: {error:?}"))?;

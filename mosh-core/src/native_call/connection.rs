@@ -1,5 +1,5 @@
 use super::{
-    library::{Engine, MAX_PACKET, MAX_RGBA},
+    library::{Engine, MAX_RGBA},
     packets::{self, Sender},
     state::State,
     types::{Binding, Choices, Context, Description, Signal},
@@ -24,7 +24,12 @@ pub(crate) struct Connection {
 }
 
 impl Connection {
-    pub fn new(context: Context, offer: Option<Description>) -> Result<Self, String> {
+    /// Outgoing engine packets go straight to `sender`, never through `pump`.
+    pub fn new(
+        context: Context,
+        offer: Option<Description>,
+        sender: &Sender,
+    ) -> Result<Self, String> {
         let mut nonce = vec![0; 16];
         rand::thread_rng().fill_bytes(&mut nonce);
         let binding = offer
@@ -39,7 +44,8 @@ impl Connection {
         {
             return Err("media description does not match the selected pair".into());
         }
-        let mut engine = Engine::new(&binding, context.caller)?;
+        let sink = sender.sink(&context.peer, &binding.media_session);
+        let mut engine = Engine::new(&binding, context.caller, sink)?;
         let local = if let Some(offer) = offer {
             engine.ask(json!({"action":"remote","description":offer}))?
         } else {
@@ -136,7 +142,7 @@ impl Connection {
                 self.candidates.push(candidate.into());
             }
         }
-        self.transfer_packets(transport, sender);
+        self.receive_packets(transport);
         self.present(state);
         if self.resend.elapsed() >= Duration::from_secs(1) {
             self.resend = Instant::now();
@@ -157,7 +163,7 @@ impl Connection {
         Ok(())
     }
 
-    fn transfer_packets(&mut self, transport: &dyn DmTransport, sender: &Sender) {
+    fn receive_packets(&mut self, transport: &dyn DmTransport) {
         for message in transport.drain_call_packets() {
             if message
                 .channel
@@ -169,18 +175,6 @@ impl Connection {
             if let Some(packet) = packets::unwrap(&message.payload, &self.binding.media_session) {
                 self.engine.receive(packet);
             }
-        }
-        let mut packet = [0; MAX_PACKET];
-        for _ in 0..128 {
-            let Some(length) = self.engine.packet(&mut packet) else {
-                break;
-            };
-            sender.enqueue(
-                &self.context.peer,
-                &self.binding.media_session,
-                &packet[..length],
-                self.engine.priority(&packet[..length]),
-            );
         }
     }
 

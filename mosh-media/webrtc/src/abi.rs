@@ -1,14 +1,23 @@
 //! The loading process retains every buffer through its synchronous call.
 //! Create, command and drop an engine on one owner thread; Windows COM is thread-bound.
-use crate::carrier::MAX_PACKET;
+//! `copy_packet` and `packet_priority` never wait for the engine, so another
+//! thread may drain outgoing packets while the owner commands it.
+use crate::carrier::{MAX_PACKET, Outgoing};
 use crate::engine::{Config, Engine};
 use crate::frames::{FrameInfo, MAX_RGBA_BYTES};
 use serde_json::json;
 use std::{
     ffi::{CStr, CString, c_char, c_void},
     panic::{AssertUnwindSafe, catch_unwind},
-    sync::Mutex,
+    sync::{Arc, Mutex},
 };
+
+/// What `mosh_media_create` returns: the engine and its outgoing queue,
+/// which is reachable without the engine's lock.
+struct Handle {
+    engine: Mutex<Engine>,
+    outgoing: Arc<Outgoing>,
+}
 
 /// Media protocol spoken by this engine; mosh-core puts it into every call
 /// control so peers on different engines end the call instead of hanging.
@@ -35,7 +44,11 @@ pub unsafe extern "C" fn mosh_media_create(config: *const c_char) -> *mut c_void
             .map_err(anyhow::Error::from)
             .and_then(Engine::new);
         match engine {
-            Ok(engine) => Box::into_raw(Box::new(Mutex::new(engine))).cast(),
+            Ok(engine) => Box::into_raw(Box::new(Handle {
+                outgoing: engine.carrier.outgoing().clone(),
+                engine: Mutex::new(engine),
+            }))
+            .cast(),
             Err(error) => {
                 eprintln!("native media creation failed: {error}");
                 std::ptr::null_mut()
@@ -57,7 +70,7 @@ pub unsafe extern "C" fn mosh_media_command(
     }
     let value = catch_unwind(AssertUnwindSafe(|| -> anyhow::Result<_> {
         // SAFETY: caller retains both the owned handle and C string until return.
-        let engine = unsafe { &*handle.cast::<Mutex<Engine>>() };
+        let engine = &unsafe { &*handle.cast::<Handle>() }.engine;
         let bytes = unsafe { CStr::from_ptr(command) }.to_bytes();
         anyhow::ensure!(bytes.len() <= 65_536, "media command too large");
         engine
@@ -95,7 +108,7 @@ pub unsafe extern "C" fn mosh_media_receive(
     }
     catch_unwind(AssertUnwindSafe(|| {
         // SAFETY: caller retains the live handle and readable packet for this call.
-        let engine = unsafe { &*handle.cast::<Mutex<Engine>>() };
+        let engine = &unsafe { &*handle.cast::<Handle>() }.engine;
         let bytes = unsafe { std::slice::from_raw_parts(data, length) };
         engine
             .lock()
@@ -117,11 +130,9 @@ pub unsafe extern "C" fn mosh_media_copy_packet(
     }
     catch_unwind(AssertUnwindSafe(|| {
         // SAFETY: caller retains the handle and an exclusively writable packet buffer.
-        let engine = unsafe { &*handle.cast::<Mutex<Engine>>() };
+        let outgoing = &unsafe { &*handle.cast::<Handle>() }.outgoing;
         let bytes = unsafe { std::slice::from_raw_parts_mut(data, capacity) };
-        engine
-            .lock()
-            .map_or(-1, |mut engine| engine.carrier.copy_packet(bytes))
+        outgoing.copy_packet(bytes)
     }))
     .unwrap_or(-1)
 }
@@ -139,11 +150,9 @@ pub unsafe extern "C" fn mosh_media_packet_priority(
     }
     catch_unwind(AssertUnwindSafe(|| {
         // SAFETY: retain the handle and readable packet until this synchronous call ends.
-        let engine = unsafe { &*handle.cast::<Mutex<Engine>>() };
+        let outgoing = &unsafe { &*handle.cast::<Handle>() }.outgoing;
         let bytes = unsafe { std::slice::from_raw_parts(data, length) };
-        engine
-            .lock()
-            .map_or(-1, |engine| i32::from(engine.carrier.priority(bytes)))
+        i32::from(outgoing.priority(bytes))
     }))
     .unwrap_or(-1)
 }
@@ -163,7 +172,7 @@ pub unsafe extern "C" fn mosh_media_push_rgba(
     }
     catch_unwind(AssertUnwindSafe(|| {
         // SAFETY: caller retains the handle and readable packed RGBA buffer.
-        let engine = unsafe { &*handle.cast::<Mutex<Engine>>() };
+        let engine = &unsafe { &*handle.cast::<Handle>() }.engine;
         let pixels = unsafe { std::slice::from_raw_parts(rgba, length) };
         engine.lock().map_or(-1, |mut engine| {
             if engine.camera.push(width, height, pixels).is_ok() {
@@ -196,7 +205,7 @@ pub unsafe extern "C" fn mosh_media_copy_frame(
     }
     catch_unwind(AssertUnwindSafe(|| {
         // SAFETY: caller retains the live handle and disjoint writable output allocations.
-        let engine = unsafe { &*handle.cast::<Mutex<Engine>>() };
+        let engine = &unsafe { &*handle.cast::<Handle>() }.engine;
         let pixels = if capacity == 0 {
             &mut []
         } else {
@@ -221,7 +230,7 @@ pub unsafe extern "C" fn mosh_media_drop(handle: *mut c_void) {
     if !handle.is_null() {
         // SAFETY: caller returns exclusive ownership of the engine allocation.
         let _ = catch_unwind(AssertUnwindSafe(|| {
-            drop(unsafe { Box::from_raw(handle.cast::<Mutex<Engine>>()) })
+            drop(unsafe { Box::from_raw(handle.cast::<Handle>()) })
         }));
     }
 }

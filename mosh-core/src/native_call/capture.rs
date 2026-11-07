@@ -3,6 +3,9 @@ use std::time::Instant;
 #[cfg(not(target_os = "android"))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(not(target_os = "android"))]
+#[path = "capture/helper.rs"]
+mod helper;
 #[cfg(target_os = "android")]
 #[path = "capture/android.rs"]
 mod platform;

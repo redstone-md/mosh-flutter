@@ -41,11 +41,51 @@ impl Status {
     }
 }
 
+/// The longest pauses on outgoing media's way to Moss.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct Stalls {
+    /// One owner step.
+    pub step: Duration,
+    /// The owner waiting for the call state lock, which Dart's commands and
+    /// frame reads also take.
+    pub lock_wait: Duration,
+    /// Between two drains of the engine's outgoing queue; the 2 ms drain
+    /// interval is its floor.
+    pub drain: Duration,
+}
+
+impl Stalls {
+    pub fn include(&mut self, other: Self) {
+        self.step = self.step.max(other.step);
+        self.lock_wait = self.lock_wait.max(other.lock_wait);
+        self.drain = self.drain.max(other.drain);
+    }
+
+    fn describe(&self) -> Value {
+        json!({"step": self.step.as_millis(), "lock_wait": self.lock_wait.as_millis(),
+            "drain": self.drain.as_millis()})
+    }
+}
+
+/// Where outgoing media waits on its way to Moss.
+#[derive(Clone, Copy, Default)]
+pub(super) struct Pipeline {
+    pub sender_dropped: u64,
+    pub stalls: Stalls,
+}
+
+/// While the engine or the sender keeps dropping packets, log at this pace
+/// even when the call's status holds still.
+const LOSS_LOG_INTERVAL: Duration = Duration::from_secs(10);
+
 #[derive(Default)]
 pub(super) struct Monitor {
     status: Option<Status>,
     captured: Growth,
     heard: Growth,
+    /// The longest stalls since the previous line.
+    stalls: Stalls,
+    logged: Option<(Instant, u64)>,
 }
 
 /// A cumulative audio energy, which only grows while there is sound: a
@@ -71,8 +111,14 @@ impl Growth {
 }
 
 impl Monitor {
-    pub fn update(&mut self, route: PeerTransport, state: &State, engine: &Value, dropped: u64) {
-        if let Some(message) = self.observe(route, state, engine, dropped, Instant::now()) {
+    pub fn update(
+        &mut self,
+        route: PeerTransport,
+        state: &State,
+        engine: &Value,
+        pipeline: Pipeline,
+    ) {
+        if let Some(message) = self.observe(route, state, engine, pipeline, Instant::now()) {
             crate::diagnostics_log::write(
                 crate::diagnostics_log::LogLevel::Info,
                 crate::diagnostics_log::kinds::CALL,
@@ -87,9 +133,10 @@ impl Monitor {
         route: PeerTransport,
         state: &State,
         engine: &Value,
-        dropped: u64,
+        pipeline: Pipeline,
         now: Instant,
     ) -> Option<String> {
+        self.stalls.include(pipeline.stalls);
         let age = state.frames[1].as_ref().map(|frame| {
             u128::from(frame.frame.source_age_ms)
                 + now.saturating_duration_since(frame.received).as_millis()
@@ -112,16 +159,27 @@ impl Monitor {
                 .heard
                 .rising(engine["audio"]["total_energy"].as_f64(), now),
         };
-        if self.status.as_ref() == Some(&status) {
+        let dropped = ["full", "stale"]
+            .iter()
+            .filter_map(|cause| engine["queue_dropped"][cause].as_u64())
+            .sum::<u64>()
+            + pipeline.sender_dropped;
+        let losing = self.logged.is_some_and(|(at, logged)| {
+            dropped > logged && now.saturating_duration_since(at) >= LOSS_LOG_INTERVAL
+        });
+        if self.status.as_ref() == Some(&status) && !losing {
             return None;
         }
         let metrics = json!({"video_age_ms": age.map(|age| age.min(u128::from(u32::MAX)) as u32),
-            "decoded": engine["decoded"], "sender_dropped": dropped,
-            "engine_dropped": engine["queue_dropped"], "audio": engine["audio"],
+            "decoded": engine["decoded"], "sender_dropped": pipeline.sender_dropped,
+            "engine_dropped": engine["queue_dropped"],
+            "stalls_max_ms": self.stalls.describe(), "audio": engine["audio"],
             "audio_sender": engine["audio_sender"],
             "video": engine["video"], "encoder": engine["encoder"]});
         let message = status.describe(state, &metrics);
         self.status = Some(status);
+        self.stalls = Stalls::default();
+        self.logged = Some((now, dropped));
         Some(message)
     }
 }
@@ -131,6 +189,13 @@ mod tests {
     use super::*;
     use crate::native_call::types::Context;
     use std::time::Duration;
+
+    fn sent(sender_dropped: u64) -> Pipeline {
+        Pipeline {
+            sender_dropped,
+            ..Default::default()
+        }
+    }
 
     #[test]
     fn video_stall_recovery_camera_off_and_route_changes_log_once() {
@@ -152,25 +217,39 @@ mod tests {
         let engine = json!({"connection":"Connected", "decoded":12});
         let mut monitor = Monitor::default();
         let route = PeerTransport::Direct;
-        let event = monitor.observe(route, &state, &engine, 0, now).unwrap();
+        let event = monitor
+            .observe(route, &state, &engine, sent(0), now)
+            .unwrap();
         assert!(event.contains("remote_video=waiting"));
-        assert!(monitor.observe(route, &state, &engine, 0, now).is_none());
+        assert!(monitor
+            .observe(route, &state, &engine, sent(0), now)
+            .is_none());
         state.present(1, 1, vec![0; 4], 0, now, false);
-        let event = monitor.observe(route, &state, &engine, 0, now).unwrap();
+        let event = monitor
+            .observe(route, &state, &engine, sent(0), now)
+            .unwrap();
         assert!(event.contains("remote_video=live"));
         let later = now + Duration::from_secs(1);
-        let event = monitor.observe(route, &state, &engine, 7, later).unwrap();
+        let event = monitor
+            .observe(route, &state, &engine, sent(7), later)
+            .unwrap();
         assert!(event.contains("remote_video=stalled"));
         assert!(event.contains("\"sender_dropped\":7"));
-        assert!(monitor.observe(route, &state, &engine, 8, later).is_none());
+        assert!(monitor
+            .observe(route, &state, &engine, sent(8), later)
+            .is_none());
         state.present(1, 1, vec![0; 4], 0, later, false);
-        let event = monitor.observe(route, &state, &engine, 8, later).unwrap();
+        let event = monitor
+            .observe(route, &state, &engine, sent(8), later)
+            .unwrap();
         assert!(event.contains("remote_video=live"));
         state.snapshot.remote_camera = false;
-        let event = monitor.observe(route, &state, &engine, 8, later).unwrap();
+        let event = monitor
+            .observe(route, &state, &engine, sent(8), later)
+            .unwrap();
         assert!(event.contains("remote_video=off"));
         let event = monitor
-            .observe(PeerTransport::Relayed, &state, &engine, 8, later)
+            .observe(PeerTransport::Relayed, &state, &engine, sent(8), later)
             .unwrap();
         assert!(event.contains("route=Relayed"));
     }
@@ -186,22 +265,74 @@ mod tests {
         };
         let mut monitor = Monitor::default();
         let event = monitor
-            .observe(route, &state, &engine(1.0, 0.0), 0, now)
+            .observe(route, &state, &engine(1.0, 0.0), sent(0), now)
             .unwrap();
         assert!(event.contains("microphone=true; capturing=true; hearing=false"));
         assert!(event.contains("input=default; output=default"));
         let event = monitor
-            .observe(route, &state, &engine(1.0, 2.0), 0, now)
+            .observe(route, &state, &engine(1.0, 2.0), sent(0), now)
             .unwrap();
         assert!(event.contains("capturing=true; hearing=true"));
         let second = now + Duration::from_secs(1);
         assert!(monitor
-            .observe(route, &state, &engine(1.0, 2.0), 0, second)
+            .observe(route, &state, &engine(1.0, 2.0), sent(0), second)
             .is_none());
         let later = now + Duration::from_secs(3);
         let event = monitor
-            .observe(route, &state, &engine(1.0, 2.0), 0, later)
+            .observe(route, &state, &engine(1.0, 2.0), sent(0), later)
             .unwrap();
         assert!(event.contains("capturing=false; hearing=false"));
+    }
+
+    #[test]
+    fn losses_are_logged_with_the_longest_stalls_while_status_holds() {
+        let now = Instant::now();
+        let state = State::default();
+        let route = PeerTransport::Direct;
+        let engine = |full: u64, stale: u64| json!({"connection":"Connected", "queue_dropped": {"full": full, "stale": stale}});
+        let stalled = |step_ms: u64, drain_ms: u64| Pipeline {
+            stalls: Stalls {
+                step: Duration::from_millis(step_ms),
+                lock_wait: Duration::from_millis(step_ms / 10),
+                drain: Duration::from_millis(drain_ms),
+            },
+            ..Default::default()
+        };
+        let mut monitor = Monitor::default();
+        let event = monitor
+            .observe(route, &state, &engine(0, 0), stalled(20, 3), now)
+            .unwrap();
+        assert!(event.contains("\"stalls_max_ms\":{\"drain\":3,\"lock_wait\":2,\"step\":20}"));
+        let soon = now + Duration::from_secs(9);
+        assert!(monitor
+            .observe(route, &state, &engine(0, 5), stalled(310, 4), soon)
+            .is_none());
+        let later = now + Duration::from_secs(10);
+        let event = monitor
+            .observe(route, &state, &engine(2, 5), stalled(40, 2), later)
+            .unwrap();
+        assert!(event.contains("\"engine_dropped\":{\"full\":2,\"stale\":5}"));
+        assert!(event.contains("\"stalls_max_ms\":{\"drain\":4,\"lock_wait\":31,\"step\":310}"));
+        let sender_losing = Pipeline {
+            sender_dropped: 3,
+            ..stalled(40, 2)
+        };
+        let event = monitor
+            .observe(
+                route,
+                &state,
+                &engine(2, 5),
+                sender_losing,
+                later + Duration::from_secs(10),
+            )
+            .unwrap();
+        assert!(event.contains("\"sender_dropped\":3"));
+        let quiet = later + Duration::from_secs(30);
+        assert!(
+            monitor
+                .observe(route, &state, &engine(2, 5), sender_losing, quiet)
+                .is_none(),
+            "no new losses, no line"
+        );
     }
 }
