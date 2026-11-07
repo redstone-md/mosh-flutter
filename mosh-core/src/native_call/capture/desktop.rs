@@ -1,4 +1,7 @@
-use super::{wall_ms, Captured};
+use super::{
+    helper::{Exit, Helper},
+    wall_ms, Captured,
+};
 // The owner can kill and reap a blocked driver without blocking audio.
 use super::super::{
     library::{artifact, MAX_RGBA},
@@ -7,7 +10,7 @@ use super::super::{
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use std::{
     io::{BufRead, BufReader, Read},
-    process::{Child, Command, Stdio},
+    process::{ChildStdin, ChildStdout, Command, Stdio},
     sync::{Arc, Mutex},
     thread::JoinHandle,
     time::{Duration, Instant},
@@ -22,7 +25,8 @@ struct Output {
 }
 
 pub(crate) struct Capture {
-    child: Child,
+    helper: Helper,
+    stdin: Option<ChildStdin>,
     output: Arc<Mutex<Output>>,
     started: Instant,
     stderr: Option<JoinHandle<Vec<u8>>>,
@@ -42,6 +46,7 @@ impl Capture {
             .map_err(|error| error.to_string())?;
         let stdout = child.stdout.take().ok_or("missing camera output")?;
         let stderr = child.stderr.take().ok_or("missing camera diagnostics")?;
+        let stdin = child.stdin.take();
         let stderr = Some(std::thread::spawn(move || read_stderr(stderr)));
         let output = Arc::new(Mutex::new(Output::default()));
         let sink = output.clone();
@@ -52,7 +57,8 @@ impl Capture {
             output.done = true;
         });
         Ok(Self {
-            child,
+            helper: Helper::new(child),
+            stdin,
             output,
             started: Instant::now(),
             stderr,
@@ -61,7 +67,7 @@ impl Capture {
     }
 
     pub fn failed(&mut self) -> bool {
-        let status = self.child.try_wait();
+        let status = self.helper.try_wait();
         let output = self
             .output
             .lock()
@@ -71,8 +77,8 @@ impl Capture {
                 "output ended: {}",
                 output.error.as_deref().unwrap_or("EOF")
             ))
-        } else if let Ok(Some(status)) = &status {
-            Some(format!("helper exited: {status}"))
+        } else if let Ok(Some(exit)) = &status {
+            Some(format!("helper exited: {exit}"))
         } else if let Err(error) = status {
             Some(format!("waiting for helper: {error}"))
         } else if output.ready.map_or_else(
@@ -112,12 +118,12 @@ impl Capture {
 }
 impl Drop for Capture {
     fn drop(&mut self) {
-        let exited = self.child.try_wait().ok().flatten();
-        drop(self.child.stdin.take());
-        if exited.is_none() {
-            let _ = self.child.kill();
-        }
-        let status = self.child.wait();
+        let exited = self.helper.try_wait().ok().flatten();
+        drop(self.stdin.take());
+        let status = self.helper.stop().map_or_else(
+            |error| format!("unknown ({error})"),
+            |exit| exit.to_string(),
+        );
         let stderr = self
             .stderr
             .take()
@@ -129,7 +135,7 @@ impl Drop for Capture {
             LogLevel::Info
         };
         let message = format!(
-            "camera capture stopped: reason={}; exit={status:?}; terminated_by_owner={}; stderr={}",
+            "camera capture stopped: reason={}; exit={status}; terminated_by_owner={}; stderr={}",
             self.failure.as_deref().unwrap_or("camera disabled"),
             exited.is_none(),
             String::from_utf8_lossy(&stderr).trim(),
@@ -243,36 +249,43 @@ fn helper_command(executable: std::path::PathBuf) -> Command {
 }
 
 pub(crate) struct Query {
-    child: Child,
+    helper: Helper,
+    stdout: Option<ChildStdout>,
     started: Instant,
 }
 impl Query {
     pub fn start() -> Result<Self, String> {
-        let child = helper()?
-            .arg("--list")
+        Self::spawn(helper()?.arg("--list"))
+    }
+    fn spawn(command: &mut Command) -> Result<Self, String> {
+        let mut child = command
             .stdin(Stdio::null())
             .spawn()
             .map_err(|error| error.to_string())?;
         Ok(Self {
-            child,
+            stdout: child.stdout.take(),
+            helper: Helper::new(child),
             started: Instant::now(),
         })
     }
     pub fn poll(&mut self) -> Option<Result<Vec<Device>, String>> {
-        let finished = match self.child.try_wait() {
+        let finished = match self.helper.try_wait() {
             Ok(status) => status,
             Err(error) => return Some(Err(format!("camera enumeration wait: {error}"))),
         };
         if finished.is_none() && self.started.elapsed() < Duration::from_secs(3) {
             return None;
         }
-        let Some(status) = finished else {
+        let Some(exit) = finished else {
             return Some(Err("camera enumeration timed out".into()));
         };
-        if !status.success() {
-            return Some(Err(format!("camera enumeration exited: {status}")));
+        // A status collected elsewhere is unknown; the JSON on stdout decides.
+        if let Exit::Status(status) = exit {
+            if !status.success() {
+                return Some(Err(format!("camera enumeration exited: {status}")));
+            }
         }
-        let Some(stdout) = self.child.stdout.take() else {
+        let Some(stdout) = self.stdout.take() else {
             return Some(Err("missing camera enumeration output".into()));
         };
         Some(read_devices(stdout))
@@ -280,8 +293,7 @@ impl Query {
 }
 impl Drop for Query {
     fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+        let _ = self.helper.stop();
     }
 }
 
@@ -329,6 +341,18 @@ Add-Type -Name CameraConsole -Namespace Mosh -MemberDefinition '[DllImport("kern
             String::from_utf8_lossy(&output.stderr)
         );
         assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "0");
+    }
+    #[cfg(unix)]
+    #[test]
+    fn enumeration_reaped_by_another_waiter_still_returns_devices() {
+        // dart:io's exit-code handler collects any child while the call window runs.
+        let mut command = helper_command("sh".into());
+        command.args(["-c", r#"printf '[{"id":"usb","name":"USB 2.0 Camera"}]'"#]);
+        let mut query = Query::spawn(&mut command).unwrap();
+        super::super::helper::reap_elsewhere(query.helper.id());
+        let devices = query.poll().unwrap().unwrap();
+        assert_eq!(devices.len(), 1);
+        assert_eq!(devices[0].name, "USB 2.0 Camera");
     }
     #[test]
     fn validates_camera_header_before_allocating_and_never_formats_pixels() {
