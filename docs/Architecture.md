@@ -372,15 +372,14 @@ command. `VoiceCallHost` lives in the router's persistent outer ShellRoute,
 below the first-run gate and root Navigator. Native device dialogs therefore
 use the real modal/back stack, while all conversation/settings routes share one host. It
 selects the originating call from the app-wide DM list, so navigation does not
-replace or dispose the audio owner. Capture, playback and ringtone retain their
-independent factory providers. Audio replacement waits for the previous startup
-and teardown, and cancelled work cannot send or play frames.
+rebind or release the call's native media. The ringtone keeps its own factory
+provider.
 
 Desktop call controls run in a separate process of the same executable. This
 isolates each renderer and lets the parent terminate an unresponsive child. Stdio
 carries presentation metadata and commands without listening ports. The child
 starts only the shared view and ordinary window plugins, without initializing
-Rust or storage. Display metadata contains no call keys or audio handles; commands
+Rust or storage. Display metadata contains no media handles; commands
 carry both session and call IDs. Main-process state remains authoritative.
 An application-level strip keeps messaging usable and can restore the window.
 Ringtone and no-answer timeout belong to the call state. The supplied PCM recording

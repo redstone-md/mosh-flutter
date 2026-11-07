@@ -38,8 +38,8 @@ when Mosh is stopped, or guarantee calls after dismissing/locking its Activity.
   for an older call's control.
   Automatic setup-failure completion uses the same serialized terminal path.
   The main window retains its navigation and dialog Escape shortcuts.
-- The microphone button becomes available after capture and playback start.
-  Muting suppresses outgoing frames. A setup error retains hang-up controls when
+- The microphone button follows the engine's microphone state, and muting is
+  the engine's microphone choice. A setup error retains hang-up controls when
   signaling also fails.
 - Incoming calls time out after 30 seconds. Answer, decline, cancel and end stop
   the ringtone immediately. Failed controls remain retryable.
@@ -97,15 +97,10 @@ promotes another session that still contains a call; there is no call-waiting UI
 When there is no retained owner, selection prefers an already active call over
 pending or outgoing calls, irrespective of the DM list order.
 
-The legacy mobile/baseline voice path uses one shared audio orchestrator to
-serialize replacement. Cancellation stops frame
-work immediately; startup and teardown must finish before another capture or
-player opens. Delayed controls, setup failures and drain responses are tied to
-their session and call IDs and cannot affect a replacement call.
+Delayed controls and setup failures are tied to their session and call IDs
+and cannot affect a replacement call.
 Starting a call refreshes the DM list before admission; a failed fresh read
 blocks the start even if an older cached list contained no calls.
-Cancellation starts capture and playback teardown independently, so waiting for
-one handle cannot delay release of the other. Replacement still waits for both.
 
 Every desktop starts the same executable with `--mosh-call-window` in a separate
 process. `MOSH_CALL_WINDOW=1` also identifies child startup on hosts that omit Dart
