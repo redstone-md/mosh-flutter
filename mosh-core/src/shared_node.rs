@@ -19,7 +19,9 @@
 use std::sync::{Arc, Mutex};
 
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
-use crate::moss_ffi::{clear_event_log, MossFfiError, MossFfiRuntime, MossNode, MossNodeConfig};
+use crate::moss_ffi::{
+    clear_event_log, dual_protocol_port, MossFfiError, MossFfiRuntime, MossNode, MossNodeConfig,
+};
 
 /// The room the shared node is born in. Carries no conversation traffic — each
 /// conversation publishes in its own room — but a node must be born in some
@@ -205,26 +207,6 @@ fn start_with_port_fallback<T>(
         result = start(port);
     }
     result
-}
-
-/// A port currently free for both TCP and UDP (their port spaces are
-/// separate), or 0 to let Moss pick when no probe succeeds. Released before
-/// Moss binds it, so a racer can still take it; the start retry covers that.
-fn dual_protocol_port() -> u16 {
-    const PROBE_ATTEMPTS: usize = 16;
-    (0..PROBE_ATTEMPTS)
-        .find_map(|_| {
-            // Probe UDP first: on Windows, the OS ephemeral UDP allocator avoids
-            // excluded ranges (e.g. WinNAT/Hyper-V), whereas probing TCP first can
-            // return a port that is forbidden for UDP (WSAEACCES 10013).
-            let udp = std::net::UdpSocket::bind(("0.0.0.0", 0)).ok()?;
-            let port = udp.local_addr().ok()?.port();
-            let tcp = std::net::TcpListener::bind(("0.0.0.0", port)).ok()?;
-            drop(tcp);
-            drop(udp);
-            Some(port)
-        })
-        .unwrap_or(0)
 }
 
 fn start_node_on(

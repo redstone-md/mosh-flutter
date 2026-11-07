@@ -40,7 +40,9 @@ pub use callbacks::{
     snapshot_event_log, wait_for_payload,
 };
 use callbacks::{keystore_load, keystore_save, on_moss_event, on_moss_message, on_stream_payload};
-pub use config::{current_bind_interface, node_config_json, set_bind_interface};
+pub use config::{
+    current_bind_interface, dual_protocol_port, node_config_json, set_bind_interface,
+};
 pub use info::library_version_once;
 pub use packets::PACKET_INBOX_CHANNEL_PREFIX;
 use symbols::*;

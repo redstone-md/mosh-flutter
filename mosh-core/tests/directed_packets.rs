@@ -1,6 +1,6 @@
 //! Real-process checks: Moss's keystore is global within each installation.
 use mosh_core::moss_ffi::{
-    drain_received_messages, MossFfiRuntime, PACKET_INBOX_CHANNEL_PREFIX,
+    drain_received_messages, dual_protocol_port, MossFfiRuntime, PACKET_INBOX_CHANNEL_PREFIX,
     STREAM_INBOX_CHANNEL_PREFIX,
 };
 use serde_json::{json, Value};
@@ -161,7 +161,7 @@ fn exchange(sender: &mut Peer, receiver: &mut Peer) {
 fn packet_worker() {
     let mesh = std::env::var("MOSH_PACKET_TEST_MESH").unwrap();
     let runtime = Arc::new(MossFfiRuntime::load_default().unwrap());
-    let config = json!({"listen_port":0,"trackers":[],"dht_enabled":false,"lan_discovery_enabled":false,"nat":{"upnp_enabled":false,"natpmp_enabled":false,"pcp_enabled":false}});
+    let config = json!({"listen_port":dual_protocol_port(),"trackers":[],"dht_enabled":false,"lan_discovery_enabled":false,"nat":{"upnp_enabled":false,"natpmp_enabled":false,"pcp_enabled":false}});
     let node = runtime.init_node(&mesh, &config.to_string()).unwrap();
     if std::env::var("MOSH_PACKET_TEST_ORDER").unwrap() == "packets" {
         node.set_packet_callback().unwrap();
