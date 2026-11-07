@@ -48,7 +48,7 @@ impl Helper {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub fn id(&self) -> u32 {
         self.child.id()
     }
