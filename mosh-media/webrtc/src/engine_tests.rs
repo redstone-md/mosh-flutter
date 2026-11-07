@@ -48,7 +48,7 @@ fn transfer(from: &mut Engine, to: &mut Engine) {
         .unwrap();
     let mut buffer = [0; MAX_PACKET];
     loop {
-        let length = from.carrier.copy_packet(&mut buffer);
+        let length = from.carrier.outgoing().copy_packet(&mut buffer);
         if length <= 0 {
             break;
         }
