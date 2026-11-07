@@ -32,6 +32,19 @@ use message_log::LogError;
 /// The pinned Moss node uses its default application-payload ceiling.
 pub(crate) const MAX_PUBLISH_BYTES: usize = 65_536;
 
+/// The longest text any conversation kind sends or accepts, in characters
+/// (Unicode scalar values). Four bytes a character still leaves every
+/// envelope far under [`MAX_PUBLISH_BYTES`].
+pub(crate) const MAX_TEXT_CHARS: usize = 4096;
+
+/// Whether `body` is within [`MAX_TEXT_CHARS`]. Sends, received channel and
+/// group texts and history validation share it, so what one device keeps
+/// another accepts. Received DMs are not held to it: older clients could
+/// send longer ones.
+pub(crate) fn text_fits(body: &str) -> bool {
+    body.chars().count() <= MAX_TEXT_CHARS
+}
+
 /// Wall-clock milliseconds. Zero if the system clock is set before the epoch,
 /// which only a badly set machine reports.
 pub fn now_ms() -> u64 {

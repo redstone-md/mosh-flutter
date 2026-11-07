@@ -80,6 +80,8 @@
   "chatEmptyTitle": "Сообщений пока нет.",
   "chatEmptyBody": "Когда собеседник присоединится и завершится MLS-рукопожатие, открытый текст останется только на ваших устройствах.",
   "chatComposerPlaceholder": "Напишите сообщение…",
+  "chatComposerCharactersLeft": "{count, plural, one{Остался {count} символ} few{Осталось {count} символа} other{Осталось {count} символов}}",
+  "chatComposerCharactersOver": "{count, plural, one{На {count} символ больше лимита} few{На {count} символа больше лимита} other{На {count} символов больше лимита}}",
   "chatSendLabel": "Отправить",
   "messageCopyText": "Копировать сообщение",
   "messageCopySelectedText": "Копировать выделенное",

@@ -6,6 +6,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/features/conversation/conversation_text_sends.dart'
+    show maxTextCharsProvider;
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
@@ -62,4 +64,34 @@ void main() {
       expect(find.text('fresh'), findsOneWidget);
     });
   }
+
+  testWidgets('the composer counts down to the runtime limit and stops there',
+      (tester) async {
+    final gateway = ScriptableGateway();
+    final bridge = ScriptableBridge(conversations: gateway.conversations);
+    final invite = await bridge.createInvite(
+      request:
+          const StartSessionRequest(displayName: 'alice', listenPort: 8765),
+    );
+    gateway.seedSessions([TestSnapshots.dm(sessionId: invite.sessionId)]);
+    Finder counter(String label) => find.byWidgetPredicate(
+        (widget) => widget is Text && widget.semanticsLabel == label);
+    await pumpScreen(tester, DmScreen(sessionId: invite.sessionId), overrides: [
+      gatewayProvider.overrideWithValue(gateway),
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      maxTextCharsProvider.overrideWithValue(10),
+    ]);
+
+    await tester.enterText(find.byType(TextField).first, 'x' * 9);
+    await tester.pump();
+    expect(counter('1 character left'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, 'x' * 12);
+    await tester.pump();
+    expect(counter('2 characters over the limit'), findsOneWidget);
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+    expect(gateway.conversations.sessions[invite.sessionId]?.messages ?? [],
+        isEmpty);
+  });
 }

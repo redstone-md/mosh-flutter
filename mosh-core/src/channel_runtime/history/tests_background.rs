@@ -122,3 +122,16 @@ fn record(id: &str, author: Option<&SigningKey>) -> ChannelRecord {
         }),
     }
 }
+
+// The limit is in characters on both ends: a channel text of 4096 emoji
+// (16 KiB) that a peer may send must also be a valid history record.
+#[test]
+fn history_accepts_a_text_at_the_character_limit() {
+    let at_limit = "😀".repeat(crate::conversation::MAX_TEXT_CHARS);
+    let mut fits = record("limit", None);
+    fits.content = records::Content::Text(at_limit.clone());
+    assert!(fits.validate("channel:background-history").is_ok());
+    let mut over = record("limit", None);
+    over.content = records::Content::Text(at_limit + "😀");
+    assert!(over.validate("channel:background-history").is_err());
+}

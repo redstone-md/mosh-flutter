@@ -8,7 +8,7 @@ impl ChannelRuntime {
         name: &str,
         body: String,
     ) -> Result<ChannelSendResult, ChannelRuntimeError> {
-        if body.len() > MAX_BODY_LEN {
+        if !crate::conversation::text_fits(&body) {
             return Err(ChannelRuntimeError::BodyTooLarge);
         }
         self.drain_inbound()?;

@@ -9,7 +9,7 @@
 //! returning some other kind's error.
 
 use super::{
-    cancel_attachment, download_attachment, leave, retry, send, send_attachment,
+    cancel_attachment, download_attachment, leave, max_text_chars, retry, send, send_attachment,
     BridgeAttachmentPayload, BridgeConversationKind, BridgeConversationRef,
 };
 use crate::api::conversation_bridge::ConversationBridgeErrorKind;
@@ -226,6 +226,19 @@ fn send_attachment_rejects_an_undecodable_payload() {
         "message should say the payload was not base64; was: {}",
         error.message
     );
+}
+
+/// The bridge refuses an over-limit text of any kind before a runtime sees
+/// it; each runtime's own tests prove a text at the limit goes through.
+#[test]
+fn send_refuses_a_text_over_the_limit_before_any_runtime() {
+    let limit = max_text_chars() as usize;
+    let error = send(
+        conv_ref(BridgeConversationKind::Channel, "any-channel"),
+        "😀".repeat(limit + 1),
+    )
+    .unwrap_err();
+    assert_eq!(error.kind, ConversationBridgeErrorKind::PayloadTooLarge);
 }
 
 /// All six actions against one real DM session living inside the real
