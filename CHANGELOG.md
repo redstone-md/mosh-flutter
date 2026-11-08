@@ -6,6 +6,26 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.28.2] - 2026-11-08
+
+### Fixed
+
+- Video calls: a short pause in the stream keeps the last picture on screen
+  instead of blanking it. The waiting placeholder appears only after a longer
+  pause, and turning a camera off still clears the picture at once.
+- Video calls take less CPU. The call window receives video at the size it
+  shows it, not as full 720p frames, while the other side still gets the
+  whole camera.
+- Video calls: incoming audio and video no longer arrive in bursts when the
+  device is busy, which caused delay and choppy sound.
+- A message to an offline contact is tried once and then waits for the
+  contact, instead of being encrypted and logged twice a second.
+
+### Changed
+
+- Call logs report which phase of the call step stalls and how long video
+  waits in the jitter buffer.
+
 ## [0.28.1] - 2026-11-07
 
 ### Fixed
