@@ -70,14 +70,16 @@ class CallVideoRenderer extends ValueNotifier<CallVideoImages> {
       return false;
     }
     frame.validate();
-    if (frame.sourceAgeMs >= 1000) return false;
+    if (frame.sourceAgeMs >= CallVideoFrame.lifetimeMs) return false;
     final elapsed = Stopwatch()..start();
     _decoding = true;
     final generation = _generation;
     try {
       final image = await decode(frame);
       final age = frame.sourceAgeMs + elapsed.elapsedMilliseconds;
-      if (generation != _generation || !_matches(frame) || age >= 1000) {
+      if (generation != _generation ||
+          !_matches(frame) ||
+          age >= CallVideoFrame.lifetimeMs) {
         image.dispose();
         return false;
       }
@@ -86,8 +88,9 @@ class CallVideoRenderer extends ValueNotifier<CallVideoImages> {
       old?.dispose(); // RawImage keeps its own clone until its next update.
       _sequence[lane] = frame.sequence;
       _expiry[lane]?.cancel();
-      _expiry[lane] =
-          Timer(Duration(milliseconds: 1000 - age), () => _clear(frame.local));
+      _expiry[lane] = Timer(
+          Duration(milliseconds: CallVideoFrame.lifetimeMs - age),
+          () => _clear(frame.local));
       return true;
     } finally {
       _decoding = false;

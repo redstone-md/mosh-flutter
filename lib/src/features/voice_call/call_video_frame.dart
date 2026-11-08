@@ -14,6 +14,9 @@ class CallVideoFrame {
       required this.pixels,
       this.sourceAgeMs = 0});
 
+  /// How long a frame stays on screen when no newer one follows, and the age
+  /// past which a frame is never drawn. A shorter stall freezes the picture.
+  static const lifetimeMs = 5000;
   static const maximumBytes = 1920 * 1080 * 4;
   static const maximumMetadataBytes = 1024;
   static const magic = [77, 67, 70, 49]; // MCF1
