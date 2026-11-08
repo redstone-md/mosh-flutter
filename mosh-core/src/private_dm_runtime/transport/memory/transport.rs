@@ -53,7 +53,7 @@ impl DmTransport for MemoryTransport {
         let mut state = self.net.lock();
         let mut refused = false;
         if let Some(endpoint) = state.endpoints.get_mut(&self.peer_id) {
-            endpoint.publishes.push(channel.to_string());
+            *endpoint.publishes.entry(channel.to_string()).or_default() += 1;
             refused = endpoint.refuse_publishes;
         }
         let targets: Vec<(String, Option<DropRule>)> = state
