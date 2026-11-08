@@ -1,6 +1,7 @@
 //! Log media state transitions, not frames, so field logs can locate a stall.
 use super::state::State;
 use crate::private_dm_runtime::transport::PeerTransport;
+use serde::{Serialize, Serializer};
 use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 
@@ -45,6 +46,13 @@ impl Status {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct Longest(pub Duration);
 
+impl Serialize for Longest {
+    /// As whole milliseconds, the log's unit for every pause.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_u128(self.0.as_millis())
+    }
+}
+
 impl Longest {
     /// Keeps the time since `started` if it is the longest yet.
     pub fn since(&mut self, started: Instant) {
@@ -56,8 +64,8 @@ impl Longest {
     }
 }
 
-/// The longest pauses that hold call media back.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+/// The longest pauses that hold call media back, logged as `stalls_max_ms`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
 pub(crate) struct Stalls {
     /// One owner step; the phases below are the parts of it that may run long.
     pub step: Longest,
@@ -85,14 +93,6 @@ impl Stalls {
         self.present.include(other.present);
         self.lock_wait.include(other.lock_wait);
         self.drain.include(other.drain);
-    }
-
-    fn describe(&self) -> Value {
-        let ms = |longest: Longest| longest.0.as_millis();
-        json!({"step": ms(self.step), "capture": ms(self.capture),
-            "statistics": ms(self.statistics), "tick": ms(self.tick),
-            "present": ms(self.present), "lock_wait": ms(self.lock_wait),
-            "drain": ms(self.drain)})
     }
 }
 
@@ -202,7 +202,7 @@ impl Monitor {
         let metrics = json!({"video_age_ms": age.map(|age| age.min(u128::from(u32::MAX)) as u32),
             "decoded": engine["decoded"], "sender_dropped": pipeline.sender_dropped,
             "engine_dropped": engine["queue_dropped"],
-            "stalls_max_ms": self.stalls.describe(), "audio": engine["audio"],
+            "stalls_max_ms": self.stalls, "audio": engine["audio"],
             "audio_sender": engine["audio_sender"],
             "video": engine["video"], "encoder": engine["encoder"]});
         let message = status.describe(state, &metrics);
