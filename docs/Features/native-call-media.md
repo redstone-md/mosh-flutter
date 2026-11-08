@@ -221,7 +221,8 @@ pipe (`call-video-surfaces`), Android's host takes them directly, and the
 native call owner passes them to `show_video_at`. The engine scales decoded
 I420 down with libyuv before its RGBA conversion (the `surface` command), and
 the local preview goes through the engine's stateless libyuv scaler
-(`mosh_media_scale_rgba`) before it is presented. Both keep the aspect ratio
+(`mosh_media_scale_rgba`) before the owner takes the call state lock, fitted
+to the surface of the previous step. Both keep the aspect ratio
 and never enlarge; until a surface is reported frames stay whole. The encoder
 still takes the full camera frame.
 

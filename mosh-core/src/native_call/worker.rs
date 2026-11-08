@@ -1,9 +1,9 @@
 use super::{
-    capture::{Capture, Query},
+    capture::{Capture, Prepared, Query},
     connection::Connection,
     packets::Sender,
     state::State,
-    types::{Choices, Context, Signal},
+    types::{Choices, Context, Signal, Surface},
 };
 use crate::private_dm_runtime::transport::DmTransport;
 use serde_json::json;
@@ -20,6 +20,10 @@ struct Owner {
     camera_inventory_ready: bool,
     choices: Choices,
     captured: u64,
+    /// Bumped whenever capture starts or stops, so stale prepared frames drop.
+    generation: u64,
+    /// The local surface seen by the last step; previews are fitted to it.
+    surface: Surface,
     capture_id: Option<String>,
     query_after: Instant,
     negotiation_since: Option<Instant>,
@@ -29,6 +33,7 @@ struct Owner {
 pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
     let mut owner = Owner::new(transport.clone());
     loop {
+        let prepared = owner.prepare();
         let waiting = Instant::now();
         let mut state = shared.lock().unwrap_or_else(|error| error.into_inner());
         let lock_wait = super::diagnostics::Longest(waiting.elapsed());
@@ -36,7 +41,7 @@ pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
             return;
         }
         let stepping = Instant::now();
-        if let Err(_error) = owner.step(&mut state, &*transport) {
+        if let Err(_error) = owner.step(&mut state, &*transport, prepared) {
             state.snapshot.failed = true;
         }
         state.applied = state.revision;
@@ -57,6 +62,8 @@ impl Owner {
             camera_inventory_ready: false,
             choices: Choices::default(),
             captured: 0,
+            generation: 0,
+            surface: Surface::default(),
             capture_id: None,
             query_after: Instant::now(),
             negotiation_since: None,
@@ -64,7 +71,20 @@ impl Owner {
         }
     }
 
-    fn step(&mut self, state: &mut State, transport: &dyn DmTransport) -> Result<(), String> {
+    /// Fetches the latest capture frame and scales its preview outside the
+    /// call state lock.
+    fn prepare(&self) -> Option<Prepared> {
+        let frame = self.capture.as_ref()?.frame(self.captured)?;
+        Some(Prepared::new(self.generation, frame, self.surface))
+    }
+
+    fn step(
+        &mut self,
+        state: &mut State,
+        transport: &dyn DmTransport,
+        prepared: Option<Prepared>,
+    ) -> Result<(), String> {
+        self.surface = state.surfaces[0];
         self.synchronize(state);
         let Some(context) = state.context.clone() else {
             transport.drain_call_packets();
@@ -76,7 +96,7 @@ impl Owner {
         }
         let capturing = Instant::now();
         self.query_cameras(state);
-        let captured = self.capture(state);
+        let captured = self.capture(state, prepared);
         state.stalls.capture.since(capturing);
         captured?;
         self.negotiate(&context, state, Instant::now())?;
@@ -128,7 +148,7 @@ impl Owner {
         self.context = state.context.clone();
     }
 
-    fn capture(&mut self, state: &mut State) -> Result<(), String> {
+    fn capture(&mut self, state: &mut State, prepared: Option<Prepared>) -> Result<(), String> {
         let changed = self.capture.is_some() && self.capture_id != state.choices.camera_id;
         if (!state.choices.camera && (self.capture.is_some() || state.snapshot.camera_requested))
             || changed
@@ -149,13 +169,11 @@ impl Owner {
             state.snapshot.camera_failed = true;
             self.stop_capture(state)?;
         }
-        if let Some(frame) = self
-            .capture
-            .as_ref()
-            .and_then(|capture| capture.frame(self.captured))
+        if let Some(prepared) =
+            prepared.filter(|p| self.capture.is_some() && p.generation == self.generation)
         {
-            self.captured = frame.sequence;
-            present_capture(&frame, state, self.connection.as_ref().map(|c| &c.engine));
+            self.captured = prepared.frame.sequence;
+            prepared.present(state, self.connection.as_ref().map(|c| &c.engine));
         }
         state.snapshot.camera_requested = state.choices.camera;
         state.snapshot.camera_starting = state.choices.camera && !state.snapshot.camera;
@@ -206,6 +224,7 @@ impl Owner {
     fn start_capture(&mut self, state: &mut State) {
         match Capture::start(state.choices.camera_id.as_deref()) {
             Ok(capture) => {
+                self.generation += 1;
                 self.capture_id = state.choices.camera_id.clone();
                 self.capture = Some(capture);
             }
@@ -228,6 +247,7 @@ impl Owner {
         // Reap the helper even when disabling a failed engine returns an error.
         self.capture = None;
         self.captured = 0;
+        self.generation += 1;
         state.frames[0] = None;
         state.snapshot.camera = false;
         disabled
@@ -302,22 +322,6 @@ impl Owner {
     }
 }
 
-/// The encoder takes the whole capture; the preview shrinks to its surface.
-pub(super) fn present_capture(
-    frame: &super::capture::Captured,
-    state: &mut State,
-    engine: Option<&super::library::Engine>,
-) {
-    if u128::from(frame.source_age_ms) + frame.received.elapsed().as_millis() >= 1000 {
-        return;
-    }
-    if let Some(engine) = engine {
-        engine.push(frame.width, frame.height, &frame.pixels);
-    }
-    state.preview(frame);
-    state.snapshot.camera = true;
-}
-
 fn warn(message: &str) {
     use crate::diagnostics_log::{kinds, write, LogLevel};
     write(LogLevel::Warn, kinds::CALL, "", message);
@@ -361,7 +365,8 @@ mod tests {
     }
 
     #[test]
-    fn delayed_capture_is_not_admitted_as_live_camera_video() {
+    fn a_frame_prepared_before_the_camera_stops_is_not_presented() {
+        let mut owner = Owner::new(MemoryNet::new().endpoint("local"));
         let mut state = State {
             context: Some(Context {
                 session_id: "dm".into(),
@@ -375,25 +380,19 @@ mod tests {
             }),
             ..Default::default()
         };
-        let mut frame = Captured {
-            sequence: 1,
+        state.snapshot.camera_requested = true; // Turned off since the frame was prepared.
+        let frame = Captured {
+            sequence: 7,
             width: 1,
             height: 1,
             pixels: vec![0; 4],
-            received: Instant::now() - Duration::from_millis(1100),
+            received: Instant::now(),
             source_age_ms: 0,
         };
-        present_capture(&frame, &mut state, None);
+        let prepared = Prepared::new(owner.generation, Arc::new(frame), Surface::default());
+        owner.capture(&mut state, Some(prepared)).unwrap();
+        assert!(state.frames[0].is_none());
         assert!(!state.snapshot.camera);
-        assert!(state.frames[0].is_none());
-        frame.received = Instant::now() - Duration::from_millis(600);
-        frame.source_age_ms = 500;
-        present_capture(&frame, &mut state, None);
-        assert!(state.frames[0].is_none());
-        frame.received = Instant::now();
-        frame.source_age_ms = 0;
-        present_capture(&frame, &mut state, None);
-        assert!(state.snapshot.camera);
-        assert!(state.frames[0].is_some());
+        assert_eq!(owner.captured, 0);
     }
 }

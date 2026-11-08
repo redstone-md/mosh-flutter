@@ -3,10 +3,9 @@
 use super::native::{forward, pair};
 use super::*;
 use crate::native_call::{
-    capture::Captured,
+    capture::{Captured, Prepared},
     state::State,
     types::{Context, Surface},
-    worker::present_capture,
     Hub,
 };
 use crate::private_dm_runtime::transport::PeerTransport;
@@ -35,15 +34,22 @@ fn presenting() -> State {
     }
 }
 
-fn capture(sequence: u64, pixels: &[u8]) -> Captured {
-    Captured {
+/// A 1280x720 capture prepared for `surface`, as the owner does before it locks.
+fn capture(sequence: u64, pixels: &[u8], surface: Surface) -> Prepared {
+    let frame = Captured {
         sequence,
         width: 1280,
         height: 720,
         pixels: pixels.to_vec(),
         received: Instant::now(),
         source_age_ms: 0,
-    }
+    };
+    Prepared::new(0, Arc::new(frame), surface)
+}
+
+fn preview(state: &Mutex<State>, sequence: u64, pixels: &[u8]) {
+    let surface = state.lock().unwrap().surfaces[0];
+    capture(sequence, pixels, surface).present(&mut state.lock().unwrap(), None);
 }
 
 #[test]
@@ -53,11 +59,11 @@ fn local_preview_reaches_the_window_at_its_surface_size() {
         state: state.clone(),
     };
     let red = [200, 40, 40, 255].repeat(1280 * 720);
-    state.lock().unwrap().preview(&capture(1, &red));
+    preview(&state, 1, &red);
     let whole = hub.frame("dm", "call", true, 0).unwrap();
     assert_eq!((whole.width, whole.height), (1280, 720), "no surface yet");
     hub.show_at(THUMBNAIL, Surface::default()).unwrap();
-    state.lock().unwrap().preview(&capture(2, &red));
+    preview(&state, 2, &red);
     let shown = hub.frame("dm", "call", true, whole.sequence).unwrap();
     assert_eq!(
         (shown.width, shown.height, shown.pixels.len()),
@@ -92,7 +98,7 @@ fn a_thumbnail_preview_still_sends_the_whole_camera() {
     while camera < 1280 && started.elapsed() < Duration::from_secs(10) {
         sequence += 1;
         pixels[..1280 * 4 * 90].fill((sequence * 9) as u8);
-        present_capture(&capture(sequence, &pixels), &mut state, Some(&caller));
+        capture(sequence, &pixels, state.surfaces[0]).present(&mut state, Some(&caller));
         forward(&mut caller, &mut callee);
         forward(&mut callee, &mut caller);
         let snapshot = caller.ask(json!({"action":"snapshot"})).unwrap();

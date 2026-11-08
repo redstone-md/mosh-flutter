@@ -1,5 +1,4 @@
 use super::{
-    capture::Captured,
     diagnostics::Stalls,
     types::{Choices, Context, Frame, Signal, Snapshot, Surface},
 };
@@ -58,33 +57,6 @@ impl State {
         }
         self.outbound
             .push_back((context.session_id.clone(), context.call_id.clone(), signal));
-    }
-
-    /// Presents the capture at most at the local surface's size; the
-    /// encoder takes the full frame separately. A scaler failure costs
-    /// presentation bandwidth, never the preview, and is logged once.
-    pub fn preview(&mut self, frame: &Captured) {
-        static FAILED: std::sync::Once = std::sync::Once::new();
-        let fitted =
-            super::library::scale_rgba(frame.width, frame.height, &frame.pixels, self.surfaces[0])
-                .unwrap_or_else(|error| {
-                    FAILED.call_once(|| {
-                        use crate::diagnostics_log::{kinds, write, LogLevel};
-                        let message = format!("preview scaling failed; sending it whole: {error}");
-                        write(LogLevel::Warn, kinds::CALL, "", &message);
-                    });
-                    None
-                });
-        let (width, height, pixels) =
-            fitted.unwrap_or_else(|| (frame.width, frame.height, frame.pixels.clone()));
-        self.present(
-            width,
-            height,
-            pixels,
-            frame.source_age_ms,
-            frame.received,
-            true,
-        );
     }
 
     pub fn present(
