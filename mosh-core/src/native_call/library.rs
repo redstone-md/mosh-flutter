@@ -1,7 +1,7 @@
 //! Load and use the isolated graph on its owning thread. Only its packets
 //! cross to another thread, which the engine joins on drop.
 use super::{
-    courier::{Courier, Packets, Wire},
+    courier::{Courier, PacketEnds, Wire},
     types::Binding,
 };
 use libloading::Library;
@@ -72,7 +72,7 @@ impl Engine {
         if handle.is_null() {
             return Err("native media creation failed".into());
         }
-        let packets = Packets {
+        let packets = PacketEnds {
             handle,
             receive,
             copy_packet,
@@ -100,7 +100,7 @@ impl Engine {
 
     /// The longest pause between two passes of the packet thread since the
     /// previous call.
-    pub fn take_longest_drain_gap(&self) -> Duration {
+    pub fn take_longest_pass_gap(&self) -> Duration {
         self.courier.take_longest_gap()
     }
 

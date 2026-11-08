@@ -122,7 +122,8 @@ impl Shared {
         self.changed.notify_one();
     }
 }
-/// Paces every call's outgoing packets to Moss on a thread of its own.
+/// Paces every call's outgoing packets to Moss on a thread of its own, and
+/// links each call's engine to Moss in both directions.
 pub(crate) struct Sender {
     shared: Arc<Shared>,
     transport: Arc<dyn DmTransport>,

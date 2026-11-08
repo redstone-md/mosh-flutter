@@ -26,7 +26,7 @@ pub(crate) trait Wire: Send {
 const PASS_INTERVAL: Duration = Duration::from_millis(2);
 
 /// The engine's packet ends, which the ABI lets any thread use.
-pub(super) struct Packets {
+pub(super) struct PacketEnds {
     pub handle: *mut c_void,
     pub receive: Receive,
     pub copy_packet: CopyPacket,
@@ -36,14 +36,13 @@ pub(super) struct Packets {
 // SAFETY: `receive`, `copy_packet` and `packet_priority` never touch the
 // engine's owner state, and `Engine::drop` joins the packet thread before
 // the handle goes.
-unsafe impl Send for Packets {}
+unsafe impl Send for PacketEnds {}
 
-impl Packets {
+impl PacketEnds {
+    /// The engine refuses malformed or early packets itself.
     fn deliver(&self, packet: &[u8]) {
-        if (7..=MAX_PACKET).contains(&packet.len()) {
-            // SAFETY: the engine outlives this thread; the packet is readable until return.
-            unsafe { (self.receive)(self.handle, packet.as_ptr(), packet.len()) };
-        }
+        // SAFETY: the engine outlives this thread; the packet is readable until return.
+        unsafe { (self.receive)(self.handle, packet.as_ptr(), packet.len()) };
     }
 
     fn copy(&self, buffer: &mut [u8; MAX_PACKET]) -> Option<usize> {
@@ -66,7 +65,7 @@ pub(super) struct Courier {
 }
 
 impl Courier {
-    pub fn start(packets: Packets, mut wire: Box<dyn Wire>) -> Result<Self, String> {
+    pub fn start(packets: PacketEnds, mut wire: Box<dyn Wire>) -> Result<Self, String> {
         let stop = Arc::new(AtomicBool::new(false));
         let longest_gap_ms = Arc::new(AtomicU64::new(0));
         let (stopping, longest) = (stop.clone(), longest_gap_ms.clone());

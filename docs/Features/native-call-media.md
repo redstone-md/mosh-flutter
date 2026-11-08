@@ -262,8 +262,9 @@ engine), `statistics` (engine snapshot and device refresh), `tick` (ICE
 candidates and libwebrtc's statistics) and `present` (copying the peer's frame);
 `lock_wait` (the owner waiting for the call state lock, which Dart's commands
 and frame reads also take) and `drain` (between two passes of the packet
-thread; about 2 ms is the baseline). A `drain` far above that means the whole
-process was starved of CPU. The `video` and `audio` metrics include
+thread; about 2 ms is the baseline). The thread only sleeps and copies, so a
+`drain` far above that points at the process not getting CPU time. Whatever
+`step` holds beyond its phases went to call negotiation and device choices. The `video` and `audio` metrics include
 `jitter_buffer_ms`, the average wait before playout. While the engine or the
 sender keeps dropping, the line repeats every 10 seconds even if the call
 status holds.

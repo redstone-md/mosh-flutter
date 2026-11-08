@@ -83,7 +83,7 @@ impl Carrier {
     }
 }
 
-/// Outgoing packets between libwebrtc's network thread and the egress thread.
+/// Outgoing packets between libwebrtc's network thread and mosh-core's packet thread.
 /// Audio and control have their own lane, so a video backlog cannot refuse them.
 pub struct Outgoing {
     lanes: Mutex<Lanes>,
