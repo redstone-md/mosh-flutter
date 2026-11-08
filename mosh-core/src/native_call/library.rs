@@ -1,17 +1,16 @@
 //! Load and use the isolated graph on its owning thread. Only its packets
 //! cross to another thread, which the engine joins on drop.
-use super::types::Binding;
+use super::{
+    courier::{Courier, Packets, Wire},
+    types::Binding,
+};
 use libloading::Library;
 use serde_json::{json, Value};
 use std::{
     ffi::{c_char, c_void, CStr, CString},
     path::PathBuf,
-    sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
-        Arc, OnceLock,
-    },
-    thread::JoinHandle,
-    time::{Duration, Instant},
+    sync::OnceLock,
+    time::Duration,
 };
 
 pub const MAX_RGBA: usize = 1920 * 1080 * 4;
@@ -20,8 +19,8 @@ type Create = unsafe extern "C" fn(*const c_char) -> *mut c_void;
 type Command = unsafe extern "C" fn(*mut c_void, *const c_char) -> *mut c_char;
 type Free = unsafe extern "C" fn(*mut c_char);
 type DropEngine = unsafe extern "C" fn(*mut c_void);
-type Receive = unsafe extern "C" fn(*mut c_void, *const u8, usize) -> i32;
-type CopyPacket = unsafe extern "C" fn(*mut c_void, *mut u8, usize) -> i32;
+pub(super) type Receive = unsafe extern "C" fn(*mut c_void, *const u8, usize) -> i32;
+pub(super) type CopyPacket = unsafe extern "C" fn(*mut c_void, *mut u8, usize) -> i32;
 type Push = unsafe extern "C" fn(*mut c_void, u32, u32, *const u8, usize) -> i32;
 type CopyFrame = unsafe extern "C" fn(*mut c_void, u64, *mut u8, usize, *mut FrameInfo) -> i32;
 
@@ -34,19 +33,6 @@ pub(crate) struct FrameInfo {
     pub rgba_bytes: u32,
     pub age_ms: u32,
 }
-
-/// The Moss side of one call's packets, which the engine's packet thread
-/// serves in both directions.
-pub(crate) trait Wire: Send {
-    /// Takes one outgoing packet and whether Moss sends it ahead of video.
-    fn send(&mut self, packet: &[u8], priority: bool);
-    /// Hands `deliver` every inbound packet that arrived since the last call.
-    fn receive(&mut self, deliver: &mut dyn FnMut(&[u8]));
-}
-
-/// Well inside the engine's 200 ms packet age, finer than libwebrtc's 5 ms
-/// pacing bursts, and short against its jitter buffer.
-const PASS_INTERVAL: Duration = Duration::from_millis(2);
 
 pub(crate) struct Engine {
     handle: *mut c_void,
@@ -115,7 +101,7 @@ impl Engine {
     /// The longest pause between two passes of the packet thread since the
     /// previous call.
     pub fn take_longest_drain_gap(&self) -> Duration {
-        Duration::from_millis(self.courier.longest_gap_ms.swap(0, Ordering::Relaxed))
+        self.courier.take_longest_gap()
     }
 
     pub fn ask(&mut self, value: Value) -> Result<Value, String> {
@@ -219,92 +205,6 @@ fn media_library() -> Result<&'static Library, String> {
         .map_err(Clone::clone)
 }
 
-/// The engine's packet ends, which the ABI lets any thread use.
-struct Packets {
-    handle: *mut c_void,
-    receive: Receive,
-    copy_packet: CopyPacket,
-    priority: Receive,
-}
-
-// SAFETY: `receive`, `copy_packet` and `packet_priority` never touch the
-// engine's owner state, and `Engine::drop` joins the packet thread before
-// the handle goes.
-unsafe impl Send for Packets {}
-
-impl Packets {
-    fn deliver(&self, packet: &[u8]) {
-        if (7..=MAX_PACKET).contains(&packet.len()) {
-            // SAFETY: the engine outlives this thread; the packet is readable until return.
-            unsafe { (self.receive)(self.handle, packet.as_ptr(), packet.len()) };
-        }
-    }
-
-    fn copy(&self, buffer: &mut [u8; MAX_PACKET]) -> Option<usize> {
-        // SAFETY: the engine outlives this thread; the buffer is exclusively writable.
-        let length = unsafe { (self.copy_packet)(self.handle, buffer.as_mut_ptr(), buffer.len()) };
-        (length > 0 && length as usize <= buffer.len()).then_some(length as usize)
-    }
-
-    fn priority(&self, packet: &[u8]) -> bool {
-        // SAFETY: the engine outlives this thread; the packet is readable until return.
-        unsafe { (self.priority)(self.handle, packet.as_ptr(), packet.len()) == 1 }
-    }
-}
-
-/// The thread that carries packets between the engine and its wire.
-struct Courier {
-    stop: Arc<AtomicBool>,
-    longest_gap_ms: Arc<AtomicU64>,
-    thread: Option<JoinHandle<()>>,
-}
-
-impl Courier {
-    fn start(packets: Packets, mut wire: Box<dyn Wire>) -> Result<Self, String> {
-        let stop = Arc::new(AtomicBool::new(false));
-        let longest_gap_ms = Arc::new(AtomicU64::new(0));
-        let (stopping, longest) = (stop.clone(), longest_gap_ms.clone());
-        let thread = std::thread::Builder::new()
-            .name("mosh-call-packets".into())
-            .spawn(move || {
-                let mut packet = [0; MAX_PACKET];
-                let mut passed = Instant::now();
-                while !stopping.load(Ordering::Acquire) {
-                    let gap = u64::try_from(passed.elapsed().as_millis()).unwrap_or(u64::MAX);
-                    longest.fetch_max(gap, Ordering::Relaxed);
-                    passed = Instant::now();
-                    wire.receive(&mut |inbound| packets.deliver(inbound));
-                    while let Some(length) = packets.copy(&mut packet) {
-                        wire.send(&packet[..length], packets.priority(&packet[..length]));
-                    }
-                    std::thread::sleep(PASS_INTERVAL);
-                }
-            })
-            .map_err(error)?;
-        Ok(Self {
-            stop,
-            longest_gap_ms,
-            thread: Some(thread),
-        })
-    }
-
-    fn stop(&mut self) {
-        self.stop.store(true, Ordering::Release);
-        if self
-            .thread
-            .take()
-            .is_some_and(|thread| thread.join().is_err())
-        {
-            crate::diagnostics_log::write(
-                crate::diagnostics_log::LogLevel::Error,
-                crate::diagnostics_log::kinds::CALL,
-                "",
-                "native media packet thread panicked; call packets stopped",
-            );
-        }
-    }
-}
-
 impl Drop for Engine {
     fn drop(&mut self) {
         // The packet thread borrows the handle, so it stops before the handle goes;
@@ -401,6 +301,6 @@ unsafe fn symbol<T: Copy>(library: &Library, name: &[u8]) -> Result<T, String> {
         .map_err(error)
 }
 
-fn error(error: impl std::fmt::Display) -> String {
+pub(super) fn error(error: impl std::fmt::Display) -> String {
     error.to_string()
 }

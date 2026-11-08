@@ -1,6 +1,6 @@
 //! A call's packets over Moss. A slow relay cannot stall capture, decoding
 //! or call commands.
-use super::library::Wire;
+use super::courier::Wire;
 use crate::private_dm_runtime::transport::DmTransport;
 use std::{
     collections::VecDeque,

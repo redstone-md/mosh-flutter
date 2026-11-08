@@ -1,7 +1,7 @@
 //! The engine's packets keep flowing both ways while the owner step stalls.
 use super::native::{forward, motion, pair, pattern};
 use super::*;
-use crate::native_call::library::{Engine, Wire};
+use crate::native_call::{courier::Wire, library::Engine};
 use crate::private_dm_runtime::transport::PeerTransport;
 use serde_json::json;
 use std::sync::atomic::{AtomicUsize, Ordering};

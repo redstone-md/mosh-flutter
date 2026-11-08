@@ -185,8 +185,8 @@ mod stall;
 mod native {
     use super::*;
     use crate::native_call::{
-        library::{Engine, Wire},
         types::Binding,
+        {courier::Wire, library::Engine},
     };
     use crate::private_dm_runtime::transport::PeerTransport;
     use serde_json::json;
