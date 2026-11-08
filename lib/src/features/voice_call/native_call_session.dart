@@ -177,7 +177,7 @@ class NativeCallSession {
         return;
       }
       final age = frame.sourceAgeMs + transfer.elapsedMilliseconds;
-      if (age >= 1000) return;
+      if (age >= CallVideoFrame.lifetimeMs) return;
       _sequence[lane] = frame.sequence;
       onFrame(CallVideoFrame(
           sessionId: frame.sessionId,

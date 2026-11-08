@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/voice_call/call_video_frame.dart';
 import 'package:mosh/src/features/voice_call/call_video_renderer.dart';
 import 'package:mosh/src/features/voice_call/call_media_view.dart';
 import 'package:mosh/src/features/voice_call/call_video_stage.dart';
@@ -41,7 +42,8 @@ void main() {
     await renderer.receive(testCallVideoFrame(1));
     await renderer.receive(testCallVideoFrame(1, local: true));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 900));
+    await tester
+        .pump(const Duration(milliseconds: CallVideoFrame.lifetimeMs - 100));
     await renderer.receive(testCallVideoFrame(2, local: true));
     await tester.pump(const Duration(milliseconds: 200));
     expect(renderer.value.remote, isNull);

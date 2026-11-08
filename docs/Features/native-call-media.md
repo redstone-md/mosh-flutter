@@ -215,8 +215,12 @@ handled, including a TCP reset during a frame write.
 
 Each lane retains its latest image, and the renderer has one decode in flight.
 Call/generation checks discard old responses, and image age includes transfer
-and decode time. Images expire after one second without fresh delivery. Camera
-off clears its image immediately. Rendering preserves aspect ratio, mirrors
+and decode time. A pause in delivery freezes the last image, as Meet and Zoom
+do; it expires only after five seconds without fresh delivery, and a frame
+already that old is never drawn (`CallVideoFrame.lifetimeMs`, shared by the
+main process filter and the renderer). The log's `stalled` state keeps its
+one-second meaning, so short pauses still show in field logs. Camera off, call
+end and a call change clear the image immediately. Rendering preserves aspect ratio, mirrors
 local preview and uses a small secondary preview over remote video. While the
 peer's camera remains enabled, an expired or not-yet-received remote frame shows
 "Waiting for video…" in the same stage and keeps local preview small. A
