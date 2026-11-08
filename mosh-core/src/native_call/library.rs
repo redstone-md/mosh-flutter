@@ -1,17 +1,16 @@
-//! Load and use the isolated graph on its owning thread. Only the outgoing
-//! packet queue crosses to another thread, which the engine joins on drop.
-use super::types::Binding;
+//! Load and use the isolated graph on its owning thread. Only its packets
+//! cross to another thread, which the engine joins on drop.
+use super::{
+    courier::{Courier, PacketEnds, Wire},
+    types::Binding,
+};
 use libloading::Library;
 use serde_json::{json, Value};
 use std::{
     ffi::{c_char, c_void, CStr, CString},
     path::PathBuf,
-    sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
-        Arc, OnceLock,
-    },
-    thread::JoinHandle,
-    time::{Duration, Instant},
+    sync::OnceLock,
+    time::Duration,
 };
 
 pub const MAX_RGBA: usize = 1920 * 1080 * 4;
@@ -20,8 +19,8 @@ type Create = unsafe extern "C" fn(*const c_char) -> *mut c_void;
 type Command = unsafe extern "C" fn(*mut c_void, *const c_char) -> *mut c_char;
 type Free = unsafe extern "C" fn(*mut c_char);
 type DropEngine = unsafe extern "C" fn(*mut c_void);
-type Receive = unsafe extern "C" fn(*mut c_void, *const u8, usize) -> i32;
-type CopyPacket = unsafe extern "C" fn(*mut c_void, *mut u8, usize) -> i32;
+pub(super) type Receive = unsafe extern "C" fn(*mut c_void, *const u8, usize) -> i32;
+pub(super) type CopyPacket = unsafe extern "C" fn(*mut c_void, *mut u8, usize) -> i32;
 type Push = unsafe extern "C" fn(*mut c_void, u32, u32, *const u8, usize) -> i32;
 type CopyFrame = unsafe extern "C" fn(*mut c_void, u64, *mut u8, usize, *mut FrameInfo) -> i32;
 
@@ -35,29 +34,22 @@ pub(crate) struct FrameInfo {
     pub age_ms: u32,
 }
 
-/// Takes each outgoing packet and whether Moss sends it ahead of video.
-pub(crate) type Sink = Box<dyn FnMut(&[u8], bool) + Send>;
-
-/// Well inside the engine's 200 ms packet age, and finer than libwebrtc's
-/// 5 ms pacing bursts.
-const DRAIN_INTERVAL: Duration = Duration::from_millis(2);
-
 pub(crate) struct Engine {
     handle: *mut c_void,
     command: Command,
     free: Free,
     drop_engine: DropEngine,
-    receive: Receive,
     push: Push,
     copy_frame: CopyFrame,
-    egress: Egress,
+    courier: Courier,
     _library: &'static Library,
 }
 
 impl Engine {
-    /// Starts the engine and hands every outgoing packet to `sink` from a
-    /// thread of its own, so a slow owner step cannot age packets out.
-    pub fn new(binding: &Binding, caller: bool, sink: Sink) -> Result<Self, String> {
+    /// Starts the engine and carries its packets over `wire` from a thread
+    /// of its own, so a slow owner step neither ages outgoing packets out
+    /// nor holds inbound ones back.
+    pub fn new(binding: &Binding, caller: bool, wire: Box<dyn Wire>) -> Result<Self, String> {
         let config =
             CString::new(json!({"binding":binding,"caller":caller}).to_string()).map_err(error)?;
         let library = media_library()?;
@@ -80,13 +72,14 @@ impl Engine {
         if handle.is_null() {
             return Err("native media creation failed".into());
         }
-        let queue = Packets {
+        let packets = PacketEnds {
             handle,
+            receive,
             copy_packet,
             priority,
         };
-        let egress = match Egress::start(queue, sink) {
-            Ok(egress) => egress,
+        let courier = match Courier::start(packets, wire) {
+            Ok(courier) => courier,
             Err(failure) => {
                 // SAFETY: no thread uses the handle yet; return it once.
                 unsafe { drop_engine(handle) };
@@ -98,18 +91,17 @@ impl Engine {
             command,
             free,
             drop_engine,
-            receive,
             push,
             copy_frame,
-            egress,
+            courier,
             _library: library,
         })
     }
 
-    /// The longest pause between two drains of the outgoing queue since the
+    /// The longest pause between two passes of the packet thread since the
     /// previous call.
-    pub fn take_longest_drain_gap(&self) -> Duration {
-        Duration::from_millis(self.egress.longest_gap_ms.swap(0, Ordering::Relaxed))
+    pub fn take_longest_pass_gap(&self) -> Duration {
+        self.courier.take_longest_gap()
     }
 
     pub fn ask(&mut self, value: Value) -> Result<Value, String> {
@@ -132,14 +124,6 @@ impl Engine {
             return Err(error.into());
         }
         Ok(value)
-    }
-
-    pub fn receive(&self, packet: &[u8]) -> bool {
-        if !(7..=MAX_PACKET).contains(&packet.len()) {
-            return false;
-        }
-        // SAFETY: retain both handle and readable packet until return.
-        unsafe { (self.receive)(self.handle, packet.as_ptr(), packet.len()) == 1 }
     }
 
     pub fn push(&self, width: u32, height: u32, pixels: &[u8]) -> bool {
@@ -221,87 +205,11 @@ fn media_library() -> Result<&'static Library, String> {
         .map_err(Clone::clone)
 }
 
-/// The engine's outgoing packet queue. The ABI lets any thread drain it.
-struct Packets {
-    handle: *mut c_void,
-    copy_packet: CopyPacket,
-    priority: Receive,
-}
-
-// SAFETY: `copy_packet` and `packet_priority` never touch the engine's owner
-// state, and `Engine::drop` joins the draining thread before the handle goes.
-unsafe impl Send for Packets {}
-
-impl Packets {
-    fn copy(&self, buffer: &mut [u8; MAX_PACKET]) -> Option<usize> {
-        // SAFETY: the engine outlives this thread; the buffer is exclusively writable.
-        let length = unsafe { (self.copy_packet)(self.handle, buffer.as_mut_ptr(), buffer.len()) };
-        (length > 0 && length as usize <= buffer.len()).then_some(length as usize)
-    }
-
-    fn priority(&self, packet: &[u8]) -> bool {
-        // SAFETY: the engine outlives this thread; the packet is readable until return.
-        unsafe { (self.priority)(self.handle, packet.as_ptr(), packet.len()) == 1 }
-    }
-}
-
-/// The thread that moves outgoing packets from the engine to the sink.
-struct Egress {
-    stop: Arc<AtomicBool>,
-    longest_gap_ms: Arc<AtomicU64>,
-    thread: Option<JoinHandle<()>>,
-}
-
-impl Egress {
-    fn start(queue: Packets, mut sink: Sink) -> Result<Self, String> {
-        let stop = Arc::new(AtomicBool::new(false));
-        let longest_gap_ms = Arc::new(AtomicU64::new(0));
-        let (stopping, longest) = (stop.clone(), longest_gap_ms.clone());
-        let thread = std::thread::Builder::new()
-            .name("mosh-call-egress".into())
-            .spawn(move || {
-                let mut packet = [0; MAX_PACKET];
-                let mut drained = Instant::now();
-                while !stopping.load(Ordering::Acquire) {
-                    let gap = u64::try_from(drained.elapsed().as_millis()).unwrap_or(u64::MAX);
-                    longest.fetch_max(gap, Ordering::Relaxed);
-                    drained = Instant::now();
-                    while let Some(length) = queue.copy(&mut packet) {
-                        sink(&packet[..length], queue.priority(&packet[..length]));
-                    }
-                    std::thread::sleep(DRAIN_INTERVAL);
-                }
-            })
-            .map_err(error)?;
-        Ok(Self {
-            stop,
-            longest_gap_ms,
-            thread: Some(thread),
-        })
-    }
-
-    fn stop(&mut self) {
-        self.stop.store(true, Ordering::Release);
-        if self
-            .thread
-            .take()
-            .is_some_and(|thread| thread.join().is_err())
-        {
-            crate::diagnostics_log::write(
-                crate::diagnostics_log::LogLevel::Error,
-                crate::diagnostics_log::kinds::CALL,
-                "",
-                "native media egress panicked; outgoing packets stopped",
-            );
-        }
-    }
-}
-
 impl Drop for Engine {
     fn drop(&mut self) {
-        // The egress thread borrows the handle, so it stops before the handle goes;
+        // The packet thread borrows the handle, so it stops before the handle goes;
         // fields drop only after this body, too late for that.
-        self.egress.stop();
+        self.courier.stop();
         // SAFETY: owner returns the unique handle before unloading its library.
         unsafe { (self.drop_engine)(self.handle) };
         #[cfg(target_os = "android")]
@@ -393,6 +301,6 @@ unsafe fn symbol<T: Copy>(library: &Library, name: &[u8]) -> Result<T, String> {
         .map_err(error)
 }
 
-fn error(error: impl std::fmt::Display) -> String {
+pub(super) fn error(error: impl std::fmt::Display) -> String {
     error.to_string()
 }

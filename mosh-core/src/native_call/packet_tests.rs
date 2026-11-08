@@ -161,7 +161,7 @@ fn packets_older_than_the_queue_deadline_are_never_sent() {
 fn transport_refusal_is_reported_without_requeueing() {
     let net = MemoryNet::new();
     let sender = Sender::new(net.endpoint("local"));
-    sender.sink("missing", &[9; 16])(&[2; 16], true);
+    sender.link("missing", &[9; 16]).send(&[2; 16], true);
     let deadline = Instant::now() + Duration::from_secs(1);
     while sender.dropped() == 0 {
         assert!(
@@ -185,8 +185,8 @@ mod stall;
 mod native {
     use super::*;
     use crate::native_call::{
-        library::{Engine, Sink},
         types::Binding,
+        {courier::Wire, library::Engine},
     };
     use crate::private_dm_runtime::transport::PeerTransport;
     use serde_json::json;
@@ -210,8 +210,8 @@ mod native {
         let mut decoded_pixels = vec![0; pixels.len()];
         let (mut caller, mut callee) = pair(
             true,
-            sending.sink("b", &[9; 16]),
-            returning.sink("a", &[9; 16]),
+            sending.link("b", &[9; 16]),
+            returning.link("a", &[9; 16]),
         );
         let started = Instant::now();
         let mut trace = trace::Trace::new(started);
@@ -231,8 +231,8 @@ mod native {
                 assert!(caller.push(640, 360, &pixels));
                 tick += 1;
             }
-            forward(&mut caller, &mut callee, &*a);
-            forward(&mut callee, &mut caller, &*b);
+            forward(&mut caller, &mut callee);
+            forward(&mut callee, &mut caller);
             let frame = callee.frame(sequence, &mut decoded_pixels);
             assert!(
                 sequence > 0 || started.elapsed() < Duration::from_secs(3),
@@ -296,7 +296,11 @@ mod native {
         );
     }
 
-    pub(super) fn pair(relayed: bool, caller_sink: Sink, callee_sink: Sink) -> (Engine, Engine) {
+    pub(super) fn pair(
+        relayed: bool,
+        caller_wire: Box<dyn Wire>,
+        callee_wire: Box<dyn Wire>,
+    ) -> (Engine, Engine) {
         let binding = Binding {
             session_id: "dm".into(),
             call_id: "call".into(),
@@ -304,8 +308,8 @@ mod native {
             callee: "b".into(),
             media_session: vec![9; 16],
         };
-        let mut caller = Engine::new(&binding, true, caller_sink).unwrap();
-        let mut callee = Engine::new(&binding, false, callee_sink).unwrap();
+        let mut caller = Engine::new(&binding, true, caller_wire).unwrap();
+        let mut callee = Engine::new(&binding, false, callee_wire).unwrap();
         let offer = caller.ask(json!({"action":"offer"})).unwrap();
         let answer = callee
             .ask(json!({"action":"remote", "description":offer}))
@@ -327,18 +331,15 @@ mod native {
         (caller, callee)
     }
 
-    /// Signals and inbound packets, as the owner step carries them; outgoing
-    /// packets leave through each engine's sink.
-    pub(super) fn forward(from: &mut Engine, to: &mut Engine, receive: &dyn DmTransport) {
+    /// The signals the owner step carries; packets travel over each
+    /// engine's wire.
+    pub(super) fn forward(from: &mut Engine, to: &mut Engine) {
         let gathered = from.ask(json!({"action":"tick"})).unwrap();
         to.ask(json!({"action":"tick", "candidates":gathered["candidates"]}))
             .unwrap();
-        for message in receive.drain_call_packets() {
-            assert!(from.receive(unwrap(&message.payload, &[9; 16]).unwrap()));
-        }
     }
 
-    fn pattern(pixels: &mut [u8], tick: usize) {
+    pub(super) fn pattern(pixels: &mut [u8], tick: usize) {
         for (index, pixel) in pixels.chunks_exact_mut(4).enumerate() {
             let x = index % 640;
             let y = index / 640;
@@ -357,7 +358,7 @@ mod native {
         }
     }
 
-    fn motion(pixels: &mut [u8], tick: usize) {
+    pub(super) fn motion(pixels: &mut [u8], tick: usize) {
         for row in pixels.chunks_exact_mut(640 * 4).skip(120).take(120) {
             for pixel in row[240 * 4..400 * 4].chunks_exact_mut(4) {
                 pixel.copy_from_slice(&[(tick * 7) as u8, (tick * 13) as u8, 128, 255]);

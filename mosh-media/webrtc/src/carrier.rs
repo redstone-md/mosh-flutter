@@ -1,11 +1,12 @@
 //! The engine's side of Moss: the virtual network, `MV1` framing (source
-//! port, destination port, UDP payload) and the bounded outgoing queue that
-//! mosh-core's egress thread drains with `copy_packet`.
+//! port, destination port, UDP payload) and the bounded outgoing queue.
+//! mosh-core's packet thread drains that queue and delivers inbound packets
+//! here, both without the engine's lock.
 use std::collections::VecDeque;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::sync::{
     Arc, Mutex,
-    atomic::{AtomicU64, Ordering},
+    atomic::{AtomicBool, AtomicU64, Ordering},
 };
 use std::time::{Duration, Instant};
 
@@ -24,6 +25,8 @@ pub struct Carrier {
     network: VirtualNetwork,
     peer: Ipv4Addr,
     outgoing: Arc<Outgoing>,
+    /// Set once negotiation has a remote side to deliver to.
+    accepting: AtomicBool,
 }
 
 impl Carrier {
@@ -42,6 +45,7 @@ impl Carrier {
             network,
             peer,
             outgoing,
+            accepting: AtomicBool::new(false),
         }
     }
 
@@ -54,8 +58,18 @@ impl Carrier {
         &self.outgoing
     }
 
+    /// Lets `receive` deliver; call once the remote description is set.
+    pub fn accept(&self) {
+        self.accepting.store(true, Ordering::Release);
+    }
+
+    /// Delivers one framed packet from Moss to its socket, from any thread.
     pub fn receive(&self, bytes: &[u8]) -> bool {
-        if bytes.len() < 7 || bytes.len() > MAX_PACKET || &bytes[..3] != b"MV1" {
+        if !self.accepting.load(Ordering::Acquire)
+            || bytes.len() < 7
+            || bytes.len() > MAX_PACKET
+            || &bytes[..3] != b"MV1"
+        {
             return false;
         }
         let source = u16::from_be_bytes([bytes[3], bytes[4]]);
@@ -69,7 +83,7 @@ impl Carrier {
     }
 }
 
-/// Outgoing packets between libwebrtc's network thread and the egress thread.
+/// Outgoing packets between libwebrtc's network thread and mosh-core's packet thread.
 /// Audio and control have their own lane, so a video backlog cannot refuse them.
 pub struct Outgoing {
     lanes: Mutex<Lanes>,

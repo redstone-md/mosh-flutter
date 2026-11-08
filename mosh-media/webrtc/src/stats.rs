@@ -94,10 +94,7 @@ fn audio_receiver(s: &InboundRtpStats) -> Value {
         "packets_lost": s.received.packets_lost,
         "jitter_ms": s.received.jitter * 1000.0,
         "concealed_percent": s.inbound.concealed_samples as f64 * 100.0 / samples,
-        "jitter_buffer_ms": if s.inbound.jitter_buffer_emitted_count > 0 {
-            s.inbound.jitter_buffer_delay * 1000.0
-                / s.inbound.jitter_buffer_emitted_count as f64
-        } else { 0.0 },
+        "jitter_buffer_ms": jitter_buffer_ms(s),
         "bytes_received": s.inbound.bytes_received,
         "energy": s.inbound.audio_level,
         "total_energy": s.inbound.total_audio_energy,
@@ -114,7 +111,17 @@ fn video_receiver(s: &InboundRtpStats, codec: Option<String>) -> Value {
         "codec": codec,
         "decoder": s.inbound.decoder_implementation,
         "decode_ms": s.inbound.total_decode_time * 1000.0 / f64::from(decoded),
+        "jitter_buffer_ms": jitter_buffer_ms(s),
     })
+}
+
+/// How long the average sample or frame waited in the jitter buffer: the
+/// delay that late or bursty packet arrival adds before playout.
+fn jitter_buffer_ms(s: &InboundRtpStats) -> f64 {
+    if s.inbound.jitter_buffer_emitted_count == 0 {
+        return 0.0;
+    }
+    s.inbound.jitter_buffer_delay * 1000.0 / s.inbound.jitter_buffer_emitted_count as f64
 }
 
 /// `hardware` is libwebrtc's powerEfficientEncoder.

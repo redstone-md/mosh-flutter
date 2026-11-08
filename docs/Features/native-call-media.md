@@ -245,18 +245,27 @@ video never blocks newly queued audio/control. The deadline accommodates a maxim
 with headroom for keyframe bursts and delayed thread wakeups. Eight 1,473-byte
 fragments need about 368 ms with no credit, or 268 ms with a full bucket.
 The engine packet queue holds 32 audio and control packets ahead of 96 video
-packets and expires them after 200 ms. A dedicated egress thread drains it
-every 2 ms straight into the sender, without the call state or engine locks, so
-a slow owner step (camera frames, statistics, device enumeration) cannot age
-fresh frame fragments out. Both queues remain
-bounded; the one-second decoded frame freshness limit is unchanged.
+packets and expires them after 200 ms. A dedicated packet thread carries both
+directions every 2 ms, without the call state or engine locks: it drains that
+queue straight into the sender and hands inbound Moss packets for this call's
+peer and nonce to the engine's virtual network. A slow owner step (camera
+frames, statistics, device enumeration) therefore neither ages fresh frame
+fragments out nor delivers inbound media in bursts, which would grow the
+receiver's jitter buffers. Both queues remain bounded; the one-second decoded
+frame freshness limit is unchanged.
 
 The `native media:` log line reports `engine_dropped` as `full` (queue refused
 a packet) and `stale` (older than 200 ms when drained). `stalls_max_ms` holds
-the longest pauses since the previous line: `step` (one owner step),
+the longest pauses since the previous line: `step` (one owner step) and its
+phases `capture` (camera inventory and capture, with the frame handed to the
+engine), `statistics` (engine snapshot and device refresh), `tick` (ICE
+candidates and libwebrtc's statistics) and `present` (copying the peer's frame);
 `lock_wait` (the owner waiting for the call state lock, which Dart's commands
-and frame reads also take) and `drain` (between drains; about 2 ms is the
-baseline). While the engine or the
+and frame reads also take) and `drain` (between two passes of the packet
+thread; about 2 ms is the baseline). The thread only sleeps and copies, so a
+`drain` far above that points at the process not getting CPU time. Whatever
+`step` holds beyond its phases went to call negotiation and device choices. The `video` and `audio` metrics include
+`jitter_buffer_ms`, the average wait before playout. While the engine or the
 sender keeps dropping, the line repeats every 10 seconds even if the call
 status holds.
 Route and encoder limits apply before packets are transferred, independently of
@@ -335,6 +344,9 @@ requires continuously fresh decoded frames within the renderer's one-second
 expiry. Separate checks cover short bursts, audio/control priority, expired
 packets and transport refusal. This reproduces carrier-induced video loss;
 physical camera discovery and macOS signing still require the affected device.
+Two stall regressions let the owner pause in real time: outgoing video keeps
+under 1% loss before Moss, and inbound video's jitter buffer stays at its
+no-stall level instead of growing to about 230 ms.
 
 For a physical-camera failure, close other camera applications and run the
 packaged helper directly through the diagnostic command below. It checks a

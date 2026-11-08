@@ -1,6 +1,7 @@
 //! Log media state transitions, not frames, so field logs can locate a stall.
 use super::state::State;
 use crate::private_dm_runtime::transport::PeerTransport;
+use serde::{Serialize, Serializer};
 use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 
@@ -41,29 +42,57 @@ impl Status {
     }
 }
 
-/// The longest pauses on outgoing media's way to Moss.
+/// The longest of one kind of pause.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct Longest(pub Duration);
+
+impl Serialize for Longest {
+    /// As whole milliseconds, the log's unit for every pause.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_u128(self.0.as_millis())
+    }
+}
+
+impl Longest {
+    /// Keeps the time since `started` if it is the longest yet.
+    pub fn since(&mut self, started: Instant) {
+        self.include(Self(started.elapsed()));
+    }
+
+    pub fn include(&mut self, other: Self) {
+        self.0 = self.0.max(other.0);
+    }
+}
+
+/// The longest pauses that hold call media back, logged as `stalls_max_ms`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
 pub(crate) struct Stalls {
-    /// One owner step.
-    pub step: Duration,
+    /// One owner step; the phases below are the parts of it that may run long.
+    pub step: Longest,
+    /// Camera inventory and capture, with the frame handed to the engine.
+    pub capture: Longest,
+    /// The engine snapshot and the device refresh behind the call's statistics.
+    pub statistics: Longest,
+    /// The engine tick: ICE candidates and libwebrtc's statistics.
+    pub tick: Longest,
+    /// Copying the peer's latest frame out of the engine.
+    pub present: Longest,
     /// The owner waiting for the call state lock, which Dart's commands and
     /// frame reads also take.
-    pub lock_wait: Duration,
-    /// Between two drains of the engine's outgoing queue; the 2 ms drain
-    /// interval is its floor.
-    pub drain: Duration,
+    pub lock_wait: Longest,
+    /// Between two passes of the packet thread; its 2 ms interval is the floor.
+    pub drain: Longest,
 }
 
 impl Stalls {
     pub fn include(&mut self, other: Self) {
-        self.step = self.step.max(other.step);
-        self.lock_wait = self.lock_wait.max(other.lock_wait);
-        self.drain = self.drain.max(other.drain);
-    }
-
-    fn describe(&self) -> Value {
-        json!({"step": self.step.as_millis(), "lock_wait": self.lock_wait.as_millis(),
-            "drain": self.drain.as_millis()})
+        self.step.include(other.step);
+        self.capture.include(other.capture);
+        self.statistics.include(other.statistics);
+        self.tick.include(other.tick);
+        self.present.include(other.present);
+        self.lock_wait.include(other.lock_wait);
+        self.drain.include(other.drain);
     }
 }
 
@@ -173,7 +202,7 @@ impl Monitor {
         let metrics = json!({"video_age_ms": age.map(|age| age.min(u128::from(u32::MAX)) as u32),
             "decoded": engine["decoded"], "sender_dropped": pipeline.sender_dropped,
             "engine_dropped": engine["queue_dropped"],
-            "stalls_max_ms": self.stalls.describe(), "audio": engine["audio"],
+            "stalls_max_ms": self.stalls, "audio": engine["audio"],
             "audio_sender": engine["audio_sender"],
             "video": engine["video"], "encoder": engine["encoder"]});
         let message = status.describe(state, &metrics);
@@ -290,11 +319,14 @@ mod tests {
         let state = State::default();
         let route = PeerTransport::Direct;
         let engine = |full: u64, stale: u64| json!({"connection":"Connected", "queue_dropped": {"full": full, "stale": stale}});
+        let ms = |ms: u64| Longest(Duration::from_millis(ms));
         let stalled = |step_ms: u64, drain_ms: u64| Pipeline {
             stalls: Stalls {
-                step: Duration::from_millis(step_ms),
-                lock_wait: Duration::from_millis(step_ms / 10),
-                drain: Duration::from_millis(drain_ms),
+                step: ms(step_ms),
+                tick: ms(step_ms / 2),
+                lock_wait: ms(step_ms / 10),
+                drain: ms(drain_ms),
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -302,7 +334,7 @@ mod tests {
         let event = monitor
             .observe(route, &state, &engine(0, 0), stalled(20, 3), now)
             .unwrap();
-        assert!(event.contains("\"stalls_max_ms\":{\"drain\":3,\"lock_wait\":2,\"step\":20}"));
+        assert!(event.contains("\"stalls_max_ms\":{\"capture\":0,\"drain\":3,\"lock_wait\":2,\"present\":0,\"statistics\":0,\"step\":20,\"tick\":10}"));
         let soon = now + Duration::from_secs(9);
         assert!(monitor
             .observe(route, &state, &engine(0, 5), stalled(310, 4), soon)
@@ -312,7 +344,7 @@ mod tests {
             .observe(route, &state, &engine(2, 5), stalled(40, 2), later)
             .unwrap();
         assert!(event.contains("\"engine_dropped\":{\"full\":2,\"stale\":5}"));
-        assert!(event.contains("\"stalls_max_ms\":{\"drain\":4,\"lock_wait\":31,\"step\":310}"));
+        assert!(event.contains("\"stalls_max_ms\":{\"capture\":0,\"drain\":4,\"lock_wait\":31,\"present\":0,\"statistics\":0,\"step\":310,\"tick\":155}"));
         let sender_losing = Pipeline {
             sender_dropped: 3,
             ..stalled(40, 2)
