@@ -176,8 +176,11 @@ struct PrivateDmSession {
     connect_requested_for: Option<String>,
     // What the last connect request answered, for the diagnostics card.
     last_connect_outcome: Option<ConnectOutcome>,
-    // The path to the counterpart the field log last reported.
+    // The path to the counterpart in the last mesh report. The field log
+    // reports its changes; the outbox waits while it is None.
     logged_reach: PeerTransport,
+    // The outbox's run of failed sends, while it lasts.
+    queue_failure: Option<outbox::QueueFailure>,
     invite_uri: Option<String>,
     // Transport coordinates kept so the persisted session record can be
     // rebuilt verbatim (notably to refresh the joiner's group_id after join).
@@ -368,6 +371,9 @@ mod blob_route_tests;
 #[cfg(test)]
 #[path = "private_dm_runtime/field_log_tests.rs"]
 mod field_log_tests;
+#[cfg(test)]
+#[path = "private_dm_runtime/outbox_waiting_tests.rs"]
+mod outbox_waiting_tests;
 
 #[cfg(test)]
 #[path = "private_dm_runtime/reachability_tests.rs"]

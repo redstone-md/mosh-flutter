@@ -3,36 +3,13 @@
 //! reachable, and never fails on a refusal. Helpers come from
 //! `state_tests.rs`.
 
-use super::state_tests::{accept, connect, invite, memory_pair, runtime_on, ALICE_ID, BOB_ID};
+use super::state_tests::{
+    accept, bodies_from, connect, invite, memory_pair, runtime_on, status_of, ALICE_ID, BOB_ID,
+};
 use super::tests::temp_store;
 use super::*;
 use crate::persistence::Persistence;
 use crate::private_dm_runtime::transport::memory::MemoryNet;
-
-fn status_of(
-    runtime: &mut PrivateDmRuntime,
-    session_id: &str,
-    message_id: &str,
-) -> Option<MessageDeliveryStatus> {
-    runtime
-        .poll_session(session_id)
-        .expect("poll should pass")
-        .messages
-        .iter()
-        .find(|message| message.message_id.as_deref() == Some(message_id))
-        .and_then(|message| message.delivery_status)
-}
-
-fn bodies_from(runtime: &mut PrivateDmRuntime, session_id: &str, author: &str) -> Vec<String> {
-    runtime
-        .poll_session(session_id)
-        .expect("poll should pass")
-        .messages
-        .iter()
-        .filter(|message| message.from_device == author)
-        .map(|message| message.body.clone())
-        .collect()
-}
 
 #[test]
 fn queued_messages_come_out_oldest_first() {

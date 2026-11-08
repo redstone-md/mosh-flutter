@@ -29,6 +29,8 @@ struct Endpoint {
     fail_publishes: bool,
     /// Every stream send this endpoint tried, delivered or not.
     stream_attempts: usize,
+    /// Publishes this endpoint tried per channel, refused or not.
+    publishes: HashMap<String, usize>,
     /// The stream fast path refuses, the way a moss stream refuses a peer it
     /// cannot open.
     fail_streams: bool,
@@ -192,6 +194,15 @@ impl MemoryNet {
             .endpoints
             .get(from)
             .map_or(0, |endpoint| endpoint.stream_attempts)
+    }
+
+    /// How many publishes `from` tried on `channel`.
+    pub fn publish_attempts(&self, from: &str, channel: &str) -> usize {
+        self.lock()
+            .endpoints
+            .get(from)
+            .and_then(|endpoint| endpoint.publishes.get(channel).copied())
+            .unwrap_or(0)
     }
 
     /// Full diagnostic reads made by an endpoint, including failed reads.

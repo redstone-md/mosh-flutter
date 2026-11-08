@@ -54,6 +54,7 @@ impl PrivateDmSession {
             connect_requested_for: None,
             last_connect_outcome: None,
             logged_reach: PeerTransport::None,
+            queue_failure: None,
             invite_uri,
             listen_port,
             static_peer,
