@@ -5,8 +5,10 @@ import 'package:mosh/src/features/voice_call/call_video_frame.dart';
 import 'package:mosh/src/features/voice_call/call_video_renderer.dart';
 import 'package:mosh/src/features/voice_call/call_media_view.dart';
 import 'package:mosh/src/features/voice_call/call_video_stage.dart';
+import 'package:mosh/src/features/voice_call/call_video_surfaces.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
+import 'package:mosh/src/rust/native_call/types.dart' as native;
 
 import '../../support/call_video_frames.dart';
 import '../../support/native_call_fixture.dart';
@@ -146,4 +148,63 @@ void main() {
     expect(find.byType(RawImage), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets('stages report the device pixels that cover every lane',
+      (tester) async {
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final image = (await tester
+        .runAsync(() => CallVideoRenderer.decodeRgba(testCallVideoFrame(1))))!;
+    final next = (await tester
+        .runAsync(() => CallVideoRenderer.decodeRgba(testCallVideoFrame(2))))!;
+    final images = ValueNotifier(CallVideoImages(local: image, remote: image));
+    addTearDown(() {
+      images.dispose();
+      image.dispose();
+      next.dispose();
+    });
+    final reported = <CallVideoSurfaces>[];
+    Future<void> show(List<double> widths) => pumpScreen(
+        tester,
+        CallVideoSurfaceScope(
+            onSurfaces: reported.add,
+            child: Column(children: [
+              for (final width in widths)
+                SizedBox(
+                    width: width,
+                    child: CallVideoStage(
+                        images: images,
+                        peer: 'Alice',
+                        inset: false,
+                        remoteCamera: true)),
+            ])),
+        settle: false);
+    await show([640]);
+    await tester.pump();
+    images.value = CallVideoImages(local: next, remote: next);
+    await tester.pump();
+    expect(find.byWidgetPredicate((w) => w is RawImage && w.image == next),
+        findsNWidgets(2));
+    expect(reported, [_surfaces((312, 688), (1280, 720))],
+        reason: 'new pixels in the same layout report nothing new');
+    await show([640, 160]);
+    await tester.pump();
+    expect(reported, hasLength(1), reason: 'the larger stage still covers');
+    await show([160]);
+    await tester.pump();
+    expect(reported.last, _surfaces((72, 148), (320, 180)));
+    images.value = CallVideoImages(local: image);
+    await show([160]);
+    await tester.pump();
+    await tester.pump();
+    expect(reported, hasLength(2),
+        reason: 'a waiting remote stage keeps its surfaces');
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }
+
+/// The preview is a quarter of the stage inside its 8 px padding.
+CallVideoSurfaces _surfaces((int, int) local, (int, int) remote) =>
+    CallVideoSurfaces(
+        local: native.Surface(width: local.$1, height: local.$2),
+        remote: native.Surface(width: remote.$1, height: remote.$2));

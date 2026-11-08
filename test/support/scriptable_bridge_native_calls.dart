@@ -122,4 +122,17 @@ mixin _BridgeNativeCalls on _ScriptableBridgeState {
             'after': after,
           },
           () => null);
+
+  @override
+  Future<void> nativeCallShowVideoAt({
+    required native_media.Surface local,
+    required native_media.Surface remote,
+  }) =>
+      runScripted(
+          BridgeMethod.nativeCallShowVideoAt,
+          {
+            'local': [local.width, local.height],
+            'remote': [remote.width, remote.height],
+          },
+          () {});
 }

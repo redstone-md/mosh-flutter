@@ -1,10 +1,11 @@
 //! The peer's latest decoded frame as RGBA, which mosh-core copies for the
 //! call window. Only the newest frame is kept: no backlog, one spare buffer.
+//! Frames leave at most at the size the window shows them.
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use futures::StreamExt;
-use libwebrtc::video_frame::{BoxVideoFrame, VideoFormatType};
+use libwebrtc::video_frame::{BoxVideoFrame, VideoBuffer, VideoFormatType};
 use libwebrtc::video_stream::native::NativeVideoStream;
 use libwebrtc::video_track::RtcVideoTrack;
 
@@ -21,6 +22,29 @@ pub struct FrameInfo {
     pub age_ms: u32,
 }
 
+/// The device pixels a video surface shows; zero means none reported yet.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Deserialize)]
+pub struct Surface {
+    pub width: u32,
+    pub height: u32,
+}
+
+impl Surface {
+    /// The largest size with the frame's aspect that this surface shows.
+    /// Frames are never enlarged, and an unreported surface keeps them whole.
+    pub fn fit(self, width: u32, height: u32) -> (u32, u32) {
+        if self.width == 0 || self.height == 0 || (width <= self.width && height <= self.height) {
+            return (width, height);
+        }
+        let scale = (f64::from(self.width) / f64::from(width))
+            .min(f64::from(self.height) / f64::from(height));
+        let side =
+            |length: u32, bound: u32| ((f64::from(length) * scale).round() as u32).clamp(1, bound);
+        (side(width, self.width), side(height, self.height))
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct Frames(Arc<Mutex<Storage>>);
 
@@ -28,6 +52,7 @@ pub struct Frames(Arc<Mutex<Storage>>);
 struct Storage {
     published: Option<Decoded>,
     spare: Vec<u8>,
+    surface: Surface,
 }
 
 struct Decoded {
@@ -48,12 +73,30 @@ impl Frames {
         });
     }
 
+    /// Later frames leave at most at this size.
+    pub fn show_at(&self, surface: Surface) {
+        if let Ok(mut held) = self.0.lock() {
+            held.surface = surface;
+        }
+    }
+
     /// Our peers send upright pixels (Android rotates before sending), so
-    /// the frame's rotation is always zero.
+    /// the frame's rotation is always zero. libyuv scales the I420 down to
+    /// the surface before the RGBA conversion.
     fn store(&self, frame: &BoxVideoFrame) {
-        let (width, height) = (frame.buffer.width(), frame.buffer.height());
+        let Ok(surface) = self.0.lock().map(|held| held.surface) else {
+            return;
+        };
+        let source = (frame.buffer.width(), frame.buffer.height());
+        let (width, height) = surface.fit(source.0, source.1);
+        let scaled = ((width, height) != source)
+            .then(|| frame.buffer.to_i420().scale(width as i32, height as i32));
+        let buffer: &dyn VideoBuffer = match &scaled {
+            Some(scaled) => scaled,
+            None => &*frame.buffer,
+        };
         self.publish(width, height, Instant::now(), |pixels| {
-            frame.buffer.to_argb(
+            buffer.to_argb(
                 VideoFormatType::ABGR,
                 pixels,
                 width * 4,
@@ -145,6 +188,20 @@ mod tests {
 
     fn store(frames: &Frames, value: u8) -> bool {
         frames.publish(16, 16, Instant::now(), |pixels| pixels.fill(value))
+    }
+
+    #[test]
+    fn surfaces_shrink_frames_to_fit_with_their_aspect_and_never_enlarge() {
+        let surface = |width, height| Surface { width, height };
+        assert_eq!(surface(320, 180).fit(1280, 720), (320, 180));
+        assert_eq!(surface(320, 320).fit(1280, 720), (320, 180));
+        assert_eq!(surface(1000, 180).fit(1280, 720), (320, 180));
+        assert_eq!(surface(180, 320).fit(720, 1280), (180, 320));
+        assert_eq!(surface(333, 1000).fit(1280, 720), (333, 187));
+        assert_eq!(surface(1920, 1080).fit(1280, 720), (1280, 720));
+        assert_eq!(surface(1, 1).fit(1280, 720), (1, 1));
+        assert_eq!(Surface::default().fit(1280, 720), (1280, 720));
+        assert_eq!(surface(320, 0).fit(1280, 720), (1280, 720));
     }
 
     #[test]

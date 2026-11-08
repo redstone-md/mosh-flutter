@@ -2,7 +2,7 @@
 //! cross to another thread, which the engine joins on drop.
 use super::{
     courier::{Courier, PacketEnds, Wire},
-    types::Binding,
+    types::{Binding, Surface},
 };
 use libloading::Library;
 use serde_json::{json, Value};
@@ -289,6 +289,58 @@ pub(crate) fn i420_to_rgba(width: u32, height: u32, planar: &[u8]) -> Result<Vec
         Ok(rgba)
     } else {
         Err("I420 conversion failed".into())
+    }
+}
+
+/// The frame shrunk to fit `surface` by the engine's libyuv, or `None` when
+/// it already fits.
+pub(crate) fn scale_rgba(
+    width: u32,
+    height: u32,
+    pixels: &[u8],
+    surface: Surface,
+) -> Result<Option<(u32, u32, Vec<u8>)>, String> {
+    type Scale = unsafe extern "C" fn(
+        u32,
+        u32,
+        *const u8,
+        usize,
+        Surface,
+        *mut u8,
+        usize,
+        *mut [u32; 2],
+    ) -> i32;
+    if surface == Surface::default() {
+        return Ok(None);
+    }
+    let library = media_library()?;
+    // Zeroed allocations are lazy, so a frame that already fits costs little.
+    let capacity = (surface.width as usize * surface.height as usize * 4).min(MAX_RGBA);
+    let mut scaled = vec![0; capacity];
+    let mut size = [0; 2];
+    // SAFETY: the pinned scaler retains no pointers. Every buffer and its
+    // executable library remain alive until it returns.
+    let status = unsafe {
+        let scale = symbol::<Scale>(library, b"mosh_media_scale_rgba\0")?;
+        scale(
+            width,
+            height,
+            pixels.as_ptr(),
+            pixels.len(),
+            surface,
+            scaled.as_mut_ptr(),
+            scaled.len(),
+            &mut size,
+        )
+    };
+    match status {
+        1 => {
+            let [width, height] = size;
+            scaled.truncate(width as usize * height as usize * 4);
+            Ok(Some((width, height, scaled)))
+        }
+        0 => Ok(None),
+        _ => Err("RGBA scaling failed".into()),
     }
 }
 

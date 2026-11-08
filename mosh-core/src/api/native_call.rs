@@ -1,5 +1,5 @@
 //! Desktop call controls and presentation; no media keys cross this bridge.
-pub use crate::native_call::types::{Device, Frame, Snapshot};
+pub use crate::native_call::types::{Device, Frame, Snapshot, Surface};
 use crate::native_call::{types::Choices, Hub};
 use flutter_rust_bridge::frb;
 use std::sync::{Arc, OnceLock};
@@ -88,6 +88,12 @@ pub fn frame(
     after: u64,
 ) -> Result<Option<Frame>, String> {
     Ok(hub()?.frame(&session_id, &call_id, local, after))
+}
+
+/// The call window's video surfaces in device pixels. Frames of every call
+/// leave at most at these sizes; the encoder still takes the full camera.
+pub fn show_video_at(local: Surface, remote: Surface) -> Result<(), String> {
+    hub()?.show_at(local, remote)
 }
 
 fn hub() -> Result<&'static Arc<Hub>, String> {

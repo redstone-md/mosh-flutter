@@ -42,7 +42,10 @@ final List<Override> productionOverrides = <Override>[
       ? const AndroidRingtonePlayer()
       : const CpalRingtonePlayer()),
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux)
-    callWindowFactoryProvider.overrideWithValue(ProcessCallWindow.open),
+    callWindowFactoryProvider.overrideWith((ref) => (onCommand) =>
+        ProcessCallWindow.open(onCommand,
+            onSurfaces: (surfaces) =>
+                ref.read(nativeCallOwnerProvider)?.showVideoAt(surfaces))),
   if (_callEngine)
     nativeCallOwnerProvider.overrideWith((ref) {
       final owner =

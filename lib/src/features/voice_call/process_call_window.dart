@@ -7,6 +7,7 @@ import 'call_window_coordinator.dart';
 import 'call_window_pipe.dart';
 import 'call_window_frame_channel.dart';
 import 'call_video_frame.dart';
+import 'call_video_surfaces.dart';
 
 const callWindowProcessArgument = '--mosh-call-window';
 const _callWindowEnvironment = 'MOSH_CALL_WINDOW';
@@ -52,9 +53,11 @@ class ProcessCallWindow
   @override
   Future<void> get closed => _process.exitCode.then((_) {});
 
+  /// [onSurfaces] receives the window's video surfaces as its layout changes.
   static Future<CallWindowHandle> open(
       Future<void> Function(CallViewCommand) onCommand,
-      {Future<Process> Function()? startProcess}) async {
+      {void Function(CallVideoSurfaces)? onSurfaces,
+      Future<Process> Function()? startProcess}) async {
     final frames = await CallWindowFrameChannel.bind();
     Process? process;
     ProcessCallWindow? window;
@@ -62,7 +65,7 @@ class ProcessCallWindow
       process = await (startProcess?.call() ??
           Process.start(callWindowExecutable(), [callWindowProcessArgument],
               environment: {_callWindowEnvironment: '1'}));
-      final attached = _attach(process, frames, onCommand);
+      final attached = _attach(process, frames, onCommand, onSurfaces);
       window = attached.$1;
       await attached.$2.timeout(const Duration(seconds: 10));
       await window._pipe.invoke('call-frame-channel', frames.descriptor);
@@ -82,7 +85,8 @@ class ProcessCallWindow
   static (ProcessCallWindow, Future<void>) _attach(
       Process process,
       CallWindowFrameChannel frames,
-      Future<void> Function(CallViewCommand) onCommand) {
+      Future<void> Function(CallViewCommand) onCommand,
+      void Function(CallVideoSurfaces)? onSurfaces) {
     unawaited(process.stderr.drain<void>().catchError((Object _) {}));
     final ready = Completer<void>();
     late final ProcessCallWindow window;
@@ -98,6 +102,9 @@ class ProcessCallWindow
             CallViewCommand.fromMap(call.arguments as Map<Object?, Object?>));
       } else if (call.method == 'call-frame-ack') {
         window._ackFrame(call.arguments as Map<Object?, Object?>);
+      } else if (call.method == 'call-video-surfaces') {
+        onSurfaces?.call(
+            CallVideoSurfaces.fromMap(call.arguments as Map<Object?, Object?>));
       } else {
         throw StateError('Unknown call window method');
       }

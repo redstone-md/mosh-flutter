@@ -128,6 +128,16 @@ pub struct Snapshot {
     pub camera_id: Option<String>,
 }
 
+/// The device pixels one video surface of the call window shows. Zero until
+/// the window reports it; the engine's `Surface` shares this layout.
+#[frb(non_opaque)]
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Surface {
+    pub width: u32,
+    pub height: u32,
+}
+
 #[frb(non_opaque)]
 #[derive(Clone)]
 pub struct Frame {

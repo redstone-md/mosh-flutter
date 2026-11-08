@@ -1,7 +1,6 @@
 use super::{
-    capture::Captured,
     diagnostics::Stalls,
-    types::{Choices, Context, Frame, Signal, Snapshot},
+    types::{Choices, Context, Frame, Signal, Snapshot, Surface},
 };
 use std::{collections::VecDeque, sync::Arc, time::Instant};
 
@@ -21,6 +20,8 @@ pub(crate) struct State {
     pub inbound: VecDeque<Signal>,
     pub outbound: VecDeque<(String, String, Signal)>,
     pub frames: [Option<Arc<Presented>>; 2],
+    /// The window's local and remote video surfaces; they outlive calls.
+    pub surfaces: [Surface; 2],
     pub sequences: [u64; 2],
     pub shutdown: bool,
     pub revision: u64,
@@ -56,17 +57,6 @@ impl State {
         }
         self.outbound
             .push_back((context.session_id.clone(), context.call_id.clone(), signal));
-    }
-
-    pub fn preview(&mut self, frame: &Captured) {
-        self.present(
-            frame.width,
-            frame.height,
-            frame.pixels.clone(),
-            frame.source_age_ms,
-            frame.received,
-            true,
-        );
     }
 
     pub fn present(

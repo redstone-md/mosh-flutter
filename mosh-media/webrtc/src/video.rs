@@ -119,26 +119,11 @@ impl Camera {
         if short_side != self.short_side {
             self.apply(self.on, self.format, short_side)?;
         }
-        let mut buffer = I420Buffer::new(width, height);
-        let (stride_y, stride_u, stride_v) = buffer.strides();
-        let (y, u, v) = buffer.data_mut();
-        abgr_to_i420(
-            pixels,
-            width * 4,
-            y,
-            stride_y,
-            u,
-            stride_u,
-            v,
-            stride_v,
-            width as i32,
-            height as i32,
-        );
         let frame = VideoFrame {
             rotation: VideoRotation::VideoRotation0,
             timestamp_us: self.epoch.elapsed().as_micros() as i64,
             frame_metadata: None,
-            buffer,
+            buffer: i420(width, height, pixels),
         };
         self.source.capture_frame(&frame);
         Ok(())
@@ -205,6 +190,26 @@ fn rank(mime_type: &str, hardware: &[String]) -> u8 {
     } else {
         2
     }
+}
+
+/// Packed RGBA (libyuv's ABGR) of a frame within the ABI's bounds as I420.
+pub(crate) fn i420(width: u32, height: u32, pixels: &[u8]) -> I420Buffer {
+    let mut buffer = I420Buffer::new(width, height);
+    let (stride_y, stride_u, stride_v) = buffer.strides();
+    let (y, u, v) = buffer.data_mut();
+    abgr_to_i420(
+        pixels,
+        width * 4,
+        y,
+        stride_y,
+        u,
+        stride_u,
+        v,
+        stride_v,
+        width as i32,
+        height as i32,
+    );
+    buffer
 }
 
 #[cfg(test)]

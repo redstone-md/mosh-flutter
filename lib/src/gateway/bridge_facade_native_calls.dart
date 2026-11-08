@@ -44,4 +44,9 @@ mixin NativeCallBridge {
           required BigInt after}) =>
       native_call_api.frame(
           sessionId: sessionId, callId: callId, local: local, after: after);
+
+  Future<void> nativeCallShowVideoAt(
+          {required native_media.Surface local,
+          required native_media.Surface remote}) =>
+      native_call_api.showVideoAt(local: local, remote: remote);
 }
