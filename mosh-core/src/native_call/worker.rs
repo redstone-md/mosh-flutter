@@ -1,7 +1,6 @@
 use super::{
     capture::{Capture, Query},
     connection::Connection,
-    diagnostics::Stalls,
     packets::Sender,
     state::State,
     types::{Choices, Context, Signal},
@@ -32,7 +31,7 @@ pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
     loop {
         let waiting = Instant::now();
         let mut state = shared.lock().unwrap_or_else(|error| error.into_inner());
-        let lock_wait = waiting.elapsed();
+        state.stalls.lock_wait.since(waiting);
         if state.shutdown {
             return;
         }
@@ -41,11 +40,7 @@ pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
             state.snapshot.failed = true;
         }
         state.applied = state.revision;
-        state.stalls.include(Stalls {
-            step: stepping.elapsed(),
-            lock_wait,
-            ..Default::default()
-        });
+        state.stalls.step.since(stepping);
         drop(state);
         std::thread::sleep(Duration::from_millis(10));
     }
@@ -78,8 +73,10 @@ impl Owner {
             transport.drain_call_packets();
             return Ok(());
         }
+        let capturing = Instant::now();
         self.query_cameras(state);
         self.capture(state)?;
+        state.stalls.capture.since(capturing);
         self.negotiate(&context, state, Instant::now())?;
         let choices = state.choices.clone();
         if let Some(connection) = &mut self.connection {
@@ -174,12 +171,9 @@ impl Owner {
         if let Some(devices) = self.query.as_mut().and_then(Query::poll) {
             match devices {
                 Ok(devices) => state.snapshot.cameras = devices,
-                Err(error) => crate::diagnostics_log::write(
-                    crate::diagnostics_log::LogLevel::Warn,
-                    crate::diagnostics_log::kinds::CALL,
-                    "",
-                    &format!("camera enumeration failed; keeping previous inventory: {error}"),
-                ),
+                Err(error) => warn(&format!(
+                    "camera enumeration failed; keeping previous inventory: {error}"
+                )),
             }
             self.camera_inventory_ready = true;
             self.query = None;
@@ -214,12 +208,7 @@ impl Owner {
                 self.capture = Some(capture);
             }
             Err(error) => {
-                crate::diagnostics_log::write(
-                    crate::diagnostics_log::LogLevel::Warn,
-                    crate::diagnostics_log::kinds::CALL,
-                    "",
-                    &format!("camera capture startup failed: {error}"),
-                );
+                warn(&format!("camera capture startup failed: {error}"));
                 state.choices.camera = false;
                 state.snapshot.camera_failed = true;
             }
@@ -326,6 +315,11 @@ fn present_capture(
     }
     state.preview(frame);
     state.snapshot.camera = true;
+}
+
+fn warn(message: &str) {
+    use crate::diagnostics_log::{kinds, write, LogLevel};
+    write(LogLevel::Warn, kinds::CALL, "", message);
 }
 
 #[cfg(test)]

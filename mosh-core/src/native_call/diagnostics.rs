@@ -41,29 +41,58 @@ impl Status {
     }
 }
 
-/// The longest pauses on outgoing media's way to Moss.
+/// The longest of one kind of pause.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct Longest(pub Duration);
+
+impl Longest {
+    /// Keeps the time since `started` if it is the longest yet.
+    pub fn since(&mut self, started: Instant) {
+        self.include(Self(started.elapsed()));
+    }
+
+    fn include(&mut self, other: Self) {
+        self.0 = self.0.max(other.0);
+    }
+}
+
+/// The longest pauses that hold call media back.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct Stalls {
-    /// One owner step.
-    pub step: Duration,
+    /// One owner step; the phases below are the parts of it that may run long.
+    pub step: Longest,
+    /// Camera inventory and capture, with the frame handed to the engine.
+    pub capture: Longest,
+    /// The engine snapshot and the device refresh behind the call's statistics.
+    pub statistics: Longest,
+    /// The engine tick: ICE candidates and libwebrtc's statistics.
+    pub tick: Longest,
+    /// Copying the peer's latest frame out of the engine.
+    pub present: Longest,
     /// The owner waiting for the call state lock, which Dart's commands and
     /// frame reads also take.
-    pub lock_wait: Duration,
-    /// Between two drains of the engine's outgoing queue; the 2 ms drain
-    /// interval is its floor.
-    pub drain: Duration,
+    pub lock_wait: Longest,
+    /// Between two passes of the packet thread; its 2 ms interval is the floor.
+    pub drain: Longest,
 }
 
 impl Stalls {
     pub fn include(&mut self, other: Self) {
-        self.step = self.step.max(other.step);
-        self.lock_wait = self.lock_wait.max(other.lock_wait);
-        self.drain = self.drain.max(other.drain);
+        self.step.include(other.step);
+        self.capture.include(other.capture);
+        self.statistics.include(other.statistics);
+        self.tick.include(other.tick);
+        self.present.include(other.present);
+        self.lock_wait.include(other.lock_wait);
+        self.drain.include(other.drain);
     }
 
     fn describe(&self) -> Value {
-        json!({"step": self.step.as_millis(), "lock_wait": self.lock_wait.as_millis(),
-            "drain": self.drain.as_millis()})
+        let ms = |longest: Longest| longest.0.as_millis();
+        json!({"step": ms(self.step), "capture": ms(self.capture),
+            "statistics": ms(self.statistics), "tick": ms(self.tick),
+            "present": ms(self.present), "lock_wait": ms(self.lock_wait),
+            "drain": ms(self.drain)})
     }
 }
 
@@ -290,11 +319,14 @@ mod tests {
         let state = State::default();
         let route = PeerTransport::Direct;
         let engine = |full: u64, stale: u64| json!({"connection":"Connected", "queue_dropped": {"full": full, "stale": stale}});
+        let ms = |ms: u64| Longest(Duration::from_millis(ms));
         let stalled = |step_ms: u64, drain_ms: u64| Pipeline {
             stalls: Stalls {
-                step: Duration::from_millis(step_ms),
-                lock_wait: Duration::from_millis(step_ms / 10),
-                drain: Duration::from_millis(drain_ms),
+                step: ms(step_ms),
+                tick: ms(step_ms / 2),
+                lock_wait: ms(step_ms / 10),
+                drain: ms(drain_ms),
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -302,7 +334,7 @@ mod tests {
         let event = monitor
             .observe(route, &state, &engine(0, 0), stalled(20, 3), now)
             .unwrap();
-        assert!(event.contains("\"stalls_max_ms\":{\"drain\":3,\"lock_wait\":2,\"step\":20}"));
+        assert!(event.contains("\"stalls_max_ms\":{\"capture\":0,\"drain\":3,\"lock_wait\":2,\"present\":0,\"statistics\":0,\"step\":20,\"tick\":10}"));
         let soon = now + Duration::from_secs(9);
         assert!(monitor
             .observe(route, &state, &engine(0, 5), stalled(310, 4), soon)
@@ -312,7 +344,7 @@ mod tests {
             .observe(route, &state, &engine(2, 5), stalled(40, 2), later)
             .unwrap();
         assert!(event.contains("\"engine_dropped\":{\"full\":2,\"stale\":5}"));
-        assert!(event.contains("\"stalls_max_ms\":{\"drain\":4,\"lock_wait\":31,\"step\":310}"));
+        assert!(event.contains("\"stalls_max_ms\":{\"capture\":0,\"drain\":4,\"lock_wait\":31,\"present\":0,\"statistics\":0,\"step\":310,\"tick\":155}"));
         let sender_losing = Pipeline {
             sender_dropped: 3,
             ..stalled(40, 2)

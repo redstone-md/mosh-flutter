@@ -115,6 +115,7 @@ impl Connection {
         sender: &Sender,
         state: &mut State,
     ) -> Result<(), String> {
+        let measuring = Instant::now();
         self.reporter.update(
             &mut self.engine,
             &self.context.peer,
@@ -123,14 +124,17 @@ impl Connection {
             sender,
             state,
         )?;
+        state.stalls.statistics.since(measuring);
         let candidates = if self.ready {
             std::mem::take(&mut self.pending)
         } else {
             Vec::new()
         };
+        let ticking = Instant::now();
         let gathered = self
             .engine
             .ask(json!({"action":"tick","candidates":candidates}))?;
+        state.stalls.tick.since(ticking);
         for candidate in gathered["candidates"]
             .as_array()
             .into_iter()
@@ -142,7 +146,9 @@ impl Connection {
                 self.candidates.push(candidate.into());
             }
         }
+        let presenting = Instant::now();
         self.present(state);
+        state.stalls.present.since(presenting);
         if self.resend.elapsed() >= Duration::from_secs(1) {
             self.resend = Instant::now();
             if !state.snapshot.ready {
