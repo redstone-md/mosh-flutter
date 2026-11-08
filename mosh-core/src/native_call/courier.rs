@@ -25,6 +25,10 @@ pub(crate) trait Wire: Send {
 /// pacing bursts, and short against its jitter buffer.
 const PASS_INTERVAL: Duration = Duration::from_millis(2);
 
+/// The engine's outgoing queue capacity. One pass sends at most this many
+/// packets, so inbound packets and stop keep their turn while it refills.
+const PASS_BUDGET: usize = 128;
+
 /// The engine's packet ends, which the ABI lets any thread use.
 pub(super) struct PacketEnds {
     pub handle: *mut c_void,
@@ -79,7 +83,10 @@ impl Courier {
                     longest.fetch_max(gap, Ordering::Relaxed);
                     passed = Instant::now();
                     wire.receive(&mut |inbound| packets.deliver(inbound));
-                    while let Some(length) = packets.copy(&mut packet) {
+                    for _ in 0..PASS_BUDGET {
+                        let Some(length) = packets.copy(&mut packet) else {
+                            break;
+                        };
                         wire.send(&packet[..length], packets.priority(&packet[..length]));
                     }
                     std::thread::sleep(PASS_INTERVAL);
