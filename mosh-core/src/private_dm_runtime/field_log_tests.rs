@@ -2,20 +2,9 @@
 //! these lines, so they must name real state changes and real causes: a line
 //! written on every frame reads like a reconnect storm that never happened.
 
-use super::state_tests::{accept, connect, invite, memory_pair, ALICE_ID, BOB_ID};
+use super::state_tests::{accept, connect, invite, log_lines, memory_pair, ALICE_ID, BOB_ID};
 use super::*;
 use crate::private_dm_runtime::transport::memory::MemoryNet;
-
-/// How many field-log lines about `context` contain `needle`.
-fn log_lines(context: &str, needle: &str) -> Vec<String> {
-    let path = dlog::current_log_path().expect("the session wrote the log");
-    std::fs::read_to_string(path)
-        .expect("the log is readable")
-        .lines()
-        .filter(|line| line.contains(context) && line.contains(needle))
-        .map(str::to_string)
-        .collect()
-}
 
 #[test]
 fn connected_is_logged_once_per_side_not_per_frame() {

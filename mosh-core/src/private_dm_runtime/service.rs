@@ -101,7 +101,7 @@ impl PrivateDmRuntime {
             }
         }
         for session_id in ready {
-            if let Err(error) = self.deliver_queued(&session_id) {
+            if let Err(error) = self.deliver_queued(&session_id, now) {
                 dlog::write(
                     LogLevel::Error,
                     kinds::PERSIST,

@@ -16,7 +16,7 @@ impl PrivateDmRuntime {
         self.drain_inbound();
         let message_id = self.session_mut(session_id)?.file_text(body)?;
         self.admit_queued(session_id, &message_id)?;
-        if let Err(error) = self.deliver_queued(session_id) {
+        if let Err(error) = self.deliver_queued(session_id, now_ms()) {
             dlog::write(
                 LogLevel::Error,
                 kinds::PERSIST,
@@ -60,7 +60,7 @@ impl PrivateDmRuntime {
             session.outbox().reopen(message_id)?;
         }
         self.admit_queued(session_id, message_id)?;
-        if let Err(error) = self.deliver_queued(session_id) {
+        if let Err(error) = self.deliver_queued(session_id, now_ms()) {
             dlog::write(
                 LogLevel::Error,
                 kinds::PERSIST,
@@ -101,13 +101,20 @@ impl PrivateDmRuntime {
         Ok(())
     }
 
-    /// Give one session's outbox a turn right now, and write down whatever it
+    /// Give one session's outbox a turn at `now`, and write down whatever it
     /// settled.
-    pub(super) fn deliver_queued(&mut self, session_id: &str) -> Result<(), PrivateDmRuntimeError> {
+    pub(super) fn deliver_queued(
+        &mut self,
+        session_id: &str,
+        now: u64,
+    ) -> Result<(), PrivateDmRuntimeError> {
         let Some(session) = self.sessions.get(session_id) else {
             return Ok(());
         };
-        if !session.can_encrypt_for_peer() || !session.device_outbox_ready() {
+        if !session.can_encrypt_for_peer()
+            || !session.device_outbox_ready()
+            || session.queue_waits()
+        {
             return Ok(());
         }
         let queued = queued_in_order(&session.outbound_attempts);
@@ -125,14 +132,11 @@ impl PrivateDmRuntime {
                     self.sessions.persist_send(session_id, &message_id, true)?;
                     continue;
                 }
-                dlog::write(
-                    LogLevel::Warn,
-                    kinds::OUTBOX,
-                    session_id,
-                    &format!("queued message {message_id} stays queued: {error}"),
-                );
+                self.session_mut(session_id)?
+                    .hold_queue(&message_id, &error, now);
                 break;
             }
+            self.session_mut(session_id)?.queue_refused_at = None;
             if let Err(error) = self.sessions.persist_send(session_id, &message_id, true) {
                 self.log_persistence_failure(session_id, &error);
                 break;
@@ -165,6 +169,29 @@ impl PrivateDmRuntime {
 }
 
 impl PrivateDmSession {
+    /// Whether the outbox holds its queue: it was refused while no path to
+    /// the counterpart was known, and since then no path has appeared and
+    /// nothing authenticated has arrived. An offline contact so costs one
+    /// attempt, not one per tick.
+    fn queue_waits(&self) -> bool {
+        self.queue_refused_at.is_some_and(|at| {
+            self.logged_reach == PeerTransport::None && self.last_authenticated_rx_ms <= at
+        })
+    }
+
+    /// A refused text stays queued. Only the first refusal in a row is
+    /// logged; a send ends the row.
+    fn hold_queue(&mut self, message_id: &str, error: &PrivateDmRuntimeError, now: u64) {
+        if self.queue_refused_at.replace(now).is_none() {
+            dlog::write(
+                LogLevel::Warn,
+                kinds::OUTBOX,
+                &self.session_id,
+                &format!("queued message {message_id} stays queued: {error}"),
+            );
+        }
+    }
+
     fn file_text(&mut self, body: String) -> Result<String, PrivateDmRuntimeError> {
         self.ensure_device_authorized()?;
         let mut message = self.messages.stamp(ChatMessage {

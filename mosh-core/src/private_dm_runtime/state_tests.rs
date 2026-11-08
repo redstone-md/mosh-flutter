@@ -18,6 +18,46 @@ pub(super) fn runtime_on(net: &Arc<MemoryNet>, peer_id: &str) -> PrivateDmRuntim
     PrivateDmRuntime::with_transport(net.endpoint(peer_id), temp_store(), None)
 }
 
+pub(super) fn status_of(
+    runtime: &mut PrivateDmRuntime,
+    session_id: &str,
+    message_id: &str,
+) -> Option<MessageDeliveryStatus> {
+    runtime
+        .poll_session(session_id)
+        .expect("poll should pass")
+        .messages
+        .iter()
+        .find(|message| message.message_id.as_deref() == Some(message_id))
+        .and_then(|message| message.delivery_status)
+}
+
+pub(super) fn bodies_from(
+    runtime: &mut PrivateDmRuntime,
+    session_id: &str,
+    author: &str,
+) -> Vec<String> {
+    runtime
+        .poll_session(session_id)
+        .expect("poll should pass")
+        .messages
+        .iter()
+        .filter(|message| message.from_device == author)
+        .map(|message| message.body.clone())
+        .collect()
+}
+
+/// How many field-log lines about `context` contain `needle`.
+pub(super) fn log_lines(context: &str, needle: &str) -> Vec<String> {
+    let path = dlog::current_log_path().expect("the session wrote the log");
+    std::fs::read_to_string(path)
+        .expect("the log is readable")
+        .lines()
+        .filter(|line| line.contains(context) && line.contains(needle))
+        .map(str::to_string)
+        .collect()
+}
+
 /// Alice and Bob, reachable to each other directly, nothing exchanged yet.
 pub(super) fn memory_pair() -> (Arc<MemoryNet>, PrivateDmRuntime, PrivateDmRuntime) {
     let net = MemoryNet::new();

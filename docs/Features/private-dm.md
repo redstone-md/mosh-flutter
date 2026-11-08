@@ -88,7 +88,11 @@ envelope stays far under the 64 KiB network limit.
 A DM text first persists its admission as `Pending`. Refused admission returns
 `Persistence`, settles `Failed`, and does not publish. Accepted admission becomes
 `Queued`. The runtime's tick sends queued texts oldest first while
-the contact is reachable; a transport refusal leaves the text queued. The row shows a
+the contact is reachable; a transport refusal leaves the text queued. A refusal
+while no path to the contact is known parks the queue: the tick skips it until a
+path appears or an authenticated frame arrives from the contact, so an offline
+contact costs one attempt and one `outbox` warning, not one per tick. A run of
+refusals logs only its first. The row shows a
 clock while queued, one tick once the transport took it, two once the contact
 acknowledged it. See [ADR 0037](../ADR/0037-conversation-write-acceptance.md).
 
@@ -108,6 +112,7 @@ sequenceDiagram
             T-->>RT: ok → Sent
         else refused
             T-->>RT: no peers → stays Queued, pass stops
+            RT->>RT: no known path → park until a path or a frame from the contact
         end
     end
     Peer-->>RT: DeliveryAck → Delivered

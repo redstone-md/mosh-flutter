@@ -51,10 +51,11 @@ impl DmTransport for MemoryTransport {
 
     fn publish(&self, _room: &str, channel: &str, payload: &[u8]) -> Result<(), PublishError> {
         let mut state = self.net.lock();
-        let refused = state
-            .endpoints
-            .get(&self.peer_id)
-            .is_some_and(|endpoint| endpoint.refuse_publishes);
+        let mut refused = false;
+        if let Some(endpoint) = state.endpoints.get_mut(&self.peer_id) {
+            endpoint.publishes.push(channel.to_string());
+            refused = endpoint.refuse_publishes;
+        }
         let targets: Vec<(String, Option<DropRule>)> = state
             .links
             .iter()
