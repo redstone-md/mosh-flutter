@@ -82,22 +82,26 @@ class CallVideoStage extends StatelessWidget {
     ];
   }
 
-  /// The preview is a quarter-width inset over remote video, else the stage.
+  /// The preview is a quarter-width inset over remote video, inside its
+  /// padding, else the whole stage.
   static CallVideoSurfaces _surfaces(
       BuildContext context, Size stage, bool remoteStage) {
     final ratio = MediaQuery.devicePixelRatioOf(context);
-    native.Surface surface(double width, double height) => native.Surface(
-        width: (width * ratio).ceil(), height: (height * ratio).ceil());
+    native.Surface surface(Size size) => native.Surface(
+        width: (size.width * ratio).ceil(),
+        height: (size.height * ratio).ceil());
+    final inset = _previewPadding.deflateSize(stage);
     return CallVideoSurfaces(
-        local: surface(
-            stage.width * (remoteStage ? _previewShare : 1), stage.height),
-        remote: surface(stage.width, stage.height));
+        local: surface(remoteStage
+            ? Size(inset.width * _previewShare, inset.height)
+            : stage),
+        remote: surface(stage));
   }
 
   Widget _preview(ui.Image image, String label) => Align(
         alignment: Alignment.bottomRight,
         child: Padding(
-            padding: const EdgeInsets.all(8),
+            padding: _previewPadding,
             child: FractionallySizedBox(
                 widthFactor: _previewShare,
                 child: AspectRatio(
@@ -115,3 +119,4 @@ class CallVideoStage extends StatelessWidget {
 }
 
 const _previewShare = .25;
+const _previewPadding = EdgeInsets.all(8);

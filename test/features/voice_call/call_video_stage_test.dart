@@ -155,10 +155,13 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final image = (await tester
         .runAsync(() => CallVideoRenderer.decodeRgba(testCallVideoFrame(1))))!;
+    final next = (await tester
+        .runAsync(() => CallVideoRenderer.decodeRgba(testCallVideoFrame(2))))!;
     final images = ValueNotifier(CallVideoImages(local: image, remote: image));
     addTearDown(() {
       images.dispose();
       image.dispose();
+      next.dispose();
     });
     final reported = <CallVideoSurfaces>[];
     Future<void> show(List<double> widths) => pumpScreen(
@@ -178,16 +181,18 @@ void main() {
         settle: false);
     await show([640]);
     await tester.pump();
-    images.value = CallVideoImages(local: image, remote: image);
+    images.value = CallVideoImages(local: next, remote: next);
     await tester.pump();
-    expect(reported, [_surfaces(320, 1280, 720)],
+    expect(find.byWidgetPredicate((w) => w is RawImage && w.image == next),
+        findsNWidgets(2));
+    expect(reported, [_surfaces((312, 688), (1280, 720))],
         reason: 'new pixels in the same layout report nothing new');
     await show([640, 160]);
     await tester.pump();
     expect(reported, hasLength(1), reason: 'the larger stage still covers');
     await show([160]);
     await tester.pump();
-    expect(reported.last, _surfaces(80, 320, 180));
+    expect(reported.last, _surfaces((72, 148), (320, 180)));
     images.value = CallVideoImages(local: image);
     await show([160]);
     await tester.pump();
@@ -198,7 +203,8 @@ void main() {
   });
 }
 
-CallVideoSurfaces _surfaces(int preview, int width, int height) =>
+/// The preview is a quarter of the stage inside its 8 px padding.
+CallVideoSurfaces _surfaces((int, int) local, (int, int) remote) =>
     CallVideoSurfaces(
-        local: native.Surface(width: preview, height: height),
-        remote: native.Surface(width: width, height: height));
+        local: native.Surface(width: local.$1, height: local.$2),
+        remote: native.Surface(width: remote.$1, height: remote.$2));

@@ -191,12 +191,13 @@ Future<void> _nativeEvent(
 }
 
 /// The call view's 336x189 stage and the floating view's 196x111 one, each
-/// with a quarter-width preview inset, at a device pixel ratio of one.
+/// with a quarter-width preview inside 8 px padding, at a device pixel ratio
+/// of one.
 const _full = {
-  'local': [84, 189],
+  'local': [80, 173],
   'remote': [336, 189],
 };
 const _minimized = {
-  'local': [49, 111],
+  'local': [45, 95],
   'remote': [196, 111],
 };
