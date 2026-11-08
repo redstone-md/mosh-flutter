@@ -1,6 +1,7 @@
 //! One call's peer connection on a virtual network. Media is DTLS-SRTP; the
 //! certificate fingerprint travels in the SDP inside the MLS-authenticated
 //! description, so only the selected device can complete the handshake.
+use std::sync::Arc;
 use std::sync::mpsc::{Receiver, sync_channel};
 use std::time::{Duration, Instant};
 
@@ -55,7 +56,7 @@ struct Candidate {
 pub struct Engine {
     runtime: tokio::runtime::Runtime,
     factory: PeerConnectionFactory,
-    pub carrier: Carrier,
+    pub carrier: Arc<Carrier>,
     pc: PeerConnection,
     microphone: RtcAudioTrack,
     pub camera: Camera,
@@ -79,7 +80,7 @@ impl Engine {
             .worker_threads(1)
             .enable_all()
             .build()?;
-        let carrier = Carrier::new(config.caller);
+        let carrier = Arc::new(Carrier::new(config.caller));
         let factory = PeerConnectionFactory::with_virtual_network(carrier.network());
         factory.acquire_platform_adm();
         factory.set_adm_recording_enabled(false);
@@ -196,6 +197,7 @@ impl Engine {
             .block_on(self.pc.set_remote_description(description))
             .map_err(|error| anyhow::anyhow!("remote description: {error:?}"))?;
         self.remote = Some(remote);
+        self.carrier.accept();
         if self.caller {
             return self.local.clone().context("offer was not created");
         }
@@ -257,11 +259,6 @@ impl Engine {
             .map_err(|error| anyhow::anyhow!("budget: {error:?}"))?;
         self.camera.adapt(max)?;
         Ok(json!({"ok": true}))
-    }
-
-    /// Delivers a packet from Moss once negotiation has a remote side.
-    pub fn receive(&self, bytes: &[u8]) -> bool {
-        self.remote.is_some() && self.carrier.receive(bytes)
     }
 }
 

@@ -1,6 +1,6 @@
 use super::{
     library::{Engine, MAX_RGBA},
-    packets::{self, Sender},
+    packets::Sender,
     state::State,
     types::{Binding, Choices, Context, Description, Signal},
 };
@@ -24,7 +24,7 @@ pub(crate) struct Connection {
 }
 
 impl Connection {
-    /// Outgoing engine packets go straight to `sender`, never through `pump`.
+    /// The engine's packets travel over a link from `sender`, never through `pump`.
     pub fn new(
         context: Context,
         offer: Option<Description>,
@@ -44,8 +44,8 @@ impl Connection {
         {
             return Err("media description does not match the selected pair".into());
         }
-        let sink = sender.sink(&context.peer, &binding.media_session);
-        let mut engine = Engine::new(&binding, context.caller, sink)?;
+        let wire = sender.link(&context.peer, &binding.media_session);
+        let mut engine = Engine::new(&binding, context.caller, wire)?;
         let local = if let Some(offer) = offer {
             engine.ask(json!({"action":"remote","description":offer}))?
         } else {
@@ -142,7 +142,6 @@ impl Connection {
                 self.candidates.push(candidate.into());
             }
         }
-        self.receive_packets(transport);
         self.present(state);
         if self.resend.elapsed() >= Duration::from_secs(1) {
             self.resend = Instant::now();
@@ -161,21 +160,6 @@ impl Connection {
             });
         }
         Ok(())
-    }
-
-    fn receive_packets(&mut self, transport: &dyn DmTransport) {
-        for message in transport.drain_call_packets() {
-            if message
-                .channel
-                .strip_prefix(crate::moss_ffi::PACKET_INBOX_CHANNEL_PREFIX)
-                != Some(&self.context.peer)
-            {
-                continue;
-            }
-            if let Some(packet) = packets::unwrap(&message.payload, &self.binding.media_session) {
-                self.engine.receive(packet);
-            }
-        }
     }
 
     fn present(&mut self, state: &mut State) {

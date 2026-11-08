@@ -33,7 +33,7 @@ impl Trace {
         }
         self.last_sample = elapsed;
         let queue = sender
-            .0
+            .shared
             .queue
             .lock()
             .unwrap_or_else(|error| error.into_inner());

@@ -1,4 +1,6 @@
-//! A slow Moss relay call cannot stall capture, decoding or call commands.
+//! A call's packets over Moss. A slow relay cannot stall capture, decoding
+//! or call commands.
+use super::library::Wire;
 use crate::private_dm_runtime::transport::DmTransport;
 use std::{
     collections::VecDeque,
@@ -120,7 +122,11 @@ impl Shared {
         self.changed.notify_one();
     }
 }
-pub(crate) struct Sender(Arc<Shared>);
+/// Paces every call's outgoing packets to Moss on a thread of its own.
+pub(crate) struct Sender {
+    shared: Arc<Shared>,
+    transport: Arc<dyn DmTransport>,
+}
 
 impl Sender {
     pub fn new(transport: Arc<dyn DmTransport>) -> Self {
@@ -132,19 +138,25 @@ impl Sender {
             changed: Condvar::new(),
         });
         let worker = shared.clone();
-        std::thread::spawn(move || send_loop(worker, transport));
-        Self(shared)
+        let sending = transport.clone();
+        std::thread::spawn(move || send_loop(worker, sending));
+        Self { shared, transport }
     }
 
-    /// Queues `peer`'s engine packets from any thread.
-    pub fn sink(&self, peer: &str, nonce: &[u8]) -> super::library::Sink {
-        let (shared, peer, nonce) = (self.0.clone(), peer.to_owned(), nonce.to_vec());
-        Box::new(move |packet, priority| shared.enqueue(&peer, &nonce, packet, priority))
+    /// The wire of one call with `peer`, whose packets carry `nonce`.
+    pub fn link(&self, peer: &str, nonce: &[u8]) -> Box<dyn Wire> {
+        Box::new(Link {
+            shared: self.shared.clone(),
+            transport: self.transport.clone(),
+            channel: format!("{}{peer}", crate::moss_ffi::PACKET_INBOX_CHANNEL_PREFIX),
+            peer: peer.to_owned(),
+            nonce: nonce.to_vec(),
+        })
     }
 
     pub fn reset(&self) {
         let mut queue = self
-            .0
+            .shared
             .queue
             .lock()
             .unwrap_or_else(|error| error.into_inner());
@@ -152,15 +164,15 @@ impl Sender {
         queue.video.clear();
     }
     pub fn relayed(&self, relayed: bool) {
-        self.0
+        self.shared
             .queue
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .relayed = relayed;
-        self.0.changed.notify_one();
+        self.shared.changed.notify_one();
     }
     pub fn dropped(&self) -> u64 {
-        self.0
+        self.shared
             .queue
             .lock()
             .unwrap_or_else(|error| error.into_inner())
@@ -169,12 +181,40 @@ impl Sender {
 }
 impl Drop for Sender {
     fn drop(&mut self) {
-        self.0
+        self.shared
             .queue
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .stopped = true;
-        self.0.changed.notify_all();
+        self.shared.changed.notify_all();
+    }
+}
+
+/// One call's packets: outgoing ones join the sender's queue, inbound ones
+/// come from `peer`'s packet channel under this call's nonce.
+struct Link {
+    shared: Arc<Shared>,
+    transport: Arc<dyn DmTransport>,
+    channel: String,
+    peer: String,
+    nonce: Vec<u8>,
+}
+
+impl Wire for Link {
+    fn send(&mut self, packet: &[u8], priority: bool) {
+        self.shared
+            .enqueue(&self.peer, &self.nonce, packet, priority);
+    }
+
+    fn receive(&mut self, deliver: &mut dyn FnMut(&[u8])) {
+        for message in self.transport.drain_call_packets() {
+            if message.channel != self.channel {
+                continue;
+            }
+            if let Some(packet) = unwrap(&message.payload, &self.nonce) {
+                deliver(packet);
+            }
+        }
     }
 }
 

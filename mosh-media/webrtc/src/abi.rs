@@ -1,8 +1,8 @@
 //! The loading process retains every buffer through its synchronous call.
 //! Create, command and drop an engine on one owner thread; Windows COM is thread-bound.
-//! `copy_packet` and `packet_priority` never wait for the engine, so another
-//! thread may drain outgoing packets while the owner commands it.
-use crate::carrier::{MAX_PACKET, Outgoing};
+//! `receive`, `copy_packet` and `packet_priority` never wait for the engine,
+//! so another thread may carry packets while the owner commands it.
+use crate::carrier::{Carrier, MAX_PACKET};
 use crate::engine::{Config, Engine};
 use crate::frames::{FrameInfo, MAX_RGBA_BYTES};
 use serde_json::json;
@@ -12,11 +12,11 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-/// What `mosh_media_create` returns: the engine and its outgoing queue,
-/// which is reachable without the engine's lock.
+/// What `mosh_media_create` returns: the engine and its carrier, which is
+/// reachable without the engine's lock.
 struct Handle {
     engine: Mutex<Engine>,
-    outgoing: Arc<Outgoing>,
+    carrier: Arc<Carrier>,
 }
 
 /// Media protocol spoken by this engine; mosh-core puts it into every call
@@ -45,7 +45,7 @@ pub unsafe extern "C" fn mosh_media_create(config: *const c_char) -> *mut c_void
             .and_then(Engine::new);
         match engine {
             Ok(engine) => Box::into_raw(Box::new(Handle {
-                outgoing: engine.carrier.outgoing().clone(),
+                carrier: engine.carrier.clone(),
                 engine: Mutex::new(engine),
             }))
             .cast(),
@@ -108,11 +108,9 @@ pub unsafe extern "C" fn mosh_media_receive(
     }
     catch_unwind(AssertUnwindSafe(|| {
         // SAFETY: caller retains the live handle and readable packet for this call.
-        let engine = &unsafe { &*handle.cast::<Handle>() }.engine;
+        let carrier = &unsafe { &*handle.cast::<Handle>() }.carrier;
         let bytes = unsafe { std::slice::from_raw_parts(data, length) };
-        engine
-            .lock()
-            .map_or(-1, |engine| i32::from(engine.receive(bytes)))
+        i32::from(carrier.receive(bytes))
     }))
     .unwrap_or(-1)
 }
@@ -130,9 +128,9 @@ pub unsafe extern "C" fn mosh_media_copy_packet(
     }
     catch_unwind(AssertUnwindSafe(|| {
         // SAFETY: caller retains the handle and an exclusively writable packet buffer.
-        let outgoing = &unsafe { &*handle.cast::<Handle>() }.outgoing;
+        let carrier = &unsafe { &*handle.cast::<Handle>() }.carrier;
         let bytes = unsafe { std::slice::from_raw_parts_mut(data, capacity) };
-        outgoing.copy_packet(bytes)
+        carrier.outgoing().copy_packet(bytes)
     }))
     .unwrap_or(-1)
 }
@@ -150,9 +148,9 @@ pub unsafe extern "C" fn mosh_media_packet_priority(
     }
     catch_unwind(AssertUnwindSafe(|| {
         // SAFETY: retain the handle and readable packet until this synchronous call ends.
-        let outgoing = &unsafe { &*handle.cast::<Handle>() }.outgoing;
+        let carrier = &unsafe { &*handle.cast::<Handle>() }.carrier;
         let bytes = unsafe { std::slice::from_raw_parts(data, length) };
-        i32::from(outgoing.priority(bytes))
+        i32::from(carrier.outgoing().priority(bytes))
     }))
     .unwrap_or(-1)
 }

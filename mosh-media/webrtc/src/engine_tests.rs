@@ -52,7 +52,7 @@ fn transfer(from: &mut Engine, to: &mut Engine) {
         if length <= 0 {
             break;
         }
-        assert!(to.receive(&buffer[..length as usize]));
+        assert!(to.carrier.receive(&buffer[..length as usize]));
     }
 }
 
