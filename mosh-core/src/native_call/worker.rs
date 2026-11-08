@@ -155,7 +155,7 @@ impl Owner {
             .and_then(|capture| capture.frame(self.captured))
         {
             self.captured = frame.sequence;
-            present_capture(&frame, state, self.connection.as_ref());
+            present_capture(&frame, state, self.connection.as_ref().map(|c| &c.engine));
         }
         state.snapshot.camera_requested = state.choices.camera;
         state.snapshot.camera_starting = state.choices.camera && !state.snapshot.camera;
@@ -302,18 +302,17 @@ impl Owner {
     }
 }
 
-fn present_capture(
+/// The encoder takes the whole capture; the preview shrinks to its surface.
+pub(super) fn present_capture(
     frame: &super::capture::Captured,
     state: &mut State,
-    connection: Option<&Connection>,
+    engine: Option<&super::library::Engine>,
 ) {
     if u128::from(frame.source_age_ms) + frame.received.elapsed().as_millis() >= 1000 {
         return;
     }
-    if let Some(connection) = connection {
-        connection
-            .engine
-            .push(frame.width, frame.height, &frame.pixels);
+    if let Some(engine) = engine {
+        engine.push(frame.width, frame.height, &frame.pixels);
     }
     state.preview(frame);
     state.snapshot.camera = true;

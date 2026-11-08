@@ -23,7 +23,7 @@ impl Measurements {
         let mut audio = json!({});
         let mut audio_sender = json!({});
         let mut transport = json!({});
-        let (mut video, mut encoder) = (json!({}), json!({}));
+        let (mut video, mut encoder, mut camera) = (json!({}), json!({}), json!({}));
         let codec = |id: &str| codec(stats, id);
         for entry in stats {
             match entry {
@@ -37,6 +37,9 @@ impl Measurements {
                 RtcStats::OutboundRtp(s) if s.stream.kind == "audio" => {
                     audio_sender["packets_sent"] = s.sent.packets_sent.into();
                     audio_sender["bytes_sent"] = s.sent.bytes_sent.into();
+                }
+                RtcStats::MediaSource(s) if s.source.kind == "video" => {
+                    camera = json!({"width": s.video.width, "height": s.video.height});
                 }
                 RtcStats::MediaSource(s) if s.source.kind == "audio" => {
                     audio_sender["microphone_energy"] = s.audio.total_audio_energy.into();
@@ -53,7 +56,7 @@ impl Measurements {
             }
         }
         *self.latest.lock().unwrap() = json!({"audio": audio, "audio_sender": audio_sender,
-            "transport": transport, "video": video, "encoder": encoder});
+            "transport": transport, "video": video, "encoder": encoder, "camera": camera});
     }
 
     pub fn snapshot(&self) -> Value {
@@ -68,6 +71,7 @@ impl Measurements {
             "transport": latest["transport"],
             "video": latest["video"],
             "encoder": latest["encoder"],
+            "camera": latest["camera"],
         })
     }
 }

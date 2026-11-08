@@ -182,6 +182,10 @@ mod trace;
 mod stall;
 
 #[cfg(feature = "native-media-tests")]
+#[path = "presentation_tests.rs"]
+mod presentation;
+
+#[cfg(feature = "native-media-tests")]
 mod native {
     use super::*;
     use crate::native_call::{
