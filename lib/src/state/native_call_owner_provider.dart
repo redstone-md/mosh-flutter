@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mosh/src/features/voice_call/native_call_session.dart';
 import 'package:mosh/src/features/voice_call/call_video_frame.dart';
+import 'package:mosh/src/features/voice_call/call_video_surfaces.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart';
 
 /// Production supplies the presentation client for compatible native platforms.
@@ -18,6 +19,7 @@ class NativeCallOwner extends ChangeNotifier {
   final Future<bool> Function(bool microphone, bool camera)? authorizeMedia;
   final _frames = StreamController<CallVideoFrame>.broadcast(sync: true);
   NativeCallSession? _retained;
+  CallVideoSurfaces? _surfaces;
   NativeCallSession? session;
   Stream<CallVideoFrame> get frames => _frames.stream;
 
@@ -43,6 +45,8 @@ class NativeCallOwner extends ChangeNotifier {
       session = current;
       try {
         await current.start(camera: video);
+        final surfaces = _surfaces;
+        if (surfaces != null) showVideoAt(surfaces);
         if (identical(session, current)) {
           _retained?.stop();
           _retained = current;
@@ -61,6 +65,16 @@ class NativeCallOwner extends ChangeNotifier {
       }
     }
     if (identical(current, session) && active) await current.confirm();
+  }
+
+  /// Frames of every call leave Rust at most at these sizes. Rust refuses
+  /// a report before the first call is prepared, so a new session sends the
+  /// latest one again.
+  void showVideoAt(CallVideoSurfaces surfaces) {
+    _surfaces = surfaces;
+    unawaited(bridge
+        .nativeCallShowVideoAt(local: surfaces.local, remote: surfaces.remote)
+        .catchError((Object _) {/* Resent once a session starts. */}));
   }
 
   void unbind(String sessionId, String callId) {

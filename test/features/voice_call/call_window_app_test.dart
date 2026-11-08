@@ -3,12 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/voice_call/call_media_view.dart';
+import 'package:mosh/src/features/voice_call/call_video_stage.dart';
+import 'package:mosh/src/features/voice_call/call_video_surfaces.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_window_app.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../support/call_window_platform.dart';
+import '../../support/native_call_fixture.dart';
 
 const _manager = MethodChannel('window_manager');
 const _screen = MethodChannel('dev.leanflutter.plugins/screen_retriever');
@@ -144,6 +148,39 @@ void main() {
     expect(
         platform.calls.where((call) => call.method == 'close'), hasLength(1));
     await _osClose(platform);
+    await tester.pumpWidget(const SizedBox.shrink());
+    for (final listener in windowManager.listeners) {
+      windowManager.removeListener(listener);
+    }
+    platform.messenger.setMockMethodCallHandler(_manager, null);
+    platform.messenger.setMockMethodCallHandler(_screen, null);
+  });
+
+  testWidgets('the window reports its video stage surfaces to its parent',
+      (tester) async {
+    final platform = CallWindowPlatform();
+    _installWindowManager(platform);
+    final reported = <CallVideoSurfaces>[];
+    final handle =
+        await startCallWindowView((_) async {}, onSurfaces: reported.add);
+    await tester.pump();
+    await handle(MethodCall(
+        'call-present',
+        CallViewState(
+                sessionId: 'origin',
+                callId: 'active',
+                peer: 'Alice',
+                phase: CallViewPhase.active,
+                media: CallMediaView.fromSnapshot(nativeCallSnapshot()))
+            .toMap()));
+    await tester.pump();
+    await tester.pump();
+    final stage = tester.getSize(find.byType(CallVideoStage));
+    expect(reported, hasLength(1));
+    expect(reported.single.remote.width,
+        (stage.width * tester.view.devicePixelRatio).ceil());
+    await handle(const MethodCall('call-close'));
+    await tester.pump(const Duration(milliseconds: 20));
     await tester.pumpWidget(const SizedBox.shrink());
     for (final listener in windowManager.listeners) {
       windowManager.removeListener(listener);

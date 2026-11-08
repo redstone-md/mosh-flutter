@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'android_call_presentation.dart';
 import 'call_video_stage.dart';
+import 'call_video_surfaces.dart';
+import 'package:mosh/src/state/native_call_owner_provider.dart';
 
 /// Above the entire root Navigator, including modal routes and their barriers.
 /// Offstage preserves dialogs and drafts until the Activity returns from PiP.
+/// Every Android video stage, PiP and offstage ones included, reports here.
 class AndroidPipOverlay extends ConsumerStatefulWidget {
   const AndroidPipOverlay({super.key, required this.child});
   final Widget child;
@@ -39,6 +42,13 @@ class _AndroidPipOverlayState extends ConsumerState<AndroidPipOverlay> {
   Widget build(BuildContext context) {
     final presentation = _presentation;
     if (presentation == null) return widget.child;
+    return CallVideoSurfaceScope(
+        onSurfaces: (surfaces) =>
+            ref.read(nativeCallOwnerProvider)?.showVideoAt(surfaces),
+        child: _layout(presentation));
+  }
+
+  Widget _layout(AndroidCallPresentation presentation) {
     final images = presentation.images;
     return LayoutBuilder(builder: (context, constraints) {
       if (!presentation.inPip) {

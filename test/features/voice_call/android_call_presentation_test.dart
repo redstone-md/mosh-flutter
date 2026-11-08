@@ -91,6 +91,9 @@ void main() {
       expect(find.byType(VoiceCallHost), findsOneWidget);
       expect(tester.widget<CallView>(find.byType(CallView)).compact, false);
       expect(find.byType(RawImage), video ? findsWidgets : findsNothing);
+      expect(bridge.lastCall(BridgeMethod.nativeCallShowVideoAt)?.args,
+          video ? _full : isNull,
+          reason: 'the full call view reports its stage to Rust');
       expect(find.byTooltip('Turn camera on'), findsOneWidget);
       expect(bridge.countOf(BridgeMethod.nativeCallPrepare), 1);
 
@@ -108,6 +111,9 @@ void main() {
       expect(
           find.byType(FloatingCallView), video ? findsOneWidget : findsNothing);
       if (video) {
+        expect(bridge.lastCall(BridgeMethod.nativeCallShowVideoAt)?.args,
+            _minimized,
+            reason: 'the minimized view reports its smaller stage');
         final before = tester.getTopLeft(find.byType(FloatingCallView));
         await tester.drag(
             find.byType(FloatingCallView), const Offset(-80, 180));
@@ -145,6 +151,8 @@ void main() {
             reason: 'root Navigator dialogs must also be hidden in system PiP');
         expect(tester.takeException(), isNull,
             reason: 'hidden routes must not relayout into PiP dimensions');
+        expect(bridge.lastCall(BridgeMethod.nativeCallShowVideoAt)?.args, _full,
+            reason: 'the offstage call view still needs its full stage');
         tester.view.physicalSize = const Size(400, 800);
         await _nativeEvent(tester, 'mode', {'call': 'dm/call', 'pip': false});
         await tester.pumpAndSettle();
@@ -181,3 +189,14 @@ Future<void> _nativeEvent(
       reply.complete);
   await reply.future;
 }
+
+/// The call view's 336x189 stage and the floating view's 196x111 one, each
+/// with a quarter-width preview inset, at a device pixel ratio of one.
+const _full = {
+  'local': [84, 189],
+  'remote': [336, 189],
+};
+const _minimized = {
+  'local': [49, 111],
+  'remote': [196, 111],
+};

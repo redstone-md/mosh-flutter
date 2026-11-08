@@ -97,6 +97,12 @@ class CallWindowProcess extends Fake implements Process {
         },
       });
 
+  void reportSurfaces(Object? surfaces) => _emit({
+        'id': 900,
+        'method': 'call-video-surfaces',
+        'arguments': surfaces,
+      });
+
   @override
   bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
     kills++;

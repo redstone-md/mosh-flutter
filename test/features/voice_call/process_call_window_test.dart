@@ -5,6 +5,8 @@ import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/process_call_window.dart';
 import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
 import 'package:mosh/src/features/voice_call/call_video_frame.dart';
+import 'package:mosh/src/features/voice_call/call_video_surfaces.dart';
+import 'package:mosh/src/rust/native_call/types.dart' as native;
 import '../../support/call_video_frames.dart';
 
 import '../../support/call_window_process.dart';
@@ -106,6 +108,29 @@ void main() {
     await window.close();
     expect(sink.presentFrame(testCallVideoFrame(5)), isFalse);
   });
+  test('the window\'s video surfaces reach the owner and malformed ones do not',
+      () async {
+    final process = CallWindowProcess();
+    final reported = <CallVideoSurfaces>[];
+    final window = await ProcessCallWindow.open((_) async {},
+        onSurfaces: reported.add, startProcess: () async => process);
+    process.reportSurfaces({
+      'local': [-1, 180],
+      'remote': [1280, 720],
+    });
+    process.reportSurfaces({
+      'local': [320, 180],
+      'remote': [1280, 720],
+    });
+    await pumpEventQueue();
+    expect(reported, [
+      const CallVideoSurfaces(
+          local: native.Surface(width: 320, height: 180),
+          remote: native.Surface(width: 1280, height: 720)),
+    ]);
+    await window.close();
+  });
+
   test('a broken input after termination cannot retain a window owner',
       () async {
     final process = CallWindowProcess(failClose: true, failInputClose: true);

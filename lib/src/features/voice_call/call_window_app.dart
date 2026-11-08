@@ -12,6 +12,7 @@ import 'call_view_state.dart';
 import 'call_window_pipe.dart';
 import 'call_window_frame_receiver.dart';
 import 'call_video_renderer.dart';
+import 'call_video_surfaces.dart';
 import 'desktop_window_visibility.dart';
 
 /// A call-only process starts no Rust, storage, capture or playback runtime.
@@ -32,7 +33,14 @@ Future<void> launchProcessCallWindow() async {
       }());
   pipe.onMethod = await startCallWindowView((command) async {
     await pipe.invoke('call-command', command.toMap());
-  }, renderer: renderer, frameChannel: receiver.connect);
+  },
+      renderer: renderer,
+      frameChannel: receiver.connect,
+      onSurfaces: (surfaces) => unawaited(pipe
+              .invoke('call-video-surfaces', surfaces.toMap())
+              .then<void>((_) {}, onError: (Object _) {
+            /* The pipe closes with the window. */
+          })));
   await pipe.invoke('call-ready');
 }
 
@@ -40,9 +48,10 @@ Future<void> launchProcessCallWindow() async {
 Future<Future<Object?> Function(MethodCall)> startCallWindowView(
     Future<void> Function(CallViewCommand) sendCommand,
     {CallVideoRenderer? renderer,
-    Future<void> Function(int, String)? frameChannel}) async {
-  final controller = _CallWindowController(
-      sendCommand, renderer ?? CallVideoRenderer(), frameChannel);
+    Future<void> Function(int, String)? frameChannel,
+    void Function(CallVideoSurfaces)? onSurfaces}) async {
+  final controller = _CallWindowController(sendCommand,
+      renderer ?? CallVideoRenderer(), frameChannel, onSurfaces ?? (_) {});
   await controller.initialize();
   runApp(_CallWindowApp(controller));
   return controller.handle;
@@ -50,12 +59,14 @@ Future<Future<Object?> Function(MethodCall)> startCallWindowView(
 
 class _CallWindowController extends ValueNotifier<CallViewState?>
     with WindowListener {
-  _CallWindowController(this.sendCommand, this.video, this.frameChannel)
+  _CallWindowController(
+      this.sendCommand, this.video, this.frameChannel, this.onSurfaces)
       : super(null);
 
   final Future<void> Function(CallViewCommand) sendCommand;
   final CallVideoRenderer video;
   final Future<void> Function(int, String)? frameChannel;
+  final void Function(CallVideoSurfaces) onSurfaces;
   bool _shown = false;
   bool _closing = false;
 
@@ -147,13 +158,15 @@ class _CallWindowApp extends StatelessWidget {
           home: Scaffold(
               body: call == null
                   ? const SizedBox.shrink()
-                  : Center(
-                      child: CallView(
-                          call: call,
-                          video: controller.video,
-                          onDeviceSelected: controller.act,
-                          onAction: (action) =>
-                              controller.act(call.command(action))))),
+                  : CallVideoSurfaceScope(
+                      onSurfaces: controller.onSurfaces,
+                      child: Center(
+                          child: CallView(
+                              call: call,
+                              video: controller.video,
+                              onDeviceSelected: controller.act,
+                              onAction: (action) =>
+                                  controller.act(call.command(action)))))),
         ),
       );
 }

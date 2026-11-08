@@ -213,6 +213,18 @@ Only one frame is in flight. Missing acknowledgement closes that renderer after
 five seconds; the main strip can restore it. Stream and write failures are both
 handled, including a TCP reset during a frame write.
 
+Frames leave Rust at the size they are shown, not as full camera RGBA. The
+video stage dispatches `CallVideoSurfaces` whenever its layout changes: the
+device pixels of the remote stage and of the preview (a quarter-width inset
+over remote video, else the whole stage). The call window sends them over its
+pipe (`call-video-surfaces`), Android's host takes them directly, and the
+native call owner passes them to `show_video_at`. The engine scales decoded
+I420 down with libyuv before its RGBA conversion (the `surface` command), and
+the local preview goes through the engine's stateless libyuv scaler
+(`mosh_media_scale_rgba`) before it is presented. Both keep the aspect ratio
+and never enlarge; until a surface is reported frames stay whole. The encoder
+still takes the full camera frame.
+
 Each lane retains its latest image, and the renderer has one decode in flight.
 Call/generation checks discard old responses, and image age includes transfer
 and decode time. A pause in delivery freezes the last image, as Meet and Zoom
