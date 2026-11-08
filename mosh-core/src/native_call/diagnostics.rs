@@ -59,7 +59,7 @@ impl Longest {
         self.include(Self(started.elapsed()));
     }
 
-    fn include(&mut self, other: Self) {
+    pub fn include(&mut self, other: Self) {
         self.0 = self.0.max(other.0);
     }
 }

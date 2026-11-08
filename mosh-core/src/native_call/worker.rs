@@ -31,7 +31,7 @@ pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
     loop {
         let waiting = Instant::now();
         let mut state = shared.lock().unwrap_or_else(|error| error.into_inner());
-        state.stalls.lock_wait.since(waiting);
+        let lock_wait = super::diagnostics::Longest(waiting.elapsed());
         if state.shutdown {
             return;
         }
@@ -41,6 +41,7 @@ pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
         }
         state.applied = state.revision;
         state.stalls.step.since(stepping);
+        state.stalls.lock_wait.include(lock_wait); // A new call's step resets stalls.
         drop(state);
         std::thread::sleep(Duration::from_millis(10));
     }
@@ -75,8 +76,9 @@ impl Owner {
         }
         let capturing = Instant::now();
         self.query_cameras(state);
-        self.capture(state)?;
+        let captured = self.capture(state);
         state.stalls.capture.since(capturing);
+        captured?;
         self.negotiate(&context, state, Instant::now())?;
         let choices = state.choices.clone();
         if let Some(connection) = &mut self.connection {
