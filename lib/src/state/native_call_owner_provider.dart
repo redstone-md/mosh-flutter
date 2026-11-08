@@ -19,7 +19,8 @@ class NativeCallOwner extends ChangeNotifier {
   final Future<bool> Function(bool microphone, bool camera)? authorizeMedia;
   final _frames = StreamController<CallVideoFrame>.broadcast(sync: true);
   NativeCallSession? _retained;
-  CallVideoSurfaces? _surfaces;
+  CallVideoSurfaces? _surfaces, _unsent;
+  bool _showing = false;
   NativeCallSession? session;
   Stream<CallVideoFrame> get frames => _frames.stream;
 
@@ -69,12 +70,23 @@ class NativeCallOwner extends ChangeNotifier {
 
   /// Frames of every call leave Rust at most at these sizes. Rust refuses
   /// a report before the first call is prepared, so a new session sends the
-  /// latest one again.
+  /// latest one again. One report is in flight at a time, so a slower older
+  /// one never lands after the latest.
   void showVideoAt(CallVideoSurfaces surfaces) {
-    _surfaces = surfaces;
-    unawaited(bridge
-        .nativeCallShowVideoAt(local: surfaces.local, remote: surfaces.remote)
-        .catchError((Object _) {/* Resent once a session starts. */}));
+    _surfaces = _unsent = surfaces;
+    if (!_showing) unawaited(_show());
+  }
+
+  Future<void> _show() async {
+    _showing = true;
+    for (var next = _unsent; next != null; next = _unsent) {
+      _unsent = null;
+      try {
+        await bridge.nativeCallShowVideoAt(
+            local: next.local, remote: next.remote);
+      } catch (_) {/* Resent once a session starts. */}
+    }
+    _showing = false;
   }
 
   void unbind(String sessionId, String callId) {
