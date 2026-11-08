@@ -148,6 +148,10 @@ impl Engine {
             "devices" => Ok(audio::devices(&self.factory)),
             "select" => Ok(audio::select(&self.factory, &value)),
             "budget" => self.budget(&value),
+            "surface" => {
+                self.frames.show_at(serde_json::from_value(value)?);
+                Ok(Value::Null)
+            }
             _ => anyhow::bail!("unknown media command"),
         }
     }

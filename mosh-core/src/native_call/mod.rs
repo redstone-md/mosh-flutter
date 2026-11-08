@@ -19,7 +19,7 @@ use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
-use types::{Choices, Context, Frame, Signal, Snapshot};
+use types::{Choices, Context, Frame, Signal, Snapshot, Surface};
 
 /// Reuse the bounded helper inventory without creating an engine or call.
 pub(crate) fn list_cameras() -> Result<Vec<types::Device>, String> {
@@ -203,6 +203,15 @@ impl Hub {
         let mut frame = presented.frame.clone();
         frame.source_age_ms = age as u32;
         Some(frame)
+    }
+
+    /// Later frames of every call leave at most at these window surfaces.
+    pub fn show_at(&self, local: Surface, remote: Surface) -> Result<(), String> {
+        self.state
+            .lock()
+            .map_err(|_| "native call state poisoned")?
+            .surfaces = [local, remote];
+        Ok(())
     }
 
     pub fn outbound(&self) -> Vec<(String, String, Signal)> {

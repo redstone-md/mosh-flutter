@@ -222,3 +222,29 @@ fn a_call_without_camera_sends_no_video() {
     );
     assert_eq!(sequence(&callee), 0);
 }
+
+#[test]
+fn remote_frames_leave_at_the_size_the_window_shows_them() {
+    let (mut caller, mut callee) = pair();
+    callee
+        .command(json!({"action":"surface", "width":160, "height":160}))
+        .unwrap();
+    camera(&mut caller, true);
+    let decoded = |to: &Engine| to.measurements.snapshot()["video"]["width"].as_u64();
+    assert!(
+        pump(&mut caller, &mut callee, SMALL, SECONDS, |to| sequence(to)
+            > 10
+            && decoded(to) > Some(0)),
+        "remote video never decoded"
+    );
+    let shown = info(&callee);
+    assert_eq!(
+        (shown.width, shown.height, shown.rgba_bytes),
+        (160, 90, 160 * 90 * 4)
+    );
+    assert_eq!(
+        decoded(&callee),
+        Some(320),
+        "the decoder kept the full frame"
+    );
+}

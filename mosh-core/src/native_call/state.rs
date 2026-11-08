@@ -1,7 +1,7 @@
 use super::{
     capture::Captured,
     diagnostics::Stalls,
-    types::{Choices, Context, Frame, Signal, Snapshot},
+    types::{Choices, Context, Frame, Signal, Snapshot, Surface},
 };
 use std::{collections::VecDeque, sync::Arc, time::Instant};
 
@@ -21,6 +21,8 @@ pub(crate) struct State {
     pub inbound: VecDeque<Signal>,
     pub outbound: VecDeque<(String, String, Signal)>,
     pub frames: [Option<Arc<Presented>>; 2],
+    /// The window's local and remote video surfaces; they outlive calls.
+    pub surfaces: [Surface; 2],
     pub sequences: [u64; 2],
     pub shutdown: bool,
     pub revision: u64,
@@ -58,11 +60,29 @@ impl State {
             .push_back((context.session_id.clone(), context.call_id.clone(), signal));
     }
 
+    /// Presents the capture at most at the local surface's size; the
+    /// encoder takes the full frame separately.
     pub fn preview(&mut self, frame: &Captured) {
+        let fitted =
+            super::library::scale_rgba(frame.width, frame.height, &frame.pixels, self.surfaces[0]);
+        let (width, height, pixels) = match fitted {
+            Ok(Some(fitted)) => fitted,
+            Ok(None) => (frame.width, frame.height, frame.pixels.clone()),
+            Err(error) => {
+                use crate::diagnostics_log::{kinds, write, LogLevel};
+                write(
+                    LogLevel::Warn,
+                    kinds::CALL,
+                    "",
+                    &format!("preview scaling failed: {error}"),
+                );
+                return;
+            }
+        };
         self.present(
-            frame.width,
-            frame.height,
-            frame.pixels.clone(),
+            width,
+            height,
+            pixels,
             frame.source_age_ms,
             frame.received,
             true,

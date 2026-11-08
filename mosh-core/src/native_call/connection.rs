@@ -2,7 +2,7 @@ use super::{
     library::{Engine, MAX_RGBA},
     packets::Sender,
     state::State,
-    types::{Binding, Choices, Context, Description, Signal},
+    types::{Binding, Choices, Context, Description, Signal, Surface},
 };
 use crate::private_dm_runtime::transport::DmTransport;
 use rand::RngCore;
@@ -21,6 +21,8 @@ pub(crate) struct Connection {
     reporter: super::telemetry::Reporter,
     last_decoded: u64,
     pixels: Vec<u8>,
+    /// The remote surface the engine scales decoded frames to.
+    shown: Surface,
 }
 
 impl Connection {
@@ -65,6 +67,7 @@ impl Connection {
             reporter: super::telemetry::Reporter::new(),
             last_decoded: 0,
             pixels: vec![0; MAX_RGBA],
+            shown: Surface::default(),
         })
     }
 
@@ -147,6 +150,7 @@ impl Connection {
             }
         }
         let presenting = Instant::now();
+        self.show_at(state.surfaces[1])?;
         self.present(state);
         state.stalls.present.since(presenting);
         if self.resend.elapsed() >= Duration::from_secs(1) {
@@ -164,6 +168,15 @@ impl Connection {
                 nonce: self.binding.media_session.clone(),
                 enabled: state.snapshot.camera,
             });
+        }
+        Ok(())
+    }
+
+    fn show_at(&mut self, surface: Surface) -> Result<(), String> {
+        if surface != self.shown {
+            self.engine
+                .ask(json!({"action":"surface","width":surface.width,"height":surface.height}))?;
+            self.shown = surface;
         }
         Ok(())
     }

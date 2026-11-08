@@ -191,3 +191,26 @@ class Snapshot {
           output == other.output &&
           cameraId == other.cameraId;
 }
+
+/// The device pixels one video surface of the call window shows. Zero until
+/// the window reports it; the engine's `Surface` shares this layout.
+class Surface {
+  final int width;
+  final int height;
+
+  const Surface({
+    required this.width,
+    required this.height,
+  });
+
+  @override
+  int get hashCode => width.hashCode ^ height.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Surface &&
+          runtimeType == other.runtimeType &&
+          width == other.width &&
+          height == other.height;
+}

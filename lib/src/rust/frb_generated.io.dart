@@ -308,6 +308,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   StartSessionRequest dco_decode_box_autoadd_start_session_request(dynamic raw);
 
   @protected
+  Surface dco_decode_box_autoadd_surface(dynamic raw);
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -816,6 +819,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   StartSessionRequest dco_decode_start_session_request(dynamic raw);
 
   @protected
+  Surface dco_decode_surface(dynamic raw);
+
+  @protected
   TypingMember dco_decode_typing_member(dynamic raw);
 
   @protected
@@ -1121,6 +1127,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   StartSessionRequest sse_decode_box_autoadd_start_session_request(
       SseDeserializer deserializer);
+
+  @protected
+  Surface sse_decode_box_autoadd_surface(SseDeserializer deserializer);
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
@@ -1702,6 +1711,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  Surface sse_decode_surface(SseDeserializer deserializer);
+
+  @protected
   TypingMember sse_decode_typing_member(SseDeserializer deserializer);
 
   @protected
@@ -2023,6 +2035,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_start_session_request(
       StartSessionRequest self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_surface(Surface self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
@@ -2632,6 +2647,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_start_session_request(
       StartSessionRequest self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_surface(Surface self, SseSerializer serializer);
 
   @protected
   void sse_encode_typing_member(TypingMember self, SseSerializer serializer);

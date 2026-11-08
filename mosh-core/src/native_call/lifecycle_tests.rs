@@ -121,3 +121,43 @@ fn rejected_worker_preparation_and_choices_return_an_error() {
     drop(hub);
     worker.join().unwrap();
 }
+
+#[cfg(feature = "native-media-tests")]
+#[test]
+fn local_preview_reaches_the_window_at_its_surface_size() {
+    use super::{capture::Captured, types::Surface};
+    let state = Arc::new(Mutex::new(State {
+        context: Some(pending("call")),
+        prepared: true,
+        ..Default::default()
+    }));
+    let hub = Hub {
+        state: state.clone(),
+    };
+    let capture = |sequence| Captured {
+        sequence,
+        width: 1280,
+        height: 720,
+        pixels: [200, 40, 40, 255].repeat(1280 * 720),
+        received: Instant::now(),
+        source_age_ms: 0,
+    };
+    state.lock().unwrap().preview(&capture(1));
+    let whole = hub.frame("dm", "call", true, 0).unwrap();
+    assert_eq!((whole.width, whole.height), (1280, 720), "no surface yet");
+    let thumbnail = Surface {
+        width: 320,
+        height: 320,
+    };
+    hub.show_at(thumbnail, Surface::default()).unwrap();
+    state.lock().unwrap().preview(&capture(2));
+    let shown = hub.frame("dm", "call", true, whole.sequence).unwrap();
+    assert_eq!(
+        (shown.width, shown.height, shown.pixels.len()),
+        (320, 180, 320 * 180 * 4)
+    );
+    assert!(
+        shown.pixels[0] > 180 && shown.pixels[1] < 70,
+        "colors were lost"
+    );
+}
