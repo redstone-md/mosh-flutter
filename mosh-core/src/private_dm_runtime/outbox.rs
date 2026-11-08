@@ -136,7 +136,7 @@ impl PrivateDmRuntime {
                     .hold_queue(&message_id, &error, now);
                 break;
             }
-            self.session_mut(session_id)?.queue_refused_at = None;
+            self.session_mut(session_id)?.queue_failure = None;
             if let Err(error) = self.sessions.persist_send(session_id, &message_id, true) {
                 self.log_persistence_failure(session_id, &error);
                 break;
@@ -168,21 +168,36 @@ impl PrivateDmRuntime {
     }
 }
 
+/// When the outbox last failed to send, and whether moss refused the text.
+/// Only a refusal parks the queue; a local failure is retried on the next
+/// tick.
+#[derive(Clone, Copy)]
+pub(super) struct QueueFailure {
+    at: u64,
+    refused: bool,
+}
+
 impl PrivateDmSession {
-    /// Whether the outbox holds its queue: it was refused while no path to
+    /// Whether the outbox holds its queue: moss refused it while no path to
     /// the counterpart was known, and since then no path has appeared and
     /// nothing authenticated has arrived. An offline contact so costs one
     /// attempt, not one per tick.
     fn queue_waits(&self) -> bool {
-        self.queue_refused_at.is_some_and(|at| {
-            self.logged_reach == PeerTransport::None && self.last_authenticated_rx_ms <= at
+        self.queue_failure.is_some_and(|failure| {
+            failure.refused
+                && self.logged_reach == PeerTransport::None
+                && self.last_authenticated_rx_ms <= failure.at
         })
     }
 
-    /// A refused text stays queued. Only the first refusal in a row is
-    /// logged; a send ends the row.
+    /// A text that failed to send stays queued. Only the first failure in a
+    /// row is logged; a send ends the row.
     fn hold_queue(&mut self, message_id: &str, error: &PrivateDmRuntimeError, now: u64) {
-        if self.queue_refused_at.replace(now).is_none() {
+        let failure = QueueFailure {
+            at: now,
+            refused: matches!(error, PrivateDmRuntimeError::Moss(_)),
+        };
+        if self.queue_failure.replace(failure).is_none() {
             dlog::write(
                 LogLevel::Warn,
                 kinds::OUTBOX,

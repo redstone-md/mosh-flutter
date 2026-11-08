@@ -91,8 +91,9 @@ A DM text first persists its admission as `Pending`. Refused admission returns
 the contact is reachable; a transport refusal leaves the text queued. A refusal
 while no path to the contact is known parks the queue: the tick skips it until a
 path appears or an authenticated frame arrives from the contact, so an offline
-contact costs one attempt and one `outbox` warning, not one per tick. A run of
-refusals logs only its first. The row shows a
+contact costs one attempt and one `outbox` warning, not one per tick. A local
+failure, such as a store write, is retried on the next tick instead. A run of
+failures logs only its first. The row shows a
 clock while queued, one tick once the transport took it, two once the contact
 acknowledged it. See [ADR 0037](../ADR/0037-conversation-write-acceptance.md).
 

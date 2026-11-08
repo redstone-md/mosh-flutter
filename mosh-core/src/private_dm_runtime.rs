@@ -179,8 +179,8 @@ struct PrivateDmSession {
     // The path to the counterpart in the last mesh report. The field log
     // reports its changes; the outbox waits while it is None.
     logged_reach: PeerTransport,
-    // The outbox's last refusal, while the refusals last.
-    queue_refused_at: Option<u64>,
+    // The outbox's run of failed sends, while it lasts.
+    queue_failure: Option<outbox::QueueFailure>,
     invite_uri: Option<String>,
     // Transport coordinates kept so the persisted session record can be
     // rebuilt verbatim (notably to refresh the joiner's group_id after join).

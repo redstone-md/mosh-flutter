@@ -113,3 +113,50 @@ fn a_refusal_with_a_known_path_is_retried_but_logged_once() {
     assert_eq!(net.publish_attempts(ALICE_ID, &data) - before, 4);
     assert_eq!(log_lines(&sent.message_id, "stays queued").len(), 1);
 }
+
+// Only moss refusing parks the queue. A local failure, here a text the
+// session cannot find, is retried on the next tick even with no listed path.
+#[test]
+fn a_local_failure_does_not_park_the_queue() {
+    let (net, mut alice, mut bob) = memory_pair();
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+    net.unlist(ALICE_ID, BOB_ID);
+    net.refuse_publishes(ALICE_ID, true);
+    let start = now_ms();
+    alice.drain_inbound_at(start);
+    let sent = alice
+        .send_message(&invite.session_id, "lost and found".to_string())
+        .expect("a refusal is not an error");
+
+    bob.send_message(&invite.session_id, "back".to_string())
+        .expect("Bob should send");
+    rename(
+        &mut alice,
+        &invite.session_id,
+        &sent.message_id,
+        "elsewhere",
+    );
+    alice.drain_inbound_at(start + TICK_MS);
+    rename(
+        &mut alice,
+        &invite.session_id,
+        "elsewhere",
+        &sent.message_id,
+    );
+    net.refuse_publishes(ALICE_ID, false);
+    alice.drain_inbound_at(start + 2 * TICK_MS);
+
+    assert_eq!(
+        status_of(&mut alice, &invite.session_id, &sent.message_id),
+        Some(MessageDeliveryStatus::Sent),
+        "the failure was Alice's own, so nothing from Bob is needed"
+    );
+}
+
+fn rename(runtime: &mut PrivateDmRuntime, session_id: &str, from: &str, to: &str) {
+    let session = runtime.session_mut(session_id).unwrap();
+    let message = session.messages.find_mut(from).expect("the text is filed");
+    message.message_id = Some(to.to_string());
+}
