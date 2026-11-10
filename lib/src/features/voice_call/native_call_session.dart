@@ -117,6 +117,8 @@ class NativeCallSession {
       try {
         await change();
         if (_closed) return;
+        // The button shows the press now; native media applies it afterwards.
+        onState();
         await _authorize(_active && _microphone && _microphoneAllowed, _camera);
         if (_closed) return;
         await bridge.nativeCallChoices(

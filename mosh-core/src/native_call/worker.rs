@@ -103,9 +103,7 @@ impl Owner {
         let choices = state.choices.clone();
         if let Some(connection) = &mut self.connection {
             if self.choices != choices {
-                if !connection.choices(&choices)? {
-                    state.choices.microphone = false;
-                }
+                apply_choices(connection, state)?;
                 self.choices = state.choices.clone();
             }
             connection.pump(transport, &self.sender, state)?;
@@ -291,7 +289,7 @@ impl Owner {
                     }
                 }
             }
-            connection.apply(signal)?;
+            connection.apply(signal, state)?;
         }
         Ok(())
     }
@@ -310,9 +308,7 @@ impl Owner {
         if !state.snapshot.microphone_available {
             state.choices.microphone = false;
         }
-        if !connection.choices(&state.choices)? {
-            state.choices.microphone = false;
-        }
+        apply_choices(&mut connection, state)?;
         self.choices = state.choices.clone();
         if !connection.context.caller {
             connection.start()?;
@@ -322,77 +318,26 @@ impl Owner {
     }
 }
 
+/// Applies the state's choices to the engine, timed as the `choices` stall.
+/// A refused input turns the microphone off.
+fn apply_choices(connection: &mut Connection, state: &mut State) -> Result<(), String> {
+    let applying = Instant::now();
+    let input_ok = connection.choices(&state.choices);
+    state.stalls.choices.since(applying);
+    if !input_ok? {
+        state.choices.microphone = false;
+    }
+    Ok(())
+}
+
 fn warn(message: &str) {
     use crate::diagnostics_log::{kinds, write, LogLevel};
     write(LogLevel::Warn, kinds::CALL, "", message);
 }
 
+#[cfg(all(test, feature = "native-media-tests"))]
+#[path = "reconnect_tests.rs"]
+mod reconnect_tests;
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::native_call::capture::Captured;
-    use crate::private_dm_runtime::transport::memory::MemoryNet;
-
-    #[test]
-    fn missing_offer_marks_the_call_failed_fifteen_seconds_after_selection() {
-        let started = Instant::now();
-        let mut context = Context {
-            session_id: "dm".into(),
-            call_id: "call".into(),
-            superseded: None,
-            active: false,
-            caller: false,
-            caller_signer: "caller".into(),
-            callee_signer: Some("callee".into()),
-            peer: "remote".into(),
-        };
-        let mut owner = Owner::new(MemoryNet::new().endpoint("local"));
-        let mut state = State::default();
-        owner.negotiate(&context, &mut state, started).unwrap();
-        assert!(!state.snapshot.failed);
-        context.active = true;
-        let selected = started + Duration::from_secs(60);
-        owner.negotiate(&context, &mut state, selected).unwrap();
-        assert!(!state.snapshot.failed);
-        owner
-            .negotiate(&context, &mut state, selected + Duration::from_secs(14))
-            .unwrap();
-        assert!(!state.snapshot.failed);
-        owner
-            .negotiate(&context, &mut state, selected + Duration::from_secs(15))
-            .unwrap();
-        assert!(state.snapshot.failed);
-    }
-
-    #[test]
-    fn a_frame_prepared_before_the_camera_stops_is_not_presented() {
-        let mut owner = Owner::new(MemoryNet::new().endpoint("local"));
-        let mut state = State {
-            context: Some(Context {
-                session_id: "dm".into(),
-                call_id: "call".into(),
-                superseded: None,
-                active: false,
-                caller: true,
-                caller_signer: "caller".into(),
-                callee_signer: None,
-                peer: String::new(),
-            }),
-            ..Default::default()
-        };
-        state.snapshot.camera_requested = true; // Turned off since the frame was prepared.
-        let frame = Captured {
-            sequence: 7,
-            width: 1,
-            height: 1,
-            pixels: vec![0; 4],
-            received: Instant::now(),
-            source_age_ms: 0,
-        };
-        let prepared = Prepared::new(owner.generation, Arc::new(frame), Surface::default());
-        owner.capture(&mut state, Some(prepared)).unwrap();
-        assert!(state.frames[0].is_none());
-        assert!(!state.snapshot.camera);
-        assert_eq!(owner.captured, 0);
-    }
-}
+#[path = "worker_tests.rs"]
+mod tests;

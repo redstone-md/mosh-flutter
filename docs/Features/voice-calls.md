@@ -57,7 +57,9 @@ Old incorrectly attributed rows lack reliable origin data and are not rewritten.
 Call offer, answer, selection, occupancy and terminal controls travel inside MLS
 application messages. The receiver checks the actual MLS leaf signer, conversation,
 and current admitted device's Moss identity. Plaintext accept/end envelopes are
-removed; participating clients upgrade together.
+removed; participating clients upgrade together. The envelope names no sender in
+the clear, so a device remembers the controls it published and skips Moss's echo of
+one before decryption, which MLS would refuse for its own message (MOSH-89).
 
 Answering requests selection. The receiving installation remains pending, displays
 “Waiting for confirmation…”, and sends no voice media until the caller selects it.
@@ -114,6 +116,9 @@ controls stay in that window. Startup or presentation failure and child-process
 exit restore the strip's controls without waiting for a new call snapshot.
 Its restore button recreates the window. No additional
 window plugin is required.
+The window comes forward when a call is presented and then behaves like any
+other window: it is not pinned above others, so macOS full screen and resizing
+keep its controls in reach (MOSH-91).
 Android and iOS use the strip inside system safe insets. While a call is shown,
 the host consumes the keyboard inset for both the route and strip, removing it
 from the nested Scaffold so the composer does not reserve the inset twice.

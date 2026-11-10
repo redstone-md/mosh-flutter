@@ -70,8 +70,10 @@ Echo cancellation,
 noise suppression and gain control are libwebrtc's own. The engine starts
 the microphone itself whenever it is switched on: libwebrtc asks for
 recording once, when the call connects, and that request is lost while the
-microphone is off. A device change restarts a running device, and "system
-default" is Windows' default communication device, not the first endpoint.
+microphone is off. A device change restarts a running device, so only a new
+input or output pick selects devices; the microphone and camera switches leave
+them running. "System default" is Windows' default communication device, not
+the first endpoint.
 The offer leaves the legacy offerToReceiveAudio unset: the bindings' default
 of false made it send-only, so the callee was never heard. The call log
 records when the microphone starts or stops capturing sound, when the peer's
@@ -128,6 +130,11 @@ A thread-bound Windows COM apartment guard outlives every endpoint field, so
 native audio objects are released before COM uninitialization. Engine teardown
 still releases capture, playback and connection resources. Slow Moss sends
 run separately, so they cannot block camera off, decoding or device commands.
+A control does not wait for the owner to apply it: the bridge hands over the
+choices once it holds the call state and returns, and the snapshot shows what
+was asked at once. The outcome, such as a refused microphone, follows in the
+snapshot after the owner's next step. The owner holds the call state for a whole
+step, so a control still waits out a step that is already running.
 The native `Owner` is a documented exception to the 200-line type limit so
 capture, negotiation and engine lifetimes stay in one thread-bound state machine.
 
@@ -275,13 +282,14 @@ The `native media:` log line reports `engine_dropped` as `full` (queue refused
 a packet) and `stale` (older than 200 ms when drained). `stalls_max_ms` holds
 the longest pauses since the previous line: `step` (one owner step) and its
 phases `capture` (camera inventory and capture, with the frame handed to the
-engine), `statistics` (engine snapshot and device refresh), `tick` (ICE
+engine), `choices` (applying the microphone and camera switches and a new
+device pick), `statistics` (engine snapshot and device refresh), `tick` (ICE
 candidates and libwebrtc's statistics) and `present` (copying the peer's frame);
 `lock_wait` (the owner waiting for the call state lock, which Dart's commands
 and frame reads also take) and `drain` (between two passes of the packet
 thread; about 2 ms is the baseline). The thread only sleeps and copies, so a
 `drain` far above that points at the process not getting CPU time. Whatever
-`step` holds beyond its phases went to call negotiation and device choices. The `video` and `audio` metrics include
+`step` holds beyond its phases went to call negotiation. The `video` and `audio` metrics include
 `jitter_buffer_ms`, the average wait before playout. While the engine or the
 sender keeps dropping, the line repeats every 10 seconds even if the call
 status holds.
@@ -296,8 +304,24 @@ second to send, longer than the renderer's one-second frame expiry. The shared c
 policy keeps the engine below the carrier's video allowance with room for
 packet framing. WebRTC supplies congestion adaptation.
 An idle sender waits for a queue notification without a periodic timer.
-Every observed connection loss receives a fresh 15-second recovery window.
-After that, local termination clears capture and persists the terminal state.
+Every observed connection loss receives a fresh 30-second recovery window,
+and the call shows "Reconnecting" meanwhile. After that, local termination
+clears capture and persists the terminal state (`connection_lost`).
+
+ICE reports Disconnected after about 5 seconds without packets and Failed
+after about 15, and a failed path never comes back on its own. When the
+caller's ICE fails, the caller restarts it: a new offer with fresh ICE
+credentials goes over the call signaling and is resent every second until
+the call is connected again, while the call, its tracks and DTLS stay. The
+callee answers every offer it receives, even while its own side of the path
+still looks connected. Only the caller
+restarts, so the two sides never restart at once; a restart that fails again
+is followed by another within the same window. Descriptions arrive late or
+twice, so each side takes only one with a newer SDP session version than the
+last it accepted, and the caller takes a new answer only for its pending
+restart. A peer on an older build cannot answer a restart; its call ends as
+before. The memory-network regression cuts a call until both sides fail,
+restores the path, and requires the same call to be media-ready again.
 
 These are client flow limits. The unchanged Moss relay still lacks an aggregate
 node budget and audio/message reservations. Its injectable-network sender

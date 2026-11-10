@@ -155,6 +155,7 @@ impl Sender {
         })
     }
 
+    /// Starts a new call: the last call's packets and drop count are gone.
     pub fn reset(&self) {
         let mut queue = self
             .shared
@@ -163,6 +164,7 @@ impl Sender {
             .unwrap_or_else(|error| error.into_inner());
         queue.priority.clear();
         queue.video.clear();
+        queue.dropped = 0;
     }
     pub fn relayed(&self, relayed: bool) {
         self.shared

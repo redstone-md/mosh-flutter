@@ -248,3 +248,85 @@ fn remote_frames_leave_at_the_size_the_window_shows_them() {
         "the decoder kept the full frame"
     );
 }
+
+/// The candidates `engine` has gathered so far, waiting for the first.
+fn gathered(engine: &mut Engine) -> Value {
+    let until = Instant::now() + Duration::from_secs(2);
+    loop {
+        let candidates = engine.command(json!({"action":"tick"})).unwrap()["candidates"].take();
+        if candidates.as_array().is_some_and(|list| !list.is_empty()) || Instant::now() >= until {
+            return candidates;
+        }
+        // test-policy: wait MOSH-88 -- libwebrtc gathers candidates on its own network thread
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn ice_ufrag(description: &Value) -> String {
+    let parameters: Vec<u8> = serde_json::from_value(description["parameters"].clone()).unwrap();
+    let sdp = String::from_utf8(parameters).unwrap();
+    sdp.lines()
+        .find_map(|line| line.strip_prefix("a=ice-ufrag:"))
+        .unwrap()
+        .to_string()
+}
+
+#[test]
+fn an_ice_restart_keeps_the_call_and_ignores_the_previous_negotiation() {
+    let (mut caller, mut callee) = pair();
+    let old_candidates = gathered(&mut callee);
+    caller
+        .command(json!({"action":"tick","candidates":old_candidates}))
+        .unwrap();
+    camera(&mut caller, true);
+    assert!(pump(
+        &mut caller,
+        &mut callee,
+        SMALL,
+        SECONDS,
+        |to| sequence(to) > 10
+    ));
+    let old_offer = caller.command(json!({"action":"offer"})).unwrap();
+    let old_answer = callee
+        .command(json!({"action":"remote", "description":old_offer}))
+        .unwrap();
+
+    let offer = caller.command(json!({"action":"restart"})).unwrap();
+    assert_ne!(
+        ice_ufrag(&offer),
+        ice_ufrag(&old_offer),
+        "the offer kept its ICE credentials"
+    );
+    assert_eq!(
+        caller.command(json!({"action":"restart"})).unwrap(),
+        offer,
+        "a pending restart is resent"
+    );
+    let answer = callee
+        .command(json!({"action":"remote", "description":offer}))
+        .unwrap();
+    assert_ne!(ice_ufrag(&answer), ice_ufrag(&old_answer));
+    // Signals arrive late or twice; the old ones change nothing.
+    let resent = callee
+        .command(json!({"action":"remote", "description":old_offer}))
+        .unwrap();
+    assert_eq!(resent, answer);
+    caller
+        .command(json!({"action":"remote", "description":answer}))
+        .unwrap();
+    caller
+        .command(json!({"action":"remote", "description":old_answer}))
+        .unwrap();
+    caller
+        .command(json!({"action":"tick","candidates":old_candidates}))
+        .unwrap();
+
+    let before = sequence(&callee);
+    assert!(
+        pump(&mut caller, &mut callee, SMALL, SECONDS, |to| sequence(to)
+            > before + 10),
+        "video did not continue after the restart"
+    );
+    let state = caller.command(json!({"action":"snapshot"})).unwrap();
+    assert_eq!(state["connection"], "Connected", "{state}");
+}

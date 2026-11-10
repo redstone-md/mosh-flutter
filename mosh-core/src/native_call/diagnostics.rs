@@ -71,6 +71,8 @@ pub(crate) struct Stalls {
     pub step: Longest,
     /// Camera inventory and capture, with the frame handed to the engine.
     pub capture: Longest,
+    /// Applying the user's switches and device picks to the engine.
+    pub choices: Longest,
     /// The engine snapshot and the device refresh behind the call's statistics.
     pub statistics: Longest,
     /// The engine tick: ICE candidates and libwebrtc's statistics.
@@ -88,6 +90,7 @@ impl Stalls {
     pub fn include(&mut self, other: Self) {
         self.step.include(other.step);
         self.capture.include(other.capture);
+        self.choices.include(other.choices);
         self.statistics.include(other.statistics);
         self.tick.include(other.tick);
         self.present.include(other.present);
@@ -334,7 +337,7 @@ mod tests {
         let event = monitor
             .observe(route, &state, &engine(0, 0), stalled(20, 3), now)
             .unwrap();
-        assert!(event.contains("\"stalls_max_ms\":{\"capture\":0,\"drain\":3,\"lock_wait\":2,\"present\":0,\"statistics\":0,\"step\":20,\"tick\":10}"));
+        assert!(event.contains("\"stalls_max_ms\":{\"capture\":0,\"choices\":0,\"drain\":3,\"lock_wait\":2,\"present\":0,\"statistics\":0,\"step\":20,\"tick\":10}"));
         let soon = now + Duration::from_secs(9);
         assert!(monitor
             .observe(route, &state, &engine(0, 5), stalled(310, 4), soon)
@@ -344,7 +347,7 @@ mod tests {
             .observe(route, &state, &engine(2, 5), stalled(40, 2), later)
             .unwrap();
         assert!(event.contains("\"engine_dropped\":{\"full\":2,\"stale\":5}"));
-        assert!(event.contains("\"stalls_max_ms\":{\"capture\":0,\"drain\":4,\"lock_wait\":31,\"present\":0,\"statistics\":0,\"step\":310,\"tick\":155}"));
+        assert!(event.contains("\"stalls_max_ms\":{\"capture\":0,\"choices\":0,\"drain\":4,\"lock_wait\":31,\"present\":0,\"statistics\":0,\"step\":310,\"tick\":155}"));
         let sender_losing = Pipeline {
             sender_dropped: 3,
             ..stalled(40, 2)

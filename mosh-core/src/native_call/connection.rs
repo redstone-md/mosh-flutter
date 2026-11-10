@@ -1,4 +1,5 @@
 use super::{
+    devices::Selection,
     library::{Engine, MAX_RGBA},
     packets::Sender,
     state::State,
@@ -23,6 +24,7 @@ pub(crate) struct Connection {
     pixels: Vec<u8>,
     /// The remote surface the engine scales decoded frames to.
     shown: Surface,
+    selection: Selection,
 }
 
 impl Connection {
@@ -48,13 +50,11 @@ impl Connection {
         }
         let wire = sender.link(&context.peer, &binding.media_session);
         let mut engine = Engine::new(&binding, context.caller, wire)?;
-        let local = if let Some(offer) = offer {
+        let local = parse_local(if let Some(offer) = offer {
             engine.ask(json!({"action":"remote","description":offer}))?
         } else {
             engine.ask(json!({"action":"offer"}))?
-        };
-        let local: Description =
-            serde_json::from_value(local).map_err(|error| error.to_string())?;
+        })?;
         Ok(Self {
             context,
             binding,
@@ -68,17 +68,25 @@ impl Connection {
             last_decoded: 0,
             pixels: vec![0; MAX_RGBA],
             shown: Surface::default(),
+            selection: Selection::default(),
         })
     }
 
-    pub fn apply(&mut self, signal: Signal) -> Result<(), String> {
+    pub fn apply(&mut self, signal: Signal, state: &mut State) -> Result<(), String> {
         match signal {
             Signal::Description(description) => {
                 if description.binding != self.binding || description.offer == self.context.caller {
                     return Ok(());
                 }
-                self.engine
+                let local = self
+                    .engine
                     .ask(json!({"action":"remote","description":description}))?;
+                self.adopt(local)?;
+                // The caller repeats an offer until it hears back, so the
+                // callee answers every one, a path of its own or not.
+                if !self.context.caller {
+                    self.announce(state);
+                }
                 self.start()?;
             }
             Signal::Candidates { nonce, candidates } if nonce == self.binding.media_session => {
@@ -102,14 +110,18 @@ impl Connection {
         Ok(())
     }
 
+    /// Applies the switches and, for a new pick, the audio devices. Whether
+    /// the picked input is usable.
     pub fn choices(&mut self, choices: &Choices) -> Result<bool, String> {
         self.engine.ask(
             json!({"action":"choices", "microphone":choices.microphone && choices.microphone_allowed,"video":choices.camera}),
         )?;
-        let selected = self
-            .engine
-            .ask(json!({"action":"select","input":choices.input,"output":choices.output}))?;
-        Ok(selected["input_ok"].as_bool().unwrap_or(false))
+        let engine = &mut self.engine;
+        self.selection.apply(choices, || {
+            let selected = engine
+                .ask(json!({"action":"select","input":choices.input,"output":choices.output}))?;
+            Ok(["input_ok", "output_ok"].map(|ok| selected[ok].as_bool().unwrap_or(false)))
+        })
     }
 
     pub fn pump(
@@ -128,6 +140,9 @@ impl Connection {
             state,
         )?;
         state.stalls.statistics.since(measuring);
+        if self.reporter.take_ice_failure() && self.context.caller {
+            self.restart_ice(state)?;
+        }
         let candidates = if self.ready {
             std::mem::take(&mut self.pending)
         } else {
@@ -138,7 +153,55 @@ impl Connection {
             .engine
             .ask(json!({"action":"tick","candidates":candidates}))?;
         state.stalls.tick.since(ticking);
-        for candidate in gathered["candidates"]
+        self.gather(&gathered["candidates"]);
+        let presenting = Instant::now();
+        self.show_at(state.surfaces[1])?;
+        self.present(state);
+        state.stalls.present.since(presenting);
+        if self.resend.elapsed() >= Duration::from_secs(1) {
+            self.resend = Instant::now();
+            if !state.snapshot.ready {
+                self.announce(state);
+            }
+            state.emit(Signal::Camera {
+                nonce: self.binding.media_session.clone(),
+                enabled: state.snapshot.camera,
+            });
+        }
+        Ok(())
+    }
+
+    /// A failed path never recovers without new ICE credentials. Only the
+    /// caller restarts, so the two sides never restart at once.
+    pub(super) fn restart_ice(&mut self, state: &mut State) -> Result<(), String> {
+        use crate::diagnostics_log::{kinds, write, LogLevel};
+        let session = &self.context.session_id;
+        write(
+            LogLevel::Info,
+            kinds::CALL,
+            session,
+            "ICE failed; restarting it",
+        );
+        let offer = self.engine.ask(json!({"action":"restart"}))?;
+        self.adopt(offer)?;
+        self.announce(state);
+        Ok(())
+    }
+
+    /// Takes the engine's local description. A new one, a restart offer or
+    /// its answer, carries new ICE credentials, so the old candidates go.
+    fn adopt(&mut self, local: Value) -> Result<(), String> {
+        let local = parse_local(local)?;
+        if local != self.local {
+            self.local = local;
+            self.candidates.clear();
+        }
+        Ok(())
+    }
+
+    /// Keeps up to eight of the candidates the engine gathered, once each.
+    fn gather(&mut self, gathered: &Value) {
+        for candidate in gathered
             .as_array()
             .into_iter()
             .flatten()
@@ -149,27 +212,17 @@ impl Connection {
                 self.candidates.push(candidate.into());
             }
         }
-        let presenting = Instant::now();
-        self.show_at(state.surfaces[1])?;
-        self.present(state);
-        state.stalls.present.since(presenting);
-        if self.resend.elapsed() >= Duration::from_secs(1) {
-            self.resend = Instant::now();
-            if !state.snapshot.ready {
-                state.emit(Signal::Description(self.local.clone()));
-            }
-            if !self.candidates.is_empty() && !state.snapshot.ready {
-                state.emit(Signal::Candidates {
-                    nonce: self.binding.media_session.clone(),
-                    candidates: self.candidates.clone(),
-                });
-            }
-            state.emit(Signal::Camera {
+    }
+
+    /// Sends this side's description and the candidates gathered for it.
+    fn announce(&self, state: &mut State) {
+        state.emit(Signal::Description(self.local.clone()));
+        if !self.candidates.is_empty() {
+            state.emit(Signal::Candidates {
                 nonce: self.binding.media_session.clone(),
-                enabled: state.snapshot.camera,
+                candidates: self.candidates.clone(),
             });
         }
-        Ok(())
     }
 
     fn show_at(&mut self, surface: Surface) -> Result<(), String> {
@@ -197,4 +250,8 @@ impl Connection {
             );
         }
     }
+}
+
+fn parse_local(value: Value) -> Result<Description, String> {
+    serde_json::from_value(value).map_err(|error| error.to_string())
 }

@@ -7,7 +7,9 @@ impl PrivateDmSession {
         &mut self,
         message: MossReceivedMessage,
     ) -> Result<(), PrivateDmRuntimeError> {
-        if self.has_seen_message(&message) {
+        if self.has_seen_message(&message)
+            || self.published.contains(&message.channel, &message.payload)
+        {
             return Ok(());
         }
         self.crypto.enable_dm_forward_recovery();

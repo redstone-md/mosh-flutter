@@ -35,6 +35,7 @@ class VoiceCallOrchestratorState {
   const VoiceCallOrchestratorState({
     this.dialog = const NoCallDialog(),
     this.muted = false,
+    this.cameraRequested = false,
     this.audioReady = false,
     this.audioFailed = false,
     this.busy = false,
@@ -45,6 +46,9 @@ class VoiceCallOrchestratorState {
 
   final CallDialog dialog;
   final bool muted;
+
+  /// The session's camera switch: a press shows before the snapshot has it.
+  final bool cameraRequested;
   final bool audioReady;
   final bool audioFailed;
   final bool busy;
@@ -64,6 +68,7 @@ class VoiceCallOrchestratorState {
       VoiceCallOrchestratorState(
         dialog: dialog ?? this.dialog,
         muted: muted ?? this.muted,
+        cameraRequested: cameraRequested,
         audioReady: audioReady ?? this.audioReady,
         audioFailed: audioFailed ?? this.audioFailed,
         busy: busy ?? this.busy,
@@ -75,6 +80,7 @@ class VoiceCallOrchestratorState {
   VoiceCallOrchestratorState copyWithoutError() => VoiceCallOrchestratorState(
         dialog: dialog,
         muted: muted,
+        cameraRequested: cameraRequested,
         audioReady: audioReady,
         audioFailed: audioFailed,
         busy: busy,
@@ -162,6 +168,7 @@ class VoiceCallOrchestratorNotifier
     return VoiceCallOrchestratorState(
       dialog: dialog,
       muted: _native?.session?.muted ?? false,
+      cameraRequested: _native?.session?.cameraRequested ?? false,
       audioReady: _native?.session?.snapshot?.ready ?? false,
       audioFailed: _failedCallId != null,
       busy: busy || (_native?.session?.busy ?? false),
