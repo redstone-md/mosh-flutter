@@ -88,9 +88,13 @@ class _CallWindowController extends ValueNotifier<CallViewState?>
         if (frameChannel == null) throw MissingPluginException();
         await frameChannel!(channel['port'] as int, channel['token'] as String);
       case 'call-present':
+        final peer = value?.peer;
         value = CallViewState.fromMap(call.arguments as Map<Object?, Object?>);
         video.update(value);
-        await windowManager.setTitle('Mosh · ${value!.peer}');
+        // Every state change arrives here; only a new peer needs a platform call.
+        if (value!.peer != peer) {
+          await windowManager.setTitle('Mosh · ${value!.peer}');
+        }
         if (!_shown) {
           _shown = true;
           await show();

@@ -22,32 +22,29 @@ fn pending(id: &str) -> Context {
 }
 
 #[test]
-fn ending_a_call_before_a_device_ack_rejects_the_pending_choices() {
-    let state = Arc::new(Mutex::new(State {
+fn choices_show_in_the_snapshot_without_waiting_for_the_owner() {
+    let mut state = State {
         context: Some(pending("call")),
         prepared: true,
         ..Default::default()
-    }));
-    let hub = Arc::new(Hub {
-        state: state.clone(),
-    });
-    let client = hub.clone();
-    let applying =
-        std::thread::spawn(move || client.choices("dm", "call", Choices::default(), false));
-    let deadline = Instant::now() + Duration::from_secs(2);
-    while state.lock().unwrap().revision == 0 {
-        assert!(Instant::now() < deadline, "device request was not admitted");
-        std::thread::sleep(Duration::from_millis(1));
-    }
-    let mut locked = state.lock().unwrap();
-    // Publish the ended call and obsolete ACK together, without an intermediate state.
-    locked.context = None;
-    locked.applied = locked.revision;
-    drop(locked);
-    assert_eq!(
-        applying.join().unwrap().unwrap_err(),
-        "call ended while applying devices"
-    );
+    };
+    state.choices.microphone = true;
+    state.snapshot.microphone_requested = true;
+    // No owner thread runs, as while a step stalls.
+    let hub = Hub {
+        state: Arc::new(Mutex::new(state)),
+    };
+    let choices = Choices {
+        camera: true,
+        input: Some("coreaudio:mic".into()),
+        ..Default::default()
+    };
+    hub.choices("dm", "call", choices, false).unwrap();
+    let snapshot = hub.snapshot("dm", "call").unwrap();
+    assert!(!snapshot.microphone_requested);
+    assert!(snapshot.camera_requested);
+    assert_eq!(snapshot.input.as_deref(), Some("mic"));
+    assert!(!snapshot.microphone && !snapshot.camera);
 }
 
 #[test]

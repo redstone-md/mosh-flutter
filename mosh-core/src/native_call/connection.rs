@@ -1,4 +1,5 @@
 use super::{
+    devices::Selection,
     library::{Engine, MAX_RGBA},
     packets::Sender,
     state::State,
@@ -23,6 +24,7 @@ pub(crate) struct Connection {
     pixels: Vec<u8>,
     /// The remote surface the engine scales decoded frames to.
     shown: Surface,
+    selection: Selection,
 }
 
 impl Connection {
@@ -66,6 +68,7 @@ impl Connection {
             last_decoded: 0,
             pixels: vec![0; MAX_RGBA],
             shown: Surface::default(),
+            selection: Selection::default(),
         })
     }
 
@@ -107,14 +110,18 @@ impl Connection {
         Ok(())
     }
 
+    /// Applies the switches and, for a new pick, the audio devices. Whether
+    /// the picked input is usable.
     pub fn choices(&mut self, choices: &Choices) -> Result<bool, String> {
         self.engine.ask(
             json!({"action":"choices", "microphone":choices.microphone && choices.microphone_allowed,"video":choices.camera}),
         )?;
-        let selected = self
-            .engine
-            .ask(json!({"action":"select","input":choices.input,"output":choices.output}))?;
-        Ok(selected["input_ok"].as_bool().unwrap_or(false))
+        let engine = &mut self.engine;
+        self.selection.apply(choices, || {
+            let selected = engine
+                .ask(json!({"action":"select","input":choices.input,"output":choices.output}))?;
+            Ok(selected["input_ok"].as_bool().unwrap_or(false))
+        })
     }
 
     pub fn pump(

@@ -156,6 +156,40 @@ void main() {
     platform.messenger.setMockMethodCallHandler(_screen, null);
   });
 
+  testWidgets('the window is retitled only when the peer changes',
+      (tester) async {
+    final platform = CallWindowPlatform();
+    _installWindowManager(platform);
+    final handle = await startCallWindowView((_) async {});
+    for (final (peer, muted) in [
+      ('Alice', false),
+      ('Alice', true),
+      ('Bob', true)
+    ]) {
+      await handle(MethodCall(
+          'call-present',
+          CallViewState(
+                  sessionId: 'origin',
+                  callId: 'call',
+                  peer: peer,
+                  phase: CallViewPhase.active,
+                  muted: muted)
+              .toMap()));
+    }
+    await tester.pump();
+    expect(
+        platform.calls
+            .where((call) => call.method == 'setTitle')
+            .map((call) => (call.arguments as Map)['title']),
+        ['Mosh', 'Mosh · Alice', 'Mosh · Bob']);
+    await tester.pumpWidget(const SizedBox.shrink());
+    for (final listener in windowManager.listeners) {
+      windowManager.removeListener(listener);
+    }
+    platform.messenger.setMockMethodCallHandler(_manager, null);
+    platform.messenger.setMockMethodCallHandler(_screen, null);
+  });
+
   testWidgets('the controls work at every window size, resized or not',
       (tester) async {
     final platform = CallWindowPlatform();

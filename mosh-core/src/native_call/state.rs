@@ -31,6 +31,20 @@ pub(crate) struct State {
 }
 
 impl State {
+    /// Takes the user's choices for the owner's next step. The snapshot shows
+    /// what was asked at once, so a reader never sees an older request while
+    /// the owner is busy; what the devices do follows once it applies them.
+    pub fn request(&mut self, choices: Choices) -> u64 {
+        self.snapshot.microphone_requested = choices.microphone;
+        self.snapshot.camera_requested = choices.camera;
+        self.snapshot.input.clone_from(&choices.input);
+        self.snapshot.output.clone_from(&choices.output);
+        self.snapshot.camera_id.clone_from(&choices.camera_id);
+        self.choices = choices;
+        self.revision = self.revision.saturating_add(1);
+        self.revision
+    }
+
     pub fn reflect_choices(&mut self) {
         self.snapshot.microphone = self.choices.microphone
             && self.choices.microphone_allowed

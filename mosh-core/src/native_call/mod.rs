@@ -101,6 +101,9 @@ impl Hub {
         }
     }
 
+    /// Hands the choices to the owner and returns: a control never waits
+    /// for a step. The snapshot shows the request at once and the outcome,
+    /// such as a refused microphone, after the owner's next step.
     pub fn choices(
         &self,
         session: &str,
@@ -118,31 +121,30 @@ impl Hub {
             .as_deref()
             .map(devices::canonical)
             .map(str::to_owned);
-        let revision = {
-            let mut state = self
-                .state
-                .lock()
-                .map_err(|_| "native call state poisoned")?;
-            if !state.prepared
-                || !state
-                    .context
-                    .as_ref()
-                    .is_some_and(|ctx| ctx.matches(session, call))
-            {
-                return Err("call no longer exists".into());
-            }
-            if camera_selection {
-                state.pending_camera_default = None;
-            } else {
-                // Other controls may carry a snapshot from before asynchronous
-                // default resolution. Only an explicit camera pick changes it.
-                choices.camera_id.clone_from(&state.choices.camera_id);
-            }
-            state.choices = choices;
-            state.revision = state.revision.saturating_add(1);
-            state.revision
-        };
-        self.wait_applied(session, call, revision)
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "native call state poisoned")?;
+        if !state.prepared
+            || !state
+                .context
+                .as_ref()
+                .is_some_and(|ctx| ctx.matches(session, call))
+        {
+            return Err("call no longer exists".into());
+        }
+        if state.snapshot.failed {
+            return Err("native media failed".into());
+        }
+        if camera_selection {
+            state.pending_camera_default = None;
+        } else {
+            // Other controls may carry a snapshot from before asynchronous
+            // default resolution. Only an explicit camera pick changes it.
+            choices.camera_id.clone_from(&state.choices.camera_id);
+        }
+        state.request(choices);
+        Ok(())
     }
 
     fn wait_applied(&self, session: &str, call: &str, revision: u64) -> Result<(), String> {

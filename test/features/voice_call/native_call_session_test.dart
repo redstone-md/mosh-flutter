@@ -279,6 +279,24 @@ void main() {
     owner.dispose();
   });
 
+  test('a press shows on the button while native media still applies it',
+      () async {
+    final bridge = ScriptableBridge();
+    final shown = <bool>[];
+    late final NativeCallSession session;
+    session = _session(bridge, onState: () => shown.add(session.muted));
+    await session.start();
+    final applying = Completer<void>();
+    bridge.respondNext(BridgeMethod.nativeCallChoices, applying.future);
+    final pressed = session.toggleMicrophone();
+    await Future<void>.delayed(Duration.zero);
+    expect(shown.last, true);
+    applying.complete();
+    await pressed;
+    expect(session.muted, true);
+    session.stop();
+  });
+
   test('camera failure reconciles choice before immediate retry', () async {
     final bridge = ScriptableBridge();
     final session = _session(bridge);
@@ -296,11 +314,12 @@ void main() {
 
 NativeCallSession _session(ScriptableBridge bridge,
         {Future<bool> Function()? permission,
+        void Function()? onState,
         void Function(CallVideoFrame)? onFrame}) =>
     NativeCallSession(
         sessionId: 'dm',
         callId: 'call',
         bridge: bridge,
         requestMicrophone: permission ?? () async => false,
-        onState: () {},
+        onState: onState ?? () {},
         onFrame: onFrame ?? (_) {});

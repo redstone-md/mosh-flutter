@@ -103,7 +103,10 @@ impl Owner {
         let choices = state.choices.clone();
         if let Some(connection) = &mut self.connection {
             if self.choices != choices {
-                if !connection.choices(&choices)? {
+                let applying = Instant::now();
+                let input_ok = connection.choices(&choices);
+                state.stalls.choices.since(applying);
+                if !input_ok? {
                     state.choices.microphone = false;
                 }
                 self.choices = state.choices.clone();

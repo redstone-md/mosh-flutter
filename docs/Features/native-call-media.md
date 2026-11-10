@@ -70,8 +70,10 @@ Echo cancellation,
 noise suppression and gain control are libwebrtc's own. The engine starts
 the microphone itself whenever it is switched on: libwebrtc asks for
 recording once, when the call connects, and that request is lost while the
-microphone is off. A device change restarts a running device, and "system
-default" is Windows' default communication device, not the first endpoint.
+microphone is off. A device change restarts a running device, so only a new
+input or output pick selects devices; the microphone and camera switches leave
+them running. "System default" is Windows' default communication device, not
+the first endpoint.
 The offer leaves the legacy offerToReceiveAudio unset: the bindings' default
 of false made it send-only, so the callee was never heard. The call log
 records when the microphone starts or stops capturing sound, when the peer's
@@ -128,6 +130,9 @@ A thread-bound Windows COM apartment guard outlives every endpoint field, so
 native audio objects are released before COM uninitialization. Engine teardown
 still releases capture, playback and connection resources. Slow Moss sends
 run separately, so they cannot block camera off, decoding or device commands.
+A control never waits for the owner thread: the bridge hands it the choices and
+returns, and the snapshot shows what was asked at once. The outcome, such as a
+refused microphone, follows in the snapshot after the owner's next step.
 The native `Owner` is a documented exception to the 200-line type limit so
 capture, negotiation and engine lifetimes stay in one thread-bound state machine.
 
@@ -275,13 +280,14 @@ The `native media:` log line reports `engine_dropped` as `full` (queue refused
 a packet) and `stale` (older than 200 ms when drained). `stalls_max_ms` holds
 the longest pauses since the previous line: `step` (one owner step) and its
 phases `capture` (camera inventory and capture, with the frame handed to the
-engine), `statistics` (engine snapshot and device refresh), `tick` (ICE
+engine), `choices` (applying the microphone and camera switches and a new
+device pick), `statistics` (engine snapshot and device refresh), `tick` (ICE
 candidates and libwebrtc's statistics) and `present` (copying the peer's frame);
 `lock_wait` (the owner waiting for the call state lock, which Dart's commands
 and frame reads also take) and `drain` (between two passes of the packet
 thread; about 2 ms is the baseline). The thread only sleeps and copies, so a
 `drain` far above that points at the process not getting CPU time. Whatever
-`step` holds beyond its phases went to call negotiation and device choices. The `video` and `audio` metrics include
+`step` holds beyond its phases went to call negotiation. The `video` and `audio` metrics include
 `jitter_buffer_ms`, the average wait before playout. While the engine or the
 sender keeps dropping, the line repeats every 10 seconds even if the call
 status holds.
