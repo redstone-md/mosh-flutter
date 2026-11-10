@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use libwebrtc::{
     audio_track::RtcAudioTrack,
     media_stream_track::MediaStreamTrack,
-    peer_connection::{AnswerOptions, BitrateSettings, OfferOptions, PeerConnection, TrackEvent},
+    peer_connection::{AnswerOptions, BitrateSettings, PeerConnection, TrackEvent},
     peer_connection_factory::{
         PeerConnectionFactory, RtcConfiguration, native::PeerConnectionFactoryExt,
     },
@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{audio, carrier::Carrier, frames::Frames, stats::Measurements, video::Camera};
-use negotiation::{gather_candidates, parse_candidate, parse_description, session_version};
+use negotiation::{advances, gather_candidates, offer_options, parse_candidate, parse_description};
 
 mod negotiation;
 
@@ -116,8 +116,8 @@ impl Engine {
 
     pub fn command(&mut self, value: Value) -> Result<Value> {
         match value["action"].as_str().unwrap_or("") {
-            "offer" => Ok(serde_json::to_value(self.offer()?)?),
-            "restart" => Ok(serde_json::to_value(self.restart()?)?),
+            "offer" => Ok(serde_json::to_value(self.offer(false)?)?),
+            "restart" => Ok(serde_json::to_value(self.offer(true)?)?),
             "remote" => {
                 let remote: Description = serde_json::from_value(value["description"].clone())?;
                 Ok(serde_json::to_value(self.receive_description(remote)?)?)
@@ -166,40 +166,22 @@ impl Engine {
         self.camera.set_enabled(self.started && self.camera_on)
     }
 
-    fn offer(&mut self) -> Result<Description> {
+    /// The caller's offer: the first one, or for a failed path one with fresh
+    /// ICE credentials that keeps the call, its tracks and DTLS. Only the
+    /// caller restarts, so the sides never restart at once; until the answer
+    /// arrives, the pending offer is the one handed back.
+    fn offer(&mut self, restart: bool) -> Result<Description> {
         anyhow::ensure!(self.caller, "only the caller creates the offer");
-        if let Some(local) = &self.local {
-            return Ok(local.clone());
-        }
-        self.create_offer(false)
-    }
-
-    /// A new offer with fresh ICE credentials, for a path that failed. The
-    /// call, its tracks and DTLS stay; only the caller restarts, so the two
-    /// sides never restart at once. Until the answer arrives, the pending
-    /// offer, the first one included, is the one to resend.
-    fn restart(&mut self) -> Result<Description> {
-        anyhow::ensure!(self.caller, "only the caller restarts ICE");
-        if self.remote.is_some() && !self.restarting {
-            self.create_offer(true)?;
-            self.restarting = true;
+        let restart = restart && self.remote.is_some() && !self.restarting;
+        if self.local.is_none() || restart {
+            let offer = self
+                .runtime
+                .block_on(self.pc.create_offer(offer_options(restart)))
+                .map_err(|error| anyhow::anyhow!("offer: {error:?}"))?;
+            self.set_local(offer, true)?;
+            self.restarting = restart;
         }
         self.local.clone().context("missing local description")
-    }
-
-    fn create_offer(&mut self, ice_restart: bool) -> Result<Description> {
-        // The bindings' default sets the legacy offerToReceiveAudio to false,
-        // which makes the offer send-only and leaves the callee unheard.
-        let options = OfferOptions {
-            ice_restart,
-            offer_to_receive_audio: None,
-            offer_to_receive_video: None,
-        };
-        let offer = self
-            .runtime
-            .block_on(self.pc.create_offer(options))
-            .map_err(|error| anyhow::anyhow!("offer: {error:?}"))?;
-        self.set_local(offer, true)
     }
 
     fn receive_description(&mut self, remote: Description) -> Result<Description> {
@@ -208,7 +190,8 @@ impl Engine {
             "description is for another call"
         );
         anyhow::ensure!(remote.offer != self.caller, "wrong description role");
-        if !self.is_news(&remote)? {
+        let expects = !self.caller || self.restarting;
+        if !advances(&remote, self.remote.as_ref(), expects)? {
             return self.local.clone().context("missing local description");
         }
         let description = parse_description(&remote)?;
@@ -226,18 +209,6 @@ impl Engine {
             .block_on(self.pc.create_answer(AnswerOptions::default()))
             .map_err(|error| anyhow::anyhow!("answer: {error:?}"))?;
         self.set_local(answer, false)
-    }
-
-    /// Whether `remote` moves the negotiation on. Signals arrive twice or
-    /// late: the peer's session version, which grows with each description
-    /// it makes, tells an old one from the next. The caller takes a new
-    /// answer only for its pending restart.
-    fn is_news(&self, remote: &Description) -> Result<bool> {
-        let Some(accepted) = &self.remote else {
-            return Ok(true);
-        };
-        let newer = session_version(remote)? > session_version(accepted)?;
-        Ok(newer && (!self.caller || self.restarting))
     }
 
     fn set_local(&mut self, description: SessionDescription, offer: bool) -> Result<Description> {

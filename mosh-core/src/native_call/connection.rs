@@ -48,7 +48,7 @@ impl Connection {
         }
         let wire = sender.link(&context.peer, &binding.media_session);
         let mut engine = Engine::new(&binding, context.caller, wire)?;
-        let local = description(if let Some(offer) = offer {
+        let local = parse_local(if let Some(offer) = offer {
             engine.ask(json!({"action":"remote","description":offer}))?
         } else {
             engine.ask(json!({"action":"offer"}))?
@@ -69,7 +69,7 @@ impl Connection {
         })
     }
 
-    pub fn apply(&mut self, signal: Signal) -> Result<(), String> {
+    pub fn apply(&mut self, signal: Signal, state: &mut State) -> Result<(), String> {
         match signal {
             Signal::Description(description) => {
                 if description.binding != self.binding || description.offer == self.context.caller {
@@ -79,6 +79,11 @@ impl Connection {
                     .engine
                     .ask(json!({"action":"remote","description":description}))?;
                 self.adopt(local)?;
+                // The caller repeats an offer until it hears back, so the
+                // callee answers every one, a path of its own or not.
+                if !self.context.caller {
+                    self.announce(state);
+                }
                 self.start()?;
             }
             Signal::Candidates { nonce, candidates } if nonce == self.binding.media_session => {
@@ -128,20 +133,8 @@ impl Connection {
             state,
         )?;
         state.stalls.statistics.since(measuring);
-        // Only the caller restarts, so the two sides never restart at once;
-        // the callee answers the new offer. A failed path never recovers
-        // without new ICE credentials.
         if self.reporter.take_ice_failure() && self.context.caller {
-            use crate::diagnostics_log::{kinds, write, LogLevel};
-            let session = &self.context.session_id;
-            write(
-                LogLevel::Info,
-                kinds::CALL,
-                session,
-                "ICE failed; restarting it",
-            );
-            let offer = self.engine.ask(json!({"action":"restart"}))?;
-            self.adopt(offer)?;
+            self.restart_ice(state)?;
         }
         let candidates = if self.ready {
             std::mem::take(&mut self.pending)
@@ -153,7 +146,55 @@ impl Connection {
             .engine
             .ask(json!({"action":"tick","candidates":candidates}))?;
         state.stalls.tick.since(ticking);
-        for candidate in gathered["candidates"]
+        self.gather(&gathered["candidates"]);
+        let presenting = Instant::now();
+        self.show_at(state.surfaces[1])?;
+        self.present(state);
+        state.stalls.present.since(presenting);
+        if self.resend.elapsed() >= Duration::from_secs(1) {
+            self.resend = Instant::now();
+            if !state.snapshot.ready {
+                self.announce(state);
+            }
+            state.emit(Signal::Camera {
+                nonce: self.binding.media_session.clone(),
+                enabled: state.snapshot.camera,
+            });
+        }
+        Ok(())
+    }
+
+    /// A failed path never recovers without new ICE credentials. Only the
+    /// caller restarts, so the two sides never restart at once.
+    pub(super) fn restart_ice(&mut self, state: &mut State) -> Result<(), String> {
+        use crate::diagnostics_log::{kinds, write, LogLevel};
+        let session = &self.context.session_id;
+        write(
+            LogLevel::Info,
+            kinds::CALL,
+            session,
+            "ICE failed; restarting it",
+        );
+        let offer = self.engine.ask(json!({"action":"restart"}))?;
+        self.adopt(offer)?;
+        self.announce(state);
+        Ok(())
+    }
+
+    /// Takes the engine's local description. A new one, a restart offer or
+    /// its answer, carries new ICE credentials, so the old candidates go.
+    fn adopt(&mut self, local: Value) -> Result<(), String> {
+        let local = parse_local(local)?;
+        if local != self.local {
+            self.local = local;
+            self.candidates.clear();
+        }
+        Ok(())
+    }
+
+    /// Keeps up to eight of the candidates the engine gathered, once each.
+    fn gather(&mut self, gathered: &Value) {
+        for candidate in gathered
             .as_array()
             .into_iter()
             .flatten()
@@ -164,40 +205,17 @@ impl Connection {
                 self.candidates.push(candidate.into());
             }
         }
-        let presenting = Instant::now();
-        self.show_at(state.surfaces[1])?;
-        self.present(state);
-        state.stalls.present.since(presenting);
-        if self.resend.elapsed() >= Duration::from_secs(1) {
-            self.resend = Instant::now();
-            if !state.snapshot.ready {
-                state.emit(Signal::Description(self.local.clone()));
-            }
-            if !self.candidates.is_empty() && !state.snapshot.ready {
-                state.emit(Signal::Candidates {
-                    nonce: self.binding.media_session.clone(),
-                    candidates: self.candidates.clone(),
-                });
-            }
-            state.emit(Signal::Camera {
-                nonce: self.binding.media_session.clone(),
-                enabled: state.snapshot.camera,
-            });
-        }
-        Ok(())
     }
 
-    /// Takes the engine's local description. A new one, a restart offer or
-    /// its answer, carries new ICE credentials: the old candidates are
-    /// dropped and it goes out on the next pump.
-    fn adopt(&mut self, local: Value) -> Result<(), String> {
-        let local = description(local)?;
-        if local != self.local {
-            self.local = local;
-            self.candidates.clear();
-            self.resend = Instant::now() - Duration::from_secs(2);
+    /// Sends this side's description and the candidates gathered for it.
+    fn announce(&self, state: &mut State) {
+        state.emit(Signal::Description(self.local.clone()));
+        if !self.candidates.is_empty() {
+            state.emit(Signal::Candidates {
+                nonce: self.binding.media_session.clone(),
+                candidates: self.candidates.clone(),
+            });
         }
-        Ok(())
     }
 
     fn show_at(&mut self, surface: Surface) -> Result<(), String> {
@@ -227,6 +245,6 @@ impl Connection {
     }
 }
 
-fn description(value: Value) -> Result<Description, String> {
+fn parse_local(value: Value) -> Result<Description, String> {
     serde_json::from_value(value).map_err(|error| error.to_string())
 }

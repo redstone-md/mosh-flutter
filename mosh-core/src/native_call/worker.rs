@@ -291,7 +291,7 @@ impl Owner {
                     }
                 }
             }
-            connection.apply(signal)?;
+            connection.apply(signal, state)?;
         }
         Ok(())
     }

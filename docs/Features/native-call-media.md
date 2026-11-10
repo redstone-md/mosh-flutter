@@ -304,7 +304,9 @@ ICE reports Disconnected after about 5 seconds without packets and Failed
 after about 15, and a failed path never comes back on its own. When the
 caller's ICE fails, the caller restarts it: a new offer with fresh ICE
 credentials goes over the call signaling and is resent every second until
-the answer arrives, while the call, its tracks and DTLS stay. Only the caller
+the call is connected again, while the call, its tracks and DTLS stay. The
+callee answers every offer it receives, even while its own side of the path
+still looks connected. Only the caller
 restarts, so the two sides never restart at once; a restart that fails again
 is followed by another within the same window. Descriptions arrive late or
 twice, so each side takes only one with a newer SDP session version than the

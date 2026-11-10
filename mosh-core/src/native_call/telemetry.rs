@@ -13,9 +13,9 @@ pub(super) struct Reporter {
     devices_at: Instant,
     disconnected: Option<Instant>,
     /// ICE was failed at the last statistics.
-    ice_failed: bool,
+    ice_failed_last: bool,
     /// ICE has failed since the owner last asked.
-    ice_failure: bool,
+    ice_failure_pending: bool,
     budget: u64,
     connected_once: bool,
     diagnostics: super::diagnostics::Monitor,
@@ -27,8 +27,8 @@ impl Reporter {
             statistics: Instant::now(),
             devices_at: Instant::now(),
             disconnected: None,
-            ice_failed: false,
-            ice_failure: false,
+            ice_failed_last: false,
+            ice_failure_pending: false,
             budget: 0,
             connected_once: false,
             diagnostics: Default::default(),
@@ -71,7 +71,7 @@ impl Reporter {
     /// Whether ICE has failed since the last ask. Each failure is told
     /// once; a restart that fails again is a new one.
     pub fn take_ice_failure(&mut self) -> bool {
-        std::mem::take(&mut self.ice_failure)
+        std::mem::take(&mut self.ice_failure_pending)
     }
 
     pub fn update(
@@ -99,8 +99,8 @@ impl Reporter {
         let snapshot = engine.ask(json!({"action":"snapshot"}))?;
         state.snapshot.packets_dropped = sender.dropped();
         let ice_failed = snapshot["connection"] == "Failed";
-        self.ice_failure |= ice_failed && !self.ice_failed;
-        self.ice_failed = ice_failed;
+        self.ice_failure_pending |= ice_failed && !self.ice_failed_last;
+        self.ice_failed_last = ice_failed;
         let connected = matches!(
             snapshot["connection"].as_str(),
             Some("Connected" | "Completed")

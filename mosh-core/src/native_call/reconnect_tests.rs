@@ -89,9 +89,9 @@ fn carry(from: &mut Side, to: &mut Side, cut: bool) {
     }
 }
 
-fn cut(net: &MemoryNet, cut: bool) {
+fn cut(net: &MemoryNet, lost: bool) {
     for (from, to) in [("a", "b"), ("b", "a")] {
-        net.drop_frames(from, to, move |_, _| cut);
+        net.drop_frames(from, to, move |_, _| lost);
     }
 }
 
@@ -125,5 +125,33 @@ fn a_call_reconnects_after_its_path_fails_and_returns() {
         "the call did not reconnect; ICE is {} and {}",
         sides[0].ice(),
         sides[1].ice()
+    );
+}
+
+#[test]
+// test-policy: skip MOSH-88 -- needs the built engine through MOSH_MEDIA_ENGINE; CI runs it with --include-ignored
+#[ignore = "Requires the real native engine through MOSH_MEDIA_ENGINE"]
+fn a_restart_is_answered_while_the_callee_still_has_a_path() {
+    let net = MemoryNet::new();
+    net.link_both("a", "b", PeerTransport::Direct);
+    let mut sides = [
+        Side::new(&net, "a", "b", true),
+        Side::new(&net, "b", "a", false),
+    ];
+    let both_ready = |sides: &mut [Side; 2]| sides.iter().all(Side::ready);
+    assert!(run(&mut sides, false, Duration::from_secs(10), both_ready));
+
+    let [caller, _] = &mut sides;
+    let connection = caller.owner.connection.as_mut().unwrap();
+    connection.restart_ice(&mut caller.state).unwrap();
+    let offer = connection.engine.ask(json!({"action":"restart"})).unwrap();
+    // A pending restart hands back its offer; an answered one makes the next.
+    let answered = |sides: &mut [Side; 2]| {
+        let connection = sides[0].owner.connection.as_mut().unwrap();
+        connection.engine.ask(json!({"action":"restart"})).unwrap() != offer
+    };
+    assert!(
+        run(&mut sides, false, Duration::from_secs(5), answered),
+        "the callee never answered the restart"
     );
 }
