@@ -334,6 +334,30 @@ costs at least 26.3 ms. At 30 fps that is about 1.1 host cores before codecs, au
 rendering and the local lane. These are host figures for the code path, consistent with
 the field report (2 to 2.7 Mac cores, 74% in the call window) but not a proof of its split.
 
+### macOS runner (MOSH-99)
+
+Measured on 2026-11-10 by the `Call video benchmark` workflow (run 42899137250) on
+GitHub's `macos-latest` runner, an Apple M1 virtual machine, and on `ubuntu-latest`
+(AMD EPYC 9V74). `node scripts/call-video-bench.mjs` drives the repository's own code:
+release engine, release mosh-core, compiled Dart. Median ms per frame of 60 runs after
+5 warm-ups; in brackets the share of one core at 30 fps. A virtual M1 is not a
+user's Mac, so read these as the code path's cost on Apple Silicon, not as field figures.
+
+| Case | macOS 640x360 | macOS 1280x720 | macOS 1920x1080 | Linux 1280x720 |
+|------|---------------|----------------|-----------------|----------------|
+| RGBA to I420 and encoder push (`Engine::push`) | 0.05 | 0.19 (1%) | 0.53 (2%) | 0.18 (1%) |
+| I420 to RGBA (libyuv, as for a decoded frame) | 0.09 | 0.37 (1%) | 0.72 (2%) | 0.21 (1%) |
+| preview to half size (`scale_rgba`) | 0.06 | 0.32 (1%) | 0.80 (2%) | 0.22 (1%) |
+| frame copy for the bridge (`Frame::clone`) | 0.02 | 0.10 | 0.42 (1%) | 0.09 |
+| flutter_rust_bridge encode of the frame | 1.34 (4%) | 4.52 (14%) | 11.4 (34%) | 4.20 (13%) |
+| call window socket: encode, send, parse, acknowledge | 3.46 (10%) | 14.1 (42%) | 21.7 (65%) | 5.79 (17%) |
+| `ImageDescriptor.raw` decode (flutter_tester, JIT, software) | 0.20 (1%) | 0.31 (1%) | 0.55 (2%) | 0.31 (1%) |
+
+The split holds on Apple Silicon: libyuv work is under 1 ms per 720p frame, while the
+bridge encode and the call window socket together cost 18.6 ms, 56% of a core at 30 fps
+for the remote lane alone. The socket is 2.4 times dearer on the macOS runner than on
+the Linux one. The decode row excludes the GPU upload, which still needs a real Mac.
+
 ## Open questions requiring a Mac or Windows device
 
 1. Split of the Mac mini's 2 to 2.7 cores. Run a 720p call with both cameras on,
