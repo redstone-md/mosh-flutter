@@ -18,7 +18,7 @@ pub(super) fn canonical(stored: &str) -> &str {
         .unwrap_or(stored)
 }
 
-/// The audio devices the engine last selected with a usable input. Selecting
+/// The audio devices the engine last selected, both usable. Selecting
 /// restarts the recording and playout devices, so only a new pick selects;
 /// the microphone and camera switches leave the devices running.
 #[derive(Default)]
@@ -27,21 +27,22 @@ pub(super) struct Selection {
 }
 
 impl Selection {
-    /// Selects the devices of `choices` through `select` unless they are the
-    /// ones in use; whether the input is usable. A refused input is not
-    /// remembered, so the next switch tries it again.
+    /// Selects the devices of `choices` through `select`, which tells whether
+    /// the input and the output are usable, unless they are the ones in use.
+    /// Whether the input is usable. A refused device is not remembered, so
+    /// the next switch tries the pick again.
     pub fn apply(
         &mut self,
         choices: &Choices,
-        select: impl FnOnce() -> Result<bool, String>,
+        select: impl FnOnce() -> Result<[bool; 2], String>,
     ) -> Result<bool, String> {
         let pick = (choices.input.clone(), choices.output.clone());
         if self.picked.as_ref() == Some(&pick) {
             return Ok(true);
         }
         self.picked = None;
-        let input_ok = select()?;
-        if input_ok {
+        let [input_ok, output_ok] = select()?;
+        if input_ok && output_ok {
             self.picked = Some(pick);
         }
         Ok(input_ok)
@@ -81,7 +82,7 @@ mod tests {
         let mut apply = |choices: &Choices| {
             selection.apply(choices, || {
                 selected += 1;
-                Ok(true)
+                Ok([true; 2])
             })
         };
         assert!(apply(&choices).unwrap());
@@ -99,8 +100,9 @@ mod tests {
         let mut selection = Selection::default();
         let choices = Choices::default();
         assert!(selection.apply(&choices, || Err("engine".into())).is_err());
-        assert!(!selection.apply(&choices, || Ok(false)).unwrap());
-        assert!(selection.apply(&choices, || Ok(true)).unwrap());
+        assert!(!selection.apply(&choices, || Ok([false, true])).unwrap());
+        assert!(selection.apply(&choices, || Ok([true, false])).unwrap());
+        assert!(selection.apply(&choices, || Ok([true; 2])).unwrap());
         assert!(selection
             .apply(&choices, || panic!("selected the same devices again"))
             .unwrap());

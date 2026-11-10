@@ -28,7 +28,19 @@ void registerNativeBindingTests() {
     await notifier.selectInput('mic');
     await notifier.selectOutput('speaker');
     await notifier.selectCamera('camera');
-    await notifier.toggleCamera();
+    final applying = Completer<void>();
+    bridge.respondNext(BridgeMethod.nativeCallChoices, applying.future);
+    final shown = Completer<void>();
+    final watch =
+        container.listen(voiceCallOrchestratorProvider('sess-1'), (_, next) {
+      if (next.cameraRequested && !shown.isCompleted) shown.complete();
+    });
+    final pressed = notifier.toggleCamera();
+    // The camera button follows the press while native media still applies it.
+    await shown.future;
+    applying.complete();
+    await pressed;
+    watch.close();
     bridge.failNext(BridgeMethod.nativeCallChoices);
     await notifier.toggleCamera();
     expect(

@@ -137,7 +137,8 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
             muted: state.muted,
             media: state.nativeMedia == null
                 ? null
-                : CallMediaView.fromSnapshot(state.nativeMedia!),
+                : CallMediaView.fromSnapshot(state.nativeMedia!,
+                    cameraRequested: state.cameraRequested),
             audioReady: state.audioReady,
             audioFailed: state.audioFailed,
             busy: state.busy,

@@ -120,7 +120,7 @@ impl Connection {
         self.selection.apply(choices, || {
             let selected = engine
                 .ask(json!({"action":"select","input":choices.input,"output":choices.output}))?;
-            Ok(selected["input_ok"].as_bool().unwrap_or(false))
+            Ok(["input_ok", "output_ok"].map(|ok| selected[ok].as_bool().unwrap_or(false)))
         })
     }
 
