@@ -250,7 +250,7 @@ pub(crate) fn artifact(variable: &str, name: &str) -> Result<PathBuf, String> {
     Err(format!("packaged native artifact is missing: {name}"))
 }
 
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", all(test, feature = "call-video-bench")))]
 pub(crate) fn i420_size(width: u32, height: u32) -> Option<usize> {
     (width > 0
         && height > 0
@@ -262,7 +262,7 @@ pub(crate) fn i420_size(width: u32, height: u32) -> Option<usize> {
         .then(|| width as usize * height as usize * 3 / 2)
 }
 
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", all(test, feature = "call-video-bench")))]
 pub(crate) fn i420_to_rgba(width: u32, height: u32, planar: &[u8]) -> Result<Vec<u8>, String> {
     type Convert = unsafe extern "C" fn(u32, u32, *const u8, usize, *mut u8, usize) -> i32;
     if i420_size(width, height) != Some(planar.len()) {

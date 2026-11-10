@@ -355,7 +355,8 @@ through mosh-core over real Moss, and on Linux a voice call between
 PulseAudio devices over two Moss nodes, heard in both directions, with the
 microphone on from the start and switched on only after connecting
 (`scripts/webrtc-voice-check.mjs`). A separate job builds a debug Android
-arm64 APK.
+arm64 APK. The frame path's cost is measured apart from CI's checks; see
+[call video benchmark](call-video-benchmark.md).
 
 ```sh
 node scripts/native-media-build.mjs

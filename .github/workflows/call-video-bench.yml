@@ -1,0 +1,68 @@
+name: Call video benchmark
+
+# What one call video frame costs on the Apple Silicon and Linux runners
+# (MOSH-99): we have no Mac of our own, and most of the frame path needs
+# neither a camera nor a display. Run it by hand on the branch to measure;
+# it also runs when the benchmark itself changes. Each table is in the job
+# summary and in the `call-video-bench-<os>` artifact.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/call-video-bench.yml
+      - scripts/call-video-bench.mjs
+      - benchmark/**
+      - mosh-core/src/native_call/benchmark.rs
+
+concurrency:
+  group: call-video-bench-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    name: Frame path (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup
+        with:
+          rust-cache-key: none
+      # The engine build's needs, as in CI's `Native call media` job.
+      - name: Linux toolchain
+        if: runner.os == 'Linux'
+        run: |
+          sudo mkdir -p /opt/llvm
+          curl --fail --location --silent --show-error \
+            https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/LLVM-21.1.8-Linux-X64.tar.xz \
+            | sudo tar -xJ --strip-components=1 -C /opt/llvm
+          echo "CC=/opt/llvm/bin/clang" >> "$GITHUB_ENV"
+          echo "CXX=/opt/llvm/bin/clang++" >> "$GITHUB_ENV"
+      # libgtk-3-dev is for the native-asset hooks `flutter test` runs.
+      - name: Linux system headers
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/apt-install
+        with:
+          packages: >-
+            libasound2-dev libudev-dev libglib2.0-dev libva-dev libdrm-dev
+            libgbm-dev libx11-dev libxext-dev libxfixes-dev libxdamage-dev
+            libxrandr-dev libxcomposite-dev libgtk-3-dev
+      - run: flutter gen-l10n
+      - name: Benchmark
+        shell: bash
+        run: |
+          node scripts/call-video-bench.mjs --output call-video-bench.md
+          cat call-video-bench.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: call-video-bench-${{ matrix.os }}
+          path: call-video-bench.md

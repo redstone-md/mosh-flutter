@@ -232,5 +232,7 @@ impl Drop for Hub {
     }
 }
 
+#[cfg(all(test, feature = "call-video-bench"))]
+mod benchmark;
 #[cfg(test)]
 mod lifecycle_tests;
