@@ -156,6 +156,56 @@ void main() {
     platform.messenger.setMockMethodCallHandler(_screen, null);
   });
 
+  testWidgets('the controls work at every window size, resized or not',
+      (tester) async {
+    final platform = CallWindowPlatform();
+    _installWindowManager(platform);
+    final commands = <String>[];
+    final handle = await startCallWindowView((command) async {
+      commands.add(command.toMap()['action'] as String);
+    });
+    await tester.pump();
+    await handle(MethodCall(
+        'call-present',
+        CallViewState(
+                sessionId: 'origin',
+                callId: 'active',
+                peer: 'Alice',
+                phase: CallViewPhase.active,
+                audioReady: true,
+                media: CallMediaView.fromSnapshot(nativeCallSnapshot()))
+            .toMap()));
+    await tester.pump();
+    const sizes = [
+      (Size(340, 260), 1.0),
+      (Size(2560, 1440), 2.0),
+      (Size(640, 480), 1.0),
+      (Size(3840, 2160), 2.0),
+      (Size(1440, 900), 2.0),
+    ];
+    addTearDown(tester.view.reset);
+    for (final (size, ratio) in sizes) {
+      tester.view.devicePixelRatio = ratio;
+      tester.view.physicalSize = size * ratio;
+      await tester.pumpAndSettle();
+      for (final tooltip in ['Mute', 'Turn camera on', 'Hang up']) {
+        await tester.tap(find.byTooltip(tooltip));
+        await tester.pump();
+      }
+    }
+    expect(commands, [
+      for (final _ in sizes) ...['mute', 'camera', 'end']
+    ]);
+    await handle(const MethodCall('call-close'));
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pumpWidget(const SizedBox.shrink());
+    for (final listener in windowManager.listeners) {
+      windowManager.removeListener(listener);
+    }
+    platform.messenger.setMockMethodCallHandler(_manager, null);
+    platform.messenger.setMockMethodCallHandler(_screen, null);
+  });
+
   testWidgets('the window reports its video stage surfaces to its parent',
       (tester) async {
     final platform = CallWindowPlatform();

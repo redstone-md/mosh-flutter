@@ -114,6 +114,9 @@ controls stay in that window. Startup or presentation failure and child-process
 exit restore the strip's controls without waiting for a new call snapshot.
 Its restore button recreates the window. No additional
 window plugin is required.
+The window comes forward when a call is presented and then behaves like any
+other window: it is not pinned above others, so macOS full screen and resizing
+keep its controls in reach (MOSH-91).
 Android and iOS use the strip inside system safe insets. While a call is shown,
 the host consumes the keyboard inset for both the route and strip, removing it
 from the nested Scaffold so the composer does not reserve the inset twice.

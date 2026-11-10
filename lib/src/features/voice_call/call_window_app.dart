@@ -76,7 +76,6 @@ class _CallWindowController extends ValueNotifier<CallViewState?>
       minimumSize: Size(340, 260),
       center: true,
       title: 'Mosh',
-      alwaysOnTop: true,
     ));
     await windowManager.setPreventClose(true);
     windowManager.addListener(this);
