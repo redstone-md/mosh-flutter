@@ -49,7 +49,8 @@ impl Side {
 }
 
 /// Steps both owners until `done` holds or `limit` passes, carrying their
-/// call signals unless the path is `cut`; true if it held.
+/// call signals unless the path is `cut`; true if it held. `done` sees each
+/// step's signals before they are carried.
 fn run(
     sides: &mut [Side; 2],
     cut: bool,
@@ -63,9 +64,6 @@ fn run(
                 .step(&mut side.state, &*side.transport, None)
                 .unwrap();
         }
-        let [a, b] = sides;
-        carry(a, b, cut);
-        carry(b, a, cut);
         assert!(
             sides.iter().all(|side| !side.state.snapshot.failed),
             "the call ended"
@@ -73,6 +71,9 @@ fn run(
         if done(sides) {
             return true;
         }
+        let [a, b] = sides;
+        carry(a, b, cut);
+        carry(b, a, cut);
         // test-policy: wait MOSH-88 -- libwebrtc times ICE consent and failure on its own clock
         std::thread::sleep(Duration::from_millis(10));
     }
@@ -112,18 +113,24 @@ fn a_call_reconnects_after_its_path_fails_and_returns() {
     );
 
     cut(&net, true);
-    // The caller restarts as soon as its ICE fails, so the sides need not
-    // be Failed at the same moment: each has to get there once.
-    let mut seen = [false; 2];
+    // The caller restarts in the very step its ICE fails, so its Failed may
+    // never be seen from here, but its restart offer is: a description other
+    // than the one it repeats while the path is down. Nobody restarts the
+    // callee, so it stays Failed.
+    let mut offers = Vec::new();
     let failed = |sides: &mut [Side; 2]| {
-        for (seen, side) in seen.iter_mut().zip(sides.iter_mut()) {
-            *seen |= side.ice() == "Failed";
+        for (_, _, signal) in &sides[0].state.outbound {
+            if let Signal::Description(offer) = signal {
+                if !offers.contains(offer) {
+                    offers.push(offer.clone());
+                }
+            }
         }
-        seen == [true; 2]
+        offers.len() > 1 && sides[1].ice() == "Failed"
     };
     assert!(
         run(&mut sides, true, Duration::from_secs(30), failed),
-        "ICE never failed"
+        "ICE never failed and restarted"
     );
     assert!(sides.iter().all(|side| side.state.snapshot.reconnecting));
 
