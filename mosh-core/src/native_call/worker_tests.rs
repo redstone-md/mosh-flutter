@@ -1,5 +1,5 @@
 use super::*;
-use crate::native_call::capture::Captured;
+use crate::native_call::{capture::Captured, library::MAX_PACKET};
 use crate::private_dm_runtime::transport::memory::MemoryNet;
 
 #[test]
@@ -37,16 +37,7 @@ fn missing_offer_marks_the_call_failed_fifteen_seconds_after_selection() {
 fn a_frame_prepared_before_the_camera_stops_is_not_presented() {
     let mut owner = Owner::new(MemoryNet::new().endpoint("local"));
     let mut state = State {
-        context: Some(Context {
-            session_id: "dm".into(),
-            call_id: "call".into(),
-            superseded: None,
-            active: false,
-            caller: true,
-            caller_signer: "caller".into(),
-            callee_signer: None,
-            peer: String::new(),
-        }),
+        context: Some(outgoing("call")),
         ..Default::default()
     };
     state.snapshot.camera_requested = true; // Turned off since the frame was prepared.
@@ -63,4 +54,37 @@ fn a_frame_prepared_before_the_camera_stops_is_not_presented() {
     assert!(state.frames[0].is_none());
     assert!(!state.snapshot.camera);
     assert_eq!(owner.captured, 0);
+}
+
+fn outgoing(call_id: &str) -> Context {
+    Context {
+        session_id: "dm".into(),
+        call_id: call_id.into(),
+        superseded: None,
+        active: false,
+        caller: true,
+        caller_signer: "caller".into(),
+        callee_signer: None,
+        peer: String::new(),
+    }
+}
+
+#[test]
+fn a_new_call_counts_sender_drops_from_zero() {
+    let mut owner = Owner::new(MemoryNet::new().endpoint("local"));
+    let mut state = State {
+        context: Some(outgoing("first")),
+        ..Default::default()
+    };
+    owner.synchronize(&mut state);
+    // A relayed video lane drains one maximum packet per ~60 ms, so a burst
+    // overflows its 96 slots before the first one leaves.
+    let mut wire = owner.sender.link("remote", &[9; 16]);
+    for _ in 0..100 {
+        wire.send(&[0; MAX_PACKET], false);
+    }
+    assert!(owner.sender.dropped() > 0);
+    state.context = Some(outgoing("second"));
+    owner.synchronize(&mut state);
+    assert_eq!(owner.sender.dropped(), 0);
 }
