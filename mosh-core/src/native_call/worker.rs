@@ -327,6 +327,9 @@ fn warn(message: &str) {
     write(LogLevel::Warn, kinds::CALL, "", message);
 }
 
+#[cfg(all(test, feature = "native-media-tests"))]
+#[path = "reconnect_tests.rs"]
+mod reconnect_tests;
 #[cfg(test)]
 #[path = "worker_tests.rs"]
 mod tests;

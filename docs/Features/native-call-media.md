@@ -296,8 +296,22 @@ second to send, longer than the renderer's one-second frame expiry. The shared c
 policy keeps the engine below the carrier's video allowance with room for
 packet framing. WebRTC supplies congestion adaptation.
 An idle sender waits for a queue notification without a periodic timer.
-Every observed connection loss receives a fresh 15-second recovery window.
-After that, local termination clears capture and persists the terminal state.
+Every observed connection loss receives a fresh 30-second recovery window,
+and the call shows "Reconnecting" meanwhile. After that, local termination
+clears capture and persists the terminal state (`connection_lost`).
+
+ICE reports Disconnected after about 5 seconds without packets and Failed
+after about 15, and a failed path never comes back on its own. When the
+caller's ICE fails, the caller restarts it: a new offer with fresh ICE
+credentials goes over the call signaling and is resent every second until
+the answer arrives, while the call, its tracks and DTLS stay. Only the caller
+restarts, so the two sides never restart at once; a restart that fails again
+is followed by another within the same window. Descriptions arrive late or
+twice, so each side takes only one with a newer SDP session version than the
+last it accepted, and the caller takes a new answer only for its pending
+restart. A peer on an older build cannot answer a restart; its call ends as
+before. The memory-network regression cuts a call until both sides fail,
+restores the path, and requires the same call to be media-ready again.
 
 These are client flow limits. The unchanged Moss relay still lacks an aggregate
 node budget and audio/message reservations. Its injectable-network sender

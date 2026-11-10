@@ -48,13 +48,11 @@ impl Connection {
         }
         let wire = sender.link(&context.peer, &binding.media_session);
         let mut engine = Engine::new(&binding, context.caller, wire)?;
-        let local = if let Some(offer) = offer {
+        let local = description(if let Some(offer) = offer {
             engine.ask(json!({"action":"remote","description":offer}))?
         } else {
             engine.ask(json!({"action":"offer"}))?
-        };
-        let local: Description =
-            serde_json::from_value(local).map_err(|error| error.to_string())?;
+        })?;
         Ok(Self {
             context,
             binding,
@@ -77,8 +75,10 @@ impl Connection {
                 if description.binding != self.binding || description.offer == self.context.caller {
                     return Ok(());
                 }
-                self.engine
+                let local = self
+                    .engine
                     .ask(json!({"action":"remote","description":description}))?;
+                self.adopt(local)?;
                 self.start()?;
             }
             Signal::Candidates { nonce, candidates } if nonce == self.binding.media_session => {
@@ -128,6 +128,21 @@ impl Connection {
             state,
         )?;
         state.stalls.statistics.since(measuring);
+        // Only the caller restarts, so the two sides never restart at once;
+        // the callee answers the new offer. A failed path never recovers
+        // without new ICE credentials.
+        if self.reporter.take_ice_failure() && self.context.caller {
+            use crate::diagnostics_log::{kinds, write, LogLevel};
+            let session = &self.context.session_id;
+            write(
+                LogLevel::Info,
+                kinds::CALL,
+                session,
+                "ICE failed; restarting it",
+            );
+            let offer = self.engine.ask(json!({"action":"restart"}))?;
+            self.adopt(offer)?;
+        }
         let candidates = if self.ready {
             std::mem::take(&mut self.pending)
         } else {
@@ -172,6 +187,19 @@ impl Connection {
         Ok(())
     }
 
+    /// Takes the engine's local description. A new one, a restart offer or
+    /// its answer, carries new ICE credentials: the old candidates are
+    /// dropped and it goes out on the next pump.
+    fn adopt(&mut self, local: Value) -> Result<(), String> {
+        let local = description(local)?;
+        if local != self.local {
+            self.local = local;
+            self.candidates.clear();
+            self.resend = Instant::now() - Duration::from_secs(2);
+        }
+        Ok(())
+    }
+
     fn show_at(&mut self, surface: Surface) -> Result<(), String> {
         if surface != self.shown {
             self.engine
@@ -197,4 +225,8 @@ impl Connection {
             );
         }
     }
+}
+
+fn description(value: Value) -> Result<Description, String> {
+    serde_json::from_value(value).map_err(|error| error.to_string())
 }

@@ -2,13 +2,12 @@
 //! certificate fingerprint travels in the SDP inside the MLS-authenticated
 //! description, so only the selected device can complete the handshake.
 use std::sync::Arc;
-use std::sync::mpsc::{Receiver, sync_channel};
+use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use libwebrtc::{
     audio_track::RtcAudioTrack,
-    ice_candidate::IceCandidate,
     media_stream_track::MediaStreamTrack,
     peer_connection::{AnswerOptions, BitrateSettings, OfferOptions, PeerConnection, TrackEvent},
     peer_connection_factory::{
@@ -16,12 +15,15 @@ use libwebrtc::{
     },
     rtp_sender::RtpSender,
     rtp_transceiver::RtpTransceiver,
-    session_description::{SdpType, SessionDescription},
+    session_description::SessionDescription,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{audio, carrier::Carrier, frames::Frames, stats::Measurements, video::Camera};
+use negotiation::{gather_candidates, parse_candidate, parse_description, session_version};
+
+mod negotiation;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MediaBinding {
@@ -46,13 +48,6 @@ pub struct Description {
     pub parameters: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize)]
-struct Candidate {
-    mid: String,
-    index: i32,
-    sdp: String,
-}
-
 pub struct Engine {
     runtime: tokio::runtime::Runtime,
     factory: PeerConnectionFactory,
@@ -65,6 +60,8 @@ pub struct Engine {
     caller: bool,
     local: Option<Description>,
     remote: Option<Description>,
+    /// The caller's ICE restart offer is out and its answer is not yet in.
+    restarting: bool,
     started: bool,
     microphone_on: bool,
     camera_on: bool,
@@ -106,6 +103,7 @@ impl Engine {
             caller: config.caller,
             local: None,
             remote: None,
+            restarting: false,
             started: false,
             microphone_on: false,
             camera_on: false,
@@ -119,6 +117,7 @@ impl Engine {
     pub fn command(&mut self, value: Value) -> Result<Value> {
         match value["action"].as_str().unwrap_or("") {
             "offer" => Ok(serde_json::to_value(self.offer()?)?),
+            "restart" => Ok(serde_json::to_value(self.restart()?)?),
             "remote" => {
                 let remote: Description = serde_json::from_value(value["description"].clone())?;
                 Ok(serde_json::to_value(self.receive_description(remote)?)?)
@@ -172,12 +171,29 @@ impl Engine {
         if let Some(local) = &self.local {
             return Ok(local.clone());
         }
+        self.create_offer(false)
+    }
+
+    /// A new offer with fresh ICE credentials, for a path that failed. The
+    /// call, its tracks and DTLS stay; only the caller restarts, so the two
+    /// sides never restart at once. Until the answer arrives, the pending
+    /// offer, the first one included, is the one to resend.
+    fn restart(&mut self) -> Result<Description> {
+        anyhow::ensure!(self.caller, "only the caller restarts ICE");
+        if self.remote.is_some() && !self.restarting {
+            self.create_offer(true)?;
+            self.restarting = true;
+        }
+        self.local.clone().context("missing local description")
+    }
+
+    fn create_offer(&mut self, ice_restart: bool) -> Result<Description> {
         // The bindings' default sets the legacy offerToReceiveAudio to false,
         // which makes the offer send-only and leaves the callee unheard.
         let options = OfferOptions {
+            ice_restart,
             offer_to_receive_audio: None,
             offer_to_receive_video: None,
-            ..OfferOptions::default()
         };
         let offer = self
             .runtime
@@ -191,16 +207,16 @@ impl Engine {
             remote.binding == self.binding,
             "description is for another call"
         );
-        if let Some(accepted) = &self.remote {
-            anyhow::ensure!(accepted == &remote, "media description changed");
+        anyhow::ensure!(remote.offer != self.caller, "wrong description role");
+        if !self.is_news(&remote)? {
             return self.local.clone().context("missing local description");
         }
-        anyhow::ensure!(remote.offer != self.caller, "wrong description role");
         let description = parse_description(&remote)?;
         self.runtime
             .block_on(self.pc.set_remote_description(description))
             .map_err(|error| anyhow::anyhow!("remote description: {error:?}"))?;
         self.remote = Some(remote);
+        self.restarting = false;
         self.carrier.accept();
         if self.caller {
             return self.local.clone().context("offer was not created");
@@ -210,6 +226,18 @@ impl Engine {
             .block_on(self.pc.create_answer(AnswerOptions::default()))
             .map_err(|error| anyhow::anyhow!("answer: {error:?}"))?;
         self.set_local(answer, false)
+    }
+
+    /// Whether `remote` moves the negotiation on. Signals arrive twice or
+    /// late: the peer's session version, which grows with each description
+    /// it makes, tells an old one from the next. The caller takes a new
+    /// answer only for its pending restart.
+    fn is_news(&self, remote: &Description) -> Result<bool> {
+        let Some(accepted) = &self.remote else {
+            return Ok(true);
+        };
+        let newer = session_version(remote)? > session_version(accepted)?;
+        Ok(newer && (!self.caller || self.restarting))
     }
 
     fn set_local(&mut self, description: SessionDescription, offer: bool) -> Result<Description> {
@@ -328,46 +356,6 @@ pub fn transceiver(pc: &PeerConnection, sender: &RtpSender) -> Result<RtpTransce
         .into_iter()
         .find(|transceiver| transceiver.sender().track().map(|track| track.id()) == id)
         .context("track has no transceiver")
-}
-
-/// The peer's SDP, which must carry the DTLS fingerprint the handshake checks.
-fn parse_description(remote: &Description) -> Result<SessionDescription> {
-    anyhow::ensure!(remote.parameters.len() <= 16_384, "description too large");
-    let sdp = std::str::from_utf8(&remote.parameters)?;
-    anyhow::ensure!(
-        sdp.contains("a=fingerprint:"),
-        "description lacks a DTLS fingerprint"
-    );
-    let kind = if remote.offer {
-        SdpType::Offer
-    } else {
-        SdpType::Answer
-    };
-    SessionDescription::parse(sdp, kind).map_err(|error| anyhow::anyhow!("sdp: {error:?}"))
-}
-
-/// A candidate the peer gathered, as `gather_candidates` encodes it.
-fn parse_candidate(value: &Value) -> Result<IceCandidate> {
-    let text = value.as_str().filter(|text| text.len() <= 2048);
-    let candidate: Candidate = serde_json::from_str(text.context("candidate")?)?;
-    IceCandidate::parse(&candidate.mid, candidate.index, &candidate.sdp)
-        .map_err(|error| anyhow::anyhow!("candidate: {error:?}"))
-}
-
-/// Queues each gathered ICE candidate as JSON for the next tick.
-fn gather_candidates(pc: &PeerConnection) -> Receiver<String> {
-    let (sender, candidates) = sync_channel(32);
-    pc.on_ice_candidate(Some(Box::new(move |candidate: IceCandidate| {
-        let encoded = serde_json::to_string(&Candidate {
-            mid: candidate.sdp_mid(),
-            index: candidate.sdp_mline_index(),
-            sdp: candidate.candidate(),
-        });
-        if let Ok(encoded) = encoded {
-            let _ = sender.try_send(encoded);
-        }
-    })));
-    candidates
 }
 
 #[cfg(test)]
