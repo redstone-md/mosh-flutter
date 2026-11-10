@@ -282,15 +282,16 @@ void main() {
   test('a press shows on the button while native media still applies it',
       () async {
     final bridge = ScriptableBridge();
-    final shown = <bool>[];
+    final shownMuted = Completer<void>();
     late final NativeCallSession session;
-    session = _session(bridge, onState: () => shown.add(session.muted));
+    session = _session(bridge, onState: () {
+      if (session.muted && !shownMuted.isCompleted) shownMuted.complete();
+    });
     await session.start();
     final applying = Completer<void>();
     bridge.respondNext(BridgeMethod.nativeCallChoices, applying.future);
     final pressed = session.toggleMicrophone();
-    await Future<void>.delayed(Duration.zero);
-    expect(shown.last, true);
+    await shownMuted.future;
     applying.complete();
     await pressed;
     expect(session.muted, true);

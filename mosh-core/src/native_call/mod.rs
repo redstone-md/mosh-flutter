@@ -101,9 +101,10 @@ impl Hub {
         }
     }
 
-    /// Hands the choices to the owner and returns: a control never waits
-    /// for a step. The snapshot shows the request at once and the outcome,
-    /// such as a refused microphone, after the owner's next step.
+    /// Hands the choices to the owner and returns once it holds the call
+    /// state, without waiting for the owner's next step. The snapshot shows
+    /// the request at once and the outcome, such as a refused microphone,
+    /// after that step.
     pub fn choices(
         &self,
         session: &str,

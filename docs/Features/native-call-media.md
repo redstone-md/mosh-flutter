@@ -130,9 +130,11 @@ A thread-bound Windows COM apartment guard outlives every endpoint field, so
 native audio objects are released before COM uninitialization. Engine teardown
 still releases capture, playback and connection resources. Slow Moss sends
 run separately, so they cannot block camera off, decoding or device commands.
-A control never waits for the owner thread: the bridge hands it the choices and
-returns, and the snapshot shows what was asked at once. The outcome, such as a
-refused microphone, follows in the snapshot after the owner's next step.
+A control does not wait for the owner to apply it: the bridge hands over the
+choices once it holds the call state and returns, and the snapshot shows what
+was asked at once. The outcome, such as a refused microphone, follows in the
+snapshot after the owner's next step. The owner holds the call state for a whole
+step, so a control still waits out a step that is already running.
 The native `Owner` is a documented exception to the 200-line type limit so
 capture, negotiation and engine lifetimes stay in one thread-bound state machine.
 
