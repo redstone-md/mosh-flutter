@@ -8,6 +8,11 @@ and kernel documentation. Every number below was measured on a Linux x86_64 host
 estimate or a field report. Mac and Windows numbers must be remeasured on devices;
 the [open questions](#open-questions-requiring-a-mac-or-windows-device) say how.
 
+Decision (2026-11-10): the owner chose to present desktop calls in the main window
+with a Rust-fed texture instead of keeping the child process
+([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md)). Steps 2 to 4 below
+describe the rejected child-process variant; their measurements still apply.
+
 ## Summary recommendation
 
 Both structural costs are real, and the biggest ones are not memcpys. On this host a
