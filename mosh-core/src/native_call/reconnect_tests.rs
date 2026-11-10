@@ -112,7 +112,15 @@ fn a_call_reconnects_after_its_path_fails_and_returns() {
     );
 
     cut(&net, true);
-    let failed = |sides: &mut [Side; 2]| sides.iter_mut().all(|side| side.ice() == "Failed");
+    // The caller restarts as soon as its ICE fails, so the sides need not
+    // be Failed at the same moment: each has to get there once.
+    let mut seen = [false; 2];
+    let failed = |sides: &mut [Side; 2]| {
+        for (seen, side) in seen.iter_mut().zip(sides.iter_mut()) {
+            *seen |= side.ice() == "Failed";
+        }
+        seen == [true; 2]
+    };
     assert!(
         run(&mut sides, true, Duration::from_secs(30), failed),
         "ICE never failed"
