@@ -32,8 +32,10 @@ measurements per 720p frame at 30 fps, expressed as a share of one host core.
 | 4 | Same texture on Windows (pixel-buffer texture over a named file mapping) | 3 to 4 days | Same as step 2 |
 | 5 | Camera helper sends native YUV (420v/NV12/YUYV; MJPEG decoded to planar YUV), the engine encodes without RGBA | 4 to 6 days | 9 to 11 ms per frame on the macOS path (27 to 33%), about 8 ms on the MJPEG path (24%), plus the AVFoundation BGRA conversion the host cannot measure |
 
-Keep the separate call-window process for now. Moving presentation into the engine
-process is the right end state, but on stable Flutter it needs either the windowing
+Superseded by [ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md), which moves
+presentation into the main window now; the paragraph below is the original reasoning.
+The research recommended keeping the separate call-window process for now: moving
+presentation into the engine process is the right end state, but on stable Flutter it needs either the windowing
 API that Flutter itself marks experimental and not for production, or a second
 Flutter engine with hand-written window hosting on three platforms. Steps 2 to 4
 remove the cost that motivates the move without that risk, and every piece except
