@@ -46,7 +46,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     if (result.status !== 0) throw new Error(`${command} ${args.join(" ")} failed:\n${result.stdout ?? result.error}`);
     return result.stdout;
   };
-  const engine = process.env.MOSH_MEDIA_ENGINE ?? (() => {
+  const engine = process.env.MOSH_MEDIA_ENGINE || (() => {
     run("node", ["scripts/native-media-build.mjs", "--profile", "release"]);
     return path.join(root, ".dart_tool/native-media/release", process.platform === "win32" ? "mosh_native_media.dll"
       : process.platform === "darwin" ? "libmosh_native_media.dylib" : "libmosh_native_media.so");
@@ -60,7 +60,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
       "native_call::benchmark", "--", "--nocapture"], { ...process.env, MOSH_MEDIA_ENGINE: engine }),
     run(transport, []),
     run("flutter", ["test", "benchmark/call_video_decode.dart"]),
-  ].flatMap(rows);
+  ].map((output) => {
+    // A part that printed nothing, or lost a size, must not leave a quiet gap.
+    const part = rows(output);
+    if (part.length === 0 || part.length % SIZES.length !== 0) throw new Error(`incomplete measurements:\n${output}`);
+    return part;
+  }).flat();
   const report = [
     `Call video frame path on ${os.type()} ${os.release()} ${os.arch()}, ${os.cpus()[0]?.model ?? "unknown CPU"}.`,
     "Median ms per frame of 60 runs after 5 warm-ups; in brackets the share of one core at 30 fps.",

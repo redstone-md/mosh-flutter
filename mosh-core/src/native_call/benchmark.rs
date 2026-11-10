@@ -86,66 +86,77 @@ fn engines() -> [Engine; 2] {
     [caller, callee]
 }
 
+/// The engine's conversions of one frame of `size`.
+fn conversions(engine: &Engine, size @ (width, height): (u32, u32), pixels: &[u8]) {
+    let planar = synthetic(width as usize * height as usize * 3 / 2);
+    let half = Surface {
+        width: width / 2,
+        height: height / 2,
+    };
+    report(
+        "RGBA to I420 and encoder push (`Engine::push`)",
+        size,
+        || (),
+        |()| {
+            assert!(engine.push(width, height, pixels));
+        },
+    );
+    // Desktop engines make this libyuv call inside `copy_frame`.
+    report(
+        "I420 to RGBA (libyuv, as for a decoded frame)",
+        size,
+        || (),
+        |()| library::i420_to_rgba(width, height, &planar).expect("converted"),
+    );
+    report(
+        "preview to half size (`scale_rgba`)",
+        size,
+        || (),
+        |()| {
+            library::scale_rgba(width, height, pixels, half)
+                .expect("scaled")
+                .expect("a smaller frame")
+        },
+    );
+}
+
+/// A frame's way from the call state to the bridge's reply bytes.
+fn transfer(size @ (width, height): (u32, u32), pixels: &[u8]) {
+    let frame = || Frame {
+        session_id: "dm".into(),
+        call_id: "call".into(),
+        sequence: 1,
+        width,
+        height,
+        local: false,
+        source_age_ms: 0,
+        pixels: pixels.to_vec(),
+    };
+    let held = frame();
+    report(
+        "frame copy for the bridge (`Frame::clone`)",
+        size,
+        || (),
+        |()| held.clone(),
+    );
+    report(
+        "flutter_rust_bridge encode of the frame",
+        size,
+        frame,
+        |frame| {
+            let mut serializer = SseSerializer::new();
+            Some(frame).sse_encode(&mut serializer);
+            serializer
+        },
+    );
+}
+
 #[test]
 fn frame_path() {
     let [engine, _callee] = engines();
     for size @ (width, height) in SIZES {
         let pixels = synthetic(width as usize * height as usize * 4);
-        let planar = synthetic(width as usize * height as usize * 3 / 2);
-        let half = Surface {
-            width: width / 2,
-            height: height / 2,
-        };
-        let frame = || Frame {
-            session_id: "dm".into(),
-            call_id: "call".into(),
-            sequence: 1,
-            width,
-            height,
-            local: false,
-            source_age_ms: 0,
-            pixels: pixels.clone(),
-        };
-        report(
-            "RGBA to I420 and encoder push (`Engine::push`)",
-            size,
-            || (),
-            |()| {
-                assert!(engine.push(width, height, &pixels));
-            },
-        );
-        report(
-            "I420 to RGBA (`mosh_media_i420_to_rgba`)",
-            size,
-            || (),
-            |()| library::i420_to_rgba(width, height, &planar).expect("converted"),
-        );
-        report(
-            "preview to half size (`scale_rgba`)",
-            size,
-            || (),
-            |()| {
-                library::scale_rgba(width, height, &pixels, half)
-                    .expect("scaled")
-                    .expect("a smaller frame")
-            },
-        );
-        let held = frame();
-        report(
-            "frame copy out of the call state (`Hub::frame`)",
-            size,
-            || (),
-            |()| held.clone(),
-        );
-        report(
-            "flutter_rust_bridge encode of the frame",
-            size,
-            frame,
-            |frame| {
-                let mut serializer = SseSerializer::new();
-                Some(frame).sse_encode(&mut serializer);
-                serializer
-            },
-        );
+        conversions(&engine, size, &pixels);
+        transfer(size, &pixels);
     }
 }

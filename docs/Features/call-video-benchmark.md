@@ -17,7 +17,7 @@ frame of 60 runs after 5 warm-ups and the share of one core at 30 fps, for
 
 | Part | Drives | Cases |
 |------|--------|-------|
-| `mosh-core/src/native_call/benchmark.rs`, a release test behind the `call-video-bench` feature | the engine library and the generated bridge code | RGBA to I420 with the encoder push, I420 to RGBA, the preview's `scale_rgba`, the frame copy `Hub::frame` makes, the flutter_rust_bridge encode of a frame |
+| `mosh-core/src/native_call/benchmark.rs`, a release test behind the `call-video-bench` feature | the engine library and the generated bridge code | RGBA to I420 with the encoder push, I420 to RGBA, the preview's `scale_rgba`, the frame copy `Hub::frame` returns, the flutter_rust_bridge encode of a frame |
 | `benchmark/call_frame_transport.dart`, compiled | `CallVideoFrame`, `CallWindowFrameChannel` and `CallWindowInput` in two processes | encode, loopback send, parse and one acknowledgement per frame |
 | `benchmark/call_video_decode.dart`, under `flutter test` | `CallVideoRenderer.decodeRgba` | the `ImageDescriptor.raw` decode |
 

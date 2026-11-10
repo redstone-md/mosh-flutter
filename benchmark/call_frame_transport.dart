@@ -40,7 +40,7 @@ Future<void> _sender() async {
   await channel.ready;
   var sequence = 0;
   for (final size in sizes) {
-    final pixels = synthetic(size.$1, size.$2);
+    final pixels = syntheticFrame(size).pixels;
     stdout.writeln(await measure(
         'call window socket: encode, send, parse, acknowledge', size, () async {
       final frame = CallVideoFrame(
