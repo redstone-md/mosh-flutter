@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { prepareNativeCamera } from "./native-camera-prepare.mjs";
 import { prepareLibwebrtc, prepareLiveKitWebrtc } from "./livekit-webrtc-prepare.mjs";
+import { cameraHelper, engineLibrary } from "./support/native-media-artifacts.mjs";
 import { nativeProtoc } from "./support/native-protoc.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -24,9 +25,7 @@ const additionalTargets = targets.filter((target) => target !== host);
 if (additionalTargets.length) run("rustup", ["target", "add", ...additionalTargets]);
 const output = path.resolve(values.output ?? path.join(root, ".dart_tool/native-media", values.profile));
 await mkdir(output, { recursive: true });
-const artifacts = [process.platform === "win32" ? "mosh_native_media.dll"
-  : process.platform === "darwin" ? "libmosh_native_media.dylib" : "libmosh_native_media.so",
-  process.platform === "win32" ? "mosh-camera-capture.exe" : "mosh-camera-capture"];
+const artifacts = [engineLibrary, cameraHelper];
 if (targets.some((target) => target.includes("linux-gnu"))) {
   const version = run(process.env.CXX ?? "c++", ["--version"], { capture: true });
   if (Number(version.match(/clang version (\d+)/)?.[1] ?? 0) < 21) {

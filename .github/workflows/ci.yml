@@ -101,31 +101,17 @@ jobs:
         with:
           flutter: 'false'
           rust-cache-key: none
-      - name: Linux toolchain
+      # The voice check plays and records through pacat from pulseaudio-utils.
+      - name: Linux toolchain and system headers
         if: runner.os == 'Linux'
-        run: |
-          # libwebrtc's hermetic libc++ needs clang 21 or later.
-          sudo mkdir -p /opt/llvm
-          curl --fail --location --silent --show-error \
-            https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/LLVM-21.1.8-Linux-X64.tar.xz \
-            | sudo tar -xJ --strip-components=1 -C /opt/llvm
-          echo "CC=/opt/llvm/bin/clang" >> "$GITHUB_ENV"
-          echo "CXX=/opt/llvm/bin/clang++" >> "$GITHUB_ENV"
-      # bindgen loads the runner's preinstalled libclang 18; the voice check
-      # plays and records through pacat from pulseaudio-utils.
-      - name: Linux audio and system headers
-        if: runner.os == 'Linux'
-        uses: ./.github/actions/apt-install
+        uses: ./.github/actions/native-media-linux
         with:
-          packages: >-
-            libasound2-dev libudev-dev pulseaudio pulseaudio-utils libglib2.0-dev
-            libva-dev libdrm-dev libgbm-dev libx11-dev libxext-dev libxfixes-dev
-            libxdamage-dev libxrandr-dev libxcomposite-dev
+          packages: pulseaudio pulseaudio-utils
       - name: Build packaged engine and camera helper
         run: node scripts/native-media-build.mjs
       - name: Packaging and CI script regressions
         if: runner.os == 'Linux'
-        run: node --test scripts/macos-package.test.mjs scripts/msix-manifest.test.mjs scripts/plus-build-config.test.mjs scripts/store-listing.test.mjs scripts/cache-cleanup.test.mjs scripts/verified-download.test.mjs
+        run: node --test scripts/macos-package.test.mjs scripts/msix-manifest.test.mjs scripts/plus-build-config.test.mjs scripts/store-listing.test.mjs scripts/cache-cleanup.test.mjs scripts/verified-download.test.mjs scripts/call-video-bench.test.mjs
       - name: Engine and camera helper format, lint and tests
         shell: bash
         run: |

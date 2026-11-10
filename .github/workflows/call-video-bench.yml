@@ -1,0 +1,56 @@
+name: Call video benchmark
+
+# What one call video frame costs on the Apple Silicon and Linux runners
+# (MOSH-99): we have no Mac of our own, and most of the frame path needs
+# neither a camera nor a display. Run it by hand on the branch to measure;
+# it also runs when the benchmark itself changes. Each table is in the job
+# summary and in the `call-video-bench-<os>` artifact.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/call-video-bench.yml
+      - scripts/call-video-bench.mjs
+      - benchmark/**
+      - mosh-core/src/native_call/benchmark.rs
+      - .github/actions/native-media-linux/**
+
+concurrency:
+  group: call-video-bench-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    name: Frame path (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup
+        with:
+          rust-cache-key: none
+      # libgtk-3-dev is for the native-asset hooks `flutter test` runs.
+      - name: Linux toolchain and system headers
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/native-media-linux
+        with:
+          packages: libgtk-3-dev
+      - run: flutter gen-l10n
+      - name: Benchmark
+        shell: bash
+        run: |
+          node scripts/call-video-bench.mjs --output call-video-bench.md
+          cat call-video-bench.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: call-video-bench-${{ matrix.os }}
+          path: call-video-bench.md

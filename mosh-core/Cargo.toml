@@ -12,6 +12,8 @@ crate-type = ["lib", "cdylib", "staticlib"]
 
 [features]
 native-media-tests = []
+# The frame-path benchmark; run it through scripts/call-video-bench.mjs.
+call-video-bench = []
 
 [[bin]]
 name = "mosh-camera-test-driver"
