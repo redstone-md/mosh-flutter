@@ -14,6 +14,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { engineLibrary } from "./support/native-media-artifacts.mjs";
 
 const SIZES = ["640x360", "1280x720", "1920x1080"];
 const MARK = "call-video-bench ";
@@ -48,8 +49,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   };
   const engine = process.env.MOSH_MEDIA_ENGINE || (() => {
     run("node", ["scripts/native-media-build.mjs", "--profile", "release"]);
-    return path.join(root, ".dart_tool/native-media/release", process.platform === "win32" ? "mosh_native_media.dll"
-      : process.platform === "darwin" ? "libmosh_native_media.dylib" : "libmosh_native_media.so");
+    return path.join(root, ".dart_tool/native-media/release", engineLibrary);
   })();
   const scratch = path.join(root, ".dart_tool/call-video-bench");
   await mkdir(scratch, { recursive: true });

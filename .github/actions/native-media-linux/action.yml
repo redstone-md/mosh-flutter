@@ -1,0 +1,29 @@
+name: Linux native media toolchain
+description: >-
+  What the engine and camera helper need to build on an Ubuntu runner: clang
+  21 for libwebrtc's hermetic libc++, exported as CC and CXX, and the system
+  headers. One home for the clang pin (ADR 0015).
+
+inputs:
+  packages:
+    description: Further space-separated apt packages the job needs.
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        sudo mkdir -p /opt/llvm
+        curl --fail --location --silent --show-error \
+          https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/LLVM-21.1.8-Linux-X64.tar.xz \
+          | sudo tar -xJ --strip-components=1 -C /opt/llvm
+        echo "CC=/opt/llvm/bin/clang" >> "$GITHUB_ENV"
+        echo "CXX=/opt/llvm/bin/clang++" >> "$GITHUB_ENV"
+    # bindgen loads the runner's preinstalled libclang 18.
+    - uses: ./.github/actions/apt-install
+      with:
+        packages: >-
+          libasound2-dev libudev-dev libglib2.0-dev libva-dev libdrm-dev
+          libgbm-dev libx11-dev libxext-dev libxfixes-dev libxdamage-dev
+          libxrandr-dev libxcomposite-dev ${{ inputs.packages }}
