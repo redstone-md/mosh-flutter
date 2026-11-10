@@ -103,12 +103,7 @@ impl Owner {
         let choices = state.choices.clone();
         if let Some(connection) = &mut self.connection {
             if self.choices != choices {
-                let applying = Instant::now();
-                let input_ok = connection.choices(&choices);
-                state.stalls.choices.since(applying);
-                if !input_ok? {
-                    state.choices.microphone = false;
-                }
+                apply_choices(connection, state)?;
                 self.choices = state.choices.clone();
             }
             connection.pump(transport, &self.sender, state)?;
@@ -313,9 +308,7 @@ impl Owner {
         if !state.snapshot.microphone_available {
             state.choices.microphone = false;
         }
-        if !connection.choices(&state.choices)? {
-            state.choices.microphone = false;
-        }
+        apply_choices(&mut connection, state)?;
         self.choices = state.choices.clone();
         if !connection.context.caller {
             connection.start()?;
@@ -323,6 +316,18 @@ impl Owner {
         self.connection = Some(connection);
         Ok(())
     }
+}
+
+/// Applies the state's choices to the engine, timed as the `choices` stall.
+/// A refused input turns the microphone off.
+fn apply_choices(connection: &mut Connection, state: &mut State) -> Result<(), String> {
+    let applying = Instant::now();
+    let input_ok = connection.choices(&state.choices);
+    state.stalls.choices.since(applying);
+    if !input_ok? {
+        state.choices.microphone = false;
+    }
+    Ok(())
 }
 
 fn warn(message: &str) {
