@@ -208,6 +208,31 @@ on Windows or macOS (`docs/Proposals/ivo-23-call-window.plan.md:37-44`). It also
 ADR 0044's isolation argument (`docs/ADR/0044-native-call-media-over-moss.md:34-37`).
 Not now; revisit with ticket 7.
 
+### How other Flutter call apps present video (checked 2026-11-10)
+
+Sources were read at pinned commits; paths are relative to each repository.
+
+- FluffyChat, Commet, LiveKit, Stream and flutter_webrtc show calls inside the main
+  window through a texture. None has a separate call window. On Windows and Linux,
+  flutter_webrtc converts I420 to RGBA lazily in `CopyPixelBuffer` on the raster thread
+  (flutter-webrtc@5ee7ac5e `common/cpp/src/flutter_video_renderer.cc:21-45`); macOS
+  fills an IOSurface `CVPixelBuffer` and skips a frame the engine has not consumed
+  (`common/darwin/Classes/FlutterRTCVideoRenderer.m:193-207`). LiveKit and Stream
+  report the rendered size to the SFU so it sends a smaller layer.
+- RustDesk (Flutter 3.24.5) opens extra windows in-process through its own
+  desktop_multi_window fork, and Rust calls the texture plugin's C symbol
+  `FlutterRgbaRendererPluginOnRgba` directly, so Dart never touches pixels
+  (rustdesk@95cca3f6 `src/flutter.rs:283-327`). It hit the same GLX error
+  (rustdesk#13511). The GLX crash is flutter/flutter#186577; its fixes (#193530,
+  #193126) are unmerged. desktop_multi_window 0.3.1 still has no native close.
+- Mixin desktop has no calls; Agora has no Linux SDK; Jitsi's SDK is mobile only.
+- Since Flutter 3.44 every desktop engine runs its Dart UI isolate on the platform
+  thread, so a busy isolate also delays window events in its process.
+
+None shows a better pattern than this proposal's. Steps 2 to 4 adopt their proven
+details: pixels never pass through Dart, a slot the texture has not consumed is
+overwritten rather than queued, and the shown size limits what Rust converts.
+
 ## Control responsiveness at full screen
 
 The field hypothesis is partly right. Video load does sit on the two Dart isolates
