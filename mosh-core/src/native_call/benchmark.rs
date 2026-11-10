@@ -152,6 +152,8 @@ fn transfer(size @ (width, height): (u32, u32), pixels: &[u8]) {
 }
 
 #[test]
+// test-policy: skip MOSH-99 -- needs the built engine through MOSH_MEDIA_ENGINE; scripts/call-video-bench.mjs runs it with --ignored
+#[ignore = "Requires the real native engine through MOSH_MEDIA_ENGINE"]
 fn frame_path() {
     let [engine, _callee] = engines();
     for size @ (width, height) in SIZES {

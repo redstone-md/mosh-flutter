@@ -57,7 +57,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   run("dart", ["compile", "exe", "benchmark/call_frame_transport.dart", "-o", transport]);
   const measured = [
     run("cargo", ["test", "--release", "--manifest-path", "mosh-core/Cargo.toml", "--lib", "--features", "call-video-bench",
-      "native_call::benchmark", "--", "--nocapture"], { ...process.env, MOSH_MEDIA_ENGINE: engine }),
+      "native_call::benchmark", "--", "--ignored", "--nocapture"], { ...process.env, MOSH_MEDIA_ENGINE: engine }),
     run(transport, []),
     run("flutter", ["test", "benchmark/call_video_decode.dart"]),
   ].map((output) => {

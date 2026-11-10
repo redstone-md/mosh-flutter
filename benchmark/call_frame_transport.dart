@@ -37,7 +37,12 @@ Future<void> _sender() async {
   unawaited(stderr.addStream(receiver.stderr));
   final acknowledged = StreamIterator(
       receiver.stdout.transform(utf8.decoder).transform(const LineSplitter()));
-  await channel.ready;
+  // A receiver that dies before connecting must not leave the sender waiting.
+  await Future.any([
+    channel.ready,
+    receiver.exitCode.then<void>(
+        (code) => throw StateError('The receiver exited with $code')),
+  ]);
   var sequence = 0;
   for (final size in sizes) {
     final pixels = syntheticFrame(size).pixels;
