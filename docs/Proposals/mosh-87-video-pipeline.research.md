@@ -199,10 +199,14 @@ required by this design, which still needs a Mac check.
 This removes the IPC and lets the call window read call state directly; the blocker is
 window hosting. Flutter 3.44.7's multi-window API throws unless the `windowing` feature
 flag is set and says "Do not use this API in production applications" ([_window.dart][fl-window],
-[_features.dart:23][fl-features]). The alternative, a second `FlutterEngine` in the main
-process, needs native window code and plugin registration per platform plus re-verified
-`window_manager` behaviour, and reverses ADR 0044's isolation argument
-(`docs/ADR/0044-native-call-media-over-moss.md:34-37`). Not now; revisit with ticket 7.
+[_features.dart:23][fl-features]). Upgrading does not change that: on 2026-11-10 the
+latest stable (3.47.9), `beta` and `master` carry the same warning in `_window.dart`.
+The alternative, a second `FlutterEngine` in the main process, is what
+`desktop_multi_window` (0.3.1) does, and IVO-23 already tried and removed it: a second
+GTK engine crashed with GLX `BadAccess`, and a hung child engine cannot be force-closed
+on Windows or macOS (`docs/Proposals/ivo-23-call-window.plan.md:37-44`). It also reverses
+ADR 0044's isolation argument (`docs/ADR/0044-native-call-media-over-moss.md:34-37`).
+Not now; revisit with ticket 7.
 
 ## Control responsiveness at full screen
 
@@ -325,6 +329,9 @@ the field report (2 to 2.7 Mac cores, 74% in the call window) but not a proof of
    helper on that camera and compare `configuring` with the first frame's size.
 
 ## Proposed follow-up tickets
+
+Filed as MOSH-92 to MOSH-98 in this order; MOSH-99 (macOS CI benchmark) and MOSH-100
+(Mac device run before the store release) cover the open questions.
 
 **1. fix(call): call controls respond while video is running**
 Scope: microphone and camera on/off stop calling `select`; `select` runs only when an
