@@ -194,6 +194,9 @@ struct PrivateDmSession {
     crypto: MlsSessionCrypto,
     messages: MessageLog<ChatMessage>,
     seen: SeenFrames,
+    // Call controls this device published. Their envelope names no sender,
+    // so Moss's echo of one is known by its bytes before MLS refuses it.
+    published: SeenFrames,
     control_channel: String,
     data_channel: String,
     blob_channel: String,

@@ -57,7 +57,9 @@ Old incorrectly attributed rows lack reliable origin data and are not rewritten.
 Call offer, answer, selection, occupancy and terminal controls travel inside MLS
 application messages. The receiver checks the actual MLS leaf signer, conversation,
 and current admitted device's Moss identity. Plaintext accept/end envelopes are
-removed; participating clients upgrade together.
+removed; participating clients upgrade together. The envelope names no sender in
+the clear, so a device remembers the controls it published and skips Moss's echo of
+one before decryption, which MLS would refuse for its own message (MOSH-89).
 
 Answering requests selection. The receiving installation remains pending, displays
 “Waiting for confirmation…”, and sends no voice media until the caller selects it.

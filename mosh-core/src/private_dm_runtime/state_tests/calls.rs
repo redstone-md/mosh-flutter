@@ -1,4 +1,5 @@
 use super::*;
+use std::sync::Mutex;
 
 // A hint landing in the ring under the pinned typing code, via the same
 // push_app_event insert the node's own reports use.
@@ -198,4 +199,50 @@ fn a_failed_decline_keeps_the_call_for_a_retry() {
             "the decline reaches the caller and drops its call"
         );
     }
+}
+
+// MOSH-89: Moss hands a device its own publishes back. A call control names
+// no sender in the clear, so its echo has to be recognised before MLS refuses
+// to decrypt it, while the counterpart still reads the very same frame.
+#[test]
+fn an_echoed_call_control_is_skipped_and_the_counterpart_still_rings() {
+    let (net, mut alice, mut bob) = memory_pair();
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+    let published = Arc::new(Mutex::new(Vec::new()));
+    let tap = Arc::clone(&published);
+    net.drop_frames(ALICE_ID, BOB_ID, move |_, payload| {
+        if payload_says(payload, "CallControl") {
+            tap.lock().unwrap().push(payload.to_vec());
+        }
+        false
+    });
+
+    alice
+        .call_start(&invite.session_id)
+        .expect("Alice should start a call");
+    let offer = published.lock().unwrap().pop().expect("the offer left");
+    alice
+        .sessions
+        .get_mut(&invite.session_id)
+        .expect("Alice session should exist")
+        .handle_moss_message(MossReceivedMessage {
+            channel: control_channel(&invite.session_id),
+            payload: offer,
+        })
+        .expect("Alice's own offer coming back is not an inbound failure");
+
+    bob.drain_inbound();
+    let session = bob
+        .sessions
+        .get(&invite.session_id)
+        .expect("Bob session should exist");
+    assert!(
+        session
+            .call
+            .as_ref()
+            .is_some_and(|call| call.phase == CallPhase::Ringing),
+        "Bob still rings on the same frame"
+    );
 }

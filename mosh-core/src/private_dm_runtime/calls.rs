@@ -19,11 +19,12 @@ pub(super) use terminal::CallEndRetries;
 
 impl PrivateDmSession {
     pub(super) fn send_call_control(
-        &self,
+        &mut self,
         envelope: &ControlEnvelope,
     ) -> Result<(), PrivateDmRuntimeError> {
         let payload = serde_json::to_vec(envelope)
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
+        self.published.seen_before(&self.control_channel, &payload);
         self.route_send(ChannelKind::Control, &payload)
     }
 

@@ -64,6 +64,7 @@ impl PrivateDmSession {
             crypto,
             messages: MessageLog::default(),
             seen: SeenFrames::default(),
+            published: SeenFrames::default(),
             control_channel,
             data_channel,
             blob_channel,
