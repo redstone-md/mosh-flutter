@@ -1,8 +1,9 @@
 name: Linux native media toolchain
 description: >-
   What the engine and camera helper need to build on an Ubuntu runner: clang
-  21 for libwebrtc's hermetic libc++, exported as CC and CXX, and the system
-  headers. One home for the clang pin (ADR 0015).
+  21 for libwebrtc's hermetic libc++, exported as CC and CXX, nasm for the
+  JPEG decoder's SIMD, and the system headers. One home for the clang pin
+  (ADR 0015).
 
 inputs:
   packages:
@@ -26,4 +27,4 @@ runs:
         packages: >-
           libasound2-dev libudev-dev libglib2.0-dev libva-dev libdrm-dev
           libgbm-dev libx11-dev libxext-dev libxfixes-dev libxdamage-dev
-          libxrandr-dev libxcomposite-dev ${{ inputs.packages }}
+          libxrandr-dev libxcomposite-dev nasm ${{ inputs.packages }}

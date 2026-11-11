@@ -32,6 +32,14 @@ if (targets.some((target) => target.includes("linux-gnu"))) {
     throw new Error("libwebrtc's hermetic libc++ needs clang 21 or later: set CC and CXX to it");
   }
 }
+// mozjpeg assembles its x86 SIMD with nasm and builds silently without it;
+// the helper then decodes a camera's JPEG frames about twice as slowly.
+if (targets.some((target) => target.startsWith("x86_64"))
+  && spawnSync("nasm", ["-v"], { windowsHide: true }).status !== 0) {
+  const missing = "nasm is not installed: the camera helper's JPEG decoder would be built without SIMD";
+  if (process.env.CI) throw new Error(missing);
+  console.warn(`warning: ${missing}`);
+}
 for (const target of targets) {
   // Points webrtc-sys at our libwebrtc build for this target.
   const targetEnv = { ...env, LK_CUSTOM_WEBRTC: await prepareLibwebrtc(target, { offline: values.offline }) };

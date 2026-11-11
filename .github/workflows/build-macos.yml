@@ -90,6 +90,8 @@ jobs:
           rust-cache-key: macos
 
       # Reuse both release slices and the debug engine used by menu tests.
+      # `simd` in the key: cargo keeps a mozjpeg built without nasm, so the
+      # caches saved before nasm was installed must not seed this one.
       - id: native-app
         uses: actions/cache/restore@v4
         with:
@@ -97,8 +99,8 @@ jobs:
             .dart_tool/native-media/target
             .dart_tool/native-sources
             .dart_tool/native-tools
-          key: native-app-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mosh-media/**/Cargo.lock', 'third_party/*-patches/source.json', 'third_party/*-patches/mosh.patch') }}
-          restore-keys: native-app-${{ runner.os }}-${{ runner.arch }}-
+          key: native-app-simd-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mosh-media/**/Cargo.lock', 'third_party/*-patches/source.json', 'third_party/*-patches/mosh.patch') }}
+          restore-keys: native-app-simd-${{ runner.os }}-${{ runner.arch }}-
 
       # cargokit compiles mosh-core into the pod target's Xcode temp dir
       # (TARGET_TEMP_DIR, .../Pods.build/<config>/mosh_core.build), which the
@@ -117,6 +119,11 @@ jobs:
       - if: inputs.universal
         name: Add Rust macos target
         run: rustup target add x86_64-apple-darwin
+
+      # The x86_64 slice of the camera helper assembles its JPEG decoder's
+      # SIMD with nasm; the arm64 slice needs none.
+      - if: inputs.universal
+        run: brew install nasm
 
       # CI builds only prove the app still packages; release.yml builds the
       # shipped artifact with the profile as committed. Fat LTO stays here

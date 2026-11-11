@@ -200,7 +200,7 @@ another application can fail the first frame with Media Foundation error
 again preserves the existing audio call.
 
 Capture selects an actual supported format near 720p30 and, at equal size and
-rate, the one cheapest to bring to I420: NV12, YUYV, RGB, then Motion JPEG.
+rate, the one cheapest to bring to I420: NV12, YUYV, Motion JPEG, then RGB.
 macOS patches request `420v`, the biplanar 4:2:0 output Apple's TN3121 calls
 native (BGRA costs a conversion per frame), validate the actual pixel-buffer
 layout, remove row padding from both planes,
@@ -390,7 +390,12 @@ An explicit/system `protoc` is accepted; otherwise the hook downloads a locally
 scoped, SHA-256-verified protoc 36.2. Windows builds need Visual Studio's desktop
 C++ tools, Rust, Flutter and Node; no global protobuf installation is required.
 Linux needs `CC`/`CXX` set to clang 21 or later for libwebrtc's hermetic
-libc++.
+libc++. x86_64 builds need `nasm` on `PATH`: mozjpeg assembles its SIMD with
+it and otherwise builds without, which doubles the helper's JPEG decoding
+time (5.9 against 2.8 ms per 720p frame on the Linux host). The build script
+warns about a missing nasm locally and fails in CI. Cargo does not rebuild
+mozjpeg when nasm appears later; run `cargo clean -p mozjpeg-sys` in
+`.dart_tool/native-media/target` once.
 
 macOS builds each requested architecture and uses `lipo` for universal output.
 The engine is signed as a framework; the helper inherits the main app sandbox
