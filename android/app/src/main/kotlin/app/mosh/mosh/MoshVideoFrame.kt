@@ -29,8 +29,8 @@ internal class MoshVideoFrame(messenger: BinaryMessenger) {
 
     /**
      * The key frame nearest a tenth into the video, a second in at most; null
-     * when the video has none. Dart scales it down again, so it only has to
-     * be small enough to hand over.
+     * when the video has none. Dart scales it to the previews' sizes; here
+     * it is only made small to hand over, which Android 8.0 cannot do.
      */
     private fun take(path: String): ByteArray? {
         val retriever = MediaMetadataRetriever()

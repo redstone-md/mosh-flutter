@@ -48,7 +48,7 @@ class VoiceMessageCard extends StatefulWidget {
     required this.pauseLabel,
     this.own = false,
     this.messageFooter,
-    this.createPlayer,
+    this.createPlayer = createMediaPlayer,
   });
 
   final AttachmentDescriptor descriptor;
@@ -62,7 +62,7 @@ class VoiceMessageCard extends StatefulWidget {
   final Widget? messageFooter;
 
   /// Makes the card's player; tests pass their own.
-  final Player Function()? createPlayer;
+  final MediaPlayerFactory createPlayer;
 
   @override
   State<VoiceMessageCard> createState() => _VoiceMessageCardState();
@@ -89,7 +89,7 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
     super.initState();
     // The card still renders where no player can be made.
     try {
-      final player = (widget.createPlayer ?? createMediaPlayer)();
+      final player = widget.createPlayer();
       _player = player;
       player.stream.playing.listen((playing) {
         _ifMounted(() => setState(() => _playing = playing));

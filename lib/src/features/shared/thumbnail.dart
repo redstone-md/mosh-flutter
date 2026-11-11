@@ -12,7 +12,7 @@ import 'image_previews.dart';
 import 'media_player.dart' show playsThroughSystem;
 
 /// Takes one frame of a video as an encoded image; null when it has none.
-typedef VideoFrame = Future<Uint8List?> Function(Uint8List video);
+typedef TakeVideoFrame = Future<Uint8List?> Function(Uint8List video);
 
 /// Generates a base64-encoded JPEG thumbnail for an image or video file, or
 /// null for other types / decode failures.
@@ -35,7 +35,7 @@ Future<String?> createThumbnail(Uint8List bytes, String fileName) async {
 /// [videoFrame] is how a video's frame is taken; the platform's by default.
 Future<AttachmentPreviews?> createAttachmentPreviews(
     Uint8List bytes, String fileName,
-    {VideoFrame? videoFrame}) async {
+    {TakeVideoFrame? videoFrame}) async {
   final mime = lookupMimeType(fileName) ?? '';
   if (mime.startsWith('image/')) {
     return _createImageThumbnail(bytes, fileName);
@@ -92,17 +92,18 @@ const _systemFrames = MethodChannel('mosh/video-frame');
 /// A frame of [video] from Android's own decoder, as a JPEG. The decoder
 /// reads a file, so the video stays in the app's cache for the call.
 Future<Uint8List?> systemVideoFrame(Uint8List video) async {
-  Directory? directory;
   try {
-    directory = await Directory.systemTemp.createTemp('mosh-frame');
-    final file = File('${directory.path}/video');
-    await file.writeAsBytes(video);
-    return await _systemFrames.invokeMethod<Uint8List>('take', file.path);
+    final directory = await Directory.systemTemp.createTemp('mosh-frame');
+    try {
+      final file = File('${directory.path}/video');
+      await file.writeAsBytes(video);
+      return await _systemFrames.invokeMethod<Uint8List>('take', file.path);
+    } finally {
+      await directory.delete(recursive: true);
+    }
   } on Exception {
     // No decoder for this video, or no room for the file: never fatal.
     return null;
-  } finally {
-    await directory?.delete(recursive: true);
   }
 }
 

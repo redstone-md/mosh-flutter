@@ -74,9 +74,51 @@ void main() {
     system.refuses = true;
 
     await expectLater(voice.open(Media('/data/broken.m4a')), throwsA(anything));
+    await pumpEventQueue();
 
     expect(system.calls, ['dispose 0']);
     expect(voice.state.playing, isFalse);
+  });
+
+  test('a player the system cannot make fails the open', () async {
+    final voice = player();
+    system.unavailable = true;
+
+    await expectLater(voice.open(Media('/data/voice.m4a')), throwsA(anything));
+  });
+
+  test('a media the system gives up on is let go and opens again on play',
+      () async {
+    final voice = player();
+    final errors = <String>[];
+    voice.stream.error.listen(errors.add);
+    await voice.open(Media('/data/voice.m4a'));
+
+    system.giveUp();
+    await pumpEventQueue();
+
+    expect(errors, hasLength(1));
+    expect(voice.state.playing, isFalse);
+    expect(system.calls, contains('dispose 0'));
+
+    await voice.playOrPause();
+
+    expect(system.opened, List.filled(2, 'file:///data/voice.m4a'));
+    expect(voice.state.playing, isTrue);
+  });
+
+  test('a media says when it is waiting for data', () async {
+    final video = player();
+    final waiting = <bool>[];
+    video.stream.buffering.listen(waiting.add);
+
+    await video.open(Media('http://127.0.0.1:4100/dm/peer/clip'));
+    system.report(VideoEventType.bufferingStart);
+    system.report(VideoEventType.bufferingEnd);
+    await pumpEventQueue();
+
+    // Waiting while it opens, and again when the stream stalls.
+    expect(waiting, [true, false, true, false]);
   });
 
   test('opening another file lets go of the first', () async {
@@ -89,10 +131,15 @@ void main() {
     expect(system.calls, isNot(contains('dispose 1')));
   });
 
-  test('a player disposed while it opens lets go of what it opened', () async {
+  test('a player disposed while the system opens its media lets go of it',
+      () async {
     final voice = Player(platformPlayer: SystemPlayer());
 
     final opening = voice.open(Media('/data/voice.m4a'));
+    // A turn at a time, until the system has been asked for the media.
+    while (system.opened.isEmpty) {
+      await Future<void>.value();
+    }
     await voice.dispose();
     await opening;
 

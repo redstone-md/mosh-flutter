@@ -79,6 +79,38 @@ void main() {
     await close(tester);
   });
 
+  testWidgets('a spinner shows while the video waits for its stream',
+      (tester) async {
+    await open(tester);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    system.report(VideoEventType.bufferingStart);
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    system.report(VideoEventType.bufferingEnd);
+    await tester.pumpAndSettle();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    await close(tester);
+  });
+
+  testWidgets('a video whose stream died opens again from the controls',
+      (tester) async {
+    await open(tester);
+
+    system.giveUp();
+    await tester.pumpAndSettle();
+    expect(find.byType(VideoPlayer), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.play_arrow));
+    await tester.pumpAndSettle();
+
+    expect(system.opened, hasLength(2));
+    expect(find.byType(VideoPlayer), findsOneWidget);
+    await close(tester);
+  });
+
   testWidgets('a video the system cannot play shows its file card',
       (tester) async {
     system.refuses = true;

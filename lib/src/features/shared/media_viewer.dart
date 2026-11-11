@@ -18,6 +18,7 @@ import 'package:mosh/src/features/shared/media_player.dart';
 import 'package:mosh/src/features/shared/system_player.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
+part 'media_viewer_controls.dart';
 part 'media_viewer_stages.dart';
 
 /// Fullscreen in-app media viewer.
@@ -198,10 +199,21 @@ class _MediaStage extends StatelessWidget {
               maxStageWidth: maxStageWidth,
               maxStageHeight: maxStageHeight,
             ),
-          AttachmentMediaKind.video => _VideoStage(
-              descriptor: descriptor, src: src, createPlayer: createPlayer),
-          AttachmentMediaKind.audio => _AudioStage(
-              descriptor: descriptor, src: src, createPlayer: createPlayer),
+          AttachmentMediaKind.video => _PlayingStage(
+              descriptor: descriptor,
+              src: src,
+              createPlayer: createPlayer,
+              video: true,
+              builder: _videoPicture,
+            ),
+          AttachmentMediaKind.audio => _PlayingStage(
+              descriptor: descriptor,
+              src: src,
+              createPlayer: createPlayer,
+              video: false,
+              builder: (player) =>
+                  _AudioCard(fileName: descriptor.fileName, player: player),
+            ),
           AttachmentMediaKind.file => _PlaybackPlaceholderCard(
               fileName: descriptor.fileName,
               icon: Icons.insert_drive_file_outlined,

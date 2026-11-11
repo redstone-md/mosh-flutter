@@ -12,6 +12,9 @@ class FakeVideoPlatform extends VideoPlayerPlatform {
   Size size = Size.zero;
   bool refuses = false;
 
+  /// Whether the system has no player to give at all.
+  bool unavailable = false;
+
   /// Where the playing media is; the app polls it.
   Duration position = Duration.zero;
 
@@ -24,6 +27,10 @@ class FakeVideoPlatform extends VideoPlayerPlatform {
   void report(VideoEventType type) =>
       _events.last.add(VideoEvent(eventType: type));
 
+  /// The system gives up on the media opened last, as when its stream dies.
+  void giveUp() => _events.last
+      .addError(PlatformException(code: 'VideoError', message: 'x'));
+
   @override
   Future<void> init() async {}
 
@@ -32,6 +39,7 @@ class FakeVideoPlatform extends VideoPlayerPlatform {
 
   @override
   Future<int?> createWithOptions(VideoCreationOptions options) async {
+    if (unavailable) throw PlatformException(code: 'unavailable');
     opened.add(options.dataSource.uri!);
     late final StreamController<VideoEvent> events;
     events = StreamController<VideoEvent>(
