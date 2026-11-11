@@ -1,6 +1,8 @@
 // Integration coverage for active-call audio setup failures: the error must
 // use the DM screen's inline ChatErrorBanner without creating a text-send
 // retry action.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,6 +10,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
     show conversationCallBindingProvider;
 import 'package:mosh/src/features/conversation/dm_screen.dart';
+import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/features/voice_call/voice_call_binding.dart'
     show voiceCallBinding;
@@ -62,6 +65,10 @@ void main() {
             (ref) async => _activeSnapshot(sessionId),
           ),
           nativeCallOwnerProvider.overrideWithValue(owner),
+          // A desktop whose call window never opens, so the call stays out
+          // of the main window and the chat stays in view.
+          callWindowFactoryProvider
+              .overrideWithValue((_) => Completer<CallWindowHandle>().future),
           // The error comes out of the call layer, so this screen needs
           // the voice-call module bound to the conversation's call slots.
           conversationCallBindingProvider.overrideWithValue(voiceCallBinding),
@@ -75,6 +82,5 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
-    // A desktop: Android presents the call in its own full-screen frame.
-  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 }

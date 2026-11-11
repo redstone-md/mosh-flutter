@@ -3,11 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/lock/android_app_access.dart';
 import 'package:mosh/src/features/lock/android_app_lock_gate.dart';
 import 'package:mosh/src/platform/desktop_window_controller.dart';
+import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'android_call_presentation.dart';
 import 'call_video_renderer.dart';
+import 'call_video_surfaces.dart';
 import 'call_view_state.dart';
 import 'main_window_call_frame.dart';
 import 'voice_call_layer.dart';
@@ -38,8 +39,6 @@ class MainWindowCallHost extends ConsumerStatefulWidget {
 class _MainWindowCallHostState extends ConsumerState<MainWindowCallHost> {
   AndroidCallPresentation? _presentation;
   DesktopWindowController? _window;
-  // Android covers the chats with its lock gate, which also guards them.
-  late final bool _gated = ref.read(androidAppAccessProvider) != null;
   bool _expanded = true;
   bool _videoCall = false;
   bool _enteredFullScreen = false;
@@ -104,30 +103,36 @@ class _MainWindowCallHostState extends ConsumerState<MainWindowCallHost> {
     final session = widget.session;
     final covered = session != null && _expanded;
     final window = _window;
-    return Stack(fit: StackFit.expand, children: [
-      if (_gated)
-        AndroidAppLockGate(interactive: !covered, child: widget.child)
-      else ...[
-        ExcludeFocus(excluding: covered, child: widget.child),
-        if (covered)
-          Material(
-              child: window == null
-                  ? null
-                  : Align(
-                      alignment: Alignment.topRight,
-                      child: _fullScreenButton(window))),
-      ],
+    final content = Stack(fit: StackFit.expand, children: [
+      // Android's lock gate guards the chats under the call as well.
+      AndroidAppLockGate(
+          interactive: !covered,
+          child: ExcludeFocus(excluding: covered, child: widget.child)),
+      if (covered) const Material(),
       if (session != null)
         SafeArea(
-            // Below the cover's full-screen button.
-            minimum: EdgeInsets.only(
-                top: covered && window != null && !_gated ? 40 : 0),
-            child: MainWindowCallFrame(
-                key: ValueKey(_shownCall),
-                expanded: _expanded,
-                video: _videoCall,
-                child: _controls(session))),
+            child: Column(children: [
+          if (covered && window != null)
+            Material(
+                type: MaterialType.transparency,
+                child: Align(
+                    alignment: Alignment.topRight,
+                    child: _fullScreenButton(window))),
+          Expanded(
+              child: MainWindowCallFrame(
+                  key: ValueKey(_shownCall),
+                  expanded: _expanded,
+                  video: _videoCall,
+                  child: _controls(session))),
+        ])),
     ]);
+    // Android's PiP overlay collects the video surfaces above the whole app.
+    return _presentation != null
+        ? content
+        : CallVideoSurfaceScope(
+            onSurfaces: (surfaces) =>
+                ref.read(nativeCallOwnerProvider)?.showVideoAt(surfaces),
+            child: content);
   }
 
   Widget _fullScreenButton(DesktopWindowController window) => ListenableBuilder(

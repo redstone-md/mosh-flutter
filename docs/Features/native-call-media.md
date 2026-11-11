@@ -230,8 +230,9 @@ Frames leave Rust at the size they are shown, not as full camera RGBA. The
 video stage dispatches `CallVideoSurfaces` whenever its layout changes: the
 device pixels of the remote stage and of the preview (a quarter-width inset
 over remote video, else the whole stage). The call window sends them over its
-pipe (`call-video-surfaces`), Android's host takes them directly, and the
-native call owner passes them to `show_video_at`. The engine scales decoded
+pipe (`call-video-surfaces`), a call in the main window collects them in one
+scope (Android's PiP overlay, which also holds the PiP stage, else the call
+host), and the native call owner passes them to `show_video_at`. The engine scales decoded
 I420 down with libyuv before its RGBA conversion (the `surface` command), and
 the local preview goes through the engine's stateless libyuv scaler
 (`mosh_media_scale_rgba`) before the owner takes the call state lock, fitted

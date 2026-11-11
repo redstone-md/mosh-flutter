@@ -4,9 +4,7 @@ import 'call_media_view.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'call_video_frame.dart';
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'call_video_renderer.dart';
-import 'call_video_surfaces.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,8 +21,8 @@ import 'main_window_call_host.dart';
 
 /// App-level owner and presentation, mounted below the first-run gate and
 /// above every route, including Settings. The call shows in the main window
-/// on Android and, through Rust-fed textures, on Linux (ADR 0052); the other
-/// desktops still open a call window, which contains no audio owner.
+/// (ADR 0052) unless the platform still opens a call window, which contains
+/// no audio owner.
 class VoiceCallHost extends ConsumerStatefulWidget {
   const VoiceCallHost(
       {super.key, required this.child, this.onOpenConversation});
@@ -40,15 +38,18 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
   AndroidAppAccess? _access;
   late final CallWindowCoordinator _window;
   StreamSubscription<CallVideoFrame>? _frames;
+
+  /// Decodes the frames the owner polls where Rust has no texture to fill.
   final _video = CallVideoRenderer();
   late final NativeCallOwner? _owner = ref.read(nativeCallOwnerProvider);
-  late final bool _mobile =
-      defaultTargetPlatform == TargetPlatform.android && _owner != null;
+  late final CallWindowFactory? _openWindow =
+      ref.read(callWindowFactoryProvider);
+  late final bool _inMainWindow = _owner != null && _openWindow == null;
 
   @override
   void initState() {
     super.initState();
-    _window = CallWindowCoordinator(ref.read(callWindowFactoryProvider), _act,
+    _window = CallWindowCoordinator(_openWindow, _act,
         (error) => debugPrint('Call window unavailable: ${error.runtimeType}'));
     _access = ref.read(androidAppAccessProvider);
     _access?.addListener(_privacyChanged);
@@ -63,13 +64,9 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
       };
       unawaited(waiting.refresh().catchError((Object _) {}));
     }
-    _frames = _owner?.frames.listen((frame) {
-      if (_mobile) {
-        unawaited(_video.receive(frame));
-      } else {
-        _window.presentFrame(frame);
-      }
-    });
+    _frames = _owner?.frames.listen(_inMainWindow
+        ? (frame) => unawaited(_video.receive(frame))
+        : _window.presentFrame);
   }
 
   @override
@@ -152,9 +149,14 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
           );
     _window.update(call);
     _video.update(call);
-    final textures = _owner?.textures;
-    final content = _mobile || textures != null
-        ? _mainWindow(call, selected?.sessionId)
+    final content = _inMainWindow
+        ? MainWindowCallHost(
+            call: call,
+            session: selected?.sessionId,
+            video: _owner!.textures ?? _video,
+            onAction: _act,
+            onOpenConversation: widget.onOpenConversation,
+            child: widget.child)
         : Column(children: [
             Expanded(child: widget.child),
             if (selected != null)
@@ -172,21 +174,6 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
     );
   }
 
-  Widget _mainWindow(CallViewState? call, String? session) {
-    final owner = _owner!;
-    final host = MainWindowCallHost(
-        call: call,
-        session: session,
-        video: owner.textures ?? _video,
-        onAction: _act,
-        onOpenConversation: widget.onOpenConversation,
-        child: widget.child);
-    // Android's PiP overlay collects the surfaces above the whole app.
-    return owner.textures == null
-        ? host
-        : CallVideoSurfaceScope(onSurfaces: owner.showVideoAt, child: host);
-  }
-
   Widget _strip(String sessionId, AppLocalizations l) => ValueListenableBuilder(
       valueListenable: _window.fallback,
       builder: (_, fallback, __) => VoiceCallLayer(
@@ -196,9 +183,8 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
             controlsInWindow: !fallback,
             onOpenConversation: () =>
                 widget.onOpenConversation?.call(sessionId),
-            onShowWindow: ref.read(callWindowFactoryProvider) == null
-                ? null
-                : () => unawaited(_window.show()),
+            onShowWindow:
+                _openWindow == null ? null : () => unawaited(_window.show()),
             isCallWindowFocused: _window.isFocused,
             onVoiceCallError: (message) {
               if (message != null) {
