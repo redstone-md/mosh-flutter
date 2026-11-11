@@ -1,33 +1,15 @@
 #include "call_video_texture.h"
 
-#include <cstring>
-#include <utility>
+#include "call_video_frames.h"
 
 G_DECLARE_FINAL_TYPE(MoshCallVideoTexture, mosh_call_video_texture, MOSH,
                      CALL_VIDEO_TEXTURE, FlPixelBufferTexture)
 
-namespace {
-struct Frame {
-  uint8_t* pixels;
-  size_t capacity;
-  uint32_t width, height;
-};
-
-struct Export {
-  MoshCallVideoExport base;
-  MoshCallVideoTexture* texture;
-};
-}  // namespace
-
 struct _MoshCallVideoTexture {
   FlPixelBufferTexture parent_instance;
-  Export exported;
+  CallVideoExportOf<MoshCallVideoTexture> exported;
   FlTextureRegistrar* registrar;
-  GMutex mutex;
-  // Rust writes `incoming` under the mutex. The raster thread reads `shown`
-  // from one copy_pixels to the next, so only copy_pixels swaps the two.
-  Frame incoming, shown;
-  gboolean fresh;
+  CallVideoFrames* frames;
 };
 
 G_DEFINE_TYPE(MoshCallVideoTexture, mosh_call_video_texture,
@@ -37,41 +19,24 @@ namespace {
 void present(const MoshCallVideoExport* exported, const uint8_t* rgba,
              uint32_t width, uint32_t height) {
   MoshCallVideoTexture* self =
-      reinterpret_cast<const Export*>(exported)->texture;
-  const size_t bytes = static_cast<size_t>(width) * height * 4;
-  if (bytes == 0) return;
-  g_mutex_lock(&self->mutex);
-  Frame* frame = &self->incoming;
-  if (frame->capacity < bytes) {
-    frame->pixels = static_cast<uint8_t*>(g_realloc(frame->pixels, bytes));
-    frame->capacity = bytes;
-  }
-  memcpy(frame->pixels, rgba, bytes);
-  frame->width = width;
-  frame->height = height;
-  self->fresh = TRUE;
-  g_mutex_unlock(&self->mutex);
+      CallVideoExportOf<MoshCallVideoTexture>::Of(exported);
+  self->frames->Write(rgba, width, height);
   fl_texture_registrar_mark_texture_frame_available(self->registrar,
                                                     FL_TEXTURE(self));
 }
 
 gboolean copy_pixels(FlPixelBufferTexture* texture, const uint8_t** buffer,
                      uint32_t* width, uint32_t* height, GError** error) {
-  MoshCallVideoTexture* self = MOSH_CALL_VIDEO_TEXTURE(texture);
-  g_mutex_lock(&self->mutex);
-  if (self->fresh) {
-    std::swap(self->incoming, self->shown);
-    self->fresh = FALSE;
-  }
-  g_mutex_unlock(&self->mutex);
-  if (self->shown.pixels == nullptr) {
+  const CallVideoFrames::Frame* frame =
+      MOSH_CALL_VIDEO_TEXTURE(texture)->frames->Latest();
+  if (frame == nullptr) {
     g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
                         "No call video frame yet");
     return FALSE;
   }
-  *buffer = self->shown.pixels;
-  *width = self->shown.width;
-  *height = self->shown.height;
+  *buffer = frame->pixels.data();
+  *width = frame->width;
+  *height = frame->height;
   return TRUE;
 }
 
@@ -118,7 +83,7 @@ static void mosh_call_video_texture_class_init(
 }
 
 static void mosh_call_video_texture_init(MoshCallVideoTexture* self) {
-  g_mutex_init(&self->mutex);
+  self->frames = new CallVideoFrames();
   self->exported.base.present = present;
   self->exported.texture = self;
 }

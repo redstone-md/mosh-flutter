@@ -1,8 +1,8 @@
 name: Call video benchmark
 
-# What one call video frame costs on the Apple Silicon and Linux runners
-# (MOSH-99): we have no Mac of our own, and most of the frame path needs
-# neither a camera nor a display. Run it by hand on the branch to measure;
+# What one call video frame costs on the Apple Silicon, Windows and Linux
+# runners (MOSH-99): we have no Mac of our own, and most of the frame path
+# needs neither a camera nor a display. Run it by hand on the branch to measure;
 # it also runs when the benchmark itself changes. Each table is in the job
 # summary and in the `call-video-bench-<os>` artifact.
 on:
@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
         with:

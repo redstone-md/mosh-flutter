@@ -6,10 +6,11 @@ preview; media is sent only after the caller confirms the answering installation
 An incoming call starts with camera off. Camera and microphone choices are
 independent, and permission refusal preserves reception and other capabilities.
 
-On Linux the call shows in the main window and its video in two Rust-fed
+On desktop the call shows in the main window and its video in two Rust-fed
 textures ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md), see
-[Main-window textures](#main-window-textures)). Windows and macOS keep the call
-window until MOSH-94 and MOSH-95: there, the
+[Main-window textures](#main-window-textures)). The call window process is
+still in the code until MOSH-101 removes it, but nothing starts it; what this
+document says about it describes that code. There, the
 ready desktop call window owns microphone, camera and end controls. The main
 strip shows call status and a button to reopen that window. Until the window is
 ready, or after a presentation failure, the strip supplies the call controls.
@@ -242,12 +243,21 @@ still takes the full camera frame.
 
 ### Main-window textures
 
-On Linux no pixel passes through flutter_rust_bridge or Dart. The runner
-registers two `FlPixelBufferTexture`s (`linux/runner/call_video_texture.cc`),
-local and remote, on the first request over the `mosh/call-video` channel and
-keeps them for the process. Each exports one function, `present`, which copies
-an RGBA frame and marks the texture's frame available; a frame the raster thread
-has not taken yet is overwritten. Dart passes the two export addresses to Rust
+On desktop no pixel passes through flutter_rust_bridge or Dart. The runner
+registers two pixel-buffer textures, local and remote, on the first request
+over the `mosh/call-video` channel and keeps them for the process. Each exports
+one function, `present`, which copies an RGBA frame and marks the texture's
+frame available; a frame the raster thread has not taken yet is overwritten.
+
+| Runner | Texture | Where the frame is kept |
+|--------|---------|-------------------------|
+| Linux, `linux/runner/call_video_texture.cc` | `FlPixelBufferTexture` | two RGBA buffers swapped when the engine reads (`runner_shared/call_video_frames.h`) |
+| Windows, `windows/runner/call_video_texture.cpp` | `PixelBufferTexture` | the same two buffers |
+| macOS, `macos/Runner/CallVideoTexture.swift` | `FlutterTexture` | an IOSurface-backed BGRA `CVPixelBuffer` from a pool; Accelerate swaps the channels during the copy, and Metal samples the surface without another one |
+
+On Windows the plugin stops marking frames once the window is destroyed, as
+the engine's texture registrar goes with it while Rust may still present.
+ Dart passes the two export addresses to Rust
 with `show_video_in` once a call is prepared. From then on the owner writes
 every frame of a lane into its texture at the surface size, `frame` returns
 nothing for that lane, and Dart polls no frames. The snapshot's `local_video`
@@ -263,7 +273,11 @@ the engine's I420 to RGBA conversion and 0.12 ms for the copy into the texture
 ([call video benchmark](call-video-benchmark.md), 2026-11-11). The bridge and
 call window rows it replaces took 8.2 ms and 10.4 ms in the same run.
 
-The rest of this section describes the frame path of the other platforms.
+The same row on the Apple Silicon and Windows runners is in the
+[research's measurements](../Proposals/mosh-87-video-pipeline.research.md#main-window-textures-mosh-94-mosh-95).
+
+The rest of this section describes the frame path of Android and of the call
+window process.
 
 Each lane retains its latest image, and the renderer has one decode in flight.
 Call/generation checks discard old responses, and image age includes transfer
@@ -407,11 +421,17 @@ one second throughout both phases. Capture uses an absolute 15 fps schedule,
 skipping missed slots instead of accumulating delay or sending catch-up bursts.
 
 The last command runs one real Flutter app and an independent public-API peer
-with a local discovery tracker. On Linux the call shows in the main window
-(`integration_test/native_call_main_window_test.dart`), which also mutes a live
-microphone and so needs an audio input; elsewhere the app starts its child
-renderer (`integration_test/native_call_test.dart`). It needs a desktop display
-and the same native artifact/driver environment. The physical-device acceptance
+with a local discovery tracker. The call shows in the main window
+(`integration_test/native_call_main_window_test.dart`). The scenario also mutes
+a live microphone and so needs an audio input; `MOSH_CALL_UI_NO_MICROPHONE`
+leaves that step out on a host without one. It needs a desktop display and the
+same native artifact/driver environment. The `Native call UI` workflow runs it
+on the Windows and macOS runners, by hand or when a texture plugin or the
+scenario changes; the macOS app is built without the sandbox there, since a
+sandboxed app can start neither the peer nor the camera driver from the
+checkout.
+`integration_test/native_call_test.dart` drives the call window process and
+goes with it in MOSH-101. The physical-device acceptance
 and current evidence are recorded in
 [implementation results](../Proposals/issue-46-native-implementation.results.md).
 

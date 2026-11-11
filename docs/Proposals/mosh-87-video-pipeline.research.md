@@ -360,6 +360,43 @@ bridge encode and the call window socket together cost 18.6 ms, 56% of a core at
 for the remote lane alone. The socket is 2.4 times dearer on the macOS runner than on
 the Linux one. The decode row excludes the GPU upload, which still needs a real Mac.
 
+### Main-window textures (MOSH-94, MOSH-95)
+
+Measured on 2026-11-11 by the `Call video benchmark` workflow (run 42953630183) on
+GitHub's `macos-latest` (Apple M1 virtual machine), `windows-latest` and `ubuntu-latest`
+(both AMD EPYC 9V74) runners, with the branch that moves macOS and Windows calls into
+the main window. Median ms per 1280x720 frame of 60 runs after 5 warm-ups; in brackets
+the share of one core at 30 fps. "Before" is what a remote frame cost between the call
+state and the screen with the call window process, as 0.28.2 ships it; "after" is the
+one copy the runner's texture plugin makes when Rust presents the frame.
+
+| Case | macOS | Windows | Linux |
+|------|-------|---------|-------|
+| frame copy for the bridge (`Frame::clone`) | 0.10 | 0.14 | 0.11 |
+| flutter_rust_bridge encode of the frame | 4.01 (12%) | 4.48 (13%) | 5.44 (16%) |
+| call window socket: encode, send, parse, acknowledge | 9.30 (28%) | 5.63 (17%) | 7.09 (21%) |
+| `ImageDescriptor.raw` decode (flutter_tester, JIT, software) | 0.33 (1%) | 0.70 (2%) | 0.36 (1%) |
+| **Before: the four rows above** | **13.7 (41%)** | **11.0 (33%)** | **13.0 (39%)** |
+| **After: texture present** | **0.09 (0.3%)** | **0.13 (0.4%)** | **0.11 (0.3%)** |
+
+The macOS row's stand-in swaps the channels with Accelerate into ordinary memory. The
+plugin's own steps, a pooled IOSurface-backed `CVPixelBuffer` filled by the same
+Accelerate call, took 0.08 to 0.10 ms per 720p frame in a throwaway Swift program on
+the same runner type (run 42953747488, two passes; 0.32 to 0.41 ms at 1080p), so the
+stand-in is a fair figure for it.
+
+At 30 fps the remote lane's presentation drops from a third of a core or more to under
+half a percent on each desktop, and the local preview saves the same again at its
+size. The numbers are the frame path with synthetic frames, not the CPU of a whole
+call: the codec, the camera, audio and the raster thread's texture upload are outside
+them, and a virtual M1 is not a user's Mac. The full-screen figures of a real Mac
+mini and the mute check at full screen remain with MOSH-100.
+
+A real video call through these textures passes on the Windows and macOS runners in
+the `Native call UI` workflow (run 42955636475): the app and an independent peer over
+real Moss, both lanes shown as textures, no frame polled over the bridge, and the call
+kept through minimize, restore and camera off.
+
 ## Open questions requiring a Mac or Windows device
 
 1. Split of the Mac mini's 2 to 2.7 cores. Run a 720p call with both cameras on,

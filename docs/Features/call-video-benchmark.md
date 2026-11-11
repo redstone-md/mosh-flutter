@@ -27,7 +27,9 @@ Limits of the numbers:
   the frame and offers it to a sender with no connection. Codec time is not
   in the table.
 - The texture row is the copy the platform plugin makes when Rust presents a
-  frame, with a stand-in for the plugin. On that path (ADR 0052) it replaces
+  frame, with a stand-in for the plugin: a plain copy, and on macOS the
+  Accelerate channel swap its plugin copies with. The stand-in writes to
+  ordinary memory, not to the IOSurface the macOS plugin fills. On that path (ADR 0052) it replaces
   the bridge, socket and decode rows. The raster thread's upload is not
   measured.
 - The bridge row is the Rust half. Dart's decode of the reply is not measured.
@@ -36,7 +38,7 @@ Limits of the numbers:
 - flutter_tester is a JIT build with a software rasterizer. The decode row
   bounds the copy and decode work and says nothing about a GPU upload.
 
-The `Call video benchmark` workflow runs the command on `macos-latest` and
-`ubuntu-latest`, by hand or when the benchmark changes. Each table is in the
+The `Call video benchmark` workflow runs the command on `macos-latest`,
+`windows-latest` and `ubuntu-latest`, by hand or when the benchmark changes. Each table is in the
 job summary and in the `call-video-bench-<os>` artifact. A change to the frame
 path reports its before and after from two runs of this workflow.

@@ -2,6 +2,8 @@
 
 #include <optional>
 
+#include <flutter_plugin_registrar.h>
+
 #include "flutter/generated_plugin_registrant.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
@@ -29,6 +31,11 @@ bool FlutterWindow::OnCreate() {
   desktop_title_bar_ = std::make_unique<DesktopTitleBar>(
       GetHandle(), flutter_controller_->view()->GetNativeWindow(),
       flutter_controller_->engine()->messenger());
+  call_video_ = std::make_unique<CallVideo>(
+      flutter_controller_->engine()->messenger(),
+      FlutterDesktopRegistrarGetTextureRegistrar(
+          flutter_controller_->engine()->GetRegistrarForPlugin(
+              "MoshCallVideo")));
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
@@ -44,6 +51,7 @@ bool FlutterWindow::OnCreate() {
 
 void FlutterWindow::OnDestroy() {
   desktop_title_bar_ = nullptr;
+  call_video_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

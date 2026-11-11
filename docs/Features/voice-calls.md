@@ -1,14 +1,20 @@
 # Calls
 
-On Linux a call shows in the main window, as on Android: an expanded view that
+On desktop a call shows in the main window, as on Android: an expanded view that
 covers the content and can go full screen, and a mini view while the user
 browses chats ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md)).
-Windows and macOS follow in MOSH-94 and MOSH-95; until then their
+
+No platform starts the call window process any more. Its code stays until
+MOSH-101 removes it, and every statement in this document about the call
+window, its renderer or the strip that replaces it describes that unused code,
+not what a user sees. With a call window,
 desktop calls have an independent native window for incoming, outgoing and active
 phases. The main view shows no call strip while that window starts or runs. A
 compact strip below the main view appears only after the window fails, or on
 platforms without a call window: it supplies call controls and, on desktop, a
-button to restore the window. Clicking the peer in
+button to restore the window.
+
+Clicking the peer in
 either view opens the original DM. Messages, attachments, search and scrolling remain available during a call.
 Navigation to another DM, group, channel or Settings keeps the audio running.
 Opening the originating DM remains available while call controls are pending.
@@ -108,7 +114,8 @@ and cannot affect a replacement call.
 Starting a call refreshes the DM list before admission; a failed fresh read
 blocks the start even if an older cached list contained no calls.
 
-Every desktop starts the same executable with `--mosh-call-window` in a separate
+Where a call window is configured, which no platform does since ADR 0052, the
+app starts the same executable with `--mosh-call-window` in a separate
 process. `MOSH_CALL_WINDOW=1` also identifies child startup on hosts that omit Dart
 entrypoint arguments. GTK/EGL ownership stays independent on Linux. Stdio carries
 display metadata, commands and frame acknowledgements with session and call IDs.

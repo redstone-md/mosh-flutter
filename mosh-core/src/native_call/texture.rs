@@ -4,7 +4,9 @@
 use std::ptr::NonNull;
 
 /// What the plugin exports for one texture, for as long as the process
-/// lives. `linux/runner/call_video_texture.h` declares the same layout.
+/// lives. `runner_shared/call_video_frames.h` declares the same layout for the
+/// Linux and Windows runners, and `macos/Runner/CallVideoTexture.swift` lays
+/// it out by hand.
 #[repr(C)]
 pub(crate) struct Exported {
     /// Copies a `width` by `height` RGBA frame and schedules its display. A
