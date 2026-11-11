@@ -23,6 +23,7 @@ void main() {
 
     await ui.tap(find.byTooltip('Start video call'));
     await ui.eventually(() async => textures.value.local != null);
+    await tester.pump(); // The lane may have appeared after the last frame.
     expect(find.byType(Texture), findsOneWidget);
     final id = owner.session!.callId;
     Future<Object?> polled(bool local) => bridge.nativeCallFrame(
@@ -36,6 +37,7 @@ void main() {
     await ui.eventually(() async =>
         textures.value.remote != null &&
         owner.session?.snapshot?.ready == true);
+    await tester.pump();
     expect(find.byType(Texture), findsNWidgets(2));
     expect(await polled(false), isNull, reason: 'no pixels cross the bridge');
 
