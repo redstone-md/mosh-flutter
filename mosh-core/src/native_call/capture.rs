@@ -78,7 +78,7 @@ impl Prepared {
             state.present(
                 width,
                 height,
-                pixels,
+                &pixels,
                 frame.source_age_ms,
                 frame.received,
                 true,
@@ -131,10 +131,8 @@ mod tests {
         };
         aged(1100, 0).present(&mut state, None);
         assert!(!state.snapshot.camera);
-        assert!(state.frames[0].is_none());
         aged(600, 500).present(&mut state, None);
         assert!(!state.snapshot.camera);
-        assert!(state.frames[0].is_none());
         aged(0, 0).present(&mut state, None);
         assert!(state.snapshot.camera);
         // The fresh frame's preview needs the engine, which this test runs

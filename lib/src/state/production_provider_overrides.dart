@@ -18,7 +18,6 @@ import 'package:mosh/src/features/voice_call/android_call_presentation.dart';
 import 'package:mosh/src/features/voice_call/voice_call_binding.dart'
     show voiceCallBinding;
 import 'dart:io' show Platform;
-import 'package:mosh/src/features/voice_call/call_video_textures.dart';
 import 'package:mosh/src/state/auto_poll_provider.dart'
     show autoPollIntervalProvider, kAutoPollInterval;
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
@@ -52,10 +51,7 @@ final List<Override> productionOverrides = <Override>[
                       await waiting.refresh();
                       return waiting.platform.setMediaTypes(microphone, camera);
                     }
-                  : null,
-              // The call's video is two textures of the main window that
-              // Rust feeds (ADR 0052).
-              textures: CallVideoTextures());
+                  : null);
       ref.onDispose(owner.dispose);
       return owner;
     }),

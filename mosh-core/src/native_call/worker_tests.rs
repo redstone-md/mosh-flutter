@@ -51,7 +51,6 @@ fn a_frame_prepared_before_the_camera_stops_is_not_presented() {
     };
     let prepared = Prepared::new(owner.generation, Arc::new(frame), Surface::default());
     owner.capture(&mut state, Some(prepared)).unwrap();
-    assert!(state.frames[0].is_none());
     assert!(!state.snapshot.camera);
     assert_eq!(owner.captured, 0);
 }

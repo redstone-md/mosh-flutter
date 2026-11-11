@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mosh/src/features/voice_call/native_call_session.dart';
-import 'package:mosh/src/features/voice_call/call_video_frame.dart';
 import 'package:mosh/src/features/voice_call/call_video_surfaces.dart';
 import 'package:mosh/src/features/voice_call/call_video_textures.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart';
@@ -13,21 +12,18 @@ final nativeCallOwnerProvider = Provider<NativeCallOwner?>((ref) => null);
 
 class NativeCallOwner extends ChangeNotifier {
   NativeCallOwner(this.bridge, this.requestMicrophone,
-      {this.requestCamera, this.authorizeMedia, this.textures});
+      {this.requestCamera, this.authorizeMedia});
   final BridgeFacade bridge;
   final Future<bool> Function() requestMicrophone;
   final Future<bool> Function()? requestCamera;
   final Future<bool> Function(bool microphone, bool camera)? authorizeMedia;
 
-  /// The main window's video textures where the platform has them. Rust
-  /// then shows the video itself and [frames] stays silent.
-  final CallVideoTextures? textures;
-  final _frames = StreamController<CallVideoFrame>.broadcast(sync: true);
+  /// The main window's video textures, which Rust shows the video in.
+  final textures = CallVideoTextures();
   NativeCallSession? _retained;
   CallVideoSurfaces? _surfaces, _unsent;
   bool _showing = false;
   NativeCallSession? session;
-  Stream<CallVideoFrame> get frames => _frames.stream;
 
   Future<void> bind(String sessionId, String callId,
       {String? superseded, bool active = false, bool video = false}) async {
@@ -41,15 +37,7 @@ class NativeCallOwner extends ChangeNotifier {
           requestMicrophone: requestMicrophone,
           requestCamera: requestCamera ?? () async => true,
           authorizeMedia: authorizeMedia,
-          onState: _changed,
-          onFrame: textures != null
-              ? null
-              : (frame) {
-                  if (session?.sessionId == frame.sessionId &&
-                      session?.callId == frame.callId) {
-                    _frames.add(frame);
-                  }
-                });
+          onState: _changed);
       session = current;
       try {
         await current.start(camera: video);
@@ -100,7 +88,7 @@ class NativeCallOwner extends ChangeNotifier {
   /// A call keeps its media when its video cannot be shown.
   Future<void> _attachTextures() async {
     try {
-      await textures?.attach(bridge);
+      await textures.attach(bridge);
     } catch (error) {
       debugPrint('Call video textures unavailable: ${error.runtimeType}');
     }
@@ -108,7 +96,7 @@ class NativeCallOwner extends ChangeNotifier {
 
   void _changed() {
     final current = session;
-    textures?.show(current?.snapshot, camera: current?.cameraRequested == true);
+    textures.show(current?.snapshot, camera: current?.cameraRequested == true);
     notifyListeners();
   }
 
@@ -122,14 +110,13 @@ class NativeCallOwner extends ChangeNotifier {
     _retained?.stop();
     session = null;
     _retained = null;
-    textures?.show(null, camera: false);
+    textures.show(null, camera: false);
   }
 
   @override
   void dispose() {
     _stop();
-    unawaited(_frames.close());
-    textures?.dispose();
+    textures.dispose();
     super.dispose();
   }
 }

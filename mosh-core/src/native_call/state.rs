@@ -1,18 +1,12 @@
 use super::{
     diagnostics::Stalls,
     texture::Texture,
-    types::{Choices, Context, Frame, Signal, Snapshot, Surface},
+    types::{Choices, Context, Signal, Snapshot, Surface},
 };
-use std::{collections::VecDeque, sync::Arc, time::Instant};
-
-pub(crate) struct Presented {
-    pub frame: Frame,
-    pub received: Instant,
-}
+use std::{collections::VecDeque, time::Instant};
 
 /// How long a lane keeps reporting its picture without a newer frame. A
-/// shorter stall freezes the picture, as the app's renderer does for frames
-/// it polls (`CallVideoFrame.lifetimeMs`).
+/// shorter stall freezes the picture.
 const SHOWN_LIFETIME_MS: u128 = 5000;
 
 /// When a lane last showed a frame, and how old its source was by then.
@@ -43,15 +37,12 @@ pub(crate) struct State {
     pub snapshot: Snapshot,
     pub inbound: VecDeque<Signal>,
     pub outbound: VecDeque<(String, String, Signal)>,
-    /// The latest frame of each lane the app polls: local, then remote.
-    pub frames: [Option<Arc<Presented>>; 2],
-    /// The main window's textures. A lane with one is written there and
-    /// leaves no frame to poll. They outlive calls.
+    /// The main window's textures, local then remote, which each lane's
+    /// frames are written into. They outlive calls.
     pub textures: [Option<Texture>; 2],
     pub shown: [Option<Shown>; 2],
     /// The window's local and remote video surfaces; they outlive calls.
     pub surfaces: [Surface; 2],
-    pub sequences: [u64; 2],
     pub shutdown: bool,
     pub revision: u64,
     pub applied: u64,
@@ -118,7 +109,6 @@ impl State {
         } else {
             shared.show_request();
         }
-        shared.frames.clone_from(&self.frames);
         for signal in self.outbound.drain(..) {
             shared.send(signal);
         }
@@ -165,20 +155,20 @@ impl State {
         self.outbound.push_back(signal);
     }
 
-    /// Shows a lane's frame: in its texture, or else as the frame the app
-    /// polls. The snapshot reports its size either way.
+    /// Shows a lane's frame in its texture. The app learns only its size,
+    /// from the snapshot.
     pub fn present(
         &mut self,
         width: u32,
         height: u32,
-        pixels: impl AsRef<[u8]> + Into<Vec<u8>>,
+        pixels: &[u8],
         age: u32,
         received: Instant,
         local: bool,
     ) {
-        let Some(context) = &self.context else {
+        if self.context.is_none() {
             return;
-        };
+        }
         let lane = usize::from(!local);
         self.shown[lane] = Some(Shown {
             received,
@@ -186,30 +176,13 @@ impl State {
         });
         *self.snapshot.video(local) = Surface { width, height };
         if let Some(texture) = self.textures[lane] {
-            texture.present(width, height, pixels.as_ref());
-            self.frames[lane] = None;
-            return;
+            texture.present(width, height, pixels);
         }
-        self.sequences[lane] = self.sequences[lane].saturating_add(1);
-        let sequence = self.sequences[lane];
-        let frame = Frame {
-            session_id: context.session_id.clone(),
-            call_id: context.call_id.clone(),
-            sequence,
-            width,
-            height,
-            pixels: pixels.into(),
-            local,
-            source_age_ms: age,
-        };
-        self.frames[lane] = Some(Arc::new(Presented { frame, received }));
     }
 
     /// Stops showing a lane, whose texture keeps its last frame unseen.
     pub fn clear(&mut self, local: bool) {
-        let lane = usize::from(!local);
-        self.frames[lane] = None;
-        self.shown[lane] = None;
+        self.shown[usize::from(!local)] = None;
         *self.snapshot.video(local) = Surface::default();
     }
 

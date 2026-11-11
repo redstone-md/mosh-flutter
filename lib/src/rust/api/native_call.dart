@@ -58,14 +58,6 @@ Future<Snapshot?> snapshot(
     RustLib.instance.api
         .crateApiNativeCallSnapshot(sessionId: sessionId, callId: callId);
 
-Future<Frame?> frame(
-        {required String sessionId,
-        required String callId,
-        required bool local,
-        required BigInt after}) =>
-    RustLib.instance.api.crateApiNativeCallFrame(
-        sessionId: sessionId, callId: callId, local: local, after: after);
-
 /// The call view's video surfaces in device pixels. Frames of every call
 /// leave at most at these sizes; the encoder still takes the full camera.
 Future<void> showVideoAt({required Surface local, required Surface remote}) =>
@@ -74,7 +66,7 @@ Future<void> showVideoAt({required Surface local, required Surface remote}) =>
 
 /// The main window's video textures, as the addresses its platform plugin
 /// handed out, or zero for none. Rust writes the frames of every call
-/// straight into them, and `frame` returns none for such a lane.
+/// straight into them.
 Future<void> showVideoIn(
         {required PlatformInt64 local, required PlatformInt64 remote}) =>
     RustLib.instance.api

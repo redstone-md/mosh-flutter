@@ -8,7 +8,7 @@ import 'package:mosh/src/features/voice_call/call_modal_card.dart';
 import 'package:mosh/src/features/voice_call/call_clock.dart'
     show formatCallClock;
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
-import 'call_video_renderer.dart';
+import 'call_video_textures.dart';
 import 'call_video_stage.dart';
 import 'call_devices_dialog.dart';
 import 'floating_call_view.dart';

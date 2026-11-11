@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'call_view_state.dart';
-import 'call_video_renderer.dart';
+import 'call_video_textures.dart';
 
 final androidCallPresentationProvider =
     Provider<AndroidCallPresentation?>((ref) => null);

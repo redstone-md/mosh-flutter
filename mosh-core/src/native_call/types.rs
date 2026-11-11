@@ -157,27 +157,3 @@ pub struct Surface {
     pub width: u32,
     pub height: u32,
 }
-
-#[frb(non_opaque)]
-#[derive(Clone)]
-pub struct Frame {
-    pub session_id: String,
-    pub call_id: String,
-    pub sequence: u64,
-    pub width: u32,
-    pub height: u32,
-    pub local: bool,
-    pub source_age_ms: u32,
-    pub pixels: Vec<u8>,
-}
-
-// Pixels must not be included in diagnostic output.
-impl std::fmt::Debug for Frame {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Frame")
-            .field("sequence", &self.sequence)
-            .field("width", &self.width)
-            .field("height", &self.height)
-            .finish_non_exhaustive()
-    }
-}

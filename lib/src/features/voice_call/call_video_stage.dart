@@ -4,7 +4,7 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/native_call/types.dart' as native;
 
-import 'call_video_renderer.dart';
+import 'call_video_textures.dart';
 import 'call_video_surfaces.dart';
 
 /// Presentation only. Pixel changes never animate; stage presence may fade.
@@ -97,7 +97,7 @@ class CallVideoStage extends StatelessWidget {
         remote: surface(stage));
   }
 
-  Widget _preview(CallVideoPicture image, String label) => Align(
+  Widget _preview(TextureVideo image, String label) => Align(
         alignment: Alignment.bottomRight,
         child: Padding(
             padding: _previewPadding,
@@ -108,22 +108,18 @@ class CallVideoStage extends StatelessWidget {
                     child: _picture(image, label, mirrored: true)))),
       );
 
-  Widget _picture(CallVideoPicture picture, String label,
+  Widget _picture(TextureVideo picture, String label,
           {required bool mirrored}) =>
       Semantics(
           label: label,
           image: true,
           child: Transform.flip(
               flipX: mirrored,
-              child: switch (picture) {
-                DecodedVideo(:final image) =>
-                  RawImage(image: image, fit: BoxFit.contain),
-                // A texture fills its box, so the frame's shape is kept here.
-                TextureVideo(:final id) => Center(
-                    child: AspectRatio(
-                        aspectRatio: picture.aspectRatio,
-                        child: Texture(textureId: id))),
-              }));
+              // A texture fills its box, so the frame's shape is kept here.
+              child: Center(
+                  child: AspectRatio(
+                      aspectRatio: picture.aspectRatio,
+                      child: Texture(textureId: picture.id)))));
 }
 
 const _previewShare = .25;

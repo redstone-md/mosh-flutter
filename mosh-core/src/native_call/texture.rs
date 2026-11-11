@@ -111,30 +111,21 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn a_lane_shown_in_a_texture_hands_the_app_its_size_and_no_pixels() {
+    fn a_lane_is_written_into_its_texture_and_the_app_learns_only_its_size() {
         let shared = Arc::new(Mutex::new(call()));
         let hub = Hub {
             state: shared.clone(),
         };
-        // A step before the textures arrive leaves a frame to poll.
-        let mut owner = State::default();
-        let revision = owner.take(&mut shared.lock().unwrap()).unwrap();
-        owner.present(1, 1, vec![7; 4], 0, Instant::now(), true);
-        owner.publish(&mut shared.lock().unwrap(), revision);
-        assert!(hub.frame("dm", "call", true, 0).is_some());
-
         let preview = Recording::start();
         hub.show_in(Some(preview.texture()), None).unwrap();
+        let mut owner = State::default();
         let revision = owner.take(&mut shared.lock().unwrap()).unwrap();
-        let pixels = vec![1, 2, 3, 4, 5, 6, 7, 8];
-        owner.present(2, 1, pixels.clone(), 0, Instant::now(), true);
-        owner.present(1, 1, vec![9; 4], 0, Instant::now(), false);
+        let pixels = [1, 2, 3, 4, 5, 6, 7, 8];
+        owner.present(2, 1, &pixels, 0, Instant::now(), true);
+        owner.present(1, 1, &[9; 4], 0, Instant::now(), false);
         owner.publish(&mut shared.lock().unwrap(), revision);
 
-        assert_eq!(preview.frames(), [(2, 1, pixels)]);
-        assert!(hub.frame("dm", "call", true, 0).is_none());
-        let remote = hub.frame("dm", "call", false, 0).unwrap();
-        assert_eq!(remote.pixels, [9; 4], "a lane without a texture is polled");
+        assert_eq!(preview.frames(), [(2, 1, pixels.to_vec())]);
         let snapshot = hub.snapshot("dm", "call").unwrap();
         let size = |width, height| Surface { width, height };
         assert_eq!(snapshot.local_video, size(2, 1));
@@ -146,12 +137,12 @@ pub(crate) mod tests {
         let mut state = call();
         let now = Instant::now();
         let shown = now - Duration::from_millis(4700);
-        state.present(1, 1, vec![0; 4], 200, shown, false);
+        state.present(1, 1, &[0; 4], 200, shown, false);
         state.expire(now);
         assert_eq!(state.snapshot.remote_video.width, 1, "a stall freezes it");
         state.expire(now + Duration::from_millis(100));
         assert_eq!(state.snapshot.remote_video, Surface::default());
-        state.present(1, 1, vec![0; 4], 0, now, false);
+        state.present(1, 1, &[0; 4], 0, now, false);
         state.expire(now);
         assert_eq!(state.snapshot.remote_video.width, 1);
     }
@@ -159,9 +150,8 @@ pub(crate) mod tests {
     #[test]
     fn a_stopped_lane_reports_no_video() {
         let mut state = call();
-        state.present(1, 1, vec![0; 4], 0, Instant::now(), true);
+        state.present(1, 1, &[0; 4], 0, Instant::now(), true);
         state.clear(true);
         assert_eq!(state.snapshot.local_video, Surface::default());
-        assert!(state.frames[0].is_none());
     }
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
-import 'call_video_renderer.dart';
+import 'call_video_textures.dart';
 import 'call_video_stage.dart';
 import 'call_view_state.dart';
 

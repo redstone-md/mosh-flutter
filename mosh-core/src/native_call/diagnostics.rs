@@ -253,7 +253,7 @@ mod tests {
         assert!(monitor
             .observe(route, &state, &engine, sent(0), now)
             .is_none());
-        state.present(1, 1, vec![0; 4], 0, now, false);
+        state.present(1, 1, &[0; 4], 0, now, false);
         let event = monitor
             .observe(route, &state, &engine, sent(0), now)
             .unwrap();
@@ -267,7 +267,7 @@ mod tests {
         assert!(monitor
             .observe(route, &state, &engine, sent(8), later)
             .is_none());
-        state.present(1, 1, vec![0; 4], 0, later, false);
+        state.present(1, 1, &[0; 4], 0, later, false);
         let event = monitor
             .observe(route, &state, &engine, sent(8), later)
             .unwrap();

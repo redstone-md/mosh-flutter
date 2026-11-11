@@ -7,7 +7,7 @@ import 'package:mosh/src/features/lock/android_app_lock_gate.dart';
 import 'package:mosh/src/platform/desktop_window_controller.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'android_call_presentation.dart';
-import 'call_video_renderer.dart';
+import 'call_video_textures.dart';
 import 'call_video_surfaces.dart';
 import 'call_view_state.dart';
 import 'main_window_call_frame.dart';

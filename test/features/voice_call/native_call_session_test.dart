@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/native_call_session.dart';
-import 'package:mosh/src/features/voice_call/call_video_frame.dart';
 import 'package:mosh/src/rust/native_call/types.dart' as native;
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import '../../support/scriptable_bridge.dart';
@@ -91,27 +89,18 @@ void main() {
     expect(bridge.countOf(BridgeMethod.nativeCallChoices), 0);
   });
 
-  testWidgets('late pixels after canonical selection are discarded',
+  testWidgets('a late snapshot after canonical selection is discarded',
       (tester) async {
     final bridge = ScriptableBridge();
-    final frames = <CallVideoFrame>[];
-    final waiting = Completer<native.Frame?>();
-    bridge.respondNext(BridgeMethod.nativeCallFrame, waiting.future);
-    final session = _session(bridge, onFrame: frames.add);
+    final session = _session(bridge);
     await session.start();
-    await tester.pump(const Duration(milliseconds: 17));
+    final waiting = Completer<native.Snapshot?>();
+    bridge.respondNext(BridgeMethod.nativeCallSnapshot, waiting.future);
+    await tester.pump(const Duration(milliseconds: 100));
     session.rebind('canonical');
-    waiting.complete(native.Frame(
-        sessionId: 'dm',
-        callId: 'call',
-        sequence: BigInt.one,
-        width: 1,
-        height: 1,
-        local: false,
-        sourceAgeMs: 0,
-        pixels: Uint8List(4)));
+    waiting.complete(nativeCallSnapshot());
     await tester.pump();
-    expect(frames, isEmpty);
+    expect(session.snapshot, isNull);
     session.stop();
   });
 
@@ -178,6 +167,7 @@ void main() {
 
   testWidgets('unbind during preparation prevents a late presentation client',
       (tester) async {
+    mockCallVideoPlugin(tester);
     final bridge = ScriptableBridge();
     final owner = NativeCallOwner(bridge, () async => false);
     await owner.bind('dm', 'call');
@@ -187,9 +177,13 @@ void main() {
     owner.unbind('dm', 'replacement');
     waiting.complete();
     await preparing;
-    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump(const Duration(milliseconds: 200));
     expect(owner.session, isNull);
-    expect(bridge.countOf(BridgeMethod.nativeCallFrame), 0);
+    expect(
+        bridge
+            .callsTo(BridgeMethod.nativeCallSnapshot)
+            .where((call) => call.arg<String>('callId') == 'replacement'),
+        isEmpty);
     owner.dispose();
   });
 
@@ -220,32 +214,16 @@ void main() {
     owner.dispose();
   });
 
-  testWidgets('polling delivers fresh pixels once and survives a read error',
-      (tester) async {
+  testWidgets('snapshot polling survives a read error', (tester) async {
     final bridge = ScriptableBridge();
-    final frames = <CallVideoFrame>[];
-    final session = _session(bridge, onFrame: frames.add);
+    final session = _session(bridge);
     await session.start();
-    bridge.failNext(BridgeMethod.nativeCallFrame);
-    await tester.pump(const Duration(milliseconds: 17));
-    final frame = native.Frame(
-        sessionId: 'dm',
-        callId: 'call',
-        sequence: BigInt.one,
-        width: 1,
-        height: 1,
-        local: false,
-        sourceAgeMs: 7,
-        pixels: Uint8List.fromList([1, 2, 3, 255]));
-    bridge.respondNext(BridgeMethod.nativeCallFrame, Future.value(frame));
-    await tester.pump(const Duration(milliseconds: 17));
-    expect(frames.single.pixels, [1, 2, 3, 255]);
-    bridge.respondNext(BridgeMethod.nativeCallFrame, Future.value(frame));
-    await tester.pump(const Duration(milliseconds: 17));
-    // A response for the wrong lane and a duplicate remote sequence are stale.
-    bridge.respondNext(BridgeMethod.nativeCallFrame, Future.value(frame));
-    await tester.pump(const Duration(milliseconds: 17));
-    expect(frames.length, 1);
+    bridge.failNext(BridgeMethod.nativeCallSnapshot);
+    await tester.pump(const Duration(milliseconds: 100));
+    bridge.respondNext(BridgeMethod.nativeCallSnapshot,
+        Future.value(nativeCallSnapshot(camera: true)));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(session.snapshot?.camera, true);
     session.stop();
     await tester.pump(const Duration(seconds: 1));
   });
@@ -317,13 +295,10 @@ void main() {
 }
 
 NativeCallSession _session(ScriptableBridge bridge,
-        {Future<bool> Function()? permission,
-        void Function()? onState,
-        void Function(CallVideoFrame)? onFrame}) =>
+        {Future<bool> Function()? permission, void Function()? onState}) =>
     NativeCallSession(
         sessionId: 'dm',
         callId: 'call',
         bridge: bridge,
         requestMicrophone: permission ?? () async => false,
-        onState: onState ?? () {},
-        onFrame: onFrame ?? (_) {});
+        onState: onState ?? () {});
