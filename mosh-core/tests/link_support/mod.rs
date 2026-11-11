@@ -264,15 +264,42 @@ pub fn peer_process_with(extra: fn(&Persistence, &str, &Value) -> Option<Value>)
         let _ = slow_steps::step("link service", || service.lock().unwrap().service());
         std::thread::sleep(Duration::from_millis(100));
     });
-    slow_steps::watch();
-    Installation {
+    let own_store = store.clone();
+    let installation = Installation {
         runtime,
         node,
         dm,
         store,
-        extra,
+    };
+    serve(
+        |action, command| extra(&own_store, action, command),
+        |action, command| installation.answer(action, command),
+    );
+}
+
+/// Answers the parent's commands until it asks the worker to shut down.
+/// `own` takes the commands a worker adds for its scenario; the rest are
+/// steps of the installation and are timed as such.
+fn serve(own: impl Fn(&str, &Value) -> Option<Value>, answer: impl Fn(&str, &Value) -> Value) {
+    slow_steps::watch();
+    for line in std::io::stdin().lock().lines() {
+        let command: Value = serde_json::from_str(&line.unwrap()).unwrap();
+        let action = command["action"].as_str().unwrap();
+        if action == "shutdown" {
+            break;
+        }
+        let response = own(action, &command).unwrap_or_else(|| {
+            slow_steps::step(&format!("command {action}"), || answer(action, &command))
+        });
+        println!("{OUTPUT_PREFIX}{response}");
+        std::io::stdout().flush().unwrap();
     }
-    .serve();
+}
+
+/// A line on the process's own stderr. `eprintln!` would hand it to the test
+/// harness, which shows a test's output only when the test fails.
+fn say(line: std::fmt::Arguments) {
+    let _ = writeln!(std::io::stderr(), "{line}");
 }
 
 fn dm_runtime(
@@ -300,29 +327,9 @@ struct Installation {
     node: Arc<mosh_core::moss_ffi::MossNode>,
     dm: Arc<Mutex<PrivateDmRuntime>>,
     store: Arc<Persistence>,
-    extra: fn(&Persistence, &str, &Value) -> Option<Value>,
 }
 
 impl Installation {
-    fn serve(&self) {
-        for line in std::io::stdin().lock().lines() {
-            let command: Value = serde_json::from_str(&line.unwrap()).unwrap();
-            let action = command["action"].as_str().unwrap();
-            if action == "shutdown" {
-                break;
-            }
-            // A worker's own commands are its scenario's business, not a step
-            // of the installation.
-            let response = (self.extra)(&self.store, action, &command).unwrap_or_else(|| {
-                slow_steps::step(&format!("command {action}"), || {
-                    self.answer(action, &command)
-                })
-            });
-            println!("{OUTPUT_PREFIX}{response}");
-            std::io::stdout().flush().unwrap();
-        }
-    }
-
     fn answer(&self, action: &str, command: &Value) -> Value {
         let arg = command["argument"].as_str().unwrap_or_default().to_string();
         if action.starts_with("protocol_") {

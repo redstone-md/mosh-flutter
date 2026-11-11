@@ -36,13 +36,11 @@ fn sample_forever() {
         let synced = before_write.elapsed();
         let _ = std::fs::remove_file(&path);
         if late >= SLOW || synced >= SLOW || written.is_err() {
-            // Not `eprintln!`: the watch outlives the test that started it.
-            let _ = writeln!(
-                std::io::stderr(),
+            super::say(format_args!(
                 "host: a second's sleep woke {:.1}s late, a synced write took {:.1}s ({written:?})",
                 late.as_secs_f64(),
                 synced.as_secs_f64()
-            );
+            ));
         }
     }
 }

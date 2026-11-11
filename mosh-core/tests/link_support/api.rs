@@ -1,11 +1,8 @@
-use std::io::{BufRead, Write};
 use std::path::PathBuf;
 
 use mosh_core::api::{conversation, device_link, private_dm};
 use mosh_core::private_dm_runtime::{AcceptInviteRequest, StartSessionRequest};
 use serde_json::{json, Value};
-
-use super::{slow_steps, OUTPUT_PREFIX};
 
 #[path = "attachments.rs"]
 mod attachments;
@@ -20,17 +17,7 @@ mod plus;
 pub(super) fn run(dir: PathBuf) {
     private_dm::set_app_data_dir(dir.to_string_lossy().into_owned()).unwrap();
     private_dm::set_history_dek(std::fs::read(dir.join("storage-key.bin")).unwrap()).unwrap();
-    slow_steps::watch();
-    for line in std::io::stdin().lock().lines() {
-        let command: Value = serde_json::from_str(&line.unwrap()).unwrap();
-        let action = command["action"].as_str().unwrap();
-        if action == "shutdown" {
-            break;
-        }
-        let response = slow_steps::step(&format!("command {action}"), || answer(action, &command));
-        println!("{OUTPUT_PREFIX}{response}");
-        std::io::stdout().flush().unwrap();
-    }
+    super::serve(|_, _| None, answer);
 }
 
 fn answer(action: &str, command: &Value) -> Value {

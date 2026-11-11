@@ -1,7 +1,6 @@
 //! Real-network scenarios: a network for each, and how long each took.
 
 use std::cell::Cell;
-use std::io::Write;
 use std::sync::{Mutex, MutexGuard};
 use std::time::Instant;
 
@@ -42,12 +41,10 @@ pub struct NetworkScenario {
 impl Drop for NetworkScenario {
     fn drop(&mut self) {
         let thread = std::thread::current();
-        // Not `eprintln!`: the harness keeps a passing test's output to itself.
-        let _ = writeln!(
-            std::io::stderr(),
+        super::say(format_args!(
             "scenario {} took {:.1}s",
             thread.name().unwrap_or("unnamed"),
             self.started.elapsed().as_secs_f64()
-        );
+        ));
     }
 }

@@ -70,10 +70,10 @@ pub(super) fn watch() {
 }
 
 fn say(step: &Step, verb: &str) {
-    eprintln!(
+    super::say(format_args!(
         "peer {}: {} {verb} {:.1}s",
         std::process::id(),
         step.name,
         step.started.elapsed().as_secs_f64()
-    );
+    ));
 }
