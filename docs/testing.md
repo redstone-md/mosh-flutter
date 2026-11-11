@@ -71,6 +71,36 @@ Missing baseline history fails the check; CI checks out full history. Run exampl
 python3 -B -m unittest discover -s scripts -p test_test_policy.py
 ```
 
+## Real-process scenarios
+
+The suites on `mosh-core/tests/link_support` run separate installations over
+real Moss. Under `node scripts/moss-test.mjs` every scenario has a discovery
+network of its own, so scenarios run side by side, as many as the test harness
+has threads. A plain `cargo test` leaves them on the machine's LAN discovery,
+where they take turns. A scenario must not rely on another one's peers or on
+running alone.
+
+Their time is the product's protocol timers, not the harness's budgets: 25
+seconds until a silent contact is offline, 5 and 10 seconds before recovery
+probes and changes its source, 2 seconds between a linking device's steps.
+The 30 to 90 second budgets are ceilings that only a failure spends. A
+scenario that waits through a timer twice is cheaper as two scenarios.
+
+Read the log before raising a budget:
+
+- `scenario <test> took <seconds>` is each scenario's own time.
+- `peer <pid>: <step> has been running for` and `took` name a command or a
+  service tick of an installation that lasted seconds.
+- `host:` lines say that the machine stalled: a synced write or a sleep took
+  far longer than it should.
+
+An installation commits to its store several times for every message, each
+commit a synced write. On CI's Windows runners a synced write to the system
+drive takes up to seconds for minutes at a time; the Cargo test steps point
+`TMP` and `TEMP` at the runner's work drive, where it takes under a
+millisecond. [ADR 0015](ADR/0015-deep-link-and-ci-and-versioning.md) has the
+measurements.
+
 ## Keep process startup proportional to the work
 
 Related unit or widget libraries can share a `*_test.dart` entry point. Keep their

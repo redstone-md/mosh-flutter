@@ -171,8 +171,14 @@ jobs:
       # Real Moss + automatic discovery use a local tracker, independent of
       # public tracker availability or unrelated public peers. Every test
       # target but the multi-device DM flow, which runs in its own job.
+      # The installations keep their stores in the temp directory, and each
+      # message costs several synced writes: on the runner's system drive one
+      # takes up to seconds, on its work drive under a millisecond (MOSH-103).
       - name: Cargo test
         shell: bash
+        env:
+          TMP: ${{ runner.temp }}
+          TEMP: ${{ runner.temp }}
         run: |
           targets=()
           for file in mosh-core/tests/*.rs; do
@@ -181,9 +187,10 @@ jobs:
           done
           node scripts/moss-test.mjs --lib "${targets[@]}"
 
-  # The multi-device DM flow is ~11 minutes of real-Moss installations
-  # waiting on protocol timeouts, not CPU, so it gets its own runner beside
-  # rust-core instead of after it. It shares rust-core's test-profile cache.
+  # The multi-device DM flow is real-Moss installations waiting on protocol
+  # timers, not CPU: about 100 seconds with its scenarios side by side. It
+  # keeps its own runner beside rust-core instead of after it, and shares
+  # rust-core's test-profile cache.
   rust-core-dm-flow:
     name: Rust core multi-device DM flow (real Moss)
     runs-on: windows-latest
@@ -198,7 +205,11 @@ jobs:
           flutter: 'false'
           rust-cache-key: desktop
 
+      # The temp directory on the work drive: see rust-core's test step.
       - name: Cargo test (multi-device DM flow)
+        env:
+          TMP: ${{ runner.temp }}
+          TEMP: ${{ runner.temp }}
         run: node scripts/moss-test.mjs --test multi_device_dm_flow
 
   codegen-drift:

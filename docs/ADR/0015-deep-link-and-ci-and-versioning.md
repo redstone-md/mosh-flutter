@@ -309,6 +309,47 @@ after that deadline fail before a caller can accept their state. A separate
 real-process regression rejects a successful DM reply delayed for 35 seconds
 when the caller's live-delivery budget is 30 seconds.
 
+## Update 2026-11-11: what the real-process suites wait for (MOSH-103)
+
+`rust-core-dm-flow` failed twice in 25 runs on main with a peer silent for 23
+to 45 seconds on one `dm_poll`. The earlier updates above met the same thing
+and raised budgets. Two runs of twenty jobs on Windows runners with probes in
+the test process and in the peers found the cause:
+
+- The runner's processor was idle throughout. A synced 4 KiB write to the
+  system temp directory (`C:`) took 15 to 44 ms on average and up to 2.9
+  seconds, for minutes at a time. The same write to the runner's work drive
+  (`D:`, `runner.temp`) took under a millisecond in the same seconds.
+- An installation commits to its store about 14 times for every message it
+  receives, each commit a synced write, inside the runtime's lock. In the
+  scenarios that send 40 messages a `dm_send` took up to 15.6 seconds and a
+  service tick up to 7.8, and a poll waits for the same lock.
+
+The Cargo test steps of `rust-core` and `rust-core-dm-flow` now set `TMP` and
+`TEMP` to `runner.temp`. The number of commits per message is a product
+matter of its own (MOSH-104).
+
+Scenarios also ran one at a time, behind a lock from before each had its own
+discovery network. Under the local tracker they now run side by side. The two
+harness tests that sleep 35 seconds hold no scenario. The harness prints each
+scenario's time, a peer's steps that take seconds and a stalled disk or
+scheduler ([test policy](../testing.md)).
+
+| `multi_device_dm_flow`, 23 tests | Test time |
+| --- | --- |
+| Before, Windows runner | 424 s (560 and 668 s in the failed runs) |
+| One at a time, slow-reply tests beside, 10 runs | 329 to 401 s |
+| Side by side, stores on `C:`, 20 runs | 115 to 142 s |
+| Side by side, stores on `D:`, 10 runs | 95 to 108 s |
+
+All 40 jobs passed. With the stores on `D:` the longest scenario took 37 to
+40 seconds, what it takes alone, and no step of a peer took 2 seconds.
+
+`rust-core-macos` still runs the multi-device DM flow: it is the suite's only
+run on a Unix network stack, and that job is not on the critical path.
+`device_link_flow` runs in `rust-core` and `rust-core-macos` for the same
+reason; the `native-call-media` jobs run only its ignored `native_` tests.
+
 ## Update 2026-10-15: Windows dependency caches
 
 Windows jobs cache the Flutter SDK and existing Cargo/cargokit outputs, but

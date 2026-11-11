@@ -24,6 +24,7 @@ pub fn isolated_network_scenario() -> NetworkScenario {
     let shared_discovery = std::env::var_os("MOSH_TEST_TRACKER_URL").is_none();
     let turn = shared_discovery.then(|| LAN.lock().unwrap_or_else(|error| error.into_inner()));
     SCOPE.with(|scope| scope.set(rand::random()));
+    super::host::watch();
     NetworkScenario {
         _turn: turn,
         started: Instant::now(),
