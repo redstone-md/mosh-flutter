@@ -5,26 +5,19 @@
 
 #include "call_video_frames.h"
 
-namespace {
-struct Export {
-  MoshCallVideoExport base;
-  CallVideo::Lane* lane;
-};
-}  // namespace
-
 // One texture and what Rust holds of it. Never freed: Rust keeps the
 // export's address.
 struct CallVideo::Lane {
   explicit Lane(FlutterDesktopTextureRegistrarRef textures)
       : registrar(textures) {
     FlutterDesktopTextureInfo info{kFlutterDesktopPixelBufferTexture};
-    info.pixel_buffer_config = {Copy, this};
+    info.pixel_buffer_config = {Shown, this};
     id = FlutterDesktopTextureRegistrarRegisterExternalTexture(textures, &info);
   }
 
   static void Present(const MoshCallVideoExport* exported, const uint8_t* rgba,
                       uint32_t width, uint32_t height) {
-    Lane* lane = reinterpret_cast<const Export*>(exported)->lane;
+    Lane* lane = CallVideoExportOf<Lane>::Of(exported);
     lane->frames.Write(rgba, width, height);
     std::lock_guard<std::mutex> lock(lane->mutex);
     if (lane->registrar) {
@@ -34,7 +27,7 @@ struct CallVideo::Lane {
   }
 
   // The engine reads the buffer until its next request.
-  static const FlutterDesktopPixelBuffer* Copy(size_t, size_t, void* data) {
+  static const FlutterDesktopPixelBuffer* Shown(size_t, size_t, void* data) {
     Lane* lane = static_cast<Lane*>(data);
     const CallVideoFrames::Frame* frame = lane->frames.Latest();
     if (frame == nullptr) return nullptr;
@@ -57,7 +50,7 @@ struct CallVideo::Lane {
             static_cast<int64_t>(reinterpret_cast<intptr_t>(&exported)))};
   }
 
-  Export exported{{Present}, this};
+  CallVideoExportOf<Lane> exported{{Present}, this};
   CallVideoFrames frames;
   FlutterDesktopPixelBuffer buffer{};
   // Guards the registrar, which goes with the engine while Rust may still

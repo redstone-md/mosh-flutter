@@ -55,7 +55,7 @@ final List<Override> productionOverrides = <Override>[
                   : null,
               // Desktop shows the call in the main window through textures
               // Rust feeds (ADR 0052); Android follows in MOSH-102.
-              textures: Platform.isAndroid ? null : CallVideoTextures());
+              textures: _desktop ? CallVideoTextures() : null);
       ref.onDispose(owner.dispose);
       return owner;
     }),
@@ -68,7 +68,6 @@ final List<Override> productionOverrides = <Override>[
 ];
 
 /// Platforms that package the native call engine (`mosh-media/webrtc`).
-final bool _callEngine = Platform.isWindows ||
-    Platform.isMacOS ||
-    Platform.isLinux ||
-    Platform.isAndroid;
+final bool _callEngine = _desktop || Platform.isAndroid;
+final bool _desktop =
+    Platform.isWindows || Platform.isMacOS || Platform.isLinux;

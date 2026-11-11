@@ -16,6 +16,17 @@ struct MoshCallVideoExport {
                   uint32_t width, uint32_t height);
 };
 
+// An export with the texture it presents into, which `present` gets back.
+template <class Texture>
+struct CallVideoExportOf {
+  MoshCallVideoExport base;
+  Texture* texture;
+
+  static Texture* Of(const MoshCallVideoExport* exported) {
+    return reinterpret_cast<const CallVideoExportOf*>(exported)->texture;
+  }
+};
+
 // The frames behind a pixel-buffer texture of the Linux and Windows runners:
 // the one Rust writes next and the one the engine reads.
 class CallVideoFrames {

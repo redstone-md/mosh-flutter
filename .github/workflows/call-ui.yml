@@ -13,10 +13,14 @@ on:
       - integration_test/native_call_main_window_test.dart
       - integration_test/support/**
       - lib/src/features/voice_call/call_video_textures.dart
+      - linux/runner/call_video_texture.*
       - macos/Runner/CallVideoTexture.swift
+      - macos/Runner/MainFlutterWindow.swift
       - mosh-core/src/native_call/texture.rs
       - runner_shared/**
+      - scripts/moss-test.mjs
       - windows/runner/call_video_texture.*
+      - windows/runner/flutter_window.*
 
 concurrency:
   group: call-ui-${{ github.ref }}

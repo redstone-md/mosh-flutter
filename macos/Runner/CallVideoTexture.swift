@@ -41,8 +41,9 @@ final class CallVideoTexture: NSObject, FlutterTexture {
   /// Copies a `width` by `height` RGBA frame and schedules its display. A
   /// frame not shown yet is replaced. Any thread may call it.
   func present(_ rgba: UnsafePointer<UInt8>, width: Int, height: Int) {
-    guard width > 0, height > 0, let buffer = buffer(width: width, height: height) else { return }
-    CVPixelBufferLockBaseAddress(buffer, [])
+    guard width > 0, height > 0, let buffer = buffer(width: width, height: height),
+      CVPixelBufferLockBaseAddress(buffer, []) == kCVReturnSuccess
+    else { return }
     var source = vImage_Buffer(
       data: UnsafeMutableRawPointer(mutating: rgba), height: vImagePixelCount(height),
       width: vImagePixelCount(width), rowBytes: width * 4)
@@ -50,8 +51,10 @@ final class CallVideoTexture: NSObject, FlutterTexture {
       data: CVPixelBufferGetBaseAddress(buffer), height: vImagePixelCount(height),
       width: vImagePixelCount(width), rowBytes: CVPixelBufferGetBytesPerRow(buffer))
     let bgra: [UInt8] = [2, 1, 0, 3]
-    vImagePermuteChannels_ARGB8888(&source, &target, bgra, vImage_Flags(kvImageNoFlags))
+    let written = vImagePermuteChannels_ARGB8888(
+      &source, &target, bgra, vImage_Flags(kvImageNoFlags))
     CVPixelBufferUnlockBaseAddress(buffer, [])
+    guard written == kvImageNoError else { return }
     lock.lock()
     latest = buffer
     lock.unlock()

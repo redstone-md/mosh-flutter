@@ -47,6 +47,7 @@ void main() {
     expect(find.byType(Texture), findsNWidgets(2));
     expect(await polled(false), isNull, reason: 'no pixels cross the bridge');
 
+    // test-policy: skip MOSH-95 -- CI's Windows and macOS runners have no audio input for the mute step
     if (microphone) {
       await ui
           .eventually(() async => owner.session!.snapshot!.microphone == true);

@@ -5,16 +5,9 @@
 G_DECLARE_FINAL_TYPE(MoshCallVideoTexture, mosh_call_video_texture, MOSH,
                      CALL_VIDEO_TEXTURE, FlPixelBufferTexture)
 
-namespace {
-struct Export {
-  MoshCallVideoExport base;
-  MoshCallVideoTexture* texture;
-};
-}  // namespace
-
 struct _MoshCallVideoTexture {
   FlPixelBufferTexture parent_instance;
-  Export exported;
+  CallVideoExportOf<MoshCallVideoTexture> exported;
   FlTextureRegistrar* registrar;
   CallVideoFrames* frames;
 };
@@ -26,7 +19,7 @@ namespace {
 void present(const MoshCallVideoExport* exported, const uint8_t* rgba,
              uint32_t width, uint32_t height) {
   MoshCallVideoTexture* self =
-      reinterpret_cast<const Export*>(exported)->texture;
+      CallVideoExportOf<MoshCallVideoTexture>::Of(exported);
   self->frames->Write(rgba, width, height);
   fl_texture_registrar_mark_texture_frame_available(self->registrar,
                                                     FL_TEXTURE(self));
