@@ -5,18 +5,15 @@ use anyhow::Context;
 use mozjpeg::{ColorSpace, CompInfo, CompInfoExt, Decompress};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-/// JPEG stores full-range YCbCr; the encoder and the preview read video range.
-const LUMA: [u8; 256] = video_range(219);
-const CHROMA: [u8; 256] = video_range(224);
+/// JPEG stores full-range YCbCr; the encoder and the preview read video
+/// range. Fixed point within one level of 219/255 and 224/255, so the loops
+/// that call these vectorize.
+fn luma_range(sample: u8) -> u8 {
+    ((u16::from(sample) * 220 + 128) >> 8) as u8 + 16
+}
 
-const fn video_range(span: usize) -> [u8; 256] {
-    let mut table = [0; 256];
-    let mut value = 0;
-    while value < table.len() {
-        table[value] = (16 + (value * span + 127) / 255) as u8;
-        value += 1;
-    }
-    table
+fn chroma_range(sample: u8) -> u8 {
+    ((u16::from(sample) * 225) >> 8) as u8 + 16
 }
 
 /// Keeps mozjpeg's planes between frames, so a steady stream allocates
@@ -53,12 +50,13 @@ impl Decoder {
             .zip(y.chunks(stored.strides[0]))
         {
             for (target, source) in target.iter_mut().zip(source) {
-                *target = LUMA[usize::from(*source)];
+                *target = luma_range(*source);
             }
         }
         let (target_u, target_v) = chroma.split_at_mut(width * height / 4);
-        stored.subsample(u, 1, width / 2, target_u);
-        stored.subsample(v, 2, width / 2, target_v);
+        let [_, stride_u, stride_v] = stored.strides;
+        stored.subsample(u, stride_u, width / 2, target_u);
+        stored.subsample(v, stride_v, width / 2, target_v);
         Ok((width as u32, height as u32))
     }
 }
@@ -92,25 +90,32 @@ impl Stored {
         })
     }
 
-    /// Writes one stored chroma plane at I420's half size both ways, in
-    /// video range, averaging the samples the JPEG kept beyond that.
-    fn subsample(&self, source: &[u8], component: usize, width: usize, target: &mut [u8]) {
+    /// Writes one stored chroma plane, its rows `stride` apart, at I420's
+    /// half size both ways, in video range, averaging the samples the JPEG
+    /// kept beyond that.
+    fn subsample(&self, source: &[u8], stride: usize, width: usize, target: &mut [u8]) {
         let (across, down) = self.chroma;
-        let stride = self.strides[component];
         for (row, target) in target.chunks_exact_mut(width).enumerate() {
-            let top = &source[row * down * stride..];
-            let bottom = &source[(row * down + down - 1) * stride..];
-            for (x, sample) in target.iter_mut().enumerate() {
-                let (left, right) = (x * across, x * across + across - 1);
-                let block = [top[left], top[right], bottom[left], bottom[right]];
-                *sample = CHROMA[usize::from(mean(&block))];
+            // With chroma already halved down, both rows are the same one.
+            let top = &source[row * down * stride..][..width * across];
+            let bottom = &source[(row * down + down - 1) * stride..][..width * across];
+            if across == 1 {
+                for ((sample, top), bottom) in target.iter_mut().zip(top).zip(bottom) {
+                    *sample = chroma_range(mean(&[*top, *bottom]));
+                }
+            } else {
+                let pairs = top.chunks_exact(2).zip(bottom.chunks_exact(2));
+                for (sample, (top, bottom)) in target.iter_mut().zip(pairs) {
+                    *sample = chroma_range(mean(&[top[0], top[1], bottom[0], bottom[1]]));
+                }
             }
         }
     }
 }
 
-/// A JPEG of `width` by `height` pixels, `pixel` giving the RGB of each by
-/// its index, with its chroma stored at `chroma` luma pixels per sample.
+/// A baseline JPEG, as cameras send, of `width` by `height` pixels, `pixel`
+/// giving the RGB of each by its index, with its chroma stored at `chroma`
+/// luma pixels per sample.
 #[cfg(test)]
 pub(crate) fn encode(
     width: usize,
@@ -121,6 +126,8 @@ pub(crate) fn encode(
 ) -> Vec<u8> {
     let rgb: Vec<u8> = (0..width * height).flat_map(pixel).collect();
     let mut compress = mozjpeg::Compress::new(ColorSpace::JCS_RGB);
+    // mozjpeg's own default is a progressive file, which decodes far slower.
+    compress.set_fastest_defaults();
     compress.set_size(width, height);
     compress.set_quality(quality);
     compress.set_chroma_sampling_pixel_sizes(chroma, chroma);
