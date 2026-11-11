@@ -40,6 +40,7 @@ class NativeCallSession {
   String? _cameraId;
   Timer? _timer;
   bool _polling = false;
+  int _reads = 0;
   Future<void> _commands = Future.value();
   Future<void>? _starting;
 
@@ -156,11 +157,15 @@ class NativeCallSession {
     }
   }
 
+  /// Only the latest read is kept: a poll may answer after the read that
+  /// followed a command, with the state from before it.
   Future<void> _readState() async {
     final id = callId;
+    final read = ++_reads;
     final next =
         await bridge.nativeCallSnapshot(sessionId: sessionId, callId: id);
     if (_closed ||
+        read != _reads ||
         id != callId ||
         next == null ||
         next.sessionId != sessionId ||

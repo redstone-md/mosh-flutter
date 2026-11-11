@@ -104,6 +104,25 @@ void main() {
     session.stop();
   });
 
+  testWidgets('a snapshot read before a command does not undo it',
+      (tester) async {
+    final bridge = ScriptableBridge();
+    final session = _session(bridge);
+    await session.start();
+    final earlier = Completer<native.Snapshot?>();
+    bridge.respondNext(BridgeMethod.nativeCallSnapshot, earlier.future);
+    await tester.pump(const Duration(milliseconds: 100));
+    bridge.respondNext(BridgeMethod.nativeCallSnapshot,
+        Future.value(nativeCallSnapshot(camera: true)));
+    await session.toggleCamera();
+    expect(session.cameraRequested, true);
+    earlier.complete(nativeCallSnapshot());
+    await tester.pump();
+    expect(session.cameraRequested, true);
+    expect(session.snapshot?.camera, true);
+    session.stop();
+  });
+
   test('failed obsolete bind retains current presentation session', () async {
     final bridge = ScriptableBridge();
     final owner = NativeCallOwner(bridge, () async => false);
