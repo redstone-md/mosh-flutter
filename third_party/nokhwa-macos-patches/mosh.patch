@@ -5,12 +5,12 @@
  #![allow(clippy::not_unsafe_ptr_arg_deref)]
  
 +#[cfg(any(target_os = "macos", test))]
-+mod packed_bgra;
++mod packed_nv12;
 +
  #[cfg(any(target_os = "macos", target_os = "ios"))]
  #[macro_use]
  extern crate objc;
-@@ -105,6 +108,8 @@
+@@ -105,6 +108,8 @@ mod internal {
              ) -> NSObject;
  
              pub fn dispatch_release(object: NSObject);
@@ -19,18 +19,26 @@
  
              pub fn CMSampleBufferGetImageBuffer(sbuf: CMSampleBufferRef) -> CVImageBufferRef;
  
-@@ -210,6 +215,10 @@
+@@ -205,11 +210,16 @@ mod internal {
+         AVMediaTypeAudio, AVMediaTypeClosedCaption, AVMediaTypeDepthData, AVMediaTypeMetadata,
+         AVMediaTypeMetadataObject, AVMediaTypeMuxed, AVMediaTypeSubtitle, AVMediaTypeText,
+         AVMediaTypeTimecode, AVMediaTypeVideo, CGPoint, CMSampleBufferGetImageBuffer,
+-        CMVideoFormatDescriptionGetDimensions, CVImageBufferRef, CVPixelBufferGetBaseAddress,
+-        CVPixelBufferGetDataSize, CVPixelBufferLockBaseAddress, CVPixelBufferUnlockBaseAddress,
++        CMVideoFormatDescriptionGetDimensions, CVImageBufferRef,
++        CVPixelBufferLockBaseAddress, CVPixelBufferUnlockBaseAddress,
          NSObject, OSType,
      };
  
 +    use core_video_sys::{CVPixelBufferGetPixelFormatType, CVPixelBufferGetWidth,
-+        CVPixelBufferGetHeight, CVPixelBufferGetBytesPerRow, CVPixelBufferIsPlanar,
-+        kCVPixelFormatType_32BGRA};
++        CVPixelBufferGetHeight, CVPixelBufferGetPlaneCount, CVPixelBufferGetBaseAddressOfPlane,
++        CVPixelBufferGetBytesPerRowOfPlane, CVPixelBufferGetHeightOfPlane,
++        kCVPixelBufferLock_ReadOnly};
 +    use nokhwa_core::buffer::Buffer;
      use block::ConcreteBlock;
      use cocoa_foundation::{
          base::Nil,
-@@ -244,6 +253,7 @@
+@@ -244,6 +254,7 @@ mod internal {
      use std::ffi::CString;
      use std::{
          borrow::Cow,
@@ -38,7 +46,7 @@
          cmp::Ordering,
          collections::BTreeMap,
          convert::TryFrom,
-@@ -443,18 +453,30 @@
+@@ -443,18 +454,35 @@ mod internal {
              ) {
                  let image_buffer: CVImageBufferRef =
                      unsafe { CMSampleBufferGetImageBuffer(didOutputSampleBuffer) };
@@ -46,10 +54,9 @@
 -                    CVPixelBufferLockBaseAddress(image_buffer, 0);
 +                if image_buffer.is_null() { return; }
 +                // SAFETY: CoreMedia retains the pixel buffer through this callback.
-+                let (width, height, stride, length, format, planar) = unsafe {
++                let (width, height, format, planes) = unsafe {
 +                    (CVPixelBufferGetWidth(image_buffer.cast()), CVPixelBufferGetHeight(image_buffer.cast()),
-+                     CVPixelBufferGetBytesPerRow(image_buffer.cast()), CVPixelBufferGetDataSize(image_buffer) as usize,
-+                     CVPixelBufferGetPixelFormatType(image_buffer.cast()), CVPixelBufferIsPlanar(image_buffer.cast()))
++                     CVPixelBufferGetPixelFormatType(image_buffer.cast()), CVPixelBufferGetPlaneCount(image_buffer.cast()))
                  };
 -
 -                let buffer_length = unsafe { CVPixelBufferGetDataSize(image_buffer) };
@@ -57,28 +64,35 @@
 -                let buffer_as_vec = unsafe {
 -                    std::slice::from_raw_parts_mut(buffer_ptr as *mut u8, buffer_length as usize)
 -                        .to_vec()
-+                if planar != 0 || format != kCVPixelFormatType_32BGRA || width == 0 || height == 0
-+                    || width > 1920 || height > 1920 || width.saturating_mul(height) > 1920*1080
-+                    || stride < width*4 || height.checked_mul(stride).map_or(true, |needed| needed > length) {
-+                    return;
-+                }
-+                // SAFETY: the nonplanar BGRA pixel buffer is retained and locked for this copy.
-+                if unsafe { CVPixelBufferLockBaseAddress(image_buffer, 0) } != 0 { return; }
-+                let base = unsafe { CVPixelBufferGetBaseAddress(image_buffer) };
-+                let rgb = if base.is_null() { None } else {
-+                    // SAFETY: the checked stride/size fits the locked native allocation.
-+                    crate::packed_bgra::rgb(unsafe {
-+                        std::slice::from_raw_parts(base.cast::<u8>(), height*stride)
-+                    }, width, height, stride)
++                if format != kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange || planes != 2 { return; }
++                // SAFETY: the retained biplanar pixel buffer is locked for reading during this copy.
++                if unsafe { CVPixelBufferLockBaseAddress(image_buffer, kCVPixelBufferLock_ReadOnly) } != 0 { return; }
++                // Luma and interleaved chroma rows both hold `width` bytes before any padding.
++                let plane = |index: usize| {
++                    // SAFETY: the locked buffer has this plane, and every row but the
++                    // last spans its stride; the slice ends with the last row's bytes.
++                    unsafe {
++                        let base = CVPixelBufferGetBaseAddressOfPlane(image_buffer.cast(), index);
++                        let stride = CVPixelBufferGetBytesPerRowOfPlane(image_buffer.cast(), index);
++                        let rows = CVPixelBufferGetHeightOfPlane(image_buffer.cast(), index);
++                        if base.is_null() || rows == 0 || stride < width { return None; }
++                        let length = (rows - 1).checked_mul(stride)?.checked_add(width)?;
++                        Some(crate::packed_nv12::Plane {
++                            bytes: std::slice::from_raw_parts(base.cast::<u8>(), length), stride })
++                    }
                  };
 -
+-                unsafe { CVPixelBufferUnlockBaseAddress(image_buffer, 0) };
++                let nv12 = plane(0).zip(plane(1)).and_then(|(luma, chroma)| {
++                    crate::packed_nv12::pack(luma, chroma, width, height)
++                });
 +                // SAFETY: pairs the successful lock before any early return.
-                 unsafe { CVPixelBufferUnlockBaseAddress(image_buffer, 0) };
-+                let Some(rgb) = rgb else { return; };
++                unsafe { CVPixelBufferUnlockBaseAddress(image_buffer, kCVPixelBufferLock_ReadOnly) };
++                let Some(nv12) = nv12 else { return; };
  
                  // CMSampleBufferGetPresentationTimeStamp returns the sensor
                  // capture instant on a monotonic clock (mach_absolute_time
-@@ -485,19 +507,15 @@
+@@ -485,19 +513,15 @@ mod internal {
                      }
                  };
  
@@ -101,13 +115,13 @@
 +                // is quiescent. This is a borrow, not a new Arc ownership claim.
 +                let sender = unsafe { &*sender.cast::<Sender<Buffer>>() };
 +                let frame = Buffer::with_timestamp(Resolution::new(width as u32, height as u32),
-+                    &rgb, FrameFormat::RAWRGB, capture_ts);
++                    &nv12, FrameFormat::NV12, capture_ts);
 +                let _ = sender.try_send(frame); // Never block the AVFoundation callback.
 +
              }
  
              #[allow(non_snake_case)]
-@@ -734,12 +752,13 @@
+@@ -734,12 +758,13 @@ mod internal {
      pub struct AVCaptureVideoCallback {
          delegate: *mut Object,
          queue: NSObject,
@@ -122,7 +136,7 @@
          ) -> Result<Self, NokhwaError> {
              let cls = &CALLBACK_CLASS as &Class;
              let delegate: *mut Object = unsafe { msg_send![cls, alloc] };
-@@ -756,7 +775,7 @@
+@@ -756,7 +781,7 @@ mod internal {
                  dispatch_queue_create(device_spec.as_ptr(), NSObject(std::ptr::null_mut()))
              };
  
@@ -131,13 +145,10 @@
          }
  
          pub fn data_len(&self) -> usize {
-@@ -769,6 +788,19 @@
+@@ -772,6 +797,19 @@ mod internal {
+         }
+     }
  
-         pub fn queue(&self) -> &NSObject {
-             &self.queue
-+        }
-+    }
-+
 +    impl Drop for AVCaptureVideoCallback {
 +        fn drop(&mut self) {
 +            extern "C" fn barrier(_: *mut std::ffi::c_void) {}
@@ -148,14 +159,16 @@
 +                let _: () = msg_send![self.delegate, release];
 +                core_media::dispatch_release(self.queue.clone());
 +            }
-         }
-     }
- 
-@@ -786,6 +818,22 @@
- 
++        }
++    }
++
+     create_boilerplate_impl! {
+         [pub AVFrameRateRange],
+         [pub AVCaptureDeviceDiscoverySession],
+@@ -787,6 +825,22 @@ mod internal {
          pub fn min(&self) -> f64 {
              unsafe { msg_send![self.inner, minFrameRate] }
-+        }
+         }
 +
 +        fn duration_for(&self, fps: u32) -> Option<*mut Object> {
 +            // supported_formats exposes native endpoints as integer FPS. Keep
@@ -171,15 +184,14 @@
 +            // SAFETY: the range belongs to a live device format; KVC boxes its
 +            // CMTime as an autoreleased NSValue, used on this capture thread.
 +            Some(unsafe { msg_send![self.inner, valueForKey: str_to_nsstr(key)] })
-         }
++        }
      }
  
-@@ -795,6 +843,18 @@
-         pub resolution: CMVideoDimensions,
-         pub fps_list: Vec<f64>,
+     #[derive(Debug)]
+@@ -797,6 +851,18 @@ mod internal {
          pub fourcc: FrameFormat,
-+    }
-+
+     }
+ 
 +    impl AVCaptureDeviceFormat {
 +        fn log_native_mode(&self, ranges: &[AVFrameRateRange]) {
 +            // SAFETY: the device retains this video format and its description.
@@ -190,10 +202,12 @@
 +            eprintln!("camera native mode: {}x{} fourcc={fourcc:08x} fps={fps:?}",
 +                self.resolution.width, self.resolution.height);
 +        }
-     }
- 
++    }
++
      impl TryFrom<*mut Object> for AVCaptureDeviceFormat {
-@@ -895,7 +955,7 @@
+         type Error = NokhwaError;
+ 
+@@ -895,7 +961,7 @@ mod internal {
      pub struct AVCaptureDevice {
          inner: *mut Object,
          device: CameraInfo,
@@ -202,7 +216,7 @@
      }
  
      impl AVCaptureDevice {
-@@ -944,7 +1004,7 @@
+@@ -944,7 +1010,7 @@ mod internal {
              Ok(AVCaptureDevice {
                  inner: capture,
                  device: camera_info,
@@ -211,7 +225,7 @@
              })
          }
  
-@@ -991,7 +1051,7 @@
+@@ -991,7 +1057,7 @@ mod internal {
          }
  
          pub fn lock(&self) -> Result<(), NokhwaError> {
@@ -220,7 +234,7 @@
                  return Ok(());
              }
              if self.already_in_use() {
-@@ -1000,8 +1060,11 @@
+@@ -1000,8 +1066,11 @@ mod internal {
                      error: "Already in use".to_string(),
                  });
              }
@@ -234,7 +248,7 @@
              if !err_ptr.is_null() {
                  return Err(NokhwaError::SetPropertyError {
                      property: "lockForConfiguration".to_string(),
-@@ -1010,72 +1073,68 @@
+@@ -1010,72 +1079,68 @@ mod internal {
                  });
              }
              // Space these out for debug purposes
@@ -260,6 +274,23 @@
          }
  
 -        // thank you ffmpeg
+-        pub fn set_all(&mut self, descriptor: CameraFormat) -> Result<(), NokhwaError> {
+-            self.lock()?;
+-            let format_list = try_ns_arr_to_vec::<AVCaptureDeviceFormat, NokhwaError>(unsafe {
+-                msg_send![self.inner, formats]
+-            })?;
+-            let format_description_sel = sel!(formatDescription);
+-
+-            let mut selected_format: *mut Object = std::ptr::null_mut();
+-            let mut selected_range: *mut Object = std::ptr::null_mut();
+-
+-            for format in format_list {
+-                let format_desc_ref: CMFormatDescriptionRef =
+-                    unsafe { msg_send![format.internal, performSelector: format_description_sel] };
+-                let dimensions = unsafe { CMVideoFormatDescriptionGetDimensions(format_desc_ref) };
+-
+-                if dimensions.height == descriptor.resolution().height() as i32
+-                    && dimensions.width == descriptor.resolution().width() as i32
 +        fn native_format(
 +            &self,
 +            descriptor: CameraFormat,
@@ -277,41 +308,7 @@
 +                    || format.fourcc != descriptor.format()
 +                    || format.resolution.width != descriptor.width() as i32
 +                    || format.resolution.height != descriptor.height() as i32
-+                {
-+                    continue;
-+                }
-+                selected = ranges.iter().find_map(|range| {
-+                    range
-+                        .duration_for(descriptor.frame_rate())
-+                        .map(|duration| (format.internal, duration))
-+                });
-+            }
-+            selected.ok_or_else(|| NokhwaError::SetPropertyError {
-+                property: "CameraFormat".to_string(),
-+                value: descriptor.to_string(),
-+                error: "No matching native format and frame duration".to_string(),
-+            })
-+        }
-+
-         pub fn set_all(&mut self, descriptor: CameraFormat) -> Result<(), NokhwaError> {
-+            let (selected_format, min_frame_duration) = self.native_format(descriptor)?;
-             self.lock()?;
--            let format_list = try_ns_arr_to_vec::<AVCaptureDeviceFormat, NokhwaError>(unsafe {
--                msg_send![self.inner, formats]
--            })?;
--            let format_description_sel = sel!(formatDescription);
--
--            let mut selected_format: *mut Object = std::ptr::null_mut();
--            let mut selected_range: *mut Object = std::ptr::null_mut();
--
--            for format in format_list {
--                let format_desc_ref: CMFormatDescriptionRef =
--                    unsafe { msg_send![format.internal, performSelector: format_description_sel] };
--                let dimensions = unsafe { CMVideoFormatDescriptionGetDimensions(format_desc_ref) };
--
--                if dimensions.height == descriptor.resolution().height() as i32
--                    && dimensions.width == descriptor.resolution().width() as i32
--                {
+                 {
 -                    selected_format = format.internal;
 -
 -                    for range in ns_arr_to_vec::<AVFrameRateRange>(unsafe {
@@ -324,16 +321,30 @@
 -                            break;
 -                        }
 -                    }
--                }
++                    continue;
+                 }
 -            }
 -            if selected_range.is_null() || selected_format.is_null() {
 -                return Err(NokhwaError::SetPropertyError {
 -                    property: "CameraFormat".to_string(),
 -                    value: descriptor.to_string(),
 -                    error: "Not Found/Rejected/Unsupported".to_string(),
--                });
--            }
--
++                selected = ranges.iter().find_map(|range| {
++                    range
++                        .duration_for(descriptor.frame_rate())
++                        .map(|duration| (format.internal, duration))
+                 });
+             }
++            selected.ok_or_else(|| NokhwaError::SetPropertyError {
++                property: "CameraFormat".to_string(),
++                value: descriptor.to_string(),
++                error: "No matching native format and frame duration".to_string(),
++            })
++        }
+ 
++        pub fn set_all(&mut self, descriptor: CameraFormat) -> Result<(), NokhwaError> {
++            let (selected_format, min_frame_duration) = self.native_format(descriptor)?;
++            self.lock()?;
 +            eprintln!("camera selected mode: {descriptor}");
              let activefmtkey = str_to_nsstr("activeFormat");
 -            let min_frame_duration = str_to_nsstr("minFrameDuration");
@@ -348,7 +359,7 @@
              let _: () = unsafe {
                  msg_send![self.inner, setValue:min_frame_duration forKey:active_video_min_frame_duration]
              };
-@@ -2334,21 +2393,25 @@
+@@ -2334,21 +2399,26 @@ mod internal {
              Ok(())
          }
  
@@ -373,43 +384,57 @@
 +        }
 +
 +        pub fn set_frame_format(&self, _format: FrameFormat) -> Result<(), NokhwaError> {
-+            // Select a known packed output after the device's active format is set.
++            // Select 420v, an output AVFoundation calls native (TN3121), after the
++            // device's active format is set; BGRA would cost a conversion per frame.
 +            let formats: *mut Object = unsafe { msg_send![self.inner, availableVideoCVPixelFormatTypes] };
 +            let count: NSUInteger = unsafe { msg_send![formats, count] };
 +            let available = (0..count).any(|index| {
 +                let number: *mut Object = unsafe { msg_send![formats, objectAtIndex:index] };
 +                let format: u32 = unsafe { msg_send![number, unsignedIntValue] };
-+                format == kCVPixelFormatType_32BGRA
++                format == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
 +            });
 +            if !available {
 +                return Err(NokhwaError::SetPropertyError { property: "video output format".into(),
-+                    value: "BGRA".into(), error: "BGRA output is unavailable".into() });
++                    value: "420v".into(), error: "420v output is unavailable".into() });
 +            }
-+            let cmpixelfmt = kCVPixelFormatType_32BGRA;
++            let cmpixelfmt = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
              let obj = CFNumber::from(cmpixelfmt as i32);
              let obj = obj.as_CFTypeRef() as *mut Object;
              let key = unsafe { kCVPixelBufferPixelFormatTypeKey } as *mut Object;
 --- /dev/null
-+++ b/src/packed_bgra.rs
-@@ -0,0 +1,53 @@
-+//! AVFoundation output can pad each row; camera active formats do not describe it.
-+pub(crate) fn rgb(bytes: &[u8], width: usize, height: usize, stride: usize) -> Option<Vec<u8>> {
-+    let row = width.checked_mul(4)?;
++++ b/src/packed_nv12.rs
+@@ -0,0 +1,79 @@
++//! AVFoundation can pad each plane's rows; camera active formats do not describe it.
++
++/// One plane of a locked biplanar pixel buffer, its rows `stride` bytes apart.
++pub(crate) struct Plane<'a> {
++    pub bytes: &'a [u8],
++    pub stride: usize,
++}
++
++/// A 4:2:0 biplanar frame as packed NV12: its luma rows, then its interleaved
++/// chroma rows, each `width` bytes without row padding.
++pub(crate) fn pack(luma: Plane<'_>, chroma: Plane<'_>, width: usize, height: usize) -> Option<Vec<u8>> {
 +    let pixels = width.checked_mul(height)?;
 +    if width == 0
 +        || height == 0
++        || width % 2 != 0
++        || height % 2 != 0
 +        || width > 1920
 +        || height > 1920
 +        || pixels > 1920 * 1080
-+        || stride < row
-+        || bytes.len() < height.checked_mul(stride)?
 +    {
 +        return None;
 +    }
-+    let mut output = Vec::with_capacity(pixels.checked_mul(3)?);
-+    for y in 0..height {
-+        for bgra in bytes[y * stride..y * stride + row].chunks_exact(4) {
-+            output.extend_from_slice(&[bgra[2], bgra[1], bgra[0]]);
++    let mut output = Vec::with_capacity(pixels / 2 * 3);
++    for (plane, rows) in [(luma, height), (chroma, height / 2)] {
++        // The last row may end with its pixels instead of its padding.
++        let needed = (rows - 1).checked_mul(plane.stride)?.checked_add(width)?;
++        if plane.stride < width || plane.bytes.len() < needed {
++            return None;
++        }
++        for row in plane.bytes.chunks(plane.stride).take(rows) {
++            output.extend_from_slice(&row[..width]);
 +        }
 +    }
 +    Some(output)
@@ -419,29 +444,42 @@
 +mod tests {
 +    use super::*;
 +
++    fn plane(bytes: &[u8], stride: usize) -> Plane<'_> {
++        Plane { bytes, stride }
++    }
++
 +    #[test]
-+    fn preserves_actual_dimensions_color_order_and_skips_padding() {
-+        let bytes = [
-+            1, 2, 3, 255, 4, 5, 6, 255, 99, 99, 99, 99, 7, 8, 9, 255, 10, 11, 12, 255, 88, 88, 88,
-+            88,
-+        ];
++    fn keeps_both_planes_in_order_and_skips_row_padding() {
++        // 4x2: two luma rows and one chroma row, each padded to six bytes.
++        let luma = [1, 2, 3, 4, 99, 99, 5, 6, 7, 8, 99, 99];
++        let chroma = [10, 20, 30, 40, 88, 88];
 +        assert_eq!(
-+            rgb(&bytes, 2, 2, 12),
-+            Some(vec![3, 2, 1, 6, 5, 4, 9, 8, 7, 12, 11, 10])
++            pack(plane(&luma, 6), plane(&chroma, 6), 4, 2),
++            Some(vec![1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40])
++        );
++        // The last row of a plane may stop at its last pixel.
++        assert_eq!(
++            pack(plane(&luma[..10], 6), plane(&chroma[..4], 6), 4, 2),
++            Some(vec![1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40])
 +        );
 +    }
 +
 +    #[test]
-+    fn rejects_invalid_stride_truncation_overflow_and_oversized_frames() {
-+        for (width, height, stride) in [
-+            (0, 1, 4),
-+            (1, 0, 4),
-+            (2, 1, 7),
-+            (2, 2, 12),
-+            (usize::MAX, 1, 4),
-+            (1920, 1920, 7680),
++    fn rejects_short_planes_narrow_strides_and_odd_or_oversized_frames() {
++        let bytes = [0; 64];
++        for (luma, chroma, stride, width, height) in [
++            (9, 4, 6, 4, 2),
++            (10, 3, 6, 4, 2),
++            (64, 64, 3, 4, 2),
++            (64, 64, 6, 0, 2),
++            (64, 64, 6, 4, 0),
++            (64, 64, 6, 3, 2),
++            (64, 64, 6, 4, 3),
++            (64, 64, 6, usize::MAX, 2),
++            (64, 64, 1920, 1920, 1920),
 +        ] {
-+            assert!(rgb(&[0; 16], width, height, stride).is_none());
++            let packed = pack(plane(&bytes[..luma], stride), plane(&bytes[..chroma], stride), width, height);
++            assert!(packed.is_none(), "{width}x{height} stride {stride}");
 +        }
 +    }
 +}

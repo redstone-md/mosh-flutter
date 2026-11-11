@@ -3,12 +3,13 @@
 The native camera preparer reconstructs nokhwa-bindings-macos 0.2.4 from its
 verified official archive and applies this complete Apache-2.0 patch.
 
-It requests BGRA only when AVFoundation advertises that output. The callback
-checks the actual nonplanar CVPixelBuffer format, dimensions, row stride, data
-length, pointer and lock result, then copies packed RGB without row padding.
-Its bounded channel carries that actual buffer metadata and capture timestamp.
-The safe packed-BGRA converter has host-independent tests for padded rows and
-invalid layouts.
+It requests `420v` (biplanar 4:2:0, video range), which AVFoundation treats as
+a native output (Apple TN3121), and only when AVFoundation advertises it. The
+callback checks the actual CVPixelBuffer format and plane count, locks it for
+reading, checks each plane's pointer, row stride and height, then copies both
+planes as packed NV12 without row padding. Its bounded channel carries that
+actual buffer metadata, the NV12 format and the capture timestamp. The safe
+plane packer has host-independent tests for padded rows and invalid layouts.
 
 The callback borrows the sender owned by its retained Arc; it never constructs
 an owning Arc from Arc::as_ptr. Teardown first removes the delegate, then drains
@@ -25,7 +26,7 @@ ranges, followed by the selected descriptor and native timing endpoint.
 The existing descriptor conversion groups some native FourCC values; diagnostics
 retain each native FourCC, and duration selection stays within that exact format.
 
-Linux runs the safe converter tests. Full Objective-C compilation, AVFoundation
+Linux runs the safe packer tests. Full Objective-C compilation, AVFoundation
 permission and real camera behavior require a macOS SDK and host; a Linux
 cross-target attempt stopped in the Objective-C compiler and proves neither.
 The macOS CI native/build lanes exercise compilation and packaging.
