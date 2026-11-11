@@ -2,8 +2,9 @@
 //!
 //! A parent that gives up on a command knows only that its peer stayed
 //! silent. The peer's command loop and its service threads share the
-//! runtimes' locks, so this names which of them was in a long step, while it
-//! is still in it and again when it ends.
+//! runtimes' locks, so this names every one of them that is in a long step,
+//! the one that holds a lock and those that wait for it, while the step
+//! runs and again when it ends.
 
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -19,15 +20,24 @@ struct Step {
     report_at: Duration,
 }
 
-static RUNNING: Mutex<(u64, Vec<Step>)> = Mutex::new((0, Vec::new()));
+/// The steps running now, and how many have started.
+struct Running {
+    started: u64,
+    steps: Vec<Step>,
+}
+
+static RUNNING: Mutex<Running> = Mutex::new(Running {
+    started: 0,
+    steps: Vec::new(),
+});
 
 /// Runs `work` as a named step of this peer.
 pub(super) fn step<T>(name: &str, work: impl FnOnce() -> T) -> T {
     let id = {
         let mut running = RUNNING.lock().unwrap();
-        running.0 += 1;
-        let id = running.0;
-        running.1.push(Step {
+        running.started += 1;
+        let id = running.started;
+        running.steps.push(Step {
             id,
             name: name.into(),
             started: Instant::now(),
@@ -37,8 +47,8 @@ pub(super) fn step<T>(name: &str, work: impl FnOnce() -> T) -> T {
     };
     let result = work();
     let mut running = RUNNING.lock().unwrap();
-    let at = running.1.iter().position(|step| step.id == id).unwrap();
-    let step = running.1.swap_remove(at);
+    let at = running.steps.iter().position(|step| step.id == id).unwrap();
+    let step = running.steps.swap_remove(at);
     if step.started.elapsed() >= SLOW {
         say(&step, "took");
     }
@@ -50,7 +60,7 @@ pub(super) fn watch() {
     std::thread::spawn(|| loop {
         // test-policy: wait MOSH-103 -- the watch looks at the steps' real ages twice a second
         std::thread::sleep(Duration::from_millis(500));
-        for step in &mut RUNNING.lock().unwrap().1 {
+        for step in &mut RUNNING.lock().unwrap().steps {
             if step.started.elapsed() >= step.report_at {
                 say(step, "has been running for");
                 step.report_at *= 2;

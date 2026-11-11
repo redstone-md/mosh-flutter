@@ -1,12 +1,8 @@
-//! The harness's own deadlines, against a worker that answers late.
-//!
-//! These hold no network scenario: the one worker of each talks to nobody,
-//! so its 35 seconds pass beside the other scenarios instead of in their queue.
-
 use super::*;
 
 #[test]
 fn commands_wait_for_a_slow_live_peer() {
+    let _network = isolated_network_scenario();
     let mut peer = Peer::new_with_worker("peer_commands::slow_reply_peer_process");
     assert_eq!(
         peer.ask(json!({"action":"slow_reply"})),
@@ -16,6 +12,7 @@ fn commands_wait_for_a_slow_live_peer() {
 
 #[test]
 fn dm_wait_rejects_a_reply_after_its_deadline() {
+    let _network = isolated_network_scenario();
     let mut peer = Peer::new_with_worker("peer_commands::slow_reply_peer_process");
     let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         peer.wait_dm_text("late-reply", "Late text")
@@ -23,7 +20,7 @@ fn dm_wait_rejects_a_reply_after_its_deadline() {
     .expect_err("a reply after the 30-second DM deadline must fail");
     let message = failure.downcast_ref::<String>().unwrap();
     assert!(
-        message.contains("peer action \"dm_poll\" failed: timed out waiting on channel"),
+        message.contains("action \"dm_poll\" failed: timed out waiting on channel"),
         "{message}"
     );
 }

@@ -29,10 +29,10 @@ use serde_json::{json, Value};
 const OUTPUT_PREFIX: &str = "MOSH_TEST_JSON ";
 
 /// How long a phase or an error may take to show up. The peers are separate
-/// processes on a runner that runs several suites at once, and a transition that
-/// takes milliseconds on an idle machine has been seen to take tens of seconds
-/// there, so the budget sits far above the healthy value; a real stall still
-/// fails the run, and with the budget in the message.
+/// processes whose stores sync every commit to disk, and a transition that
+/// takes milliseconds on an idle machine took tens of seconds on a runner
+/// whose disk stalled (MOSH-103), so the budget sits far above the healthy
+/// value; a real stall still fails the run, and with the budget in the message.
 pub(super) const OBSERVATION_BUDGET: Duration = Duration::from_secs(90);
 
 pub use scenario::isolated_network_scenario;
@@ -154,8 +154,11 @@ impl Peer {
                 std::thread::sleep(Duration::from_millis(10));
             };
             panic!(
-                "peer action {} failed: {error}; budget: {:?}; process status: {:?}",
-                command["action"], budget, status
+                "peer {} action {} failed: {error}; budget: {:?}; process status: {:?}",
+                self.child.id(),
+                command["action"],
+                budget,
+                status
             )
         });
         assert!(Instant::now() < deadline, "peer command deadline expired");
@@ -291,7 +294,7 @@ fn dm_runtime(
     dm
 }
 
-/// One installation's runtimes, as its worker process answers commands from.
+/// The runtimes of one installation, which its worker process answers commands with.
 struct Installation {
     runtime: Arc<Mutex<DeviceLinkRuntime>>,
     node: Arc<mosh_core::moss_ffi::MossNode>,

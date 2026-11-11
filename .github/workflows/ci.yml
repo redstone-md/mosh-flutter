@@ -139,7 +139,8 @@ jobs:
           export MOSH_MEDIA_ENGINE="$PWD/.dart_tool/native-media/debug/$engine"
           export MOSH_CAMERA_CAPTURE="$PWD/mosh-core/target/debug/$helper"
           cargo test --manifest-path mosh-core/Cargo.toml --lib --features native-media-tests native_call:: -- --include-ignored --nocapture
-          node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture
+          # One call scenario at a time: each runs real encoders and a camera helper.
+          node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture --test-threads=1
       - name: Voice over real Moss
         if: runner.os == 'Linux'
         run: node scripts/webrtc-voice-check.mjs .dart_tool/native-media/debug/libmosh_native_media.so

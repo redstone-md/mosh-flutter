@@ -81,16 +81,20 @@ where they take turns. A scenario must not rely on another one's peers or on
 running alone.
 
 Their time is the product's protocol timers, not the harness's budgets: 25
-seconds until a silent contact is offline, 5 and 10 seconds before recovery
-probes and changes its source, 2 seconds between a linking device's steps.
-The 30 to 90 second budgets are ceilings that only a failure spends. A
-scenario that waits through a timer twice is cheaper as two scenarios.
+seconds until a silent contact is offline, 15 until a link reports its lost
+connection or a call gives up its setup, 5 and 10 before recovery probes and
+changes its source, 2 between a linking device's steps. A scenario that polls
+through one of them keeps the product's own value: that is the contract it
+checks. The 30 to 90 second budgets are ceilings that only a failure spends.
+A scenario that waits through a timer twice is cheaper as two scenarios.
 
 Read the log before raising a budget:
 
 - `scenario <test> took <seconds>` is each scenario's own time.
-- `peer <pid>: <step> has been running for` and `took` name a command or a
-  service tick of an installation that lasted seconds.
+- `peer <pid>: <step> has been running for` and `took` name a command of an
+  installation that lasted seconds, lock waits included, and for a peer on
+  the runtimes directly also its service ticks. A timeout names its peer's
+  pid.
 - `host:` lines say that the machine stalled: a synced write or a sleep took
   far longer than it should.
 
