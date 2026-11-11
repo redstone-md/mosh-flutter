@@ -6,8 +6,8 @@ preview; media is sent only after the caller confirms the answering installation
 An incoming call starts with camera off. Camera and microphone choices are
 independent, and permission refusal preserves reception and other capabilities.
 
-On desktop the call shows in the main window and its video in two Rust-fed
-textures ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md), see
+On desktop and Android the call shows in the main window and its video in two
+Rust-fed textures ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md), see
 [Main-window textures](#main-window-textures)). The expanded call view has
 microphone, camera and end controls and selectors for microphone, speaker and
 camera, using `MoshSelect`.

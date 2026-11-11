@@ -237,11 +237,12 @@ fn native_camera_frames_cross_moss_and_camera_off_preserves_the_call() {
     loop {
         let view =
             receiver.ask(json!({"action":"call_native_snapshot","argument":session,"call_id":id}));
-        if view["remote_video"]["width"] == 0 && std::time::Instant::now() >= settled {
+        let gone = view["remote_video"]["width"] == 0;
+        if gone && std::time::Instant::now() >= settled {
             break;
         }
         assert!(
-            std::time::Instant::now() < until,
+            gone || std::time::Instant::now() < until,
             "video still shown: {view}"
         );
         // test-policy: wait MOSH-102 -- polls the snapshot of a peer in another process; no event crosses that boundary

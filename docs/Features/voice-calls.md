@@ -203,6 +203,7 @@ by the retained tests named here.
 | `integration_test/native_call_test.dart` and `integration_test/call_video_window_test.dart` | a real call and synthetic frames through the window process | `integration_test/native_call_main_window_test.dart` for the call itself |
 | `test/support/call_window_platform.dart` and `test/support/call_window_process.dart` | fakes for the tests above | none needed |
 | `windows/runner/tests/window_icon_test.cpp`: the `MOSH_CALL_WINDOW=1` run in `.github/workflows/build-windows.yml` | the call child's own Win32 window class | the same test, which still checks the runner class app_links looks for |
+| `scripts/macos-package.test.mjs`: "packaging signs the call window to inherit the sandbox before sealing the app" | signing of the `mosh-call-window` copy | none: the copy is no longer built |
 
 ## Tests removed with the frame poll (MOSH-102)
 
@@ -216,7 +217,8 @@ over the bridge or decodes them, and the tests of that code went with it.
 | `test/features/voice_call/native_call_session_test.dart`: "late pixels after canonical selection are discarded" and "polling delivers fresh pixels once and survives a read error" | the frame poll's fences and retry | the same file: "a late snapshot after canonical selection is discarded" and "snapshot polling survives a read error", for the snapshot read that remains |
 | `benchmark/call_video_decode.dart` and the bridge rows of `mosh-core/src/native_call/benchmark.rs` | what the bridge encode and the Dart decode of a frame cost | the texture row of the same benchmark |
 | `test/support/call_video_frames.dart` | frames for the tests above | none needed |
-| `scripts/macos-package.test.mjs`: "packaging signs the call window to inherit the sandbox before sealing the app" | signing of the `mosh-call-window` copy | none: the copy is no longer built |
+| `test/features/voice_call/call_video_stage_test.dart`: the timed expiry of a decoded remote frame and the check that both `RawImage`s show the newest image | the renderer's five-second lifetime and its image swap | `mosh-core/src/native_call/texture.rs`: "a picture frozen for five seconds is reported gone until its next frame"; the stage tests now set what each lane shows directly |
+| `mosh-core/tests/link_support/call_controls_test.rs`, in "native camera frames cross moss and camera off preserves the call": the `rgba_bytes` length and the polled frame turning null after camera off | the polled frame's byte length and its one-second age limit | the same test: the frame's size, and the snapshot reporting no remote video once the camera signal arrives. A texture is handed a pointer, so no length is left to observe |
 
 ## Verification on Linux, 2026-10-06
 

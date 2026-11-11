@@ -97,15 +97,15 @@ class CallVideoStage extends StatelessWidget {
         remote: surface(stage));
   }
 
-  Widget _preview(TextureVideo image, String label) => Align(
+  Widget _preview(TextureVideo picture, String label) => Align(
         alignment: Alignment.bottomRight,
         child: Padding(
             padding: _previewPadding,
             child: FractionallySizedBox(
                 widthFactor: _previewShare,
                 child: AspectRatio(
-                    aspectRatio: image.aspectRatio,
-                    child: _picture(image, label, mirrored: true)))),
+                    aspectRatio: picture.aspectRatio,
+                    child: _picture(picture, label, mirrored: true)))),
       );
 
   Widget _picture(TextureVideo picture, String label,

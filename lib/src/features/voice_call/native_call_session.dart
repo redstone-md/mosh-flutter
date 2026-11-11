@@ -186,6 +186,7 @@ class NativeCallSession {
     _closed = true;
     _timer?.cancel();
     _timer = null;
-    // Rust releases media when the authenticated call ends; a renderer does not.
+    // Rust releases media when the authenticated call ends, not when its
+    // view does.
   }
 }
