@@ -9,16 +9,12 @@ class _PlayingStage extends StatefulWidget {
     required this.descriptor,
     required this.src,
     required this.createPlayer,
-    required this.video,
     required this.builder,
   });
 
   final AttachmentDescriptor descriptor;
   final String src;
   final MediaPlayerFactory createPlayer;
-
-  /// Whether the attachment is watched rather than only heard.
-  final bool video;
 
   /// What the stage shows of its player. Called once.
   final Widget Function(Player player) builder;
@@ -37,7 +33,7 @@ class _PlayingStageState extends State<_PlayingStage> {
   void initState() {
     super.initState();
     try {
-      final player = _player = widget.createPlayer(video: widget.video);
+      final player = _player = widget.createPlayer();
       _playing = widget.builder(player);
       unawaited(_open(player));
     } catch (_) {
@@ -92,8 +88,9 @@ Widget _videoPicture(Player player) => ClipRRect(
 
 /// A video in the system's player: its picture, which a tap pauses, over
 /// the viewer's own controls, as video_player draws none. A spinner shows
-/// while the video opens or waits for its stream. The display stays awake
-/// while the video is open, as media_kit's picture keeps it.
+/// while the video opens or waits for its stream. As media_kit's picture
+/// does, it keeps the display awake while it is open and pauses the video
+/// when the app goes to the background.
 class _SystemVideo extends StatefulWidget {
   const _SystemVideo({required this.player, required this.system});
 
@@ -105,14 +102,18 @@ class _SystemVideo extends StatefulWidget {
 }
 
 class _SystemVideoState extends State<_SystemVideo> {
+  late final AppLifecycleListener _background;
+
   @override
   void initState() {
     super.initState();
     unawaited(WakelockPlus.enable());
+    _background = AppLifecycleListener(onPause: widget.player.pause);
   }
 
   @override
   void dispose() {
+    _background.dispose();
     unawaited(WakelockPlus.disable());
     super.dispose();
   }

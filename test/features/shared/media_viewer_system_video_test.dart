@@ -42,8 +42,7 @@ void main() {
               totalSize: BigInt.from(1024)),
           src: 'http://127.0.0.1:4100/dm/peer/clip',
           onClose: () {},
-          createPlayer: ({video = false}) =>
-              Player(platformPlayer: SystemPlayer(video: video))));
+          createPlayer: () => Player(platformPlayer: SystemPlayer())));
 
   Future<void> close(WidgetTester tester) =>
       pumpScreen(tester, const SizedBox());
@@ -76,6 +75,31 @@ void main() {
 
     // The media is 4.2 seconds long; the slider's middle is 2.1 seconds in.
     expect(system.calls, ['play', 'pause', 'play', 'seek 2100']);
+    await close(tester);
+  });
+
+  testWidgets('the video pauses in the background and stays paused',
+      (tester) async {
+    Future<void> pass(List<AppLifecycleState> states) async {
+      states.forEach(tester.binding.handleAppLifecycleStateChanged);
+      await tester.pump();
+    }
+
+    await open(tester);
+
+    await pass(const [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+    ]);
+    expect(system.calls, ['play', 'pause']);
+
+    await pass(const [
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ]);
+    expect(system.calls, ['play', 'pause']);
     await close(tester);
   });
 

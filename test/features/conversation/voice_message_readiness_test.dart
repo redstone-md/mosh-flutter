@@ -64,7 +64,7 @@ Future<void> _pumpVoice(WidgetTester tester, Player player,
                 onDownload: (_) {},
                 playLabel: 'Play',
                 pauseLabel: 'Pause',
-                createPlayer: ({video = false}) => player)));
+                createPlayer: () => player)));
 
 void main() {
   testWidgets(

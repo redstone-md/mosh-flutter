@@ -9,14 +9,10 @@ import 'attachment_media_src.dart' show localFileSrc;
 
 /// media_kit's player over the system's own: media3 on Android, reached
 /// through video_player (ADR 0053). It plays what the app plays, one local
-/// file or loopback stream at a time.
+/// file or loopback stream at a time, and like libmpv's player it plays on
+/// while the app is in the background.
 class SystemPlayer extends PlatformPlayer {
-  SystemPlayer({this.video = false})
-      : super(configuration: const PlayerConfiguration());
-
-  /// Whether the media is watched. A video pauses while the app is in the
-  /// background; sound plays on.
-  final bool video;
+  SystemPlayer() : super(configuration: const PlayerConfiguration());
 
   /// The open media, which a `VideoPlayer` shows; null while none is open.
   final opened = ValueNotifier<VideoPlayerController?>(null);
@@ -62,7 +58,7 @@ class SystemPlayer extends PlatformPlayer {
       };
 
   VideoPlayerController _controller(Uri source) {
-    final options = VideoPlayerOptions(allowBackgroundPlayback: !video);
+    final options = VideoPlayerOptions(allowBackgroundPlayback: true);
     return source.isScheme('file')
         ? VideoPlayerController.file(File(source.toFilePath()),
             videoPlayerOptions: options)

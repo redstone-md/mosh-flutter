@@ -203,14 +203,12 @@ class _MediaStage extends StatelessWidget {
               descriptor: descriptor,
               src: src,
               createPlayer: createPlayer,
-              video: true,
               builder: _videoPicture,
             ),
           AttachmentMediaKind.audio => _PlayingStage(
               descriptor: descriptor,
               src: src,
               createPlayer: createPlayer,
-              video: false,
               builder: (player) =>
                   _AudioCard(fileName: descriptor.fileName, player: player),
             ),

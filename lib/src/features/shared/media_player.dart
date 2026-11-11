@@ -8,9 +8,8 @@ import 'system_player.dart';
 /// on Android (ADR 0053).
 final bool playsThroughSystem = Platform.isAndroid;
 
-/// Makes a player for one attachment or recording; [video] when it is
-/// watched rather than only heard.
-typedef MediaPlayerFactory = Player Function({bool video});
+/// Makes a player for one attachment or recording.
+typedef MediaPlayerFactory = Player Function();
 
 /// Readies playback once, before the first player is made.
 void initializeMediaPlayback() {
@@ -18,6 +17,5 @@ void initializeMediaPlayback() {
 }
 
 /// The platform's player. Throws where libmpv is missing, as in tests.
-Player createMediaPlayer({bool video = false}) => playsThroughSystem
-    ? Player(platformPlayer: SystemPlayer(video: video))
-    : Player();
+Player createMediaPlayer() =>
+    playsThroughSystem ? Player(platformPlayer: SystemPlayer()) : Player();
