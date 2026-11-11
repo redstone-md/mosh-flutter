@@ -3,7 +3,7 @@
 
 #include <flutter/encodable_value.h>
 #include <flutter/method_channel.h>
-#include <flutter/plugin_registrar_windows.h>
+#include <flutter_texture_registrar.h>
 #include <memory>
 
 // Answers `textures` on "mosh/call-video" with the Flutter id and the export
@@ -12,14 +12,15 @@
 // destroying this object, ahead of the engine, only stops their display.
 class CallVideo {
  public:
-  explicit CallVideo(flutter::PluginRegistrarWindows* registrar);
+  CallVideo(flutter::BinaryMessenger* messenger,
+            FlutterDesktopTextureRegistrarRef textures);
   ~CallVideo();
 
   struct Lane;
 
  private:
   flutter::EncodableValue Textures();
-  flutter::TextureRegistrar* registrar_;
+  FlutterDesktopTextureRegistrarRef textures_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel_;
   Lane* local_ = nullptr;
   Lane* remote_ = nullptr;

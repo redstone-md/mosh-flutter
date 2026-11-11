@@ -45,14 +45,16 @@ jobs:
         run: node scripts/native-media-build.mjs
       - name: Build the peer and the camera test driver
         run: cargo build --manifest-path mosh-core/Cargo.toml --features native-media-tests --lib --bin mosh-camera-test-driver --test device_link_flow
+      # A sandboxed app can neither start the peer nor the camera driver from
+      # the checkout.
+      - name: Build the macOS app without the sandbox
+        if: runner.os == 'macOS'
+        run: /usr/libexec/PlistBuddy -c 'Set :com.apple.security.app-sandbox false' macos/Runner/DebugProfile.entitlements
       # The runners have no camera and no microphone: the driver stands in
       # for the camera and the scenario leaves the mute step out.
       - name: Video call through the main window's textures
         shell: bash
         env:
-          # An unsigned debug app has no sandbox, so it loads the engine and
-          # starts the peer from the checkout.
-          FLUTTER_XCODE_CODE_SIGNING_ALLOWED: 'NO'
           MOSH_CALL_UI_NO_MICROPHONE: '1'
         run: |
           case "$RUNNER_OS" in
@@ -62,3 +64,9 @@ jobs:
           export MOSH_MEDIA_ENGINE="$PWD/.dart_tool/native-media/debug/$engine"
           export MOSH_CAMERA_CAPTURE="$PWD/mosh-core/target/debug/$helper"
           node scripts/moss-test.mjs --native-call-ui
+      - name: macOS crash reports
+        if: failure() && runner.os == 'macOS'
+        run: |
+          for report in ~/Library/Logs/DiagnosticReports/mosh*; do
+            [ -e "$report" ] && head -c 20000 "$report"
+          done

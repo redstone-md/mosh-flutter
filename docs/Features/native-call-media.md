@@ -427,8 +427,9 @@ a live microphone and so needs an audio input; `MOSH_CALL_UI_NO_MICROPHONE`
 leaves that step out on a host without one. It needs a desktop display and the
 same native artifact/driver environment. The `Native call UI` workflow runs it
 on the Windows and macOS runners, by hand or when a texture plugin or the
-scenario changes; the macOS app is built unsigned there, since the sandbox of a
-signed debug build cannot load the engine from the checkout.
+scenario changes; the macOS app is built without the sandbox there, since a
+sandboxed app can start neither the peer nor the camera driver from the
+checkout.
 `integration_test/native_call_test.dart` drives the call window process and
 goes with it in MOSH-101. The physical-device acceptance
 and current evidence are recorded in

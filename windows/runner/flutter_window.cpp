@@ -2,7 +2,7 @@
 
 #include <optional>
 
-#include <flutter/plugin_registrar_windows.h>
+#include <flutter_plugin_registrar.h>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -32,10 +32,10 @@ bool FlutterWindow::OnCreate() {
       GetHandle(), flutter_controller_->view()->GetNativeWindow(),
       flutter_controller_->engine()->messenger());
   call_video_ = std::make_unique<CallVideo>(
-      flutter::PluginRegistrarManager::GetInstance()
-          ->GetRegistrar<flutter::PluginRegistrarWindows>(
-              flutter_controller_->engine()->GetRegistrarForPlugin(
-                  "MoshCallVideo")));
+      flutter_controller_->engine()->messenger(),
+      FlutterDesktopRegistrarGetTextureRegistrar(
+          flutter_controller_->engine()->GetRegistrarForPlugin(
+              "MoshCallVideo")));
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
