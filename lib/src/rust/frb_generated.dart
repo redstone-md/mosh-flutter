@@ -120,7 +120,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 930864700;
+  int get rustContentHash => 58902929;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -453,6 +453,9 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiNativeCallShowVideoAt(
       {required Surface local, required Surface remote});
+
+  Future<void> crateApiNativeCallShowVideoIn(
+      {required PlatformInt64 local, required PlatformInt64 remote});
 
   Future<DeviceLinkSnapshot> crateApiDeviceLinkSnapshot();
 
@@ -3356,12 +3359,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiNativeCallShowVideoIn(
+      {required PlatformInt64 local, required PlatformInt64 remote}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_i_64(local, serializer);
+        sse_encode_i_64(remote, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 108, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiNativeCallShowVideoInConstMeta,
+      argValues: [local, remote],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiNativeCallShowVideoInConstMeta =>
+      const TaskConstMeta(
+        debugName: "show_video_in",
+        argNames: ["local", "remote"],
+      );
+
+  @override
   Future<DeviceLinkSnapshot> crateApiDeviceLinkSnapshot() {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 108, port: port_);
+            funcId: 109, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_device_link_snapshot,
@@ -3387,7 +3417,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(sessionId, serializer);
         sse_encode_String(callId, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 109, port: port_);
+            funcId: 110, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_opt_box_autoadd_snapshot,
@@ -3410,7 +3440,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 110, port: port_);
+            funcId: 111, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_plus_snapshot,
@@ -3436,7 +3466,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(dsn, serializer);
         sse_encode_StreamSink_String_Sse(sink, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 111, port: port_);
+            funcId: 112, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -3461,7 +3491,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 112, port: port_);
+            funcId: 113, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -3495,7 +3525,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_u_64(start, serializer);
         sse_encode_u_64(end, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 113, port: port_);
+            funcId: 114, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_attachment_stream_range,
@@ -3521,7 +3551,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_bridge_conversation_ref(reference, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 114, port: port_);
+            funcId: 115, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -3547,7 +3577,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_opt_String(outputDeviceId, serializer);
         sse_encode_voice_call_ringtone_kind(kind, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 115)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 116)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -3574,7 +3604,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
             ringtone, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 116)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 117)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -3600,7 +3630,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_StreamSink_u_64_Sse(sink, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 117, port: port_);
+            funcId: 118, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -4773,6 +4803,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeI64(raw);
+  }
+
+  @protected
   InviteCreated dco_decode_invite_created(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -5809,8 +5845,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Snapshot dco_decode_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 25)
-      throw Exception('unexpected arr length: expect 25 but see ${arr.length}');
+    if (arr.length != 27)
+      throw Exception('unexpected arr length: expect 27 but see ${arr.length}');
     return Snapshot(
       sessionId: dco_decode_String(arr[0]),
       callId: dco_decode_String(arr[1]),
@@ -5837,6 +5873,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       input: dco_decode_opt_String(arr[22]),
       output: dco_decode_opt_String(arr[23]),
       cameraId: dco_decode_opt_String(arr[24]),
+      localVideo: dco_decode_surface(arr[25]),
+      remoteVideo: dco_decode_surface(arr[26]),
     );
   }
 
@@ -7268,6 +7306,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getPlatformInt64();
   }
 
   @protected
@@ -8787,6 +8831,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_input = sse_decode_opt_String(deserializer);
     var var_output = sse_decode_opt_String(deserializer);
     var var_cameraId = sse_decode_opt_String(deserializer);
+    var var_localVideo = sse_decode_surface(deserializer);
+    var var_remoteVideo = sse_decode_surface(deserializer);
     return Snapshot(
         sessionId: var_sessionId,
         callId: var_callId,
@@ -8812,7 +8858,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         cameras: var_cameras,
         input: var_input,
         output: var_output,
-        cameraId: var_cameraId);
+        cameraId: var_cameraId,
+        localVideo: var_localVideo,
+        remoteVideo: var_remoteVideo);
   }
 
   @protected
@@ -10026,6 +10074,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putPlatformInt64(self);
+  }
+
+  @protected
   void sse_encode_invite_created(InviteCreated self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.inviteUri, serializer);
@@ -11212,6 +11266,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.input, serializer);
     sse_encode_opt_String(self.output, serializer);
     sse_encode_opt_String(self.cameraId, serializer);
+    sse_encode_surface(self.localVideo, serializer);
+    sse_encode_surface(self.remoteVideo, serializer);
   }
 
   @protected

@@ -104,6 +104,10 @@ class Snapshot {
   final String? output;
   final String? cameraId;
 
+  /// The size of the frame each lane shows; zero without one.
+  final Surface localVideo;
+  final Surface remoteVideo;
+
   const Snapshot({
     required this.sessionId,
     required this.callId,
@@ -130,6 +134,8 @@ class Snapshot {
     this.input,
     this.output,
     this.cameraId,
+    required this.localVideo,
+    required this.remoteVideo,
   });
 
   @override
@@ -158,7 +164,9 @@ class Snapshot {
       cameras.hashCode ^
       input.hashCode ^
       output.hashCode ^
-      cameraId.hashCode;
+      cameraId.hashCode ^
+      localVideo.hashCode ^
+      remoteVideo.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -189,7 +197,9 @@ class Snapshot {
           cameras == other.cameras &&
           input == other.input &&
           output == other.output &&
-          cameraId == other.cameraId;
+          cameraId == other.cameraId &&
+          localVideo == other.localVideo &&
+          remoteVideo == other.remoteVideo;
 }
 
 /// The device pixels one video surface of the call window shows. Zero until

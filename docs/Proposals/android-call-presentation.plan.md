@@ -58,8 +58,8 @@ and still rejects media failure. The focused real-engine/Moss scenario passes.
 - `lib/src/features/voice_call/call_video_stage.dart`
 - `lib/src/features/voice_call/call_view.dart`
 - `lib/src/features/voice_call/floating_call_view.dart`
-- `lib/src/features/voice_call/mobile_call_frame.dart`
-- `lib/src/features/voice_call/mobile_call_host.dart`
+- `lib/src/features/voice_call/main_window_call_frame.dart`
+- `lib/src/features/voice_call/main_window_call_host.dart`
 - `lib/src/features/voice_call/voice_call_host.dart`
 - `lib/src/features/voice_call/voice_call_layer.dart`
 - `lib/src/state/production_provider_overrides.dart`

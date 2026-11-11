@@ -73,7 +73,7 @@ void main() {
     await tester.runAsync(() => renderer.receive(testCallVideoFrame(1)));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
-    final original = renderer.value.remote!;
+    final original = (renderer.value.remote! as DecodedVideo).image;
     final painted =
         tester.renderObject<RenderImage>(find.byType(RawImage)).image!;
     expect(painted, isNot(same(original)));
@@ -134,10 +134,10 @@ void main() {
             child: SizedBox(
                 width: 500,
                 child: CallVideoStage(images: images, peer: 'Alice'))));
-    images.value = CallVideoImages(remote: first);
+    images.value = CallVideoImages(remote: DecodedVideo(first!));
     await tester.pump();
     final stage = tester.element(find.byType(RawImage));
-    images.value = CallVideoImages(remote: second);
+    images.value = CallVideoImages(remote: DecodedVideo(second!));
     await tester.pump();
     expect(tester.element(find.byType(RawImage)), same(stage));
     expect(
@@ -157,7 +157,8 @@ void main() {
         .runAsync(() => CallVideoRenderer.decodeRgba(testCallVideoFrame(1))))!;
     final next = (await tester
         .runAsync(() => CallVideoRenderer.decodeRgba(testCallVideoFrame(2))))!;
-    final images = ValueNotifier(CallVideoImages(local: image, remote: image));
+    final images = ValueNotifier(CallVideoImages(
+        local: DecodedVideo(image), remote: DecodedVideo(image)));
     addTearDown(() {
       images.dispose();
       image.dispose();
@@ -181,7 +182,8 @@ void main() {
         settle: false);
     await show([640]);
     await tester.pump();
-    images.value = CallVideoImages(local: next, remote: next);
+    images.value =
+        CallVideoImages(local: DecodedVideo(next), remote: DecodedVideo(next));
     await tester.pump();
     expect(find.byWidgetPredicate((w) => w is RawImage && w.image == next),
         findsNWidgets(2));
@@ -193,7 +195,7 @@ void main() {
     await show([160]);
     await tester.pump();
     expect(reported.last, _surfaces((72, 148), (320, 180)));
-    images.value = CallVideoImages(local: image);
+    images.value = CallVideoImages(local: DecodedVideo(image));
     await show([160]);
     await tester.pump();
     await tester.pump();

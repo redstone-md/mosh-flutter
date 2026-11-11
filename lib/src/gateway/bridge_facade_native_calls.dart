@@ -49,4 +49,9 @@ mixin NativeCallBridge {
           {required native_media.Surface local,
           required native_media.Surface remote}) =>
       native_call_api.showVideoAt(local: local, remote: remote);
+
+  /// The main window's video textures by export address; zero for none.
+  Future<void> nativeCallShowVideoIn(
+          {required int local, required int remote}) =>
+      native_call_api.showVideoIn(local: local, remote: remote);
 }

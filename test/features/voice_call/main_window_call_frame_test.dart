@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/voice_call/mobile_call_frame.dart';
+import 'package:mosh/src/features/voice_call/main_window_call_frame.dart';
 import '../../support/pump.dart';
 
 void main() {
@@ -15,7 +15,7 @@ void main() {
       await pumpScreen(
           tester,
           const Scaffold(
-              body: MobileCallFrame(
+              body: MainWindowCallFrame(
                   expanded: false,
                   video: true,
                   child: ColoredBox(key: video, color: Colors.black))));

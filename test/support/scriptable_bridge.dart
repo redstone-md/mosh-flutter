@@ -91,6 +91,7 @@ enum BridgeMethod {
   nativeCallSnapshot,
   nativeCallFrame,
   nativeCallShowVideoAt,
+  nativeCallShowVideoIn,
   callAccept,
   callDecline,
   callEnd,

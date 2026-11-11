@@ -50,7 +50,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 930864700;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 58902929;
 
 // Section: executor
 
@@ -3830,6 +3830,40 @@ fn wire__crate__api__native_call__show_video_at_impl(
         },
     )
 }
+fn wire__crate__api__native_call__show_video_in_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "show_video_in",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_local = <i64>::sse_decode(&mut deserializer);
+            let api_remote = <i64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::native_call::show_video_in(api_local, api_remote)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__device_link__snapshot_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -5435,6 +5469,13 @@ impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_i32::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for i64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_i64::<NativeEndian>().unwrap()
     }
 }
 
@@ -7124,6 +7165,8 @@ impl SseDecode for crate::native_call::types::Snapshot {
         let mut var_input = <Option<String>>::sse_decode(deserializer);
         let mut var_output = <Option<String>>::sse_decode(deserializer);
         let mut var_cameraId = <Option<String>>::sse_decode(deserializer);
+        let mut var_localVideo = <crate::native_call::types::Surface>::sse_decode(deserializer);
+        let mut var_remoteVideo = <crate::native_call::types::Surface>::sse_decode(deserializer);
         return crate::native_call::types::Snapshot {
             session_id: var_sessionId,
             call_id: var_callId,
@@ -7150,6 +7193,8 @@ impl SseDecode for crate::native_call::types::Snapshot {
             input: var_input,
             output: var_output,
             camera_id: var_cameraId,
+            local_video: var_localVideo,
+            remote_video: var_remoteVideo,
         };
     }
 }
@@ -7642,31 +7687,32 @@ fn pde_ffi_dispatcher_primary_impl(
             wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len)
         }
         107 => wire__crate__api__native_call__show_video_at_impl(port, ptr, rust_vec_len, data_len),
-        108 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        109 => wire__crate__api__native_call__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        110 => wire__crate__api__plus__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        111 => wire__crate__api__diagnostics__start_panic_reporting_impl(
+        108 => wire__crate__api__native_call__show_video_in_impl(port, ptr, rust_vec_len, data_len),
+        109 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        110 => wire__crate__api__native_call__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        111 => wire__crate__api__plus__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        112 => wire__crate__api__diagnostics__start_panic_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        112 => wire__crate__api__diagnostics__stop_panic_reporting_impl(
+        113 => wire__crate__api__diagnostics__stop_panic_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        113 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
+        114 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        114 => {
+        115 => {
             wire__crate__api__conversation__typing_signal_impl(port, ptr, rust_vec_len, data_len)
         }
-        117 => wire__crate__api__background__watch_background_changes_impl(
+        118 => wire__crate__api__background__watch_background_changes_impl(
             port,
             ptr,
             rust_vec_len,
@@ -7699,12 +7745,12 @@ fn pde_ffi_dispatcher_sync_impl(
         62 => wire__crate__api__conversation__max_text_chars_impl(ptr, rust_vec_len, data_len),
         98 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
         101 => wire__crate__api__native_call__set_default_camera_impl(ptr, rust_vec_len, data_len),
-        115 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
+        116 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        116 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
+        117 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
@@ -10185,6 +10231,8 @@ impl flutter_rust_bridge::IntoDart for crate::native_call::types::Snapshot {
             self.input.into_into_dart().into_dart(),
             self.output.into_into_dart().into_dart(),
             self.camera_id.into_into_dart().into_dart(),
+            self.local_video.into_into_dart().into_dart(),
+            self.remote_video.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -11498,6 +11546,13 @@ impl SseEncode for i32 {
     }
 }
 
+impl SseEncode for i64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_i64::<NativeEndian>(self).unwrap();
+    }
+}
+
 impl SseEncode for crate::private_dm_runtime::contracts::InviteCreated {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -12747,6 +12802,8 @@ impl SseEncode for crate::native_call::types::Snapshot {
         <Option<String>>::sse_encode(self.input, serializer);
         <Option<String>>::sse_encode(self.output, serializer);
         <Option<String>>::sse_encode(self.camera_id, serializer);
+        <crate::native_call::types::Surface>::sse_encode(self.local_video, serializer);
+        <crate::native_call::types::Surface>::sse_encode(self.remote_video, serializer);
     }
 }
 

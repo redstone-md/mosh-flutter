@@ -71,3 +71,11 @@ Future<Frame?> frame(
 Future<void> showVideoAt({required Surface local, required Surface remote}) =>
     RustLib.instance.api
         .crateApiNativeCallShowVideoAt(local: local, remote: remote);
+
+/// The main window's video textures, as the addresses its platform plugin
+/// handed out, or zero for none. Rust writes the frames of every call
+/// straight into them, and `frame` returns none for such a lane.
+Future<void> showVideoIn(
+        {required PlatformInt64 local, required PlatformInt64 remote}) =>
+    RustLib.instance.api
+        .crateApiNativeCallShowVideoIn(local: local, remote: remote);

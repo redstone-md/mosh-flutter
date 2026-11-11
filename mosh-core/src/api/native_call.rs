@@ -1,6 +1,6 @@
 //! Desktop call controls and presentation; no media keys cross this bridge.
 pub use crate::native_call::types::{Device, Frame, Snapshot, Surface};
-use crate::native_call::{types::Choices, Hub};
+use crate::native_call::{types::Choices, Hub, Texture};
 use flutter_rust_bridge::frb;
 use std::sync::{Arc, OnceLock};
 
@@ -94,6 +94,15 @@ pub fn frame(
 /// leave at most at these sizes; the encoder still takes the full camera.
 pub fn show_video_at(local: Surface, remote: Surface) -> Result<(), String> {
     hub()?.show_at(local, remote)
+}
+
+/// The main window's video textures, as the addresses its platform plugin
+/// handed out, or zero for none. Rust writes the frames of every call
+/// straight into them, and `frame` returns none for such a lane.
+pub fn show_video_in(local: i64, remote: i64) -> Result<(), String> {
+    // SAFETY: the plugin keeps what it hands out for the process's life.
+    let textures = unsafe { (Texture::at(local), Texture::at(remote)) };
+    hub()?.show_in(textures.0, textures.1)
 }
 
 fn hub() -> Result<&'static Arc<Hub>, String> {

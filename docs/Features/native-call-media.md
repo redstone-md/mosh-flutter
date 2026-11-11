@@ -6,7 +6,11 @@ preview; media is sent only after the caller confirms the answering installation
 An incoming call starts with camera off. Camera and microphone choices are
 independent, and permission refusal preserves reception and other capabilities.
 
-The ready desktop call window owns microphone, camera and end controls. The main
+On Linux the call shows in the main window and its video in two Rust-fed
+textures ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md), see
+[Main-window textures](#main-window-textures)). Windows and macOS keep the call
+window until MOSH-94 and MOSH-95: there, the
+ready desktop call window owns microphone, camera and end controls. The main
 strip shows call status and a button to reopen that window. Until the window is
 ready, or after a presentation failure, the strip supplies the call controls.
 The window adds selectors for microphone, speaker and camera, using `MoshSelect`.
@@ -133,8 +137,10 @@ run separately, so they cannot block camera off, decoding or device commands.
 A control does not wait for the owner to apply it: the bridge hands over the
 choices once it holds the call state and returns, and the snapshot shows what
 was asked at once. The outcome, such as a refused microphone, follows in the
-snapshot after the owner's next step. The owner holds the call state for a whole
-step, so a control still waits out a step that is already running.
+snapshot after the owner's next step. The owner steps a working copy of the
+call state: it holds the shared lock only to take what the app asked for and to
+publish the step's outcome, so a control never waits out an engine or Moss call.
+Choices the app makes during a step stay; the next step applies them.
 The native `Owner` is a documented exception to the 200-line type limit so
 capture, negotiation and engine lifetimes stay in one thread-bound state machine.
 
@@ -224,14 +230,40 @@ Frames leave Rust at the size they are shown, not as full camera RGBA. The
 video stage dispatches `CallVideoSurfaces` whenever its layout changes: the
 device pixels of the remote stage and of the preview (a quarter-width inset
 over remote video, else the whole stage). The call window sends them over its
-pipe (`call-video-surfaces`), Android's host takes them directly, and the
-native call owner passes them to `show_video_at`. The engine scales decoded
+pipe (`call-video-surfaces`), a call in the main window collects them in one
+scope (Android's PiP overlay, which also holds the PiP stage, else the call
+host), and the native call owner passes them to `show_video_at`. The engine scales decoded
 I420 down with libyuv before its RGBA conversion (the `surface` command), and
 the local preview goes through the engine's stateless libyuv scaler
 (`mosh_media_scale_rgba`) before the owner takes the call state lock, fitted
 to the surface of the previous step. Both keep the aspect ratio
 and never enlarge; until a surface is reported frames stay whole. The encoder
 still takes the full camera frame.
+
+### Main-window textures
+
+On Linux no pixel passes through flutter_rust_bridge or Dart. The runner
+registers two `FlPixelBufferTexture`s (`linux/runner/call_video_texture.cc`),
+local and remote, on the first request over the `mosh/call-video` channel and
+keeps them for the process. Each exports one function, `present`, which copies
+an RGBA frame and marks the texture's frame available; a frame the raster thread
+has not taken yet is overwritten. Dart passes the two export addresses to Rust
+with `show_video_in` once a call is prepared. From then on the owner writes
+every frame of a lane into its texture at the surface size, `frame` returns
+nothing for that lane, and Dart polls no frames. The snapshot's `local_video`
+and `remote_video` report the size of the frame each lane shows, zero when
+there is none or no newer one followed for five seconds; the stage shows the `Texture` at that
+shape and hides it otherwise. The call view lives in the main window: expanded
+it covers the content below the title bar and can switch the window to full
+screen, minimized it is a strip or, with video, a mini view over the chats. An
+incoming call rings in the mini view.
+
+On the Linux host a 720p frame costs about 0.5 ms of CPU to show: 0.39 ms for
+the engine's I420 to RGBA conversion and 0.12 ms for the copy into the texture
+([call video benchmark](call-video-benchmark.md), 2026-11-11). The bridge and
+call window rows it replaces took 8.2 ms and 10.4 ms in the same run.
+
+The rest of this section describes the frame path of the other platforms.
 
 Each lane retains its latest image, and the renderer has one decode in flight.
 Call/generation checks discard old responses, and image age includes transfer
@@ -374,8 +406,11 @@ must arrive within three seconds, and subsequent frames must stay fresh within
 one second throughout both phases. Capture uses an absolute 15 fps schedule,
 skipping missed slots instead of accumulating delay or sending catch-up bursts.
 
-The last command runs one real Flutter app, an independent public-API peer and
-its child renderer with a local discovery tracker. It needs a desktop display
+The last command runs one real Flutter app and an independent public-API peer
+with a local discovery tracker. On Linux the call shows in the main window
+(`integration_test/native_call_main_window_test.dart`), which also mutes a live
+microphone and so needs an audio input; elsewhere the app starts its child
+renderer (`integration_test/native_call_test.dart`). It needs a desktop display
 and the same native artifact/driver environment. The physical-device acceptance
 and current evidence are recorded in
 [implementation results](../Proposals/issue-46-native-implementation.results.md).

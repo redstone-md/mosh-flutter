@@ -17,7 +17,7 @@ frame of 60 runs after 5 warm-ups and the share of one core at 30 fps, for
 
 | Part | Drives | Cases |
 |------|--------|-------|
-| `mosh-core/src/native_call/benchmark.rs`, a release test behind the `call-video-bench` feature | the engine library and the generated bridge code | RGBA to I420 with the encoder push, I420 to RGBA, the preview's `scale_rgba`, the frame copy `Hub::frame` returns, the flutter_rust_bridge encode of a frame |
+| `mosh-core/src/native_call/benchmark.rs`, a release test behind the `call-video-bench` feature | the engine library and the generated bridge code | RGBA to I420 with the encoder push, I420 to RGBA, the preview's `scale_rgba`, the frame copy `Hub::frame` returns, the flutter_rust_bridge encode of a frame, the copy into a main-window texture |
 | `benchmark/call_frame_transport.dart`, compiled | `CallVideoFrame`, `CallWindowFrameChannel` and `CallWindowInput` in two processes | encode, loopback send, parse and one acknowledgement per frame |
 | `benchmark/call_video_decode.dart`, under `flutter test` | `CallVideoRenderer.decodeRgba` | the `ImageDescriptor.raw` decode |
 
@@ -26,6 +26,10 @@ Limits of the numbers:
 - Two engines negotiate but exchange no packets, so the encoder push converts
   the frame and offers it to a sender with no connection. Codec time is not
   in the table.
+- The texture row is the copy the platform plugin makes when Rust presents a
+  frame, with a stand-in for the plugin. On that path (ADR 0052) it replaces
+  the bridge, socket and decode rows. The raster thread's upload is not
+  measured.
 - The bridge row is the Rust half. Dart's decode of the reply is not measured.
 - The socket row is wall time with both processes working back to back, which
   is the CPU of both ends as long as neither waits on anything else.

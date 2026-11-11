@@ -30,24 +30,27 @@ struct Owner {
     sender: Sender,
 }
 
+/// Steps the call on a working copy of the state, so the shared lock is
+/// held only to take what the app asked for and to publish the outcome. A
+/// control from the app never waits out an engine or Moss call.
 pub(super) fn run(shared: Arc<Mutex<State>>, transport: Arc<dyn DmTransport>) {
     let mut owner = Owner::new(transport.clone());
+    let mut state = State::default();
+    let lock = || shared.lock().unwrap_or_else(|error| error.into_inner());
     loop {
         let prepared = owner.prepare();
         let waiting = Instant::now();
-        let mut state = shared.lock().unwrap_or_else(|error| error.into_inner());
-        let lock_wait = super::diagnostics::Longest(waiting.elapsed());
-        if state.shutdown {
+        let Some(revision) = state.take(&mut lock()) else {
             return;
-        }
+        };
+        let lock_wait = super::diagnostics::Longest(waiting.elapsed());
         let stepping = Instant::now();
         if let Err(_error) = owner.step(&mut state, &*transport, prepared) {
             state.snapshot.failed = true;
         }
-        state.applied = state.revision;
         state.stalls.step.since(stepping);
         state.stalls.lock_wait.include(lock_wait); // A new call's step resets stalls.
-        drop(state);
+        state.publish(&mut lock(), revision);
         std::thread::sleep(Duration::from_millis(10));
     }
 }
@@ -109,6 +112,7 @@ impl Owner {
             connection.pump(transport, &self.sender, state)?;
         }
         state.reflect_choices();
+        state.expire(Instant::now());
         Ok(())
     }
 
@@ -120,10 +124,7 @@ impl Owner {
             .context
             .as_ref()
             .zip(state.context.as_ref())
-            .is_some_and(|(old, new)| {
-                old.session_id == new.session_id
-                    && (old.call_id == new.call_id || new.superseded.as_ref() == Some(&old.call_id))
-            });
+            .is_some_and(|(old, new)| new.continues(old));
         if !merged {
             self.capture = None;
             self.connection = None;
@@ -133,6 +134,7 @@ impl Owner {
             self.sender.reset();
             state.snapshot = Default::default();
             state.frames = Default::default();
+            state.shown = Default::default();
             state.sequences = [0; 2];
             state.outbound.clear();
             state.stalls = Default::default();
@@ -246,7 +248,7 @@ impl Owner {
         self.capture = None;
         self.captured = 0;
         self.generation += 1;
-        state.frames[0] = None;
+        state.clear(true);
         state.snapshot.camera = false;
         disabled
     }
@@ -285,7 +287,7 @@ impl Owner {
                 if nonce == &connection.binding.media_session {
                     state.snapshot.remote_camera = *enabled;
                     if !enabled {
-                        state.frames[1] = None;
+                        state.clear(false);
                     }
                 }
             }
