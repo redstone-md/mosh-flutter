@@ -1,7 +1,8 @@
 # ADR 0044: native call media over Moss
 
 Date: 2026-10-08
-Status: Accepted
+Status: Accepted. The call window this record mentions was replaced by the main
+window in [ADR 0052](0052-desktop-calls-in-the-main-window.md).
 
 2026-10-20: Android ARM64 adopts this same engine/protocol. A pinned WebRTC source
 patch enables the native injectable factory on Android and selects the platform

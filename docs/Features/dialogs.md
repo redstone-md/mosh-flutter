@@ -3,7 +3,7 @@
 Mosh's confirmations, rename forms, sender actions, encryption fingerprints and
 setup restart notice share `MoshDialog` and `showMoshDialog`. VPN consent also
 uses the shared shell and motion while retaining its existing overlay owner.
-Voice-call windows,
+Call views,
 full-screen media and conversation detail sheets keep their own layouts.
 
 The user stays in the current chat while making one decision. The title shares

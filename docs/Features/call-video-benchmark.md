@@ -11,14 +11,13 @@ node scripts/call-video-bench.mjs [--output report.md]
 ```
 
 The command builds the release engine unless `MOSH_MEDIA_ENGINE` names one,
-runs the three parts below and prints one Markdown table: the median ms per
+runs the two parts below and prints one Markdown table: the median ms per
 frame of 60 runs after 5 warm-ups and the share of one core at 30 fps, for
 640x360, 1280x720 and 1920x1080 synthetic frames.
 
 | Part | Drives | Cases |
 |------|--------|-------|
 | `mosh-core/src/native_call/benchmark.rs`, a release test behind the `call-video-bench` feature | the engine library and the generated bridge code | RGBA to I420 with the encoder push, I420 to RGBA, the preview's `scale_rgba`, the frame copy `Hub::frame` returns, the flutter_rust_bridge encode of a frame, the copy into a main-window texture |
-| `benchmark/call_frame_transport.dart`, compiled | `CallVideoFrame`, `CallWindowFrameChannel` and `CallWindowInput` in two processes | encode, loopback send, parse and one acknowledgement per frame |
 | `benchmark/call_video_decode.dart`, under `flutter test` | `CallVideoRenderer.decodeRgba` | the `ImageDescriptor.raw` decode |
 
 Limits of the numbers:
@@ -29,12 +28,10 @@ Limits of the numbers:
 - The texture row is the copy the platform plugin makes when Rust presents a
   frame, with a stand-in for the plugin: a plain copy, and on macOS the
   Accelerate channel swap its plugin copies with. The stand-in writes to
-  ordinary memory, not to the IOSurface the macOS plugin fills. On that path (ADR 0052) it replaces
-  the bridge, socket and decode rows. The raster thread's upload is not
-  measured.
+  ordinary memory, not to the IOSurface the macOS plugin fills. On desktop
+  (ADR 0052) it replaces the bridge and decode rows, which only the mobile
+  frame poll still pays. The raster thread's upload is not measured.
 - The bridge row is the Rust half. Dart's decode of the reply is not measured.
-- The socket row is wall time with both processes working back to back, which
-  is the CPU of both ends as long as neither waits on anything else.
 - flutter_tester is a JIT build with a software rasterizer. The decode row
   bounds the copy and decode work and says nothing about a GPU upload.
 

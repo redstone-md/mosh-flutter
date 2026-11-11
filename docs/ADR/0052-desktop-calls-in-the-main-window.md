@@ -2,8 +2,7 @@
 
 Date: 2026-11-10
 Status: Accepted. Linux, macOS and Windows are implemented (MOSH-93, MOSH-94,
-MOSH-95). No platform starts the call window process any more; its removal is
-pending (MOSH-101).
+MOSH-95) and the call window process is removed (MOSH-101).
 
 ## Context
 
@@ -39,7 +38,8 @@ The call can take the whole main window and switch it to full screen. While the
 user browses chats it shrinks to a mini view.
 
 The separate call-window process, its stdio pipe, the frame channel and the macOS
-`mosh-call-window` copy are deleted once every desktop uses the texture.
+`mosh-call-window` copy are deleted once every desktop uses the texture
+(done in MOSH-101).
 
 A pop-out call window returns only through Flutter's own multi-window API, once it
 is stable and not behind a feature flag (MOSH-98).

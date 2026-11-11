@@ -85,7 +85,7 @@ The host-architecture macOS CI lane runs RunnerTests against the compiled menu.
 - The desktop camera selector reuses the hardware selector and capture helper's
   bounded inventory without starting a call or capturing frames. Only stable
   platform IDs can be saved across restarts; devices with call-scoped IDs remain
-  selectable in the call window. Camera inventory refreshes when its card is
+  selectable in the call view. Camera inventory refreshes when its card is
   reopened. The saved camera applies to new calls. A missing saved device falls
   back to the default when video is first enabled; the saved preference stays visible
   as unavailable in settings. Changing the default leaves an active call alone.
