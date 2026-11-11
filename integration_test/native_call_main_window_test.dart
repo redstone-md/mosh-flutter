@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -7,8 +9,9 @@ import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'support/native_call_scenario.dart';
 
 /// The call in the main window (ADR 0052): one process, video in two textures
-/// Rust feeds. It needs an audio input, as the mute toggle acts on a live
-/// microphone.
+/// Rust feeds. The mute toggle acts on a live microphone; a host without an
+/// audio input, as CI's runners are, sets `MOSH_CALL_UI_NO_MICROPHONE` to
+/// leave that step out.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets(
@@ -17,7 +20,10 @@ void main() {
     final scenario = await NativeCallScenario.start();
     final bridge = scenario.bridge;
     final textures = CallVideoTextures();
-    final owner = NativeCallOwner(bridge, () async => true, textures: textures);
+    final microphone =
+        !Platform.environment.containsKey('MOSH_CALL_UI_NO_MICROPHONE');
+    final owner =
+        NativeCallOwner(bridge, () async => microphone, textures: textures);
     addTearDown(owner.dispose);
     final ui = await scenario.open(tester, owner);
 
@@ -41,13 +47,15 @@ void main() {
     expect(find.byType(Texture), findsNWidgets(2));
     expect(await polled(false), isNull, reason: 'no pixels cross the bridge');
 
-    await ui
-        .eventually(() async => owner.session!.snapshot!.microphone == true);
-    await ui.tap(find.byTooltip('Mute'));
-    await ui.eventually(() async =>
-        owner.session!.snapshot!.microphoneRequested == false &&
-        owner.session!.snapshot!.microphone == false &&
-        find.byTooltip('Unmute').evaluate().isNotEmpty);
+    if (microphone) {
+      await ui
+          .eventually(() async => owner.session!.snapshot!.microphone == true);
+      await ui.tap(find.byTooltip('Mute'));
+      await ui.eventually(() async =>
+          owner.session!.snapshot!.microphoneRequested == false &&
+          owner.session!.snapshot!.microphone == false &&
+          find.byTooltip('Unmute').evaluate().isNotEmpty);
+    }
     expect(textures.value.remote, isNotNull);
 
     await ui.tap(find.byTooltip('Minimize call'));
@@ -69,8 +77,9 @@ void main() {
 
     await ui.tap(find.byTooltip('Hang up'));
     await ui.eventually(scenario.ended);
-    debugPrint('native-call-ui: main-window textures; mute and camera off '
-        'retained the receive-only call');
+    debugPrint('native-call-ui: main-window textures; '
+        '${microphone ? 'mute and ' : ''}camera off retained the '
+        'receive-only call');
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 1));
     // test-policy: timeout MOSH-93 -- a real call over Moss with two engines, as native_call_test.dart

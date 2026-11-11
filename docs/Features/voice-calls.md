@@ -1,9 +1,10 @@
 # Calls
 
-On Linux a call shows in the main window, as on Android: an expanded view that
+On desktop a call shows in the main window, as on Android: an expanded view that
 covers the content and can go full screen, and a mini view while the user
 browses chats ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md)).
-Windows and macOS follow in MOSH-94 and MOSH-95; until then their
+The call window process below is no longer started and leaves the code in
+MOSH-101. With it,
 desktop calls have an independent native window for incoming, outgoing and active
 phases. The main view shows no call strip while that window starts or runs. A
 compact strip below the main view appears only after the window fails, or on

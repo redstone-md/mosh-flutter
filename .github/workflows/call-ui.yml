@@ -1,0 +1,64 @@
+name: Native call UI
+
+# One real Flutter app in a video call with an independent peer over real
+# Moss, on the desktops we own no machine for: the main window shows the call
+# through the runner's texture plugin (ADR 0052). It builds the app, the
+# engine and the peer, which is too slow for every pull request, so it runs
+# by hand and when that presentation's native side or the scenario changes.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/call-ui.yml
+      - integration_test/native_call_main_window_test.dart
+      - integration_test/support/**
+      - lib/src/features/voice_call/call_video_textures.dart
+      - macos/Runner/CallVideoTexture.swift
+      - mosh-core/src/native_call/texture.rs
+      - runner_shared/**
+      - windows/runner/call_video_texture.*
+
+concurrency:
+  group: call-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  call-ui:
+    name: Call in the main window (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup
+      - if: runner.os == 'Windows'
+        uses: ./.github/actions/media-kit-windows
+      - name: Build engine and camera helper
+        run: node scripts/native-media-build.mjs
+      - name: Build the peer and the camera test driver
+        run: cargo build --manifest-path mosh-core/Cargo.toml --features native-media-tests --lib --bin mosh-camera-test-driver --test device_link_flow
+      # The runners have no camera and no microphone: the driver stands in
+      # for the camera and the scenario leaves the mute step out.
+      - name: Video call through the main window's textures
+        shell: bash
+        env:
+          # An unsigned debug app has no sandbox, so it loads the engine and
+          # starts the peer from the checkout.
+          FLUTTER_XCODE_CODE_SIGNING_ALLOWED: 'NO'
+          MOSH_CALL_UI_NO_MICROPHONE: '1'
+        run: |
+          case "$RUNNER_OS" in
+            Windows) engine=mosh_native_media.dll; helper=mosh-camera-test-driver.exe ;;
+            macOS) engine=libmosh_native_media.dylib; helper=mosh-camera-test-driver ;;
+          esac
+          export MOSH_MEDIA_ENGINE="$PWD/.dart_tool/native-media/debug/$engine"
+          export MOSH_CAMERA_CAPTURE="$PWD/mosh-core/target/debug/$helper"
+          node scripts/moss-test.mjs --native-call-ui

@@ -18,8 +18,6 @@ import 'package:mosh/src/features/voice_call/android_call_presentation.dart';
 import 'package:mosh/src/features/voice_call/voice_call_binding.dart'
     show voiceCallBinding;
 import 'dart:io' show Platform;
-import 'package:mosh/src/features/voice_call/process_call_window.dart';
-import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
 import 'package:mosh/src/features/voice_call/call_video_textures.dart';
 import 'package:mosh/src/state/auto_poll_provider.dart'
     show autoPollIntervalProvider, kAutoPollInterval;
@@ -42,13 +40,6 @@ final List<Override> productionOverrides = <Override>[
   ringtonePlayerProvider.overrideWithValue(Platform.isAndroid
       ? const AndroidRingtonePlayer()
       : const CpalRingtonePlayer()),
-  // Linux shows the call in the main window (ADR 0052); the other desktops
-  // keep the call window process until MOSH-94 and MOSH-95.
-  if (Platform.isWindows || Platform.isMacOS)
-    callWindowFactoryProvider.overrideWith((ref) => (onCommand) =>
-        ProcessCallWindow.open(onCommand,
-            onSurfaces: (surfaces) =>
-                ref.read(nativeCallOwnerProvider)?.showVideoAt(surfaces))),
   if (_callEngine)
     nativeCallOwnerProvider.overrideWith((ref) {
       final owner =
@@ -62,7 +53,9 @@ final List<Override> productionOverrides = <Override>[
                       return waiting.platform.setMediaTypes(microphone, camera);
                     }
                   : null,
-              textures: Platform.isLinux ? CallVideoTextures() : null);
+              // Desktop shows the call in the main window through textures
+              // Rust feeds (ADR 0052); Android follows in MOSH-102.
+              textures: Platform.isAndroid ? null : CallVideoTextures());
       ref.onDispose(owner.dispose);
       return owner;
     }),
