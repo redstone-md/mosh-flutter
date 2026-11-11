@@ -17,7 +17,7 @@ frame of 60 runs after 5 warm-ups and the share of one core at 30 fps, for
 
 | Part | Drives | Cases |
 |------|--------|-------|
-| `mosh-media/capture/src/benchmark.rs`, an ignored release test of the camera helper | the helper's converters | an NV12, a YUYV and a Motion JPEG 4:2:2 camera frame to I420 |
+| `mosh-media/capture/src/benchmark.rs`, a release test of the camera helper behind its `call-video-bench` feature | the helper's converters | an NV12, a YUYV, a 24-bit RGB and a baseline Motion JPEG 4:2:2 camera frame to I420 |
 | `mosh-core/src/native_call/benchmark.rs`, a release test behind the `call-video-bench` feature | the engine library and the generated bridge code | the I420 encoder push, the camera preview from I420 at full and at half size, the frame copy `Hub::frame` returns, the flutter_rust_bridge encode of a frame, the copy into a main-window texture |
 | `benchmark/call_video_decode.dart`, under `flutter test` | `CallVideoRenderer.decodeRgba` | the `ImageDescriptor.raw` decode |
 
@@ -28,8 +28,9 @@ Limits of the numbers:
   in the table.
 - The helper rows convert a frame already in memory: the camera driver, the
   pipe to mosh-core and, on macOS, AVFoundation's own work are outside them.
-  The JPEG is a synthetic picture of about a webcam frame's size (85 KiB at
-  720p); mozjpeg uses its SIMD routines only where the build found nasm.
+  The JPEG is a synthetic picture of about a webcam frame's size (77 KiB at
+  720p). On x86_64 mozjpeg has its SIMD routines only when the build found
+  nasm, which CI requires.
 - The texture row is the copy the platform plugin makes when Rust presents a
   frame, with a stand-in for the plugin: a plain copy, and on macOS the
   Accelerate channel swap its plugin copies with. The stand-in writes to

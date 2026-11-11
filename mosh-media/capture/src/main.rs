@@ -1,5 +1,5 @@
 //! Capture only: no call identities, media keys, audio, engine or network access.
-#[cfg(test)]
+#[cfg(all(test, feature = "call-video-bench"))]
 mod benchmark;
 mod cadence;
 mod devices;

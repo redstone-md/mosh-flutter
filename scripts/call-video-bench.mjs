@@ -57,7 +57,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   await prepareNativeCamera();
   const measured = [
     run("cargo", ["test", "--release", "--manifest-path", "mosh-media/capture/Cargo.toml",
-      "--target-dir", ".dart_tool/native-media/target", "benchmark", "--", "--ignored", "--nocapture"]),
+      "--target-dir", ".dart_tool/native-media/target", "--features", "call-video-bench", "benchmark", "--", "--nocapture"]),
     run("cargo", ["test", "--release", "--manifest-path", "mosh-core/Cargo.toml", "--lib", "--features", "call-video-bench",
       "native_call::benchmark", "--", "--ignored", "--nocapture"], { ...process.env, MOSH_MEDIA_ENGINE: engine }),
     run("flutter", ["test", "benchmark/call_video_decode.dart"]),

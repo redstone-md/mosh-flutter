@@ -46,23 +46,22 @@ fn report(case: &str, (width, height): (u32, u32), mut run: impl FnMut()) {
 }
 
 #[test]
-// test-policy: skip MOSH-96 -- a measurement without assertions; scripts/call-video-bench.mjs runs it with --ignored
-#[ignore = "A measurement; scripts/call-video-bench.mjs runs it"]
 fn camera_formats() {
     for size @ (width, height) in SIZES {
         let pixels = width as usize * height as usize;
-        // Webcams send 4:2:2. Gradients under sensor grain compress to about
-        // a webcam frame's size, 85 KiB at 720p.
+        // Webcams send baseline 4:2:2. Gradients under sensor grain compress
+        // to about a webcam frame's size, 77 KiB at 720p.
         let grain = noise(pixels);
         let colour = |i: usize| {
             let (x, y) = (i % width as usize, i / width as usize);
-            let grain = grain[i] % 12;
-            [(x / 5) as u8 + grain, (y / 5) as u8 + grain, 96 + grain]
+            let grain = grain[i] % 8;
+            [(x / 8) as u8 + grain, (y / 5) as u8 + grain, 96 + grain]
         };
         let mjpeg = jpeg::encode(width as usize, height as usize, (2, 1), 85.0, colour);
         for (name, format, frame) in [
             ("NV12", FrameFormat::NV12, synthetic(pixels * 3 / 2)),
             ("YUYV", FrameFormat::YUYV, synthetic(pixels * 2)),
+            ("RGB24", FrameFormat::RAWRGB, synthetic(pixels * 3)),
             ("MJPEG 4:2:2", FrameFormat::MJPEG, mjpeg),
         ] {
             let mut converter = Converter::default();
