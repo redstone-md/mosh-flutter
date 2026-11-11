@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "call_video_texture.h"
 #include "win32_window.h"
 #include "desktop_title_bar.h"
 
@@ -30,6 +31,7 @@ class FlutterWindow : public Win32Window {
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
   std::unique_ptr<DesktopTitleBar> desktop_title_bar_;
+  std::unique_ptr<CallVideo> call_video_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_
