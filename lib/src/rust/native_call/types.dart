@@ -202,8 +202,8 @@ class Snapshot {
           remoteVideo == other.remoteVideo;
 }
 
-/// The device pixels one video surface of the call window shows. Zero until
-/// the window reports it; the engine's `Surface` shares this layout.
+/// The device pixels one video surface of the call view shows. Zero until
+/// the view reports it; the engine's `Surface` shares this layout.
 class Surface {
   final int width;
   final int height;

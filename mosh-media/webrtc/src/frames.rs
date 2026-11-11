@@ -1,6 +1,6 @@
 //! The peer's latest decoded frame as RGBA, which mosh-core copies for the
-//! call window. Only the newest frame is kept: no backlog, one spare buffer.
-//! Frames leave at most at the size the window shows them.
+//! call view. Only the newest frame is kept: no backlog, one spare buffer.
+//! Frames leave at most at the size the view shows them.
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 

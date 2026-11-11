@@ -1108,7 +1108,7 @@
   "callRemoteVideo": "Видео от {peer}",
   "@callRemoteVideo": {"placeholders": {"peer": {"type": "String"}}},
   "callAudioConnecting": "Подключаем звук…",
-  "callShowWindow": "Открыть окно звонка",
+  "callExpand": "Развернуть звонок",
   "callIncomingNotification": "Входящий звонок от {peer}",
   "@callIncomingNotification": {
     "placeholders": {

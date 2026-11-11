@@ -14,15 +14,14 @@ import 'package:mosh/src/state/auto_poll_provider.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
 import 'package:mosh/src/state/voice_call_session_provider.dart';
 import 'call_view_state.dart';
-import 'call_window_coordinator.dart';
 import 'incoming_call_modal.dart';
 import 'voice_call_layer.dart';
 import 'main_window_call_host.dart';
 
 /// App-level owner and presentation, mounted below the first-run gate and
-/// above every route, including Settings. The call shows in the main window
-/// (ADR 0052) unless the platform still opens a call window, which contains
-/// no audio owner.
+/// above every route, including Settings. With a native call engine the call
+/// shows in the main window (ADR 0052); without one it is a strip of controls
+/// under the app.
 class VoiceCallHost extends ConsumerStatefulWidget {
   const VoiceCallHost(
       {super.key, required this.child, this.onOpenConversation});
@@ -36,21 +35,15 @@ class VoiceCallHost extends ConsumerStatefulWidget {
 class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
   AndroidWaitingOwner? _waiting;
   AndroidAppAccess? _access;
-  late final CallWindowCoordinator _window;
   StreamSubscription<CallVideoFrame>? _frames;
 
   /// Decodes the frames the owner polls where Rust has no texture to fill.
   final _video = CallVideoRenderer();
   late final NativeCallOwner? _owner = ref.read(nativeCallOwnerProvider);
-  late final CallWindowFactory? _openWindow =
-      ref.read(callWindowFactoryProvider);
-  late final bool _inMainWindow = _owner != null && _openWindow == null;
 
   @override
   void initState() {
     super.initState();
-    _window = CallWindowCoordinator(_openWindow, _act,
-        (error) => debugPrint('Call window unavailable: ${error.runtimeType}'));
     _access = ref.read(androidAppAccessProvider);
     _access?.addListener(_privacyChanged);
     final waiting = _waiting = ref.read(androidWaitingOwnerProvider);
@@ -64,9 +57,8 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
       };
       unawaited(waiting.refresh().catchError((Object _) {}));
     }
-    _frames = _owner?.frames.listen(_inMainWindow
-        ? (frame) => unawaited(_video.receive(frame))
-        : _window.presentFrame);
+    _frames =
+        _owner?.frames.listen((frame) => unawaited(_video.receive(frame)));
   }
 
   @override
@@ -75,7 +67,6 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
     _waiting?.platform.removeListener(_privacyChanged);
     _access?.removeListener(_privacyChanged);
     unawaited(_frames?.cancel());
-    unawaited(_window.dispose());
     _video.dispose();
     super.dispose();
   }
@@ -84,37 +75,14 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _act(CallViewCommand command) async {
-    final selected = ref.read(voiceCallSessionProvider);
-    if (selected?.sessionId != command.sessionId) return;
-    final provider = voiceCallOrchestratorProvider(command.sessionId);
-    final state = ref.read(provider);
-    if (!command.matchesCall(command.sessionId, state.dialog.callId,
-            supersededCallId: state.dialog.supersededCallId) ||
-        (state.busy && !command.action.availableWhileBusy)) {
-      return;
-    }
-    final notifier = ref.read(provider.notifier);
-    switch (command.action) {
-      case CallViewAction.accept:
-        await notifier.acceptCall(command.callId);
-      case CallViewAction.decline:
-        await notifier.declineCall(command.callId, kCallDeclineReasonUser);
-      case CallViewAction.end:
-        await notifier.endCall(command.callId, kCallDeclineReasonHangup);
-      case CallViewAction.mute:
-        notifier.toggleMute();
-      case CallViewAction.camera:
-        unawaited(notifier.toggleCamera());
-      case CallViewAction.selectInput:
-        unawaited(notifier.selectInput(command.deviceId));
-      case CallViewAction.selectOutput:
-        unawaited(notifier.selectOutput(command.deviceId));
-      case CallViewAction.selectCamera:
-        unawaited(notifier.selectCamera(command.deviceId));
-      case CallViewAction.openConversation:
-        widget.onOpenConversation?.call(command.sessionId);
-    }
+  /// Android closed the call's picture-in-picture: end the call it showed.
+  void _end(String session, String call) {
+    if (ref.read(voiceCallSessionProvider)?.sessionId != session) return;
+    final provider = voiceCallOrchestratorProvider(session);
+    final dialog = ref.read(provider).dialog;
+    if (call != dialog.callId && call != dialog.supersededCallId) return;
+    unawaited(
+        ref.read(provider.notifier).endCall(call, kCallDeclineReasonHangup));
   }
 
   @override
@@ -147,14 +115,14 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
             language: Localizations.localeOf(context).languageCode,
             error: state.error?.cause.describe(l),
           );
-    _window.update(call);
     _video.update(call);
-    final content = _inMainWindow
+    final owner = _owner;
+    final content = owner != null
         ? MainWindowCallHost(
             call: call,
             session: selected?.sessionId,
-            video: _owner!.textures ?? _video,
-            onAction: _act,
+            video: owner.textures ?? _video,
+            onEnd: _end,
             onOpenConversation: widget.onOpenConversation,
             child: widget.child)
         : Column(children: [
@@ -174,24 +142,17 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
     );
   }
 
-  Widget _strip(String sessionId, AppLocalizations l) => ValueListenableBuilder(
-      valueListenable: _window.fallback,
-      builder: (_, fallback, __) => VoiceCallLayer(
-            key: ValueKey(sessionId),
-            sessionId: sessionId,
-            l: l,
-            controlsInWindow: !fallback,
-            onOpenConversation: () =>
-                widget.onOpenConversation?.call(sessionId),
-            onShowWindow:
-                _openWindow == null ? null : () => unawaited(_window.show()),
-            isCallWindowFocused: _window.isFocused,
-            onVoiceCallError: (message) {
-              if (message != null) {
-                context.toaster.show(message, kind: ToastKind.error);
-              }
-            },
-          ));
+  Widget _strip(String sessionId, AppLocalizations l) => VoiceCallLayer(
+        key: ValueKey(sessionId),
+        sessionId: sessionId,
+        l: l,
+        onOpenConversation: () => widget.onOpenConversation?.call(sessionId),
+        onVoiceCallError: (message) {
+          if (message != null) {
+            context.toaster.show(message, kind: ToastKind.error);
+          }
+        },
+      );
 }
 
 /// MaterialApp.builder sits above the router's Overlay. The shared strip needs

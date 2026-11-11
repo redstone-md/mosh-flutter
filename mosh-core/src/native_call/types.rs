@@ -148,8 +148,8 @@ impl Snapshot {
     }
 }
 
-/// The device pixels one video surface of the call window shows. Zero until
-/// the window reports it; the engine's `Surface` shares this layout.
+/// The device pixels one video surface of the call view shows. Zero until
+/// the view reports it; the engine's `Surface` shares this layout.
 #[frb(non_opaque)]
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]

@@ -97,7 +97,7 @@ void main() {
         reason: 'ringing must not take the window from the user');
     expect(find.byTooltip('Enter Full Screen'), findsNothing);
 
-    await tester.tap(find.byTooltip('Show call window'));
+    await tester.tap(find.byTooltip('Expand call'));
     await tester.pump();
     expect(find.byTooltip('Enter Full Screen'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());

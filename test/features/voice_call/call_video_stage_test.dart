@@ -92,8 +92,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets(
-      'video fits a narrow call window and preserves accessible controls',
+  testWidgets('video fits a narrow window and preserves accessible controls',
       (tester) async {
     final renderer = CallVideoRenderer()..update(call);
     addTearDown(renderer.dispose);

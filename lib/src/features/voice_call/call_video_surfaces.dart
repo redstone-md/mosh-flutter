@@ -18,26 +18,6 @@ class CallVideoSurfaces {
           width: a.width > b.width ? a.width : b.width,
           height: a.height > b.height ? a.height : b.height);
 
-  Map<String, Object?> toMap() => {
-        'local': [local.width, local.height],
-        'remote': [remote.width, remote.height],
-      };
-
-  /// Rejects anything but two non-negative sizes within a 16K display.
-  static CallVideoSurfaces fromMap(Map<Object?, Object?> map) {
-    native.Surface lane(Object? value) => switch (value) {
-          [int width, int height]
-              when width >= 0 &&
-                  height >= 0 &&
-                  width <= 16384 &&
-                  height <= 16384 =>
-            native.Surface(width: width, height: height),
-          _ => throw const FormatException('Invalid video surface'),
-        };
-    return CallVideoSurfaces(
-        local: lane(map['local']), remote: lane(map['remote']));
-  }
-
   @override
   bool operator ==(Object other) =>
       other is CallVideoSurfaces &&

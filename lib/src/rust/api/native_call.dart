@@ -66,7 +66,7 @@ Future<Frame?> frame(
     RustLib.instance.api.crateApiNativeCallFrame(
         sessionId: sessionId, callId: callId, local: local, after: after);
 
-/// The call window's video surfaces in device pixels. Frames of every call
+/// The call view's video surfaces in device pixels. Frames of every call
 /// leave at most at these sizes; the encoder still takes the full camera.
 Future<void> showVideoAt({required Surface local, required Surface remote}) =>
     RustLib.instance.api

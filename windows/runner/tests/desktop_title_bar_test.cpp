@@ -20,7 +20,7 @@ LPARAM Position(HWND view, int x, int y) {
 
 bool Check(HWND parent, HWND view) {
   const LPARAM button = Position(view, 170, 25);
-  // The unconfigured call child keeps ordinary client mouse input.
+  // An unconfigured title bar keeps ordinary client mouse input.
   if (SendMessageW(parent, WM_NCHITTEST, 0, button) == HTMAXBUTTON) return false;
   chrome->SetMaximizeRegion({150, 0, 196, 44}, {104, 0, 242, 44});
   if (SendMessageW(parent, WM_NCHITTEST, 0, Position(view, 170, 2)) != HTMAXBUTTON) return false;

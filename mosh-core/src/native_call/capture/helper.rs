@@ -1,7 +1,7 @@
 //! A camera helper process whose exit status another waiter may collect first.
 //!
 //! On macOS and Linux, dart:io's exit-code handler calls `wait()` for any child
-//! while a Dart `Process` (the call window) lives. Our helper then reports
+//! while the app runs a Dart `Process` of its own. Our helper then reports
 //! `ECHILD`: it exited with an unknown status and its pid is free for reuse, so
 //! it is never signalled or waited for again.
 use std::{

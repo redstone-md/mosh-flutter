@@ -2135,7 +2135,7 @@
   "callRemoteVideo": "Video from {peer}",
   "@callRemoteVideo": {"placeholders": {"peer": {"type": "String"}}},
   "callAudioConnecting": "Connecting audio…",
-  "callShowWindow": "Show call window",
+  "callExpand": "Expand call",
   "callIncomingNotification": "Incoming call from {peer}",
   "@callIncomingNotification": {
     "placeholders": {

@@ -29,9 +29,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
     required this.l,
     this.onVoiceCallError,
     this.onOpenConversation,
-    this.onShowWindow,
-    this.isCallWindowFocused,
-    this.controlsInWindow = false,
+    this.onExpand,
     this.compact = true,
     this.video,
     this.onMinimize,
@@ -44,9 +42,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
   final AppLocalizations l;
   final void Function(String? message)? onVoiceCallError;
   final VoidCallback? onOpenConversation;
-  final VoidCallback? onShowWindow;
-  final Future<bool> Function()? isCallWindowFocused;
-  final bool controlsInWindow;
+  final VoidCallback? onExpand;
   final bool compact;
   final ValueListenable<CallVideoImages>? video;
   final VoidCallback? onMinimize;
@@ -106,16 +102,13 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
       language: Localizations.localeOf(context).languageCode,
       error: state.error?.cause.describe(widget.l),
     );
-    // A ready call window shows the call; the strip returns only as a fallback
-    // while that window is unavailable. Notifications and errors stay here.
-    if (call == null || widget.controlsInWindow) return const SizedBox.shrink();
+    if (call == null) return const SizedBox.shrink();
     return CallView(
         call: call,
         compact: widget.compact,
         video: widget.video,
         onDeviceSelected: _act,
-        controlsInWindow: widget.controlsInWindow,
-        onShowWindow: widget.onShowWindow,
+        onExpand: widget.onExpand,
         onMinimize: widget.onMinimize,
         floating: widget.floating,
         onAction: (action) => _act(call.command(action)));
@@ -176,8 +169,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
       }
       if (!_isIncoming(dialog.callId, generation)) return;
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-        if (await _windowFocused(windowManager.isFocused) ||
-            await _windowFocused(widget.isCallWindowFocused)) {
+        if (await _windowFocused()) {
           _retryNotification(dialog.callId, generation);
           return;
         }
@@ -204,9 +196,9 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
     }
   }
 
-  Future<bool> _windowFocused(Future<bool> Function()? query) async {
+  Future<bool> _windowFocused() async {
     try {
-      return await query?.call() ?? false;
+      return await windowManager.isFocused();
     } catch (_) {
       // An unavailable focus probe must not hide the incoming-call alert.
       return false;

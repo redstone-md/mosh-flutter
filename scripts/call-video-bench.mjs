@@ -9,7 +9,7 @@
 // MOSH_MEDIA_ENGINE names a built engine library; without it the release
 // engine is built first.
 import { spawnSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -51,14 +51,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     run("node", ["scripts/native-media-build.mjs", "--profile", "release"]);
     return path.join(root, ".dart_tool/native-media/release", engineLibrary);
   })();
-  const scratch = path.join(root, ".dart_tool/call-video-bench");
-  await mkdir(scratch, { recursive: true });
-  const transport = path.join(scratch, process.platform === "win32" ? "call_frame_transport.exe" : "call_frame_transport");
-  run("dart", ["compile", "exe", "benchmark/call_frame_transport.dart", "-o", transport]);
   const measured = [
     run("cargo", ["test", "--release", "--manifest-path", "mosh-core/Cargo.toml", "--lib", "--features", "call-video-bench",
       "native_call::benchmark", "--", "--ignored", "--nocapture"], { ...process.env, MOSH_MEDIA_ENGINE: engine }),
-    run(transport, []),
     run("flutter", ["test", "benchmark/call_video_decode.dart"]),
   ].map((output) => {
     // A part that printed nothing, or lost a size, must not leave a quiet gap.
