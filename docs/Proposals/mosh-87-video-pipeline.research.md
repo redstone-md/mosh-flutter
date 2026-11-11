@@ -32,6 +32,9 @@ measurements per 720p frame at 30 fps, expressed as a share of one host core.
 | 4 | Same texture on Windows (pixel-buffer texture over a named file mapping) | 3 to 4 days | Same as step 2 |
 | 5 | Camera helper sends native YUV (420v/NV12/YUYV; MJPEG decoded to planar YUV), the engine encodes without RGBA | 4 to 6 days | 9 to 11 ms per frame on the macOS path (27 to 33%), about 8 ms on the MJPEG path (24%), plus the AVFoundation BGRA conversion the host cannot measure |
 
+Step 5 is done (MOSH-96, with MOSH-97 for Android): see
+[camera frames as I420](#camera-frames-as-i420-mosh-96-mosh-97).
+
 Superseded by [ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md), which moves
 presentation into the main window now; the paragraph below is the original reasoning.
 The research recommended keeping the separate call-window process for now: moving
@@ -396,6 +399,60 @@ A real video call through these textures passes on the Windows and macOS runners
 the `Native call UI` workflow (run 42955636475): the app and an independent peer over
 real Moss, both lanes shown as textures, no frame polled over the bridge, and the call
 kept through minimize, restore and camera off.
+
+### Camera frames as I420 (MOSH-96, MOSH-97)
+
+The helper now brings every camera format to packed I420 itself and the engine
+encodes it as it is. One format on the pipe, instead of forwarding NV12 or YUYV
+for an engine push per format, keeps the 1.38 MB frame for every camera and one
+camera input in the engine ABI. Measured on 2026-11-11 on the Linux host of the
+tables above, median ms per 1280x720 frame of 60 runs after 5 warm-ups:
+
+| Step | Before | After |
+|------|--------|-------|
+| macOS helper: BGRA to RGB, buffer copy, RGB to RGBA | 6.3 to 8.1 | NV12 to I420: 0.38 |
+| YUYV camera to the pipe's format | 5.6 to 6.4 (to RGBA) | 0.82 (to I420) |
+| NV12 camera to the pipe's format | 4.0 (to RGBA) | 0.38 (to I420) |
+| Motion JPEG camera, mozjpeg without SIMD | 7.8 (to RGBA) | 5.9 (to I420) |
+| Motion JPEG camera, mozjpeg with SIMD | 3.1 (to RGBA) | 2.8 (to I420) |
+| bytes on the pipe | 3.69 MB | 1.38 MB |
+
+The JPEG rows use one baseline 4:2:2 frame of 140 KiB in a throwaway test that
+decodes it both ways. Two corrections to the estimates above came out of them:
+
+- The decode itself gains little, since entropy decoding and the inverse
+  transform dominate either way. What a JPEG camera saves is after the decode:
+  the pipe, the RGBA to I420 push and the preview's round trip.
+- No build had nasm, so mozjpeg ran without its x86 SIMD on Windows and Linux,
+  here and in the releases. Installing it halves the decode, which is more than
+  the change of format does; the media build now requires it in CI.
+
+The same code on GitHub's runners, from the `Call video benchmark` workflow with
+nasm installed (run 42983806809): `macos-latest` is an Apple M1 virtual machine,
+`windows-latest` and `ubuntu-latest` are AMD EPYC 7763. Median ms per 1280x720
+frame; "before" is the RGBA row of the MOSH-99 run above, where one exists.
+
+| Case | macOS | Windows | Linux |
+|------|-------|---------|-------|
+| camera NV12 to I420 (helper) | 0.04 | 0.36 | 0.36 |
+| camera YUYV to I420 (helper) | 0.13 | 0.78 | 0.78 |
+| camera Motion JPEG 4:2:2 to I420 (helper), a 77 KiB frame | 2.50 | 2.03 | 1.98 |
+| camera RGB24 to I420 (helper) | 4.22 | 6.26 | 6.04 |
+| encoder push: before, RGBA to I420 | 0.19 | | 0.18 |
+| encoder push: after, I420 as it is | 0.05 | 0.29 | 0.05 |
+| preview at half size: before, `scale_rgba` | 0.32 | | 0.22 |
+| preview at half size: after, from I420 | 0.15 | 0.41 | 0.14 |
+
+On the Apple Silicon runner a 720p camera frame now costs the helper 0.04 ms
+and the main process 0.2 ms before the codec. The old path cost the main
+process 0.5 ms on the same runner and the helper 6 to 8 ms on the Linux host;
+its helper chain was never timed on a Mac. A virtual M1 is not a user's Mac.
+
+Not measured: AVFoundation's own conversion, which 420v output avoids and BGRA
+needed, and the pipe itself, which carried 3.64 ms of CPU per 3.69 MB frame and
+now moves 37% of the bytes; both need the Mac device run (MOSH-100, open
+questions 1 and 3). A 24-bit RGB camera is the slowest to convert, 6.5 ms of
+scalar arithmetic per frame, so the helper picks that format last.
 
 ## Open questions requiring a Mac or Windows device
 
