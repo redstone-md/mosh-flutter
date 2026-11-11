@@ -180,6 +180,16 @@ impl State {
         }
     }
 
+    /// Paints every texture black. A texture may show its last frame for a
+    /// moment before the next one lands, and that must never be the picture
+    /// of another call.
+    pub fn blank(&self) {
+        let black = [0, 0, 0, 255].repeat(4);
+        for texture in self.textures.iter().flatten() {
+            texture.present(2, 2, &black);
+        }
+    }
+
     /// Stops showing a lane, whose texture keeps its last frame unseen.
     pub fn clear(&mut self, local: bool) {
         self.shown[usize::from(!local)] = None;

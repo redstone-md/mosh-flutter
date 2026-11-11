@@ -134,6 +134,7 @@ impl Owner {
             self.sender.reset();
             state.snapshot = Default::default();
             state.shown = Default::default();
+            state.blank();
             state.outbound.clear();
             state.stalls = Default::default();
             self.captured = 0;
