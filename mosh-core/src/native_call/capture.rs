@@ -135,5 +135,8 @@ mod tests {
         assert!(state.frames[0].is_none());
         aged(0, 0).present(&mut state, None);
         assert!(state.snapshot.camera);
+        // The fresh frame's preview needs the engine, which this test runs
+        // without: `local_preview_reaches_the_window_at_its_surface_size`
+        // (presentation_tests.rs) asserts that it is shown.
     }
 }

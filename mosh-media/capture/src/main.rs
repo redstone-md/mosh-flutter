@@ -71,10 +71,10 @@ fn run() -> anyhow::Result<()> {
     capture(&mut camera, &mut output)
 }
 
-/// `RgbAFormat` only names the colour formats nokhwa may deliver; the helper
-/// never decodes to RGBA.
 fn open_camera(index: CameraIndex) -> anyhow::Result<(Camera, CameraFormat)> {
     eprintln!("camera startup: initializing device");
+    // `RgbAFormat` only names the colour formats nokhwa may deliver here;
+    // nothing is decoded to RGBA.
     let mut camera = Camera::new(
         index,
         RequestedFormat::new::<RgbAFormat>(RequestedFormatType::None),

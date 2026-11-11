@@ -92,14 +92,7 @@ fn yuyv(source: &[u8], width: usize, planes: &mut [u8]) -> Option<()> {
     for (y, packed) in y.chunks_exact_mut(2).zip(source.chunks_exact(4)) {
         (y[0], y[1]) = (packed[0], packed[2]);
     }
-    let (u, v) = chroma.split_at_mut(luma / 4);
-    let rows = source
-        .chunks_exact(width * 4)
-        .map(|pair| pair.split_at(width * 2));
-    let chroma = u
-        .chunks_exact_mut(width / 2)
-        .zip(v.chunks_exact_mut(width / 2));
-    for ((top, bottom), (u, v)) in rows.zip(chroma) {
+    for ((top, bottom), (u, v)) in row_pairs(source, width * 2, chroma, width / 2) {
         let samples = top.chunks_exact(4).zip(bottom.chunks_exact(4));
         for ((top, bottom), (u, v)) in samples.zip(u.iter_mut().zip(v)) {
             *u = mean(&[top[1], bottom[1]]);
@@ -121,28 +114,34 @@ fn rgb(source: &[u8], width: usize, order: [usize; 3], planes: &mut [u8]) -> Opt
     for (y, pixel) in y.iter_mut().zip(source.chunks_exact(3)) {
         *y = bt601(colour(pixel), [66, 129, 25], 16);
     }
-    let (u, v) = chroma.split_at_mut(luma / 4);
-    let rows = source
-        .chunks_exact(width * 6)
-        .map(|pair| pair.split_at(width * 3));
-    let chroma = u
-        .chunks_exact_mut(width / 2)
-        .zip(v.chunks_exact_mut(width / 2));
-    for ((top, bottom), (u, v)) in rows.zip(chroma) {
+    for ((top, bottom), (u, v)) in row_pairs(source, width * 3, chroma, width / 2) {
         let blocks = top.chunks_exact(6).zip(bottom.chunks_exact(6));
         for ((top, bottom), (u, v)) in blocks.zip(u.iter_mut().zip(v)) {
-            let block = [
-                colour(top),
-                colour(&top[3..]),
-                colour(bottom),
-                colour(&bottom[3..]),
-            ];
+            let block = [top, &top[3..], bottom, &bottom[3..]].map(colour);
             let mean = [0, 1, 2].map(|channel| mean(&block.map(|pixel| pixel[channel])));
             *u = bt601(mean, [-38, -74, 112], 128);
             *v = bt601(mean, [112, -94, -18], 128);
         }
     }
     Some(())
+}
+
+/// Two source rows, top and bottom, and the U and V rows they cover.
+type RowPair<'a> = ((&'a [u8], &'a [u8]), (&'a mut [u8], &'a mut [u8]));
+
+/// Each two packed source rows of `row` bytes with the U and V rows of
+/// `width` samples they cover; `chroma` is the U plane, then the V plane.
+fn row_pairs<'a>(
+    source: &'a [u8],
+    row: usize,
+    chroma: &'a mut [u8],
+    width: usize,
+) -> impl Iterator<Item = RowPair<'a>> {
+    let (u, v) = chroma.split_at_mut(chroma.len() / 2);
+    let pairs = source
+        .chunks_exact(row * 2)
+        .map(move |pair| pair.split_at(row));
+    pairs.zip(u.chunks_exact_mut(width).zip(v.chunks_exact_mut(width)))
 }
 
 /// One BT.601 video-range component of a colour, in 8-bit fixed point.

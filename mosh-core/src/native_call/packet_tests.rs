@@ -343,10 +343,17 @@ mod native {
             .unwrap();
     }
 
-    /// A 640x360 I420 frame of detail with a flat block in its middle.
+    /// A 640x360 I420 frame of detail with a flat block in its middle. The
+    /// luma carries half the range and the chroma a sixteenth, about what a
+    /// picture of per-pixel random colours has once it is I420.
     pub(super) fn pattern(planes: &mut [u8], tick: usize) {
-        for (index, sample) in planes.iter_mut().enumerate() {
-            *sample = ((index as u32).wrapping_mul(2_654_435_761) >> 24) as u8;
+        let (luma, chroma) = planes.split_at_mut(640 * 360);
+        let detail = |index: usize| (index as u32).wrapping_mul(2_654_435_761);
+        for (index, sample) in luma.iter_mut().enumerate() {
+            *sample = 64 + (detail(index) >> 25) as u8;
+        }
+        for (index, sample) in chroma.iter_mut().enumerate() {
+            *sample = 120 + (detail(index) >> 28) as u8;
         }
         motion(planes, tick);
     }

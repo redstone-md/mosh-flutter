@@ -94,7 +94,7 @@ fn engines() -> [Engine; 2] {
 }
 
 /// What the engine does with one camera frame of `size`.
-fn camera(engine: &Engine, size @ (width, height): (u32, u32)) {
+fn camera_frame(engine: &Engine, size @ (width, height): (u32, u32)) {
     let planes = synthetic(library::i420_size(width, height).expect("an even size"));
     let half = Surface {
         width: width / 2,
@@ -240,7 +240,7 @@ fn frame_path() {
     let [engine, _callee] = engines();
     for size @ (width, height) in SIZES {
         let pixels = synthetic(width as usize * height as usize * 4);
-        camera(&engine, size);
+        camera_frame(&engine, size);
         transfer(size, &pixels);
         texture(size, &pixels);
     }

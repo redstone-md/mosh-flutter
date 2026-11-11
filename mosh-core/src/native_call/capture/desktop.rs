@@ -181,7 +181,7 @@ fn read_capture(mut reader: impl BufRead, output: &Mutex<Output>) -> Result<(), 
     output.lock().map_err(|_| "camera state poisoned")?.ready = Some(Instant::now());
     let mut sequence = 0u64;
     loop {
-        let mut header = [0; HEADER];
+        let mut header = [0; HEADER_LENGTH];
         reader.read_exact(&mut header).map_err(|e| e.to_string())?;
         let (width, height, length, timestamp) =
             header_fields(&header).ok_or("invalid camera frame")?;
@@ -202,11 +202,11 @@ fn read_capture(mut reader: impl BufRead, output: &Mutex<Output>) -> Result<(), 
 /// A frame header of the helper's protocol, version 2: `MCP2`, the pixel
 /// format's FourCC, then big-endian width, height and payload length (u32
 /// each) and the capture time in Unix milliseconds (u64).
-const HEADER: usize = 28;
+const HEADER_LENGTH: usize = 28;
 
 /// Width, height, payload length and capture time of a packed I420 frame the
 /// engine takes; none for any other version, format or size.
-fn header_fields(header: &[u8; HEADER]) -> Option<(u32, u32, usize, u64)> {
+fn header_fields(header: &[u8; HEADER_LENGTH]) -> Option<(u32, u32, usize, u64)> {
     if &header[..8] != b"MCP2I420" {
         return None;
     }
@@ -354,8 +354,8 @@ Add-Type -Name CameraConsole -Namespace Mosh -MemberDefinition '[DllImport("kern
         assert_eq!(devices.len(), 1);
         assert_eq!(devices[0].name, "USB 2.0 Camera");
     }
-    fn header(magic: &[u8; 8], width: u32, height: u32, length: u32) -> [u8; HEADER] {
-        let mut header = [0; HEADER];
+    fn header(magic: &[u8; 8], width: u32, height: u32, length: u32) -> [u8; HEADER_LENGTH] {
+        let mut header = [0; HEADER_LENGTH];
         header[..8].copy_from_slice(magic);
         for (at, field) in [(8, width), (12, height), (16, length)] {
             header[at..at + 4].copy_from_slice(&field.to_be_bytes());

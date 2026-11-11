@@ -18,12 +18,13 @@ pub fn choose(formats: Vec<CameraFormat>) -> anyhow::Result<CameraFormat> {
 fn score(format: &CameraFormat) -> Option<(u64, u32, u32, u32)> {
     let distance =
         u64::from(format.width().abs_diff(1280)) + u64::from(format.height().abs_diff(720));
-    // Planar and packed YUV are copies; RGB needs arithmetic and a JPEG a decode.
+    // Measured per 720p frame: NV12 and YUYV are repacked in under a
+    // millisecond, a JPEG decodes in 2 to 6 ms and RGB needs 6 ms of arithmetic.
     let conversion = match format.format() {
         FrameFormat::NV12 => 0,
         FrameFormat::YUYV => 1,
-        FrameFormat::RAWRGB | FrameFormat::RAWBGR => 2,
-        FrameFormat::MJPEG => 3,
+        FrameFormat::MJPEG => 2,
+        FrameFormat::RAWRGB | FrameFormat::RAWBGR => 3,
         FrameFormat::GRAY => return None,
     };
     Some((
@@ -66,12 +67,17 @@ mod tests {
     fn at_equal_size_and_rate_the_cheapest_format_to_convert_wins() {
         let mode = |format| CameraFormat::new_from(1280, 720, format, 30);
         let offered = vec![
+            mode(FrameFormat::RAWBGR),
             mode(FrameFormat::MJPEG),
             mode(FrameFormat::GRAY),
             mode(FrameFormat::NV12),
             mode(FrameFormat::YUYV),
         ];
-        assert_eq!(choose(offered).unwrap(), mode(FrameFormat::NV12));
+        assert_eq!(choose(offered.clone()).unwrap(), mode(FrameFormat::NV12));
+        assert_eq!(
+            choose(offered[..2].to_vec()).unwrap(),
+            mode(FrameFormat::MJPEG)
+        );
         // A USB 2.0 camera reaches 720p30 only as MJPEG; its rate matters more.
         let usb = vec![
             CameraFormat::new_from(1280, 720, FrameFormat::YUYV, 10),
