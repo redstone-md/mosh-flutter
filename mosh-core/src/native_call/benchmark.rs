@@ -156,7 +156,9 @@ fn transfer(size @ (width, height): (u32, u32), pixels: &[u8]) {
 }
 
 /// Stands in for the platform plugin's texture: `present` copies the frame
-/// into a buffer it keeps, as `linux/runner/call_video_texture.cc` does.
+/// into a buffer it keeps, as the Linux and Windows runners do. The macOS
+/// runner swaps the channels to BGRA on the way, so there the copy is the
+/// same Accelerate call.
 #[repr(C)]
 struct Copying {
     exported: Exported,
@@ -170,7 +172,49 @@ unsafe extern "C" fn copy(exported: *const Exported, pixels: *const u8, width: u
     let mut buffer = copying.buffer.lock().unwrap();
     buffer.resize(bytes, 0);
     // SAFETY: the caller hands over `bytes` readable bytes; the buffer holds as many.
-    unsafe { std::ptr::copy_nonoverlapping(pixels, buffer.as_mut_ptr(), bytes) };
+    unsafe { write(pixels, buffer.as_mut_ptr(), width as usize, height as usize) };
+}
+
+/// # Safety
+/// Both pointers cover `width * height * 4` bytes.
+#[cfg(not(target_os = "macos"))]
+unsafe fn write(pixels: *const u8, buffer: *mut u8, width: usize, height: usize) {
+    // SAFETY: the caller's.
+    unsafe { std::ptr::copy_nonoverlapping(pixels, buffer, width * height * 4) };
+}
+
+/// # Safety
+/// Both pointers cover `width * height * 4` bytes.
+#[cfg(target_os = "macos")]
+unsafe fn write(pixels: *const u8, buffer: *mut u8, width: usize, height: usize) {
+    /// Accelerate's `vImage_Buffer`.
+    #[repr(C)]
+    struct Image {
+        data: *mut u8,
+        height: usize,
+        width: usize,
+        row_bytes: usize,
+    }
+    #[link(name = "Accelerate", kind = "framework")]
+    extern "C" {
+        fn vImagePermuteChannels_ARGB8888(
+            source: *const Image,
+            target: *const Image,
+            order: *const u8,
+            flags: u32,
+        ) -> isize;
+    }
+    let image = |data| Image {
+        data,
+        height,
+        width,
+        row_bytes: width * 4,
+    };
+    let bgra = [2, 1, 0, 3];
+    // SAFETY: the caller's; vImage only reads the source.
+    unsafe {
+        vImagePermuteChannels_ARGB8888(&image(pixels.cast_mut()), &image(buffer), bgra.as_ptr(), 0)
+    };
 }
 
 /// A frame's way into a main-window texture, which replaces `transfer` and
