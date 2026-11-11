@@ -499,6 +499,7 @@ name = "mosh-camera-capture"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "mozjpeg",
  "nokhwa",
  "serde",
  "serde_json",
@@ -617,7 +618,6 @@ checksum = "b1cba20bebd3bd9ae22f9273ade5bbe49da3e047c8512b53fbaf8b4b9c80d496"
 dependencies = [
  "bytes",
  "image",
- "mozjpeg",
  "thiserror",
 ]
 

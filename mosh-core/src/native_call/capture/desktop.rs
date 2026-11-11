@@ -4,7 +4,7 @@ use super::{
 };
 // The owner can kill and reap a blocked driver without blocking audio.
 use super::super::{
-    library::{artifact, MAX_RGBA},
+    library::{artifact, i420_size},
     types::Device,
 };
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
@@ -145,7 +145,7 @@ impl Drop for Capture {
 }
 
 // Drain continuously so a verbose native driver cannot block capture. Keep
-// only its last 8 KiB; stdout contains pixels and never enters the field log.
+// only its last 8 KiB; stdout contains frames and never enters the field log.
 fn read_stderr(mut reader: impl Read) -> Vec<u8> {
     let mut tail = Vec::new();
     let mut chunk = [0; 1024];
@@ -181,45 +181,45 @@ fn read_capture(mut reader: impl BufRead, output: &Mutex<Output>) -> Result<(), 
     output.lock().map_err(|_| "camera state poisoned")?.ready = Some(Instant::now());
     let mut sequence = 0u64;
     loop {
-        let mut header = [0; 24];
+        let mut header = [0; HEADER_LENGTH];
         reader.read_exact(&mut header).map_err(|e| e.to_string())?;
         let (width, height, length, timestamp) =
             header_fields(&header).ok_or("invalid camera frame")?;
-        let mut pixels = vec![0; length];
-        reader.read_exact(&mut pixels).map_err(|e| e.to_string())?;
+        let mut planes = vec![0; length];
+        reader.read_exact(&mut planes).map_err(|e| e.to_string())?;
         sequence = sequence.saturating_add(1);
         output.lock().map_err(|_| "camera state poisoned")?.frame = Some(Arc::new(Captured {
             sequence,
             width,
             height,
-            pixels,
+            planes,
             received: Instant::now(),
             source_age_ms: wall_ms().saturating_sub(timestamp).min(u32::MAX as u64) as u32,
         }));
     }
 }
 
-fn header_fields(header: &[u8; 24]) -> Option<(u32, u32, usize, u64)> {
-    if &header[..4] != b"MCP1" {
+/// A frame header of the helper's protocol, version 2: `MCP2`, the pixel
+/// format's FourCC, then big-endian width, height and payload length (u32
+/// each) and the capture time in Unix milliseconds (u64).
+const HEADER_LENGTH: usize = 28;
+
+/// Width, height, payload length and capture time of a packed I420 frame the
+/// engine takes; none for any other version, format or size.
+fn header_fields(header: &[u8; HEADER_LENGTH]) -> Option<(u32, u32, usize, u64)> {
+    if &header[..8] != b"MCP2I420" {
         return None;
     }
-    let width = u32::from_be_bytes(header[4..8].try_into().ok()?);
-    let height = u32::from_be_bytes(header[8..12].try_into().ok()?);
-    let length = u32::from_be_bytes(header[12..16].try_into().ok()?) as usize;
-    if width == 0
-        || height == 0
-        || width > 1920
-        || height > 1920
-        || length > MAX_RGBA
-        || width as u64 * height as u64 * 4 != length as u64
-    {
+    let field = |at: usize| header[at..at + 4].try_into().map(u32::from_be_bytes).ok();
+    let (width, height, length) = (field(8)?, field(12)?, field(16)? as usize);
+    if i420_size(width, height) != Some(length) {
         return None;
     }
     Some((
         width,
         height,
         length,
-        u64::from_be_bytes(header[16..].try_into().ok()?),
+        u64::from_be_bytes(header[20..].try_into().ok()?),
     ))
 }
 
@@ -354,19 +354,37 @@ Add-Type -Name CameraConsole -Namespace Mosh -MemberDefinition '[DllImport("kern
         assert_eq!(devices.len(), 1);
         assert_eq!(devices[0].name, "USB 2.0 Camera");
     }
+    fn header(magic: &[u8; 8], width: u32, height: u32, length: u32) -> [u8; HEADER_LENGTH] {
+        let mut header = [0; HEADER_LENGTH];
+        header[..8].copy_from_slice(magic);
+        for (at, field) in [(8, width), (12, height), (16, length)] {
+            header[at..at + 4].copy_from_slice(&field.to_be_bytes());
+        }
+        header[20..].copy_from_slice(&1234u64.to_be_bytes());
+        header
+    }
+
     #[test]
-    fn validates_camera_header_before_allocating_and_never_formats_pixels() {
-        let mut header = [0; 24];
-        header[..4].copy_from_slice(b"MCP1");
-        header[4..8].copy_from_slice(&1280u32.to_be_bytes());
-        header[8..12].copy_from_slice(&720u32.to_be_bytes());
-        header[12..16].copy_from_slice(&(1280u32 * 720 * 4).to_be_bytes());
-        header[16..].copy_from_slice(&1234u64.to_be_bytes());
+    fn a_frame_header_is_taken_only_as_packed_i420_of_its_declared_size() {
+        // 1280x720 I420 is 1.38 MB: a luma plane and two quarter-size chroma planes.
+        let i420 = b"MCP2I420";
         assert_eq!(
-            header_fields(&header),
-            Some((1280, 720, 1280 * 720 * 4, 1234))
+            header_fields(&header(i420, 1280, 720, 1_382_400)),
+            Some((1280, 720, 1_382_400, 1234))
         );
-        header[4..8].copy_from_slice(&u32::MAX.to_be_bytes());
-        assert!(header_fields(&header).is_none());
+        for (magic, width, height, length) in [
+            (b"MCP1I420", 1280, 720, 1_382_400),
+            (b"MCP2NV12", 1280, 720, 1_382_400),
+            (i420, 1280, 720, 1280 * 720 * 4),
+            (i420, 1281, 720, 1_382_400),
+            (i420, u32::MAX, 720, 1_382_400),
+            (i420, 3840, 2160, 3840 * 2160 * 3 / 2),
+            (i420, 0, 0, 0),
+        ] {
+            assert!(
+                header_fields(&header(magic, width, height, length)).is_none(),
+                "{width}x{height} in {length} bytes"
+            );
+        }
     }
 }

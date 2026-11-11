@@ -1,12 +1,15 @@
 //! Capture only: no call identities, media keys, audio, engine or network access.
+#[cfg(all(test, feature = "call-video-bench"))]
+mod benchmark;
 mod cadence;
 mod devices;
 mod formats;
+mod i420;
+mod jpeg;
 
 use anyhow::Context;
 use nokhwa::{
     Camera,
-    pixel_format::RgbAFormat,
     utils::{CameraFormat, CameraIndex, RequestedFormat, RequestedFormatType},
 };
 use std::{
@@ -69,20 +72,16 @@ fn run() -> anyhow::Result<()> {
 
 fn open_camera(index: CameraIndex) -> anyhow::Result<(Camera, CameraFormat)> {
     eprintln!("camera startup: initializing device");
-    let mut camera = Camera::new(
-        index,
-        RequestedFormat::new::<RgbAFormat>(RequestedFormatType::None),
-    )
-    .context("initializing camera")?;
+    let request = |mode| RequestedFormat::with_formats(mode, &i420::SOURCES);
+    let mut camera =
+        Camera::new(index, request(RequestedFormatType::None)).context("initializing camera")?;
     let supported = camera
         .compatible_camera_formats()
         .context("enumerating camera formats")?;
     let chosen = formats::choose(supported)?;
     eprintln!("camera startup: configuring {chosen}");
     camera
-        .set_camera_requset(RequestedFormat::new::<RgbAFormat>(
-            RequestedFormatType::Exact(chosen),
-        ))
+        .set_camera_requset(request(RequestedFormatType::Exact(chosen)))
         .context("setting camera format")?;
     eprintln!("camera startup: opening stream");
     camera.open_stream().context("opening camera stream")?;
@@ -104,6 +103,7 @@ fn permission() -> anyhow::Result<()> {
 
 fn capture(camera: &mut Camera, output: &mut impl Write) -> anyhow::Result<()> {
     let mut cadence = cadence::Cadence::new(Instant::now());
+    let mut converter = i420::Converter::default();
     let mut first = true;
     loop {
         let acquired = std::time::SystemTime::now();
@@ -112,23 +112,14 @@ fn capture(camera: &mut Camera, output: &mut impl Write) -> anyhow::Result<()> {
             continue;
         }
         let resolution = frame.resolution();
-        let (width, height) = (resolution.width(), resolution.height());
-        anyhow::ensure!(
-            width > 0
-                && height > 0
-                && width <= 1920
-                && height <= 1920
-                && width as u64 * height as u64 <= 1920 * 1080,
-            "camera frame too large"
-        );
-        let image = frame
-            .decode_image::<RgbAFormat>()
-            .context("decoding camera frame")?;
-        let pixels = image.into_raw();
-        anyhow::ensure!(
-            pixels.len() == width as usize * height as usize * 4,
-            "invalid camera frame"
-        );
+        let format = frame.source_frame_format();
+        let picture = converter
+            .convert(
+                format,
+                (resolution.width(), resolution.height()),
+                frame.buffer(),
+            )
+            .context("converting camera frame")?;
         let timestamp = frame
             .capture_timestamp()
             .unwrap_or_else(|| {
@@ -137,26 +128,54 @@ fn capture(camera: &mut Camera, output: &mut impl Write) -> anyhow::Result<()> {
                     .unwrap_or_default()
             })
             .as_millis() as u64;
-        write_frame(output, width, height, &pixels, timestamp)?;
+        write_frame(output, &picture, timestamp)?;
         if first {
-            eprintln!("camera first frame written: {width}x{height}");
+            let (width, height) = (picture.width, picture.height);
+            eprintln!("camera first frame written: {width}x{height} from {format}");
             first = false;
         }
     }
 }
 
+/// One frame of the helper's protocol, version 2: `MCP2`, the pixel format's
+/// FourCC, then big-endian width, height and payload length (u32 each), the
+/// capture time in Unix milliseconds (u64) and the payload.
 fn write_frame(
     output: &mut impl Write,
-    width: u32,
-    height: u32,
-    pixels: &[u8],
+    picture: &i420::Picture<'_>,
     timestamp: u64,
 ) -> std::io::Result<()> {
-    output.write_all(b"MCP1")?;
-    for field in [width, height, pixels.len() as u32] {
+    output.write_all(b"MCP2I420")?;
+    for field in [picture.width, picture.height, picture.planes.len() as u32] {
         output.write_all(&field.to_be_bytes())?;
     }
     output.write_all(&timestamp.to_be_bytes())?;
-    output.write_all(pixels)?;
+    output.write_all(picture.planes)?;
     output.flush()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_frame_is_written_as_its_header_then_its_planes() {
+        let picture = i420::Picture {
+            width: 2,
+            height: 2,
+            planes: &[1, 2, 3, 4, 5, 6],
+        };
+        let mut output = Vec::new();
+        write_frame(&mut output, &picture, 0x0102_0304_0506_0708).unwrap();
+        assert_eq!(
+            output,
+            [
+                b"MCP2I420".as_slice(),
+                &[0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 6],
+                &[1, 2, 3, 4, 5, 6, 7, 8],
+                &[1, 2, 3, 4, 5, 6],
+            ]
+            .concat()
+        );
+    }
 }

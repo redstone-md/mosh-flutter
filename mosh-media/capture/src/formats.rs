@@ -1,30 +1,32 @@
-use nokhwa::{FormatDecoder, pixel_format::RgbAFormat, utils::CameraFormat};
+use crate::i420;
+use nokhwa::utils::CameraFormat;
 
+/// The mode nearest 1280x720 at 30 fps among those the helper converts, and
+/// at equal size and rate the one that costs least to bring to I420.
 pub fn choose(formats: Vec<CameraFormat>) -> anyhow::Result<CameraFormat> {
     formats
         .into_iter()
         .filter(|format| {
-            let (width, height) = (format.width(), format.height());
-            width > 0
-                && height > 0
-                && width <= 1920
-                && height <= 1920
-                && width as u64 * height as u64 <= 1920 * 1080
-                && format.frame_rate() > 0
-                && RgbAFormat::FORMATS.contains(&format.format())
+            i420::size(format.width(), format.height()).is_some() && format.frame_rate() > 0
         })
-        .min_by_key(score)
+        .filter_map(|format| Some((score(&format)?, format)))
+        .min_by_key(|(score, _)| *score)
+        .map(|(_, format)| format)
         .ok_or_else(|| anyhow::anyhow!("no supported camera format"))
 }
 
-fn score(format: &CameraFormat) -> (u64, u32, u32) {
+fn score(format: &CameraFormat) -> Option<(u64, u32, u32, usize)> {
     let distance =
         u64::from(format.width().abs_diff(1280)) + u64::from(format.height().abs_diff(720));
-    (
+    let conversion = i420::SOURCES
+        .iter()
+        .position(|source| *source == format.format())?;
+    Some((
         distance,
         format.frame_rate().abs_diff(30),
         if format.frame_rate() > 30 { 1 } else { 0 },
-    )
+        conversion,
+    ))
 }
 
 #[cfg(test)]
@@ -54,5 +56,38 @@ mod tests {
             .is_err()
         );
         assert!(choose(vec![]).is_err());
+    }
+
+    #[test]
+    fn at_equal_size_and_rate_the_cheapest_format_to_convert_wins() {
+        let mode = |format| CameraFormat::new_from(1280, 720, format, 30);
+        let offered = vec![
+            mode(FrameFormat::RAWBGR),
+            mode(FrameFormat::MJPEG),
+            mode(FrameFormat::GRAY),
+            mode(FrameFormat::NV12),
+            mode(FrameFormat::YUYV),
+        ];
+        assert_eq!(choose(offered.clone()).unwrap(), mode(FrameFormat::NV12));
+        assert_eq!(
+            choose(offered[..2].to_vec()).unwrap(),
+            mode(FrameFormat::MJPEG)
+        );
+        // A USB 2.0 camera reaches 720p30 only as MJPEG; its rate matters more.
+        let usb = vec![
+            CameraFormat::new_from(1280, 720, FrameFormat::YUYV, 10),
+            mode(FrameFormat::MJPEG),
+        ];
+        assert_eq!(choose(usb).unwrap(), mode(FrameFormat::MJPEG));
+        assert!(choose(vec![mode(FrameFormat::GRAY)]).is_err());
+        assert!(
+            choose(vec![CameraFormat::new_from(
+                1281,
+                720,
+                FrameFormat::NV12,
+                30
+            )])
+            .is_err()
+        );
     }
 }

@@ -70,6 +70,15 @@ runs:
         cache-on-failure: true
         save-if: ${{ github.ref == 'refs/heads/main' }}
 
+    # The camera helper's JPEG decoder assembles its x86 SIMD with nasm;
+    # scripts/native-media-build.mjs refuses to build without it in CI.
+    # Chocolatey leaves it off PATH. Linux gets it from native-media-linux.
+    - if: inputs.rust == 'true' && runner.os == 'Windows'
+      shell: bash
+      run: |
+        choco install nasm -y --no-progress
+        echo 'C:\Program Files\NASM' >> "$GITHUB_PATH"
+
     # Pinned, not `channel: stable`: a runner picking up a newer Flutter
     # than the one the release was built with is a drift nobody asked for.
     # The SDK is not cached: installing it takes 50-95 s, restoring it hardly

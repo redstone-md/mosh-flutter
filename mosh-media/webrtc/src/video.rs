@@ -1,12 +1,11 @@
-//! Camera video as Mosh sends it: RGBA frames from mosh-core's capture
-//! helper enter libwebrtc's encoder as I420, within the route's limits.
+//! Camera video as Mosh sends it: mosh-core's I420 camera frames enter
+//! libwebrtc's encoder as they are, within the route's limits.
 use std::time::Instant;
 
 use anyhow::{Context, Result};
 use libwebrtc::{
     MediaType,
     media_stream_track::MediaStreamTrack,
-    native::yuv_helper::abgr_to_i420,
     peer_connection::PeerConnection,
     peer_connection_factory::{PeerConnectionFactory, native::PeerConnectionFactoryExt},
     rtp_sender::{RtpSender, VideoEncoderBackend},
@@ -17,7 +16,7 @@ use libwebrtc::{
     video_track::RtcVideoTrack,
 };
 
-use crate::{engine::transceiver, frames::rgba_length};
+use crate::{engine::transceiver, frames::i420_length};
 
 /// The largest picture and frame rate a send budget carries. Under
 /// 300 kbit/s a detailed 360p keyframe takes about a second to send, longer
@@ -106,10 +105,10 @@ impl Camera {
         self.apply(self.on, Format::for_budget(max_bps), self.short_side)
     }
 
-    /// Sends one camera frame while the camera is on.
-    pub fn push(&mut self, width: u32, height: u32, pixels: &[u8]) -> Result<()> {
+    /// Sends one packed I420 camera frame while the camera is on.
+    pub fn push(&mut self, width: u32, height: u32, planes: &[u8]) -> Result<()> {
         anyhow::ensure!(
-            rgba_length(width, height) == Some(pixels.len()),
+            i420_length(width, height) == Some(planes.len()),
             "invalid camera frame"
         );
         if !self.on {
@@ -123,7 +122,7 @@ impl Camera {
             rotation: VideoRotation::VideoRotation0,
             timestamp_us: self.epoch.elapsed().as_micros() as i64,
             frame_metadata: None,
-            buffer: i420(width, height, pixels),
+            buffer: i420(width, height, planes).context("invalid camera frame")?,
         };
         self.source.capture_frame(&frame);
         Ok(())
@@ -192,24 +191,33 @@ fn rank(mime_type: &str, hardware: &[String]) -> u8 {
     }
 }
 
-/// Packed RGBA (libyuv's ABGR) of a frame within the ABI's bounds as I420.
-pub(crate) fn i420(width: u32, height: u32, pixels: &[u8]) -> I420Buffer {
+/// A packed I420 frame (the Y plane, then U, then V, rows unpadded) within
+/// the ABI's bounds as libwebrtc's buffer; none for any other length.
+pub(crate) fn i420(width: u32, height: u32, planes: &[u8]) -> Option<I420Buffer> {
+    if i420_length(width, height) != Some(planes.len()) {
+        return None;
+    }
     let mut buffer = I420Buffer::new(width, height);
     let (stride_y, stride_u, stride_v) = buffer.strides();
     let (y, u, v) = buffer.data_mut();
-    abgr_to_i420(
-        pixels,
-        width * 4,
-        y,
-        stride_y,
-        u,
-        stride_u,
-        v,
-        stride_v,
-        width as i32,
-        height as i32,
-    );
-    buffer
+    let luma = width as usize * height as usize;
+    let (source_y, chroma) = planes.split_at(luma);
+    let (source_u, source_v) = chroma.split_at(luma / 4);
+    copy_plane(source_y, width, y, stride_y);
+    copy_plane(source_u, width / 2, u, stride_u);
+    copy_plane(source_v, width / 2, v, stride_v);
+    Some(buffer)
+}
+
+/// Copies unpadded rows into a plane whose rows are `stride` bytes apart.
+fn copy_plane(source: &[u8], width: u32, target: &mut [u8], stride: u32) {
+    let width = width as usize;
+    for (from, to) in source
+        .chunks_exact(width)
+        .zip(target.chunks_mut(stride as usize))
+    {
+        to[..width].copy_from_slice(from);
+    }
 }
 
 #[cfg(test)]

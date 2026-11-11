@@ -36,9 +36,10 @@ codecs and DTLS-SRTP as desktop. It links the Android build of the same libwebrt
 and uses its AudioRecord/AudioTrack module. AudioManager selects a communication route
 and its paired microphone; independent desktop microphone selection is not an
 Android call capability. A stale output pick falls back to the system route.
-Camera2 capture publishes one latest RGBA frame through JNI, with generation
-checks before and after conversion so callbacks from an old camera cannot revive
-capture. Pixel rotation/conversion uses WebRTC/libyuv. Permission is requested
+Camera2 capture publishes one latest I420 frame through JNI, as WebRTC/libyuv
+rotated it, with generation checks before and after the copy so callbacks from
+an old camera cannot revive capture. It reaches the encoder without an RGBA
+round trip (MOSH-97). Permission is requested
 before opening the camera, independently of microphone consent.
 
 The Android call view reuses the shared controls, device dialog and video renderer
@@ -80,9 +81,9 @@ of false made it send-only, so the callee was never heard. The call log
 records when the microphone starts or stops capturing sound, when the peer's
 audio starts or stops arriving, and the selected devices.
 
-Video in that engine takes the same RGBA camera frames and returns the
-peer's latest decoded frame as RGBA, so mosh-core, the capture helper and
-the call view are unchanged. Frames enter libwebrtc as I420; the send
+Video in that engine takes camera frames as packed I420
+(`mosh_media_push_i420`), which enter libwebrtc's encoder as they are, and
+returns the peer's latest decoded frame as RGBA for the call view. The send
 budget sets the sender's frame-rate limit and downscale (720p30 direct,
 360p15 between 300 and 600 kbit/s, 270p15 relayed, measured on the
 frame's shorter side so portrait cameras fit the same box), and
@@ -143,7 +144,8 @@ capture, negotiation and engine lifetimes stay in one thread-bound state machine
 
 `mosh-media/webrtc` is a separate Rust dependency graph, loaded as its own
 library, so libwebrtc's C++ build and global state stay out of the core
-manifest. The library exposes bounded C commands, binary packets and RGBA.
+manifest. The library exposes bounded C commands, binary packets, an I420
+camera input and RGBA for display.
 Its factory owns audio DSP, capture/playback and video processing in one session.
 
 Only public negotiation descriptions cross MLS. Media is DTLS-SRTP, and the
@@ -175,8 +177,16 @@ its own automatic discovery, NAT traversal and relays.
 ## Capture and presentation
 
 `mosh-media/capture` is a capture-only helper using pinned nokhwa. It owns one
-camera on its capture thread and sends validated RGBA over a bounded binary
-pipe. Timestamps use Unix time. The pinned macOS backend converts sensor
+camera on its capture thread and sends every frame as packed I420 (the Y
+plane, then U, then V, rows unpadded) in BT.601 video range over a bounded
+binary pipe: 1.38 MB per 720p frame. NV12 and YUYV frames are repacked, 24-bit
+RGB is converted, and Motion JPEG is decoded by mozjpeg to the YCbCr planes it
+stores and brought to video range, so no frame passes through RGBA (MOSH-96).
+A frame is a 28-byte header and its planes: `MCP2`, the pixel format's FourCC
+(`I420`), big-endian width, height and payload length, and the capture time in
+Unix milliseconds. mosh-core takes only that version and format, with even
+sides up to 1920x1080, and hands the planes to the encoder unchanged.
+Timestamps use Unix time. The pinned macOS backend converts sensor
 monotonic timestamps before constructing its buffer, preserving age through
 the pipe. Parent stdin EOF terminates it, even while a driver read blocks.
 Camera off disables the native video track and kills/reaps the helper. Four seconds
@@ -189,8 +199,11 @@ another application can fail the first frame with Media Foundation error
 `0xC00D3704`. Closing the other application's capture and enabling the camera
 again preserves the existing audio call.
 
-Capture selects an actual supported format near 720p30. macOS patches request
-available BGRA output, validate actual pixel-buffer layout, remove row padding,
+Capture selects an actual supported format near 720p30 and, at equal size and
+rate, the one cheapest to bring to I420: NV12, YUYV, Motion JPEG, then RGB.
+macOS patches request `420v`, the biplanar 4:2:0 output Apple's TN3121 calls
+native (BGRA costs a conversion per frame), validate the actual pixel-buffer
+layout, remove row padding from both planes,
 retain callback sender ownership and quiesce the delegate queue before release.
 Failure during stream initialization also removes its delegate. A two-frame
 30Hz cadence handles driver jitter without dropping alternate 30Hz frames due
@@ -220,15 +233,16 @@ media when this client disappears. Desktop frames never pass through it: Rust
 presents them into the main window's textures. On Android it polls one frame
 at a time and none is queued.
 
-Frames leave Rust at the size they are shown, not as full camera RGBA. The
+Frames leave Rust at the size they are shown, not at the camera's. The
 video stage dispatches `CallVideoSurfaces` whenever its layout changes: the
 device pixels of the remote stage and of the preview (a quarter-width inset
 over remote video, else the whole stage). The main window collects them in one
 scope (Android's PiP overlay, which also holds the PiP stage, else the call
 host), and the native call owner passes them to `show_video_at`. The engine scales decoded
 I420 down with libyuv before its RGBA conversion (the `surface` command), and
-the local preview goes through the engine's stateless libyuv scaler
-(`mosh_media_scale_rgba`) before the owner takes the call state lock, fitted
+the local preview is made from the I420 camera frame by the engine's stateless
+libyuv call (`mosh_media_preview_i420`), which scales it and converts it to
+RGBA once, before the owner takes the call state lock, fitted
 to the surface of the previous step. Both keep the aspect ratio
 and never enlarge; until a surface is reported frames stay whole. The encoder
 still takes the full camera frame.
@@ -376,7 +390,12 @@ An explicit/system `protoc` is accepted; otherwise the hook downloads a locally
 scoped, SHA-256-verified protoc 36.2. Windows builds need Visual Studio's desktop
 C++ tools, Rust, Flutter and Node; no global protobuf installation is required.
 Linux needs `CC`/`CXX` set to clang 21 or later for libwebrtc's hermetic
-libc++.
+libc++. x86_64 builds need `nasm` on `PATH`: mozjpeg assembles its SIMD with
+it and otherwise builds without, which doubles the helper's JPEG decoding
+time (5.9 against 2.8 ms per 720p frame on the Linux host). The build script
+warns about a missing nasm locally and fails in CI. Cargo does not rebuild
+mozjpeg when nasm appears later; run `cargo clean -p mozjpeg-sys` in
+`.dart_tool/native-media/target` once.
 
 macOS builds each requested architecture and uses `lipo` for universal output.
 The engine is signed as a framework; the helper inherits the main app sandbox
@@ -437,7 +456,7 @@ no-stall level instead of growing to about 230 ms.
 
 For a physical-camera failure, close other camera applications and run the
 packaged helper directly through the diagnostic command below. It checks a
-complete RGBA frame, reports readiness and stderr, and terminates the helper.
+complete I420 frame, reports readiness and stderr, and terminates the helper.
 It saves no video. Use the helper from the affected build rather than a fixture.
 
 ```sh

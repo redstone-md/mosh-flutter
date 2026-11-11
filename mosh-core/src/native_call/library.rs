@@ -13,7 +13,9 @@ use std::{
     time::Duration,
 };
 
-pub const MAX_RGBA: usize = 1920 * 1080 * 4;
+/// The largest frame the engine takes or returns.
+const MAX_PIXELS: usize = 1920 * 1080;
+pub const MAX_RGBA: usize = MAX_PIXELS * 4;
 pub const MAX_PACKET: usize = 2007;
 type Create = unsafe extern "C" fn(*const c_char) -> *mut c_void;
 type Command = unsafe extern "C" fn(*mut c_void, *const c_char) -> *mut c_char;
@@ -63,7 +65,7 @@ impl Engine {
                 symbol::<Receive>(library, b"mosh_media_receive\0")?,
                 symbol::<Receive>(library, b"mosh_media_packet_priority\0")?,
                 symbol::<CopyPacket>(library, b"mosh_media_copy_packet\0")?,
-                symbol::<Push>(library, b"mosh_media_push_rgba\0")?,
+                symbol::<Push>(library, b"mosh_media_push_i420\0")?,
                 symbol::<CopyFrame>(library, b"mosh_media_copy_frame\0")?,
             )
         };
@@ -126,9 +128,10 @@ impl Engine {
         Ok(value)
     }
 
-    pub fn push(&self, width: u32, height: u32, pixels: &[u8]) -> bool {
-        // SAFETY: retain handle/library and a readable RGBA buffer until return.
-        unsafe { (self.push)(self.handle, width, height, pixels.as_ptr(), pixels.len()) == 1 }
+    /// Offers the encoder one packed I420 camera frame.
+    pub fn push(&self, width: u32, height: u32, planes: &[u8]) -> bool {
+        // SAFETY: retain handle/library and a readable I420 buffer until return.
+        unsafe { (self.push)(self.handle, width, height, planes.as_ptr(), planes.len()) == 1 }
     }
 
     pub fn frame(&self, after: u64, pixels: &mut [u8]) -> Option<FrameInfo> {
@@ -250,7 +253,8 @@ pub(crate) fn artifact(variable: &str, name: &str) -> Result<PathBuf, String> {
     Err(format!("packaged native artifact is missing: {name}"))
 }
 
-#[cfg(any(target_os = "android", all(test, feature = "call-video-bench")))]
+/// The size of a camera frame as packed I420 (the Y plane, then U, then V,
+/// rows unpadded) within the engine's bounds; none for odd or oversized sides.
 pub(crate) fn i420_size(width: u32, height: u32) -> Option<usize> {
     (width > 0
         && height > 0
@@ -258,49 +262,19 @@ pub(crate) fn i420_size(width: u32, height: u32) -> Option<usize> {
         && height <= 1920
         && width.is_multiple_of(2)
         && height.is_multiple_of(2)
-        && u64::from(width) * u64::from(height) * 4 <= MAX_RGBA as u64)
+        && width as usize * height as usize <= MAX_PIXELS)
         .then(|| width as usize * height as usize * 3 / 2)
 }
 
-#[cfg(any(target_os = "android", all(test, feature = "call-video-bench")))]
-pub(crate) fn i420_to_rgba(width: u32, height: u32, planar: &[u8]) -> Result<Vec<u8>, String> {
-    type Convert = unsafe extern "C" fn(u32, u32, *const u8, usize, *mut u8, usize) -> i32;
-    if i420_size(width, height) != Some(planar.len()) {
-        return Err("invalid I420 frame".into());
-    }
-    let library = media_library()?;
-    let mut rgba = vec![0; width as usize * height as usize * 4];
-    // SAFETY: the pinned converter retains no pointers. Both sized buffers and
-    // its executable library remain alive until conversion returns.
-    let success = unsafe {
-        let convert = library
-            .get::<Convert>(b"mosh_media_i420_to_rgba\0")
-            .map_err(error)?;
-        convert(
-            width,
-            height,
-            planar.as_ptr(),
-            planar.len(),
-            rgba.as_mut_ptr(),
-            rgba.len(),
-        )
-    };
-    if success == 1 {
-        Ok(rgba)
-    } else {
-        Err("I420 conversion failed".into())
-    }
-}
-
-/// The frame shrunk to fit `surface` by the engine's libyuv, or `None` when
-/// it already fits.
-pub(crate) fn scale_rgba(
+/// A packed I420 camera frame as the RGBA its preview shows, shrunk by the
+/// engine's libyuv to fit `surface`; a frame is never enlarged.
+pub(crate) fn preview(
     width: u32,
     height: u32,
-    pixels: &[u8],
+    planes: &[u8],
     surface: Surface,
-) -> Result<Option<(u32, u32, Vec<u8>)>, String> {
-    type Scale = unsafe extern "C" fn(
+) -> Result<(u32, u32, Vec<u8>), String> {
+    type Preview = unsafe extern "C" fn(
         u32,
         u32,
         *const u8,
@@ -310,38 +284,36 @@ pub(crate) fn scale_rgba(
         usize,
         *mut [u32; 2],
     ) -> i32;
-    if surface == Surface::default() {
-        return Ok(None);
+    if i420_size(width, height) != Some(planes.len()) {
+        return Err("invalid I420 frame".into());
     }
     let library = media_library()?;
-    // Zeroed allocations are lazy, so a frame that already fits costs little.
-    let capacity = (surface.width as usize * surface.height as usize * 4).min(MAX_RGBA);
-    let mut scaled = vec![0; capacity];
+    // A fitted frame is no larger than the frame or, once reported, its surface.
+    let whole = width as usize * height as usize;
+    let shown = surface.width as usize * surface.height as usize;
+    let mut rgba = vec![0; if shown == 0 { whole } else { whole.min(shown) } * 4];
     let mut size = [0; 2];
-    // SAFETY: the pinned scaler retains no pointers. Every buffer and its
+    // SAFETY: the pinned converter retains no pointers. Every buffer and its
     // executable library remain alive until it returns.
     let status = unsafe {
-        let scale = symbol::<Scale>(library, b"mosh_media_scale_rgba\0")?;
-        scale(
+        let preview = symbol::<Preview>(library, b"mosh_media_preview_i420\0")?;
+        preview(
             width,
             height,
-            pixels.as_ptr(),
-            pixels.len(),
+            planes.as_ptr(),
+            planes.len(),
             surface,
-            scaled.as_mut_ptr(),
-            scaled.len(),
+            rgba.as_mut_ptr(),
+            rgba.len(),
             &mut size,
         )
     };
-    match status {
-        1 => {
-            let [width, height] = size;
-            scaled.truncate(width as usize * height as usize * 4);
-            Ok(Some((width, height, scaled)))
-        }
-        0 => Ok(None),
-        _ => Err("RGBA scaling failed".into()),
+    if status != 1 {
+        return Err("I420 preview conversion failed".into());
     }
+    let [width, height] = size;
+    rgba.truncate(width as usize * height as usize * 4);
+    Ok((width, height, rgba))
 }
 
 /// # Safety

@@ -146,17 +146,14 @@ pub extern "system" fn Java_app_mosh_mosh_MoshCallCamera_cameraFrame<'caller>(
             let data = env.get_direct_buffer_address(&buffer)?;
             // SAFETY: Java retains this direct packed I420 buffer until the synchronous
             // callback returns. Capacity and dimensions are validated before reading.
-            let planar = unsafe { std::slice::from_raw_parts(data, length) };
-            let Ok(pixels) = library::i420_to_rgba(w, h, planar) else {
-                return Ok(());
-            };
-            publish(generation as u64, w, h, pixels);
+            let planes = unsafe { std::slice::from_raw_parts(data, length) };
+            publish(generation as u64, w, h, planes.to_vec());
             Ok(())
         })
         .resolve::<jni::errors::ThrowRuntimeExAndDefault>();
 }
 
-fn publish(generation: u64, width: u32, height: u32, pixels: Vec<u8>) {
+fn publish(generation: u64, width: u32, height: u32, planes: Vec<u8>) {
     let mut output = OUTPUT.lock().unwrap_or_else(|error| error.into_inner());
     if let Some(output) = output
         .as_mut()
@@ -167,7 +164,7 @@ fn publish(generation: u64, width: u32, height: u32, pixels: Vec<u8>) {
             sequence: output.sequence,
             width,
             height,
-            pixels,
+            planes,
             received: Instant::now(),
             source_age_ms: 0,
         }));

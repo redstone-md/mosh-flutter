@@ -171,15 +171,25 @@ impl Frames {
     }
 }
 
+/// The pixels of a frame within the ABI's bounds: sides up to 1920 and no
+/// more than 1920x1080 in all.
+fn pixels(width: u32, height: u32) -> Option<usize> {
+    let pixels = width as usize * height as usize;
+    (width > 0 && height > 0 && width <= 1920 && height <= 1920 && pixels <= 1920 * 1080)
+        .then_some(pixels)
+}
+
 /// The packed RGBA size of a frame within the ABI's bounds.
 pub fn rgba_length(width: u32, height: u32) -> Option<usize> {
-    if width == 0 || height == 0 || width > 1920 || height > 1920 {
-        return None;
-    }
-    let length = (width as usize)
-        .checked_mul(height as usize)?
-        .checked_mul(4)?;
-    (length <= MAX_RGBA_BYTES).then_some(length)
+    pixels(width, height).map(|pixels| pixels * 4)
+}
+
+/// The packed I420 size of a camera frame within the ABI's bounds. Its
+/// sides are even, so each chroma plane is exactly a quarter of the luma.
+pub fn i420_length(width: u32, height: u32) -> Option<usize> {
+    pixels(width, height)
+        .filter(|_| width.is_multiple_of(2) && height.is_multiple_of(2))
+        .map(|pixels| pixels * 3 / 2)
 }
 
 #[cfg(test)]

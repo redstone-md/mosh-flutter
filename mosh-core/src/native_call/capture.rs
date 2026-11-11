@@ -1,6 +1,6 @@
-//! Camera adapters publish one latest, owned RGBA frame to the call owner.
+//! Camera adapters publish one latest, owned I420 frame to the call owner.
 use super::{
-    library::{scale_rgba, Engine},
+    library::{preview, Engine},
     state::State,
     types::Surface,
 };
@@ -26,35 +26,35 @@ pub(crate) struct Captured {
     pub sequence: u64,
     pub width: u32,
     pub height: u32,
-    pub pixels: Vec<u8>,
+    /// Packed I420 (`library::i420_size`).
+    pub planes: Vec<u8>,
     pub received: Instant,
     pub source_age_ms: u32,
 }
 
-/// A capture frame with its preview already fitted to the local surface, so
-/// the owner scales it before taking the call state lock.
+/// A capture frame with its preview already converted and fitted to the
+/// local surface, so the owner does neither under the call state lock.
 pub(crate) struct Prepared {
     /// The owner's capture generation the frame came from.
     pub generation: u64,
     pub frame: Arc<Captured>,
-    preview: (u32, u32, Vec<u8>),
+    preview: Option<(u32, u32, Vec<u8>)>,
 }
 
 impl Prepared {
-    /// A scaler failure costs presentation bandwidth, never the preview, and
-    /// is logged once.
+    /// A frame the engine cannot convert is still sent, without a preview;
+    /// the failure is logged once.
     pub fn new(generation: u64, frame: Arc<Captured>, surface: Surface) -> Self {
         static FAILED: Once = Once::new();
-        let fitted =
-            scale_rgba(frame.width, frame.height, &frame.pixels, surface).unwrap_or_else(|error| {
+        let preview = preview(frame.width, frame.height, &frame.planes, surface)
+            .map_err(|error| {
                 FAILED.call_once(|| {
                     use crate::diagnostics_log::{kinds, write, LogLevel};
-                    let message = format!("preview scaling failed; sending it whole: {error}");
+                    let message = format!("camera preview failed; sending without it: {error}");
                     write(LogLevel::Warn, kinds::CALL, "", &message);
                 });
-                None
-            });
-        let preview = fitted.unwrap_or_else(|| (frame.width, frame.height, frame.pixels.clone()));
+            })
+            .ok();
         Self {
             generation,
             frame,
@@ -63,24 +63,27 @@ impl Prepared {
     }
 
     /// The encoder takes the whole capture and the window its preview, both
-    /// only while the frame is under a second old.
+    /// only while the frame is under a second old. A frame the encoder
+    /// refuses is not shown either, so the peer is never told of video that
+    /// is not sent.
     pub fn present(self, state: &mut State, engine: Option<&Engine>) {
         let frame = &self.frame;
         if u128::from(frame.source_age_ms) + frame.received.elapsed().as_millis() >= 1000 {
             return;
         }
-        if let Some(engine) = engine {
-            engine.push(frame.width, frame.height, &frame.pixels);
+        if engine.is_some_and(|engine| !engine.push(frame.width, frame.height, &frame.planes)) {
+            return;
         }
-        let (width, height, pixels) = self.preview;
-        state.present(
-            width,
-            height,
-            pixels,
-            frame.source_age_ms,
-            frame.received,
-            true,
-        );
+        if let Some((width, height, pixels)) = self.preview {
+            state.present(
+                width,
+                height,
+                pixels,
+                frame.source_age_ms,
+                frame.received,
+                true,
+            );
+        }
         state.snapshot.camera = true;
     }
 }
@@ -102,9 +105,9 @@ mod tests {
     fn aged(received_ms: u64, source_age_ms: u32) -> Prepared {
         let frame = Captured {
             sequence: 1,
-            width: 1,
-            height: 1,
-            pixels: vec![0; 4],
+            width: 2,
+            height: 2,
+            planes: vec![0; 6],
             received: Instant::now() - Duration::from_millis(received_ms),
             source_age_ms,
         };
@@ -130,9 +133,12 @@ mod tests {
         assert!(!state.snapshot.camera);
         assert!(state.frames[0].is_none());
         aged(600, 500).present(&mut state, None);
+        assert!(!state.snapshot.camera);
         assert!(state.frames[0].is_none());
         aged(0, 0).present(&mut state, None);
         assert!(state.snapshot.camera);
-        assert!(state.frames[0].is_some());
+        // The fresh frame's preview needs the engine, which this test runs
+        // without: `local_preview_reaches_the_window_at_its_surface_size`
+        // (presentation_tests.rs) asserts that it is shown.
     }
 }

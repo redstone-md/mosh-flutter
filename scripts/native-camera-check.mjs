@@ -48,17 +48,20 @@ export function checkCamera(helper, { args = ["--capture"], timeoutMs = 70_000 }
   });
 }
 
+// A frame is `MCP2`, the pixel format's FourCC, big-endian width, height and
+// payload length, the capture time in Unix ms, then the packed I420 planes.
 function firstFrame(bytes) {
-  if (bytes.length < 24) return null;
-  const width = bytes.readUInt32BE(4);
-  const height = bytes.readUInt32BE(8);
-  const size = bytes.readUInt32BE(12);
-  if (bytes.toString("ascii", 0, 4) !== "MCP1" || width === 0 || height === 0
-    || width > 1920 || height > 1920 || size > 1920 * 1080 * 4 || size !== width * height * 4) {
+  if (bytes.length < 28) return null;
+  const width = bytes.readUInt32BE(8);
+  const height = bytes.readUInt32BE(12);
+  const size = bytes.readUInt32BE(16);
+  if (bytes.toString("ascii", 0, 8) !== "MCP2I420" || width === 0 || height === 0
+    || width > 1920 || height > 1920 || width % 2 || height % 2
+    || width * height > 1920 * 1080 || size !== width * height * 3 / 2) {
     throw new Error("invalid camera frame");
   }
-  if (bytes.length < 24 + size) return null;
-  return { width, height, sourceAgeMs: Math.max(0, Date.now() - Number(bytes.readBigUInt64BE(16))) };
+  if (bytes.length < 28 + size) return null;
+  return { width, height, sourceAgeMs: Math.max(0, Date.now() - Number(bytes.readBigUInt64BE(20))) };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

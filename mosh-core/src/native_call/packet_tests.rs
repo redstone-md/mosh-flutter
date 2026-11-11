@@ -209,9 +209,9 @@ mod native {
         let returning = Sender::new(b.clone());
         sending.relayed(true);
         returning.relayed(true);
-        let mut pixels = vec![0; 640 * 360 * 4];
-        pattern(&mut pixels, 0);
-        let mut decoded_pixels = vec![0; pixels.len()];
+        let mut planes = vec![0; 640 * 360 * 3 / 2];
+        pattern(&mut planes, 0);
+        let mut decoded_pixels = vec![0; 640 * 360 * 4];
         let (mut caller, mut callee) = pair(
             true,
             sending.link("b", &[9; 16]),
@@ -231,8 +231,8 @@ mod native {
                 while capture_at <= now {
                     capture_at += interval;
                 }
-                motion(&mut pixels, tick);
-                assert!(caller.push(640, 360, &pixels));
+                motion(&mut planes, tick);
+                assert!(caller.push(640, 360, &planes));
                 tick += 1;
             }
             forward(&mut caller, &mut callee);
@@ -343,30 +343,29 @@ mod native {
             .unwrap();
     }
 
-    pub(super) fn pattern(pixels: &mut [u8], tick: usize) {
-        for (index, pixel) in pixels.chunks_exact_mut(4).enumerate() {
-            let x = index % 640;
-            let y = index / 640;
-            let detail =
-                (x as u32).wrapping_mul(2_654_435_761) ^ (y as u32).wrapping_mul(1_013_904_223);
-            if (240..400).contains(&x) && (120..240).contains(&y) {
-                pixel.copy_from_slice(&[(tick * 7) as u8, (tick * 13) as u8, 128, 255]);
-            } else {
-                pixel.copy_from_slice(&[
-                    (detail >> 16) as u8,
-                    (detail >> 8) as u8,
-                    detail as u8,
-                    255,
-                ]);
-            }
+    /// A 640x360 I420 frame of detail with a flat block in its middle. The
+    /// luma carries half the range and the chroma a sixteenth, about what a
+    /// picture of per-pixel random colours has once it is I420.
+    pub(super) fn pattern(planes: &mut [u8], tick: usize) {
+        let (luma, chroma) = planes.split_at_mut(640 * 360);
+        let detail = |index: usize| (index as u32).wrapping_mul(2_654_435_761);
+        for (index, sample) in luma.iter_mut().enumerate() {
+            *sample = 64 + (detail(index) >> 25) as u8;
         }
+        for (index, sample) in chroma.iter_mut().enumerate() {
+            *sample = 120 + (detail(index) >> 28) as u8;
+        }
+        motion(planes, tick);
     }
 
-    pub(super) fn motion(pixels: &mut [u8], tick: usize) {
-        for row in pixels.chunks_exact_mut(640 * 4).skip(120).take(120) {
-            for pixel in row[240 * 4..400 * 4].chunks_exact_mut(4) {
-                pixel.copy_from_slice(&[(tick * 7) as u8, (tick * 13) as u8, 128, 255]);
-            }
+    /// Repaints the block, as something moving before the camera would.
+    pub(super) fn motion(planes: &mut [u8], tick: usize) {
+        for row in planes[..640 * 360]
+            .chunks_exact_mut(640)
+            .skip(120)
+            .take(120)
+        {
+            row[240..400].fill((tick * 7) as u8);
         }
     }
 }
