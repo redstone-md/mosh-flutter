@@ -121,9 +121,9 @@ jobs:
         run: rustup target add x86_64-apple-darwin
 
       # The x86_64 slice of the camera helper assembles its JPEG decoder's
-      # SIMD with nasm; the arm64 slice needs none.
-      - if: inputs.universal
-        run: brew install nasm
+      # SIMD with nasm. The app's script phase builds that slice in the
+      # single-arch build too.
+      - run: brew install nasm
 
       # CI builds only prove the app still packages; release.yml builds the
       # shipped artifact with the profile as committed. Fat LTO stays here
