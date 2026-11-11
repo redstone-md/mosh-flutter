@@ -1,5 +1,6 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show StreamSubscription, unawaited;
 import 'dart:io' show File;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart'
@@ -7,10 +8,14 @@ import 'package:mosh/src/app/mosh_theme.dart'
 
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart' show VideoPlayer;
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/features/shared/attachment_media_src.dart';
+import 'package:mosh/src/features/shared/media_player.dart';
+import 'package:mosh/src/features/shared/system_player.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
 part 'media_viewer_stages.dart';
@@ -28,6 +33,7 @@ class MediaViewer extends StatelessWidget {
     required this.descriptor,
     required this.src,
     required this.onClose,
+    this.createPlayer = createMediaPlayer,
   });
 
   /// The attachment's metadata. Drives the mime
@@ -40,6 +46,9 @@ class MediaViewer extends StatelessWidget {
   /// Invoked when the user closes the viewer (close button, backdrop tap,
   /// or Esc via [showMediaViewer]).
   final VoidCallback onClose;
+
+  /// Makes the player of a video or audio attachment; tests pass their own.
+  final MediaPlayerFactory createPlayer;
 
   @override
   Widget build(BuildContext context) {
@@ -121,6 +130,7 @@ class MediaViewer extends StatelessWidget {
                               _MediaStage(
                                 descriptor: descriptor,
                                 src: src,
+                                createPlayer: createPlayer,
                                 maxStageWidth: maxStageWidth,
                                 maxStageHeight: maxStageHeight,
                               ),
@@ -159,12 +169,14 @@ class _MediaStage extends StatelessWidget {
   const _MediaStage({
     required this.descriptor,
     required this.src,
+    required this.createPlayer,
     required this.maxStageWidth,
     required this.maxStageHeight,
   });
 
   final AttachmentDescriptor descriptor;
   final String src;
+  final MediaPlayerFactory createPlayer;
   final double maxStageWidth;
   final double maxStageHeight;
 
@@ -186,10 +198,10 @@ class _MediaStage extends StatelessWidget {
               maxStageWidth: maxStageWidth,
               maxStageHeight: maxStageHeight,
             ),
-          AttachmentMediaKind.video =>
-            _VideoStage(descriptor: descriptor, src: src),
-          AttachmentMediaKind.audio =>
-            _AudioStage(descriptor: descriptor, src: src),
+          AttachmentMediaKind.video => _VideoStage(
+              descriptor: descriptor, src: src, createPlayer: createPlayer),
+          AttachmentMediaKind.audio => _AudioStage(
+              descriptor: descriptor, src: src, createPlayer: createPlayer),
           AttachmentMediaKind.file => _PlaybackPlaceholderCard(
               fileName: descriptor.fileName,
               icon: Icons.insert_drive_file_outlined,

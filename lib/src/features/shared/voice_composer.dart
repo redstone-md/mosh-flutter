@@ -5,6 +5,7 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
 import 'package:mosh/src/features/shared/contextual_icon_switcher.dart';
+import 'package:mosh/src/features/shared/media_player.dart';
 import 'package:mosh/src/features/shared/voice_composer_types.dart';
 import 'package:mosh/src/rust/api/audio_devices.dart' show audioInputDeviceId;
 import 'package:path_provider/path_provider.dart'
@@ -70,9 +71,9 @@ class _VoiceComposerState extends State<VoiceComposer> {
   String? _path;
   String _mime = '';
   int _durationMs = 0;
-  // Review-phase preview player (media_kit). Lazy + nullable: created on
-  // the first _togglePreview, disposed on discard / send / dispose. Null
-  // (test env without the native lib) -> the play button is a no-op.
+  // Review-phase preview player. Lazy + nullable: created on the first
+  // _togglePreview, disposed on discard / send / dispose. Null (a test
+  // host without libmpv) -> the play button is a no-op.
   Player? _previewPlayer;
   bool _previewPlaying = false;
   // One recorder teardown at a time: manual stop, the auto-stop timer and
@@ -117,8 +118,8 @@ class _VoiceComposerState extends State<VoiceComposer> {
 
   /// Toggle the review-phase preview: the first tap creates the player and
   /// opens the recorded file; later taps toggle play/pause (the playing
-  /// stream drives the icon). If Player() throws (test env without the
-  /// native lib) the button is a no-op so the review row still renders.
+  /// stream drives the icon). Where no player can be made (a test host
+  /// without libmpv) the button is a no-op so the review row still renders.
   Future<void> _togglePreview() async {
     final path = _path;
     if (path == null) return;
@@ -138,7 +139,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
   /// Creates the preview player, wires its playing stream, opens the file.
   /// Throwing here resets the preview in the caller's catch.
   Future<void> _openPreview(String path) async {
-    final player = Player();
+    final player = createMediaPlayer();
     _previewPlayer = player;
     player.stream.playing.listen((playing) {
       _ifMounted(() => setState(() => _previewPlaying = playing));

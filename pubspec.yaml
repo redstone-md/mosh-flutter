@@ -45,15 +45,21 @@ dependencies:
   # records to a file (start/stop return a path) + onAmplitudeChanged
   # drives the waveform preview. Desktop + mobile + web platform impls.
   record: ^7.1.1
-  # Slice-3 media viewer: video + audio playback for the MediaViewer
-  # fullscreen dialog (1-в-1 port of React MediaViewer.tsx <video/
-  # <audio controls autoPlay>). media_kit is cross-platform (desktop +
-  # mobile + web), so one package covers both branches; media_kit_video
-  # renders the video surface, media_kit_libs_video pulls the native
-  # decoders per platform (windows/linux/macos/ios/android).
+  # Playback of attachments, voice messages and recordings. Desktop and iOS
+  # play through media_kit's libmpv: media_kit_video draws the picture and
+  # each media_kit_libs_* package brings one platform's libmpv. Android has
+  # no libmpv; there media_kit's player runs over the system's media3, which
+  # video_player reaches (ADR 0053).
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
-  media_kit_libs_video: ^1.0.7
+  media_kit_libs_linux: ^1.2.1
+  media_kit_libs_windows_video: ^1.0.11
+  media_kit_libs_macos_video: ^1.1.4
+  media_kit_libs_ios_video: ^1.1.4
+  video_player: ^2.11.1
+  # Keeps the display awake while a video is open on Android, as
+  # media_kit_video does on the other platforms. Already resolved through it.
+  wakelock_plus: ^1.5.2
   # Audio settings About section: the app version line. Already a
   # transitive dep (wakelock_plus, media_kit); promoting it to a direct dep
   # pins the resolved lock version (10.2.1) without touching the lock.
@@ -101,6 +107,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   super_native_extensions: ^0.10.0-dev.2
   camera_platform_interface: ^2.15.0
+  video_player_platform_interface: ^6.6.0
+  wakelock_plus_platform_interface: ^1.6.0
 
 flutter:
   generate: true

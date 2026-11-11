@@ -9,6 +9,7 @@ import 'package:mosh/src/app/mosh_theme.dart'
 
 import 'package:media_kit/media_kit.dart';
 
+import 'package:mosh/src/features/shared/media_player.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart'
     show formatVoiceClock, waveformBuckets;
 import 'package:mosh/src/features/shared/contextual_icon_switcher.dart';
@@ -60,7 +61,7 @@ class VoiceMessageCard extends StatefulWidget {
   final String pauseLabel;
   final Widget? messageFooter;
 
-  /// Uses media_kit's existing platform-player seam in headless tests.
+  /// Makes the card's player; tests pass their own.
   final Player Function()? createPlayer;
 
   @override
@@ -86,9 +87,9 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
   @override
   void initState() {
     super.initState();
-    // The card still renders when native playback is unavailable.
+    // The card still renders where no player can be made.
     try {
-      final player = (widget.createPlayer ?? Player.new)();
+      final player = (widget.createPlayer ?? createMediaPlayer)();
       _player = player;
       player.stream.playing.listen((playing) {
         _ifMounted(() => setState(() => _playing = playing));

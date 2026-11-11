@@ -1,12 +1,18 @@
 import 'dart:async' show Completer, StreamSubscription;
+import 'dart:io' show Directory, File;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/foundation.dart' show compute;
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:image/image.dart' as img show decodeImage, decodeNamedImage;
 import 'package:media_kit/media_kit.dart';
 import 'package:mime/mime.dart' show lookupMimeType;
 
 import 'image_previews.dart';
+import 'media_player.dart' show playsThroughSystem;
+
+/// Takes one frame of a video as an encoded image; null when it has none.
+typedef VideoFrame = Future<Uint8List?> Function(Uint8List video);
 
 /// Generates a base64-encoded JPEG thumbnail for an image or video file, or
 /// null for other types / decode failures.
@@ -16,24 +22,32 @@ import 'image_previews.dart';
 /// read by AttachmentPicker).
 ///
 /// Image picks use the pure-Dart `image` package (no native plugin). Video
-/// picks use `media_kit`'s headless `Player` + `screenshot()` (seek to 10%,
-/// capture, re-encode). The
-/// video branch is best-effort: if the media_kit native backend (libmpv) is
-/// unavailable, it returns null rather than throwing. End-to-end video
+/// picks take one frame, a tenth into the video, and encode it the same
+/// way: with a headless libmpv player ([playerVideoFrame]), or on Android
+/// with the system's decoder ([systemVideoFrame]). The video branch is
+/// best-effort: a video that gives no frame has no thumbnail. End-to-end
 /// capture is verified with real libmpv in the native media tests.
 Future<String?> createThumbnail(Uint8List bytes, String fileName) async {
   return (await createAttachmentPreviews(bytes, fileName))?.previewBase64;
 }
 
 /// Decode once and generate both the inline miniature and the clear preview.
+/// [videoFrame] is how a video's frame is taken; the platform's by default.
 Future<AttachmentPreviews?> createAttachmentPreviews(
-    Uint8List bytes, String fileName) async {
+    Uint8List bytes, String fileName,
+    {VideoFrame? videoFrame}) async {
   final mime = lookupMimeType(fileName) ?? '';
   if (mime.startsWith('image/')) {
     return _createImageThumbnail(bytes, fileName);
   }
   if (mime.startsWith('video/')) {
-    return _createVideoThumbnail(bytes);
+    final take = videoFrame ??
+        (playsThroughSystem ? systemVideoFrame : playerVideoFrame);
+    final frame = await take(bytes);
+    if (frame == null || frame.isEmpty) return null;
+    // Decoded, resized and encoded off the main isolate, as an image is.
+    return compute(_decodeVideoFrame, frame,
+        debugLabel: 'video-attachment-previews');
   }
   return null; // non-image/non-video => no thumbnail
 }
@@ -73,15 +87,30 @@ AttachmentPreviews? _decodeImagePreviews((Uint8List, String) input) {
   }
 }
 
-/// Video branch. Seeks to 10% of the
-/// duration, captures a frame via `media_kit`'s headless `Player.screenshot()`,
-/// then decodes + resizes to 320px max-edge + re-encodes JPEG q70 (the same
-/// output shape as the image branch).
-///
-/// Best-effort: returns null when the native backend is unavailable or capture
-/// fails. Headless players must enable their video track explicitly because
+const _systemFrames = MethodChannel('mosh/video-frame');
+
+/// A frame of [video] from Android's own decoder, as a JPEG. The decoder
+/// reads a file, so the video stays in the app's cache for the call.
+Future<Uint8List?> systemVideoFrame(Uint8List video) async {
+  Directory? directory;
+  try {
+    directory = await Directory.systemTemp.createTemp('mosh-frame');
+    final file = File('${directory.path}/video');
+    await file.writeAsBytes(video);
+    return await _systemFrames.invokeMethod<Uint8List>('take', file.path);
+  } on Exception {
+    // No decoder for this video, or no room for the file: never fatal.
+    return null;
+  } finally {
+    await directory?.delete(recursive: true);
+  }
+}
+
+/// A frame of [video] from a headless libmpv player: it seeks a tenth in
+/// and takes a screenshot. Null where libmpv is unavailable or gives no
+/// frame. A headless player must enable its video track itself, because
 /// media_kit otherwise waits for a VideoController to enable decoding.
-Future<AttachmentPreviews?> _createVideoThumbnail(Uint8List bytes) async {
+Future<Uint8List?> playerVideoFrame(Uint8List bytes) async {
   Player? player;
   StreamSubscription<Duration>? durSub;
   StreamSubscription<Duration>? posSub;
@@ -138,14 +167,7 @@ Future<AttachmentPreviews?> _createVideoThumbnail(Uint8List bytes) async {
     frame ??= await player
         .screenshot()
         .timeout(const Duration(seconds: 2), onTimeout: () => null);
-    if (frame == null || frame.isEmpty) return null;
-
-    // 4) Decode + resize to 320px max-edge + re-encode JPEG q70 (the same
-    //    output as the image branch). Offload to a background isolate via
-    //    compute() to avoid blocking the main thread (same pattern as the
-    //    image branch above).
-    return await compute(_decodeVideoFrame, frame,
-        debugLabel: 'video-attachment-previews');
+    return frame;
   } on Exception {
     // media_kit native backend unavailable / decode failure -- never fatal.
     return null;
