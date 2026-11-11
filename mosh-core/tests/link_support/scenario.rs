@@ -1,11 +1,11 @@
-//! One scenario on the machine's network at a time, and how long each took.
+//! Real-network scenarios: a network for each, and how long each took.
 
 use std::cell::Cell;
 use std::io::Write;
 use std::sync::{Mutex, MutexGuard};
 use std::time::Instant;
 
-static NETWORK: Mutex<()> = Mutex::new(());
+static LAN: Mutex<()> = Mutex::new(());
 thread_local! {
     static SCOPE: Cell<u64> = const { Cell::new(0) };
 }
@@ -16,21 +16,25 @@ pub(super) fn network_scope() -> u64 {
     SCOPE.with(Cell::get)
 }
 
-/// Serialize LAN probes and give local-tracker scenarios independent networks.
+/// Starts a scenario on a network of its own. Under the local tracker of
+/// `scripts/moss-test.mjs` its peers find only each other, so scenarios run
+/// side by side. Without the tracker they share the machine's LAN discovery
+/// and take turns.
 pub fn isolated_network_scenario() -> NetworkScenario {
-    let network = NETWORK.lock().unwrap_or_else(|error| error.into_inner());
+    let shared_discovery = std::env::var_os("MOSH_TEST_TRACKER_URL").is_none();
+    let turn = shared_discovery.then(|| LAN.lock().unwrap_or_else(|error| error.into_inner()));
     SCOPE.with(|scope| scope.set(rand::random()));
     NetworkScenario {
-        _network: network,
+        _turn: turn,
         started: Instant::now(),
     }
 }
 
-/// Holds the network until the scenario ends, then says how long it ran. The
-/// test harness times a test from its start, queue for the network included,
-/// and prints that only past a minute.
+/// Lives as long as its scenario, then says how long that was. The test
+/// harness prints a test's time only past a minute, and counts the wait for
+/// a turn into it.
 pub struct NetworkScenario {
-    _network: MutexGuard<'static, ()>,
+    _turn: Option<MutexGuard<'static, ()>>,
     started: Instant,
 }
 
