@@ -4,28 +4,29 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/native_call/types.dart' as native;
 
-import 'call_video_renderer.dart';
+import 'call_video_textures.dart';
 import 'call_video_surfaces.dart';
 
 /// Presentation only. Pixel changes never animate; stage presence may fade.
 class CallVideoStage extends StatelessWidget {
   const CallVideoStage(
       {super.key,
-      required this.images,
+      required this.video,
       required this.peer,
       this.inset = true,
       this.alwaysVisible = false,
       this.remoteCamera = false});
-  final ValueListenable<CallVideoImages> images;
+  final ValueListenable<CallVideoPictures> video;
   final String peer;
   final bool remoteCamera;
   final bool inset;
   final bool alwaysVisible;
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<CallVideoImages>(
-        valueListenable: images,
-        builder: (context, images, _) => AnimatedSwitcher(
+  Widget build(BuildContext context) =>
+      ValueListenableBuilder<CallVideoPictures>(
+        valueListenable: video,
+        builder: (context, pictures, _) => AnimatedSwitcher(
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
               : const Duration(milliseconds: 150),
@@ -33,15 +34,15 @@ class CallVideoStage extends StatelessWidget {
           switchOutCurve: Curves.easeInOut,
           child: !alwaysVisible &&
                   !remoteCamera &&
-                  images.remote == null &&
-                  images.local == null
+                  pictures.remote == null &&
+                  pictures.local == null
               ? const SizedBox.shrink(key: ValueKey(false))
-              : _stage(context, images),
+              : _stage(context, pictures),
         ),
       );
 
-  Widget _stage(BuildContext context, CallVideoImages images) {
-    final remoteStage = remoteCamera || images.remote != null;
+  Widget _stage(BuildContext context, CallVideoPictures pictures) {
+    final remoteStage = remoteCamera || pictures.remote != null;
     return Padding(
       key: const ValueKey(true),
       padding: EdgeInsets.only(top: inset ? 12 : 0),
@@ -55,15 +56,15 @@ class CallVideoStage extends StatelessWidget {
                           color: MoshColors.bg0,
                           child: Stack(
                               fit: StackFit.expand,
-                              children: _layers(context, images,
+                              children: _layers(context, pictures,
                                   remoteStage: remoteStage))))))),
     );
   }
 
-  List<Widget> _layers(BuildContext context, CallVideoImages images,
+  List<Widget> _layers(BuildContext context, CallVideoPictures pictures,
       {required bool remoteStage}) {
-    final remote = images.remote;
-    final preview = images.local;
+    final remote = pictures.remote;
+    final preview = pictures.local;
     final l = AppLocalizations.of(context)!;
     return [
       if (remote != null)
@@ -97,15 +98,15 @@ class CallVideoStage extends StatelessWidget {
         remote: surface(stage));
   }
 
-  Widget _preview(CallVideoPicture image, String label) => Align(
+  Widget _preview(CallVideoPicture picture, String label) => Align(
         alignment: Alignment.bottomRight,
         child: Padding(
             padding: _previewPadding,
             child: FractionallySizedBox(
                 widthFactor: _previewShare,
                 child: AspectRatio(
-                    aspectRatio: image.aspectRatio,
-                    child: _picture(image, label, mirrored: true)))),
+                    aspectRatio: picture.aspectRatio,
+                    child: _picture(picture, label, mirrored: true)))),
       );
 
   Widget _picture(CallVideoPicture picture, String label,
@@ -115,15 +116,11 @@ class CallVideoStage extends StatelessWidget {
           image: true,
           child: Transform.flip(
               flipX: mirrored,
-              child: switch (picture) {
-                DecodedVideo(:final image) =>
-                  RawImage(image: image, fit: BoxFit.contain),
-                // A texture fills its box, so the frame's shape is kept here.
-                TextureVideo(:final id) => Center(
-                    child: AspectRatio(
-                        aspectRatio: picture.aspectRatio,
-                        child: Texture(textureId: id))),
-              }));
+              // A texture fills its box, so the frame's shape is kept here.
+              child: Center(
+                  child: AspectRatio(
+                      aspectRatio: picture.aspectRatio,
+                      child: Texture(textureId: picture.id)))));
 }
 
 const _previewShare = .25;

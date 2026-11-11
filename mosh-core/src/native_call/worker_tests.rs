@@ -1,5 +1,5 @@
 use super::*;
-use crate::native_call::{capture::Captured, library::MAX_PACKET};
+use crate::native_call::{capture::Captured, library::MAX_PACKET, texture::tests::Recording};
 use crate::private_dm_runtime::transport::memory::MemoryNet;
 
 #[test]
@@ -51,7 +51,6 @@ fn a_frame_prepared_before_the_camera_stops_is_not_presented() {
     };
     let prepared = Prepared::new(owner.generation, Arc::new(frame), Surface::default());
     owner.capture(&mut state, Some(prepared)).unwrap();
-    assert!(state.frames[0].is_none());
     assert!(!state.snapshot.camera);
     assert_eq!(owner.captured, 0);
 }
@@ -87,4 +86,25 @@ fn a_new_call_counts_sender_drops_from_zero() {
     state.context = Some(outgoing("second"));
     owner.synchronize(&mut state);
     assert_eq!(owner.sender.dropped(), 0);
+}
+
+#[test]
+fn a_new_call_opens_on_blank_textures() {
+    let mut owner = Owner::new(MemoryNet::new().endpoint("local"));
+    let remote = Recording::start();
+    let mut state = State {
+        context: Some(outgoing("first")),
+        ..Default::default()
+    };
+    state.textures[1] = Some(remote.texture());
+    owner.synchronize(&mut state);
+    state.present(1, 1, &[200, 10, 10, 255], 0, Instant::now(), false);
+    state.context = Some(outgoing("second"));
+    owner.synchronize(&mut state);
+    let frames = remote.frames();
+    let (_, _, shown) = frames.last().unwrap();
+    assert!(
+        shown.chunks_exact(4).all(|pixel| pixel == [0, 0, 0, 255]),
+        "the first call's picture stayed in the texture: {shown:?}"
+    );
 }

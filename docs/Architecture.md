@@ -377,7 +377,7 @@ provider.
 
 A desktop or Android call shows in the main window, above the routes: an
 expanded view that can go full screen and a mini view while the user browses
-chats. Desktop video is two Flutter textures that Rust fills directly
+chats. Its video is two Flutter textures that Rust fills directly
 ([ADR 0052](ADR/0052-desktop-calls-in-the-main-window.md)); there is no second
 process, window or engine for a call. Call actions carry both session and call
 IDs, and the orchestrator's state remains authoritative. Without the native
@@ -388,7 +388,8 @@ uses CPAL's selected output device. See [voice calls](Features/voice-calls.md).
 Media runs in the native call engine, libwebrtc in `mosh-media/webrtc`, which
 mosh-core loads through the `mosh_media_*` ABI and feeds over Moss
 ([native call media](Features/native-call-media.md)). Rust owns call signaling
-and the engine; Dart only commands it and renders its frames.
+and the engine and writes the video frames into the window's textures; Dart
+commands the call and reads its state.
 
 Accepted video-call ownership lives in [ADR 0043](ADR/0043-one-device-per-user-in-a-call.md)
 and [ADR 0044](ADR/0044-native-call-media-over-moss.md). The

@@ -1,5 +1,5 @@
 //! Desktop call controls and presentation; no media keys cross this bridge.
-pub use crate::native_call::types::{Device, Frame, Snapshot, Surface};
+pub use crate::native_call::types::{Device, Snapshot, Surface};
 use crate::native_call::{types::Choices, Hub, Texture};
 use flutter_rust_bridge::frb;
 use std::sync::{Arc, OnceLock};
@@ -81,15 +81,6 @@ pub fn snapshot(session_id: String, call_id: String) -> Result<Option<Snapshot>,
     Ok(hub()?.snapshot(&session_id, &call_id))
 }
 
-pub fn frame(
-    session_id: String,
-    call_id: String,
-    local: bool,
-    after: u64,
-) -> Result<Option<Frame>, String> {
-    Ok(hub()?.frame(&session_id, &call_id, local, after))
-}
-
 /// The call view's video surfaces in device pixels. Frames of every call
 /// leave at most at these sizes; the encoder still takes the full camera.
 pub fn show_video_at(local: Surface, remote: Surface) -> Result<(), String> {
@@ -98,7 +89,7 @@ pub fn show_video_at(local: Surface, remote: Surface) -> Result<(), String> {
 
 /// The main window's video textures, as the addresses its platform plugin
 /// handed out, or zero for none. Rust writes the frames of every call
-/// straight into them, and `frame` returns none for such a lane.
+/// straight into them.
 pub fn show_video_in(local: i64, remote: i64) -> Result<(), String> {
     // SAFETY: the plugin keeps what it hands out for the process's life.
     let textures = unsafe { (Texture::at(local), Texture::at(remote)) };

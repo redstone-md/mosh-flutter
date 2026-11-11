@@ -1,4 +1,6 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/voice_call/call_video_textures.dart';
 import 'package:mosh/src/rust/native_call/types.dart' as native;
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 
@@ -36,6 +38,20 @@ native.Snapshot nativeCallSnapshot(
         cameras: const [],
         localVideo: localVideo,
         remoteVideo: remoteVideo);
+
+/// The platform's call video plugin: texture ids 7 and 8, exported at two
+/// addresses.
+void mockCallVideoPlugin(WidgetTester tester) {
+  final messenger = tester.binding.defaultBinaryMessenger;
+  messenger.setMockMethodCallHandler(
+      CallVideoTextures.channel,
+      (call) async => {
+            'local': [7, 4096],
+            'remote': [8, 8192],
+          });
+  addTearDown(() =>
+      messenger.setMockMethodCallHandler(CallVideoTextures.channel, null));
+}
 
 /// Releases [media] when the widget tree unmounts, before the test's
 /// pending-timer check: the application-level owner outlives every call

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mosh/src/features/voice_call/call_video_textures.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/platform/desktop_window_controller.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -26,16 +25,10 @@ class _Window extends DesktopWindowController {
 
 /// A Linux desktop: the call shows in the main window through textures.
 Future<_Window> _pump(WidgetTester tester, SessionSnapshot session) async {
-  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      CallVideoTextures.channel,
-      (_) async => {
-            'local': [7, 4096],
-            'remote': [8, 8192],
-          });
+  mockCallVideoPlugin(tester);
   final gateway = ScriptableGateway()..seedSessions([session]);
   final bridge = ScriptableBridge(conversations: gateway.conversations);
-  final owner =
-      NativeCallOwner(bridge, () async => true, textures: CallVideoTextures());
+  final owner = NativeCallOwner(bridge, () async => true);
   final window = _Window();
   addTearDown(window.dispose);
   final router = GoRouter(routes: [

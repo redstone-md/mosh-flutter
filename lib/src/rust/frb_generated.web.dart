@@ -242,9 +242,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DmHistorySyncState dco_decode_box_autoadd_dm_history_sync_state(dynamic raw);
 
   @protected
-  Frame dco_decode_box_autoadd_frame(dynamic raw);
-
-  @protected
   GroupNameChanged dco_decode_box_autoadd_group_name_changed(dynamic raw);
 
   @protected
@@ -435,9 +432,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double dco_decode_f_64(dynamic raw);
-
-  @protected
-  Frame dco_decode_frame(dynamic raw);
 
   @protected
   GroupCreated dco_decode_group_created(dynamic raw);
@@ -672,9 +666,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DmHistorySyncState? dco_decode_opt_box_autoadd_dm_history_sync_state(
       dynamic raw);
-
-  @protected
-  Frame? dco_decode_opt_box_autoadd_frame(dynamic raw);
 
   @protected
   GroupNameChanged? dco_decode_opt_box_autoadd_group_name_changed(dynamic raw);
@@ -1053,9 +1044,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
-  Frame sse_decode_box_autoadd_frame(SseDeserializer deserializer);
-
-  @protected
   GroupNameChanged sse_decode_box_autoadd_group_name_changed(
       SseDeserializer deserializer);
 
@@ -1273,9 +1261,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double sse_decode_f_64(SseDeserializer deserializer);
-
-  @protected
-  Frame sse_decode_frame(SseDeserializer deserializer);
 
   @protected
   GroupCreated sse_decode_group_created(SseDeserializer deserializer);
@@ -1546,9 +1531,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DmHistorySyncState? sse_decode_opt_box_autoadd_dm_history_sync_state(
       SseDeserializer deserializer);
-
-  @protected
-  Frame? sse_decode_opt_box_autoadd_frame(SseDeserializer deserializer);
 
   @protected
   GroupNameChanged? sse_decode_opt_box_autoadd_group_name_changed(
@@ -1959,9 +1941,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       DmHistorySyncState self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_frame(Frame self, SseSerializer serializer);
-
-  @protected
   void sse_encode_box_autoadd_group_name_changed(
       GroupNameChanged self, SseSerializer serializer);
 
@@ -2199,9 +2178,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_frame(Frame self, SseSerializer serializer);
 
   @protected
   void sse_encode_group_created(GroupCreated self, SseSerializer serializer);
@@ -2483,9 +2459,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_dm_history_sync_state(
       DmHistorySyncState? self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_opt_box_autoadd_frame(Frame? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_group_name_changed(

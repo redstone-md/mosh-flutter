@@ -49,7 +49,7 @@ class _AndroidPipOverlayState extends ConsumerState<AndroidPipOverlay> {
   }
 
   Widget _layout(AndroidCallPresentation presentation) {
-    final images = presentation.images;
+    final video = ref.read(nativeCallOwnerProvider)?.textures;
     return LayoutBuilder(builder: (context, constraints) {
       if (!presentation.inPip) {
         _appSize = constraints.biggest;
@@ -72,10 +72,10 @@ class _AndroidPipOverlayState extends ConsumerState<AndroidPipOverlay> {
           Material(
               color: Colors.black,
               child: Center(
-                  child: images == null
+                  child: video == null
                       ? const SizedBox.shrink()
                       : CallVideoStage(
-                          images: images,
+                          video: video,
                           peer: presentation.call?.peer ?? '',
                           remoteCamera:
                               presentation.call?.media?.remoteCamera == true,

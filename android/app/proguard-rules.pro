@@ -2,6 +2,7 @@
 -keep,allowoptimization class app.mosh.mosh.MoshNative { *; }
 -keep,allowoptimization class app.mosh.mosh.MoshMedia { *; }
 -keep,allowoptimization class app.mosh.mosh.MoshCallCamera { *; }
+-keep,allowoptimization class app.mosh.mosh.MoshCallVideo { *; }
 -keep class org.webrtc.** { *; }
 -keep class livekit.org.webrtc.** { *; }
 

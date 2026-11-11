@@ -37,23 +37,15 @@ void main() {
               sessionId: 'dm', activeCall: TestCalls.active(callId: 'call')),
         ]);
       final bridge = ScriptableBridge(conversations: gateway.conversations);
+      mockCallVideoPlugin(tester);
       for (var i = 0; i < 20; i++) {
-        bridge.respondNext(BridgeMethod.nativeCallSnapshot,
-            Future.value(nativeCallSnapshot(remoteCamera: video)));
-      }
-      if (video) {
         bridge.respondNext(
-            BridgeMethod.nativeCallFrame,
-            Future.value(native.Frame(
-              sessionId: 'dm',
-              callId: 'call',
-              local: false,
-              sequence: BigInt.one,
-              width: 2,
-              height: 2,
-              sourceAgeMs: 0,
-              pixels: Uint8List.fromList(List.generate(16, (_) => 255)),
-            )));
+            BridgeMethod.nativeCallSnapshot,
+            Future.value(nativeCallSnapshot(
+                remoteCamera: video,
+                remoteVideo: video
+                    ? const native.Surface(width: 320, height: 180)
+                    : const native.Surface(width: 0, height: 0))));
       }
       final owner = NativeCallOwner(bridge, () async => true);
       final messenger = tester.binding.defaultBinaryMessenger;
@@ -90,7 +82,7 @@ void main() {
       await tester.pump();
       expect(find.byType(VoiceCallHost), findsOneWidget);
       expect(tester.widget<CallView>(find.byType(CallView)).compact, false);
-      expect(find.byType(RawImage), video ? findsWidgets : findsNothing);
+      expect(find.byType(Texture), video ? findsWidgets : findsNothing);
       expect(bridge.lastCall(BridgeMethod.nativeCallShowVideoAt)?.args,
           video ? _full : isNull,
           reason: 'the full call view reports its stage to Rust');
@@ -146,6 +138,8 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byType(CallView), findsNothing,
             reason: 'PiP contains video, not controls or chats');
+        expect(find.byType(Texture), findsOneWidget,
+            reason: 'PiP shows the remote video');
         expect(find.text('Settings'), findsNothing);
         expect(find.byType(MoshSelect<String?>), findsNothing,
             reason: 'root Navigator dialogs must also be hidden in system PiP');

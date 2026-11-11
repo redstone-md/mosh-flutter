@@ -37,14 +37,6 @@ mixin NativeCallBridge {
           {required String sessionId, required String callId}) =>
       native_call_api.snapshot(sessionId: sessionId, callId: callId);
 
-  Future<native_media.Frame?> nativeCallFrame(
-          {required String sessionId,
-          required String callId,
-          required bool local,
-          required BigInt after}) =>
-      native_call_api.frame(
-          sessionId: sessionId, callId: callId, local: local, after: after);
-
   Future<void> nativeCallShowVideoAt(
           {required native_media.Surface local,
           required native_media.Surface remote}) =>

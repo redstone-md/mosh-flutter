@@ -109,23 +109,6 @@ mixin _BridgeNativeCalls on _ScriptableBridgeState {
           },
           () => _nativeCallSnapshot);
   @override
-  Future<native_media.Frame?> nativeCallFrame({
-    required String sessionId,
-    required String callId,
-    required bool local,
-    required BigInt after,
-  }) =>
-      runScripted(
-          BridgeMethod.nativeCallFrame,
-          {
-            'sessionId': sessionId,
-            'callId': callId,
-            'local': local,
-            'after': after,
-          },
-          () => null);
-
-  @override
   Future<void> nativeCallShowVideoAt({
     required native_media.Surface local,
     required native_media.Surface remote,

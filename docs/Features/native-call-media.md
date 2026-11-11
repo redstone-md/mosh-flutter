@@ -6,8 +6,8 @@ preview; media is sent only after the caller confirms the answering installation
 An incoming call starts with camera off. Camera and microphone choices are
 independent, and permission refusal preserves reception and other capabilities.
 
-On desktop the call shows in the main window and its video in two Rust-fed
-textures ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md), see
+On desktop and Android the call shows in the main window and its video in two
+Rust-fed textures ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md), see
 [Main-window textures](#main-window-textures)). The expanded call view has
 microphone, camera and end controls and selectors for microphone, speaker and
 camera, using `MoshSelect`.
@@ -228,10 +228,9 @@ Camera startup failures before spawning are logged as well. Enumeration still
 discards stderr. Binary stdout frames, account identities and media keys are
 never included in these diagnostics.
 
-`NativeCallSession` in Dart owns commands and presentation polling. Rust retains
-media when this client disappears. Desktop frames never pass through it: Rust
-presents them into the main window's textures. On Android it polls one frame
-at a time and none is queued.
+`NativeCallSession` in Dart owns commands and reads the call snapshot ten times
+a second. Rust retains media when this client disappears. Frames never pass
+through it: Rust presents them into the main window's textures.
 
 Frames leave Rust at the size they are shown, not at the camera's. The
 video stage dispatches `CallVideoSurfaces` whenever its layout changes: the
@@ -249,24 +248,33 @@ still takes the full camera frame.
 
 ### Main-window textures
 
-On desktop no pixel passes through flutter_rust_bridge or Dart. The runner
-registers two pixel-buffer textures, local and remote, on the first request
-over the `mosh/call-video` channel and keeps them for the process. Each exports
-one function, `present`, which copies an RGBA frame and marks the texture's
-frame available; a frame the raster thread has not taken yet is overwritten.
+No pixel passes through flutter_rust_bridge or Dart, on desktop or on Android.
+The platform's runner registers two textures, local and remote, on the first
+request over the `mosh/call-video` channel and keeps them for the process.
+Each exports one function, `present`, which copies an RGBA frame and schedules
+its display; a frame not shown yet is overwritten.
 
 | Runner | Texture | Where the frame is kept |
 |--------|---------|-------------------------|
+| Android, `MoshCallVideo.kt` with `mosh-core/src/native_call/texture/android.rs` | `SurfaceProducer` | the latest frame in Rust, which a thread per texture writes into the producer's `Surface` through its native window |
 | Linux, `linux/runner/call_video_texture.cc` | `FlPixelBufferTexture` | two RGBA buffers swapped when the engine reads (`runner_shared/call_video_frames.h`) |
 | Windows, `windows/runner/call_video_texture.cpp` | `PixelBufferTexture` | the same two buffers |
 | macOS, `macos/Runner/CallVideoTexture.swift` | `FlutterTexture` | an IOSurface-backed BGRA `CVPixelBuffer` from a pool; Accelerate swaps the channels during the copy, and Metal samples the surface without another one |
 
 On Windows the plugin stops marking frames once the window is destroyed, as
 the engine's texture registrar goes with it while Rust may still present.
- Dart passes the two export addresses to Rust
+
+On Android the export lives in Rust. `MoshCallVideo` creates the two producers
+and hands each `Surface` to mosh-core once; the producer is never resized, so
+that surface stays valid, and each frame sets the size of its own buffer. The
+surface's buffer queue makes its producer wait while the platform thread, which
+takes the buffers, is busy. The call's owner must not wait there, so `present`
+only replaces the latest frame and a thread per texture locks the window,
+copies the rows and posts the buffer.
+
+Dart passes the two export addresses to Rust
 with `show_video_in` once a call is prepared. From then on the owner writes
-every frame of a lane into its texture at the surface size, `frame` returns
-nothing for that lane, and Dart polls no frames. The snapshot's `local_video`
+every frame of a lane into its texture at the surface size. The snapshot's `local_video`
 and `remote_video` report the size of the frame each lane shows, zero when
 there is none or no newer one followed for five seconds; the stage shows the `Texture` at that
 shape and hides it otherwise. The call view lives in the main window: expanded
@@ -283,23 +291,17 @@ same run; MOSH-101 removed that window and its benchmark row.
 The same row on the Apple Silicon and Windows runners is in the
 [research's measurements](../Proposals/mosh-87-video-pipeline.research.md#main-window-textures-mosh-94-mosh-95).
 
-The rest of this section describes the frame path of Android, which polls
-frames over the bridge and decodes them in Dart.
-
-Each lane retains its latest image, and the renderer has one decode in flight.
-Call/generation checks discard old responses, and image age includes transfer
-and decode time. A pause in delivery freezes the last image, as Meet and Zoom
-do; it expires only after five seconds without fresh delivery, and a frame
-already that old is never drawn (`CallVideoFrame.lifetimeMs`, shared by the
-frame poll and the renderer). The log's `stalled` state keeps its
+A pause in delivery freezes the last frame in its texture, as Meet and Zoom
+do; the lane stops being shown only after five seconds without a fresh one
+(`SHOWN_LIFETIME_MS` in `state.rs`). The log's `stalled` state keeps its
 one-second meaning, so short pauses still show in field logs. Camera off, call
-end and a call change clear the image immediately. Rendering preserves aspect ratio, mirrors
+end and a call change hide the lane with the next snapshot. Rendering preserves aspect ratio, mirrors
 local preview and uses a small secondary preview over remote video. While the
 peer's camera remains enabled, an expired or not-yet-received remote frame shows
 "Waiting for video…" in the same stage and keeps local preview small. A
 camera-state change permits switching back to a local-only stage;
 frame expiry does not mean the peer disabled their camera. Fresh frames restore
-remote video automatically without retaining an expired image. Frequent
+remote video automatically. Frequent
 frames and the timer do not animate; discrete icon/stage changes honor reduced
 motion. No encoder hardware badge is inferred: diagnostics show the actual
 codec/implementation reported by the engine.

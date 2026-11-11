@@ -121,14 +121,13 @@ The production native engine copies decoded RGBA into a latest-frame slot with o
 conversion buffer, each capped at 1920×1080×4 bytes. Failed conversion preserves
 the last complete frame. Native frame pointers never enter Dart.
 
-On desktop Rust presents each frame straight into a Flutter texture of the
-main window; see [main-window textures](native-call-media.md#main-window-textures).
-Android polls the newest frame over the bridge and decodes it in Dart: one
-image per lane and one decode in flight, with stale frames discarded. Every
-image, codec and immutable buffer has explicit cleanup.
+On desktop and Android Rust presents each frame straight into a Flutter texture
+of the main window; see
+[main-window textures](native-call-media.md#main-window-textures). Dart holds
+no image: it shows a lane's `Texture` while the snapshot reports a frame for it.
 
 The video stage fits narrow windows, preserves image aspect ratio, mirrors local
-preview, and fades only its presence for 150 ms. Pixel updates do not animate;
+preview, and fades only its presence for 150 ms. New frames do not animate;
 reduced motion removes the fade. The compact controls remain usable independently.
 
 On Windows a second `mosh.exe` started by a `mosh://` link hands the link to
@@ -201,10 +200,25 @@ by the retained tests named here.
 | `test/features/voice_call/call_control_races_test.dart`: the "native close" variants and the commands sent through the window | a window command racing a pending accept | the same file, through the real buttons |
 | `test/features/voice_call/call_notification_focus_cases.dart`: the "call" and "call failure" variants | the call window's focus suppressing an alert | the same file, for the main window |
 | `test/features/voice_call/native_call_view_test.dart`: "child metadata preserves real flags and contains no media credentials" | the view state's pipe encoding | none: the encoding is deleted |
-| `integration_test/native_call_test.dart` and `integration_test/call_video_window_test.dart` | a real call and synthetic frames through the window process | `integration_test/native_call_main_window_test.dart` for the call itself. The polled frame path that Android keeps has no real-engine test until MOSH-102 replaces it; `test/features/voice_call/native_call_session_test.dart` covers the poll against the scripted bridge |
+| `integration_test/native_call_test.dart` and `integration_test/call_video_window_test.dart` | a real call and synthetic frames through the window process | `integration_test/native_call_main_window_test.dart` for the call itself |
 | `test/support/call_window_platform.dart` and `test/support/call_window_process.dart` | fakes for the tests above | none needed |
 | `windows/runner/tests/window_icon_test.cpp`: the `MOSH_CALL_WINDOW=1` run in `.github/workflows/build-windows.yml` | the call child's own Win32 window class | the same test, which still checks the runner class app_links looks for |
 | `scripts/macos-package.test.mjs`: "packaging signs the call window to inherit the sandbox before sealing the app" | signing of the `mosh-call-window` copy | none: the copy is no longer built |
+
+## Tests removed with the frame poll (MOSH-102)
+
+Android shows call video in textures as well, so Dart no longer polls frames
+over the bridge or decodes them, and the tests of that code went with it.
+
+| Removed | Covered | Retained coverage |
+|---------|---------|-------------------|
+| `test/features/voice_call/call_video_renderer_test.dart` | the Dart decoder: one decode in flight, stale and late frames dropped, image disposal | none: the decoder is deleted. Rust drops a stale capture frame in `capture.rs` (`delayed_capture_is_not_admitted_as_live_camera_video`) and reports a frozen lane gone in `texture.rs` |
+| `test/features/voice_call/call_video_stage_test.dart`: "cleared video paints its owned image clone through the fade" | ownership of the decoded image during the stage's fade | none: no image is owned; the other stage tests remain, on textures |
+| `test/features/voice_call/native_call_session_test.dart`: "late pixels after canonical selection are discarded" and "polling delivers fresh pixels once and survives a read error" | the frame poll's fences and retry | the same file: "a late snapshot after canonical selection is discarded" and "snapshot polling survives a read error", for the snapshot read that remains |
+| `benchmark/call_video_decode.dart` and the bridge rows of `mosh-core/src/native_call/benchmark.rs` | what the bridge encode and the Dart decode of a frame cost | the texture row of the same benchmark |
+| `test/support/call_video_frames.dart` | frames for the tests above | none needed |
+| `test/features/voice_call/call_video_stage_test.dart`: the timed expiry of a decoded remote frame and the check that both `RawImage`s show the newest image | the renderer's five-second lifetime and its image swap | `mosh-core/src/native_call/texture.rs`: "a picture frozen for five seconds is reported gone until its next frame"; the stage tests now set what each lane shows directly |
+| `mosh-core/tests/link_support/call_controls_test.rs`, in "native camera frames cross moss and camera off preserves the call": the `rgba_bytes` length and the polled frame turning null after camera off | the polled frame's byte length and its one-second age limit | the same test: the frame's size, and the snapshot reporting no remote video once the camera signal arrives. A texture is handed a pointer, so no length is left to observe |
 
 ## Verification on Linux, 2026-10-06
 

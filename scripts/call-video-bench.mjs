@@ -2,8 +2,8 @@
 // Measures what one call video frame costs on this machine and prints a
 // Markdown table: ms per frame and the share of one core at 30 fps, for
 // 640x360, 1280x720 and 1920x1080. The parts are
-// mosh-media/capture/src/benchmark.rs, mosh-core/src/native_call/benchmark.rs
-// and benchmark/*.dart.
+// mosh-media/capture/src/benchmark.rs and
+// mosh-core/src/native_call/benchmark.rs.
 //
 //   node scripts/call-video-bench.mjs [--output report.md]
 //
@@ -60,7 +60,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
       "--target-dir", ".dart_tool/native-media/target", "--features", "call-video-bench", "benchmark", "--", "--nocapture"]),
     run("cargo", ["test", "--release", "--manifest-path", "mosh-core/Cargo.toml", "--lib", "--features", "call-video-bench",
       "native_call::benchmark", "--", "--ignored", "--nocapture"], { ...process.env, MOSH_MEDIA_ENGINE: engine }),
-    run("flutter", ["test", "benchmark/call_video_decode.dart"]),
   ].map((output) => {
     // A part that printed nothing, or lost a size, must not leave a quiet gap.
     const part = rows(output);

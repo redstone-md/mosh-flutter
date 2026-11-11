@@ -2,9 +2,7 @@ import 'package:mosh/src/features/background/android_waiting_owner.dart';
 import 'package:mosh/src/features/lock/android_app_access.dart';
 import 'call_media_view.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
-import 'call_video_frame.dart';
 import 'dart:async';
-import 'call_video_renderer.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,10 +33,6 @@ class VoiceCallHost extends ConsumerStatefulWidget {
 class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
   AndroidWaitingOwner? _waiting;
   AndroidAppAccess? _access;
-  StreamSubscription<CallVideoFrame>? _frames;
-
-  /// Decodes the frames the owner polls where Rust has no texture to fill.
-  final _video = CallVideoRenderer();
   late final NativeCallOwner? _owner = ref.read(nativeCallOwnerProvider);
 
   @override
@@ -57,8 +51,6 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
       };
       unawaited(waiting.refresh().catchError((Object _) {}));
     }
-    _frames =
-        _owner?.frames.listen((frame) => unawaited(_video.receive(frame)));
   }
 
   @override
@@ -66,8 +58,6 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
     _waiting?.calls.onAnswer = null;
     _waiting?.platform.removeListener(_privacyChanged);
     _access?.removeListener(_privacyChanged);
-    unawaited(_frames?.cancel());
-    _video.dispose();
     super.dispose();
   }
 
@@ -119,13 +109,12 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
             occupancyConflict: state.occupancyConflict,
             error: state.error?.cause.describe(l),
           );
-    _video.update(call);
     final owner = _owner;
     final content = owner != null
         ? MainWindowCallHost(
             call: call,
             session: selected?.sessionId,
-            video: owner.textures ?? _video,
+            video: owner.textures,
             onEnd: _end,
             onOpenConversation: widget.onOpenConversation,
             child: widget.child)

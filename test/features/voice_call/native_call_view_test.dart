@@ -4,8 +4,7 @@ import 'package:mosh/src/features/voice_call/call_media_view.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/app/mosh_select.dart';
-import 'package:mosh/src/features/voice_call/call_video_renderer.dart';
-import '../../support/call_video_frames.dart';
+import 'package:mosh/src/features/voice_call/call_video_textures.dart';
 import '../../support/native_call_fixture.dart';
 import '../../support/pump.dart';
 
@@ -68,14 +67,10 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final image = await tester
-        .runAsync(() => CallVideoRenderer.decodeRgba(testCallVideoFrame(1)));
-    final images = ValueNotifier(CallVideoImages(
-        remote: DecodedVideo(image!), local: DecodedVideo(image)));
-    addTearDown(() {
-      images.dispose();
-      image.dispose();
-    });
+    final pictures = ValueNotifier(const CallVideoPictures(
+        remote: CallVideoPicture(8, 1280, 720),
+        local: CallVideoPicture(7, 320, 180)));
+    addTearDown(pictures.dispose);
     for (final phase in [CallViewPhase.active, CallViewPhase.incoming]) {
       final call = CallViewState(
           sessionId: 'dm',
@@ -88,7 +83,7 @@ void main() {
           Scaffold(
               body: CallView(
                   call: call,
-                  video: images,
+                  video: pictures,
                   onAction: (_) {},
                   onDeviceSelected: (_) {})),
           settle: false);

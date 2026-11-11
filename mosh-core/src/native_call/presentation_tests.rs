@@ -5,6 +5,7 @@ use super::*;
 use crate::native_call::{
     capture::{Captured, Prepared},
     state::State,
+    texture::tests::Recording,
     types::{Context, Surface},
     Hub,
 };
@@ -62,20 +63,16 @@ fn local_preview_reaches_the_window_at_its_surface_size() {
     };
     // BT.601 video range for RGB (220, 30, 30).
     let red = [vec![91; LUMA], vec![100; LUMA / 4], vec![211; LUMA / 4]].concat();
+    let window = Recording::start();
+    hub.show_in(Some(window.texture()), None).unwrap();
     preview(&state, 1, &red);
-    let whole = hub.frame("dm", "call", true, 0).unwrap();
-    assert_eq!((whole.width, whole.height), (1280, 720), "no surface yet");
     hub.show_at(THUMBNAIL, Surface::default()).unwrap();
     preview(&state, 2, &red);
-    let shown = hub.frame("dm", "call", true, whole.sequence).unwrap();
-    assert_eq!(
-        (shown.width, shown.height, shown.pixels.len()),
-        (320, 180, 320 * 180 * 4)
-    );
-    assert!(
-        shown.pixels[0] > 180 && shown.pixels[1] < 70,
-        "colors were lost"
-    );
+    let frames = window.frames();
+    let (whole, shown) = (&frames[0], &frames[1]);
+    assert_eq!((whole.0, whole.1), (1280, 720), "no surface yet");
+    assert_eq!((shown.0, shown.1, shown.2.len()), (320, 180, 320 * 180 * 4));
+    assert!(shown.2[0] > 180 && shown.2[1] < 70, "colors were lost");
 }
 
 #[test]
@@ -115,7 +112,7 @@ fn a_thumbnail_preview_still_sends_the_whole_camera() {
         camera, 1280,
         "the encoder's source never got the 720p camera"
     );
-    let preview = &state.frames[0].as_ref().unwrap().frame;
+    let preview = state.snapshot.local_video;
     assert_eq!((preview.width, preview.height), (320, 180));
 }
 

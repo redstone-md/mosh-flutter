@@ -4,10 +4,8 @@ use super::{
     courier::Wire,
     library::{self, Engine},
     texture::{Exported, Texture},
-    types::{Context, Frame, Surface},
+    types::{Context, Surface},
 };
-use crate::frb_generated::SseEncode;
-use flutter_rust_bridge::for_generated::SseSerializer;
 use serde_json::json;
 use std::{
     sync::Mutex,
@@ -123,37 +121,6 @@ fn camera_frame(engine: &Engine, size @ (width, height): (u32, u32)) {
     );
 }
 
-/// A frame's way from the call state to the bridge's reply bytes.
-fn transfer(size @ (width, height): (u32, u32), pixels: &[u8]) {
-    let frame = || Frame {
-        session_id: "dm".into(),
-        call_id: "call".into(),
-        sequence: 1,
-        width,
-        height,
-        local: false,
-        source_age_ms: 0,
-        pixels: pixels.to_vec(),
-    };
-    let held = frame();
-    report(
-        "frame copy for the bridge (`Frame::clone`)",
-        size,
-        || (),
-        |()| held.clone(),
-    );
-    report(
-        "flutter_rust_bridge encode of the frame",
-        size,
-        frame,
-        |frame| {
-            let mut serializer = SseSerializer::new();
-            Some(frame).sse_encode(&mut serializer);
-            serializer
-        },
-    );
-}
-
 /// Stands in for the platform plugin's texture: `present` copies the frame
 /// into a buffer it keeps, as the Linux and Windows runners do. The macOS
 /// runner swaps the channels to BGRA on the way, so there the copy is the
@@ -216,8 +183,8 @@ unsafe fn write(pixels: *const u8, buffer: *mut u8, width: usize, height: usize)
     };
 }
 
-/// A frame's way into a main-window texture, which replaces `transfer` and
-/// everything after it. The raster thread's upload is not in the row.
+/// A frame's way into a main-window texture. The raster thread's upload is
+/// not in the row.
 fn texture(size @ (width, height): (u32, u32), pixels: &[u8]) {
     let copying = Copying {
         exported: Exported { present: copy },
@@ -241,7 +208,6 @@ fn frame_path() {
     for size @ (width, height) in SIZES {
         let pixels = synthetic(width as usize * height as usize * 4);
         camera_frame(&engine, size);
-        transfer(size, &pixels);
         texture(size, &pixels);
     }
 }

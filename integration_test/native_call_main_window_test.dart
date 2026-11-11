@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:mosh/src/features/voice_call/call_video_textures.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 
 import 'support/native_call_scenario.dart';
@@ -19,11 +18,10 @@ void main() {
       'its controls while video runs', (tester) async {
     final scenario = await NativeCallScenario.start();
     final bridge = scenario.bridge;
-    final textures = CallVideoTextures();
     final microphone =
         !Platform.environment.containsKey('MOSH_CALL_UI_NO_MICROPHONE');
-    final owner =
-        NativeCallOwner(bridge, () async => microphone, textures: textures);
+    final owner = NativeCallOwner(bridge, () async => microphone);
+    final textures = owner.textures;
     addTearDown(owner.dispose);
     final ui = await scenario.open(tester, owner);
 
@@ -32,12 +30,6 @@ void main() {
     await tester.pump(); // The lane may have appeared after the last frame.
     expect(find.byType(Texture), findsOneWidget);
     final id = owner.session!.callId;
-    Future<Object?> polled(bool local) => bridge.nativeCallFrame(
-        sessionId: scenario.session,
-        callId: id,
-        local: local,
-        after: BigInt.zero);
-    expect(await polled(true), isNull, reason: 'no pixels cross the bridge');
 
     await scenario.answer(ui, id);
     await ui.eventually(() async =>
@@ -45,7 +37,6 @@ void main() {
         owner.session?.snapshot?.ready == true);
     await tester.pump();
     expect(find.byType(Texture), findsNWidgets(2));
-    expect(await polled(false), isNull, reason: 'no pixels cross the bridge');
 
     // test-policy: skip MOSH-95 -- CI's Windows and macOS runners have no audio input for the mute step
     if (microphone) {

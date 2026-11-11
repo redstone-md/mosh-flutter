@@ -12,8 +12,7 @@ void main() {
           bridge: bridge,
           requestMicrophone: () async => true,
           requestCamera: permission,
-          onState: () {},
-          onFrame: (_) {});
+          onState: () {});
 
   test('video preparation waits for permission; refusal keeps audio available',
       () async {

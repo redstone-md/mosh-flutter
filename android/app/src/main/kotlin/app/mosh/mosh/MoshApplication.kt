@@ -24,6 +24,8 @@ internal class MoshAndroidRuntime(application: Application) {
         engine = FlutterEngine(application)
         val messenger = engine.dartExecutor.binaryMessenger
         presentation = MoshCallPresentation(messenger)
+        // Its channel keeps it for the engine's life.
+        MoshCallVideo(messenger, engine.renderer)
         access = MoshAccess(application, messenger)
         ringtone = MoshRingtone(application, messenger)
         waiting = MoshWaiting(application, messenger, access, ringtone)

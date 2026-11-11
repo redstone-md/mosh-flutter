@@ -2,10 +2,9 @@ import 'dart:async';
 
 import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/rust/native_call/types.dart' as native;
-import 'call_video_frame.dart';
 
-/// Commands and call state, and the latest frames unless Rust shows the
-/// video itself. Rust owns capture, playback and keys.
+/// Commands and call state. Rust owns capture, playback and keys, and shows
+/// the video itself in the main window's textures.
 class NativeCallSession {
   NativeCallSession(
       {required this.sessionId,
@@ -15,8 +14,7 @@ class NativeCallSession {
       this.requestCamera = _allowCamera,
       this.authorizeMedia,
       required this.onState,
-      this.onFrame,
-      this.pollInterval = const Duration(milliseconds: 16)});
+      this.pollInterval = const Duration(milliseconds: 100)});
 
   final String sessionId;
   String callId;
@@ -27,10 +25,8 @@ class NativeCallSession {
   static Future<bool> _allowCamera() async => true;
   final void Function() onState;
 
-  /// Null when Rust writes the video into the main window's textures: no
-  /// frame is polled, and the snapshot is read often enough to follow the
-  /// frame sizes it reports.
-  final void Function(CallVideoFrame)? onFrame;
+  /// How often the snapshot is read: often enough to follow the sizes of
+  /// the frames it reports.
   final Duration pollInterval;
   native.Snapshot? snapshot;
   bool busy = false;
@@ -44,12 +40,9 @@ class NativeCallSession {
   String? _cameraId;
   Timer? _timer;
   bool _polling = false;
-  int _lane = 0;
-  DateTime _nextState = DateTime.fromMillisecondsSinceEpoch(0);
-  final _sequence = [BigInt.zero, BigInt.zero];
+  int _reads = 0;
   Future<void> _commands = Future.value();
   Future<void>? _starting;
-  int _generation = 0;
 
   bool get muted => !_microphone;
   bool get cameraRequested => _camera;
@@ -73,8 +66,6 @@ class NativeCallSession {
   void rebind(String canonical) {
     if (canonical == callId) return;
     callId = canonical;
-    ++_generation;
-    _sequence.fillRange(0, 2, BigInt.zero);
     snapshot = null;
   }
 
@@ -155,60 +146,26 @@ class NativeCallSession {
   }
 
   Future<void> _poll() async {
-    if (_closed || _polling) return;
+    if (_closed || _polling || busy) return;
     _polling = true;
     try {
-      final present = onFrame;
-      if (!busy && DateTime.now().isAfter(_nextState)) {
-        _nextState = DateTime.now()
-            .add(Duration(milliseconds: present == null ? 100 : 250));
-        await _readState();
-      }
-      if (_closed || present == null) return;
-      // Remote gets two slots for each preview slot. No queued frames.
-      final local = _lane++ % 3 == 2;
-      final lane = local ? 0 : 1;
-      final generation = _generation;
-      final id = callId;
-      final transfer = Stopwatch()..start();
-      final frame = await bridge.nativeCallFrame(
-          sessionId: sessionId,
-          callId: id,
-          local: local,
-          after: _sequence[lane]);
-      if (_closed ||
-          generation != _generation ||
-          frame == null ||
-          frame.local != local ||
-          frame.sessionId != sessionId ||
-          frame.callId != callId ||
-          frame.sequence <= _sequence[lane]) {
-        return;
-      }
-      final age = frame.sourceAgeMs + transfer.elapsedMilliseconds;
-      if (age >= CallVideoFrame.lifetimeMs) return;
-      _sequence[lane] = frame.sequence;
-      present(CallVideoFrame(
-          sessionId: frame.sessionId,
-          callId: frame.callId,
-          sequence: frame.sequence.toInt(),
-          width: frame.width,
-          height: frame.height,
-          local: frame.local,
-          sourceAgeMs: age,
-          pixels: frame.pixels));
+      await _readState();
     } catch (_) {
-      /* Rust still owns the call while presentation polling retries. */
+      /* Rust still owns the call while state polling retries. */
     } finally {
       _polling = false;
     }
   }
 
+  /// Only the latest read is kept: a poll may answer after the read that
+  /// followed a command, with the state from before it.
   Future<void> _readState() async {
     final id = callId;
+    final read = ++_reads;
     final next =
         await bridge.nativeCallSnapshot(sessionId: sessionId, callId: id);
     if (_closed ||
+        read != _reads ||
         id != callId ||
         next == null ||
         next.sessionId != sessionId ||
@@ -232,9 +189,9 @@ class NativeCallSession {
 
   void stop() {
     _closed = true;
-    ++_generation;
     _timer?.cancel();
     _timer = null;
-    // Rust releases media when the authenticated call ends; a renderer does not.
+    // Rust releases media when the authenticated call ends, not when its
+    // view does.
   }
 }

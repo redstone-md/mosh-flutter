@@ -133,9 +133,8 @@ impl Owner {
             self.query_after = Instant::now();
             self.sender.reset();
             state.snapshot = Default::default();
-            state.frames = Default::default();
             state.shown = Default::default();
-            state.sequences = [0; 2];
+            state.blank();
             state.outbound.clear();
             state.stalls = Default::default();
             self.captured = 0;

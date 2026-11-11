@@ -30,53 +30,6 @@ class Device {
           stable == other.stable;
 }
 
-class Frame {
-  final String sessionId;
-  final String callId;
-  final BigInt sequence;
-  final int width;
-  final int height;
-  final bool local;
-  final int sourceAgeMs;
-  final Uint8List pixels;
-
-  const Frame({
-    required this.sessionId,
-    required this.callId,
-    required this.sequence,
-    required this.width,
-    required this.height,
-    required this.local,
-    required this.sourceAgeMs,
-    required this.pixels,
-  });
-
-  @override
-  int get hashCode =>
-      sessionId.hashCode ^
-      callId.hashCode ^
-      sequence.hashCode ^
-      width.hashCode ^
-      height.hashCode ^
-      local.hashCode ^
-      sourceAgeMs.hashCode ^
-      pixels.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Frame &&
-          runtimeType == other.runtimeType &&
-          sessionId == other.sessionId &&
-          callId == other.callId &&
-          sequence == other.sequence &&
-          width == other.width &&
-          height == other.height &&
-          local == other.local &&
-          sourceAgeMs == other.sourceAgeMs &&
-          pixels == other.pixels;
-}
-
 class Snapshot {
   final String sessionId;
   final String callId;

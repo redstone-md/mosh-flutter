@@ -21,7 +21,7 @@ use std::{
     time::{Duration, Instant},
 };
 pub(crate) use texture::Texture;
-use types::{Choices, Context, Frame, Signal, Snapshot, Surface};
+use types::{Choices, Context, Signal, Snapshot, Surface};
 
 /// Reuse the bounded helper inventory without creating an engine or call.
 pub(crate) fn list_cameras() -> Result<Vec<types::Device>, String> {
@@ -184,28 +184,6 @@ impl Hub {
             .then(|| state.snapshot.clone())
     }
 
-    pub fn frame(&self, session: &str, call: &str, local: bool, after: u64) -> Option<Frame> {
-        let presented = {
-            let state = self.state.lock().ok()?;
-            if !state.context.as_ref()?.matches(session, call) {
-                return None;
-            }
-            state.frames[if local { 0 } else { 1 }].clone()?
-        };
-        let age =
-            u128::from(presented.frame.source_age_ms) + presented.received.elapsed().as_millis();
-        if presented.frame.session_id != session
-            || presented.frame.call_id != call
-            || presented.frame.sequence <= after
-            || age >= 1000
-        {
-            return None;
-        }
-        let mut frame = presented.frame.clone();
-        frame.source_age_ms = age as u32;
-        Some(frame)
-    }
-
     /// Later frames of every call leave at most at these window surfaces.
     pub fn show_at(&self, local: Surface, remote: Surface) -> Result<(), String> {
         self.state
@@ -216,7 +194,7 @@ impl Hub {
     }
 
     /// Later frames of every call are written into these textures of the
-    /// main window; a lane with one hands `frame` nothing.
+    /// main window.
     pub fn show_in(&self, local: Option<Texture>, remote: Option<Texture>) -> Result<(), String> {
         self.state
             .lock()

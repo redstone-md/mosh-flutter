@@ -212,7 +212,6 @@ fn native_camera_frames_cross_moss_and_camera_off_preserves_the_call() {
     };
     assert_eq!(first["width"], 320);
     assert_eq!(first["height"], 180);
-    assert_eq!(first["rgba_bytes"], 320 * 180 * 4);
     assert_eq!(first["first_pixel"][3], 255);
     let later = loop {
         let frame = receiver.ask_until(
@@ -232,10 +231,23 @@ fn native_camera_frames_cross_moss_and_camera_off_preserves_the_call() {
     let off =
         caller.ask(json!({"action":"call_native_camera_off","argument":session,"call_id":id}));
     assert!(off["error"].is_null(), "camera off failed: {off}");
-    std::thread::sleep(std::time::Duration::from_secs(2));
-    assert!(receiver
-        .ask(json!({"action":"call_native_frame","argument":session,"call_id":id}))
-        .is_null());
+    // The lane leaves the window once the caller's camera signal arrives;
+    // the call is looked at two seconds on.
+    let settled = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        let view =
+            receiver.ask(json!({"action":"call_native_snapshot","argument":session,"call_id":id}));
+        let gone = view["remote_video"]["width"] == 0;
+        if gone && std::time::Instant::now() >= settled {
+            break;
+        }
+        assert!(
+            gone || std::time::Instant::now() < until,
+            "video still shown: {view}"
+        );
+        // test-policy: wait MOSH-102 -- polls the snapshot of a peer in another process; no event crosses that boundary
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
     for peer in [&mut caller, &mut receiver] {
         let view =
             peer.ask(json!({"action":"call_native_snapshot","argument":session,"call_id":id}));
