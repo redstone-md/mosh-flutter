@@ -2,7 +2,8 @@
 // Measures what one call video frame costs on this machine and prints a
 // Markdown table: ms per frame and the share of one core at 30 fps, for
 // 640x360, 1280x720 and 1920x1080. The parts are
-// mosh-core/src/native_call/benchmark.rs and benchmark/*.dart.
+// mosh-media/capture/src/benchmark.rs, mosh-core/src/native_call/benchmark.rs
+// and benchmark/*.dart.
 //
 //   node scripts/call-video-bench.mjs [--output report.md]
 //
@@ -14,6 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { prepareNativeCamera } from "./native-camera-prepare.mjs";
 import { engineLibrary } from "./support/native-media-artifacts.mjs";
 
 const SIZES = ["640x360", "1280x720", "1920x1080"];
@@ -51,7 +53,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     run("node", ["scripts/native-media-build.mjs", "--profile", "release"]);
     return path.join(root, ".dart_tool/native-media/release", engineLibrary);
   })();
+  // A given engine skips the build that prepares the helper's pinned sources.
+  await prepareNativeCamera();
   const measured = [
+    run("cargo", ["test", "--release", "--manifest-path", "mosh-media/capture/Cargo.toml",
+      "--target-dir", ".dart_tool/native-media/target", "benchmark", "--", "--ignored", "--nocapture"]),
     run("cargo", ["test", "--release", "--manifest-path", "mosh-core/Cargo.toml", "--lib", "--features", "call-video-bench",
       "native_call::benchmark", "--", "--ignored", "--nocapture"], { ...process.env, MOSH_MEDIA_ENGINE: engine }),
     run("flutter", ["test", "benchmark/call_video_decode.dart"]),
