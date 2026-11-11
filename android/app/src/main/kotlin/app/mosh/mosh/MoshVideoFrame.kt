@@ -23,6 +23,9 @@ internal class MoshVideoFrame(messenger: BinaryMessenger) {
                 } catch (error: RuntimeException) {
                     // The retriever refuses a file it has no decoder for.
                     result.error("video-frame", error.message, null)
+                } catch (error: OutOfMemoryError) {
+                    // Android 8.0 decodes the frame at the video's full size.
+                    result.error("video-frame", "The frame does not fit in memory", null)
                 }
             }
     }
