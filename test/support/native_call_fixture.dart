@@ -9,7 +9,10 @@ native.Snapshot nativeCallSnapshot(
         bool microphone = false,
         bool camera = false,
         bool remoteCamera = true,
-        bool cameraFailed = false}) =>
+        bool cameraFailed = false,
+        native.Surface localVideo = const native.Surface(width: 0, height: 0),
+        native.Surface remoteVideo =
+            const native.Surface(width: 0, height: 0)}) =>
     native.Snapshot(
         sessionId: sessionId,
         callId: callId,
@@ -30,7 +33,9 @@ native.Snapshot nativeCallSnapshot(
         packetsDropped: BigInt.zero,
         inputs: const [],
         outputs: const [],
-        cameras: const []);
+        cameras: const [],
+        localVideo: localVideo,
+        remoteVideo: remoteVideo);
 
 /// Releases [media] when the widget tree unmounts, before the test's
 /// pending-timer check: the application-level owner outlives every call

@@ -70,6 +70,13 @@ impl Context {
         })
     }
 
+    /// Whether this is the call `old` was, under its id or one that
+    /// superseded it.
+    pub fn continues(&self, old: &Context) -> bool {
+        old.session_id == self.session_id
+            && (old.call_id == self.call_id || self.superseded.as_ref() == Some(&old.call_id))
+    }
+
     pub fn matches(&self, session: &str, call: &str) -> bool {
         self.session_id == session
             && (self.call_id == call || self.superseded.as_deref() == Some(call))
@@ -126,13 +133,26 @@ pub struct Snapshot {
     pub input: Option<String>,
     pub output: Option<String>,
     pub camera_id: Option<String>,
+    /// The size of the frame each lane shows; zero without one.
+    pub local_video: Surface,
+    pub remote_video: Surface,
+}
+
+impl Snapshot {
+    pub(crate) fn video(&mut self, local: bool) -> &mut Surface {
+        if local {
+            &mut self.local_video
+        } else {
+            &mut self.remote_video
+        }
+    }
 }
 
 /// The device pixels one video surface of the call window shows. Zero until
 /// the window reports it; the engine's `Surface` shares this layout.
 #[frb(non_opaque)]
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct Surface {
     pub width: u32,
     pub height: u32,

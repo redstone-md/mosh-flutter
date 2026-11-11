@@ -243,7 +243,7 @@ impl Connection {
             state.present(
                 info.width,
                 info.height,
-                self.pixels[..info.rgba_bytes as usize].to_vec(),
+                &self.pixels[..info.rgba_bytes as usize],
                 info.age_ms,
                 Instant::now(),
                 false,

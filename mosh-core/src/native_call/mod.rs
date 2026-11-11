@@ -8,6 +8,7 @@ mod packets;
 mod recovery;
 mod state;
 mod telemetry;
+mod texture;
 pub(crate) mod types;
 mod worker;
 
@@ -19,6 +20,7 @@ use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
+pub(crate) use texture::Texture;
 use types::{Choices, Context, Frame, Signal, Snapshot, Surface};
 
 /// Reuse the bounded helper inventory without creating an engine or call.
@@ -54,11 +56,10 @@ impl Hub {
             .state
             .lock()
             .map_err(|_| "native call state poisoned")?;
-        let same = state.context.as_ref().is_some_and(|old| {
-            old.session_id == context.session_id
-                && (old.call_id == context.call_id
-                    || context.superseded.as_ref() == Some(&old.call_id))
-        });
+        let same = state
+            .context
+            .as_ref()
+            .is_some_and(|old| context.continues(old));
         if !same || !state.prepared {
             state.inbound.clear();
             state.pending_camera_default = choices.camera_id.clone();
@@ -80,20 +81,19 @@ impl Hub {
                 .context
                 .as_ref()
                 .zip(context.as_ref())
-                .is_some_and(|(old, new)| {
-                    old.session_id == new.session_id
-                        && (old.call_id == new.call_id
-                            || new.superseded.as_ref() == Some(&old.call_id))
-                });
+                .is_some_and(|(old, new)| new.continues(old));
             if !same {
                 state.inbound.clear();
                 state.prepared = false;
                 state.pending_camera_default = None;
                 state.choices = Default::default();
+                // A step that began under the old call must not write its
+                // choices back over these.
+                state.revision = state.revision.saturating_add(1);
             }
             state.context = context;
             for signal in inbound {
-                if state.inbound.len() >= 16 {
+                if state.inbound.len() >= state::INBOUND_LIMIT {
                     state.inbound.pop_front();
                 }
                 state.inbound.push_back(signal);
@@ -214,6 +214,16 @@ impl Hub {
             .lock()
             .map_err(|_| "native call state poisoned")?
             .surfaces = [local, remote];
+        Ok(())
+    }
+
+    /// Later frames of every call are written into these textures of the
+    /// main window; a lane with one hands `frame` nothing.
+    pub fn show_in(&self, local: Option<Texture>, remote: Option<Texture>) -> Result<(), String> {
+        self.state
+            .lock()
+            .map_err(|_| "native call state poisoned")?
+            .textures = [local, remote];
         Ok(())
     }
 

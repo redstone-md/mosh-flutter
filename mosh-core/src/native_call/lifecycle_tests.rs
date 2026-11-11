@@ -1,5 +1,5 @@
 use super::*;
-use crate::private_dm_runtime::transport::memory::MemoryNet;
+use crate::private_dm_runtime::transport::{memory::MemoryNet, PeerTransport, PublishError};
 
 #[test]
 fn memory_transport_can_start_the_native_call_hub() {
@@ -138,6 +138,92 @@ fn rejected_worker_preparation_and_choices_return_an_error() {
     assert!(hub
         .choices("dm", "call", Choices::default(), false)
         .is_err());
+    drop(hub);
+    worker.join().unwrap();
+}
+
+/// A transport whose call packet drain holds the owner inside a step until
+/// released, the way a slow Moss or engine call does.
+struct Holding {
+    entered: std::sync::mpsc::Sender<()>,
+    release: Mutex<std::sync::mpsc::Receiver<()>>,
+}
+
+impl DmTransport for Holding {
+    fn open_room(&self, _: &str, _: &[String], _: u16, _: Option<String>) -> Result<(), String> {
+        Ok(())
+    }
+    fn close_room(&self, _: &str, _: &[String], _: &str) {}
+    fn publish(&self, _: &str, _: &str, _: &[u8]) -> Result<(), PublishError> {
+        Ok(())
+    }
+    fn connect_peer(&self, _: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn reach(&self, _: &str) -> PeerTransport {
+        PeerTransport::None
+    }
+    fn local_peer_id(&self) -> Option<String> {
+        None
+    }
+    fn mesh_info(&self) -> Option<crate::conversation::mesh::MeshInfo> {
+        None
+    }
+    fn drain(&self) -> Vec<crate::moss_ffi::MossReceivedMessage> {
+        Vec::new()
+    }
+    fn drain_call_packets(&self) -> Vec<crate::moss_ffi::MossReceivedMessage> {
+        if self.entered.send(()).is_ok() {
+            let _ = self.release.lock().unwrap().recv();
+        }
+        Vec::new()
+    }
+}
+
+#[test]
+fn a_control_does_not_wait_out_a_running_owner_step() {
+    use std::sync::mpsc::channel;
+    let limit = Duration::from_secs(5);
+    let state = Arc::new(Mutex::new(State::default()));
+    let hub = Arc::new(Hub {
+        state: state.clone(),
+    });
+    let (entered, held) = channel();
+    let (release, released) = channel();
+    let transport = Arc::new(Holding {
+        entered,
+        release: Mutex::new(released),
+    });
+    let worker = std::thread::spawn(move || worker::run(state, transport));
+    held.recv_timeout(limit).expect("the owner never stepped");
+
+    // The step is held. Preparation is admitted at once and then waits for
+    // the owner; the mute that follows it must not.
+    let (preparing, client) = (hub.clone(), hub.clone());
+    let prepared =
+        std::thread::spawn(move || preparing.prepare(pending("call"), Choices::default()));
+    let (done, muted) = channel();
+    std::thread::spawn(move || {
+        let choices = Choices {
+            microphone: true,
+            ..Default::default()
+        };
+        while client
+            .choices("dm", "call", choices.clone(), false)
+            .is_err()
+        {
+            std::thread::yield_now(); // Until the preparation is admitted.
+        }
+        let _ = done.send(client.snapshot("dm", "call"));
+    });
+    let snapshot = muted
+        .recv_timeout(limit)
+        .expect("the control waited for the held step");
+    assert!(snapshot.unwrap().microphone_requested);
+
+    drop(release); // Lets this and every later step through.
+    prepared.join().unwrap().unwrap();
+    assert!(hub.snapshot("dm", "call").unwrap().microphone_requested);
     drop(hub);
     worker.join().unwrap();
 }

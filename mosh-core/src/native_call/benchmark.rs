@@ -3,12 +3,16 @@
 use super::{
     courier::Wire,
     library::{self, Engine},
+    texture::{Exported, Texture},
     types::{Context, Frame, Surface},
 };
 use crate::frb_generated::SseEncode;
 use flutter_rust_bridge::for_generated::SseSerializer;
 use serde_json::json;
-use std::time::{Duration, Instant};
+use std::{
+    sync::Mutex,
+    time::{Duration, Instant},
+};
 
 const SIZES: [(u32, u32); 3] = [(640, 360), (1280, 720), (1920, 1080)];
 const WARM_UPS: usize = 5;
@@ -151,6 +155,41 @@ fn transfer(size @ (width, height): (u32, u32), pixels: &[u8]) {
     );
 }
 
+/// Stands in for the platform plugin's texture: `present` copies the frame
+/// into a buffer it keeps, as `linux/runner/call_video_texture.cc` does.
+#[repr(C)]
+struct Copying {
+    exported: Exported,
+    buffer: Mutex<Vec<u8>>,
+}
+
+unsafe extern "C" fn copy(exported: *const Exported, pixels: *const u8, width: u32, height: u32) {
+    // SAFETY: `exported` is the first field of the `Copying` below.
+    let copying = unsafe { &*exported.cast::<Copying>() };
+    let bytes = width as usize * height as usize * 4;
+    let mut buffer = copying.buffer.lock().unwrap();
+    buffer.resize(bytes, 0);
+    // SAFETY: the caller hands over `bytes` readable bytes; the buffer holds as many.
+    unsafe { std::ptr::copy_nonoverlapping(pixels, buffer.as_mut_ptr(), bytes) };
+}
+
+/// A frame's way into a main-window texture, which replaces `transfer` and
+/// everything after it. The raster thread's upload is not in the row.
+fn texture(size @ (width, height): (u32, u32), pixels: &[u8]) {
+    let copying = Copying {
+        exported: Exported { present: copy },
+        buffer: Mutex::default(),
+    };
+    // SAFETY: `copying` outlives the texture.
+    let texture = unsafe { Texture::at(&raw const copying.exported as i64) }.expect("an address");
+    report(
+        "texture present (the copy the plugin makes)",
+        size,
+        || (),
+        |()| texture.present(width, height, pixels),
+    );
+}
+
 #[test]
 // test-policy: skip MOSH-99 -- needs the built engine through MOSH_MEDIA_ENGINE; scripts/call-video-bench.mjs runs it with --ignored
 #[ignore = "Requires the real native engine through MOSH_MEDIA_ENGINE"]
@@ -160,5 +199,6 @@ fn frame_path() {
         let pixels = synthetic(width as usize * height as usize * 4);
         conversions(&engine, size, &pixels);
         transfer(size, &pixels);
+        texture(size, &pixels);
     }
 }

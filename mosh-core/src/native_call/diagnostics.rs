@@ -169,10 +169,7 @@ impl Monitor {
         now: Instant,
     ) -> Option<String> {
         self.stalls.include(pipeline.stalls);
-        let age = state.frames[1].as_ref().map(|frame| {
-            u128::from(frame.frame.source_age_ms)
-                + now.saturating_duration_since(frame.received).as_millis()
-        });
+        let age = state.shown[1].map(|shown| shown.age_ms(now));
         let status = Status {
             route,
             ice: engine["connection"].as_str().unwrap_or("unknown").into(),
