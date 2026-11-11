@@ -44,6 +44,7 @@ void main() {
     await ui.tap(find.byTooltip('Mute'));
     await ui.eventually(() async =>
         owner.session!.snapshot!.microphoneRequested == false &&
+        owner.session!.snapshot!.microphone == false &&
         find.byTooltip('Unmute').evaluate().isNotEmpty);
     expect(textures.value.remote, isNotNull);
 

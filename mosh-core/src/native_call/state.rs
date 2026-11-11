@@ -29,7 +29,7 @@ impl Shown {
 }
 
 /// The call signals kept for the owner; older ones go first.
-pub(crate) const INBOUND_LIMIT: usize = 16;
+const INBOUND_LIMIT: usize = 16;
 
 /// The hub and the owner each hold one: the hub's is what the app asks for
 /// and reads, the owner's is the working copy it steps.
@@ -93,10 +93,7 @@ impl State {
             self.inbound.clear();
         }
         for signal in shared.inbound.drain(..) {
-            if self.inbound.len() >= INBOUND_LIMIT {
-                self.inbound.pop_front();
-            }
-            self.inbound.push_back(signal);
+            self.receive(signal);
         }
         self.context.clone_from(&shared.context);
         self.prepared = shared.prepared;
@@ -143,6 +140,14 @@ impl State {
         self.snapshot.input = self.choices.input.clone();
         self.snapshot.output = self.choices.output.clone();
         self.snapshot.camera_id = self.choices.camera_id.clone();
+    }
+
+    /// Keeps a call signal for the owner; the oldest goes when full.
+    pub fn receive(&mut self, signal: Signal) {
+        if self.inbound.len() >= INBOUND_LIMIT {
+            self.inbound.pop_front();
+        }
+        self.inbound.push_back(signal);
     }
 
     pub fn emit(&mut self, signal: Signal) {

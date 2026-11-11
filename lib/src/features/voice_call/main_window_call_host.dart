@@ -96,6 +96,7 @@ class _MainWindowCallHostState extends ConsumerState<MainWindowCallHost> {
       // user is doing; it rings in the mini view.
       _expanded = _window == null || call?.phase != CallViewPhase.incoming;
       _videoCall = false;
+      if (!_expanded) _leaveFullScreen();
     }
     _videoCall |= call?.media?.cameraRequested == true ||
         call?.media?.remoteCamera == true;

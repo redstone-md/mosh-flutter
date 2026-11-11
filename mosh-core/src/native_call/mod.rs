@@ -84,6 +84,7 @@ impl Hub {
                 .is_some_and(|(old, new)| new.continues(old));
             if !same {
                 state.inbound.clear();
+                state.outbound.clear();
                 state.prepared = false;
                 state.pending_camera_default = None;
                 state.choices = Default::default();
@@ -93,10 +94,7 @@ impl Hub {
             }
             state.context = context;
             for signal in inbound {
-                if state.inbound.len() >= state::INBOUND_LIMIT {
-                    state.inbound.pop_front();
-                }
-                state.inbound.push_back(signal);
+                state.receive(signal);
             }
         }
     }

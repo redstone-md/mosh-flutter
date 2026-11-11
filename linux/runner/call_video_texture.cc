@@ -80,7 +80,7 @@ FlValue* lane(FlTextureRegistrar* registrar) {
   // Never released: Rust keeps the export's address.
   MoshCallVideoTexture* texture = MOSH_CALL_VIDEO_TEXTURE(
       g_object_new(mosh_call_video_texture_get_type(), nullptr));
-  texture->registrar = registrar;
+  texture->registrar = FL_TEXTURE_REGISTRAR(g_object_ref(registrar));
   fl_texture_registrar_register_texture(registrar, FL_TEXTURE(texture));
   FlValue* value = fl_value_new_list();
   fl_value_append_take(
