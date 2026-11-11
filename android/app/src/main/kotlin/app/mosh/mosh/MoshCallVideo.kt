@@ -12,6 +12,9 @@ import io.flutter.view.TextureRegistry
 internal class MoshCallVideo(messenger: BinaryMessenger, private val registry: TextureRegistry) {
     private val textures by lazy { mapOf("local" to lane(), "remote" to lane()) }
 
+    /** Held for the process: a producer nobody holds releases its surface. */
+    private val producers = mutableListOf<TextureRegistry.SurfaceProducer>()
+
     init {
         MethodChannel(messenger, "mosh/call-video").setMethodCallHandler { method, result ->
             if (method.method == "textures") result.success(textures) else result.notImplemented()
@@ -19,12 +22,15 @@ internal class MoshCallVideo(messenger: BinaryMessenger, private val registry: T
     }
 
     /**
-     * One lane as `[texture id, export address]`. Never released: Rust keeps
-     * the address. The producer is never resized, so its surface stays the
-     * one Rust holds; each frame sets the size of its own buffer.
+     * One lane as `[texture id, export address]`. Rust keeps the address. The
+     * producer is never resized and Flutter does not reset it in the
+     * background, so its surface stays the one Rust holds; each frame sets
+     * the size of its own buffer.
      */
     private fun lane(): List<Long> {
-        val producer = registry.createSurfaceProducer()
+        val producer = registry
+            .createSurfaceProducer(TextureRegistry.SurfaceLifecycle.manual)
+            .also(producers::add)
         val address = export(producer.surface)
         check(address != 0L) { "Call video texture unavailable" }
         return listOf(producer.id(), address)

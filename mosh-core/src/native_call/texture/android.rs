@@ -50,7 +50,8 @@ impl Latest {
 
     /// What the app passes back to have a lane shown in this texture.
     pub fn address(&'static self) -> i64 {
-        &raw const self.exported as i64
+        // The export is the first field.
+        std::ptr::from_ref(self) as i64
     }
 
     fn write(&self, mut screen: impl Screen) {
@@ -103,19 +104,32 @@ mod surface {
         EnvUnowned,
     };
     use ndk::{hardware_buffer_format::HardwareBufferFormat, native_window::NativeWindow};
-    use std::{io, sync::Once};
+    use std::{
+        io,
+        panic::{catch_unwind, AssertUnwindSafe},
+    };
 
-    impl Screen for NativeWindow {
-        /// A surface that refuses a frame keeps its last one; the first
-        /// refusal is logged.
+    /// One texture's window.
+    struct Surface {
+        window: NativeWindow,
+        refused: bool,
+    }
+
+    impl Screen for Surface {
+        /// A surface that cannot take a frame keeps what it shows; its
+        /// first refusal is logged.
         fn show(&mut self, width: u32, height: u32, rgba: &[u8]) {
-            static REFUSED: Once = Once::new();
-            if let Err(error) = write(self, width, height, rgba) {
-                REFUSED.call_once(|| {
-                    use crate::diagnostics_log::{kinds, write, LogLevel};
-                    let message = format!("call video texture refused a frame: {error}");
-                    write(LogLevel::Warn, kinds::CALL, "", &message);
-                });
+            // The window's buffer guard panics if its post fails.
+            let posting = AssertUnwindSafe(|| post(&self.window, width, height, rgba));
+            let posted = catch_unwind(posting)
+                .unwrap_or_else(|_| Err(io::Error::other("the buffer was not posted")));
+            let Err(error) = posted else {
+                return;
+            };
+            if !std::mem::replace(&mut self.refused, true) {
+                use crate::diagnostics_log::{kinds, write, LogLevel};
+                let message = format!("call video texture refused a frame: {error}");
+                write(LogLevel::Warn, kinds::CALL, "", &message);
             }
         }
     }
@@ -123,7 +137,7 @@ mod surface {
     /// Copies the frame into the window's next buffer and posts it. The
     /// queue's buffers take each frame's size, whatever size the producer
     /// was made with.
-    fn write(window: &NativeWindow, width: u32, height: u32, rgba: &[u8]) -> io::Result<()> {
+    fn post(window: &NativeWindow, width: u32, height: u32, rgba: &[u8]) -> io::Result<()> {
         let format = Some(HardwareBufferFormat::R8G8B8A8_UNORM);
         window.set_buffers_geometry(width as i32, height as i32, format)?;
         let mut buffer = window.lock(None)?;
@@ -155,8 +169,12 @@ mod surface {
                     NativeWindow::from_surface(env.get_raw().cast(), surface.as_raw().cast())
                 }
                 .ok_or(Error::NullPtr("call video surface"))?;
-                let texture = Latest::start(window).map_err(|_| Error::JavaException)?;
-                Ok(texture.address())
+                let surface = Surface {
+                    window,
+                    refused: false,
+                };
+                // Zero tells the plugin the texture is unavailable.
+                Ok(Latest::start(surface).map_or(0, Latest::address))
             })
             .resolve::<ThrowRuntimeExAndDefault>()
     }

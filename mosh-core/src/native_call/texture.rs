@@ -1,6 +1,6 @@
 //! A video texture of the main window. Its platform plugin owns the Flutter
-//! texture and the pixels it shows; Rust hands it each frame, so pixels never
-//! pass through flutter_rust_bridge or Dart.
+//! texture; Rust hands each frame to what the texture exports, so pixels
+//! never pass through flutter_rust_bridge or Dart.
 use std::ptr::NonNull;
 
 #[cfg(any(test, target_os = "android"))]
