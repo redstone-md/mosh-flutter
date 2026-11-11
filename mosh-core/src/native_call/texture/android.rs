@@ -103,31 +103,40 @@ mod surface {
         EnvUnowned,
     };
     use ndk::{hardware_buffer_format::HardwareBufferFormat, native_window::NativeWindow};
+    use std::{io, sync::Once};
 
     impl Screen for NativeWindow {
+        /// A surface that refuses a frame keeps its last one; the first
+        /// refusal is logged.
         fn show(&mut self, width: u32, height: u32, rgba: &[u8]) {
-            // The queue's buffers take each frame's size, whatever size the
-            // producer was made with. A surface that refuses a frame keeps
-            // its last one.
-            let format = Some(HardwareBufferFormat::R8G8B8A8_UNORM);
-            if self
-                .set_buffers_geometry(width as i32, height as i32, format)
-                .is_err()
-            {
-                return;
-            }
-            let Ok(mut buffer) = self.lock(None) else {
-                return;
-            };
-            let Some(lines) = buffer.lines() else {
-                return;
-            };
-            for (line, row) in lines.zip(rgba.chunks_exact(width as usize * 4)) {
-                if line.len() == row.len() {
-                    line.write_copy_of_slice(row);
-                }
+            static REFUSED: Once = Once::new();
+            if let Err(error) = write(self, width, height, rgba) {
+                REFUSED.call_once(|| {
+                    use crate::diagnostics_log::{kinds, write, LogLevel};
+                    let message = format!("call video texture refused a frame: {error}");
+                    write(LogLevel::Warn, kinds::CALL, "", &message);
+                });
             }
         }
+    }
+
+    /// Copies the frame into the window's next buffer and posts it. The
+    /// queue's buffers take each frame's size, whatever size the producer
+    /// was made with.
+    fn write(window: &NativeWindow, width: u32, height: u32, rgba: &[u8]) -> io::Result<()> {
+        let format = Some(HardwareBufferFormat::R8G8B8A8_UNORM);
+        window.set_buffers_geometry(width as i32, height as i32, format)?;
+        let mut buffer = window.lock(None)?;
+        if (buffer.width(), buffer.height()) != (width as usize, height as usize) {
+            return Err(io::Error::other("a buffer of another size"));
+        }
+        let lines = buffer
+            .lines()
+            .ok_or_else(|| io::Error::other("not an RGBA buffer"))?;
+        for (line, row) in lines.zip(rgba.chunks_exact(width as usize * 4)) {
+            line.write_copy_of_slice(row);
+        }
+        Ok(())
     }
 
     /// Called by `MoshCallVideo` with the `Surface` of one texture: the
