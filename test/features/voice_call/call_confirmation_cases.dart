@@ -52,12 +52,14 @@ void main() {
     final ringing = CallRinging(player, timedOut.add);
     ringing.update(_pending, busy: false);
     final actions = <CallViewAction>[];
-    final view = CallViewState.fromDialog('dm', _pending,
-        fallback: 'Contact',
-        muted: false,
-        audioReady: false,
-        busy: false,
-        language: 'en')!;
+    final view = CallViewState.fromDialog(
+      'dm',
+      _pending,
+      fallback: 'Contact',
+      muted: false,
+      audioReady: false,
+      busy: false,
+    )!;
     await pumpScreen(
         tester, Scaffold(body: CallView(call: view, onAction: actions.add)));
     expect(find.text('Waiting for confirmation…'), findsOneWidget);

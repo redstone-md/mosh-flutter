@@ -80,7 +80,12 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
     if (ref.read(voiceCallSessionProvider)?.sessionId != session) return;
     final provider = voiceCallOrchestratorProvider(session);
     final dialog = ref.read(provider).dialog;
-    if (call != dialog.callId && call != dialog.supersededCallId) return;
+    final end = CallViewCommand(
+        sessionId: session, callId: call, action: CallViewAction.end);
+    if (!end.matchesCall(session, dialog.callId,
+        supersededCallId: dialog.supersededCallId)) {
+      return;
+    }
     unawaited(
         ref.read(provider.notifier).endCall(call, kCallDeclineReasonHangup));
   }
@@ -112,7 +117,6 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
             audioFailed: state.audioFailed,
             busy: state.busy,
             occupancyConflict: state.occupancyConflict,
-            language: Localizations.localeOf(context).languageCode,
             error: state.error?.cause.describe(l),
           );
     _video.update(call);

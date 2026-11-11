@@ -18,7 +18,7 @@ CPAL playback) are deleted; the boundary and frame IPC below are unchanged.
 
 2026-11-10: [ADR 0052](0052-desktop-calls-in-the-main-window.md) moves desktop
 presentation into the main window and feeds video to a native texture from Rust.
-The child-window process and frame IPC below remain until MOSH-101 removes them.
+MOSH-101 removed the child-window process and frame IPC described below.
 
 For [issue 46](https://github.com/redstone-md/mosh-flutter/issues/46), use one
 established native engine for audio and video, with all network media carried

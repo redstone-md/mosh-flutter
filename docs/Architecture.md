@@ -54,7 +54,7 @@ Desktop and Android calls use the [native audio/video owner](Features/native-cal
 `mosh-core/src/native_call` owns capture, one engine, selected-peer transport and
 latest frames; isolated `mosh-media/engine` and `mosh-media/capture` graphs keep
 Signal/OpenMLS dependencies separate and blocked camera drivers cancellable.
-The child window owns presentation only. Public negotiation uses MLS; media uses
+The main window presents the call. Public negotiation uses MLS; media uses
 Moss directed packets. Native builds run through the existing desktop plugin
 and Xcode hooks. See [ADR 0044](ADR/0044-native-call-media-over-moss.md).
 

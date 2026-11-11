@@ -99,7 +99,6 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
       audioFailed: state.audioFailed,
       busy: state.busy,
       occupancyConflict: state.occupancyConflict,
-      language: Localizations.localeOf(context).languageCode,
       error: state.error?.cause.describe(widget.l),
     );
     if (call == null) return const SizedBox.shrink();

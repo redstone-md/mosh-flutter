@@ -31,7 +31,6 @@ class CallViewState {
     this.audioFailed = false,
     this.busy = false,
     this.occupancyConflict = false,
-    this.language = 'en',
     this.error,
     this.media,
   });
@@ -47,7 +46,6 @@ class CallViewState {
   final bool audioFailed;
   final bool busy;
   final bool occupancyConflict;
-  final String language;
   final String? error;
   final CallMediaView? media;
 
@@ -58,7 +56,6 @@ class CallViewState {
       bool audioFailed = false,
       required bool busy,
       bool occupancyConflict = false,
-      required String language,
       String? error,
       String? peerOverride,
       CallMediaView? media}) {
@@ -84,7 +81,6 @@ class CallViewState {
       audioFailed: audioFailed,
       busy: busy,
       occupancyConflict: occupancyConflict,
-      language: language,
       error: error,
       media: media,
     );

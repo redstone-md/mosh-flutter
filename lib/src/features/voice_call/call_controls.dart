@@ -12,7 +12,7 @@ List<Widget> callControls(CallViewState call, AppLocalizations l,
         IconButton(
             tooltip: l.callExpand,
             onPressed: expand,
-            icon: const Icon(Icons.open_in_new)),
+            icon: const Icon(Icons.open_in_full)),
       if (call.phase == CallViewPhase.active || call.media != null)
         _microphone(call, l, act),
       if (camera && call.media != null) _camera(call, l, act),

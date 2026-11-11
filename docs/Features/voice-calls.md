@@ -201,7 +201,9 @@ by the retained tests named here.
 | `test/features/voice_call/call_control_races_test.dart`: the "native close" variants and the commands sent through the window | a window command racing a pending accept | the same file, through the real buttons |
 | `test/features/voice_call/call_notification_focus_cases.dart`: the "call" and "call failure" variants | the call window's focus suppressing an alert | the same file, for the main window |
 | `test/features/voice_call/native_call_view_test.dart`: "child metadata preserves real flags and contains no media credentials" | the view state's pipe encoding | none: the encoding is deleted |
-| `integration_test/native_call_test.dart` and `integration_test/call_video_window_test.dart` | a real call and synthetic frames through the window process | `integration_test/native_call_main_window_test.dart` |
+| `integration_test/native_call_test.dart` and `integration_test/call_video_window_test.dart` | a real call and synthetic frames through the window process | `integration_test/native_call_main_window_test.dart` for the call itself. The polled frame path that Android keeps has no real-engine test until MOSH-102 replaces it; `test/features/voice_call/native_call_session_test.dart` covers the poll against the scripted bridge |
+| `test/support/call_window_platform.dart` and `test/support/call_window_process.dart` | fakes for the tests above | none needed |
+| `windows/runner/tests/window_icon_test.cpp`: the `MOSH_CALL_WINDOW=1` run in `.github/workflows/build-windows.yml` | the call child's own Win32 window class | the same test, which still checks the runner class app_links looks for |
 | `scripts/macos-package.test.mjs`: "packaging signs the call window to inherit the sandbox before sealing the app" | signing of the `mosh-call-window` copy | none: the copy is no longer built |
 
 ## Verification on Linux, 2026-10-06

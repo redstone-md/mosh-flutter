@@ -216,12 +216,9 @@ discards stderr. Binary stdout frames, account identities and media keys are
 never included in these diagnostics.
 
 `NativeCallSession` in Dart owns commands and presentation polling. Rust retains
-media when this client or the window disappears. The child window starts no
-Rust, capture or audio runtime. Public state travels through inherited stdio;
-frames use a dedicated loopback socket with a one-time 256-bit capability.
-Only one frame is in flight. Missing acknowledgement closes that renderer after
-five seconds; the main strip can restore it. Stream and write failures are both
-handled, including a TCP reset during a frame write.
+media when this client disappears. Desktop frames never pass through it: Rust
+presents them into the main window's textures. On Android it polls one frame
+at a time and none is queued.
 
 Frames leave Rust at the size they are shown, not as full camera RGBA. The
 video stage dispatches `CallVideoSurfaces` whenever its layout changes: the

@@ -17,9 +17,10 @@ import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 
 void main() {
-  for (final window in ['focus', 'focus failure']) {
+  for (final probe in ['works', 'fails']) {
     for (final ended in [false, true]) {
-      testWidgets('incoming alert follows window $window; ended: $ended',
+      testWidgets(
+          'incoming alert follows window blur, focus probe $probe; ended: $ended',
           (tester) async {
         var focused = true;
         var failFocus = false;
@@ -36,7 +37,7 @@ void main() {
         const manager = MethodChannel('window_manager');
         messenger.setMockMethodCallHandler(manager, (call) async {
           if (call.method != 'isFocused') return null;
-          if (failFocus && window == 'focus failure') {
+          if (failFocus && probe == 'fails') {
             throw PlatformException(code: 'focus unavailable');
           }
           return focused;
