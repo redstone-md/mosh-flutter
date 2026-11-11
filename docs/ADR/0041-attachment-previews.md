@@ -91,7 +91,9 @@ Headless video preview capture selects `VideoTrack.auto()` before opening the
 media: media_kit disables video decoding until a track is selected or a
 `VideoController` attaches. The native media tests use real libmpv to verify
 JPEG capture and the bounded miniature/clear-preview pair. They skip only when
-the native backend is unavailable.
+the native backend is unavailable. On Android the frame comes from the
+platform's `MediaMetadataRetriever` instead
+([ADR 0053](0053-android-playback-through-media3.md)).
 
 Existing runtime send assembly, history replay and deletion admission retain
 their established function-length exceptions. They keep protocol fields and

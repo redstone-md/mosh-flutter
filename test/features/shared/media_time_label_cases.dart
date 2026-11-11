@@ -1,13 +1,8 @@
-// The audio viewer's position/duration label.
+// The position/duration label of the viewer's playback controls.
 //
 // Audit (2026-09-21) MEDIUM: the live "m:ss / m:ss" label rendered with
 // proportional digits inside its fixed 80px box, so the text reflowed on
-// every position tick. `MediaAudioTimeLabel` is the extracted label; this
-// pins its text and its tabular figures.
-//
-// Limitation: the label is pumped directly. The full audio stage needs the
-// media_kit native library, absent in test envs (the viewer renders its
-// placeholder there), so the wiring inside _AudioStage is one line.
+// every position tick. This pins the label's text and its tabular figures.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,7 +15,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: Center(
-            child: MediaAudioTimeLabel(
+            child: MediaTimeLabel(
               position: position,
               duration: const Duration(minutes: 1, seconds: 5),
             ),
@@ -54,7 +49,7 @@ void main() {
           body: Center(
             child: SizedBox(
               width: 80,
-              child: MediaAudioTimeLabel(
+              child: MediaTimeLabel(
                 position: const Duration(hours: 2, minutes: 13),
                 duration: const Duration(hours: 2, minutes: 15),
               ),

@@ -1,65 +1,56 @@
 part of 'media_viewer.dart';
 
-/// The video branch (a `video` element with `src controls autoPlay`).
-/// Uses media_kit: a [Player]
-/// drives playback, a [VideoController] surfaces the frames to a [Video]
-/// widget with MaterialVideoControls (the Material counterpart to the
-/// native `controls` attribute). Constrained to the stage box so a
-/// tall/wide clip never overflows the viewport (max-width 92vw;
-/// max-height 82vh).
-class _VideoStage extends StatefulWidget {
-  const _VideoStage({
+/// A stage that plays the attachment in a player of its own, from the
+/// moment it opens. Where no player can be made (a test host without
+/// libmpv) or the player cannot open the source (a missing codec, an
+/// unreadable file), the stage shows the file's card instead.
+class _PlayingStage extends StatefulWidget {
+  const _PlayingStage({
     required this.descriptor,
     required this.src,
+    required this.createPlayer,
+    required this.builder,
   });
 
   final AttachmentDescriptor descriptor;
   final String src;
+  final MediaPlayerFactory createPlayer;
+
+  /// What the stage shows of its player. Called once.
+  final Widget Function(Player player) builder;
 
   @override
-  State<_VideoStage> createState() => _VideoStageState();
+  State<_PlayingStage> createState() => _PlayingStageState();
 }
 
-class _VideoStageState extends State<_VideoStage> {
-  VideoController? _controller;
+class _PlayingStageState extends State<_PlayingStage> {
   Player? _player;
+
+  /// What the builder made; null where the attachment cannot play.
+  Widget? _playing;
 
   @override
   void initState() {
     super.initState();
-    // media_kit needs its native lib; in test envs without it (or on an
-    // unsupported platform) Player() throws -- fall back to the placeholder
-    // card so the viewer still renders. Opens + plays immediately on the
-    // happy path. The open is awaited INSIDE the stage: a Player() that
-    // constructs but fails asynchronously (missing codec, unreadable src)
-    // must land in the same catch, so the viewer renders the fallback card
-    // instead of surfacing an unhandled error.
     try {
-      final player = Player();
-      _player = player;
-      final controller = VideoController(player);
-      _controller = controller;
+      final player = _player = widget.createPlayer();
+      _playing = widget.builder(player);
       unawaited(_open(player));
     } catch (_) {
+      unawaited(_player?.dispose());
       _player = null;
-      _controller = null;
     }
   }
 
-  /// Opens + plays the stage's media. An asynchronous open failure is not
-  /// a constructor throw: it surfaces here, after the stage is live, so
-  /// the catch drops back to the placeholder card.
+  /// A source the player cannot open fails here, after the stage is live.
   Future<void> _open(Player player) async {
     try {
       await player.open(Media(widget.src));
     } catch (_) {
+      // A stage already disposed has let its player go.
+      if (!mounted) return;
+      setState(() => _player = _playing = null);
       await player.dispose();
-      if (mounted) {
-        setState(() {
-          _player = null;
-          _controller = null;
-        });
-      }
     }
   }
 
@@ -70,146 +61,119 @@ class _VideoStageState extends State<_VideoStage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final controller = _controller;
-    if (controller == null) {
-      return _PlaybackPlaceholderCard(
+  Widget build(BuildContext context) =>
+      _playing ??
+      _PlaybackPlaceholderCard(
         fileName: widget.descriptor.fileName,
         icon: Icons.play_circle_filled,
       );
-    }
-    return ClipRRect(
+}
+
+/// A video's picture with its controls, in the box the stage constrains so
+/// a tall or wide clip never overflows the viewport (max-width 92vw;
+/// max-height 82vh). libmpv's player brings media_kit's picture and
+/// Material controls; the system's player on Android gets [_SystemVideo].
+Widget _videoPicture(Player player) => ClipRRect(
       borderRadius: BorderRadius.circular(8),
-      child: Video(
-        controller: controller,
-        controls: MaterialVideoControls,
-        fill: Colors.transparent,
-      ),
+      child: switch (player.platform) {
+        final SystemPlayer system =>
+          _SystemVideo(player: player, system: system),
+        _ => Video(
+            controller: VideoController(player),
+            controls: MaterialVideoControls,
+            fill: Colors.transparent,
+          ),
+      },
     );
-  }
-}
 
-/// The audio stage's live "m:ss / m:ss" label, extracted so the format and
-/// the tabular figures are testable without the media_kit native library
-/// (the stage falls back to a placeholder where the player is unavailable).
-/// Tabular figures: the digits change on every position tick, and
-/// proportional numerals reflow the fixed 80px box (audit 2026-09-21).
-class MediaAudioTimeLabel extends StatelessWidget {
-  const MediaAudioTimeLabel({
-    super.key,
-    required this.position,
-    required this.duration,
-  });
+/// A video in the system's player: its picture, which a tap pauses, over
+/// the viewer's own controls, as video_player draws none. A spinner shows
+/// while the video opens or waits for its stream. As media_kit's picture
+/// does, it keeps the display awake while it is open and pauses the video
+/// when the app goes to the background.
+class _SystemVideo extends StatefulWidget {
+  const _SystemVideo({required this.player, required this.system});
 
-  final Duration position;
-  final Duration duration;
-
-  String _fmt(Duration d) {
-    final m = d.inMinutes;
-    final s = d.inSeconds.remainder(60);
-    return '$m:${s.toString().padLeft(2, '0')}';
-  }
+  final Player player;
+  final SystemPlayer system;
 
   @override
-  Widget build(BuildContext context) {
-    // Scale down instead of wrapping: the fixed 80px slot keeps the controls
-    // row's height stable even for recordings of 100+ minutes, where
-    // "133:00 / 135:00" exceeds the slot (CodeAnt PR #12).
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text(
-        '${_fmt(position)} / ${_fmt(duration)}',
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
-            ?.copyWith(fontFeatures: kLiveNumberFontFeatures),
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
+  State<_SystemVideo> createState() => _SystemVideoState();
 }
 
-/// The audio branch (play icon + strong file_name + an `audio` element
-/// with `src controls autoPlay`). Uses media_kit [Player] (audio-only --
-/// no VideoController); a minimal control row (play/pause + seek Slider +
-/// position/duration label) stands in for the native `audio controls`
-/// affordance since media_kit ships no ready audio-controls widget.
-/// Listens to the player stream for live position + duration.
-class _AudioStage extends StatefulWidget {
-  const _AudioStage({
-    required this.descriptor,
-    required this.src,
-  });
-
-  final AttachmentDescriptor descriptor;
-  final String src;
-
-  @override
-  State<_AudioStage> createState() => _AudioStageState();
-}
-
-class _AudioStageState extends State<_AudioStage> {
-  Player? _player;
-  bool _playing = false;
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
+class _SystemVideoState extends State<_SystemVideo> {
+  late final AppLifecycleListener _background;
 
   @override
   void initState() {
     super.initState();
-    // media_kit needs its native lib; in test envs without it (or on an
-    // unsupported platform) Player() throws -- fall back to the placeholder
-    // card. Opens + plays on the happy path. The open is awaited INSIDE the
-    // stage: a Player() that constructs but fails asynchronously (missing
-    // codec, unreadable src) must land in the same catch, so the viewer
-    // renders the fallback card instead of surfacing an unhandled error.
-    try {
-      final player = Player();
-      _player = player;
-      player.stream.playing.listen((playing) {
-        if (mounted) setState(() => _playing = playing);
-      });
-      player.stream.position.listen((pos) {
-        if (mounted) setState(() => _position = pos);
-      });
-      player.stream.duration.listen((dur) {
-        if (mounted) setState(() => _duration = dur);
-      });
-      unawaited(_open(player));
-    } catch (_) {
-      _player = null;
-    }
-  }
-
-  /// Opens + plays the stage's media. An asynchronous open failure is not
-  /// a constructor throw: it surfaces here, after the stage is live, so
-  /// the catch drops back to the placeholder card.
-  Future<void> _open(Player player) async {
-    try {
-      await player.open(Media(widget.src));
-    } catch (_) {
-      await player.dispose();
-      if (mounted) setState(() => _player = null);
-    }
+    unawaited(WakelockPlus.enable());
+    _background = AppLifecycleListener(onPause: widget.player.pause);
   }
 
   @override
   void dispose() {
-    _player?.dispose();
+    _background.dispose();
+    unawaited(WakelockPlus.disable());
     super.dispose();
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final player = widget.player;
+    return ColoredBox(
+      color: MoshColors.bg2,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: ValueListenableBuilder(
+              valueListenable: widget.system.opened,
+              // Without a picture, after the system gave up on the video,
+              // the controls below open it again.
+              builder: (context, video, waiting) => AspectRatio(
+                aspectRatio: video?.value.aspectRatio ?? 16 / 9,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (video != null)
+                      Positioned.fill(
+                        child: GestureDetector(
+                          onTap: player.playOrPause,
+                          child: VideoPlayer(video),
+                        ),
+                      ),
+                    waiting!,
+                  ],
+                ),
+              ),
+              child: StreamBuilder(
+                stream: player.stream.buffering,
+                initialData: player.state.buffering,
+                builder: (context, waiting) => waiting.requireData
+                    ? const CircularProgressIndicator()
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ),
+          _PlaybackControls(player: player),
+        ],
+      ),
+    );
+  }
+}
+
+/// An audio attachment: a card with a play icon, the file's name and the
+/// controls.
+class _AudioCard extends StatelessWidget {
+  const _AudioCard({required this.fileName, required this.player});
+
+  final String fileName;
+  final Player player;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final player = _player;
-    if (player == null) {
-      // Fallback (test env / unsupported platform).
-      return _PlaybackPlaceholderCard(
-        fileName: widget.descriptor.fileName,
-        icon: Icons.play_circle_filled,
-      );
-    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
       // `.media-viewer-audio { padding: 32px 40px; border: 1px solid
@@ -230,7 +194,7 @@ class _AudioStageState extends State<_AudioStage> {
           ),
           const SizedBox(height: 14),
           Text(
-            widget.descriptor.fileName,
+            fileName,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 13,
@@ -238,33 +202,7 @@ class _AudioStageState extends State<_AudioStage> {
             ),
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              IconButton(
-                icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
-                onPressed: () => player.playOrPause(),
-              ),
-              Expanded(
-                child: Slider(
-                  value: _position.inMilliseconds.toDouble(),
-                  min: 0,
-                  max: _duration.inMilliseconds.toDouble().clamp(
-                        1,
-                        double.infinity,
-                      ),
-                  onChanged: (value) =>
-                      player.seek(Duration(milliseconds: value.round())),
-                ),
-              ),
-              SizedBox(
-                width: 80,
-                child: MediaAudioTimeLabel(
-                  position: _position,
-                  duration: _duration,
-                ),
-              ),
-            ],
-          ),
+          _PlaybackControls(player: player),
         ],
       ),
     );

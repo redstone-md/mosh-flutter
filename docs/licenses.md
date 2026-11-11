@@ -48,7 +48,8 @@ pubspec.lock.
 | `dbus`, `gtk` (Dart, Linux only) | MPL-2.0 | Compatible; not in Apple builds. |
 | Go modules of Moss | BSD, MIT, Apache-2.0, ISC, MPL-2.0 (anacrolix) | Permissive or file-level copyleft. |
 | `anacrolix/multiless`, `anacrolix/sync` | MPL-2.0 upstream, no file in the pinned versions | In `REVIEWED`; MOSH-79 moves Moss to versions with the file. |
-| libmpv and ffmpeg (media_kit) | LGPL-2.1-or-later; LGPL-3.0 on Windows | Kept, linked dynamically (frameworks on Apple), as VLC ships libVLC on the App Store under the LGPL. Apple and Android use the `default` builds of media-kit's libmpv-darwin-build and libmpv-android-video-build, made for playback without GPL parts; the Windows build configures ffmpeg with `--disable-gpl --enable-version3` and mpv with `-Dgpl=false`. MOSH-78 bundles the LGPL text and source links. |
+| libmpv and ffmpeg (media_kit) | LGPL-2.1-or-later; LGPL-3.0 on Windows | Kept, linked dynamically (frameworks on Apple), as VLC ships libVLC on the App Store under the LGPL. Apple uses the `default` build of media-kit's libmpv-darwin-build, made for playback without GPL parts; the Windows build configures ffmpeg with `--disable-gpl --enable-version3` and mpv with `-Dgpl=false`. MOSH-78 bundles the LGPL text and source links. |
+| androidx media3 (video_player, Android) | Apache-2.0 | Permissive; from Google's Maven repository. Android has no libmpv ([ADR 0053](ADR/0053-android-playback-through-media3.md)). |
 | Flutter engine and SDK packages | BSD-3-Clause and bundled components | Flutter bundles their notices in every build. |
 | Inter | SIL Open Font License 1.1 | Permissive for embedding. |
 

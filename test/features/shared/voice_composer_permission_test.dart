@@ -26,6 +26,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:mosh/src/features/shared/media_player.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
@@ -104,6 +106,7 @@ Future<void> _pumpComposer(
   WidgetTester tester, {
   required List<String> errors,
   List<VoiceSend>? sent,
+  MediaPlayerFactory createPlayer = createMediaPlayer,
 }) async {
   // The capture asks the platform for the app cache dir (the clip dir
   // fix). Real async IO never resolves inside a widget test's fake async
@@ -140,6 +143,7 @@ Future<void> _pumpComposer(
           sendLabel: 'Send voice',
           permissionDeniedLabel: 'mic denied',
           inputDeviceId: () => null,
+          createPlayer: createPlayer,
         ),
       ),
     ),
@@ -242,4 +246,43 @@ void main() {
     expect(_micButton(), findsOneWidget, reason: 'back to idle after send');
     expect(errors, isEmpty);
   });
+
+  // Regression (CodeAnt PR #154): a preview that failed to play was dropped
+  // with its player still allocated.
+  testWidgets('a preview that cannot play lets go of its player',
+      (tester) async {
+    _stubRecordChannel(permissionResult: () => true, started: <String>[]);
+    final playback = _RefusingPlayback();
+    await _pumpComposer(tester,
+        errors: <String>[],
+        createPlayer: () => Player(platformPlayer: playback));
+    await tester.tap(_micButton());
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.byIcon(Icons.stop));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.play_arrow));
+    await tester.pumpAndSettle();
+
+    expect(playback.disposed, isTrue);
+    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+  });
+}
+
+class _RefusingPlayback extends PlatformPlayer {
+  _RefusingPlayback() : super(configuration: const PlayerConfiguration());
+
+  bool disposed = false;
+
+  @override
+  Future<void> open(Playable playable, {bool play = true}) =>
+      throw StateError('no decoder');
+
+  @override
+  Future<void> dispose() {
+    disposed = true;
+    return super.dispose();
+  }
 }

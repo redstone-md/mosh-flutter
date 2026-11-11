@@ -108,13 +108,19 @@ the signed `fdroid` APK from the GitHub release and the texts from
 `fastlane/metadata/android` (see [store listings](store-listings.md)). It
 rejects proprietary SDKs and self-updaters that are on by default, which is why
 the device-link scanner uses CameraX with zxing2 rather than ML Kit. Its usual
-budget is 30 MB per app; the arm64 APK is near 90 MB, so the submission asks
+budget is 30 MB per app; the arm64 APK is near 80 MB, so the submission asks
 for an exception.
 
 The main F-Droid catalog rebuilds apps from source with its own tools. Mosh
 cannot go there yet: the call engine builds Signal's WebRTC through
-depot_tools, which downloads Google's prebuilt clang and build tools, and
-media_kit downloads a prebuilt libmpv during the Gradle build (IVO-164).
+depot_tools, which downloads Google's prebuilt clang and build tools (MOSH-59).
+The player no longer stands in the way: Android has no libmpv and plays through
+media3 from Google's Maven repository
+([ADR 0053](../ADR/0053-android-playback-through-media3.md)).
+
+media3 follows the platform's cleartext policy. `network_security_config.xml`
+permits plain HTTP to `127.0.0.1` only, where the app's own server hands a
+streaming attachment to the player.
 
 ## Installation and acceptance
 

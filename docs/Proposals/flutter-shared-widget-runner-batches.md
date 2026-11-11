@@ -46,7 +46,7 @@ all 56 identities/outcomes match. Seed 42 also passes all 56.
 Scoped commands (before/after, Bash brace expansion):
 
 ```sh
-flutter test --machine test/features/shared/{mosh_dialog,focus_ring,avatar,hit_area,media_audio_time_label,press_scale,confirm_dialog,modal_focus_trap,on_accent_contrast,async_switch_tile,chat_error_banner,persistence_warning_banner}_test.dart test/features/shared/toasts/{toast_host,toaster}_test.dart
+flutter test --machine test/features/shared/{mosh_dialog,focus_ring,avatar,hit_area,media_time_label,press_scale,confirm_dialog,modal_focus_trap,on_accent_contrast,async_switch_tile,chat_error_banner,persistence_warning_banner}_test.dart test/features/shared/toasts/{toast_host,toaster}_test.dart
 flutter test --machine test/features/shared/{shared_dialog_focus,shared_hit_targets,shared_confirm_visuals,shared_feedback}_test.dart test/features/shared/toasts/toast_contract_test.dart
 ```
 
@@ -149,7 +149,7 @@ The driver paths resolve through the A–E table; toast module prefixes omit `to
 | `focus_ring` | `focus_ring` | A | 1 | Tab draws and clears the focus ring |
 | `avatar` | `avatar` | A | 1 | Initials contrast, non-accent color and font size |
 | `hit_area` | `hit_area` | B | 5 | Padded target sizes and actual outside-glyph taps for five controls |
-| `media_audio_time_label` | `media_audio_time_label` | B | 3 | Time format, tabular figures and long-label bounds |
+| `media_time_label` | `media_time_label` | B | 3 | Time format, tabular figures and long-label bounds |
 | `press_scale` | `press_scale` | B | 2 | Pointer-down/up and disabled behavior |
 | `confirm_dialog` | `confirm_dialog` | C | 7 | Confirm/cancel results; repeated/modifier Escape; backdrop/system back |
 | `modal_focus_trap` | `modal_focus_trap` | C | 1 | Forward/backward focus wraparound |
@@ -174,9 +174,9 @@ The driver paths resolve through the A–E table; toast module prefixes omit `to
 | `hit_area` | `the fingerprint lock target reaches past its 15px glyph` |
 | `hit_area` | `the confirm-dialog close X is at least a 40px target` |
 | `hit_area` | `the org offer dismiss X is at least a 40px target` |
-| `media_audio_time_label` | `renders m:ss / m:ss with tabular figures` |
-| `media_audio_time_label` | `zero position renders as 0:00` |
-| `media_audio_time_label` | `long durations stay on one line inside the 80px slot` |
+| `media_time_label` | `renders m:ss / m:ss with tabular figures` |
+| `media_time_label` | `zero position renders as 0:00` |
+| `media_time_label` | `long durations stay on one line inside the 80px slot` |
 | `press_scale` | `PressScale scales down on pointer down and restores on up` |
 | `press_scale` | `PressScale is a no-op when enabled is false` |
 | `confirm_dialog` | `Escape cancels once per press with or without modifiers` |

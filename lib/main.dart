@@ -35,12 +35,12 @@ import 'package:mosh/src/features/lock/android_app_access.dart';
 import 'package:mosh/src/features/lock/android_app_lock_frame.dart';
 import 'package:mosh/src/state/production_provider_overrides.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
-import 'package:media_kit/media_kit.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/platform/desktop_window_controller.dart';
 import 'package:mosh/src/platform/desktop_window_frame.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart';
+import 'package:mosh/src/features/shared/media_player.dart';
 import 'package:mosh/src/features/shared/media_stream_server.dart';
 import 'package:window_manager/window_manager.dart' show windowManager;
 
@@ -72,7 +72,7 @@ void main(List<String> args) async {
     // MediaStreamLifecycleOwner.start stores the owner for this purpose.
     await MediaStreamLifecycleOwner.start();
   }
-  MediaKit.ensureInitialized();
+  initializeMediaPlayback();
   // Register the `mosh://` custom URL scheme with Windows so the OS
   // launches mosh.exe (URI as launch arg) for a `mosh://...` link. The
   // runner already pipes launch args to Dart; this is the OS-association
