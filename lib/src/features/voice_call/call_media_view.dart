@@ -46,11 +46,8 @@ class CallMediaView {
               ? null
               : '${s.codec ?? ""} · ${s.encoder} · ${s.videoWidth}×${s.videoHeight} · ${s.videoFps.toStringAsFixed(0)} fps');
 
-  /// A device menu lists at most sixteen entries.
-  static List<CallDeviceView> _devices(List<native.Device> devices) => [
-        for (final device in devices.take(16))
-          CallDeviceView(device.id, device.name)
-      ];
+  static List<CallDeviceView> _devices(List<native.Device> devices) =>
+      [for (final device in devices) CallDeviceView(device.id, device.name)];
 }
 
 class CallDeviceView {
