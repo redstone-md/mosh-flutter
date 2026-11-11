@@ -37,6 +37,7 @@ class VoiceComposer extends StatefulWidget {
     required this.sendLabel,
     required this.permissionDeniedLabel,
     this.inputDeviceId = _storedInputDeviceId,
+    this.createPlayer = createMediaPlayer,
   });
 
   final bool disabled;
@@ -55,6 +56,9 @@ class VoiceComposer extends StatefulWidget {
   /// capture config. Injectable so tests (no cdylib) pass a plain getter;
   /// production uses the frb store read. Null return = platform default.
   final String? Function() inputDeviceId;
+
+  /// Makes the review preview's player; tests pass their own.
+  final MediaPlayerFactory createPlayer;
 
   @override
   State<VoiceComposer> createState() => _VoiceComposerState();
@@ -131,15 +135,14 @@ class _VoiceComposerState extends State<VoiceComposer> {
         await player.playOrPause();
       }
     } catch (_) {
-      _previewPlayer = null;
-      _previewPlaying = false;
+      _disposePreview();
     }
   }
 
   /// Creates the preview player, wires its playing stream, opens the file.
-  /// Throwing here resets the preview in the caller's catch.
+  /// Throwing here lets the player go in the caller's catch.
   Future<void> _openPreview(String path) async {
-    final player = createMediaPlayer();
+    final player = widget.createPlayer();
     _previewPlayer = player;
     player.stream.playing.listen((playing) {
       _ifMounted(() => setState(() => _previewPlaying = playing));
