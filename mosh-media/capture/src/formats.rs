@@ -1,5 +1,5 @@
 use crate::i420;
-use nokhwa::utils::{CameraFormat, FrameFormat};
+use nokhwa::utils::CameraFormat;
 
 /// The mode nearest 1280x720 at 30 fps among those the helper converts, and
 /// at equal size and rate the one that costs least to bring to I420.
@@ -15,18 +15,12 @@ pub fn choose(formats: Vec<CameraFormat>) -> anyhow::Result<CameraFormat> {
         .ok_or_else(|| anyhow::anyhow!("no supported camera format"))
 }
 
-fn score(format: &CameraFormat) -> Option<(u64, u32, u32, u32)> {
+fn score(format: &CameraFormat) -> Option<(u64, u32, u32, usize)> {
     let distance =
         u64::from(format.width().abs_diff(1280)) + u64::from(format.height().abs_diff(720));
-    // Measured per 720p frame: NV12 and YUYV are repacked in under a
-    // millisecond, a JPEG decodes in 2 to 6 ms and RGB needs 6 ms of arithmetic.
-    let conversion = match format.format() {
-        FrameFormat::NV12 => 0,
-        FrameFormat::YUYV => 1,
-        FrameFormat::MJPEG => 2,
-        FrameFormat::RAWRGB | FrameFormat::RAWBGR => 3,
-        FrameFormat::GRAY => return None,
-    };
+    let conversion = i420::SOURCES
+        .iter()
+        .position(|source| *source == format.format())?;
     Some((
         distance,
         format.frame_rate().abs_diff(30),
@@ -38,6 +32,7 @@ fn score(format: &CameraFormat) -> Option<(u64, u32, u32, u32)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nokhwa::utils::FrameFormat;
 
     #[test]
     fn selects_actual_720p30_capability_and_rejects_oversized_inputs() {

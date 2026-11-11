@@ -1,6 +1,6 @@
 //! mosh-core's local preview through libwebrtc's libyuv: a camera frame
 //! becomes RGBA once, at the size its surface shows.
-use crate::frames::{MAX_RGBA_BYTES, Surface};
+use crate::frames::{MAX_RGBA_BYTES, Surface, i420_length};
 use crate::video::i420;
 use libwebrtc::video_frame::{VideoBuffer, VideoFormatType};
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -26,13 +26,14 @@ pub unsafe extern "C" fn mosh_media_preview_i420(
     if planes.is_null()
         || rgba.is_null()
         || size.is_null()
-        || length > MAX_RGBA_BYTES
+        || i420_length(width, height) != Some(length)
         || capacity > MAX_RGBA_BYTES
     {
         return -1;
     }
     catch_unwind(AssertUnwindSafe(|| {
-        // SAFETY: the caller retains the readable frame until return.
+        // SAFETY: the caller retains the readable frame, whose length was
+        // checked against its size, until return.
         let input = unsafe { std::slice::from_raw_parts(planes, length) };
         let Some(mut frame) = i420(width, height, input) else {
             return -1;

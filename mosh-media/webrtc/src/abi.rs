@@ -4,7 +4,7 @@
 //! so another thread may carry packets while the owner commands it.
 use crate::carrier::{Carrier, MAX_PACKET};
 use crate::engine::{Config, Engine};
-use crate::frames::{FrameInfo, MAX_RGBA_BYTES};
+use crate::frames::{FrameInfo, MAX_RGBA_BYTES, i420_length};
 use serde_json::json;
 use std::{
     ffi::{CStr, CString, c_char, c_void},
@@ -168,7 +168,7 @@ pub unsafe extern "C" fn mosh_media_push_i420(
     planes: *const u8,
     length: usize,
 ) -> i32 {
-    if handle.is_null() || planes.is_null() || length > MAX_RGBA_BYTES {
+    if handle.is_null() || planes.is_null() || i420_length(width, height) != Some(length) {
         return -1;
     }
     catch_unwind(AssertUnwindSafe(|| {

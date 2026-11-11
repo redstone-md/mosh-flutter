@@ -10,7 +10,6 @@ mod jpeg;
 use anyhow::Context;
 use nokhwa::{
     Camera,
-    pixel_format::RgbAFormat,
     utils::{CameraFormat, CameraIndex, RequestedFormat, RequestedFormatType},
 };
 use std::{
@@ -73,22 +72,16 @@ fn run() -> anyhow::Result<()> {
 
 fn open_camera(index: CameraIndex) -> anyhow::Result<(Camera, CameraFormat)> {
     eprintln!("camera startup: initializing device");
-    // `RgbAFormat` only names the colour formats nokhwa may deliver here;
-    // nothing is decoded to RGBA.
-    let mut camera = Camera::new(
-        index,
-        RequestedFormat::new::<RgbAFormat>(RequestedFormatType::None),
-    )
-    .context("initializing camera")?;
+    let request = |mode| RequestedFormat::with_formats(mode, &i420::SOURCES);
+    let mut camera =
+        Camera::new(index, request(RequestedFormatType::None)).context("initializing camera")?;
     let supported = camera
         .compatible_camera_formats()
         .context("enumerating camera formats")?;
     let chosen = formats::choose(supported)?;
     eprintln!("camera startup: configuring {chosen}");
     camera
-        .set_camera_requset(RequestedFormat::new::<RgbAFormat>(
-            RequestedFormatType::Exact(chosen),
-        ))
+        .set_camera_requset(request(RequestedFormatType::Exact(chosen)))
         .context("setting camera format")?;
     eprintln!("camera startup: opening stream");
     camera.open_stream().context("opening camera stream")?;

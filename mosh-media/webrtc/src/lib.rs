@@ -6,9 +6,9 @@ mod abi;
 #[cfg(target_os = "android")]
 mod android;
 mod audio;
-mod camera;
 mod carrier;
 mod engine;
 mod frames;
+mod preview;
 mod stats;
 mod video;

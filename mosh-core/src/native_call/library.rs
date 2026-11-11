@@ -13,7 +13,9 @@ use std::{
     time::Duration,
 };
 
-pub const MAX_RGBA: usize = 1920 * 1080 * 4;
+/// The largest frame the engine takes or returns.
+const MAX_PIXELS: usize = 1920 * 1080;
+pub const MAX_RGBA: usize = MAX_PIXELS * 4;
 pub const MAX_PACKET: usize = 2007;
 type Create = unsafe extern "C" fn(*const c_char) -> *mut c_void;
 type Command = unsafe extern "C" fn(*mut c_void, *const c_char) -> *mut c_char;
@@ -260,7 +262,7 @@ pub(crate) fn i420_size(width: u32, height: u32) -> Option<usize> {
         && height <= 1920
         && width.is_multiple_of(2)
         && height.is_multiple_of(2)
-        && u64::from(width) * u64::from(height) * 4 <= MAX_RGBA as u64)
+        && width as usize * height as usize <= MAX_PIXELS)
         .then(|| width as usize * height as usize * 3 / 2)
 }
 
