@@ -17,8 +17,8 @@ const call = CallViewState(
     peer: 'Alice',
     phase: CallViewPhase.active);
 
-const _preview = TextureVideo(7, 320, 180);
-const _remote = TextureVideo(8, 1280, 720);
+const _preview = CallVideoPicture(7, 320, 180);
+const _remote = CallVideoPicture(8, 1280, 720);
 
 void main() {
   testWidgets(
@@ -30,10 +30,12 @@ void main() {
         peer: 'Alice',
         phase: CallViewPhase.active,
         media: CallMediaView.fromSnapshot(nativeCallSnapshot(camera: true)));
-    final images = ValueNotifier(const CallVideoImages(local: _preview));
-    addTearDown(images.dispose);
-    await pumpScreen(tester,
-        Scaffold(body: CallView(call: active, video: images, onAction: (_) {})),
+    final pictures = ValueNotifier(const CallVideoPictures(local: _preview));
+    addTearDown(pictures.dispose);
+    await pumpScreen(
+        tester,
+        Scaffold(
+            body: CallView(call: active, video: pictures, onAction: (_) {})),
         settle: false);
     await tester.pump(const Duration(milliseconds: 150));
     final preview = find.bySemanticsLabel('Your camera preview');
@@ -42,7 +44,7 @@ void main() {
         lessThan(tester.getSize(stage).width / 2),
         reason: 'a missing remote frame must not promote the local camera');
     expect(find.text('Waiting for video…'), findsOneWidget);
-    images.value = const CallVideoImages(local: _preview, remote: _remote);
+    pictures.value = const CallVideoPictures(local: _preview, remote: _remote);
     await tester.pump();
     expect(find.text('Waiting for video…'), findsNothing);
     expect(find.bySemanticsLabel('Video from Alice'), findsOneWidget);
@@ -51,14 +53,14 @@ void main() {
 
   testWidgets('video fits a narrow window and preserves accessible controls',
       (tester) async {
-    final images = ValueNotifier(const CallVideoImages(remote: _remote));
-    addTearDown(images.dispose);
+    final pictures = ValueNotifier(const CallVideoPictures(remote: _remote));
+    addTearDown(pictures.dispose);
     tester.view.physicalSize = const Size(340, 260);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await pumpScreen(tester,
-        Scaffold(body: CallView(call: call, video: images, onAction: (_) {})),
+        Scaffold(body: CallView(call: call, video: pictures, onAction: (_) {})),
         settle: false);
     await tester.pump(const Duration(milliseconds: 150));
     expect(find.byType(Texture), findsOneWidget);
@@ -71,25 +73,26 @@ void main() {
   testWidgets(
       'a new frame size keeps the same stage and reduced motion disables '
       'the fade', (tester) async {
-    final images = ValueNotifier(const CallVideoImages());
-    addTearDown(images.dispose);
+    final pictures = ValueNotifier(const CallVideoPictures());
+    addTearDown(pictures.dispose);
     await pumpScreen(
         tester,
         MediaQuery(
             data: const MediaQueryData(disableAnimations: true),
             child: SizedBox(
                 width: 500,
-                child: CallVideoStage(images: images, peer: 'Alice'))));
-    images.value = const CallVideoImages(remote: _remote);
+                child: CallVideoStage(video: pictures, peer: 'Alice'))));
+    pictures.value = const CallVideoPictures(remote: _remote);
     await tester.pump();
     final stage = tester.element(find.byType(Texture));
-    images.value = const CallVideoImages(remote: TextureVideo(8, 640, 360));
+    pictures.value =
+        const CallVideoPictures(remote: CallVideoPicture(8, 640, 360));
     await tester.pump();
     expect(tester.element(find.byType(Texture)), same(stage));
     expect(
         tester.widget<AnimatedSwitcher>(find.byType(AnimatedSwitcher)).duration,
         Duration.zero);
-    images.value = const CallVideoImages();
+    pictures.value = const CallVideoPictures();
     await tester.pump();
     expect(find.byType(Texture), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
@@ -99,9 +102,9 @@ void main() {
       (tester) async {
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.resetDevicePixelRatio);
-    final images =
-        ValueNotifier(const CallVideoImages(local: _preview, remote: _remote));
-    addTearDown(images.dispose);
+    final pictures = ValueNotifier(
+        const CallVideoPictures(local: _preview, remote: _remote));
+    addTearDown(pictures.dispose);
     final reported = <CallVideoSurfaces>[];
     Future<void> show(List<double> widths) => pumpScreen(
         tester,
@@ -112,7 +115,7 @@ void main() {
                 SizedBox(
                     width: width,
                     child: CallVideoStage(
-                        images: images,
+                        video: pictures,
                         peer: 'Alice',
                         inset: false,
                         remoteCamera: true)),
@@ -120,8 +123,8 @@ void main() {
         settle: false);
     await show([640]);
     await tester.pump();
-    images.value = const CallVideoImages(
-        local: _preview, remote: TextureVideo(8, 640, 360));
+    pictures.value = const CallVideoPictures(
+        local: _preview, remote: CallVideoPicture(8, 640, 360));
     await tester.pump();
     expect(reported, [_surfaces((312, 688), (1280, 720))],
         reason: 'a new frame size in the same layout reports nothing new');
@@ -131,7 +134,7 @@ void main() {
     await show([160]);
     await tester.pump();
     expect(reported.last, _surfaces((72, 148), (320, 180)));
-    images.value = const CallVideoImages(local: _preview);
+    pictures.value = const CallVideoPictures(local: _preview);
     await show([160]);
     await tester.pump();
     await tester.pump();

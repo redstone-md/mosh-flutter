@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'call_view_state.dart';
-import 'call_video_textures.dart';
 
 final androidCallPresentationProvider =
     Provider<AndroidCallPresentation?>((ref) => null);
@@ -23,12 +21,6 @@ class AndroidCallPresentation extends ChangeNotifier {
   void Function(String sessionId, String callId)? onClose;
   CallViewState? _call;
   CallViewState? get call => _call;
-  ValueListenable<CallVideoImages>? _images;
-  ValueListenable<CallVideoImages>? get images => _images;
-  void bindImages(ValueListenable<CallVideoImages> images) => _images = images;
-  void unbindImages(ValueListenable<CallVideoImages> images) {
-    if (identical(_images, images)) _images = null;
-  }
 
   void update(CallViewState? call) {
     final key = call == null ? null : '${call.sessionId}/${call.callId}';

@@ -67,9 +67,10 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final images = ValueNotifier(const CallVideoImages(
-        remote: TextureVideo(8, 1280, 720), local: TextureVideo(7, 320, 180)));
-    addTearDown(images.dispose);
+    final pictures = ValueNotifier(const CallVideoPictures(
+        remote: CallVideoPicture(8, 1280, 720),
+        local: CallVideoPicture(7, 320, 180)));
+    addTearDown(pictures.dispose);
     for (final phase in [CallViewPhase.active, CallViewPhase.incoming]) {
       final call = CallViewState(
           sessionId: 'dm',
@@ -82,7 +83,7 @@ void main() {
           Scaffold(
               body: CallView(
                   call: call,
-                  video: images,
+                  video: pictures,
                   onAction: (_) {},
                   onDeviceSelected: (_) {})),
           settle: false);

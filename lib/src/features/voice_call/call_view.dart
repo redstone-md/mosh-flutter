@@ -39,7 +39,7 @@ class CallView extends StatefulWidget {
   final AppLocalizations? l;
   final Duration tickInterval;
   final int Function() now;
-  final ValueListenable<CallVideoImages>? video;
+  final ValueListenable<CallVideoPictures>? video;
   final void Function(CallViewCommand)? onDeviceSelected;
   static int _now() => DateTime.now().millisecondsSinceEpoch;
 
@@ -72,7 +72,7 @@ class _CallViewState extends State<CallView> {
     if (widget.floating && widget.video != null) {
       return FloatingCallView(
           call: call,
-          images: widget.video!,
+          video: widget.video!,
           onRestore: widget.onExpand,
           onEnd: () => widget.onAction(CallViewAction.end));
     }
@@ -102,7 +102,7 @@ class _CallViewState extends State<CallView> {
       stage: widget.video == null || widget.compact
           ? null
           : CallVideoStage(
-              images: widget.video!,
+              video: widget.video!,
               peer: call.peer,
               remoteCamera: active && call.media?.remoteCamera == true),
     );

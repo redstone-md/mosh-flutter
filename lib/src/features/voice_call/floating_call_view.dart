@@ -10,11 +10,11 @@ class FloatingCallView extends StatelessWidget {
   const FloatingCallView(
       {super.key,
       required this.call,
-      required this.images,
+      required this.video,
       required this.onRestore,
       required this.onEnd});
   final CallViewState call;
-  final ValueListenable<CallVideoImages> images;
+  final ValueListenable<CallVideoPictures> video;
   final VoidCallback? onRestore;
   final VoidCallback onEnd;
 
@@ -33,7 +33,7 @@ class FloatingCallView extends StatelessWidget {
                 child: InkWell(
                     onTap: onRestore,
                     child: CallVideoStage(
-                        images: images,
+                        video: video,
                         peer: call.peer,
                         remoteCamera: call.media?.remoteCamera == true,
                         alwaysVisible: true,

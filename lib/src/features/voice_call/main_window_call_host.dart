@@ -28,7 +28,7 @@ class MainWindowCallHost extends ConsumerStatefulWidget {
   final Widget child;
   final CallViewState? call;
   final String? session;
-  final ValueListenable<CallVideoImages> video;
+  final ValueListenable<CallVideoPictures> video;
 
   /// Ends the call whose picture-in-picture Android closed.
   final void Function(String session, String call) onEnd;
@@ -51,7 +51,6 @@ class _MainWindowCallHostState extends ConsumerState<MainWindowCallHost> {
     super.initState();
     _window = ref.read(desktopWindowControllerProvider);
     _presentation = ref.read(androidCallPresentationProvider);
-    _presentation?.bindImages(widget.video);
     _presentation?.onClose = (session, call) => widget.onEnd(session, call);
   }
 
@@ -64,7 +63,6 @@ class _MainWindowCallHostState extends ConsumerState<MainWindowCallHost> {
   @override
   void dispose() {
     _leaveFullScreen();
-    _presentation?.unbindImages(widget.video);
     _presentation?.onClose = null;
     super.dispose();
   }

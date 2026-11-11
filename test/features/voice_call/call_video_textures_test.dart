@@ -28,8 +28,8 @@ void main() {
         {'local': 4096, 'remote': 8192});
 
     await tester.pump(const Duration(seconds: 1));
-    expect(owner.textures.value.local, const TextureVideo(7, 320, 180));
-    expect(owner.textures.value.remote, const TextureVideo(8, 1280, 720));
+    expect(owner.textures.value.local, const CallVideoPicture(7, 320, 180));
+    expect(owner.textures.value.remote, const CallVideoPicture(8, 1280, 720));
 
     owner.unbind('dm', 'call');
     expect(owner.textures.value.remote, isNull);
@@ -56,9 +56,9 @@ void main() {
 
   testWidgets('a texture keeps the shape of the frame it shows',
       (tester) async {
-    final images =
-        ValueNotifier(const CallVideoImages(remote: TextureVideo(8, 400, 400)));
-    addTearDown(images.dispose);
+    final pictures = ValueNotifier(
+        const CallVideoPictures(remote: CallVideoPicture(8, 400, 400)));
+    addTearDown(pictures.dispose);
     await pumpScreen(
         tester,
         Scaffold(
@@ -66,7 +66,7 @@ void main() {
                 child: SizedBox(
                     width: 640,
                     child: CallVideoStage(
-                        images: images, peer: 'Alice', remoteCamera: true)))),
+                        video: pictures, peer: 'Alice', remoteCamera: true)))),
         settle: false);
     final texture = find.byType(Texture);
     expect(tester.widget<Texture>(texture).textureId, 8);

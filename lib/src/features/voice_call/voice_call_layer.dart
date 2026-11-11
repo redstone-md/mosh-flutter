@@ -44,7 +44,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
   final VoidCallback? onOpenConversation;
   final VoidCallback? onExpand;
   final bool compact;
-  final ValueListenable<CallVideoImages>? video;
+  final ValueListenable<CallVideoPictures>? video;
   final VoidCallback? onMinimize;
   final bool floating;
 

@@ -138,6 +138,8 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byType(CallView), findsNothing,
             reason: 'PiP contains video, not controls or chats');
+        expect(find.byType(Texture), findsOneWidget,
+            reason: 'PiP shows the remote video');
         expect(find.text('Settings'), findsNothing);
         expect(find.byType(MoshSelect<String?>), findsNothing,
             reason: 'root Navigator dialogs must also be hidden in system PiP');
