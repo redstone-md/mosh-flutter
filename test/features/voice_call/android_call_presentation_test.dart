@@ -125,7 +125,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
           find.byType(FloatingCallView), video ? findsOneWidget : findsNothing);
-      await tester.tap(find.byTooltip('Show call window'));
+      await tester.tap(find.byTooltip('Expand call'));
       await tester.pumpAndSettle();
       expect(tester.widget<CallView>(find.byType(CallView)).compact, false);
       await tester.tap(find.byTooltip('Minimize call'));
@@ -136,7 +136,7 @@ void main() {
       expect(
           configurations.last.arguments, {'call': 'dm/call', 'video': video});
       if (video) {
-        await tester.tap(find.byTooltip('Show call window'));
+        await tester.tap(find.byTooltip('Expand call'));
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Call devices'));
         await tester.pumpAndSettle();

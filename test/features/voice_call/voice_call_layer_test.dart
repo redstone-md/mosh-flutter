@@ -74,7 +74,7 @@ void main() {
       final messenger =
           TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
       messenger.setMockMethodCallHandler(const MethodChannel('window_manager'),
-          (call) async => call.method == 'isFocused' ? false : null);
+          (call) async => call.method == 'isFocused' ? focused : null);
       addTearDown(() => messenger.setMockMethodCallHandler(
           const MethodChannel('window_manager'), null));
       final container = ProviderContainer(overrides: [
@@ -87,14 +87,8 @@ void main() {
       ]);
       addTearDown(container.dispose);
       await pumpScreen(
-          tester,
-          Scaffold(
-              body: VoiceCallLayer(
-                  sessionId: 'sess-1',
-                  l: l,
-                  isCallWindowFocused: () async => focused)),
-          container: container,
-          settle: false);
+          tester, Scaffold(body: VoiceCallLayer(sessionId: 'sess-1', l: l)),
+          container: container, settle: false);
       await tester.pump();
       expect(notifications.showCalls, 0);
       if (stale) {

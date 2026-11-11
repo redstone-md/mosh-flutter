@@ -17,12 +17,12 @@ import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 
 void main() {
-  for (final window in ['main', 'call', 'main failure', 'call failure']) {
+  for (final probe in ['works', 'fails']) {
     for (final ended in [false, true]) {
-      testWidgets('incoming alert follows $window blur; ended: $ended',
+      testWidgets(
+          'incoming alert follows window blur, focus probe $probe; ended: $ended',
           (tester) async {
-        var mainFocused = window.startsWith('main');
-        var callFocused = window.startsWith('call');
+        var focused = true;
         var failFocus = false;
         final gateway = ScriptableGateway()
           ..seedSessions([
@@ -37,10 +37,10 @@ void main() {
         const manager = MethodChannel('window_manager');
         messenger.setMockMethodCallHandler(manager, (call) async {
           if (call.method != 'isFocused') return null;
-          if (failFocus && window == 'main failure') {
+          if (failFocus && probe == 'fails') {
             throw PlatformException(code: 'focus unavailable');
           }
-          return mainFocused;
+          return focused;
         });
         addTearDown(() => messenger.setMockMethodCallHandler(manager, null));
         final container = ProviderContainer(overrides: [
@@ -54,20 +54,8 @@ void main() {
         addTearDown(container.dispose);
         final l = await AppLocalizations.delegate.load(const Locale('en'));
         await pumpScreen(
-            tester,
-            Scaffold(
-                body: VoiceCallLayer(
-              sessionId: 'origin',
-              l: l,
-              isCallWindowFocused: () async {
-                if (failFocus && window == 'call failure') {
-                  throw StateError('child focus unavailable');
-                }
-                return callFocused;
-              },
-            )),
-            container: container,
-            settle: false);
+            tester, Scaffold(body: VoiceCallLayer(sessionId: 'origin', l: l)),
+            container: container, settle: false);
         await tester.pump(const Duration(milliseconds: 50));
         expect(notifications.showCalls, 0);
         if (ended) {
@@ -76,8 +64,7 @@ void main() {
           container.invalidate(activeSessionProvider('origin'));
           await tester.pump(const Duration(milliseconds: 50));
         }
-        mainFocused = false;
-        callFocused = false;
+        focused = false;
         failFocus = true;
         await tester.pump(const Duration(milliseconds: 1100));
         await tester.pump(const Duration(milliseconds: 50));

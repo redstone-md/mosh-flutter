@@ -90,7 +90,7 @@ pub fn frame(
     Ok(hub()?.frame(&session_id, &call_id, local, after))
 }
 
-/// The call window's video surfaces in device pixels. Frames of every call
+/// The call view's video surfaces in device pixels. Frames of every call
 /// leave at most at these sizes; the encoder still takes the full camera.
 pub fn show_video_at(local: Surface, remote: Surface) -> Result<(), String> {
     hub()?.show_at(local, remote)

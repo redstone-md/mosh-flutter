@@ -20,7 +20,7 @@ class CallView extends StatefulWidget {
     required this.call,
     required this.onAction,
     this.compact = false,
-    this.onShowWindow,
+    this.onExpand,
     this.onMinimize,
     this.floating = false,
     this.l,
@@ -28,13 +28,12 @@ class CallView extends StatefulWidget {
     this.now = _now,
     this.video,
     this.onDeviceSelected,
-    this.controlsInWindow = false,
   });
 
   final CallViewState call;
   final void Function(CallViewAction) onAction;
   final bool compact;
-  final VoidCallback? onShowWindow;
+  final VoidCallback? onExpand;
   final VoidCallback? onMinimize;
   final bool floating;
   final AppLocalizations? l;
@@ -42,7 +41,6 @@ class CallView extends StatefulWidget {
   final int Function() now;
   final ValueListenable<CallVideoImages>? video;
   final void Function(CallViewCommand)? onDeviceSelected;
-  final bool controlsInWindow;
   static int _now() => DateTime.now().millisecondsSinceEpoch;
 
   @override
@@ -75,7 +73,7 @@ class _CallViewState extends State<CallView> {
       return FloatingCallView(
           call: call,
           images: widget.video!,
-          onRestore: widget.onShowWindow,
+          onRestore: widget.onExpand,
           onEnd: () => widget.onAction(CallViewAction.end));
     }
     return CallModalCard(
@@ -96,8 +94,7 @@ class _CallViewState extends State<CallView> {
       onOpenConversation: () =>
           widget.onAction(CallViewAction.openConversation),
       actions: callControls(call, l, widget.onAction,
-          showWindow: widget.onShowWindow,
-          controlsInWindow: widget.controlsInWindow,
+          expand: widget.onExpand,
           camera: !(widget.compact && widget.onMinimize != null),
           devices: widget.compact || widget.onDeviceSelected == null
               ? null

@@ -27,9 +27,7 @@ import 'package:mosh/src/platform/android_waiting_platform.dart';
 import 'package:mosh/src/features/background/android_waiting_owner.dart';
 import 'package:mosh/src/features/background/background_commands.dart';
 import 'package:mosh/src/features/onboarding/first_run_gate.dart';
-import 'package:mosh/src/features/voice_call/call_window_app.dart';
 import 'package:mosh/src/features/voice_call/android_pip_overlay.dart';
-import 'package:mosh/src/features/voice_call/process_call_window.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 import 'package:mosh/src/platform/native_menu_localization.dart';
 import 'package:mosh/src/features/lock/mosh_lock_app.dart';
@@ -58,10 +56,6 @@ void main(List<String> args) async {
   // hosts; the later `isFocused()` callers are themselves desktop-gated.
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
     await windowManager.ensureInitialized();
-    if (args.contains(callWindowProcessArgument) || isCallWindowProcess) {
-      await launchProcessCallWindow();
-      return;
-    }
   }
   final windowController = await DesktopWindowController.initialize();
   // Load intl date symbols once so non-en locales (e.g. ru) format dates

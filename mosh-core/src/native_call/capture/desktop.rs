@@ -345,7 +345,7 @@ Add-Type -Name CameraConsole -Namespace Mosh -MemberDefinition '[DllImport("kern
     #[cfg(unix)]
     #[test]
     fn enumeration_reaped_by_another_waiter_still_returns_devices() {
-        // dart:io's exit-code handler collects any child while the call window runs.
+        // dart:io's exit-code handler collects any child while a Dart `Process` runs.
         let mut command = helper_command("sh".into());
         command.args(["-c", r#"printf '[{"id":"usb","name":"USB 2.0 Camera"}]'"#]);
         let mut query = Query::spawn(&mut command).unwrap();

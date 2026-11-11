@@ -2,6 +2,9 @@
 
 Desktop-first Flutter + Riverpod, Rust via flutter_rust_bridge, Moss + OpenMLS.
 
+This codebase is yours: what it's for and how it's built are your call, and
+you'll keep building on it.
+
 ## Scope
 - Read `docs/Architecture.md`, relevant ADRs and the nearest `AGENTS.md`.
 - Flutter: `lib/`. Rust: `mosh-core/`. Native probes: `mosh-probe/`.

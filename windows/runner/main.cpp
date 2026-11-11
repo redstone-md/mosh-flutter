@@ -10,7 +10,6 @@
 #include "app_links/app_links_plugin_c_api.h"
 
 #include "flutter_window.h"
-#include "call_window_process.h"
 #include "utils.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
@@ -23,7 +22,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // usual. Must run before AttachConsole / CoInitializeEx / window creation
   // so the duplicate never opens a console or a second window.
   // (app_links 7.2.1, windows/include/app_links/app_links_plugin_c_api.h.)
-  if (!mosh::IsCallWindowProcess() && SendAppLinkToInstance()) {
+  if (SendAppLinkToInstance()) {
     return EXIT_SUCCESS;
   }
 

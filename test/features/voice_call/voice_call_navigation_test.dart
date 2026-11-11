@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/call_modal_card.dart';
-import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -80,20 +78,12 @@ void main() {
       TestSnapshots.group(
           groupId: 'group', deviceFingerprint: 'SELF', messages: [])
     ]);
-    final window = RecordingCallWindow();
-    var windows = 0;
-    late Future<void> Function(CallViewCommand) command;
     final container = ProviderContainer(overrides: [
       ...settingsAudioOverrides(),
       ...settingsCameraOverrides(),
       gatewayProvider.overrideWithValue(gateway),
       bridgeFacadeProvider.overrideWithValue(bridge),
       nativeCallOwnerProvider.overrideWithValue(media),
-      callWindowFactoryProvider.overrideWithValue((handler) async {
-        windows++;
-        command = handler;
-        return window;
-      }),
     ]);
     addTearDown(container.dispose);
     final router = await pumpRoute(
@@ -104,7 +94,8 @@ void main() {
     );
     await _frames(tester);
     expect(bridge.countOf(BridgeMethod.nativeCallPrepare), 1);
-    expect(windows, 1);
+    await tester.tap(find.byTooltip('Minimize call'));
+    await _frames(tester);
 
     for (final route in [
       AppRoutes.dmFor('other'),
@@ -119,24 +110,23 @@ void main() {
         router.go(route);
       }
       await _frames(tester);
-      expect(find.byTooltip('Mute'), findsNothing);
-      expect(find.byIcon(Icons.open_in_new), findsNothing);
+      expect(find.byTooltip('Hang up'), findsOneWidget,
+          reason: 'the mini view follows the user to $route');
       expect(bridge.countOf(BridgeMethod.nativeCallPrepare), 1);
       expect(media.session?.callId, 'original-call');
-      expect(window.closes, 0);
     }
-    await command(window.views.last.command(CallViewAction.mute));
+    await tester.tap(find.byTooltip('Expand call'));
     await _frames(tester);
-    expect(find.byTooltip('Unmute'), findsNothing);
-    expect(window.views.last.muted, isTrue);
-    await command(window.views.last.command(CallViewAction.end));
+    await tester.tap(find.byTooltip('Mute'));
+    await _frames(tester);
+    expect(find.byTooltip('Unmute'), findsOneWidget);
+    await tester.tap(find.byTooltip('Hang up'));
     await _frames(tester);
     expect(bridge.lastCall(BridgeMethod.callEnd)!.arg<String>('sessionId'),
         'origin');
     expect(bridge.lastCall(BridgeMethod.callEnd)!.arg<String>('callId'),
         'original-call');
     expect(media.session, isNull);
-    expect(window.closes, 1);
     expect(find.byTooltip('Mute'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
@@ -190,23 +180,5 @@ void main() {
     expect(
         bridge.lastCall(BridgeMethod.callEnd)!.arg<String>('callId'), 'second');
     await tester.pumpWidget(const SizedBox.shrink());
-  });
-
-  test('window startup after a call ended never presents obsolete controls',
-      () async {
-    final pending = Completer<CallWindowHandle>();
-    final window = RecordingCallWindow();
-    final coordinator = CallWindowCoordinator(
-        (_) => pending.future, (_) async {}, (error) => fail('$error'));
-    coordinator.update(const CallViewState(
-        sessionId: 's',
-        callId: 'c',
-        peer: 'Alice',
-        phase: CallViewPhase.outgoing));
-    coordinator.update(null);
-    pending.complete(window);
-    await coordinator.dispose();
-    expect(window.views, isEmpty);
-    expect(window.closes, 1);
   });
 }

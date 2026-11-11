@@ -54,7 +54,7 @@ Desktop and Android calls use the [native audio/video owner](Features/native-cal
 `mosh-core/src/native_call` owns capture, one engine, selected-peer transport and
 latest frames; isolated `mosh-media/engine` and `mosh-media/capture` graphs keep
 Signal/OpenMLS dependencies separate and blocked camera drivers cancellable.
-The child window owns presentation only. Public negotiation uses MLS; media uses
+The main window presents the call. Public negotiation uses MLS; media uses
 Moss directed packets. Native builds run through the existing desktop plugin
 and Xcode hooks. See [ADR 0044](ADR/0044-native-call-media-over-moss.md).
 
@@ -333,8 +333,8 @@ See [ADR 0039](ADR/0039-chat-names.md).
 
 ## Setup, settings and voice
 
-The desktop main process configures `DesktopWindowController` after the call-child
-entrypoint has returned. `DesktopWindowFrame` owns one titlebar above the router
+The desktop app configures `DesktopWindowController` at startup.
+`DesktopWindowFrame` owns one titlebar above the router
 and first-run gate. Route-local branding yields through `DesktopChromeScope`.
 The frame reuses selected-conversation diagnostics; setup/settings have no chat
 status. Existing `window_manager` owns window actions and events. Private native
@@ -375,13 +375,13 @@ selects the originating call from the app-wide DM list, so navigation does not
 rebind or release the call's native media. The ringtone keeps its own factory
 provider.
 
-Desktop call controls run in a separate process of the same executable. This
-isolates each renderer and lets the parent terminate an unresponsive child. Stdio
-carries presentation metadata and commands without listening ports. The child
-starts only the shared view and ordinary window plugins, without initializing
-Rust or storage. Display metadata contains no media handles; commands
-carry both session and call IDs. Main-process state remains authoritative.
-An application-level strip keeps messaging usable and can restore the window.
+A desktop or Android call shows in the main window, above the routes: an
+expanded view that can go full screen and a mini view while the user browses
+chats. Desktop video is two Flutter textures that Rust fills directly
+([ADR 0052](ADR/0052-desktop-calls-in-the-main-window.md)); there is no second
+process, window or engine for a call. Call actions carry both session and call
+IDs, and the orchestrator's state remains authoritative. Without the native
+call engine (iOS) a strip of call controls sits below the app.
 Ringtone and no-answer timeout belong to the call state. The supplied PCM recording
 uses CPAL's selected output device. See [voice calls](Features/voice-calls.md).
 

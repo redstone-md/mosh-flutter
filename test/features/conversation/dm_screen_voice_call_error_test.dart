@@ -1,16 +1,14 @@
-// Integration coverage for active-call audio setup failures: the error must
-// use the DM screen's inline ChatErrorBanner without creating a text-send
-// retry action.
-import 'dart:async';
+// Integration coverage for active-call audio setup failures: the error
+// shows above the DM screen without creating a text-send retry action.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
     show conversationCallBindingProvider;
 import 'package:mosh/src/features/conversation/dm_screen.dart';
-import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/features/voice_call/voice_call_binding.dart'
     show voiceCallBinding;
@@ -56,8 +54,14 @@ void main() {
     final owner = NativeCallOwner(bridge, () async => true);
     addTearDown(owner.dispose);
 
-    await pumpScreen(
-        tester, const VoiceCallHost(child: DmScreen(sessionId: sessionId)),
+    final router = GoRouter(routes: [
+      GoRoute(
+          path: '/',
+          builder: (_, __) =>
+              const VoiceCallHost(child: DmScreen(sessionId: sessionId)))
+    ]);
+    addTearDown(router.dispose);
+    await pumpScreen(tester, Router.withConfig(config: router),
         overrides: [
           gatewayProvider.overrideWithValue(gateway),
           bridgeFacadeProvider.overrideWithValue(bridge),
@@ -65,10 +69,6 @@ void main() {
             (ref) async => _activeSnapshot(sessionId),
           ),
           nativeCallOwnerProvider.overrideWithValue(owner),
-          // A desktop whose call window never opens, so the call stays out
-          // of the main window and the chat stays in view.
-          callWindowFactoryProvider
-              .overrideWithValue((_) => Completer<CallWindowHandle>().future),
           // The error comes out of the call layer, so this screen needs
           // the voice-call module bound to the conversation's call slots.
           conversationCallBindingProvider.overrideWithValue(voiceCallBinding),

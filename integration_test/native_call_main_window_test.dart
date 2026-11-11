@@ -63,7 +63,7 @@ void main() {
     await ui.send('Messaging during native video');
     expect(find.byType(Texture), findsWidgets,
         reason: 'the mini view keeps showing the call');
-    await ui.tap(find.byTooltip('Show call window'));
+    await ui.tap(find.byTooltip('Expand call'));
 
     await ui.tap(find.byTooltip('Turn camera off'));
     await ui.eventually(() async =>
@@ -83,6 +83,6 @@ void main() {
         'receive-only call');
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 1));
-    // test-policy: timeout MOSH-93 -- a real call over Moss with two engines, as native_call_test.dart
+    // test-policy: timeout MOSH-93 -- a real call over Moss with two engines
   }, timeout: const Timeout(Duration(minutes: 4)));
 }

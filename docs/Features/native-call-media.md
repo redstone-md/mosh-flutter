@@ -8,14 +8,10 @@ independent, and permission refusal preserves reception and other capabilities.
 
 On desktop the call shows in the main window and its video in two Rust-fed
 textures ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md), see
-[Main-window textures](#main-window-textures)). The call window process is
-still in the code until MOSH-101 removes it, but nothing starts it; what this
-document says about it describes that code. There, the
-ready desktop call window owns microphone, camera and end controls. The main
-strip shows call status and a button to reopen that window. Until the window is
-ready, or after a presentation failure, the strip supplies the call controls.
-The window adds selectors for microphone, speaker and camera, using `MoshSelect`.
-They send commands for the displayed DM/call. Initial audio preferences map
+[Main-window textures](#main-window-textures)). The expanded call view has
+microphone, camera and end controls and selectors for microphone, speaker and
+camera, using `MoshSelect`.
+They act on the displayed DM/call. Initial audio preferences map
 existing Record/CPAL IDs against the engine's current inventory; stale initial
 choices use the default. During a call, losing a chosen input disables that
 input, preserving video and playback. Losing output returns to default output.
@@ -86,7 +82,7 @@ audio starts or stops arriving, and the selected devices.
 
 Video in that engine takes the same RGBA camera frames and returns the
 peer's latest decoded frame as RGBA, so mosh-core, the capture helper and
-the call window are unchanged. Frames enter libwebrtc as I420; the send
+the call view are unchanged. Frames enter libwebrtc as I420; the send
 budget sets the sender's frame-rate limit and downscale (720p30 direct,
 360p15 between 300 and 600 kbit/s, 270p15 relayed, measured on the
 frame's shorter side so portrait cameras fit the same box), and
@@ -220,18 +216,14 @@ discards stderr. Binary stdout frames, account identities and media keys are
 never included in these diagnostics.
 
 `NativeCallSession` in Dart owns commands and presentation polling. Rust retains
-media when this client or the window disappears. The child window starts no
-Rust, capture or audio runtime. Public state travels through inherited stdio;
-frames use a dedicated loopback socket with a one-time 256-bit capability.
-Only one frame is in flight. Missing acknowledgement closes that renderer after
-five seconds; the main strip can restore it. Stream and write failures are both
-handled, including a TCP reset during a frame write.
+media when this client disappears. Desktop frames never pass through it: Rust
+presents them into the main window's textures. On Android it polls one frame
+at a time and none is queued.
 
 Frames leave Rust at the size they are shown, not as full camera RGBA. The
 video stage dispatches `CallVideoSurfaces` whenever its layout changes: the
 device pixels of the remote stage and of the preview (a quarter-width inset
-over remote video, else the whole stage). The call window sends them over its
-pipe (`call-video-surfaces`), a call in the main window collects them in one
+over remote video, else the whole stage). The main window collects them in one
 scope (Android's PiP overlay, which also holds the PiP stage, else the call
 host), and the native call owner passes them to `show_video_at`. The engine scales decoded
 I420 down with libyuv before its RGBA conversion (the `surface` command), and
@@ -270,21 +262,22 @@ incoming call rings in the mini view.
 
 On the Linux host a 720p frame costs about 0.5 ms of CPU to show: 0.39 ms for
 the engine's I420 to RGBA conversion and 0.12 ms for the copy into the texture
-([call video benchmark](call-video-benchmark.md), 2026-11-11). The bridge and
-call window rows it replaces took 8.2 ms and 10.4 ms in the same run.
+([call video benchmark](call-video-benchmark.md), 2026-11-11). The bridge
+encode and the call window socket it replaced took 8.2 ms and 10.4 ms in the
+same run; MOSH-101 removed that window and its benchmark row.
 
 The same row on the Apple Silicon and Windows runners is in the
 [research's measurements](../Proposals/mosh-87-video-pipeline.research.md#main-window-textures-mosh-94-mosh-95).
 
-The rest of this section describes the frame path of Android and of the call
-window process.
+The rest of this section describes the frame path of Android, which polls
+frames over the bridge and decodes them in Dart.
 
 Each lane retains its latest image, and the renderer has one decode in flight.
 Call/generation checks discard old responses, and image age includes transfer
 and decode time. A pause in delivery freezes the last image, as Meet and Zoom
 do; it expires only after five seconds without fresh delivery, and a frame
 already that old is never drawn (`CallVideoFrame.lifetimeMs`, shared by the
-main process filter and the renderer). The log's `stalled` state keeps its
+frame poll and the renderer). The log's `stalled` state keeps its
 one-second meaning, so short pauses still show in field logs. Camera off, call
 end and a call change clear the image immediately. Rendering preserves aspect ratio, mirrors
 local preview and uses a small secondary preview over remote video. While the
@@ -390,8 +383,6 @@ The engine is signed as a framework; the helper inherits the main app sandbox
 and carries camera usage text. The main app owns microphone/camera permissions.
 DMG packaging verifies the helper's architectures and re-signs it with its
 sandbox inheritance entitlements before sealing the application.
-The call window executable (`Contents/MacOS/mosh-call-window`) is signed the same
-way; see [voice calls](voice-calls.md).
 Windows places the DLL/helper beside the executable; Linux places both in `lib`,
 with executable permission on the helper. Do not ship the test camera driver.
 
@@ -430,8 +421,7 @@ on the Windows and macOS runners, by hand or when a texture plugin or the
 scenario changes; the macOS app is built without the sandbox there, since a
 sandboxed app can start neither the peer nor the camera driver from the
 checkout.
-`integration_test/native_call_test.dart` drives the call window process and
-goes with it in MOSH-101. The physical-device acceptance
+The physical-device acceptance
 and current evidence are recorded in
 [implementation results](../Proposals/issue-46-native-implementation.results.md).
 

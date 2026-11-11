@@ -40,7 +40,7 @@ class FloatingCallView extends StatelessWidget {
                         inset: false)))),
         Row(children: [
           IconButton(
-              tooltip: l.callShowWindow,
+              tooltip: l.callExpand,
               onPressed: onRestore,
               icon: const Icon(Icons.open_in_full, size: 20)),
           Expanded(

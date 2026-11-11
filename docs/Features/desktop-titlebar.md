@@ -2,7 +2,6 @@
 
 The main window has one integrated top bar on Windows, macOS and Linux. It is
 present in conversations, settings, first-run setup and loading/error screens.
-The separate call window keeps its native caption and independent lifecycle.
 
 The bar has Mosh branding and the chat-list toggle in chat routes. When a
 conversation is selected, its current state opens the existing connection
@@ -41,8 +40,8 @@ setup/error states. Caption commands, keyboard access, focus/fullscreen events,
 DPI changes and Linux preferences use the real window frame and controller
 without mounting unrelated chat content; see the
 [fixture audit](../Proposals/flutter-titlebar-test-cleanup.md).
-The Windows build runs native hit-test regressions, including unconfigured
-call-window behavior, resize routing and replacing caption geometry. Linux
+The Windows build runs native hit-test regressions, including an unconfigured
+title bar, resize routing and replacing caption geometry. Linux
 debug builds and a real first-run render check the GTK runner integration.
 
 The OS owns the Windows 11 Snap flyout and macOS traffic-light animation.

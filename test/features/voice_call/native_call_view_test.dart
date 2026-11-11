@@ -101,20 +101,6 @@ void main() {
     }
     await tester.pumpWidget(const SizedBox.shrink());
   });
-
-  test('child metadata preserves real flags and contains no media credentials',
-      () {
-    final original = _call();
-    final copy = CallViewState.fromMap(original.toMap());
-    expect(copy.media!.microphoneAvailable, false);
-    expect(copy.media!.cameraRequested, false);
-    expect(copy.toMap().keys, isNot(contains('keyB64')));
-    expect(
-        copy
-            .command(CallViewAction.selectCamera, deviceId: 'camera')
-            .toMap()['deviceId'],
-        'camera');
-  });
 }
 
 CallViewState _call() => CallViewState(
