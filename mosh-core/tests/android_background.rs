@@ -387,6 +387,7 @@ fn actual_waiting_carrier_receives_authenticated_call() {
     };
     assert_eq!(ready["attachment_count"], 1);
     // A message or UI poll could hide a route lost during real idle waiting.
+    // test-policy: wait MOSH-103 -- a carrier drops an idle route only after minutes without traffic
     std::thread::sleep(Duration::from_secs(120));
     let started = caller.ask(json!({"action":"call_start","argument":id}));
     let Some(call) = started["call_id"].as_str() else {
