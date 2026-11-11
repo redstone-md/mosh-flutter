@@ -414,7 +414,10 @@ All 40 jobs passed. With the stores on `D:` the longest scenario took 37 to
 40 seconds, what it takes alone, and no step of a peer took 2 seconds.
 
 A third run of twenty jobs with the job's final steps passed twenty times in
-a row, in 96 to 108 seconds.
+a row, in 96 to 108 seconds. The other suites run side by side too: the test
+step of `rust-core` passed ten times with 216 to 309 seconds of tests against
+416 before, and that of `rust-core-macos` three times with 438 to 474 against
+754.
 
 `rust-core-macos` still runs the multi-device DM flow: it is the suite's only
 run on a Unix network stack and file system, and the job is not on the
