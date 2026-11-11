@@ -53,9 +53,9 @@ final List<Override> productionOverrides = <Override>[
                       return waiting.platform.setMediaTypes(microphone, camera);
                     }
                   : null,
-              // Desktop shows the call in the main window through textures
-              // Rust feeds (ADR 0052); Android follows in MOSH-102.
-              textures: _desktop ? CallVideoTextures() : null);
+              // The call's video is two textures of the main window that
+              // Rust feeds (ADR 0052).
+              textures: CallVideoTextures());
       ref.onDispose(owner.dispose);
       return owner;
     }),

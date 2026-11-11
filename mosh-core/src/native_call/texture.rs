@@ -3,10 +3,13 @@
 //! pass through flutter_rust_bridge or Dart.
 use std::ptr::NonNull;
 
+#[cfg(any(test, target_os = "android"))]
+mod android;
+
 /// What the plugin exports for one texture, for as long as the process
 /// lives. `runner_shared/call_video_frames.h` declares the same layout for the
-/// Linux and Windows runners, and `macos/Runner/CallVideoTexture.swift` lays
-/// it out by hand.
+/// Linux and Windows runners, `macos/Runner/CallVideoTexture.swift` lays it
+/// out by hand, and Android's is made here, in `android`.
 #[repr(C)]
 pub(crate) struct Exported {
     /// Copies a `width` by `height` RGBA frame and schedules its display. A
