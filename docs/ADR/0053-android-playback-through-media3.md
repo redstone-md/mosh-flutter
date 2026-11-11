@@ -31,8 +31,9 @@ with the platform's codecs.
   media_kit's `Player` on every platform, and `createMediaPlayer` picks what is
   behind it.
 - The viewer's video on Android is video_player's picture over the viewer's own
-  controls (play or pause, seek, time), the ones its audio already had. Desktop
-  keeps media_kit's picture with its Material controls.
+  controls (play or pause, seek, time), the ones its audio already had. Like
+  media_kit's picture it keeps the display awake and pauses the video in the
+  background. Desktop keeps media_kit's picture with its Material controls.
 - The frame for a video's previews comes from `MediaMetadataRetriever`
   (`MoshVideoFrame`). It reads a file, so the video is written to the app's cache
   for the call and removed after it.
@@ -62,7 +63,7 @@ with the platform's codecs.
 
 | | media3 through video_player | libmpv from source in the recipe |
 | --- | --- | --- |
-| Code | about 330 lines more in `lib/` and the Android sources, about 540 lines of tests | none in the app; about 20 recipe lines and a build script |
+| Code | about 310 lines more in `lib/` and the Android sources, about 560 lines of tests | none in the app; about 20 recipe lines and a build script |
 | arm64 release APK | 94.6 MB to 82.6 MB: libmpv and its helper (12.8 MB) leave, media3 adds 1.1 MB of DEX | 94.6 MB |
 | Build time | no new step | ffmpeg, mpv and seven more libraries on every F-Droid build; not measured |
 
@@ -78,8 +79,8 @@ with the platform's codecs.
 - There are two players to keep working. On Android the video controls are
   plainer, and a playing voice message takes audio focus: it pauses other apps'
   sound and another message that was playing.
-- A video pauses while the app is in the background, as before, and on Android
-  goes on when the app returns. Sound plays on in the background, as before.
+- A video pauses when the app goes to the background and sound plays on, as
+  before.
 - When the system gives up on a media, as when its stream dies, the player lets
   it go and the play button opens it again.
 - None of this has been checked on a phone yet.
