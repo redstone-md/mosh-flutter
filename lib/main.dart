@@ -127,6 +127,8 @@ void main(List<String> args) async {
       overrides: [
         ...productionOverrides,
         crashReportingProvider.overrideWithValue(crashReporting),
+        if (windowController != null)
+          desktopWindowControllerProvider.overrideWithValue(windowController),
         if (appAccess != null)
           androidAppAccessProvider.overrideWithValue(appAccess),
         if (waiting != null)

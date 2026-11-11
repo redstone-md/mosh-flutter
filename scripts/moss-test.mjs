@@ -79,7 +79,9 @@ function testCommand() {
     if (args.length !== 1) throw new Error("Call UI tests do not accept additional arguments");
     const platform = { win32: "windows", darwin: "macos", linux: "linux" }[process.platform];
     if (!platform) throw new Error("Call UI tests require a desktop host");
-    const target = "integration_test/native_call_test.dart";
+    // Linux shows the call in the main window (ADR 0052); the other desktops
+    // keep the call window until MOSH-94 and MOSH-95.
+    const target = `integration_test/native_call_${platform === "linux" ? "main_window_" : ""}test.dart`;
     const testArgs = ["drive", "--target", target, "--driver", "test_driver/integration.dart", "-d", platform, "--debug", "--no-start-paused"];
     return process.platform === "win32"
       ? { command: "cmd.exe", args: ["/d", "/s", "/c", `flutter ${testArgs.join(" ")}`] }

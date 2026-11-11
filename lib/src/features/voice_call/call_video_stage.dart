@@ -1,4 +1,3 @@
-import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
@@ -98,24 +97,33 @@ class CallVideoStage extends StatelessWidget {
         remote: surface(stage));
   }
 
-  Widget _preview(ui.Image image, String label) => Align(
+  Widget _preview(CallVideoPicture image, String label) => Align(
         alignment: Alignment.bottomRight,
         child: Padding(
             padding: _previewPadding,
             child: FractionallySizedBox(
                 widthFactor: _previewShare,
                 child: AspectRatio(
-                    aspectRatio: image.width / image.height,
+                    aspectRatio: image.aspectRatio,
                     child: _picture(image, label, mirrored: true)))),
       );
 
-  Widget _picture(ui.Image image, String label, {required bool mirrored}) =>
+  Widget _picture(CallVideoPicture picture, String label,
+          {required bool mirrored}) =>
       Semantics(
           label: label,
           image: true,
           child: Transform.flip(
               flipX: mirrored,
-              child: RawImage(image: image, fit: BoxFit.contain)));
+              child: switch (picture) {
+                DecodedVideo(:final image) =>
+                  RawImage(image: image, fit: BoxFit.contain),
+                // A texture fills its box, so the frame's shape is kept here.
+                TextureVideo(:final id) => Center(
+                    child: AspectRatio(
+                        aspectRatio: picture.aspectRatio,
+                        child: Texture(textureId: id))),
+              }));
 }
 
 const _previewShare = .25;

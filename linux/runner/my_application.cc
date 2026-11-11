@@ -7,6 +7,7 @@
 
 #include "flutter/generated_plugin_registrant.h"
 #include "desktop_title_bar.h"
+#include "call_video_texture.h"
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -80,6 +81,7 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
   register_desktop_title_bar(view, window);
+  register_call_video(view);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

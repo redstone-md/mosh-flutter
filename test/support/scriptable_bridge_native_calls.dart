@@ -91,6 +91,8 @@ mixin _BridgeNativeCalls on _ScriptableBridgeState {
       input: input,
       output: output,
       cameraId: cameraId,
+      localVideo: s.localVideo,
+      remoteVideo: s.remoteVideo,
     );
   }
 
@@ -135,4 +137,10 @@ mixin _BridgeNativeCalls on _ScriptableBridgeState {
             'remote': [remote.width, remote.height],
           },
           () {});
+
+  @override
+  Future<void> nativeCallShowVideoIn(
+          {required int local, required int remote}) =>
+      runScripted(BridgeMethod.nativeCallShowVideoIn,
+          {'local': local, 'remote': remote}, () {});
 }

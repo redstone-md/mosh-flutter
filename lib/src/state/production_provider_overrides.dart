@@ -20,6 +20,7 @@ import 'package:mosh/src/features/voice_call/voice_call_binding.dart'
 import 'dart:io' show Platform;
 import 'package:mosh/src/features/voice_call/process_call_window.dart';
 import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
+import 'package:mosh/src/features/voice_call/call_video_textures.dart';
 import 'package:mosh/src/state/auto_poll_provider.dart'
     show autoPollIntervalProvider, kAutoPollInterval;
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
@@ -41,7 +42,9 @@ final List<Override> productionOverrides = <Override>[
   ringtonePlayerProvider.overrideWithValue(Platform.isAndroid
       ? const AndroidRingtonePlayer()
       : const CpalRingtonePlayer()),
-  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux)
+  // Linux shows the call in the main window (ADR 0052); the other desktops
+  // keep the call window process until MOSH-94 and MOSH-95.
+  if (Platform.isWindows || Platform.isMacOS)
     callWindowFactoryProvider.overrideWith((ref) => (onCommand) =>
         ProcessCallWindow.open(onCommand,
             onSurfaces: (surfaces) =>
@@ -58,7 +61,8 @@ final List<Override> productionOverrides = <Override>[
                       await waiting.refresh();
                       return waiting.platform.setMediaTypes(microphone, camera);
                     }
-                  : null);
+                  : null,
+              textures: Platform.isLinux ? CallVideoTextures() : null);
       ref.onDispose(owner.dispose);
       return owner;
     }),

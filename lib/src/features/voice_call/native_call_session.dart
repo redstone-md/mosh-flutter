@@ -4,7 +4,8 @@ import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/rust/native_call/types.dart' as native;
 import 'call_video_frame.dart';
 
-/// Commands and latest-frame presentation. Rust owns capture, playback and keys.
+/// Commands and call state, and the latest frames unless Rust shows the
+/// video itself. Rust owns capture, playback and keys.
 class NativeCallSession {
   NativeCallSession(
       {required this.sessionId,
@@ -14,7 +15,7 @@ class NativeCallSession {
       this.requestCamera = _allowCamera,
       this.authorizeMedia,
       required this.onState,
-      required this.onFrame,
+      this.onFrame,
       this.pollInterval = const Duration(milliseconds: 16)});
 
   final String sessionId;
@@ -25,7 +26,11 @@ class NativeCallSession {
   final Future<bool> Function(bool microphone, bool camera)? authorizeMedia;
   static Future<bool> _allowCamera() async => true;
   final void Function() onState;
-  final void Function(CallVideoFrame) onFrame;
+
+  /// Null when Rust writes the video into the main window's textures: no
+  /// frame is polled, and the snapshot is read often enough to follow the
+  /// frame sizes it reports.
+  final void Function(CallVideoFrame)? onFrame;
   final Duration pollInterval;
   native.Snapshot? snapshot;
   bool busy = false;
@@ -153,11 +158,13 @@ class NativeCallSession {
     if (_closed || _polling) return;
     _polling = true;
     try {
+      final present = onFrame;
       if (!busy && DateTime.now().isAfter(_nextState)) {
-        _nextState = DateTime.now().add(const Duration(milliseconds: 250));
+        _nextState = DateTime.now()
+            .add(Duration(milliseconds: present == null ? 100 : 250));
         await _readState();
       }
-      if (_closed) return;
+      if (_closed || present == null) return;
       // Remote gets two slots for each preview slot. No queued frames.
       final local = _lane++ % 3 == 2;
       final lane = local ? 0 : 1;
@@ -181,7 +188,7 @@ class NativeCallSession {
       final age = frame.sourceAgeMs + transfer.elapsedMilliseconds;
       if (age >= CallVideoFrame.lifetimeMs) return;
       _sequence[lane] = frame.sequence;
-      onFrame(CallVideoFrame(
+      present(CallVideoFrame(
           sessionId: frame.sessionId,
           callId: frame.callId,
           sequence: frame.sequence.toInt(),

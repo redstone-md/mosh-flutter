@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,10 +23,10 @@ class AndroidCallPresentation extends ChangeNotifier {
   void Function(String sessionId, String callId)? onClose;
   CallViewState? _call;
   CallViewState? get call => _call;
-  CallVideoRenderer? _images;
-  CallVideoRenderer? get images => _images;
-  void bindImages(CallVideoRenderer images) => _images = images;
-  void unbindImages(CallVideoRenderer images) {
+  ValueListenable<CallVideoImages>? _images;
+  ValueListenable<CallVideoImages>? get images => _images;
+  void bindImages(ValueListenable<CallVideoImages> images) => _images = images;
+  void unbindImages(ValueListenable<CallVideoImages> images) {
     if (identical(_images, images)) _images = null;
   }
 

@@ -61,7 +61,8 @@ void main() {
     addTearDown(renderer.dispose);
     await tester.runAsync(() async {
       expect(await renderer.receive(testCallVideoFrame(1)), isTrue);
-      final bytes = await renderer.value.remote!
+      final bytes = await (renderer.value.remote! as DecodedVideo)
+          .image
           .toByteData(format: ui.ImageByteFormat.rawRgba);
       expect(bytes!.buffer.asUint8List(), testCallVideoFrame(1).pixels);
     });

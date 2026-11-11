@@ -3,7 +3,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
+
+/// The main window on desktop, bound by the production root.
+final desktopWindowControllerProvider =
+    Provider<DesktopWindowController?>((ref) => null);
 
 /// Main-window operations and native caption preferences. Call children never
 /// construct this owner. Runtime window events keep caption actions current.
@@ -93,6 +98,8 @@ class DesktopWindowController extends ChangeNotifier with WindowListener {
     });
   }
 
+  Future<void> setFullScreen(bool fullScreen) =>
+      windowManager.setFullScreen(fullScreen);
   Future<void> startDragging() => windowManager.startDragging();
   Future<void> doubleClick() => platform == TargetPlatform.macOS
       ? channel.invokeMethod<void>('doubleClick')

@@ -1,26 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:mosh/main.dart';
-import 'package:mosh/src/features/onboarding/first_run_provider.dart';
 import 'package:mosh/src/features/voice_call/call_window_app.dart';
 import 'package:mosh/src/features/voice_call/process_call_window.dart';
-import 'package:mosh/src/features/voice_call/voice_call_binding.dart';
 import 'package:mosh/src/features/voice_call/call_window_coordinator.dart';
-import 'package:mosh/src/features/conversation/conversation_call_binding.dart';
-import 'package:mosh/src/gateway/bridge_facade.dart';
-import 'package:mosh/src/routing/app_router.dart';
-import 'package:mosh/src/rust/api/private_dm.dart' as setup;
-import 'package:mosh/src/rust/frb_generated.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/state/auto_poll_provider.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'package:window_manager/window_manager.dart';
-import '../native_test/support/native_peer.dart';
-import 'support/linked_dm_ui.dart';
+import 'support/native_call_scenario.dart';
 
 Future<void> main(List<String> args) async {
   if (args.contains(callWindowProcessArgument) || isCallWindowProcess) {
@@ -30,30 +17,13 @@ Future<void> main(List<String> args) async {
     return;
   }
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  // One real Flutter app, one independent public-API installation, and a child
-  // renderer. Only OS microphone consent and the camera driver are fixtures.
+  // The call window presentation of Windows and macOS: the scenario's app and
+  // peer, and a child renderer.
   testWidgets('native AV call keeps media through renderer loss and camera off',
       (tester) async {
-    await windowManager.ensureInitialized();
-    final data = Platform.environment['MOSH_CALL_UI_TEST_DATA_DIR'];
-    if (data == null) {
-      throw StateError('Use node scripts/moss-test.mjs --native-call-ui');
-    }
-    await RustLib.init();
-    addTearDown(RustLib.dispose);
-    await setup.setAppDataDir(path: data);
-    await setup.setHistoryDek(dek: List.filled(32, 63));
-    MediaKit.ensureInitialized();
-    final peer = await NativePeer.start(api: true);
-    addTearDown(peer.close);
-    final invite = await peer.ask({'action': 'dm_invite'});
-    final bridge = BridgeFacade();
-    final local = await bridge.acceptInvite(
-        request: AcceptInviteRequest(
-            displayName: 'Local video caller',
-            inviteUri: invite['invite_uri'] as String,
-            listenPort: 0));
-    final session = local.sessionId;
+    final scenario = await NativeCallScenario.start();
+    final (bridge, peer, session) =
+        (scenario.bridge, scenario.peer, scenario.session);
     final owner = NativeCallOwner(bridge, () async => false);
     addTearDown(owner.dispose);
     var previews = 0, remote = 0, opens = 0;
@@ -66,9 +36,7 @@ Future<void> main(List<String> args) async {
     });
     addTearDown(frames.cancel);
     Process? child;
-    final container = ProviderContainer(overrides: [
-      nativeCallOwnerProvider.overrideWithValue(owner),
-      conversationCallBindingProvider.overrideWithValue(voiceCallBinding),
+    final ui = await scenario.open(tester, owner, overrides: [
       callWindowFactoryProvider.overrideWithValue((commands) async {
         opens++;
         return ProcessCallWindow.open(commands, startProcess: () async {
@@ -78,18 +46,7 @@ Future<void> main(List<String> args) async {
           return child!;
         });
       }),
-      autoPollIntervalProvider.overrideWithValue(kAutoPollInterval),
-      firstRunEnabledProvider.overrideWithValue(false),
     ]);
-    addTearDown(container.dispose);
-    container.read(firstRunShownProvider.notifier).mark();
-    appRouter.go(AppRoutes.dmFor(session));
-    await tester.pumpWidget(UncontrolledProviderScope(
-        container: container, child: const MoshApp()));
-    final ui = LinkedDmUi(tester, session);
-    await ui.eventually(() async =>
-        (await setup.pollSession(sessionId: session)).state ==
-        DmSessionState.connected);
     await ui.tap(find.byTooltip('Start video call'));
     await ui.eventually(() async => previews > 5);
     final id = owner.session!.callId;
@@ -99,21 +56,7 @@ Future<void> main(List<String> args) async {
         await bridge.nativeCallFrame(
             sessionId: session, callId: id, local: false, after: BigInt.zero),
         isNull);
-    await ui.eventually(() async {
-      final view = await peer.ask({'action': 'dm_list'});
-      return (view['sessions'] as List)
-          .any((s) => s['pending_call']?['call_id'] == id);
-    });
-    await peer
-        .ask({'action': 'call_accept', 'argument': session, 'call_id': id});
-    await ui.eventually(() async =>
-        (await setup.pollSession(sessionId: session)).activeCall?.callId == id);
-    await peer.ask({
-      'action': 'call_native_prepare',
-      'argument': session,
-      'call_id': id,
-      'camera': true
-    });
+    await scenario.answer(ui, id);
     await ui.eventually(
         () async => remote > 30 && owner.session?.snapshot?.ready == true);
     await ui.send('Messaging during native video');
@@ -136,8 +79,7 @@ Future<void> main(List<String> args) async {
     expect(remote, greaterThan(receiving));
     expect(owner.session!.snapshot!.ready, true);
     await ui.tap(find.byTooltip('Hang up'));
-    await ui.eventually(() async =>
-        (await setup.pollSession(sessionId: session)).activeCall == null);
+    await ui.eventually(scenario.ended);
     debugPrint(
         'native-call-ui: previews=$previews remote=$remote renderer-opens=$opens; camera off retained receive-only call');
     await tester.pumpWidget(const SizedBox.shrink());

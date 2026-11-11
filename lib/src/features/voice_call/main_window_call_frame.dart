@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-/// Only the mini-window intercepts gestures; chats remain usable underneath.
-class MobileCallFrame extends StatefulWidget {
-  const MobileCallFrame(
+/// Places the call in the main window: centered when expanded, else a strip
+/// at the top or, with video, a mini view the user can drag. Only the mini
+/// view intercepts gestures; chats remain usable underneath.
+class MainWindowCallFrame extends StatefulWidget {
+  const MainWindowCallFrame(
       {super.key,
       required this.expanded,
       required this.video,
@@ -12,10 +14,10 @@ class MobileCallFrame extends StatefulWidget {
   final Widget child;
 
   @override
-  State<MobileCallFrame> createState() => _MobileCallFrameState();
+  State<MainWindowCallFrame> createState() => _MainWindowCallFrameState();
 }
 
-class _MobileCallFrameState extends State<MobileCallFrame> {
+class _MainWindowCallFrameState extends State<MainWindowCallFrame> {
   Offset? _position;
 
   @override
@@ -25,7 +27,8 @@ class _MobileCallFrameState extends State<MobileCallFrame> {
       return Align(alignment: Alignment.topCenter, child: widget.child);
     }
     return LayoutBuilder(builder: (context, box) {
-      final width = math.min(196.0, box.maxWidth);
+      // A desktop-sized window has room for a larger mini view.
+      final width = math.min(box.maxWidth >= 720 ? 320.0 : 196.0, box.maxWidth);
       final height = width * 9 / 16 + 48;
       final maxX = math.max(0.0, box.maxWidth - width);
       final maxY = math.max(0.0, box.maxHeight - height);

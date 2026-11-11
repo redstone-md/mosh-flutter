@@ -70,10 +70,11 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final image = await tester
         .runAsync(() => CallVideoRenderer.decodeRgba(testCallVideoFrame(1)));
-    final images = ValueNotifier(CallVideoImages(remote: image, local: image));
+    final images = ValueNotifier(CallVideoImages(
+        remote: DecodedVideo(image!), local: DecodedVideo(image)));
     addTearDown(() {
       images.dispose();
-      image!.dispose();
+      image.dispose();
     });
     for (final phase in [CallViewPhase.active, CallViewPhase.incoming]) {
       final call = CallViewState(

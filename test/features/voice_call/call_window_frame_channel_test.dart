@@ -39,7 +39,8 @@ void main() {
           'sequence': 17,
           'local': false
         });
-        final pixels = await renderer.value.remote!
+        final pixels = await (renderer.value.remote! as DecodedVideo)
+            .image
             .toByteData(format: ui.ImageByteFormat.rawRgba);
         expect(pixels!.buffer.asUint8List(), testCallVideoFrame(17).pixels);
         await receiver.dispose();

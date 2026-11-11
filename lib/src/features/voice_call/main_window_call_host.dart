@@ -1,16 +1,22 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/lock/android_app_access.dart';
+import 'package:mosh/src/features/lock/android_app_lock_gate.dart';
+import 'package:mosh/src/platform/desktop_window_controller.dart';
 import 'android_call_presentation.dart';
 import 'call_video_renderer.dart';
 import 'call_view_state.dart';
-import 'mobile_call_frame.dart';
+import 'main_window_call_frame.dart';
 import 'voice_call_layer.dart';
-import 'package:mosh/src/features/lock/android_app_lock_gate.dart';
 
-class MobileCallHost extends ConsumerStatefulWidget {
-  const MobileCallHost(
+/// The call in the main window, above the app. Expanded it takes the window,
+/// and on desktop can switch it to full screen; minimized it is a mini view
+/// while the user browses chats.
+class MainWindowCallHost extends ConsumerStatefulWidget {
+  const MainWindowCallHost(
       {super.key,
       required this.child,
       required this.call,
@@ -21,23 +27,28 @@ class MobileCallHost extends ConsumerStatefulWidget {
   final Widget child;
   final CallViewState? call;
   final String? session;
-  final CallVideoRenderer video;
+  final ValueListenable<CallVideoImages> video;
   final Future<void> Function(CallViewCommand) onAction;
   final void Function(String session)? onOpenConversation;
 
   @override
-  ConsumerState<MobileCallHost> createState() => _MobileCallHostState();
+  ConsumerState<MainWindowCallHost> createState() => _MainWindowCallHostState();
 }
 
-class _MobileCallHostState extends ConsumerState<MobileCallHost> {
+class _MainWindowCallHostState extends ConsumerState<MainWindowCallHost> {
   AndroidCallPresentation? _presentation;
+  DesktopWindowController? _window;
+  // Android covers the chats with its lock gate, which also guards them.
+  late final bool _gated = ref.read(androidAppAccessProvider) != null;
   bool _expanded = true;
   bool _videoCall = false;
+  bool _enteredFullScreen = false;
   String? _shownCall;
 
   @override
   void initState() {
     super.initState();
+    _window = ref.read(desktopWindowControllerProvider);
     _presentation = ref.read(androidCallPresentationProvider);
     _presentation?.bindImages(widget.video);
     _presentation?.onClose = (session, call) => unawaited(widget.onAction(
@@ -46,38 +57,90 @@ class _MobileCallHostState extends ConsumerState<MobileCallHost> {
   }
 
   @override
+  void didUpdateWidget(MainWindowCallHost old) {
+    super.didUpdateWidget(old);
+    if (widget.session == null) _leaveFullScreen();
+  }
+
+  @override
   void dispose() {
+    _leaveFullScreen();
     _presentation?.unbindImages(widget.video);
     _presentation?.onClose = null;
     super.dispose();
   }
 
-  void _minimize() => setState(() => _expanded = false);
+  void _minimize() {
+    _leaveFullScreen();
+    setState(() => _expanded = false);
+  }
+
+  void _toggleFullScreen(DesktopWindowController window) {
+    _enteredFullScreen = !window.fullScreen;
+    unawaited(window.setFullScreen(_enteredFullScreen));
+  }
+
+  /// Full screen belongs to the expanded call that asked for it.
+  void _leaveFullScreen() {
+    if (!_enteredFullScreen) return;
+    _enteredFullScreen = false;
+    unawaited(_window?.setFullScreen(false));
+  }
 
   @override
   Widget build(BuildContext context) {
     final call = widget.call;
     if (_shownCall != call?.callId) {
       _shownCall = call?.callId;
-      _expanded = true;
+      // On desktop an incoming call does not take the window from what the
+      // user is doing; it rings in the mini view.
+      _expanded = _window == null || call?.phase != CallViewPhase.incoming;
       _videoCall = false;
     }
     _videoCall |= call?.media?.cameraRequested == true ||
         call?.media?.remoteCamera == true;
     _presentation?.update(call);
     final session = widget.session;
+    final covered = session != null && _expanded;
+    final window = _window;
     return Stack(fit: StackFit.expand, children: [
-      AndroidAppLockGate(
-          interactive: session == null || !_expanded, child: widget.child),
+      if (_gated)
+        AndroidAppLockGate(interactive: !covered, child: widget.child)
+      else ...[
+        ExcludeFocus(excluding: covered, child: widget.child),
+        if (covered)
+          Material(
+              child: window == null
+                  ? null
+                  : Align(
+                      alignment: Alignment.topRight,
+                      child: _fullScreenButton(window))),
+      ],
       if (session != null)
         SafeArea(
-            child: MobileCallFrame(
+            // Below the cover's full-screen button.
+            minimum: EdgeInsets.only(
+                top: covered && window != null && !_gated ? 40 : 0),
+            child: MainWindowCallFrame(
                 key: ValueKey(_shownCall),
                 expanded: _expanded,
                 video: _videoCall,
                 child: _controls(session))),
     ]);
   }
+
+  Widget _fullScreenButton(DesktopWindowController window) => ListenableBuilder(
+      listenable: window,
+      builder: (context, _) {
+        final l = AppLocalizations.of(context)!;
+        return IconButton(
+            tooltip: window.fullScreen
+                ? l.nativeMenuExitFullScreen
+                : l.nativeMenuEnterFullScreen,
+            onPressed: () => _toggleFullScreen(window),
+            icon: Icon(
+                window.fullScreen ? Icons.fullscreen_exit : Icons.fullscreen));
+      });
 
   Widget _controls(String session) => BackButtonListener(
         onBackButtonPressed: () async {

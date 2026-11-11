@@ -1,7 +1,8 @@
 # ADR 0052: desktop calls in the main window, video through a Rust-fed texture
 
 Date: 2026-11-10
-Status: Accepted. Implementation pending (MOSH-93 to MOSH-95, MOSH-101).
+Status: Accepted. Linux is implemented (MOSH-93); macOS, Windows and the removal
+of the call window process are pending (MOSH-94, MOSH-95, MOSH-101).
 
 ## Context
 

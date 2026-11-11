@@ -6,12 +6,47 @@ import 'package:flutter/foundation.dart';
 import 'call_video_frame.dart';
 import 'call_view_state.dart';
 
+/// What one video lane shows.
+sealed class CallVideoPicture {
+  const CallVideoPicture();
+  double get aspectRatio;
+}
+
+/// A frame decoded in this isolate.
+final class DecodedVideo extends CallVideoPicture {
+  const DecodedVideo(this.image);
+  final ui.Image image;
+
+  @override
+  double get aspectRatio => image.width / image.height;
+}
+
+/// A texture Rust feeds, showing a frame of this size.
+@immutable
+final class TextureVideo extends CallVideoPicture {
+  const TextureVideo(this.id, this.width, this.height);
+  final int id, width, height;
+
+  @override
+  double get aspectRatio => width / height;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TextureVideo &&
+      other.id == id &&
+      other.width == width &&
+      other.height == height;
+
+  @override
+  int get hashCode => Object.hash(id, width, height);
+}
+
 class CallVideoImages {
   const CallVideoImages({this.local, this.remote});
-  final ui.Image? local;
-  final ui.Image? remote;
+  final CallVideoPicture? local;
+  final CallVideoPicture? remote;
 
-  CallVideoImages replace(bool preview, ui.Image? image) => preview
+  CallVideoImages replace(bool preview, CallVideoPicture? image) => preview
       ? CallVideoImages(local: image, remote: remote)
       : CallVideoImages(local: local, remote: image);
 }
@@ -83,8 +118,8 @@ class CallVideoRenderer extends ValueNotifier<CallVideoImages> {
         image.dispose();
         return false;
       }
-      final old = frame.local ? value.local : value.remote;
-      value = value.replace(frame.local, image);
+      final old = _decoded(frame.local);
+      value = value.replace(frame.local, DecodedVideo(image));
       old?.dispose(); // RawImage keeps its own clone until its next update.
       _sequence[lane] = frame.sequence;
       _expiry[lane]?.cancel();
@@ -100,11 +135,17 @@ class CallVideoRenderer extends ValueNotifier<CallVideoImages> {
   void _clear(bool local) {
     final lane = local ? 0 : 1;
     _expiry[lane]?.cancel();
-    final image = local ? value.local : value.remote;
+    final image = _decoded(local);
     if (image == null) return;
     value = value.replace(local, null);
     image.dispose();
   }
+
+  ui.Image? _decoded(bool local) =>
+      switch (local ? value.local : value.remote) {
+        DecodedVideo(:final image) => image,
+        _ => null,
+      };
 
   @override
   void dispose() {
