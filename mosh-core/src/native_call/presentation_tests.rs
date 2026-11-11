@@ -118,3 +118,32 @@ fn a_thumbnail_preview_still_sends_the_whole_camera() {
     let preview = &state.frames[0].as_ref().unwrap().frame;
     assert_eq!((preview.width, preview.height), (320, 180));
 }
+
+#[test]
+// test-policy: skip MOSH-96 -- drives two real engines loaded from MOSH_MEDIA_ENGINE
+#[ignore = "Requires the real native engine through MOSH_MEDIA_ENGINE"]
+fn a_frame_the_encoder_refuses_is_not_live_camera_video() {
+    let net = MemoryNet::new();
+    let (a, b) = (net.endpoint("a"), net.endpoint("b"));
+    net.link_both("a", "b", PeerTransport::Direct);
+    let (sending, returning) = (Sender::new(a), Sender::new(b));
+    let (caller, _callee) = pair(
+        false,
+        sending.link("b", &[9; 16]),
+        returning.link("a", &[9; 16]),
+    );
+    let mut state = presenting();
+    // No engine takes a frame whose planes do not match its size.
+    let truncated = Captured {
+        sequence: 1,
+        width: 1280,
+        height: 720,
+        planes: vec![0; LUMA],
+        received: Instant::now(),
+        source_age_ms: 0,
+    };
+    Prepared::new(0, Arc::new(truncated), Surface::default()).present(&mut state, Some(&caller));
+    assert!(!state.snapshot.camera, "the peer would be told of video");
+    capture(2, &vec![0; LUMA * 3 / 2], Surface::default()).present(&mut state, Some(&caller));
+    assert!(state.snapshot.camera);
+}

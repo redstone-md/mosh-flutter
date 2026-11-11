@@ -63,14 +63,16 @@ impl Prepared {
     }
 
     /// The encoder takes the whole capture and the window its preview, both
-    /// only while the frame is under a second old.
+    /// only while the frame is under a second old. A frame the encoder
+    /// refuses is not shown either, so the peer is never told of video that
+    /// is not sent.
     pub fn present(self, state: &mut State, engine: Option<&Engine>) {
         let frame = &self.frame;
         if u128::from(frame.source_age_ms) + frame.received.elapsed().as_millis() >= 1000 {
             return;
         }
-        if let Some(engine) = engine {
-            engine.push(frame.width, frame.height, &frame.planes);
+        if engine.is_some_and(|engine| !engine.push(frame.width, frame.height, &frame.planes)) {
+            return;
         }
         if let Some((width, height, pixels)) = self.preview {
             state.present(
