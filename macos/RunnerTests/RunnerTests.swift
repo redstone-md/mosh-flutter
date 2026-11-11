@@ -101,4 +101,38 @@ class RunnerTests: XCTestCase {
     }
   }
 
+  func testCallVideoTextureShowsPresentedFramesAsBgraSurfaces() throws {
+    typealias Present = @convention(c) (
+      UnsafeRawPointer, UnsafePointer<UInt8>, UInt32, UInt32
+    ) -> Void
+    let textures = RecordingTextures()
+    let texture = CallVideoTexture(registry: textures)
+    XCTAssertNil(texture.copyPixelBuffer())
+    // As Rust calls it: the export's first word is the present function.
+    let present = texture.exported.load(as: Present.self)
+
+    let rgba: [UInt8] = [1, 2, 3, 4, 5, 6, 7, 8]
+    present(texture.exported, rgba, 2, 1)
+    let shown = try XCTUnwrap(texture.copyPixelBuffer()).takeRetainedValue()
+    XCTAssertEqual(CVPixelBufferGetPixelFormatType(shown), kCVPixelFormatType_32BGRA)
+    XCTAssertNotNil(CVPixelBufferGetIOSurface(shown))
+    CVPixelBufferLockBaseAddress(shown, .readOnly)
+    let row = try XCTUnwrap(CVPixelBufferGetBaseAddress(shown))
+      .assumingMemoryBound(to: UInt8.self)
+    XCTAssertEqual(Array(UnsafeBufferPointer(start: row, count: 8)), [3, 2, 1, 4, 7, 6, 5, 8])
+    CVPixelBufferUnlockBaseAddress(shown, .readOnly)
+    XCTAssertEqual(textures.available, [texture.id])
+
+    present(texture.exported, [UInt8](repeating: 9, count: 16), 2, 2)
+    let resized = try XCTUnwrap(texture.copyPixelBuffer()).takeRetainedValue()
+    XCTAssertEqual(CVPixelBufferGetHeight(resized), 2)
+    XCTAssertEqual(CVPixelBufferGetHeight(shown), 1, "a frame the engine holds is not rewritten")
+  }
+}
+
+private final class RecordingTextures: NSObject, FlutterTextureRegistry {
+  var available: [Int64] = []
+  func register(_ texture: FlutterTexture) -> Int64 { 7 }
+  func textureFrameAvailable(_ textureId: Int64) { available.append(textureId) }
+  func unregisterTexture(_ textureId: Int64) {}
 }

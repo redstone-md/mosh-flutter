@@ -4,6 +4,7 @@ import FlutterMacOS
 class MainFlutterWindow: NSWindow {
   private var menuLocalizer: NativeMenuLocalizer?
   private var titlebarChannel: FlutterMethodChannel?
+  private var callVideo: CallVideo?
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -14,6 +15,7 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
     menuLocalizer = NativeMenuLocalizer(
       messenger: flutterViewController.engine.binaryMessenger)
+    callVideo = CallVideo(registrar: flutterViewController.registrar(forPlugin: "MoshCallVideo"))
     titlebarChannel = FlutterMethodChannel(
       name: "mosh/window-chrome",
       binaryMessenger: flutterViewController.engine.binaryMessenger)
