@@ -33,6 +33,8 @@ void main() {
         required end,
       }) async {
         final from = start.toInt();
+        expect(end.toInt() - from, lessThanOrEqualTo(_window),
+            reason: 'no more than a window is held in memory');
         final missing = from >= missingFrom &&
             (arrivesAfter == null || asked++ < arrivesAfter);
         return AttachmentStreamRange(

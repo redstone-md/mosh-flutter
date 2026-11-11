@@ -28,18 +28,19 @@ final class MediaRange {
   const MediaRange({required this.start, this.end, this.isDefault = false});
 
   final BigInt start;
+
+  /// The last byte asked for; null when the range runs to the end.
   final BigInt? end;
   final bool isDefault;
 
-  /// The end of the first window fetched for this range.
-  BigInt resolveEndExclusive() =>
-      _windowEnd(start, end == null ? null : end! + BigInt.one);
+  /// Where the range stops, exclusively, when it names an end.
+  BigInt? get limit => end == null ? null : end! + BigInt.one;
 
-  /// The end of what this range asks of an attachment of [totalSize]: a
-  /// range without an end, or with one past the attachment, runs to it.
+  /// Where the range stops in an attachment of [totalSize]: one without an
+  /// end, or with an end past the attachment, runs to the attachment's.
   BigInt endExclusive(BigInt totalSize) {
-    final requested = end == null ? null : end! + BigInt.one;
-    return requested == null || requested > totalSize ? totalSize : requested;
+    final limit = this.limit;
+    return limit == null || limit > totalSize ? totalSize : limit;
   }
 }
 
@@ -243,7 +244,7 @@ final class MediaStreamServer {
   Future<void> _answer(HttpRequest request) async {
     final (route, range) = _asked(request);
     final start = range.start;
-    final first = await _ready(route, start, range.resolveEndExclusive());
+    final first = await _ready(route, start, _windowEnd(start, range.limit));
     final total = first.totalSize;
     final empty = total == BigInt.zero && start == BigInt.zero;
     if (empty ? !range.isDefault : start >= total) {

@@ -4,27 +4,27 @@ import 'package:mosh/src/features/shared/media_stream_server.dart';
 
 void main() {
   group('parseMediaRange', () {
-    test('defaults to the first capped window', () {
+    test('defaults to the whole attachment', () {
       final range = parseMediaRange(null)!;
       expect(range.start, BigInt.zero);
       expect(range.end, isNull);
-      expect(range.resolveEndExclusive(), BigInt.from(512 * 1024));
+      expect(range.endExclusive(BigInt.from(700000)), BigInt.from(700000));
     });
 
     test('parses normal and open-ended ranges', () {
       final normal = parseMediaRange('bytes=10-20')!;
       expect(normal.start, BigInt.from(10));
       expect(normal.end, BigInt.from(20));
-      expect(normal.resolveEndExclusive(), BigInt.from(21));
+      expect(normal.endExclusive(BigInt.from(100)), BigInt.from(21));
 
       final open = parseMediaRange(' bytes=10- ')!;
       expect(open.end, isNull);
-      expect(open.resolveEndExclusive(), BigInt.from(10 + 512 * 1024));
+      expect(open.endExclusive(BigInt.from(100)), BigInt.from(100));
     });
 
-    test('caps explicit windows at 512 KiB', () {
+    test('a range past the attachment\'s end stops at it', () {
       final range = parseMediaRange('bytes=0-999999')!;
-      expect(range.resolveEndExclusive(), BigInt.from(512 * 1024));
+      expect(range.endExclusive(BigInt.from(1000)), BigInt.from(1000));
     });
 
     test(
