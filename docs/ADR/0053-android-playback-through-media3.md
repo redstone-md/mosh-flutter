@@ -41,6 +41,11 @@ with the platform's codecs.
 - A network security configuration permits cleartext to `127.0.0.1` only. A
   streaming attachment comes from the app's loopback `MediaStreamServer`; media3
   follows the platform's cleartext policy, which libmpv ignored.
+- `MediaStreamServer` answers a request with everything it asked for, window by
+  window as the attachment downloads. It used to end each response at one
+  512 KiB window. libmpv asked again from there; media3 takes a response as the
+  whole of what it requested, so the first window would have been the end of
+  the media.
 
 ## Alternatives considered
 
@@ -57,7 +62,7 @@ with the platform's codecs.
 
 | | media3 through video_player | libmpv from source in the recipe |
 | --- | --- | --- |
-| Code | 313 lines more in `lib/` and Kotlin, 345 lines of tests | none in the app; about 20 recipe lines and a build script |
+| Code | about 330 lines more in `lib/` and the Android sources, about 540 lines of tests | none in the app; about 20 recipe lines and a build script |
 | arm64 release APK | 94.6 MB to 82.6 MB: libmpv and its helper (12.8 MB) leave, media3 adds 1.1 MB of DEX | 94.6 MB |
 | Build time | no new step | ffmpeg, mpv and seven more libraries on every F-Droid build; not measured |
 
@@ -66,9 +71,15 @@ with the platform's codecs.
 - The Android build downloads no prebuilt libmpv. media3 comes from Google's
   Maven repository, like the other androidx libraries.
 - Android plays what the device's codecs play: MP4, WebM and Matroska with
-  H.264, HEVC, VP8, VP9 or AV1, and AAC, Opus, MP3 or FLAC sound. A format
-  without a system codec (AVI, WMV) shows the file's card instead of playing.
+  H.264, HEVC, VP8, VP9 or AV1, and AAC, Opus, MP3 or FLAC sound. What the
+  device has no codec for, as is common in AVI and WMV files, shows the file's
+  card instead of playing, or plays without its picture when only the sound
+  has a codec.
 - There are two players to keep working. On Android the video controls are
   plainer, and a playing voice message takes audio focus: it pauses other apps'
   sound and another message that was playing.
-- A video pauses while the app is in the background; sound plays on, as before.
+- A video pauses while the app is in the background, as before, and on Android
+  goes on when the app returns. Sound plays on in the background, as before.
+- When the system gives up on a media, as when its stream dies, the player lets
+  it go and the play button opens it again.
+- None of this has been checked on a phone yet.
