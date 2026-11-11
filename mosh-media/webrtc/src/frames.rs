@@ -182,6 +182,15 @@ pub fn rgba_length(width: u32, height: u32) -> Option<usize> {
     (length <= MAX_RGBA_BYTES).then_some(length)
 }
 
+/// The packed I420 size of a camera frame within the ABI's bounds. Its
+/// sides are even, so each chroma plane is exactly a quarter of the luma.
+pub fn i420_length(width: u32, height: u32) -> Option<usize> {
+    let even = width.is_multiple_of(2) && height.is_multiple_of(2);
+    rgba_length(width, height)
+        .filter(|_| even)
+        .map(|rgba| rgba / 4 * 3 / 2)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

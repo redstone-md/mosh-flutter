@@ -19,7 +19,7 @@ fn owner_stalls_longer_than_the_packet_age_lose_no_outgoing_video() {
     let returning = Sender::new(b.clone());
     sending.relayed(false);
     returning.relayed(false);
-    let mut pixels = vec![0; 1280 * 720 * 4];
+    let mut planes = vec![0; 1280 * 720 * 3 / 2];
     let emitted = Arc::new(AtomicUsize::new(0));
     let counting = Box::new(Counting {
         wire: sending.link("b", &[9; 16]),
@@ -29,8 +29,8 @@ fn owner_stalls_longer_than_the_packet_age_lose_no_outgoing_video() {
     let started = Instant::now();
     let mut tick = 0;
     while started.elapsed() < Duration::from_secs(8) {
-        noise(&mut pixels, tick);
-        assert!(caller.push(1280, 720, &pixels));
+        noise(&mut planes, tick);
+        assert!(caller.push(1280, 720, &planes));
         tick += 1;
         forward(&mut caller, &mut callee);
         forward(&mut callee, &mut caller);
@@ -72,12 +72,12 @@ fn owner_stalls_do_not_hold_back_inbound_video() {
         sending.link("b", &[9; 16]),
         returning.link("a", &[9; 16]),
     );
-    let mut pixels = vec![0; 640 * 360 * 4];
-    pattern(&mut pixels, 0);
+    let mut planes = vec![0; 640 * 360 * 3 / 2];
+    pattern(&mut planes, 0);
     let mut warmed = None;
     for tick in 0..200 {
-        motion(&mut pixels, tick);
-        assert!(caller.push(640, 360, &pixels));
+        motion(&mut planes, tick);
+        assert!(caller.push(640, 360, &planes));
         if tick < 75 {
             forward(&mut caller, &mut callee);
             forward(&mut callee, &mut caller);
@@ -139,9 +139,9 @@ impl Wire for Counting {
 }
 
 /// Detail no encoder can compress away, so the call fills its budget.
-fn noise(pixels: &mut [u8], tick: usize) {
+fn noise(planes: &mut [u8], tick: usize) {
     let mut state = tick as u64 | 1;
-    for chunk in pixels.chunks_exact_mut(8) {
+    for chunk in planes.chunks_exact_mut(8) {
         state ^= state << 13;
         state ^= state >> 7;
         state ^= state << 17;

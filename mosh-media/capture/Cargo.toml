@@ -7,7 +7,9 @@ publish = false
 
 [dependencies]
 anyhow = "1"
-nokhwa = { version = "=0.10.11", path = "../../third_party/nokhwa", default-features = false, features = ["input-native", "decoding"] }
+# Reads MJPEG as the raw YCbCr planes it stores.
+mozjpeg = "0.10"
+nokhwa = { version = "=0.10.11", path = "../../third_party/nokhwa", default-features = false, features = ["input-native"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

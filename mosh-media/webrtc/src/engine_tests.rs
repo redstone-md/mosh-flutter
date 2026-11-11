@@ -66,16 +66,18 @@ fn pump(
     done: impl Fn(&Engine) -> bool,
 ) -> bool {
     let until = Instant::now() + limit;
-    let mut pixels = vec![0; width as usize * height as usize * 4];
+    let luma = width as usize * height as usize;
+    // BT.601 video range chroma of a red; the luma below keeps it reddish.
+    let mut planes = [vec![0; luma], vec![100; luma / 4], vec![211; luma / 4]].concat();
     let mut tick = 0u8;
     while Instant::now() < until {
         if done(to) {
             return true;
         }
-        for (i, pixel) in pixels.chunks_exact_mut(4).enumerate() {
-            pixel.copy_from_slice(&[200, 40, (i as u8).wrapping_add(tick), 255]);
+        for (i, y) in planes[..luma].iter_mut().enumerate() {
+            *y = 80 + (i as u8).wrapping_add(tick) % 32;
         }
-        from.camera.push(width, height, &pixels).unwrap();
+        from.camera.push(width, height, &planes).unwrap();
         transfer(from, to);
         transfer(to, from);
         tick = tick.wrapping_add(7);

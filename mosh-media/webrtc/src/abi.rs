@@ -155,25 +155,28 @@ pub unsafe extern "C" fn mosh_media_packet_priority(
     .unwrap_or(-1)
 }
 
+/// Sends one camera frame, packed I420, while the camera is on. 1 when
+/// taken, -1 for an invalid frame.
+///
 /// # Safety
-/// Handle is live; RGBA is readable for length bytes. No concurrent drop.
+/// Handle is live; planes is readable for length bytes. No concurrent drop.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn mosh_media_push_rgba(
+pub unsafe extern "C" fn mosh_media_push_i420(
     handle: *mut c_void,
     width: u32,
     height: u32,
-    rgba: *const u8,
+    planes: *const u8,
     length: usize,
 ) -> i32 {
-    if handle.is_null() || rgba.is_null() || length > MAX_RGBA_BYTES {
+    if handle.is_null() || planes.is_null() || length > MAX_RGBA_BYTES {
         return -1;
     }
     catch_unwind(AssertUnwindSafe(|| {
-        // SAFETY: caller retains the handle and readable packed RGBA buffer.
+        // SAFETY: caller retains the handle and readable packed I420 buffer.
         let engine = &unsafe { &*handle.cast::<Handle>() }.engine;
-        let pixels = unsafe { std::slice::from_raw_parts(rgba, length) };
+        let planes = unsafe { std::slice::from_raw_parts(planes, length) };
         engine.lock().map_or(-1, |mut engine| {
-            if engine.camera.push(width, height, pixels).is_ok() {
+            if engine.camera.push(width, height, planes).is_ok() {
                 1
             } else {
                 -1

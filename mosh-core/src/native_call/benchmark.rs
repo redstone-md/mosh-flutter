@@ -59,7 +59,7 @@ fn synthetic(length: usize) -> Vec<u8> {
 
 /// A negotiated caller engine with its camera on, and the callee that
 /// answered it. No packet travels between them, so a pushed frame is
-/// converted and offered to a sender with no connection.
+/// offered to a sender with no connection.
 fn engines() -> [Engine; 2] {
     let context = Context {
         session_id: "dm".into(),
@@ -86,41 +86,40 @@ fn engines() -> [Engine; 2] {
         .ask(json!({"action":"choices","microphone":false,"video":true}))
         .expect("camera on");
     let snapshot = caller.ask(json!({"action":"snapshot"})).expect("snapshot");
-    assert_eq!(snapshot["video_enabled"], true, "the push must convert");
+    assert_eq!(
+        snapshot["video_enabled"], true,
+        "the push must reach the encoder"
+    );
     [caller, callee]
 }
 
-/// The engine's conversions of one frame of `size`.
-fn conversions(engine: &Engine, size @ (width, height): (u32, u32), pixels: &[u8]) {
-    let planar = synthetic(width as usize * height as usize * 3 / 2);
+/// What the engine does with one camera frame of `size`.
+fn camera(engine: &Engine, size @ (width, height): (u32, u32)) {
+    let planes = synthetic(library::i420_size(width, height).expect("an even size"));
     let half = Surface {
         width: width / 2,
         height: height / 2,
     };
     report(
-        "RGBA to I420 and encoder push (`Engine::push`)",
+        "I420 encoder push (`Engine::push`)",
         size,
         || (),
         |()| {
-            assert!(engine.push(width, height, pixels));
+            assert!(engine.push(width, height, &planes));
         },
     );
-    // Desktop engines make this libyuv call inside `copy_frame`.
+    // Desktop engines make the same libyuv conversion for a decoded frame.
     report(
-        "I420 to RGBA (libyuv, as for a decoded frame)",
+        "camera preview at full size, I420 to RGBA (`preview`)",
         size,
         || (),
-        |()| library::i420_to_rgba(width, height, &planar).expect("converted"),
+        |()| library::preview(width, height, &planes, Surface::default()).expect("converted"),
     );
     report(
-        "preview to half size (`scale_rgba`)",
+        "camera preview at half size (`preview`)",
         size,
         || (),
-        |()| {
-            library::scale_rgba(width, height, pixels, half)
-                .expect("scaled")
-                .expect("a smaller frame")
-        },
+        |()| library::preview(width, height, &planes, half).expect("converted"),
     );
 }
 
@@ -241,7 +240,7 @@ fn frame_path() {
     let [engine, _callee] = engines();
     for size @ (width, height) in SIZES {
         let pixels = synthetic(width as usize * height as usize * 4);
-        conversions(&engine, size, &pixels);
+        camera(&engine, size);
         transfer(size, &pixels);
         texture(size, &pixels);
     }

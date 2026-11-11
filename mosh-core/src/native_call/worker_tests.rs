@@ -43,9 +43,9 @@ fn a_frame_prepared_before_the_camera_stops_is_not_presented() {
     state.snapshot.camera_requested = true; // Turned off since the frame was prepared.
     let frame = Captured {
         sequence: 7,
-        width: 1,
-        height: 1,
-        pixels: vec![0; 4],
+        width: 2,
+        height: 2,
+        planes: vec![0; 6],
         received: Instant::now(),
         source_age_ms: 0,
     };

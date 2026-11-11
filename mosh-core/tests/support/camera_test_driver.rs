@@ -23,12 +23,18 @@ fn main() {
             std::thread::park();
         }
     }
+    const LUMA: usize = 320 * 180;
     let mut tick = 0u8;
     loop {
-        let color = [tick, 255 - tick, tick / 2, 255];
-        let pixels: Vec<_> = (0..320 * 180).flat_map(|_| color).collect();
-        output.write_all(b"MCP1").unwrap();
-        for field in [320u32, 180, pixels.len() as u32] {
+        // A flat colour that changes every frame, as packed I420.
+        let planes = [
+            vec![tick; LUMA],
+            vec![255 - tick; LUMA / 4],
+            vec![tick / 2; LUMA / 4],
+        ]
+        .concat();
+        output.write_all(b"MCP2I420").unwrap();
+        for field in [320u32, 180, planes.len() as u32] {
             output.write_all(&field.to_be_bytes()).unwrap();
         }
         let at = SystemTime::now()
@@ -36,7 +42,7 @@ fn main() {
             .unwrap()
             .as_millis() as u64;
         output.write_all(&at.to_be_bytes()).unwrap();
-        output.write_all(&pixels).unwrap();
+        output.write_all(&planes).unwrap();
         output.flush().unwrap();
         tick = tick.wrapping_add(7);
         std::thread::sleep(Duration::from_nanos(1_000_000_000 / 30));
