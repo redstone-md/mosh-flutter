@@ -389,7 +389,7 @@ Media runs in the native call engine, libwebrtc in `mosh-media/webrtc`, which
 mosh-core loads through the `mosh_media_*` ABI and feeds over Moss
 ([native call media](Features/native-call-media.md)). Rust owns call signaling
 and the engine and writes the video frames into the window's textures; Dart
-only commands the call.
+commands the call and reads its state.
 
 Accepted video-call ownership lives in [ADR 0043](ADR/0043-one-device-per-user-in-a-call.md)
 and [ADR 0044](ADR/0044-native-call-media-over-moss.md). The
