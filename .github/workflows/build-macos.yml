@@ -154,7 +154,6 @@ jobs:
           # A release build has no active architecture (its destination is
           # generic), so ONLY_ACTIVE_ARCH changes nothing there.
           FLUTTER_XCODE_EXCLUDED_ARCHS: ${{ !inputs.universal && 'x86_64' || '' }}
-          MOSH_MACOS_UNIVERSAL: ${{ inputs.universal && 'true' || 'false' }}
           MOSH_DISTRIBUTION_CHANNEL: ${{ inputs.distribution-channel }}
           MOSH_PLUS_NETWORK: ${{ inputs.plus-network }}
           MOSH_PLUS_SERVER_URL: ${{ inputs.plus-server-url }}

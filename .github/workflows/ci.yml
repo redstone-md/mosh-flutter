@@ -66,7 +66,7 @@ jobs:
           submodules: recursive
       - uses: ./.github/actions/setup
         with:
-          moss: none
+          moss: 'false'
           go: 'true'
           rust-cache-key: none
       - uses: taiki-e/install-action@v2
@@ -275,7 +275,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           rust: 'false'
-          moss: none
+          moss: 'false'
 
       # flutter test runs native-asset hooks: super_native_extensions builds
       # its Rust (gtk-rs on Linux) through the runner's rustup.
