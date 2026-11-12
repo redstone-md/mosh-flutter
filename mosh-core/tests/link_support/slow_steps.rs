@@ -33,7 +33,17 @@ static RUNNING: Mutex<Running> = Mutex::new(Running {
 
 /// Runs `work` as a named step of this peer.
 pub(super) fn step<T>(name: &str, work: impl FnOnce() -> T) -> T {
-    let id = {
+    let _started = Started::new(name);
+    work()
+}
+
+/// A step from its start to its end, whether its work returned or panicked:
+/// a service thread that panics leaves its peer alive, and its step must not
+/// read as still running.
+struct Started(u64);
+
+impl Started {
+    fn new(name: &str) -> Self {
         let mut running = RUNNING.lock().unwrap();
         running.started += 1;
         let id = running.started;
@@ -43,16 +53,26 @@ pub(super) fn step<T>(name: &str, work: impl FnOnce() -> T) -> T {
             started: Instant::now(),
             report_at: SLOW,
         });
-        id
-    };
-    let result = work();
-    let mut running = RUNNING.lock().unwrap();
-    let at = running.steps.iter().position(|step| step.id == id).unwrap();
-    let step = running.steps.swap_remove(at);
-    if step.started.elapsed() >= SLOW {
-        say(&step, "took");
+        Self(id)
     }
-    result
+}
+
+impl Drop for Started {
+    fn drop(&mut self) {
+        let mut running = RUNNING.lock().unwrap();
+        let Some(at) = running.steps.iter().position(|step| step.id == self.0) else {
+            return;
+        };
+        let step = running.steps.swap_remove(at);
+        if step.started.elapsed() >= SLOW {
+            let end = if std::thread::panicking() {
+                "panicked after"
+            } else {
+                "took"
+            };
+            say(&step, end);
+        }
+    }
 }
 
 /// Starts the thread that speaks of steps still running.
@@ -76,4 +96,16 @@ fn say(step: &Step, verb: &str) {
         step.name,
         step.started.elapsed().as_secs_f64()
     ));
+}
+
+#[test]
+fn a_step_whose_work_panics_is_no_longer_running() {
+    let outcome = std::panic::catch_unwind(|| step("panicking step", || panic!("the work failed")));
+
+    assert!(outcome.is_err());
+    let running = RUNNING.lock().unwrap();
+    assert!(running
+        .steps
+        .iter()
+        .all(|step| step.name != "panicking step"));
 }
