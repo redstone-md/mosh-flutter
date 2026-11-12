@@ -1,6 +1,7 @@
 import 'dart:async' show unawaited;
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show LicenseRegistry;
 // `hide LockState` resolves an ambiguous-import clash: material re-exports
 // a `LockState` (ShortcutActivator-behavior enum) and the lock screen
 // defines its own. main() only uses the MoshLockScreen one (picking
@@ -39,6 +40,7 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/platform/desktop_window_controller.dart';
 import 'package:mosh/src/platform/desktop_window_frame.dart';
 
+import 'package:mosh/src/app/bundled_licenses.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/media_player.dart';
 import 'package:mosh/src/features/shared/media_stream_server.dart';
@@ -73,6 +75,7 @@ void main(List<String> args) async {
     await MediaStreamLifecycleOwner.start();
   }
   initializeMediaPlayback();
+  LicenseRegistry.addLicense(bundledLicenses);
   // Register the `mosh://` custom URL scheme with Windows so the OS
   // launches mosh.exe (URI as launch arg) for a `mosh://...` link. The
   // runner already pipes launch args to Dart; this is the OS-association

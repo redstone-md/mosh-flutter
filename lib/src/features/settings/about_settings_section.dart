@@ -12,6 +12,8 @@ import 'settings_card.dart';
 ///
 /// Only a build that updates itself checks the release feed: a store build
 /// shows its version and leaves updates to the store that installed it.
+/// Every build opens the license page, which `main` extends with the licenses
+/// Flutter does not collect (`bundled_licenses.dart`).
 class AboutSettingsSection extends ConsumerWidget {
   const AboutSettingsSection({super.key});
 
@@ -35,6 +37,18 @@ class AboutSettingsSection extends ConsumerWidget {
           Text(l.cryptoNoticeBody, style: text.bodySmall),
           const SizedBox(height: 12),
           Text(l.settingsAboutNetworkBody, style: text.bodySmall),
+          const SizedBox(height: 8),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              // The page takes the app's name from MaterialApp's title.
+              onPressed: () => showLicensePage(
+                context: context,
+                applicationVersion: info.value?.version,
+              ),
+              child: Text(l.settingsAboutLicenses),
+            ),
+          ),
         ],
       ),
     );

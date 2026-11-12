@@ -1,0 +1,29 @@
+# cargo-about's settings for the app's license page. Run through
+#   node scripts/third-party-licenses.mjs
+# which adds deny.toml's allow list as `accepted`.
+ignore-dev-dependencies = true
+no-clearly-defined = true
+private = { ignore = true }
+# Of two files under one license cargo-about keeps whichever the file system
+# lists first, so a vendored copy deeper in a crate made the output differ
+# between machines. A crate's own license files are at its root.
+max-depth = 1
+
+# Its LICENSE puts libjpeg-turbo's BSD notice after an IJG preface, which no
+# single license matches; the IJG and zlib texts carry no copyright to keep.
+[mozjpeg-sys.clarify]
+license = "IJG AND Zlib AND BSD-3-Clause"
+
+[[mozjpeg-sys.clarify.files]]
+path = "LICENSE"
+license = "BSD-3-Clause"
+start = "Copyright (C)2009-2023 D. R. Commander."
+checksum = "9aac39d55ba213edf5d5a981a1d526b547664b7fdfd7947f2e9bf3ca89e1926b"
+
+# MIT or BSD-3-Clause; only the MIT text is at its root.
+[rust-stemmers.clarify]
+license = "MIT"
+
+[[rust-stemmers.clarify.files]]
+path = "LICENSE"
+checksum = "e46379f1aba07707c23fab8733d3441e9df981b1543046e0317b2036f8fdaef8"

@@ -11,3 +11,6 @@ third_party/nokhwa-macos-patches/* text eol=lf
 third_party/nokhwa-macos-patches/*.patch -whitespace
 scripts/*.mjs text eol=lf
 scripts/support/*.mjs text eol=lf
+# Generated license texts: the app splits them on LF.
+assets/licenses/NOTICES text eol=lf
+third_party/licenses/* text eol=lf

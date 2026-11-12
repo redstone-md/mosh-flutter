@@ -26,6 +26,12 @@ when a shipped dependency brings a license outside these lists:
   to package a build whose generated `LICENSE.md` contains a GPL-family
   component, ffmpeg, openh264 or x264.
 
+- **In-app notices:** [third-party-licenses.mjs](../scripts/third-party-licenses.mjs)
+  writes `assets/licenses/NOTICES` again, and the job fails when the
+  committed file differs. Run it after changing a Rust, Go or media_kit
+  dependency; it needs cargo-about 0.8.4 (the job's version), Go and the
+  prepared media sources, as the job does.
+
 An addition to `REVIEWED` or `deny.toml` needs a row below. Native libraries
 that Flutter plugins download (libmpv for media_kit) are outside these
 checks: review the row below when a `media_kit_libs_*` version moves in
@@ -47,16 +53,23 @@ pubspec.lock.
 | Dart packages | BSD-3-Clause, MIT, Apache-2.0, BSD-2-Clause | Permissive. |
 | `dbus`, `gtk` (Dart, Linux only) | MPL-2.0 | Compatible; not in Apple builds. |
 | Go modules of Moss | BSD, MIT, Apache-2.0, ISC, MPL-2.0 (anacrolix) | Permissive or file-level copyleft. |
-| `anacrolix/multiless`, `anacrolix/sync` | MPL-2.0 upstream, no file in the pinned versions | In `REVIEWED`; MOSH-79 moves Moss to versions with the file. |
-| libmpv and ffmpeg (media_kit) | LGPL-2.1-or-later; LGPL-3.0 on Windows | Kept, linked dynamically (frameworks on Apple), as VLC ships libVLC on the App Store under the LGPL. Apple uses the `default` build of media-kit's libmpv-darwin-build, made for playback without GPL parts; the Windows build configures ffmpeg with `--disable-gpl --enable-version3` and mpv with `-Dgpl=false`. MOSH-78 bundles the LGPL text and source links. |
+| `anacrolix/multiless`, `anacrolix/sync` | MPL-2.0 upstream, no file in the pinned versions | In `REVIEWED`, which names the license; the license page carries the MPL-2.0 text for them. MOSH-79 moves Moss to versions with the file. |
+| libmpv and ffmpeg (media_kit) | LGPL-2.1-or-later; LGPL-3.0 on Windows | Kept, linked dynamically (frameworks on Apple), as VLC ships libVLC on the App Store under the LGPL. Apple uses the `default` build of media-kit's libmpv-darwin-build, made for playback without GPL parts; the Windows build configures ffmpeg with `--disable-gpl --enable-version3` and mpv with `-Dgpl=false`. The license page carries the LGPL texts and each build's release page. |
 | androidx media3 (video_player, Android) | Apache-2.0 | Permissive; from Google's Maven repository. Android has no libmpv ([ADR 0053](ADR/0053-android-playback-through-media3.md)). |
 | Flutter engine and SDK packages | BSD-3-Clause and bundled components | Flutter bundles their notices in every build. |
 | Inter | SIL Open Font License 1.1 | Permissive for embedding. |
 
 ## Notices
 
-Flutter puts the license files of Dart packages into every build. The
-desktop and Android packages carry the call media notices
+Settings > About opens Flutter's license page in every build, store builds
+included. Flutter fills it with the license files of the Dart packages;
+`assets/licenses/NOTICES` adds Mosh's own license, the Rust crates of the
+three graphs above (cargo-about with [about.toml](../about.toml), deny.toml's
+list as the accepted licenses), the Go modules of Moss, the Inter font, and libmpv and FFmpeg with
+the LGPL text and the release page of each build media_kit downloads. The
+ANGLE build media_kit adds on Windows is BSD-3-Clause, which Flutter's own
+notices carry for the engine's ANGLE. The
+LGPL and MPL-2.0 texts are kept in `third_party/licenses`. The desktop and Android
+packages also carry the call media notices as files
 (`mosh-media/THIRD_PARTY_NOTICES.md`, GPL-3.0.txt, Apache-2.0.txt and
-WEBRTC-LICENSE.md). Rust crates, Go modules and libmpv have no notice inside
-the app yet: MOSH-78 adds them to the in-app license list.
+WEBRTC-LICENSE.md).

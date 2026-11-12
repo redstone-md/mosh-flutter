@@ -366,6 +366,10 @@
   "settingsAboutVersionLoading": "Reading version…",
   "settingsAboutVersionUnavailable": "Version unavailable",
   "settingsAboutNetworkBody": "Moss delivers messages through a network of nodes. Public trackers are used to discover nodes.",
+  "settingsAboutLicenses": "Open source licenses",
+  "@settingsAboutLicenses": {
+    "description": "Opens the list of licenses of the code and fonts the app ships"
+  },
   "settingsAboutUpdateChecking": "Checking for updates…",
   "settingsAboutUpdateCurrent": "This is the newest release.",
   "@settingsAboutUpdateCurrent": {
