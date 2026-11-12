@@ -122,6 +122,10 @@ Future<void> _pump(
   );
 }
 
+/// The buttons of the update notice, as opposed to About's other actions.
+final _updateActions = find.descendant(
+    of: find.byType(AboutUpdateNotice), matching: find.byType(TextButton));
+
 void main() {
   testWidgets('a failed package read keeps About usable with unavailable text',
       (tester) async {
@@ -256,7 +260,7 @@ void main() {
     ]);
 
     expect(find.text('This is the newest release.'), findsOneWidget);
-    expect(find.byType(TextButton), findsNothing);
+    expect(_updateActions, findsNothing);
   });
 
   testWidgets('a refused page reports itself instead of failing silently',
@@ -343,8 +347,21 @@ void main() {
     ]);
 
     expect(find.text('Version 9.8.7-dev · build 42'), findsOneWidget);
-    expect(find.byType(TextButton), findsNothing);
+    expect(_updateActions, findsNothing);
     expect(reads, 0);
+  });
+
+  testWidgets('an App Store build opens the license page from About',
+      (tester) async {
+    await _pump(tester, load: () async => _package(), overrides: [
+      distributionChannelProvider
+          .overrideWithValue(DistributionChannel.appstore),
+    ]);
+
+    await tester.tap(find.text('Open source licenses'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LicensePage), findsOneWidget);
   });
 
   testWidgets('Update downloads the artifact, then hands it to the installer',

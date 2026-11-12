@@ -132,6 +132,7 @@
   "settingsAboutVersionLoading": "Читаем версию…",
   "settingsAboutVersionUnavailable": "Версия недоступна",
   "settingsAboutNetworkBody": "Moss передаёт сообщения через сеть узлов. Для обнаружения узлов используются публичные трекеры.",
+  "settingsAboutLicenses": "Лицензии открытого ПО",
   "settingsAboutUpdateChecking": "Проверяем обновления…",
   "settingsAboutUpdateCurrent": "Установлена последняя версия.",
   "settingsAboutUpdateAvailable": "Доступна версия {version}.",
