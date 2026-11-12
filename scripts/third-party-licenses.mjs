@@ -69,18 +69,15 @@ export function libmpvRelease(buildFile) {
 
 const read = (file) => readFileSync(path.join(root, file), "utf8");
 
-/** cargo-about accepts what deny.toml allows, so one list governs both. */
+/**
+ * about.toml with what deny.toml allows as cargo-about's accepted licenses,
+ * so one list governs both.
+ */
 function aboutConfig(directory) {
   const allow = read("deny.toml").match(/^allow = \[([^\]]*)\]/m)[1];
   const accepted = [...allow.matchAll(/"([^"]+)"/g)].map(([, id]) => id);
   const file = path.join(directory, "about.toml");
-  writeFileSync(file, [
-    `accepted = ${JSON.stringify(accepted)}`,
-    "ignore-dev-dependencies = true",
-    "no-clearly-defined = true",
-    "private = { ignore = true }",
-    "",
-  ].join("\n"));
+  writeFileSync(file, `accepted = ${JSON.stringify(accepted)}\n${read("about.toml")}`);
   return file;
 }
 

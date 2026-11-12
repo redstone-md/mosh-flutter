@@ -64,8 +64,8 @@ pubspec.lock.
 Settings > About opens Flutter's license page in every build, store builds
 included. Flutter fills it with the license files of the Dart packages;
 `assets/licenses/NOTICES` adds Mosh's own license, the Rust crates of the
-three graphs above (cargo-about, with deny.toml's list as the accepted
-licenses), the Go modules of Moss, the Inter font, and libmpv and FFmpeg with
+three graphs above (cargo-about with [about.toml](../about.toml), deny.toml's
+list as the accepted licenses), the Go modules of Moss, the Inter font, and libmpv and FFmpeg with
 the LGPL text and the release page of each build media_kit downloads. The
 ANGLE build media_kit adds on Windows is BSD-3-Clause, which Flutter's own
 notices carry for the engine's ANGLE. The
