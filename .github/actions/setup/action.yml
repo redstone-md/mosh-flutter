@@ -92,14 +92,17 @@ runs:
     # with one file at a time. With these the Rust core and the call engine
     # build side by side and the C++ of the plugins and Sentry uses every
     # core: 583 s against 895 for the release app. Set after the cargo cache
-    # step, whose key takes in every CMAKE* variable.
+    # step, whose key takes in every CMAKE* variable. The option starts with
+    # a dash: Git Bash rewrites a value that starts with a slash into a path
+    # under its own root when it starts a Windows program, and cl then finds
+    # no compiler option in it.
     - if: inputs.flutter == 'true' && runner.os == 'Windows'
       name: Parallel MSBuild projects and C++ files
       shell: bash
       run: |
         {
           echo "CMAKE_BUILD_PARALLEL_LEVEL=$NUMBER_OF_PROCESSORS"
-          echo CL=/MP
+          echo CL=-MP
         } >> "$GITHUB_ENV"
 
     # The camera helper's JPEG decoder assembles its x86 SIMD with nasm;
