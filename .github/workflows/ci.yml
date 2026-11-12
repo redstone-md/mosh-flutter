@@ -71,7 +71,7 @@ jobs:
           rust-cache-key: none
       - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-deny@0.20.2
+          tool: cargo-deny@0.20.2,cargo-about@0.8.4
       - name: Rust crates
         run: |
           node scripts/livekit-webrtc-prepare.mjs
@@ -83,6 +83,15 @@ jobs:
         run: |
           node --test scripts/license-check.test.mjs
           node scripts/license-check.mjs
+      # The app's license page carries what Flutter does not collect itself.
+      - name: In-app notices are current
+        run: |
+          node --test scripts/third-party-licenses.test.mjs
+          node scripts/third-party-licenses.mjs
+          git diff --exit-code -- assets/licenses/NOTICES || {
+            echo "::error::assets/licenses/NOTICES is stale: run node scripts/third-party-licenses.mjs and commit it"
+            exit 1
+          }
 
   # The call engine (mosh-media/webrtc) on our libwebrtc builds and the
   # camera helper: lint, their tests, the relay video regression, call setup

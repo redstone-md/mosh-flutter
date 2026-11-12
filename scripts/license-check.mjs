@@ -5,9 +5,9 @@
 // AGPL dependency, or one without a recognisable license, fails the check
 // until docs/licenses.md records a decision and REVIEWED below names it.
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { dartPackageRoots, goModules, licenseTexts } from "./support/license-sources.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -70,12 +70,6 @@ export function disallowedSections(notices) {
   });
 }
 
-function licenseTexts(directory) {
-  return readdirSync(directory)
-    .filter((name) => /^(LICEN[CS]E|COPYING)/i.test(name) && statSync(path.join(directory, name)).isFile())
-    .map((name) => readFileSync(path.join(directory, name), "utf8"));
-}
-
 /**
  * The app's non-dev Dart packages, ours excluded. The Flutter SDK's own
  * packages bundle their notices; the hosted packages they use are checked.
@@ -84,9 +78,7 @@ function dartPackages() {
   const output = execFileSync("flutter", ["pub", "deps", "--json"], { cwd: root, encoding: "utf8" });
   const { packages } = JSON.parse(output.slice(output.indexOf("{")));
   const byName = new Map(packages.map((entry) => [entry.name, entry]));
-  const config = JSON.parse(readFileSync(path.join(root, ".dart_tool/package_config.json"), "utf8"));
-  const roots = new Map(config.packages.map((entry) => [entry.name,
-    fileURLToPath(new URL(entry.rootUri, pathToFileURL(path.join(root, ".dart_tool/"))))]));
+  const roots = dartPackageRoots();
   const appRoot = packages.find((entry) => entry.kind === "root");
   const seen = new Set();
   const pending = appRoot.dependencies.filter((name) => !appRoot.devDependencies.includes(name));
@@ -98,15 +90,6 @@ function dartPackages() {
   }
   return [...seen].filter((entry) => entry.source !== "sdk" && !OWN_DART_PACKAGES.has(entry.name))
     .map(({ name, version }) => ({ id: `dart:${name}@${version}`, texts: licenseTexts(roots.get(name)) }));
-}
-
-/** Third-party Go modules in the Moss library Mosh links. */
-function goModules() {
-  const output = execFileSync("go", ["list", "-deps", "-f",
-    "{{with .Module}}{{if not .Main}}{{.Path}}@{{.Version}}\t{{.Dir}}{{end}}{{end}}", "./cmd/moss-ffi"],
-  { cwd: path.join(root, "moss"), encoding: "utf8" });
-  const modules = new Map(output.split("\n").filter(Boolean).map((line) => line.split("\t")));
-  return [...modules].map(([name, directory]) => ({ id: `go:${name}`, texts: licenseTexts(directory) }));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
