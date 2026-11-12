@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dartPackageRoots, goModules } from "./support/license-sources.mjs";
+import { REVIEWED } from "./license-check.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT = "assets/licenses/NOTICES";
@@ -101,11 +102,24 @@ function rustCrates() {
   }
 }
 
+/**
+ * The license a module version without a license file is used under, as
+ * license-check's review decided, with the canonical text.
+ */
+function reviewedLicense(id, module) {
+  const { license } = REVIEWED.get(id) ?? {};
+  if (!license) throw new Error(`${id}: no license file and no reviewed license`);
+  return [
+    `This version predates the module's license file. It is used under ${license}, `
+      + `the license the module adopted later. Its source: https://pkg.go.dev/${module}`,
+    read(`third_party/licenses/${license}.txt`),
+  ].join("\n\n");
+}
+
 function mossModules() {
-  return goModules().map(({ name, version, texts }) => ({
+  return goModules().map(({ id, name, version, texts }) => ({
     names: [name],
-    text: texts.length ? texts.join("\n\n")
-      : `This version has no license file. Its source: https://pkg.go.dev/${name}@${version}`,
+    text: texts.length ? texts.join("\n\n") : reviewedLicense(id, `${name}@${version}`),
   }));
 }
 
