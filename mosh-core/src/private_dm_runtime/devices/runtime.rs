@@ -92,7 +92,7 @@ impl PrivateDmRuntime {
             }
             packets.extend(session.device_packets(&identity));
             packets.extend(session.removal_packets());
-            session.publish_identity_claim(&identity);
+            session.publish_identity_claim(&identity, now);
         }
         for (peer, message) in packets {
             let _ = send_packet(&self.transport, &identity, &peer, message);

@@ -15,6 +15,7 @@ mod revocation;
 mod runtime;
 mod types;
 
+pub(super) use identity_session::Advertisement;
 pub(super) use live::DeviceSignature;
 pub(super) use proof::LocalClaimSigner;
 pub(super) use runtime::DeviceDmLink;
