@@ -121,9 +121,9 @@ jobs:
         run: rustup target add x86_64-apple-darwin
 
       # The x86_64 slice of the camera helper assembles its JPEG decoder's
-      # SIMD with nasm. The app's script phase builds that slice in the
-      # single-arch build too.
-      - run: brew install nasm
+      # SIMD with nasm.
+      - if: inputs.universal
+        run: brew install nasm
 
       # CI builds only prove the app still packages; release.yml builds the
       # shipped artifact with the profile as committed. Fat LTO stays here
@@ -148,7 +148,12 @@ jobs:
 
       - name: Build macOS app (release)
         env:
-          MOSH_ONLY_ACTIVE_ARCH: ${{ inputs.universal && 'NO' || 'YES' }}
+          # Flutter hands FLUTTER_XCODE_* to xcodebuild as build settings, so
+          # this reaches every target: the app, the pods and their scripts
+          # that build mosh-core and the call engine one slice per ARCHS.
+          # A release build has no active architecture (its destination is
+          # generic), so ONLY_ACTIVE_ARCH changes nothing there.
+          FLUTTER_XCODE_EXCLUDED_ARCHS: ${{ !inputs.universal && 'x86_64' || '' }}
           MOSH_MACOS_UNIVERSAL: ${{ inputs.universal && 'true' || 'false' }}
           MOSH_DISTRIBUTION_CHANNEL: ${{ inputs.distribution-channel }}
           MOSH_PLUS_NETWORK: ${{ inputs.plus-network }}
