@@ -70,6 +70,20 @@ runs:
         cache-on-failure: true
         save-if: ${{ github.ref == 'refs/heads/main' }}
 
+    # `flutter build windows` runs MSBuild with one project at a time and cl
+    # with one file at a time. With these the Rust core and the call engine
+    # build side by side and the C++ of the plugins and Sentry uses every
+    # core: 583 s against 895 for the release app. Set after the cargo cache
+    # step, whose key takes in every CMAKE* variable.
+    - if: inputs.flutter == 'true' && runner.os == 'Windows'
+      name: Parallel MSBuild projects and C++ files
+      shell: bash
+      run: |
+        {
+          echo "CMAKE_BUILD_PARALLEL_LEVEL=$NUMBER_OF_PROCESSORS"
+          echo CL=/MP
+        } >> "$GITHUB_ENV"
+
     # The camera helper's JPEG decoder assembles its x86 SIMD with nasm;
     # scripts/native-media-build.mjs refuses to build without it in CI.
     # Chocolatey leaves it off PATH. Linux gets it from native-media-linux.
