@@ -54,13 +54,15 @@ runs:
 
     # The moss library is a cgo build of the submodule: minutes per job, and
     # byte-identical for the same sources and Go version. Cache it on the
-    # sources so only a submodule bump rebuilds it.
+    # sources so only a submodule bump rebuilds it: the Go files, the module
+    # files and the embedded country database, the inputs Gradle names for
+    # the Android library.
     - if: inputs.moss == 'desktop'
       id: moss-desktop
       uses: actions/cache/restore@v4
       with:
         path: moss-runtime
-        key: moss-desktop-${{ runner.os }}-go1.25.9-${{ hashFiles('moss/**/*.go', 'moss/go.sum', 'scripts/moss-prepare.mjs') }}
+        key: moss-desktop-${{ runner.os }}-go1.25.9-${{ hashFiles('moss/**/*.go', 'moss/**/*.mmdb.gz', 'moss/go.mod', 'moss/go.sum', 'scripts/moss-prepare.mjs') }}
 
     # moss-prepare pins GOTOOLCHAIN=go1.25.9; installing that exact version
     # makes the toolchain directive a no-op (no on-the-fly download). No Go
