@@ -41,9 +41,9 @@ class AboutSettingsSection extends ConsumerWidget {
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: TextButton(
+              // The page takes the app's name from MaterialApp's title.
               onPressed: () => showLicensePage(
                 context: context,
-                applicationName: 'Mosh',
                 applicationVersion: info.value?.version,
               ),
               child: Text(l.settingsAboutLicenses),
