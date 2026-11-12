@@ -5,13 +5,25 @@ use super::types::DmOffer;
 use super::{invalid, proof::IdentityClaim, types::*, INITIAL_CLIENTS};
 use crate::device_link::identity::DeviceIdentity;
 
-/// The last identity claim a session sent: its MLS epoch, its signed bytes,
-/// the Hello it went with and when it went.
+/// An identity claim as a session sends it: its MLS epoch, its signed bytes,
+/// the Hello it goes with and when it goes.
 pub(in crate::private_dm_runtime) struct Advertisement {
     epoch: u64,
     claim: Vec<u8>,
     hello_ms: u64,
     sent_ms: u64,
+}
+
+impl Advertisement {
+    /// Whether `next` would only repeat this claim to a counterpart that has
+    /// had no reason to miss it: no new epoch, claim or Hello since, and, on a
+    /// connected session, less than a keepalive interval.
+    fn covers(&self, next: &Self, connected: bool) -> bool {
+        self.epoch == next.epoch
+            && self.claim == next.claim
+            && self.hello_ms == next.hello_ms
+            && !(connected && next.sent_ms.saturating_sub(self.sent_ms) >= KEEPALIVE_MS)
+    }
 }
 
 impl PrivateDmSession {
@@ -113,17 +125,18 @@ impl PrivateDmSession {
         let Ok(signed_claim) = serde_json::to_vec(&claim) else {
             return;
         };
+        let next = Advertisement {
+            epoch,
+            claim: signed_claim,
+            hello_ms: self.last_hello_send_ms,
+            sent_ms: now_ms,
+        };
         let connected = self.state == DmSessionState::Connected;
-        let due = self
+        if self
             .last_identity_advertisement
             .as_ref()
-            .is_none_or(|last| {
-                last.epoch != epoch
-                    || last.claim != signed_claim
-                    || last.hello_ms != self.last_hello_send_ms
-                    || (connected && now_ms.saturating_sub(last.sent_ms) >= KEEPALIVE_MS)
-            });
-        if !due {
+            .is_some_and(|last| last.covers(&next, connected))
+        {
             return;
         }
         let Ok(ciphertext_b64) = self.crypto.encrypt_json(&claim) else {
@@ -135,12 +148,7 @@ impl PrivateDmSession {
             ciphertext_b64,
         };
         if let Ok(payload) = serde_json::to_vec(&envelope) {
-            self.last_identity_advertisement = Some(Advertisement {
-                epoch,
-                claim: signed_claim,
-                hello_ms: self.last_hello_send_ms,
-                sent_ms: now_ms,
-            });
+            self.last_identity_advertisement = Some(next);
             let _ = self.route_send(ChannelKind::Control, &payload);
         }
     }
