@@ -143,6 +143,9 @@ impl PrivateDmSession {
             self.device_frames_may_leave()?;
         }
         self.persist_device_crypto()?;
+        if let Some(store) = &self.store {
+            store.sync()?;
+        }
         Ok(Saved(self))
     }
 }

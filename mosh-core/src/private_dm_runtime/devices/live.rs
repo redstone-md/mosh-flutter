@@ -161,16 +161,15 @@ impl PrivateDmSession {
         }
     }
 
-    /// Puts the ratchet on disk, and with it every write of the step so far.
     pub(in crate::private_dm_runtime) fn persist_device_crypto(&self) -> Result<()> {
-        let Some(store) = &self.device_store else {
+        if self.membership.is_none() {
+            return Ok(());
+        }
+        let Some(store) = &self.store else {
             return Ok(());
         };
-        if self.membership.is_some() {
-            let record = serde_json::to_vec(&self.to_persisted_record()).map_err(|_| invalid())?;
-            store.put_dm_transition(&self.session_id, &record, &self.crypto.snapshot())?;
-        }
-        store.sync()?;
+        let record = serde_json::to_vec(&self.to_persisted_record()).map_err(|_| invalid())?;
+        store.put_dm_transition(&self.session_id, &record, &self.crypto.snapshot())?;
         Ok(())
     }
 

@@ -120,7 +120,7 @@ impl PrivateDmSession {
         let previous_invitation = self.invitation.clone();
         let previous_state = self.state;
         let payload = self.prepare_invitation_welcome(&package, signer)?;
-        if let Some(store) = &self.device_store {
+        if let Some(store) = &self.store {
             if let Err(error) = self.write_extra(store) {
                 self.crypto = MlsSessionCrypto::restore(
                     &self.device_id,

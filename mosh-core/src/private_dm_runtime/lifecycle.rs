@@ -142,7 +142,6 @@ impl PrivateDmRuntime {
             .invitation
             .as_ref()
             .and_then(|invite| invite.welcome_payload.clone());
-        session.device_store = self.sessions.persistence().cloned();
         // Read state rides the session record: ids the counterpart had
         // authenticated a read of before the restart. Without this a restart
         // would re-ask the counterpart for every receipt it already sent.
@@ -175,7 +174,6 @@ impl PrivateDmRuntime {
     ) -> Result<InviteCreated, PrivateDmRuntimeError> {
         let mut session = self.prepare_invitation_creator(request)?;
         session.invitation = Some(invitations::InviteLifecycle::new(opened));
-        session.device_store = self.sessions.persistence().cloned();
         let signed = if opened {
             session
                 .transport

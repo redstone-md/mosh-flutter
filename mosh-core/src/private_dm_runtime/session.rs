@@ -34,7 +34,7 @@ impl PrivateDmSession {
             recovery_pull_ms: 0,
             membership: None,
             device_signer: None,
-            device_store: None,
+            store: None,
             device_connect_requested: std::collections::HashSet::new(),
             room_discovery_peers: None,
             last_identity_advertisement: None,

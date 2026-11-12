@@ -62,7 +62,6 @@ impl PrivateDmRuntime {
             device_error("revocation", error);
         }
         for session in self.sessions.values_mut() {
-            session.device_store = Some(store.clone());
             if let Err(error) = session.refresh_device_identity(&identity) {
                 device_error(&session.session_id, error);
             }
