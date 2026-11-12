@@ -137,7 +137,9 @@ impl PrivateDmSession {
     /// it, so a restart cannot seal another frame with the same key, and
     /// every write of the step so far, so what the frame tells a peer is on
     /// disk before the peer hears it. Frames sealed one after another leave
-    /// after one save.
+    /// after one save. A joiner that still waits for its Welcome has sealed
+    /// nothing, and its key package leaves whether or not the store takes
+    /// its placeholder.
     pub(super) fn saved(&self) -> Result<Saved<'_>, PrivateDmRuntimeError> {
         if self.devices_live() {
             self.device_frames_may_leave()?;
@@ -145,7 +147,7 @@ impl PrivateDmSession {
         if let Some(store) = &self.store {
             if self.membership.is_some() {
                 self.persist_device_crypto()?;
-            } else {
+            } else if self.record_is_final() {
                 self.write_extra(store)?;
             }
             store.sync()?;

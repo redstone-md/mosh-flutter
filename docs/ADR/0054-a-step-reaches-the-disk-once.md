@@ -58,7 +58,9 @@ a peer is on disk before the peer hears it, and a restart cannot seal a second
 frame with a key the first one used. A session with linked devices wrote its
 ratchet before a frame already. One without them wrote it around the publish,
 which a receipt sent after the tail save no longer has, so `saved` writes it
-for both.
+for both. The one session it writes nothing for is a joiner that still waits
+for its Welcome: it has sealed nothing, and its key package leaves whether or
+not the store took its placeholder.
 
 **Frames sealed together leave after one save.** A tick seals every receipt it
 owes, or every re-send that is due, then saves once and sends them. Before,
