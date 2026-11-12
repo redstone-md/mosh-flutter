@@ -4,11 +4,13 @@ mod connection;
 pub(crate) mod crypto;
 mod dm;
 mod history_repair;
+mod host;
 mod observation;
 mod protocol;
 mod recording;
+mod scenario;
+mod slow_steps;
 pub(crate) mod stdio;
-use std::cell::Cell;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
@@ -16,6 +18,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use mosh_core::attachment_store::AttachmentStore;
+use mosh_core::chat_names::{ChatNameError, ChatNameSnapshot};
 use mosh_core::device_link::DeviceLinkRuntime;
 use mosh_core::moss_ffi::{set_moss_keystore, MossFfiRuntime};
 use mosh_core::persistence::Persistence;
@@ -26,25 +29,13 @@ use serde_json::{json, Value};
 const OUTPUT_PREFIX: &str = "MOSH_TEST_JSON ";
 
 /// How long a phase or an error may take to show up. The peers are separate
-/// processes on a runner that runs several suites at once, and a transition that
-/// takes milliseconds on an idle machine has been seen to take tens of seconds
-/// there, so the budget sits far above the healthy value; a real stall still
-/// fails the run, and with the budget in the message.
+/// processes whose stores sync every commit to disk, and a transition that
+/// takes milliseconds on an idle machine took tens of seconds on a runner
+/// whose disk stalled (MOSH-103), so the budget sits far above the healthy
+/// value; a real stall still fails the run, and with the budget in the message.
 pub(super) const OBSERVATION_BUDGET: Duration = Duration::from_secs(90);
 
-static NETWORK_SCENARIO: Mutex<()> = Mutex::new(());
-thread_local! {
-    static NETWORK_SCOPE: Cell<u64> = const { Cell::new(0) };
-}
-
-/// Serialize LAN probes and give local-tracker scenarios independent networks.
-pub fn isolated_network_scenario() -> std::sync::MutexGuard<'static, ()> {
-    let guard = NETWORK_SCENARIO
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    NETWORK_SCOPE.with(|scope| scope.set(rand::random()));
-    guard
-}
+pub use scenario::isolated_network_scenario;
 
 pub struct Peer {
     child: Child,
@@ -88,14 +79,8 @@ impl Peer {
         let dir = std::env::temp_dir().join(format!("mosh-link-flow-{}", rand::random::<u64>()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("storage-key.bin"), rand::random::<[u8; 32]>()).unwrap();
-        Self::start(
-            dir,
-            api,
-            manual_dm,
-            NETWORK_SCOPE.with(Cell::get),
-            worker,
-            recording,
-        )
+        let scope = scenario::network_scope();
+        Self::start(dir, api, manual_dm, scope, worker, recording)
     }
 
     fn start(
@@ -169,8 +154,11 @@ impl Peer {
                 std::thread::sleep(Duration::from_millis(10));
             };
             panic!(
-                "peer action {} failed: {error}; budget: {:?}; process status: {:?}",
-                command["action"], budget, status
+                "peer {} action {} failed: {error}; budget: {:?}; process status: {:?}",
+                self.child.id(),
+                command["action"],
+                budget,
+                status
             )
         });
         assert!(Instant::now() < deadline, "peer command deadline expired");
@@ -273,10 +261,42 @@ pub fn peer_process_with(extra: fn(&Persistence, &str, &Value) -> Option<Value>)
     let dm = dm_runtime(shared, store.clone(), dir);
     let service = runtime.clone();
     std::thread::spawn(move || loop {
-        let _ = service.lock().unwrap().service();
+        let _ = slow_steps::step("link service", || service.lock().unwrap().service());
         std::thread::sleep(Duration::from_millis(100));
     });
-    serve(runtime, node, dm, store, extra);
+    let own_store = store.clone();
+    let installation = Installation {
+        runtime,
+        node,
+        dm,
+        store,
+    };
+    serve(|action, command| {
+        extra(&own_store, action, command).unwrap_or_else(|| installation.answer(action, command))
+    });
+}
+
+/// Answers the parent's commands until it asks the worker to shut down.
+/// Every answer is a step of the peer and is timed as one, the commands a
+/// worker adds for its scenario included.
+fn serve(answer: impl Fn(&str, &Value) -> Value) {
+    slow_steps::watch();
+    for line in std::io::stdin().lock().lines() {
+        let command: Value = serde_json::from_str(&line.unwrap()).unwrap();
+        let action = command["action"].as_str().unwrap();
+        if action == "shutdown" {
+            break;
+        }
+        let response = slow_steps::step(&format!("command {action}"), || answer(action, &command));
+        println!("{OUTPUT_PREFIX}{response}");
+        std::io::stdout().flush().unwrap();
+    }
+}
+
+/// A line on the process's own stderr. `eprintln!` would hand it to the test
+/// harness, which shows a test's output only when the test fails.
+fn say(line: std::fmt::Arguments) {
+    let _ = writeln!(std::io::stderr(), "{line}");
 }
 
 fn dm_runtime(
@@ -291,80 +311,45 @@ fn dm_runtime(
     let dm_service = dm.clone();
     if std::env::var("MOSH_DM_MANUAL_SERVICE").as_deref() != Ok("1") {
         std::thread::spawn(move || loop {
-            dm_service.lock().unwrap().service();
+            slow_steps::step("DM service", || dm_service.lock().unwrap().service());
             std::thread::sleep(Duration::from_millis(100));
         });
     }
     dm
 }
 
-fn serve(
+/// The runtimes of one installation, which its worker process answers commands with.
+struct Installation {
     runtime: Arc<Mutex<DeviceLinkRuntime>>,
     node: Arc<mosh_core::moss_ffi::MossNode>,
     dm: Arc<Mutex<PrivateDmRuntime>>,
     store: Arc<Persistence>,
-    extra: fn(&Persistence, &str, &Value) -> Option<Value>,
-) {
-    for line in std::io::stdin().lock().lines() {
-        let command: Value = serde_json::from_str(&line.unwrap()).unwrap();
-        let action = command["action"].as_str().unwrap();
-        if action == "shutdown" {
-            break;
-        }
+}
+
+impl Installation {
+    fn answer(&self, action: &str, command: &Value) -> Value {
         let arg = command["argument"].as_str().unwrap_or_default().to_string();
-        if let Some(response) = extra(&store, action, &command) {
-            println!("{OUTPUT_PREFIX}{response}");
-            std::io::stdout().flush().unwrap();
-            continue;
-        }
         if action.starts_with("protocol_") {
-            let response = protocol::command(&store, &node, action, &arg, &command);
-            println!("{OUTPUT_PREFIX}{response}");
-            std::io::stdout().flush().unwrap();
-            continue;
+            return protocol::command(&self.store, &self.node, action, &arg, command);
         }
         if action.starts_with("crypto_") {
             // Each worker inspects only its own encrypted MLS state. The parent
             // receives ciphertext and public metadata, never a private snapshot.
-            let response = crypto::command(&store, action, &arg, &command);
-            println!("{OUTPUT_PREFIX}{response}");
-            std::io::stdout().flush().unwrap();
-            continue;
+            return crypto::command(&self.store, action, &arg, command);
         }
         if action.starts_with("dm_") {
-            let response = dm::command(&mut dm.lock().unwrap(), action, &arg, &command);
-            println!("{OUTPUT_PREFIX}{response}");
-            std::io::stdout().flush().unwrap();
-            continue;
+            return dm::command(&mut self.dm.lock().unwrap(), action, &arg, command);
         }
-        let mut rt = runtime.lock().unwrap();
-        if matches!(action, "names" | "name_set" | "name_reset") {
-            let result = match action {
-                "name_set" => rt.rename_chat(&arg, command["name"].as_str().unwrap()),
-                "name_reset" => rt.reset_chat_name(&arg),
-                _ => rt.chat_names_snapshot(),
-            };
-            let response = match result {
-                Ok(snapshot) => serde_json::to_value(snapshot).unwrap(),
-                Err(error) => json!({"error":format!("{:?}", error.kind)}),
-            };
-            println!("{OUTPUT_PREFIX}{response}");
-            std::io::stdout().flush().unwrap();
-            continue;
-        }
+        let mut rt = self.runtime.lock().unwrap();
         let result = match action {
-            "connect" => {
-                let response = connection::command(&node, &arg);
-                println!("{OUTPUT_PREFIX}{response}");
-                std::io::stdout().flush().unwrap();
-                continue;
+            "names" => return names(rt.chat_names_snapshot()),
+            "name_set" => return names(rt.rename_chat(&arg, command["name"].as_str().unwrap())),
+            "name_reset" => return names(rt.reset_chat_name(&arg)),
+            "connect" => return connection::command(&self.node, &arg),
+            "network" => {
+                return serde_json::from_str(&self.node.mesh_info_json().unwrap()).unwrap()
             }
             "snapshot" => rt.snapshot(),
-            "network" => {
-                println!("{OUTPUT_PREFIX}{}", node.mesh_info_json().unwrap());
-                std::io::stdout().flush().unwrap();
-                continue;
-            }
             "qr" => rt.begin_link(),
             "import" => rt.join_link(arg, command["name"].as_str().unwrap_or_default().into()),
             "approve" => rt.approve(arg),
@@ -372,11 +357,16 @@ fn serve(
             "revoke" => rt.revoke(arg),
             _ => panic!("unknown command"),
         };
-        let response = match result {
-            Ok(s) => serde_json::to_value(s).unwrap(),
-            Err(e) => json!({"error":e.kind}),
-        };
-        println!("{OUTPUT_PREFIX}{response}");
-        std::io::stdout().flush().unwrap();
+        match result {
+            Ok(snapshot) => serde_json::to_value(snapshot).unwrap(),
+            Err(error) => json!({"error":error.kind}),
+        }
+    }
+}
+
+fn names(result: Result<ChatNameSnapshot, ChatNameError>) -> Value {
+    match result {
+        Ok(snapshot) => serde_json::to_value(snapshot).unwrap(),
+        Err(error) => json!({"error":format!("{:?}", error.kind)}),
     }
 }

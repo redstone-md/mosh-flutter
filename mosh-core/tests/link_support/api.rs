@@ -1,11 +1,8 @@
-use std::io::{BufRead, Write};
 use std::path::PathBuf;
 
 use mosh_core::api::{conversation, device_link, private_dm};
 use mosh_core::private_dm_runtime::{AcceptInviteRequest, StartSessionRequest};
 use serde_json::{json, Value};
-
-use super::OUTPUT_PREFIX;
 
 #[path = "attachments.rs"]
 mod attachments;
@@ -20,71 +17,44 @@ mod plus;
 pub(super) fn run(dir: PathBuf) {
     private_dm::set_app_data_dir(dir.to_string_lossy().into_owned()).unwrap();
     private_dm::set_history_dek(std::fs::read(dir.join("storage-key.bin")).unwrap()).unwrap();
-    for line in std::io::stdin().lock().lines() {
-        let command: Value = serde_json::from_str(&line.unwrap()).unwrap();
-        let argument = command["argument"].as_str().unwrap_or_default().to_owned();
-        let action = command["action"].as_str().unwrap();
-        if action.starts_with("background_") {
-            println!("{OUTPUT_PREFIX}{}", background::command(action, &command));
-            std::io::stdout().flush().unwrap();
-            continue;
-        }
-        if action.starts_with("plus_") {
-            println!(
-                "{OUTPUT_PREFIX}{}",
-                plus::command(action, &argument, &command)
-            );
-            std::io::stdout().flush().unwrap();
-            continue;
-        }
-        if action.starts_with("call_") {
-            println!(
-                "{OUTPUT_PREFIX}{}",
-                calls::command(action, &argument, &command)
-            );
-            std::io::stdout().flush().unwrap();
-            continue;
-        }
-        if action.starts_with("attachment_") || action.starts_with("chat_") {
-            println!(
-                "{OUTPUT_PREFIX}{}",
-                attachments::command(action, &argument, &command)
-            );
-            std::io::stdout().flush().unwrap();
-            continue;
-        }
-        if action.starts_with("dm_") {
-            println!("{OUTPUT_PREFIX}{}", dm_command(action, argument, &command));
-            std::io::stdout().flush().unwrap();
-            continue;
-        }
-        if matches!(action, "names" | "name_set" | "name_reset") {
-            println!(
-                "{OUTPUT_PREFIX}{}",
-                names_command(action, &argument, &command)
-            );
-            std::io::stdout().flush().unwrap();
-            continue;
-        }
-        let result = match command["action"].as_str().unwrap() {
-            "shutdown" => break,
-            "snapshot" => device_link::snapshot(),
-            "qr" => device_link::begin_link(),
-            "import" => device_link::join_link(
-                argument,
-                command["name"].as_str().unwrap_or_default().into(),
-            ),
-            "approve" => device_link::approve(argument),
-            "cancel" => device_link::cancel(),
-            "revoke" => device_link::revoke(argument),
-            _ => panic!("unknown bridge command"),
-        };
-        let response = match result {
-            Ok(snapshot) => serde_json::to_value(snapshot).unwrap(),
-            Err(error) => json!({"error":error.kind}),
-        };
-        println!("{OUTPUT_PREFIX}{response}");
-        std::io::stdout().flush().unwrap();
+    super::serve(answer);
+}
+
+fn answer(action: &str, command: &Value) -> Value {
+    let argument = command["argument"].as_str().unwrap_or_default().to_owned();
+    if action.starts_with("background_") {
+        return background::command(action, command);
+    }
+    if action.starts_with("plus_") {
+        return plus::command(action, &argument, command);
+    }
+    if action.starts_with("call_") {
+        return calls::command(action, &argument, command);
+    }
+    if action.starts_with("attachment_") || action.starts_with("chat_") {
+        return attachments::command(action, &argument, command);
+    }
+    if action.starts_with("dm_") {
+        return dm_command(action, argument, command);
+    }
+    if matches!(action, "names" | "name_set" | "name_reset") {
+        return names_command(action, &argument, command);
+    }
+    let result = match action {
+        "snapshot" => device_link::snapshot(),
+        "qr" => device_link::begin_link(),
+        "import" => device_link::join_link(
+            argument,
+            command["name"].as_str().unwrap_or_default().into(),
+        ),
+        "approve" => device_link::approve(argument),
+        "cancel" => device_link::cancel(),
+        "revoke" => device_link::revoke(argument),
+        _ => panic!("unknown bridge command"),
+    };
+    match result {
+        Ok(snapshot) => serde_json::to_value(snapshot).unwrap(),
+        Err(error) => json!({"error":error.kind}),
     }
 }
 

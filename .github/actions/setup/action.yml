@@ -13,10 +13,10 @@ inputs:
     description: Install the pinned Rust toolchain and restore the cargo cache.
     default: 'true'
   moss:
-    description: Which moss shared library to provide -- desktop, android or none.
-    default: desktop
+    description: Provide the desktop moss shared library. Gradle builds Android's.
+    default: 'true'
   go:
-    description: Install Go even without a moss library, for jobs that inspect the module graph.
+    description: Install Go even without a moss library, for jobs that inspect the module graph or build Android's library.
     default: 'false'
   rust-cache-key:
     description: >-
@@ -24,6 +24,12 @@ inputs:
       share one cache instead of each saving their own copy. `none` skips the
       cache, for jobs that finish within the critical path without it.
     default: desktop
+  rust-cache-save:
+    description: >-
+      Save the Cargo cache from main. For the one job of a namespace that
+      builds everything the others restore: the first job to finish saves the
+      key, and a job that builds less leaves the rest compiling every run.
+    default: 'false'
 
 runs:
   using: composite
@@ -46,11 +52,25 @@ runs:
       shell: bash
       run: node scripts/openmls-prepare.mjs
 
+    # The moss library is a cgo build of the submodule: minutes per job, and
+    # byte-identical for the same sources and Go version. Cache it on the
+    # sources so only a submodule bump rebuilds it: the Go files, the module
+    # files and the embedded country database, the inputs Gradle names for
+    # the Android library.
+    - if: inputs.moss == 'true'
+      id: moss-desktop
+      uses: actions/cache/restore@v4
+      with:
+        path: moss-runtime
+        key: moss-desktop-${{ runner.os }}-go1.25.9-${{ hashFiles('moss/**/*.go', 'moss/**/*.mmdb.gz', 'moss/go.mod', 'moss/go.sum', 'scripts/moss-prepare.mjs') }}
+
     # moss-prepare pins GOTOOLCHAIN=go1.25.9; installing that exact version
     # makes the toolchain directive a no-op (no on-the-fly download). No Go
     # cache: setup-go would save it from pull requests too, and the moss
-    # library cache below skips the Go build in every job but the license one.
-    - if: inputs.moss != 'none' || inputs.go == 'true'
+    # library cache above skips the Go build in every desktop job. Only the
+    # moss builds and the license job run Go, so a desktop job with its
+    # library restored installs none: 20 seconds on Windows.
+    - if: inputs.go == 'true' || (inputs.moss == 'true' && steps.moss-desktop.outputs.cache-hit != 'true')
       uses: actions/setup-go@v5
       with:
         go-version: '1.25.9'
@@ -68,7 +88,7 @@ runs:
         workspaces: mosh-core
         shared-key: ${{ inputs.rust-cache-key }}
         cache-on-failure: true
-        save-if: ${{ github.ref == 'refs/heads/main' }}
+        save-if: ${{ github.ref == 'refs/heads/main' && inputs.rust-cache-save == 'true' }}
 
     # The camera helper's JPEG decoder assembles its x86 SIMD with nasm;
     # scripts/native-media-build.mjs refuses to build without it in CI.
@@ -90,6 +110,23 @@ runs:
         flutter-version: 3.44.8
         channel: stable
 
+    # `flutter build windows` runs MSBuild with one project at a time and cl
+    # with one file at a time. With these the Rust core and the call engine
+    # build side by side and the C++ of the plugins and Sentry uses every
+    # core: the release app builds in 573 to 770 s against 884 to 933. Set
+    # after the cargo cache step, whose key takes in every CMAKE* variable.
+    # The option starts with a dash: Git Bash rewrites a value that starts
+    # with a slash into a path under its own root when it starts a Windows
+    # program, and cl then finds no compiler option in it.
+    - if: inputs.flutter == 'true' && runner.os == 'Windows'
+      name: Parallel MSBuild projects and C++ files
+      shell: bash
+      run: |
+        {
+          echo "CMAKE_BUILD_PARALLEL_LEVEL=$NUMBER_OF_PROCESSORS"
+          echo CL=-MP
+        } >> "$GITHUB_ENV"
+
     # Windows pub-cache compression took 17 minutes after installer upload.
     - if: inputs.flutter == 'true' && runner.os != 'Windows'
       id: pub-cache
@@ -108,45 +145,12 @@ runs:
         path: ${{ steps.flutter.outputs.PUB-CACHE-PATH }}
         key: ${{ steps.pub-cache.outputs.cache-primary-key }}
 
-    # The moss library is a cgo build of the submodule: minutes per job, and
-    # byte-identical for the same sources and Go version. Cache it on the
-    # sources so only a submodule bump rebuilds it.
-    - if: inputs.moss == 'desktop'
-      id: moss-desktop
-      uses: actions/cache/restore@v4
-      with:
-        path: moss-runtime
-        key: moss-desktop-${{ runner.os }}-go1.25.9-${{ hashFiles('moss/**/*.go', 'moss/go.sum', 'scripts/moss-prepare.mjs') }}
-
-    - if: inputs.moss == 'desktop' && steps.moss-desktop.outputs.cache-hit != 'true'
+    - if: inputs.moss == 'true' && steps.moss-desktop.outputs.cache-hit != 'true'
       shell: bash
       run: node scripts/moss-prepare.mjs
 
-    - if: inputs.moss == 'desktop' && steps.moss-desktop.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+    - if: inputs.moss == 'true' && steps.moss-desktop.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
       uses: actions/cache/save@v4
       with:
         path: moss-runtime
         key: ${{ steps.moss-desktop.outputs.cache-primary-key }}
-
-    - if: inputs.moss == 'android'
-      id: moss-android
-      uses: actions/cache/restore@v4
-      with:
-        path: android/app/src/main/jniLibs/arm64-v8a/libmoss.so
-        key: moss-android-arm64-go1.25.9-${{ hashFiles('moss/**/*.go', 'moss/go.sum', 'scripts/moss-prepare-android.mjs') }}
-
-    # The runner image exposes its NDK as ANDROID_NDK_LATEST_HOME; the script
-    # reads ANDROID_NDK_HOME. Exported in the shell on purpose: the `env`
-    # context does not see runner-image variables.
-    - if: inputs.moss == 'android' && steps.moss-android.outputs.cache-hit != 'true'
-      shell: bash
-      run: |
-        export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
-        echo "Using NDK: $ANDROID_NDK_HOME"
-        node scripts/moss-prepare-android.mjs
-
-    - if: inputs.moss == 'android' && steps.moss-android.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-      uses: actions/cache/save@v4
-      with:
-        path: android/app/src/main/jniLibs/arm64-v8a/libmoss.so
-        key: ${{ steps.moss-android.outputs.cache-primary-key }}

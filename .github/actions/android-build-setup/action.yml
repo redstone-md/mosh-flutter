@@ -42,10 +42,15 @@ runs:
       shell: bash
       run: echo "MOSH_ANDROID_NDK_VERSION=$(basename "$ANDROID_NDK_LATEST_HOME")" >> "$GITHUB_ENV"
 
+    # Gradle's prepareMossAndroid builds libmoss.so on every run: a fresh
+    # checkout has no Gradle history to call it up to date. It needs Go.
     - uses: ./.github/actions/setup
       with:
-        moss: android
+        moss: 'false'
+        go: 'true'
         rust-cache-key: android
+        # Downloaded crates only, the same in every Android job.
+        rust-cache-save: 'true'
 
     - name: Android native hook preparation tests
       shell: bash

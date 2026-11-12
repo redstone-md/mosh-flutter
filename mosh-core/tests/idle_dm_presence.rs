@@ -39,6 +39,7 @@ fn offline_identity_advertisements_follow_bounded_presence_retries() {
     let until = Instant::now() + Duration::from_secs(30);
     while Instant::now() < until {
         alice.ask(json!({"action":"dm_poll","argument":session}));
+        // test-policy: wait MOSH-103 -- the retry bound is counted over 30 real seconds of an offline contact
         std::thread::sleep(Duration::from_millis(200));
     }
     let publications = alice.publication_count() - before;

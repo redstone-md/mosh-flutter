@@ -89,7 +89,7 @@ jobs:
         with:
           rust-cache-key: macos
 
-      # Reuse both release slices and the debug engine used by menu tests.
+      # Reuse the call engine's release slices.
       # `simd` in the key: cargo keeps a mozjpeg built without nasm, so the
       # caches saved before nasm was installed must not seed this one.
       - id: native-app
@@ -121,9 +121,9 @@ jobs:
         run: rustup target add x86_64-apple-darwin
 
       # The x86_64 slice of the camera helper assembles its JPEG decoder's
-      # SIMD with nasm. The app's script phase builds that slice in the
-      # single-arch build too.
-      - run: brew install nasm
+      # SIMD with nasm.
+      - if: inputs.universal
+        run: brew install nasm
 
       # CI builds only prove the app still packages; release.yml builds the
       # shipped artifact with the profile as committed. Fat LTO stays here
@@ -148,8 +148,12 @@ jobs:
 
       - name: Build macOS app (release)
         env:
-          MOSH_ONLY_ACTIVE_ARCH: ${{ inputs.universal && 'NO' || 'YES' }}
-          MOSH_MACOS_UNIVERSAL: ${{ inputs.universal && 'true' || 'false' }}
+          # Flutter hands FLUTTER_XCODE_* to xcodebuild as build settings, so
+          # this reaches every target: the app, the pods and their scripts
+          # that build mosh-core and the call engine one slice per ARCHS.
+          # A release build has no active architecture (its destination is
+          # generic), so ONLY_ACTIVE_ARCH changes nothing there.
+          FLUTTER_XCODE_EXCLUDED_ARCHS: ${{ !inputs.universal && 'x86_64' || '' }}
           MOSH_DISTRIBUTION_CHANNEL: ${{ inputs.distribution-channel }}
           MOSH_PLUS_NETWORK: ${{ inputs.plus-network }}
           MOSH_PLUS_SERVER_URL: ${{ inputs.plus-server-url }}
@@ -177,23 +181,6 @@ jobs:
         with:
           path: build/macos/**/mosh_core.build
           key: ${{ steps.cargokit.outputs.cache-primary-key }}
-
-      - name: Test native menu localization
-        if: ${{ !inputs.universal }}
-        run: |
-          xcodebuild test -workspace macos/Runner.xcworkspace -scheme Runner \
-            -configuration Debug -destination 'platform=macOS' \
-            -parallel-testing-enabled NO -resultBundlePath build/native-menu-tests.xcresult \
-            -only-testing:RunnerTests ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO
-
-      - name: Upload native menu test results
-        if: ${{ always() && !inputs.universal }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: native-menu-test-results
-          path: build/native-menu-tests.xcresult
-          if-no-files-found: ignore
-          retention-days: 7
 
       # ADR 0035: upload the separate debug files (Rust PDB/dSYM, runner)
       # so Sentry symbolicates native crashes and Rust panics. Release tags

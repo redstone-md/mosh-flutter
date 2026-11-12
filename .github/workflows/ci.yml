@@ -18,13 +18,16 @@ permissions:
 # integration test needs mosh_core.dll (Windows-built via cargokit), and the
 # cargo jobs dlopen moss.dll. flutter-test needs no Rust runtime and no
 # Windows-only behaviour, so it runs on the faster ubuntu-latest, as does
-# android-build, whose image ships the Android SDK + NDK. The macOS lanes (rust-core-macos, macos-dmg) run
-# on macos-latest (arm64): the darwin compile and the universal DMG can only
-# be proven there.
+# android-build, whose image ships the Android SDK + NDK. The macOS lanes
+# (rust-core-macos, macos-dmg) run on macos-latest (arm64): the darwin
+# compile and the universal DMG can only be proven there. A run has three
+# macOS jobs because three run at a time: a fourth waits for a runner.
 #
 # Toolchains, caches and the moss library come from .github/actions/setup so
 # every job pins the same versions. Caches are saved only from main and fit
 # its 10 GB with room, so pull requests restore main's and save nothing.
+# One job saves each Cargo cache: the one that builds everything the jobs
+# sharing its key restore.
 # Only jobs on the critical path (the desktop, Android and macOS app builds
 # and the Rust core) keep build caches; the call-media, license and widget
 # test jobs build cold and still finish well before it.
@@ -63,7 +66,7 @@ jobs:
           submodules: recursive
       - uses: ./.github/actions/setup
         with:
-          moss: none
+          moss: 'false'
           go: 'true'
           rust-cache-key: none
       - uses: taiki-e/install-action@v2
@@ -139,7 +142,8 @@ jobs:
           export MOSH_MEDIA_ENGINE="$PWD/.dart_tool/native-media/debug/$engine"
           export MOSH_CAMERA_CAPTURE="$PWD/mosh-core/target/debug/$helper"
           cargo test --manifest-path mosh-core/Cargo.toml --lib --features native-media-tests native_call:: -- --include-ignored --nocapture
-          node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture
+          # One call scenario at a time: each runs real encoders and a camera helper.
+          node scripts/moss-test.mjs --test device_link_flow native_ -- --ignored --nocapture --test-threads=1
       - name: Voice over real Moss
         if: runner.os == 'Linux'
         run: node scripts/webrtc-voice-check.mjs .dart_tool/native-media/debug/libmosh_native_media.so
@@ -157,6 +161,9 @@ jobs:
         with:
           flutter: 'false'
           rust-cache-key: desktop
+          # Clippy and every test target: the whole of what the other
+          # `desktop` jobs build.
+          rust-cache-save: 'true'
 
       - name: Rustfmt check
         run: cargo fmt --manifest-path mosh-core/Cargo.toml --check
@@ -171,8 +178,14 @@ jobs:
       # Real Moss + automatic discovery use a local tracker, independent of
       # public tracker availability or unrelated public peers. Every test
       # target but the multi-device DM flow, which runs in its own job.
+      # The installations keep their stores in the temp directory, and each
+      # message costs several synced writes: on the runner's system drive one
+      # takes up to seconds, on its work drive under a millisecond (MOSH-103).
       - name: Cargo test
         shell: bash
+        env:
+          TMP: ${{ runner.temp }}
+          TEMP: ${{ runner.temp }}
         run: |
           targets=()
           for file in mosh-core/tests/*.rs; do
@@ -181,9 +194,10 @@ jobs:
           done
           node scripts/moss-test.mjs --lib "${targets[@]}"
 
-  # The multi-device DM flow is ~11 minutes of real-Moss installations
-  # waiting on protocol timeouts, not CPU, so it gets its own runner beside
-  # rust-core instead of after it. It shares rust-core's test-profile cache.
+  # The multi-device DM flow is real-Moss installations waiting on protocol
+  # timers, not CPU: about 100 seconds with its scenarios side by side. It
+  # keeps its own runner beside rust-core instead of after it, and shares
+  # rust-core's test-profile cache.
   rust-core-dm-flow:
     name: Rust core multi-device DM flow (real Moss)
     runs-on: windows-latest
@@ -198,7 +212,11 @@ jobs:
           flutter: 'false'
           rust-cache-key: desktop
 
+      # The temp directory on the work drive: see rust-core's test step.
       - name: Cargo test (multi-device DM flow)
+        env:
+          TMP: ${{ runner.temp }}
+          TEMP: ${{ runner.temp }}
         run: node scripts/moss-test.mjs --test multi_device_dm_flow
 
   codegen-drift:
@@ -216,6 +234,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           rust-cache-key: desktop-codegen
+          rust-cache-save: 'true'
 
       # A cargo install from source is minutes of compile for a binary that
       # only changes when the pinned version does; cache the built binaries.
@@ -256,7 +275,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           rust: 'false'
-          moss: none
+          moss: 'false'
 
       # flutter test runs native-asset hooks: super_native_extensions builds
       # its Rust (gtk-rs on Linux) through the runner's rustup.
@@ -291,6 +310,8 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           rust-cache-key: windows
+          # Downloaded crates only, the same for the installer builds.
+          rust-cache-save: 'true'
 
       - uses: actions/cache/restore@v4
         id: cargokit-cache
@@ -450,6 +471,7 @@ jobs:
         with:
           flutter: 'false'
           rust-cache-key: macos
+          rust-cache-save: 'true'
 
       # Seconds, and the only check the iOS podspec gets before iOS CI.
       - name: Podspec syntax (both pods)

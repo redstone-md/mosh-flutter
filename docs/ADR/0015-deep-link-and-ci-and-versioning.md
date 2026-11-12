@@ -373,3 +373,133 @@ the resolved package versions. On runs where the Azure Ubuntu mirror served
 29 MB of that was `libclang-18-dev`, which is gone: bindgen loads the
 libclang 18 that the runner image already ships. The rest is about 38 MB, so
 an uncached run on a slow mirror still takes about 15 minutes.
+
+## Update 2026-11-11: what the real-process suites wait for (MOSH-103)
+
+`rust-core-dm-flow` failed twice in 25 runs on main with a peer silent for 23
+to 45 seconds on one `dm_poll`. In both logs every peer slowed down for about
+three minutes, starting in a scenario that sends 40 messages. The 2026-10-14
+and 2026-10-15 updates above met slow polls and replies too and raised
+budgets. Two runs of twenty jobs on Windows runners, with probes in the test
+process and in the peers, reproduced the slowdown at a smaller scale and
+showed what it is:
+
+- The runner's processor was idle throughout. A synced 4 KiB write to the
+  system temp directory (`C:`) took 15 to 44 ms on average and up to 2.9
+  seconds, for minutes at a time. The same write to the runner's work drive
+  (`D:`, `runner.temp`) took under a millisecond in the same seconds.
+- An installation commits to its store about 14 times for every message it
+  receives, each commit a synced write, inside the runtime's lock. In the
+  scenarios that send 40 messages a `dm_send` took up to 15.6 seconds and a
+  service tick up to 7.8, and a poll waits for the same lock.
+
+The Cargo test steps of `rust-core` and `rust-core-dm-flow` now set `TMP` and
+`TEMP` to `runner.temp`. The number of commits per message is a product
+matter of its own (MOSH-104).
+
+Scenarios also ran one at a time, behind a lock from before each had its own
+discovery network. Under the local tracker they now run side by side. The
+harness prints each scenario's time, a peer's steps that take seconds and a
+stalled disk or scheduler ([test policy](../testing.md)).
+
+| `multi_device_dm_flow`, 23 tests | Test time |
+| --- | --- |
+| Before, Windows runner | 424 s (560 and 668 s in the failed runs) |
+| One at a time, slow-reply tests beside, 10 runs | 329 to 401 s |
+| Side by side, stores on `C:`, 20 runs | 115 to 142 s |
+| Side by side, stores on `D:`, 10 runs | 95 to 108 s |
+
+All 40 jobs passed. With the stores on `D:` the longest scenario took 37 to
+40 seconds, what it takes alone, and no step of a peer took 2 seconds.
+
+A third run of twenty jobs with the job's final steps passed twenty times in
+a row, in 96 to 108 seconds. The other suites run side by side too: the test
+step of `rust-core` passed ten times with 216 to 309 seconds of tests against
+416 before, and that of `rust-core-macos` three times with 438 to 474 against
+754.
+
+`rust-core-macos` still runs the multi-device DM flow: it is the suite's only
+run on a Unix network stack and file system, and the job is not on the
+critical path. `device_link_flow` runs in `rust-core` and `rust-core-macos`
+for the same reason. The `native-call-media` jobs run only its ignored
+`native_` tests, one at a time: their encoders were not measured side by
+side.
+
+## Update 2026-11-12: the app builds on the critical path (MOSH-105)
+
+With the Rust suites side by side, a pull request took 22 minutes and four
+app builds set that: the macOS DMG 22 minutes, the Windows MSIX and installer
+20 each, the integration test 18. Their caches hit, and the repository's
+cache stood at 9.4 of 10 GB, so the builds themselves had to get shorter.
+Builds with `flutter build -v` showed where the time went.
+
+**Windows.** `flutter build windows` runs MSBuild with one project at a time
+and cl with one file at a time. On a four-core runner the 921 seconds of a
+release build were a queue:
+
+| Stage | Time |
+| --- | --- |
+| CMake configure, fetching sentry-native | 58 s |
+| mosh-core, cache warm | 202 s |
+| Call engine and camera helper, built cold | 277 s |
+| Dart AOT and native asset hooks | 119 s |
+| C++: plugins, sentry-native with crashpad, the runner | 258 s |
+
+The setup action now sets `CMAKE_BUILD_PARALLEL_LEVEL` and `CL=-MP` in the
+Windows jobs that install Flutter. mosh-core and the call engine build side
+by side and the C++ uses every core: over five builds the release app took
+573 to 770 seconds against 884 to 933, and over three the debug app of the
+integration test 565 to 572 against 724 to 766. Project-level parallelism
+alone gave 812. MSBuild still starts the Dart compile and the C++ only after
+both Rust builds. The compiler option is written with a dash: Git Bash
+rewrites `/MP` into a path when it starts a Windows program.
+
+**macOS.** The pull request DMG was meant to build arm64 alone through
+`ONLY_ACTIVE_ARCH`. A release build's destination is generic and has no
+active architecture, so the setting never took effect: the packaging step
+listed `x86_64 arm64` for every binary. `build-macos.yml` now excludes
+x86_64 through Flutter's `FLUTTER_XCODE_*` build settings, which reach the
+pods and their scripts, and the packaging step lists arm64. Between two
+verbose builds every phase halved: mosh-core 421 to 177 seconds, the Dart
+compile 142 to 77, the call engine 198 to 79, the whole build 992 to 510.
+Runner speed moves the totals as much: three arm64 builds took 510 to 703
+seconds, and three universal ones 547 to 992.
+
+After that build the job ran the runner's six tests, which are hosted in the
+Debug app and so build it whole: 213 to 550 seconds more in the longest job
+of a pull request. As a fourth macOS job of the run they took 15 minutes and
+made another wait 8 to 14 minutes for a runner: three macOS jobs ran at a
+time. They are now
+[macos-runner-tests.yml](../../.github/workflows/macos-runner-tests.yml),
+which runs on a change under `macos/` and by hand. The DMG job compiles the
+same Swift sources on every pull request.
+
+**Cargo caches.** The first job of a cache namespace to finish saves its
+key, as with `codegen-drift` in the 2026-10-07 update. For `desktop` that was
+`native-device-linking`, which runs no clippy, so `rust-core` checked all 332
+dependencies again on every run: 132 seconds. Saving is now an input of the
+setup action, off unless a job asks: `rust-core`, `rust-core-macos` and
+`codegen-drift` save what they build, and one job each saves the downloaded
+crates of the Windows and Android app builds. The call UI workflow restores
+the Rust core caches; it used to save a 622 MB macOS entry nothing else read.
+
+**Go and Moss.** Only the Moss builds and the license check run Go. A
+desktop job that restores its library installs none, 20 seconds on a Windows
+runner. The Android jobs built `libmoss.so` in the setup and cached it, then
+Gradle built it again on every run, since a fresh checkout has no Gradle
+history to call the task up to date. The setup's build and its cache are
+gone.
+
+Two runs of every job as a pull request runs them passed. The second, with
+three macOS jobs, took 18.6 minutes against 22; its longest job was the
+Windows installer at 18.5 minutes, and at 16.5 in the first. Runner speed
+moves these by minutes from run to run.
+
+Left alone: a call engine cache for the Windows app builds, about two minutes
+for a cache the budget has no room for; fat LTO in the proof builds, as
+decided on 2026-10-07; the Flutter SDK and pub downloads on Windows, about
+2.5 minutes a job, whose caches were slower than the downloads; the voice
+check of the Linux call media job, which in the run read spent 5.9 of its
+6.5 minutes building its bench in release; and the universal DMG of main,
+whose build took 38 minutes in the run after `Cargo.lock` changed and its
+cargokit cache missed, and 9 with the cache warm.

@@ -20,7 +20,7 @@ fn dm_wait_rejects_a_reply_after_its_deadline() {
     .expect_err("a reply after the 30-second DM deadline must fail");
     let message = failure.downcast_ref::<String>().unwrap();
     assert!(
-        message.contains("peer action \"dm_poll\" failed: timed out waiting on channel"),
+        message.contains("action \"dm_poll\" failed: timed out waiting on channel"),
         "{message}"
     );
 }
@@ -33,6 +33,7 @@ fn slow_reply_peer_process() {
             return None;
         }
         // Cross the former 30-second command timeout with a real process.
+        // test-policy: wait MOSH-103 -- the reply has to come after the 30-second budgets it is checked against
         std::thread::sleep(Duration::from_secs(35));
         Some(match action {
             "dm_poll" => json!({"messages":[{"body":"Late text"}]}),
