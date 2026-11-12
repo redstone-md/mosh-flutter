@@ -91,10 +91,11 @@ A scenario that waits through a timer twice is cheaper as two scenarios.
 Read the log before raising a budget:
 
 - `scenario <test> took <seconds>` is each scenario's own time.
-- `peer <pid>: <step> has been running for` and `took` name a command of an
-  installation that lasted seconds, lock waits included, and for a peer on
-  the runtimes directly also its service ticks. A timeout names its peer's
-  pid.
+- `peer <pid>: <step> has been running for` and `took` name a command of a
+  peer that lasted seconds, lock waits included, and for a peer on the
+  runtimes directly also its service ticks; `panicked after` is a step that
+  ended in a panic. A timeout names its peer's pid. The two `peer_commands`
+  tests print their peer's 35-second reply this way on every run.
 - `host:` lines say that the machine stalled: a synced write or a sleep took
   far longer than it should.
 

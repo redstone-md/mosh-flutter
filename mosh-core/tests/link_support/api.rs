@@ -17,7 +17,7 @@ mod plus;
 pub(super) fn run(dir: PathBuf) {
     private_dm::set_app_data_dir(dir.to_string_lossy().into_owned()).unwrap();
     private_dm::set_history_dek(std::fs::read(dir.join("storage-key.bin")).unwrap()).unwrap();
-    super::serve(|_, _| None, answer);
+    super::serve(answer);
 }
 
 fn answer(action: &str, command: &Value) -> Value {

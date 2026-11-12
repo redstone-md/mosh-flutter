@@ -271,16 +271,15 @@ pub fn peer_process_with(extra: fn(&Persistence, &str, &Value) -> Option<Value>)
         dm,
         store,
     };
-    serve(
-        |action, command| extra(&own_store, action, command),
-        |action, command| installation.answer(action, command),
-    );
+    serve(|action, command| {
+        extra(&own_store, action, command).unwrap_or_else(|| installation.answer(action, command))
+    });
 }
 
 /// Answers the parent's commands until it asks the worker to shut down.
-/// `own` takes the commands a worker adds for its scenario; the rest are
-/// steps of the installation and are timed as such.
-fn serve(own: impl Fn(&str, &Value) -> Option<Value>, answer: impl Fn(&str, &Value) -> Value) {
+/// Every answer is a step of the peer and is timed as one, the commands a
+/// worker adds for its scenario included.
+fn serve(answer: impl Fn(&str, &Value) -> Value) {
     slow_steps::watch();
     for line in std::io::stdin().lock().lines() {
         let command: Value = serde_json::from_str(&line.unwrap()).unwrap();
@@ -288,9 +287,7 @@ fn serve(own: impl Fn(&str, &Value) -> Option<Value>, answer: impl Fn(&str, &Val
         if action == "shutdown" {
             break;
         }
-        let response = own(action, &command).unwrap_or_else(|| {
-            slow_steps::step(&format!("command {action}"), || answer(action, &command))
-        });
+        let response = slow_steps::step(&format!("command {action}"), || answer(action, &command));
         println!("{OUTPUT_PREFIX}{response}");
         std::io::stdout().flush().unwrap();
     }

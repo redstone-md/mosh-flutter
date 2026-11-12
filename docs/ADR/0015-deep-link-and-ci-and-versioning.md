@@ -398,10 +398,9 @@ The Cargo test steps of `rust-core` and `rust-core-dm-flow` now set `TMP` and
 matter of its own (MOSH-104).
 
 Scenarios also ran one at a time, behind a lock from before each had its own
-discovery network. Under the local tracker they now run side by side. The two
-harness tests that sleep 35 seconds hold no scenario. The harness prints each
-scenario's time, a peer's steps that take seconds and a stalled disk or
-scheduler ([test policy](../testing.md)).
+discovery network. Under the local tracker they now run side by side. The
+harness prints each scenario's time, a peer's steps that take seconds and a
+stalled disk or scheduler ([test policy](../testing.md)).
 
 | `multi_device_dm_flow`, 23 tests | Test time |
 | --- | --- |
