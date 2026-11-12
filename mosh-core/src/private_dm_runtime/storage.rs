@@ -2,6 +2,17 @@
 
 use super::*;
 
+impl PrivateDmSession {
+    /// The session record and MLS snapshot, as the store keeps them together.
+    pub(super) fn transition(
+        &self,
+    ) -> Result<(Vec<u8>, Vec<u8>), crate::persistence::PersistenceError> {
+        let record = serde_json::to_vec(&self.to_persisted_record())
+            .map_err(|error| crate::persistence::PersistenceError::Json(error.to_string()))?;
+        Ok((record, self.crypto.snapshot()))
+    }
+}
+
 impl ConversationSession for PrivateDmSession {
     fn attach_persistence(&mut self, store: Option<Arc<Persistence>>) {
         self.store = store.clone();
@@ -45,11 +56,10 @@ impl ConversationSession for PrivateDmSession {
         if !self.record_is_final() {
             return persistence.put_mls_snapshot(&self.session_id, &self.crypto.snapshot());
         }
-        let record = serde_json::to_vec(&self.to_persisted_record())
-            .map_err(|error| crate::persistence::PersistenceError::Json(error.to_string()))?;
+        let (record, snapshot) = self.transition()?;
         // Receipt replay needs the accepted record and its receiver ratchet.
         // The shared writer may safely repeat this same record afterward.
-        persistence.put_dm_transition(&self.session_id, &record, &self.crypto.snapshot())
+        persistence.put_dm_transition(&self.session_id, &record, &snapshot)
     }
 
     /// Until the joiner processes the Welcome its record's group id is an

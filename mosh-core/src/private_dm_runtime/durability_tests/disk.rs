@@ -109,3 +109,22 @@ fn the_ratchet_that_sealed_a_receipt_is_on_disk_once_the_receipt_has_left() {
         Some(sealed_with)
     );
 }
+
+#[test]
+fn a_frame_that_seals_nothing_after_a_save_writes_nothing() {
+    let mut pair = Pair::new("quiet-frame");
+    // The tick opened frames, so the first announcement saves their ratchet.
+    pair.alice.service();
+    let announce = |pair: &Pair| {
+        pair.alice.sessions[pair.session_id.as_str()]
+            .publish_peer_announce()
+            .unwrap();
+    };
+    let before = pair.store.syncs();
+    announce(&pair);
+    assert_eq!(pair.store.syncs(), before + 1);
+
+    announce(&pair);
+
+    assert_eq!(pair.store.syncs(), before + 1);
+}

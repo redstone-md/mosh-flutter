@@ -61,6 +61,26 @@ fn moss_identity_round_trips() {
 }
 
 #[test]
+fn keeping_a_dm_transition_writes_only_a_pair_the_store_does_not_hold() {
+    let temp = tempfile_db();
+    let p = Persistence::open_with_dek(&temp.0, [5u8; 32]).unwrap();
+    let syncs = p.syncs();
+
+    p.keep_dm_transition("s1", b"record", b"ratchet").unwrap();
+    assert_eq!(p.syncs(), syncs + 1);
+    p.keep_dm_transition("s1", b"record", b"ratchet").unwrap();
+    assert_eq!(p.syncs(), syncs + 1);
+    p.keep_dm_transition("s1", b"record", b"next ratchet")
+        .unwrap();
+
+    assert_eq!(p.syncs(), syncs + 2);
+    assert_eq!(
+        p.get_mls_snapshot("s1").unwrap().as_deref(),
+        Some(&b"next ratchet"[..])
+    );
+}
+
+#[test]
 fn delete_session_removes_record_snapshot_and_messages() {
     let temp = tempfile_db();
     let p = Persistence::open_with_dek(&temp.0, [5u8; 32]).unwrap();
