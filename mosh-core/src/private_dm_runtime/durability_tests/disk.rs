@@ -1,4 +1,4 @@
-//! What a receiver tells its sender before a text's row is saved.
+//! When a text's writes reach the disk, and what leaves before they do.
 use super::*;
 
 fn delivery(pair: &mut Pair) -> Option<MessageDeliveryStatus> {
@@ -19,4 +19,28 @@ fn a_text_the_receiver_could_not_save_is_not_acknowledged_until_it_is() {
     drop(fault);
     pair.bob.service();
     assert_eq!(delivery(&mut pair), Some(MessageDeliveryStatus::Delivered));
+}
+
+#[test]
+fn a_text_syncs_its_sender_s_disk_three_times_and_its_receiver_s_once() {
+    let mut pair = Pair::new("syncs");
+    // Whatever the handshake left unsaved is down before the count starts.
+    pair.alice.service();
+    pair.bob.service();
+    let (alice, bob) = (pair.store.syncs(), pair.bob_store.syncs());
+
+    pair.alice
+        .send_message(&pair.session_id, "count my syncs".into())
+        .unwrap();
+    // Before the text leaves, and once it has.
+    assert_eq!(pair.store.syncs() - alice, 2);
+
+    pair.bob.service();
+    // The text, the ratchet that opened it and the one that sealed its
+    // receipt go down together, before the receipt leaves.
+    assert_eq!(pair.bob_store.syncs() - bob, 1);
+
+    pair.alice.service();
+    assert_eq!(delivery(&mut pair), Some(MessageDeliveryStatus::Delivered));
+    assert_eq!(pair.store.syncs() - alice, 3);
 }

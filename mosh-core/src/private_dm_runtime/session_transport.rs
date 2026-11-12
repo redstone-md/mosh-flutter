@@ -134,8 +134,10 @@ impl PrivateDmSession {
     }
 
     /// Saves what a frame must not leave ahead of: the ratchet that sealed
-    /// it, so a restart cannot seal another frame with the same key. Frames
-    /// sealed one after another leave after one save.
+    /// it, so a restart cannot seal another frame with the same key, and
+    /// every write of the step so far, so what the frame tells a peer is on
+    /// disk before the peer hears it. Frames sealed one after another leave
+    /// after one save.
     pub(super) fn saved(&self) -> Result<Saved<'_>, PrivateDmRuntimeError> {
         if self.devices_live() {
             self.device_frames_may_leave()?;

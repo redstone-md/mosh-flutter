@@ -45,6 +45,17 @@ impl PrivateDmSession {
         message_id: &str,
         resend: Option<u32>,
     ) -> Result<(), PrivateDmRuntimeError> {
+        let text = self.seal_text(message_id, resend)?;
+        self.route_send(ChannelKind::Data, &text.payload)?;
+        self.text_left(message_id, text);
+        Ok(())
+    }
+
+    fn seal_text(
+        &mut self,
+        message_id: &str,
+        resend: Option<u32>,
+    ) -> Result<SealedText, PrivateDmRuntimeError> {
         let body = self.queued_body(message_id)?;
         let sent_at_ms = self
             .outbound_attempts
@@ -72,12 +83,18 @@ impl PrivateDmSession {
         self.track_device_receipts(message_id);
         let payload = serde_json::to_vec(&envelope)
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-        self.route_send(ChannelKind::Data, &payload)?;
+        Ok(SealedText {
+            payload,
+            ciphertext_bytes: ciphertext.len(),
+        })
+    }
+
+    /// The attempt keeps the frame that left for it.
+    fn text_left(&mut self, message_id: &str, text: SealedText) {
         if let Some(attempt) = self.outbound_attempts.get_mut(message_id) {
-            attempt.publish_payload_b64 = encode(&payload);
-            attempt.ciphertext_bytes = ciphertext.len();
+            attempt.publish_payload_b64 = encode(&text.payload);
+            attempt.ciphertext_bytes = text.ciphertext_bytes;
         }
-        Ok(())
     }
 
     /// Personal erasure keeps the delivery copy of an already published DM.
@@ -124,6 +141,7 @@ impl PrivateDmSession {
             .map(|(id, attempt)| (id.clone(), attempt.auto_resends))
             .collect();
         let mut changed = self.finish_device_resends();
+        let mut sealed = Vec::new();
         for (message_id, auto_resends) in due {
             // A refusal still observes the retry cadence: fresh encryption and
             // persistence must not repeat on every service tick.
@@ -131,14 +149,14 @@ impl PrivateDmSession {
                 attempt.last_send_ms = now_ms;
             }
             changed.push(message_id.clone());
-            // Only transport acceptance burns a retry slot. Re-encrypt while
-            // keeping the original id/time/proof and delivery status intact.
-            if self
-                .publish_text(&message_id, Some(auto_resends + 1))
-                .is_err()
-            {
-                continue;
+            // Re-encrypt while keeping the original id/time/proof and
+            // delivery status intact.
+            if let Ok(text) = self.seal_text(&message_id, Some(auto_resends + 1)) {
+                sealed.push((message_id, text));
             }
+        }
+        // Only transport acceptance burns a retry slot.
+        for message_id in self.publish_texts(sealed) {
             if let Some(attempt) = self.outbound_attempts.get_mut(&message_id) {
                 attempt.auto_resends += 1;
                 // Session transition the field log carries: how many times a
@@ -156,4 +174,33 @@ impl PrivateDmSession {
         }
         changed
     }
+
+    /// Sends the texts sealed for one tick after one save, and names those
+    /// that left.
+    fn publish_texts(&mut self, sealed: Vec<(String, SealedText)>) -> Vec<String> {
+        if sealed.is_empty() {
+            return Vec::new();
+        }
+        let left: Vec<bool> = match self.saved() {
+            Ok(saved) => sealed
+                .iter()
+                .map(|(_, text)| saved.publish(ChannelKind::Data, &text.payload).is_ok())
+                .collect(),
+            Err(_) => return Vec::new(),
+        };
+        let mut published = Vec::new();
+        for ((message_id, text), left) in sealed.into_iter().zip(left) {
+            if left {
+                self.text_left(&message_id, text);
+                published.push(message_id);
+            }
+        }
+        published
+    }
+}
+
+/// A text's frame, sealed and not yet sent.
+struct SealedText {
+    payload: Vec<u8>,
+    ciphertext_bytes: usize,
 }
