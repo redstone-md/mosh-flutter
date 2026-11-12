@@ -3,7 +3,10 @@
 use super::*;
 
 impl ConversationSession for PrivateDmSession {
+    /// Every session the runtime holds can reach its store: a joiner's has
+    /// none until then, and its frames must not leave ahead of the disk.
     fn attach_persistence(&mut self, store: Option<Arc<Persistence>>) {
+        self.device_store = store.clone();
         self.deletions.store = store;
     }
     type Message = ChatMessage;
