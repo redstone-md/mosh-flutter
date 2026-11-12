@@ -18,13 +18,16 @@ permissions:
 # integration test needs mosh_core.dll (Windows-built via cargokit), and the
 # cargo jobs dlopen moss.dll. flutter-test needs no Rust runtime and no
 # Windows-only behaviour, so it runs on the faster ubuntu-latest, as does
-# android-build, whose image ships the Android SDK + NDK. The macOS lanes (rust-core-macos, macos-dmg) run
-# on macos-latest (arm64): the darwin compile and the universal DMG can only
-# be proven there.
+# android-build, whose image ships the Android SDK + NDK. The macOS lanes
+# (rust-core-macos, macos-dmg) run on macos-latest (arm64): the darwin
+# compile and the universal DMG can only be proven there. A run has three
+# macOS jobs because three run at a time: a fourth waits for a runner.
 #
 # Toolchains, caches and the moss library come from .github/actions/setup so
 # every job pins the same versions. Caches are saved only from main and fit
 # its 10 GB with room, so pull requests restore main's and save nothing.
+# One job saves each Cargo cache: the one that builds everything the jobs
+# sharing its key restore.
 # Only jobs on the critical path (the desktop, Android and macOS app builds
 # and the Rust core) keep build caches; the call-media, license and widget
 # test jobs build cold and still finish well before it.
@@ -483,43 +486,6 @@ jobs:
       # Match the Windows test network while loading the real universal dylib.
       - name: Cargo test
         run: node scripts/moss-test.mjs
-
-  # The native menu's tests are hosted in the Debug app, so six tests build
-  # it whole: mosh-core, the call engine and the Dart code. They run beside
-  # the DMG job; after its build they held the longest job of a pull request
-  # for another 3.5 to 9 minutes.
-  macos-menu:
-    name: macOS native menu localization
-    runs-on: macos-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - uses: ./.github/actions/setup
-        with:
-          rust-cache-key: macos
-
-      # The Xcode settings and the pods, without a build.
-      - name: Configure the Xcode project
-        run: flutter build macos --debug --config-only
-
-      - name: Test native menu localization
-        run: |
-          xcodebuild test -workspace macos/Runner.xcworkspace -scheme Runner \
-            -configuration Debug -destination 'platform=macOS' \
-            -parallel-testing-enabled NO -resultBundlePath build/native-menu-tests.xcresult \
-            -only-testing:RunnerTests ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO
-
-      - name: Upload native menu test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: native-menu-test-results
-          path: build/native-menu-tests.xcresult
-          if-no-files-found: ignore
-          retention-days: 7
 
   # Proves main still packages into the setup .exe users install. The same
   # reusable workflow builds the artifact a release publishes.

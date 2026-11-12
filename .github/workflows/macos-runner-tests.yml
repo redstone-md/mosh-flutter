@@ -1,0 +1,56 @@
+name: macOS runner tests
+
+# The runner's own tests: the native menu's localization and the launch
+# callback. They are hosted in the Debug app, so six tests build it whole,
+# mosh-core, the call engine and the Dart code: 11 to 15 minutes. That is too
+# slow for every pull request, and three macOS jobs run at a time, so it runs
+# by hand and when the runner's native side changes. The DMG job compiles the
+# same sources on every pull request.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/macos-runner-tests.yml
+      - macos/**
+
+concurrency:
+  group: macos-runner-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  runner-tests:
+    name: macOS runner tests
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Restores what the Rust core job saved for this system.
+      - uses: ./.github/actions/setup
+        with:
+          rust-cache-key: macos
+
+      # The Xcode settings and the pods, without a build.
+      - name: Configure the Xcode project
+        run: flutter build macos --debug --config-only
+
+      - name: Test the runner
+        run: |
+          xcodebuild test -workspace macos/Runner.xcworkspace -scheme Runner \
+            -configuration Debug -destination 'platform=macOS' \
+            -parallel-testing-enabled NO -resultBundlePath build/macos-runner-tests.xcresult \
+            -only-testing:RunnerTests ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-runner-test-results
+          path: build/macos-runner-tests.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
