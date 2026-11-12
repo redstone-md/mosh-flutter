@@ -484,6 +484,43 @@ jobs:
       - name: Cargo test
         run: node scripts/moss-test.mjs
 
+  # The native menu's tests are hosted in the Debug app, so six tests build
+  # it whole: mosh-core, the call engine and the Dart code. They run beside
+  # the DMG job; after its build they held the longest job of a pull request
+  # for another 3.5 to 9 minutes.
+  macos-menu:
+    name: macOS native menu localization
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup
+        with:
+          rust-cache-key: macos
+
+      # The Xcode settings and the pods, without a build.
+      - name: Configure the Xcode project
+        run: flutter build macos --debug --config-only
+
+      - name: Test native menu localization
+        run: |
+          xcodebuild test -workspace macos/Runner.xcworkspace -scheme Runner \
+            -configuration Debug -destination 'platform=macOS' \
+            -parallel-testing-enabled NO -resultBundlePath build/native-menu-tests.xcresult \
+            -only-testing:RunnerTests ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload native menu test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-menu-test-results
+          path: build/native-menu-tests.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
+
   # Proves main still packages into the setup .exe users install. The same
   # reusable workflow builds the artifact a release publishes.
   windows-installer:
