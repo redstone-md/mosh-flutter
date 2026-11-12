@@ -5,6 +5,27 @@ use super::types::DmOffer;
 use super::{invalid, proof::IdentityClaim, types::*, INITIAL_CLIENTS};
 use crate::device_link::identity::DeviceIdentity;
 
+/// An identity claim as a session sends it: its MLS epoch, its signed bytes,
+/// the Hello it goes with and when it goes.
+pub(in crate::private_dm_runtime) struct Advertisement {
+    epoch: u64,
+    claim: Vec<u8>,
+    hello_ms: u64,
+    sent_ms: u64,
+}
+
+impl Advertisement {
+    /// Whether `next` would only repeat this claim to a counterpart that has
+    /// had no reason to miss it: no new epoch, claim or Hello since, and, on a
+    /// connected session, less than a keepalive interval.
+    fn covers(&self, next: &Self, connected: bool) -> bool {
+        self.epoch == next.epoch
+            && self.claim == next.claim
+            && self.hello_ms == next.hello_ms
+            && !(connected && next.sent_ms.saturating_sub(self.sent_ms) >= KEEPALIVE_MS)
+    }
+}
+
 impl PrivateDmSession {
     pub(super) fn current_device_claim(
         &mut self,
@@ -86,7 +107,12 @@ impl PrivateDmSession {
         Ok(())
     }
 
-    pub(super) fn publish_identity_claim(&mut self, identity: &DeviceIdentity) {
+    /// Tells the counterpart which device this is. A new claim or epoch goes
+    /// at once. An unchanged claim goes again with the next Hello, and while
+    /// connected at least every keepalive interval, so a lost one is repaired
+    /// even in a chat too busy for a Hello. Each one is sealed, and its
+    /// ratchet is saved before it leaves.
+    pub(super) fn publish_identity_claim(&mut self, identity: &DeviceIdentity, now_ms: u64) {
         if !self.peer_joined {
             return;
         }
@@ -99,14 +125,18 @@ impl PrivateDmSession {
         let Ok(signed_claim) = serde_json::to_vec(&claim) else {
             return;
         };
-        let unchanged = self.last_identity_advertisement.as_ref().is_some_and(
-            |(previous_epoch, previous_claim, hello)| {
-                *previous_epoch == epoch
-                    && *previous_claim == signed_claim
-                    && *hello == self.last_hello_send_ms
-            },
-        );
-        if self.state != DmSessionState::Connected && unchanged {
+        let next = Advertisement {
+            epoch,
+            claim: signed_claim,
+            hello_ms: self.last_hello_send_ms,
+            sent_ms: now_ms,
+        };
+        let connected = self.state == DmSessionState::Connected;
+        if self
+            .last_identity_advertisement
+            .as_ref()
+            .is_some_and(|last| last.covers(&next, connected))
+        {
             return;
         }
         let Ok(ciphertext_b64) = self.crypto.encrypt_json(&claim) else {
@@ -118,7 +148,7 @@ impl PrivateDmSession {
             ciphertext_b64,
         };
         if let Ok(payload) = serde_json::to_vec(&envelope) {
-            self.last_identity_advertisement = Some((epoch, signed_claim, self.last_hello_send_ms));
+            self.last_identity_advertisement = Some(next);
             let _ = self.route_send(ChannelKind::Control, &payload);
         }
     }

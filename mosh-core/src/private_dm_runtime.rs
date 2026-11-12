@@ -137,9 +137,9 @@ struct PrivateDmSession {
     store: Option<Arc<Persistence>>,
     device_connect_requested: std::collections::HashSet<String>,
     room_discovery_peers: Option<Vec<String>>,
-    // Last identity attempt: MLS epoch, validated signed bytes and Hello stamp.
-    // Used only to suppress unchanged offline advertisements, never as trust.
-    last_identity_advertisement: Option<(u64, Vec<u8>, u64)>,
+    // The last identity claim sent; it holds back an unchanged one, never
+    // stands for trust.
+    last_identity_advertisement: Option<devices::Advertisement>,
     local_claim_signer: devices::LocalClaimSigner,
     role: SessionRole,
     state: DmSessionState,

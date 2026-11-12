@@ -1,7 +1,7 @@
 # ADR 0054: a step's writes reach the disk together, and a frame leaves after them
 
 Date: 2026-11-12
-Status: Accepted and implemented for direct messages (MOSH-104).
+Status: Accepted and implemented for direct messages (MOSH-104, MOSH-106).
 
 ## Context
 
@@ -59,9 +59,15 @@ a peer is on disk before the peer hears it, and a restart cannot seal a second
 frame with a key the first one used. A session with linked devices wrote its
 ratchet before a frame already. One without them wrote it around the publish,
 which a receipt sent after the tail save no longer has, so `saved` writes it
-for both. The one session it writes nothing for is a joiner that still waits
-for its Welcome: it has sealed nothing, and its key package leaves whether or
-not the store took its placeholder.
+for both. A joiner that still waits for its Welcome has no ratchet to write:
+it has sealed nothing, and its key package leaves whether or not the store
+took its placeholder.
+
+**A frame that sealed nothing since the last save writes nothing.** `saved`
+reads the record and ratchet the store holds and writes only when they differ,
+which costs a read and a decryption where a write cost a sync. A peer
+announcement, an attachment request or a handshake repeat writes nothing; a
+frame sealed with the ratchet always finds it changed.
 
 **Frames sealed together leave after one save.** A tick seals every receipt it
 owes, or every re-send that is due, then saves once and sends them. Before,
@@ -117,8 +123,28 @@ revisions and not kept:
 A send still waits for the tick that holds the lock, then syncs three times
 itself: once for the receipt of the text before it, which its own drain takes
 in, and twice for its own text. The poll is not under a second, which
-MOSH-104 asked for: a tick still syncs for work outside its steps, most often
-for the ratchet before a frame that sealed nothing (below).
+MOSH-104 asked for: a tick still syncs for work outside its steps.
+
+MOSH-106 took the identity claim off that list. Hello and the claim are
+sealed, so their ratchet has to be saved, but a connected session sealed and
+sent an unchanged claim every two seconds. It now sends one again with its
+next Hello, as an offline session already did, and while connected at least
+every ten seconds, the keepalive interval: a chat busy enough to send no Hello
+still repairs a lost claim. A changed claim or a new epoch goes at once. On
+the same scenario and disk, measured against `main` on one machine with every
+sync traced:
+
+| | Before | Now |
+| --- | --- | --- |
+| The scenario | 141.4 s | 127.2 s |
+| Syncs, sender and receiver | 333 and 246 | 289 and 177 |
+| Of them for the identity claim | 43 and 54 | 12 and 12 |
+| Ticks that took 0.4 s or longer | 99 | 71 |
+| A send command, average and longest | 2.46 s and 3.1 s | 2.17 s and 3.1 s |
+| The longest chat poll | 1.6 s | 1.3 s |
+
+The poll still waits behind ticks that re-send texts or import history
+(below).
 
 A crash now loses at most the step it interrupted, where before it lost the
 transaction it interrupted. For a send that is the difference between a text
@@ -134,8 +160,8 @@ the writes that follow report it the usual way.
 Left alone:
 
 - Groups and channels write as before. Their publish path was not measured.
-- A frame that seals nothing still saves the ratchet: a Hello, a typing hint,
-  the identity claim a session repeats while one of its devices is offline.
-  Each is one sync under the runtime lock (MOSH-106).
+- A re-send of texts syncs twice in its tick: before the frames leave and at
+  the end of the outbox turn that writes their attempts. Device recovery and
+  history import write outside any step.
 - The send command's two syncs are both under the lock. The second could move
   out from under it, the first cannot: the frame waits for it.

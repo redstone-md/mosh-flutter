@@ -168,8 +168,8 @@ impl PrivateDmSession {
         let Some(store) = &self.store else {
             return Ok(());
         };
-        let record = serde_json::to_vec(&self.to_persisted_record()).map_err(|_| invalid())?;
-        store.put_dm_transition(&self.session_id, &record, &self.crypto.snapshot())?;
+        let (record, snapshot) = self.transition()?;
+        store.put_dm_transition(&self.session_id, &record, &snapshot)?;
         Ok(())
     }
 

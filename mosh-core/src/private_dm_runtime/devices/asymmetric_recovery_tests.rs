@@ -79,7 +79,7 @@ fn independent_contacts_recover_both_directions_after_one_way_loss() {
     for (runtime, identity) in [(&mut alice, &alice_identity), (&mut bob, &bob_identity)] {
         let session = runtime.session_mut(&invite.session_id).unwrap();
         session.refresh_device_identity(identity).unwrap();
-        session.publish_identity_claim(identity);
+        session.publish_identity_claim(identity, now_ms());
     }
     connect(&mut alice, &mut bob, &invite.session_id);
     net.fail_streams(BOB_ID, true);
@@ -97,7 +97,7 @@ fn independent_contacts_recover_both_directions_after_one_way_loss() {
             runtime
                 .session_mut(&invite.session_id)
                 .unwrap()
-                .publish_identity_claim(identity);
+                .publish_identity_claim(identity, start + offset);
         }
     }
     assert_eq!(

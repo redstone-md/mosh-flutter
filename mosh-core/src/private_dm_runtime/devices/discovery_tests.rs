@@ -32,7 +32,7 @@ impl KnownDm {
         for (runtime, identity) in [(&mut alice, &alice_identity), (&mut bob, &bob_identity)] {
             let session = runtime.session_mut(&invite.session_id).unwrap();
             session.refresh_device_identity(identity).unwrap();
-            session.publish_identity_claim(identity);
+            session.publish_identity_claim(identity, now_ms());
         }
         for _ in 0..3 {
             alice.poll_session(&invite.session_id).unwrap();

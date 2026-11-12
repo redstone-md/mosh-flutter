@@ -241,8 +241,10 @@ DM connection state requires an authenticated counterpart frame. Moss's direct,
 relayed or absent peer route is a separate fact; gossip can deliver with no direct
 peer row. Initial Hello retries stay at two seconds; restored/lost established
 DMs back off to thirty seconds. A usable path or new user text wakes the retry.
-Unchanged offline identity claims follow those probes; changed claims/epochs
-bypass suppression after fresh validation. Connected keepalives are unchanged.
+An unchanged identity claim goes again with the next Hello, and while
+connected at least every keepalive interval; changed claims/epochs bypass
+suppression after fresh validation.
+Connected keepalives are unchanged.
 Checked DM reception can retry a too-distant future generation on a copy of its own
 MLS state, with a 65,536-generation ceiling and a shared ten-second attempt
 budget. Only authenticated results are installed; the ordinary configuration
