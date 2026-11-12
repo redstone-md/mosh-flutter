@@ -46,6 +46,8 @@ runs:
       with:
         moss: android
         rust-cache-key: android
+        # Downloaded crates only, the same in every Android job.
+        rust-cache-save: 'true'
 
     - name: Android native hook preparation tests
       shell: bash

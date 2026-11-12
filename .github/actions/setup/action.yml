@@ -24,6 +24,12 @@ inputs:
       share one cache instead of each saving their own copy. `none` skips the
       cache, for jobs that finish within the critical path without it.
     default: desktop
+  rust-cache-save:
+    description: >-
+      Save the Cargo cache from main. For the one job of a namespace that
+      builds everything the others restore: the first job to finish saves the
+      key, and a job that builds less leaves the rest compiling every run.
+    default: 'false'
 
 runs:
   using: composite
@@ -68,7 +74,7 @@ runs:
         workspaces: mosh-core
         shared-key: ${{ inputs.rust-cache-key }}
         cache-on-failure: true
-        save-if: ${{ github.ref == 'refs/heads/main' }}
+        save-if: ${{ github.ref == 'refs/heads/main' && inputs.rust-cache-save == 'true' }}
 
     # `flutter build windows` runs MSBuild with one project at a time and cl
     # with one file at a time. With these the Rust core and the call engine

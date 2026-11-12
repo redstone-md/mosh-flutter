@@ -158,6 +158,9 @@ jobs:
         with:
           flutter: 'false'
           rust-cache-key: desktop
+          # Clippy and every test target: the whole of what the other
+          # `desktop` jobs build.
+          rust-cache-save: 'true'
 
       - name: Rustfmt check
         run: cargo fmt --manifest-path mosh-core/Cargo.toml --check
@@ -228,6 +231,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           rust-cache-key: desktop-codegen
+          rust-cache-save: 'true'
 
       # A cargo install from source is minutes of compile for a binary that
       # only changes when the pinned version does; cache the built binaries.
@@ -303,6 +307,8 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           rust-cache-key: windows
+          # Downloaded crates only, the same for the installer builds.
+          rust-cache-save: 'true'
 
       - uses: actions/cache/restore@v4
         id: cargokit-cache
@@ -462,6 +468,7 @@ jobs:
         with:
           flutter: 'false'
           rust-cache-key: macos
+          rust-cache-save: 'true'
 
       # Seconds, and the only check the iOS podspec gets before iOS CI.
       - name: Podspec syntax (both pods)
