@@ -59,8 +59,7 @@ impl Persistence {
         let mut disk = self.disk();
         if disk.behind {
             let tx = self.db.begin_write().map_err(db_error)?;
-            tx.commit().map_err(db_error)?;
-            disk.synced();
+            Self::commit_synced(&mut disk, tx)?;
         }
         Ok(())
     }
@@ -72,16 +71,24 @@ impl Persistence {
         disk: &mut Disk,
         mut tx: redb::WriteTransaction,
     ) -> Result<(), PersistenceError> {
-        let in_step = disk.steps.contains_key(&std::thread::current().id());
-        if in_step {
-            tx.set_durability(redb::Durability::None);
+        if !disk.steps.contains_key(&std::thread::current().id()) {
+            return Self::commit_synced(disk, tx);
         }
+        tx.set_durability(redb::Durability::None);
         tx.commit().map_err(db_error)?;
-        if in_step {
-            disk.behind = true;
-        } else {
-            disk.synced();
-        }
+        disk.behind = true;
+        Ok(())
+    }
+
+    /// Commits `tx` with a sync, in a step or not: for a write that must be
+    /// on disk when it returns. The caller holds the disk as for
+    /// [`Self::commit`].
+    pub(super) fn commit_synced(
+        disk: &mut Disk,
+        tx: redb::WriteTransaction,
+    ) -> Result<(), PersistenceError> {
+        tx.commit().map_err(db_error)?;
+        disk.synced();
         Ok(())
     }
 

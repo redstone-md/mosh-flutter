@@ -105,3 +105,19 @@ fn a_write_outside_a_step_reaches_the_disk_at_once_with_every_step_s_writes() {
     assert!(crashed.get_org_roster("outside").unwrap().is_some());
     assert!(crashed.get_org_roster("in a step").unwrap().is_some());
 }
+
+#[test]
+fn a_device_link_saved_in_a_step_syncs_the_step_and_leaves_its_end_nothing_to_sync() {
+    let store = Store::new("device-link");
+    let step = store.open.step();
+    store.open.put_org_roster("org", b"roster").unwrap();
+
+    store.open.initialize_device_link(b"identity").unwrap();
+
+    let crashed = store.after_crash();
+    assert!(crashed.get_device_link().unwrap().is_some());
+    assert!(crashed.get_org_roster("org").unwrap().is_some());
+    let synced = store.open.syncs();
+    drop(step);
+    assert_eq!(store.open.syncs(), synced);
+}

@@ -46,11 +46,12 @@ spent, and its sender, holding a receipt, never sent it again.
 starts one on the calling thread. Until it ends, that thread's transactions on
 that store commit without a sync: they are readable at once, and they reach the
 disk with the next sync. The step's end is one, `Persistence::sync` is one, and
-so is any write from outside a step. The store is redb, and a crash leaves it
-as its last sync wrote it. The transactions of a step therefore survive as a
-prefix of the order they were made in or not at all, which is what each of them
-promised its caller before: nothing later is on disk without what came before
-it.
+so is any write from outside a step, and a write of the device-link identity
+from anywhere: a device hears of it by packets that do not sync first. The
+store is redb, and a crash leaves it as its last sync wrote it. The
+transactions of a step therefore survive as a prefix of the order they were
+made in or not at all, which is what each of them promised its caller before:
+nothing later is on disk without what came before it.
 
 **A frame leaves after a sync.** `PrivateDmSession::saved` writes the ratchet,
 syncs, and hands back what publishes the session's frames. What a frame tells
