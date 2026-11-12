@@ -23,6 +23,22 @@ fn a_text_the_receiver_could_not_save_is_not_acknowledged_until_it_is() {
     assert_eq!(delivery(&mut pair), Some(MessageDeliveryStatus::Delivered));
 }
 
+#[test]
+fn a_text_whose_ratchet_the_receiver_could_not_save_is_not_acknowledged_until_it_is() {
+    let mut pair = Pair::new("unsaved-ratchet");
+    let fault = pair.bob_store.refuse_dm_snapshot_writes();
+    pair.alice
+        .send_message(&pair.session_id, "save my key before the receipt".into())
+        .unwrap();
+
+    pair.bob.service();
+
+    assert_eq!(delivery(&mut pair), Some(MessageDeliveryStatus::Sent));
+    drop(fault);
+    pair.bob.service();
+    assert_eq!(delivery(&mut pair), Some(MessageDeliveryStatus::Delivered));
+}
+
 /// How many times `store` had synced when the first frame `named` left
 /// `from` for `to`.
 fn syncs_as_it_leaves(
@@ -72,4 +88,24 @@ fn a_text_syncs_its_sender_s_disk_three_times_and_its_receiver_s_once() {
     pair.alice.service();
     assert_eq!(delivery(&mut pair), Some(MessageDeliveryStatus::Delivered));
     assert_eq!(pair.store.syncs(), alice + 3);
+}
+
+#[test]
+fn the_ratchet_that_sealed_a_receipt_is_on_disk_once_the_receipt_has_left() {
+    let mut pair = Pair::new("receipt-ratchet");
+    pair.bob
+        .send_message(&pair.session_id, "acknowledge me".into())
+        .unwrap();
+
+    pair.alice.service();
+
+    // A restart from an older ratchet seals its next frame with the
+    // receipt's key, which Bob has already spent.
+    let sealed_with = pair.alice.sessions[pair.session_id.as_str()]
+        .crypto
+        .snapshot();
+    assert_eq!(
+        pair.store.get_mls_snapshot(&pair.session_id).unwrap(),
+        Some(sealed_with)
+    );
 }

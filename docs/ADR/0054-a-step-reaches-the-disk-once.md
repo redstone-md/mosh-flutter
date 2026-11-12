@@ -52,12 +52,13 @@ prefix of the order they were made in or not at all, which is what each of them
 promised its caller before: nothing later is on disk without what came before
 it.
 
-**A frame leaves after a sync.** `PrivateDmSession::saved` syncs and hands
-back what publishes the session's frames, so what a frame tells a peer is on
-disk before the peer hears it. For a session with linked devices it first
-writes the ratchet, as it did before, so a restart cannot seal a second frame
-with a key the first one used. A session without them still writes its ratchet
-around the publish, in the same step.
+**A frame leaves after a sync.** `PrivateDmSession::saved` writes the ratchet,
+syncs, and hands back what publishes the session's frames. What a frame tells
+a peer is on disk before the peer hears it, and a restart cannot seal a second
+frame with a key the first one used. A session with linked devices wrote its
+ratchet before a frame already. One without them wrote it around the publish,
+which a receipt sent after the tail save no longer has, so `saved` writes it
+for both.
 
 **Frames sealed together leave after one save.** A tick seals every receipt it
 owes, or every re-send that is due, then saves once and sends them. Before,

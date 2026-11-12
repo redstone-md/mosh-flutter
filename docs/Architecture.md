@@ -198,9 +198,8 @@ ordering; a joining DM persists its MLS snapshot after Welcome. See
 A DM send command, a tick's outbox turn and its tail save each run as one
 `Persistence::step`: their transactions commit without waiting for the disk
 and reach it together, at the step's end or earlier when a frame is about to
-leave. `PrivateDmSession::saved` syncs before any frame of the session is
-published, with the ratchet of a session that has linked devices, and frames
-sealed together leave after one save.
+leave. `PrivateDmSession::saved` writes the ratchet and syncs before any frame
+of the session is published, and frames sealed together leave after one save.
 A delivery receipt leaves only after the tail save accepted its text's row.
 Writes outside a step sync one by one, as groups, channels and device work do.
 See [ADR 0054](ADR/0054-a-step-reaches-the-disk-once.md).

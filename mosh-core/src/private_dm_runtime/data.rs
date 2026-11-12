@@ -133,17 +133,19 @@ impl PrivateDmSession {
     /// repeating a text it holds a receipt for, so a receipt that left ahead
     /// of its row would lose the text to a crash. Loss of a receipt is fine:
     /// the sender keeps re-sending until a later duplicate provokes a fresh
-    /// one.
+    /// one. Receipts whose ratchet the store refused stay owed.
     pub(super) fn send_delivery_acks(&mut self) {
         let due = std::mem::take(&mut self.acks_due);
         let acks: Vec<Vec<u8>> = due.iter().filter_map(|id| self.delivery_ack(id)).collect();
         if acks.is_empty() {
             return;
         }
-        if let Ok(saved) = self.saved() {
-            for ack in &acks {
-                let _ = saved.publish(ChannelKind::Control, ack);
-            }
+        let Ok(saved) = self.saved() else {
+            self.acks_due = due;
+            return;
+        };
+        for ack in &acks {
+            let _ = saved.publish(ChannelKind::Control, ack);
         }
     }
 
