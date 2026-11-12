@@ -72,7 +72,7 @@ impl<S: ConversationSession> ConversationRuntime<S> {
             || self
                 .sessions
                 .get(conversation_id)
-                .is_some_and(|session| self.history.saved(conversation_id) >= session.log().len())
+                .is_some_and(|session| self.history.written(conversation_id) >= session.log().len())
     }
 
     /// Save provisional admission before a DM can become automatically queued.

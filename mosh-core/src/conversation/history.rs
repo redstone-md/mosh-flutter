@@ -184,7 +184,7 @@ impl History {
         log: &MessageLog<M>,
         transfer: Option<&Transfer>,
     ) -> Result<bool, PersistenceError> {
-        let start = self.saved(conversation_id);
+        let start = self.written(conversation_id);
         if log.len() <= start {
             return Ok(false);
         }
@@ -275,12 +275,8 @@ impl History {
         p.put_conversation(self.tables, conversation_id, &json)
     }
 
-    /// How many of a conversation's messages are written.
-    pub(crate) fn saved(&self, conversation_id: &str) -> usize {
-        self.persisted_counts
-            .get(conversation_id)
-            .copied()
-            .unwrap_or(0)
+    pub(crate) fn written(&self, id: &str) -> usize {
+        self.persisted_counts.get(id).copied().unwrap_or(0)
     }
 
     /// A recovery transaction durably saved the complete visible suffix.

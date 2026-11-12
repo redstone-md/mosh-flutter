@@ -120,7 +120,7 @@ impl PrivateDmSession {
         Ok(Some((body, author)))
     }
 
-    /// Whether this device may still speak to the counterpart's.
+    /// Refuses once this device may no longer speak to the counterpart's.
     pub(in crate::private_dm_runtime) fn device_frames_may_leave(&self) -> Result<()> {
         self.ensure_device_authorized()?;
         if self

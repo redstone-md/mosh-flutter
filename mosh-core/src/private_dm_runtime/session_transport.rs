@@ -129,15 +129,15 @@ impl PrivateDmSession {
         payload: &[u8],
     ) -> Result<(), PrivateDmRuntimeError> {
         // Refused before anything is saved for it.
-        fits(payload)?;
+        ensure_fits(payload)?;
         self.saved()?.publish(kind, payload)
     }
 
-    /// Saves what a frame must not leave ahead of: the ratchet that sealed
-    /// it, so a restart cannot seal another frame with the same key, and
-    /// every write of the step so far, so what the frame tells a peer is on
-    /// disk before the peer hears it. Frames sealed one after another leave
-    /// after one save.
+    /// Saves what a frame must not leave ahead of: every write of the step
+    /// so far, so what the frame tells a peer is on disk before the peer
+    /// hears it, and for a session with linked devices the ratchet that
+    /// sealed it, so a restart cannot seal another frame with the same key.
+    /// Frames sealed one after another leave after one save.
     pub(super) fn saved(&self) -> Result<Saved<'_>, PrivateDmRuntimeError> {
         if self.devices_live() {
             self.device_frames_may_leave()?;
@@ -157,7 +157,7 @@ impl Saved<'_> {
         kind: ChannelKind,
         payload: &[u8],
     ) -> Result<(), PrivateDmRuntimeError> {
-        fits(payload)?;
+        ensure_fits(payload)?;
         let session = self.0;
         let channel = kind.channel_for(&session.session_id);
         if session.devices_live() {
@@ -184,7 +184,7 @@ impl Saved<'_> {
     }
 }
 
-fn fits(payload: &[u8]) -> Result<(), PrivateDmRuntimeError> {
+fn ensure_fits(payload: &[u8]) -> Result<(), PrivateDmRuntimeError> {
     if payload.len() > crate::conversation::MAX_PUBLISH_BYTES {
         return Err(PrivateDmRuntimeError::PayloadTooLarge);
     }

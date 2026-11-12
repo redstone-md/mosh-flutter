@@ -4,8 +4,8 @@
 //! under its lock: one sent text was thirteen (MOSH-104). Inside a step a
 //! commit is readable at once and reaches the disk with the next sync: the
 //! step's end, [`Persistence::sync`], or any write outside a step. A crash
-//! before that leaves the store as the last sync wrote it, so the rows of a
-//! step never survive in part.
+//! before that leaves the store as the last sync wrote it: what survives of
+//! a step is its commits up to that sync, in the order they were made.
 //!
 //! What a peer is told must already be on disk: a runtime syncs before a
 //! frame that speaks of its writes leaves.
@@ -65,9 +65,9 @@ impl Persistence {
         Ok(())
     }
 
-    /// Commits `tx` and says whether it reached the disk. The caller holds
-    /// the disk from before the transaction began, so commits and syncs keep
-    /// one order.
+    /// Commits `tx`, with a sync unless this thread is in a step. The caller
+    /// holds the disk from before the transaction began, so commits and
+    /// syncs keep one order.
     pub(super) fn commit(
         disk: &mut Disk,
         mut tx: redb::WriteTransaction,
@@ -101,7 +101,7 @@ impl Drop for Step {
         let thread = std::thread::current().id();
         {
             let mut disk = self.0.disk();
-            let open = disk.steps.entry(thread).or_insert(1);
+            let open = disk.steps.get_mut(&thread).expect("this thread's step");
             *open -= 1;
             if *open > 0 {
                 return;
@@ -119,6 +119,7 @@ impl Drop for Step {
     }
 }
 
-#[cfg(test)]
+// test-policy: skip MOSH-104 -- Windows locks an open store against the copy these tests read as the crashed file
+#[cfg(all(test, unix))]
 #[path = "steps_tests.rs"]
 mod tests;

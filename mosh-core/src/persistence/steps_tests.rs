@@ -1,9 +1,7 @@
 //! What a crash would leave of a step's writes.
 //!
 //! A crashed process leaves the file as the last sync wrote it, and a copy
-//! of the file taken while the store is open is that same file. Windows
-//! locks an open store against the copy, so these read it on Unix.
-#![cfg(unix)]
+//! of the file taken while the store is open is that same file.
 
 use super::*;
 use crate::test_temp_directory::TempDirectory;

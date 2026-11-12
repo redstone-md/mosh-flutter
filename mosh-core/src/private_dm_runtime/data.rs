@@ -25,7 +25,7 @@ impl PrivateDmSession {
                         .iter()
                         .any(|message| message.message_id.as_deref() == Some(message_id)))
             {
-                self.ack_due(message_id);
+                self.owe_ack(message_id);
                 return Ok(());
             }
         }
@@ -105,7 +105,7 @@ impl PrivateDmSession {
         }
         self.messages.push(message);
         if let Some(message_id) = ack_id.as_deref() {
-            self.ack_due(message_id);
+            self.owe_ack(message_id);
         }
 
         Ok(())
@@ -122,7 +122,7 @@ impl PrivateDmSession {
 
     /// A repeated text asks for its receipt again, which it is already due
     /// while the store refuses its row.
-    fn ack_due(&mut self, message_id: &str) {
+    fn owe_ack(&mut self, message_id: &str) {
         if !self.acks_due.iter().any(|due| due == message_id) {
             self.acks_due.push(message_id.to_string());
         }
