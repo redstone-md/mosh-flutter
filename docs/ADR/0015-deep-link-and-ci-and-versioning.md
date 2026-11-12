@@ -460,8 +460,11 @@ rewrites `/MP` into a path when it starts a Windows program.
 active architecture, so the setting never took effect: the packaging step
 listed `x86_64 arm64` for every binary. `build-macos.yml` now excludes
 x86_64 through Flutter's `FLUTTER_XCODE_*` build settings, which reach the
-pods and their scripts. Over three builds the app took 510 to 703 seconds
-against 921 to 992, and the packaging step lists arm64.
+pods and their scripts, and the packaging step lists arm64. Between two
+verbose builds every phase halved: mosh-core 421 to 177 seconds, the Dart
+compile 142 to 77, the call engine 198 to 79, the whole build 992 to 510.
+Runner speed moves the totals as much: three arm64 builds took 510 to 703
+seconds, and three universal ones 547 to 992.
 
 After that build the job ran the runner's six tests, which are hosted in the
 Debug app and so build it whole: 213 to 550 seconds more in the longest job
@@ -498,5 +501,6 @@ for a cache the budget has no room for; fat LTO in the proof builds, as
 decided on 2026-10-07; the Flutter SDK and pub downloads on Windows, about
 2.5 minutes a job, whose caches were slower than the downloads; the voice
 check of the Linux call media job, which in the run read spent 5.9 of its
-6.5 minutes building its bench in release; and the universal DMG, 38 minutes
-on main.
+6.5 minutes building its bench in release; and the universal DMG of main,
+whose build took 38 minutes in the run after `Cargo.lock` changed and its
+cargokit cache missed, and 9 with the cache warm.
