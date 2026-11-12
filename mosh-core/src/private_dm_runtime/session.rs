@@ -86,6 +86,7 @@ impl PrivateDmSession {
             peer_read_ids: Vec::new(),
             sent_read_ids: Vec::new(),
             dirty_outbound: Vec::new(),
+            acks_due: Vec::new(),
             record_dirty: false,
         }
     }

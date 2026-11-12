@@ -25,7 +25,7 @@ impl PrivateDmSession {
                         .iter()
                         .any(|message| message.message_id.as_deref() == Some(message_id)))
             {
-                self.send_delivery_ack(message_id);
+                self.ack_due(message_id);
                 return Ok(());
             }
         }
@@ -105,7 +105,7 @@ impl PrivateDmSession {
         }
         self.messages.push(message);
         if let Some(message_id) = ack_id.as_deref() {
-            self.send_delivery_ack(message_id);
+            self.ack_due(message_id);
         }
 
         Ok(())
@@ -120,22 +120,43 @@ impl PrivateDmSession {
         })
     }
 
-    /// Best-effort delivery receipt. Loss is fine: the sender keeps
-    /// re-sending until a later duplicate provokes a fresh ack. The message
-    /// id is MLS-encrypted so only the real peer can mint an ack — plaintext
-    /// would let any mesh member fake ✓✓ and silence the resend loop.
-    pub(super) fn send_delivery_ack(&mut self, message_id: &str) {
-        let Ok(ciphertext) = self.crypto.encrypt(message_id.as_bytes()) else {
+    /// A repeated text asks for its receipt again, which it is already due
+    /// while the store refuses its row.
+    fn ack_due(&mut self, message_id: &str) {
+        if !self.acks_due.iter().any(|due| due == message_id) {
+            self.acks_due.push(message_id.to_string());
+        }
+    }
+
+    /// Best-effort delivery receipts for the texts received since the last
+    /// call. The runtime asks once their rows are saved: a sender stops
+    /// repeating a text it holds a receipt for, so a receipt that left ahead
+    /// of its row would lose the text to a crash. Loss of a receipt is fine:
+    /// the sender keeps re-sending until a later duplicate provokes a fresh
+    /// one.
+    pub(super) fn send_delivery_acks(&mut self) {
+        let due = std::mem::take(&mut self.acks_due);
+        let acks: Vec<Vec<u8>> = due.iter().filter_map(|id| self.delivery_ack(id)).collect();
+        if acks.is_empty() {
             return;
-        };
-        let envelope = ControlEnvelope::DeliveryAck {
+        }
+        if let Ok(saved) = self.saved() {
+            for ack in &acks {
+                let _ = saved.publish(ChannelKind::Control, ack);
+            }
+        }
+    }
+
+    /// The message id is MLS-encrypted so only the real peer can mint an
+    /// ack — plaintext would let any mesh member fake ✓✓ and silence the
+    /// resend loop.
+    fn delivery_ack(&mut self, message_id: &str) -> Option<Vec<u8>> {
+        let ciphertext = self.crypto.encrypt(message_id.as_bytes()).ok()?;
+        serde_json::to_vec(&ControlEnvelope::DeliveryAck {
             session_id: self.session_id.clone(),
             participant_id: self.participant_id.clone(),
             ack_ciphertext_b64: encode(&ciphertext),
-        };
-        let Ok(payload) = serde_json::to_vec(&envelope) else {
-            return;
-        };
-        let _ = self.route_send(ChannelKind::Control, &payload);
+        })
+        .ok()
     }
 }

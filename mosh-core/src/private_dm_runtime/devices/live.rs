@@ -120,11 +120,8 @@ impl PrivateDmSession {
         Ok(Some((body, author)))
     }
 
-    pub(in crate::private_dm_runtime) fn route_device_frame(
-        &self,
-        channel: &str,
-        payload: &[u8],
-    ) -> Result<()> {
+    /// Whether this device may still speak to the counterpart's.
+    pub(in crate::private_dm_runtime) fn device_frames_may_leave(&self) -> Result<()> {
         self.ensure_device_authorized()?;
         if self
             .membership
@@ -133,7 +130,14 @@ impl PrivateDmSession {
         {
             return Err(crate::private_dm_runtime::PrivateDmRuntimeError::NotReady);
         }
-        self.persist_device_crypto()?;
+        Ok(())
+    }
+
+    pub(in crate::private_dm_runtime) fn send_device_frame(
+        &self,
+        channel: &str,
+        payload: &[u8],
+    ) -> Result<()> {
         let membership = self.membership.as_ref().ok_or_else(invalid)?;
         let own_signer = hex::encode(self.crypto.signer_public());
         let frame =

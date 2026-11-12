@@ -218,6 +218,8 @@ struct PrivateDmSession {
     // DeliveryAck); the runtime drains this to persist those rows, since the
     // session itself cannot reach persistence.
     dirty_outbound: Vec<String>,
+    // Received texts whose receipt waits for the runtime to save their rows.
+    acks_due: Vec<String>,
     // Wall-clock deadline of the peer's typing hint, if one stands. The peer
     // refreshes it inside the window while it keeps typing; silence lets it
     // lapse and its own message clears it at once.
