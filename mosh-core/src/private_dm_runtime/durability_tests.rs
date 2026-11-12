@@ -6,6 +6,7 @@ use crate::test_temp_directory::TempDirectory;
 
 struct Pair {
     store: Arc<Persistence>,
+    bob_store: Arc<Persistence>,
     attachments: Arc<AttachmentStore>,
     net: Arc<MemoryNet>,
     alice: PrivateDmRuntime,
@@ -34,13 +35,14 @@ impl Pair {
         let mut bob = PrivateDmRuntime::with_transport(
             net.endpoint(BOB_ID),
             attachments.clone(),
-            Some(bob_store),
+            Some(bob_store.clone()),
         );
         let invitation = invite(&mut alice);
         accept(&mut bob, &invitation);
         connect(&mut alice, &mut bob, &invitation.session_id);
         Self {
             store,
+            bob_store,
             attachments,
             net,
             alice,
@@ -271,3 +273,4 @@ fn publishing_a_saved_queue_retains_the_advanced_mls_snapshot() {
 #[path = "durability_tests/attachments.rs"]
 mod attachments;
 mod deletion;
+mod disk;

@@ -66,6 +66,15 @@ impl<S: ConversationSession> ConversationRuntime<S> {
         first_error.map_or(Ok(()), Err)
     }
 
+    /// Whether every message this conversation holds has its row saved.
+    pub(crate) fn tail_saved(&self, conversation_id: &str) -> bool {
+        self.persistence.is_none()
+            || self
+                .sessions
+                .get(conversation_id)
+                .is_some_and(|session| self.history.written(conversation_id) >= session.log().len())
+    }
+
     /// Save provisional admission before a DM can become automatically queued.
     /// Pending replay becomes Failed if a commit outcome is uncertain.
     pub(crate) fn persist_admission(

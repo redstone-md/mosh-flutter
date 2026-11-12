@@ -4,6 +4,7 @@ use super::*;
 
 impl ConversationSession for PrivateDmSession {
     fn attach_persistence(&mut self, store: Option<Arc<Persistence>>) {
+        self.store = store.clone();
         self.deletions.store = store;
     }
     type Message = ChatMessage;

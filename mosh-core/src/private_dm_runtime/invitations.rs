@@ -133,7 +133,7 @@ impl PrivateDmRuntime {
         if let Some(invite) = &mut session.invitation {
             invite.opened = true;
         }
-        if let Some(store) = &session.device_store {
+        if let Some(store) = &session.store {
             if let Err(error) = session.write_extra(store) {
                 session.invitation = previous;
                 return Err(error.into());
@@ -156,7 +156,7 @@ impl PrivateDmRuntime {
         let token = session.crypto.random_token("invite")?;
         let uri = session.invitation_uri(&token)?;
         let previous = session.invite_uri.replace(uri);
-        if let Some(store) = &session.device_store {
+        if let Some(store) = &session.store {
             if let Err(error) = session.write_extra(store) {
                 session.invite_uri = previous;
                 return Err(error.into());

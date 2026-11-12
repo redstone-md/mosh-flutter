@@ -1,4 +1,7 @@
 //! Race-free creation and replacement of the shared device-link identity.
+//!
+//! Both writes sync even inside a step: a device hears of the identity by
+//! packets that do not sync first.
 use super::*;
 
 impl Persistence {
@@ -10,6 +13,7 @@ impl Persistence {
         replacement: &[u8],
     ) -> Result<bool, PersistenceError> {
         let encrypted = encrypt_blob(&self.dek, replacement)?;
+        let mut disk = self.disk();
         let tx = self.db.begin_write().map_err(db_error)?;
         {
             let mut table = tx.open_table(DEVICE_LINK).map_err(db_error)?;
@@ -29,7 +33,7 @@ impl Persistence {
                 .insert(DEVICE_LINK_KEY, encrypted.as_slice())
                 .map_err(db_error)?;
         }
-        tx.commit().map_err(db_error)?;
+        Self::commit_synced(&mut disk, tx)?;
         Ok(true)
     }
 
@@ -39,6 +43,7 @@ impl Persistence {
         candidate: &[u8],
     ) -> Result<Vec<u8>, PersistenceError> {
         let encrypted = encrypt_blob(&self.dek, candidate)?;
+        let mut disk = self.disk();
         let tx = self.db.begin_write().map_err(db_error)?;
         let winner = {
             let mut table = tx.open_table(DEVICE_LINK).map_err(db_error)?;
@@ -56,7 +61,7 @@ impl Persistence {
                 }
             }
         };
-        tx.commit().map_err(db_error)?;
+        Self::commit_synced(&mut disk, tx)?;
         Ok(winner)
     }
 }

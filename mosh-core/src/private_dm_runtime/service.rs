@@ -95,6 +95,18 @@ impl PrivateDmRuntime {
                 .chain(session.take_dirty_outbound());
             dirty.extend(changed.map(|message_id| (session_id.clone(), message_id)));
         }
+        self.run_outboxes(dirty, ready, now);
+        self.pump_devices(now);
+        self.reconcile_call_authority();
+        self.save_tails();
+        self.sync_native_media();
+        self.pump_native_media();
+    }
+
+    /// Writes down the attempts an inbound frame or a re-send changed, then
+    /// gives each ready session's outbox its turn.
+    fn run_outboxes(&mut self, dirty: Vec<(String, String)>, ready: Vec<String>, now: u64) {
+        let _step = self.step();
         for (session_id, message_id) in dirty {
             if let Err(error) = self.sessions.persist_send(&session_id, &message_id, false) {
                 self.log_persistence_failure(&session_id, &error);
@@ -110,13 +122,36 @@ impl PrivateDmRuntime {
                 );
             }
         }
-        self.pump_devices(now);
-        self.reconcile_call_authority();
+    }
+
+    /// Saves what every session gained, then sends the receipts of the
+    /// texts whose rows that saved.
+    fn save_tails(&mut self) {
+        let _step = self.step();
         if let Err(error) = self.sessions.persist_tail() {
             self.log_persistence_failure(KIND, &error);
         }
-        self.sync_native_media();
-        self.pump_native_media();
+        let due: Vec<String> = self
+            .sessions
+            .values()
+            .filter(|session| !session.acks_due.is_empty())
+            .map(|session| session.session_id.clone())
+            .filter(|id| self.sessions.tail_saved(id))
+            .collect();
+        for id in due {
+            if let Some(session) = self.sessions.get_mut(&id) {
+                session.send_delivery_acks();
+            }
+        }
+    }
+
+    /// A step of this runtime for its store: the writes of a send command,
+    /// of an outbox turn or of a tail save reach the disk together. Inside
+    /// one a frame leaves only through [`PrivateDmSession::saved`], which
+    /// syncs first. The device, deletion and call work of a tick stays
+    /// outside and keeps a sync for every write.
+    pub(super) fn step(&self) -> Option<crate::persistence::Step> {
+        self.sessions.persistence().map(Persistence::step)
     }
 
     pub(super) fn log_persistence_failure(

@@ -128,31 +128,79 @@ impl PrivateDmSession {
         kind: ChannelKind,
         payload: &[u8],
     ) -> Result<(), PrivateDmRuntimeError> {
-        let channel = kind.channel_for(&self.session_id);
-        if payload.len() > crate::conversation::MAX_PUBLISH_BYTES {
-            return Err(PrivateDmRuntimeError::PayloadTooLarge);
-        }
+        // Refused before anything is saved for it.
+        ensure_fits(payload)?;
+        self.saved()?.publish(kind, payload)
+    }
+
+    /// Saves what a frame must not leave ahead of: the ratchet that sealed
+    /// it, so a restart cannot seal another frame with the same key, and
+    /// every write of the step so far, so what the frame tells a peer is on
+    /// disk before the peer hears it. Frames sealed one after another leave
+    /// after one save. A joiner that still waits for its Welcome has sealed
+    /// nothing, and its key package leaves whether or not the store takes
+    /// its placeholder.
+    pub(super) fn saved(&self) -> Result<Saved<'_>, PrivateDmRuntimeError> {
         if self.devices_live() {
-            return self.route_device_frame(&channel, payload);
+            self.device_frames_may_leave()?;
         }
-        self.persist_device_crypto()?;
+        if let Some(store) = &self.store {
+            if self.membership.is_some() {
+                self.persist_device_crypto()?;
+            } else if self.record_is_final() {
+                self.write_extra(store)?;
+            }
+            store.sync()?;
+        }
+        Ok(Saved(self))
+    }
+}
+
+/// A session whose sealed frames may leave. It is borrowed until they have,
+/// so nothing is sealed in between.
+pub(super) struct Saved<'a>(&'a PrivateDmSession);
+
+impl Saved<'_> {
+    pub(super) fn publish(
+        &self,
+        kind: ChannelKind,
+        payload: &[u8],
+    ) -> Result<(), PrivateDmRuntimeError> {
+        ensure_fits(payload)?;
+        let session = self.0;
+        let channel = kind.channel_for(&session.session_id);
+        if session.devices_live() {
+            return session.send_device_frame(&channel, payload);
+        }
         // Device-enabled sessions can bootstrap over the same directed carrier.
-        if let Some(peer) = self.peer_moss_id.as_deref().filter(|peer| {
-            self.membership.is_some() && self.transport.reach(peer) != PeerTransport::None
+        if let Some(peer) = session.peer_moss_id.as_deref().filter(|peer| {
+            session.membership.is_some() && session.transport.reach(peer) != PeerTransport::None
         }) {
             if let Some(frame) = crate::stream_transport::frame_for_channel(&channel, payload) {
-                if self.transport.send_to_peer_frame(peer, &frame).is_ok() {
+                if session.transport.send_to_peer_frame(peer, &frame).is_ok() {
                     return Ok(());
                 }
             }
         }
-        match self.transport.publish(&self.mesh_id, &channel, payload) {
+        match session
+            .transport
+            .publish(&session.mesh_id, &channel, payload)
+        {
             Ok(()) => Ok(()),
             Err(PublishError::NoPeers(_)) if kind != ChannelKind::Data => Ok(()),
             Err(error) => Err(PrivateDmRuntimeError::Moss(error.to_string())),
         }
     }
+}
 
+fn ensure_fits(payload: &[u8]) -> Result<(), PrivateDmRuntimeError> {
+    if payload.len() > crate::conversation::MAX_PUBLISH_BYTES {
+        return Err(PrivateDmRuntimeError::PayloadTooLarge);
+    }
+    Ok(())
+}
+
+impl PrivateDmSession {
     /// Hand the counterpart's moss id to the transport as an explicit connect
     /// target. The substrate is room-blind, so organic discovery only reaches
     /// the counterpart by chance; the explicit target is dialed immediately

@@ -167,6 +167,8 @@ fn duplicate_inbound_data_reacks_without_decrypt() {
     })
     .expect("dup should serialize");
     session.handle_data(dup).expect("dup must not error");
+    // The runtime asks once the tick has saved its rows.
+    session.send_delivery_acks();
 
     let frames = bob_end.drain();
     let ack = frames

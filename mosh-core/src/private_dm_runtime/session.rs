@@ -34,7 +34,7 @@ impl PrivateDmSession {
             recovery_pull_ms: 0,
             membership: None,
             device_signer: None,
-            device_store: None,
+            store: None,
             device_connect_requested: std::collections::HashSet::new(),
             room_discovery_peers: None,
             last_identity_advertisement: None,
@@ -86,6 +86,7 @@ impl PrivateDmSession {
             peer_read_ids: Vec::new(),
             sent_read_ids: Vec::new(),
             dirty_outbound: Vec::new(),
+            acks_due: Vec::new(),
             record_dirty: false,
         }
     }

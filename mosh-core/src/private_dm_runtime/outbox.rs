@@ -14,6 +14,7 @@ impl PrivateDmRuntime {
             return Err(PrivateDmRuntimeError::BodyTooLarge);
         }
         self.drain_inbound();
+        let _step = self.step();
         let message_id = self.session_mut(session_id)?.file_text(body)?;
         self.admit_queued(session_id, &message_id)?;
         if let Err(error) = self.deliver_queued(session_id, now_ms()) {
@@ -42,6 +43,7 @@ impl PrivateDmRuntime {
         message_id: &str,
     ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
         self.drain_inbound();
+        let _step = self.step();
         {
             let session = self.session_mut(session_id)?;
             let attempt = session

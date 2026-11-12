@@ -184,11 +184,7 @@ impl History {
         log: &MessageLog<M>,
         transfer: Option<&Transfer>,
     ) -> Result<bool, PersistenceError> {
-        let start = self
-            .persisted_counts
-            .get(conversation_id)
-            .copied()
-            .unwrap_or(0);
+        let start = self.written(conversation_id);
         if log.len() <= start {
             return Ok(false);
         }
@@ -277,6 +273,10 @@ impl History {
         let json = serde_json::to_vec(record)
             .map_err(|error| PersistenceError::Json(error.to_string()))?;
         p.put_conversation(self.tables, conversation_id, &json)
+    }
+
+    pub(crate) fn written(&self, id: &str) -> usize {
+        self.persisted_counts.get(id).copied().unwrap_or(0)
     }
 
     /// A recovery transaction durably saved the complete visible suffix.

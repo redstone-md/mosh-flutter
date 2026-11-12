@@ -90,7 +90,7 @@ impl PrivateDmRuntime {
             return Err(invalid());
         }
         journal.waiting.retain(|peer| peer != &sender.moss_peer_id);
-        let store = session.device_store.clone().ok_or_else(invalid)?;
+        let store = session.store.clone().ok_or_else(invalid)?;
         session.save_recovery_membership(&store, next)
     }
 }

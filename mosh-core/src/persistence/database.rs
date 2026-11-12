@@ -52,7 +52,11 @@ impl Persistence {
     /// Open with a host-supplied DEK. A wrong key fails on decryption.
     pub fn open_with_dek(path: &Path, dek: [u8; 32]) -> Result<Self, PersistenceError> {
         let db = Database::create(path).map_err(db_error)?;
-        let store = Self { db, dek };
+        let store = Self {
+            db,
+            dek,
+            disk: Default::default(),
+        };
         store.write(|tx| {
             for table in ALL_TABLES {
                 tx.open_table(table).map_err(db_error)?;
@@ -67,9 +71,10 @@ impl Persistence {
         &self,
         operation: impl FnOnce(&redb::WriteTransaction) -> Result<T, PersistenceError>,
     ) -> Result<T, PersistenceError> {
+        let mut disk = self.disk();
         let tx = self.db.begin_write().map_err(db_error)?;
         let result = operation(&tx)?;
-        tx.commit().map_err(db_error)?;
+        Self::commit(&mut disk, tx)?;
         Ok(result)
     }
 

@@ -195,6 +195,15 @@ ordering; a joining DM persists its MLS snapshot after Welcome. See
 [ADR 0022](ADR/0022-a-send-is-one-durable-fact.md) and
 [ADR 0037](ADR/0037-conversation-write-acceptance.md).
 
+A DM send command, a tick's outbox turn and its tail save each run as one
+`Persistence::step`: their transactions commit without waiting for the disk
+and reach it together, at the step's end or earlier when a frame is about to
+leave. `PrivateDmSession::saved` writes the ratchet and syncs before any frame
+of the session is published, and frames sealed together leave after one save.
+A delivery receipt leaves only after the tail save accepted its text's row.
+Writes outside a step sync one by one, as groups, channels and device work do.
+See [ADR 0054](ADR/0054-a-step-reaches-the-disk-once.md).
+
 Organization offers keep their resolution state in encrypted org records.
 `org_runtime/acceptance.rs` retains the original offer and private join state
 until the native conversation is durable. The bridge prepares a join, saves
@@ -208,7 +217,8 @@ Org writes merge stored resolutions so an old runtime cache cannot undo them.
 Dismissals resolve immediately. No pre-Welcome native session row is added.
 
 Persistence's `database` owns DEK acquisition and encrypted row operations;
-`schema` retains the table definitions. `history` and `conversation_records`
+`steps` owns when a commit of that write path waits for the disk; `schema`
+retains the table definitions. `history` and `conversation_records`
 share kind-based lifecycle operations. `outbound` owns atomic message/attempt
 acceptance; `records` and `group_commits` isolate identity and organization
 evidence. Attachment scheduling handles priority slots, timed retry gaps and

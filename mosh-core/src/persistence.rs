@@ -43,6 +43,8 @@ mod recovery_exports;
 mod recovery_occurrences;
 mod recovery_pages;
 mod schema;
+mod steps;
+pub(crate) use steps::Step;
 #[cfg(test)]
 pub(crate) mod test_faults;
 #[cfg(test)]
@@ -90,6 +92,7 @@ impl std::error::Error for PersistenceError {}
 pub struct Persistence {
     db: Database,
     dek: [u8; 32],
+    disk: std::sync::Mutex<steps::Disk>,
 }
 
 fn db_error(error: impl std::fmt::Display) -> PersistenceError {

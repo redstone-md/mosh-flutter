@@ -134,7 +134,7 @@ struct PrivateDmSession {
     recovery_pull_ms: u64,
     membership: Option<devices::DeviceMembership>,
     device_signer: Option<ed25519_dalek::SigningKey>,
-    device_store: Option<Arc<Persistence>>,
+    store: Option<Arc<Persistence>>,
     device_connect_requested: std::collections::HashSet<String>,
     room_discovery_peers: Option<Vec<String>>,
     // Last identity attempt: MLS epoch, validated signed bytes and Hello stamp.
@@ -218,6 +218,8 @@ struct PrivateDmSession {
     // DeliveryAck); the runtime drains this to persist those rows, since the
     // session itself cannot reach persistence.
     dirty_outbound: Vec<String>,
+    // Received texts whose receipt waits for the runtime to save their rows.
+    acks_due: Vec<String>,
     // Wall-clock deadline of the peer's typing hint, if one stands. The peer
     // refreshes it inside the window while it keeps typing; silence lets it
     // lapse and its own message clears it at once.
