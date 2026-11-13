@@ -15,6 +15,7 @@ on:
       - 'fdroid/**'
       - '.github/workflows/fdroid.yml'
       - 'android/**'
+      - '.fvmrc'
       - 'scripts/android-*.mjs'
       - 'scripts/moss-prepare-android.mjs'
       - 'third_party/libwebrtc-build/build.json'

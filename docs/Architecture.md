@@ -449,7 +449,7 @@ No configured DSN means no reporting. Rust captures panics; Dart scrubs/sends
 eligible events. Native stack memory remains a documented limitation. See
 [ADR 0035](ADR/0035-opt-in-crash-reporting.md).
 
-Use the versions in `rust-toolchain.toml` and `.github/actions/setup/action.yml`.
+Use the versions in `rust-toolchain.toml`, `.fvmrc` (Flutter) and `.github/actions/setup/action.yml`.
 `node scripts/moss-prepare.mjs` builds Moss and prepares OpenMLS. Direct Cargo or
 bridge-codegen use on a fresh checkout needs `node scripts/openmls-prepare.mjs`.
 Flutter native builds and CI prepare it automatically. Prepared/cached source
