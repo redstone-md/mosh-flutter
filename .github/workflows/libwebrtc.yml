@@ -17,6 +17,7 @@ on:
       - 'scripts/libwebrtc-build.mjs'
       - 'scripts/libwebrtc-maven.mjs'
       - 'scripts/support/libwebrtc-targets.mjs'
+      - 'scripts/support/libwebrtc-headers.mjs'
 
 concurrency:
   group: libwebrtc-${{ github.ref }}

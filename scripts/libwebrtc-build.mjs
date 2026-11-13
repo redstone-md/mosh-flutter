@@ -2,6 +2,8 @@
 // Builds Google's libwebrtc (LiveKit's webrtc-sdk fork, pinned in
 // third_party/libwebrtc-build/build.json) for one target with LiveKit's own
 // build scripts, as patched by third_party/webrtc-sys-patches: no H.264.
+// Of the whole WebRTC tree's headers those scripts copy, the archive keeps
+// the ones webrtc-sys compiles against (support/libwebrtc-headers.mjs).
 // CI publishes the archive as a release asset; native builds download it
 // (scripts/livekit-webrtc-prepare.mjs) instead of LiveKit's prebuilt.
 import { spawnSync } from "node:child_process";
@@ -12,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { disallowedSections } from "./license-check.mjs";
 import { prepareLiveKitWebrtc } from "./livekit-webrtc-prepare.mjs";
+import { pruneHeaders } from "./support/libwebrtc-headers.mjs";
 import { libwebrtcTarget } from "./support/libwebrtc-targets.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -45,6 +48,8 @@ else run("bash", [path.join(scripts, `build_${target.script}.sh`), ...args], wor
 // Store builds bundle this list as WEBRTC-LICENSE.md (docs/licenses.md).
 const disallowed = disallowedSections(await readFile(path.join(work, target.directory, "LICENSE.md"), "utf8"));
 if (disallowed.length) throw new Error(`libwebrtc contains ${disallowed.join(", ")}`);
+const headers = await pruneHeaders(path.join(work, target.directory, "include"), path.join(root, "third_party/webrtc-sys"));
+console.log(`headers: kept ${headers.kept}, removed ${headers.removed}`);
 const output = path.resolve(values.output);
 await mkdir(output, { recursive: true });
 const archive = path.join(output, target.archive);
