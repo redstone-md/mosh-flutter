@@ -5,7 +5,7 @@ License: GPL-3.0-or-later
 AuthorName: Redstone
 SourceCode: https://github.com/redstone-md/mosh-flutter
 IssueTracker: https://github.com/redstone-md/mosh-flutter/issues
-Changelog: https://github.com/redstone-md/mosh-flutter/blob/main/CHANGELOG.md
+Changelog: https://github.com/redstone-md/mosh-flutter/blob/HEAD/CHANGELOG.md
 
 AutoName: Mosh
 
@@ -46,12 +46,16 @@ MaintainerNotes: |-
   open scripts in .github/workflows/libwebrtc.yml; the build checks the
   archive against the SHA-256 in that file.
   .
-  The F-Droid build sells no Mosh+ membership and never contacts the billing
+  No anti-features apply. The F-Droid build sells no Mosh+ membership and never contacts the billing
   server; it shows a membership bought elsewhere, verified offline against the
   public key in fdroid/build.sh. Crash reports are off: the build has no Sentry
   DSN. Peers find each other through public BitTorrent trackers and DHT and
   public STUN servers, not a service run by the developers. The GeoIP database
   is only used by Moss builds with the geoip tag, which Mosh does not set.
+  .
+  Toolchains come the usual way: Rust through rustup, and Go 1.25.9, newer
+  than Debian's, through Go's own toolchain download (GOTOOLCHAIN in
+  scripts/moss-prepare-android.mjs), checked against sum.golang.org.
   .
   fdroid/build.sh is the build script; the fdroid workflow of the repository
   runs this recipe in the fdroidserver buildserver image on every release.

@@ -18,8 +18,6 @@ PLUS_ISSUER_KEY=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2rCIa1c9TGzmlloAKF7d
 step=$1
 flutter=$2/bin/flutter
 export PATH="$HOME/.cargo/bin:$PATH"
-# Moss's go.mod names the Go release it builds with, newer than Debian's.
-export GOTOOLCHAIN=auto
 
 case "$step" in
   prebuild)

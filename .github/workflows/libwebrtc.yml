@@ -151,8 +151,14 @@ jobs:
   maven:
     name: Publish the Android build to Maven Central
     needs: [pending, publish]
-    # Also when the release existed already and nothing was built.
-    if: ${{ !cancelled() && !failure() && github.repository == 'redstone-md/mosh-flutter' }}
+    # Maven Central keeps a version forever, so only main or a deliberate run
+    # publishes, and only a release that existed before this run: a new one
+    # is published before build.json pins its SHA-256, and the commit that
+    # pins it runs this workflow again.
+    if: >-
+      ${{ !cancelled() && !failure() && github.repository == 'redstone-md/mosh-flutter'
+      && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+      && needs.pending.outputs.missing == 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:

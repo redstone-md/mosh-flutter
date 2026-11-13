@@ -21,6 +21,8 @@ permissions:
 jobs:
   build:
     name: fdroid build and scanner
+    # F-Droid clones this repository, which does not have a fork's commits.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 300
     steps:

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs fdroid/app.mosh.mosh.yml at one commit of Mosh the way fdroiddata's CI
 # runs a submitted recipe (its "fdroid build" job): `fdroid build` with the
-# scanner, then `fdroid lint`. The fdroid workflow runs it in the
+# scanner, `fdroid lint`, `fdroid rewritemeta` and the Gradle audit. The fdroid workflow runs it in the
 # fdroidserver buildserver image with this checkout at /repo.
 #
 #   COMMIT=<sha> VERSION=<versionName> CODE=<versionCode> fdroid/verify.sh
@@ -20,12 +20,17 @@ export PYTHONUNBUFFERED=true serverwebroot=/tmp
 
 # The recipe as submitted, at the commit under test.
 sed -e "s/^    commit: .*/    commit: $COMMIT/" \
-  -e "s/^    versionName: .*/    versionName: $VERSION/" -e "s/^    versionCode: .*/    versionCode: $CODE/" \
+  -e "s/^  - versionName: .*/  - versionName: $VERSION/" -e "s/^    versionCode: .*/    versionCode: $CODE/" \
   -e "s/^CurrentVersion: .*/CurrentVersion: $VERSION/" -e "s/^CurrentVersionCode: .*/CurrentVersionCode: $CODE/" \
   "$repo/fdroid/$appid.yml" > "$work/fdroiddata/metadata/$appid.yml"
 
 cd "$work/fdroiddata"
 fdroid lint "$appid"
+# The recipe is in the canonical format fdroiddata keeps.
+cp "metadata/$appid.yml" "$work/recipe.yml"
+fdroid rewritemeta "$appid"
+diff -u "$work/recipe.yml" "metadata/$appid.yml"
+sysctl fs.inotify.max_user_watches=524288 || true
 # What fdroiddata's buildserver sets up before a build.
 sdkmanager "platform-tools" "build-tools;31.0.0"
 for directory in logs tmp unsigned "$home_vagrant/.android" "$home_vagrant/.gradle" "$home_vagrant/metadata"; do
@@ -43,7 +48,9 @@ cd "$home_vagrant"
 ln -s "$work/fdroiddata" fdroiddata
 $fdroid fetchsrclibs "$appid:$CODE" --verbose
 rm fdroiddata
-$fdroid build --verbose --test --refresh-scanner --on-server --no-tarball "$appid:$CODE"
+(unset CI; $fdroid build --verbose --test --refresh-scanner --on-server --no-tarball "$appid:$CODE")
+cd "$work/fdroiddata"
+./tools/audit-gradle.py "$appid"
 
 mkdir -p "$repo/build/fdroid"
 cp "$work/fdroiddata/tmp/${appid}_${CODE}.apk" "$repo/build/fdroid/"

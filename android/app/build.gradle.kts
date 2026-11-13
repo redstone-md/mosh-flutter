@@ -11,7 +11,7 @@ plugins {
 }
 
 // F-Droid builds the release itself and signs it with its own key.
-val unsignedRelease = providers.gradleProperty("moshUnsignedRelease").isPresent
+val unsignedRelease = providers.gradleProperty("moshUnsignedRelease").orNull == "true"
 
 val releaseKeystore = Properties().apply {
     rootProject.file("key.properties").takeIf(File::isFile)
