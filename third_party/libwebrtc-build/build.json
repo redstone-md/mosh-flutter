@@ -1,13 +1,13 @@
 {
-  "release": "libwebrtc-m150-9c3a138-1",
+  "release": "libwebrtc-m150-9c3a138-2",
   "maven": "run.mosh:libwebrtc",
   "repository": "https://github.com/webrtc-sdk/webrtc.git",
   "commit": "9c3a1386f07e4348c28cd85c066821cebc3b56e4",
   "archives": {
-    "android-arm64-release": "ff15daae71d450ef7f424744e03501a4e2fe082f190d3e2834f2fe5f4b22d744",
-    "linux-x64-release": "541df35bfceb70f64b0db3c94e83de3ee1528bd5e296a287f9c92f6cc468c46d",
-    "mac-arm64-release": "2415c51c705095200f2a6de92987b3bd94299d5176dff8f9d1dff713c30f22be",
-    "mac-x64-release": "c0076c805b131f8edaa2df998d87a4ff129928541c9f1d0eee66ef4201e63a8b",
-    "win-x64-release": "6f4a65c8288b4df0f8dce66bdf99dd5ad276c8c4cf66f5ecf64f0f073779a0e2"
+    "android-arm64-release": "62408426f799551dbad39cf5fd65dc018996d39265811b9817e15b5018cbcec5",
+    "linux-x64-release": "e47cfab2bce631e9bf9d2a3a1cf087f08954fff5b993c4e03478c5a3b5c45a5d",
+    "mac-arm64-release": "b1f9c31ee32b38ae9658ca766f5bbf162d93410b4bede63421eb6d00ffa900cf",
+    "mac-x64-release": "5368d209db6f5ed764cf2a9bee591441d1d0d4aef49102c8c5121a1e27397ac6",
+    "win-x64-release": "50b5995fde591e885b8871f004752201ffc39a17f63d5a04a3aa919cf1f99abc"
   }
 }
