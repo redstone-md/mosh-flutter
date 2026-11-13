@@ -4,8 +4,8 @@ name: F-Droid build
 # fdroiddata's CI checks a submission: in the fdroidserver buildserver image,
 # from a clean clone of this commit, with F-Droid's scanner. Run by hand, for
 # every release tag so a release that F-Droid cannot build shows up here
-# first, and for changes to the recipe. It takes more than an hour, so other
-# pull requests do not run it.
+# first, and for changes to the recipe and the Android build it runs. It
+# takes more than an hour, so other pull requests do not run it.
 on:
   workflow_dispatch:
   push:
@@ -14,6 +14,10 @@ on:
     paths:
       - 'fdroid/**'
       - '.github/workflows/fdroid.yml'
+      - 'android/**'
+      - 'scripts/android-*.mjs'
+      - 'scripts/moss-prepare-android.mjs'
+      - 'third_party/libwebrtc-build/build.json'
 
 permissions:
   contents: read

@@ -105,7 +105,7 @@ a higher version code.
 The main F-Droid catalog builds Mosh from source with the recipe in
 [fdroid/app.mosh.mosh.yml](../../fdroid/app.mosh.mosh.yml), the draft of its
 fdroiddata entry, which runs [fdroid/build.sh](../../fdroid/build.sh). That
-builds the `fdroid` channel without a signing key (`-PmoshUnsignedRelease`),
+builds the `fdroid` channel without a signing key (`-PmoshUnsignedRelease=true`),
 and F-Droid signs it with its own, so it does not install over our APKs. Like
 RuStore's, its Mosh+ card shows only the membership: buying needs our closed
 billing server, which F-Droid would mark as a non-free network service. It

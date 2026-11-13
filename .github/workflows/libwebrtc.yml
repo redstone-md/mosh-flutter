@@ -153,8 +153,9 @@ jobs:
     needs: [pending, publish]
     # Maven Central keeps a version forever, so only main or a deliberate run
     # publishes, and only a release that existed before this run: a new one
-    # is published before build.json pins its SHA-256, and the commit that
-    # pins it runs this workflow again.
+    # is published before build.json pins its SHA-256, and a run by hand on
+    # the branch of the commit that pins it publishes it before the merge
+    # (third_party/libwebrtc-build/README.md).
     if: >-
       ${{ !cancelled() && !failure() && github.repository == 'redstone-md/mosh-flutter'
       && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')

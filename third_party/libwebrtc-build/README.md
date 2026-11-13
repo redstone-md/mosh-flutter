@@ -22,8 +22,12 @@ accepts a prebuilt library only from a repository like that. The workflow's
 signed with the key in the `MAVEN_GPG_PRIVATE_KEY` secret, through the Central
 Portal user token in `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`.
 Gradle fetches it like any dependency and the Android build checks it against
-`archives`. The job runs once the commit that pins a new release's SHA-256
-pushes, so an Android build can use a new release only after that.
+`archives`. A version on Maven Central can never be removed, so a branch push
+does not publish: after the commit that pins a new release's SHA-256, run the
+workflow by hand on that branch (`gh workflow run libwebrtc.yml --ref
+<branch>`), wait for the archive on repo1.maven.org, then rerun the pull
+request's Android checks. Until then they fail to resolve it, and so would
+main after a merge.
 
 To change the build, edit the pin or the patches and give `release` a new
 name: a published release is never replaced. To build locally, run
