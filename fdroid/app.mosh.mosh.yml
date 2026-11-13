@@ -25,7 +25,7 @@ Builds:
       - update-java-alternatives -s java-1.21.0-openjdk-amd64
     output: build/app/outputs/flutter-apk/app-release.apk
     srclibs:
-      - flutter@3.44.8
+      - flutter@stable
       - rustup@1.28.2
     rm:
       - ios

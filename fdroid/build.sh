@@ -21,6 +21,9 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 case "$step" in
   prebuild)
+    # The flutter srclib is the stable branch; check out the release .fvmrc
+    # pins, as our own builds use, so the recipe needs no Flutter version.
+    git -C "$2" checkout -f "$(sed -n 's/.*"flutter": *"\([^"]*\)".*/\1/p' .fvmrc)"
     sh "$3/rustup-init.sh" -y --no-modify-path --profile minimal --default-toolchain none
     # Installs the compiler rust-toolchain.toml pins.
     rustup toolchain install

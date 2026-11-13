@@ -99,15 +99,16 @@ runs:
         choco install nasm -y --no-progress
         echo 'C:\Program Files\NASM' >> "$GITHUB_PATH"
 
-    # Pinned, not `channel: stable`: a runner picking up a newer Flutter
-    # than the one the release was built with is a drift nobody asked for.
+    # Pinned in .fvmrc, not `channel: stable`: a runner picking up a newer
+    # Flutter than the one the release was built with is a drift nobody asked
+    # for. F-Droid's build reads the same file (fdroid/build.sh).
     # The SDK is not cached: installing it takes 50-95 s, restoring it hardly
     # less, and it took 1.6-1.8 GB of cache per OS.
     - if: inputs.flutter == 'true'
       id: flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: 3.44.8
+        flutter-version-file: .fvmrc
         channel: stable
 
     # `flutter build windows` runs MSBuild with one project at a time and cl
