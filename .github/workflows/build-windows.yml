@@ -188,7 +188,7 @@ jobs:
         if: inputs.distribution-channel != 'msstore'
         shell: pwsh
         run: |
-          $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$').Matches[0].Groups[1].Value.Trim()
+          $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([^+\s]+)').Matches[0].Groups[1].Value.Trim()
           Write-Host "Packaging Mosh $version"
           iscc /Q /DAppVersion=$version windows\installer\mosh.iss
 

@@ -37,7 +37,10 @@ profile and `--target-platform android-arm64`. Dart symbols and R8 mappings are
 uploaded separately as `mosh-android-symbols` (`mosh-android-symbols-<channel>`
 for a store build). APKs contain no debug entry point.
 The Android version code is `major * 1000000 + minor * 1000 + patch` (minor/patch
-at most 999); preview rebuilds keep that version code and the same signing key.
+at most 999). `pubspec.yaml` carries it after the version (`version: 0.29.0+29000`)
+and `node scripts/android-version-code.mjs` checks it; the release workflow
+refuses a tag whose pubspec code disagrees. Preview rebuilds keep that version
+code and the same signing key.
 An update can replace an equal-version APK. Published stable versions increase it.
 Flutter prepopulates all supported ABIs in `defaultConfig`; Mosh explicitly clears
 that set before selecting ARM64, following the
@@ -121,9 +124,9 @@ Google's Maven repository
 [fdroid.yml](../../.github/workflows/fdroid.yml) runs the recipe the way
 fdroiddata's CI checks a submission, `fdroid build` with the scanner in the
 fdroidserver buildserver image, for every release tag and change to the
-recipe. The recipe does not update itself: add each release to fdroiddata
-with its version, version code (`node scripts/android-version-code.mjs`) and
-tag.
+recipe. F-Droid's update check reads the version and version code of each
+release tag from `pubspec.yaml`, and its bot adds the release to fdroiddata
+(`AutoUpdateMode: Version`).
 
 media3 follows the platform's cleartext policy. `network_security_config.xml`
 permits plain HTTP to `127.0.0.1` only, where the app's own server hands a

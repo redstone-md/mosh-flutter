@@ -64,8 +64,8 @@ Partner Center no longer has a search-terms field, so there are no keywords.
 
 Add `changelogs/<versionCode>.txt` in both Android locales, with the
 user-facing lines from `CHANGELOG.md`. The versionCode is
-`major × 1000000 + minor × 1000 + patch` (`0.26.0` is `26000`), as the Android
-release build computes it. Paste the same lines into "What's new" in Partner
+`major × 1000000 + minor × 1000 + patch` (`0.26.0` is `26000`), the number after
+`+` in the `pubspec.yaml` version. Paste the same lines into "What's new" in Partner
 Center and RuStore.
 
 ## Screenshots
