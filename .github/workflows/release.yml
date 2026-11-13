@@ -109,8 +109,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [verify, installer, msix, dmg, apk, apk-rustore]
-    # Runs when the store jobs were skipped for a pre-release.
-    if: ${{ !cancelled() && !failure() }}
+    # Runs when the store jobs were skipped for a pre-release, but not when a
+    # build was cancelled (a macOS runner that never came): its empty artifact
+    # name would download every artifact of the run into the release.
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
     permissions:
       contents: write
     steps:
