@@ -20,8 +20,8 @@ Builds:
     submodules: true
     sudo:
       - apt-get update
-      - apt-get install -y openjdk-21-jdk-headless golang-go nodejs protobuf-compiler
-        cmake ninja-build pkg-config
+      - apt-get install -y openjdk-21-jdk-headless build-essential golang-go nodejs
+        protobuf-compiler cmake ninja-build pkg-config
       - update-java-alternatives -s java-1.21.0-openjdk-amd64
     output: build/app/outputs/flutter-apk/app-release.apk
     srclibs:
@@ -32,6 +32,7 @@ Builds:
       - linux
       - macos
       - windows
+      - moss/examples
       - moss/internal/geo/GeoLite2-Country.mmdb.gz
     prebuild: fdroid/build.sh prebuild $$flutter$$ $$rustup$$
     build: fdroid/build.sh build $$flutter$$
