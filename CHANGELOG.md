@@ -6,6 +6,35 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-11-13
+
+### Added
+
+- Settings > About lists the licenses of the Rust crates, Go modules and
+  libmpv that Mosh includes, next to the Dart packages.
+- Android: Mosh can be built from source for F-Droid's main catalog. That
+  build signs with F-Droid's key and shows a Mosh+ membership but does not
+  sell one.
+
+### Changed
+
+- Desktop calls open in the main window instead of a separate call window.
+  Expanded, a call covers the chats and can go full screen; minimized, it
+  becomes a strip or a small video view you can drag over the chats.
+- Call video takes less CPU on every platform: camera frames reach the
+  encoder without a colour conversion round trip, and received video goes
+  straight to the screen.
+- Android: voice messages, audio and video play through the system's media
+  player instead of a bundled libmpv.
+- Sending a text writes to disk three times instead of thirteen, and an idle
+  chat no longer saves its encryption state every two seconds, so chats stay
+  responsive on slow disks.
+
+### Fixed
+
+- Mute and camera buttons switch at once during a call instead of keeping
+  their old state for a few seconds.
+
 ## [0.28.2] - 2026-11-08
 
 ### Fixed

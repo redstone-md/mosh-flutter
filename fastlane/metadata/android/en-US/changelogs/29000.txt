@@ -1,0 +1,5 @@
+• Call video takes less CPU and goes straight to the screen.
+• Voice messages, audio and video play through the system's media player.
+• Sending a message waits for the disk far less often, so chats stay responsive.
+• Mute and camera buttons switch at once during a call.
+• Settings > About lists the licenses of every library Mosh includes.

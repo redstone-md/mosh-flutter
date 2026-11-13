@@ -13,9 +13,9 @@ RepoType: git
 Repo: https://github.com/redstone-md/mosh-flutter.git
 
 Builds:
-  - versionName: 0.28.3
-    versionCode: 28003
-    commit: v0.28.3
+  - versionName: 0.29.0
+    versionCode: 29000
+    commit: v0.29.0
     timeout: 14400
     submodules: true
     sudo:
@@ -63,5 +63,5 @@ MaintainerNotes: |-
 
 AutoUpdateMode: None
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
-CurrentVersion: 0.28.3
-CurrentVersionCode: 28003
+CurrentVersion: 0.29.0
+CurrentVersionCode: 29000
