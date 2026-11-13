@@ -39,10 +39,12 @@ jobs:
           tag="${GITHUB_REF_NAME}"
           version="${tag#v}"
           pubspec="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '[:space:]')"
+          pubspec="${pubspec%%+*}"
           if [ "$version" != "$pubspec" ]; then
             echo "::error::tag $tag names $version but pubspec.yaml says $pubspec"
             exit 1
           fi
+          node scripts/android-version-code.mjs > /dev/null
           if ! grep -q "^## \[$version\]" CHANGELOG.md; then
             echo "::error::CHANGELOG.md has no '## [$version]' section"
             exit 1

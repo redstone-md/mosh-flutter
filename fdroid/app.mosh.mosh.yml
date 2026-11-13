@@ -61,7 +61,8 @@ MaintainerNotes: |-
   fdroid/build.sh is the build script; the fdroid workflow of the repository
   runs this recipe in the fdroidserver buildserver image on every release.
 
-AutoUpdateMode: None
+AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
+UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
 CurrentVersion: 0.29.0
 CurrentVersionCode: 29000

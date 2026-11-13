@@ -95,9 +95,8 @@ jobs:
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
         run: |
           set -euo pipefail
-          version_code=$(node scripts/android-version-code.mjs)
           flutter build apk --release --target-platform android-arm64 \
-            --build-number="$version_code" --split-debug-info=build/android-symbols \
+            --split-debug-info=build/android-symbols \
             "--dart-define=SENTRY_DSN=$SENTRY_DSN" \
             "--dart-define=MOSH_DISTRIBUTION_CHANNEL=$MOSH_DISTRIBUTION_CHANNEL" \
             --dart-define=MOSH_PLUS_NETWORK=solana-mainnet \
@@ -133,7 +132,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '[:space:]')
+          version=$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' pubspec.yaml)
           apk="mosh-$version$SUFFIX-arm64-v8a.apk"
           cp build/app/outputs/flutter-apk/app-release.apk "build/android-dist/$apk"
           cd build/android-dist

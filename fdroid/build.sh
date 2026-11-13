@@ -33,7 +33,6 @@ case "$step" in
     ;;
   build)
     "$flutter" build apk --release --target-platform android-arm64 \
-      --build-number="$(node scripts/android-version-code.mjs)" \
       --split-debug-info=build/android-symbols \
       --dart-define=MOSH_DISTRIBUTION_CHANNEL=fdroid \
       --dart-define=MOSH_PLUS_NETWORK=solana-mainnet \

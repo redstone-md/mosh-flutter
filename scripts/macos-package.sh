@@ -12,7 +12,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/build/macos/Build/Products/Release/mosh.app"
-VERSION="$(sed -n 's/^version:[[:space:]]*//p' "$ROOT/pubspec.yaml" | tr -d '[:space:]')"
+VERSION="$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' "$ROOT/pubspec.yaml")"
 DIST="$ROOT/build/macos-dist"
 UNIVERSAL="${MOSH_MACOS_UNIVERSAL:-true}"
 if [ "$UNIVERSAL" = "false" ]; then

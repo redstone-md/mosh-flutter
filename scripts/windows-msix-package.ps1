@@ -22,7 +22,7 @@ $test = 'build/msix-test'
 Remove-Item -Recurse -Force $work, $dist, $test -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $layout, "$work/pri", $dist, $test | Out-Null
 
-$version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$').Matches[0].Groups[1].Value.Trim()
+$version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([^+\s]+)').Matches[0].Groups[1].Value.Trim()
 $name = "mosh-$version-x64"
 $sdk = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\makeappx.exe' |
   Sort-Object { [version]$_.Directory.Parent.Name } | Select-Object -Last 1
