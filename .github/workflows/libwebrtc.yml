@@ -3,9 +3,10 @@ name: libwebrtc builds
 # Our libwebrtc for the call engine (mosh-media/webrtc): LiveKit's webrtc-sdk
 # fork at the commit pinned in third_party/libwebrtc-build/build.json, built
 # by LiveKit's scripts with our patches (no H.264). Archives are published
-# as assets of the pinned release, which native builds download and check
-# against the SHA-256 recorded beside it. A release is never replaced: a
-# change to the build bumps its name.
+# as assets of the pinned release, which desktop builds download and check
+# against the SHA-256 recorded beside it. The Android archive also goes to
+# Maven Central, where F-Droid accepts it from and Gradle fetches it. A
+# release is never replaced: a change to the build bumps its name.
 on:
   workflow_dispatch:
   push:
@@ -14,6 +15,7 @@ on:
       - 'third_party/libwebrtc-build/build.json'
       - 'third_party/webrtc-sys-patches/**'
       - 'scripts/libwebrtc-build.mjs'
+      - 'scripts/libwebrtc-maven.mjs'
       - 'scripts/support/libwebrtc-targets.mjs'
 
 concurrency:
@@ -145,3 +147,40 @@ jobs:
             --prerelease --latest=false --title "$RELEASE" \
             --notes "libwebrtc for the call engine, built by .github/workflows/libwebrtc.yml (no H.264). Pin the SHA256SUMS in third_party/libwebrtc-build/build.json." \
             *.tar.gz SHA256SUMS
+
+  maven:
+    name: Publish the Android build to Maven Central
+    needs: [pending, publish]
+    # Maven Central keeps a version forever, so only main or a deliberate run
+    # publishes, and only a release that existed before this run: a new one
+    # is published before build.json pins its SHA-256, and a run by hand on
+    # the branch of the commit that pins it publishes it before the merge
+    # (third_party/libwebrtc-build/README.md).
+    if: >-
+      ${{ !cancelled() && !failure() && github.repository == 'redstone-md/mosh-flutter'
+      && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+      && needs.pending.outputs.missing == 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download the Android archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ needs.pending.outputs.release }}
+        run: gh release download "$RELEASE" --repo "$GITHUB_REPOSITORY" --pattern libwebrtc-android-arm64-release.tar.gz --dir "$RUNNER_TEMP"
+      - name: Import the signing key
+        env:
+          MAVEN_GPG_PRIVATE_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+        run: |
+          : "${MAVEN_GPG_PRIVATE_KEY:?Missing the Maven Central signing key}"
+          printf '%s' "$MAVEN_GPG_PRIVATE_KEY" | gpg --batch --import
+      - name: Publish
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: node scripts/libwebrtc-maven.mjs --archive "$RUNNER_TEMP/libwebrtc-android-arm64-release.tar.gz"

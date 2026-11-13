@@ -2,16 +2,15 @@ name: Build Android release
 
 # The signed arm64 APK, built the same way for a main push and a release tag.
 # The distribution channel picks the build: `github` updates itself from the
-# release feed, `fdroid` is the APK F-Droid-format repositories (IzzyOnDroid)
-# take from the release (no self-update), `rustore` is the RuStore upload (no
-# self-update, Mosh+ shows only the membership). All use the same signing key,
-# so any installs over another.
+# release feed, `rustore` is the RuStore upload (no self-update, Mosh+ shows
+# only the membership). Both use the same signing key, so either installs over
+# the other. F-Droid builds the `fdroid` channel itself (fdroid/build.sh).
 
 on:
   workflow_call:
     inputs:
       distribution-channel:
-        description: Store the build is made for (github, fdroid or rustore).
+        description: Store the build is made for (github or rustore).
         type: string
         default: github
     outputs:
@@ -21,9 +20,9 @@ on:
   workflow_dispatch:
     inputs:
       distribution-channel:
-        description: github updates itself, fdroid is for IzzyOnDroid, rustore is the RuStore upload.
+        description: github updates itself, rustore is the RuStore upload.
         type: choice
-        options: [github, fdroid, rustore]
+        options: [github, rustore]
         default: github
 
 permissions:
@@ -96,14 +95,7 @@ jobs:
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
         run: |
           set -euo pipefail
-          version_code=$(node --input-type=module -e '
-            import { readFileSync } from "node:fs";
-            const version = readFileSync("pubspec.yaml", "utf8").match(/^version: (\d+)\.(\d+)\.(\d+)/m);
-            if (!version) throw new Error("Missing semantic version");
-            const [major, minor, patch] = version.slice(1).map(Number);
-            const code = major * 1000000 + minor * 1000 + patch;
-            if (minor > 999 || patch > 999 || code < 1 || code > 2100000000) throw new Error("Invalid Android versionCode");
-            console.log(code);')
+          version_code=$(node scripts/android-version-code.mjs)
           flutter build apk --release --target-platform android-arm64 \
             --build-number="$version_code" --split-debug-info=build/android-symbols \
             "--dart-define=SENTRY_DSN=$SENTRY_DSN" \

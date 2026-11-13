@@ -179,7 +179,7 @@ jobs:
         run: cargo fmt --manifest-path mosh-core/Cargo.toml --check
 
       - name: Pinned source preparation tests
-        run: node --test scripts/openmls-prepare.test.mjs scripts/livekit-webrtc-prepare.test.mjs scripts/source-lock.test.mjs
+        run: node --test scripts/openmls-prepare.test.mjs scripts/livekit-webrtc-prepare.test.mjs scripts/libwebrtc-maven.test.mjs scripts/source-lock.test.mjs
 
       # Strict lint gate (ADR 0015): warnings fail the job.
       - name: Clippy check
@@ -449,20 +449,13 @@ jobs:
     uses: ./.github/workflows/build-android.yml
     secrets: inherit
 
-  # Same proof for the store APKs, so a broken store build fails on main
-  # instead of at release.
+  # Same proof for the RuStore APK, so a broken store build fails on main
+  # instead of at release. F-Droid builds its own (fdroid.yml).
   android-rustore:
     if: github.repository == 'redstone-md/mosh-flutter' && github.event_name != 'pull_request'
     uses: ./.github/workflows/build-android.yml
     with:
       distribution-channel: rustore
-    secrets: inherit
-
-  android-fdroid:
-    if: github.repository == 'redstone-md/mosh-flutter' && github.event_name != 'pull_request'
-    uses: ./.github/workflows/build-android.yml
-    with:
-      distribution-channel: fdroid
     secrets: inherit
 
   # The darwin compile of mosh-core (keychain, coreaudio, unix cfg paths)

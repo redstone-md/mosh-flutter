@@ -8,7 +8,9 @@ void main() {
     expect(DistributionChannel.parse('rustore'), DistributionChannel.rustore);
   });
 
-  test('only GitHub updates itself; stores that allow it sell Mosh+', () {
+  test(
+      'only GitHub updates itself; only GitHub and the Microsoft Store sell Mosh+',
+      () {
     final updating = {
       for (final channel in DistributionChannel.values)
         if (channel.selfUpdates) channel.name
@@ -18,7 +20,7 @@ void main() {
         if (channel.sellsPlus) channel.name
     };
     expect(updating, {'github'});
-    expect(selling, {'github', 'msstore', 'fdroid'});
+    expect(selling, {'github', 'msstore'});
   });
 
   test('an unknown channel fails instead of picking store rules', () {

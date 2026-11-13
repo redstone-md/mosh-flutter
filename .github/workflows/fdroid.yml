@@ -1,0 +1,64 @@
+name: F-Droid build
+
+# Builds Mosh with its F-Droid recipe (fdroid/app.mosh.mosh.yml) the way
+# fdroiddata's CI checks a submission: in the fdroidserver buildserver image,
+# from a clean clone of this commit, with F-Droid's scanner. Run by hand, for
+# every release tag so a release that F-Droid cannot build shows up here
+# first, and for changes to the recipe and the Android build it runs. It
+# takes more than an hour, so other pull requests do not run it.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths:
+      - 'fdroid/**'
+      - '.github/workflows/fdroid.yml'
+      - 'android/**'
+      - 'scripts/android-*.mjs'
+      - 'scripts/moss-prepare-android.mjs'
+      - 'third_party/libwebrtc-build/build.json'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: fdroid build and scanner
+    # F-Droid clones this repository, which does not have a fork's commits.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+      - name: The recipe verifies Mosh+ with the key our builds use
+        env:
+          MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
+        run: |
+          grep -qxF "PLUS_ISSUER_KEY=$MOSH_PLUS_ISSUER_KEY" fdroid/build.sh \
+            || { echo '::error::fdroid/build.sh has a different Mosh+ issuer key than MOSH_PLUS_ISSUER_KEY'; exit 1; }
+      - name: Build with the recipe
+        env:
+          # F-Droid clones the repository, where a pull request's merge commit
+          # is not on any branch.
+          COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          docker run --rm -v "$PWD:/repo" \
+            -e COMMIT \
+            -e VERSION="$(sed -n 's/^version: *\([0-9.]*\).*/\1/p' pubspec.yaml)" \
+            -e CODE="$(node scripts/android-version-code.mjs)" \
+            registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie bash /repo/fdroid/verify.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mosh-fdroid-unsigned
+          path: build/fdroid/
+          if-no-files-found: error

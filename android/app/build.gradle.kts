@@ -10,6 +10,9 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// F-Droid builds the release itself and signs it with its own key.
+val unsignedRelease = providers.gradleProperty("moshUnsignedRelease").orNull == "true"
+
 val releaseKeystore = Properties().apply {
     rootProject.file("key.properties").takeIf(File::isFile)
         ?.inputStream()?.use(::load)
@@ -106,7 +109,7 @@ android {
         }
         release {
             // Missing credentials fail release signing; debug stays independent.
-            signingConfig = signingConfigs.getByName("release")
+            if (!unsignedRelease) signingConfig = signingConfigs.getByName("release")
             proguardFile("proguard-rules.pro")
         }
     }
@@ -118,9 +121,17 @@ kotlin {
     }
 }
 
+// Our libwebrtc build for the call engine, which .github/workflows/libwebrtc.yml
+// publishes to Maven Central; build.json pins its release and SHA-256.
+val libwebrtcBuild = groovy.json.JsonSlurper()
+    .parse(rootProject.projectDir.parentFile.resolve("third_party/libwebrtc-build/build.json")) as Map<*, *>
+val libwebrtc: Configuration by configurations.creating
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation(files(rootProject.projectDir.parentFile.resolve(".dart_tool/android-media/engine/libwebrtc.jar")))
+    val release = (libwebrtcBuild["release"] as String).removePrefix("libwebrtc-")
+    libwebrtc("${libwebrtcBuild["maven"]}:$release:android-arm64-release@tar.gz")
 }
 
 flutter {
@@ -138,7 +149,7 @@ val verifyReleaseSigning = tasks.register("verifyReleaseSigning") {
         }
     }
 }
-tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+tasks.matching { it.name == "preReleaseBuild" && !unsignedRelease }.configureEach {
     dependsOn(verifyReleaseSigning)
 }
 
@@ -191,9 +202,12 @@ tasks.named("preBuild") {
 
 // The shared native protocol is usable only when its Android engine is packaged.
 val nativeMediaPreparation = tasks.register<Exec>("prepareNativeMediaAndroid") {
+    val libwebrtcArchive: FileCollection = libwebrtc
+    inputs.files(libwebrtcArchive)
     workingDir(repositoryRoot)
     doFirst {
         environment("ANDROID_NDK_HOME", mossNdkRoot.get().absolutePath)
+        environment("MOSH_LIBWEBRTC_ARCHIVE", libwebrtcArchive.singleFile.absolutePath)
         commandLine(mossNode.get().absolutePath,
             repositoryRoot.resolve("scripts/android-native-media-build.mjs").absolutePath)
     }

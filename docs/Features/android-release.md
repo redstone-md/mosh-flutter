@@ -83,40 +83,47 @@ releases publish those files beside the Windows and macOS installers.
 ## Store builds
 
 The `distribution-channel` input picks the build. Every main push and release
-tag builds all three; pre-release tags build only the GitHub APK, because
+tag builds both; pre-release tags build only the GitHub APK, because
 `v1.2.3-rc.1` and `v1.2.3` share a version code. A store build's artifact is
 `mosh-android-release-<channel>`.
 
 | Channel | Release files | Who installs it |
 | --- | --- | --- |
 | `github` | `mosh-<version>-arm64-v8a.apk`, `plus-build.json` | People downloading from GitHub. |
-| `fdroid` | `mosh-<version>-fdroid-arm64-v8a.apk`, `plus-build-fdroid.json` | Taken from the release by IzzyOnDroid. The repository updates it. |
 | `rustore` | `mosh-<version>-rustore-arm64-v8a.apk`, `plus-build-rustore.json` | Uploaded to RuStore. RuStore updates it. |
 
-Store builds do not check GitHub for updates. The `fdroid` build sells Mosh+
-like the GitHub one; the RuStore Mosh+ card shows only the membership, without
-purchase (see [production Mosh+](plus-mainnet.md)). Crash reports stay off in
-every build until the user turns them on. All APKs have the same package id,
-version code and signing key, so any installs over another and keeps its data.
-The package checks above run on all of them. Upload the RuStore APK in the RuStore
-developer console; the next upload needs a higher version code.
+Store builds do not check GitHub for updates. The RuStore Mosh+ card shows
+only the membership, without purchase (see [production Mosh+](plus-mainnet.md)).
+Crash reports stay off in every build until the user turns them on. Both APKs
+have the same package id, version code and signing key, so either installs
+over the other and keeps its data. The package checks above run on both.
+Upload the RuStore APK in the RuStore developer console; the next upload needs
+a higher version code.
 
-### IzzyOnDroid and F-Droid
+### F-Droid
 
-[IzzyOnDroid](https://izzyondroid.org/docs/general/AppInclusionPolicy/) serves
-the signed `fdroid` APK from the GitHub release and the texts from
-`fastlane/metadata/android` (see [store listings](store-listings.md)). It
-rejects proprietary SDKs and self-updaters that are on by default, which is why
-the device-link scanner uses CameraX with zxing2 rather than ML Kit. Its usual
-budget is 30 MB per app; the arm64 APK is near 80 MB, so the submission asks
-for an exception.
+The main F-Droid catalog builds Mosh from source with the recipe in
+[fdroid/app.mosh.mosh.yml](../../fdroid/app.mosh.mosh.yml), the draft of its
+fdroiddata entry, which runs [fdroid/build.sh](../../fdroid/build.sh). That
+builds the `fdroid` channel without a signing key (`-PmoshUnsignedRelease=true`),
+and F-Droid signs it with its own, so it does not install over our APKs. Like
+RuStore's, its Mosh+ card shows only the membership: buying needs our closed
+billing server, which F-Droid would mark as a non-free network service. It
+has no Sentry DSN.
 
-The main F-Droid catalog rebuilds apps from source with its own tools. Mosh
-cannot go there yet: the call engine builds Signal's WebRTC through
-depot_tools, which downloads Google's prebuilt clang and build tools (MOSH-59).
-The player no longer stands in the way: Android has no libmpv and plays through
-media3 from Google's Maven repository
+F-Droid accepts no prebuilt binaries except from repositories such as Maven
+Central, so the call engine's libwebrtc comes from there
+([our libwebrtc build](../../third_party/libwebrtc-build/README.md)). The
+player needs none: Android has no libmpv and plays through media3 from
+Google's Maven repository
 ([ADR 0053](../ADR/0053-android-playback-through-media3.md)).
+
+[fdroid.yml](../../.github/workflows/fdroid.yml) runs the recipe the way
+fdroiddata's CI checks a submission, `fdroid build` with the scanner in the
+fdroidserver buildserver image, for every release tag and change to the
+recipe. The recipe does not update itself: add each release to fdroiddata
+with its version, version code (`node scripts/android-version-code.mjs`) and
+tag.
 
 media3 follows the platform's cleartext policy. `network_security_config.xml`
 permits plain HTTP to `127.0.0.1` only, where the app's own server hands a

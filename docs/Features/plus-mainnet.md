@@ -11,12 +11,14 @@ mint, recipient, full payment/privacy information and terms/support links.
 Paused sales disable the purchase button with **Purchases paused**; recovery
 remains available, including when the catalog cannot load.
 
-Builds for stores that do not sell Mosh+ (`rustore`, `play`, `appstore`) show
+Builds for stores that do not sell Mosh+ (`fdroid`, `rustore`, `play`, `appstore`) show
 only the membership: its expiry and the badge visibility switch, or **Mosh+ is
 not active**. They never contact billing, so they show no price, payment, terms
 or recovery and do not register a renewal series. A membership bought on a
 linked device arrives through device sync, and peer badges verify in every build.
-`github`, `msstore` and `fdroid` builds sell Mosh+ as described above.
+`github` and `msstore` builds sell Mosh+ as described above. F-Droid permits
+the sale, but marks an app that uses a closed network service such as the
+billing server.
 
 Mosh 0.24.0 is released. The devnet pilot is complete; the operator enabled
 production sales on 2026-10-20. Real mainnet purchase acceptance remains pending. See the

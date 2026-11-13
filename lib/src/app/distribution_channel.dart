@@ -6,7 +6,7 @@
 enum DistributionChannel {
   github(selfUpdates: true, sellsPlus: true),
   msstore(selfUpdates: false, sellsPlus: true),
-  fdroid(selfUpdates: false, sellsPlus: true),
+  fdroid(selfUpdates: false, sellsPlus: false),
   rustore(selfUpdates: false, sellsPlus: false),
   play(selfUpdates: false, sellsPlus: false),
   appstore(selfUpdates: false, sellsPlus: false);
@@ -17,8 +17,10 @@ enum DistributionChannel {
   /// Only a GitHub build replaces itself; a store updates what it installed.
   final bool selfUpdates;
 
-  /// Whether the store permits the Mosh+ crypto checkout. Purchasing still
-  /// needs the billing configuration as well.
+  /// Whether the build offers the Mosh+ crypto checkout. Stores that forbid it
+  /// do not, and neither does F-Droid, which marks an app that uses a closed
+  /// network service such as the billing server. Purchasing still needs the
+  /// billing configuration as well.
   final bool sellsPlus;
 
   /// The channel named by `MOSH_DISTRIBUTION_CHANNEL`.
