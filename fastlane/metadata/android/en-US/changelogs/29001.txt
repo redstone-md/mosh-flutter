@@ -1,0 +1,1 @@
+• Build changes for the F-Droid catalog. Nothing changes in the app on Android.

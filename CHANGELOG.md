@@ -6,6 +6,15 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-11-13
+
+### Changed
+
+- Windows and macOS: Settings > About shows the build number next to the
+  version, as on Android.
+- Android: the release carries its version code in the source, so the F-Droid
+  catalog can pick up new releases on its own.
+
 ## [0.29.0] - 2026-11-13
 
 ### Added
