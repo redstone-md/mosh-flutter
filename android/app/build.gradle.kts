@@ -10,6 +10,9 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// F-Droid builds the release itself and signs it with its own key.
+val unsignedRelease = providers.gradleProperty("moshUnsignedRelease").isPresent
+
 val releaseKeystore = Properties().apply {
     rootProject.file("key.properties").takeIf(File::isFile)
         ?.inputStream()?.use(::load)
@@ -106,7 +109,7 @@ android {
         }
         release {
             // Missing credentials fail release signing; debug stays independent.
-            signingConfig = signingConfigs.getByName("release")
+            if (!unsignedRelease) signingConfig = signingConfigs.getByName("release")
             proguardFile("proguard-rules.pro")
         }
     }
@@ -146,7 +149,7 @@ val verifyReleaseSigning = tasks.register("verifyReleaseSigning") {
         }
     }
 }
-tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+tasks.matching { it.name == "preReleaseBuild" && !unsignedRelease }.configureEach {
     dependsOn(verifyReleaseSigning)
 }
 

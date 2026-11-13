@@ -2,13 +2,12 @@
 
 Mosh uses one set of texts and screenshots for its pages in Microsoft Store,
 F-Droid and RuStore, in English and Russian. They live in
-`fastlane/metadata`, where F-Droid-format repositories such as IzzyOnDroid
-read them. RuStore and Partner Center are filled in by hand from the same
+`fastlane/metadata`, where F-Droid reads them. RuStore and Partner Center are filled in by hand from the same
 files.
 
 ```text
 fastlane/metadata/
-├── android/<locale>/        # IzzyOnDroid reads this; RuStore copies it
+├── android/<locale>/        # F-Droid reads this; RuStore copies it
 │   ├── title.txt
 │   ├── short_description.txt
 │   ├── full_description.txt

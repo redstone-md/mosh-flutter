@@ -1,0 +1,62 @@
+Categories:
+  - Messaging
+  - Voice & Video Chat
+License: GPL-3.0-or-later
+AuthorName: Redstone
+SourceCode: https://github.com/redstone-md/mosh-flutter
+IssueTracker: https://github.com/redstone-md/mosh-flutter/issues
+Changelog: https://github.com/redstone-md/mosh-flutter/blob/main/CHANGELOG.md
+
+AutoName: Mosh
+
+RepoType: git
+Repo: https://github.com/redstone-md/mosh-flutter.git
+
+Builds:
+  - versionName: 0.28.3
+    versionCode: 28003
+    commit: v0.28.3
+    timeout: 14400
+    submodules: true
+    sudo:
+      - apt-get update
+      - apt-get install -y openjdk-21-jdk-headless golang-go nodejs protobuf-compiler
+        cmake ninja-build pkg-config
+      - update-java-alternatives -s java-1.21.0-openjdk-amd64
+    output: build/app/outputs/flutter-apk/app-release.apk
+    srclibs:
+      - flutter@3.44.8
+      - rustup@1.28.2
+    rm:
+      - ios
+      - linux
+      - macos
+      - windows
+      - moss/internal/geo/GeoLite2-Country.mmdb.gz
+    prebuild: fdroid/build.sh prebuild $$flutter$$ $$rustup$$
+    build: fdroid/build.sh build $$flutter$$
+    ndk: r28c
+
+MaintainerNotes: |-
+  Calls link Google's libwebrtc statically. F-Droid does not build WebRTC
+  (fdroid/admin#364), so Mosh publishes its own build to Maven Central as
+  run.mosh:libwebrtc, the way Conversations publishes
+  im.conversations.webrtc:webrtc-android. It is LiveKit's webrtc-sdk fork at the
+  commit in third_party/libwebrtc-build/build.json, built without H.264 by the
+  open scripts in .github/workflows/libwebrtc.yml; the build checks the
+  archive against the SHA-256 in that file.
+  .
+  The F-Droid build sells no Mosh+ membership and never contacts the billing
+  server; it shows a membership bought elsewhere, verified offline against the
+  public key in fdroid/build.sh. Crash reports are off: the build has no Sentry
+  DSN. Peers find each other through public BitTorrent trackers and DHT and
+  public STUN servers, not a service run by the developers. The GeoIP database
+  is only used by Moss builds with the geoip tag, which Mosh does not set.
+  .
+  fdroid/build.sh is the build script; the fdroid workflow of the repository
+  runs this recipe in the fdroidserver buildserver image on every release.
+
+AutoUpdateMode: None
+UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
+CurrentVersion: 0.28.3
+CurrentVersionCode: 28003
