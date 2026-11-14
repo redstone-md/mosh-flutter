@@ -48,6 +48,13 @@ function buildArchive(cc) {
       cwd: MOSS_DIR,
       env: {
         ...process.env,
+        // Only the iPhoneOS flags above: host cgo flags from the caller or a
+        // stored `go env -w` would point the cross-build at macOS inputs.
+        GOENV: "off",
+        CGO_CFLAGS: "",
+        CGO_CPPFLAGS: "",
+        CGO_CXXFLAGS: "",
+        CGO_LDFLAGS: "",
         GOTOOLCHAIN: GO_TOOLCHAIN,
         GOOS: "ios",
         GOARCH: "arm64",

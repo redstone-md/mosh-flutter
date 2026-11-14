@@ -15,7 +15,7 @@ on:
         type: boolean
         default: false
       upload:
-        description: Upload the signed build to TestFlight.
+        description: Sign the build and upload it to TestFlight.
         type: boolean
         default: false
       parallel-codegen:
@@ -29,7 +29,7 @@ on:
         type: boolean
         default: true
       upload:
-        description: Upload the signed build to TestFlight.
+        description: Sign the build and upload it to TestFlight.
         type: boolean
         default: true
 
@@ -83,30 +83,31 @@ jobs:
           mkdir -p "$(dirname "$config")"
           printf '\n[profile.release.package.mosh-core]\ncodegen-units = 16\n' >> "$config"
 
-      # The build number must grow with every TestFlight upload of a version,
-      # whichever workflow (release, manual run) made it: pubspec's number,
-      # then the UTC minute. Signing happens at the export, so Flutter's own
-      # certificate check is skipped.
+      # The build number must be new and growing for every TestFlight upload
+      # of a version, whichever workflow (release, manual run) made it:
+      # pubspec's number, then the run id, which is unique and increasing
+      # across the repository. Signing happens at the export, so Flutter's
+      # own certificate check is skipped.
       - name: Flutter configuration (App Store channel)
         shell: bash
         run: |
-          build="$(sed -n 's/^version: .*+\([0-9]*\)$/\1/p' pubspec.yaml).$(date -u +%y%m%d%H%M)"
+          build="$(sed -n 's/^version: .*+\([0-9]*\)$/\1/p' pubspec.yaml).$GITHUB_RUN_ID"
           flutter build ios --release --config-only --no-codesign --build-number="$build" \
             --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }} \
             --dart-define=MOSH_DISTRIBUTION_CHANNEL=appstore
 
       - name: Import the Apple Distribution identity
         env:
-          APPLE_P12_BASE64: ${{ inputs.sign && secrets.APPLE_DISTRIBUTION_P12_BASE64 || '' }}
-          APPLE_P12_PASSWORD: ${{ inputs.sign && secrets.APPLE_DISTRIBUTION_P12_PASSWORD || '' }}
+          APPLE_P12_BASE64: ${{ (inputs.sign || inputs.upload) && secrets.APPLE_DISTRIBUTION_P12_BASE64 || '' }}
+          APPLE_P12_PASSWORD: ${{ (inputs.sign || inputs.upload) && secrets.APPLE_DISTRIBUTION_P12_PASSWORD || '' }}
         run: bash scripts/apple-import-identity.sh "Apple Distribution"
 
       - name: Archive, sign and upload
         env:
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ inputs.sign && secrets.APP_STORE_CONNECT_ISSUER_ID || '' }}
-          APP_STORE_CONNECT_KEY_ID: ${{ inputs.sign && secrets.APP_STORE_CONNECT_KEY_ID || '' }}
-          APP_STORE_CONNECT_KEY_P8_BASE64: ${{ inputs.sign && secrets.APP_STORE_CONNECT_KEY_P8_BASE64 || '' }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ (inputs.sign || inputs.upload) && secrets.APP_STORE_CONNECT_ISSUER_ID || '' }}
+          APP_STORE_CONNECT_KEY_ID: ${{ (inputs.sign || inputs.upload) && secrets.APP_STORE_CONNECT_KEY_ID || '' }}
+          APP_STORE_CONNECT_KEY_P8_BASE64: ${{ (inputs.sign || inputs.upload) && secrets.APP_STORE_CONNECT_KEY_P8_BASE64 || '' }}
           MOSH_IOS_UPLOAD: ${{ inputs.upload && 'true' || 'false' }}
         run: bash scripts/ios-package.sh
 

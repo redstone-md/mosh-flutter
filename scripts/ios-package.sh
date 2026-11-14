@@ -41,6 +41,7 @@ xcodebuild "${XCODE[@]}" CODE_SIGNING_ALLOWED=NO archive
 check_moss
 
 if [ -z "${APP_STORE_CONNECT_KEY_P8_BASE64:-}" ]; then
+  [ "${MOSH_IOS_UPLOAD:-false}" != true ] || fail "an upload to TestFlight needs the App Store Connect key"
   echo "no App Store Connect key; the archive stays unsigned"
   exit 0
 fi
