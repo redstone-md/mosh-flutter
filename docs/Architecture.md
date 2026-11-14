@@ -461,7 +461,11 @@ ARB files. Cargokit links the same core as desktop/Android dynamic libraries and
 iOS static libraries. Windows integration tests require debug; Android builds
 require `--target-platform android-arm64`. macOS releases prepare universal Moss
 libraries before packaging; the reusable build workflow owns signing and
-DMG generation.
+DMG generation. Go cannot build a shared library for iOS, so the iOS app
+(iOS 15+, devices only) embeds Moss as `Moss.framework`, a static Go archive
+linked into a dynamic framework by `scripts/moss-prepare-ios.mjs`, and
+mosh-core opens it with the same `dlopen`. Release tags upload the iOS app to
+TestFlight ([code signing](../CODE_SIGNING.md)).
 
 Required checks live in [AGENTS.md](../AGENTS.md). Native runtime tests use real
 Moss and independent processes because Moss's keystore is process-global.

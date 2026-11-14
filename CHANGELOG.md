@@ -6,6 +6,11 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- iOS: releases are built for iPhone (iOS 15 or later) and uploaded to
+  TestFlight. Messaging works; calls do not yet.
+
 ### Changed
 
 - macOS: the app is signed with an Apple Developer ID and notarized, so the

@@ -222,9 +222,9 @@ jobs:
       # see the certificate, so PR proof builds stay ad-hoc signed.
       - name: Import the Developer ID signing identity
         env:
-          APPLE_DEVELOPER_ID_P12_BASE64: ${{ github.event_name != 'pull_request' && secrets.APPLE_DEVELOPER_ID_P12_BASE64 || '' }}
-          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.APPLE_DEVELOPER_ID_P12_PASSWORD || '' }}
-        run: bash scripts/macos-import-signing.sh
+          APPLE_P12_BASE64: ${{ github.event_name != 'pull_request' && secrets.APPLE_DEVELOPER_ID_P12_BASE64 || '' }}
+          APPLE_P12_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.APPLE_DEVELOPER_ID_P12_PASSWORD || '' }}
+        run: bash scripts/apple-import-identity.sh "Developer ID Application"
 
       # With `notarize` the DMG is notarized or the job fails.
       - name: Package DMG + notarization + checksum

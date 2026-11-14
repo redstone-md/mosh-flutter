@@ -19,7 +19,11 @@ const REQUIRED_SYMBOLS: [&[u8]; 8] = [
 pub const MOSS_LIBRARY_NAME: &str = "moss.dll";
 #[cfg(target_os = "macos")]
 pub const MOSS_LIBRARY_NAME: &str = "libmoss.dylib";
-#[cfg(all(unix, not(target_os = "macos")))]
+/// iOS embeds Moss as a framework (scripts/moss-prepare-ios.mjs); the path is
+/// relative to the app bundle, which holds the executable.
+#[cfg(target_os = "ios")]
+pub const MOSS_LIBRARY_NAME: &str = "Frameworks/Moss.framework/Moss";
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "ios"))))]
 pub const MOSS_LIBRARY_NAME: &str = "libmoss.so";
 
 #[derive(Debug, Clone, serde::Serialize)]

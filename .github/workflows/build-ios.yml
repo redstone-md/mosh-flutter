@@ -1,0 +1,129 @@
+name: Build iOS
+
+# The iOS app for TestFlight and the App Store. With `sign`, the Apple
+# Distribution certificate (APPLE_DISTRIBUTION_P12_*) and the App Store
+# Connect key (APP_STORE_CONNECT_*, repo variable APPLE_TEAM_ID) the archive
+# is exported signed for the App Store; with `upload` it goes to TestFlight
+# (scripts/ios-package.sh, CODE_SIGNING.md). Without them (forks) the
+# archive stays unsigned. Callers pass `secrets: inherit`.
+
+on:
+  workflow_call:
+    inputs:
+      sign:
+        description: Sign the archive for the App Store.
+        type: boolean
+        default: false
+      upload:
+        description: Sign the build and upload it to TestFlight.
+        type: boolean
+        default: false
+      parallel-codegen:
+        description: Compile mosh-core with parallel codegen (CI proof builds, never uploads).
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      sign:
+        description: Sign the archive for the App Store.
+        type: boolean
+        default: true
+      upload:
+        description: Sign the build and upload it to TestFlight.
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  ipa:
+    name: iOS app${{ inputs.upload && ' (TestFlight)' || inputs.sign && ' (signed)' || '' }}
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Moss for iOS is built by the Runner target's build phase
+      # (scripts/ios-embed-moss.sh), so only Go is needed here.
+      - uses: ./.github/actions/setup
+        with:
+          moss: 'false'
+          go: 'true'
+          rust-cache-key: ios
+          rust-cache-save: 'true'
+
+      - name: Add Rust iOS target
+        run: rustup target add aarch64-apple-ios
+
+      # What the archive rebuilds every time without it: the Rust libraries
+      # cargokit compiles in Xcode's temp dirs (mosh-core, super_native_
+      # extensions), Moss's Go build cache and the Swift packages. A stale hit
+      # is safe: cargo and Go re-fingerprint, SwiftPM re-resolves. Saved from
+      # main only, like every cache here.
+      - id: ios-build
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/ios/DerivedData/**/mosh_core.build
+            build/ios/DerivedData/**/super_native_extensions.build
+            build/ios/SourcePackages
+            ~/Library/Caches/go-build
+          key: ios-build-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml', 'pubspec.lock', 'moss/go.sum', 'moss/**/*.go') }}
+          restore-keys: ios-build-
+
+      # Same trade as the macOS proof build (build-macos.yml).
+      - name: Parallel mosh-core codegen (CI proof builds)
+        if: inputs.parallel-codegen
+        shell: bash
+        run: |
+          config="${CARGO_HOME:-$HOME/.cargo}/config.toml"
+          mkdir -p "$(dirname "$config")"
+          printf '\n[profile.release.package.mosh-core]\ncodegen-units = 16\n' >> "$config"
+
+      # The build number must be new and growing for every TestFlight upload
+      # of a version, whichever workflow (release, manual run) made it:
+      # pubspec's number, then the run id, which is unique and increasing
+      # across the repository. Signing happens at the export, so Flutter's
+      # own certificate check is skipped.
+      - name: Flutter configuration (App Store channel)
+        shell: bash
+        run: |
+          build="$(sed -n 's/^version: .*+\([0-9]*\)$/\1/p' pubspec.yaml).$GITHUB_RUN_ID"
+          flutter build ios --release --config-only --no-codesign --build-number="$build" \
+            --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }} \
+            --dart-define=MOSH_DISTRIBUTION_CHANNEL=appstore
+
+      - name: Import the Apple Distribution identity
+        env:
+          APPLE_P12_BASE64: ${{ (inputs.sign || inputs.upload) && secrets.APPLE_DISTRIBUTION_P12_BASE64 || '' }}
+          APPLE_P12_PASSWORD: ${{ (inputs.sign || inputs.upload) && secrets.APPLE_DISTRIBUTION_P12_PASSWORD || '' }}
+        run: bash scripts/apple-import-identity.sh "Apple Distribution"
+
+      - name: Archive, sign and upload
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ (inputs.sign || inputs.upload) && secrets.APP_STORE_CONNECT_ISSUER_ID || '' }}
+          APP_STORE_CONNECT_KEY_ID: ${{ (inputs.sign || inputs.upload) && secrets.APP_STORE_CONNECT_KEY_ID || '' }}
+          APP_STORE_CONNECT_KEY_P8_BASE64: ${{ (inputs.sign || inputs.upload) && secrets.APP_STORE_CONNECT_KEY_P8_BASE64 || '' }}
+          MOSH_IOS_UPLOAD: ${{ inputs.upload && 'true' || 'false' }}
+        run: bash scripts/ios-package.sh
+
+      - if: steps.ios-build.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/ios/DerivedData/**/mosh_core.build
+            build/ios/DerivedData/**/super_native_extensions.build
+            build/ios/SourcePackages
+            ~/Library/Caches/go-build
+          key: ${{ steps.ios-build.outputs.cache-primary-key }}
+
+      # The signed .ipa of a run that exported without uploading.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mosh-ios
+          path: build/ios-dist/*.ipa
+          if-no-files-found: ignore
