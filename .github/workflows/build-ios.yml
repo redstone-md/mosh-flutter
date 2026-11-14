@@ -55,12 +55,13 @@ jobs:
         run: rustup target add aarch64-apple-ios
 
       # The build number must grow with every TestFlight upload of a version:
-      # pubspec's number, then this workflow's run number.
+      # pubspec's number, then this workflow's run number. Signing happens in
+      # the archive step, so Flutter's own certificate check is skipped.
       - name: Flutter configuration (App Store channel)
         shell: bash
         run: |
           build="$(sed -n 's/^version: .*+\([0-9]*\)$/\1/p' pubspec.yaml).$GITHUB_RUN_NUMBER"
-          flutter build ios --release --config-only --build-number="$build" \
+          flutter build ios --release --config-only --no-codesign --build-number="$build" \
             --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }} \
             --dart-define=MOSH_DISTRIBUTION_CHANNEL=appstore
 
