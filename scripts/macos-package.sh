@@ -5,9 +5,10 @@
 #   bash scripts/macos-package.sh
 #   -> build/macos-dist/Mosh_<version>_universal.dmg (+ .sha256)
 #
-# In CI the app and the DMG carry the Developer ID signature, and release
-# builds notarize the DMG (scripts/macos-notarize.sh). Locally the app keeps
-# Xcode's ad-hoc signature, which Gatekeeper warns about.
+# In CI the app and the DMG carry the Developer ID signature, and with
+# MOSH_NOTARIZE=true (releases) the DMG is notarized or the build fails
+# (scripts/macos-notarize.sh). Locally the app keeps Xcode's ad-hoc
+# signature, which Gatekeeper warns about.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -114,9 +115,12 @@ create-dmg \
 
 # Gatekeeper judges a downloaded DMG by its own signature and ticket, so the
 # image is signed too, then notarized. Stapling rewrites the file, so the
-# checksum below comes after it.
+# checksum below comes after it. A release never ships an unnotarized DMG.
 if [ -n "${MOSH_SIGN_IDENTITY:-}" ]; then
   codesign --force --timestamp --sign "$MOSH_SIGN_IDENTITY" "$DMG"
+fi
+if [ "${MOSH_NOTARIZE:-false}" = true ]; then
+  [ -n "${MOSH_SIGN_IDENTITY:-}" ] || fail "notarization needs the Developer ID identity"
   bash "$ROOT/scripts/macos-notarize.sh" "$DMG"
 fi
 

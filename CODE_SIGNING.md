@@ -43,9 +43,11 @@ notary service:
   after stapling, because stapling rewrites the file.
 
 Releases notarize (`notarize: true` in `release.yml`, and the default of a
-manual run). CI proof builds only sign, so Apple's queue never slows a PR.
-Without the secrets (forks, local builds) the app keeps the ad-hoc signature
-and nothing is notarized.
+manual run): the DMG is notarized or the build fails, so the release notes'
+promise holds. CI proof builds on main only sign, so Apple's queue never
+slows CI. Pull request builds get no certificate, since a PR branch can change
+the scripts that would see it; they, forks and local builds keep the ad-hoc
+signature.
 
 The secrets in `redstone-md/mosh-flutter`:
 
