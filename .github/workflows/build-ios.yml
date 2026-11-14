@@ -1,10 +1,11 @@
 name: Build iOS
 
-# The iOS app for TestFlight and the App Store. With `sign` and the App Store
+# The iOS app for TestFlight and the App Store. With `sign`, the Apple
+# Distribution certificate (APPLE_DISTRIBUTION_P12_*) and the App Store
 # Connect key (APP_STORE_CONNECT_*, repo variable APPLE_TEAM_ID) the archive
-# is signed with cloud-managed certificates; with `upload` it goes to
-# TestFlight (scripts/ios-package.sh, CODE_SIGNING.md). Without the key
-# (forks) the archive stays unsigned. Callers pass `secrets: inherit`.
+# is exported signed for the App Store; with `upload` it goes to TestFlight
+# (scripts/ios-package.sh, CODE_SIGNING.md). Without them (forks) the
+# archive stays unsigned. Callers pass `secrets: inherit`.
 
 on:
   workflow_call:
@@ -55,8 +56,8 @@ jobs:
         run: rustup target add aarch64-apple-ios
 
       # The build number must grow with every TestFlight upload of a version:
-      # pubspec's number, then this workflow's run number. Signing happens in
-      # the archive step, so Flutter's own certificate check is skipped.
+      # pubspec's number, then this workflow's run number. Signing happens at
+      # the export, so Flutter's own certificate check is skipped.
       - name: Flutter configuration (App Store channel)
         shell: bash
         run: |
@@ -64,6 +65,12 @@ jobs:
           flutter build ios --release --config-only --no-codesign --build-number="$build" \
             --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }} \
             --dart-define=MOSH_DISTRIBUTION_CHANNEL=appstore
+
+      - name: Import the Apple Distribution identity
+        env:
+          APPLE_P12_BASE64: ${{ (inputs.sign || github.event_name == 'push') && secrets.APPLE_DISTRIBUTION_P12_BASE64 || '' }}
+          APPLE_P12_PASSWORD: ${{ (inputs.sign || github.event_name == 'push') && secrets.APPLE_DISTRIBUTION_P12_PASSWORD || '' }}
+        run: bash scripts/apple-import-identity.sh "Apple Distribution"
 
       - name: Archive, sign and upload
         env:

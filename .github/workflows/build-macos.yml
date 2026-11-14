@@ -220,9 +220,9 @@ jobs:
 
       - name: Import the Developer ID signing identity
         env:
-          APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
-          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
-        run: bash scripts/macos-import-signing.sh
+          APPLE_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
+          APPLE_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+        run: bash scripts/apple-import-identity.sh "Developer ID Application"
 
       # Without the key scripts/macos-notarize.sh skips notarization.
       - name: Package DMG + notarization + checksum

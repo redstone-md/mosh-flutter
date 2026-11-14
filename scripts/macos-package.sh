@@ -62,7 +62,7 @@ while IFS= read -r -d '' binary; do
 done < <(find "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Helpers" -maxdepth 1 \( -name '*.dylib' -o -path "$APP/Contents/MacOS/mosh" -o -path "$CAMERA_HELPER" \) -print0)
 
 # --- Signing --------------------------------------------------------------------
-# With MOSH_SIGN_IDENTITY (CI sets it from scripts/macos-import-signing.sh)
+# With MOSH_SIGN_IDENTITY (CI sets it from scripts/apple-import-identity.sh)
 # the bundle is re-signed with the Developer ID Application identity, the
 # hardened runtime and a secure timestamp, as notarization requires of every
 # binary. Without it the bundle keeps Xcode's ad-hoc signature. Entitlements

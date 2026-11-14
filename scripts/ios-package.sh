@@ -9,9 +9,11 @@
 # Run after `flutter build ios --config-only`, which writes the build name,
 # number and dart defines that the Xcode build reads. The archive is never
 # signed: automatic signing there wants a development profile, which needs a
-# registered device. The export signs it for distribution instead, with
-# cloud-managed certificates and profiles that Xcode fetches or creates with
-# the key, so the repo and the secrets hold no profile (CODE_SIGNING.md).
+# registered device. The export signs it for distribution instead, with the
+# Apple Distribution identity that scripts/apple-import-identity.sh put in
+# the keychain (MOSH_SIGN_IDENTITY) and an App Store profile that Xcode
+# fetches or creates with the key, so the repo holds no profile
+# (CODE_SIGNING.md).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -42,6 +44,9 @@ fi
 [ -n "${APP_STORE_CONNECT_ISSUER_ID:-}" ] || fail "APP_STORE_CONNECT_ISSUER_ID is empty"
 [ -n "${APP_STORE_CONNECT_KEY_ID:-}" ] || fail "APP_STORE_CONNECT_KEY_ID is empty"
 [ -n "${APPLE_TEAM_ID:-}" ] || fail "APPLE_TEAM_ID is empty"
+# Without a local identity Xcode falls back to cloud-managed certificates,
+# which an App Manager key may not use.
+[ -n "${MOSH_SIGN_IDENTITY:-}" ] || fail "no Apple Distribution identity was imported"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
