@@ -78,11 +78,12 @@ keychain ([ADR 0011](docs/ADR/0011-secure-storage-and-threat-model.md)).
 `.github/workflows/build-ios.yml` archives the app unsigned, then
 `scripts/ios-package.sh` exports it for the App Store and, with `upload`,
 sends it to TestFlight. Automatic signing at the archive would want a
-development profile, and that needs a registered device; the export needs
-only the App Store profile, which Xcode fetches or creates with the API key.
-The certificate is the Apple Distribution identity that
-`scripts/apple-import-identity.sh` loads, because cloud-managed certificates
-need an Admin key and the CI key stays App Manager.
+development profile, and that needs a registered device. The export signs
+manually with the Apple Distribution identity that
+`scripts/apple-import-identity.sh` loads and the App Store profile that
+`scripts/ios-profile.mjs` finds or creates through the App Store Connect API.
+Xcode's automatic signing would use cloud-managed certificates instead, and
+those need an Admin key; the CI key stays App Manager.
 
 - `APPLE_DISTRIBUTION_P12_BASE64`, `APPLE_DISTRIBUTION_P12_PASSWORD`: the
   Apple Distribution certificate, its key and Apple's WWDR intermediate, made
@@ -90,5 +91,7 @@ need an Admin key and the CI key stays App Manager.
 
 The certificate expires a year after issue, and the iOS build warns 30 days
 ahead. To renew, run the wizard again, wait for a green build and revoke the
-old certificate on developer.apple.com. Users are not affected: an installed
+old certificate on developer.apple.com. The profile is named after the
+certificate's serial, so the first build with the new certificate creates
+its own. Users are not affected: an installed
 app keeps working, and the next build simply carries the new signature.

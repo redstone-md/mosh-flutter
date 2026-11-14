@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # CI only: puts an Apple signing identity from a .p12 into a throwaway
-# keychain and exports MOSH_SIGN_IDENTITY (its SHA-1) to later steps.
+# keychain and exports MOSH_SIGN_IDENTITY (its SHA-1) and
+# MOSH_SIGN_CERT_SERIAL to later steps.
 #
 #   APPLE_P12_BASE64=... APPLE_P12_PASSWORD=... \
 #     bash scripts/apple-import-identity.sh "Developer ID Application"
@@ -50,6 +51,8 @@ echo "signing identity ready: $IDENTITY"
 # The identity's certificate: the PEM after its "SHA-1 hash:" line.
 CERT="$(security find-certificate -a -Z -p "$KEYCHAIN" |
   awk -v sha="$IDENTITY" '/^SHA-1 hash:/ { keep = ($3 == sha); next } keep')"
+# The serial names the certificate in the App Store Connect API (ios-profile.mjs).
+echo "MOSH_SIGN_CERT_SERIAL=$(openssl x509 -noout -serial <<< "$CERT" | cut -d= -f2)" >> "$GITHUB_ENV"
 expires="$(openssl x509 -noout -enddate <<< "$CERT" | cut -d= -f2)"
 echo "certificate expires: $expires"
 if ! openssl x509 -noout -checkend $((WARN_DAYS * 86400)) <<< "$CERT" >/dev/null; then

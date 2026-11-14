@@ -11,12 +11,13 @@
 # signed: automatic signing there wants a development profile, which needs a
 # registered device. The export signs it for distribution instead, with the
 # Apple Distribution identity that scripts/apple-import-identity.sh put in
-# the keychain (MOSH_SIGN_IDENTITY) and an App Store profile that Xcode
-# fetches or creates with the key, so the repo holds no profile
-# (CODE_SIGNING.md).
+# the keychain (MOSH_SIGN_IDENTITY) and the App Store profile that
+# scripts/ios-profile.mjs fetches or creates with the key, so the repo holds
+# no profile (CODE_SIGNING.md).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+BUNDLE_ID=app.mosh.mosh # PRODUCT_BUNDLE_IDENTIFIER of the Runner target
 ARCHIVE="$ROOT/build/ios/Mosh.xcarchive"
 DIST="$ROOT/build/ios-dist"
 XCODE=(-workspace "$ROOT/ios/Runner.xcworkspace" -scheme Runner -configuration Release
@@ -46,16 +47,17 @@ fi
 [ -n "${APP_STORE_CONNECT_ISSUER_ID:-}" ] || fail "APP_STORE_CONNECT_ISSUER_ID is empty"
 [ -n "${APP_STORE_CONNECT_KEY_ID:-}" ] || fail "APP_STORE_CONNECT_KEY_ID is empty"
 [ -n "${APPLE_TEAM_ID:-}" ] || fail "APPLE_TEAM_ID is empty"
-# Without a local identity Xcode falls back to cloud-managed certificates,
-# which an App Manager key may not use.
-[ -n "${MOSH_SIGN_IDENTITY:-}" ] || fail "no Apple Distribution identity was imported"
+[ -n "${MOSH_SIGN_IDENTITY:-}" ] && [ -n "${MOSH_SIGN_CERT_SERIAL:-}" ] ||
+  fail "no Apple Distribution identity was imported"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 KEY="$WORK/AuthKey_$APP_STORE_CONNECT_KEY_ID.p8"
 printf '%s' "$APP_STORE_CONNECT_KEY_P8_BASE64" | base64 --decode > "$KEY"
-AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY"
-  -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID")
+AUTH=(-authenticationKeyPath "$KEY" -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID"
+  -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID")
+PROFILE="$(node "$ROOT/scripts/ios-profile.mjs" "$KEY" "$BUNDLE_ID" "$MOSH_SIGN_CERT_SERIAL")"
+echo "provisioning profile: $PROFILE"
 
 destination=export
 [ "${MOSH_IOS_UPLOAD:-false}" = true ] && destination=upload
@@ -71,7 +73,14 @@ cat > "$WORK/ExportOptions.plist" <<PLIST
 	<key>teamID</key>
 	<string>$APPLE_TEAM_ID</string>
 	<key>signingStyle</key>
-	<string>automatic</string>
+	<string>manual</string>
+	<key>signingCertificate</key>
+	<string>$MOSH_SIGN_IDENTITY</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>$BUNDLE_ID</key>
+		<string>$PROFILE</string>
+	</dict>
 	<key>manageAppVersionAndBuildNumber</key>
 	<false/>
 	<key>uploadSymbols</key>
