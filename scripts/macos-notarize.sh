@@ -34,9 +34,10 @@ notary() {
     --issuer "$APP_STORE_CONNECT_ISSUER_ID"
 }
 
-# The service usually answers in a few minutes; the timeout keeps a stuck
-# queue from holding the runner for the whole job.
-notary submit "$DMG" --wait --timeout 30m --output-format json > "$WORK/submission.json" ||
+# The service usually answers in a few minutes, but a new team's first
+# submissions took longer than 30. The timeout keeps a stuck queue from
+# holding the runner until the job limit.
+notary submit "$DMG" --wait --timeout 60m --output-format json > "$WORK/submission.json" ||
   true
 cat "$WORK/submission.json"
 status="$(plutil -extract status raw "$WORK/submission.json" 2>/dev/null || true)"
@@ -44,7 +45,7 @@ if [ "$status" != "Accepted" ]; then
   id="$(plutil -extract id raw "$WORK/submission.json" 2>/dev/null || true)"
   # The log names each file Apple rejected and why.
   [ -z "$id" ] || notary log "$id" || true
-  fail "notarization ended with status '${status:-unknown}'"
+  fail "notarization ended with status '${status:-still in progress at the timeout}'"
 fi
 
 xcrun stapler staple "$DMG"

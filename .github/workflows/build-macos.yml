@@ -86,7 +86,8 @@ jobs:
   dmg:
     name: macOS DMG (release, ${{ inputs.universal && 'universal' || 'arm64' }}${{ inputs.notarize && ', notarized' || '' }})
     runs-on: macos-latest
-    timeout-minutes: 60
+    # Notarization can wait up to an hour on Apple (scripts/macos-notarize.sh).
+    timeout-minutes: ${{ inputs.notarize && 120 || 60 }}
     outputs:
       artifact: ${{ inputs.plus-issuer-key != '' && inputs.plus-network == 'solana-devnet' && 'mosh-macos-plus-devnet' || 'mosh-macos-dmg' }}
     steps:
