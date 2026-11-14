@@ -68,9 +68,9 @@ jobs:
       - name: Archive, sign and upload
         env:
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ inputs.sign && secrets.APP_STORE_CONNECT_ISSUER_ID || '' }}
-          APP_STORE_CONNECT_KEY_ID: ${{ inputs.sign && secrets.APP_STORE_CONNECT_KEY_ID || '' }}
-          APP_STORE_CONNECT_KEY_P8_BASE64: ${{ inputs.sign && secrets.APP_STORE_CONNECT_KEY_P8_BASE64 || '' }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ (inputs.sign || github.event_name == 'push') && secrets.APP_STORE_CONNECT_ISSUER_ID || '' }}
+          APP_STORE_CONNECT_KEY_ID: ${{ (inputs.sign || github.event_name == 'push') && secrets.APP_STORE_CONNECT_KEY_ID || '' }}
+          APP_STORE_CONNECT_KEY_P8_BASE64: ${{ (inputs.sign || github.event_name == 'push') && secrets.APP_STORE_CONNECT_KEY_P8_BASE64 || '' }}
           MOSH_IOS_UPLOAD: ${{ inputs.upload && 'true' || 'false' }}
         run: bash scripts/ios-package.sh
 

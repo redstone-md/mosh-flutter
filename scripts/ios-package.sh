@@ -23,9 +23,17 @@ fail() {
   exit 1
 }
 
+# The Embed Moss build phase prints nothing under -quiet, so check its
+# result: without Moss the app starts but never reaches the network.
+check_moss() {
+  local moss="$ARCHIVE/Products/Applications/Runner.app/Frameworks/Moss.framework/Moss"
+  nm -gU "$moss" | grep -q ' _Moss_Init$' || fail "the app has no Moss.framework exporting Moss_Init"
+}
+
 if [ -z "${APP_STORE_CONNECT_KEY_P8_BASE64:-}" ]; then
   echo "no App Store Connect key; the archive stays unsigned"
   xcodebuild "${XCODE[@]}" CODE_SIGNING_ALLOWED=NO archive
+  check_moss
   exit 0
 fi
 [ -n "${APP_STORE_CONNECT_ISSUER_ID:-}" ] || fail "APP_STORE_CONNECT_ISSUER_ID is empty"
@@ -40,6 +48,7 @@ AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY"
   -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID")
 
 xcodebuild "${XCODE[@]}" "${AUTH[@]}" DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic archive
+check_moss
 
 destination=export
 [ "${MOSH_IOS_UPLOAD:-false}" = true ] && destination=upload
