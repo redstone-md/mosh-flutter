@@ -1,12 +1,12 @@
 # Code signing policy
 
-Mosh desktop downloads from GitHub ship **without a trusted signature**. The
-SignPath Foundation application was declined, and no other certificate —
-Apple Developer ID included — exists today, so neither platform is signed by
-an identity the OS trusts. The Microsoft Store package is the exception:
-the Store signs it before anyone installs it. The SHA-256 checksums published beside every release
-artifact are the integrity check. The macOS app does carry a
-self-signed signature (below).
+The macOS DMG is signed with an Apple Developer ID and notarized, so macOS
+opens it without a warning. Windows downloads from GitHub ship **without a
+trusted signature**: the SignPath Foundation application was declined, and
+no other Windows certificate exists. The Microsoft Store package is the
+exception there, because the Store signs it before anyone installs it. The
+SHA-256 checksums published beside every release artifact are the integrity
+check.
 
 Android release APKs use a separate persistent release key; Android accepts
 self-signed app certificates and requires the same signing identity for updates.
@@ -17,61 +17,58 @@ See [Android release builds](docs/Features/android-release.md).
 
 ## What a user sees
 
-- **Windows** — SmartScreen on first run: **More info**, then
+- **Windows**: SmartScreen on first run: **More info**, then
   **Run anyway**. The Microsoft Store build carries the Store's
   signature and installs without a warning; see
   [Windows release builds](docs/Features/windows-release.md).
-- **macOS (12+)** — Gatekeeper blocks the first launch: try to open the
-  app once, then **System Settings → Privacy & Security → Security →
-  Open Anyway** (Apple's documented flow; the button is offered for
-  about an hour after the blocked attempt, then enter your login
-  password). On macOS 14 and older, right-click → **Open** also works.
-  Terminal equivalent: `xattr -dr com.apple.quarantine
-  /Applications/mosh.app`.
+- **macOS (12+)**: only the question macOS asks before the first launch of
+  any app from the internet. No "Open Anyway" detour.
 
-The warning repeats for every newly downloaded build; that is the cost
-of an unsigned channel.
-
-## The macOS self-signed signature
+## macOS: Developer ID and notarization
 
 `flutter build macos --release` applies an ad-hoc signature through
-Xcode's "Sign to Run Locally". An ad-hoc signature names the app by the
-hash of its binary, which changes with every build.
+Xcode's "Sign to Run Locally". The release workflow re-signs the bundle with
+the Developer ID Application certificate and submits the DMG to Apple's
+notary service:
 
-So the release DMG is re-signed with a self-signed certificate,
-"Mosh Self-Signed Code Signing". The app's designated requirement is now
-"this identifier, signed by this certificate", the same in every build.
-It does **not** make the app trusted: Gatekeeper still treats it as
-unidentified, which is why the "Open Anyway" flow applies.
+- `scripts/macos-import-signing.sh` (CI) loads the certificate into a
+  throwaway keychain and sets `MOSH_SIGN_IDENTITY`.
+- `scripts/macos-package.sh` signs the bundle inside out with that identity,
+  the hardened runtime and a secure timestamp, keeping the sandbox
+  entitlements from `macos/Runner/Release.entitlements`. It then builds the
+  DMG and signs the DMG too.
+- `scripts/macos-notarize.sh` sends the DMG to `notarytool`, staples the
+  ticket to it and checks it with `stapler validate` and `spctl`. If Apple
+  rejects it, the build fails and prints Apple's log. The checksum is taken
+  after stapling, because stapling rewrites the file.
 
-It also does **not** stop keychain prompts. The keychain's partition
-list only accepts an Apple-issued Team ID (`teamid:`); a self-signed app
-is still matched by its build hash (`cdhash:`), so every update asked
-for the login password again. That is why macOS keeps the history key
-in a file in the app container instead (ADR 0011, amendment 0.9.6).
+Releases notarize (`notarize: true` in `release.yml`, and the default of a
+manual run): the DMG is notarized or the build fails, so the release notes'
+promise holds. CI proof builds on main only sign, so Apple's queue never
+slows CI. Pull request builds get no certificate, since a PR branch can change
+the scripts that would see it; they, forks and local builds keep the ad-hoc
+signature.
 
-How it is wired:
+The secrets in `redstone-md/mosh-flutter`:
 
-- `scripts/macos-signing-cert.sh` makes the certificate and key once.
-  The maintainer keeps the output folder safe and stores two repo
-  secrets: `MACOS_SIGNING_P12_BASE64` and `MACOS_SIGNING_P12_PASSWORD`.
-- `scripts/macos-import-signing.sh` (CI) loads them into a throwaway
-  keychain and sets `MOSH_SIGN_IDENTITY`.
-- `scripts/macos-package.sh` signs the bundle inside out with that
-  identity and prints the designated requirement. Without the secrets
-  (forks, local builds) it keeps the ad-hoc signature.
+- `APPLE_DEVELOPER_ID_P12_BASE64`, `APPLE_DEVELOPER_ID_P12_PASSWORD`: the
+  Developer ID Application certificate (G2), its key and Apple's G2
+  intermediate as a base64 .p12, encrypted with PBE-SHA1-3DES so that
+  `security import` reads it.
+- `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY_ID`,
+  `APP_STORE_CONNECT_KEY_P8_BASE64`: the App Store Connect API key "Mosh CI"
+  (App Manager) that `notarytool` logs in with.
+- The repo variable `APPLE_TEAM_ID` holds the Team ID.
 
-Losing the key gives the next build a new designated requirement, so
-macOS asks again for permissions it had granted, such as the microphone.
-Rotating it on purpose has the same cost.
+The maintainers keep the .p12, its password and the .p8 in their password
+manager. The certificate expires five years after issue: a new one changes
+nothing for users, since the designated requirement names the Team ID, not
+the certificate. Losing the key means revoking the certificate on
+developer.apple.com and issuing a new one.
 
-## If signing ever returns
+Releases up to 0.29 carried a self-signed certificate. Its designated
+requirement named that certificate, so the first Developer ID update is a
+new app to macOS once: it may ask again for the camera and microphone.
 
-- **Windows** — a new SignPath application or another open-source
-  certificate; the release workflow then submits the built artifacts
-  for signing.
-- **macOS** — an Apple Developer Program membership ($99/year) replaces
-  the self-signed identity in the packaging script: `codesign --sign "Developer ID
-  Application: ..." --options runtime --timestamp`, then `xcrun
-  notarytool submit` + `xcrun stapler staple` on the DMG. Once
-  notarized, the Gatekeeper paragraph in README is deleted.
+The history key stays in a file in the app container rather than the
+keychain ([ADR 0011](docs/ADR/0011-secure-storage-and-threat-model.md)).

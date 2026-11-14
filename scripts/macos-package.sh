@@ -5,9 +5,10 @@
 #   bash scripts/macos-package.sh
 #   -> build/macos-dist/Mosh_<version>_universal.dmg (+ .sha256)
 #
-# The DMG is not notarized: the app carries the self-signed Mosh signature
-# in CI (ad-hoc locally), and Gatekeeper warns on first launch either way.
-# README documents the official "Open Anyway" flow.
+# In CI the app and the DMG carry the Developer ID signature, and with
+# MOSH_NOTARIZE=true (releases) the DMG is notarized or the build fails
+# (scripts/macos-notarize.sh). Locally the app keeps Xcode's ad-hoc
+# signature, which Gatekeeper warns about.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -63,22 +64,21 @@ done < <(find "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/He
 
 # --- Signing --------------------------------------------------------------------
 # With MOSH_SIGN_IDENTITY (CI sets it from scripts/macos-import-signing.sh)
-# the bundle is re-signed with the self-signed Mosh identity: macOS then
-# names the app by that certificate in every build, so a keychain "Always
-# Allow" survives updates. Without it the bundle keeps Xcode's ad-hoc
-# signature. Entitlements come from the repo file so the sandbox grant
-# survives the re-sign.
+# the bundle is re-signed with the Developer ID Application identity, the
+# hardened runtime and a secure timestamp, as notarization requires of every
+# binary. Without it the bundle keeps Xcode's ad-hoc signature. Entitlements
+# come from the repo file so the sandbox grant survives the re-sign.
 ENTITLEMENTS="$ROOT/macos/Runner/Release.entitlements"
 if [ -n "${MOSH_SIGN_IDENTITY:-}" ]; then
-  sign() { codesign --force --timestamp=none --sign "$MOSH_SIGN_IDENTITY" "$@"; }
+  sign() { codesign --force --timestamp --options runtime --sign "$MOSH_SIGN_IDENTITY" "$@"; }
   # Inside out: nested code first, the bundle seal that covers it last.
   while IFS= read -r -d '' nested; do
     sign "$nested"
   done < <(find "$APP/Contents/Frameworks" "$APP/Contents/MacOS" -maxdepth 1 \( -name '*.framework' -o -name '*.dylib' \) -print0)
-  sign --options runtime --entitlements "$ROOT/mosh-media/capture/macos/Helper.entitlements" "$CAMERA_HELPER"
+  sign --entitlements "$ROOT/mosh-media/capture/macos/Helper.entitlements" "$CAMERA_HELPER"
   sign --entitlements "$ENTITLEMENTS" "$APP"
-  codesign -dvv "$APP" 2>&1 | grep -q "Authority=Mosh Self-Signed Code Signing" ||
-    fail "the app is not signed by the Mosh identity"
+  codesign -dvv "$APP" 2>&1 | grep -q "Authority=Developer ID Application: " ||
+    fail "the app is not signed by a Developer ID Application identity"
 # lipo can damage per-slice ad-hoc signatures. If the dylib needs a re-sign,
 # the app must be re-signed after it (inside out): the bundle seal Xcode
 # recorded covers the nested dylib, so a bare dylib re-sign would fail the
@@ -112,6 +112,17 @@ create-dmg \
   "$APP"
 
 [ -f "$DMG" ] || fail "create-dmg did not produce $DMG"
+
+# Gatekeeper judges a downloaded DMG by its own signature and ticket, so the
+# image is signed too, then notarized. Stapling rewrites the file, so the
+# checksum below comes after it. A release never ships an unnotarized DMG.
+if [ -n "${MOSH_SIGN_IDENTITY:-}" ]; then
+  codesign --force --timestamp --sign "$MOSH_SIGN_IDENTITY" "$DMG"
+fi
+if [ "${MOSH_NOTARIZE:-false}" = true ]; then
+  [ -n "${MOSH_SIGN_IDENTITY:-}" ] || fail "notarization needs the Developer ID identity"
+  bash "$ROOT/scripts/macos-notarize.sh" "$DMG"
+fi
 
 # --- Checksum -----------------------------------------------------------------
 hash="$(shasum -a 256 "$DMG" | awk '{print $1}')"

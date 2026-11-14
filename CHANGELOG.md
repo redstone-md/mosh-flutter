@@ -6,6 +6,12 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+### Changed
+
+- macOS: the app is signed with an Apple Developer ID and notarized, so the
+  downloaded DMG opens without the "Open Anyway" detour. The first update to
+  this signature may ask once more for camera and microphone access.
+
 ## [0.29.1] - 2026-11-13
 
 ### Changed

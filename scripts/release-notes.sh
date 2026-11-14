@@ -75,9 +75,8 @@ shasum -a 256 -c Mosh_${VERSION}_universal.dmg.sha256
 # must report Mosh_${VERSION}_universal.dmg: OK
 \`\`\`
 
-Open the disk image and drag Mosh to Applications. The app is not notarized;
-if Gatekeeper blocks its first launch, try opening it once, then choose
-**System Settings > Privacy & Security > Open Anyway**.
+Open the disk image and drag Mosh to Applications. The app is signed with an
+Apple Developer ID and notarized, so macOS opens it without a security warning.
 
 **Android (ARM64, Android 8.0 or newer):** download
 \`mosh-${VERSION}-arm64-v8a.apk\` and its \`.sha256\` file. Verify the SHA-256

@@ -47,13 +47,10 @@ while the app is open; Android packages are not published yet.
 Release files are named `mosh-<version>-setup.exe` and
 `Mosh_<version>_universal.dmg`. Each has a matching `.sha256` checksum.
 
-Mosh currently ships without a signature trusted by Windows or macOS. The
-macOS app has a self-signed signature and is not notarized. See the
-[signing policy](CODE_SIGNING.md).
-
-- Windows SmartScreen: choose **More info**, then **Run anyway**.
-- macOS Gatekeeper: try opening the app once, then go to
-  **System Settings > Privacy & Security > Open Anyway**.
+The macOS app is signed with an Apple Developer ID and notarized, so it opens
+like any app from the internet. The Windows installer has no signature
+Windows trusts yet, so SmartScreen stops its first run: choose **More info**,
+then **Run anyway**. See the [signing policy](CODE_SIGNING.md).
 
 On Windows, compare this output with the matching `.sha256` file:
 
