@@ -7,8 +7,8 @@
 #
 # Reads the App Store Connect API key from APP_STORE_CONNECT_ISSUER_ID,
 # APP_STORE_CONNECT_KEY_ID and APP_STORE_CONNECT_KEY_P8_BASE64 (repo secrets,
-# see CODE_SIGNING.md). Without them it does nothing: CI proof builds and
-# forks stay signed but not notarized.
+# see CODE_SIGNING.md) and fails without them: scripts/macos-package.sh calls
+# it only for builds that must be notarized.
 set -euo pipefail
 
 DMG="$1"
@@ -18,10 +18,7 @@ fail() {
   exit 1
 }
 
-if [ -z "${APP_STORE_CONNECT_KEY_P8_BASE64:-}" ]; then
-  echo "no App Store Connect key; the DMG is not notarized"
-  exit 0
-fi
+[ -n "${APP_STORE_CONNECT_KEY_P8_BASE64:-}" ] || fail "APP_STORE_CONNECT_KEY_P8_BASE64 is empty"
 [ -n "${APP_STORE_CONNECT_ISSUER_ID:-}" ] || fail "APP_STORE_CONNECT_ISSUER_ID is empty"
 [ -n "${APP_STORE_CONNECT_KEY_ID:-}" ] || fail "APP_STORE_CONNECT_KEY_ID is empty"
 

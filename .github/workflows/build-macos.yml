@@ -7,11 +7,11 @@ name: Build macOS DMG
 # re-tagging (the v0.9.0 retro-attach ran this way).
 #
 # With the APPLE_DEVELOPER_ID_P12_* secrets the app and the DMG carry the
-# Developer ID signature with the hardened runtime; with `notarize` and the
-# APP_STORE_CONNECT_* key the DMG is also notarized and stapled, so
-# Gatekeeper opens it without a warning (CODE_SIGNING.md). Releases notarize;
-# CI proof builds only sign, which keeps Apple's queue off every PR. Without
-# the secrets (forks) the app stays ad-hoc. Callers pass `secrets: inherit`.
+# Developer ID signature with the hardened runtime; with `notarize` the DMG
+# is also notarized with the APP_STORE_CONNECT_* key and stapled, or the job
+# fails, so Gatekeeper opens it without a warning (CODE_SIGNING.md).
+# Releases notarize; proof builds on main only sign. Pull requests and forks
+# get no certificate and stay ad-hoc. Callers pass `secrets: inherit`.
 
 on:
   workflow_call:
@@ -218,16 +218,19 @@ jobs:
       - name: Install create-dmg
         run: brew install create-dmg
 
+      # Not for pull requests: a PR branch can change the scripts that would
+      # see the certificate, so PR proof builds stay ad-hoc signed.
       - name: Import the Developer ID signing identity
         env:
-          APPLE_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
-          APPLE_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          APPLE_P12_BASE64: ${{ github.event_name != 'pull_request' && secrets.APPLE_DEVELOPER_ID_P12_BASE64 || '' }}
+          APPLE_P12_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.APPLE_DEVELOPER_ID_P12_PASSWORD || '' }}
         run: bash scripts/apple-import-identity.sh "Developer ID Application"
 
-      # Without the key scripts/macos-notarize.sh skips notarization.
+      # With `notarize` the DMG is notarized or the job fails.
       - name: Package DMG + notarization + checksum
         env:
           MOSH_MACOS_UNIVERSAL: ${{ inputs.universal && 'true' || 'false' }}
+          MOSH_NOTARIZE: ${{ inputs.notarize && 'true' || 'false' }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ inputs.notarize && secrets.APP_STORE_CONNECT_ISSUER_ID || '' }}
           APP_STORE_CONNECT_KEY_ID: ${{ inputs.notarize && secrets.APP_STORE_CONNECT_KEY_ID || '' }}
           APP_STORE_CONNECT_KEY_P8_BASE64: ${{ inputs.notarize && secrets.APP_STORE_CONNECT_KEY_P8_BASE64 || '' }}

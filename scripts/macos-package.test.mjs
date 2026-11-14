@@ -8,9 +8,10 @@ import test from "node:test";
 
 // Exercise the packaging script's command boundary on Linux. Actual Mach-O
 // compilation, codesign verification and notarization run in the macOS CI
-// lane. `notaryStatus` hands the script an App Store Connect key and makes
-// the stubbed notary service answer with that status.
-async function packageFixture({ helperArchs = "arm64 x86_64", notaryStatus } = {}) {
+// lane. `notaryStatus` asks for notarization, hands the script an App Store
+// Connect key (unless `notaryKey` is false) and makes the stubbed notary
+// service answer with that status.
+async function packageFixture({ helperArchs = "arm64 x86_64", notaryStatus, notaryKey = true } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "mosh-macos-package-"));
   try {
     const app = path.join(root, "build/macos/Build/Products/Release/mosh.app");
@@ -51,11 +52,14 @@ async function packageFixture({ helperArchs = "arm64 x86_64", notaryStatus } = {
       await writeFile(path.join(bin, name), `#!/usr/bin/env bash\n${body}\n`, { mode: 0o755 });
     }
     const signLog = path.join(root, "sign.log");
-    const notary = notaryStatus === undefined ? {} : {
-      APP_STORE_CONNECT_ISSUER_ID: "fixture-issuer", APP_STORE_CONNECT_KEY_ID: "FIXTURE",
-      APP_STORE_CONNECT_KEY_P8_BASE64: Buffer.from("fixture key").toString("base64"),
-      MOSH_TEST_NOTARY_STATUS: notaryStatus,
-    };
+    // Explicit either way, so a developer's own App Store Connect key in the
+    // environment never reaches the script.
+    const notary = notaryStatus === undefined
+      ? { MOSH_NOTARIZE: "false", APP_STORE_CONNECT_ISSUER_ID: "", APP_STORE_CONNECT_KEY_ID: "",
+        APP_STORE_CONNECT_KEY_P8_BASE64: "" }
+      : { MOSH_NOTARIZE: "true", APP_STORE_CONNECT_ISSUER_ID: "fixture-issuer", APP_STORE_CONNECT_KEY_ID: "FIXTURE",
+        APP_STORE_CONNECT_KEY_P8_BASE64: notaryKey ? Buffer.from("fixture key").toString("base64") : "",
+        MOSH_TEST_NOTARY_STATUS: notaryStatus };
     const result = spawnSync("bash", [path.join(root, "scripts/macos-package.sh")], {
       encoding: "utf8",
       env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`,
@@ -106,4 +110,11 @@ test("a rejected notarization fails the package and prints Apple's log", async (
   assert.match(result.stdout, /fixture notary log/);
   assert.match(result.stderr, /notarization ended with status 'Invalid'/);
   assert.equal(result.checksum, null, "no checksum may vouch for a DMG Apple rejected");
+});
+
+test("a release without the App Store Connect key fails instead of shipping an unnotarized DMG", async () => {
+  const result = await packageFixture({ notaryStatus: "Accepted", notaryKey: false });
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stderr, /APP_STORE_CONNECT_KEY_P8_BASE64 is empty/);
+  assert.equal(result.checksum, null);
 });
