@@ -1,0 +1,226 @@
+//! Phones capture in the app: the call owner asks the platform code to open
+//! a camera (`crate::mobile_media`) and its callbacks publish one latest
+//! packed I420 frame here, tagged with the generation of the capture that
+//! asked, so a frame or failure from an earlier camera never revives one.
+//! Android's Camera2 calls in over JNI (`MoshCallCamera.kt`), iOS's
+//! AVFoundation through C (`ios/Runner/CallCamera.swift`).
+use super::Captured;
+use crate::{mobile_media::command, native_call::types::Device};
+use serde_json::json;
+use std::{
+    sync::{
+        atomic::{AtomicBool, AtomicU64, Ordering},
+        mpsc, Arc, Mutex,
+    },
+    time::{Duration, Instant},
+};
+
+struct Output {
+    generation: u64,
+    started: Instant,
+    failed: bool,
+    sequence: u64,
+    frame: Option<Arc<Captured>>,
+}
+static OUTPUT: Mutex<Option<Output>> = Mutex::new(None);
+static GENERATION: AtomicU64 = AtomicU64::new(0);
+
+pub(crate) struct Capture(u64);
+impl Capture {
+    pub fn start(id: Option<&str>) -> Result<Self, String> {
+        let generation = GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
+        *OUTPUT.lock().map_err(|_| "camera state poisoned")? = Some(Output {
+            generation,
+            started: Instant::now(),
+            failed: false,
+            sequence: 0,
+            frame: None,
+        });
+        let capture = Self(generation);
+        command(json!({"action":"cameraStart", "id":id, "generation":generation}))?;
+        Ok(capture)
+    }
+    pub fn failed(&mut self) -> bool {
+        let state = OUTPUT.lock().unwrap_or_else(|error| error.into_inner());
+        let Some(state) = state.as_ref().filter(|state| state.generation == self.0) else {
+            return true;
+        };
+        state.failed
+            || state.frame.as_ref().map_or_else(
+                || state.started.elapsed() > Duration::from_secs(10),
+                |frame| frame.received.elapsed() > Duration::from_secs(4),
+            )
+    }
+    pub fn frame(&self, after: u64) -> Option<Arc<Captured>> {
+        let state = OUTPUT.lock().ok()?;
+        state
+            .as_ref()?
+            .frame
+            .as_ref()
+            .filter(|frame| frame.sequence > after)
+            .cloned()
+    }
+}
+impl Drop for Capture {
+    fn drop(&mut self) {
+        let mut state = OUTPUT.lock().unwrap_or_else(|error| error.into_inner());
+        if state
+            .as_ref()
+            .is_some_and(|state| state.generation == self.0)
+        {
+            *state = None; // Fence callbacks before asking the platform to release the camera.
+            drop(state);
+            let _ = command(json!({"action":"cameraStop"}));
+        }
+    }
+}
+
+pub(crate) struct Query(mpsc::Receiver<Result<Vec<Device>, String>>, Instant);
+impl Query {
+    pub fn start() -> Result<Self, String> {
+        static RUNNING: AtomicBool = AtomicBool::new(false);
+        if RUNNING.swap(true, Ordering::Acquire) {
+            return Err("camera inventory still running".into());
+        }
+        let (tx, rx) = mpsc::sync_channel(1);
+        std::thread::spawn(move || {
+            let result = command(json!({"action":"cameras"})).and_then(|value| {
+                serde_json::from_value(value["cameras"].clone()).map_err(|error| error.to_string())
+            });
+            let _ = tx.send(result);
+            RUNNING.store(false, Ordering::Release);
+        });
+        Ok(Self(rx, Instant::now()))
+    }
+    pub fn poll(&mut self) -> Option<Result<Vec<Device>, String>> {
+        match self.0.try_recv() {
+            Ok(result) => Some(result),
+            Err(mpsc::TryRecvError::Empty) if self.1.elapsed() < Duration::from_secs(3) => None,
+            Err(_) => Some(Err("camera enumeration did not complete".into())),
+        }
+    }
+}
+
+/// Whether the capture of `generation` still takes frames.
+fn accepting(generation: u64) -> bool {
+    OUTPUT.lock().is_ok_and(|state| {
+        state
+            .as_ref()
+            .is_some_and(|state| state.generation == generation && !state.failed)
+    })
+}
+
+fn fail(generation: u64) {
+    if let Ok(mut state) = OUTPUT.lock() {
+        if let Some(state) = state
+            .as_mut()
+            .filter(|state| state.generation == generation)
+        {
+            state.failed = true;
+        }
+    }
+}
+
+fn publish(generation: u64, width: u32, height: u32, planes: Vec<u8>) {
+    let mut output = OUTPUT.lock().unwrap_or_else(|error| error.into_inner());
+    if let Some(output) = output
+        .as_mut()
+        .filter(|state| state.generation == generation && !state.failed)
+    {
+        output.sequence += 1;
+        output.frame = Some(Arc::new(Captured {
+            sequence: output.sequence,
+            width,
+            height,
+            planes,
+            received: Instant::now(),
+            source_age_ms: 0,
+        }));
+    }
+}
+
+#[cfg(target_os = "android")]
+mod android {
+    use super::{accepting, fail, publish};
+    use crate::native_call::library;
+    use jni::{
+        objects::{JByteBuffer, JClass},
+        EnvUnowned,
+    };
+
+    #[no_mangle]
+    pub extern "system" fn Java_app_mosh_mosh_MoshCallCamera_cameraFailed(
+        _env: EnvUnowned<'_>,
+        _class: JClass<'_>,
+        generation: i64,
+    ) {
+        fail(generation as u64);
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_app_mosh_mosh_MoshCallCamera_cameraFrame<'caller>(
+        mut unowned: EnvUnowned<'caller>,
+        _class: JClass<'caller>,
+        generation: i64,
+        width: i32,
+        height: i32,
+        buffer: JByteBuffer<'caller>,
+    ) {
+        unowned
+            .with_env(|env| -> Result<(), jni::errors::Error> {
+                if !accepting(generation as u64) {
+                    return Ok(());
+                }
+                let (w, h) = (width as u32, height as u32);
+                let Some(length) = library::i420_size(w, h) else {
+                    return Ok(());
+                };
+                if env.get_direct_buffer_capacity(&buffer)? < length {
+                    return Ok(());
+                }
+                let data = env.get_direct_buffer_address(&buffer)?;
+                // SAFETY: Java retains this direct packed I420 buffer until the synchronous
+                // callback returns. Capacity and dimensions are validated before reading.
+                let planes = unsafe { std::slice::from_raw_parts(data, length) };
+                publish(generation as u64, w, h, planes.to_vec());
+                Ok(())
+            })
+            .resolve::<jni::errors::ThrowRuntimeExAndDefault>();
+    }
+}
+
+#[cfg(target_os = "ios")]
+mod ios {
+    use super::{accepting, fail, publish};
+    use crate::native_call::library;
+
+    /// A packed I420 frame of the capture `generation`; `length` bytes at
+    /// `planes`, readable until this returns.
+    ///
+    /// # Safety
+    /// `planes` points at `length` readable bytes, or is null.
+    #[no_mangle]
+    pub unsafe extern "C" fn mosh_ios_camera_frame(
+        generation: u64,
+        width: u32,
+        height: u32,
+        planes: *const u8,
+        length: usize,
+    ) {
+        let Some(size) = library::i420_size(width, height) else {
+            return;
+        };
+        if planes.is_null() || length < size || !accepting(generation) {
+            return;
+        }
+        // SAFETY: the caller vouches for `length` bytes, at least `size`.
+        let planes = unsafe { std::slice::from_raw_parts(planes, size) };
+        publish(generation, width, height, planes.to_vec());
+    }
+
+    /// The camera of capture `generation` stopped delivering for good.
+    #[no_mangle]
+    pub extern "C" fn mosh_ios_camera_failed(generation: u64) {
+        fail(generation);
+    }
+}

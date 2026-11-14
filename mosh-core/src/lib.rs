@@ -41,6 +41,8 @@ pub mod vpn_consent;
 #[cfg(target_os = "android")]
 mod android;
 pub mod api;
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
+mod mobile_media;
 
 mod sender_auth;
 

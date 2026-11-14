@@ -387,13 +387,13 @@ selects the originating call from the app-wide DM list, so navigation does not
 rebind or release the call's native media. The ringtone keeps its own factory
 provider.
 
-A desktop or Android call shows in the main window, above the routes: an
+A call shows in the main window on every platform, above the routes: an
 expanded view that can go full screen and a mini view while the user browses
 chats. Its video is two Flutter textures that Rust fills directly
 ([ADR 0052](ADR/0052-desktop-calls-in-the-main-window.md)); there is no second
 process, window or engine for a call. Call actions carry both session and call
 IDs, and the orchestrator's state remains authoritative. Without the native
-call engine (iOS) a strip of call controls sits below the app.
+call engine a strip of call controls sits below the app.
 Ringtone and no-answer timeout belong to the call state. The supplied PCM recording
 uses CPAL's selected output device. See [voice calls](Features/voice-calls.md).
 
@@ -406,8 +406,7 @@ commands the call and reads its state.
 Accepted video-call ownership lives in [ADR 0043](ADR/0043-one-device-per-user-in-a-call.md)
 and [ADR 0044](ADR/0044-native-call-media-over-moss.md). The
 [issue 46 plan](Proposals/issue-46-video-calls.plan.md) defines stages and acceptance.
-Every call uses that one native audio/video engine over Moss. iOS has none yet
-(MOSH-77).
+Every call uses that one native audio/video engine over Moss, iOS included.
 
 ## Security, builds and checks
 
@@ -464,7 +463,9 @@ libraries before packaging; the reusable build workflow owns signing and
 DMG generation. Go cannot build a shared library for iOS, so the iOS app
 (iOS 15+, devices only) embeds Moss as `Moss.framework`, a static Go archive
 linked into a dynamic framework by `scripts/moss-prepare-ios.mjs`, and
-mosh-core opens it with the same `dlopen`. Release tags upload the iOS app to
+mosh-core opens it with the same `dlopen`; the call engine is embedded beside
+it as `MoshMedia.framework` (`scripts/ios-embed-frameworks.sh`). Release tags
+upload the iOS app to
 TestFlight ([code signing](../CODE_SIGNING.md)).
 
 Required checks live in [AGENTS.md](../AGENTS.md). Native runtime tests use real

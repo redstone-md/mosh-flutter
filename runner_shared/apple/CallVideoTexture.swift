@@ -1,6 +1,13 @@
 import Accelerate
 import CoreVideo
-import FlutterMacOS
+
+#if os(iOS)
+  import Flutter
+#else
+  import FlutterMacOS
+#endif
+
+// Shared by the macOS and iOS runners.
 
 /// One video texture of the main window. Rust presents each frame through
 /// `exported`; the engine takes the latest as an IOSurface-backed BGRA
@@ -101,8 +108,12 @@ final class CallVideo {
   private var lanes: [String: [Int64]]?
 
   init(registrar: FlutterPluginRegistrar) {
-    channel = FlutterMethodChannel(name: "mosh/call-video", binaryMessenger: registrar.messenger)
-    let registry = registrar.textures
+    #if os(iOS)
+      let (messenger, registry) = (registrar.messenger(), registrar.textures())
+    #else
+      let (messenger, registry) = (registrar.messenger, registrar.textures)
+    #endif
+    channel = FlutterMethodChannel(name: "mosh/call-video", binaryMessenger: messenger)
     channel.setMethodCallHandler { [weak self] call, result in
       guard let self = self, call.method == "textures" else {
         result(FlutterMethodNotImplemented)

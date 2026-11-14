@@ -1,12 +1,12 @@
 # Native audio/video calls
 
-Windows, macOS, Linux and Android use one native libwebrtc audio/video engine per
-selected call. The DM header has voice and video actions. A video start opens local
+Windows, macOS, Linux, Android and iOS use one native libwebrtc audio/video
+engine per selected call. The DM header has voice and video actions. A video start opens local
 preview; media is sent only after the caller confirms the answering installation.
 An incoming call starts with camera off. Camera and microphone choices are
 independent, and permission refusal preserves reception and other capabilities.
 
-On desktop and Android the call shows in the main window and its video in two
+On every platform the call shows in the main window and its video in two
 Rust-fed textures ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md), see
 [Main-window textures](#main-window-textures)). The expanded call view has
 microphone, camera and end controls and selectors for microphone, speaker and
@@ -51,9 +51,23 @@ only permission UI and the PiP shield attach to it. See
 A dialog receives Back before minimization. Opening the peer returns to its DM;
 the compact strip can restore the view. Foreground Android ↔ desktop calls are
 the acceptance target. Suspended/killed-app ringing is not implemented by this
-change. iOS has no call engine yet (MOSH-77): it reports the earlier media
-protocol, so a call between it and another device ends asking to update Mosh.
-Older Android builds also require an update; incompatible offers still do not ring.
+change. Older Android builds require an update; incompatible offers still do not
+ring.
+
+iOS (iPhone, iOS 15 or later) runs the same engine, linked against the iOS build
+of our libwebrtc and embedded in the app as `MoshMedia.framework`. libwebrtc's
+iOS audio module records and plays in the voice-chat audio session it sets up,
+through Apple's voice processing for echo and noise. `CallAudio.swift` picks
+the route as the system call screen does: the receiver, the speaker or a
+connected headset, whose microphone comes with it, so iOS has no separate
+microphone pick either. During a call the proximity sensor darkens the screen
+against the ear, and the `audio` background mode keeps the call going with the
+screen locked or Mosh in the background. `CallCamera.swift` captures
+AVFoundation's 720p video-range 4:2:0 frames, turned upright for how the phone
+is held, and repacks them as I420 for mosh-core. iOS stops the camera in the
+background, so the camera switches off there and audio continues. Camera
+access is asked before the camera opens. Calls ring only while Mosh runs:
+ringing a suspended app needs CallKit and VoIP push.
 
 ## Engine and media protocol
 
@@ -110,7 +124,7 @@ its classes.
 
 The engine reports its media protocol (2; the engine before it spoke 1)
 and every call control carries the sender's, absent meaning 1. A build whose
-engine fails to load, iOS included until MOSH-77, speaks 0, so it rings
+engine fails to load speaks 0, so it rings
 neither an older client nor a current one. Engines on different
 protocols cannot connect media, so a callee refuses such an offer instead
 of ringing, a caller ends the call when such a device answers, and both
@@ -176,7 +190,9 @@ its own automatic discovery, NAT traversal and relays.
 
 ## Capture and presentation
 
-`mosh-media/capture` is a capture-only helper using pinned nokhwa. It owns one
+Phones capture in the app (Android's Camera2, iOS's AVFoundation) and hand
+mosh-core the same packed I420 through `native_call/capture/mobile.rs`. On
+desktops `mosh-media/capture` is a capture-only helper using pinned nokhwa. It owns one
 camera on its capture thread and sends every frame as packed I420 (the Y
 plane, then U, then V, rows unpadded) in BT.601 video range over a bounded
 binary pipe: 1.38 MB per 720p frame. NV12 and YUYV frames are repacked, 24-bit
@@ -248,7 +264,7 @@ still takes the full camera frame.
 
 ### Main-window textures
 
-No pixel passes through flutter_rust_bridge or Dart, on desktop or on Android.
+No pixel passes through flutter_rust_bridge or Dart, on any platform.
 The platform's runner registers two textures, local and remote, on the first
 request over the `mosh/call-video` channel and keeps them for the process.
 Each exports one function, `present`, which copies an RGBA frame and schedules
@@ -259,7 +275,7 @@ its display; a frame not shown yet is overwritten.
 | Android, `MoshCallVideo.kt` with `mosh-core/src/native_call/texture/android.rs` | `SurfaceProducer` | the latest frame in Rust, which a thread per texture writes into the producer's `Surface` through its native window |
 | Linux, `linux/runner/call_video_texture.cc` | `FlPixelBufferTexture` | two RGBA buffers swapped when the engine reads (`runner_shared/call_video_frames.h`) |
 | Windows, `windows/runner/call_video_texture.cpp` | `PixelBufferTexture` | the same two buffers |
-| macOS, `macos/Runner/CallVideoTexture.swift` | `FlutterTexture` | an IOSurface-backed BGRA `CVPixelBuffer` from a pool; Accelerate swaps the channels during the copy, and Metal samples the surface without another one |
+| macOS and iOS, `runner_shared/apple/CallVideoTexture.swift` | `FlutterTexture` | an IOSurface-backed BGRA `CVPixelBuffer` from a pool; Accelerate swaps the channels during the copy, and Metal samples the surface without another one |
 
 On Windows the plugin stops marking frames once the window is destroyed, as
 the engine's texture registrar goes with it while Rust may still present.
@@ -405,7 +421,10 @@ and carries camera usage text. The main app owns microphone/camera permissions.
 DMG packaging verifies the helper's architectures and re-signs it with its
 sandbox inheritance entitlements before sealing the application.
 Windows places the DLL/helper beside the executable; Linux places both in `lib`,
-with executable permission on the helper. Do not ship the test camera driver.
+with executable permission on the helper. iOS builds only the engine, for
+devices, as `MoshMedia.framework`, which the Runner target's build phase
+(`scripts/ios-embed-frameworks.sh`) embeds and signs beside Moss. Do not ship
+the test camera driver.
 
 CI runs one native call media job per OS: lint and the engine and camera
 helper tests, the relay video regression, call setup and the camera tests

@@ -46,7 +46,8 @@ fn with_defaults(
                 target_os = "windows",
                 target_os = "macos",
                 target_os = "linux",
-                target_os = "android"
+                target_os = "android",
+                target_os = "ios"
             ))
             .into();
         }

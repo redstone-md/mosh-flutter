@@ -107,9 +107,10 @@ impl Engine {
     }
 
     pub fn ask(&mut self, value: Value) -> Result<Value, String> {
-        #[cfg(target_os = "android")]
+        // Phones route call audio themselves (crate::mobile_media).
+        #[cfg(any(target_os = "android", target_os = "ios"))]
         if matches!(value["action"].as_str(), Some("devices" | "select")) {
-            return crate::android::media::command(value);
+            return crate::mobile_media::command(value);
         }
         let command = CString::new(value.to_string()).map_err(error)?;
         // SAFETY: this owner retains the handle, library and command throughout the call.
@@ -215,8 +216,8 @@ impl Drop for Engine {
         self.courier.stop();
         // SAFETY: owner returns the unique handle before unloading its library.
         unsafe { (self.drop_engine)(self.handle) };
-        #[cfg(target_os = "android")]
-        let _ = crate::android::media::command(json!({"action":"audioStop"}));
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        let _ = crate::mobile_media::command(json!({"action":"audioStop"}));
     }
 }
 
@@ -225,6 +226,9 @@ fn library_name() -> &'static str {
         "mosh_native_media.dll"
     } else if cfg!(target_os = "macos") {
         "libmosh_native_media.dylib"
+    } else if cfg!(target_os = "ios") {
+        // Relative to the app's executable, which embeds and signs it.
+        "Frameworks/MoshMedia.framework/MoshMedia"
     } else {
         "libmosh_native_media.so"
     }

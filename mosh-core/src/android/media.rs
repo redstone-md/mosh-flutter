@@ -22,7 +22,7 @@ pub extern "system" fn Java_app_mosh_mosh_MoshMedia_register<'caller>(
     .resolve::<ThrowRuntimeExAndDefault>();
 }
 
-/// The JSON boundary carries device metadata/commands, never media pixels.
+/// `crate::mobile_media`'s command, answered by `MoshMedia.kt`.
 pub(crate) fn command(value: Value) -> Result<Value, String> {
     let app = super::APPLICATION
         .get()
@@ -45,9 +45,5 @@ pub(crate) fn command(value: Value) -> Result<Value, String> {
             Ok(response)
         })
         .map_err(|error| format!("Android media command: {error}"))?;
-    let result: Value = serde_json::from_str(&response).map_err(|error| error.to_string())?;
-    if let Some(error) = result["error"].as_str() {
-        return Err(error.into());
-    }
-    Ok(result)
+    crate::mobile_media::reply(&response)
 }
