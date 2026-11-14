@@ -70,6 +70,9 @@ Releases up to 0.29 carried a self-signed certificate. Its designated
 requirement named that certificate, so the first Developer ID update is a
 new app to macOS once: it may ask again for the camera and microphone.
 
+The history key stays in a file in the app container rather than the
+keychain ([ADR 0011](docs/ADR/0011-secure-storage-and-threat-model.md)).
+
 ## iOS: App Store signing
 
 `.github/workflows/build-ios.yml` archives the app unsigned, then
@@ -89,6 +92,3 @@ The certificate expires a year after issue, and the iOS build warns 30 days
 ahead. To renew, run the wizard again, wait for a green build and revoke the
 old certificate on developer.apple.com. Users are not affected: an installed
 app keeps working, and the next build simply carries the new signature.
-
-The history key stays in a file in the app container rather than the
-keychain ([ADR 0011](docs/ADR/0011-secure-storage-and-threat-model.md)).

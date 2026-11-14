@@ -210,6 +210,8 @@ finish() {
 run_wizard() {
 TOTAL_STAGES=4
 WORK="${MOSH_DISTRIBUTION_DIR:-$HOME/.mosh-apple-distribution}"
+# gh finds the repository from the working directory.
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
 # Git Bash rewrites "/CN=..." into a Windows path; keep arguments as typed.
 export MSYS_NO_PATHCONV=1
 mkdir -p "$WORK" && chmod 700 "$WORK"
@@ -262,15 +264,20 @@ printf '  %s✓ made%s %s\n' "$GREEN" "$RESET" "$(native_path mosh-distribution.
 pause
 
 stage "GitHub secrets and the password manager"
-set_secret APPLE_DISTRIBUTION_P12_BASE64 "$(openssl base64 -A -in mosh-distribution.p12)"
+P12_BASE64="$(openssl base64 -A -in mosh-distribution.p12)"
+P12_PATH="$(native_path mosh-distribution.p12)"
+cd "$REPO"
+set_secret APPLE_DISTRIBUTION_P12_BASE64 "$P12_BASE64"
 set_secret APPLE_DISTRIBUTION_P12_PASSWORD "$P12_PASSWORD"
 say ""
 say "Save both in your password manager, next to the Developer ID entry:"
-step "file: $(native_path mosh-distribution.p12)"
+step "file: $P12_PATH"
 step "password: $P12_PASSWORD"
 pause "Press Enter once both are saved"
-if confirm "Delete $WORK (the key, the request and the p12)?"; then
-  cd "$HOME" && rm -rf "$WORK"
+if (( ${#SKIPPED[@]} )); then
+  warn "Keeping $WORK: set the skipped secrets from it first."
+elif confirm "Delete $WORK (the key, the request and the p12)?"; then
+  rm -rf "$WORK"
   printf '  %s✓ deleted%s %s\n' "$GREEN" "$RESET" "$WORK"
 else
   SKIPPED+=("delete $WORK once the p12 and its password are saved")
