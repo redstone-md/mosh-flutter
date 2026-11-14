@@ -23,7 +23,7 @@ const ARCHIVE_PATH = path.join(OUTPUT_DIR, "libmoss.a");
 // DHT's concurrent UDP.
 const GO_TOOLCHAIN = "go1.25.9";
 // Matches the Runner target's IPHONEOS_DEPLOYMENT_TARGET.
-const MIN_IOS = "13.0";
+const MIN_IOS = "15.0";
 
 try {
   await ensureMossCheckout();
