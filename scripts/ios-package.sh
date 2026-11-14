@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# Archives the iOS app. With the App Store Connect key it signs the archive,
-# exports it for the App Store and, with MOSH_IOS_UPLOAD=true, uploads it to
-# TestFlight. Without the key (forks) the archive stays unsigned: proof that
-# the app still builds.
+# Archives the iOS app. With the App Store Connect key it exports the archive
+# signed for the App Store and, with MOSH_IOS_UPLOAD=true, uploads it to
+# TestFlight. Without the key (forks) only the unsigned archive is made:
+# proof that the app still builds.
 #
 #   bash scripts/ios-package.sh
 #
 # Run after `flutter build ios --config-only`, which writes the build name,
-# number and dart defines that the Xcode build reads. Signing is cloud
-# managed: Xcode fetches or creates the certificates and profiles with the
-# key, so the repo and the secrets hold no profile (CODE_SIGNING.md).
+# number and dart defines that the Xcode build reads. The archive is never
+# signed: automatic signing there wants a development profile, which needs a
+# registered device. The export signs it for distribution instead, with
+# cloud-managed certificates and profiles that Xcode fetches or creates with
+# the key, so the repo and the secrets hold no profile (CODE_SIGNING.md).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -30,10 +32,11 @@ check_moss() {
   nm -gU "$moss" | grep -q ' _Moss_Init$' || fail "the app has no Moss.framework exporting Moss_Init"
 }
 
+xcodebuild "${XCODE[@]}" CODE_SIGNING_ALLOWED=NO archive
+check_moss
+
 if [ -z "${APP_STORE_CONNECT_KEY_P8_BASE64:-}" ]; then
   echo "no App Store Connect key; the archive stays unsigned"
-  xcodebuild "${XCODE[@]}" CODE_SIGNING_ALLOWED=NO archive
-  check_moss
   exit 0
 fi
 [ -n "${APP_STORE_CONNECT_ISSUER_ID:-}" ] || fail "APP_STORE_CONNECT_ISSUER_ID is empty"
@@ -46,9 +49,6 @@ KEY="$WORK/AuthKey_$APP_STORE_CONNECT_KEY_ID.p8"
 printf '%s' "$APP_STORE_CONNECT_KEY_P8_BASE64" | base64 --decode > "$KEY"
 AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY"
   -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID")
-
-xcodebuild "${XCODE[@]}" "${AUTH[@]}" DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic archive
-check_moss
 
 destination=export
 [ "${MOSH_IOS_UPLOAD:-false}" = true ] && destination=upload
