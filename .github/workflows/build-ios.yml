@@ -108,7 +108,7 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ (inputs.sign || github.event_name == 'push') && secrets.APP_STORE_CONNECT_ISSUER_ID || '' }}
           APP_STORE_CONNECT_KEY_ID: ${{ (inputs.sign || github.event_name == 'push') && secrets.APP_STORE_CONNECT_KEY_ID || '' }}
           APP_STORE_CONNECT_KEY_P8_BASE64: ${{ (inputs.sign || github.event_name == 'push') && secrets.APP_STORE_CONNECT_KEY_P8_BASE64 || '' }}
-          MOSH_IOS_UPLOAD: ${{ inputs.upload && 'true' || 'false' }}
+          MOSH_IOS_UPLOAD: ${{ (inputs.upload || github.event_name == 'push') && 'true' || 'false' }}
         run: bash scripts/ios-package.sh
 
       - if: steps.ios-build.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
