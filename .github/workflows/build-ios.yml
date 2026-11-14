@@ -1,0 +1,94 @@
+name: Build iOS
+
+# The iOS app for TestFlight and the App Store. With `sign` and the App Store
+# Connect key (APP_STORE_CONNECT_*, repo variable APPLE_TEAM_ID) the archive
+# is signed with cloud-managed certificates; with `upload` it goes to
+# TestFlight (scripts/ios-package.sh, CODE_SIGNING.md). Without the key
+# (forks) the archive stays unsigned. Callers pass `secrets: inherit`.
+
+on:
+  workflow_call:
+    inputs:
+      sign:
+        description: Sign the archive for the App Store.
+        type: boolean
+        default: false
+      upload:
+        description: Upload the signed build to TestFlight.
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      sign:
+        description: Sign the archive for the App Store.
+        type: boolean
+        default: true
+      upload:
+        description: Upload the signed build to TestFlight.
+        type: boolean
+        default: true
+  push:
+    branches: [feat/ios-testflight]
+
+permissions:
+  contents: read
+
+jobs:
+  ipa:
+    name: iOS app${{ inputs.upload && ' (TestFlight)' || inputs.sign && ' (signed)' || '' }}
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Moss for iOS is built by the Runner target's build phase
+      # (scripts/ios-embed-moss.sh), so only Go is needed here.
+      - uses: ./.github/actions/setup
+        with:
+          moss: 'false'
+          go: 'true'
+          rust-cache-key: ios
+
+      - name: Add Rust iOS target
+        run: rustup target add aarch64-apple-ios
+
+      # The build number must grow with every TestFlight upload of a version:
+      # pubspec's number, then this workflow's run number.
+      - name: Flutter configuration (App Store channel)
+        shell: bash
+        run: |
+          build="$(sed -n 's/^version: .*+\([0-9]*\)$/\1/p' pubspec.yaml).$GITHUB_RUN_NUMBER"
+          flutter build ios --release --config-only --build-number="$build" \
+            --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }} \
+            --dart-define=MOSH_DISTRIBUTION_CHANNEL=appstore
+
+      - name: Archive, sign and upload
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ inputs.sign && secrets.APP_STORE_CONNECT_ISSUER_ID || '' }}
+          APP_STORE_CONNECT_KEY_ID: ${{ inputs.sign && secrets.APP_STORE_CONNECT_KEY_ID || '' }}
+          APP_STORE_CONNECT_KEY_P8_BASE64: ${{ inputs.sign && secrets.APP_STORE_CONNECT_KEY_P8_BASE64 || '' }}
+          MOSH_IOS_UPLOAD: ${{ inputs.upload && 'true' || 'false' }}
+        run: bash scripts/ios-package.sh
+
+      # CocoaPods rewrites the Xcode project on the first install; keep what
+      # it changed so the integration can be committed.
+      - if: always()
+        name: Collect iOS project changes
+        shell: bash
+        run: |
+          mkdir -p build/ios-project
+          git add -N ios
+          git diff -- ios > build/ios-project/ios.diff || true
+          cp ios/Podfile ios/Podfile.lock build/ios-project/ 2>/dev/null || true
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mosh-ios
+          path: |
+            build/ios-dist/*.ipa
+            build/ios-project
+          if-no-files-found: ignore
