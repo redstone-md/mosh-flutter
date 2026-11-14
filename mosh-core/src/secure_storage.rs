@@ -259,8 +259,9 @@ fn select_sandboxed_mac_store() -> Result<(), SecureStorageError> {
     Ok(())
 }
 
-/// How loud the legacy fallback is. The self-signed release has no Apple
-/// team, so the data-protection keychain refuses it with
+/// How loud the legacy fallback is. The release is signed without a
+/// provisioning profile, so it has no keychain access group, and the
+/// data-protection keychain refuses it with
 /// errSecMissingEntitlement on every launch: that is the designed path, and
 /// a warning would read as a fault. Any other refusal still is one.
 #[cfg(any(target_os = "macos", test))]

@@ -5,7 +5,8 @@
 //! to the exact build that wrote it (a `cdhash:` partition). Every update is a
 //! new build, so macOS asked for the login password again — twice — and
 //! "Always Allow" only ever covered the build that was already gone. A
-//! self-signed certificate does not change that; only a Developer ID does.
+//! self-signed certificate did not change that. Developer ID releases (0.30+)
+//! have a Team ID, but the key stays in the file so no update moves it again.
 //!
 //! What this gives up: the key is no longer wrapped by the login password.
 //! At rest it is protected by FileVault, and on macOS 14+ other apps must ask
