@@ -12,11 +12,13 @@ brings the Android archive from 108 MB to about 22 MB. Maven Central's free
 tier publishes 80 MB a month.
 
 [libwebrtc.yml](../../.github/workflows/libwebrtc.yml) builds Linux x64,
-Windows x64, macOS arm64 and x64 and Android arm64 when the release named in
-`build.json` does not exist yet, and publishes the archives as that GitHub
-release (a pre-release that never becomes the latest, so the in-app update
-check ignores it). Copy the SHA-256 of each archive from its `SHA256SUMS`
-into `archives`. `node scripts/native-media-build.mjs --engine webrtc`
+Windows x64, macOS arm64 and x64, Android arm64 and iOS arm64 (devices) when
+the release named in `build.json` does not exist yet, and publishes the
+archives as that GitHub release (a pre-release that never becomes the latest,
+so the in-app update check ignores it). A target added to
+[libwebrtc-targets.mjs](../../scripts/support/libwebrtc-targets.mjs) later is
+built alone and added to the existing release; the archives already there
+stay. Copy the SHA-256 of each archive from its `SHA256SUMS` into `archives`. `node scripts/native-media-build.mjs --engine webrtc`
 downloads and verifies the archive for its target.
 
 The Android archive also goes to Maven Central as
@@ -35,7 +37,7 @@ request's Android checks. Until then they fail to resolve it, and so would
 main after a merge.
 
 To change the build, edit the pin or the patches and give `release` a new
-name: a published release is never replaced. To build locally, run
+name: a published archive is never replaced. To build locally, run
 `node scripts/libwebrtc-build.mjs --target <rust triple>` (a 16 GB checkout)
 and point `LK_CUSTOM_WEBRTC` at the resulting `<os>-<arch>-release`
 directory in the work directory.
