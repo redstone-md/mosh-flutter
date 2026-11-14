@@ -20,7 +20,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ARCHIVE="$ROOT/build/ios/Mosh.xcarchive"
 DIST="$ROOT/build/ios-dist"
 XCODE=(-workspace "$ROOT/ios/Runner.xcworkspace" -scheme Runner -configuration Release
-  -destination generic/platform=iOS -archivePath "$ARCHIVE" -quiet)
+  -destination generic/platform=iOS -archivePath "$ARCHIVE" -quiet
+  # Fixed paths so CI can cache the Rust builds and the Swift packages.
+  -derivedDataPath "$ROOT/build/ios/DerivedData" -clonedSourcePackagesDirPath "$ROOT/build/ios/SourcePackages")
 
 fail() {
   echo "error: $*" >&2

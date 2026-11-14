@@ -18,6 +18,10 @@ on:
         description: Upload the signed build to TestFlight.
         type: boolean
         default: false
+      parallel-codegen:
+        description: Compile mosh-core with parallel codegen (CI proof builds, never uploads).
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       sign:
@@ -51,9 +55,35 @@ jobs:
           moss: 'false'
           go: 'true'
           rust-cache-key: ios
+          rust-cache-save: 'true'
 
       - name: Add Rust iOS target
         run: rustup target add aarch64-apple-ios
+
+      # What the archive rebuilds every time without it: the Rust libraries
+      # cargokit compiles in Xcode's temp dirs (mosh-core, super_native_
+      # extensions), Moss's Go build cache and the Swift packages. A stale hit
+      # is safe: cargo and Go re-fingerprint, SwiftPM re-resolves. Saved from
+      # main only, like every cache here.
+      - id: ios-build
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/ios/DerivedData/**/mosh_core.build
+            build/ios/DerivedData/**/super_native_extensions.build
+            build/ios/SourcePackages
+            ~/Library/Caches/go-build
+          key: ios-build-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml', 'pubspec.lock', 'moss/go.sum', 'moss/**/*.go') }}
+          restore-keys: ios-build-
+
+      # Same trade as the macOS proof build (build-macos.yml).
+      - name: Parallel mosh-core codegen (CI proof builds)
+        if: inputs.parallel-codegen
+        shell: bash
+        run: |
+          config="${CARGO_HOME:-$HOME/.cargo}/config.toml"
+          mkdir -p "$(dirname "$config")"
+          printf '\n[profile.release.package.mosh-core]\ncodegen-units = 16\n' >> "$config"
 
       # The build number must grow with every TestFlight upload of a version:
       # pubspec's number, then this workflow's run number. Signing happens at
@@ -80,6 +110,16 @@ jobs:
           APP_STORE_CONNECT_KEY_P8_BASE64: ${{ (inputs.sign || github.event_name == 'push') && secrets.APP_STORE_CONNECT_KEY_P8_BASE64 || '' }}
           MOSH_IOS_UPLOAD: ${{ inputs.upload && 'true' || 'false' }}
         run: bash scripts/ios-package.sh
+
+      - if: steps.ios-build.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/ios/DerivedData/**/mosh_core.build
+            build/ios/DerivedData/**/super_native_extensions.build
+            build/ios/SourcePackages
+            ~/Library/Caches/go-build
+          key: ${{ steps.ios-build.outputs.cache-primary-key }}
 
       # CocoaPods rewrites the Xcode project on the first install; keep what
       # it changed so the integration can be committed.

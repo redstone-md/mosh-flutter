@@ -19,9 +19,10 @@ permissions:
 # cargo jobs dlopen moss.dll. flutter-test needs no Rust runtime and no
 # Windows-only behaviour, so it runs on the faster ubuntu-latest, as does
 # android-build, whose image ships the Android SDK + NDK. The macOS lanes
-# (rust-core-macos, macos-dmg) run on macos-latest (arm64): the darwin
-# compile and the universal DMG can only be proven there. A run has three
-# macOS jobs because three run at a time: a fourth waits for a runner.
+# (rust-core-macos, macos-dmg, ios-app) run on macos-latest (arm64): the
+# darwin compile, the universal DMG and the iOS archive can only be proven
+# there. Three macOS jobs run at a time: with native-call-media's macOS
+# slice that makes four, and the last to start waits for a runner.
 #
 # Toolchains, caches and the moss library come from .github/actions/setup so
 # every job pins the same versions. Caches are saved only from main and fit
@@ -513,3 +514,9 @@ jobs:
       universal: ${{ github.event_name != 'pull_request' }}
       parallel-codegen: true
     secrets: inherit
+
+  # The iOS archive, unsigned: signing and TestFlight belong to releases.
+  ios-app:
+    uses: ./.github/workflows/build-ios.yml
+    with:
+      parallel-codegen: true
