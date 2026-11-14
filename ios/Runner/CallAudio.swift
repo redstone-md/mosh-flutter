@@ -67,7 +67,7 @@ final class CallAudio {
   private func begin() {
     let session = AVAudioSession.sharedInstance()
     previous = (session.category, session.mode, session.categoryOptions)
-    try? session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth])
+    try? session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP])
     routeChanges = NotificationCenter.default.addObserver(
       forName: AVAudioSession.routeChangeNotification, object: nil, queue: nil
     ) { [weak self] notification in
