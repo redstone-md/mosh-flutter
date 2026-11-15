@@ -10,6 +10,9 @@ final class CallAudio {
   private static let speaker = "ios:speaker"
   /// The one microphone a call offers: the route's own, like Android's.
   private static let routeInput = "ios:route-input"
+  /// Outputs that are a headset rather than the phone itself.
+  private static let external: Set<AVAudioSession.Port> =
+    [.headphones, .bluetoothHFP, .bluetoothA2DP, .bluetoothLE, .usbAudio, .carAudio]
 
   private let queue = DispatchQueue(label: "app.mosh.call-audio")
   /// The output the call picked; nil follows the system route.
@@ -28,6 +31,13 @@ final class CallAudio {
       }
       outputs.append(["id": Self.speaker, "name": "Speaker"])
       for port in session.availableInputs ?? [] where port.portType != .builtInMic {
+        outputs.append(["id": "ios:\(port.uid)", "name": port.portName])
+      }
+      // Before a call the session is not .playAndRecord, so a Bluetooth
+      // headset is not an input yet; the route still names it.
+      let listed = Set(outputs.compactMap { $0["id"] })
+      for port in session.currentRoute.outputs where Self.external.contains(port.portType)
+        && !listed.contains("ios:\(port.uid)") {
         outputs.append(["id": "ios:\(port.uid)", "name": port.portName])
       }
       let inputs = session.isInputAvailable
@@ -73,7 +83,13 @@ final class CallAudio {
     ) { [weak self] notification in
       let reason = (notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt)
         .flatMap(AVAudioSession.RouteChangeReason.init(rawValue:))
-      guard reason == .categoryChange, let self = self else { return }
+      // A headset plugged in or out reroutes the call and clears the
+      // speaker override; the pick is applied again so what plays stays
+      // what the call shows. A picked headset that left fails here, and the
+      // next device refresh drops it.
+      let reroutes: [AVAudioSession.RouteChangeReason] =
+        [.categoryChange, .newDeviceAvailable, .oldDeviceUnavailable]
+      guard let reason = reason, reroutes.contains(reason), let self = self else { return }
       self.queue.async { self.apply() }
     }
     DispatchQueue.main.async { UIDevice.current.isProximityMonitoringEnabled = true }
