@@ -8,7 +8,8 @@ stderr lost — still leaves an answer to "what happened". Reference:
 The file stays on the device: opt-in crash reporting
 ([ADR 0035](../ADR/0035-opt-in-crash-reporting.md)) does not send it. Its
 context ids are raw peer, session and group ids, so they must be hashed
-before any report attaches it.
+before any report attaches it. The user can share it themselves: see
+[Sharing the log](#sharing-the-log).
 
 ## The flow
 
@@ -96,6 +97,14 @@ opened it — `None` before the first write or while the file could not be
 created, so the app offers the file only when it exists. The panel's
 Field log row shows it, so a bug report can be pointed at the exact
 file.
+
+## Sharing the log
+
+Settings → About and the failed-launch screen offer "Share app log".
+`log_files()` lists the files that exist; the app joins them oldest first
+into one `mosh-log.txt` in the temp dir and hands it to the system share
+sheet (`share_plus`). The user decides whether and where the file goes.
+Linux has no file sharing there, so the button reports a failure.
 
 ## Proof
 

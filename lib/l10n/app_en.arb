@@ -370,6 +370,12 @@
   "@settingsAboutLicenses": {
     "description": "Opens the list of licenses of the code and fonts the app ships"
   },
+  "fieldLogShare": "Share app log",
+  "@fieldLogShare": {
+    "description": "Sends the app's diagnostic log as one text file through the system share sheet"
+  },
+  "fieldLogEmpty": "The log is empty so far.",
+  "fieldLogFailed": "Could not share the log.",
   "settingsAboutUpdateChecking": "Checking for updates…",
   "settingsAboutUpdateCurrent": "This is the newest release.",
   "@settingsAboutUpdateCurrent": {

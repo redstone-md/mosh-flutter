@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/distribution_channel_provider.dart';
+import 'package:mosh/src/features/diagnostics/field_log_button.dart';
 
 import 'about_update_notice.dart';
 import 'app_package_info_provider.dart';
@@ -48,6 +49,10 @@ class AboutSettingsSection extends ConsumerWidget {
               ),
               child: Text(l.settingsAboutLicenses),
             ),
+          ),
+          const Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: FieldLogButton(),
           ),
         ],
       ),
