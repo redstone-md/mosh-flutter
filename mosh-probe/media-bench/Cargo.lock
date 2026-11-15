@@ -3094,6 +3094,7 @@ name = "mosh-core"
 version = "0.7.4"
 dependencies = [
  "aes-gcm",
+ "apple-native-keyring-store",
  "base64",
  "blind-rsa-signatures",
  "cpal",
