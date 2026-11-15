@@ -54,6 +54,11 @@ ndk-context = "=0.1.1"
 # The call's video textures write into a Flutter `Surface` through its window.
 ndk = { version = "=0.9.0", default-features = false }
 
+[target.'cfg(target_os = "ios")'.dependencies]
+# keyring's own entry to this store refuses outside the macOS sandbox, which
+# iOS never reports; the history key goes to it directly.
+apple-native-keyring-store = { version = "1.0.0", features = ["protected"] }
+
 [target."cfg(windows)".dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_NetworkManagement_IpHelper", "Win32_Foundation", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock"] }
 

@@ -207,9 +207,13 @@ fn select_native_store() -> Result<(), SecureStorageError> {
     }
     // `use_native_store` knows no iOS store and falls back to keyring's
     // sample store, which keeps secrets in memory: the history key would die
-    // with the process. iOS's own is the data-protection keychain.
+    // with the process. iOS's own is the data-protection keychain. keyring's
+    // `use_named_store("protected")` refuses it unless the macOS sandbox
+    // variable is set, which it never is on iOS, so it is installed directly.
     #[cfg(target_os = "ios")]
-    let selected = keyring::use_named_store("protected");
+    let selected = apple_native_keyring_store::protected::Store::new().map(|store| {
+        keyring_core::set_default_store(store);
+    });
     #[cfg(not(target_os = "ios"))]
     let selected = keyring::use_native_store(false);
     selected.map_err(|error| SecureStorageError::Backend(format!("{NATIVE_STORE_ERROR}: {error}")))
