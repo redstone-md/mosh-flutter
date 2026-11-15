@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/diagnostics/field_log_button.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
 
 import '../../support/pump.dart';
 import '../../support/scriptable_bridge.dart';
@@ -29,13 +28,43 @@ void main() {
     expect(await export!.readAsString(), 'first\nsecond\nthird\n');
   });
 
+  // The export's file work is covered above; here it is a fixed answer.
+  Future<void> pumpButton(WidgetTester tester,
+          {String? export = '/tmp/mosh-log.txt', FieldLogSend? send}) =>
+      pumpScreen(
+        tester,
+        const Scaffold(body: FieldLogButton()),
+        overrides: [
+          fieldLogExportProvider.overrideWithValue(() async => export),
+          fieldLogSendProvider.overrideWithValue(
+              send ?? (_, __) async => fail('nothing to send')),
+        ],
+      );
+
+  testWidgets('sharing hands over the exported file', (tester) async {
+    final sent = <String>[];
+    await pumpButton(tester, send: (path, _) async => sent.add(path));
+
+    await tester.tap(find.text('Share app log'));
+    await tester.pumpAndSettle();
+
+    expect(sent, ['/tmp/mosh-log.txt']);
+    expect(find.text('Could not share the log.'), findsNothing);
+  });
+
+  testWidgets('a share that fails says so', (tester) async {
+    await pumpButton(tester,
+        send: (_, __) async => throw StateError('no share sheet'));
+
+    await tester.tap(find.text('Share app log'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not share the log.'), findsOneWidget);
+  });
+
   testWidgets('an empty log says so instead of sharing nothing',
       (tester) async {
-    await pumpScreen(
-      tester,
-      const Scaffold(body: FieldLogButton()),
-      overrides: [bridgeFacadeProvider.overrideWithValue(ScriptableBridge())],
-    );
+    await pumpButton(tester, export: null);
 
     await tester.tap(find.text('Share app log'));
     await tester.pumpAndSettle();

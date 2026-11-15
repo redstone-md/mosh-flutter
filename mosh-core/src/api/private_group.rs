@@ -6,6 +6,7 @@ use std::sync::MutexGuard;
 use super::runtime_owner::RuntimeOwner;
 
 use crate::api::conversation_bridge::ConversationBridgeError;
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::private_group_runtime::{
     CreateGroupRequest, GroupCreated, GroupListSnapshot, GroupSnapshot, JoinGroupRequest,
     PrivateGroupError, PrivateGroupRuntime,
@@ -47,9 +48,9 @@ pub fn join_group(request: JoinGroupRequest) -> Result<GroupSnapshot, Conversati
     let mut runtime = ensure_runtime()?;
     runtime.join_group(request).map_err(|error| {
         // The screen names only the error's kind; the cause stays here.
-        crate::diagnostics_log::write(
-            crate::diagnostics_log::LogLevel::Warn,
-            crate::diagnostics_log::kinds::ROOM,
+        dlog::write(
+            LogLevel::Warn,
+            kinds::ROOM,
             "join_group",
             &format!("join failed: {error}"),
         );

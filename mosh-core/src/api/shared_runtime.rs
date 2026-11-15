@@ -104,6 +104,12 @@ pub fn ensure_shared_resources() -> Result<SharedResources, String> {
         .clone()
 }
 
+/// Whether the shared resources were built and failed. A runtime that
+/// fails after them names the same cause, which was already reported.
+pub(crate) fn shared_resources_failed() -> bool {
+    matches!(SHARED_RESOURCES.get(), Some(Err(_)))
+}
+
 /// Resolve the data dir: `<app_data_dir>/mosh` when injected, else the
 /// temp-dir `mosh` dir.
 /// The at-rest history database. Single definition so the diagnostics facade

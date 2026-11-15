@@ -57,13 +57,15 @@ class CrashReporting {
   Future<void> resume() async {
     try {
       final salt = available ? await _bridge.crashReportingSalt() : null;
-      if (salt == null) {
-        await _bridge.stopPanicReporting();
-        return _deleteNativeDatabase();
-      }
-      await _begin(salt);
+      if (salt != null) return await _begin(salt);
     } catch (error) {
       debugPrint('mosh: crash reporting did not start: $error');
+    }
+    try {
+      await _bridge.stopPanicReporting();
+      if (available) await _deleteNativeDatabase();
+    } catch (error) {
+      debugPrint('mosh: held failures not dropped: $error');
     }
   }
 

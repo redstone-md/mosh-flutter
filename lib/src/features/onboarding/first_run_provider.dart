@@ -1,4 +1,4 @@
-import 'dart:async' show TimeoutException;
+import 'dart:async' show TimeoutException, unawaited;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -89,7 +89,9 @@ class FirstRunController extends AsyncNotifier<FirstRunProfile> {
       ]);
     } catch (_) {
       if (!existing) {
-        await _report(bridge, failures);
+        // Not awaited: the bridge workers may all be stuck in the checks
+        // that timed out, and the gate must show its retry screen anyway.
+        unawaited(_report(bridge, failures));
         rethrow;
       }
     } finally {

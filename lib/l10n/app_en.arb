@@ -375,7 +375,13 @@
     "description": "Sends the app's diagnostic log as one text file through the system share sheet"
   },
   "fieldLogEmpty": "The log is empty so far.",
+  "@fieldLogEmpty": {
+    "description": "Shown under the share button when nothing has been logged yet"
+  },
   "fieldLogFailed": "Could not share the log.",
+  "@fieldLogFailed": {
+    "description": "Shown under the share button when the log could not be exported or shared"
+  },
   "settingsAboutUpdateChecking": "Checking for updates…",
   "settingsAboutUpdateCurrent": "This is the newest release.",
   "@settingsAboutUpdateCurrent": {

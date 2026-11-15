@@ -46,6 +46,16 @@ void main() {
     await reporting.resume();
     expect(reporting.available, isFalse);
     expect(sdk.events, isEmpty);
+    expect(bridge.callsTo(BridgeMethod.stopPanicReporting), isNotEmpty);
+  });
+
+  test('an unreadable consent still drops the failures Rust held', () async {
+    final sdk = _Sdk();
+    final bridge = ScriptableBridge()
+      ..failNext(BridgeMethod.crashReportingSalt);
+    await sdk.reporting(bridge).resume();
+    expect(sdk.events, isEmpty);
+    expect(bridge.callsTo(BridgeMethod.stopPanicReporting), isNotEmpty);
   });
 
   test('a failed start leaves the install opted out', () async {

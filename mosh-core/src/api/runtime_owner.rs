@@ -27,11 +27,7 @@ impl<T> RuntimeOwner<T> {
         let initialized = self.cell.get_or_init(|| {
             construct().map(Mutex::new).map_err(|error| {
                 let error = error.to_string();
-                crate::diagnostics_log::report_failure(
-                    crate::diagnostics_log::kinds::STARTUP,
-                    self.name,
-                    &format!("{} runtime: {error}", self.name),
-                );
+                report_construction_failure(self.name, &error);
                 error
             })
         });
@@ -95,6 +91,18 @@ impl<T> RuntimeOwner<T> {
                 super::background::reconcile();
             });
         spawned.map(|_| ()).map_err(|error| error.to_string())
+    }
+}
+
+/// One cause, one report: a runtime that failed only because the shared
+/// resources did not build gets a log line, since those were reported.
+fn report_construction_failure(name: &str, error: &str) {
+    use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
+    let message = format!("{name} runtime did not build: {error}");
+    if super::shared_runtime::shared_resources_failed() {
+        dlog::write(LogLevel::Error, kinds::STARTUP, name, &message);
+    } else {
+        dlog::report_failure(kinds::STARTUP, name, &message);
     }
 }
 

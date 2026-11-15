@@ -1,10 +1,12 @@
 import 'dart:io' show Directory, File;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/attachment_launcher.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
@@ -27,6 +29,28 @@ Future<File?> exportFieldLog(BridgeFacade bridge, Directory directory) async {
   }
   return export;
 }
+
+/// Writes the log for sharing and answers its path; `null` while empty.
+final fieldLogExportProvider = Provider<Future<String?> Function()>((ref) {
+  final bridge = ref.watch(bridgeFacadeProvider);
+  return () async => (await exportFieldLog(bridge, Directory.systemTemp))?.path;
+});
+
+/// Sends an exported log file on; [origin] anchors an iPad's popover.
+typedef FieldLogSend = Future<void> Function(String path, Rect? origin);
+
+/// The system share sheet. Linux has none for files (share_plus), so there
+/// the log opens in the text editor instead.
+final fieldLogSendProvider = Provider<FieldLogSend>((ref) {
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux) {
+    final launcher = ref.watch(attachmentLauncherProvider);
+    return (path, _) => launcher.open(path);
+  }
+  return (path, origin) => SharePlus.instance.share(ShareParams(
+        files: [XFile(path, mimeType: 'text/plain')],
+        sharePositionOrigin: origin,
+      ));
+});
 
 /// Hands the field log to the system share sheet, so the user decides where
 /// it goes. Works without a running runtime, so the failed-launch screen
@@ -68,15 +92,11 @@ class _FieldLogButtonState extends ConsumerState<FieldLogButton> {
     setState(() => _problem = null);
     String? problem;
     try {
-      final export = await exportFieldLog(
-          ref.read(bridgeFacadeProvider), Directory.systemTemp);
+      final export = await ref.read(fieldLogExportProvider)();
       if (export == null) {
         problem = l.fieldLogEmpty;
       } else {
-        await SharePlus.instance.share(ShareParams(
-          files: [XFile(export.path, mimeType: 'text/plain')],
-          sharePositionOrigin: origin,
-        ));
+        await ref.read(fieldLogSendProvider)(export, origin);
       }
     } catch (error) {
       debugPrint('mosh: field log not shared: $error');

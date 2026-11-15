@@ -104,7 +104,7 @@ Settings → About and the failed-launch screen offer "Share app log".
 `log_files()` lists the files that exist; the app joins them oldest first
 into one `mosh-log.txt` in the temp dir and hands it to the system share
 sheet (`share_plus`). The user decides whether and where the file goes.
-Linux has no file sharing there, so the button reports a failure.
+Linux has no file sharing there, so the file opens in the text editor.
 
 ## Proof
 

@@ -100,9 +100,10 @@ void main(List<String> args) async {
   await setAppDataDirBridge();
   // ADR 0035: start opt-in crash reporting once the consent file is
   // readable (it lives in the data dir just bridged). Not awaited: the SDK
-  // init must not hold back the first frame, so failures in the first
-  // moments of launch may go unreported. A no-op without consent or without
-  // a build DSN; never throws.
+  // init must not hold back the first frame. Rust holds the failures it
+  // reports meanwhile; a Dart error in those moments may go unreported.
+  // Without consent or a build DSN it only drops what Rust held; never
+  // throws.
   final crashReporting = CrashReporting(bridge: BridgeFacade());
   unawaited(crashReporting.resume());
   // Subscribe to the `mosh://` link stream BEFORE runApp so the cold-start

@@ -24,18 +24,20 @@ void main() {
   late ScriptableBridge bridge;
   late ScriptableDeviceLink link;
   late ProviderContainer container;
+  ProviderContainer containerWith(FirstRunStore store) =>
+      ProviderContainer(retry: (_, __) => null, overrides: [
+        firstRunStoreProvider.overrideWithValue(store),
+        bridgeFacadeProvider.overrideWithValue(bridge),
+        deviceLinkCommandsProvider.overrideWithValue(link),
+        deviceLinkPollIntervalProvider.overrideWithValue(null),
+      ]);
 
   setUp(() async {
     directory = await Directory.systemTemp.createTemp('mosh-setup-provider-');
     store = FirstRunStore(directory);
     bridge = ScriptableBridge();
     link = ScriptableDeviceLink();
-    container = ProviderContainer(retry: (_, __) => null, overrides: [
-      firstRunStoreProvider.overrideWithValue(store),
-      bridgeFacadeProvider.overrideWithValue(bridge),
-      deviceLinkCommandsProvider.overrideWithValue(link),
-      deviceLinkPollIntervalProvider.overrideWithValue(null),
-    ]);
+    container = containerWith(store);
   });
   tearDown(() async {
     container.dispose();
@@ -125,12 +127,8 @@ void main() {
   test('a setup read that never answers fails the launch after the timeout',
       () {
     fakeAsync((async) {
-      final memory = ProviderContainer(retry: (_, __) => null, overrides: [
-        firstRunStoreProvider.overrideWithValue(MemoryFirstRunStore()),
-        bridgeFacadeProvider.overrideWithValue(bridge),
-        deviceLinkCommandsProvider.overrideWithValue(link),
-        deviceLinkPollIntervalProvider.overrideWithValue(null),
-      ]);
+      // File reads never finish under a fake clock; the store stays in memory.
+      final memory = containerWith(MemoryFirstRunStore());
       addTearDown(memory.dispose);
       bridge.hold(BridgeMethod.listGroups);
       Object? failure;
