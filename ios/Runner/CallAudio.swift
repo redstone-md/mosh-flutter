@@ -18,6 +18,8 @@ final class CallAudio {
   /// The output the call picked; nil follows the system route.
   private var output: String?
   private var routeChanges: NSObjectProtocol?
+  /// Why the system last rerouted the call, for the field log.
+  private var lastChange: AVAudioSession.RouteChangeReason?
   /// The session as it was before the call, restored after it, so playback
   /// after a call leaves the receiver.
   private var previous: (AVAudioSession.Category, AVAudioSession.Mode, AVAudioSession.CategoryOptions)?
@@ -42,7 +44,7 @@ final class CallAudio {
       }
       let inputs = session.isInputAvailable
         ? [["id": Self.routeInput, "name": "Microphone (selected audio route)"]] : []
-      return ["inputs": inputs, "outputs": outputs]
+      return ["inputs": inputs, "outputs": outputs, "route": route()]
     }
   }
 
@@ -54,6 +56,7 @@ final class CallAudio {
         && (input == nil || input == Self.routeInput)
       var reply: [String: Any] = ["input_ok": inputOk, "output_ok": apply()]
       reply["webrtc_session"] = configured
+      reply["route"] = route()
       return reply
     }
   }
@@ -64,6 +67,7 @@ final class CallAudio {
       NotificationCenter.default.removeObserver(observer)
       routeChanges = nil
       output = nil
+      lastChange = nil
       apply()
       if let previous = previous {
         try? AVAudioSession.sharedInstance().setCategory(previous.0, mode: previous.1, options: previous.2)
@@ -92,8 +96,11 @@ final class CallAudio {
       // next device refresh drops it.
       let reroutes: [AVAudioSession.RouteChangeReason] =
         [.categoryChange, .newDeviceAvailable, .oldDeviceUnavailable]
-      guard let reason = reason, reroutes.contains(reason), let self = self else { return }
-      self.queue.async { self.apply() }
+      guard let reason = reason, let self = self else { return }
+      self.queue.async {
+        self.lastChange = reason
+        if reroutes.contains(reason) { self.apply() }
+      }
     }
     DispatchQueue.main.async { UIDevice.current.isProximityMonitoringEnabled = true }
     return Self.configureWebRTC()
@@ -129,6 +136,27 @@ final class CallAudio {
       })
     }
     return ["before": describe(current), "after": describe(call)]
+  }
+
+  /// Where the call plays right now and how loud, for the field log: the
+  /// system's route, its volume (the receiver keeps its own), the pick and
+  /// the last reroute. Called on the queue.
+  private func route() -> [String: Any] {
+    let session = AVAudioSession.sharedInstance()
+    let reasons = [
+      "unknown", "newDeviceAvailable", "oldDeviceUnavailable", "categoryChange", "override",
+      "", "wakeFromSleep", "noSuitableRouteForCategory", "routeConfigurationChange",
+    ]
+    let change = lastChange.map { Int($0.rawValue) }
+    return [
+      "outputs": session.currentRoute.outputs.map { $0.portType.rawValue },
+      "inputs": session.currentRoute.inputs.map { $0.portType.rawValue },
+      "volume": (session.outputVolume * 100).rounded() / 100,
+      "category": session.category.rawValue,
+      "mode": session.mode.rawValue,
+      "picked": output ?? "system",
+      "last_change": change.map { reasons.indices.contains($0) ? reasons[$0] : String($0) } ?? "none",
+    ]
   }
 
   @discardableResult
