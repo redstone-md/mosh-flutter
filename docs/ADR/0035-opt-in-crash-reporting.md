@@ -38,6 +38,14 @@ that users must choose.
   The adapter normalizes numeric timestamps and absent Rust trace operations
   for the Dart SDK. Parsing/capture failures are contained per event, so the
   reporter cannot raise an unhandled app error or stop later reports.
+- **Failures without a crash go the same way.** `dlog::report_failure`
+  writes an `error` line and captures a message event through the same
+  Rust client: shared resources or a runtime that did not build, a first-run
+  check that failed or hung, a connected call with no sound for 10 seconds.
+  The event carries the kind and message, never the context id. Startup
+  failures can come before Dart read the consent; up to eight wait in
+  process until launch either starts reporting or calls `stop`, which drops
+  them. After that, a failure while reporting is off is never kept.
 - **Debug files stay off the device.** The release profile writes line tables
   to separate files (PDB on Windows, dSYM on macOS) instead of stripping them;
   release-tag builds upload them with `sentry-cli debug-files upload`
@@ -76,4 +84,5 @@ ingest request itself carries the client's IP.
   addresses too.
 - Next layers: a post-crash "send report?" prompt, and a manual report with
   a reviewed `mosh.log`. The field log's context ids must be hashed before
-  that last one ships.
+  that last one ships. Until then the user can share the log themselves
+  (field-log doc).

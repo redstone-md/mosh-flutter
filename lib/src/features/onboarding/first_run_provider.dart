@@ -1,7 +1,10 @@
+import 'dart:async' show TimeoutException;
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/features/device_link/device_link_provider.dart';
+import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/platform/app_data_dir.dart';
 import 'package:mosh/src/rust/device_link/types.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -21,6 +24,10 @@ final firstRunProfileProvider =
     AsyncNotifierProvider<FirstRunController, FirstRunProfile>(
   FirstRunController.new,
 );
+
+/// A setup check still unanswered after this long fails the launch, so the
+/// gate offers a retry instead of a spinner that never ends.
+const firstRunCheckTimeout = Duration(seconds: 20);
 
 /// The gate consumes the VPN question for this launch, avoiding a second prompt.
 final firstRunShownProvider = NotifierProvider<FirstRunShown, bool>(
@@ -50,28 +57,55 @@ class FirstRunController extends AsyncNotifier<FirstRunProfile> {
     final bridge = ref.read(bridgeFacadeProvider);
     final subscription = ref.listen(deviceLinkProvider, (_, __) {});
     var existing = false;
-    Future<void> check(Future<bool> Function() read) async {
-      if (await read()) existing = true;
+    final failures = <String>[];
+    Future<void> check(String name, Future<bool> Function() read) async {
+      try {
+        if (await read().timeout(firstRunCheckTimeout)) existing = true;
+      } catch (error) {
+        failures.add(error is TimeoutException
+            ? '$name did not answer in ${firstRunCheckTimeout.inSeconds} s'
+            : '$name failed: $error');
+        rethrow;
+      }
     }
 
     try {
       // Await every check. A known history bypasses setup; failed reads must
       // never turn an unknown installation into an empty one.
       await Future.wait<void>([
-        check(() => bridge.listSessions().then((s) => s.sessions.isNotEmpty)),
-        check(() => bridge.listChannels().then((s) => s.channels.isNotEmpty)),
-        check(() => bridge.listGroups().then((s) => s.groups.isNotEmpty)),
-        check(() => bridge.listOrgs().then((s) => s.isNotEmpty)),
-        check(() => ref
-            .read(deviceLinkProvider.future)
-            .then((link) => _hasIdentityHistory(link.snapshot))),
+        check('sessions',
+            () => bridge.listSessions().then((s) => s.sessions.isNotEmpty)),
+        check('channels',
+            () => bridge.listChannels().then((s) => s.channels.isNotEmpty)),
+        check('groups',
+            () => bridge.listGroups().then((s) => s.groups.isNotEmpty)),
+        check(
+            'organizations', () => bridge.listOrgs().then((s) => s.isNotEmpty)),
+        check(
+            'device link',
+            () => ref
+                .read(deviceLinkProvider.future)
+                .then((link) => _hasIdentityHistory(link.snapshot))),
       ]);
     } catch (_) {
-      if (!existing) rethrow;
+      if (!existing) {
+        await _report(bridge, failures);
+        rethrow;
+      }
     } finally {
       subscription.close();
     }
     return existing;
+  }
+
+  /// The gate shows only "could not read"; the field log keeps which check
+  /// failed and why. A broken report must not hide the launch error.
+  Future<void> _report(BridgeFacade bridge, List<String> failures) async {
+    try {
+      await bridge.reportStartupFailure('setup check: ${failures.join('; ')}');
+    } catch (error) {
+      debugPrint('mosh: setup failure not recorded: $error');
+    }
   }
 
   Future<void> saveName(String name, {bool advance = false}) async {

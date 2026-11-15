@@ -41,7 +41,15 @@ spellings; one vocabulary keeps the file filterable. The slugs so far:
 
 `rehydrate` `persist` `identity` `publish` `verify` `offer` `room`
 `frame` `connect` `announce` `outbox` `handshake` `delivery` `resend`
-`call` `commit` `kick` `resync` `voice` `stream` `panic` `test`
+`call` `commit` `kick` `resync` `voice` `stream` `panic` `startup` `test`
+
+The `startup` kind carries what kept the app from coming up: the shared
+resources (Moss, the data dir, the encrypted store) or a runtime that did
+not build, once per process each, and a setup check on the first-run gate
+that failed or did not answer in 20 seconds. These, and a connected call
+whose microphone captures nothing or whose peer sends no audio for 10
+seconds (`call` kind), go through `dlog::report_failure`: an `error` line,
+plus a crash report while the user has opted in.
 
 The `stream` kind carries the attachment chunk carrier (spec #8): the
 room-wire fallback note and frames that arrive on the reserved inbox

@@ -45,9 +45,16 @@ pub fn create_group(request: CreateGroupRequest) -> Result<GroupCreated, Convers
 /// Join a private group from an invite URI.
 pub fn join_group(request: JoinGroupRequest) -> Result<GroupSnapshot, ConversationBridgeError> {
     let mut runtime = ensure_runtime()?;
-    runtime
-        .join_group(request)
-        .map_err(ConversationBridgeError::from)
+    runtime.join_group(request).map_err(|error| {
+        // The screen names only the error's kind; the cause stays here.
+        crate::diagnostics_log::write(
+            crate::diagnostics_log::LogLevel::Warn,
+            crate::diagnostics_log::kinds::ROOM,
+            "join_group",
+            &format!("join failed: {error}"),
+        );
+        ConversationBridgeError::from(error)
+    })
 }
 
 /// Poll a private group for its current snapshot.

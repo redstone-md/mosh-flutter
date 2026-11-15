@@ -1,10 +1,16 @@
-//! Rust panic capture for opt-in crash reporting (ADR 0035).
+//! Rust panic and failure capture for opt-in crash reporting (ADR 0035).
 //!
 //! The `sentry` crate records each panic with its backtrace and the loaded
 //! debug images, which is what lets Sentry symbolicate the call chain. It
 //! sends nothing itself: a sink transport hands the event JSON to the caller,
 //! and Dart scrubs it and delivers it under the same consent as its own
 //! reports.
+//!
+//! A failure is an error the user meets without a crash: a store that did not
+//! open, a call with no sound. Startup failures can happen before Dart has
+//! read the consent, so the first few wait in process until the first `start`
+//! sends them or the first `stop` drops them. Once the consent is read, a
+//! failure while reporting is off is never kept for later.
 //!
 //! One client lives for the process, bound to the main hub on the first
 //! `start`. The switch only swaps the sink: rebinding a client would reach
@@ -23,15 +29,17 @@ pub type EventSink = Box<SinkFn>;
 // panic inside the sink must not re-enter a held lock.
 static SINK: Mutex<Option<Arc<SinkFn>>> = Mutex::new(None);
 static CLIENT: OnceLock<()> = OnceLock::new();
+/// Failures reported before the consent was read; `None` once it was.
+/// Locked before `SINK`.
+static PENDING: Mutex<Option<Vec<String>>> = Mutex::new(Some(Vec::new()));
+/// Enough for one launch's startup failures; later ones are dropped.
+const MAX_PENDING: usize = 8;
 
 struct SinkTransport;
 
 impl sentry::Transport for SinkTransport {
     fn send_envelope(&self, envelope: sentry::Envelope) {
-        let sink = SINK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .clone();
+        let sink = locked(&SINK).clone();
         let Some(sink) = sink else { return };
         if let Some(json) = envelope
             .event()
@@ -49,7 +57,6 @@ pub fn start(dsn: &str, sink: EventSink) -> Result<(), String> {
     let dsn = dsn
         .parse()
         .map_err(|error| format!("invalid DSN: {error}"))?;
-    *SINK.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(Arc::from(sink));
     CLIENT.get_or_init(|| {
         let mut options = sentry::ClientOptions::default();
         options.dsn = Some(dsn);
@@ -61,14 +68,43 @@ pub fn start(dsn: &str, sink: EventSink) -> Result<(), String> {
         let client = sentry::Client::from(sentry::apply_defaults(options));
         sentry::Hub::main().bind_client(Some(Arc::new(client)));
     });
+    let waiting = {
+        let mut pending = locked(&PENDING);
+        *locked(&SINK) = Some(Arc::from(sink));
+        pending.take().unwrap_or_default()
+    };
+    waiting.iter().for_each(|message| capture(message));
     Ok(())
 }
 
-/// Stops delivering: later panics reach only the field log.
+/// Stops delivering: later panics and failures reach only the field log.
 pub fn stop() {
-    SINK.lock()
+    let mut pending = locked(&PENDING);
+    locked(&SINK).take();
+    *pending = None;
+}
+
+/// Reports a failure while reporting is on; holds it while the consent is
+/// still unread.
+pub fn report_failure(message: &str) {
+    let mut pending = locked(&PENDING);
+    if locked(&SINK).is_some() {
+        drop(pending);
+        capture(message);
+    } else if let Some(waiting) = pending.as_mut().filter(|w| w.len() < MAX_PENDING) {
+        waiting.push(message.to_owned());
+    }
+}
+
+/// Through the main hub, which holds the client whichever thread reports.
+fn capture(message: &str) {
+    sentry::Hub::main().capture_message(message, sentry::Level::Error);
+}
+
+fn locked<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex
+        .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .take();
 }
 
 #[cfg(test)]
@@ -102,10 +138,19 @@ mod tests {
     // interleave with a sibling test.
     #[test]
     fn capture_follows_the_switch_from_any_thread() {
+        report_failure("failure-before-consent");
         let (sink, first) = channel_sink();
         thread::spawn(move || start(TEST_DSN, sink).expect("start"))
             .join()
             .unwrap();
+        assert!(
+            captured(&first, "failure-before-consent").is_some(),
+            "a failure before the consent waits for it"
+        );
+        thread::spawn(|| report_failure("failure-on"))
+            .join()
+            .unwrap();
+        assert!(captured(&first, "failure-on").is_some());
         panic_on_new_thread("probe-on");
         let event = captured(&first, "probe-on").expect("a background panic is captured");
         let exception = &event["exception"]["values"][0];
@@ -117,6 +162,7 @@ mod tests {
 
         stop();
         panic_on_new_thread("probe-off");
+        report_failure("failure-off");
         assert!(
             captured(&first, "probe-off").is_none(),
             "nothing after opt-out"
@@ -129,9 +175,11 @@ mod tests {
             .join()
             .unwrap();
         panic_on_new_thread("probe-again");
+        let delivered: Vec<String> = second.try_iter().collect();
+        assert!(delivered.iter().any(|json| json.contains("probe-again")));
         assert!(
-            captured(&second, "probe-again").is_some(),
-            "the new sink gets it"
+            !delivered.iter().any(|json| json.contains("failure-off")),
+            "a failure while off is not kept for a later opt-in"
         );
         stop();
     }

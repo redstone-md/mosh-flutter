@@ -91,7 +91,17 @@ fn inject_once<T: PartialEq>(cell: &OnceLock<T>, value: T, error: &str) -> Resul
 /// runtime facade calls this at construct time and hands the clones to its
 /// `from_shared_node(shared_node, attachment_store, persistence)` ctor.
 pub fn ensure_shared_resources() -> Result<SharedResources, String> {
-    SHARED_RESOURCES.get_or_init(construct_resources).clone()
+    SHARED_RESOURCES
+        .get_or_init(|| {
+            construct_resources().inspect_err(|error| {
+                dlog::report_failure(
+                    kinds::STARTUP,
+                    "shared",
+                    &format!("shared resources: {error}"),
+                )
+            })
+        })
+        .clone()
 }
 
 /// Resolve the data dir: `<app_data_dir>/mosh` when injected, else the

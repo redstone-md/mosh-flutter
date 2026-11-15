@@ -50,6 +50,8 @@ pub mod kinds {
     pub const SERVICE: &str = "service";
     /// A Rust panic anywhere in the process, mirrored by the panic hook.
     pub const PANIC: &str = "panic";
+    /// A store, a runtime or the launch itself that did not come up.
+    pub const STARTUP: &str = "startup";
     pub const TEST: &str = "test";
 }
 
@@ -187,6 +189,27 @@ pub fn write(level: LogLevel, kind: &str, context_id: &str, message: &str) {
     let mut guard = SINK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let sink = guard.get_or_insert_with(|| LogSink::new(logs_dir(), MAX_FILE_BYTES));
     sink.write_line(level, kind, context_id, message);
+}
+
+/// An error the user meets without a crash: one `error` line, and with the
+/// user's consent a crash report (ADR 0035). The report carries the kind and
+/// the message, never the context id.
+pub fn report_failure(kind: &str, context_id: &str, message: &str) {
+    write(LogLevel::Error, kind, context_id, message);
+    crate::panic_reporting::report_failure(&format!("{kind}: {}", one_line(message)));
+}
+
+/// The live file and its rotated copies that exist, freshest first.
+pub fn log_files() -> Vec<PathBuf> {
+    files_in(&logs_dir())
+}
+
+fn files_in(dir: &std::path::Path) -> Vec<PathBuf> {
+    std::iter::once(FILE_NAME)
+        .chain(ROTATED_NAMES)
+        .map(|name| dir.join(name))
+        .filter(|path| path.is_file())
+        .collect()
 }
 
 /// Where the log lives, once a write has opened the file. `None` before the

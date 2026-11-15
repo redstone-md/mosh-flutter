@@ -1,4 +1,5 @@
-//! Independent, once-built runtime owners with cached construction failures.
+//! Independent, once-built runtime owners with cached construction failures,
+//! each reported once (field log and, with consent, a crash report).
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
@@ -23,9 +24,17 @@ impl<T> RuntimeOwner<T> {
         &'static self,
         construct: impl FnOnce() -> Result<T, E>,
     ) -> Result<MutexGuard<'static, T>, ConversationBridgeError> {
-        let initialized = self
-            .cell
-            .get_or_init(|| construct().map(Mutex::new).map_err(|e| e.to_string()));
+        let initialized = self.cell.get_or_init(|| {
+            construct().map(Mutex::new).map_err(|error| {
+                let error = error.to_string();
+                crate::diagnostics_log::report_failure(
+                    crate::diagnostics_log::kinds::STARTUP,
+                    self.name,
+                    &format!("{} runtime: {error}", self.name),
+                );
+                error
+            })
+        });
         let mutex = initialized.as_ref().map_err(|error| {
             ConversationBridgeError::unavailable(format!(
                 "{} runtime unavailable: {error}",

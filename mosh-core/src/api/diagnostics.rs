@@ -299,9 +299,24 @@ pub fn start_panic_reporting(dsn: String, sink: StreamSink<String>) -> Result<()
     )
 }
 
-/// Stop capturing Rust panics (crash reporting switched off).
+/// Stop capturing Rust panics (crash reporting switched off). Also called
+/// at launch when reporting is off, so startup failures are not kept.
 pub fn stop_panic_reporting() {
     crate::panic_reporting::stop();
+}
+
+/// A launch that failed on the Dart side, such as a setup check that never
+/// answered: an `error` line in the field log and, with consent, a report.
+pub fn report_startup_failure(message: String) {
+    dlog::report_failure(kinds::STARTUP, "app", &message);
+}
+
+/// The field log's files that exist, freshest first, for the user to share.
+pub fn log_files() -> Vec<String> {
+    dlog::log_files()
+        .into_iter()
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect()
 }
 
 #[cfg(test)]

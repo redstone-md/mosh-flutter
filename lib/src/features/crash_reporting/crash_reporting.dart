@@ -52,12 +52,15 @@ class CrashReporting {
 
   /// Launch hook: starts reporting when the user opted in earlier, and
   /// finishes a previous opt-out's cleanup otherwise. Never throws — a
-  /// broken reporter must not block launch.
+  /// broken reporter must not block launch. Either answer releases the
+  /// failures Rust held until the consent was read: sent, or dropped.
   Future<void> resume() async {
-    if (!available) return;
     try {
-      final salt = await _bridge.crashReportingSalt();
-      if (salt == null) return _deleteNativeDatabase();
+      final salt = available ? await _bridge.crashReportingSalt() : null;
+      if (salt == null) {
+        await _bridge.stopPanicReporting();
+        return _deleteNativeDatabase();
+      }
       await _begin(salt);
     } catch (error) {
       debugPrint('mosh: crash reporting did not start: $error');
@@ -116,6 +119,10 @@ SentryEvent rustEventFromJson(String json) {
       (timestamp * Duration.microsecondsPerSecond).round(),
       isUtc: true,
     ).toIso8601String();
+  }
+  // A Rust failure's message is a plain string; the Dart SDK reads a map.
+  if (map['message'] case final String message) {
+    map['message'] = {'formatted': message};
   }
   // Rust propagation contexts omit `op`; the Dart SDK requires a string.
   if (map['contexts'] case final Map<String, dynamic> contexts) {

@@ -29,8 +29,10 @@ import 'package:mosh/src/rust/api/diagnostics.dart' as api
         crashReportingSalt,
         disableCrashReporting,
         enableCrashReporting,
+        logFiles,
         mossLibraryInfo,
         nativeRuntimeStatus,
+        reportStartupFailure,
         startPanicReporting,
         stopPanicReporting;
 import 'package:mosh/src/rust/api/private_dm.dart' as api
@@ -146,6 +148,14 @@ class BridgeFacade with NativeCallBridge {
       api.startPanicReporting(dsn: dsn);
 
   Future<void> stopPanicReporting() => api.stopPanicReporting();
+
+  /// A launch that failed on the Dart side: a field-log line, and a report
+  /// while crash reporting is on.
+  Future<void> reportStartupFailure(String message) =>
+      api.reportStartupFailure(message: message);
+
+  /// The field log's files, freshest first, for the user to share.
+  Future<List<String>> logFiles() => api.logFiles();
 
   // Channels/groups read seam (1:1 port of `channel_list`/
   // `private_group_list`). One conversation's own state comes from the

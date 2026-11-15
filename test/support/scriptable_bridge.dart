@@ -62,6 +62,8 @@ enum BridgeMethod {
   disableCrashReporting,
   startPanicReporting,
   stopPanicReporting,
+  reportStartupFailure,
+  logFiles,
   listChannels,
   listGroups,
   joinChannel,
@@ -136,6 +138,7 @@ abstract class _ScriptableBridgeState
   native_media.Snapshot? _nativeCallSnapshot;
   bool _readReceiptsEnabled = false;
   String? _crashReportingSalt;
+  List<String> _logFiles = const [];
 
   void seedSessions(Iterable<SessionSnapshot> seeded) =>
       conversations.seedSessions(seeded);
@@ -216,6 +219,9 @@ abstract class _ScriptableBridgeState
   void seedReadReceiptsEnabled(bool enabled) => _readReceiptsEnabled = enabled;
 
   void seedCrashReportingSalt(String? salt) => _crashReportingSalt = salt;
+
+  /// The field log's files `logFiles` reports, freshest first.
+  void seedLogFiles(List<String> paths) => _logFiles = paths;
 
   /// What `startPanicReporting` streams; tests add Rust event JSON here.
   final StreamController<String> rustPanics = StreamController.broadcast();

@@ -1,4 +1,7 @@
+import 'dart:async' show TimeoutException;
 import 'dart:io';
+
+import 'package:fake_async/fake_async.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +12,7 @@ import 'package:mosh/src/rust/device_link/types.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
+import '../../support/first_run.dart' show MemoryFirstRunStore;
 import '../../support/message_builders.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_device_link.dart';
@@ -108,9 +112,39 @@ void main() {
     await expectLater(
         container.read(firstRunProfileProvider.future), throwsException);
     expect(await store.read(), isNull);
+    expect(
+        bridge.lastCall(BridgeMethod.reportStartupFailure)?.args['message'],
+        allOf(startsWith('setup check: groups failed: '),
+            contains('scripted failure of listGroups')),
+        reason: 'the field log names the read that failed');
     container.invalidate(firstRunProfileProvider);
     expect((await container.read(firstRunProfileProvider.future)).completed,
         isFalse);
+  });
+
+  test('a setup read that never answers fails the launch after the timeout',
+      () {
+    fakeAsync((async) {
+      final memory = ProviderContainer(retry: (_, __) => null, overrides: [
+        firstRunStoreProvider.overrideWithValue(MemoryFirstRunStore()),
+        bridgeFacadeProvider.overrideWithValue(bridge),
+        deviceLinkCommandsProvider.overrideWithValue(link),
+        deviceLinkPollIntervalProvider.overrideWithValue(null),
+      ]);
+      addTearDown(memory.dispose);
+      bridge.hold(BridgeMethod.listGroups);
+      Object? failure;
+      memory
+          .read(firstRunProfileProvider.future)
+          .then<void>((_) {}, onError: (Object error) => failure = error);
+      async.elapse(firstRunCheckTimeout - const Duration(seconds: 1));
+      expect(failure, isNull);
+      async.elapse(const Duration(seconds: 1));
+      expect(failure, isA<TimeoutException>());
+      expect(
+          bridge.lastCall(BridgeMethod.reportStartupFailure)?.args['message'],
+          'setup check: groups did not answer in 20 s');
+    });
   });
 
   test('name edits preserve invitation state and reject invalid names',

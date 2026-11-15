@@ -56,9 +56,20 @@ Future<void> disableCrashReporting() =>
 Stream<String> startPanicReporting({required String dsn}) =>
     RustLib.instance.api.crateApiDiagnosticsStartPanicReporting(dsn: dsn);
 
-/// Stop capturing Rust panics (crash reporting switched off).
+/// Stop capturing Rust panics (crash reporting switched off). Also called
+/// at launch when reporting is off, so startup failures are not kept.
 Future<void> stopPanicReporting() =>
     RustLib.instance.api.crateApiDiagnosticsStopPanicReporting();
+
+/// A launch that failed on the Dart side, such as a setup check that never
+/// answered: an `error` line in the field log and, with consent, a report.
+Future<void> reportStartupFailure({required String message}) =>
+    RustLib.instance.api
+        .crateApiDiagnosticsReportStartupFailure(message: message);
+
+/// The field log's files that exist, freshest first, for the user to share.
+Future<List<String>> logFiles() =>
+    RustLib.instance.api.crateApiDiagnosticsLogFiles();
 
 /// Aggregate frontend/runtime identity snapshot, one row of `app_diagnostics`.
 class AppDiagnostics {

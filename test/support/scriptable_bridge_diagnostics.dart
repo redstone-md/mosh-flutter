@@ -49,6 +49,14 @@ mixin _BridgeDiagnostics on _ScriptableBridgeState {
       runScripted(BridgeMethod.stopPanicReporting, const {}, () {});
 
   @override
+  Future<void> reportStartupFailure(String message) => runScripted(
+      BridgeMethod.reportStartupFailure, {'message': message}, () {});
+
+  @override
+  Future<List<String>> logFiles() =>
+      runScripted(BridgeMethod.logFiles, const {}, () => _logFiles);
+
+  @override
   Future<void> disableCrashReporting() =>
       runScripted(BridgeMethod.disableCrashReporting, const {}, () {
         _crashReportingSalt = null;

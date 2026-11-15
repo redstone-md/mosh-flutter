@@ -110,14 +110,45 @@ pub(super) struct Pipeline {
 /// even when the call's status holds still.
 const LOSS_LOG_INTERVAL: Duration = Duration::from_secs(10);
 
+/// A connected call whose sound stops this long is reported as a failure.
+const SILENCE_REPORT_AFTER: Duration = Duration::from_secs(10);
+
 #[derive(Default)]
 pub(super) struct Monitor {
     status: Option<Status>,
     captured: Growth,
     heard: Growth,
+    /// The peer's audio packets, which keep coming while the peer is muted.
+    arriving: Growth,
     /// The longest stalls since the previous line.
     stalls: Stalls,
     logged: Option<(Instant, u64)>,
+    microphone_silence: Silence,
+    peer_silence: Silence,
+}
+
+/// How long one side of a connected call has been without sound, told once
+/// per call.
+#[derive(Default)]
+struct Silence {
+    since: Option<Instant>,
+    reported: bool,
+}
+
+impl Silence {
+    /// Whether `silent` has now held for `SILENCE_REPORT_AFTER`; true once.
+    fn lasted(&mut self, silent: bool, now: Instant) -> bool {
+        if !silent {
+            self.since = None;
+            return false;
+        }
+        let since = *self.since.get_or_insert(now);
+        if self.reported || now.saturating_duration_since(since) < SILENCE_REPORT_AFTER {
+            return false;
+        }
+        self.reported = true;
+        true
+    }
 }
 
 /// A cumulative audio energy, which only grows while there is sound: a
@@ -150,14 +181,42 @@ impl Monitor {
         engine: &Value,
         pipeline: Pipeline,
     ) {
-        if let Some(message) = self.observe(route, state, engine, pipeline, Instant::now()) {
-            crate::diagnostics_log::write(
-                crate::diagnostics_log::LogLevel::Info,
-                crate::diagnostics_log::kinds::CALL,
-                &state.snapshot.session_id,
-                &message,
-            );
+        use crate::diagnostics_log::{kinds, report_failure, write, LogLevel};
+        let now = Instant::now();
+        let session = &state.snapshot.session_id;
+        if let Some(message) = self.observe(route, state, engine, pipeline, now) {
+            write(LogLevel::Info, kinds::CALL, session, &message);
         }
+        for silence in self.silences(engine, now) {
+            report_failure(kinds::CALL, session, silence);
+        }
+    }
+
+    /// The sides of a connected call that stayed silent past the limit, each
+    /// told once. A muted microphone is not silence; a muted peer still sends
+    /// packets, so only their absence counts.
+    fn silences(&mut self, engine: &Value, now: Instant) -> Vec<&'static str> {
+        let Some(status) = &self.status else {
+            return Vec::new();
+        };
+        let connected = status.ready && status.ice == "Connected";
+        let microphone_silent = connected && status.microphone && !status.capturing;
+        let arriving = self
+            .arriving
+            .rising(engine["audio"]["packets_received"].as_f64(), now);
+        [
+            (
+                self.microphone_silence.lasted(microphone_silent, now),
+                "call audio: the microphone captured no sound for 10 s",
+            ),
+            (
+                self.peer_silence.lasted(connected && !arriving, now),
+                "call audio: no audio packets arrived from the peer for 10 s",
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(lasted, message)| lasted.then_some(message))
+        .collect()
     }
 
     fn observe(
@@ -311,6 +370,44 @@ mod tests {
             .observe(route, &state, &engine(1.0, 2.0), sent(0), later)
             .unwrap();
         assert!(event.contains("capturing=false; hearing=false"));
+    }
+
+    #[test]
+    fn a_connected_call_without_sound_is_reported_once_per_side() {
+        let start = Instant::now();
+        let mut state = State::default();
+        state.snapshot.ready = true;
+        let route = PeerTransport::Direct;
+        let engine = |mic: f64, packets: u64| {
+            json!({"connection":"Connected", "microphone": true,
+                "audio_sender": {"microphone_energy": mic},
+                "audio": {"packets_received": packets, "total_energy": 0.0}})
+        };
+        let mut monitor = Monitor::default();
+        let mut step = |seconds: u64, mic: f64, packets: u64| {
+            let now = start + Duration::from_secs(seconds);
+            let engine = engine(mic, packets);
+            monitor.observe(route, &state, &engine, sent(0), now);
+            monitor.silences(&engine, now)
+        };
+        assert!(step(0, 0.0, 0).is_empty());
+        assert!(step(9, 0.0, 0).is_empty(), "under ten seconds");
+        assert_eq!(
+            step(10, 0.0, 0),
+            [
+                "call audio: the microphone captured no sound for 10 s",
+                "call audio: no audio packets arrived from the peer for 10 s",
+            ]
+        );
+        assert!(step(30, 0.0, 0).is_empty(), "each side is told once");
+
+        let mut fine = Monitor::default();
+        for (seconds, level) in [(0, 1.0), (5, 2.0), (10, 3.0), (11, 4.0)] {
+            let now = start + Duration::from_secs(seconds);
+            let engine = engine(level, seconds * 50);
+            fine.observe(route, &state, &engine, sent(0), now);
+            assert!(fine.silences(&engine, now).is_empty(), "{seconds} s");
+        }
     }
 
     #[test]

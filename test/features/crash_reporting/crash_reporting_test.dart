@@ -28,8 +28,11 @@ class _Sdk {
 void main() {
   test('launch starts the SDK only for an opted-in install', () async {
     final sdk = _Sdk();
-    await sdk.reporting(ScriptableBridge()).resume();
+    final optedOut = ScriptableBridge();
+    await sdk.reporting(optedOut).resume();
     expect(sdk.events, isEmpty, reason: 'off by default');
+    expect(optedOut.callsTo(BridgeMethod.stopPanicReporting), isNotEmpty,
+        reason: 'failures held until the consent was read are dropped');
 
     final optedIn = ScriptableBridge()..seedCrashReportingSalt('s1');
     await sdk.reporting(optedIn).resume();
@@ -83,6 +86,13 @@ void main() {
     await pumpEventQueue();
     expect(sdk.events, ['start s1', 'capture panic', 'stop']);
     expect(bridge.callsTo(BridgeMethod.stopPanicReporting), isNotEmpty);
+  });
+
+  test('a Rust failure arrives as a message event', () {
+    final event =
+        rustEventFromJson('{"event_id":"0123456789abcdef0123456789abcdef",'
+            '"timestamp":1700000000.5,"message":"startup: shared resources"}');
+    expect(event.message?.formatted, 'startup: shared resources');
   });
 
   test('a malformed Rust event does not escape or stop later reports',
