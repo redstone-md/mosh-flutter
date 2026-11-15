@@ -301,14 +301,16 @@ impl Owner {
         // answer says whether libwebrtc got the call's session too.
         #[cfg(target_os = "ios")]
         {
-            let session = connection.engine.ask(
+            use crate::diagnostics_log::{kinds, write, LogLevel};
+            let selected = connection.engine.ask(
                 json!({"action":"select","input":state.choices.input,"output":state.choices.output}),
             )?;
-            crate::diagnostics_log::write(
-                crate::diagnostics_log::LogLevel::Info,
-                crate::diagnostics_log::kinds::VOICE,
+            let message = format!("call audio session: {}", selected["webrtc_session"]);
+            write(
+                LogLevel::Info,
+                kinds::CALL,
                 &state.snapshot.session_id,
-                &format!("call audio session: {}", session["webrtc_session"]),
+                &message,
             );
         }
         let devices = connection.engine.ask(json!({"action":"devices"}))?;

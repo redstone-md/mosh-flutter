@@ -56,8 +56,14 @@ ring.
 
 iOS (iPhone, iOS 15 or later) runs the same engine, linked against the iOS build
 of our libwebrtc and embedded in the app as `MoshMedia.framework`. libwebrtc's
-iOS audio module records and plays in the voice-chat audio session it sets up,
-through Apple's voice processing for echo and noise. `CallAudio.swift` picks
+iOS audio module records and plays in a voice-chat audio session, through
+Apple's voice processing for echo and noise. The module applies its own
+session configuration when it starts, and the webrtc-sdk build copies that
+configuration from the session as it was when libwebrtc first looked: the
+app's playback-only default, which can neither record nor play a call. So
+`CallAudio.swift` installs a full call configuration (play-and-record, voice
+chat, 48 kHz, one channel each way) before the module starts, and the call
+log records what libwebrtc held before and after. `CallAudio.swift` also picks
 the route as the system call screen does: the receiver, the speaker or a
 connected headset, whose microphone comes with it, so iOS has no separate
 microphone pick either. During a call the proximity sensor darkens the screen
@@ -93,7 +99,12 @@ the first endpoint.
 The offer leaves the legacy offerToReceiveAudio unset: the bindings' default
 of false made it send-only, so the callee was never heard. The call log
 records when the microphone starts or stops capturing sound, when the peer's
-audio starts or stops arriving, and the selected devices.
+audio starts or stops arriving, the selected devices and whether the audio
+device module initialized playout and recording (`adm`). On iOS it also
+records where the call actually plays and how loud (`audio_route`: the
+system's output and input ports, its volume, the picked device and the last
+system reroute), read with the device list every two seconds; elsewhere that
+field is null.
 
 Video in that engine takes camera frames as packed I420
 (`mosh_media_push_i420`), which enter libwebrtc's encoder as they are, and

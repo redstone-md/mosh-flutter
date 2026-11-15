@@ -10,7 +10,9 @@ use std::time::{Duration, Instant};
 
 pub(super) struct Reporter {
     statistics: Instant,
-    devices_at: Instant,
+    /// When the device list was last asked; `None` asks at the next pass,
+    /// so a call's first status lines already carry the audio route.
+    devices_at: Option<Instant>,
     /// Where the platform plays the call and how loud, from its last device
     /// list; only iOS reports one.
     audio_route: Value,
@@ -28,7 +30,7 @@ impl Reporter {
     pub fn new() -> Self {
         Self {
             statistics: Instant::now(),
-            devices_at: Instant::now(),
+            devices_at: None,
             audio_route: Value::Null,
             disconnected: None,
             ice_failed_last: false,
@@ -39,10 +41,13 @@ impl Reporter {
         }
     }
     fn refresh_devices(&mut self, engine: &mut Engine, state: &mut State) -> Result<(), String> {
-        if self.devices_at.elapsed() < Duration::from_secs(2) {
+        if self
+            .devices_at
+            .is_some_and(|at| at.elapsed() < Duration::from_secs(2))
+        {
             return Ok(());
         }
-        self.devices_at = Instant::now();
+        self.devices_at = Some(Instant::now());
         let devices = engine.ask(json!({"action":"devices"}))?;
         self.audio_route = devices["route"].clone();
         state.snapshot.inputs =
