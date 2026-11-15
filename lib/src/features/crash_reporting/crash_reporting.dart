@@ -45,6 +45,10 @@ class CrashReporting {
   final FutureOr<void> Function(SentryEvent event) _capture;
   StreamSubscription<String>? _rustEvents;
 
+  /// The launch resume and the switch run one after another, so a late
+  /// step of one (a slow SDK start, a pending stop) cannot undo the other.
+  Future<void> _previous = Future.value();
+
   /// Whether this build can report at all.
   bool get available => dsn.isNotEmpty;
 
@@ -54,7 +58,9 @@ class CrashReporting {
   /// finishes a previous opt-out's cleanup otherwise. Never throws — a
   /// broken reporter must not block launch. Either answer releases the
   /// failures Rust held until the consent was read: sent, or dropped.
-  Future<void> resume() async {
+  Future<void> resume() => _inTurn(_resume);
+
+  Future<void> _resume() async {
     try {
       final salt = available ? await _bridge.crashReportingSalt() : null;
       if (salt != null) return await _begin(salt);
@@ -72,7 +78,9 @@ class CrashReporting {
   /// The settings switch. Off stops the SDK first, then forgets the consent
   /// and the unsent queue. A failed start is rolled back to off, so a switch
   /// the user sees off never reports on the next launch.
-  Future<void> setEnabled(bool enabled) async {
+  Future<void> setEnabled(bool enabled) => _inTurn(() => _setEnabled(enabled));
+
+  Future<void> _setEnabled(bool enabled) async {
     if (!enabled) return _end();
     try {
       await _begin(await _bridge.enableCrashReporting());
@@ -80,6 +88,14 @@ class CrashReporting {
       await _end();
       rethrow;
     }
+  }
+
+  /// Runs [step] after every earlier one. Its error goes to its caller
+  /// only; the next step runs regardless.
+  Future<void> _inTurn(Future<void> Function() step) {
+    final turn = _previous.then((_) => step());
+    _previous = turn.then<void>((_) {}, onError: (Object _) {});
+    return turn;
   }
 
   Future<void> _end() async {

@@ -132,6 +132,20 @@ fn a_connected_call_without_sound_is_reported_once_per_side() {
         fine.observe(route, &state, &engine, sent(0), now);
         assert!(fine.silences(&engine, now).is_empty(), "{seconds} s");
     }
+
+    // ICE settles on Completed after Connected; the call is still connected.
+    let completed = json!({"connection":"Completed", "microphone": false,
+        "audio": {"packets_received": 0}});
+    let mut settled = Monitor::default();
+    let reports: Vec<usize> = [0, 10]
+        .into_iter()
+        .map(|seconds| {
+            let now = start + Duration::from_secs(seconds);
+            settled.observe(route, &state, &completed, sent(0), now);
+            settled.silences(&completed, now).len()
+        })
+        .collect();
+    assert_eq!(reports, [0, 1], "the peer's silence counts once Completed");
 }
 
 #[test]

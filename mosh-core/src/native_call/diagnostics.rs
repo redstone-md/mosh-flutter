@@ -199,7 +199,8 @@ impl Monitor {
         let Some(status) = &self.status else {
             return Vec::new();
         };
-        let connected = status.ready && status.ice == "Connected";
+        // As the reporter's reconnect logic counts it (telemetry.rs).
+        let connected = status.ready && matches!(status.ice.as_str(), "Connected" | "Completed");
         let microphone_silent = connected && status.microphone && !status.capturing;
         let arriving = self
             .arriving

@@ -1,5 +1,6 @@
 // The field log leaves the device only when the user shares it: one text
 // file, oldest line first, reachable even when the launch failed.
+import 'dart:async' show Completer;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -50,6 +51,30 @@ void main() {
 
     expect(sent, ['/tmp/mosh-log.txt']);
     expect(find.text('Could not share the log.'), findsNothing);
+  });
+
+  testWidgets('a second tap waits for the first share', (tester) async {
+    final exporting = Completer<String?>();
+    var exports = 0;
+    await pumpScreen(
+      tester,
+      const Scaffold(body: FieldLogButton()),
+      overrides: [
+        fieldLogExportProvider.overrideWithValue(() {
+          exports++;
+          return exporting.future;
+        }),
+        fieldLogSendProvider.overrideWithValue((_, __) async {}),
+      ],
+    );
+
+    await tester.tap(find.text('Share app log'));
+    await tester.pump();
+    await tester.tap(find.text('Share app log'));
+    exporting.complete('/tmp/mosh-log.txt');
+    await tester.pumpAndSettle();
+
+    expect(exports, 1);
   });
 
   testWidgets('a share that fails says so', (tester) async {

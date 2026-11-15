@@ -65,6 +65,9 @@ class FieldLogButton extends ConsumerStatefulWidget {
 class _FieldLogButtonState extends ConsumerState<FieldLogButton> {
   String? _problem;
 
+  /// One export at a time: two would rewrite the same file under each other.
+  bool _sharing = false;
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -76,7 +79,7 @@ class _FieldLogButtonState extends ConsumerState<FieldLogButton> {
         TextButton.icon(
           icon: const Icon(Icons.share_outlined),
           label: Text(l.fieldLogShare),
-          onPressed: () => _share(context, l),
+          onPressed: _sharing ? null : () => _share(context, l),
         ),
         if (problem != null)
           Text(problem, style: Theme.of(context).textTheme.bodySmall),
@@ -89,7 +92,10 @@ class _FieldLogButtonState extends ConsumerState<FieldLogButton> {
     final box = context.findRenderObject() as RenderBox?;
     final origin =
         box == null ? null : box.localToGlobal(Offset.zero) & box.size;
-    setState(() => _problem = null);
+    setState(() {
+      _problem = null;
+      _sharing = true;
+    });
     String? problem;
     try {
       final export = await ref.read(fieldLogExportProvider)();
@@ -102,6 +108,11 @@ class _FieldLogButtonState extends ConsumerState<FieldLogButton> {
       debugPrint('mosh: field log not shared: $error');
       problem = l.fieldLogFailed;
     }
-    if (mounted) setState(() => _problem = problem);
+    if (mounted) {
+      setState(() {
+        _problem = problem;
+        _sharing = false;
+      });
+    }
   }
 }
