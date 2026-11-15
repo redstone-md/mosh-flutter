@@ -120,7 +120,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 2026160654;
+  int get rustContentHash => -1399173706;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -463,9 +463,9 @@ abstract class RustLibApi extends BaseApi {
 
   Future<PlusSnapshot> crateApiPlusSnapshot();
 
-  Stream<String> crateApiDiagnosticsStartPanicReporting({required String dsn});
+  Stream<String> crateApiDiagnosticsStartEventCapture({required String dsn});
 
-  Future<void> crateApiDiagnosticsStopPanicReporting();
+  Future<void> crateApiDiagnosticsStopEventCapture();
 
   Future<AttachmentStreamRange> crateApiAttachmentStreamStreamAttachmentRange(
       {required String kind,
@@ -3476,7 +3476,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Stream<String> crateApiDiagnosticsStartPanicReporting({required String dsn}) {
+  Stream<String> crateApiDiagnosticsStartEventCapture({required String dsn}) {
     final sink = RustStreamSink<String>();
     unawaited(handler.executeNormal(NormalTask(
       callFfi: (port_) {
@@ -3490,21 +3490,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         decodeSuccessData: sse_decode_unit,
         decodeErrorData: sse_decode_String,
       ),
-      constMeta: kCrateApiDiagnosticsStartPanicReportingConstMeta,
+      constMeta: kCrateApiDiagnosticsStartEventCaptureConstMeta,
       argValues: [dsn, sink],
       apiImpl: this,
     )));
     return sink.stream;
   }
 
-  TaskConstMeta get kCrateApiDiagnosticsStartPanicReportingConstMeta =>
+  TaskConstMeta get kCrateApiDiagnosticsStartEventCaptureConstMeta =>
       const TaskConstMeta(
-        debugName: "start_panic_reporting",
+        debugName: "start_event_capture",
         argNames: ["dsn", "sink"],
       );
 
   @override
-  Future<void> crateApiDiagnosticsStopPanicReporting() {
+  Future<void> crateApiDiagnosticsStopEventCapture() {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -3515,15 +3515,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         decodeSuccessData: sse_decode_unit,
         decodeErrorData: null,
       ),
-      constMeta: kCrateApiDiagnosticsStopPanicReportingConstMeta,
+      constMeta: kCrateApiDiagnosticsStopEventCaptureConstMeta,
       argValues: [],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateApiDiagnosticsStopPanicReportingConstMeta =>
+  TaskConstMeta get kCrateApiDiagnosticsStopEventCaptureConstMeta =>
       const TaskConstMeta(
-        debugName: "stop_panic_reporting",
+        debugName: "stop_event_capture",
         argNames: [],
       );
 

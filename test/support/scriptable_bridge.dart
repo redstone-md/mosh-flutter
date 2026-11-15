@@ -60,8 +60,8 @@ enum BridgeMethod {
   crashReportingSalt,
   enableCrashReporting,
   disableCrashReporting,
-  startPanicReporting,
-  stopPanicReporting,
+  startEventCapture,
+  stopEventCapture,
   reportStartupFailure,
   logFiles,
   listChannels,
@@ -223,6 +223,6 @@ abstract class _ScriptableBridgeState
   /// The field log's files `logFiles` reports, freshest first.
   void seedLogFiles(List<String> paths) => _logFiles = paths;
 
-  /// What `startPanicReporting` streams; tests add Rust event JSON here.
-  final StreamController<String> rustPanics = StreamController.broadcast();
+  /// What `startEventCapture` streams; tests add Rust event JSON here.
+  final StreamController<String> rustEvents = StreamController.broadcast();
 }

@@ -51,15 +51,15 @@ Future<String> enableCrashReporting() =>
 Future<void> disableCrashReporting() =>
     RustLib.instance.api.crateApiDiagnosticsDisableCrashReporting();
 
-/// Start capturing Rust panics while crash reporting is on. Each panic
-/// arrives on `sink` as Sentry event JSON; Dart scrubs and sends it.
-Stream<String> startPanicReporting({required String dsn}) =>
-    RustLib.instance.api.crateApiDiagnosticsStartPanicReporting(dsn: dsn);
+/// Start capturing Rust panics and failures while crash reporting is on.
+/// Each arrives on `sink` as Sentry event JSON; Dart scrubs and sends it.
+Stream<String> startEventCapture({required String dsn}) =>
+    RustLib.instance.api.crateApiDiagnosticsStartEventCapture(dsn: dsn);
 
-/// Stop capturing Rust panics (crash reporting switched off). Also called
-/// at launch when reporting is off, so startup failures are not kept.
-Future<void> stopPanicReporting() =>
-    RustLib.instance.api.crateApiDiagnosticsStopPanicReporting();
+/// Stop capturing (crash reporting switched off). Also called at launch when
+/// reporting is off, so startup failures are not kept.
+Future<void> stopEventCapture() =>
+    RustLib.instance.api.crateApiDiagnosticsStopEventCapture();
 
 /// A launch that failed on the Dart side, such as a setup check that never
 /// answered: an `error` line in the field log and, with consent, a report.

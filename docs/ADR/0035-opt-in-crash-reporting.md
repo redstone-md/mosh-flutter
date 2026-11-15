@@ -28,7 +28,7 @@ that users must choose.
   breadcrumbs, no screenshots or replay, `sendDefaultPii: false`.
 - **Scrub before send.** `CrashReportScrubber` runs as `beforeSend` over
   messages, exception values, frame paths and debug-image paths.
-- **Rust panics go through Dart.** `panic_reporting.rs` uses the `sentry` crate
+- **Rust panics and failures go through Dart.** `event_capture.rs` uses the `sentry` crate
   (`backtrace`, `debug-images`, `panic`; no transport feature) to capture a
   panic with its frames and loaded images, which Sentry needs to symbolicate
   the call chain. A sink transport hands the event JSON to Dart over an FRB

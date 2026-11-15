@@ -219,7 +219,7 @@ impl Drop for Writing {
 /// the message, never the context id.
 pub fn report_failure(kind: &str, context_id: &str, message: &str) {
     write(LogLevel::Error, kind, context_id, message);
-    crate::panic_reporting::report_failure(&format!("{kind}: {}", one_line(message)));
+    crate::event_capture::report_failure(&format!("{kind}: {}", one_line(message)));
 }
 
 /// The live file and its rotated copies that exist, freshest first.

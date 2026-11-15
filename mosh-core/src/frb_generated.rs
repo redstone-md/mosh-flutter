@@ -50,7 +50,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2026160654;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1399173706;
 
 // Section: executor
 
@@ -3989,7 +3989,7 @@ fn wire__crate__api__plus__snapshot_impl(
         },
     )
 }
-fn wire__crate__api__diagnostics__start_panic_reporting_impl(
+fn wire__crate__api__diagnostics__start_event_capture_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -3997,7 +3997,7 @@ fn wire__crate__api__diagnostics__start_panic_reporting_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "start_panic_reporting",
+            debug_name: "start_event_capture",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -4020,14 +4020,14 @@ fn wire__crate__api__diagnostics__start_panic_reporting_impl(
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok =
-                        crate::api::diagnostics::start_panic_reporting(api_dsn, api_sink)?;
+                        crate::api::diagnostics::start_event_capture(api_dsn, api_sink)?;
                     Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__api__diagnostics__stop_panic_reporting_impl(
+fn wire__crate__api__diagnostics__stop_event_capture_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -4035,7 +4035,7 @@ fn wire__crate__api__diagnostics__stop_panic_reporting_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "stop_panic_reporting",
+            debug_name: "stop_event_capture",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -4053,7 +4053,7 @@ fn wire__crate__api__diagnostics__stop_panic_reporting_impl(
             move |context| {
                 transform_result_sse::<_, ()>((move || {
                     let output_ok = Result::<_, ()>::Ok({
-                        crate::api::diagnostics::stop_panic_reporting();
+                        crate::api::diagnostics::stop_event_capture();
                     })?;
                     Ok(output_ok)
                 })())
@@ -7688,13 +7688,13 @@ fn pde_ffi_dispatcher_primary_impl(
         110 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
         111 => wire__crate__api__native_call__snapshot_impl(port, ptr, rust_vec_len, data_len),
         112 => wire__crate__api__plus__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        113 => wire__crate__api__diagnostics__start_panic_reporting_impl(
+        113 => wire__crate__api__diagnostics__start_event_capture_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        114 => wire__crate__api__diagnostics__stop_panic_reporting_impl(
+        114 => wire__crate__api__diagnostics__stop_event_capture_impl(
             port,
             ptr,
             rust_vec_len,

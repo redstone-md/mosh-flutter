@@ -9,6 +9,7 @@ pub mod conversation;
 pub mod crash_reporting;
 pub mod device_link;
 pub mod diagnostics_log;
+pub mod event_capture;
 pub mod file_secret_store;
 mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
 pub mod inbox;
@@ -25,7 +26,6 @@ pub mod org_roster;
 pub mod org_runtime;
 pub mod org_signing;
 pub mod outbound_delivery;
-pub mod panic_reporting;
 pub mod persistence;
 pub mod plus;
 pub mod private_dm_runtime;

@@ -33,8 +33,8 @@ import 'package:mosh/src/rust/api/diagnostics.dart' as api
         mossLibraryInfo,
         nativeRuntimeStatus,
         reportStartupFailure,
-        startPanicReporting,
-        stopPanicReporting;
+        startEventCapture,
+        stopEventCapture;
 import 'package:mosh/src/rust/api/private_dm.dart' as api
     show
         acceptInvite,
@@ -143,11 +143,12 @@ class BridgeFacade with NativeCallBridge {
 
   Future<void> disableCrashReporting() => api.disableCrashReporting();
 
-  /// Rust panics as Sentry event JSON, while crash reporting is on.
-  Stream<String> startPanicReporting({required String dsn}) =>
-      api.startPanicReporting(dsn: dsn);
+  /// Rust panics and failures as Sentry event JSON, while crash reporting
+  /// is on.
+  Stream<String> startEventCapture({required String dsn}) =>
+      api.startEventCapture(dsn: dsn);
 
-  Future<void> stopPanicReporting() => api.stopPanicReporting();
+  Future<void> stopEventCapture() => api.stopEventCapture();
 
   /// A launch that failed on the Dart side: a field-log line, and a report
   /// while crash reporting is on.

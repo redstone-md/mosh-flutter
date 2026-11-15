@@ -21,7 +21,7 @@ const String _buildDsn = String.fromEnvironment('SENTRY_DSN');
 const String _nativeDatabaseDirName = 'sentry-native';
 
 /// The app-wide reporter. `main` overrides it with the instance it resumed
-/// at launch, so the switch stops the same Rust panic stream it started.
+/// at launch, so the switch stops the same Rust event stream it started.
 final crashReportingProvider = Provider<CrashReporting>(
   (ref) => CrashReporting(bridge: ref.watch(bridgeFacadeProvider)),
 );
@@ -43,7 +43,7 @@ class CrashReporting {
   final Future<void> Function(String dsn, String salt) _start;
   final Future<void> Function() _stop;
   final FutureOr<void> Function(SentryEvent event) _capture;
-  StreamSubscription<String>? _rustPanics;
+  StreamSubscription<String>? _rustEvents;
 
   /// Whether this build can report at all.
   bool get available => dsn.isNotEmpty;
@@ -62,7 +62,7 @@ class CrashReporting {
       debugPrint('mosh: crash reporting did not start: $error');
     }
     try {
-      await _bridge.stopPanicReporting();
+      await _bridge.stopEventCapture();
       if (available) await _deleteNativeDatabase();
     } catch (error) {
       debugPrint('mosh: held failures not dropped: $error');
@@ -83,9 +83,9 @@ class CrashReporting {
   }
 
   Future<void> _end() async {
-    await _rustPanics?.cancel();
-    _rustPanics = null;
-    await _bridge.stopPanicReporting();
+    await _rustEvents?.cancel();
+    _rustEvents = null;
+    await _bridge.stopEventCapture();
     await _stop();
     await _bridge.disableCrashReporting();
     await _deleteNativeDatabase();
@@ -93,11 +93,11 @@ class CrashReporting {
 
   Future<void> _begin(String salt) async {
     await _start(dsn, salt);
-    await _rustPanics?.cancel();
-    _rustPanics = _bridge.startPanicReporting(dsn: dsn).listen(
+    await _rustEvents?.cancel();
+    _rustEvents = _bridge.startEventCapture(dsn: dsn).listen(
           _captureRustEvent,
           onError: (Object error) =>
-              debugPrint('mosh: rust panic capture failed: $error'),
+              debugPrint('mosh: rust event capture failed: $error'),
         );
   }
 

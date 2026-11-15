@@ -31,7 +31,7 @@ void main() {
     final optedOut = ScriptableBridge();
     await sdk.reporting(optedOut).resume();
     expect(sdk.events, isEmpty, reason: 'off by default');
-    expect(optedOut.callsTo(BridgeMethod.stopPanicReporting), isNotEmpty,
+    expect(optedOut.callsTo(BridgeMethod.stopEventCapture), isNotEmpty,
         reason: 'failures held until the consent was read are dropped');
 
     final optedIn = ScriptableBridge()..seedCrashReportingSalt('s1');
@@ -46,7 +46,7 @@ void main() {
     await reporting.resume();
     expect(reporting.available, isFalse);
     expect(sdk.events, isEmpty);
-    expect(bridge.callsTo(BridgeMethod.stopPanicReporting), isNotEmpty);
+    expect(bridge.callsTo(BridgeMethod.stopEventCapture), isNotEmpty);
   });
 
   test('an unreadable consent still drops the failures Rust held', () async {
@@ -55,7 +55,7 @@ void main() {
       ..failNext(BridgeMethod.crashReportingSalt);
     await sdk.reporting(bridge).resume();
     expect(sdk.events, isEmpty);
-    expect(bridge.callsTo(BridgeMethod.stopPanicReporting), isNotEmpty);
+    expect(bridge.callsTo(BridgeMethod.stopEventCapture), isNotEmpty);
   });
 
   test('a failed start leaves the install opted out', () async {
@@ -87,15 +87,15 @@ void main() {
         File('test/fixtures/rust_panic_event.json').readAsStringSync();
 
     await reporting.resume();
-    bridge.rustPanics.add(panic);
+    bridge.rustEvents.add(panic);
     await pumpEventQueue();
     expect(sdk.events, ['start s1', 'capture panic']);
 
     await reporting.setEnabled(false);
-    bridge.rustPanics.add(panic);
+    bridge.rustEvents.add(panic);
     await pumpEventQueue();
     expect(sdk.events, ['start s1', 'capture panic', 'stop']);
-    expect(bridge.callsTo(BridgeMethod.stopPanicReporting), isNotEmpty);
+    expect(bridge.callsTo(BridgeMethod.stopEventCapture), isNotEmpty);
   });
 
   test('a Rust failure arrives as a message event', () {
@@ -112,8 +112,8 @@ void main() {
     final reporting = sdk.reporting(bridge);
     await reporting.resume();
     addTearDown(() => reporting.setEnabled(false));
-    bridge.rustPanics.add('{invalid');
-    bridge.rustPanics
+    bridge.rustEvents.add('{invalid');
+    bridge.rustEvents
         .add(File('test/fixtures/rust_panic_event.json').readAsStringSync());
     await pumpEventQueue();
     expect(sdk.events, ['start s1', 'capture panic']);
@@ -135,9 +135,9 @@ void main() {
     addTearDown(() => reporting.setEnabled(false));
     final panic =
         File('test/fixtures/rust_panic_event.json').readAsStringSync();
-    bridge.rustPanics.add(panic);
+    bridge.rustEvents.add(panic);
     await pumpEventQueue();
-    bridge.rustPanics.add(panic);
+    bridge.rustEvents.add(panic);
     await pumpEventQueue();
     expect(attempts, 2);
   });

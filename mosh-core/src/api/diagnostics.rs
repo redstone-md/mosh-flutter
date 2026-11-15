@@ -288,10 +288,10 @@ pub fn disable_crash_reporting() -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
-/// Start capturing Rust panics while crash reporting is on. Each panic
-/// arrives on `sink` as Sentry event JSON; Dart scrubs and sends it.
-pub fn start_panic_reporting(dsn: String, sink: StreamSink<String>) -> Result<(), String> {
-    crate::panic_reporting::start(
+/// Start capturing Rust panics and failures while crash reporting is on.
+/// Each arrives on `sink` as Sentry event JSON; Dart scrubs and sends it.
+pub fn start_event_capture(dsn: String, sink: StreamSink<String>) -> Result<(), String> {
+    crate::event_capture::start(
         &dsn,
         Box::new(move |json| {
             let _ = sink.add(json);
@@ -299,10 +299,10 @@ pub fn start_panic_reporting(dsn: String, sink: StreamSink<String>) -> Result<()
     )
 }
 
-/// Stop capturing Rust panics (crash reporting switched off). Also called
-/// at launch when reporting is off, so startup failures are not kept.
-pub fn stop_panic_reporting() {
-    crate::panic_reporting::stop();
+/// Stop capturing (crash reporting switched off). Also called at launch when
+/// reporting is off, so startup failures are not kept.
+pub fn stop_event_capture() {
+    crate::event_capture::stop();
 }
 
 /// A launch that failed on the Dart side, such as a setup check that never
