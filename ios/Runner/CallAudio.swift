@@ -56,7 +56,6 @@ final class CallAudio {
         && (input == nil || input == Self.routeInput)
       var reply: [String: Any] = ["input_ok": inputOk, "output_ok": apply()]
       reply["webrtc_session"] = configured
-      reply["route"] = route()
       return reply
     }
   }
@@ -138,9 +137,9 @@ final class CallAudio {
     return ["before": describe(current), "after": describe(call)]
   }
 
-  /// Where the call plays right now and how loud, for the field log: the
-  /// system's route, its volume (the receiver keeps its own), the pick and
-  /// the last reroute. Called on the queue.
+  /// Where the call plays right now and how loud, for the call's status
+  /// line in the field log: the system's route, its volume (the receiver
+  /// keeps its own), the pick and the last reroute. Called on the queue.
   private func route() -> [String: Any] {
     let session = AVAudioSession.sharedInstance()
     let reasons = [

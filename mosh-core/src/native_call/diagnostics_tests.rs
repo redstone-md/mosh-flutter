@@ -64,6 +64,15 @@ fn video_stall_recovery_camera_off_and_route_changes_log_once() {
         .observe(PeerTransport::Relayed, &state, &engine, sent(8), later)
         .unwrap();
     assert!(event.contains("route=Relayed"));
+    let louder = json!({"connection":"Connected", "decoded":12,
+        "audio_route": {"outputs": ["Receiver"], "volume": 0.75}});
+    let event = monitor
+        .observe(PeerTransport::Relayed, &state, &louder, sent(8), later)
+        .unwrap();
+    assert!(event.contains(r#"audio_route={"outputs":["Receiver"],"volume":0.75}"#));
+    assert!(monitor
+        .observe(PeerTransport::Relayed, &state, &louder, sent(8), later)
+        .is_none());
 }
 
 #[test]

@@ -5,12 +5,15 @@ use super::{
     state::State,
 };
 use crate::private_dm_runtime::transport::{DmTransport, PeerTransport};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 
 pub(super) struct Reporter {
     statistics: Instant,
     devices_at: Instant,
+    /// Where the platform plays the call and how loud, from its last device
+    /// list; only iOS reports one.
+    audio_route: Value,
     disconnected: Option<Instant>,
     /// ICE was failed at the last statistics.
     ice_failed_last: bool,
@@ -26,6 +29,7 @@ impl Reporter {
         Self {
             statistics: Instant::now(),
             devices_at: Instant::now(),
+            audio_route: Value::Null,
             disconnected: None,
             ice_failed_last: false,
             ice_failure_pending: false,
@@ -40,6 +44,7 @@ impl Reporter {
         }
         self.devices_at = Instant::now();
         let devices = engine.ask(json!({"action":"devices"}))?;
+        self.audio_route = devices["route"].clone();
         state.snapshot.inputs =
             serde_json::from_value(devices["inputs"].clone()).unwrap_or_default();
         state.snapshot.outputs =
@@ -96,7 +101,8 @@ impl Reporter {
         }
         self.statistics = Instant::now();
         self.refresh_devices(engine, state)?;
-        let snapshot = engine.ask(json!({"action":"snapshot"}))?;
+        let mut snapshot = engine.ask(json!({"action":"snapshot"}))?;
+        snapshot["audio_route"] = self.audio_route.clone();
         state.snapshot.packets_dropped = sender.dropped();
         let ice_failed = snapshot["connection"] == "Failed";
         self.ice_failure_pending |= ice_failed && !self.ice_failed_last;

@@ -35,7 +35,5 @@ pub(crate) fn command(value: Value) -> Result<Value, String> {
         .into_owned();
     // SAFETY: freed once, with the allocator that made it.
     unsafe { free(response.cast()) };
-    let reply = super::reply(&text)?;
-    super::log_route(&reply);
-    Ok(reply)
+    super::reply(&text)
 }

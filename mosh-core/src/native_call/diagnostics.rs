@@ -14,6 +14,9 @@ struct Status {
     microphone: bool,
     capturing: bool,
     hearing: bool,
+    /// Where the platform plays the call and how loud; null where the
+    /// platform does not say.
+    audio_route: Value,
 }
 
 impl Status {
@@ -28,7 +31,7 @@ impl Status {
         };
         format!(
             "native media: route={:?}; ice={}; ready={}; remote_video={}; microphone={}; \
-             capturing={}; hearing={}; input={}; output={}; metrics={metrics}",
+             capturing={}; hearing={}; input={}; output={}; audio_route={}; metrics={metrics}",
             self.route,
             self.ice,
             self.ready,
@@ -38,6 +41,7 @@ impl Status {
             self.hearing,
             name(&state.snapshot.inputs, &state.choices.input),
             name(&state.snapshot.outputs, &state.choices.output),
+            self.audio_route,
         )
     }
 }
@@ -249,6 +253,7 @@ impl Monitor {
             hearing: self
                 .heard
                 .rising(engine["audio"]["total_energy"].as_f64(), now),
+            audio_route: engine["audio_route"].clone(),
         };
         let dropped = ["full", "stale"]
             .iter()

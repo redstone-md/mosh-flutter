@@ -308,7 +308,7 @@ impl Owner {
                 crate::diagnostics_log::LogLevel::Info,
                 crate::diagnostics_log::kinds::VOICE,
                 &state.snapshot.session_id,
-                &format!("call audio session: {session}"),
+                &format!("call audio session: {}", session["webrtc_session"]),
             );
         }
         let devices = connection.engine.ask(json!({"action":"devices"}))?;
