@@ -187,8 +187,31 @@ fn logs_dir() -> PathBuf {
 /// drops the line and the next write retries.
 pub fn write(level: LogLevel, kind: &str, context_id: &str, message: &str) {
     let mut guard = SINK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let _writing = Writing::enter();
     let sink = guard.get_or_insert_with(|| LogSink::new(logs_dir(), MAX_FILE_BYTES));
     sink.write_line(level, kind, context_id, message);
+}
+
+thread_local! {
+    /// This thread holds the sink: a panic raised inside a write must not
+    /// wait for the lock it holds itself.
+    static WRITING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Marks this thread as writing until dropped, unwinding included.
+struct Writing;
+
+impl Writing {
+    fn enter() -> Self {
+        WRITING.with(|writing| writing.set(true));
+        Self
+    }
+}
+
+impl Drop for Writing {
+    fn drop(&mut self) {
+        WRITING.with(|writing| writing.set(false));
+    }
 }
 
 /// An error the user meets without a crash: one `error` line, and with the
@@ -234,12 +257,11 @@ pub fn install_panic_hook() {
                 ),
                 panic_payload_message(info.payload())
             );
-            // try_lock: if the panic interrupted a write, this thread still
-            // holds the sink mutex — skipping the line beats deadlocking the
-            // abort path.
-            if let Ok(mut guard) = SINK.try_lock() {
-                let sink = guard.get_or_insert_with(|| LogSink::new(logs_dir(), MAX_FILE_BYTES));
-                sink.write_line(LogLevel::Error, kinds::PANIC, "", &line);
+            // A panic that interrupted this thread's own write would
+            // deadlock on the sink; that one line is skipped. Another
+            // thread's write is waited for, so its panic line is kept.
+            if !WRITING.with(std::cell::Cell::get) {
+                write(LogLevel::Error, kinds::PANIC, "", &line);
             }
             default_hook(info);
         }));
