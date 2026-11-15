@@ -48,11 +48,13 @@ final class CallAudio {
 
   func select(output: String?, input: String?) -> [String: Any] {
     queue.sync {
-      if routeChanges == nil { begin() }
+      let configured = routeChanges == nil ? begin() : nil
       self.output = output
       let inputOk = AVAudioSession.sharedInstance().isInputAvailable
         && (input == nil || input == Self.routeInput)
-      return ["input_ok": inputOk, "output_ok": apply()]
+      var reply: [String: Any] = ["input_ok": inputOk, "output_ok": apply()]
+      reply["webrtc_session"] = configured
+      return reply
     }
   }
 
@@ -73,8 +75,9 @@ final class CallAudio {
 
   /// The session libwebrtc sets up, set up first so a route can be picked
   /// before its audio module starts. A category change drops the picked
-  /// route, so it is applied again after one.
-  private func begin() {
+  /// route, so it is applied again after one. Answers how libwebrtc was
+  /// told the same session.
+  private func begin() -> [String: Any] {
     let session = AVAudioSession.sharedInstance()
     previous = (session.category, session.mode, session.categoryOptions)
     try? session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP])
@@ -93,6 +96,39 @@ final class CallAudio {
       self.queue.async { self.apply() }
     }
     DispatchQueue.main.async { UIDevice.current.isProximityMonitoringEnabled = true }
+    return Self.configureWebRTC()
+  }
+
+  /// libwebrtc's audio module applies its own session configuration when it
+  /// starts. The webrtc-sdk build copies that configuration from whatever
+  /// the session was when libwebrtc first looked: the app's playback-only
+  /// default, with no input channel. The voice unit then could neither
+  /// record nor play. A full call configuration (upstream's values) is
+  /// installed before the module starts; the class lives in
+  /// MoshMedia.framework, loaded by the time a call selects. Answers what
+  /// libwebrtc held before and after, for the field log.
+  private static func configureWebRTC() -> [String: Any] {
+    let keys = ["category", "mode", "categoryOptions", "sampleRate", "ioBufferDuration",
+                "inputNumberOfChannels", "outputNumberOfChannels"]
+    guard let type = NSClassFromString("RTCAudioSessionConfiguration") as? NSObject.Type
+    else { return ["error": "RTCAudioSessionConfiguration missing"] }
+    let current = (type as AnyObject)
+      .perform(NSSelectorFromString("webRTCConfiguration"))?.takeUnretainedValue() as? NSObject
+    let call = type.init()
+    call.setValue(AVAudioSession.Category.playAndRecord.rawValue, forKey: "category")
+    call.setValue(AVAudioSession.Mode.voiceChat.rawValue, forKey: "mode")
+    call.setValue(AVAudioSession.CategoryOptions.allowBluetoothHFP.rawValue, forKey: "categoryOptions")
+    call.setValue(48_000.0, forKey: "sampleRate")
+    call.setValue(0.02, forKey: "ioBufferDuration")
+    call.setValue(1, forKey: "inputNumberOfChannels")
+    call.setValue(1, forKey: "outputNumberOfChannels")
+    _ = (type as AnyObject).perform(NSSelectorFromString("setWebRTCConfiguration:"), with: call)
+    func describe(_ configuration: NSObject?) -> [String: String] {
+      Dictionary(uniqueKeysWithValues: keys.map { key in
+        (key, configuration.map { "\($0.value(forKey: key) ?? "nil")" } ?? "nil")
+      })
+    }
+    return ["before": describe(current), "after": describe(call)]
   }
 
   @discardableResult

@@ -265,7 +265,7 @@ impl Monitor {
             "decoded": engine["decoded"], "sender_dropped": pipeline.sender_dropped,
             "engine_dropped": engine["queue_dropped"],
             "stalls_max_ms": self.stalls, "audio": engine["audio"],
-            "audio_sender": engine["audio_sender"],
+            "audio_sender": engine["audio_sender"], "adm": engine["adm"],
             "video": engine["video"], "encoder": engine["encoder"]});
         let message = status.describe(state, &metrics);
         self.status = Some(status);

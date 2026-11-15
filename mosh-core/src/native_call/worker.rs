@@ -297,11 +297,20 @@ impl Owner {
 
     fn install(&mut self, mut connection: Connection, state: &mut State) -> Result<(), String> {
         // iOS lists a headset only once the call's audio session is up, and
-        // the first select opens it; the picks are applied again below.
+        // the first select opens it; the picks are applied again below. Its
+        // answer says whether libwebrtc got the call's session too.
         #[cfg(target_os = "ios")]
-        connection.engine.ask(
-            json!({"action":"select","input":state.choices.input,"output":state.choices.output}),
-        )?;
+        {
+            let session = connection.engine.ask(
+                json!({"action":"select","input":state.choices.input,"output":state.choices.output}),
+            )?;
+            crate::diagnostics_log::write(
+                crate::diagnostics_log::LogLevel::Info,
+                crate::diagnostics_log::kinds::VOICE,
+                &state.snapshot.session_id,
+                &format!("call audio session: {session}"),
+            );
+        }
         let devices = connection.engine.ask(json!({"action":"devices"}))?;
         state.snapshot.inputs =
             serde_json::from_value(devices["inputs"].clone()).unwrap_or_default();

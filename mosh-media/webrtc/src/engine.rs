@@ -140,6 +140,11 @@ impl Engine {
                 let mut snapshot = self.measurements.snapshot();
                 snapshot["ready"] = self.started.into();
                 snapshot["microphone"] = self.recording.into();
+                // Whether the platform audio module came up for each side.
+                snapshot["adm"] = json!({
+                    "playout": self.factory.playout_is_initialized(),
+                    "recording": self.factory.recording_is_initialized(),
+                });
                 snapshot["video_enabled"] = self.camera.enabled().into();
                 snapshot["queue_dropped"] = self.carrier.outgoing().dropped();
                 Ok(snapshot)
