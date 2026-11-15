@@ -74,6 +74,15 @@ fn rotates_and_keeps_every_line_across_three_files() {
         "middle land in .1: {first:?}"
     );
     assert!(live.last().is_some_and(|l| l.contains("event-12")));
+    let shared: Vec<_> = files_in(&dir)
+        .iter()
+        .map(|path| path.file_name().unwrap().to_owned())
+        .collect();
+    assert_eq!(
+        shared,
+        [FILE_NAME, ROTATED_NAMES[0], ROTATED_NAMES[1]],
+        "freshest first"
+    );
     for name in [FILE_NAME, ROTATED_NAMES[0], ROTATED_NAMES[1]] {
         if let Ok(metadata) = fs::metadata(dir.join(name)) {
             assert!(metadata.len() <= 200 + 100, "{name} grew past the cap");

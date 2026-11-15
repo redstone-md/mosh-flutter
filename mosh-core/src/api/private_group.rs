@@ -6,6 +6,7 @@ use std::sync::MutexGuard;
 use super::runtime_owner::RuntimeOwner;
 
 use crate::api::conversation_bridge::ConversationBridgeError;
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::private_group_runtime::{
     CreateGroupRequest, GroupCreated, GroupListSnapshot, GroupSnapshot, JoinGroupRequest,
     PrivateGroupError, PrivateGroupRuntime,
@@ -45,9 +46,16 @@ pub fn create_group(request: CreateGroupRequest) -> Result<GroupCreated, Convers
 /// Join a private group from an invite URI.
 pub fn join_group(request: JoinGroupRequest) -> Result<GroupSnapshot, ConversationBridgeError> {
     let mut runtime = ensure_runtime()?;
-    runtime
-        .join_group(request)
-        .map_err(ConversationBridgeError::from)
+    runtime.join_group(request).map_err(|error| {
+        // The screen names only the error's kind; the cause stays here.
+        dlog::write(
+            LogLevel::Warn,
+            kinds::ROOM,
+            "join_group",
+            &format!("join failed: {error}"),
+        );
+        ConversationBridgeError::from(error)
+    })
 }
 
 /// Poll a private group for its current snapshot.

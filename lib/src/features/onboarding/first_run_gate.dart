@@ -2,6 +2,7 @@ import 'package:mosh/src/state/notifications_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/diagnostics/field_log_button.dart';
 import 'package:mosh/src/features/vpn/vpn_consent_overlay.dart';
 import 'package:mosh/src/state/auto_poll_provider.dart';
 
@@ -61,6 +62,9 @@ class FirstRunGate extends ConsumerWidget {
         OutlinedButton(
             onPressed: () => ref.invalidate(firstRunProfileProvider),
             child: Text(l.deviceLinkRetry)),
+        const SizedBox(height: 8),
+        // Settings are out of reach here; the log says which read failed.
+        const FieldLogButton(),
       ]),
     )));
   }

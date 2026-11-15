@@ -13,7 +13,7 @@
 //! `AudioDeviceInfo {id, name}` for enumeration, `Result<_, String>`
 //! matching the voice-call facades' error style.
 
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use cpal::{
     default_host,
     traits::{DeviceTrait, HostTrait},
@@ -41,19 +41,19 @@ pub struct AudioDeviceInfo {
 /// with two working entries beats an error over one broken one.
 #[frb(sync)]
 pub fn list_output_devices() -> Vec<AudioDeviceInfo> {
-    #[cfg(target_os = "android")]
+    #[cfg(any(target_os = "android", target_os = "ios"))]
     {
-        return crate::android::media::command(serde_json::json!({"action":"devices"}))
+        return crate::mobile_media::command(serde_json::json!({"action":"devices"}))
             .and_then(|value| {
                 serde_json::from_value(value["outputs"].clone()).map_err(|e| e.to_string())
             })
             .unwrap_or_default();
     }
-    #[cfg(not(target_os = "android"))]
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     list_cpal_outputs()
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn list_cpal_outputs() -> Vec<AudioDeviceInfo> {
     let host = default_host();
     let Ok(outputs) = host.output_devices() else {

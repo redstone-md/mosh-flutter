@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `construct_resources`, `database_path`, `inject_once`, `resolve_data_dir`, `resolved_data_dir`, `restore_vpn_bypass`
+// These functions are ignored because they are not marked as `pub`: `construct_resources`, `database_path`, `inject_once`, `resolve_data_dir`, `resolved_data_dir`, `restore_vpn_bypass`, `shared_resources_failed`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`
 
 /// Mobile startup may repeat the same DEK after activity recreation.

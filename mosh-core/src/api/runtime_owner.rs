@@ -1,4 +1,5 @@
-//! Independent, once-built runtime owners with cached construction failures.
+//! Independent, once-built runtime owners with cached construction failures,
+//! each reported once (field log and, with consent, a crash report).
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
@@ -23,9 +24,13 @@ impl<T> RuntimeOwner<T> {
         &'static self,
         construct: impl FnOnce() -> Result<T, E>,
     ) -> Result<MutexGuard<'static, T>, ConversationBridgeError> {
-        let initialized = self
-            .cell
-            .get_or_init(|| construct().map(Mutex::new).map_err(|e| e.to_string()));
+        let initialized = self.cell.get_or_init(|| {
+            construct().map(Mutex::new).map_err(|error| {
+                let error = error.to_string();
+                report_construction_failure(self.name, &error);
+                error
+            })
+        });
         let mutex = initialized.as_ref().map_err(|error| {
             ConversationBridgeError::unavailable(format!(
                 "{} runtime unavailable: {error}",
@@ -86,6 +91,18 @@ impl<T> RuntimeOwner<T> {
                 super::background::reconcile();
             });
         spawned.map(|_| ()).map_err(|error| error.to_string())
+    }
+}
+
+/// One cause, one report: a runtime that failed only because the shared
+/// resources did not build gets a log line, since those were reported.
+fn report_construction_failure(name: &str, error: &str) {
+    use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
+    let message = format!("{name} runtime did not build: {error}");
+    if super::shared_runtime::shared_resources_failed() {
+        dlog::write(LogLevel::Error, kinds::STARTUP, name, &message);
+    } else {
+        dlog::report_failure(kinds::STARTUP, name, &message);
     }
 }
 

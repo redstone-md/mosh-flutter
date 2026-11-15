@@ -1,11 +1,11 @@
 # Calls
 
-On desktop a call shows in the main window, as on Android: an expanded view that
-covers the content and can go full screen, and a mini view while the user
-browses chats ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md)).
+On desktop a call shows in the main window, as on Android and iOS: an expanded
+view that covers the content and can go full screen, and a mini view while the
+user browses chats ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md)).
 
-A platform without the native call engine (iOS) shows a compact strip of call
-controls below the app instead.
+Without the native call engine the app shows a compact strip of call controls
+below it instead.
 
 Clicking the peer in
 either view opens the original DM. Messages, attachments, search and scrolling remain available during a call.

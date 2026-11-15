@@ -8,6 +8,7 @@
     "linux-x64-release": "e47cfab2bce631e9bf9d2a3a1cf087f08954fff5b993c4e03478c5a3b5c45a5d",
     "mac-arm64-release": "b1f9c31ee32b38ae9658ca766f5bbf162d93410b4bede63421eb6d00ffa900cf",
     "mac-x64-release": "5368d209db6f5ed764cf2a9bee591441d1d0d4aef49102c8c5121a1e27397ac6",
-    "win-x64-release": "50b5995fde591e885b8871f004752201ffc39a17f63d5a04a3aa919cf1f99abc"
+    "win-x64-release": "50b5995fde591e885b8871f004752201ffc39a17f63d5a04a3aa919cf1f99abc",
+    "ios-device-arm64-release": "8cdc29a9f1bf7b5dbde23454ad642689453d8f9fd47f0c2f6e42b2e055f389f8"
   }
 }

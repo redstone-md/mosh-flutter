@@ -21,7 +21,7 @@ const String _buildDsn = String.fromEnvironment('SENTRY_DSN');
 const String _nativeDatabaseDirName = 'sentry-native';
 
 /// The app-wide reporter. `main` overrides it with the instance it resumed
-/// at launch, so the switch stops the same Rust panic stream it started.
+/// at launch, so the switch stops the same Rust event stream it started.
 final crashReportingProvider = Provider<CrashReporting>(
   (ref) => CrashReporting(bridge: ref.watch(bridgeFacadeProvider)),
 );
@@ -43,7 +43,11 @@ class CrashReporting {
   final Future<void> Function(String dsn, String salt) _start;
   final Future<void> Function() _stop;
   final FutureOr<void> Function(SentryEvent event) _capture;
-  StreamSubscription<String>? _rustPanics;
+  StreamSubscription<String>? _rustEvents;
+
+  /// The launch resume and the switch run one after another, so a late
+  /// step of one (a slow SDK start, a pending stop) cannot undo the other.
+  Future<void> _previous = Future.value();
 
   /// Whether this build can report at all.
   bool get available => dsn.isNotEmpty;
@@ -52,22 +56,31 @@ class CrashReporting {
 
   /// Launch hook: starts reporting when the user opted in earlier, and
   /// finishes a previous opt-out's cleanup otherwise. Never throws — a
-  /// broken reporter must not block launch.
-  Future<void> resume() async {
-    if (!available) return;
+  /// broken reporter must not block launch. Either answer releases the
+  /// failures Rust held until the consent was read: sent, or dropped.
+  Future<void> resume() => _inTurn(_resume);
+
+  Future<void> _resume() async {
     try {
-      final salt = await _bridge.crashReportingSalt();
-      if (salt == null) return _deleteNativeDatabase();
-      await _begin(salt);
+      final salt = available ? await _bridge.crashReportingSalt() : null;
+      if (salt != null) return await _begin(salt);
     } catch (error) {
       debugPrint('mosh: crash reporting did not start: $error');
+    }
+    try {
+      await _bridge.stopEventCapture();
+      if (available) await _deleteNativeDatabase();
+    } catch (error) {
+      debugPrint('mosh: held failures not dropped: $error');
     }
   }
 
   /// The settings switch. Off stops the SDK first, then forgets the consent
   /// and the unsent queue. A failed start is rolled back to off, so a switch
   /// the user sees off never reports on the next launch.
-  Future<void> setEnabled(bool enabled) async {
+  Future<void> setEnabled(bool enabled) => _inTurn(() => _setEnabled(enabled));
+
+  Future<void> _setEnabled(bool enabled) async {
     if (!enabled) return _end();
     try {
       await _begin(await _bridge.enableCrashReporting());
@@ -77,10 +90,18 @@ class CrashReporting {
     }
   }
 
+  /// Runs [step] after every earlier one. Its error goes to its caller
+  /// only; the next step runs regardless.
+  Future<void> _inTurn(Future<void> Function() step) {
+    final turn = _previous.then((_) => step());
+    _previous = turn.then<void>((_) {}, onError: (Object _) {});
+    return turn;
+  }
+
   Future<void> _end() async {
-    await _rustPanics?.cancel();
-    _rustPanics = null;
-    await _bridge.stopPanicReporting();
+    await _rustEvents?.cancel();
+    _rustEvents = null;
+    await _bridge.stopEventCapture();
     await _stop();
     await _bridge.disableCrashReporting();
     await _deleteNativeDatabase();
@@ -88,11 +109,11 @@ class CrashReporting {
 
   Future<void> _begin(String salt) async {
     await _start(dsn, salt);
-    await _rustPanics?.cancel();
-    _rustPanics = _bridge.startPanicReporting(dsn: dsn).listen(
+    await _rustEvents?.cancel();
+    _rustEvents = _bridge.startEventCapture(dsn: dsn).listen(
           _captureRustEvent,
           onError: (Object error) =>
-              debugPrint('mosh: rust panic capture failed: $error'),
+              debugPrint('mosh: rust event capture failed: $error'),
         );
   }
 
@@ -116,6 +137,10 @@ SentryEvent rustEventFromJson(String json) {
       (timestamp * Duration.microsecondsPerSecond).round(),
       isUtc: true,
     ).toIso8601String();
+  }
+  // A Rust failure's message is a plain string; the Dart SDK reads a map.
+  if (map['message'] case final String message) {
+    map['message'] = {'formatted': message};
   }
   // Rust propagation contexts omit `op`; the Dart SDK requires a string.
   if (map['contexts'] case final Map<String, dynamic> contexts) {

@@ -39,14 +39,22 @@ mixin _BridgeDiagnostics on _ScriptableBridgeState {
       () => _crashReportingSalt ??= 'scripted-salt');
 
   @override
-  Stream<String> startPanicReporting({required String dsn}) {
-    calls.add(ScriptedCall(BridgeMethod.startPanicReporting, {'dsn': dsn}));
-    return rustPanics.stream;
+  Stream<String> startEventCapture({required String dsn}) {
+    calls.add(ScriptedCall(BridgeMethod.startEventCapture, {'dsn': dsn}));
+    return rustEvents.stream;
   }
 
   @override
-  Future<void> stopPanicReporting() =>
-      runScripted(BridgeMethod.stopPanicReporting, const {}, () {});
+  Future<void> stopEventCapture() =>
+      runScripted(BridgeMethod.stopEventCapture, const {}, () {});
+
+  @override
+  Future<void> reportStartupFailure(String message) => runScripted(
+      BridgeMethod.reportStartupFailure, {'message': message}, () {});
+
+  @override
+  Future<List<String>> logFiles() =>
+      runScripted(BridgeMethod.logFiles, const {}, () => _logFiles);
 
   @override
   Future<void> disableCrashReporting() =>

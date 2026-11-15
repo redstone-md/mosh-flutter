@@ -13,6 +13,10 @@
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		773F84A377ED04D8F7878FD8 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8A1D9130F2AE29B6143FD7BA /* Pods_Runner.framework */; };
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
+		7A1D0C402F10A00100D05EED /* CallMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1D0C412F10A00100D05EED /* CallMedia.swift */; };
+		7A1D0C422F10A00100D05EED /* CallAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1D0C432F10A00100D05EED /* CallAudio.swift */; };
+		7A1D0C442F10A00100D05EED /* CallCamera.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1D0C452F10A00100D05EED /* CallCamera.swift */; };
+		7A1D0C462F10A00100D05EED /* CallVideoTexture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1D0C472F10A00100D05EED /* CallVideoTexture.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
@@ -56,6 +60,10 @@
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		7A1D0C412F10A00100D05EED /* CallMedia.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallMedia.swift; sourceTree = "<group>"; };
+		7A1D0C432F10A00100D05EED /* CallAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallAudio.swift; sourceTree = "<group>"; };
+		7A1D0C452F10A00100D05EED /* CallCamera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallCamera.swift; sourceTree = "<group>"; };
+		7A1D0C472F10A00100D05EED /* CallVideoTexture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CallVideoTexture.swift; path = ../runner_shared/apple/CallVideoTexture.swift; sourceTree = SOURCE_ROOT; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		8A1D9130F2AE29B6143FD7BA /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -144,6 +152,10 @@
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
+				7A1D0C412F10A00100D05EED /* CallMedia.swift */,
+				7A1D0C432F10A00100D05EED /* CallAudio.swift */,
+				7A1D0C452F10A00100D05EED /* CallCamera.swift */,
+				7A1D0C472F10A00100D05EED /* CallVideoTexture.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
@@ -205,7 +217,7 @@
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
-				7A1D0C3E2F10A00100D05EED /* Embed Moss */,
+				7A1D0C3E2F10A00100D05EED /* Embed Moss and the call engine */,
 				37F198AC69CFD87547F80648 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
@@ -317,7 +329,7 @@
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin";
 		};
-		7A1D0C3E2F10A00100D05EED /* Embed Moss */ = {
+		7A1D0C3E2F10A00100D05EED /* Embed Moss and the call engine */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -325,12 +337,12 @@
 			);
 			inputPaths = (
 			);
-			name = "Embed Moss";
+			name = "Embed Moss and the call engine";
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/bin/sh \"$SRCROOT/../scripts/ios-embed-moss.sh\"\n";
+			shellScript = "/bin/sh \"$SRCROOT/../scripts/ios-embed-frameworks.sh\"\n";
 		};
 		9740EEB61CF901F6004384FC /* Run Script */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -409,6 +421,10 @@
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
+				7A1D0C402F10A00100D05EED /* CallMedia.swift in Sources */,
+				7A1D0C422F10A00100D05EED /* CallAudio.swift in Sources */,
+				7A1D0C442F10A00100D05EED /* CallCamera.swift in Sources */,
+				7A1D0C462F10A00100D05EED /* CallVideoTexture.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -50,6 +50,8 @@ pub mod kinds {
     pub const SERVICE: &str = "service";
     /// A Rust panic anywhere in the process, mirrored by the panic hook.
     pub const PANIC: &str = "panic";
+    /// A store, a runtime or the launch itself that did not come up.
+    pub const STARTUP: &str = "startup";
     pub const TEST: &str = "test";
 }
 
@@ -185,8 +187,52 @@ fn logs_dir() -> PathBuf {
 /// drops the line and the next write retries.
 pub fn write(level: LogLevel, kind: &str, context_id: &str, message: &str) {
     let mut guard = SINK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let _writing = Writing::enter();
     let sink = guard.get_or_insert_with(|| LogSink::new(logs_dir(), MAX_FILE_BYTES));
     sink.write_line(level, kind, context_id, message);
+}
+
+thread_local! {
+    /// This thread holds the sink: a panic raised inside a write must not
+    /// wait for the lock it holds itself.
+    static WRITING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Marks this thread as writing until dropped, unwinding included.
+struct Writing;
+
+impl Writing {
+    fn enter() -> Self {
+        WRITING.with(|writing| writing.set(true));
+        Self
+    }
+}
+
+impl Drop for Writing {
+    fn drop(&mut self) {
+        WRITING.with(|writing| writing.set(false));
+    }
+}
+
+/// An error the user meets without a crash: one `error` line, and with the
+/// user's consent a crash report (ADR 0035). The report carries the kind and
+/// the message, never the context id.
+pub fn report_failure(kind: &str, context_id: &str, message: &str) {
+    write(LogLevel::Error, kind, context_id, message);
+    crate::event_capture::report_failure(&format!("{kind}: {}", one_line(message)));
+}
+
+/// The live file and its rotated copies that exist, freshest first.
+pub fn log_files() -> Vec<PathBuf> {
+    files_in(&logs_dir())
+}
+
+fn files_in(dir: &std::path::Path) -> Vec<PathBuf> {
+    std::iter::once(FILE_NAME)
+        .chain(ROTATED_NAMES)
+        .map(|name| dir.join(name))
+        .filter(|path| path.is_file())
+        .collect()
 }
 
 /// Where the log lives, once a write has opened the file. `None` before the
@@ -211,12 +257,11 @@ pub fn install_panic_hook() {
                 ),
                 panic_payload_message(info.payload())
             );
-            // try_lock: if the panic interrupted a write, this thread still
-            // holds the sink mutex — skipping the line beats deadlocking the
-            // abort path.
-            if let Ok(mut guard) = SINK.try_lock() {
-                let sink = guard.get_or_insert_with(|| LogSink::new(logs_dir(), MAX_FILE_BYTES));
-                sink.write_line(LogLevel::Error, kinds::PANIC, "", &line);
+            // A panic that interrupted this thread's own write would
+            // deadlock on the sink; that one line is skipped. Another
+            // thread's write is waited for, so its panic line is kept.
+            if !WRITING.with(std::cell::Cell::get) {
+                write(LogLevel::Error, kinds::PANIC, "", &line);
             }
             default_hook(info);
         }));

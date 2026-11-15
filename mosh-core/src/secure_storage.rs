@@ -81,7 +81,17 @@ impl OsSecureSecretStore {
     fn entry_in(service: &str, key: &str) -> Result<Entry, SecureStorageError> {
         ensure_native_store()?;
 
-        Entry::new(service, key).map_err(|error| SecureStorageError::Entry(error.to_string()))
+        // Readable once the phone was unlocked after boot, not only while it
+        // is: a call goes on with the screen locked.
+        #[cfg(target_os = "ios")]
+        let entry = Entry::new_with_modifiers(
+            service,
+            key,
+            &std::collections::HashMap::from([("access-policy", "after-first-unlock")]),
+        );
+        #[cfg(not(target_os = "ios"))]
+        let entry = Entry::new(service, key);
+        entry.map_err(|error| SecureStorageError::Entry(error.to_string()))
     }
 
     /// Reads `key` from the legacy slot. Any failure means "nothing to
@@ -195,8 +205,18 @@ fn select_native_store() -> Result<(), SecureStorageError> {
             return select_sandboxed_mac_store();
         }
     }
-    keyring::use_native_store(false)
-        .map_err(|error| SecureStorageError::Backend(format!("{NATIVE_STORE_ERROR}: {error}")))
+    // `use_native_store` knows no iOS store and falls back to keyring's
+    // sample store, which keeps secrets in memory: the history key would die
+    // with the process. iOS's own is the data-protection keychain. keyring's
+    // `use_named_store("protected")` refuses it unless the macOS sandbox
+    // variable is set, which it never is on iOS, so it is installed directly.
+    #[cfg(target_os = "ios")]
+    let selected = apple_native_keyring_store::protected::Store::new().map(|store| {
+        keyring_core::set_default_store(store);
+    });
+    #[cfg(not(target_os = "ios"))]
+    let selected = keyring::use_native_store(false);
+    selected.map_err(|error| SecureStorageError::Backend(format!("{NATIVE_STORE_ERROR}: {error}")))
 }
 
 /// Whether the sandboxed macOS build runs on the protected store and so

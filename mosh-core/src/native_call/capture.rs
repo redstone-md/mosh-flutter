@@ -4,20 +4,21 @@ use super::{
     state::State,
     types::Surface,
 };
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
     sync::{Arc, Once},
     time::Instant,
 };
 
-#[cfg(not(target_os = "android"))]
+// Desktops run the camera in a helper process; phones in the app itself.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[path = "capture/helper.rs"]
 mod helper;
-#[cfg(target_os = "android")]
-#[path = "capture/android.rs"]
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[path = "capture/mobile.rs"]
 mod platform;
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[path = "capture/desktop.rs"]
 mod platform;
 pub(crate) use platform::{Capture, Query};
@@ -88,7 +89,7 @@ impl Prepared {
     }
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub(crate) fn wall_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)

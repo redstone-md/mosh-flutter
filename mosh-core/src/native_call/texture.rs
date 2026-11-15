@@ -8,8 +8,9 @@ mod android;
 
 /// What the plugin exports for one texture, for as long as the process
 /// lives. `runner_shared/call_video_frames.h` declares the same layout for the
-/// Linux and Windows runners, `macos/Runner/CallVideoTexture.swift` lays it
-/// out by hand, and Android's is made here, in `android`.
+/// Linux and Windows runners, `runner_shared/apple/CallVideoTexture.swift`
+/// lays it out by hand for macOS and iOS, and Android's is made here, in
+/// `android`.
 #[repr(C)]
 pub(crate) struct Exported {
     /// Copies a `width` by `height` RGBA frame and schedules its display. A

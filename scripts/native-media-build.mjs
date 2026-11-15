@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { prepareNativeCamera } from "./native-camera-prepare.mjs";
 import { prepareLibwebrtc, prepareLiveKitWebrtc } from "./livekit-webrtc-prepare.mjs";
+import { frameworkInstallName, writeFramework } from "./support/ios-framework.mjs";
 import { cameraHelper, engineLibrary } from "./support/native-media-artifacts.mjs";
 import { nativeProtoc } from "./support/native-protoc.mjs";
 
@@ -13,19 +14,25 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { values } = parseArgs({ options: { profile: { type: "string", default: "debug" },
   output: { type: "string" }, targets: { type: "string" }, offline: { type: "boolean", default: false } } });
 if (!["debug", "release"].includes(values.profile)) throw new Error("profile must be debug or release");
-await prepareLiveKitWebrtc({ offline: values.offline });
-await prepareNativeCamera({ offline: values.offline });
-const env = { ...process.env, PROTOC: await nativeProtoc(root) };
-const targetRoot = path.join(root, ".dart_tool/native-media/target");
-const host = run("rustc", ["-vV"], { capture: true }).match(/^host: (.+)$/m)?.[1];
+const host = run("rustc", ["-vV"], { capture: true, env: process.env }).match(/^host: (.+)$/m)?.[1];
 if (!host) throw new Error("Cannot determine Rust host target");
 const targets = values.targets?.split(",").filter(Boolean) ?? [host];
 if (targets.length > 2 || targets.some((target) => !/^[a-zA-Z0-9_-]+$/.test(target))) throw new Error("Invalid native targets");
+// iOS apps capture in-process (ios/Runner/CallCamera.swift), so an iOS build
+// is the engine alone, packaged as the framework the app embeds.
+const ios = targets.some((target) => target.endsWith("-apple-ios"));
+if (ios && targets.length > 1) throw new Error("An iOS build takes one target");
+await prepareLiveKitWebrtc({ offline: values.offline });
+// Also for iOS: the notices take the Apache-2.0 text from nokhwa's sources.
+await prepareNativeCamera({ offline: values.offline });
+const env = { ...process.env, PROTOC: await nativeProtoc(root) };
+const targetRoot = path.join(root, ".dart_tool/native-media/target");
 const additionalTargets = targets.filter((target) => target !== host);
 if (additionalTargets.length) run("rustup", ["target", "add", ...additionalTargets]);
 const output = path.resolve(values.output ?? path.join(root, ".dart_tool/native-media", values.profile));
 await mkdir(output, { recursive: true });
-const artifacts = [engineLibrary, cameraHelper];
+const crates = ios ? ["webrtc"] : ["webrtc", "capture"];
+const artifacts = ios ? [engineLibrary] : [engineLibrary, cameraHelper];
 if (targets.some((target) => target.includes("linux-gnu"))) {
   const version = run(process.env.CXX ?? "c++", ["--version"], { capture: true });
   if (Number(version.match(/clang version (\d+)/)?.[1] ?? 0) < 21) {
@@ -43,7 +50,7 @@ if (targets.some((target) => target.startsWith("x86_64"))
 for (const target of targets) {
   // Points webrtc-sys at our libwebrtc build for this target.
   const targetEnv = { ...env, LK_CUSTOM_WEBRTC: await prepareLibwebrtc(target, { offline: values.offline }) };
-  for (const crate of ["webrtc", "capture"]) {
+  for (const crate of crates) {
     // Cargo reads a crate's .cargo/config.toml (link flags) only from its directory.
     run("cargo", ["build", "--locked", "--manifest-path", path.join(root, "mosh-media", crate, "Cargo.toml"),
       "--target-dir", targetRoot, "--target", target, ...(values.profile === "release" ? ["--release"] : [])],
@@ -57,6 +64,11 @@ for (const name of artifacts) {
   else if (sources.length === 1) await copyFile(sources[0], destination);
   else throw new Error("Multiple targets require macOS lipo");
   if (process.platform !== "win32") await chmod(destination, 0o755);
+}
+if (ios) {
+  const library = path.join(output, engineLibrary);
+  run("install_name_tool", ["-id", frameworkInstallName("MoshMedia"), library]);
+  await writeFramework({ directory: output, name: "MoshMedia", bundleId: "app.mosh.media", library });
 }
 const licenses = path.join(output, "licenses");
 // An earlier engine may have left its notices in this output.

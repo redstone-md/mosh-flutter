@@ -46,8 +46,9 @@ jobs:
         with:
           submodules: recursive
 
-      # Moss for iOS is built by the Runner target's build phase
-      # (scripts/ios-embed-moss.sh), so only Go is needed here.
+      # Moss and the call engine for iOS are built by the Runner target's
+      # build phase (scripts/ios-embed-frameworks.sh), so only Go is needed
+      # here besides Rust.
       - uses: ./.github/actions/setup
         with:
           moss: 'false'
@@ -60,9 +61,10 @@ jobs:
 
       # What the archive rebuilds every time without it: the Rust libraries
       # cargokit compiles in Xcode's temp dirs (mosh-core, super_native_
-      # extensions), Moss's Go build cache and the Swift packages. A stale hit
-      # is safe: cargo and Go re-fingerprint, SwiftPM re-resolves. Saved from
-      # main only, like every cache here.
+      # extensions), the call engine with its libwebrtc and patched sources,
+      # Moss's Go build cache and the Swift packages. A stale hit is safe:
+      # cargo and Go re-fingerprint, SwiftPM re-resolves, sources are checked
+      # against their SHA-256. Saved from main only, like every cache here.
       - id: ios-build
         uses: actions/cache/restore@v4
         with:
@@ -70,8 +72,11 @@ jobs:
             build/ios/DerivedData/**/mosh_core.build
             build/ios/DerivedData/**/super_native_extensions.build
             build/ios/SourcePackages
+            .dart_tool/native-media/target
+            .dart_tool/native-sources
+            .dart_tool/native-tools
             ~/Library/Caches/go-build
-          key: ios-build-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml', 'pubspec.lock', 'moss/go.sum', 'moss/**/*.go') }}
+          key: ios-build-${{ hashFiles('mosh-core/Cargo.lock', 'mosh-media/**/Cargo.lock', 'third_party/*-patches/source.json', 'third_party/*-patches/mosh.patch', 'third_party/libwebrtc-build/build.json', 'rust-toolchain.toml', 'pubspec.lock', 'moss/go.sum', 'moss/**/*.go') }}
           restore-keys: ios-build-
 
       # Same trade as the macOS proof build (build-macos.yml).
@@ -118,6 +123,9 @@ jobs:
             build/ios/DerivedData/**/mosh_core.build
             build/ios/DerivedData/**/super_native_extensions.build
             build/ios/SourcePackages
+            .dart_tool/native-media/target
+            .dart_tool/native-sources
+            .dart_tool/native-tools
             ~/Library/Caches/go-build
           key: ${{ steps.ios-build.outputs.cache-primary-key }}
 

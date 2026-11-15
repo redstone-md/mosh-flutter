@@ -89,6 +89,7 @@ dependencies:
   # replaced mobile_scanner, whose ML Kit and Play Services kept Mosh out of
   # F-Droid-format repositories (IVO-158).
   camera: ^0.12.2
+  share_plus: ^13.3.1
 
 # record_macos 2.1.1 with one patch (InputHelper.swift, getInputSampleRates):
 # a virtual audio driver that reports the sample-rate range 0...DBL_MAX made

@@ -9,7 +9,9 @@ All notable changes to Mosh are documented here. Format follows
 ### Added
 
 - iOS: releases are built for iPhone (iOS 15 or later) and uploaded to
-  TestFlight. Messaging works; calls do not yet.
+  TestFlight, with voice and video calls on the same engine as the other
+  platforms. A call goes on with the screen locked or Mosh in the
+  background; calls ring only while Mosh is open.
 
 ### Changed
 

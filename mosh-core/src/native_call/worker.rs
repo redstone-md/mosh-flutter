@@ -296,6 +296,12 @@ impl Owner {
     }
 
     fn install(&mut self, mut connection: Connection, state: &mut State) -> Result<(), String> {
+        // iOS lists a headset only once the call's audio session is up, and
+        // the first select opens it; the picks are applied again below.
+        #[cfg(target_os = "ios")]
+        connection.engine.ask(
+            json!({"action":"select","input":state.choices.input,"output":state.choices.output}),
+        )?;
         let devices = connection.engine.ask(json!({"action":"devices"}))?;
         state.snapshot.inputs =
             serde_json::from_value(devices["inputs"].clone()).unwrap_or_default();

@@ -30,15 +30,21 @@ fail() {
   exit 1
 }
 
-# The Embed Moss build phase prints nothing under -quiet, so check its
-# result: without Moss the app starts but never reaches the network.
-check_moss() {
-  local moss="$ARCHIVE/Products/Applications/Runner.app/Frameworks/Moss.framework/Moss"
-  nm -gU "$moss" | grep -q ' _Moss_Init$' || fail "the app has no Moss.framework exporting Moss_Init"
+# The embed build phase prints nothing under -quiet, so check its result:
+# without Moss the app starts but never reaches the network, without the
+# call engine every call ends asking to update Mosh. grep reads all of nm's
+# output: `grep -q` would quit at the match, and nm's SIGPIPE would fail the
+# pipeline under pipefail.
+check_frameworks() {
+  local frameworks="$ARCHIVE/Products/Applications/Runner.app/Frameworks"
+  nm -gU "$frameworks/Moss.framework/Moss" | grep ' _Moss_Init$' >/dev/null ||
+    fail "the app has no Moss.framework exporting Moss_Init"
+  nm -gU "$frameworks/MoshMedia.framework/MoshMedia" | grep ' _mosh_media_protocol$' >/dev/null ||
+    fail "the app has no MoshMedia.framework exporting mosh_media_protocol"
 }
 
 xcodebuild "${XCODE[@]}" CODE_SIGNING_ALLOWED=NO archive
-check_moss
+check_frameworks
 
 if [ -z "${APP_STORE_CONNECT_KEY_P8_BASE64:-}" ]; then
   [ "${MOSH_IOS_UPLOAD:-false}" != true ] || fail "an upload to TestFlight needs the App Store Connect key"

@@ -70,7 +70,7 @@ Stream and flutter_webrtc all render calls through a texture in the host window.
 - Controls and call state live in one process. No call-control IPC remains.
 - One presentation path for desktop and mobile. Android's textures are
   `SurfaceProducer`s that Rust writes into through their native windows
-  (MOSH-102); iOS gets a `FlutterTexture` with its call engine (MOSH-77).
+  (MOSH-102); iOS shares macOS's `FlutterTexture` (MOSH-77).
 - The isolation argument of ADR 0044 changes. A presentation failure is no longer
   contained in a child process. What remains in the main process is a small native
   texture, not a second engine, and the media owner stays in Rust as before.

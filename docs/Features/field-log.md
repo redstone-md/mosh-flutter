@@ -8,7 +8,8 @@ stderr lost — still leaves an answer to "what happened". Reference:
 The file stays on the device: opt-in crash reporting
 ([ADR 0035](../ADR/0035-opt-in-crash-reporting.md)) does not send it. Its
 context ids are raw peer, session and group ids, so they must be hashed
-before any report attaches it.
+before any report attaches it. The user can share it themselves: see
+[Sharing the log](#sharing-the-log).
 
 ## The flow
 
@@ -41,7 +42,15 @@ spellings; one vocabulary keeps the file filterable. The slugs so far:
 
 `rehydrate` `persist` `identity` `publish` `verify` `offer` `room`
 `frame` `connect` `announce` `outbox` `handshake` `delivery` `resend`
-`call` `commit` `kick` `resync` `voice` `stream` `panic` `test`
+`call` `commit` `kick` `resync` `voice` `stream` `panic` `startup` `test`
+
+The `startup` kind carries what kept the app from coming up: the shared
+resources (Moss, the data dir, the encrypted store) or a runtime that did
+not build, once per process each, and a setup check on the first-run gate
+that failed or did not answer in 20 seconds. These, and a connected call
+whose microphone captures nothing or whose peer sends no audio for 10
+seconds (`call` kind), go through `dlog::report_failure`: an `error` line,
+plus a crash report while the user has opted in.
 
 The `stream` kind carries the attachment chunk carrier (spec #8): the
 room-wire fallback note and frames that arrive on the reserved inbox
@@ -88,6 +97,14 @@ opened it — `None` before the first write or while the file could not be
 created, so the app offers the file only when it exists. The panel's
 Field log row shows it, so a bug report can be pointed at the exact
 file.
+
+## Sharing the log
+
+Settings → About and the failed-launch screen offer "Share app log".
+`log_files()` lists the files that exist; the app joins them oldest first
+into one `mosh-log.txt` in the temp dir and hands it to the system share
+sheet (`share_plus`). The user decides whether and where the file goes.
+Linux has no file sharing there, so the file opens in the text editor.
 
 ## Proof
 

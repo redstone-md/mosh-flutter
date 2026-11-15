@@ -6,7 +6,11 @@ const targets = {
   "aarch64-apple-darwin": { script: "macos", arch: "arm64", directory: "mac-arm64-release" },
   "x86_64-apple-darwin": { script: "macos", arch: "x64", directory: "mac-x64-release" },
   "aarch64-linux-android": { script: "android", arch: "arm64", directory: "android-arm64-release" },
+  "aarch64-apple-ios": { script: "ios", arch: "arm64", directory: "ios-device-arm64-release" },
 };
+
+/** Every Rust target we build libwebrtc for. */
+export const libwebrtcTriples = Object.keys(targets);
 
 /** The build of `triple`, with its release archive name. */
 export function libwebrtcTarget(triple) {

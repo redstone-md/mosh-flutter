@@ -29,5 +29,5 @@ class PrivacyFixture {
         crashReportingProvider.overrideWithValue(reporting),
       ];
 
-  Future<void> dispose() async => await bridge.rustPanics.close();
+  Future<void> dispose() async => await bridge.rustEvents.close();
 }
