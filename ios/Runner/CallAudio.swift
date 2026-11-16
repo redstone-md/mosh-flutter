@@ -18,6 +18,8 @@ final class CallAudio {
   /// The output the call picked; nil follows the system route.
   private var output: String?
   private var routeChanges: NSObjectProtocol?
+  /// Why the system last rerouted the call, for the field log.
+  private var lastChange: AVAudioSession.RouteChangeReason?
   /// The session as it was before the call, restored after it, so playback
   /// after a call leaves the receiver.
   private var previous: (AVAudioSession.Category, AVAudioSession.Mode, AVAudioSession.CategoryOptions)?
@@ -42,17 +44,19 @@ final class CallAudio {
       }
       let inputs = session.isInputAvailable
         ? [["id": Self.routeInput, "name": "Microphone (selected audio route)"]] : []
-      return ["inputs": inputs, "outputs": outputs]
+      return ["inputs": inputs, "outputs": outputs, "route": route()]
     }
   }
 
   func select(output: String?, input: String?) -> [String: Any] {
     queue.sync {
-      if routeChanges == nil { begin() }
+      let webrtc = routeChanges == nil ? begin() : nil
       self.output = output
       let inputOk = AVAudioSession.sharedInstance().isInputAvailable
         && (input == nil || input == Self.routeInput)
-      return ["input_ok": inputOk, "output_ok": apply()]
+      var reply: [String: Any] = ["input_ok": inputOk, "output_ok": apply()]
+      reply["webrtc_session"] = webrtc
+      return reply
     }
   }
 
@@ -62,6 +66,7 @@ final class CallAudio {
       NotificationCenter.default.removeObserver(observer)
       routeChanges = nil
       output = nil
+      lastChange = nil
       apply()
       if let previous = previous {
         try? AVAudioSession.sharedInstance().setCategory(previous.0, mode: previous.1, options: previous.2)
@@ -73,8 +78,9 @@ final class CallAudio {
 
   /// The session libwebrtc sets up, set up first so a route can be picked
   /// before its audio module starts. A category change drops the picked
-  /// route, so it is applied again after one.
-  private func begin() {
+  /// route, so it is applied again after one. Answers how libwebrtc was
+  /// told the same session.
+  private func begin() -> [String: Any] {
     let session = AVAudioSession.sharedInstance()
     previous = (session.category, session.mode, session.categoryOptions)
     try? session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP])
@@ -89,10 +95,78 @@ final class CallAudio {
       // next device refresh drops it.
       let reroutes: [AVAudioSession.RouteChangeReason] =
         [.categoryChange, .newDeviceAvailable, .oldDeviceUnavailable]
-      guard let reason = reason, reroutes.contains(reason), let self = self else { return }
-      self.queue.async { self.apply() }
+      guard let reason = reason, let self = self else { return }
+      self.queue.async {
+        // An override is this class applying the pick, not the system.
+        if reason != .override { self.lastChange = reason }
+        if reroutes.contains(reason) { self.apply() }
+      }
     }
     DispatchQueue.main.async { UIDevice.current.isProximityMonitoringEnabled = true }
+    return Self.configureWebRTC()
+  }
+
+  /// libwebrtc's audio module applies its own session configuration when it
+  /// starts. The webrtc-sdk build copies that configuration from whatever
+  /// the session was when libwebrtc first looked: the app's playback-only
+  /// default, with no input channel. The voice unit then could neither
+  /// record nor play. A full call configuration (upstream's values) is
+  /// installed before the module starts; the class lives in
+  /// MoshMedia.framework, loaded by the time a call selects. Answers what
+  /// libwebrtc held before and after, for the field log.
+  private static func configureWebRTC() -> [String: Any] {
+    let values: KeyValuePairs<String, Any> = [
+      "category": AVAudioSession.Category.playAndRecord.rawValue,
+      "mode": AVAudioSession.Mode.voiceChat.rawValue,
+      "categoryOptions": AVAudioSession.CategoryOptions.allowBluetoothHFP.rawValue,
+      "sampleRate": 48_000.0,
+      "ioBufferDuration": 0.02,
+      "inputNumberOfChannels": 1,
+      "outputNumberOfChannels": 1,
+    ]
+    guard let type = NSClassFromString("RTCAudioSessionConfiguration") as? NSObject.Type
+    else { return ["error": "RTCAudioSessionConfiguration missing"] }
+    let current = (type as AnyObject)
+      .perform(NSSelectorFromString("webRTCConfiguration"))?.takeUnretainedValue() as? NSObject
+    let call = type.init()
+    for (key, value) in values { call.setValue(value, forKey: key) }
+    _ = (type as AnyObject).perform(NSSelectorFromString("setWebRTCConfiguration:"), with: call)
+    func describe(_ configuration: NSObject?) -> [String: String] {
+      Dictionary(uniqueKeysWithValues: values.map(\.key).map { key in
+        (key, configuration.map { "\($0.value(forKey: key) ?? "nil")" } ?? "nil")
+      })
+    }
+    return ["before": describe(current), "after": describe(call)]
+  }
+
+  /// Where the call plays right now and how loud, for the call's status
+  /// line in the field log: the system's route, its volume (the receiver
+  /// keeps its own), the pick and the last reroute. Called on the queue.
+  private func route() -> [String: Any] {
+    let session = AVAudioSession.sharedInstance()
+    return [
+      "outputs": session.currentRoute.outputs.map { $0.portType.rawValue },
+      "inputs": session.currentRoute.inputs.map { $0.portType.rawValue },
+      "volume": (session.outputVolume * 100).rounded() / 100,
+      "category": session.category.rawValue,
+      "mode": session.mode.rawValue,
+      "picked": output ?? "system",
+      "last_change": lastChange.map(Self.name) ?? "none",
+    ]
+  }
+
+  private static func name(_ reason: AVAudioSession.RouteChangeReason) -> String {
+    switch reason {
+    case .newDeviceAvailable: return "newDeviceAvailable"
+    case .oldDeviceUnavailable: return "oldDeviceUnavailable"
+    case .categoryChange: return "categoryChange"
+    case .override: return "override"
+    case .wakeFromSleep: return "wakeFromSleep"
+    case .noSuitableRouteForCategory: return "noSuitableRouteForCategory"
+    case .routeConfigurationChange: return "routeConfigurationChange"
+    case .unknown: return "unknown"
+    @unknown default: return "\(reason.rawValue)"
+    }
   }
 
   @discardableResult

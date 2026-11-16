@@ -10,6 +10,10 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // A write to a socket or pipe whose peer is gone raises SIGPIPE, which
+    // kills the app unless ignored; ignored, the write returns EPIPE. Moss's
+    // networking and the audio streams rely on that, as on macOS.
+    signal(SIGPIPE, SIG_IGN)
     CallMedia.register()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }

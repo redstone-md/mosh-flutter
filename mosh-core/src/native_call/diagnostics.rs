@@ -14,6 +14,9 @@ struct Status {
     microphone: bool,
     capturing: bool,
     hearing: bool,
+    /// Where the platform plays the call and how loud; null where the
+    /// platform does not say.
+    audio_route: Value,
 }
 
 impl Status {
@@ -28,7 +31,7 @@ impl Status {
         };
         format!(
             "native media: route={:?}; ice={}; ready={}; remote_video={}; microphone={}; \
-             capturing={}; hearing={}; input={}; output={}; metrics={metrics}",
+             capturing={}; hearing={}; input={}; output={}; audio_route={}; metrics={metrics}",
             self.route,
             self.ice,
             self.ready,
@@ -38,6 +41,7 @@ impl Status {
             self.hearing,
             name(&state.snapshot.inputs, &state.choices.input),
             name(&state.snapshot.outputs, &state.choices.output),
+            self.audio_route,
         )
     }
 }
@@ -249,6 +253,7 @@ impl Monitor {
             hearing: self
                 .heard
                 .rising(engine["audio"]["total_energy"].as_f64(), now),
+            audio_route: engine["audio_route"].clone(),
         };
         let dropped = ["full", "stale"]
             .iter()
@@ -261,17 +266,23 @@ impl Monitor {
         if self.status.as_ref() == Some(&status) && !losing {
             return None;
         }
-        let metrics = json!({"video_age_ms": age.map(|age| age.min(u128::from(u32::MAX)) as u32),
-            "decoded": engine["decoded"], "sender_dropped": pipeline.sender_dropped,
-            "engine_dropped": engine["queue_dropped"],
-            "stalls_max_ms": self.stalls, "audio": engine["audio"],
-            "audio_sender": engine["audio_sender"],
-            "video": engine["video"], "encoder": engine["encoder"]});
-        let message = status.describe(state, &metrics);
+        let message = status.describe(state, &self.metrics(engine, age, pipeline.sender_dropped));
         self.status = Some(status);
         self.stalls = Stalls::default();
         self.logged = Some((now, dropped));
         Some(message)
+    }
+
+    /// The engine's measurements a status line carries, with the pauses
+    /// since the last line. `adm` is whether libwebrtc's audio device module
+    /// initialized playout and recording.
+    fn metrics(&self, engine: &Value, age: Option<u128>, sender_dropped: u64) -> Value {
+        json!({"video_age_ms": age.map(|age| age.min(u128::from(u32::MAX)) as u32),
+            "decoded": engine["decoded"], "sender_dropped": sender_dropped,
+            "engine_dropped": engine["queue_dropped"],
+            "stalls_max_ms": self.stalls, "audio": engine["audio"],
+            "audio_sender": engine["audio_sender"], "adm": engine["adm"],
+            "video": engine["video"], "encoder": engine["encoder"]})
     }
 }
 

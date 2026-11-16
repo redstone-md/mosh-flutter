@@ -5,12 +5,17 @@ use super::{
     state::State,
 };
 use crate::private_dm_runtime::transport::{DmTransport, PeerTransport};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 
 pub(super) struct Reporter {
     statistics: Instant,
-    devices_at: Instant,
+    /// When the device list was last asked; `None` asks at the next pass,
+    /// so a call's first status lines already carry the audio route.
+    devices_at: Option<Instant>,
+    /// Where the platform plays the call and how loud, from its last device
+    /// list; only iOS reports one.
+    audio_route: Value,
     disconnected: Option<Instant>,
     /// ICE was failed at the last statistics.
     ice_failed_last: bool,
@@ -25,7 +30,8 @@ impl Reporter {
     pub fn new() -> Self {
         Self {
             statistics: Instant::now(),
-            devices_at: Instant::now(),
+            devices_at: None,
+            audio_route: Value::Null,
             disconnected: None,
             ice_failed_last: false,
             ice_failure_pending: false,
@@ -35,11 +41,15 @@ impl Reporter {
         }
     }
     fn refresh_devices(&mut self, engine: &mut Engine, state: &mut State) -> Result<(), String> {
-        if self.devices_at.elapsed() < Duration::from_secs(2) {
+        if self
+            .devices_at
+            .is_some_and(|at| at.elapsed() < Duration::from_secs(2))
+        {
             return Ok(());
         }
-        self.devices_at = Instant::now();
+        self.devices_at = Some(Instant::now());
         let devices = engine.ask(json!({"action":"devices"}))?;
+        self.audio_route = devices["route"].clone();
         state.snapshot.inputs =
             serde_json::from_value(devices["inputs"].clone()).unwrap_or_default();
         state.snapshot.outputs =
@@ -96,7 +106,8 @@ impl Reporter {
         }
         self.statistics = Instant::now();
         self.refresh_devices(engine, state)?;
-        let snapshot = engine.ask(json!({"action":"snapshot"}))?;
+        let mut snapshot = engine.ask(json!({"action":"snapshot"}))?;
+        snapshot["audio_route"] = self.audio_route.clone();
         state.snapshot.packets_dropped = sender.dropped();
         let ice_failed = snapshot["connection"] == "Failed";
         self.ice_failure_pending |= ice_failed && !self.ice_failed_last;
