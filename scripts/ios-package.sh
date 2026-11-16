@@ -66,6 +66,21 @@ AUTH=(-authenticationKeyPath "$KEY" -authenticationKeyID "$APP_STORE_CONNECT_KEY
 PROFILE="$(node "$ROOT/scripts/ios-profile.mjs" "$KEY" "$BUNDLE_ID" "$MOSH_SIGN_CERT_SERIAL")"
 echo "provisioning profile: $PROFILE"
 
+# The archive is unsigned, so it carries no entitlements of its own, and
+# the export signs with the ones it finds in the archived app. Push lets a
+# call ring a closed iPhone through PushKit (MOSH-111).
+APP="$ARCHIVE/Products/Applications/Runner.app"
+cat > "$APP/archived-expanded-entitlements.xcent" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>aps-environment</key>
+	<string>production</string>
+</dict>
+</plist>
+PLIST
+
 destination=export
 [ "${MOSH_IOS_UPLOAD:-false}" = true ] && destination=upload
 cat > "$WORK/ExportOptions.plist" <<PLIST
@@ -98,4 +113,10 @@ PLIST
 
 xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportPath "$DIST" \
   -exportOptionsPlist "$WORK/ExportOptions.plist" "${AUTH[@]}"
+# An app signed without push gets no tokens, and no call reaches it closed.
+if [ "$destination" = export ]; then
+  unzip -q -o "$DIST"/*.ipa -d "$WORK/ipa"
+  codesign -d --entitlements :- "$WORK/ipa/Payload/Runner.app" 2>/dev/null |
+    grep aps-environment >/dev/null || fail "the exported app has no push entitlement"
+fi
 echo "exported to $DIST ($destination)"

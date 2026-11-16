@@ -1,0 +1,2 @@
+/* The alert the wake service shows for waiting messages (mosh-wake). */
+"WAKE_MESSAGE" = "Новое сообщение";

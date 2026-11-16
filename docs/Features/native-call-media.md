@@ -72,8 +72,20 @@ screen locked or Mosh in the background. `CallCamera.swift` captures
 AVFoundation's 720p video-range 4:2:0 frames, turned upright for how the phone
 is held, and repacks them as I420 for mosh-core. iOS stops the camera in the
 background, so the camera switches off there and audio continues. Camera
-access is asked before the camera opens. Calls ring only while Mosh runs:
-ringing a suspended app needs CallKit and VoIP push.
+access is asked before the camera opens.
+
+Every iPhone call goes through the system call screen (CallKit,
+`ios/Runner/SystemCalls.swift`), kept out of the Phone app's recents: Dart
+mirrors its call there (`system_call_mirror.dart`) and takes answer, end and
+mute back. A closed or suspended iPhone is rung by its contacts through the
+wake service (`mosh-wake`): the app registers its PushKit and APNs tokens and
+announces the handle in every DM, and a caller whose offer finds the phone's
+device quiet asks the service for a VoIP push with the call id. The push is
+reported to CallKit at once under "Mosh"; the offer that follows over Moss
+names the caller, and an answer given before it arrives waits for it. The app
+runs one Flutter engine from launch, so a call rings, connects and plays with
+no window, and under CallKit libwebrtc's audio waits for the session CallKit
+activates (manual audio).
 
 ## Engine and media protocol
 

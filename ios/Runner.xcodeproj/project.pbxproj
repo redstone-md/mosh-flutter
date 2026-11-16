@@ -14,6 +14,8 @@
 		773F84A377ED04D8F7878FD8 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8A1D9130F2AE29B6143FD7BA /* Pods_Runner.framework */; };
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
 		7A1D0C402F10A00100D05EED /* CallMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1D0C412F10A00100D05EED /* CallMedia.swift */; };
+		7A1D0C502F10A00100D05EED /* SystemCalls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1D0C512F10A00100D05EED /* SystemCalls.swift */; };
+		7A1D0C522F10A00100D05EED /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 7A1D0C532F10A00100D05EED /* Localizable.strings */; };
 		7A1D0C422F10A00100D05EED /* CallAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1D0C432F10A00100D05EED /* CallAudio.swift */; };
 		7A1D0C442F10A00100D05EED /* CallCamera.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1D0C452F10A00100D05EED /* CallCamera.swift */; };
 		7A1D0C462F10A00100D05EED /* CallVideoTexture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1D0C472F10A00100D05EED /* CallVideoTexture.swift */; };
@@ -61,6 +63,10 @@
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		7A1D0C412F10A00100D05EED /* CallMedia.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallMedia.swift; sourceTree = "<group>"; };
+		7A1D0C512F10A00100D05EED /* SystemCalls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemCalls.swift; sourceTree = "<group>"; };
+		7A1D0C542F10A00100D05EED /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
+		7A1D0C552F10A00100D05EED /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		7A1D0C562F10A00100D05EED /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/Localizable.strings; sourceTree = "<group>"; };
 		7A1D0C432F10A00100D05EED /* CallAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallAudio.swift; sourceTree = "<group>"; };
 		7A1D0C452F10A00100D05EED /* CallCamera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallCamera.swift; sourceTree = "<group>"; };
 		7A1D0C472F10A00100D05EED /* CallVideoTexture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CallVideoTexture.swift; path = ../runner_shared/apple/CallVideoTexture.swift; sourceTree = SOURCE_ROOT; };
@@ -154,6 +160,9 @@
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				7A1D0C412F10A00100D05EED /* CallMedia.swift */,
 				7A1D0C432F10A00100D05EED /* CallAudio.swift */,
+				7A1D0C512F10A00100D05EED /* SystemCalls.swift */,
+				7A1D0C542F10A00100D05EED /* Runner.entitlements */,
+				7A1D0C532F10A00100D05EED /* Localizable.strings */,
 				7A1D0C452F10A00100D05EED /* CallCamera.swift */,
 				7A1D0C472F10A00100D05EED /* CallVideoTexture.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
@@ -259,6 +268,7 @@
 			knownRegions = (
 				en,
 				Base,
+				ru,
 			);
 			mainGroup = 97C146E51CF9000F007C117D;
 			packageReferences = (
@@ -290,6 +300,7 @@
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
+				7A1D0C522F10A00100D05EED /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -423,6 +434,7 @@
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 				7A1D0C402F10A00100D05EED /* CallMedia.swift in Sources */,
 				7A1D0C422F10A00100D05EED /* CallAudio.swift in Sources */,
+				7A1D0C502F10A00100D05EED /* SystemCalls.swift in Sources */,
 				7A1D0C442F10A00100D05EED /* CallCamera.swift in Sources */,
 				7A1D0C462F10A00100D05EED /* CallVideoTexture.swift in Sources */,
 			);
@@ -453,6 +465,15 @@
 				97C147001CF9000F007C117D /* Base */,
 			);
 			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		7A1D0C532F10A00100D05EED /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				7A1D0C552F10A00100D05EED /* en */,
+				7A1D0C562F10A00100D05EED /* ru */,
+			);
+			name = Localizable.strings;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
@@ -516,6 +537,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -698,6 +720,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -720,6 +743,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;

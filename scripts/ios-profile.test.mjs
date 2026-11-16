@@ -3,12 +3,17 @@ import { createPublicKey, generateKeyPairSync, verify } from "node:crypto";
 import test from "node:test";
 import { apiToken, appStoreProfile } from "./ios-profile.mjs";
 
-// A fake App Store Connect API: the bundle id, two distribution
-// certificates and whatever profiles the test starts with.
-function fakeApi(profiles) {
+// What a profile's content carries once the App ID has push.
+const WITH_PUSH = Buffer.from("<key>aps-environment</key><string>production</string>").toString("base64");
+
+// A fake App Store Connect API: the bundle id with its capabilities, two
+// distribution certificates and whatever profiles the test starts with.
+function fakeApi(profiles, capabilities = [{ attributes: { capabilityType: "PUSH_NOTIFICATIONS" } }]) {
   const calls = [];
   const api = async (method, route, body) => {
     calls.push({ method, route, body });
+    if (route.endsWith("/bundleIdCapabilities")) return { data: capabilities };
+    if (method === "DELETE" || route === "/bundleIdCapabilities") return {};
     if (route.startsWith("/bundleIds")) {
       return { data: [{ id: "B1", attributes: { identifier: "app.mosh.mosh" } }] };
     }
@@ -26,13 +31,36 @@ function fakeApi(profiles) {
 
 test("the active profile for the certificate is reused", async () => {
   const { api, calls } = fakeApi([
-    { attributes: { profileType: "IOS_APP_STORE", uuid: "kept-uuid", profileContent: "a2VwdA==" } },
+    { attributes: { profileType: "IOS_APP_STORE", uuid: "kept-uuid", profileContent: WITH_PUSH } },
   ]);
 
   const profile = await appStoreProfile({ api, bundleId: "app.mosh.mosh", serial: "5c6d7e" });
 
-  assert.deepEqual(profile, { uuid: "kept-uuid", content: "a2VwdA==" });
-  assert.equal(calls.some((call) => call.method === "POST"), false);
+  assert.deepEqual(profile, { uuid: "kept-uuid", content: WITH_PUSH });
+  assert.equal(calls.some((call) => call.method !== "GET"), false);
+});
+
+test("push is turned on for an App ID that lacks it", async () => {
+  const { api, calls } = fakeApi([], []);
+
+  await appStoreProfile({ api, bundleId: "app.mosh.mosh", serial: "5C6D7E" });
+
+  const enabled = calls.find((call) => call.route === "/bundleIdCapabilities").body.data;
+  assert.equal(enabled.attributes.capabilityType, "PUSH_NOTIFICATIONS");
+  assert.equal(enabled.relationships.bundleId.data.id, "B1");
+});
+
+// A profile made before the App ID had push would sign an app whose push
+// tokens never arrive.
+test("a profile without the push entitlement is replaced", async () => {
+  const { api, calls } = fakeApi([
+    { id: "P1", attributes: { profileType: "IOS_APP_STORE", uuid: "old-uuid", profileContent: "a2VwdA==" } },
+  ]);
+
+  const profile = await appStoreProfile({ api, bundleId: "app.mosh.mosh", serial: "5C6D7E" });
+
+  assert.equal(profile.uuid, "created-uuid");
+  assert.ok(calls.some((call) => call.method === "DELETE" && call.route === "/profiles/P1"));
 });
 
 test("a missing profile is created for the bundle id and the matching certificate", async () => {

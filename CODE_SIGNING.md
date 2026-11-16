@@ -90,6 +90,16 @@ those need an Admin key; the CI key stays App Manager.
 - `APPLE_DISTRIBUTION_P12_BASE64`, `APPLE_DISTRIBUTION_P12_PASSWORD`: the
   Apple Distribution certificate, its key and Apple's WWDR intermediate, made
   by `scripts/apple-distribution-wizard.sh` (no Mac needed).
+- `MOSH_WAKE_URL`: the HTTPS address of the wake service (`mosh-wake`) the
+  app registers with, so contacts can ring a closed iPhone. A secret only to
+  keep the address out of the repository and the logs; without it the app
+  never registers.
+
+The app has the Push Notifications capability (PushKit rings calls, APNs
+shows "New message"). `scripts/ios-profile.mjs` turns it on for the App ID
+and replaces a profile made before it, and `scripts/ios-package.sh` gives
+the unsigned archive the push entitlement for the export to sign with, then
+checks that an exported app carries it.
 
 The certificate expires a year after issue, and the iOS build warns 30 days
 ahead. To renew, run the wizard again, wait for a green build and revoke the
