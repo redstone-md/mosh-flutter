@@ -143,7 +143,9 @@ jobs:
       - name: Check debug files stay out of the bundle
         shell: pwsh
         run: |
-          if (-not (Test-Path build/windows/x64/symbols/mosh.pdb)) { throw 'The runner PDB is missing' }
+          $symbols = Get-ChildItem build/windows/x64/symbols -Recurse -Filter *.pdb
+          $symbols | ForEach-Object { $_.FullName }
+          if (-not ($symbols | Where-Object Name -eq 'mosh.pdb')) { throw 'The runner PDB is missing' }
           $shipped = Get-ChildItem build/windows/x64/runner/Release -Recurse -Filter *.pdb
           if ($shipped) { throw "Debug files in the bundle: $($shipped.FullName -join ', ')" }
 
