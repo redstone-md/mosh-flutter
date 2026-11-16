@@ -58,6 +58,7 @@ impl PrivateDmSession {
         {
             return Err(super::devices::invalid());
         }
+        self.wake.heard(&signer);
         let (author, own) = if self.devices_live() {
             self.device_author(&signer)?
         } else {

@@ -13,6 +13,7 @@ import '../message_deletion/types.dart';
 import '../outbound_delivery.dart';
 import '../private_dm_runtime/contracts.dart';
 import '../private_dm_runtime/transport.dart';
+import '../private_dm_runtime/wake.dart';
 import 'conversation_bridge.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
@@ -101,6 +102,22 @@ Future<void> callEnd(
         required String reason}) =>
     RustLib.instance.api.crateApiPrivateDmCallEnd(
         sessionId: sessionId, callId: callId, reason: reason);
+
+/// This installation's wake address, announced in every DM so a contact can
+/// wake it through its wake service. An empty handle withdraws it.
+Future<void> setWakeAddress(
+        {required String service, required String handle}) =>
+    RustLib.instance.api
+        .crateApiPrivateDmSetWakeAddress(service: service, handle: handle);
+
+/// The wakes the DM runtime asked for since the last call; Dart sends each
+/// to its service.
+Future<List<WakeRequest>> takeWakeRequests() =>
+    RustLib.instance.api.crateApiPrivateDmTakeWakeRequests();
+
+/// The service no longer knows `handle`, so no DM wakes it again.
+Future<void> forgetWakeHandle({required String handle}) =>
+    RustLib.instance.api.crateApiPrivateDmForgetWakeHandle(handle: handle);
 
 /// Whether this user sends read receipts (and therefore sees others').
 /// One app-level answer covering every DM; read from the plain JSON

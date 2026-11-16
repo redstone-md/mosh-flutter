@@ -37,6 +37,10 @@ pub struct PersistedSession {
     /// without bound.
     #[serde(default)]
     pub read_message_ids: Vec<String>,
+    /// Counterpart devices' wake addresses by MLS signer. Defaulted, so
+    /// records written before wakes existed load with none.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub(crate) peer_wakes: std::collections::BTreeMap<String, super::super::wake::WakeAnnouncement>,
 }
 
 /// How many read ids a session record keeps (the same bound the runtime

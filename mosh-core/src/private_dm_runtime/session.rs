@@ -23,6 +23,7 @@ impl PrivateDmSession {
         let blob_channel = blob_channel(&session_id);
         Self {
             plus_schedule: Default::default(),
+            wake: Default::default(),
             invitation: None,
             deletions: crate::message_deletion::DeletionBook::new(
                 format!("dm:{session_id}"),
@@ -158,6 +159,7 @@ impl PrivateDmSession {
             // small.
             read_message_ids: prune_read_ids(&self.peer_read_ids),
             call_controls: self.call_controls.clone(),
+            peer_wakes: self.wake.peers.clone(),
         }
     }
 

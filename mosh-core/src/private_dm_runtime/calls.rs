@@ -43,7 +43,9 @@ impl PrivateDmSession {
     }
 
     pub(super) fn call_start(&mut self) -> Result<CallStarted, PrivateDmRuntimeError> {
-        if !self.ready_for_user_actions() {
+        // A counterpart that is away can still ring once its device is woken.
+        let waking = !self.ready_for_user_actions();
+        if waking && !self.can_wake_counterpart() {
             return Err(PrivateDmRuntimeError::NotReady);
         }
         if self.call.is_some() {
@@ -56,8 +58,11 @@ impl PrivateDmSession {
         call.caller_signer = hex::encode(self.crypto.signer_public());
         self.call = Some(call);
         if let Err(error) = self.publish_call_offer(&call_id) {
-            self.call = None;
-            return Err(error);
+            // Unreached, the offer re-sends until the woken device hears it.
+            if !waking {
+                self.call = None;
+                return Err(error);
+            }
         }
         self.call
             .as_mut()

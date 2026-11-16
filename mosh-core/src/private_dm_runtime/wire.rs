@@ -143,6 +143,14 @@ pub enum ControlEnvelope {
         participant_id: String,
         receipt_ciphertext_b64: String,
     },
+    /// The sender device's wake address (`wake.rs`), MLS-encrypted, so the
+    /// author's MLS key signs it and only the chat's members read it. Old
+    /// clients fail to decode the unknown variant and drop the frame.
+    WakeAddress {
+        session_id: String,
+        participant_id: String,
+        wake_ciphertext_b64: String,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

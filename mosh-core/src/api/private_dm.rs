@@ -7,6 +7,7 @@ use super::runtime_owner::RuntimeOwner;
 use std::time::Duration;
 
 use crate::api::conversation_bridge::ConversationBridgeError;
+use crate::private_dm_runtime::wake::{WakeAddress, WakeRequest};
 use crate::private_dm_runtime::{
     AcceptInviteRequest, CallStarted, InviteCreated, PrivateDmRuntime, PrivateDmRuntimeError,
     SessionListSnapshot, SessionSnapshot, StartSessionRequest,
@@ -176,6 +177,25 @@ pub fn call_end(
     runtime
         .call_end(&session_id, &call_id, &reason)
         .map_err(ConversationBridgeError::from)
+}
+
+/// This installation's wake address, announced in every DM so a contact can
+/// wake it through its wake service. An empty handle withdraws it.
+pub fn set_wake_address(service: String, handle: String) -> Result<(), ConversationBridgeError> {
+    ensure_runtime()?.set_wake_address(WakeAddress { service, handle });
+    Ok(())
+}
+
+/// The wakes the DM runtime asked for since the last call; Dart sends each
+/// to its service.
+pub fn take_wake_requests() -> Result<Vec<WakeRequest>, ConversationBridgeError> {
+    Ok(ensure_runtime()?.take_wake_requests())
+}
+
+/// The service no longer knows `handle`, so no DM wakes it again.
+pub fn forget_wake_handle(handle: String) -> Result<(), ConversationBridgeError> {
+    ensure_runtime()?.forget_wake_handle(&handle);
+    Ok(())
 }
 
 /// How often the service thread runs the DM protocol. Twice the old UI poll
