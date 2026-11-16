@@ -80,6 +80,8 @@ void main() {
     mirror.show(incoming('c'));
 
     expect(app, ['end c']);
+    expect(screen.shown, isEmpty,
+        reason: 'a declined call does not ring again');
   });
 
   test('actions on the shown call reach the app at once', () {

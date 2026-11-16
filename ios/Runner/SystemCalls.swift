@@ -32,14 +32,27 @@ final class SystemCalls: NSObject {
   private var channel: FlutterMethodChannel?
   private var dartReady = false
   private var waiting: [(String, [String: Any])] = []
-  private var calls: [String: Call] = [:]
+  /// Changed on the main queue only; `hasCall` is read from audio threads.
+  private var calls: [String: Call] = [:] {
+    didSet {
+      lock.lock()
+      carrying = !calls.isEmpty
+      lock.unlock()
+    }
+  }
+  private let lock = NSLock()
+  private var carrying = false
   private var voipToken: Data?
   var alertToken: Data? {
     didSet { channel?.invokeMethod("tokens", arguments: nil) }
   }
 
   /// Whether CallKit carries a call now; its audio then waits for CallKit.
-  var hasCall: Bool { !calls.isEmpty }
+  var hasCall: Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return carrying
+  }
 
   private override init() {
     let configuration = CXProviderConfiguration()
@@ -127,14 +140,21 @@ final class SystemCalls: NSObject {
     }
   }
 
+  /// Reports a call CallKit may already have: iOS wants every VoIP push
+  /// reported, and the same call id is the same call, so "already exists"
+  /// is success.
   private func reportIncoming(
     _ id: String, update: CXCallUpdate, confirmed: Bool, completion: @escaping () -> Void
   ) {
     let uuid = Self.uuid(id)
-    calls[id] = Call(uuid: uuid, confirmed: confirmed)
+    if calls[id] == nil { calls[id] = Call(uuid: uuid, confirmed: confirmed) }
     provider.reportNewIncomingCall(with: uuid, update: update) { [weak self] error in
+      let known = (error as? CXErrorCodeIncomingCallError)?.code == .callUUIDAlreadyExists
       // Do Not Disturb or a blocked caller: the app's own screen still rings.
-      if error != nil { self?.forget(id) }
+      if let error = error, !known {
+        NSLog("mosh: CallKit refused call %@: %@", id, error.localizedDescription)
+        self?.forget(id)
+      }
       completion()
     }
   }
@@ -210,8 +230,10 @@ extension SystemCalls: PKPushRegistryDelegate {
     for type: PKPushType, completion: @escaping () -> Void
   ) {
     let id = payload.dictionaryPayload["call"] as? String ?? UUID().uuidString
-    guard calls[id] == nil else { return completion() }
+    NSLog("mosh: VoIP push for call %@", id)
+    let known = calls[id] != nil
     reportIncoming(id, update: Self.update(""), confirmed: false, completion: completion)
+    guard !known else { return }
     let wait = payload.dictionaryPayload["call"] == nil ? 0 : Self.offerWait
     DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in
       guard let self = self, let call = self.calls[id], !call.confirmed else { return }

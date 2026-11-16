@@ -62,11 +62,16 @@ class SystemCallMirror {
       NoCallDialog() => null,
     };
     if (kind == null) return;
+    final early = _early.remove(dialog.callId);
+    if (kind == SystemCallKind.incoming && early is SystemCallEnd) {
+      // Declined while only the push rang: the offer ends without ringing.
+      _apply(early);
+      return;
+    }
     final next = (dialog.callId, kind, dialog.peerName);
     if (next == _shown) return;
     _shown = next;
     _screen.show(dialog.callId, kind, dialog.peerName);
-    final early = _early.remove(dialog.callId);
     if (kind == SystemCallKind.incoming && early != null) _apply(early);
   }
 

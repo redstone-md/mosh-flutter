@@ -104,7 +104,8 @@ final class CallAudio {
     }
     DispatchQueue.main.async { UIDevice.current.isProximityMonitoringEnabled = true }
     let webrtc = Self.configureWebRTC()
-    DispatchQueue.main.async { CallKitAudio.shared.sync() }
+    // Before the audio module starts, or it activates the session itself.
+    CallKitAudio.shared.sync()
     return webrtc
   }
 
@@ -208,6 +209,7 @@ final class CallAudio {
 final class CallKitAudio {
   static let shared = CallKitAudio()
 
+  private let lock = NSLock()
   private var session: AVAudioSession?
   /// libwebrtc was told of the current activation.
   private var told = false
@@ -219,15 +221,20 @@ final class CallKitAudio {
   }
 
   func activated(_ session: AVAudioSession) {
+    NSLog("mosh: CallKit activated the call's audio")
+    lock.lock()
     self.session = session
     told = false
+    lock.unlock()
     sync()
   }
 
   func deactivated(_ session: AVAudioSession) {
+    lock.lock()
     if told { _ = Self.rtc()?.perform(NSSelectorFromString("audioSessionDidDeactivate:"), with: session) }
     self.session = nil
     told = false
+    lock.unlock()
     sync()
   }
 
@@ -235,6 +242,8 @@ final class CallKitAudio {
   /// that CallKit does not carry keeps libwebrtc's own audio handling.
   func sync() {
     guard let rtc = Self.rtc() else { return }
+    lock.lock()
+    defer { lock.unlock() }
     let manual = SystemCalls.shared.hasCall
     rtc.setValue(manual, forKey: "useManualAudio")
     if manual, let session = session, !told {

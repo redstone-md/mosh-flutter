@@ -146,7 +146,7 @@ void main(List<String> args) async {
   );
   // Started from the container, not a widget: an iPhone woken by a call
   // push runs with no window, so no widget below is ever built.
-  container.read(processServicesProvider);
+  container.listen(processServicesProvider, (_, __) {});
   final Widget root;
   if (Platform.isAndroid) {
     root = await _androidStartupRoot(

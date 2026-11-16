@@ -43,6 +43,8 @@ pub mod kinds {
     pub const KICK: &str = "kick";
     pub const RESYNC: &str = "resync";
     pub const VOICE: &str = "voice";
+    /// Wake addresses announced and kept, and wakes asked of the service.
+    pub const WAKE: &str = "wake";
     /// The attachment chunk carrier: stream sends, fallbacks, and frames
     /// that arrive on the reserved inbox channel (spec #8).
     pub const STREAM: &str = "stream";

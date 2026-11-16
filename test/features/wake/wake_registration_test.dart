@@ -95,13 +95,19 @@ void main() {
     expect(announced, isEmpty);
   });
 
-  test('a sender drops a handle the service no longer knows', () async {
-    service.statuses.addAll([404, 202]);
+  test('a sender drops a handle the service no longer knows for calls',
+      () async {
+    service.statuses.addAll([404, 404, 202]);
     final forgotten = <String>[];
-    WakeRequest wake(String handle) =>
-        WakeRequest(service: service.uri.toString(), handle: handle);
+    WakeRequest wake(String handle, {String? call}) => WakeRequest(
+        service: service.uri.toString(), handle: handle, callId: call);
     final sender = WakeSender(
-        take: () async => [wake('gone'), wake('here')],
+        // A phone without an alert token answers 404 to texts only.
+        take: () async => [
+              wake('no-alerts'),
+              wake('gone', call: 'c'),
+              wake('here', call: 'd')
+            ],
         forget: (handle) async => forgotten.add(handle),
         client: client);
 

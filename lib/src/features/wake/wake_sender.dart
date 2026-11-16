@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/rust/private_dm_runtime/wake.dart';
 
@@ -7,7 +8,8 @@ import 'wake_client.dart';
 
 /// Sends the wakes the DM runtime asks for: a call ringing a contact's
 /// iPhone that is away, or texts waiting for it. Runs on every platform, in
-/// the app's process; a handle the service no longer knows is dropped.
+/// the app's process. A handle the service no longer knows for calls is
+/// dropped; a phone may lack only the alert token texts use.
 class WakeSender {
   WakeSender({required this.take, required this.forget, WakeClient? client})
       : _client = client ?? WakeClient();
@@ -21,7 +23,10 @@ class WakeSender {
   /// Takes what is waiting and sends it, one wake after another.
   Future<void> send() async {
     for (final request in await take()) {
-      if (await _client.wake(request) == WakeOutcome.forgotten) {
+      final outcome = await _client.wake(request);
+      debugPrint(
+          'wake ${request.callId == null ? 'message' : 'call'}: ${outcome.name}');
+      if (outcome == WakeOutcome.forgotten && request.callId != null) {
         await forget(request.handle);
       }
     }

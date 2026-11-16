@@ -187,6 +187,7 @@ impl PrivateDmSession {
         };
         if self.route_send(ChannelKind::Control, &payload).is_ok() {
             self.wake.announced = Some((own.clone(), epoch, now));
+            self.log_wake("wake address announced");
         }
     }
 
@@ -202,10 +203,22 @@ impl PrivateDmSession {
         }
         self.wake.heard(&signer);
         let announcement: WakeAnnouncement = decode_json(&body)?;
+        let withdrawn = announcement.wake_address.withdrawn();
         if self.wake.accept(signer_hex, announcement) {
             self.record_dirty = true;
+            self.log_wake(if withdrawn {
+                "counterpart withdrew its wake address"
+            } else {
+                "counterpart wake address kept"
+            });
+        } else {
+            self.log_wake("counterpart wake address stale or refused");
         }
         Ok(())
+    }
+
+    fn log_wake(&self, line: &str) {
+        dlog::write(LogLevel::Info, kinds::WAKE, &self.session_id, line);
     }
 
     fn is_own_signer(&self, signer: &str) -> bool {
@@ -256,6 +269,7 @@ impl PrivateDmSession {
         for (signer, address) in self.wake_targets(now, CALL_QUIET_MS) {
             if self.wake.mark_call(&call_id, &signer) {
                 self.wake.due.push(address.request(Some(call_id.clone())));
+                self.log_wake(&format!("wake requested for call {call_id}"));
             }
         }
     }
@@ -275,6 +289,7 @@ impl PrivateDmSession {
             return;
         }
         self.wake.message_woken = (now, queued);
+        self.log_wake("wake requested for queued texts");
         for (_, address) in targets {
             self.wake.due.push(address.request(None));
         }
@@ -285,6 +300,12 @@ impl PrivateDmRuntime {
     /// This device's wake address, announced in every chat. An empty handle
     /// withdraws it; never calling this announces nothing.
     pub fn set_wake_address(&mut self, address: WakeAddress) {
+        let line = if address.withdrawn() {
+            "wake address withdrawn"
+        } else {
+            "wake address set"
+        };
+        dlog::write(LogLevel::Info, kinds::WAKE, KIND, line);
         self.own_wake = Some(address);
     }
 
@@ -301,6 +322,7 @@ impl PrivateDmRuntime {
         for session in self.sessions.values_mut() {
             if session.wake.forget(handle) {
                 session.record_dirty = true;
+                session.log_wake("wake service no longer knows a counterpart handle");
             }
         }
     }
