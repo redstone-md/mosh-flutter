@@ -76,12 +76,13 @@ export async function appStoreProfile({ api, bundleId, serial }) {
   if (!certificate) throw new Error(`no Apple Distribution certificate with serial ${serial}`);
 
   const name = `Mosh App Store ${serial.toUpperCase()}`;
-  let existing = (await api("GET", `/profiles?filter[name]=${encodeURIComponent(name)}&filter[profileState]=ACTIVE`))
-    .data.find((item) => item.attributes.profileType === "IOS_APP_STORE");
-  if (existing && !hasPush(existing)) {
-    // Names are unique, so the stale profile goes before its replacement.
-    await api("DELETE", `/profiles/${existing.id}`);
-    existing = undefined;
+  // Any state: a profile that turning push on invalidated keeps its name,
+  // and names are unique, so a stale one goes before its replacement.
+  const named = (await api("GET", `/profiles?filter[name]=${encodeURIComponent(name)}`)).data;
+  const existing = named.find((item) => item.attributes.profileType === "IOS_APP_STORE"
+    && item.attributes.profileState === "ACTIVE" && hasPush(item));
+  if (!existing) {
+    for (const stale of named) await api("DELETE", `/profiles/${stale.id}`);
   }
   const profile = existing ?? (await api("POST", "/profiles", {
     data: {

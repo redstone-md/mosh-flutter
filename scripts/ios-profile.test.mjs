@@ -31,7 +31,7 @@ function fakeApi(profiles, capabilities = [{ attributes: { capabilityType: "PUSH
 
 test("the active profile for the certificate is reused", async () => {
   const { api, calls } = fakeApi([
-    { attributes: { profileType: "IOS_APP_STORE", uuid: "kept-uuid", profileContent: WITH_PUSH } },
+    { attributes: { profileType: "IOS_APP_STORE", profileState: "ACTIVE", uuid: "kept-uuid", profileContent: WITH_PUSH } },
   ]);
 
   const profile = await appStoreProfile({ api, bundleId: "app.mosh.mosh", serial: "5c6d7e" });
@@ -54,7 +54,7 @@ test("push is turned on for an App ID that lacks it", async () => {
 // tokens never arrive.
 test("a profile without the push entitlement is replaced", async () => {
   const { api, calls } = fakeApi([
-    { id: "P1", attributes: { profileType: "IOS_APP_STORE", uuid: "old-uuid", profileContent: "a2VwdA==" } },
+    { id: "P1", attributes: { profileType: "IOS_APP_STORE", profileState: "ACTIVE", uuid: "old-uuid", profileContent: "a2VwdA==" } },
   ]);
 
   const profile = await appStoreProfile({ api, bundleId: "app.mosh.mosh", serial: "5C6D7E" });
@@ -86,4 +86,19 @@ test("the API token is an ES256 JWT that the key's public half verifies", () => 
     { iss: "ISS", iat: 1000, exp: 1600, aud: "appstoreconnect-v1" });
   assert.ok(verify("sha256", Buffer.from(`${header}.${payload}`),
     { key: createPublicKey(p8), dsaEncoding: "ieee-p1363" }, Buffer.from(signature, "base64url")));
+});
+
+// Turning push on invalidates the old profile; its name still blocks a new
+// one until it is gone.
+test("an invalidated profile is removed before its replacement is made", async () => {
+  const { api, calls } = fakeApi([
+    { id: "P2", attributes: { profileType: "IOS_APP_STORE", profileState: "INVALID", uuid: "dead-uuid", profileContent: WITH_PUSH } },
+  ]);
+
+  const profile = await appStoreProfile({ api, bundleId: "app.mosh.mosh", serial: "5C6D7E" });
+
+  assert.equal(profile.uuid, "created-uuid");
+  const deleted = calls.findIndex((call) => call.method === "DELETE" && call.route === "/profiles/P2");
+  const created = calls.findIndex((call) => call.method === "POST" && call.route === "/profiles");
+  assert.ok(deleted >= 0 && deleted < created);
 });
