@@ -58,11 +58,17 @@ impl PrivateDmSession {
         call.caller_signer = hex::encode(self.crypto.signer_public());
         self.call = Some(call);
         if let Err(error) = self.publish_call_offer(&call_id) {
-            // Unreached, the offer re-sends until the woken device hears it.
             if !waking {
                 self.call = None;
                 return Err(error);
             }
+            // Unreached, the offer re-sends until the woken device hears it.
+            dlog::write(
+                LogLevel::Info,
+                kinds::CALL,
+                &call_id,
+                &format!("first offer to an absent peer not sent: {error}"),
+            );
         }
         self.call
             .as_mut()

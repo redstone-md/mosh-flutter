@@ -92,7 +92,7 @@ class WakeClient {
 
   Future<WakeRegistration> register(Uri service, WakeTokens tokens) async {
     final (status, body) =
-        await _request('POST', service.resolve('/v1/devices'), tokens.toJson());
+        await _request('POST', _at(service, 'v1/devices'), tokens.toJson());
     if (status != HttpStatus.created) {
       throw HttpException('wake registration refused: $status');
     }
@@ -120,8 +120,8 @@ class WakeClient {
   Future<WakeOutcome> wake(WakeRequest request) async {
     final callId = request.callId;
     try {
-      final (status, _) = await _request(
-          'POST', Uri.parse(request.service).resolve('/v1/wake'), {
+      final (status, _) =
+          await _request('POST', _at(Uri.parse(request.service), 'v1/wake'), {
         'handle': request.handle,
         if (callId == null)
           'kind': 'message'
@@ -141,8 +141,15 @@ class WakeClient {
 
   void close() => _client.close(force: true);
 
-  Uri _device(WakeRegistration registration) => registration.service
-      .resolve('/v1/devices/${Uri.encodeComponent(registration.handle)}');
+  Uri _device(WakeRegistration registration) => _at(registration.service,
+      'v1/devices/${Uri.encodeComponent(registration.handle)}');
+
+  /// `path` under the service's own path, so a service behind a proxy
+  /// prefix keeps it.
+  static Uri _at(Uri service, String path) {
+    final base = service.path.endsWith('/') ? service.path : '${service.path}/';
+    return service.replace(path: '$base$path');
+  }
 
   Future<(int, String)> _request(String method, Uri uri, Object body,
       {String? secret}) async {

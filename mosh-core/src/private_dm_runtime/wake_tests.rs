@@ -68,6 +68,21 @@ fn a_call_wakes_a_device_that_went_away_once() {
     assert!(bob.take_wake_requests().is_empty(), "one wake per call");
 }
 
+// Locked a moment before the call, the phone must be woken early in the
+// ring, not after the whole lost window.
+#[test]
+fn a_ringing_call_wakes_a_device_soon_after_it_goes_quiet() {
+    let (net, _alice, mut bob, session_id) = announced_pair();
+    let call = bob.call_start(&session_id).expect("Bob calls");
+    net.link_both(ALICE_ID, BOB_ID, PeerTransport::None);
+    let start = now_ms();
+
+    bob.drain_inbound_at(start + KEEPALIVE_MS / 2);
+    assert!(bob.take_wake_requests().is_empty(), "Alice was just heard");
+    bob.drain_inbound_at(start + KEEPALIVE_MS + 2_000);
+    assert_eq!(bob.take_wake_requests(), vec![call_wake(&call.call_id)]);
+}
+
 #[test]
 fn a_call_to_an_absent_counterpart_without_an_address_is_refused() {
     let (net, mut alice, mut bob) = memory_pair();

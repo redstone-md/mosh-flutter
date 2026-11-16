@@ -22,10 +22,10 @@ final systemCallMirrorProvider = Provider<SystemCallMirror?>((ref) {
   final mirror = SystemCallMirror(screen,
       answer: (id) async => orchestrator()?.acceptCall(id),
       end: (id) async => orchestrator()?.endCall(id, kCallDeclineReasonHangup),
-      mute: (id, muted) {
-        final id = sessionId;
-        if (id == null) return;
-        if (ref.read(voiceCallOrchestratorProvider(id)).muted != muted) {
+      mute: (callId, muted) {
+        final session = sessionId;
+        if (session == null) return;
+        if (ref.read(voiceCallOrchestratorProvider(session)).muted != muted) {
           orchestrator()?.toggleMute();
         }
       });

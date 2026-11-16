@@ -40,11 +40,7 @@ final class IosSystemCalls implements SystemCallScreen, WakeDevice {
   @override
   Future<WakeTokens?> tokens() async {
     final tokens = await _channel.invokeMapMethod<String, String>('tokens');
-    if (tokens == null || tokens['voip'] == null) return null;
-    return WakeTokens(
-        voip: tokens['voip'],
-        apns: tokens['apns'],
-        environment: tokens['environment'] ?? 'production');
+    return tokens == null ? null : WakeTokens.fromJson(tokens);
   }
 
   @override
@@ -63,9 +59,9 @@ final class IosSystemCalls implements SystemCallScreen, WakeDevice {
     final args = call.arguments as Map;
     final id = args['call'] as String;
     final action = switch (call.method) {
-      'answer' => SystemCallAction.answer(id),
-      'end' => SystemCallAction.end(id),
-      'mute' => SystemCallAction.mute(id, muted: args['muted'] == true),
+      'answer' => SystemCallAnswer(id),
+      'end' => SystemCallEnd(id),
+      'mute' => SystemCallMute(id, muted: args['muted'] == true),
       _ => null,
     };
     if (action != null) _onAction?.call(action);

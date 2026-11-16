@@ -66,7 +66,7 @@ void main() {
   // A push rings the phone before Moss has delivered the offer; the user may
   // answer or decline in that gap.
   test('an answer given before the offer arrives is applied when it does', () {
-    mirror.act(const SystemCallAction.answer('c'));
+    mirror.act(const SystemCallAnswer('c'));
     expect(app, isEmpty);
 
     mirror.show(incoming('c'));
@@ -76,7 +76,7 @@ void main() {
 
   test('a decline given before the offer arrives ends the call when it does',
       () {
-    mirror.act(const SystemCallAction.end('c'));
+    mirror.act(const SystemCallEnd('c'));
     mirror.show(incoming('c'));
 
     expect(app, ['end c']);
@@ -85,8 +85,8 @@ void main() {
   test('actions on the shown call reach the app at once', () {
     mirror.show(active('c'));
 
-    mirror.act(const SystemCallAction.mute('c', muted: true));
-    mirror.act(const SystemCallAction.end('c'));
+    mirror.act(const SystemCallMute('c', muted: true));
+    mirror.act(const SystemCallEnd('c'));
 
     expect(app, ['mute c true', 'end c']);
   });

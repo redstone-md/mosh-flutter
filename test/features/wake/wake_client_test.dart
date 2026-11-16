@@ -58,6 +58,16 @@ void main() {
     ]);
   });
 
+  test('a service behind a path prefix keeps it', () async {
+    service.statuses.add(202);
+    final prefixed = service.uri.replace(path: '/wake');
+
+    await client.wake(
+        WakeRequest(service: prefixed.toString(), handle: 'h', callId: null));
+
+    expect(service.requests.single.$2, '/wake/v1/wake');
+  });
+
   test('an unreachable service is a refusal, not an error', () async {
     final address = service.uri;
     await service.close();

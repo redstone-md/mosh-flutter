@@ -12,6 +12,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 /// An unchanged announcement is repeated this often.
 const ANNOUNCE_EVERY_MS: u64 = 6 * 60 * 60 * 1000;
+/// A call wakes a device not heard for a keepalive and a little more: the
+/// lost window would leave the woken phone seconds of a 30-second ring.
+/// Waking one that was only slow costs a second ring of the same call.
+const CALL_QUIET_MS: u64 = KEEPALIVE_MS + 2_000;
 /// The service wakes a phone for messages at most once a minute.
 const MESSAGE_WAKE_GAP_MS: u64 = 60_000;
 /// The service's handles are 32 random bytes in unpadded base64url.
@@ -29,6 +33,14 @@ pub struct WakeAddress {
 impl WakeAddress {
     fn withdrawn(&self) -> bool {
         self.handle.is_empty()
+    }
+
+    fn request(self, call_id: Option<String>) -> WakeRequest {
+        WakeRequest {
+            service: self.service,
+            handle: self.handle,
+            call_id,
+        }
     }
 
     /// A counterpart's address becomes an HTTP request on this device, so
@@ -102,8 +114,8 @@ impl WakeBook {
         }
     }
 
-    fn absent(&self, signer: &str, now: u64, lost_window: u64) -> bool {
-        now.saturating_sub(self.heard_at.get(signer).copied().unwrap_or(0)) >= lost_window
+    fn absent(&self, signer: &str, now: u64, quiet: u64) -> bool {
+        now.saturating_sub(self.heard_at.get(signer).copied().unwrap_or(0)) >= quiet
     }
 
     fn announce_due(&self, own: &WakeAddress, epoch: Option<u64>, now: u64) -> bool {
@@ -146,7 +158,7 @@ impl PrivateDmSession {
         if let Some(own) = own {
             self.announce_wake(own, now);
         }
-        self.wake_for_call(now, lost_window);
+        self.wake_for_call(now);
         self.wake_for_messages(now, lost_window);
     }
 
@@ -216,21 +228,21 @@ impl PrivateDmSession {
                 .any(|(signer, held)| !held.wake_address.withdrawn() && !self.is_own_signer(signer))
     }
 
-    /// Counterpart devices with a live address that have gone quiet.
-    fn wake_targets(&self, now: u64, lost_window: u64) -> Vec<(String, WakeAddress)> {
+    /// Counterpart devices with a live address not heard for `quiet`.
+    fn wake_targets(&self, now: u64, quiet: u64) -> Vec<(String, WakeAddress)> {
         self.wake
             .peers
             .iter()
             .filter(|(signer, held)| {
                 !held.wake_address.withdrawn()
                     && !self.is_own_signer(signer)
-                    && self.wake.absent(signer, now, lost_window)
+                    && self.wake.absent(signer, now, quiet)
             })
             .map(|(signer, held)| (signer.clone(), held.wake_address.clone()))
             .collect()
     }
 
-    fn wake_for_call(&mut self, now: u64, lost_window: u64) {
+    fn wake_for_call(&mut self, now: u64) {
         let Some(call_id) = self
             .call
             .as_ref()
@@ -241,13 +253,9 @@ impl PrivateDmSession {
         else {
             return;
         };
-        for (signer, address) in self.wake_targets(now, lost_window) {
+        for (signer, address) in self.wake_targets(now, CALL_QUIET_MS) {
             if self.wake.mark_call(&call_id, &signer) {
-                self.wake.due.push(WakeRequest {
-                    service: address.service,
-                    handle: address.handle,
-                    call_id: Some(call_id.clone()),
-                });
+                self.wake.due.push(address.request(Some(call_id.clone())));
             }
         }
     }
@@ -268,11 +276,7 @@ impl PrivateDmSession {
         }
         self.wake.message_woken = (now, queued);
         for (_, address) in targets {
-            self.wake.due.push(WakeRequest {
-                service: address.service,
-                handle: address.handle,
-                call_id: None,
-            });
+            self.wake.due.push(address.request(None));
         }
     }
 }

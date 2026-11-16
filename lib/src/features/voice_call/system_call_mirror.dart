@@ -1,25 +1,28 @@
+import 'dart:async';
+
 import 'call_dialog.dart';
 
 /// What the system call screen shows a call as.
 enum SystemCallKind { incoming, outgoing, active }
 
 /// What the user did on the system call screen.
-final class SystemCallAction {
-  const SystemCallAction.answer(this.callId)
-      : kind = SystemCallActionKind.answer,
-        muted = false;
-  const SystemCallAction.end(this.callId)
-      : kind = SystemCallActionKind.end,
-        muted = false;
-  const SystemCallAction.mute(this.callId, {required this.muted})
-      : kind = SystemCallActionKind.mute;
-
+sealed class SystemCallAction {
+  const SystemCallAction(this.callId);
   final String callId;
-  final SystemCallActionKind kind;
-  final bool muted;
 }
 
-enum SystemCallActionKind { answer, end, mute }
+final class SystemCallAnswer extends SystemCallAction {
+  const SystemCallAnswer(super.callId);
+}
+
+final class SystemCallEnd extends SystemCallAction {
+  const SystemCallEnd(super.callId);
+}
+
+final class SystemCallMute extends SystemCallAction {
+  const SystemCallMute(super.callId, {required this.muted});
+  final bool muted;
+}
 
 /// The phone's own call screen (CallKit on iPhone,
 /// `ios/Runner/SystemCalls.swift`): it rings, shows and ends calls, and
@@ -44,7 +47,7 @@ class SystemCallMirror {
   final void Function(String callId, bool muted) mute;
 
   (String, SystemCallKind, String)? _shown;
-  final _early = <String, SystemCallActionKind>{};
+  final _early = <String, SystemCallAction>{};
 
   void show(CallDialog dialog) {
     final previous = _shown;
@@ -63,32 +66,26 @@ class SystemCallMirror {
     if (next == _shown) return;
     _shown = next;
     _screen.show(dialog.callId, kind, dialog.peerName);
-    if (kind == SystemCallKind.incoming) {
-      switch (_early.remove(dialog.callId)) {
-        case SystemCallActionKind.answer:
-          answer(dialog.callId);
-        case SystemCallActionKind.end:
-          end(dialog.callId);
-        case SystemCallActionKind.mute || null:
-          break;
-      }
-    }
+    final early = _early.remove(dialog.callId);
+    if (kind == SystemCallKind.incoming && early != null) _apply(early);
   }
 
   void act(SystemCallAction action) {
-    if (_shown?.$1 != action.callId) {
-      if (action.kind != SystemCallActionKind.mute) {
-        _early[action.callId] = action.kind;
-      }
-      return;
+    if (_shown?.$1 == action.callId) {
+      _apply(action);
+    } else if (action is! SystemCallMute) {
+      _early[action.callId] = action;
     }
-    switch (action.kind) {
-      case SystemCallActionKind.answer:
-        answer(action.callId);
-      case SystemCallActionKind.end:
-        end(action.callId);
-      case SystemCallActionKind.mute:
-        mute(action.callId, action.muted);
+  }
+
+  void _apply(SystemCallAction action) {
+    switch (action) {
+      case SystemCallAnswer(:final callId):
+        unawaited(answer(callId));
+      case SystemCallEnd(:final callId):
+        unawaited(end(callId));
+      case SystemCallMute(:final callId, :final muted):
+        mute(callId, muted);
     }
   }
 }
