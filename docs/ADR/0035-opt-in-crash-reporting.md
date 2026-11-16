@@ -47,7 +47,9 @@ that users must choose.
   process until launch either starts reporting or calls `stop`, which drops
   them. After that, a failure while reporting is off is never kept.
 - **Debug files stay off the device.** The release profile writes line tables
-  to separate files (PDB on Windows, dSYM on macOS) instead of stripping them;
+  to separate files (PDB on Windows, dSYM on macOS) instead of stripping them.
+  On Windows the runner and C++ plugins write theirs too, under
+  `build/windows/x64/symbols`, outside the bundle the installers pack;
   release-tag builds upload them with `sentry-cli debug-files upload`
   (secret `SENTRY_AUTH_TOKEN`). Desktop Dart frames are symbolic without
   `--split-debug-info`. Android release builds archive their split Dart symbols

@@ -138,6 +138,17 @@ jobs:
           "--dart-define=MOSH_PLUS_SERVER_URL=$env:MOSH_PLUS_SERVER_URL"
           "--dart-define=MOSH_PLUS_ISSUER_KEY=$env:MOSH_PLUS_ISSUER_KEY"
 
+      # windows/CMakeLists.txt writes Release PDBs under symbols/ for Sentry;
+      # the bundle the installers pack must hold none of them.
+      - name: Check debug files stay out of the bundle
+        shell: pwsh
+        run: |
+          $symbols = Get-ChildItem build/windows/x64/symbols -Recurse -Filter *.pdb
+          $symbols | ForEach-Object { $_.FullName }
+          if (-not ($symbols | Where-Object Name -eq 'mosh.pdb')) { throw 'The runner PDB is missing' }
+          $shipped = Get-ChildItem build/windows/x64/runner/Release -Recurse -Filter *.pdb
+          if ($shipped) { throw "Debug files in the bundle: $($shipped.FullName -join ', ')" }
+
       - if: steps.cargokit.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@v4
         with:
@@ -238,6 +249,8 @@ jobs:
           if ((Get-FileHash "$app/mosh_core.dll").Hash -ne (Get-FileHash "$native/mosh_core.dll").Hash) { throw 'Shipping core differs from the symbol source' }
           New-Item -ItemType Directory -Force build/native-symbols | Out-Null
           Copy-Item "$app/mosh_core.dll", "$native/mosh_core.pdb" build/native-symbols
+          # The runner and C++ plugins, from windows/CMakeLists.txt.
+          Copy-Item build/windows/x64/symbols/Release/*.pdb build/native-symbols
           $binaries = @('mosh.exe', 'mosh_core.dll', 'moss.dll', 'flutter_windows.dll', 'data/app.so') | ForEach-Object {
             @{ name = $_; sha256 = (Get-FileHash "$app/$_" -Algorithm SHA256).Hash.ToLowerInvariant() }
           }

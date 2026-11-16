@@ -23,6 +23,17 @@ else()
       "Debug" "Profile" "Release")
   endif()
 endif()
+# Release binaries keep debug info in separate PDBs under symbols/, outside
+# the bundle the installers pack. CI uploads them to Sentry, so a native
+# crash in the runner or a C++ plugin shows its functions (ADR 0035).
+set(CMAKE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/symbols")
+foreach(flags CMAKE_C_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELEASE)
+  set(${flags} "${${flags}} /Zi")
+endforeach()
+foreach(flags CMAKE_EXE_LINKER_FLAGS_RELEASE CMAKE_SHARED_LINKER_FLAGS_RELEASE)
+  set(${flags} "${${flags}} /DEBUG /OPT:REF /OPT:ICF")
+endforeach()
+
 # Define settings for the Profile build mode.
 set(CMAKE_EXE_LINKER_FLAGS_PROFILE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
 set(CMAKE_SHARED_LINKER_FLAGS_PROFILE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
