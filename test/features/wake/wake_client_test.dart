@@ -1,0 +1,70 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/wake/wake_client.dart';
+import 'package:mosh/src/rust/private_dm_runtime/wake.dart';
+
+import 'wake_service_stub.dart';
+
+void main() {
+  late WakeServiceStub service;
+  late WakeClient client;
+  const tokens = WakeTokens(voip: 'aa', apns: 'bb', environment: 'sandbox');
+
+  setUp(() async {
+    service = await WakeServiceStub.start();
+    client = WakeClient();
+    addTearDown(() async {
+      client.close();
+      await service.close();
+    });
+  });
+
+  test('a registration keeps the secret and sends only the tokens', () async {
+    service.statuses.add(201);
+
+    final registration = await client.register(service.uri, tokens);
+
+    expect(registration.handle, 'h');
+    expect(registration.secret, 's');
+    final (method, path, authorization, body) = service.requests.single;
+    expect((method, path, authorization), ('POST', '/v1/devices', null));
+    expect(body, {'voip': 'aa', 'apns': 'bb', 'environment': 'sandbox'});
+  });
+
+  test('an update the service refuses reports the registration lost', () async {
+    service.statuses.addAll([204, 401]);
+    final registration =
+        WakeRegistration(service: service.uri, handle: 'h', secret: 's');
+
+    expect(await client.update(registration, tokens), isTrue);
+    expect(await client.update(registration, tokens), isFalse);
+    expect(service.requests.first.$1, 'PUT');
+    expect(service.requests.first.$2, '/v1/devices/h');
+    expect(service.requests.first.$3, 'Bearer s');
+  });
+
+  test('a wake names the call, and an unknown handle reads as forgotten',
+      () async {
+    service.statuses.addAll([202, 404, 429]);
+    WakeRequest wake(String? call) =>
+        WakeRequest(service: service.uri.toString(), handle: 'h', callId: call);
+
+    expect(await client.wake(wake('call-1')), WakeOutcome.sent);
+    expect(await client.wake(wake(null)), WakeOutcome.forgotten);
+    expect(await client.wake(wake(null)), WakeOutcome.refused);
+    expect(service.requests.map((request) => request.$4), [
+      {'handle': 'h', 'kind': 'call', 'call': 'call-1'},
+      {'handle': 'h', 'kind': 'message'},
+      {'handle': 'h', 'kind': 'message'},
+    ]);
+  });
+
+  test('an unreachable service is a refusal, not an error', () async {
+    final address = service.uri;
+    await service.close();
+
+    final outcome = await client.wake(
+        WakeRequest(service: address.toString(), handle: 'h', callId: null));
+
+    expect(outcome, WakeOutcome.refused);
+  });
+}

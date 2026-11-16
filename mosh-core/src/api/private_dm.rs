@@ -188,8 +188,16 @@ pub fn set_wake_address(service: String, handle: String) -> Result<(), Conversat
 
 /// The wakes the DM runtime asked for since the last call; Dart sends each
 /// to its service.
-pub fn take_wake_requests() -> Result<Vec<WakeRequest>, ConversationBridgeError> {
-    Ok(ensure_runtime()?.take_wake_requests())
+/// Asking never starts the runtime: until something else does, nothing can
+/// be waiting.
+pub fn take_wake_requests() -> Result<Vec<WakeRequest>, String> {
+    let Some(runtime) = RUNTIME.initialized() else {
+        return Ok(Vec::new());
+    };
+    Ok(runtime
+        .lock()
+        .map_err(|_| "private DM runtime unavailable".to_string())?
+        .take_wake_requests())
 }
 
 /// The service no longer knows `handle`, so no DM wakes it again.

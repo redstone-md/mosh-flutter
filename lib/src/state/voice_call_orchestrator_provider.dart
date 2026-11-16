@@ -1,4 +1,5 @@
 import 'package:mosh/src/features/background/android_waiting_owner.dart';
+import 'package:mosh/src/platform/ios_system_calls.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -122,7 +123,10 @@ class VoiceCallOrchestratorNotifier
     _native?.addListener(_nativeChanged);
     _ringing = CallRinging(ref.read(ringtonePlayerProvider), (id) {
       if (ref.mounted) unawaited(declineCall(id, kCallDeclineReasonNoAnswer));
-    }, incomingManaged: ref.read(androidWaitingOwnerProvider) != null);
+    },
+        // The phone's own call screen rings an incoming call there.
+        incomingManaged: ref.read(androidWaitingOwnerProvider) != null ||
+            ref.read(iosSystemCallsProvider) != null);
     ref.onDispose(() {
       _ringing.dispose();
       // The native owner outlives this notifier: a call keeps its media

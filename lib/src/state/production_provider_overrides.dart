@@ -15,6 +15,9 @@ import 'package:mosh/src/features/voice_call/cpal_ringtone.dart'
     show CpalRingtonePlayer;
 import 'package:mosh/src/features/voice_call/android_ringtone.dart';
 import 'package:mosh/src/features/voice_call/android_call_presentation.dart';
+import 'package:mosh/src/features/wake/wake_sender.dart';
+import 'package:mosh/src/features/wake/wake_services.dart';
+import 'package:mosh/src/platform/ios_system_calls.dart';
 import 'package:mosh/src/features/voice_call/voice_call_binding.dart'
     show voiceCallBinding;
 import 'dart:io' show Platform;
@@ -34,6 +37,9 @@ final List<Override> productionOverrides = <Override>[
       ref.onDispose(presentation.dispose);
       return presentation;
     }),
+  if (Platform.isIOS)
+    iosSystemCallsProvider.overrideWith((ref) => IosSystemCalls()),
+  wakeSenderProvider.overrideWith(startWakeSender),
   firstRunEnabledProvider.overrideWithValue(true),
   maxTextCharsProvider.overrideWith((ref) => maxTextChars()),
   ringtonePlayerProvider.overrideWithValue(Platform.isAndroid

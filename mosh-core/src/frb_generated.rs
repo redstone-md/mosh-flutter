@@ -4200,12 +4200,10 @@ fn wire__crate__api__private_dm__take_wake_requests_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
-                    (move || {
-                        let output_ok = crate::api::private_dm::take_wake_requests()?;
-                        Ok(output_ok)
-                    })(),
-                )
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::private_dm::take_wake_requests()?;
+                    Ok(output_ok)
+                })())
             }
         },
     )

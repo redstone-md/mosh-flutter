@@ -112,6 +112,8 @@ Future<void> setWakeAddress(
 
 /// The wakes the DM runtime asked for since the last call; Dart sends each
 /// to its service.
+/// Asking never starts the runtime: until something else does, nothing can
+/// be waiting.
 Future<List<WakeRequest>> takeWakeRequests() =>
     RustLib.instance.api.crateApiPrivateDmTakeWakeRequests();
 

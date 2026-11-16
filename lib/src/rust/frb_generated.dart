@@ -3631,7 +3631,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_wake_request,
-        decodeErrorData: sse_decode_conversation_bridge_error,
+        decodeErrorData: sse_decode_String,
       ),
       constMeta: kCrateApiPrivateDmTakeWakeRequestsConstMeta,
       argValues: [],

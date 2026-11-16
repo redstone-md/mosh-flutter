@@ -41,6 +41,7 @@ import 'package:mosh/src/platform/desktop_window_controller.dart';
 import 'package:mosh/src/platform/desktop_window_frame.dart';
 
 import 'package:mosh/src/app/bundled_licenses.dart';
+import 'package:mosh/src/app/process_services.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/media_player.dart';
 import 'package:mosh/src/features/shared/media_stream_server.dart';
@@ -120,18 +121,21 @@ void main(List<String> args) async {
   // below. The Android branch later resolves `root` and flips the
   // tree via `_appRoot.value = root`; desktop/iOS flip it to `MoshApp`
   // synchronously.
+  final container = ProviderContainer(
+    overrides: [
+      ...productionOverrides,
+      crashReportingProvider.overrideWithValue(crashReporting),
+      if (windowController != null)
+        desktopWindowControllerProvider.overrideWithValue(windowController),
+      if (appAccess != null)
+        androidAppAccessProvider.overrideWithValue(appAccess),
+      if (waiting != null)
+        androidWaitingOwnerProvider.overrideWithValue(waiting),
+    ],
+  );
   runApp(
-    ProviderScope(
-      overrides: [
-        ...productionOverrides,
-        crashReportingProvider.overrideWithValue(crashReporting),
-        if (windowController != null)
-          desktopWindowControllerProvider.overrideWithValue(windowController),
-        if (appAccess != null)
-          androidAppAccessProvider.overrideWithValue(appAccess),
-        if (waiting != null)
-          androidWaitingOwnerProvider.overrideWithValue(waiting),
-      ],
+    UncontrolledProviderScope(
+      container: container,
       child: ValueListenableBuilder<Widget>(
         valueListenable: _appRoot,
         builder: (BuildContext context, Widget value, _) => appAccess == null
@@ -140,6 +144,9 @@ void main(List<String> args) async {
       ),
     ),
   );
+  // Started from the container, not a widget: an iPhone woken by a call
+  // push runs with no window, so no widget below is ever built.
+  container.read(processServicesProvider);
   final Widget root;
   if (Platform.isAndroid) {
     root = await _androidStartupRoot(
