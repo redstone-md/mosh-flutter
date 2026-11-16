@@ -249,6 +249,8 @@ jobs:
           if ((Get-FileHash "$app/mosh_core.dll").Hash -ne (Get-FileHash "$native/mosh_core.dll").Hash) { throw 'Shipping core differs from the symbol source' }
           New-Item -ItemType Directory -Force build/native-symbols | Out-Null
           Copy-Item "$app/mosh_core.dll", "$native/mosh_core.pdb" build/native-symbols
+          # The runner and C++ plugins, from windows/CMakeLists.txt.
+          Copy-Item build/windows/x64/symbols/Release/*.pdb build/native-symbols
           $binaries = @('mosh.exe', 'mosh_core.dll', 'moss.dll', 'flutter_windows.dll', 'data/app.so') | ForEach-Object {
             @{ name = $_; sha256 = (Get-FileHash "$app/$_" -Algorithm SHA256).Hash.ToLowerInvariant() }
           }
