@@ -97,9 +97,10 @@ those need an Admin key; the CI key stays App Manager.
 
 The app has the Push Notifications capability (PushKit rings calls, APNs
 shows "New message"). `scripts/ios-profile.mjs` turns it on for the App ID
-and replaces a profile made before it, and `scripts/ios-package.sh` gives
-the unsigned archive the push entitlement for the export to sign with, then
-checks that an exported app carries it.
+and replaces a profile made before it. `scripts/ios-package.sh` signs the
+unsigned archive ad hoc with the push entitlement, since the export keeps
+only what that signature carries, and checks the exported app has it before
+a second export of the same archive uploads it.
 
 The certificate expires a year after issue, and the iOS build warns 30 days
 ahead. To renew, run the wizard again, wait for a green build and revoke the

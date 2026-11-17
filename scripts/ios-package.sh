@@ -66,11 +66,12 @@ AUTH=(-authenticationKeyPath "$KEY" -authenticationKeyID "$APP_STORE_CONNECT_KEY
 PROFILE="$(node "$ROOT/scripts/ios-profile.mjs" "$KEY" "$BUNDLE_ID" "$MOSH_SIGN_CERT_SERIAL")"
 echo "provisioning profile: $PROFILE"
 
-# The archive is unsigned, so it carries no entitlements of its own, and
-# the export signs with the ones it finds in the archived app. Push lets a
-# call ring a closed iPhone through PushKit (MOSH-111).
+# The archive is unsigned, and the export keeps only the entitlements it
+# reads from the archived app's signature, so the app is signed ad hoc with
+# them first, nested code before it. Push lets a call ring a closed iPhone
+# through PushKit (MOSH-111).
 APP="$ARCHIVE/Products/Applications/Runner.app"
-cat > "$APP/archived-expanded-entitlements.xcent" <<PLIST
+cat > "$WORK/entitlements.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -80,10 +81,11 @@ cat > "$APP/archived-expanded-entitlements.xcent" <<PLIST
 </dict>
 </plist>
 PLIST
+codesign --force --deep --sign - "$APP"
+codesign --force --sign - --entitlements "$WORK/entitlements.plist" "$APP"
 
-destination=export
-[ "${MOSH_IOS_UPLOAD:-false}" = true ] && destination=upload
-cat > "$WORK/ExportOptions.plist" <<PLIST
+export_archive() {
+  cat > "$WORK/ExportOptions.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -91,7 +93,7 @@ cat > "$WORK/ExportOptions.plist" <<PLIST
 	<key>method</key>
 	<string>app-store-connect</string>
 	<key>destination</key>
-	<string>$destination</string>
+	<string>$1</string>
 	<key>teamID</key>
 	<string>$APPLE_TEAM_ID</string>
 	<key>signingStyle</key>
@@ -110,13 +112,21 @@ cat > "$WORK/ExportOptions.plist" <<PLIST
 </dict>
 </plist>
 PLIST
+  xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportPath "$DIST" \
+    -exportOptionsPlist "$WORK/ExportOptions.plist" "${AUTH[@]}"
+}
 
-xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportPath "$DIST" \
-  -exportOptionsPlist "$WORK/ExportOptions.plist" "${AUTH[@]}"
-# An app signed without push gets no tokens, and no call reaches it closed.
-if [ "$destination" = export ]; then
-  unzip -q -o "$DIST"/*.ipa -d "$WORK/ipa"
-  codesign -d --entitlements :- "$WORK/ipa/Payload/Runner.app" 2>/dev/null |
-    grep aps-environment >/dev/null || fail "the exported app has no push entitlement"
+# An app signed without push gets no tokens, and no call reaches it closed,
+# so the signed app is checked before anything is uploaded; the upload is a
+# second export of the same archive with the same signing.
+export_archive export
+unzip -q -o "$DIST"/*.ipa -d "$WORK/ipa"
+entitlements="$(codesign -d --entitlements - --xml "$WORK/ipa/Payload/Runner.app" 2>/dev/null || true)"
+grep -q aps-environment <<<"$entitlements" ||
+  fail "the exported app has no push entitlement: $entitlements"
+if [ "${MOSH_IOS_UPLOAD:-false}" = true ]; then
+  export_archive upload
+  echo "uploaded to TestFlight"
+else
+  echo "exported to $DIST"
 fi
-echo "exported to $DIST ($destination)"
