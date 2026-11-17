@@ -159,6 +159,25 @@ fn queued_texts_wake_an_absent_device_once_per_batch() {
     assert_eq!(bob.take_wake_requests(), vec![text_wake]);
 }
 
+// A phone that just went to sleep stays Connected for the lost window, so a
+// text sent then goes out unacknowledged instead of queued; it must wake the
+// phone all the same.
+#[test]
+fn an_unacknowledged_text_wakes_a_device_that_went_away() {
+    let (net, _alice, mut bob, session_id) = announced_pair();
+    bob.send_message(&session_id, "hi".to_string())
+        .expect("a text for a connected peer goes out");
+    net.link_both(ALICE_ID, BOB_ID, PeerTransport::None);
+
+    bob.drain_inbound_at(after_silence());
+
+    let text_wake = WakeRequest {
+        call_id: None,
+        ..call_wake("")
+    };
+    assert_eq!(bob.take_wake_requests(), vec![text_wake]);
+}
+
 // The service answered that it no longer knows the handle.
 #[test]
 fn a_forgotten_handle_wakes_nothing() {

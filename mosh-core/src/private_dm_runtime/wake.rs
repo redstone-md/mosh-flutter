@@ -1,7 +1,7 @@
 //! Waking a counterpart's iPhone through the wake service (mosh-wake). A
 //! device that can only be reached through Apple's push service announces its
 //! wake address inside the chat; a device that has a call ringing or texts
-//! queued for it while it is away asks Dart to send the service a wake. The
+//! it has not acknowledged while it is away asks Dart to send the service a wake. The
 //! address rides an MLS application message, so the author's MLS key signs it
 //! and only members of the chat can read it. Old builds drop the unknown
 //! control kind. Nothing here speaks HTTP.
@@ -136,9 +136,9 @@ impl WakeBook {
     }
 
     /// Texts no wake has gone out for, once the service would take another.
-    fn messages_due(&self, queued: &BTreeSet<String>, now: u64) -> bool {
+    fn messages_due(&self, waiting: &BTreeSet<String>, now: u64) -> bool {
         let (at, woken) = &self.message_woken;
-        !queued.is_subset(woken) && (*at == 0 || now.saturating_sub(*at) >= MESSAGE_WAKE_GAP_MS)
+        !waiting.is_subset(woken) && (*at == 0 || now.saturating_sub(*at) >= MESSAGE_WAKE_GAP_MS)
     }
 
     /// Drops every announcement of `handle`; true when one was held.
@@ -274,22 +274,30 @@ impl PrivateDmSession {
         }
     }
 
+    /// Wakes an absent counterpart for texts it has not acknowledged: queued
+    /// ones, and ones sent while it still looked connected (a phone that just
+    /// went to sleep stays Connected for the lost window).
     fn wake_for_messages(&mut self, now: u64, lost_window: u64) {
-        let queued: BTreeSet<String> = self
+        let waiting: BTreeSet<String> = self
             .outbound_attempts
             .iter()
-            .filter(|(_, attempt)| attempt.delivery_status == MessageDeliveryStatus::Queued)
+            .filter(|(_, attempt)| {
+                matches!(
+                    attempt.delivery_status,
+                    MessageDeliveryStatus::Queued | MessageDeliveryStatus::Sent
+                )
+            })
             .map(|(id, _)| id.clone())
             .collect();
-        if queued.is_empty() || !self.wake.messages_due(&queued, now) {
+        if waiting.is_empty() || !self.wake.messages_due(&waiting, now) {
             return;
         }
         let targets = self.wake_targets(now, lost_window);
         if targets.is_empty() {
             return;
         }
-        self.wake.message_woken = (now, queued);
-        self.log_wake("wake requested for queued texts");
+        self.wake.message_woken = (now, waiting);
+        self.log_wake("wake requested for unacknowledged texts");
         for (_, address) in targets {
             self.wake.due.push(address.request(None));
         }
