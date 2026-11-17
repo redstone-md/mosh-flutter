@@ -89,8 +89,7 @@ void main() {
   test('a phone without tokens yet registers nothing', () async {
     device.current = null;
 
-    await registrar.run();
-
+    expect(await registrar.run(), isFalse);
     expect(service.requests, isEmpty);
     expect(announced, isEmpty);
   });

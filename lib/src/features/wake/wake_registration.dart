@@ -28,12 +28,14 @@ class WakeRegistrar {
   final WakeClient client;
   final Future<void> Function(String service, String handle) announce;
 
-  Future<void> run() async {
+  /// False while the system has not handed out the push tokens.
+  Future<bool> run() async {
     final tokens = await device.tokens();
-    if (tokens == null) return;
+    if (tokens == null) return false;
     final registration = await _current(tokens);
     await device.saveRegistration(registration.toJson());
     await announce(service.toString(), registration.handle);
+    return true;
   }
 
   /// The stored registration, brought up to date, or a new one when there is

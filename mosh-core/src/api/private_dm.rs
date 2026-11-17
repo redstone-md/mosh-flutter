@@ -7,6 +7,7 @@ use super::runtime_owner::RuntimeOwner;
 use std::time::Duration;
 
 use crate::api::conversation_bridge::ConversationBridgeError;
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::private_dm_runtime::wake::{WakeAddress, WakeRequest};
 use crate::private_dm_runtime::{
     AcceptInviteRequest, CallStarted, InviteCreated, PrivateDmRuntime, PrivateDmRuntimeError,
@@ -184,6 +185,12 @@ pub fn call_end(
 pub fn set_wake_address(service: String, handle: String) -> Result<(), ConversationBridgeError> {
     ensure_runtime()?.set_wake_address(WakeAddress { service, handle });
     Ok(())
+}
+
+/// Why this iPhone's wake registration did not finish, for the field log;
+/// never a token or a handle. A finished one logs "wake address set".
+pub fn note_wake_registration(problem: String) {
+    dlog::write(LogLevel::Warn, kinds::WAKE, "registration", &problem);
 }
 
 /// The wakes the DM runtime asked for since the last call; Dart sends each

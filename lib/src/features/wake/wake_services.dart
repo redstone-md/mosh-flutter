@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'dart:io' show HttpException;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/platform/ios_system_calls.dart';
 import 'package:mosh/src/rust/api/private_dm.dart' as api;
@@ -31,11 +31,22 @@ final wakeRegistrationProvider = Provider<void>((ref) {
       client: client,
       announce: (service, handle) =>
           api.setWakeAddress(service: service, handle: handle));
-  Future<void> run() => registrar.run().catchError((Object error) {
-        // Retried with the next launch or token change; until then contacts
-        // keep the handle they have.
-        debugPrint('wake registration failed: ${error.runtimeType}');
-      });
+  // Retried with the next launch or token change; until then contacts keep
+  // the handle they have. The field log says why, without the service's
+  // address or any token.
+  Future<void> run() async {
+    try {
+      if (!await registrar.run()) {
+        await api.noteWakeRegistration(problem: 'no VoIP push token yet');
+      }
+    } on HttpException catch (error) {
+      await api.noteWakeRegistration(problem: error.message);
+    } on Object catch (error) {
+      await api.noteWakeRegistration(
+          problem: 'registration failed: ${error.runtimeType}');
+    }
+  }
+
   device.onTokens = () => unawaited(run());
   unawaited(run());
   ref.onDispose(() {

@@ -110,6 +110,12 @@ Future<void> setWakeAddress(
     RustLib.instance.api
         .crateApiPrivateDmSetWakeAddress(service: service, handle: handle);
 
+/// Why this iPhone's wake registration did not finish, for the field log;
+/// never a token or a handle. A finished one logs "wake address set".
+Future<void> noteWakeRegistration({required String problem}) =>
+    RustLib.instance.api
+        .crateApiPrivateDmNoteWakeRegistration(problem: problem);
+
 /// The wakes the DM runtime asked for since the last call; Dart sends each
 /// to its service.
 /// Asking never starts the runtime: until something else does, nothing can
