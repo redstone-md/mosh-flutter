@@ -1,12 +1,18 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:window_manager/window_manager.dart' show windowManager;
 
 /// Default focus check: `windowManager.isFocused()` with a try/catch that
-/// degrades to `true` (focused) on error. Exposed as a top-level function
-/// so the provider body + tests share one reference and the override site
-/// reads cleanly.
+/// degrades to `true` (focused) on error. An iPhone has no window_manager
+/// host, so there the app counts as focused only while in the foreground.
+/// Exposed as a top-level function so the provider body + tests share one
+/// reference and the override site reads cleanly.
 Future<bool> _defaultIsFocused() async {
+  if (defaultTargetPlatform == TargetPlatform.iOS) {
+    return WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+  }
   try {
     return await windowManager.isFocused();
   } catch (_) {
