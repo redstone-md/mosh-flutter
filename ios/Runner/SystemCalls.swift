@@ -99,10 +99,18 @@ final class SystemCalls: NSObject {
       result(tokens())
       return
     case "loadRegistration":
-      result(WakeKeychain.load())
+      WakeKeychain.queue.async {
+        let stored = WakeKeychain.load()
+        DispatchQueue.main.async { result(stored) }
+      }
       return
     case "saveRegistration":
-      WakeKeychain.save(call.arguments as? String ?? "")
+      let registration = call.arguments as? String ?? ""
+      WakeKeychain.queue.async {
+        WakeKeychain.save(registration)
+        DispatchQueue.main.async { result(nil) }
+      }
+      return
     default:
       result(FlutterMethodNotImplemented)
       return
@@ -285,8 +293,12 @@ extension SystemCalls: CXProviderDelegate {
 
 /// The wake registration (handle and secret), kept where only this app on
 /// this phone reads it, and readable while the phone is locked after its
-/// first unlock, when a push starts the app.
+/// first unlock, when a push starts the app. A Keychain call can wait on
+/// securityd for seconds, so they run in order on their own queue, never on
+/// the main thread.
 enum WakeKeychain {
+  static let queue = DispatchQueue(label: "app.mosh.wake-keychain")
+
   private static let query: [String: Any] = [
     kSecClass as String: kSecClassGenericPassword,
     kSecAttrService as String: "app.mosh.wake",
