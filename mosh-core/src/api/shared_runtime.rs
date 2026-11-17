@@ -76,7 +76,10 @@ pub fn set_app_data_dir(path: String) -> Result<(), String> {
         &APP_DATA_DIR,
         PathBuf::from(path),
         "set_app_data_dir: app_data_dir already set to a different path; re-setting is not allowed",
-    )
+    )?;
+    #[cfg(target_os = "ios")]
+    crate::diagnostics_log::capture_crash_output();
+    Ok(())
 }
 
 fn inject_once<T: PartialEq>(cell: &OnceLock<T>, value: T, error: &str) -> Result<(), String> {

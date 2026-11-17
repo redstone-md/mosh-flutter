@@ -73,6 +73,13 @@ with its source location, before the default hook runs. It is the only
 evidence a release build leaves when a panic on a foreign thread aborts
 the process.
 
+On iOS nothing keeps a process's stderr, where Moss's Go runtime prints
+why it aborts. Once the data directory is known, stderr goes to
+`logs/crash-output.log`. The next launch moves that file to
+`crash-output.prev.log`, which is exported with the log. If the file
+holds a fatal error or a panic, that line goes into a `startup` error
+line and, with consent, a crash report.
+
 ## Rotation policy
 
 - The live file is `<data dir>/logs/mosh.log`; a write that would push
