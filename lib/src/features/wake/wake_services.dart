@@ -4,6 +4,7 @@ import 'dart:io' show HttpException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/platform/ios_system_calls.dart';
 import 'package:mosh/src/rust/api/private_dm.dart' as api;
+import 'package:mosh/src/state/notifications_provider.dart';
 
 import 'wake_client.dart';
 import 'wake_registration.dart';
@@ -47,6 +48,8 @@ final wakeRegistrationProvider = Provider<void>((ref) {
     }
   }
 
+  // iOS shows the service's message alerts only with this permission.
+  unawaited(ref.read(notificationsReadyProvider.future));
   device.onTokens = () => unawaited(run());
   unawaited(run());
   ref.onDispose(() {

@@ -159,6 +159,20 @@ void main() {
       expect(plugin.initializationSettings?.windows, isNotNull);
     });
 
+    test('iOS initialization carries the iOS settings the plugin requires',
+        () async {
+      final plugin = _RecordingNotifications();
+      final container = ProviderContainer(overrides: [
+        flutterLocalNotificationsPluginProvider.overrideWithValue(plugin),
+        notificationPlatformProvider
+            .overrideWithValue(MoshNotificationPlatform.ios),
+      ]);
+      addTearDown(container.dispose);
+
+      await container.read(notificationsReadyProvider.future);
+      expect(plugin.initializationSettings?.iOS, isNotNull);
+    });
+
     test('resolves false when the plugin init returns false', () async {
       final container = ProviderContainer(overrides: [
         flutterLocalNotificationsPluginProvider

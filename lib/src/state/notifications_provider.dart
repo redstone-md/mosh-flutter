@@ -74,6 +74,9 @@ final notificationsReadyProvider = FutureProvider<bool>((ref) async {
           appUserModelId: _kWindowsAumid,
           guid: _kWindowsGuid,
         ),
+        // The plugin refuses to initialize on iOS without these, and with
+        // no permission iOS drops the wake service's message alerts.
+        iOS: DarwinInitializationSettings(),
         macOS: DarwinInitializationSettings(),
         linux: LinuxInitializationSettings(defaultActionName: 'Open'),
       ),
