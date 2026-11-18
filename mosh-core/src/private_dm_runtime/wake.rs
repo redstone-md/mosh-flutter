@@ -58,6 +58,16 @@ impl WakeAddress {
     }
 }
 
+/// What this installation knows of waking: its own address, announced in
+/// every chat, and the one service it wakes contacts through, the build's
+/// own. A contact names its service, so any other one would let a contact
+/// point this device's requests anywhere; without one nobody is woken.
+#[derive(Debug, Clone, Default)]
+pub(super) struct WakeSetup {
+    pub(super) own: Option<WakeAddress>,
+    pub(super) service: Option<String>,
+}
+
 /// One wake for Dart to send: `call_id` names the ringing call, none means
 /// texts are waiting.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -153,13 +163,14 @@ impl WakeBook {
 impl PrivateDmSession {
     /// The tick's wake work: stamp who was heard, announce our own address,
     /// and queue wakes for a ringing call or waiting texts.
-    pub(super) fn pump_wake(&mut self, now: u64, own: Option<&WakeAddress>, lost_window: u64) {
+    pub(super) fn pump_wake(&mut self, now: u64, setup: &WakeSetup, lost_window: u64) {
         self.wake.stamp(now);
-        if let Some(own) = own {
+        if let Some(own) = &setup.own {
             self.announce_wake(own, now);
         }
-        self.wake_for_call(now);
-        self.wake_for_messages(now, lost_window);
+        let service = setup.service.as_deref();
+        self.wake_for_call(now, service);
+        self.wake_for_messages(now, lost_window, service);
     }
 
     fn announce_wake(&mut self, own: &WakeAddress, now: u64) {
@@ -230,33 +241,43 @@ impl PrivateDmSession {
                 .is_some_and(|membership| membership.call_own(signer))
     }
 
-    /// Whether some counterpart device that is not connected can be woken,
-    /// so a call may ring it.
-    pub(super) fn can_wake_counterpart(&self) -> bool {
-        self.peer_joined
-            && self.crypto.is_ready()
-            && self
-                .wake
-                .peers
-                .iter()
-                .any(|(signer, held)| !held.wake_address.withdrawn() && !self.is_own_signer(signer))
-    }
-
-    /// Counterpart devices with a live address not heard for `quiet`.
-    fn wake_targets(&self, now: u64, quiet: u64) -> Vec<(String, WakeAddress)> {
+    /// Counterpart devices with a live address on `service`.
+    fn wakeable<'a>(
+        &'a self,
+        service: Option<&'a str>,
+    ) -> impl Iterator<Item = (&'a String, &'a WakeAddress)> + 'a {
         self.wake
             .peers
             .iter()
-            .filter(|(signer, held)| {
-                !held.wake_address.withdrawn()
+            .map(|(signer, held)| (signer, &held.wake_address))
+            .filter(move |(signer, address)| {
+                !address.withdrawn()
+                    && Some(address.service.as_str()) == service
                     && !self.is_own_signer(signer)
-                    && self.wake.absent(signer, now, quiet)
             })
-            .map(|(signer, held)| (signer.clone(), held.wake_address.clone()))
+    }
+
+    /// Whether some counterpart device that is not connected can be woken
+    /// through `service`, so a call may ring it.
+    pub(super) fn can_wake_counterpart(&self, service: Option<&str>) -> bool {
+        self.peer_joined && self.crypto.is_ready() && self.wakeable(service).next().is_some()
+    }
+
+    /// Counterpart devices wakeable through `service` and not heard for
+    /// `quiet`.
+    fn wake_targets(
+        &self,
+        now: u64,
+        quiet: u64,
+        service: Option<&str>,
+    ) -> Vec<(String, WakeAddress)> {
+        self.wakeable(service)
+            .filter(|(signer, _)| self.wake.absent(signer, now, quiet))
+            .map(|(signer, address)| (signer.clone(), address.clone()))
             .collect()
     }
 
-    fn wake_for_call(&mut self, now: u64) {
+    fn wake_for_call(&mut self, now: u64, service: Option<&str>) {
         let Some(call_id) = self
             .call
             .as_ref()
@@ -267,7 +288,7 @@ impl PrivateDmSession {
         else {
             return;
         };
-        for (signer, address) in self.wake_targets(now, CALL_QUIET_MS) {
+        for (signer, address) in self.wake_targets(now, CALL_QUIET_MS, service) {
             if self.wake.mark_call(&call_id, &signer) {
                 self.wake.due.push(address.request(Some(call_id.clone())));
                 self.log_wake(&format!("wake requested for call {call_id}"));
@@ -278,7 +299,7 @@ impl PrivateDmSession {
     /// Wakes an absent counterpart for texts it has not acknowledged: queued
     /// ones, and ones sent while it still looked connected (a phone that just
     /// went to sleep stays Connected for the lost window).
-    fn wake_for_messages(&mut self, now: u64, lost_window: u64) {
+    fn wake_for_messages(&mut self, now: u64, lost_window: u64, service: Option<&str>) {
         let waiting: BTreeSet<String> = self
             .outbound_attempts
             .iter()
@@ -293,7 +314,7 @@ impl PrivateDmSession {
         if waiting.is_empty() || !self.wake.messages_due(&waiting, now) {
             return;
         }
-        let targets = self.wake_targets(now, lost_window);
+        let targets = self.wake_targets(now, lost_window, service);
         if targets.is_empty() {
             return;
         }
@@ -315,7 +336,12 @@ impl PrivateDmRuntime {
             "wake address set"
         };
         dlog::write(LogLevel::Info, kinds::WAKE, KIND, line);
-        self.own_wake = Some(address);
+        self.wake.own = Some(address);
+    }
+
+    /// The one wake service this build wakes contacts through.
+    pub fn set_wake_service(&mut self, service: String) {
+        self.wake.service = Some(service);
     }
 
     /// The wakes asked for since the last call, for Dart to send.

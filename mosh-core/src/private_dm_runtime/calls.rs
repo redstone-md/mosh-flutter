@@ -42,10 +42,14 @@ impl PrivateDmSession {
         self.publish_authenticated_call(call_id, CallAction::Answer)
     }
 
-    pub(super) fn call_start(&mut self) -> Result<CallStarted, PrivateDmRuntimeError> {
+    /// `wake_service` is the one service this build wakes contacts through.
+    pub(super) fn call_start(
+        &mut self,
+        wake_service: Option<&str>,
+    ) -> Result<CallStarted, PrivateDmRuntimeError> {
         // A counterpart that is away can still ring once its device is woken.
         let waking = !self.ready_for_user_actions();
-        if waking && !self.can_wake_counterpart() {
+        if waking && !self.can_wake_counterpart(wake_service) {
             return Err(PrivateDmRuntimeError::NotReady);
         }
         if self.call.is_some() {
@@ -241,7 +245,8 @@ impl PrivateDmRuntime {
                 "another call is already in flight".into(),
             ));
         }
-        self.session_mut(session_id)?.call_start()
+        let service = self.wake.service.clone();
+        self.session_mut(session_id)?.call_start(service.as_deref())
     }
 
     pub fn call_accept(

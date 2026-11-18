@@ -20,6 +20,7 @@ fn address(handle: &str) -> WakeAddress {
 fn announced_pair() -> (Arc<MemoryNet>, PrivateDmRuntime, PrivateDmRuntime, String) {
     let (net, mut alice, mut bob) = memory_pair();
     alice.set_wake_address(address(HANDLE));
+    bob.set_wake_service(SERVICE.to_string());
     let invite = invite(&mut alice);
     accept(&mut bob, &invite);
     connect(&mut alice, &mut bob, &invite.session_id);
@@ -89,6 +90,42 @@ fn a_call_to_an_absent_counterpart_without_an_address_is_refused() {
     let invite = invite(&mut alice);
     accept(&mut bob, &invite);
     connect(&mut alice, &mut bob, &invite.session_id);
+    net.link_both(ALICE_ID, BOB_ID, PeerTransport::None);
+    bob.drain_inbound_at(after_silence());
+
+    assert!(matches!(
+        bob.call_start(&invite.session_id),
+        Err(PrivateDmRuntimeError::NotReady)
+    ));
+}
+
+// A contact names its service; only the build's own is asked, or a contact
+// could point this device's requests anywhere.
+#[test]
+fn an_address_on_another_service_wakes_nothing() {
+    let (net, _alice, mut bob, session_id) = announced_pair();
+    bob.set_wake_service("https://other.example".to_string());
+    net.link_both(ALICE_ID, BOB_ID, PeerTransport::None);
+    bob.drain_inbound_at(after_silence());
+
+    assert!(matches!(
+        bob.call_start(&session_id),
+        Err(PrivateDmRuntimeError::NotReady)
+    ));
+    bob.send_message(&session_id, "hi".to_string())
+        .expect("a text for an absent peer queues");
+    bob.drain_inbound_at(after_silence() + MESSAGE_WAKE_GAP_MS);
+    assert!(bob.take_wake_requests().is_empty());
+}
+
+#[test]
+fn a_build_without_a_wake_service_wakes_nobody() {
+    let (net, mut alice, mut bob) = memory_pair();
+    alice.set_wake_address(address(HANDLE));
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+    exchange(&mut alice, &mut bob, &invite.session_id);
     net.link_both(ALICE_ID, BOB_ID, PeerTransport::None);
     bob.drain_inbound_at(after_silence());
 
@@ -220,6 +257,7 @@ fn the_address_survives_a_restart() {
 
     let mut bob =
         PrivateDmRuntime::with_transport(net.endpoint(BOB_ID), temp_store(), Some(persistence));
+    bob.set_wake_service(SERVICE.to_string());
     bob.rehydrate();
     let call = bob
         .call_start(&session_id)

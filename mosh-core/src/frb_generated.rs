@@ -50,7 +50,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1656359817;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1429080543;
 
 // Section: executor
 
@@ -3925,6 +3925,41 @@ fn wire__crate__api__private_dm__set_wake_address_impl(
                         Ok(output_ok)
                     })(),
                 )
+            }
+        },
+    )
+}
+fn wire__crate__api__private_dm__set_wake_service_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_wake_service",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_service = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok({
+                        crate::api::private_dm::set_wake_service(api_service);
+                    })?;
+                    Ok(output_ok)
+                })())
             }
         },
     )
@@ -7862,36 +7897,39 @@ fn pde_ffi_dispatcher_primary_impl(
         110 => {
             wire__crate__api__private_dm__set_wake_address_impl(port, ptr, rust_vec_len, data_len)
         }
-        111 => wire__crate__api__native_call__show_video_at_impl(port, ptr, rust_vec_len, data_len),
-        112 => wire__crate__api__native_call__show_video_in_impl(port, ptr, rust_vec_len, data_len),
-        113 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        114 => wire__crate__api__native_call__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        115 => wire__crate__api__plus__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        116 => wire__crate__api__diagnostics__start_event_capture_impl(
+        111 => {
+            wire__crate__api__private_dm__set_wake_service_impl(port, ptr, rust_vec_len, data_len)
+        }
+        112 => wire__crate__api__native_call__show_video_at_impl(port, ptr, rust_vec_len, data_len),
+        113 => wire__crate__api__native_call__show_video_in_impl(port, ptr, rust_vec_len, data_len),
+        114 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        115 => wire__crate__api__native_call__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        116 => wire__crate__api__plus__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        117 => wire__crate__api__diagnostics__start_event_capture_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        117 => wire__crate__api__diagnostics__stop_event_capture_impl(
+        118 => wire__crate__api__diagnostics__stop_event_capture_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        118 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
+        119 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        119 => {
+        120 => {
             wire__crate__api__private_dm__take_wake_requests_impl(port, ptr, rust_vec_len, data_len)
         }
-        120 => {
+        121 => {
             wire__crate__api__conversation__typing_signal_impl(port, ptr, rust_vec_len, data_len)
         }
-        123 => wire__crate__api__background__watch_background_changes_impl(
+        124 => wire__crate__api__background__watch_background_changes_impl(
             port,
             ptr,
             rust_vec_len,
@@ -7924,12 +7962,12 @@ fn pde_ffi_dispatcher_sync_impl(
         63 => wire__crate__api__conversation__max_text_chars_impl(ptr, rust_vec_len, data_len),
         101 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
         104 => wire__crate__api__native_call__set_default_camera_impl(ptr, rust_vec_len, data_len),
-        121 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
+        122 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        122 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
+        123 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
             ptr,
             rust_vec_len,
             data_len,

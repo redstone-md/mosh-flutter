@@ -110,6 +110,12 @@ Future<void> setWakeAddress(
     RustLib.instance.api
         .crateApiPrivateDmSetWakeAddress(service: service, handle: handle);
 
+/// The build's wake service: contacts are woken only through it, whatever
+/// service they announce. Kept for a runtime started later; one started
+/// while this is set may miss it and then wakes nobody, never anyone else.
+Future<void> setWakeService({required String service}) =>
+    RustLib.instance.api.crateApiPrivateDmSetWakeService(service: service);
+
 /// Why this iPhone's wake registration did not finish, for the field log;
 /// never a token or a handle. A finished one logs "wake address set".
 Future<void> noteWakeRegistration({required String problem}) =>

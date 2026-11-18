@@ -15,6 +15,7 @@ use crate::private_dm_runtime::{
 };
 
 static RUNTIME: RuntimeOwner<PrivateDmRuntime> = RuntimeOwner::new("private DM");
+static WAKE_SERVICE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
 // The two mobile-inject knobs (`set_history_dek`, `set_app_data_dir`) +
 // the shared Moss node / attachment store / persistence are owned by
@@ -56,6 +57,9 @@ fn construct_runtime() -> Result<PrivateDmRuntime, PrivateDmRuntimeError> {
     // persistence wired it now rebuilds sessions + history instead of the
     // slice-one no-op.
     runtime.rehydrate();
+    if let Some(service) = WAKE_SERVICE.get() {
+        runtime.set_wake_service(service.clone());
+    }
     start_service_thread().map_err(PrivateDmRuntimeError::Moss)?;
     Ok(runtime)
 }
@@ -185,6 +189,16 @@ pub fn call_end(
 pub fn set_wake_address(service: String, handle: String) -> Result<(), ConversationBridgeError> {
     ensure_runtime()?.set_wake_address(WakeAddress { service, handle });
     Ok(())
+}
+
+/// The build's wake service: contacts are woken only through it, whatever
+/// service they announce. Kept for a runtime started later; one started
+/// while this is set may miss it and then wakes nobody, never anyone else.
+pub fn set_wake_service(service: String) {
+    let _ = WAKE_SERVICE.set(service.clone());
+    if let Some(Ok(mut runtime)) = RUNTIME.initialized().map(|runtime| runtime.lock()) {
+        runtime.set_wake_service(service);
+    }
 }
 
 /// Why this iPhone's wake registration did not finish, for the field log;

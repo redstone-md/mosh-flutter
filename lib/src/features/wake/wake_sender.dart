@@ -10,22 +10,13 @@ import 'wake_client.dart';
 /// iPhone that is away, or texts waiting for it. Runs on every platform, in
 /// the app's process. A handle the service no longer knows for calls is
 /// dropped; a phone may lack only the alert token texts use.
-///
-/// A contact names the service its phone is woken through, so only
-/// `service`, the one this build registers with, is ever asked: any other
-/// would let a contact send this device's requests wherever it likes.
+/// The runtime asks only for wakes through the build's own service.
 class WakeSender {
-  WakeSender(
-      {required Uri service,
-      required this.take,
-      required this.forget,
-      WakeClient? client})
-      : _service = service.toString(),
-        _client = client ?? WakeClient();
+  WakeSender({required this.take, required this.forget, WakeClient? client})
+      : _client = client ?? WakeClient();
 
   final Future<List<WakeRequest>> Function() take;
   final Future<void> Function(String handle) forget;
-  final String _service;
   final WakeClient _client;
   // Refused wakes and the tries each has left: the runtime asks for a wake
   // once, so a service that was briefly unreachable must be asked again.
@@ -37,10 +28,6 @@ class WakeSender {
   /// one wake after another.
   Future<void> send() async {
     for (final request in {..._retry.keys, ...await take()}) {
-      if (request.service != _service) {
-        await forget(request.handle);
-        continue;
-      }
       final outcome = await _client.wake(request);
       debugPrint(
           'wake ${request.callId == null ? 'message' : 'call'}: ${outcome.name}');
