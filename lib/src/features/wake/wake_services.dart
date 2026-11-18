@@ -10,9 +10,12 @@ import 'wake_client.dart';
 import 'wake_registration.dart';
 import 'wake_sender.dart';
 
-/// The production sender: asks the DM runtime every second.
-WakeSender startWakeSender(Ref ref) {
+/// The production sender: asks the DM runtime every second. A build without
+/// a wake service wakes nobody.
+WakeSender? startWakeSender(Ref ref) {
+  if (kWakeServiceUrl.isEmpty) return null;
   final sender = WakeSender(
+      service: Uri.parse(kWakeServiceUrl),
       take: api.takeWakeRequests,
       forget: (handle) => api.forgetWakeHandle(handle: handle));
   sender.start(const Duration(seconds: 1));

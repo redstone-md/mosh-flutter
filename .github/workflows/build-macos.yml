@@ -168,6 +168,8 @@ jobs:
           MOSH_PLUS_NETWORK: ${{ inputs.plus-network }}
           MOSH_PLUS_SERVER_URL: ${{ inputs.plus-server-url }}
           MOSH_PLUS_ISSUER_KEY: ${{ inputs.plus-issuer-key }}
+          # The only wake service this build sends wakes to.
+          MOSH_WAKE_URL: ${{ secrets.MOSH_WAKE_URL }}
         # ADR 0035: the Sentry DSN (a public repo variable) enables opt-in
         # crash reporting; without it the build cannot report at all.
         run: >-
@@ -176,6 +178,7 @@ jobs:
           "--dart-define=MOSH_PLUS_NETWORK=$MOSH_PLUS_NETWORK"
           "--dart-define=MOSH_PLUS_SERVER_URL=$MOSH_PLUS_SERVER_URL"
           "--dart-define=MOSH_PLUS_ISSUER_KEY=$MOSH_PLUS_ISSUER_KEY"
+          "--dart-define=MOSH_WAKE_URL=$MOSH_WAKE_URL"
 
       - if: steps.native-app.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@v4

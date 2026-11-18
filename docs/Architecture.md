@@ -415,7 +415,9 @@ contacts keep it per device in the session record
 device that has gone quiet, the DM runtime asks Dart to send the wake service
 a request, and the service pushes the phone through Apple
 ([plan](Proposals/ios-background-delivery.plan.md)). Desktop and Android make
-that request only while Mosh runs as an app.
+that request only while Mosh runs as an app, and every build only to the
+service it was built with (`MOSH_WAKE_URL`), so a contact cannot point it
+anywhere else.
 
 ## Security, builds and checks
 

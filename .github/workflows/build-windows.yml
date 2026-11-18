@@ -129,6 +129,9 @@ jobs:
           MOSH_PLUS_NETWORK: ${{ inputs.plus-network }}
           MOSH_PLUS_SERVER_URL: ${{ inputs.plus-server-url }}
           MOSH_PLUS_ISSUER_KEY: ${{ inputs.plus-issuer-key }}
+          # The only wake service this build sends wakes to (a secret: the
+          # temporary host stays out of the repo).
+          MOSH_WAKE_URL: ${{ secrets.MOSH_WAKE_URL }}
         # ADR 0035: the Sentry DSN (a public repo variable) enables opt-in
         # crash reporting; without it the build cannot report at all.
         run: >-
@@ -137,6 +140,7 @@ jobs:
           "--dart-define=MOSH_PLUS_NETWORK=$env:MOSH_PLUS_NETWORK"
           "--dart-define=MOSH_PLUS_SERVER_URL=$env:MOSH_PLUS_SERVER_URL"
           "--dart-define=MOSH_PLUS_ISSUER_KEY=$env:MOSH_PLUS_ISSUER_KEY"
+          "--dart-define=MOSH_WAKE_URL=$env:MOSH_WAKE_URL"
 
       # windows/CMakeLists.txt writes Release PDBs under symbols/ for Sentry;
       # the bundle the installers pack must hold none of them.

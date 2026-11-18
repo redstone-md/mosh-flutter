@@ -111,6 +111,7 @@ void main() {
     WakeRequest wake(String handle, {String? call}) => WakeRequest(
         service: service.uri.toString(), handle: handle, callId: call);
     final sender = WakeSender(
+        service: service.uri,
         // A phone without an alert token answers 404 to texts only.
         take: () async => [
               wake('no-alerts'),
@@ -125,12 +126,37 @@ void main() {
     expect(forgotten, ['gone']);
   });
 
+  // A contact names the service; one off this build's own would make the
+  // device send requests wherever the contact likes.
+  test('a sender wakes only through its own build\'s service', () async {
+    service.statuses.add(202);
+    final forgotten = <String>[];
+    final sender = WakeSender(
+        service: service.uri,
+        take: () async => [
+              WakeRequest(
+                  service: 'https://10.0.0.1',
+                  handle: 'elsewhere',
+                  callId: 'c'),
+              WakeRequest(
+                  service: service.uri.toString(), handle: 'h', callId: 'd'),
+            ],
+        forget: (handle) async => forgotten.add(handle),
+        client: client);
+
+    await sender.send();
+
+    expect(calls(), ['POST /v1/wake']);
+    expect(forgotten, ['elsewhere']);
+  });
+
   test('a sender tries a refused wake again on its next round', () async {
     service.statuses.addAll([502, 202]);
     final wake =
         WakeRequest(service: service.uri.toString(), handle: 'h', callId: 'c');
     var waiting = [wake];
     final sender = WakeSender(
+        service: service.uri,
         take: () async {
           final due = waiting;
           waiting = [];

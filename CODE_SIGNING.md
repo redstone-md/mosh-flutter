@@ -91,9 +91,10 @@ those need an Admin key; the CI key stays App Manager.
   Apple Distribution certificate, its key and Apple's WWDR intermediate, made
   by `scripts/apple-distribution-wizard.sh` (no Mac needed).
 - `MOSH_WAKE_URL`: the HTTPS address of the wake service (`mosh-wake`) the
-  app registers with, so contacts can ring a closed iPhone. A secret only to
-  keep the address out of the repository and the logs; without it the app
-  never registers.
+  app registers with, so contacts can ring a closed iPhone. The Windows,
+  macOS and Android builds get it too: a build sends wakes only to this
+  service, whatever a contact announces, and one without it sends none. A
+  secret only to keep the address out of the repository and the logs.
 
 The app has the Push Notifications capability (PushKit rings calls, APNs
 shows "New message"). `scripts/ios-profile.mjs` turns it on for the App ID
