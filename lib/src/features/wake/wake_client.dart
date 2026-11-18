@@ -42,32 +42,21 @@ final class WakeRegistration {
     required this.service,
     required this.handle,
     required this.secret,
-    this.tokens,
   });
 
   final Uri service;
   final String handle;
   final String secret;
 
-  /// The tokens the service holds for this entry.
-  final WakeTokens? tokens;
-
-  WakeRegistration withTokens(WakeTokens tokens) => WakeRegistration(
-      service: service, handle: handle, secret: secret, tokens: tokens);
-
   /// A stored registration, or null when there is none or it does not read.
   static WakeRegistration? tryParse(String? stored) {
     if (stored == null) return null;
     try {
       final json = jsonDecode(stored) as Map<String, dynamic>;
-      final tokens = json['tokens'];
       return WakeRegistration(
           service: Uri.parse(json['service'] as String),
           handle: json['handle'] as String,
-          secret: json['secret'] as String,
-          tokens: tokens == null
-              ? null
-              : WakeTokens.fromJson(tokens as Map<String, dynamic>));
+          secret: json['secret'] as String);
     } on Object {
       return null;
     }
@@ -77,7 +66,6 @@ final class WakeRegistration {
         'service': service.toString(),
         'handle': handle,
         'secret': secret,
-        if (tokens != null) 'tokens': tokens!.toJson(),
       });
 }
 
@@ -100,8 +88,7 @@ class WakeClient {
     return WakeRegistration(
         service: service,
         handle: json['handle'] as String,
-        secret: json['secret'] as String,
-        tokens: tokens);
+        secret: json['secret'] as String);
   }
 
   /// Replaces the tokens of `registration`; false when the service no longer

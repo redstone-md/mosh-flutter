@@ -51,9 +51,10 @@ class WakeRegistrar {
     if (stored == null || stored.service != service) {
       return client.register(service, tokens);
     }
-    if (stored.tokens == tokens) return stored;
+    // Updated every run, so an entry the service lost is noticed and
+    // replaced before its handle is announced again.
     return await client.update(stored, tokens)
-        ? stored.withTokens(tokens)
+        ? stored
         : client.register(service, tokens);
   }
 }

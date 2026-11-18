@@ -48,12 +48,12 @@ void main() {
 
   test('a phone registers once and announces the same handle every launch',
       () async {
-    service.statuses.add(201);
+    service.statuses.addAll([201, 204]);
 
     await registrar.run();
     await registrar.run();
 
-    expect(calls(), ['POST /v1/devices']);
+    expect(calls(), ['POST /v1/devices', 'PUT /v1/devices/h']);
     expect(announced, [
       (service.uri.toString(), 'h'),
       (service.uri.toString(), 'h'),
@@ -62,11 +62,11 @@ void main() {
 
   // The launch run and the token callback can overlap on a first launch.
   test('overlapping runs register one handle', () async {
-    service.statuses.add(201);
+    service.statuses.addAll([201, 204]);
 
     await Future.wait([registrar.run(), registrar.run()]);
 
-    expect(calls(), ['POST /v1/devices']);
+    expect(calls(), ['POST /v1/devices', 'PUT /v1/devices/h']);
     expect(announced.map((a) => a.$2), ['h', 'h']);
   });
 
@@ -93,6 +93,18 @@ void main() {
 
     expect(
         calls(), ['POST /v1/devices', 'PUT /v1/devices/h', 'POST /v1/devices']);
+    expect(announced.last.$2, 'h2');
+  });
+
+  // Otherwise the phone would announce a handle the service has dropped.
+  test('an entry the service lost is registered anew at the next launch',
+      () async {
+    service.statuses.addAll([201, 401, 201]);
+    await registrar.run();
+    service.created = {'handle': 'h2', 'secret': 's2'};
+
+    await registrar.run();
+
     expect(announced.last.$2, 'h2');
   });
 
