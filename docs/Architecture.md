@@ -408,6 +408,17 @@ and [ADR 0044](ADR/0044-native-call-media-over-moss.md). The
 [issue 46 plan](Proposals/issue-46-video-calls.plan.md) defines stages and acceptance.
 Every call uses that one native audio/video engine over Moss, iOS included.
 
+iOS gives a closed app no process, so an iPhone announces a wake address
+(service and handle) in each DM as an MLS-encrypted control frame, and its
+contacts keep it per device in the session record
+(`private_dm_runtime/wake.rs`). When a call rings, or texts wait, for such a
+device that has gone quiet, the DM runtime asks Dart to send the wake service
+a request, and the service pushes the phone through Apple
+([plan](Proposals/ios-background-delivery.plan.md)). Desktop and Android make
+that request only while Mosh runs as an app, and every build only to the
+service it was built with (`MOSH_WAKE_URL`), so a contact cannot point it
+anywhere else.
+
 ## Security, builds and checks
 
 The optional PLUS owner stores encrypted orders, blinding state, paid intervals

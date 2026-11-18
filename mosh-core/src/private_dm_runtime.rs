@@ -121,10 +121,12 @@ pub struct PrivateDmRuntime {
     lost_window_ms: u64,
     device_link: Option<devices::DeviceDmLink>,
     background_calls: Option<Vec<crate::persistence::background_calls::BackgroundCallState>>,
+    wake: wake::WakeSetup,
 }
 
 struct PrivateDmSession {
     plus_schedule: crate::plus::PlusSchedule,
+    wake: wake::WakeBook,
     invitation: Option<invitations::InviteLifecycle>,
     deletions: crate::message_deletion::DeletionBook,
     history_last_rx_ms: u64,
@@ -284,6 +286,7 @@ impl PrivateDmRuntime {
             lost_window_ms: LOST_WINDOW_MS,
             device_link: None,
             background_calls: None,
+            wake: Default::default(),
         }
     }
 
@@ -335,6 +338,7 @@ mod plus;
 mod session;
 mod snapshot;
 mod typing;
+pub(crate) mod wake;
 
 #[cfg(test)]
 #[path = "private_dm_runtime/write_coherence_tests.rs"]
@@ -379,11 +383,9 @@ mod field_log_tests;
 #[cfg(test)]
 #[path = "private_dm_runtime/outbox_waiting_tests.rs"]
 mod outbox_waiting_tests;
-
 #[cfg(test)]
 #[path = "private_dm_runtime/reachability_tests.rs"]
 mod reachability_tests;
-
 #[cfg(test)]
 #[path = "private_dm_runtime/runtime_tests.rs"]
 mod tests;
@@ -391,8 +393,7 @@ mod tests;
 mod actions;
 mod lifecycle;
 mod pending_join;
-mod service;
-mod storage;
-
 mod resend;
+mod service;
 mod session_transport;
+mod storage;

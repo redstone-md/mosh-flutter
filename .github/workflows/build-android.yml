@@ -92,6 +92,8 @@ jobs:
           MOSH_DISTRIBUTION_CHANNEL: ${{ inputs.distribution-channel }}
           MOSH_PLUS_SERVER_URL: ${{ vars.MOSH_PLUS_SERVER_URL }}
           MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
+          # The only wake service this build sends wakes to.
+          MOSH_WAKE_URL: ${{ secrets.MOSH_WAKE_URL }}
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
         run: |
           set -euo pipefail
@@ -101,7 +103,8 @@ jobs:
             "--dart-define=MOSH_DISTRIBUTION_CHANNEL=$MOSH_DISTRIBUTION_CHANNEL" \
             --dart-define=MOSH_PLUS_NETWORK=solana-mainnet \
             "--dart-define=MOSH_PLUS_SERVER_URL=$MOSH_PLUS_SERVER_URL" \
-            "--dart-define=MOSH_PLUS_ISSUER_KEY=$MOSH_PLUS_ISSUER_KEY"
+            "--dart-define=MOSH_PLUS_ISSUER_KEY=$MOSH_PLUS_ISSUER_KEY" \
+            "--dart-define=MOSH_WAKE_URL=$MOSH_WAKE_URL"
 
       # Preserve expensive native compilation even if package validation fails.
       - uses: actions/cache/save@v4

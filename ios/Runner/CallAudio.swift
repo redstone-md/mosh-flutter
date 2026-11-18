@@ -22,7 +22,7 @@ final class CallAudio {
   private var lastChange: AVAudioSession.RouteChangeReason?
   /// The session as it was before the call, restored after it, so playback
   /// after a call leaves the receiver.
-  private var previous: (AVAudioSession.Category, AVAudioSession.Mode, AVAudioSession.CategoryOptions)?
+  private var previous: CallKitAudio.Setup?
 
   func devices() -> [String: Any] {
     queue.sync {
@@ -82,7 +82,9 @@ final class CallAudio {
   /// told the same session.
   private func begin() -> [String: Any] {
     let session = AVAudioSession.sharedInstance()
-    previous = (session.category, session.mode, session.categoryOptions)
+    // Under CallKit the session was already set up for the call.
+    previous = CallKitAudio.shared.takeBeforeCall()
+      ?? (session.category, session.mode, session.categoryOptions)
     try? session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP])
     routeChanges = NotificationCenter.default.addObserver(
       forName: AVAudioSession.routeChangeNotification, object: nil, queue: nil
@@ -103,7 +105,10 @@ final class CallAudio {
       }
     }
     DispatchQueue.main.async { UIDevice.current.isProximityMonitoringEnabled = true }
-    return Self.configureWebRTC()
+    let webrtc = Self.configureWebRTC()
+    // Before the audio module starts, or it activates the session itself.
+    CallKitAudio.shared.sync()
+    return webrtc
   }
 
   /// libwebrtc's audio module applies its own session configuration when it
@@ -195,5 +200,82 @@ final class CallAudio {
     } catch {
       return false
     }
+  }
+}
+
+/// Under CallKit the system activates the call's audio session, so
+/// libwebrtc's audio waits for it (manual audio) rather than activating the
+/// session itself. libwebrtc's `RTCAudioSession` lives in
+/// MoshMedia.framework, which Rust loads with the first call, often after
+/// CallKit activated the session; whichever comes second applies it.
+final class CallKitAudio {
+  static let shared = CallKitAudio()
+
+  typealias Setup = (AVAudioSession.Category, AVAudioSession.Mode, AVAudioSession.CategoryOptions)
+
+  private let lock = NSLock()
+  private var session: AVAudioSession?
+  /// The session as it was before `prepare`, for the call to restore.
+  private var beforeCall: Setup?
+  /// libwebrtc was told of the current activation.
+  private var told = false
+
+  /// The category a call needs, set before CallKit activates the session.
+  static func prepare() {
+    let session = AVAudioSession.sharedInstance()
+    shared.lock.lock()
+    if shared.beforeCall == nil {
+      shared.beforeCall = (session.category, session.mode, session.categoryOptions)
+    }
+    shared.lock.unlock()
+    try? session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP])
+  }
+
+  /// What `prepare` replaced, once.
+  func takeBeforeCall() -> Setup? {
+    lock.lock()
+    defer { lock.unlock() }
+    let setup = beforeCall
+    beforeCall = nil
+    return setup
+  }
+
+  func activated(_ session: AVAudioSession) {
+    NSLog("mosh: CallKit activated the call's audio")
+    lock.lock()
+    self.session = session
+    told = false
+    lock.unlock()
+    sync()
+  }
+
+  func deactivated(_ session: AVAudioSession) {
+    lock.lock()
+    if told { _ = Self.rtc()?.perform(NSSelectorFromString("audioSessionDidDeactivate:"), with: session) }
+    self.session = nil
+    told = false
+    lock.unlock()
+    sync()
+  }
+
+  /// Applies the CallKit state to libwebrtc once its class is loaded. A call
+  /// that CallKit does not carry keeps libwebrtc's own audio handling.
+  func sync() {
+    guard let rtc = Self.rtc() else { return }
+    lock.lock()
+    defer { lock.unlock() }
+    let manual = SystemCalls.shared.hasCall
+    rtc.setValue(manual, forKey: "useManualAudio")
+    if manual, let session = session, !told {
+      _ = rtc.perform(NSSelectorFromString("audioSessionDidActivate:"), with: session)
+      told = true
+    }
+    rtc.setValue(!manual || session != nil, forKey: "isAudioEnabled")
+  }
+
+  private static func rtc() -> NSObject? {
+    guard let type = NSClassFromString("RTCAudioSession") as? NSObject.Type else { return nil }
+    return (type as AnyObject).perform(NSSelectorFromString("sharedInstance"))?
+      .takeUnretainedValue() as? NSObject
   }
 }

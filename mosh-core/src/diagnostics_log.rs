@@ -9,6 +9,7 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::api::shared_runtime::resolved_data_dir;
+mod crash_output;
 mod timestamp;
 use timestamp::{iso8601_utc, now_unix_secs};
 
@@ -43,6 +44,8 @@ pub mod kinds {
     pub const KICK: &str = "kick";
     pub const RESYNC: &str = "resync";
     pub const VOICE: &str = "voice";
+    /// Wake addresses announced and kept, and wakes asked of the service.
+    pub const WAKE: &str = "wake";
     /// The attachment chunk carrier: stream sends, fallbacks, and frames
     /// that arrive on the reserved inbox channel (spec #8).
     pub const STREAM: &str = "stream";
@@ -230,9 +233,18 @@ pub fn log_files() -> Vec<PathBuf> {
 fn files_in(dir: &std::path::Path) -> Vec<PathBuf> {
     std::iter::once(FILE_NAME)
         .chain(ROTATED_NAMES)
+        .chain([crash_output::PREVIOUS])
         .map(|name| dir.join(name))
         .filter(|path| path.is_file())
         .collect()
+}
+
+/// Keeps this process's stderr for the next launch (`crash_output`). Called
+/// once the data directory is known; later calls do nothing.
+#[cfg(target_os = "ios")]
+pub fn capture_crash_output() {
+    static CAPTURED: OnceLock<()> = OnceLock::new();
+    CAPTURED.get_or_init(|| crash_output::capture(&logs_dir()));
 }
 
 /// Where the log lives, once a write has opened the file. `None` before the

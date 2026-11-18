@@ -77,6 +77,7 @@ impl PrivateDmRuntime {
     /// written down afterwards, once the mutable borrow is over.
     pub(super) fn tick(&mut self, now: u64) {
         let lost_window = self.lost_window_ms;
+        let wake = self.wake.clone();
         let mesh = if self.sessions.values().next().is_some() {
             self.transport.mesh_info()
         } else {
@@ -88,6 +89,7 @@ impl PrivateDmRuntime {
             if !session.service_protocols(now, lost_window, mesh.as_ref()) {
                 continue;
             }
+            session.pump_wake(now, &wake, lost_window);
             ready.push(session_id.clone());
             let changed = session
                 .pump_unacked_resends(now)

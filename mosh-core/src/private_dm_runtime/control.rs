@@ -136,6 +136,13 @@ impl PrivateDmSession {
             } if self.is_from_counterpart(&session_id, &participant_id) => {
                 self.accept_peer_announce(&from_device, moss_peer_id)
             }
+            ControlEnvelope::WakeAddress {
+                session_id,
+                participant_id,
+                wake_ciphertext_b64,
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
+                self.accept_wake_address(&wake_ciphertext_b64)
+            }
             other => self.handle_call_control(other),
         }
     }

@@ -59,6 +59,7 @@ import 'plus/recovery_types.dart';
 import 'plus/types.dart';
 import 'private_dm_runtime/contracts.dart';
 import 'private_dm_runtime/transport.dart';
+import 'private_dm_runtime/wake.dart';
 import 'private_group_runtime.dart';
 import 'private_group_runtime/wire_types.dart';
 import 'secure_storage.dart';
@@ -572,6 +573,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<UserTransfer> dco_decode_list_user_transfer(dynamic raw);
 
   @protected
+  List<WakeRequest> dco_decode_list_wake_request(dynamic raw);
+
+  @protected
   MeshInfo dco_decode_mesh_info(dynamic raw);
 
   @protected
@@ -861,6 +865,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   VpnDetection dco_decode_vpn_detection(dynamic raw);
+
+  @protected
+  WakeRequest dco_decode_wake_request(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -1421,6 +1428,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  List<WakeRequest> sse_decode_list_wake_request(SseDeserializer deserializer);
+
+  @protected
   MeshInfo sse_decode_mesh_info(SseDeserializer deserializer);
 
   @protected
@@ -1750,6 +1760,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   VpnDetection sse_decode_vpn_detection(SseDeserializer deserializer);
+
+  @protected
+  WakeRequest sse_decode_wake_request(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -2349,6 +2362,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       List<UserTransfer> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_wake_request(
+      List<WakeRequest> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_mesh_info(MeshInfo self, SseSerializer serializer);
 
   @protected
@@ -2683,6 +2700,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_vpn_detection(VpnDetection self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_wake_request(WakeRequest self, SseSerializer serializer);
 }
 
 // Section: wire_class

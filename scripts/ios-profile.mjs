@@ -37,6 +37,27 @@ export function apiToken({ issuerId, keyId, p8 }, now = Math.floor(Date.now() / 
   return `${unsigned}.${signature.toString("base64url")}`;
 }
 
+/**
+ * Turns on Push Notifications for the App ID (calls ring a closed iPhone
+ * through PushKit). The key needs access to Certificates, Identifiers &
+ * Profiles; a key without it fails here with Apple's reason.
+ */
+export async function enablePush({ api, bundle }) {
+  const capabilities = (await api("GET", `/bundleIds/${bundle.id}/bundleIdCapabilities`)).data;
+  if (capabilities.some((item) => item.attributes.capabilityType === "PUSH_NOTIFICATIONS")) return;
+  await api("POST", "/bundleIdCapabilities", {
+    data: {
+      type: "bundleIdCapabilities",
+      attributes: { capabilityType: "PUSH_NOTIFICATIONS" },
+      relationships: { bundleId: { data: { type: "bundleIds", id: bundle.id } } },
+    },
+  });
+}
+
+/** A profile made before the App ID had push lacks its entitlement. */
+const hasPush = (profile) =>
+  Buffer.from(profile.attributes.profileContent, "base64").includes("aps-environment");
+
 /** Serial numbers as Apple and openssl print them: hex, any case, maybe zero-padded. */
 const sameSerial = (a, b) => a.replace(/^0+/, "").toUpperCase() === b.replace(/^0+/, "").toUpperCase();
 
@@ -49,13 +70,20 @@ export async function appStoreProfile({ api, bundleId, serial }) {
   const bundle = (await api("GET", `/bundleIds?filter[identifier]=${encodeURIComponent(bundleId)}`))
     .data.find((item) => item.attributes.identifier === bundleId);
   if (!bundle) throw new Error(`bundle id ${bundleId} is not registered`);
+  await enablePush({ api, bundle });
   const certificate = (await api("GET", "/certificates?filter[certificateType]=DISTRIBUTION&limit=200"))
     .data.find((item) => sameSerial(item.attributes.serialNumber, serial));
   if (!certificate) throw new Error(`no Apple Distribution certificate with serial ${serial}`);
 
   const name = `Mosh App Store ${serial.toUpperCase()}`;
-  const existing = (await api("GET", `/profiles?filter[name]=${encodeURIComponent(name)}&filter[profileState]=ACTIVE`))
-    .data.find((item) => item.attributes.profileType === "IOS_APP_STORE");
+  // Any state: a profile that turning push on invalidated keeps its name,
+  // and names are unique, so a stale one goes before its replacement.
+  const named = (await api("GET", `/profiles?filter[name]=${encodeURIComponent(name)}`)).data;
+  const existing = named.find((item) => item.attributes.profileType === "IOS_APP_STORE"
+    && item.attributes.profileState === "ACTIVE" && hasPush(item));
+  if (!existing) {
+    for (const stale of named) await api("DELETE", `/profiles/${stale.id}`);
+  }
   const profile = existing ?? (await api("POST", "/profiles", {
     data: {
       type: "profiles",
@@ -76,7 +104,8 @@ function restClient(token, fetchImpl = fetch) {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: body && JSON.stringify(body),
     });
-    const json = await response.json();
+    // A deletion answers 204 with no body.
+    const json = response.status === 204 ? {} : await response.json();
     if (!response.ok) {
       throw new Error(`${method} ${route.split("?")[0]}: ${response.status} ${json.errors?.[0]?.detail ?? ""}`);
     }

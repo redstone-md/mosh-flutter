@@ -156,6 +156,7 @@ fn a_final_record_without_snapshot_is_kept_and_reported() {
         peer_moss_id: None,
         read_message_ids: vec![],
         call_controls: Default::default(),
+        peer_wakes: Default::default(),
     };
     crate::conversation::history::History::new(DM_HISTORY)
         .write_record(&persistence, "session-finalish", &record)

@@ -95,11 +95,17 @@ jobs:
       # own certificate check is skipped.
       - name: Flutter configuration (App Store channel)
         shell: bash
+        env:
+          # The wake service this iPhone registers with; a secret so its
+          # address stays out of the repository and the logs. Without it
+          # (forks) the app never registers and contacts cannot wake it.
+          MOSH_WAKE_URL: ${{ secrets.MOSH_WAKE_URL }}
         run: |
           build="$(sed -n 's/^version: .*+\([0-9]*\)$/\1/p' pubspec.yaml).$GITHUB_RUN_ID"
           flutter build ios --release --config-only --no-codesign --build-number="$build" \
             --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }} \
-            --dart-define=MOSH_DISTRIBUTION_CHANNEL=appstore
+            --dart-define=MOSH_DISTRIBUTION_CHANNEL=appstore \
+            --dart-define=MOSH_WAKE_URL="$MOSH_WAKE_URL"
 
       - name: Import the Apple Distribution identity
         env:

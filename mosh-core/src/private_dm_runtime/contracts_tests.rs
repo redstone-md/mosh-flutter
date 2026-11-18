@@ -87,6 +87,10 @@ fn a_legacy_record_without_read_state_still_loads() {
         serde_json::from_value(legacy).expect("a pre-receipts record still loads");
     assert_eq!(record.peer_moss_id, None);
     assert!(
+        record.peer_wakes.is_empty(),
+        "no wake address was announced"
+    );
+    assert!(
         record.read_message_ids.is_empty(),
         "no read state is persisted yet"
     );
