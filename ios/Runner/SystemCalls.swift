@@ -107,8 +107,13 @@ final class SystemCalls: NSObject {
     case "saveRegistration":
       let registration = call.arguments as? String ?? ""
       WakeKeychain.queue.async {
-        WakeKeychain.save(registration)
-        DispatchQueue.main.async { result(nil) }
+        let status = WakeKeychain.save(registration)
+        DispatchQueue.main.async {
+          // Unsaved, the handle is not announced: after a restart the phone
+          // could not reuse it.
+          result(status == errSecSuccess
+            ? nil : FlutterError(code: "keychain", message: "OSStatus \(status)", details: nil))
+        }
       }
       return
     default:
@@ -315,11 +320,11 @@ enum WakeKeychain {
     return String(data: data, encoding: .utf8)
   }
 
-  static func save(_ registration: String) {
+  static func save(_ registration: String) -> OSStatus {
     SecItemDelete(query as CFDictionary)
     var item = query
     item[kSecValueData as String] = Data(registration.utf8)
     item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-    SecItemAdd(item as CFDictionary, nil)
+    return SecItemAdd(item as CFDictionary, nil)
   }
 }

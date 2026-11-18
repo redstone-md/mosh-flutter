@@ -22,7 +22,7 @@ final class CallAudio {
   private var lastChange: AVAudioSession.RouteChangeReason?
   /// The session as it was before the call, restored after it, so playback
   /// after a call leaves the receiver.
-  private var previous: (AVAudioSession.Category, AVAudioSession.Mode, AVAudioSession.CategoryOptions)?
+  private var previous: CallKitAudio.Setup?
 
   func devices() -> [String: Any] {
     queue.sync {
@@ -82,7 +82,9 @@ final class CallAudio {
   /// told the same session.
   private func begin() -> [String: Any] {
     let session = AVAudioSession.sharedInstance()
-    previous = (session.category, session.mode, session.categoryOptions)
+    // Under CallKit the session was already set up for the call.
+    previous = CallKitAudio.shared.takeBeforeCall()
+      ?? (session.category, session.mode, session.categoryOptions)
     try? session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP])
     routeChanges = NotificationCenter.default.addObserver(
       forName: AVAudioSession.routeChangeNotification, object: nil, queue: nil
@@ -209,15 +211,33 @@ final class CallAudio {
 final class CallKitAudio {
   static let shared = CallKitAudio()
 
+  typealias Setup = (AVAudioSession.Category, AVAudioSession.Mode, AVAudioSession.CategoryOptions)
+
   private let lock = NSLock()
   private var session: AVAudioSession?
+  /// The session as it was before `prepare`, for the call to restore.
+  private var beforeCall: Setup?
   /// libwebrtc was told of the current activation.
   private var told = false
 
   /// The category a call needs, set before CallKit activates the session.
   static func prepare() {
-    try? AVAudioSession.sharedInstance()
-      .setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP])
+    let session = AVAudioSession.sharedInstance()
+    shared.lock.lock()
+    if shared.beforeCall == nil {
+      shared.beforeCall = (session.category, session.mode, session.categoryOptions)
+    }
+    shared.lock.unlock()
+    try? session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP])
+  }
+
+  /// What `prepare` replaced, once.
+  func takeBeforeCall() -> Setup? {
+    lock.lock()
+    defer { lock.unlock() }
+    let setup = beforeCall
+    beforeCall = nil
+    return setup
   }
 
   func activated(_ session: AVAudioSession) {
