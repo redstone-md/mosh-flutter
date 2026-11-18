@@ -28,8 +28,14 @@ class WakeRegistrar {
   final WakeClient client;
   final Future<void> Function(String service, String handle) announce;
 
-  /// False while the system has not handed out the push tokens.
-  Future<bool> run() async {
+  Future<bool> _last = Future.value(true);
+
+  /// False while the system has not handed out the push tokens. Runs one at
+  /// a time: overlapping runs would each register their own handle.
+  Future<bool> run() =>
+      _last = _last.then((_) => _run(), onError: (Object _) => _run());
+
+  Future<bool> _run() async {
     final tokens = await device.tokens();
     if (tokens == null) return false;
     final registration = await _current(tokens);

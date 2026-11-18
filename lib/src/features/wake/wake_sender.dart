@@ -17,15 +17,21 @@ class WakeSender {
   final Future<List<WakeRequest>> Function() take;
   final Future<void> Function(String handle) forget;
   final WakeClient _client;
+  // Refused wakes and the tries each has left: the runtime asks for a wake
+  // once, so a service that was briefly unreachable must be asked again.
+  final _retry = <WakeRequest, int>{};
   Timer? _timer;
   bool _sending = false;
 
-  /// Takes what is waiting and sends it, one wake after another.
+  /// Takes what is waiting, with the wakes refused before, and sends it,
+  /// one wake after another.
   Future<void> send() async {
-    for (final request in await take()) {
+    for (final request in {..._retry.keys, ...await take()}) {
       final outcome = await _client.wake(request);
       debugPrint(
           'wake ${request.callId == null ? 'message' : 'call'}: ${outcome.name}');
+      final left = (_retry.remove(request) ?? _tries) - 1;
+      if (outcome == WakeOutcome.refused && left > 0) _retry[request] = left;
       if (outcome == WakeOutcome.forgotten && request.callId != null) {
         await forget(request.handle);
       }
@@ -52,6 +58,9 @@ class WakeSender {
     _client.close();
   }
 }
+
+/// How often a refused wake is sent: once a round for a few seconds.
+const _tries = 5;
 
 /// The process's sender; null where nothing sends wakes (tests).
 final wakeSenderProvider = Provider<WakeSender?>((ref) => null);

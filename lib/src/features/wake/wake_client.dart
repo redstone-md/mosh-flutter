@@ -161,7 +161,8 @@ class WakeClient {
     request.headers.contentType = ContentType.json;
     request.write(jsonEncode(body));
     final response = await request.close().timeout(_timeout);
-    final text = await utf8.decoder.bind(response).join().timeout(_timeout);
+    // A body that stalls cancels the response, freeing its socket.
+    final text = await utf8.decoder.bind(response.timeout(_timeout)).join();
     return (response.statusCode, text);
   }
 }

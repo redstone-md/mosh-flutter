@@ -60,6 +60,16 @@ void main() {
     ]);
   });
 
+  // The launch run and the token callback can overlap on a first launch.
+  test('overlapping runs register one handle', () async {
+    service.statuses.add(201);
+
+    await Future.wait([registrar.run(), registrar.run()]);
+
+    expect(calls(), ['POST /v1/devices']);
+    expect(announced.map((a) => a.$2), ['h', 'h']);
+  });
+
   test('new tokens update the entry and keep the handle', () async {
     service.statuses.addAll([201, 204]);
     await registrar.run();
@@ -113,5 +123,25 @@ void main() {
     await sender.send();
 
     expect(forgotten, ['gone']);
+  });
+
+  test('a sender tries a refused wake again on its next round', () async {
+    service.statuses.addAll([502, 202]);
+    final wake =
+        WakeRequest(service: service.uri.toString(), handle: 'h', callId: 'c');
+    var waiting = [wake];
+    final sender = WakeSender(
+        take: () async {
+          final due = waiting;
+          waiting = [];
+          return due;
+        },
+        forget: (_) async {},
+        client: client);
+
+    await sender.send();
+    await sender.send();
+
+    expect(calls(), ['POST /v1/wake', 'POST /v1/wake']);
   });
 }
