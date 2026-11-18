@@ -135,6 +135,29 @@ fn a_build_without_a_wake_service_wakes_nobody() {
     ));
 }
 
+// Like every authenticated control frame, an announcement proves the
+// counterpart is still there.
+#[test]
+fn a_wake_announcement_keeps_the_counterpart_connected() {
+    let (_net, mut alice, mut bob, session_id) = announced_pair();
+    let ciphertext = alice
+        .sessions
+        .get_mut(&session_id)
+        .expect("Alice's chat")
+        .crypto
+        .encrypt_json(&announcement(HANDLE, SERVICE, now_ms() + 1))
+        .expect("sealed");
+    bob.sessions
+        .get_mut(&session_id)
+        .expect("Bob's chat")
+        .accept_wake_address(&ciphertext)
+        .expect("accepted");
+
+    bob.drain_inbound_at(after_silence());
+
+    assert_eq!(state_of(&mut bob, &session_id), DmSessionState::Connected);
+}
+
 // A device that is still heard is reached over Moss; waking it is waste.
 #[test]
 fn a_call_to_a_device_still_heard_wakes_nothing() {
