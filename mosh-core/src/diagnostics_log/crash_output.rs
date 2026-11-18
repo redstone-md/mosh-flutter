@@ -83,6 +83,7 @@ mod tests {
         );
         assert_eq!(fs::read_to_string(dir.join(PREVIOUS)).unwrap(), output);
         assert!(!dir.join(LIVE).exists());
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
@@ -92,5 +93,6 @@ mod tests {
 
         fs::write(dir.join(LIVE), "moss: listening\n").unwrap();
         assert_eq!(take_previous(&dir), None);
+        fs::remove_dir_all(dir).unwrap();
     }
 }

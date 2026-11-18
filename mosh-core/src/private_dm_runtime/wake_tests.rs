@@ -227,6 +227,8 @@ fn the_address_survives_a_restart() {
     bob.drain_inbound_at(after_silence());
 
     assert_eq!(bob.take_wake_requests(), vec![call_wake(&call.call_id)]);
+    drop(bob);
+    let _ = std::fs::remove_file(&db);
 }
 
 fn announcement(handle: &str, service: &str, issued_at_ms: u64) -> WakeAnnouncement {

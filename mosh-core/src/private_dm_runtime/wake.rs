@@ -202,6 +202,7 @@ impl PrivateDmSession {
             return Ok(());
         }
         self.wake.heard(&signer);
+        self.note_authenticated_frame("");
         let announcement: WakeAnnouncement = decode_json(&body)?;
         let withdrawn = announcement.wake_address.withdrawn();
         if self.wake.accept(signer_hex, announcement) {
