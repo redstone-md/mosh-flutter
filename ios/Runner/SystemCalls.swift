@@ -73,56 +73,6 @@ final class SystemCalls: NSObject {
     voip.desiredPushTypes = [.voIP]
   }
 
-  func attach(_ messenger: FlutterBinaryMessenger) {
-    let channel = FlutterMethodChannel(name: "app.mosh/system-calls", binaryMessenger: messenger)
-    channel.setMethodCallHandler { [weak self] call, result in
-      self?.handle(call, result: result)
-    }
-    self.channel = channel
-  }
-
-  private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    let args = call.arguments as? [String: Any] ?? [:]
-    let id = args["call"] as? String ?? ""
-    switch call.method {
-    case "ready":
-      dartReady = true
-      waiting.forEach { channel?.invokeMethod($0.0, arguments: $0.1) }
-      waiting.removeAll()
-    case "show":
-      show(id, kind: args["kind"] as? String ?? "", name: args["name"] as? String ?? "")
-    case "ended":
-      if let ended = calls.removeValue(forKey: id) {
-        provider.reportCall(with: ended.uuid, endedAt: nil, reason: .remoteEnded)
-      }
-    case "tokens":
-      result(tokens())
-      return
-    case "loadRegistration":
-      WakeKeychain.queue.async {
-        let stored = WakeKeychain.load()
-        DispatchQueue.main.async { result(stored) }
-      }
-      return
-    case "saveRegistration":
-      let registration = call.arguments as? String ?? ""
-      WakeKeychain.queue.async {
-        let status = WakeKeychain.save(registration)
-        DispatchQueue.main.async {
-          // Unsaved, the handle is not announced: after a restart the phone
-          // could not reuse it.
-          result(status == errSecSuccess
-            ? nil : FlutterError(code: "keychain", message: "OSStatus \(status)", details: nil))
-        }
-      }
-      return
-    default:
-      result(FlutterMethodNotImplemented)
-      return
-    }
-    result(nil)
-  }
-
   private func show(_ id: String, kind: String, name: String) {
     let update = Self.update(name)
     switch kind {
@@ -221,6 +171,60 @@ final class SystemCalls: NSObject {
 
   private static func hex(_ data: Data) -> String {
     data.map { String(format: "%02x", $0) }.joined()
+  }
+}
+
+/// Dart's side: the method channel the call screen and the wake
+/// registration speak over (`lib/src/platform/ios_system_calls.dart`).
+extension SystemCalls {
+  func attach(_ messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "app.mosh/system-calls", binaryMessenger: messenger)
+    channel.setMethodCallHandler { [weak self] call, result in
+      self?.handle(call, result: result)
+    }
+    self.channel = channel
+  }
+
+  private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    let args = call.arguments as? [String: Any] ?? [:]
+    let id = args["call"] as? String ?? ""
+    switch call.method {
+    case "ready":
+      dartReady = true
+      waiting.forEach { channel?.invokeMethod($0.0, arguments: $0.1) }
+      waiting.removeAll()
+    case "show":
+      show(id, kind: args["kind"] as? String ?? "", name: args["name"] as? String ?? "")
+    case "ended":
+      if let ended = calls.removeValue(forKey: id) {
+        provider.reportCall(with: ended.uuid, endedAt: nil, reason: .remoteEnded)
+      }
+    case "tokens":
+      result(tokens())
+      return
+    case "loadRegistration":
+      WakeKeychain.queue.async {
+        let stored = WakeKeychain.load()
+        DispatchQueue.main.async { result(stored) }
+      }
+      return
+    case "saveRegistration":
+      let registration = call.arguments as? String ?? ""
+      WakeKeychain.queue.async {
+        let status = WakeKeychain.save(registration)
+        DispatchQueue.main.async {
+          // Unsaved, the handle is not announced: after a restart the phone
+          // could not reuse it.
+          result(status == errSecSuccess
+            ? nil : FlutterError(code: "keychain", message: "OSStatus \(status)", details: nil))
+        }
+      }
+      return
+    default:
+      result(FlutterMethodNotImplemented)
+      return
+    }
+    result(nil)
   }
 }
 
