@@ -47,7 +47,7 @@ class SystemCallMirror {
   final void Function(String callId, bool muted) mute;
 
   (String, SystemCallKind, String)? _shown;
-  final _early = <String, SystemCallAction>{};
+  final _early = <String, List<SystemCallAction>>{};
 
   void show(CallDialog dialog) {
     final previous = _shown;
@@ -62,24 +62,25 @@ class SystemCallMirror {
       NoCallDialog() => null,
     };
     if (kind == null) return;
-    final early = _early.remove(dialog.callId);
-    if (kind == SystemCallKind.incoming && early is SystemCallEnd) {
+    final early = _early.remove(dialog.callId) ?? const [];
+    final declined = early.whereType<SystemCallEnd>().firstOrNull;
+    if (kind == SystemCallKind.incoming && declined != null) {
       // Declined while only the push rang: the offer ends without ringing.
-      _apply(early);
+      _apply(declined);
       return;
     }
     final next = (dialog.callId, kind, dialog.peerName);
     if (next == _shown) return;
     _shown = next;
     _screen.show(dialog.callId, kind, dialog.peerName);
-    if (kind == SystemCallKind.incoming && early != null) _apply(early);
+    if (kind == SystemCallKind.incoming) early.forEach(_apply);
   }
 
   void act(SystemCallAction action) {
     if (_shown?.$1 == action.callId) {
       _apply(action);
-    } else if (action is! SystemCallMute) {
-      _early[action.callId] = action;
+    } else {
+      (_early[action.callId] ??= []).add(action);
     }
   }
 

@@ -74,6 +74,15 @@ void main() {
     expect(app, ['answer c']);
   });
 
+  test('a mute given after an early answer is applied with it', () {
+    mirror.act(const SystemCallAnswer('c'));
+    mirror.act(const SystemCallMute('c', muted: true));
+
+    mirror.show(incoming('c'));
+
+    expect(app, ['answer c', 'mute c true']);
+  });
+
   test('a decline given before the offer arrives ends the call when it does',
       () {
     mirror.act(const SystemCallEnd('c'));
