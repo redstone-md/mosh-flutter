@@ -62,6 +62,10 @@ impl PreviewKeys {
         true
     }
 
+    pub(crate) fn is_empty(&self) -> bool {
+        self.current.is_none()
+    }
+
     /// The key contacts seal with now.
     pub(super) fn current(&self) -> Option<&str> {
         self.current.as_ref().map(|held| held.key.as_str())

@@ -42,7 +42,10 @@ pub struct PersistedSession {
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub(crate) peer_wakes: std::collections::BTreeMap<String, super::super::wake::WakeAnnouncement>,
     /// This device's preview keys for the chat; defaulted like `peer_wakes`.
-    #[serde(default)]
+    #[serde(
+        default,
+        skip_serializing_if = "super::super::wake_preview::PreviewKeys::is_empty"
+    )]
     pub(crate) preview_keys: super::super::wake_preview::PreviewKeys,
 }
 
