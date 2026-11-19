@@ -339,6 +339,7 @@ mod session;
 mod snapshot;
 mod typing;
 pub(crate) mod wake;
+pub(crate) mod wake_preview;
 
 #[cfg(test)]
 #[path = "private_dm_runtime/write_coherence_tests.rs"]

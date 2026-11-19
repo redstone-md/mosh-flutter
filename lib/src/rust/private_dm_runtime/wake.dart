@@ -7,20 +7,23 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// One wake for Dart to send: `call_id` names the ringing call, none means
-/// texts are waiting.
+/// texts are waiting; `preview` is those texts, sealed for the phone.
 class WakeRequest {
   final String service;
   final String handle;
   final String? callId;
+  final String? preview;
 
   const WakeRequest({
     required this.service,
     required this.handle,
     this.callId,
+    this.preview,
   });
 
   @override
-  int get hashCode => service.hashCode ^ handle.hashCode ^ callId.hashCode;
+  int get hashCode =>
+      service.hashCode ^ handle.hashCode ^ callId.hashCode ^ preview.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -29,5 +32,6 @@ class WakeRequest {
           runtimeType == other.runtimeType &&
           service == other.service &&
           handle == other.handle &&
-          callId == other.callId;
+          callId == other.callId &&
+          preview == other.preview;
 }

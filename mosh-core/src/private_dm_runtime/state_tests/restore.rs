@@ -157,6 +157,7 @@ fn a_final_record_without_snapshot_is_kept_and_reported() {
         read_message_ids: vec![],
         call_controls: Default::default(),
         peer_wakes: Default::default(),
+        preview_keys: Default::default(),
     };
     crate::conversation::history::History::new(DM_HISTORY)
         .write_record(&persistence, "session-finalish", &record)

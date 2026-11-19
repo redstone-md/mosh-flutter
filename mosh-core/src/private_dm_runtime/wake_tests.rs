@@ -6,8 +6,8 @@ use super::super::tests::temp_store;
 use super::*;
 use crate::private_dm_runtime::transport::memory::MemoryNet;
 
-const SERVICE: &str = "https://wake.example";
-const HANDLE: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456";
+pub(crate) const SERVICE: &str = "https://wake.example";
+pub(crate) const HANDLE: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456";
 
 fn address(handle: &str) -> WakeAddress {
     WakeAddress {
@@ -17,7 +17,7 @@ fn address(handle: &str) -> WakeAddress {
 }
 
 /// Alice announced a wake address and Bob has it; both are connected.
-fn announced_pair() -> (Arc<MemoryNet>, PrivateDmRuntime, PrivateDmRuntime, String) {
+pub(crate) fn announced_pair() -> (Arc<MemoryNet>, PrivateDmRuntime, PrivateDmRuntime, String) {
     let (net, mut alice, mut bob) = memory_pair();
     alice.set_wake_address(address(HANDLE));
     bob.set_wake_service(SERVICE.to_string());
@@ -29,7 +29,7 @@ fn announced_pair() -> (Arc<MemoryNet>, PrivateDmRuntime, PrivateDmRuntime, Stri
 }
 
 /// A few polls on both sides, enough for one control frame to cross.
-fn exchange(alice: &mut PrivateDmRuntime, bob: &mut PrivateDmRuntime, session_id: &str) {
+pub(crate) fn exchange(alice: &mut PrivateDmRuntime, bob: &mut PrivateDmRuntime, session_id: &str) {
     for _ in 0..3 {
         state_of(alice, session_id);
         state_of(bob, session_id);
@@ -37,7 +37,7 @@ fn exchange(alice: &mut PrivateDmRuntime, bob: &mut PrivateDmRuntime, session_id
 }
 
 /// Bob's clock once Alice has been silent for the whole lost window.
-fn after_silence() -> u64 {
+pub(crate) fn after_silence() -> u64 {
     now_ms() + LOST_WINDOW_MS
 }
 
@@ -46,7 +46,19 @@ fn call_wake(call_id: &str) -> WakeRequest {
         service: SERVICE.to_string(),
         handle: HANDLE.to_string(),
         call_id: Some(call_id.to_string()),
+        preview: None,
     }
+}
+
+/// The text wakes taken, without their sealed previews (wake_preview_tests).
+fn text_wakes(bob: &mut PrivateDmRuntime) -> Vec<WakeRequest> {
+    bob.take_wake_requests()
+        .into_iter()
+        .map(|request| WakeRequest {
+            preview: None,
+            ..request
+        })
+        .collect()
 }
 
 // The session is no longer Connected once Alice has been silent for the
@@ -182,8 +194,8 @@ fn a_withdrawn_address_wakes_nothing() {
     assert!(bob.take_wake_requests().is_empty());
 }
 
-// The service wakes a phone for texts once a minute at most, and one wake
-// stands for every text queued with it.
+// A chat wakes a phone for texts once per gap at most, and one wake stands
+// for every text queued with it.
 #[test]
 fn queued_texts_wake_an_absent_device_once_per_batch() {
     let (net, _alice, mut bob, session_id) = announced_pair();
@@ -201,22 +213,16 @@ fn queued_texts_wake_an_absent_device_once_per_batch() {
     send(&mut bob, "second");
     let later = after_silence();
     bob.drain_inbound_at(later);
-    assert_eq!(bob.take_wake_requests(), vec![text_wake.clone()]);
+    assert_eq!(text_wakes(&mut bob), vec![text_wake.clone()]);
 
     bob.drain_inbound_at(later + MESSAGE_WAKE_GAP_MS);
-    assert!(
-        bob.take_wake_requests().is_empty(),
-        "nothing new was queued"
-    );
+    assert!(text_wakes(&mut bob).is_empty(), "nothing new was queued");
 
     send(&mut bob, "third");
     bob.drain_inbound_at(later + MESSAGE_WAKE_GAP_MS / 2);
-    assert!(
-        bob.take_wake_requests().is_empty(),
-        "the service would refuse"
-    );
+    assert!(text_wakes(&mut bob).is_empty(), "too soon after the last");
     bob.drain_inbound_at(later + MESSAGE_WAKE_GAP_MS);
-    assert_eq!(bob.take_wake_requests(), vec![text_wake]);
+    assert_eq!(text_wakes(&mut bob), vec![text_wake]);
 }
 
 // A phone that just went to sleep stays Connected for the lost window, so a
@@ -235,7 +241,7 @@ fn an_unacknowledged_text_wakes_a_device_that_went_away() {
         call_id: None,
         ..call_wake("")
     };
-    assert_eq!(bob.take_wake_requests(), vec![text_wake]);
+    assert_eq!(text_wakes(&mut bob), vec![text_wake]);
 }
 
 // The service answered that it no longer knows the handle.
@@ -292,13 +298,14 @@ fn the_address_survives_a_restart() {
     let _ = std::fs::remove_file(&db);
 }
 
-fn announcement(handle: &str, service: &str, issued_at_ms: u64) -> WakeAnnouncement {
+pub(crate) fn announcement(handle: &str, service: &str, issued_at_ms: u64) -> WakeAnnouncement {
     WakeAnnouncement {
         wake_address: WakeAddress {
             service: service.to_string(),
             handle: handle.to_string(),
         },
         issued_at_ms,
+        preview_key: None,
     }
 }
 

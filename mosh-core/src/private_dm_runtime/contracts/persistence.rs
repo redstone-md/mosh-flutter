@@ -41,6 +41,9 @@ pub struct PersistedSession {
     /// records written before wakes existed load with none.
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub(crate) peer_wakes: std::collections::BTreeMap<String, super::super::wake::WakeAnnouncement>,
+    /// This device's preview keys for the chat; defaulted like `peer_wakes`.
+    #[serde(default)]
+    pub(crate) preview_keys: super::super::wake_preview::PreviewKeys,
 }
 
 /// How many read ids a session record keeps (the same bound the runtime
