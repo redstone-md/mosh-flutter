@@ -50,7 +50,9 @@ final wakeRegistrationProvider = Provider<void>((ref) {
   });
   unawaited(device.wakeable().then((wakeable) {
     if (wakeable && !disposed) sync = _keepRegistered(ref, device, client);
-  }, onError: (Object _) {}));
+  },
+      onError: (Object error) => api.noteWakeRegistration(
+          problem: 'push service unknown: ${error.runtimeType}')));
 });
 
 /// Registers now and whenever the tokens change, and keeps the chats'

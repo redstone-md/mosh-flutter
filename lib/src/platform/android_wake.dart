@@ -19,7 +19,7 @@ final class AndroidWake implements WakeDevice {
 
   @override
   Future<bool> wakeable() async =>
-      await _channel.invokeMethod<String>('platform') != null;
+      await _channel.invokeMethod<bool>('wakeable') ?? false;
 
   @override
   Future<WakeTokens?> tokens() async {

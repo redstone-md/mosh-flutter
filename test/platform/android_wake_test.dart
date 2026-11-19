@@ -10,11 +10,11 @@ void main() {
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
-  /// The runner as MoshWake.kt answers in a build woken through `platform`.
-  void runner({String? platform, String? installation}) {
+  /// The runner as MoshWake.kt answers, in an FCM build when [wakeable].
+  void runner({bool wakeable = false, String? installation}) {
     messenger.setMockMethodCallHandler(_channel, (call) async {
       return switch (call.method) {
-        'platform' => platform,
+        'wakeable' => wakeable,
         'tokens' => installation == null ? null : {'fcm': installation},
         _ => null,
       };
@@ -23,7 +23,7 @@ void main() {
   }
 
   test('the FCM build registers its Firebase installation id', () async {
-    runner(platform: 'fcm', installation: 'fid-1');
+    runner(wakeable: true, installation: 'fid-1');
     final wake = AndroidWake();
 
     expect(await wake.wakeable(), isTrue);
@@ -37,7 +37,7 @@ void main() {
   });
 
   test('a new installation id restarts registration', () async {
-    runner(platform: 'fcm', installation: 'fid-2');
+    runner(wakeable: true, installation: 'fid-2');
     final wake = AndroidWake();
     var told = 0;
     wake.onTokens = () => told++;

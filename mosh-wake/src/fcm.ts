@@ -19,7 +19,7 @@ export interface ServiceAccount {
 export function serviceAccount(json: string): ServiceAccount {
   const key: unknown = JSON.parse(json);
   const field = (name: string) => {
-    const value = typeof key === "object" && key !== null ? (key as Record<string, unknown>)[name] : undefined;
+    const value = fieldOf(key, name);
     if (typeof value !== "string" || !value) throw new Error(`service account key has no ${name}`);
     return value;
   };
@@ -31,12 +31,21 @@ export function serviceAccount(json: string): ServiceAccount {
   };
 }
 
+/** An HTTP v1 send request: data only, so Mosh decides what shows. */
+export interface FcmMessage {
+  message: {
+    fid: string;
+    data: Record<string, string>;
+    android: { priority: "HIGH"; ttl?: string; collapse_key?: string };
+  };
+}
+
 /**
  * The HTTP v1 message for `wake` to the Firebase installation `fid`. Every wake is high priority, so a phone
  * in Doze gets it at once; Mosh ends each one with a notification or a
  * call, as FCM expects of high-priority messages.
  */
-export function fcmMessage(wake: Wake, fid: string): object {
+export function fcmMessage(wake: Wake, fid: string): FcmMessage {
   if (wake.kind === "call") {
     // A call that cannot ring now is not worth delivering later.
     return { message: { fid, data: { kind: "call", call: wake.call }, android: { priority: "HIGH", ttl: "0s" } } };
@@ -56,17 +65,25 @@ export function fcmResult(status: number, body: string): PushResult {
   return codes.includes("UNREGISTERED") || codes.includes("SENDER_ID_MISMATCH") ? "gone" : "failed";
 }
 
+/** The `errorCode`s of an FCM error answer; none when it is not one. */
 function errorCodes(body: string): string[] {
+  let answer: unknown;
   try {
-    const details: unknown = JSON.parse(body).error?.details;
-    if (!Array.isArray(details)) return [];
-    return details.flatMap((detail: unknown) => {
-      const code = typeof detail === "object" && detail !== null ? (detail as { errorCode?: unknown }).errorCode : undefined;
-      return typeof code === "string" ? [code] : [];
-    });
+    answer = JSON.parse(body);
   } catch {
     return [];
   }
+  const details = fieldOf(fieldOf(answer, "error"), "details");
+  if (!Array.isArray(details)) return [];
+  return details.flatMap((detail: unknown) => {
+    const code = fieldOf(detail, "errorCode");
+    return typeof code === "string" ? [code] : [];
+  });
+}
+
+/** `value[name]` when `value` is an object; JSON from outside is read through this. */
+function fieldOf(value: unknown, name: string): unknown {
+  return typeof value === "object" && value !== null ? Object.getOwnPropertyDescriptor(value, name)?.value : undefined;
 }
 
 const SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
@@ -100,12 +117,14 @@ export class AccessToken {
       body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
       signal: AbortSignal.timeout(10_000),
     });
-    const answer: { access_token?: unknown; expires_in?: unknown } = await response.json();
-    if (!response.ok || typeof answer.access_token !== "string" || typeof answer.expires_in !== "number") {
+    const answer: unknown = await response.json();
+    const token = fieldOf(answer, "access_token");
+    const lifetime = fieldOf(answer, "expires_in");
+    if (!response.ok || typeof token !== "string" || typeof lifetime !== "number") {
       throw new Error(`Google refused the service account: ${response.status}`);
     }
-    this.cached = { token: answer.access_token, until: now + (answer.expires_in - 300) * 1000 };
-    return answer.access_token;
+    this.cached = { token, until: now + (lifetime - 300) * 1000 };
+    return token;
   }
 
   /** FCM refused the token before it ended, so the next send fetches another. */
