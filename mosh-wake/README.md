@@ -3,8 +3,9 @@
 iOS gives a closed app no process to listen on Moss with, so a call or a
 message to an iPhone could only arrive while Mosh is open. This service
 wakes the phone: a contact's Mosh asks it for a push, and it sends Apple a
-push that names nobody and carries no text. The phone then starts Mosh,
-which receives the call or message over Moss as usual. The plan and its
+push that names nobody. A message push may carry the new texts sealed for
+the phone, which only the phone's notification extension opens; the
+message itself arrives over Moss when Mosh opens. The plan and its
 trade-offs are in
 [docs/Proposals/ios-background-delivery.plan.md](../docs/Proposals/ios-background-delivery.plan.md).
 
@@ -20,14 +21,15 @@ is written down.
 | `POST /v1/devices` | `{apns?, voip?, environment}` | `201 {handle, secret}` |
 | `PUT /v1/devices/:handle` | same, with `Authorization: Bearer <secret>` | `204` |
 | `DELETE /v1/devices/:handle` | `Authorization: Bearer <secret>` | `204` |
-| `POST /v1/wake` | `{handle, kind: "message"}` or `{handle, kind: "call", call}` | `202`, `404`, `429`, `502` |
+| `POST /v1/wake` | `{handle, kind: "message", preview?}` or `{handle, kind: "call", call}` | `202`, `404`, `429`, `502` |
 
 Tokens are hex, `environment` is `sandbox` (Xcode builds) or `production`
 (TestFlight and the App Store). The phone keeps the secret and shares the
 handle with its contacts inside the encrypted chats. A wake answers `404`
 when the handle is unknown or has no token for that kind, so the sender can
-stop using it, and `429` when the phone was woken for the same kind within
-the last minute (messages) or 10 seconds (calls).
+stop using it, and `429` when the phone was woken 30 times for messages in
+the last minute, or for a call in the last 10 seconds. `preview` is base64url
+of at most 3800 characters, so the push stays within Apple's 4 KB.
 
 ## Running
 
