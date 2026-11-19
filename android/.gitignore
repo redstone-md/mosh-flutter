@@ -13,3 +13,5 @@ key.properties
 **/*.keystore
 **/*.jks
 /.kotlin/
+# Written by the release workflow from MOSH_FIREBASE_CONFIG (ADR 0055).
+/app/google-services.json

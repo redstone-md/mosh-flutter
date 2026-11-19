@@ -54,7 +54,7 @@ jobs:
           python3 -B -m unittest discover -s scripts -p test_test_policy.py
           python3 scripts/test-policy.py
 
-  # The iPhone wake service (mosh-wake/), a separate Node project.
+  # The wake service (mosh-wake/), a separate Node project.
   wake-service:
     name: Wake service
     runs-on: ubuntu-latest
@@ -442,6 +442,13 @@ jobs:
       # runtime with no build-time error.
       - name: Build APK (debug, arm64)
         run: flutter build apk --debug --target-platform android-arm64
+
+      # The FCM build's own code and its preview tests (ADR 0055), against a
+      # placeholder Firebase project.
+      - name: Test the FCM build (JVM)
+        run: >-
+          bash android/gradlew -p android :app:testDebugUnitTest --console=plain
+          -PmoshFcm=true -PmoshFcmConfig=src/fcmTest/google-services.json
 
       - uses: actions/cache/save@v4
         if: steps.android-setup.outputs.cargo-cache-hit != 'true' && github.ref == 'refs/heads/main'
