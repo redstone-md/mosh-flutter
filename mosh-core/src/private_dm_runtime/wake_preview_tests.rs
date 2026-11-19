@@ -135,7 +135,8 @@ fn a_new_key_is_announced_to_the_contact() {
         .get_mut(&session_id)
         .expect("Alice's chat")
         .wake
-        .own_keys = PreviewKeys::default();
+        .own
+        .keys = PreviewKeys::default();
     state_of(&mut alice, &session_id);
     exchange(&mut alice, &mut bob, &session_id);
     let second = alice.preview_chats()[0].keys[0].clone();

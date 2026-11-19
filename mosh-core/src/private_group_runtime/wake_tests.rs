@@ -6,8 +6,7 @@ use crate::conversation::wake::preview::{open_signed, PreviewMember, MESSAGE_WAK
 use crate::moss_ffi::{drain_received_messages, MossFfiRuntime, MOSS_TEST_LOCK};
 use crate::sender_auth::SenderProof;
 
-const SERVICE: &str = "https://wake.example";
-const HANDLE: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456";
+use crate::conversation::wake::tests::{HANDLE, SERVICE};
 /// Cleo's preview key for the group.
 const CLEO_KEY: &str = "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=";
 
@@ -52,7 +51,7 @@ impl Group {
             })
             .expect("group created")
             .group_id;
-        runtime.set_wake_service(SERVICE.to_string());
+        runtime.set_wake(WakeSetup::waking_through(SERVICE));
         let mut cleo = MlsSessionCrypto::new("cleo").unwrap();
         let mut dane = MlsSessionCrypto::new("dane").unwrap();
         let crypto = &mut runtime.groups.get_mut(&group_id).unwrap().crypto;
@@ -258,7 +257,7 @@ fn an_address_on_another_service_wakes_nothing() {
     let mut group = Group::open(42618);
     group
         .runtime
-        .set_wake_service("https://other.example".to_string());
+        .set_wake(WakeSetup::waking_through("https://other.example"));
     group.cleo_announces(Some(CLEO_KEY));
     group.send("hi");
 
@@ -272,10 +271,10 @@ fn an_address_on_another_service_wakes_nothing() {
 #[test]
 fn a_phone_repeats_its_announcement_while_mosh_runs() {
     let mut group = Group::open(42619);
-    group.runtime.set_wake_address(WakeAddress {
+    group.runtime.set_wake(WakeSetup::announcing(WakeAddress {
         service: SERVICE.to_string(),
         handle: HANDLE.to_string(),
-    });
+    }));
     let mut announces = |at: u64| {
         let published = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let flag = published.clone();
@@ -297,10 +296,10 @@ fn a_phone_repeats_its_announcement_while_mosh_runs() {
 #[test]
 fn the_phones_key_names_the_members_and_is_replaced_when_one_leaves() {
     let mut group = Group::open(42616);
-    group.runtime.set_wake_address(WakeAddress {
+    group.runtime.set_wake(WakeSetup::announcing(WakeAddress {
         service: SERVICE.to_string(),
         handle: HANDLE.to_string(),
-    });
+    }));
     group.runtime.pump_wake(now_ms());
     let chats = group.runtime.preview_chats();
     let [chat] = chats.as_slice() else {
@@ -318,7 +317,7 @@ fn the_phones_key_names_the_members_and_is_replaced_when_one_leaves() {
     );
     let first = chat.keys.clone();
 
-    let record = group.session().wake.record.clone();
+    let record = group.session().wake.record();
     group
         .session()
         .crypto

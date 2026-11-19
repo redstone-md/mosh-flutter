@@ -4,18 +4,8 @@
 use super::*;
 
 impl PrivateGroupRuntime {
-    /// This device's wake address, announced in every group. An empty
-    /// handle withdraws it.
-    pub fn set_wake_address(&mut self, address: WakeAddress) {
-        self.wake.own = Some(address);
-    }
-
-    /// The one wake service this build wakes members through.
-    pub fn set_wake_service(&mut self, service: String) {
-        self.wake.service = Some(service);
-    }
-
-    /// Everything known of waking so far, for a runtime starting now.
+    /// This device's wake address, announced in every group, and the one
+    /// service it wakes members through (api/wake.rs).
     pub(crate) fn set_wake(&mut self, setup: WakeSetup) {
         self.wake = setup;
     }
@@ -59,8 +49,8 @@ impl PrivateGroupRuntime {
         };
         let wake = &mut session.wake;
         let refused = wake
-            .record
-            .members
+            .devices
+            .announced
             .iter()
             .filter(|(_, held)| held.wake_address.handle == handle);
         for (signer, _) in refused {
@@ -73,12 +63,8 @@ impl PrivateGroupRuntime {
     /// The service no longer knows `handle`: stop waking it.
     pub fn forget_wake_handle(&mut self, handle: &str) {
         for session in self.groups.values_mut() {
-            let wake = &mut session.wake;
-            let members = &mut wake.record.members;
-            let before = members.len();
-            members.retain(|_, held| held.wake_address.handle != handle);
-            if members.len() != before {
-                wake.dirty = true;
+            if session.wake.devices.forget(handle) {
+                session.wake.dirty = true;
                 session.log_wake("wake service no longer knows a member handle");
             }
         }

@@ -31,21 +31,25 @@ pub fn set_wake_address(service: String, handle: String) {
         "wake address set"
     };
     dlog::write(LogLevel::Info, kinds::WAKE, "wake", line);
-    if let Ok(mut setup) = SETUP.lock() {
-        setup.own = Some(address.clone());
-    }
-    super::private_dm::with_started(|runtime| runtime.set_wake_address(address.clone()));
-    super::private_group::with_started(|runtime| runtime.set_wake_address(address.clone()));
+    update(|setup| setup.own = Some(address));
 }
 
 /// The build's wake service: members are woken only through it, whatever
 /// service they announce.
 pub fn set_wake_service(service: String) {
-    if let Ok(mut setup) = SETUP.lock() {
-        setup.service = Some(service.clone());
-    }
-    super::private_dm::with_started(|runtime| runtime.set_wake_service(service.clone()));
-    super::private_group::with_started(|runtime| runtime.set_wake_service(service.clone()));
+    update(|setup| setup.service = Some(service));
+}
+
+/// Changes the setup and hands it to both runtimes, if started.
+fn update(change: impl FnOnce(&mut WakeSetup)) {
+    let Ok(mut held) = SETUP.lock() else {
+        return;
+    };
+    change(&mut held);
+    let setup = held.clone();
+    drop(held);
+    super::private_dm::with_started(|runtime| runtime.set_wake(setup.clone()));
+    super::private_group::with_started(|runtime| runtime.set_wake(setup));
 }
 
 /// Why this iPhone's wake registration did not finish, for the field log;

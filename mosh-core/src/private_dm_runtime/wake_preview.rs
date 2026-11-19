@@ -73,11 +73,11 @@ impl PrivateDmRuntime {
     pub fn preview_chats(&self) -> Vec<PreviewChat> {
         self.sessions
             .values()
-            .filter(|session| session.wake.own_keys.current().is_some())
+            .filter(|session| session.wake.own.keys.current().is_some())
             .map(|session| PreviewChat {
                 chat_id: session.session_id.clone(),
                 name: session.peer_display_name.clone().unwrap_or_default(),
-                keys: session.wake.own_keys.opening(),
+                keys: session.wake.own.keys.opening(),
                 members: None,
             })
             .collect()

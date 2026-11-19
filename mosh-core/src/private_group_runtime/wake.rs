@@ -15,7 +15,9 @@ use super::*;
 use crate::conversation::wake::preview::{
     seal, PreviewAuthor, PreviewChat, PreviewKeys, PreviewMember, TextWakes,
 };
-use crate::conversation::wake::{WakeAddress, WakeAnnouncement, WakeRequest, WakeSetup};
+use crate::conversation::wake::{
+    Devices, OwnWake, WakeAddress, WakeAnnouncement, WakeRequest, WakeSetup,
+};
 use crate::sender_auth::VerifiedSender;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use std::collections::{BTreeMap, BTreeSet};
@@ -36,9 +38,7 @@ pub(super) struct GroupWakeRecord {
     /// This device's preview keys for the group.
     #[serde(default, skip_serializing_if = "PreviewKeys::is_empty")]
     own_keys: PreviewKeys,
-    /// The members the current key was made for: one of them leaving
-    /// replaces it, so they cannot read what is sent after, even when they
-    /// left while Mosh was closed.
+    /// The members the current key was made for.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     keyed_for: BTreeSet<String>,
 }
@@ -49,15 +49,18 @@ impl GroupWakeRecord {
     }
 }
 
-/// One group's wake bookkeeping; only `record` is persisted.
+/// One group's wake bookkeeping.
 pub(super) struct GroupWakeBook {
-    pub(super) record: GroupWakeRecord,
-    announced: Option<(WakeAnnouncement, Option<u64>)>,
-    heard: BTreeSet<String>,
-    seen_at: HashMap<String, u64>,
+    /// The other members' devices; one not heard yet counts as heard when
+    /// this run started.
+    pub(super) devices: Devices,
+    pub(super) own: OwnWake,
+    /// The members the current key was made for: one of them leaving
+    /// replaces it, so they cannot read what is sent after, even when they
+    /// left while Mosh was closed.
+    keyed_for: BTreeSet<String>,
     texts: HashMap<String, TextWakes>,
-    /// When this run started: texts from before were not its to wake for,
-    /// and a device not seen yet counts as seen then.
+    /// Texts sent before this run started were not its to wake for.
     since: u64,
     due: Vec<WakeRequest>,
     dirty: bool,
@@ -65,57 +68,38 @@ pub(super) struct GroupWakeBook {
 
 impl GroupWakeBook {
     pub(super) fn restore(record: GroupWakeRecord) -> Self {
+        let since = now_ms();
         Self {
-            record,
-            announced: None,
-            heard: BTreeSet::new(),
-            seen_at: HashMap::new(),
+            devices: Devices::new(record.members, since),
+            own: OwnWake::new(record.own_keys),
+            keyed_for: record.keyed_for,
             texts: HashMap::new(),
-            since: now_ms(),
+            since,
             due: Vec::new(),
             dirty: false,
         }
     }
 
-    fn seen(&self, signer: &str) -> u64 {
-        self.seen_at.get(signer).copied().unwrap_or(self.since)
-    }
-
-    /// The member devices to wake now, with what they announced.
-    fn targets(&self, now: u64, setup: &WakeSetup) -> Vec<(String, WakeAnnouncement)> {
-        self.record
-            .members
-            .iter()
-            .filter(|(signer, held)| {
-                setup.reaches(held) && now.saturating_sub(self.seen(signer)) >= ABSENT_AFTER_MS
-            })
-            .map(|(signer, held)| (signer.clone(), held.clone()))
-            .collect()
+    pub(super) fn record(&self) -> GroupWakeRecord {
+        GroupWakeRecord {
+            members: self.devices.announced.clone(),
+            own_keys: self.own.keys.clone(),
+            keyed_for: self.keyed_for.clone(),
+        }
     }
 
     /// Drops the devices of members who left, and replaces the key when
     /// one it was made for is gone.
     fn follow(&mut self, members: BTreeSet<String>, now: u64) {
-        let record = &mut self.record;
-        let before = record.members.len();
-        record.members.retain(|signer, _| members.contains(signer));
-        let mut changed = record.members.len() != before;
-        if !record.own_keys.is_empty() {
-            if !record.keyed_for.is_subset(&members) {
-                record.own_keys.replace(now);
+        let mut changed = self.devices.keep_members(&members);
+        if !self.own.keys.is_empty() {
+            if !self.keyed_for.is_subset(&members) {
+                self.own.keys.replace(now);
             }
-            changed |= record.keyed_for != members;
-            record.keyed_for = members;
+            changed |= self.keyed_for != members;
+            self.keyed_for = members;
         }
         self.dirty |= changed;
-    }
-
-    /// Stamps the devices heard since the last turn.
-    fn note_heard(&mut self, now: u64) {
-        for signer in std::mem::take(&mut self.heard) {
-            self.texts.remove(&signer);
-            self.seen_at.insert(signer, now);
-        }
     }
 }
 
@@ -129,7 +113,7 @@ struct OwnText {
 impl GroupSession {
     /// An authenticated frame from a member device: it is awake.
     pub(super) fn heard_member(&mut self, signer: &[u8]) {
-        self.wake.heard.insert(hex::encode(signer));
+        self.wake.devices.heard(signer);
     }
 
     /// One service turn's wake work: keep the key and the members current,
@@ -138,10 +122,11 @@ impl GroupSession {
         if !self.joined || !self.crypto.is_ready() {
             return;
         }
-        self.wake.note_heard(now);
+        for signer in self.wake.devices.stamp(now) {
+            self.wake.texts.remove(&signer);
+        }
         // Most groups have no iPhone in them: nothing to keep current.
-        let record = &self.wake.record;
-        if !record.own_keys.is_empty() || !record.members.is_empty() {
+        if !self.wake.own.keys.is_empty() || !self.wake.devices.announced.is_empty() {
             let members = self.crypto.member_signers().into_iter().collect();
             self.wake.follow(members, now);
         }
@@ -152,30 +137,17 @@ impl GroupSession {
     }
 
     fn announce_wake(&mut self, address: &WakeAddress, now: u64) {
-        let preview_key = if address.withdrawn() {
-            None
-        } else {
-            if self.wake.record.own_keys.rotate(now) {
-                // A new key is made for the members there are now.
-                self.wake.record.keyed_for = self.crypto.member_signers().into_iter().collect();
-                self.wake.dirty = true;
-            }
-            self.wake.record.own_keys.current().map(str::to_string)
-        };
-        let body = WakeAnnouncement {
-            wake_address: address.clone(),
-            issued_at_ms: now,
-            preview_key,
-        };
-        let epoch = self.crypto.epoch();
-        let sent = self.wake.announced.as_ref();
-        let changed = body.due_after(sent, epoch);
-        let present =
-            sent.is_some_and(|(sent, _)| now.saturating_sub(sent.issued_at_ms) < PRESENT_EVERY_MS);
-        if !changed && present {
-            return;
+        let next = self.wake.own.next(address, now);
+        if next.key_replaced {
+            // A new key is made for the members there are now.
+            self.wake.keyed_for = self.crypto.member_signers().into_iter().collect();
+            self.wake.dirty = true;
         }
-        let Ok(wake_ciphertext_b64) = self.crypto.encrypt_json(&body) else {
+        let epoch = self.crypto.epoch();
+        let Some(changed) = self.wake.own.due(&next.body, epoch, PRESENT_EVERY_MS) else {
+            return;
+        };
+        let Ok(wake_ciphertext_b64) = self.crypto.encrypt_json(&next.body) else {
             return;
         };
         let envelope = ControlEnvelope::WakeAddress {
@@ -183,7 +155,7 @@ impl GroupSession {
             wake_ciphertext_b64,
         };
         if self.publish_control(&envelope).is_ok() {
-            self.wake.announced = Some((body, epoch));
+            self.wake.own.sent(next.body, epoch);
             if changed {
                 self.log_wake("wake address announced");
             }
@@ -202,26 +174,25 @@ impl GroupSession {
         }
         let announcement: WakeAnnouncement = decode_json(&body)?;
         let signer = hex::encode(&sender.mls_signer);
-        let held = self.wake.record.members.get(&signer);
-        if !announcement.supersedes(held) {
-            self.log_wake("member wake address stale or refused");
-            return Ok(());
-        }
         // Most are repeats that only say the device is awake.
-        let changed = held.is_none_or(|held| {
-            held.wake_address != announcement.wake_address
-                || held.preview_key != announcement.preview_key
-        });
-        self.wake.record.members.insert(signer, announcement);
-        if changed {
-            self.wake.dirty = true;
-            self.log_wake("member wake address kept");
+        match self.wake.devices.accept(signer, announcement) {
+            None => self.log_wake("member wake address stale or refused"),
+            Some(true) => {
+                self.wake.dirty = true;
+                self.log_wake("member wake address kept");
+            }
+            Some(false) => {}
         }
         Ok(())
     }
 
     fn wake_for_texts(&mut self, now: u64, setup: &WakeSetup) {
-        let targets = self.wake.targets(now, setup);
+        let devices = &self.wake.devices;
+        let targets: Vec<(String, WakeAnnouncement)> = devices
+            .reachable(setup)
+            .filter(|(signer, _)| devices.absent(signer, now, ABSENT_AFTER_MS))
+            .map(|(signer, held)| (signer.clone(), held.clone()))
+            .collect();
         if targets.is_empty() {
             return;
         }
@@ -234,7 +205,7 @@ impl GroupSession {
         };
         for (signer, held) in targets {
             // What came before, the device took while it was awake.
-            let seen = self.wake.seen(&signer);
+            let seen = self.wake.devices.last_heard(&signer);
             let waiting: BTreeSet<String> = sent
                 .iter()
                 .filter(|text| text.sent_at_ms > seen)
@@ -291,7 +262,7 @@ impl GroupSession {
     }
 
     fn preview_chat(&self) -> Option<PreviewChat> {
-        let keys = &self.wake.record.own_keys;
+        let keys = &self.wake.own.keys;
         keys.current()?;
         let own = hex::encode(self.crypto.signer_public());
         let mut members: Vec<PreviewMember> = self

@@ -4,9 +4,9 @@
 //! the texts' wakes are in wake_preview.rs.
 
 use super::*;
-use crate::conversation::wake::preview::{PreviewKeys, TextWakes};
+use crate::conversation::wake::preview::TextWakes;
+use crate::conversation::wake::{Devices, OwnWake, WakeAnnouncement, WakeSetup};
 pub use crate::conversation::wake::{WakeAddress, WakeRequest};
-use crate::conversation::wake::{WakeAnnouncement, WakeSetup};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// A call wakes a device not heard for a keepalive and a little more: the
@@ -14,49 +14,36 @@ use std::collections::{BTreeMap, BTreeSet};
 /// Waking one that was only slow costs a second ring of the same call.
 const CALL_QUIET_MS: u64 = KEEPALIVE_MS + 2_000;
 
-/// One session's wake bookkeeping. Only `peers` and `own_keys` are
-/// persisted.
-#[derive(Default)]
+/// An unchanged announcement is repeated this often.
+const ANNOUNCE_EVERY_MS: u64 = 6 * 60 * 60 * 1000;
+
+/// One session's wake bookkeeping. Only the devices' announcements and
+/// this device's keys are persisted.
 pub(super) struct WakeBook {
-    /// Each counterpart device's latest announcement, by its MLS signer.
-    pub(super) peers: BTreeMap<String, WakeAnnouncement>,
-    /// This device's preview keys for the chat.
-    pub(super) own_keys: PreviewKeys,
-    /// What this device last announced and in which epoch. Cleared when the
-    /// counterpart connects, so it hears the address again.
-    pub(super) announced: Option<(WakeAnnouncement, Option<u64>)>,
-    heard_since_tick: BTreeSet<String>,
-    heard_at: HashMap<String, u64>,
+    /// The counterpart's devices; a device never heard counts as unheard
+    /// since ever, so a call can wake it at once.
+    pub(super) devices: Devices,
+    /// This device's announcement in the chat. Announced again when the
+    /// counterpart connects, so it hears the address.
+    pub(super) own: OwnWake,
     call_woken: Option<(String, BTreeSet<String>)>,
     pub(super) texts: TextWakes,
     pub(super) due: Vec<WakeRequest>,
 }
 
+impl Default for WakeBook {
+    fn default() -> Self {
+        Self {
+            devices: Devices::new(BTreeMap::new(), 0),
+            own: OwnWake::default(),
+            call_woken: None,
+            texts: TextWakes::default(),
+            due: Vec::new(),
+        }
+    }
+}
+
 impl WakeBook {
-    /// Keeps `announcement` when it is valid and newer than the one held.
-    pub(super) fn accept(&mut self, signer: String, announcement: WakeAnnouncement) -> bool {
-        if !announcement.supersedes(self.peers.get(&signer)) {
-            return false;
-        }
-        self.peers.insert(signer, announcement);
-        true
-    }
-
-    /// An authenticated frame from `signer` arrived; the tick stamps it.
-    pub(super) fn heard(&mut self, signer: &[u8]) {
-        self.heard_since_tick.insert(hex::encode(signer));
-    }
-
-    fn stamp(&mut self, now: u64) {
-        for signer in std::mem::take(&mut self.heard_since_tick) {
-            self.heard_at.insert(signer, now);
-        }
-    }
-
-    fn absent(&self, signer: &str, now: u64, quiet: u64) -> bool {
-        now.saturating_sub(self.heard_at.get(signer).copied().unwrap_or(0)) >= quiet
-    }
-
     /// Whether `signer` still needs a wake for `call_id`; marks it woken.
     fn mark_call(&mut self, call_id: &str, signer: &str) -> bool {
         if self.call_woken.as_ref().is_none_or(|(id, _)| id != call_id) {
@@ -65,21 +52,13 @@ impl WakeBook {
         let (_, woken) = self.call_woken.as_mut().expect("set above");
         woken.insert(signer.to_string())
     }
-
-    /// Drops every announcement of `handle`; true when one was held.
-    fn forget(&mut self, handle: &str) -> bool {
-        let before = self.peers.len();
-        self.peers
-            .retain(|_, held| held.wake_address.handle != handle);
-        self.peers.len() != before
-    }
 }
 
 impl PrivateDmSession {
     /// The tick's wake work: stamp who was heard, announce our own address,
     /// and queue wakes for a ringing call or waiting texts.
     pub(super) fn pump_wake(&mut self, now: u64, setup: &WakeSetup, lost_window: u64) {
-        self.wake.stamp(now);
+        self.wake.devices.stamp(now);
         if let Some(own) = &setup.own {
             self.announce_wake(own, now);
         }
@@ -92,18 +71,10 @@ impl PrivateDmSession {
         if self.state != DmSessionState::Connected || !self.can_encrypt_for_peer() {
             return;
         }
-        let preview_key = if own.withdrawn() {
-            None
-        } else {
-            self.record_dirty |= self.wake.own_keys.rotate(now);
-            self.wake.own_keys.current().map(str::to_string)
-        };
-        let body = WakeAnnouncement {
-            wake_address: own.clone(),
-            issued_at_ms: now,
-            preview_key,
-        };
-        if !body.due_after(self.wake.announced.as_ref(), epoch) {
+        let next = self.wake.own.next(own, now);
+        self.record_dirty |= next.key_replaced;
+        let body = next.body;
+        if self.wake.own.due(&body, epoch, ANNOUNCE_EVERY_MS).is_none() {
             return;
         }
         let Ok(wake_ciphertext_b64) = self.crypto.encrypt_json(&body) else {
@@ -118,7 +89,7 @@ impl PrivateDmSession {
             return;
         };
         if self.route_send(ChannelKind::Control, &payload).is_ok() {
-            self.wake.announced = Some((body, epoch));
+            self.wake.own.sent(body, epoch);
             self.log_wake("wake address announced");
         }
     }
@@ -133,12 +104,12 @@ impl PrivateDmSession {
         if self.is_own_signer(&signer_hex) {
             return Ok(());
         }
-        self.wake.heard(&signer);
+        self.wake.devices.heard(&signer);
         self.note_authenticated_frame("");
         let announcement: WakeAnnouncement = decode_json(&body)?;
         let withdrawn = announcement.wake_address.withdrawn();
-        if self.wake.accept(signer_hex, announcement) {
-            self.record_dirty = true;
+        if let Some(changed) = self.wake.devices.accept(signer_hex, announcement) {
+            self.record_dirty |= changed;
             self.log_wake(if withdrawn {
                 "counterpart withdrew its wake address"
             } else {
@@ -168,9 +139,9 @@ impl PrivateDmSession {
         setup: &'a WakeSetup,
     ) -> impl Iterator<Item = (&'a String, &'a WakeAnnouncement)> + 'a {
         self.wake
-            .peers
-            .iter()
-            .filter(move |(signer, held)| setup.reaches(held) && !self.is_own_signer(signer))
+            .devices
+            .reachable(setup)
+            .filter(move |(signer, _)| !self.is_own_signer(signer))
     }
 
     /// Whether some counterpart device that is not connected can be woken
@@ -188,7 +159,7 @@ impl PrivateDmSession {
         setup: &WakeSetup,
     ) -> Vec<(String, WakeAnnouncement)> {
         self.wakeable(setup)
-            .filter(|(signer, _)| self.wake.absent(signer, now, quiet))
+            .filter(|(signer, _)| self.wake.devices.absent(signer, now, quiet))
             .map(|(signer, held)| (signer.clone(), held.clone()))
             .collect()
     }
@@ -217,20 +188,10 @@ impl PrivateDmSession {
 }
 
 impl PrivateDmRuntime {
-    /// This device's wake address, announced in every chat. An empty handle
-    /// withdraws it; never calling this announces nothing.
-    pub fn set_wake_address(&mut self, address: WakeAddress) {
-        self.wake.own = Some(address);
-    }
-
-    /// Everything known of waking so far, for a runtime starting now.
+    /// This device's wake address, announced in every chat, and the one
+    /// service it wakes contacts through (api/wake.rs).
     pub(crate) fn set_wake(&mut self, setup: WakeSetup) {
         self.wake = setup;
-    }
-
-    /// The one wake service this build wakes contacts through.
-    pub fn set_wake_service(&mut self, service: String) {
-        self.wake.service = Some(service);
     }
 
     /// The wakes asked for since the last call, for Dart to send.
@@ -244,7 +205,7 @@ impl PrivateDmRuntime {
     /// The service no longer knows `handle`: stop waking it.
     pub fn forget_wake_handle(&mut self, handle: &str) {
         for session in self.sessions.values_mut() {
-            if session.wake.forget(handle) {
+            if session.wake.devices.forget(handle) {
                 session.record_dirty = true;
                 session.log_wake("wake service no longer knows a counterpart handle");
             }

@@ -147,8 +147,8 @@ impl PrivateDmRuntime {
         // would re-ask the counterpart for every receipt it already sent.
         session.peer_read_ids = rec.read_message_ids.clone();
         session.call_controls = rec.call_controls.clone();
-        session.wake.peers = rec.peer_wakes.clone();
-        session.wake.own_keys = rec.preview_keys.clone();
+        session.wake.devices.announced = rec.peer_wakes.clone();
+        session.wake.own.keys = rec.preview_keys.clone();
         self.sessions.replay(
             &rec.session_id,
             Restore {

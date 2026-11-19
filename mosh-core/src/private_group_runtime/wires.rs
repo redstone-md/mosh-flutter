@@ -28,7 +28,7 @@ impl GroupSession {
             listen_port: self.listen_port,
             static_peer: self.static_peer.clone(),
             org_pubkey: self.org_pubkey.clone(),
-            wake: self.wake.record.clone(),
+            wake: self.wake.record(),
         }
     }
 
