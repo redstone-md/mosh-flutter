@@ -68,6 +68,21 @@ test("a message goes as one collapsing alert without names or text", async () =>
   });
 });
 
+// The phone's notification extension opens the preview; one alert per
+// preview, and the closed app is not started for it.
+test("a message with a preview goes as its own alert for the notification extension", async () => {
+  const { apns, seen } = await fakeApns({ status: 200 });
+  await apns.send(device, "aa", { kind: "message", preview: "c2VhbGVk" });
+
+  const [request] = seen;
+  assert.equal(request?.headers["apns-push-type"], "alert");
+  assert.equal(request?.headers["apns-collapse-id"], undefined);
+  assert.deepEqual(JSON.parse(request?.body ?? ""), {
+    aps: { alert: { "loc-key": "WAKE_MESSAGE" }, sound: "default", "mutable-content": 1 },
+    preview: "c2VhbGVk",
+  });
+});
+
 test("Apple's answers map to sent, gone and failed", async () => {
   const cases = [
     [{ status: 410, body: '{"reason":"Unregistered"}' }, "gone"],

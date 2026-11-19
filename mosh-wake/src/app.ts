@@ -4,7 +4,7 @@
 //   POST   /v1/devices          {apns?, voip?, environment} -> 201 {handle, secret}
 //   PUT    /v1/devices/:handle  Bearer secret, same body    -> 204
 //   DELETE /v1/devices/:handle  Bearer secret               -> 204
-//   POST   /v1/wake             {handle, kind, call?}       -> 202 | 404 | 429 | 502
+//   POST   /v1/wake             {handle, kind, call?, preview?} -> 202 | 404 | 429 | 502
 //
 // The phone keeps the secret and shares only the handle with its contacts.
 import { Hono, type Context } from "hono";
@@ -25,9 +25,11 @@ const MINUTE = 60_000;
 export function createApp({ store, pusher, clientIp, now = Date.now }: AppOptions): Hono {
   const registrations = new RateLimit(10, 60 * MINUTE, now);
   const wakesPerAddress = new RateLimit(120, MINUTE, now);
-  // A phone already woken for messages need not be woken again this minute;
-  // a ringing call is re-sent with its offer, so it may wake every 10 s.
-  const messageWakes = new RateLimit(1, MINUTE, now);
+  // Each chat with new texts wakes the phone with their preview, at most
+  // every 10 s, so a phone takes bursts; the limit only stops a contact
+  // flooding it. A ringing call is re-sent with its offer, so it may wake
+  // every 10 s.
+  const messageWakes = new RateLimit(30, MINUTE, now);
   const callWakes = new RateLimit(1, 10_000, now);
   const app = new Hono();
 
@@ -83,6 +85,8 @@ export function createApp({ store, pusher, clientIp, now = Date.now }: AppOption
 const HEX_TOKEN = /^[0-9a-f]{64,200}$/;
 const HANDLE = /^[A-Za-z0-9_-]{43}$/;
 const CALL_ID = /^[A-Za-z0-9_-]{1,64}$/;
+/** Sealed texts that still fit Apple's 4 KB push (mosh-core's PREVIEW_MAX_LEN). */
+const PREVIEW = /^[A-Za-z0-9_-]{1,3800}$/;
 
 type Tokens = Pick<Device, "apns" | "voip" | "environment">;
 
@@ -98,9 +102,12 @@ function parseTokens(body: Record<string, unknown>): Tokens | null {
 }
 
 function parseWake(body: Record<string, unknown>): { handle: string; wake: Wake } | null {
-  const { handle, kind, call } = body;
+  const { handle, kind, call, preview } = body;
   if (typeof handle !== "string" || !HANDLE.test(handle)) return null;
-  if (kind === "message") return { handle, wake: { kind } };
+  if (kind === "message" && preview === undefined) return { handle, wake: { kind } };
+  if (kind === "message" && typeof preview === "string" && PREVIEW.test(preview)) {
+    return { handle, wake: { kind, preview } };
+  }
   if (kind === "call" && typeof call === "string" && CALL_ID.test(call)) return { handle, wake: { kind, call } };
   return null;
 }
