@@ -1,7 +1,7 @@
 {
   "name": "mosh-wake",
   "private": true,
-  "description": "Wakes a closed Mosh on iPhone with an Apple push.",
+  "description": "Wakes a closed Mosh on iPhone and Android with an Apple or FCM push.",
   "license": "GPL-3.0-only",
   "type": "module",
   "engines": {

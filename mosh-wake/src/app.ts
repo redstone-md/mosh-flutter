@@ -1,20 +1,21 @@
 // The wake service's HTTP API on web-standard Request/Response, so the same
 // app runs under Node now and in a worker later.
 //
-//   POST   /v1/devices          {apns?, voip?, environment} -> 201 {handle, secret}
-//   PUT    /v1/devices/:handle  Bearer secret, same body    -> 204
+//   POST   /v1/devices          {apns?, voip?, environment} | {fcm} -> 201 {handle, secret}
+//   PUT    /v1/devices/:handle  Bearer secret, same body           -> 204
 //   DELETE /v1/devices/:handle  Bearer secret               -> 204
 //   POST   /v1/wake             {handle, kind, call?, preview?} -> 202 | 404 | 429 | 502
 //
 // The phone keeps the secret and shares only the handle with its contacts.
 import { Hono, type Context } from "hono";
 import { RateLimit } from "./limits.ts";
-import { base64url, tokenFor, type Pusher, type Wake } from "./push.ts";
-import type { Device, DeviceStore, Environment } from "./store.ts";
+import { base64url } from "./jwt.ts";
+import { sendWake, tokenFor, type Pushers, type Wake } from "./push.ts";
+import type { Device, DeviceStore, Tokens } from "./store.ts";
 
 export interface AppOptions {
   store: DeviceStore;
-  pusher: Pusher;
+  pushers: Pushers;
   /** The caller's address, for per-address limits; never stored. */
   clientIp: (c: Context) => string;
   now?: () => number;
@@ -22,7 +23,7 @@ export interface AppOptions {
 
 const MINUTE = 60_000;
 
-export function createApp({ store, pusher, clientIp, now = Date.now }: AppOptions): Hono {
+export function createApp({ store, pushers, clientIp, now = Date.now }: AppOptions): Hono {
   const registrations = new RateLimit(10, 60 * MINUTE, now);
   const wakesPerAddress = new RateLimit(120, MINUTE, now);
   // Each chat with new texts wakes the phone with their preview, at most
@@ -34,7 +35,7 @@ export function createApp({ store, pusher, clientIp, now = Date.now }: AppOption
   const app = new Hono();
 
   app.post("/v1/devices", async (c) => {
-    const tokens = parseTokens(await json(c));
+    const tokens = parseTokens(await json(c), pushers);
     if (!tokens) return c.json({ error: "invalid tokens" }, 400);
     if (!registrations.allow(clientIp(c))) return c.json({ error: "too many registrations" }, 429);
     const handle = randomToken();
@@ -46,9 +47,9 @@ export function createApp({ store, pusher, clientIp, now = Date.now }: AppOption
   app.put("/v1/devices/:handle", async (c) => {
     const device = await owned(c, store);
     if (!device) return c.json({ error: "unknown handle or wrong secret" }, 401);
-    const tokens = parseTokens(await json(c));
+    const tokens = parseTokens(await json(c), pushers);
     if (!tokens) return c.json({ error: "invalid tokens" }, 400);
-    await store.put({ ...device, ...tokens });
+    await store.put({ handle: device.handle, secretHash: device.secretHash, ...tokens });
     return c.body(null, 204);
   });
 
@@ -69,28 +70,34 @@ export function createApp({ store, pusher, clientIp, now = Date.now }: AppOption
     const limit = request.wake.kind === "call" ? callWakes : messageWakes;
     const slot = `${request.handle}:${request.wake.kind}`;
     if (!limit.allow(slot)) return c.json({ error: "woken recently" }, 429);
-    const result = await pusher.send(device, token, request.wake);
+    const result = await sendWake(pushers, device, token, request.wake);
     // Only a delivered push spends the slot, so a sender may retry at once.
     if (result !== "sent") limit.refund(slot);
     if (result === "gone") {
       await store.forgetToken(device.handle, token);
       return c.json({ error: "nothing to wake" }, 404);
     }
-    return result === "sent" ? c.body(null, 202) : c.json({ error: "Apple did not take the push" }, 502);
+    return result === "sent" ? c.body(null, 202) : c.json({ error: "the push service did not take the push" }, 502);
   });
 
   return app;
 }
 
 const HEX_TOKEN = /^[0-9a-f]{64,200}$/;
+/** FCM registration tokens: base64url-like, with a colon. */
+const FCM_TOKEN = /^[A-Za-z0-9_:-]{32,1024}$/;
 const HANDLE = /^[A-Za-z0-9_-]{43}$/;
 const CALL_ID = /^[A-Za-z0-9_-]{1,64}$/;
 /** Sealed texts that still fit Apple's 4 KB push (mosh-core's PREVIEW_MAX_LEN). */
 const PREVIEW = /^[A-Za-z0-9_-]{1,3800}$/;
 
-type Tokens = Pick<Device, "apns" | "voip" | "environment">;
+/** An iPhone's Apple tokens or an Android phone's FCM token, for a push service this host reaches. */
+function parseTokens(body: Record<string, unknown>, pushers: Pushers): Tokens | null {
+  const tokens = body.fcm === undefined ? appleTokens(body) : fcmTokens(body);
+  return tokens && pushers[tokens.platform] ? tokens : null;
+}
 
-function parseTokens(body: Record<string, unknown>): Tokens | null {
+function appleTokens(body: Record<string, unknown>): Tokens | null {
   const token = (value: unknown) => (typeof value === "string" && HEX_TOKEN.test(value) ? value : null);
   const apns = token(body.apns);
   const voip = token(body.voip);
@@ -98,7 +105,12 @@ function parseTokens(body: Record<string, unknown>): Tokens | null {
   if (environment !== "sandbox" && environment !== "production") return null;
   if ((body.apns !== undefined && !apns) || (body.voip !== undefined && !voip)) return null;
   if (!apns && !voip) return null;
-  return { apns, voip, environment: environment satisfies Environment };
+  return { platform: "apple", apns, voip, environment };
+}
+
+function fcmTokens({ fcm, ...rest }: Record<string, unknown>): Tokens | null {
+  if (typeof fcm !== "string" || !FCM_TOKEN.test(fcm) || Object.keys(rest).length > 0) return null;
+  return { platform: "fcm", fcm };
 }
 
 function parseWake(body: Record<string, unknown>): { handle: string; wake: Wake } | null {
