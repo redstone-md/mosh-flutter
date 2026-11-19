@@ -64,6 +64,7 @@ impl GroupSession {
                 "sender is not an authorized group member".into(),
             ));
         }
+        self.heard_member(&sender.mls_signer);
         Ok(())
     }
 
@@ -124,6 +125,10 @@ impl GroupSession {
                 offer_ciphertext_b64,
                 ..
             } => self.accept_verified_offer(&offer_ciphertext_b64, sender),
+            ControlEnvelope::WakeAddress {
+                wake_ciphertext_b64,
+                ..
+            } => self.accept_wake_address(&wake_ciphertext_b64, sender),
             _ => Err(PrivateGroupError::Codec(
                 "sender proof requires an application frame".into(),
             )),

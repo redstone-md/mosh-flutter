@@ -291,6 +291,7 @@ impl PrivateGroupRuntime {
         Self {
             shared_node,
             groups: ConversationRuntime::new(attachment_store, persistence, GROUP_HISTORY),
+            wake: Default::default(),
         }
     }
 
@@ -390,5 +391,6 @@ mod sequencing;
 mod service;
 mod session;
 mod text;
+mod wake;
 
 use wires::*;

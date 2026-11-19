@@ -121,7 +121,7 @@ pub struct PrivateDmRuntime {
     lost_window_ms: u64,
     device_link: Option<devices::DeviceDmLink>,
     background_calls: Option<Vec<crate::persistence::background_calls::BackgroundCallState>>,
-    wake: wake::WakeSetup,
+    wake: crate::conversation::wake::WakeSetup,
 }
 
 struct PrivateDmSession {

@@ -1,95 +1,18 @@
-//! Waking a counterpart's iPhone through the wake service (mosh-wake). A
-//! device that can only be reached through Apple's push service announces its
-//! wake address inside the chat; a device that has a call ringing or texts
-//! it has not acknowledged while it is away asks Dart to send the service a wake. The
-//! address rides an MLS application message, so the author's MLS key signs it
-//! and only members of the chat can read it. Old builds drop the unknown
-//! control kind. The announcement also carries the chat's preview key, so a
-//! wake for texts can show them; those wakes are in wake_preview.rs. Nothing
-//! here speaks HTTP.
+//! Waking a counterpart's iPhone through the wake service (see
+//! conversation::wake). A device that has a call ringing or texts it has
+//! not acknowledged while it is away asks Dart to send the service a wake;
+//! the texts' wakes are in wake_preview.rs.
 
-use super::wake_preview::{valid_key, PreviewKeys, TextWakes};
 use super::*;
-use serde::{Deserialize, Serialize};
+use crate::conversation::wake::preview::{PreviewKeys, TextWakes};
+pub use crate::conversation::wake::{WakeAddress, WakeRequest};
+use crate::conversation::wake::{WakeAnnouncement, WakeSetup};
 use std::collections::{BTreeMap, BTreeSet};
 
-/// An unchanged announcement is repeated this often.
-const ANNOUNCE_EVERY_MS: u64 = 6 * 60 * 60 * 1000;
 /// A call wakes a device not heard for a keepalive and a little more: the
 /// lost window would leave the woken phone seconds of a 30-second ring.
 /// Waking one that was only slow costs a second ring of the same call.
 const CALL_QUIET_MS: u64 = KEEPALIVE_MS + 2_000;
-/// The service's handles are 32 random bytes in unpadded base64url.
-const HANDLE_LEN: usize = 43;
-const SERVICE_MAX_LEN: usize = 200;
-
-/// Where a device can be woken: its wake service and the handle the service
-/// gave it. An empty handle withdraws an earlier announcement.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WakeAddress {
-    pub service: String,
-    pub handle: String,
-}
-
-impl WakeAddress {
-    fn withdrawn(&self) -> bool {
-        self.handle.is_empty()
-    }
-
-    pub(super) fn request(self, call_id: Option<String>, preview: Option<String>) -> WakeRequest {
-        WakeRequest {
-            service: self.service,
-            handle: self.handle,
-            call_id,
-            preview,
-        }
-    }
-
-    /// A counterpart's address becomes an HTTP request on this device, so
-    /// only a bounded https URL and a handle of the service's shape pass.
-    fn valid(&self) -> bool {
-        let handle = self.handle.len() == HANDLE_LEN
-            && self
-                .handle
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_');
-        let service = self.service.len() <= SERVICE_MAX_LEN
-            && self.service.starts_with("https://")
-            && self.service.bytes().all(|byte| byte.is_ascii_graphic());
-        self.withdrawn() || (handle && service)
-    }
-}
-
-/// What this installation knows of waking: its own address, announced in
-/// every chat, and the one service it wakes contacts through, the build's
-/// own. A contact names its service, so any other one would let a contact
-/// point this device's requests anywhere; without one nobody is woken.
-#[derive(Debug, Clone, Default)]
-pub(super) struct WakeSetup {
-    pub(super) own: Option<WakeAddress>,
-    pub(super) service: Option<String>,
-}
-
-/// One wake for Dart to send: `call_id` names the ringing call, none means
-/// texts are waiting; `preview` is those texts, sealed for the phone.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WakeRequest {
-    pub service: String,
-    pub handle: String,
-    pub call_id: Option<String>,
-    pub preview: Option<String>,
-}
-
-/// The frame body. Its field names keep it from reading as any other body.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct WakeAnnouncement {
-    pub(super) wake_address: WakeAddress,
-    issued_at_ms: u64,
-    /// What a wake's texts are sealed with for this chat; absent in builds
-    /// before previews and in a withdrawal.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(super) preview_key: Option<String>,
-}
 
 /// One session's wake bookkeeping. Only `peers` and `own_keys` are
 /// persisted.
@@ -112,15 +35,7 @@ pub(super) struct WakeBook {
 impl WakeBook {
     /// Keeps `announcement` when it is valid and newer than the one held.
     pub(super) fn accept(&mut self, signer: String, announcement: WakeAnnouncement) -> bool {
-        let newer = self
-            .peers
-            .get(&signer)
-            .is_none_or(|held| announcement.issued_at_ms > held.issued_at_ms);
-        let key = announcement.preview_key.as_deref();
-        if !newer
-            || !announcement.wake_address.valid()
-            || key.is_some_and(|key| valid_key(key).is_none())
-        {
+        if !announcement.supersedes(self.peers.get(&signer)) {
             return false;
         }
         self.peers.insert(signer, announcement);
@@ -140,15 +55,6 @@ impl WakeBook {
 
     fn absent(&self, signer: &str, now: u64, quiet: u64) -> bool {
         now.saturating_sub(self.heard_at.get(signer).copied().unwrap_or(0)) >= quiet
-    }
-
-    fn announce_due(&self, next: &WakeAnnouncement, epoch: Option<u64>) -> bool {
-        self.announced.as_ref().is_none_or(|(sent, at_epoch)| {
-            sent.wake_address != next.wake_address
-                || sent.preview_key != next.preview_key
-                || *at_epoch != epoch
-                || next.issued_at_ms.saturating_sub(sent.issued_at_ms) >= ANNOUNCE_EVERY_MS
-        })
     }
 
     /// Whether `signer` still needs a wake for `call_id`; marks it woken.
@@ -177,9 +83,8 @@ impl PrivateDmSession {
         if let Some(own) = &setup.own {
             self.announce_wake(own, now);
         }
-        let service = setup.service.as_deref();
-        self.wake_for_call(now, service);
-        self.wake_for_messages(now, lost_window, service);
+        self.wake_for_call(now, setup);
+        self.wake_for_messages(now, lost_window, setup);
     }
 
     fn announce_wake(&mut self, own: &WakeAddress, now: u64) {
@@ -198,7 +103,7 @@ impl PrivateDmSession {
             issued_at_ms: now,
             preview_key,
         };
-        if !self.wake.announce_due(&body, epoch) {
+        if !body.due_after(self.wake.announced.as_ref(), epoch) {
             return;
         }
         let Ok(wake_ciphertext_b64) = self.crypto.encrypt_json(&body) else {
@@ -257,39 +162,38 @@ impl PrivateDmSession {
                 .is_some_and(|membership| membership.call_own(signer))
     }
 
-    /// Counterpart devices with a live address on `service`.
+    /// Counterpart devices with a live address on this build's service.
     fn wakeable<'a>(
         &'a self,
-        service: Option<&'a str>,
+        setup: &'a WakeSetup,
     ) -> impl Iterator<Item = (&'a String, &'a WakeAnnouncement)> + 'a {
-        self.wake.peers.iter().filter(move |(signer, held)| {
-            !held.wake_address.withdrawn()
-                && Some(held.wake_address.service.as_str()) == service
-                && !self.is_own_signer(signer)
-        })
+        self.wake
+            .peers
+            .iter()
+            .filter(move |(signer, held)| setup.reaches(held) && !self.is_own_signer(signer))
     }
 
     /// Whether some counterpart device that is not connected can be woken
-    /// through `service`, so a call may ring it.
-    pub(super) fn can_wake_counterpart(&self, service: Option<&str>) -> bool {
-        self.peer_joined && self.crypto.is_ready() && self.wakeable(service).next().is_some()
+    /// through this build's service, so a call may ring it.
+    pub(super) fn can_wake_counterpart(&self, setup: &WakeSetup) -> bool {
+        self.peer_joined && self.crypto.is_ready() && self.wakeable(setup).next().is_some()
     }
 
-    /// Counterpart devices wakeable through `service` and not heard for
-    /// `quiet`.
+    /// Counterpart devices wakeable through this build's service and not
+    /// heard for `quiet`.
     pub(super) fn wake_targets(
         &self,
         now: u64,
         quiet: u64,
-        service: Option<&str>,
+        setup: &WakeSetup,
     ) -> Vec<(String, WakeAnnouncement)> {
-        self.wakeable(service)
+        self.wakeable(setup)
             .filter(|(signer, _)| self.wake.absent(signer, now, quiet))
             .map(|(signer, held)| (signer.clone(), held.clone()))
             .collect()
     }
 
-    fn wake_for_call(&mut self, now: u64, service: Option<&str>) {
+    fn wake_for_call(&mut self, now: u64, setup: &WakeSetup) {
         let Some(call_id) = self
             .call
             .as_ref()
@@ -300,11 +204,12 @@ impl PrivateDmSession {
         else {
             return;
         };
-        for (signer, held) in self.wake_targets(now, CALL_QUIET_MS, service) {
+        for (signer, held) in self.wake_targets(now, CALL_QUIET_MS, setup) {
             if self.wake.mark_call(&call_id, &signer) {
-                self.wake
-                    .due
-                    .push(held.wake_address.request(Some(call_id.clone()), None));
+                let request =
+                    held.wake_address
+                        .request(&self.session_id, Some(call_id.clone()), None);
+                self.wake.due.push(request);
                 self.log_wake(&format!("wake requested for call {call_id}"));
             }
         }
@@ -315,13 +220,12 @@ impl PrivateDmRuntime {
     /// This device's wake address, announced in every chat. An empty handle
     /// withdraws it; never calling this announces nothing.
     pub fn set_wake_address(&mut self, address: WakeAddress) {
-        let line = if address.withdrawn() {
-            "wake address withdrawn"
-        } else {
-            "wake address set"
-        };
-        dlog::write(LogLevel::Info, kinds::WAKE, KIND, line);
         self.wake.own = Some(address);
+    }
+
+    /// Everything known of waking so far, for a runtime starting now.
+    pub(crate) fn set_wake(&mut self, setup: WakeSetup) {
+        self.wake = setup;
     }
 
     /// The one wake service this build wakes contacts through.

@@ -47,6 +47,12 @@ impl<T> RuntimeOwner<T> {
         self.cell.get()?.as_ref().ok()
     }
 
+    /// `act` on the runtime when something has started it; None otherwise.
+    pub(crate) fn with_started<R>(&self, act: impl FnOnce(&mut T) -> R) -> Option<R> {
+        let mut runtime = self.initialized()?.lock().ok()?;
+        Some(act(&mut runtime))
+    }
+
     /// Starts at most one service, explicitly from Android's installation owner.
     /// Never holds a conversation lock while reconciling execution.
     pub(crate) fn start_service(

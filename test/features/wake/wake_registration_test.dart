@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/wake/wake_client.dart';
 import 'package:mosh/src/features/wake/wake_registration.dart';
 import 'package:mosh/src/features/wake/wake_sender.dart';
-import 'package:mosh/src/rust/private_dm_runtime/wake.dart';
+import 'package:mosh/src/rust/conversation/wake.dart';
 
 import 'wake_service_stub.dart';
 
@@ -121,7 +121,10 @@ void main() {
     service.statuses.addAll([404, 404, 202]);
     final forgotten = <String>[];
     WakeRequest wake(String handle, {String? call}) => WakeRequest(
-        service: service.uri.toString(), handle: handle, callId: call);
+        service: service.uri.toString(),
+        handle: handle,
+        chat: 'c',
+        callId: call);
     final sender = WakeSender(
         // A phone without an alert token answers 404 to texts only.
         take: () async => [
@@ -140,8 +143,8 @@ void main() {
 
   test('a sender tries a refused wake again on its next round', () async {
     service.statuses.addAll([502, 202]);
-    final wake =
-        WakeRequest(service: service.uri.toString(), handle: 'h', callId: 'c');
+    final wake = WakeRequest(
+        service: service.uri.toString(), handle: 'h', chat: 'c', callId: 'c');
     var waiting = [wake];
     final sender = WakeSender(
         take: () async {
@@ -161,10 +164,13 @@ void main() {
 
   test('a texts wake refused on every try hands its texts back', () async {
     service.statuses.addAll(List.filled(5, 429));
-    final refused = <String>[];
+    final refused = <(String, String)>[];
     var waiting = [
       WakeRequest(
-          service: service.uri.toString(), handle: 'h', preview: 'sealed'),
+          service: service.uri.toString(),
+          handle: 'h',
+          chat: 'g',
+          preview: 'sealed'),
     ];
     final sender = WakeSender(
         take: () async {
@@ -173,7 +179,7 @@ void main() {
           return due;
         },
         forget: (_) async {},
-        refused: (handle) async => refused.add(handle),
+        refused: (request) async => refused.add((request.chat, request.handle)),
         client: client);
 
     for (var round = 0; round < 4; round++) {
@@ -182,6 +188,6 @@ void main() {
     expect(refused, isEmpty, reason: 'tries are left');
     await sender.send();
 
-    expect(refused, ['h']);
+    expect(refused, [('g', 'h')]);
   });
 }

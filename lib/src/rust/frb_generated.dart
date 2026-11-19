@@ -25,6 +25,7 @@ import 'api/private_group.dart';
 import 'api/shared_runtime.dart';
 import 'api/voice_call_ringtone.dart';
 import 'api/vpn.dart';
+import 'api/wake.dart';
 import 'attachment_runtime.dart';
 import 'channel_runtime.dart';
 import 'channel_runtime/types.dart';
@@ -34,6 +35,8 @@ import 'conversation/dm_offers.dart';
 import 'conversation/mesh.dart';
 import 'conversation/read_marks.dart';
 import 'conversation/recovery.dart';
+import 'conversation/wake.dart';
+import 'conversation/wake/preview.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'device_link/types.dart';
@@ -58,8 +61,6 @@ import 'plus/recovery_types.dart';
 import 'plus/types.dart';
 import 'private_dm_runtime/contracts.dart';
 import 'private_dm_runtime/transport.dart';
-import 'private_dm_runtime/wake.dart';
-import 'private_dm_runtime/wake_preview.dart';
 import 'private_group_runtime.dart';
 import 'private_group_runtime/wire_types.dart';
 import 'secure_storage.dart';
@@ -122,7 +123,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -2098074513;
+  int get rustContentHash => 132570943;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -265,7 +266,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<SharedResources> crateApiSharedRuntimeEnsureSharedResources();
 
-  Future<void> crateApiPrivateDmForgetWakeHandle({required String handle});
+  Future<void> crateApiWakeForgetWakeHandle({required String handle});
 
   Future<String?> crateApiVpnGetBindInterface();
 
@@ -320,7 +321,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<NativeRuntimeStatus> crateApiDiagnosticsNativeRuntimeStatus();
 
-  Future<void> crateApiPrivateDmNoteWakeRegistration({required String problem});
+  Future<void> crateApiWakeNoteWakeRegistration({required String problem});
 
   Future<SessionSnapshot> crateApiPrivateDmOpenSession(
       {required String sessionId});
@@ -365,7 +366,7 @@ abstract class RustLibApi extends BaseApi {
       String? attachmentId,
       required BigInt totalBytes});
 
-  Future<List<PreviewChat>> crateApiPrivateDmPreviewChats();
+  Future<List<PreviewChat>> crateApiWakePreviewChats();
 
   Future<bool> crateApiPrivateDmReadReceiptsEnabled();
 
@@ -458,10 +459,10 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiVpnSetVpnBypassConsent({String? interface_});
 
-  Future<void> crateApiPrivateDmSetWakeAddress(
+  Future<void> crateApiWakeSetWakeAddress(
       {required String service, required String handle});
 
-  Future<void> crateApiPrivateDmSetWakeService({required String service});
+  Future<void> crateApiWakeSetWakeService({required String service});
 
   Future<void> crateApiNativeCallShowVideoAt(
       {required Surface local, required Surface remote});
@@ -487,7 +488,7 @@ abstract class RustLibApi extends BaseApi {
       required BigInt start,
       required BigInt end});
 
-  Future<List<WakeRequest>> crateApiPrivateDmTakeWakeRequests();
+  Future<List<WakeRequest>> crateApiWakeTakeWakeRequests();
 
   Future<void> crateApiConversationTypingSignal(
       {required BridgeConversationRef reference});
@@ -498,7 +499,8 @@ abstract class RustLibApi extends BaseApi {
   void crateApiVoiceCallRingtoneVoiceCallRingtoneStop(
       {required VoiceCallRingtone ringtone});
 
-  Future<void> crateApiPrivateDmWakeRefused({required String handle});
+  Future<void> crateApiWakeWakeRefused(
+      {required String chat, required String handle});
 
   Stream<BigInt> crateApiBackgroundWatchBackgroundChanges();
 
@@ -1663,7 +1665,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiPrivateDmForgetWakeHandle({required String handle}) {
+  Future<void> crateApiWakeForgetWakeHandle({required String handle}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -1673,15 +1675,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_conversation_bridge_error,
+        decodeErrorData: null,
       ),
-      constMeta: kCrateApiPrivateDmForgetWakeHandleConstMeta,
+      constMeta: kCrateApiWakeForgetWakeHandleConstMeta,
       argValues: [handle],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateApiPrivateDmForgetWakeHandleConstMeta =>
+  TaskConstMeta get kCrateApiWakeForgetWakeHandleConstMeta =>
       const TaskConstMeta(
         debugName: "forget_wake_handle",
         argNames: ["handle"],
@@ -2227,8 +2229,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiPrivateDmNoteWakeRegistration(
-      {required String problem}) {
+  Future<void> crateApiWakeNoteWakeRegistration({required String problem}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -2240,13 +2241,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         decodeSuccessData: sse_decode_unit,
         decodeErrorData: null,
       ),
-      constMeta: kCrateApiPrivateDmNoteWakeRegistrationConstMeta,
+      constMeta: kCrateApiWakeNoteWakeRegistrationConstMeta,
       argValues: [problem],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateApiPrivateDmNoteWakeRegistrationConstMeta =>
+  TaskConstMeta get kCrateApiWakeNoteWakeRegistrationConstMeta =>
       const TaskConstMeta(
         debugName: "note_wake_registration",
         argNames: ["problem"],
@@ -2641,7 +2642,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
 
   @override
-  Future<List<PreviewChat>> crateApiPrivateDmPreviewChats() {
+  Future<List<PreviewChat>> crateApiWakePreviewChats() {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -2650,16 +2651,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_preview_chat,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: null,
       ),
-      constMeta: kCrateApiPrivateDmPreviewChatsConstMeta,
+      constMeta: kCrateApiWakePreviewChatsConstMeta,
       argValues: [],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateApiPrivateDmPreviewChatsConstMeta =>
-      const TaskConstMeta(
+  TaskConstMeta get kCrateApiWakePreviewChatsConstMeta => const TaskConstMeta(
         debugName: "preview_chats",
         argNames: [],
       );
@@ -3442,7 +3442,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiPrivateDmSetWakeAddress(
+  Future<void> crateApiWakeSetWakeAddress(
       {required String service, required String handle}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
@@ -3454,22 +3454,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_conversation_bridge_error,
+        decodeErrorData: null,
       ),
-      constMeta: kCrateApiPrivateDmSetWakeAddressConstMeta,
+      constMeta: kCrateApiWakeSetWakeAddressConstMeta,
       argValues: [service, handle],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateApiPrivateDmSetWakeAddressConstMeta =>
-      const TaskConstMeta(
+  TaskConstMeta get kCrateApiWakeSetWakeAddressConstMeta => const TaskConstMeta(
         debugName: "set_wake_address",
         argNames: ["service", "handle"],
       );
 
   @override
-  Future<void> crateApiPrivateDmSetWakeService({required String service}) {
+  Future<void> crateApiWakeSetWakeService({required String service}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -3481,14 +3480,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         decodeSuccessData: sse_decode_unit,
         decodeErrorData: null,
       ),
-      constMeta: kCrateApiPrivateDmSetWakeServiceConstMeta,
+      constMeta: kCrateApiWakeSetWakeServiceConstMeta,
       argValues: [service],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateApiPrivateDmSetWakeServiceConstMeta =>
-      const TaskConstMeta(
+  TaskConstMeta get kCrateApiWakeSetWakeServiceConstMeta => const TaskConstMeta(
         debugName: "set_wake_service",
         argNames: ["service"],
       );
@@ -3706,7 +3704,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<WakeRequest>> crateApiPrivateDmTakeWakeRequests() {
+  Future<List<WakeRequest>> crateApiWakeTakeWakeRequests() {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -3715,15 +3713,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_wake_request,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: null,
       ),
-      constMeta: kCrateApiPrivateDmTakeWakeRequestsConstMeta,
+      constMeta: kCrateApiWakeTakeWakeRequestsConstMeta,
       argValues: [],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateApiPrivateDmTakeWakeRequestsConstMeta =>
+  TaskConstMeta get kCrateApiWakeTakeWakeRequestsConstMeta =>
       const TaskConstMeta(
         debugName: "take_wake_requests",
         argNames: [],
@@ -3809,28 +3807,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiPrivateDmWakeRefused({required String handle}) {
+  Future<void> crateApiWakeWakeRefused(
+      {required String chat, required String handle}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(chat, serializer);
         sse_encode_String(handle, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 125, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_conversation_bridge_error,
+        decodeErrorData: null,
       ),
-      constMeta: kCrateApiPrivateDmWakeRefusedConstMeta,
-      argValues: [handle],
+      constMeta: kCrateApiWakeWakeRefusedConstMeta,
+      argValues: [chat, handle],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateApiPrivateDmWakeRefusedConstMeta =>
-      const TaskConstMeta(
+  TaskConstMeta get kCrateApiWakeWakeRefusedConstMeta => const TaskConstMeta(
         debugName: "wake_refused",
-        argNames: ["handle"],
+        argNames: ["chat", "handle"],
       );
 
   @override
@@ -5213,6 +5212,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<PreviewMember> dco_decode_list_preview_member(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_preview_member).toList();
+  }
+
+  @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as List<int>;
@@ -5711,6 +5716,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<PreviewMember>? dco_decode_opt_list_preview_member(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_preview_member(raw);
+  }
+
+  @protected
   OrgDmLink dco_decode_org_dm_link(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -5978,12 +5989,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PreviewChat dco_decode_preview_chat(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return PreviewChat(
-      sessionId: dco_decode_String(arr[0]),
+      chatId: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
       keys: dco_decode_list_String(arr[2]),
+      members: dco_decode_opt_list_preview_member(arr[3]),
+    );
+  }
+
+  @protected
+  PreviewMember dco_decode_preview_member(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return PreviewMember(
+      key: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
     );
   }
 
@@ -6261,13 +6285,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   WakeRequest dco_decode_wake_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return WakeRequest(
       service: dco_decode_String(arr[0]),
       handle: dco_decode_String(arr[1]),
-      callId: dco_decode_opt_String(arr[2]),
-      preview: dco_decode_opt_String(arr[3]),
+      chat: dco_decode_String(arr[2]),
+      callId: dco_decode_opt_String(arr[3]),
+      preview: dco_decode_opt_String(arr[4]),
     );
   }
 
@@ -7884,6 +7909,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<PreviewMember> sse_decode_list_preview_member(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <PreviewMember>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_preview_member(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
@@ -8638,6 +8676,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<PreviewMember>? sse_decode_opt_list_preview_member(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_list_preview_member(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   OrgDmLink sse_decode_org_dm_link(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_peerId = sse_decode_String(deserializer);
@@ -8930,11 +8980,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   PreviewChat sse_decode_preview_chat(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_sessionId = sse_decode_String(deserializer);
+    var var_chatId = sse_decode_String(deserializer);
     var var_name = sse_decode_String(deserializer);
     var var_keys = sse_decode_list_String(deserializer);
+    var var_members = sse_decode_opt_list_preview_member(deserializer);
     return PreviewChat(
-        sessionId: var_sessionId, name: var_name, keys: var_keys);
+        chatId: var_chatId,
+        name: var_name,
+        keys: var_keys,
+        members: var_members);
+  }
+
+  @protected
+  PreviewMember sse_decode_preview_member(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_key = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    return PreviewMember(key: var_key, name: var_name);
   }
 
   @protected
@@ -9248,11 +9310,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_service = sse_decode_String(deserializer);
     var var_handle = sse_decode_String(deserializer);
+    var var_chat = sse_decode_String(deserializer);
     var var_callId = sse_decode_opt_String(deserializer);
     var var_preview = sse_decode_opt_String(deserializer);
     return WakeRequest(
         service: var_service,
         handle: var_handle,
+        chat: var_chat,
         callId: var_callId,
         preview: var_preview);
   }
@@ -10578,6 +10642,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_preview_member(
+      List<PreviewMember> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_preview_member(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_loose(
       List<int> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -11213,6 +11287,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_list_preview_member(
+      List<PreviewMember>? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_preview_member(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_org_dm_link(OrgDmLink self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.peerId, serializer);
@@ -11409,9 +11494,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_preview_chat(PreviewChat self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.sessionId, serializer);
+    sse_encode_String(self.chatId, serializer);
     sse_encode_String(self.name, serializer);
     sse_encode_list_String(self.keys, serializer);
+    sse_encode_opt_list_preview_member(self.members, serializer);
+  }
+
+  @protected
+  void sse_encode_preview_member(PreviewMember self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.key, serializer);
+    sse_encode_String(self.name, serializer);
   }
 
   @protected
@@ -11635,6 +11728,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.service, serializer);
     sse_encode_String(self.handle, serializer);
+    sse_encode_String(self.chat, serializer);
     sse_encode_opt_String(self.callId, serializer);
     sse_encode_opt_String(self.preview, serializer);
   }

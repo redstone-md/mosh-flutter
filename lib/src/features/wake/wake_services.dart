@@ -3,7 +3,7 @@ import 'dart:io' show HttpException;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/platform/ios_system_calls.dart';
-import 'package:mosh/src/rust/api/private_dm.dart' as api;
+import 'package:mosh/src/rust/api/wake.dart' as api;
 import 'package:mosh/src/state/notifications_provider.dart';
 
 import 'wake_client.dart';
@@ -11,8 +11,8 @@ import 'wake_previews.dart';
 import 'wake_registration.dart';
 import 'wake_sender.dart';
 
-/// The production sender: asks the DM runtime every second. The runtime
-/// wakes contacts only through this build's service, so a build without one
+/// The production sender: asks the runtimes every second. They wake
+/// members only through this build's service, so a build without one
 /// wakes nobody.
 WakeSender? startWakeSender(Ref ref) {
   if (kWakeServiceUrl.isEmpty) return null;
@@ -21,7 +21,8 @@ WakeSender? startWakeSender(Ref ref) {
   final sender = WakeSender(
       take: api.takeWakeRequests,
       forget: (handle) => api.forgetWakeHandle(handle: handle),
-      refused: (handle) => api.wakeRefused(handle: handle));
+      refused: (request) =>
+          api.wakeRefused(chat: request.chat, handle: request.handle));
   sender.start(const Duration(seconds: 1));
   ref.onDispose(sender.dispose);
   return sender;

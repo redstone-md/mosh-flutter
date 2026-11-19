@@ -1,10 +1,10 @@
 import UserNotifications
 
 /// Turns a wake service alert ("New message") into the chat's name and the
-/// text, opened from the push's sealed preview with the keys the app left
-/// in the shared Keychain. Needs neither the app nor the network, so it
-/// works while Mosh is closed. Anything it cannot open keeps the alert as
-/// it came.
+/// text, with a group member's name before it, opened from the push's
+/// sealed preview with the keys the app left in the shared Keychain. Needs
+/// neither the app nor the network, so it works while Mosh is closed.
+/// Anything it cannot open keeps the alert as it came.
 final class NotificationService: UNNotificationServiceExtension {
   private var original: (UNNotificationContent, (UNNotificationContent) -> Void)?
 
@@ -18,9 +18,9 @@ final class NotificationService: UNNotificationServiceExtension {
       let shown = PreviewBook(json: Data(stored.utf8))?.open(preview),
       let content = request.content.mutableCopy() as? UNMutableNotificationContent
     else { return contentHandler(request.content) }
-    if !shown.name.isEmpty { content.title = shown.name }
+    if !shown.title.isEmpty { content.title = shown.title }
     content.body = shown.text
-    content.threadIdentifier = shown.session
+    content.threadIdentifier = shown.chat
     contentHandler(content)
   }
 

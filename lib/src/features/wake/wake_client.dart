@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:mosh/src/rust/private_dm_runtime/wake.dart';
+import 'package:mosh/src/rust/conversation/wake.dart';
 
 /// The push tokens an iPhone registers: `voip` rings a call through PushKit,
 /// `apns` shows message alerts. `environment` is APNs's: `sandbox`

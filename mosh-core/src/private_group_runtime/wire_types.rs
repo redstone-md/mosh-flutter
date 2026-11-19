@@ -115,6 +115,13 @@ pub(super) enum ControlEnvelope {
         from_fingerprint: String,
         typing_ciphertext_b64: String,
     },
+    /// A member device's wake address and the group's preview key for it
+    /// (conversation::wake), MLS-encrypted like a typing hint. Old clients
+    /// fail to decode the unknown variant and drop the frame.
+    WakeAddress {
+        group_id: String,
+        wake_ciphertext_b64: String,
+    },
 }
 
 impl ControlEnvelope {
@@ -128,6 +135,7 @@ impl ControlEnvelope {
                 | Self::DmOffer { .. }
                 | Self::TypingIndicator { .. }
                 | Self::NameMetadata { .. }
+                | Self::WakeAddress { .. }
         )
     }
     pub(super) fn group_id(&self) -> &str {
@@ -145,7 +153,8 @@ impl ControlEnvelope {
             | Self::DmOffer { group_id, .. }
             | Self::ResyncRequest { group_id, .. }
             | Self::ResyncResponse { group_id, .. }
-            | Self::TypingIndicator { group_id, .. } => group_id,
+            | Self::TypingIndicator { group_id, .. }
+            | Self::WakeAddress { group_id, .. } => group_id,
         }
     }
 }
@@ -225,6 +234,11 @@ pub(super) struct PersistedGroupSession {
     pub(super) static_peer: Option<String>,
     #[serde(default)]
     pub(super) org_pubkey: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "super::wake::GroupWakeRecord::is_empty"
+    )]
+    pub(super) wake: super::wake::GroupWakeRecord,
 }
 
 pub struct PrivateGroupRuntime {
@@ -233,4 +247,5 @@ pub struct PrivateGroupRuntime {
     // harmful.
     pub(super) shared_node: Arc<SharedMossNode>,
     pub(super) groups: ConversationRuntime<GroupSession>,
+    pub(super) wake: crate::conversation::wake::WakeSetup,
 }

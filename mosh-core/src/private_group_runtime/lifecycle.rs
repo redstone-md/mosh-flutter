@@ -68,6 +68,7 @@ impl PrivateGroupRuntime {
             listen_port,
             static_peer,
             org_pubkey: request.org_pubkey,
+            wake: Default::default(),
         };
         let session = GroupSession::new(
             record,

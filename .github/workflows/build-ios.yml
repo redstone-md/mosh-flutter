@@ -47,7 +47,7 @@ jobs:
           submodules: recursive
 
       # The notification extension must open what mosh-core seals: both
-      # sides pin the same preview (wake_preview_tests.rs).
+      # sides pin the same previews (conversation/wake/preview_tests.rs).
       - name: Notification extension tests
         run: |
           swiftc ios/NotificationService/Previews.swift ios/NotificationServiceTests/main.swift \

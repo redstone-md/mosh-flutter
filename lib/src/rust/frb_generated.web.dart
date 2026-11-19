@@ -28,6 +28,7 @@ import 'api/private_group.dart';
 import 'api/shared_runtime.dart';
 import 'api/voice_call_ringtone.dart';
 import 'api/vpn.dart';
+import 'api/wake.dart';
 import 'attachment_runtime.dart';
 import 'channel_runtime.dart';
 import 'channel_runtime/types.dart';
@@ -37,6 +38,8 @@ import 'conversation/dm_offers.dart';
 import 'conversation/mesh.dart';
 import 'conversation/read_marks.dart';
 import 'conversation/recovery.dart';
+import 'conversation/wake.dart';
+import 'conversation/wake/preview.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'device_link/types.dart';
@@ -59,8 +62,6 @@ import 'plus/recovery_types.dart';
 import 'plus/types.dart';
 import 'private_dm_runtime/contracts.dart';
 import 'private_dm_runtime/transport.dart';
-import 'private_dm_runtime/wake.dart';
-import 'private_dm_runtime/wake_preview.dart';
 import 'private_group_runtime.dart';
 import 'private_group_runtime/wire_types.dart';
 import 'secure_storage.dart';
@@ -559,6 +560,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<PreviewChat> dco_decode_list_preview_chat(dynamic raw);
 
   @protected
+  List<PreviewMember> dco_decode_list_preview_member(dynamic raw);
+
+  @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
 
   @protected
@@ -751,6 +755,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   VpnBypassConsent? dco_decode_opt_box_autoadd_vpn_bypass_consent(dynamic raw);
 
   @protected
+  List<PreviewMember>? dco_decode_opt_list_preview_member(dynamic raw);
+
+  @protected
   OrgDmLink dco_decode_org_dm_link(dynamic raw);
 
   @protected
@@ -806,6 +813,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PreviewChat dco_decode_preview_chat(dynamic raw);
+
+  @protected
+  PreviewMember dco_decode_preview_member(dynamic raw);
 
   @protected
   SecureStorageStatus dco_decode_secure_storage_status(dynamic raw);
@@ -1416,6 +1426,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<PreviewChat> sse_decode_list_preview_chat(SseDeserializer deserializer);
 
   @protected
+  List<PreviewMember> sse_decode_list_preview_member(
+      SseDeserializer deserializer);
+
+  @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
 
   @protected
@@ -1640,6 +1654,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  List<PreviewMember>? sse_decode_opt_list_preview_member(
+      SseDeserializer deserializer);
+
+  @protected
   OrgDmLink sse_decode_org_dm_link(SseDeserializer deserializer);
 
   @protected
@@ -1701,6 +1719,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PreviewChat sse_decode_preview_chat(SseDeserializer deserializer);
+
+  @protected
+  PreviewMember sse_decode_preview_member(SseDeserializer deserializer);
 
   @protected
   SecureStorageStatus sse_decode_secure_storage_status(
@@ -2356,6 +2377,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       List<PreviewChat> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_preview_member(
+      List<PreviewMember> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
 
   @protected
@@ -2584,6 +2609,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       VpnBypassConsent? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_list_preview_member(
+      List<PreviewMember>? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_org_dm_link(OrgDmLink self, SseSerializer serializer);
 
   @protected
@@ -2646,6 +2675,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_preview_chat(PreviewChat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_preview_member(PreviewMember self, SseSerializer serializer);
 
   @protected
   void sse_encode_secure_storage_status(

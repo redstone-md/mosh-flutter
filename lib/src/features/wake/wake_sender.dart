@@ -2,16 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mosh/src/rust/private_dm_runtime/wake.dart';
+import 'package:mosh/src/rust/conversation/wake.dart';
 
 import 'wake_client.dart';
 
-/// Sends the wakes the DM runtime asks for: a call ringing a contact's
-/// iPhone that is away, or texts waiting for it. Runs on every platform, in
-/// the app's process. A handle the service no longer knows for calls is
-/// dropped; a phone may lack only the alert token texts use. A texts wake
-/// refused on every try hands its texts back for the next one.
-/// The runtime asks only for wakes through the build's own service.
+/// Sends the wakes the DM and group runtimes ask for: a call ringing a
+/// contact's iPhone that is away, or texts waiting for a member's. Runs on
+/// every platform, in the app's process. A handle the service no longer
+/// knows for calls is dropped; a phone may lack only the alert token texts
+/// use. A texts wake refused on every try hands its texts back for the next
+/// one. The runtimes ask only for wakes through the build's own service.
 class WakeSender {
   WakeSender(
       {required this.take,
@@ -22,7 +22,7 @@ class WakeSender {
 
   final Future<List<WakeRequest>> Function() take;
   final Future<void> Function(String handle) forget;
-  final Future<void> Function(String handle) refused;
+  final Future<void> Function(WakeRequest request) refused;
   final WakeClient _client;
   // Refused wakes and the tries each has left: the runtime asks for a wake
   // once, so a service that was briefly unreachable must be asked again.
@@ -42,7 +42,7 @@ class WakeSender {
       if (outcome == WakeOutcome.refused &&
           left == 0 &&
           request.callId == null) {
-        await refused(request.handle);
+        await refused(request);
       }
       if (outcome == WakeOutcome.forgotten && request.callId != null) {
         await forget(request.handle);
