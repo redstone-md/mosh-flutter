@@ -138,8 +138,8 @@ Each layer ships on its own; layer 2 alone already fixes calls.
 - A preview key lasts a day, without MLS's forward secrecy: a leaked key
   opens the previews sealed under it that day. Texts past what a push holds
   (4 KB) are cut.
-- A wake the service refuses after its retries loses its preview; the texts
-  still arrive when Mosh opens.
+- A sender that restarts while its texts wait seals them again, so the phone
+  may show them twice.
 - Apple rejects apps that use VoIP pushes for anything but calls, so message
   wakes never use the VoIP channel.
 - Anyone who has the handle (a contact) can send pushes up to the rate limit.

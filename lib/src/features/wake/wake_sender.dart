@@ -9,14 +9,20 @@ import 'wake_client.dart';
 /// Sends the wakes the DM runtime asks for: a call ringing a contact's
 /// iPhone that is away, or texts waiting for it. Runs on every platform, in
 /// the app's process. A handle the service no longer knows for calls is
-/// dropped; a phone may lack only the alert token texts use.
+/// dropped; a phone may lack only the alert token texts use. A texts wake
+/// refused on every try hands its texts back for the next one.
 /// The runtime asks only for wakes through the build's own service.
 class WakeSender {
-  WakeSender({required this.take, required this.forget, WakeClient? client})
+  WakeSender(
+      {required this.take,
+      required this.forget,
+      required this.refused,
+      WakeClient? client})
       : _client = client ?? WakeClient();
 
   final Future<List<WakeRequest>> Function() take;
   final Future<void> Function(String handle) forget;
+  final Future<void> Function(String handle) refused;
   final WakeClient _client;
   // Refused wakes and the tries each has left: the runtime asks for a wake
   // once, so a service that was briefly unreachable must be asked again.
@@ -33,6 +39,11 @@ class WakeSender {
           'wake ${request.callId == null ? 'message' : 'call'}: ${outcome.name}');
       final left = (_retry.remove(request) ?? _tries) - 1;
       if (outcome == WakeOutcome.refused && left > 0) _retry[request] = left;
+      if (outcome == WakeOutcome.refused &&
+          left == 0 &&
+          request.callId == null) {
+        await refused(request.handle);
+      }
       if (outcome == WakeOutcome.forgotten && request.callId != null) {
         await forget(request.handle);
       }

@@ -122,7 +122,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -1454560658;
+  int get rustContentHash => -2098074513;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -497,6 +497,8 @@ abstract class RustLibApi extends BaseApi {
 
   void crateApiVoiceCallRingtoneVoiceCallRingtoneStop(
       {required VoiceCallRingtone ringtone});
+
+  Future<void> crateApiPrivateDmWakeRefused({required String handle});
 
   Stream<BigInt> crateApiBackgroundWatchBackgroundChanges();
 
@@ -3807,6 +3809,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiPrivateDmWakeRefused({required String handle}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(handle, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 125, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_conversation_bridge_error,
+      ),
+      constMeta: kCrateApiPrivateDmWakeRefusedConstMeta,
+      argValues: [handle],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateDmWakeRefusedConstMeta =>
+      const TaskConstMeta(
+        debugName: "wake_refused",
+        argNames: ["handle"],
+      );
+
+  @override
   Stream<BigInt> crateApiBackgroundWatchBackgroundChanges() {
     final sink = RustStreamSink<BigInt>();
     unawaited(handler.executeNormal(NormalTask(
@@ -3814,7 +3841,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_StreamSink_u_64_Sse(sink, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 125, port: port_);
+            funcId: 126, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,

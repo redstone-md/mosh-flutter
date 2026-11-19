@@ -77,6 +77,24 @@ fn a_woken_iphone_gets_the_new_texts_sealed_for_their_chat() {
     );
 }
 
+// The service took no wake: the texts it carried are not lost.
+#[test]
+fn a_refused_wake_gives_its_texts_back_for_the_next() {
+    let (net, alice, mut bob, session_id) = announced_pair();
+    net.link_both(ALICE_ID, BOB_ID, PeerTransport::None);
+    send(&mut bob, &session_id, "first");
+    let later = after_silence();
+    bob.drain_inbound_at(later);
+    one_preview(&mut bob);
+
+    bob.wake_refused(HANDLE);
+    send(&mut bob, &session_id, "second");
+    bob.drain_inbound_at(later + MESSAGE_WAKE_GAP_MS);
+
+    let preview = one_preview(&mut bob);
+    assert_eq!(open(&alice, &preview).1, "first\nsecond");
+}
+
 // A phone on a build before previews announces no key; it is woken as
 // before, with the generic alert.
 #[test]

@@ -1,4 +1,4 @@
-//! Message previews for a woken iPhone. The phone gives every chat its own
+//! Waking a phone for texts, with previews of them. The phone gives every chat its own
 //! preview key and announces it with its wake address; a contact seals the
 //! texts a wake stands for under that key, and the phone's notification
 //! extension opens them with the keys the app left it. Which key opens a
@@ -143,11 +143,50 @@ pub struct PreviewChat {
 }
 
 impl PrivateDmSession {
-    /// The texts among `waiting` that no wake carried yet, oldest first.
-    pub(super) fn fresh_texts(&self, waiting: &BTreeSet<String>) -> Vec<String> {
-        let (_, woken) = &self.wake.message_woken;
-        let mut fresh: Vec<_> = waiting
-            .difference(woken)
+    /// Wakes an absent counterpart for texts it has not acknowledged: queued
+    /// ones, and ones sent while it still looked connected (a phone that just
+    /// went to sleep stays Connected for the lost window). Each wake carries
+    /// the texts no wake carried before, sealed for the device it goes to.
+    pub(super) fn wake_for_messages(&mut self, now: u64, lost_window: u64, service: Option<&str>) {
+        let waiting: BTreeSet<String> = self
+            .outbound_attempts
+            .iter()
+            .filter(|(_, attempt)| {
+                matches!(
+                    attempt.delivery_status,
+                    MessageDeliveryStatus::Queued | MessageDeliveryStatus::Sent
+                )
+            })
+            .map(|(id, _)| id.clone())
+            .collect();
+        if waiting.is_empty() || !self.wake.messages_due(&waiting, now) {
+            return;
+        }
+        let targets = self.wake_targets(now, lost_window, service);
+        if targets.is_empty() {
+            return;
+        }
+        let fresh: BTreeSet<String> = waiting
+            .difference(&self.wake.message_woken.1)
+            .cloned()
+            .collect();
+        let texts = self.texts_of(&fresh);
+        self.wake.message_woken = (now, waiting);
+        self.wake.last_batch = fresh;
+        self.log_wake("wake requested for unacknowledged texts");
+        for (_, held) in targets {
+            let preview = held
+                .preview_key
+                .as_deref()
+                .and_then(|key| seal(key, &texts));
+            self.wake.due.push(held.wake_address.request(None, preview));
+        }
+    }
+
+    /// The texts of `ids`, oldest first.
+    fn texts_of(&self, ids: &BTreeSet<String>) -> Vec<String> {
+        let mut fresh: Vec<_> = ids
+            .iter()
             .filter_map(|id| self.outbound_attempts.get(id))
             .filter_map(|attempt| {
                 let message: ChatMessage = serde_json::from_str(&attempt.message_json).ok()?;
@@ -160,6 +199,22 @@ impl PrivateDmSession {
 }
 
 impl PrivateDmRuntime {
+    /// The service refused a texts wake to `handle` for good: the texts it
+    /// carried first go with the next wake.
+    pub fn wake_refused(&mut self, handle: &str) {
+        for session in self.sessions.values_mut() {
+            let wake = &mut session.wake;
+            if wake
+                .peers
+                .values()
+                .any(|held| held.wake_address.handle == handle)
+            {
+                let batch = std::mem::take(&mut wake.last_batch);
+                wake.message_woken.1.retain(|id| !batch.contains(id));
+            }
+        }
+    }
+
     /// The chats this device announced a preview key in; the API names them
     /// as the user does.
     pub fn preview_chats(&self) -> Vec<PreviewChat> {

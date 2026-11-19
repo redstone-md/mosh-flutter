@@ -249,6 +249,13 @@ pub fn preview_chats() -> Result<Vec<PreviewChat>, String> {
     Ok(chats)
 }
 
+/// The service refused a texts wake to `handle` for good; its texts go
+/// with the next one.
+pub fn wake_refused(handle: String) -> Result<(), ConversationBridgeError> {
+    ensure_runtime()?.wake_refused(&handle);
+    Ok(())
+}
+
 /// The service no longer knows `handle`, so no DM wakes it again.
 pub fn forget_wake_handle(handle: String) -> Result<(), ConversationBridgeError> {
     ensure_runtime()?.forget_wake_handle(&handle);

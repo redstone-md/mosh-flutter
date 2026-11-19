@@ -20,7 +20,8 @@ WakeSender? startWakeSender(Ref ref) {
   unawaited(api.setWakeService(service: Uri.parse(kWakeServiceUrl).toString()));
   final sender = WakeSender(
       take: api.takeWakeRequests,
-      forget: (handle) => api.forgetWakeHandle(handle: handle));
+      forget: (handle) => api.forgetWakeHandle(handle: handle),
+      refused: (handle) => api.wakeRefused(handle: handle));
   sender.start(const Duration(seconds: 1));
   ref.onDispose(sender.dispose);
   return sender;

@@ -136,6 +136,11 @@ Future<List<WakeRequest>> takeWakeRequests() =>
 Future<List<PreviewChat>> previewChats() =>
     RustLib.instance.api.crateApiPrivateDmPreviewChats();
 
+/// The service refused a texts wake to `handle` for good; its texts go
+/// with the next one.
+Future<void> wakeRefused({required String handle}) =>
+    RustLib.instance.api.crateApiPrivateDmWakeRefused(handle: handle);
+
 /// The service no longer knows `handle`, so no DM wakes it again.
 Future<void> forgetWakeHandle({required String handle}) =>
     RustLib.instance.api.crateApiPrivateDmForgetWakeHandle(handle: handle);

@@ -130,6 +130,7 @@ void main() {
               wake('here', call: 'd')
             ],
         forget: (handle) async => forgotten.add(handle),
+        refused: (_) async {},
         client: client);
 
     await sender.send();
@@ -149,11 +150,38 @@ void main() {
           return due;
         },
         forget: (_) async {},
+        refused: (_) async {},
         client: client);
 
     await sender.send();
     await sender.send();
 
     expect(calls(), ['POST /v1/wake', 'POST /v1/wake']);
+  });
+
+  test('a texts wake refused on every try hands its texts back', () async {
+    service.statuses.addAll(List.filled(5, 429));
+    final refused = <String>[];
+    var waiting = [
+      WakeRequest(
+          service: service.uri.toString(), handle: 'h', preview: 'sealed'),
+    ];
+    final sender = WakeSender(
+        take: () async {
+          final due = waiting;
+          waiting = [];
+          return due;
+        },
+        forget: (_) async {},
+        refused: (handle) async => refused.add(handle),
+        client: client);
+
+    for (var round = 0; round < 4; round++) {
+      await sender.send();
+    }
+    expect(refused, isEmpty, reason: 'tries are left');
+    await sender.send();
+
+    expect(refused, ['h']);
   });
 }

@@ -5,9 +5,10 @@
 //! address rides an MLS application message, so the author's MLS key signs it
 //! and only members of the chat can read it. Old builds drop the unknown
 //! control kind. The announcement also carries the chat's preview key, so a
-//! wake for texts can show them (wake_preview.rs). Nothing here speaks HTTP.
+//! wake for texts can show them; those wakes are in wake_preview.rs. Nothing
+//! here speaks HTTP.
 
-use super::wake_preview::{seal, valid_key, PreviewKeys};
+use super::wake_preview::{valid_key, PreviewKeys};
 use super::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -38,7 +39,7 @@ impl WakeAddress {
         self.handle.is_empty()
     }
 
-    fn request(self, call_id: Option<String>, preview: Option<String>) -> WakeRequest {
+    pub(super) fn request(self, call_id: Option<String>, preview: Option<String>) -> WakeRequest {
         WakeRequest {
             service: self.service,
             handle: self.handle,
@@ -85,12 +86,12 @@ pub struct WakeRequest {
 /// The frame body. Its field names keep it from reading as any other body.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct WakeAnnouncement {
-    wake_address: WakeAddress,
+    pub(super) wake_address: WakeAddress,
     issued_at_ms: u64,
     /// What a wake's texts are sealed with for this chat; absent in builds
     /// before previews and in a withdrawal.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    preview_key: Option<String>,
+    pub(super) preview_key: Option<String>,
 }
 
 /// One session's wake bookkeeping. Only `peers` and `own_keys` are
@@ -108,7 +109,10 @@ pub(super) struct WakeBook {
     heard_at: HashMap<String, u64>,
     call_woken: Option<(String, BTreeSet<String>)>,
     pub(super) message_woken: (u64, BTreeSet<String>),
-    due: Vec<WakeRequest>,
+    /// The texts the last texts wake carried first; a refusal gives them
+    /// back.
+    pub(super) last_batch: BTreeSet<String>,
+    pub(super) due: Vec<WakeRequest>,
 }
 
 impl WakeBook {
@@ -163,7 +167,7 @@ impl WakeBook {
     }
 
     /// Texts no wake has gone out for, once the service would take another.
-    fn messages_due(&self, waiting: &BTreeSet<String>, now: u64) -> bool {
+    pub(super) fn messages_due(&self, waiting: &BTreeSet<String>, now: u64) -> bool {
         let (at, woken) = &self.message_woken;
         !waiting.is_subset(woken) && (*at == 0 || now.saturating_sub(*at) >= MESSAGE_WAKE_GAP_MS)
     }
@@ -195,15 +199,16 @@ impl PrivateDmSession {
         if self.state != DmSessionState::Connected || !self.can_encrypt_for_peer() {
             return;
         }
-        if !own.withdrawn() && self.wake.own_keys.rotate(now) {
-            self.record_dirty = true;
-        }
+        let preview_key = if own.withdrawn() {
+            None
+        } else {
+            self.record_dirty |= self.wake.own_keys.rotate(now);
+            self.wake.own_keys.current().map(str::to_string)
+        };
         let body = WakeAnnouncement {
             wake_address: own.clone(),
             issued_at_ms: now,
-            preview_key: (!own.withdrawn())
-                .then(|| self.wake.own_keys.current().map(str::to_string))
-                .flatten(),
+            preview_key,
         };
         if !self.wake.announce_due(&body, epoch) {
             return;
@@ -252,7 +257,7 @@ impl PrivateDmSession {
         Ok(())
     }
 
-    fn log_wake(&self, line: &str) {
+    pub(super) fn log_wake(&self, line: &str) {
         dlog::write(LogLevel::Info, kinds::WAKE, &self.session_id, line);
     }
 
@@ -284,7 +289,7 @@ impl PrivateDmSession {
 
     /// Counterpart devices wakeable through `service` and not heard for
     /// `quiet`.
-    fn wake_targets(
+    pub(super) fn wake_targets(
         &self,
         now: u64,
         quiet: u64,
@@ -314,41 +319,6 @@ impl PrivateDmSession {
                     .push(held.wake_address.request(Some(call_id.clone()), None));
                 self.log_wake(&format!("wake requested for call {call_id}"));
             }
-        }
-    }
-
-    /// Wakes an absent counterpart for texts it has not acknowledged: queued
-    /// ones, and ones sent while it still looked connected (a phone that just
-    /// went to sleep stays Connected for the lost window). Each wake carries
-    /// the texts no wake carried before, sealed for the device it goes to.
-    fn wake_for_messages(&mut self, now: u64, lost_window: u64, service: Option<&str>) {
-        let waiting: BTreeSet<String> = self
-            .outbound_attempts
-            .iter()
-            .filter(|(_, attempt)| {
-                matches!(
-                    attempt.delivery_status,
-                    MessageDeliveryStatus::Queued | MessageDeliveryStatus::Sent
-                )
-            })
-            .map(|(id, _)| id.clone())
-            .collect();
-        if waiting.is_empty() || !self.wake.messages_due(&waiting, now) {
-            return;
-        }
-        let targets = self.wake_targets(now, lost_window, service);
-        if targets.is_empty() {
-            return;
-        }
-        let fresh = self.fresh_texts(&waiting);
-        self.wake.message_woken = (now, waiting);
-        self.log_wake("wake requested for unacknowledged texts");
-        for (_, held) in targets {
-            let preview = held
-                .preview_key
-                .as_deref()
-                .and_then(|key| seal(key, &fresh));
-            self.wake.due.push(held.wake_address.request(None, preview));
         }
     }
 }
