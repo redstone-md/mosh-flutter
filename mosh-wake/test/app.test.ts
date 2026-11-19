@@ -104,11 +104,14 @@ test("a token Apple calls dead is forgotten", async () => {
   assert.equal(apple.sent.length, 2, "the VoIP token was dead too after its own push");
 });
 
-test("a push Apple refuses is reported as a gateway failure", async () => {
+test("a push Apple refuses is reported as a gateway failure and may be retried at once", async () => {
   const { apple, register, wake } = service();
   const { handle } = await register();
   apple.result = "failed";
   assert.equal((await wake(handle, "message")).status, 502);
+
+  apple.result = "sent";
+  assert.equal((await wake(handle, "message")).status, 202);
 });
 
 test("malformed registrations and wakes are refused", async () => {
