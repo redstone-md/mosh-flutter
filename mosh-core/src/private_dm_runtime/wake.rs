@@ -8,7 +8,7 @@
 //! wake for texts can show them; those wakes are in wake_preview.rs. Nothing
 //! here speaks HTTP.
 
-use super::wake_preview::{valid_key, PreviewKeys};
+use super::wake_preview::{valid_key, PreviewKeys, TextWakes};
 use super::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -19,9 +19,6 @@ const ANNOUNCE_EVERY_MS: u64 = 6 * 60 * 60 * 1000;
 /// lost window would leave the woken phone seconds of a 30-second ring.
 /// Waking one that was only slow costs a second ring of the same call.
 const CALL_QUIET_MS: u64 = KEEPALIVE_MS + 2_000;
-/// A chat wakes a phone for new texts at most this often; texts sent closer
-/// together share one notification.
-pub(super) const MESSAGE_WAKE_GAP_MS: u64 = 10_000;
 /// The service's handles are 32 random bytes in unpadded base64url.
 const HANDLE_LEN: usize = 43;
 const SERVICE_MAX_LEN: usize = 200;
@@ -108,10 +105,7 @@ pub(super) struct WakeBook {
     heard_since_tick: BTreeSet<String>,
     heard_at: HashMap<String, u64>,
     call_woken: Option<(String, BTreeSet<String>)>,
-    pub(super) message_woken: (u64, BTreeSet<String>),
-    /// The texts the last texts wake carried first; a refusal gives them
-    /// back.
-    pub(super) last_batch: BTreeSet<String>,
+    pub(super) texts: TextWakes,
     pub(super) due: Vec<WakeRequest>,
 }
 
@@ -164,12 +158,6 @@ impl WakeBook {
         }
         let (_, woken) = self.call_woken.as_mut().expect("set above");
         woken.insert(signer.to_string())
-    }
-
-    /// Texts no wake has gone out for, once the service would take another.
-    pub(super) fn messages_due(&self, waiting: &BTreeSet<String>, now: u64) -> bool {
-        let (at, woken) = &self.message_woken;
-        !waiting.is_subset(woken) && (*at == 0 || now.saturating_sub(*at) >= MESSAGE_WAKE_GAP_MS)
     }
 
     /// Drops every announcement of `handle`; true when one was held.

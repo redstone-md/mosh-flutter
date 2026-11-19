@@ -3,6 +3,7 @@
 
 use super::super::state_tests::{accept, connect, invite, memory_pair, state_of, ALICE_ID, BOB_ID};
 use super::super::tests::temp_store;
+use super::super::wake_preview::MESSAGE_WAKE_GAP_MS;
 use super::*;
 use crate::private_dm_runtime::transport::memory::MemoryNet;
 

@@ -15,6 +15,9 @@ use rand::{rngs::OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
+/// A chat wakes a phone for new texts at most this often; texts sent closer
+/// together share one notification.
+pub(super) const MESSAGE_WAKE_GAP_MS: u64 = 10_000;
 /// A chat's preview key is replaced this often; the one before stays open
 /// for previews already on their way.
 const KEY_LIFETIME_MS: u64 = 24 * 60 * 60 * 1000;
@@ -78,6 +81,39 @@ impl PreviewKeys {
             .flatten()
             .map(|held| held.key.clone())
             .collect()
+    }
+}
+
+/// Which of a chat's texts its wakes carried, so each wake carries only
+/// the new ones.
+#[derive(Default)]
+pub(super) struct TextWakes {
+    at: u64,
+    carried: BTreeSet<String>,
+    /// What the last wake carried first; a refusal makes it new again.
+    last: BTreeSet<String>,
+}
+
+impl TextWakes {
+    /// Whether `waiting` holds a text no wake carried, once the chat may
+    /// wake the phone again.
+    fn due(&self, waiting: &BTreeSet<String>, now: u64) -> bool {
+        !waiting.is_subset(&self.carried)
+            && (self.at == 0 || now.saturating_sub(self.at) >= MESSAGE_WAKE_GAP_MS)
+    }
+
+    /// Marks `waiting` carried by a wake now; returns the texts new to it.
+    fn carry(&mut self, waiting: BTreeSet<String>, now: u64) -> BTreeSet<String> {
+        self.last = waiting.difference(&self.carried).cloned().collect();
+        self.carried = waiting;
+        self.at = now;
+        self.last.clone()
+    }
+
+    /// The last wake was refused: what it carried first is new again.
+    fn give_back(&mut self) {
+        let last = std::mem::take(&mut self.last);
+        self.carried.retain(|id| !last.contains(id));
     }
 }
 
@@ -159,20 +195,15 @@ impl PrivateDmSession {
             })
             .map(|(id, _)| id.clone())
             .collect();
-        if waiting.is_empty() || !self.wake.messages_due(&waiting, now) {
+        if waiting.is_empty() || !self.wake.texts.due(&waiting, now) {
             return;
         }
         let targets = self.wake_targets(now, lost_window, service);
         if targets.is_empty() {
             return;
         }
-        let fresh: BTreeSet<String> = waiting
-            .difference(&self.wake.message_woken.1)
-            .cloned()
-            .collect();
+        let fresh = self.wake.texts.carry(waiting, now);
         let texts = self.texts_of(&fresh);
-        self.wake.message_woken = (now, waiting);
-        self.wake.last_batch = fresh;
         self.log_wake("wake requested for unacknowledged texts");
         for (_, held) in targets {
             let preview = held
@@ -209,8 +240,7 @@ impl PrivateDmRuntime {
                 .values()
                 .any(|held| held.wake_address.handle == handle)
             {
-                let batch = std::mem::take(&mut wake.last_batch);
-                wake.message_woken.1.retain(|id| !batch.contains(id));
+                wake.texts.give_back();
             }
         }
     }

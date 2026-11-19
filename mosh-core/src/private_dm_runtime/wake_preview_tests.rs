@@ -6,7 +6,6 @@ use super::super::state_tests::{state_of, ALICE_ID, BOB_ID};
 use super::super::wake::tests::{
     after_silence, announced_pair, announcement, exchange, HANDLE, SERVICE,
 };
-use super::super::wake::MESSAGE_WAKE_GAP_MS;
 use super::*;
 
 /// What Alice's notification extension shows for `preview`: the chat whose
