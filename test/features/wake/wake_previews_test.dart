@@ -2,14 +2,20 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/wake/wake_previews.dart';
-import 'package:mosh/src/rust/private_dm_runtime/wake_preview.dart';
+import 'package:mosh/src/rust/conversation/wake/preview.dart';
 
 void main() {
   test(
-      'the extension gets each chat\'s name and keys, written when they change',
-      () async {
+      'the extension gets each chat\'s name, keys and group members, written '
+      'when they change', () async {
+    const group = PreviewChat(
+        chatId: 'g1',
+        name: 'Hikes',
+        keys: ['g'],
+        members: [PreviewMember(key: 'm', name: 'Cleo')]);
     var chats = [
-      const PreviewChat(sessionId: 's1', name: 'Alice', keys: ['k2', 'k1']),
+      const PreviewChat(chatId: 's1', name: 'Alice', keys: ['k2', 'k1']),
+      group,
     ];
     final saved = <String>[];
     final previews = WakePreviews(
@@ -18,24 +24,35 @@ void main() {
     await previews.sync();
     await previews.sync();
     chats = [
-      const PreviewChat(sessionId: 's1', name: 'Alice', keys: ['k3', 'k2']),
+      const PreviewChat(chatId: 's1', name: 'Alice', keys: ['k3', 'k2']),
+      group,
     ];
     await previews.sync();
 
+    const groupJson = {
+      'chat': 'g1',
+      'name': 'Hikes',
+      'keys': ['g'],
+      'members': [
+        {'key': 'm', 'name': 'Cleo'}
+      ]
+    };
     expect(saved.map(jsonDecode), [
       [
         {
-          'session': 's1',
+          'chat': 's1',
           'name': 'Alice',
           'keys': ['k2', 'k1']
         },
+        groupJson,
       ],
       [
         {
-          'session': 's1',
+          'chat': 's1',
           'name': 'Alice',
           'keys': ['k3', 'k2']
         },
+        groupJson,
       ],
     ]);
   });
@@ -46,7 +63,7 @@ void main() {
     final saved = <String>[];
     final previews = WakePreviews(
         read: () async => [
-              const PreviewChat(sessionId: 's1', name: 'A', keys: ['k'])
+              const PreviewChat(chatId: 's1', name: 'A', keys: ['k'])
             ],
         save: (json) async {
           if (fail) throw StateError('keychain');

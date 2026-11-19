@@ -158,6 +158,7 @@ impl PrivateDmSession {
         ciphertext: &str,
     ) -> Result<()> {
         let (body, signer) = self.crypto.decrypt_with_signer(&decode(ciphertext)?)?;
+        self.wake.devices.heard(&signer);
         let claim: IdentityClaim = decode_json(&body)?;
         claim.verify(&self.session_id)?;
         if claim.mls_signer != hex::encode(signer) {

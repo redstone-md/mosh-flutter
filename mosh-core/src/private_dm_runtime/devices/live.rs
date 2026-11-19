@@ -108,7 +108,7 @@ impl PrivateDmSession {
         legacy_author: &str,
     ) -> Result<Option<(Vec<u8>, String)>> {
         let (body, signer) = self.crypto.decrypt_with_signer(ciphertext)?;
-        self.wake.heard(&signer);
+        self.wake.devices.heard(&signer);
         let author = if self.devices_live() {
             let (author, own) = self.device_author(&signer)?;
             if own {

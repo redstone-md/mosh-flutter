@@ -37,6 +37,9 @@ pub mod channel;
 /// Facade for the `private_group_*` family of commands.
 pub mod private_group;
 
+/// Facade for waking iPhones, in DMs and groups alike.
+pub mod wake;
+
 /// Unified attachment range facade used by the local media HTTP server.
 pub mod attachment_stream;
 

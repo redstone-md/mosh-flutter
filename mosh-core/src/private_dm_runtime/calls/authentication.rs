@@ -44,7 +44,7 @@ impl PrivateDmSession {
         let own = hex::encode(self.crypto.signer_public());
         let peer = self.peer_moss_id.as_deref();
         let session_id = &self.session_id;
-        let (body, _) = self.crypto.decrypt_checked(&ciphertext, |body, signer| {
+        let (body, signer) = self.crypto.decrypt_checked(&ciphertext, |body, signer| {
             let control: CallControl = serde_json::from_slice(body).map_err(|e| e.to_string())?;
             if control.session_id != *session_id
                 || control.signer != hex::encode(signer)
@@ -66,6 +66,7 @@ impl PrivateDmSession {
                 _ => Err("call device is not an admitted participant".into()),
             }
         })?;
+        self.wake.devices.heard(&signer);
         self.persist_device_crypto()?;
         decode_json(&body)
     }

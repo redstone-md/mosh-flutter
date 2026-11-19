@@ -32,7 +32,13 @@ fn construct_runtime() -> Result<PrivateGroupRuntime, PrivateGroupError> {
     // Rehydrate saved groups from the encrypted store; with persistence
     // wired it rebuilds joined groups + their tails + MLS state.
     runtime.rehydrate();
+    runtime.set_wake(super::wake::setup());
     Ok(runtime)
+}
+
+/// `act` on the runtime when something has started it; None otherwise.
+pub(crate) fn with_started<R>(act: impl FnOnce(&mut PrivateGroupRuntime) -> R) -> Option<R> {
+    RUNTIME.with_started(act)
 }
 
 /// Create a private MLS group.

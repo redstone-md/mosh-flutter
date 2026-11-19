@@ -26,6 +26,7 @@ pub mod runtime;
 pub mod test_message;
 pub mod transfer;
 pub mod typing;
+pub mod wake;
 
 use message_log::LogError;
 

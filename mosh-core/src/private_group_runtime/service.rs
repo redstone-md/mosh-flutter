@@ -70,6 +70,9 @@ impl PrivateGroupRuntime {
             history_ready.push(session.group_id.clone());
         }
         self.sync_group_history(&history_ready);
+        // Here and not in `service`: off Android only the UI's polls and
+        // sends drain, and a sender must wake members on every platform.
+        self.pump_wake(now_ms());
         Ok(())
     }
 

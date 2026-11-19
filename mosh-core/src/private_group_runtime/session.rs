@@ -142,6 +142,7 @@ pub(super) struct GroupSession {
     /// The send-cadence gate for this member's own TypingIndicator
     /// publishes.
     pub(super) typing_gate: TypingGate,
+    pub(super) wake: super::wake::GroupWakeBook,
 }
 
 impl GroupSession {
@@ -182,6 +183,7 @@ impl GroupSession {
             listen_port: record.listen_port,
             static_peer: record.static_peer,
             org_pubkey: record.org_pubkey,
+            wake: super::wake::GroupWakeBook::restore(record.wake),
             node,
             crypto,
             persistence,

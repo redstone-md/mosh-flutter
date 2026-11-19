@@ -7,16 +7,12 @@ use super::runtime_owner::RuntimeOwner;
 use std::time::Duration;
 
 use crate::api::conversation_bridge::ConversationBridgeError;
-use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
-use crate::private_dm_runtime::wake::{WakeAddress, WakeRequest};
-use crate::private_dm_runtime::wake_preview::PreviewChat;
 use crate::private_dm_runtime::{
     AcceptInviteRequest, CallStarted, InviteCreated, PrivateDmRuntime, PrivateDmRuntimeError,
     SessionListSnapshot, SessionSnapshot, StartSessionRequest,
 };
 
 static RUNTIME: RuntimeOwner<PrivateDmRuntime> = RuntimeOwner::new("private DM");
-static WAKE_SERVICE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
 // The two mobile-inject knobs (`set_history_dek`, `set_app_data_dir`) +
 // the shared Moss node / attachment store / persistence are owned by
@@ -58,9 +54,7 @@ fn construct_runtime() -> Result<PrivateDmRuntime, PrivateDmRuntimeError> {
     // persistence wired it now rebuilds sessions + history instead of the
     // slice-one no-op.
     runtime.rehydrate();
-    if let Some(service) = WAKE_SERVICE.get() {
-        runtime.set_wake_service(service.clone());
-    }
+    runtime.set_wake(super::wake::setup());
     start_service_thread().map_err(PrivateDmRuntimeError::Moss)?;
     Ok(runtime)
 }
@@ -185,81 +179,9 @@ pub fn call_end(
         .map_err(ConversationBridgeError::from)
 }
 
-/// This installation's wake address, announced in every DM so a contact can
-/// wake it through its wake service. An empty handle withdraws it.
-pub fn set_wake_address(service: String, handle: String) -> Result<(), ConversationBridgeError> {
-    ensure_runtime()?.set_wake_address(WakeAddress { service, handle });
-    Ok(())
-}
-
-/// The build's wake service: contacts are woken only through it, whatever
-/// service they announce. Kept for a runtime started later; one started
-/// while this is set may miss it and then wakes nobody, never anyone else.
-pub fn set_wake_service(service: String) {
-    let _ = WAKE_SERVICE.set(service.clone());
-    if let Some(Ok(mut runtime)) = RUNTIME.initialized().map(|runtime| runtime.lock()) {
-        runtime.set_wake_service(service);
-    }
-}
-
-/// Why this iPhone's wake registration did not finish, for the field log;
-/// never a token or a handle. A finished one logs "wake address set".
-pub fn note_wake_registration(problem: String) {
-    dlog::write(LogLevel::Warn, kinds::WAKE, "registration", &problem);
-}
-
-/// The wakes the DM runtime asked for since the last call; Dart sends each
-/// to its service.
-/// Asking never starts the runtime: until something else does, nothing can
-/// be waiting.
-pub fn take_wake_requests() -> Result<Vec<WakeRequest>, String> {
-    let Some(runtime) = RUNTIME.initialized() else {
-        return Ok(Vec::new());
-    };
-    Ok(runtime
-        .lock()
-        .map_err(|_| "private DM runtime unavailable".to_string())?
-        .take_wake_requests())
-}
-
-/// What this iPhone's notification extension needs to show previews: each
-/// chat with a preview key, under the name the user gave it or else the
-/// contact's own. Asking never starts the runtime.
-pub fn preview_chats() -> Result<Vec<PreviewChat>, String> {
-    let Some(runtime) = RUNTIME.initialized() else {
-        return Ok(Vec::new());
-    };
-    let mut chats = runtime
-        .lock()
-        .map_err(|_| "private DM runtime unavailable".to_string())?
-        .preview_chats();
-    // Without the account runtime the contacts' own names stand.
-    if let Ok(names) = super::conversation::names::personal_names() {
-        for chat in &mut chats {
-            let key = format!("dm:{}", chat.session_id);
-            if let Some(entry) = names
-                .entries
-                .iter()
-                .find(|entry| entry.conversation_key == key)
-            {
-                chat.name = entry.name.clone();
-            }
-        }
-    }
-    Ok(chats)
-}
-
-/// The service refused a texts wake to `handle` for good; its texts go
-/// with the next one.
-pub fn wake_refused(handle: String) -> Result<(), ConversationBridgeError> {
-    ensure_runtime()?.wake_refused(&handle);
-    Ok(())
-}
-
-/// The service no longer knows `handle`, so no DM wakes it again.
-pub fn forget_wake_handle(handle: String) -> Result<(), ConversationBridgeError> {
-    ensure_runtime()?.forget_wake_handle(&handle);
-    Ok(())
+/// `act` on the runtime when something has started it; None otherwise.
+pub(crate) fn with_started<R>(act: impl FnOnce(&mut PrivateDmRuntime) -> R) -> Option<R> {
+    RUNTIME.with_started(act)
 }
 
 /// How often the service thread runs the DM protocol. Twice the old UI poll

@@ -410,11 +410,12 @@ and [ADR 0044](ADR/0044-native-call-media-over-moss.md). The
 Every call uses that one native audio/video engine over Moss, iOS included.
 
 iOS gives a closed app no process, so an iPhone announces a wake address
-(service and handle) in each DM as an MLS-encrypted control frame, and its
-contacts keep it per device in the session record
-(`private_dm_runtime/wake.rs`). When a call rings, or texts wait, for such a
-device that has gone quiet, the DM runtime asks Dart to send the wake service
-a request, and the service pushes the phone through Apple
+(service and handle) in each DM and group as an MLS-encrypted control frame,
+and the other members keep it per device in the chat's record
+(`conversation/wake.rs`, used by `private_dm_runtime/wake.rs` and
+`private_group_runtime/wake.rs`). When a call rings or texts wait for such a
+device that has gone quiet, the runtime asks Dart (through `api/wake.rs`) to
+send the wake service a request, and the service pushes the phone through Apple
 ([plan](Proposals/ios-background-delivery.plan.md)). Desktop and Android make
 that request only while Mosh runs as an app, and every build only to the
 service it was built with (`MOSH_WAKE_URL`), so a contact cannot point it

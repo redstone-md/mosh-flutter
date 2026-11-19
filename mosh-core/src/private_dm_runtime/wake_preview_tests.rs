@@ -1,12 +1,17 @@
 //! Previews of texts for a woken iPhone, through both runtimes on the
-//! in-memory transport, and the sealed form its notification extension
-//! opens (ios/NotificationService/Previews.swift).
+//! in-memory transport. The sealed forms themselves are pinned in
+//! conversation/wake/preview_tests.rs.
 
 use super::super::state_tests::{state_of, ALICE_ID, BOB_ID};
 use super::super::wake::tests::{
     after_silence, announced_pair, announcement, exchange, HANDLE, SERVICE,
 };
 use super::*;
+use crate::conversation::wake::preview::{valid_key, PreviewKeys, MESSAGE_WAKE_GAP_MS, NONCE_LEN};
+use aes_gcm::aead::{Aead, KeyInit};
+use aes_gcm::{Aes256Gcm, Nonce};
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
 
 /// What Alice's notification extension shows for `preview`: the chat whose
 /// key opens it and the text.
@@ -16,7 +21,7 @@ fn open(alice: &PrivateDmRuntime, preview: &str) -> (String, String) {
         .into_iter()
         .find_map(|chat| {
             let text = chat.keys.iter().find_map(|key| open_with(key, preview))?;
-            Some((chat.session_id, text))
+            Some((chat.chat_id, text))
         })
         .expect("a key of Alice's opens the preview")
 }
@@ -86,7 +91,7 @@ fn a_refused_wake_gives_its_texts_back_for_the_next() {
     bob.drain_inbound_at(later);
     one_preview(&mut bob);
 
-    bob.wake_refused(HANDLE);
+    bob.wake_refused(&session_id, HANDLE);
     send(&mut bob, &session_id, "second");
     bob.drain_inbound_at(later + MESSAGE_WAKE_GAP_MS);
 
@@ -130,7 +135,8 @@ fn a_new_key_is_announced_to_the_contact() {
         .get_mut(&session_id)
         .expect("Alice's chat")
         .wake
-        .own_keys = PreviewKeys::default();
+        .own
+        .keys = PreviewKeys::default();
     state_of(&mut alice, &session_id);
     exchange(&mut alice, &mut bob, &session_id);
     let second = alice.preview_chats()[0].keys[0].clone();
@@ -142,55 +148,4 @@ fn a_new_key_is_announced_to_the_contact() {
 
     let preview = one_preview(&mut bob);
     assert_eq!(open_with(&second, &preview).as_deref(), Some("hi"));
-}
-
-#[test]
-fn a_key_is_replaced_daily_and_the_one_before_still_opens() {
-    let mut keys = PreviewKeys::default();
-    assert!(keys.rotate(1));
-    let first = keys.current().expect("a key").to_string();
-    assert!(!keys.rotate(KEY_LIFETIME_MS));
-
-    assert!(keys.rotate(1 + KEY_LIFETIME_MS));
-
-    let second = keys.current().expect("a key").to_string();
-    assert_ne!(first, second);
-    assert_eq!(keys.opening(), vec![second, first]);
-}
-
-#[test]
-fn a_long_text_is_cut_to_fit_one_push() {
-    let key = STANDARD.encode([7u8; 32]);
-    let preview = seal(&key, &["ж\"".repeat(3_000)]).expect("sealed");
-
-    assert!(preview.len() <= PREVIEW_MAX_LEN, "{} chars", preview.len());
-    let text = open_with(&key, &preview).expect("opens");
-    assert!(text.starts_with("ж\"ж\""), "{text}");
-    assert!(text.ends_with('…'), "{text}");
-}
-
-#[test]
-fn texts_with_nothing_to_show_seal_nothing() {
-    let key = STANDARD.encode([7u8; 32]);
-    assert_eq!(seal(&key, &[" ".to_string(), String::new()]), None);
-    assert_eq!(seal("not a key", &["hi".to_string()]), None);
-}
-
-// Pinned: ios/NotificationServiceTests/main.swift opens this same preview,
-// so a change on either side fails here or there.
-#[test]
-fn the_sealed_form_is_what_the_notification_extension_opens() {
-    let key = STANDARD.encode([7u8; 32]);
-    let texts = ["Привет".to_string(), "how are you?".to_string()];
-
-    let preview = seal_with(&key, &texts, [9u8; NONCE_LEN]).expect("sealed");
-
-    assert_eq!(
-        preview,
-        "CQkJCQkJCQkJCQkJXKfw8caE41uCslTpZjobD2Zg1iK2spmoANlmx6cRIQO8kNjhn4iTe0muP9iBv9ClUiO7XJs"
-    );
-    assert_eq!(
-        open_with(&key, &preview).as_deref(),
-        Some("Привет\nhow are you?")
-    );
 }

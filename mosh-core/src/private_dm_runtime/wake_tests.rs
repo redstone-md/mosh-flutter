@@ -3,12 +3,11 @@
 
 use super::super::state_tests::{accept, connect, invite, memory_pair, state_of, ALICE_ID, BOB_ID};
 use super::super::tests::temp_store;
-use super::super::wake_preview::MESSAGE_WAKE_GAP_MS;
 use super::*;
+use crate::conversation::wake::preview::MESSAGE_WAKE_GAP_MS;
 use crate::private_dm_runtime::transport::memory::MemoryNet;
 
-pub(crate) const SERVICE: &str = "https://wake.example";
-pub(crate) const HANDLE: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456";
+pub(crate) use crate::conversation::wake::tests::{announcement, HANDLE, SERVICE};
 
 fn address(handle: &str) -> WakeAddress {
     WakeAddress {
@@ -20,8 +19,8 @@ fn address(handle: &str) -> WakeAddress {
 /// Alice announced a wake address and Bob has it; both are connected.
 pub(crate) fn announced_pair() -> (Arc<MemoryNet>, PrivateDmRuntime, PrivateDmRuntime, String) {
     let (net, mut alice, mut bob) = memory_pair();
-    alice.set_wake_address(address(HANDLE));
-    bob.set_wake_service(SERVICE.to_string());
+    alice.set_wake(WakeSetup::announcing(address(HANDLE)));
+    bob.set_wake(WakeSetup::waking_through(SERVICE));
     let invite = invite(&mut alice);
     accept(&mut bob, &invite);
     connect(&mut alice, &mut bob, &invite.session_id);
@@ -42,10 +41,11 @@ pub(crate) fn after_silence() -> u64 {
     now_ms() + LOST_WINDOW_MS
 }
 
-fn call_wake(call_id: &str) -> WakeRequest {
+fn call_wake(session_id: &str, call_id: &str) -> WakeRequest {
     WakeRequest {
         service: SERVICE.to_string(),
         handle: HANDLE.to_string(),
+        chat: session_id.to_string(),
         call_id: Some(call_id.to_string()),
         preview: None,
     }
@@ -76,7 +76,10 @@ fn a_call_wakes_a_device_that_went_away_once() {
         .call_start(&session_id)
         .expect("Bob calls the absent Alice");
     bob.drain_inbound_at(later + CALL_RESEND_MS);
-    assert_eq!(bob.take_wake_requests(), vec![call_wake(&call.call_id)]);
+    assert_eq!(
+        bob.take_wake_requests(),
+        vec![call_wake(&session_id, &call.call_id)]
+    );
 
     bob.drain_inbound_at(later + 2 * CALL_RESEND_MS);
     assert!(bob.take_wake_requests().is_empty(), "one wake per call");
@@ -94,7 +97,10 @@ fn a_ringing_call_wakes_a_device_soon_after_it_goes_quiet() {
     bob.drain_inbound_at(start + KEEPALIVE_MS / 2);
     assert!(bob.take_wake_requests().is_empty(), "Alice was just heard");
     bob.drain_inbound_at(start + KEEPALIVE_MS + 2_000);
-    assert_eq!(bob.take_wake_requests(), vec![call_wake(&call.call_id)]);
+    assert_eq!(
+        bob.take_wake_requests(),
+        vec![call_wake(&session_id, &call.call_id)]
+    );
 }
 
 #[test]
@@ -117,7 +123,7 @@ fn a_call_to_an_absent_counterpart_without_an_address_is_refused() {
 #[test]
 fn an_address_on_another_service_wakes_nothing() {
     let (net, _alice, mut bob, session_id) = announced_pair();
-    bob.set_wake_service("https://other.example".to_string());
+    bob.set_wake(WakeSetup::waking_through("https://other.example"));
     net.link_both(ALICE_ID, BOB_ID, PeerTransport::None);
     bob.drain_inbound_at(after_silence());
 
@@ -134,7 +140,7 @@ fn an_address_on_another_service_wakes_nothing() {
 #[test]
 fn a_build_without_a_wake_service_wakes_nobody() {
     let (net, mut alice, mut bob) = memory_pair();
-    alice.set_wake_address(address(HANDLE));
+    alice.set_wake(WakeSetup::announcing(address(HANDLE)));
     let invite = invite(&mut alice);
     accept(&mut bob, &invite);
     connect(&mut alice, &mut bob, &invite.session_id);
@@ -185,7 +191,7 @@ fn a_call_to_a_device_still_heard_wakes_nothing() {
 #[test]
 fn a_withdrawn_address_wakes_nothing() {
     let (net, mut alice, mut bob, session_id) = announced_pair();
-    alice.set_wake_address(address(""));
+    alice.set_wake(WakeSetup::announcing(address("")));
     exchange(&mut alice, &mut bob, &session_id);
     net.link_both(ALICE_ID, BOB_ID, PeerTransport::None);
 
@@ -203,7 +209,7 @@ fn queued_texts_wake_an_absent_device_once_per_batch() {
     net.link_both(ALICE_ID, BOB_ID, PeerTransport::None);
     let text_wake = WakeRequest {
         call_id: None,
-        ..call_wake("")
+        ..call_wake(&session_id, "")
     };
     let send = |bob: &mut PrivateDmRuntime, body: &str| {
         bob.send_message(&session_id, body.to_string())
@@ -240,7 +246,7 @@ fn an_unacknowledged_text_wakes_a_device_that_went_away() {
 
     let text_wake = WakeRequest {
         call_id: None,
-        ..call_wake("")
+        ..call_wake(&session_id, "")
     };
     assert_eq!(text_wakes(&mut bob), vec![text_wake]);
 }
@@ -269,7 +275,7 @@ fn the_address_survives_a_restart() {
     let net = MemoryNet::new();
     net.link_both(ALICE_ID, BOB_ID, PeerTransport::Direct);
     let mut alice = PrivateDmRuntime::with_transport(net.endpoint(ALICE_ID), temp_store(), None);
-    alice.set_wake_address(address(HANDLE));
+    alice.set_wake(WakeSetup::announcing(address(HANDLE)));
     let session_id = {
         let mut bob = PrivateDmRuntime::with_transport(
             net.endpoint(BOB_ID),
@@ -287,50 +293,17 @@ fn the_address_survives_a_restart() {
 
     let mut bob =
         PrivateDmRuntime::with_transport(net.endpoint(BOB_ID), temp_store(), Some(persistence));
-    bob.set_wake_service(SERVICE.to_string());
+    bob.set_wake(WakeSetup::waking_through(SERVICE));
     bob.rehydrate();
     let call = bob
         .call_start(&session_id)
         .expect("Bob calls after the restart");
     bob.drain_inbound_at(after_silence());
 
-    assert_eq!(bob.take_wake_requests(), vec![call_wake(&call.call_id)]);
+    assert_eq!(
+        bob.take_wake_requests(),
+        vec![call_wake(&session_id, &call.call_id)]
+    );
     drop(bob);
     let _ = std::fs::remove_file(&db);
-}
-
-pub(crate) fn announcement(handle: &str, service: &str, issued_at_ms: u64) -> WakeAnnouncement {
-    WakeAnnouncement {
-        wake_address: WakeAddress {
-            service: service.to_string(),
-            handle: handle.to_string(),
-        },
-        issued_at_ms,
-        preview_key: None,
-    }
-}
-
-// A replayed older frame must not bring back a handle the device replaced
-// or withdrew.
-#[test]
-fn only_a_newer_announcement_replaces_the_held_one() {
-    let mut book = WakeBook::default();
-    assert!(book.accept("signer".into(), announcement(HANDLE, SERVICE, 2)));
-    assert!(!book.accept("signer".into(), announcement("", SERVICE, 1)));
-    assert!(!book.accept("signer".into(), announcement("", SERVICE, 2)));
-    assert!(book.accept("signer".into(), announcement("", SERVICE, 3)));
-}
-
-// The address turns into an HTTP request on the receiving device.
-#[test]
-fn an_address_off_the_service_shape_is_refused() {
-    let mut book = WakeBook::default();
-    assert!(!book.accept("a".into(), announcement(HANDLE, "http://wake.example", 1)));
-    assert!(!book.accept("b".into(), announcement("short", SERVICE, 1)));
-    let long = format!("https://{}", "w".repeat(SERVICE_MAX_LEN));
-    assert!(!book.accept("c".into(), announcement(HANDLE, &long, 1)));
-    assert!(!book.accept(
-        "d".into(),
-        announcement(HANDLE, "https://wake.example/a b", 1)
-    ));
 }

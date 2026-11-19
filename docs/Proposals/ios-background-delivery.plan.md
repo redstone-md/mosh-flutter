@@ -74,7 +74,18 @@ counterpart installation), so its exact shape comes for approval with layer 2.
 - Calls: when a call offer goes to an installation with a handle that is not
   connected, send a `call` wake together with the offer. The caller's existing
   30-second ring and offer retransmission cover the phone's start-up.
-- Groups and channels: same rule for members' installations, coalesced.
+- Groups: a group has no delivery acknowledgements, and a woken phone reads
+  what it missed from the group's history. Nor has it a keepalive, so an
+  iPhone repeats its announcement in each group every 10 s while Mosh runs.
+  After sending, the author wakes each member device that announced an
+  address and has sent no authenticated frame for 25 s, at most every 10 s
+  per group and device, with the texts sent since it was last heard that no
+  wake to it carried yet. The mesh is no sign of a phone: Moss drops a
+  suspended peer only after six missed 15 s pings.
+- Channels: none. A channel's author has no subscriber list, and announcing
+  wake addresses in a public channel would hand them to anyone for spam and
+  tie them to the subscriber. If channels need it later, an iPhone can be
+  woken by the user's own linked device that follows the channel.
 
 Desktop and Android builds therefore make an HTTPS request to the service when
 a contact uses an iPhone. No request is made otherwise.
@@ -106,6 +117,13 @@ a contact uses an iPhone. No request is made otherwise.
   itself still arrives over Moss when Mosh opens; the push does not start
   the app, so it posts no second notice. iOS's own "Show Previews" setting
   decides whether name and text show on the lock screen.
+- Group messages: the phone gives every group a preview key the same way,
+  replaced also when a member leaves, even while Mosh was closed. Every
+  member knows that key, so a group preview carries its author's MLS
+  signature over the group and the text. The app leaves the extension the
+  group's other members' MLS keys and names; it shows the group's name and
+  "Name: text" only when one of them signed the preview, named by that key,
+  and "New message" otherwise.
 
 ## Delivery in layers
 
@@ -115,7 +133,7 @@ a contact uses an iPhone. No request is made otherwise.
    closed iPhone.
 3. Message wakes from every platform with sealed previews, shown by the
    notification extension.
-4. Group and channel wakes.
+4. Group wakes with signed previews. Channels are not woken (section 3).
 
 Each layer ships on its own; layer 2 alone already fixes calls.
 
@@ -140,6 +158,16 @@ Each layer ships on its own; layer 2 alone already fixes calls.
   (4 KB) are cut.
 - A sender that restarts while its texts wait seals them again, so the phone
   may show them twice.
+- An active group wakes the phone often, and the service's 30 message wakes
+  a minute per phone are shared by all its chats. In a large group every
+  author wakes each absent iPhone: one request per device and message batch.
+- A group's preview key is shared by its members, without MLS's forward
+  secrecy; a member who left reads previews until the key is replaced,
+  which happens as soon as the phone sees them leave.
+- An iPhone with Mosh open sends one MLS frame per group every 10 s, so a
+  phone in many groups talks constantly while open.
+- A text sent in the seconds between a phone's last announcement and its
+  suspension counts as read and wakes nothing.
 - Apple rejects apps that use VoIP pushes for anything but calls, so message
   wakes never use the VoIP channel.
 - Anyone who has the handle (a contact) can send pushes up to the rate limit.

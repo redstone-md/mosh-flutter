@@ -36,6 +36,7 @@ impl GroupSession {
         let message = self.received_text(envelope, &staged.body);
         self.persist_received_text(&staged, &message, &payload, &sender)?;
         self.crypto = staged.next;
+        self.heard_member(&sender.mls_signer);
         // Durable delivery contradicts the author's typing hint.
         self.clear_member_typing(&author);
         if self.messages.holds_copy_of(&message) {

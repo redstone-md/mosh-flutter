@@ -72,9 +72,12 @@ impl GroupSession {
         ciphertext: &str,
         sender: &VerifiedSender,
     ) -> Result<Vec<u8>, PrivateGroupError> {
-        self.crypto
-            .decrypt_from_signer(&decode(ciphertext)?, &sender.mls_signer)
-            .map_err(Into::into)
+        let body = self
+            .crypto
+            .decrypt_from_signer(&decode(ciphertext)?, &sender.mls_signer)?;
+        // Only now: a replayed proof verifies, but MLS opens a frame once.
+        self.heard_member(&sender.mls_signer);
+        Ok(body)
     }
 
     pub(super) fn handle_authenticated_control(
@@ -124,6 +127,10 @@ impl GroupSession {
                 offer_ciphertext_b64,
                 ..
             } => self.accept_verified_offer(&offer_ciphertext_b64, sender),
+            ControlEnvelope::WakeAddress {
+                wake_ciphertext_b64,
+                ..
+            } => self.accept_wake_address(&wake_ciphertext_b64, sender),
             _ => Err(PrivateGroupError::Codec(
                 "sender proof requires an application frame".into(),
             )),

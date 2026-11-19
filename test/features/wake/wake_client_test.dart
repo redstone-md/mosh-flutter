@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/wake/wake_client.dart';
-import 'package:mosh/src/rust/private_dm_runtime/wake.dart';
+import 'package:mosh/src/rust/conversation/wake.dart';
 
 import 'wake_service_stub.dart';
 
@@ -49,6 +49,7 @@ void main() {
     WakeRequest wake(String? call, {String? preview}) => WakeRequest(
         service: service.uri.toString(),
         handle: 'h',
+        chat: 'c',
         callId: call,
         preview: preview);
 
@@ -68,8 +69,8 @@ void main() {
     service.statuses.add(202);
     final prefixed = service.uri.replace(path: '/wake');
 
-    await client.wake(
-        WakeRequest(service: prefixed.toString(), handle: 'h', callId: null));
+    await client.wake(WakeRequest(
+        service: prefixed.toString(), handle: 'h', chat: 'c', callId: null));
 
     expect(service.requests.single.$2, '/wake/v1/wake');
   });
@@ -78,8 +79,8 @@ void main() {
     final address = service.uri;
     await service.close();
 
-    final outcome = await client.wake(
-        WakeRequest(service: address.toString(), handle: 'h', callId: null));
+    final outcome = await client.wake(WakeRequest(
+        service: address.toString(), handle: 'h', chat: 'c', callId: null));
 
     expect(outcome, WakeOutcome.refused);
   });
