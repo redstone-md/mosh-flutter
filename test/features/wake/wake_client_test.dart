@@ -7,7 +7,8 @@ import 'wake_service_stub.dart';
 void main() {
   late WakeServiceStub service;
   late WakeClient client;
-  const tokens = WakeTokens(voip: 'aa', apns: 'bb', environment: 'sandbox');
+  const tokens =
+      AppleWakeTokens(voip: 'aa', apns: 'bb', environment: 'sandbox');
 
   setUp(() async {
     service = await WakeServiceStub.start();

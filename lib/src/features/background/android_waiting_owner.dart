@@ -143,7 +143,8 @@ class AndroidWaitingOwner extends ChangeNotifier {
     await transfers.flushActions();
     final choice = (
       state?.interactive == true,
-      state?.waitingEnabled == true && state?.serviceRunning == true
+      (state?.waitingEnabled == true || state?.woken == true) &&
+          state?.serviceRunning == true
     );
     if (choice != _appliedExecution) {
       status = await commands.setExecution(

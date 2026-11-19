@@ -57,6 +57,6 @@ void main() {
 
     expect(told, 1);
     expect(await calls.tokens(),
-        const WakeTokens(voip: 'aa', apns: 'bb', environment: 'sandbox'));
+        const AppleWakeTokens(voip: 'aa', apns: 'bb', environment: 'sandbox'));
   });
 }

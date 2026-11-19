@@ -3,21 +3,37 @@ import 'dart:io';
 
 import 'package:mosh/src/rust/conversation/wake.dart';
 
-/// The push tokens an iPhone registers: `voip` rings a call through PushKit,
-/// `apns` shows message alerts. `environment` is APNs's: `sandbox`
-/// for Xcode builds, `production` for TestFlight and the App Store.
-final class WakeTokens {
-  const WakeTokens({this.voip, this.apns, required this.environment});
+/// The push address a phone registers: an iPhone's APNs tokens, or an
+/// Android phone's Firebase installation id (mosh-wake/README.md).
+sealed class WakeTokens {
+  const WakeTokens();
 
-  factory WakeTokens.fromJson(Map<String, dynamic> json) => WakeTokens(
-      voip: json['voip'] as String?,
-      apns: json['apns'] as String?,
-      environment: json['environment'] as String);
+  factory WakeTokens.fromJson(Map<String, dynamic> json) =>
+      switch (json['fcm']) {
+        final String installation => FcmWakeTokens(installation),
+        _ => AppleWakeTokens.fromJson(json),
+      };
+
+  Map<String, dynamic> toJson();
+}
+
+/// `voip` rings a call through PushKit, `apns` shows message alerts.
+/// `environment` is APNs's: `sandbox` for Xcode builds, `production` for
+/// TestFlight and the App Store.
+final class AppleWakeTokens extends WakeTokens {
+  const AppleWakeTokens({this.voip, this.apns, required this.environment});
+
+  factory AppleWakeTokens.fromJson(Map<String, dynamic> json) =>
+      AppleWakeTokens(
+          voip: json['voip'] as String?,
+          apns: json['apns'] as String?,
+          environment: json['environment'] as String);
 
   final String? voip;
   final String? apns;
   final String environment;
 
+  @override
   Map<String, dynamic> toJson() => {
         if (voip != null) 'voip': voip,
         if (apns != null) 'apns': apns,
@@ -26,13 +42,30 @@ final class WakeTokens {
 
   @override
   bool operator ==(Object other) =>
-      other is WakeTokens &&
+      other is AppleWakeTokens &&
       other.voip == voip &&
       other.apns == apns &&
       other.environment == environment;
 
   @override
   int get hashCode => Object.hash(voip, apns, environment);
+}
+
+/// One Firebase installation id carries both calls and messages.
+final class FcmWakeTokens extends WakeTokens {
+  const FcmWakeTokens(this.installation);
+
+  final String installation;
+
+  @override
+  Map<String, dynamic> toJson() => {'fcm': installation};
+
+  @override
+  bool operator ==(Object other) =>
+      other is FcmWakeTokens && other.installation == installation;
+
+  @override
+  int get hashCode => installation.hashCode;
 }
 
 /// This device's entry at a wake service: contacts get `handle`; `secret`

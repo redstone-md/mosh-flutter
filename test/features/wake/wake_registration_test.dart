@@ -11,6 +11,12 @@ class _Device implements WakeDevice {
   String? stored;
 
   @override
+  void Function()? onTokens;
+  @override
+  Future<bool> wakeable() async => true;
+  @override
+  Future<void> savePreviews(String chats) async {}
+  @override
   Future<WakeTokens?> tokens() async => current;
   @override
   Future<String?> loadRegistration() async => stored;
@@ -25,7 +31,8 @@ void main() {
   late _Device device;
   late List<(String, String)> announced;
   late WakeRegistrar registrar;
-  const first = WakeTokens(voip: 'aa', apns: 'bb', environment: 'production');
+  const first =
+      AppleWakeTokens(voip: 'aa', apns: 'bb', environment: 'production');
 
   setUp(() async {
     service = await WakeServiceStub.start();
@@ -74,8 +81,8 @@ void main() {
     service.statuses.addAll([201, 204]);
     await registrar.run();
 
-    device.current =
-        const WakeTokens(voip: 'cc', apns: 'bb', environment: 'production');
+    device.current = const AppleWakeTokens(
+        voip: 'cc', apns: 'bb', environment: 'production');
     await registrar.run();
 
     expect(calls(), ['POST /v1/devices', 'PUT /v1/devices/h']);
@@ -88,7 +95,8 @@ void main() {
     await registrar.run();
     service.created = {'handle': 'h2', 'secret': 's2'};
 
-    device.current = const WakeTokens(voip: 'cc', environment: 'production');
+    device.current =
+        const AppleWakeTokens(voip: 'cc', environment: 'production');
     await registrar.run();
 
     expect(
@@ -106,6 +114,23 @@ void main() {
     await registrar.run();
 
     expect(announced.last.$2, 'h2');
+  });
+
+  test('an Android phone registers its Firebase installation id', () async {
+    service.statuses.addAll([201, 204]);
+    device.current = const FcmWakeTokens('fid-1');
+
+    await registrar.run();
+    device.current = const FcmWakeTokens('fid-2');
+    await registrar.run();
+
+    expect([
+      for (final (_, _, _, body) in service.requests) body
+    ], [
+      {'fcm': 'fid-1'},
+      {'fcm': 'fid-2'},
+    ]);
+    expect(announced.map((a) => a.$2), ['h', 'h']);
   });
 
   test('a phone without tokens yet registers nothing', () async {

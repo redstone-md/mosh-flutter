@@ -4,16 +4,26 @@ import 'package:mosh/src/features/wake/wake_client.dart';
 /// `MOSH_WAKE_URL` define); empty in builds that do not register.
 const kWakeServiceUrl = String.fromEnvironment('MOSH_WAKE_URL');
 
-/// The iPhone's side of registration: its push tokens and the Keychain slot
-/// that keeps the registration.
+/// The phone's side of registration: its push address, the sealed slot
+/// that keeps the registration, and where the chats' preview keys go for
+/// whatever shows a woken message (iOS's notification extension, Android's
+/// messaging service).
 abstract interface class WakeDevice {
+  /// Whether this build is woken through a push service at all; Android's
+  /// F-Droid build is not.
+  Future<bool> wakeable();
+
   /// Null until the system has handed out the tokens.
   Future<WakeTokens?> tokens();
   Future<String?> loadRegistration();
   Future<void> saveRegistration(String registration);
+  Future<void> savePreviews(String chats);
+
+  /// Runs when the system hands out new push tokens.
+  set onTokens(void Function()? handler);
 }
 
-/// Keeps this iPhone registered with its wake service and its handle
+/// Keeps this phone registered with its wake service and its handle
 /// announced in every chat. Run at launch and whenever the tokens change.
 class WakeRegistrar {
   WakeRegistrar({

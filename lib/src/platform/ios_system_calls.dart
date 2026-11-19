@@ -17,7 +17,7 @@ final class IosSystemCalls implements SystemCallScreen, WakeDevice {
   static const _channel = MethodChannel('app.mosh/system-calls');
   void Function(SystemCallAction action)? _onAction;
 
-  /// Runs when the system hands out new push tokens.
+  @override
   void Function()? onTokens;
 
   /// Attaching also takes what the user did on the call screen before Dart
@@ -38,6 +38,9 @@ final class IosSystemCalls implements SystemCallScreen, WakeDevice {
       _channel.invokeMethod<void>('ended', {'call': callId});
 
   @override
+  Future<bool> wakeable() async => true;
+
+  @override
   Future<WakeTokens?> tokens() async {
     final tokens = await _channel.invokeMapMethod<String, String>('tokens');
     return tokens == null ? null : WakeTokens.fromJson(tokens);
@@ -52,6 +55,7 @@ final class IosSystemCalls implements SystemCallScreen, WakeDevice {
       _channel.invokeMethod<void>('saveRegistration', registration);
 
   /// What the notification extension opens previews with (WakePreviews).
+  @override
   Future<void> savePreviews(String chats) =>
       _channel.invokeMethod<void>('savePreviews', chats);
 
