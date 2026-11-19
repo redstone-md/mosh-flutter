@@ -36,6 +36,8 @@ export function apnsRequest(wake: Wake, token: string, topic: string, jwt: strin
       body: JSON.stringify({ call: wake.call }),
     };
   }
+  const message = { ...common, "apns-topic": topic, "apns-push-type": "alert" };
+  const alert = { "loc-key": "WAKE_MESSAGE" };
   if (wake.preview) {
     return {
       path: `/3/device/${token}`,
@@ -43,20 +45,15 @@ export function apnsRequest(wake: Wake, token: string, topic: string, jwt: strin
       // notification extension; one it cannot open stays "New message".
       // Without content-available the closed app is not started, so it
       // posts no second notice for the same texts.
-      headers: { ...common, "apns-topic": topic, "apns-push-type": "alert" },
-      body: JSON.stringify({
-        aps: { alert: { "loc-key": "WAKE_MESSAGE" }, sound: "default", "mutable-content": 1 },
-        preview: wake.preview,
-      }),
+      headers: message,
+      body: JSON.stringify({ aps: { alert, sound: "default", "mutable-content": 1 }, preview: wake.preview }),
     };
   }
   return {
     path: `/3/device/${token}`,
     // One "New message" stands for any number of them.
-    headers: { ...common, "apns-topic": topic, "apns-push-type": "alert", "apns-collapse-id": "mosh-message" },
-    body: JSON.stringify({
-      aps: { alert: { "loc-key": "WAKE_MESSAGE" }, sound: "default", "content-available": 1 },
-    }),
+    headers: { ...message, "apns-collapse-id": "mosh-message" },
+    body: JSON.stringify({ aps: { alert, sound: "default", "content-available": 1 } }),
   };
 }
 
