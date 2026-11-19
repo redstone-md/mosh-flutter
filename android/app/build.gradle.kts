@@ -15,7 +15,8 @@ val unsignedRelease = providers.gradleProperty("moshUnsignedRelease").orNull == 
 
 // The Google Play and GitHub builds are woken through Firebase Cloud Messaging
 // (-PmoshFcm=true, ADR 0055); F-Droid's and a plain `flutter build` stay free
-// of Google. Everything FCM needs is in fcm.gradle.kts and src/fcm.
+// of Google. Everything FCM needs is in src/fcm, with its build in
+// src/fcm/fcm.gradle.kts (outside the module root, which Android Lint scans).
 val fcm = providers.gradleProperty("moshFcm").orNull == "true"
 
 val releaseKeystore = Properties().apply {
@@ -144,7 +145,7 @@ flutter {
     source = "../.."
 }
 
-if (fcm) apply(from = "fcm.gradle.kts")
+if (fcm) apply { from("src/fcm/fcm.gradle.kts") }
 
 val verifyReleaseSigning = tasks.register("verifyReleaseSigning") {
     doLast {
