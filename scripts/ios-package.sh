@@ -18,6 +18,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUNDLE_ID=app.mosh.mosh # PRODUCT_BUNDLE_IDENTIFIER of the Runner target
+EXTENSION_ID="$BUNDLE_ID.NotificationService" # and of the NotificationService target
 ARCHIVE="$ROOT/build/ios/Mosh.xcarchive"
 DIST="$ROOT/build/ios-dist"
 XCODE=(-workspace "$ROOT/ios/Runner.xcworkspace" -scheme Runner -configuration Release
@@ -41,6 +42,9 @@ check_frameworks() {
     fail "the app has no Moss.framework exporting Moss_Init"
   nm -gU "$frameworks/MoshMedia.framework/MoshMedia" | grep ' _mosh_media_protocol$' >/dev/null ||
     fail "the app has no MoshMedia.framework exporting mosh_media_protocol"
+  # Without it a closed iPhone shows "New message" for every text.
+  [ -x "$ARCHIVE/Products/Applications/Runner.app/PlugIns/NotificationService.appex/NotificationService" ] ||
+    fail "the app has no notification extension"
 }
 
 xcodebuild "${XCODE[@]}" CODE_SIGNING_ALLOWED=NO archive
@@ -64,25 +68,35 @@ printf '%s' "$APP_STORE_CONNECT_KEY_P8_BASE64" | base64 --decode > "$KEY"
 AUTH=(-authenticationKeyPath "$KEY" -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID"
   -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID")
 PROFILE="$(node "$ROOT/scripts/ios-profile.mjs" "$KEY" "$BUNDLE_ID" "$MOSH_SIGN_CERT_SERIAL")"
-echo "provisioning profile: $PROFILE"
+EXTENSION_PROFILE="$(node "$ROOT/scripts/ios-profile.mjs" "$KEY" "$EXTENSION_ID" "$MOSH_SIGN_CERT_SERIAL" --extension)"
+echo "provisioning profiles: $PROFILE, $EXTENSION_PROFILE"
 
 # The archive is unsigned, and the export keeps only the entitlements it
 # reads from the archived app's signature, so the app is signed ad hoc with
 # them first, nested code before it. Push lets a call ring a closed iPhone
-# through PushKit (MOSH-111).
+# through PushKit (MOSH-111); the shared Keychain group carries the preview
+# keys from the app to its notification extension (MOSH-112).
 APP="$ARCHIVE/Products/Applications/Runner.app"
-cat > "$WORK/entitlements.plist" <<PLIST
+EXTENSION="$APP/PlugIns/NotificationService.appex"
+entitlements() {
+  cat <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>aps-environment</key>
-	<string>production</string>
+$1	<key>keychain-access-groups</key>
+	<array>
+		<string>$APPLE_TEAM_ID.$BUNDLE_ID.shared</string>
+	</array>
 </dict>
 </plist>
 PLIST
+}
+entitlements $'\t<key>aps-environment</key>\n\t<string>production</string>\n' > "$WORK/app.plist"
+entitlements "" > "$WORK/extension.plist"
 codesign --force --deep --sign - "$APP"
-codesign --force --sign - --entitlements "$WORK/entitlements.plist" "$APP"
+codesign --force --sign - --entitlements "$WORK/extension.plist" "$EXTENSION"
+codesign --force --sign - --entitlements "$WORK/app.plist" "$APP"
 
 export_archive() {
   cat > "$WORK/ExportOptions.plist" <<PLIST
@@ -104,6 +118,8 @@ export_archive() {
 	<dict>
 		<key>$BUNDLE_ID</key>
 		<string>$PROFILE</string>
+		<key>$EXTENSION_ID</key>
+		<string>$EXTENSION_PROFILE</string>
 	</dict>
 	<key>manageAppVersionAndBuildNumber</key>
 	<false/>
@@ -124,6 +140,9 @@ unzip -q -o "$DIST"/*.ipa -d "$WORK/ipa"
 entitlements="$(codesign -d --entitlements - --xml "$WORK/ipa/Payload/Runner.app" 2>/dev/null || true)"
 grep -q aps-environment <<<"$entitlements" ||
   fail "the exported app has no push entitlement: $entitlements"
+extension="$(codesign -d --entitlements - --xml "$WORK/ipa/Payload/Runner.app/PlugIns/NotificationService.appex" 2>/dev/null || true)"
+grep -q "$BUNDLE_ID.shared" <<<"$extension" ||
+  fail "the exported notification extension cannot read the app's Keychain group: $extension"
 if [ "${MOSH_IOS_UPLOAD:-false}" = true ]; then
   export_archive upload
   echo "uploaded to TestFlight"

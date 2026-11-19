@@ -160,6 +160,7 @@ impl PrivateDmSession {
             read_message_ids: prune_read_ids(&self.peer_read_ids),
             call_controls: self.call_controls.clone(),
             peer_wakes: self.wake.peers.clone(),
+            preview_keys: self.wake.own_keys.clone(),
         }
     }
 

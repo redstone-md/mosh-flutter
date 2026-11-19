@@ -7,8 +7,8 @@ import 'package:mosh/src/features/wake/wake_client.dart';
 import 'package:mosh/src/features/wake/wake_registration.dart';
 
 /// The iPhone runner's call screen (CallKit), its push tokens and the
-/// Keychain slot of the wake registration, all in
-/// `ios/Runner/SystemCalls.swift`.
+/// Keychain slots of the wake registration and of the notification
+/// extension's chats, all in `ios/Runner/SystemCalls.swift`.
 final class IosSystemCalls implements SystemCallScreen, WakeDevice {
   IosSystemCalls() {
     _channel.setMethodCallHandler(_receive);
@@ -50,6 +50,10 @@ final class IosSystemCalls implements SystemCallScreen, WakeDevice {
   @override
   Future<void> saveRegistration(String registration) =>
       _channel.invokeMethod<void>('saveRegistration', registration);
+
+  /// What the notification extension opens previews with (WakePreviews).
+  Future<void> savePreviews(String chats) =>
+      _channel.invokeMethod<void>('savePreviews', chats);
 
   Future<void> _receive(MethodCall call) async {
     if (call.method == 'tokens') {

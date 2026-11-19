@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:mosh/src/rust/private_dm_runtime/wake.dart';
 
 /// The push tokens an iPhone registers: `voip` rings a call through PushKit,
-/// `apns` shows the "New message" alert. `environment` is APNs's: `sandbox`
+/// `apns` shows message alerts. `environment` is APNs's: `sandbox`
 /// for Xcode builds, `production` for TestFlight and the App Store.
 final class WakeTokens {
   const WakeTokens({this.voip, this.apns, required this.environment});
@@ -69,7 +69,9 @@ final class WakeRegistration {
       });
 }
 
-/// How a wake went: `forgotten` means the service no longer knows the handle.
+/// How a wake went: `forgotten` means the service has nothing to wake for
+/// that kind, an unknown handle or a phone without the token for it; only a
+/// call's drops the handle, as texts need the alert token a phone may lack.
 enum WakeOutcome { sent, forgotten, refused }
 
 const _timeout = Duration(seconds: 10);
@@ -110,9 +112,13 @@ class WakeClient {
       final (status, _) =
           await _request('POST', _at(Uri.parse(request.service), 'v1/wake'), {
         'handle': request.handle,
-        if (callId == null)
-          'kind': 'message'
-        else ...{'kind': 'call', 'call': callId},
+        if (callId == null) ...{
+          'kind': 'message',
+          if (request.preview != null) 'preview': request.preview,
+        } else ...{
+          'kind': 'call',
+          'call': callId
+        },
       });
       return switch (status) {
         HttpStatus.accepted => WakeOutcome.sent,

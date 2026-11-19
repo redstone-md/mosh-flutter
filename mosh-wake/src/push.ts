@@ -1,9 +1,11 @@
 // What a wake sends to Apple, independent of how it reaches Apple. Nothing
 // here names a sender, a recipient or a chat: a message wake is a fixed
-// localized alert and a call wake carries only the caller's random call id.
+// localized alert, maybe with the texts sealed for the phone's own keys, and
+// a call wake carries only the caller's random call id.
 import type { Device } from "./store.ts";
 
-export type Wake = { kind: "message" } | { kind: "call"; call: string };
+/** `preview`: the texts sealed for the phone, opaque here (base64url). */
+export type Wake = { kind: "message"; preview?: string } | { kind: "call"; call: string };
 
 /** `gone`: Apple says the token no longer reaches an app. */
 export type PushResult = "sent" | "gone" | "failed";
@@ -34,13 +36,24 @@ export function apnsRequest(wake: Wake, token: string, topic: string, jwt: strin
       body: JSON.stringify({ call: wake.call }),
     };
   }
+  const message = { ...common, "apns-topic": topic, "apns-push-type": "alert" };
+  const alert = { "loc-key": "WAKE_MESSAGE" };
+  if (wake.preview) {
+    return {
+      path: `/3/device/${token}`,
+      // Each preview is a notification of its own, opened by the phone's
+      // notification extension; one it cannot open stays "New message".
+      // Without content-available the closed app is not started, so it
+      // posts no second notice for the same texts.
+      headers: message,
+      body: JSON.stringify({ aps: { alert, sound: "default", "mutable-content": 1 }, preview: wake.preview }),
+    };
+  }
   return {
     path: `/3/device/${token}`,
     // One "New message" stands for any number of them.
-    headers: { ...common, "apns-topic": topic, "apns-push-type": "alert", "apns-collapse-id": "mosh-message" },
-    body: JSON.stringify({
-      aps: { alert: { "loc-key": "WAKE_MESSAGE" }, sound: "default", "content-available": 1 },
-    }),
+    headers: { ...message, "apns-collapse-id": "mosh-message" },
+    body: JSON.stringify({ aps: { alert, sound: "default", "content-available": 1 } }),
   };
 }
 

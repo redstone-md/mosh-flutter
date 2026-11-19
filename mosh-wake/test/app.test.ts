@@ -37,19 +37,29 @@ function service() {
   return { apple, call, register, wake, advance: (ms: number) => { now += ms; } };
 }
 
-test("a message wake reaches the alert token once a minute", async () => {
+// Each chat with new texts wakes the phone; the limit only stops a flood.
+test("message wakes reach the alert token up to thirty a minute", async () => {
   const { apple, register, wake, advance } = service();
   const { handle } = await register();
 
-  assert.equal((await wake(handle, "message")).status, 202);
+  for (let i = 0; i < 30; i++) assert.equal((await wake(handle, "message")).status, 202);
   assert.equal((await wake(handle, "message")).status, 429);
   advance(60_000);
   assert.equal((await wake(handle, "message")).status, 202);
 
-  assert.deepEqual(apple.sent, [
-    { token: APNS, wake: { kind: "message" } },
-    { token: APNS, wake: { kind: "message" } },
-  ]);
+  assert.equal(apple.sent.length, 31);
+  assert.deepEqual(apple.sent[0], { token: APNS, wake: { kind: "message" } });
+});
+
+test("a message wake carries its sealed preview, up to what one push holds", async () => {
+  const { apple, register, wake } = service();
+  const { handle } = await register();
+
+  assert.equal((await wake(handle, "message", { preview: "sealed-text_1" })).status, 202);
+  assert.equal((await wake(handle, "message", { preview: "x".repeat(3801) })).status, 400);
+  assert.equal((await wake(handle, "message", { preview: "not base64url" })).status, 400);
+
+  assert.deepEqual(apple.sent, [{ token: APNS, wake: { kind: "message", preview: "sealed-text_1" } }]);
 });
 
 test("a call wake carries its call id to the VoIP token on its own limit", async () => {

@@ -204,27 +204,36 @@ extension SystemCalls {
       return
     case "loadRegistration":
       WakeKeychain.queue.async {
-        let stored = WakeKeychain.load()
+        let stored = WakeKeychain.load(.registration)
         DispatchQueue.main.async { result(stored) }
       }
       return
     case "saveRegistration":
-      let registration = call.arguments as? String ?? ""
-      WakeKeychain.queue.async {
-        let status = WakeKeychain.save(registration)
-        DispatchQueue.main.async {
-          // Unsaved, the handle is not announced: after a restart the phone
-          // could not reuse it.
-          result(status == errSecSuccess
-            ? nil : FlutterError(code: "keychain", message: "OSStatus \(status)", details: nil))
-        }
-      }
+      // Unsaved, the handle is not announced: after a restart the phone
+      // could not reuse it.
+      save(call.arguments as? String ?? "", as: .registration, result: result)
+      return
+    case "savePreviews":
+      // Unsaved, Dart writes again; until then the extension shows "New
+      // message" for a chat whose key it lacks.
+      save(call.arguments as? String ?? "[]", as: .previews, result: result)
       return
     default:
       result(FlutterMethodNotImplemented)
       return
     }
     result(nil)
+  }
+
+  /// Writes off the main thread and answers Dart with the outcome.
+  private func save(_ value: String, as item: WakeKeychain.Item, result: @escaping FlutterResult) {
+    WakeKeychain.queue.async {
+      let status = WakeKeychain.save(value, as: item)
+      DispatchQueue.main.async {
+        result(status == errSecSuccess
+          ? nil : FlutterError(code: "keychain", message: "OSStatus \(status)", details: nil))
+      }
+    }
   }
 }
 
@@ -297,38 +306,5 @@ extension SystemCalls: CXProviderDelegate {
 
   func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
     CallKitAudio.shared.deactivated(audioSession)
-  }
-}
-
-/// The wake registration (handle and secret), kept where only this app on
-/// this phone reads it, and readable while the phone is locked after its
-/// first unlock, when a push starts the app. A Keychain call can wait on
-/// securityd for seconds, so they run in order on their own queue, never on
-/// the main thread.
-enum WakeKeychain {
-  static let queue = DispatchQueue(label: "app.mosh.wake-keychain")
-
-  private static let query: [String: Any] = [
-    kSecClass as String: kSecClassGenericPassword,
-    kSecAttrService as String: "app.mosh.wake",
-    kSecAttrAccount as String: "registration",
-  ]
-
-  static func load() -> String? {
-    var found = query
-    found[kSecReturnData as String] = true
-    var item: CFTypeRef?
-    guard SecItemCopyMatching(found as CFDictionary, &item) == errSecSuccess,
-      let data = item as? Data
-    else { return nil }
-    return String(data: data, encoding: .utf8)
-  }
-
-  static func save(_ registration: String) -> OSStatus {
-    SecItemDelete(query as CFDictionary)
-    var item = query
-    item[kSecValueData as String] = Data(registration.utf8)
-    item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-    return SecItemAdd(item as CFDictionary, nil)
   }
 }

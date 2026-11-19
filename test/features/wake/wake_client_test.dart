@@ -42,17 +42,23 @@ void main() {
     expect(service.requests.first.$3, 'Bearer s');
   });
 
-  test('a wake names the call, and an unknown handle reads as forgotten',
-      () async {
-    service.statuses.addAll([202, 404, 429]);
-    WakeRequest wake(String? call) =>
-        WakeRequest(service: service.uri.toString(), handle: 'h', callId: call);
+  test(
+      'a wake names the call or carries the sealed texts, and an unknown '
+      'handle reads as forgotten', () async {
+    service.statuses.addAll([202, 202, 404, 429]);
+    WakeRequest wake(String? call, {String? preview}) => WakeRequest(
+        service: service.uri.toString(),
+        handle: 'h',
+        callId: call,
+        preview: preview);
 
     expect(await client.wake(wake('call-1')), WakeOutcome.sent);
+    expect(await client.wake(wake(null, preview: 'sealed')), WakeOutcome.sent);
     expect(await client.wake(wake(null)), WakeOutcome.forgotten);
     expect(await client.wake(wake(null)), WakeOutcome.refused);
     expect(service.requests.map((request) => request.$4), [
       {'handle': 'h', 'kind': 'call', 'call': 'call-1'},
+      {'handle': 'h', 'kind': 'message', 'preview': 'sealed'},
       {'handle': 'h', 'kind': 'message'},
       {'handle': 'h', 'kind': 'message'},
     ]);

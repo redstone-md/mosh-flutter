@@ -60,6 +60,7 @@ import 'plus/types.dart';
 import 'private_dm_runtime/contracts.dart';
 import 'private_dm_runtime/transport.dart';
 import 'private_dm_runtime/wake.dart';
+import 'private_dm_runtime/wake_preview.dart';
 import 'private_group_runtime.dart';
 import 'private_group_runtime/wire_types.dart';
 import 'secure_storage.dart';
@@ -555,6 +556,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<PlusPeerBadge> dco_decode_list_plus_peer_badge(dynamic raw);
 
   @protected
+  List<PreviewChat> dco_decode_list_preview_chat(dynamic raw);
+
+  @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
 
   @protected
@@ -799,6 +803,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlusSnapshot dco_decode_plus_snapshot(dynamic raw);
+
+  @protected
+  PreviewChat dco_decode_preview_chat(dynamic raw);
 
   @protected
   SecureStorageStatus dco_decode_secure_storage_status(dynamic raw);
@@ -1406,6 +1413,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  List<PreviewChat> sse_decode_list_preview_chat(SseDeserializer deserializer);
+
+  @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
 
   @protected
@@ -1688,6 +1698,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlusSnapshot sse_decode_plus_snapshot(SseDeserializer deserializer);
+
+  @protected
+  PreviewChat sse_decode_preview_chat(SseDeserializer deserializer);
 
   @protected
   SecureStorageStatus sse_decode_secure_storage_status(
@@ -2339,6 +2352,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       List<PlusPeerBadge> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_preview_chat(
+      List<PreviewChat> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
 
   @protected
@@ -2626,6 +2643,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_plus_snapshot(PlusSnapshot self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_preview_chat(PreviewChat self, SseSerializer serializer);
 
   @protected
   void sse_encode_secure_storage_status(

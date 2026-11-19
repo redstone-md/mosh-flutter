@@ -23,9 +23,11 @@ must be sent by a server that holds an APNs key. Mosh has no such server.
   CallKit before the handler returns (iOS 13+ terminates apps that do not).
   The system incoming-call screen rings, including on the lock screen. Signal,
   WhatsApp and Telegram all work this way.
-- Messages: a visible alert push. Signal and Element send content-free pushes
-  and let a Notification Service Extension fetch and decrypt the message. An
-  extension has about 30 seconds and a 24 MB memory limit.
+- Messages: a visible alert push changed by a Notification Service
+  Extension before it shows. Signal and Element send content-free pushes and
+  let the extension fetch and decrypt the message; Telegram and WhatsApp put
+  the message in the push, encrypted for the device, and the extension only
+  decrypts it. An extension has about 30 seconds and a 24 MB memory limit.
 
 ## Proposal
 
@@ -39,13 +41,14 @@ worker later. It stores nothing but `wake handle -> APNs tokens`.
   handle and a secret. The phone shares the handle and keeps the secret,
   which updates or removes the device. Rotating means registering anew and
   removing the old handle.
-- `POST /v1/wake {handle, kind: call | message}` sends one push. Rate limits
-  per handle: one message push a minute (coalesced), one call push every
+- `POST /v1/wake {handle, kind: call | message, preview?}` sends one push.
+  Rate limits per handle: 30 message pushes a minute, one call push every
   10 s; per address 120 wakes a minute.
 
-The push payload carries no names or text. A message push is an alert with a
-localized key ("New message") plus `mutable-content`. A call push carries the
-call id only.
+A call push carries the call id only. A message push is an alert with a
+localized key ("New message"). With a `preview` it also carries the new
+texts sealed for the phone (section 4), which neither the service nor Apple
+can read, and goes with `mutable-content` as a notification of its own.
 
 The service learns the handle, the time and the sender's IP address. It does
 not learn who sent the push, who receives it or anything in the chat. Apple
@@ -89,13 +92,20 @@ a contact uses an iPhone. No request is made otherwise.
   CallKit activates the audio session; libwebrtc's `RTCAudioSession` switches
   to manual audio and starts when CallKit says so. `includesCallsInRecents` is
   off, so Mosh calls stay out of the Phone app's history and iCloud.
-- Messages, first version: the alert shows "New message" without name or text.
-  If iOS gives the app background time, the app connects, receives the DM,
-  removes the generic alert and posts a local notification with the real
-  content, following the existing name and text privacy settings.
-- Messages, later (not in this plan): a Notification Service Extension that
-  decrypts on its own. That needs Moss, MLS state and the database shared
-  between two processes within 24 MB, which is a separate project.
+- Messages: the alert shows the chat's name and the text, the Telegram way.
+  The phone gives every chat its own preview key (AES-256-GCM), replaced
+  daily, and announces it with its wake address. A contact seals the texts
+  no wake carried yet under it, cut to fit a push, and wakes the phone at
+  most every 10 s per chat. A Notification Service Extension
+  (`ios/NotificationService`, Swift and CryptoKit only) opens the preview
+  with the keys the app leaves in a Keychain group they share, readable
+  after the first unlock. The key that opens it names the chat, so one
+  contact cannot pass a preview off as another's, and the name is the one
+  the user sees for the chat. Anything it cannot open (a contact on an
+  older build, a key not yet handed over) stays "New message". The message
+  itself still arrives over Moss when Mosh opens; the push does not start
+  the app, so it posts no second notice. iOS's own "Show Previews" setting
+  decides whether name and text show on the lock screen.
 
 ## Delivery in layers
 
@@ -103,8 +113,8 @@ a contact uses an iPhone. No request is made otherwise.
 2. iOS: register, publish the handle, CallKit for incoming and outgoing calls,
    VoIP push. Senders on every platform wake for calls. A call reaches a
    closed iPhone.
-3. Message wakes from every platform, generic alert, background fetch and the
-   real-content local notification.
+3. Message wakes from every platform with sealed previews, shown by the
+   notification extension.
 4. Group and channel wakes.
 
 Each layer ships on its own; layer 2 alone already fixes calls.
@@ -125,8 +135,11 @@ Each layer ships on its own; layer 2 alone already fixes calls.
   about 20 s, the call is missed. Measured on the device in layer 2.
 - A message sent just before the sender goes offline still waits until both
   are online, as today.
-- A force-quit app gets VoIP pushes but not background time for messages, so
-  those show only the generic alert until the user opens Mosh.
+- A preview key lasts a day, without MLS's forward secrecy: a leaked key
+  opens the previews sealed under it that day. Texts past what a push holds
+  (4 KB) are cut.
+- A sender that restarts while its texts wait seals them again, so the phone
+  may show them twice.
 - Apple rejects apps that use VoIP pushes for anything but calls, so message
   wakes never use the VoIP channel.
 - Anyone who has the handle (a contact) can send pushes up to the rate limit.

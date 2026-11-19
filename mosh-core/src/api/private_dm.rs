@@ -9,6 +9,7 @@ use std::time::Duration;
 use crate::api::conversation_bridge::ConversationBridgeError;
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::private_dm_runtime::wake::{WakeAddress, WakeRequest};
+use crate::private_dm_runtime::wake_preview::PreviewChat;
 use crate::private_dm_runtime::{
     AcceptInviteRequest, CallStarted, InviteCreated, PrivateDmRuntime, PrivateDmRuntimeError,
     SessionListSnapshot, SessionSnapshot, StartSessionRequest,
@@ -219,6 +220,40 @@ pub fn take_wake_requests() -> Result<Vec<WakeRequest>, String> {
         .lock()
         .map_err(|_| "private DM runtime unavailable".to_string())?
         .take_wake_requests())
+}
+
+/// What this iPhone's notification extension needs to show previews: each
+/// chat with a preview key, under the name the user gave it or else the
+/// contact's own. Asking never starts the runtime.
+pub fn preview_chats() -> Result<Vec<PreviewChat>, String> {
+    let Some(runtime) = RUNTIME.initialized() else {
+        return Ok(Vec::new());
+    };
+    let mut chats = runtime
+        .lock()
+        .map_err(|_| "private DM runtime unavailable".to_string())?
+        .preview_chats();
+    // Without the account runtime the contacts' own names stand.
+    if let Ok(names) = super::conversation::names::personal_names() {
+        for chat in &mut chats {
+            let key = format!("dm:{}", chat.session_id);
+            if let Some(entry) = names
+                .entries
+                .iter()
+                .find(|entry| entry.conversation_key == key)
+            {
+                chat.name = entry.name.clone();
+            }
+        }
+    }
+    Ok(chats)
+}
+
+/// The service refused a texts wake to `handle` for good; its texts go
+/// with the next one.
+pub fn wake_refused(handle: String) -> Result<(), ConversationBridgeError> {
+    ensure_runtime()?.wake_refused(&handle);
+    Ok(())
 }
 
 /// The service no longer knows `handle`, so no DM wakes it again.

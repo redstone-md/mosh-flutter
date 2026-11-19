@@ -14,6 +14,7 @@ import '../outbound_delivery.dart';
 import '../private_dm_runtime/contracts.dart';
 import '../private_dm_runtime/transport.dart';
 import '../private_dm_runtime/wake.dart';
+import '../private_dm_runtime/wake_preview.dart';
 import 'conversation_bridge.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
@@ -128,6 +129,17 @@ Future<void> noteWakeRegistration({required String problem}) =>
 /// be waiting.
 Future<List<WakeRequest>> takeWakeRequests() =>
     RustLib.instance.api.crateApiPrivateDmTakeWakeRequests();
+
+/// What this iPhone's notification extension needs to show previews: each
+/// chat with a preview key, under the name the user gave it or else the
+/// contact's own. Asking never starts the runtime.
+Future<List<PreviewChat>> previewChats() =>
+    RustLib.instance.api.crateApiPrivateDmPreviewChats();
+
+/// The service refused a texts wake to `handle` for good; its texts go
+/// with the next one.
+Future<void> wakeRefused({required String handle}) =>
+    RustLib.instance.api.crateApiPrivateDmWakeRefused(handle: handle);
 
 /// The service no longer knows `handle`, so no DM wakes it again.
 Future<void> forgetWakeHandle({required String handle}) =>
