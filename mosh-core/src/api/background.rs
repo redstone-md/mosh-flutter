@@ -16,6 +16,18 @@ pub(crate) use call_actions::owner_nonce as call_owner_nonce;
 pub use call_actions::{BackgroundCallActionOutcome, BackgroundCallActionResult};
 pub use types::{BackgroundMode, BackgroundReachability, BackgroundStatus};
 
+/// Whether Mosh is on the user's screen. Android says so as it changes;
+/// elsewhere a running Mosh counts as on screen, since iOS suspends it soon
+/// after it leaves and desktops announce no wake address.
+pub(crate) fn on_screen() -> bool {
+    #[cfg(target_os = "android")]
+    {
+        return transfer_grants::interactive();
+    }
+    #[cfg(not(target_os = "android"))]
+    true
+}
+
 /// Only opaque one-use action capabilities authorize a notification action.
 pub fn apply_background_call_action(capability: String) -> BackgroundCallActionResult {
     call_actions::apply(&capability).unwrap_or_else(|_| {

@@ -321,6 +321,42 @@ fn a_phone_repeats_its_announcement_while_mosh_runs() {
     assert!(announces(start + PRESENT_EVERY_MS), "repeated");
 }
 
+// An Android phone in the background is woken through its push service
+// instead of sending a frame per group every few seconds all day.
+#[test]
+fn a_phone_off_screen_announces_only_what_changed() {
+    let mut group = Group::open(42620);
+    group.runtime.set_wake(WakeSetup::announcing(WakeAddress {
+        service: SERVICE.to_string(),
+        handle: HANDLE.to_string(),
+    }));
+    let mut announces = |at: u64, handle: &str| {
+        group.runtime.set_wake(WakeSetup::announcing(WakeAddress {
+            service: SERVICE.to_string(),
+            handle: handle.to_string(),
+        }));
+        let published = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = published.clone();
+        let _next = crate::moss_ffi::after_next_test_publish(move || {
+            flag.store(true, std::sync::atomic::Ordering::SeqCst)
+        });
+        group.runtime.pump_wake_on(at, false);
+        published.load(std::sync::atomic::Ordering::SeqCst)
+    };
+    let start = now_ms();
+
+    assert!(announces(start, HANDLE), "announced at once");
+    assert!(
+        !announces(start + 10 * PRESENT_EVERY_MS, HANDLE),
+        "not repeated"
+    );
+    let other = "b".repeat(HANDLE.len());
+    assert!(
+        announces(start + 11 * PRESENT_EVERY_MS, &other),
+        "a new address goes at once"
+    );
+}
+
 // Every member knows the key; one who left must not read what comes after,
 // even when they left while Mosh was closed.
 #[test]
