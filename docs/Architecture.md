@@ -41,6 +41,7 @@ flowchart LR
 | `mosh-core/src/moss_ffi/` | Native symbols, callbacks and node operations | `symbols.rs`, `callbacks.rs`, `node.rs` |
 | `mosh-core/src/mls_crypto/` | MLS setup, commits, messages and restoration | `setup.rs`, `commits.rs`, `storage.rs` |
 | `mosh-probe/src/` | Headless reachability diagnostics | `cli.rs`, `dm.rs`, `group.rs`, `channel.rs` |
+| `mosh-wake/src/` | Service that wakes a closed iPhone with a content-free Apple push | `app.ts`, `push.ts` |
 | `test/support/` | Scripted bridge and widget dependencies | `scriptable_gateway.dart`, `scriptable_bridge.dart` |
 | `mosh-core/tests/support/` | Independent native installation fixtures | Device-link and transport harnesses |
 

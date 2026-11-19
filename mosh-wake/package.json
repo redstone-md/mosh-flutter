@@ -1,0 +1,23 @@
+{
+  "name": "mosh-wake",
+  "private": true,
+  "description": "Wakes a closed Mosh on iPhone with a content-free Apple push.",
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.8",
+    "hono": "^4.13.18"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2"
+  }
+}

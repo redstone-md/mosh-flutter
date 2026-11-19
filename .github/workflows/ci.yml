@@ -54,6 +54,25 @@ jobs:
           python3 -B -m unittest discover -s scripts -p test_test_policy.py
           python3 scripts/test-policy.py
 
+  # The iPhone wake service (mosh-wake/), a separate Node project.
+  wake-service:
+    name: Wake service
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: mosh-wake
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mosh-wake/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+
   # Store builds rest on every shipped dependency allowing the app store
   # exception in LICENSE (docs/licenses.md), and on the app's license page
   # carrying the notices Flutter does not collect itself (assets/licenses).
