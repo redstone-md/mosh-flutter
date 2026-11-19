@@ -91,7 +91,7 @@ fn a_refused_wake_gives_its_texts_back_for_the_next() {
     bob.drain_inbound_at(later);
     one_preview(&mut bob);
 
-    bob.wake_refused(&session_id);
+    bob.wake_refused(&session_id, HANDLE);
     send(&mut bob, &session_id, "second");
     bob.drain_inbound_at(later + MESSAGE_WAKE_GAP_MS);
 

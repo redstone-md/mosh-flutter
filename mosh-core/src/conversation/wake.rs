@@ -187,6 +187,14 @@ impl Devices {
             .filter(move |(_, held)| setup.reaches(held))
     }
 
+    /// The devices that announced `handle`.
+    pub(crate) fn with_handle<'a>(&'a self, handle: &'a str) -> impl Iterator<Item = &'a String> {
+        self.announced
+            .iter()
+            .filter(move |(_, held)| held.wake_address.handle == handle)
+            .map(|(signer, _)| signer)
+    }
+
     /// Drops every announcement of `handle`; true when one was held.
     pub(crate) fn forget(&mut self, handle: &str) -> bool {
         self.retain(|_, held| held.wake_address.handle != handle)

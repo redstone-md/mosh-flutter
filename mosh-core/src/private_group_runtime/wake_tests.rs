@@ -82,7 +82,16 @@ impl Group {
 
     /// A control frame from Cleo's iPhone, as her runtime sends one.
     fn cleo_sends(&mut self, envelope: &ControlEnvelope) {
-        let session = self.runtime.groups.get_mut(&self.group_id).unwrap();
+        let frame = self.cleo_frame(envelope);
+        self.deliver(frame).expect("Cleo's frame is taken");
+    }
+
+    fn deliver(&mut self, frame: Vec<u8>) -> Result<(), PrivateGroupError> {
+        self.session().handle_control(frame, None)
+    }
+
+    fn cleo_frame(&self, envelope: &ControlEnvelope) -> Vec<u8> {
+        let session = self.runtime.groups.get(&self.group_id).unwrap();
         let proof = SenderProof::sign(
             &cleo_identity(),
             &self.cleo,
@@ -94,9 +103,7 @@ impl Group {
             serde_json::to_vec(envelope).unwrap(),
         )
         .unwrap();
-        session
-            .handle_control(serde_json::to_vec(&proof).unwrap(), None)
-            .expect("Cleo's frame is taken");
+        serde_json::to_vec(&proof).unwrap()
     }
 
     fn cleo_announces(&mut self, preview_key: Option<&str>) {
@@ -119,17 +126,21 @@ impl Group {
     }
 
     fn cleo_types(&mut self) {
+        let typing = self.cleo_typing();
+        self.cleo_sends(&typing);
+    }
+
+    fn cleo_typing(&mut self) -> ControlEnvelope {
         let body = GroupTypingBody {
             device: "Cleo".to_string(),
             until_ms: now_ms() + 5_000,
         };
-        let envelope = ControlEnvelope::TypingIndicator {
+        ControlEnvelope::TypingIndicator {
             group_id: self.group_id.clone(),
             from_device: "Cleo".to_string(),
             from_fingerprint: cleo_peer(),
             typing_ciphertext_b64: self.cleo.encrypt_json(&body).unwrap(),
-        };
-        self.cleo_sends(&envelope);
+        }
     }
 
     fn send(&mut self, text: &str) {
@@ -188,6 +199,25 @@ fn a_member_heard_lately_is_not_woken_nor_for_what_they_read() {
     assert!(group.shown().is_empty(), "Cleo was just heard");
     group.runtime.pump_wake(heard + ABSENT_AFTER_MS);
     assert!(group.shown().is_empty(), "Cleo got the text while awake");
+}
+
+// Anyone on the mesh can resend a frame they saw; it must not keep a
+// sleeping phone looking awake.
+#[test]
+fn a_replayed_frame_does_not_keep_a_member_awake() {
+    let mut group = Group::open(42620);
+    let typing = group.cleo_typing();
+    let frame = group.cleo_frame(&typing);
+    group
+        .deliver(frame.clone())
+        .expect("the first copy is taken");
+    group.cleo_announces(Some(CLEO_KEY));
+    group.send("hi");
+
+    assert!(group.deliver(frame).is_err(), "MLS opens a frame once");
+    group.runtime.pump_wake(away());
+
+    assert_eq!(group.shown(), vec![Some("hi".to_string())]);
 }
 
 #[test]

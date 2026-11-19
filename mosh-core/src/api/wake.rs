@@ -96,7 +96,7 @@ pub fn preview_chats() -> Vec<PreviewChat> {
 /// The service refused a texts wake for `chat` to `handle` for good; its
 /// texts go with the next one.
 pub fn wake_refused(chat: String, handle: String) {
-    super::private_dm::with_started(|runtime| runtime.wake_refused(&chat));
+    super::private_dm::with_started(|runtime| runtime.wake_refused(&chat, &handle));
     super::private_group::with_started(|runtime| runtime.wake_refused(&chat, &handle));
 }
 

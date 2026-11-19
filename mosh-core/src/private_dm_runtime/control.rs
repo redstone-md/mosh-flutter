@@ -161,6 +161,7 @@ impl PrivateDmSession {
                     manifest.verify(&context, Some(signer))?;
                     Ok(())
                 })?;
+        self.wake.devices.heard(&signer);
         let manifest: AttachmentOffer = decode_json(&body)?;
         let (author, own) = if self.devices_live() {
             self.device_author(&signer)?
@@ -267,6 +268,7 @@ impl PrivateDmSession {
             );
             return Ok(());
         };
+        self.wake.devices.heard(&signer);
         let Ok(message_id) = String::from_utf8(plaintext) else {
             return Ok(());
         };

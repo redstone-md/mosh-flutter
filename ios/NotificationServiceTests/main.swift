@@ -51,6 +51,10 @@ precondition(book([other]).open(direct) == nil, "another chat's key opens nothin
 precondition(
   book([key]).open(String(direct.dropLast(4)) + "AAAA") == nil, "a changed preview opens nothing")
 precondition(PreviewBook(json: Data("not json".utf8)) == nil, "unreadable chats are none")
+let written: [[String: Any]] = [["session": "s1", "name": "Alice", "keys": [key]]]
+precondition(
+  PreviewBook(json: try! JSONSerialization.data(withJSONObject: written))?.open(direct)?.chat
+    == "s1", "a list an older build wrote still opens")
 
 let members = [["key": miaKey, "name": "Мия"]]
 let signed = book([key], members: members).open(group)

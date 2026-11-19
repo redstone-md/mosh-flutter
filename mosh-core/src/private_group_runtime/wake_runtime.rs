@@ -48,12 +48,7 @@ impl PrivateGroupRuntime {
             return;
         };
         let wake = &mut session.wake;
-        let refused = wake
-            .devices
-            .announced
-            .iter()
-            .filter(|(_, held)| held.wake_address.handle == handle);
-        for (signer, _) in refused {
+        for signer in wake.devices.with_handle(handle) {
             if let Some(texts) = wake.texts.get_mut(signer) {
                 texts.give_back();
             }

@@ -1,6 +1,7 @@
 //! Independent, once-built runtime owners with cached construction failures,
 //! each reported once (field log and, with consent, a crash report).
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use super::conversation_bridge::ConversationBridgeError;
@@ -8,6 +9,9 @@ use super::conversation_bridge::ConversationBridgeError;
 pub(crate) struct RuntimeOwner<T> {
     name: &'static str,
     cell: OnceLock<Result<Mutex<T>, String>>,
+    /// Set before construction begins, so `with_started` waits for a
+    /// runtime still being built instead of missing it.
+    starting: AtomicBool,
     service: OnceLock<Result<(), String>>,
 }
 
@@ -16,6 +20,7 @@ impl<T> RuntimeOwner<T> {
         Self {
             name,
             cell: OnceLock::new(),
+            starting: AtomicBool::new(false),
             service: OnceLock::new(),
         }
     }
@@ -25,6 +30,7 @@ impl<T> RuntimeOwner<T> {
         construct: impl FnOnce() -> Result<T, E>,
     ) -> Result<MutexGuard<'static, T>, ConversationBridgeError> {
         let initialized = self.cell.get_or_init(|| {
+            self.starting.store(true, Ordering::SeqCst);
             construct().map(Mutex::new).map_err(|error| {
                 let error = error.to_string();
                 report_construction_failure(self.name, &error);
@@ -47,9 +53,15 @@ impl<T> RuntimeOwner<T> {
         self.cell.get()?.as_ref().ok()
     }
 
-    /// `act` on the runtime when something has started it; None otherwise.
+    /// `act` on the runtime when something has started it, once it is
+    /// built; None when nothing has. A runtime that reads its settings
+    /// while being built still gets a change made meanwhile. Never call it
+    /// from the runtime's own construction.
     pub(crate) fn with_started<R>(&self, act: impl FnOnce(&mut T) -> R) -> Option<R> {
-        let mut runtime = self.initialized()?.lock().ok()?;
+        if !self.starting.load(Ordering::SeqCst) {
+            return None;
+        }
+        let mut runtime = self.cell.wait().as_ref().ok()?.lock().ok()?;
         Some(act(&mut runtime))
     }
 

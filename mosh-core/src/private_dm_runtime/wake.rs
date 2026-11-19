@@ -27,7 +27,8 @@ pub(super) struct WakeBook {
     /// counterpart connects, so it hears the address.
     pub(super) own: OwnWake,
     call_woken: Option<(String, BTreeSet<String>)>,
-    pub(super) texts: TextWakes,
+    /// Which texts the wakes to each device carried.
+    pub(super) texts: HashMap<String, TextWakes>,
     pub(super) due: Vec<WakeRequest>,
 }
 
@@ -37,7 +38,7 @@ impl Default for WakeBook {
             devices: Devices::new(BTreeMap::new(), 0),
             own: OwnWake::default(),
             call_woken: None,
-            texts: TextWakes::default(),
+            texts: HashMap::new(),
             due: Vec::new(),
         }
     }

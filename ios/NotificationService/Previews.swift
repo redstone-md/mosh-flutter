@@ -18,7 +18,19 @@ struct PreviewBook {
 
     private enum CodingKeys: String, CodingKey {
       case id = "chat"
-      case name, keys, members
+      case session, name, keys, members
+    }
+
+    init(from decoder: Decoder) throws {
+      let fields = try decoder.container(keyedBy: CodingKeys.self)
+      // Builds before group previews wrote "session"; until the updated app
+      // first runs and rewrites the list, that is what the Keychain holds.
+      id =
+        try fields.decodeIfPresent(String.self, forKey: .id)
+        ?? fields.decode(String.self, forKey: .session)
+      name = try fields.decode(String.self, forKey: .name)
+      keys = try fields.decode([String].self, forKey: .keys)
+      members = try fields.decodeIfPresent([Member].self, forKey: .members)
     }
   }
 
