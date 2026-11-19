@@ -46,6 +46,14 @@ jobs:
         with:
           submodules: recursive
 
+      # The notification extension must open what mosh-core seals: both
+      # sides pin the same preview (wake_preview_tests.rs).
+      - name: Notification extension tests
+        run: |
+          swiftc ios/NotificationService/Previews.swift ios/NotificationServiceTests/main.swift \
+            -o "$RUNNER_TEMP/notification-previews"
+          "$RUNNER_TEMP/notification-previews"
+
       # Moss and the call engine for iOS are built by the Runner target's
       # build phase (scripts/ios-embed-frameworks.sh), so only Go is needed
       # here besides Rust.

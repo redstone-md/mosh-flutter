@@ -7,6 +7,7 @@ import 'package:mosh/src/rust/api/private_dm.dart' as api;
 import 'package:mosh/src/state/notifications_provider.dart';
 
 import 'wake_client.dart';
+import 'wake_previews.dart';
 import 'wake_registration.dart';
 import 'wake_sender.dart';
 
@@ -57,7 +58,14 @@ final wakeRegistrationProvider = Provider<void>((ref) {
   unawaited(ref.read(notificationsReadyProvider.future));
   device.onTokens = () => unawaited(run());
   unawaited(run());
+  // Missed now, the next tick writes it; until then the extension shows
+  // "New message" for a chat whose key it lacks.
+  final previews =
+      WakePreviews(read: api.previewChats, save: device.savePreviews);
+  final sync = Timer.periodic(const Duration(seconds: 1),
+      (_) => unawaited(previews.sync().catchError((Object _) {})));
   ref.onDispose(() {
+    sync.cancel();
     device.onTokens = null;
     client.close();
   });

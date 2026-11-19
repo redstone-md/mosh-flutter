@@ -8,14 +8,15 @@ const WITH_PUSH = Buffer.from("<key>aps-environment</key><string>production</str
 
 // A fake App Store Connect API: the bundle id with its capabilities, two
 // distribution certificates and whatever profiles the test starts with.
-function fakeApi(profiles, capabilities = [{ attributes: { capabilityType: "PUSH_NOTIFICATIONS" } }]) {
+function fakeApi(profiles, capabilities = [{ attributes: { capabilityType: "PUSH_NOTIFICATIONS" } }], bundles = ["app.mosh.mosh"]) {
   const calls = [];
   const api = async (method, route, body) => {
     calls.push({ method, route, body });
     if (route.endsWith("/bundleIdCapabilities")) return { data: capabilities };
     if (method === "DELETE" || route === "/bundleIdCapabilities") return {};
+    if (route === "/bundleIds") return { data: { id: "B2", attributes: body.data.attributes } };
     if (route.startsWith("/bundleIds")) {
-      return { data: [{ id: "B1", attributes: { identifier: "app.mosh.mosh" } }] };
+      return { data: bundles.map((identifier) => ({ id: "B1", attributes: { identifier } })) };
     }
     if (route.startsWith("/certificates")) {
       return { data: [
@@ -73,6 +74,26 @@ test("a missing profile is created for the bundle id and the matching certificat
   assert.equal(created.attributes.name, "Mosh App Store 005C6D7E");
   assert.equal(created.relationships.bundleId.data.id, "B1");
   assert.deepEqual(created.relationships.certificates.data, [{ type: "certificates", id: "NEW" }]);
+});
+
+// The notification extension (ios/NotificationService) is signed with its
+// own App ID, which no one registers by hand.
+test("an extension's App ID is registered and gets its own profile, without push", async () => {
+  const { api, calls } = fakeApi([]);
+
+  const profile = await appStoreProfile({
+    api, bundleId: "app.mosh.mosh.NotificationService", serial: "5C6D7E", extension: true,
+  });
+
+  assert.equal(profile.uuid, "created-uuid");
+  const registered = calls.find((call) => call.route === "/bundleIds").body.data.attributes;
+  assert.deepEqual(registered, {
+    identifier: "app.mosh.mosh.NotificationService", name: "Mosh NotificationService", platform: "IOS",
+  });
+  assert.equal(calls.some((call) => call.route.includes("bundleIdCapabilities")), false);
+  const created = calls.find((call) => call.route === "/profiles" && call.method === "POST").body.data;
+  assert.equal(created.attributes.name, "Mosh App Store 5C6D7E NotificationService");
+  assert.equal(created.relationships.bundleId.data.id, "B2");
 });
 
 test("the API token is an ES256 JWT that the key's public half verifies", () => {

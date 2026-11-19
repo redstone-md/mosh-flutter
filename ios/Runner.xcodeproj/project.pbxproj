@@ -24,6 +24,11 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		EB859446D8804B4E5B120833 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 459237B93764E8BDC48CBCBE /* Pods_RunnerTests.framework */; };
+		7A1D0C602F10A00100D05EED /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1D0C672F10A00100D05EED /* NotificationService.swift */; };
+		7A1D0C612F10A00100D05EED /* Previews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1D0C682F10A00100D05EED /* Previews.swift */; };
+		7A1D0C622F10A00100D05EED /* WakeKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1D0C6B2F10A00100D05EED /* WakeKeychain.swift */; };
+		7A1D0C632F10A00100D05EED /* WakeKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1D0C6B2F10A00100D05EED /* WakeKeychain.swift */; };
+		7A1D0C642F10A00100D05EED /* NotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7A1D0C6C2F10A00100D05EED /* NotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -33,6 +38,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 97C146ED1CF9000F007C117D;
 			remoteInfo = Runner;
+		};
+		7A1D0C652F10A00100D05EED /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7A1D0C6F2F10A00100D05EED;
+			remoteInfo = NotificationService;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -45,6 +57,17 @@
 			files = (
 			);
 			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A1D0C662F10A00100D05EED /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				7A1D0C642F10A00100D05EED /* NotificationService.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -83,6 +106,12 @@
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D3CE4AF5B22BF03DA05D4215 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		E9991CF417535C5CC540CA6D /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
+		7A1D0C672F10A00100D05EED /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		7A1D0C682F10A00100D05EED /* Previews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Previews.swift; sourceTree = "<group>"; };
+		7A1D0C692F10A00100D05EED /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7A1D0C6A2F10A00100D05EED /* NotificationService.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NotificationService.entitlements; sourceTree = "<group>"; };
+		7A1D0C6B2F10A00100D05EED /* WakeKeychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WakeKeychain.swift; sourceTree = "<group>"; };
+		7A1D0C6C2F10A00100D05EED /* NotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -100,6 +129,13 @@
 			files = (
 				78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */,
 				773F84A377ED04D8F7878FD8 /* Pods_Runner.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A1D0C6D2F10A00100D05EED /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -131,6 +167,7 @@
 			children = (
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
+				7A1D0C6E2F10A00100D05EED /* NotificationService */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				9FE4D626FA5F1A88692D8206 /* Pods */,
@@ -138,11 +175,23 @@
 			);
 			sourceTree = "<group>";
 		};
+		7A1D0C6E2F10A00100D05EED /* NotificationService */ = {
+			isa = PBXGroup;
+			children = (
+				7A1D0C672F10A00100D05EED /* NotificationService.swift */,
+				7A1D0C682F10A00100D05EED /* Previews.swift */,
+				7A1D0C692F10A00100D05EED /* Info.plist */,
+				7A1D0C6A2F10A00100D05EED /* NotificationService.entitlements */,
+			);
+			path = NotificationService;
+			sourceTree = "<group>";
+		};
 		97C146EF1CF9000F007C117D /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
+				7A1D0C6C2F10A00100D05EED /* NotificationService.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -161,6 +210,7 @@
 				7A1D0C412F10A00100D05EED /* CallMedia.swift */,
 				7A1D0C432F10A00100D05EED /* CallAudio.swift */,
 				7A1D0C512F10A00100D05EED /* SystemCalls.swift */,
+				7A1D0C6B2F10A00100D05EED /* WakeKeychain.swift */,
 				7A1D0C542F10A00100D05EED /* Runner.entitlements */,
 				7A1D0C532F10A00100D05EED /* Localizable.strings */,
 				7A1D0C452F10A00100D05EED /* CallCamera.swift */,
@@ -196,6 +246,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		7A1D0C6F2F10A00100D05EED /* NotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7A1D0C762F10A00100D05EED /* Build configuration list for PBXNativeTarget "NotificationService" */;
+			buildPhases = (
+				7A1D0C702F10A00100D05EED /* Sources */,
+				7A1D0C6D2F10A00100D05EED /* Frameworks */,
+				7A1D0C712F10A00100D05EED /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NotificationService;
+			productName = NotificationService;
+			productReference = 7A1D0C6C2F10A00100D05EED /* NotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		331C8080294A63A400263BE5 /* RunnerTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */;
@@ -225,6 +292,7 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
+				7A1D0C662F10A00100D05EED /* Embed Foundation Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				7A1D0C3E2F10A00100D05EED /* Embed Moss and the call engine */,
 				37F198AC69CFD87547F80648 /* [CP] Embed Pods Frameworks */,
@@ -232,6 +300,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				7A1D0C722F10A00100D05EED /* PBXTargetDependency */,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -259,6 +328,9 @@
 						CreatedOnToolsVersion = 7.3.1;
 						LastSwiftMigration = 1100;
 					};
+					7A1D0C6F2F10A00100D05EED = {
+						CreatedOnToolsVersion = 16.0;
+					};
 				};
 			};
 			buildConfigurationList = 97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */;
@@ -280,6 +352,7 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
+				7A1D0C6F2F10A00100D05EED /* NotificationService */,
 			);
 		};
 /* End PBXProject section */
@@ -301,6 +374,13 @@
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 				7A1D0C522F10A00100D05EED /* Localizable.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A1D0C712F10A00100D05EED /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -435,8 +515,19 @@
 				7A1D0C402F10A00100D05EED /* CallMedia.swift in Sources */,
 				7A1D0C422F10A00100D05EED /* CallAudio.swift in Sources */,
 				7A1D0C502F10A00100D05EED /* SystemCalls.swift in Sources */,
+				7A1D0C622F10A00100D05EED /* WakeKeychain.swift in Sources */,
 				7A1D0C442F10A00100D05EED /* CallCamera.swift in Sources */,
 				7A1D0C462F10A00100D05EED /* CallVideoTexture.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A1D0C702F10A00100D05EED /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7A1D0C602F10A00100D05EED /* NotificationService.swift in Sources */,
+				7A1D0C612F10A00100D05EED /* Previews.swift in Sources */,
+				7A1D0C632F10A00100D05EED /* WakeKeychain.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -447,6 +538,11 @@
 			isa = PBXTargetDependency;
 			target = 97C146ED1CF9000F007C117D /* Runner */;
 			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
+		};
+		7A1D0C722F10A00100D05EED /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7A1D0C6F2F10A00100D05EED /* NotificationService */;
+			targetProxy = 7A1D0C652F10A00100D05EED /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -759,6 +855,80 @@
 			};
 			name = Release;
 		};
+		7A1D0C732F10A00100D05EED /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB31CF90195004384FC /* Generated.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = app.mosh.mosh.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		7A1D0C742F10A00100D05EED /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB31CF90195004384FC /* Generated.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = app.mosh.mosh.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		7A1D0C752F10A00100D05EED /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB31CF90195004384FC /* Generated.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = app.mosh.mosh.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -788,6 +958,16 @@
 				97C147061CF9000F007C117D /* Debug */,
 				97C147071CF9000F007C117D /* Release */,
 				249021D4217E4FDB00AE95B9 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7A1D0C762F10A00100D05EED /* Build configuration list for PBXNativeTarget "NotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7A1D0C732F10A00100D05EED /* Debug */,
+				7A1D0C742F10A00100D05EED /* Release */,
+				7A1D0C752F10A00100D05EED /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

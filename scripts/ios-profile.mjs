@@ -1,9 +1,12 @@
 #!/usr/bin/env node
-// Finds or creates the App Store provisioning profile for the iOS app and
-// the imported Apple Distribution certificate, installs it for Xcode and
-// prints its UUID (scripts/ios-package.sh exports with it).
+// Finds or creates the App Store provisioning profile for the iOS app, or
+// for one of its extensions, and the imported Apple Distribution
+// certificate, installs it for Xcode and prints its UUID
+// (scripts/ios-package.sh exports with it).
 //
-//   node scripts/ios-profile.mjs <AuthKey.p8> <bundle id> <certificate serial>
+//   node scripts/ios-profile.mjs <AuthKey.p8> <bundle id> <certificate serial> [--extension]
+//
+// An extension's App ID is registered when missing and gets no push.
 //
 // Reads APP_STORE_CONNECT_ISSUER_ID and APP_STORE_CONNECT_KEY_ID. An App
 // Manager key may read and create profiles, but Xcode's automatic signing
@@ -64,23 +67,26 @@ const sameSerial = (a, b) => a.replace(/^0+/, "").toUpperCase() === b.replace(/^
 /**
  * The active App Store profile for `bundleId` and the certificate with
  * `serial`, created when there is none. Returns `{ uuid, content }`, the
- * content being the base64 .mobileprovision.
+ * content being the base64 .mobileprovision. The app's App ID gets push;
+ * an `extension`'s is registered when missing.
  */
-export async function appStoreProfile({ api, bundleId, serial }) {
+export async function appStoreProfile({ api, bundleId, serial, extension = false }) {
   const bundle = (await api("GET", `/bundleIds?filter[identifier]=${encodeURIComponent(bundleId)}`))
-    .data.find((item) => item.attributes.identifier === bundleId);
+    .data.find((item) => item.attributes.identifier === bundleId)
+    ?? (extension ? await registerBundle({ api, bundleId }) : undefined);
   if (!bundle) throw new Error(`bundle id ${bundleId} is not registered`);
-  await enablePush({ api, bundle });
+  if (!extension) await enablePush({ api, bundle });
   const certificate = (await api("GET", "/certificates?filter[certificateType]=DISTRIBUTION&limit=200"))
     .data.find((item) => sameSerial(item.attributes.serialNumber, serial));
   if (!certificate) throw new Error(`no Apple Distribution certificate with serial ${serial}`);
 
-  const name = `Mosh App Store ${serial.toUpperCase()}`;
+  // Names are unique in the account, so an extension's names its App ID.
+  const name = `Mosh App Store ${serial.toUpperCase()}${extension ? ` ${lastPart(bundleId)}` : ""}`;
   // Any state: a profile that turning push on invalidated keeps its name,
   // and names are unique, so a stale one goes before its replacement.
   const named = (await api("GET", `/profiles?filter[name]=${encodeURIComponent(name)}`)).data;
   const existing = named.find((item) => item.attributes.profileType === "IOS_APP_STORE"
-    && item.attributes.profileState === "ACTIVE" && hasPush(item));
+    && item.attributes.profileState === "ACTIVE" && (extension || hasPush(item)));
   if (!existing) {
     for (const stale of named) await api("DELETE", `/profiles/${stale.id}`);
   }
@@ -95,6 +101,17 @@ export async function appStoreProfile({ api, bundleId, serial }) {
     },
   })).data;
   return { uuid: profile.attributes.uuid, content: profile.attributes.profileContent };
+}
+
+const lastPart = (bundleId) => bundleId.split(".").at(-1);
+
+async function registerBundle({ api, bundleId }) {
+  return (await api("POST", "/bundleIds", {
+    data: {
+      type: "bundleIds",
+      attributes: { identifier: bundleId, name: `Mosh ${lastPart(bundleId)}`, platform: "IOS" },
+    },
+  })).data;
 }
 
 function restClient(token, fetchImpl = fetch) {
@@ -113,13 +130,15 @@ function restClient(token, fetchImpl = fetch) {
   };
 }
 
-async function main([keyPath, bundleId, serial]) {
+async function main([keyPath, bundleId, serial, flag]) {
   const { APP_STORE_CONNECT_ISSUER_ID: issuerId, APP_STORE_CONNECT_KEY_ID: keyId } = process.env;
   if (!keyPath || !bundleId || !serial || !issuerId || !keyId) {
-    throw new Error("usage: ios-profile.mjs <AuthKey.p8> <bundle id> <certificate serial>, with the key ids in the environment");
+    throw new Error("usage: ios-profile.mjs <AuthKey.p8> <bundle id> <certificate serial> [--extension], with the key ids in the environment");
   }
   const token = apiToken({ issuerId, keyId, p8: await readFile(keyPath, "utf8") });
-  const { uuid, content } = await appStoreProfile({ api: restClient(token), bundleId, serial });
+  const { uuid, content } = await appStoreProfile({
+    api: restClient(token), bundleId, serial, extension: flag === "--extension",
+  });
   for (const dir of PROFILE_DIRS) {
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, `${uuid}.mobileprovision`), Buffer.from(content, "base64"));
