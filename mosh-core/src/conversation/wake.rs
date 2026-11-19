@@ -224,8 +224,13 @@ impl OwnWake {
     }
 
     /// What to announce for `address` now, with a key no older than a day;
-    /// a withdrawal carries none.
+    /// a withdrawal carries none. Always newer than what was sent, or a
+    /// change in the same millisecond would read as stale to members.
     pub(crate) fn next(&mut self, address: &WakeAddress, now: u64) -> NextAnnouncement {
+        let issued_at_ms = self
+            .sent
+            .as_ref()
+            .map_or(now, |(sent, _)| now.max(sent.issued_at_ms + 1));
         let key_replaced = !address.withdrawn() && self.keys.rotate(now);
         let preview_key = if address.withdrawn() {
             None
@@ -235,7 +240,7 @@ impl OwnWake {
         NextAnnouncement {
             body: WakeAnnouncement {
                 wake_address: address.clone(),
-                issued_at_ms: now,
+                issued_at_ms,
                 preview_key,
             },
             key_replaced,

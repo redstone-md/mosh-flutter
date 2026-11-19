@@ -64,3 +64,24 @@ fn an_address_off_the_service_shape_is_refused() {
         );
     }
 }
+
+// A key replaced in the same millisecond as the last announcement must
+// still reach members.
+#[test]
+fn a_change_in_the_same_millisecond_is_still_newer() {
+    let address = WakeAddress {
+        service: SERVICE.to_string(),
+        handle: HANDLE.to_string(),
+    };
+    let mut own = OwnWake::default();
+    let mut devices = devices();
+    let first = own.next(&address, 5).body;
+    own.sent(first.clone(), None);
+    devices.accept("phone".into(), first);
+
+    own.keys.replace(5);
+    let second = own.next(&address, 5).body;
+
+    assert_eq!(own.due(&second, None, u64::MAX), Some(true));
+    assert_eq!(devices.accept("phone".into(), second), Some(true));
+}
