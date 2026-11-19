@@ -69,7 +69,9 @@ final class WakeRegistration {
       });
 }
 
-/// How a wake went: `forgotten` means the service no longer knows the handle.
+/// How a wake went: `forgotten` means the service has nothing to wake for
+/// that kind, an unknown handle or a phone without the token for it; only a
+/// call's drops the handle, as texts need the alert token a phone may lack.
 enum WakeOutcome { sent, forgotten, refused }
 
 const _timeout = Duration(seconds: 10);

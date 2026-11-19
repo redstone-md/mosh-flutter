@@ -27,8 +27,10 @@ Tokens are hex, `environment` is `sandbox` (Xcode builds) or `production`
 (TestFlight and the App Store). The phone keeps the secret and shares the
 handle with its contacts inside the encrypted chats. A wake answers `404`
 when the handle is unknown or has no token for that kind, so the sender can
-stop using it, and `429` when the phone was woken 30 times for messages in
-the last minute, or for a call in the last 10 seconds. `preview` is base64url
+stop using it, and `429` when the phone took 30 message wakes in the current
+minute window, or a call wake in the current 10-second one. The windows are
+fixed, so a burst across two of them can reach twice the limit; the limits
+stop floods, they do not pace. `preview` is base64url
 of at most 3800 characters, so the push stays within Apple's 4 KB.
 
 ## Running

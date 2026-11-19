@@ -37,10 +37,12 @@ enum WakeKeychain {
     return String(data: data, encoding: .utf8)
   }
 
+  /// Replaces the item in place, so the extension never reads it missing.
   static func save(_ value: String, as item: Item) -> OSStatus {
-    SecItemDelete(query(item) as CFDictionary)
-    var added = query(item)
-    added[kSecValueData as String] = Data(value.utf8)
+    let data: [String: Any] = [kSecValueData as String: Data(value.utf8)]
+    let updated = SecItemUpdate(query(item) as CFDictionary, data as CFDictionary)
+    guard updated == errSecItemNotFound else { return updated }
+    var added = query(item).merging(data) { $1 }
     added[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
     return SecItemAdd(added as CFDictionary, nil)
   }
