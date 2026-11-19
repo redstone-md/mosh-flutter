@@ -14,7 +14,7 @@ export interface AppleTokens {
   environment: Environment;
 }
 
-/** An Android phone with Google Play services: one token for both kinds. */
+/** An Android phone with Google Play services: its Firebase installation id, for both kinds. */
 export interface FcmTokens {
   platform: "fcm";
   fcm: string | null;

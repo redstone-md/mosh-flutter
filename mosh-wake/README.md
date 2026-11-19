@@ -27,7 +27,7 @@ is written down.
 
 An iPhone registers its APNs tokens in hex, with `environment` `sandbox`
 (Xcode builds) or `production` (TestFlight and the App Store). An Android
-phone registers its one FCM token, used for both kinds; a host without a
+phone registers `fcm`, its Firebase installation id, used for both kinds; a host without a
 Firebase key refuses it. Either may move to the other under the same
 handle. The phone keeps the secret and shares the
 handle with its contacts inside the encrypted chats. A wake answers `404`
@@ -40,7 +40,7 @@ of at most 3800 characters, so the push stays within the 4 KB Apple and
 FCM take.
 
 Apple gets an alert, or a VoIP push for a call. Firebase gets a
-high-priority data message with no `notification`: `{kind: "call", call}`
+high-priority data message to the installation id (`message.fid`) with no `notification`: `{kind: "call", call}`
 that expires at once, or `{kind: "message", preview?}`. Mosh's own
 messaging service shows it, as FCM expects every high-priority message to
 end in a notification.

@@ -32,24 +32,24 @@ export function serviceAccount(json: string): ServiceAccount {
 }
 
 /**
- * The HTTP v1 message for `wake`. Every wake is high priority, so a phone
+ * The HTTP v1 message for `wake` to the Firebase installation `fid`. Every wake is high priority, so a phone
  * in Doze gets it at once; Mosh ends each one with a notification or a
  * call, as FCM expects of high-priority messages.
  */
-export function fcmMessage(wake: Wake, token: string): object {
+export function fcmMessage(wake: Wake, fid: string): object {
   if (wake.kind === "call") {
     // A call that cannot ring now is not worth delivering later.
-    return { message: { token, data: { kind: "call", call: wake.call }, android: { priority: "HIGH", ttl: "0s" } } };
+    return { message: { fid, data: { kind: "call", call: wake.call }, android: { priority: "HIGH", ttl: "0s" } } };
   }
   if (wake.preview) {
     // Each preview is a notification of its own.
-    return { message: { token, data: { kind: "message", preview: wake.preview }, android: { priority: "HIGH" } } };
+    return { message: { fid, data: { kind: "message", preview: wake.preview }, android: { priority: "HIGH" } } };
   }
   // One "New message" stands for any number of them.
-  return { message: { token, data: { kind: "message" }, android: { priority: "HIGH", collapse_key: "mosh-message" } } };
+  return { message: { fid, data: { kind: "message" }, android: { priority: "HIGH", collapse_key: "mosh-message" } } };
 }
 
-/** Maps FCM's answer: an unregistered token, or one of another project, is dead. */
+/** Maps FCM's answer: an unregistered installation, or one of another project, is dead. */
 export function fcmResult(status: number, body: string): PushResult {
   if (status === 200) return "sent";
   const codes = errorCodes(body);

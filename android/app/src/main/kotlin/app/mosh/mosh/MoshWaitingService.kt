@@ -3,6 +3,7 @@ package app.mosh.mosh
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -38,6 +39,18 @@ class MoshWaitingService : Service() {
                 val runtime = application.runtime
                 runtime.waiting.serviceChanged()
                 runtime.waiting.callIntent(intent)
+                runtime.startInBackground()
+            } catch (_: RuntimeException) { finishWaiting() }
+            catch (_: LinkageError) { finishWaiting() }
+            return START_NOT_STICKY
+        }
+        if (intent?.action == WAKE) {
+            // A call wake: started whatever the waiting choice, which it leaves as it is.
+            if (getSystemService(UserManager::class.java).isUserUnlocked != true) { finishWaiting(); return START_NOT_STICKY }
+            try {
+                startupWake.acquire(15_000)
+                val runtime = application.runtime
+                runtime.waiting.woken()
                 runtime.startInBackground()
             } catch (_: RuntimeException) { finishWaiting() }
             catch (_: LinkageError) { finishWaiting() }
@@ -91,6 +104,7 @@ class MoshWaitingService : Service() {
 
     companion object {
         const val STOP = "app.mosh.mosh.STOP_WAITING"
+        private const val WAKE = "app.mosh.mosh.WAKE_FOR_CALL"
         private var current: MoshWaitingService? = null
         val running: Boolean get() = current != null
         /** The ongoing call notification standing in for the waiting one. */
@@ -129,6 +143,14 @@ class MoshWaitingService : Service() {
                 else service.startForeground(MoshWaitingNotifications.FOREGROUND_ID, notification)
                 true
             } catch (_: RuntimeException) { false }
+        }
+
+        /** A call wake push: connect Moss for a while so the caller's offer
+         * arrives and rings, as with background waiting. */
+        fun wake(context: Context) {
+            try {
+                context.startForegroundService(Intent(context, MoshWaitingService::class.java).setAction(WAKE))
+            } catch (_: RuntimeException) { /* Android refused a start from the background. */ }
         }
 
         fun finishWaiting() {

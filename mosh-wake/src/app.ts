@@ -84,8 +84,8 @@ export function createApp({ store, pushers, clientIp, now = Date.now }: AppOptio
 }
 
 const HEX_TOKEN = /^[0-9a-f]{64,200}$/;
-/** FCM registration tokens: base64url-like, with a colon. */
-const FCM_TOKEN = /^[A-Za-z0-9_:-]{32,1024}$/;
+/** Firebase installation ids: 22 base64url characters today. */
+const FCM_TOKEN = /^[A-Za-z0-9_-]{16,256}$/;
 const HANDLE = /^[A-Za-z0-9_-]{43}$/;
 const CALL_ID = /^[A-Za-z0-9_-]{1,64}$/;
 /** Sealed texts that still fit Apple's 4 KB push (mosh-core's PREVIEW_MAX_LEN). */

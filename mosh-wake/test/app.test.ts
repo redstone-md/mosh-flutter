@@ -6,7 +6,7 @@ import { SqliteStore } from "../src/sqlite-store.ts";
 
 const APNS = "a".repeat(64);
 const VOIP = "b".repeat(64);
-const FCM = "fcm-token_1:APA91b" + "x".repeat(140);
+const FCM = "cYk2zV7aQ_m-0Rw1Xb8dLp";
 
 /** A push service as the service sees it: records pushes, answers with `result`. */
 class FakePushes implements Pusher {
@@ -190,7 +190,7 @@ test("FCM registrations are refused by a host without a Firebase key, and malfor
   assert.equal((await call("POST", "/v1/devices", { fcm: FCM })).status, 400);
 
   const withFcm = service();
-  for (const body of [{ fcm: "short" }, { fcm: "has spaces ".repeat(5) }, { fcm: FCM, environment: "production" }, { fcm: 7 }]) {
+  for (const body of [{ fcm: "short" }, { fcm: "has:a colon_and_more" }, { fcm: FCM, environment: "production" }, { fcm: 7 }]) {
     assert.equal((await withFcm.call("POST", "/v1/devices", body)).status, 400, JSON.stringify(body));
   }
 });

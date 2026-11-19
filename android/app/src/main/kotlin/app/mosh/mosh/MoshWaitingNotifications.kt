@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import java.security.MessageDigest
 
 /** Reduces disclosure against current native state immediately before OS publication. */
 internal class MoshWaitingNotifications(
@@ -42,6 +43,31 @@ internal class MoshWaitingNotifications(
         } catch (_: SecurityException) { "blocked" }
         catch (_: RuntimeException) { "failed" }
     }
+
+    /** A message a wake push brought while Mosh was closed: the chat's latest
+     * text under its name, counting the ones before, or one "New message" for
+     * every preview that could not be opened (`chat` null). */
+    fun publishWoken(chat: String?, title: String?, text: String?): String {
+        if (!allowed()) return "blocked"
+        val tag = WOKEN + (chat?.let(::digest) ?: "")
+        return try {
+            val shown = manager.activeNotifications.firstOrNull { it.tag == tag && it.id == MESSAGE_ID }
+            manager.notify(tag, MESSAGE_ID, build(title, text, (shown?.notification?.number ?: 0) + 1, true))
+            "posted"
+        } catch (_: SecurityException) { "blocked" }
+        catch (_: RuntimeException) { "failed" }
+    }
+
+    /** Mosh is open: its own delivery shows the messages the pushes stood for. */
+    fun clearWoken() {
+        try {
+            manager.activeNotifications.filter { it.tag?.startsWith(WOKEN) == true }
+                .forEach { manager.cancel(it.tag, it.id) }
+        } catch (_: RuntimeException) { /* Nothing shown can be reached. */ }
+    }
+
+    private fun digest(chat: String): String = MessageDigest.getInstance("SHA-256")
+        .digest(chat.toByteArray(Charsets.UTF_8)).take(16).joinToString("") { "%02x".format(it) }
 
     fun refreshPrivacy() {
         try {
@@ -86,7 +112,13 @@ internal class MoshWaitingNotifications(
         const val FOREGROUND_ID = 1
         private const val MESSAGE_ID = 2
         private const val TAG = "mosh.delivery."
+        /** Under [TAG], so [refreshPrivacy] applies the lock screen settings to them too. */
+        private const val WOKEN = "${TAG}wake."
         private const val REVISION = "mosh.deliveryRevision"
+
+        /** For a process that runs no Mosh, such as one a wake push started. */
+        fun standalone(context: Context) = MoshWaitingNotifications(context,
+            MoshWaitingPolicy(MoshWaitingPreferences(context))) { MoshAccessState(context).policy.allowed() }
 
         fun ongoing(context: Context, label: Int = R.string.mosh_waiting_starting): Notification {
             val manager = context.getSystemService(NotificationManager::class.java)

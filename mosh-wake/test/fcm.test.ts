@@ -41,7 +41,7 @@ test("a call goes as a high-priority data message that expires at once", async (
   assert.equal(request?.url, "https://fcm.googleapis.com/v1/projects/mosh-test/messages:send");
   assert.equal(request?.headers.get("authorization"), "Bearer access-1");
   assert.deepEqual(JSON.parse(request?.body ?? ""), {
-    message: { token: "tok", data: { kind: "call", call: "c-1" }, android: { priority: "HIGH", ttl: "0s" } },
+    message: { fid: "tok", data: { kind: "call", call: "c-1" }, android: { priority: "HIGH", ttl: "0s" } },
   });
 });
 
@@ -52,8 +52,8 @@ test("messages go as data only: a preview of its own, or one collapsing wake", a
   await fcm.send(device, "tok", { kind: "message" });
 
   assert.deepEqual(sent.map(({ body }) => JSON.parse(body).message), [
-    { token: "tok", data: { kind: "message", preview: "c2VhbGVk" }, android: { priority: "HIGH" } },
-    { token: "tok", data: { kind: "message" }, android: { priority: "HIGH", collapse_key: "mosh-message" } },
+    { fid: "tok", data: { kind: "message", preview: "c2VhbGVk" }, android: { priority: "HIGH" } },
+    { fid: "tok", data: { kind: "message" }, android: { priority: "HIGH", collapse_key: "mosh-message" } },
   ]);
 });
 
