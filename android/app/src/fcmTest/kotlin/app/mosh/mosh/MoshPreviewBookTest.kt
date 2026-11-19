@@ -44,7 +44,7 @@ class MoshPreviewBookTest {
     @Test
     fun thePinnedGroupPreviewShowsItsAuthor() {
         val shown = book(listOf(key), members = mapOf(miaKey to "Мия")).open(group)
-        assertEquals(MoshPreviewBook.Shown("group-1", "Hikes", "Мия: Привет\nhow are you?"), shown)
+        assertEquals(MoshPreviewBook.Shown("group-1", "Hikes", "Привет\nhow are you?", author = "Мия"), shown)
     }
 
     @Test

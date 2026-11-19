@@ -7,7 +7,7 @@ package app.mosh.mosh
  * src/fcm/kotlin/app/mosh/mosh/MoshPush.kt instead (ADR 0055).
  */
 internal object MoshPush {
-    val platform: String? = null
+    const val wakeable = false
 
     fun token(done: (String?) -> Unit) = done(null)
 }

@@ -22,7 +22,8 @@ import org.json.JSONObject
  * ios/NotificationService/Previews.swift.
  */
 internal class MoshPreviewBook private constructor(private val chats: List<Chat>) {
-    data class Shown(val chat: String, val title: String, val text: String)
+    /** [author]: the group member who signed it; null for a DM. */
+    data class Shown(val chat: String, val title: String, val text: String, val author: String? = null)
 
     /** `members`: the group's other members' MLS keys (base64) and names; null for a DM. */
     private class Chat(val id: String, val name: String, val keys: List<ByteArray>, val members: Map<String, String>?)
@@ -37,7 +38,7 @@ internal class MoshPreviewBook private constructor(private val chats: List<Chat>
                 val body = opened(sealed, key) ?: continue
                 val text = body.optString("text").takeIf { body.has("text") } ?: continue
                 val members = chat.members ?: return Shown(chat.id, chat.name, text)
-                return signed(chat.id, members, body, text)?.let { author -> Shown(chat.id, chat.name, "$author: $text") }
+                return signed(chat.id, members, body, text)?.let { author -> Shown(chat.id, chat.name, text, author) }
             }
         }
         return null

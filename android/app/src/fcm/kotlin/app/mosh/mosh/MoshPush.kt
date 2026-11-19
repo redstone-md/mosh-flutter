@@ -10,7 +10,7 @@ import com.google.firebase.messaging.FirebaseMessaging
  * or until registration succeeds; [MoshFcmService] says when it changes.
  */
 internal object MoshPush {
-    val platform: String? = "fcm"
+    const val wakeable = true
 
     fun token(done: (String?) -> Unit) {
         try {

@@ -23,10 +23,11 @@ Our own Android builds register with the wake service like an iPhone does, and
 the service wakes them through FCM. Senders do not change: they already wake
 any announced address through the build's service.
 
-- **Two builds.** `-PmoshFcm=true` adds `android/app/fcm.gradle.kts` and
-  `android/app/src/fcm`: Firebase Messaging, Tink and the messaging service.
+- **Two builds.** `-PmoshFcm=true` adds `android/app/src/fcm`: its build
+  (`fcm.gradle.kts`, kept out of the module root, which Android Lint scans),
+  Firebase Messaging, Tink and the messaging service.
   The release workflow sets it when the `MOSH_FIREBASE_CONFIG` secret holds the
-  project's `google-services.json`. F-Droid's recipe removes those files, and a
+  project's `google-services.json`. F-Droid's recipe removes `src/fcm`, and a
   plain `flutter build` does not set the property, so neither build has Google
   code. Both builds share `src/main`; each takes its own `MoshPush` from
   `src/fcm` or `src/foss`. A Gradle property was chosen over product flavours
@@ -47,13 +48,17 @@ any announced address through the build's service.
   group's members signed it. Group signatures are Ed25519, which Android has
   only from API 33, so the FCM build verifies them with Tink. The notification
   goes through the background delivery publisher, so the lock screen settings
-  for names and text apply. A preview it cannot open shows "New message".
+  for names and text apply, to a group member's name too. A preview it cannot
+  open shows "New message", and so does a push of an unknown kind.
   Opening Mosh clears these notifications: the messages arrive over Moss then.
-- **Calls.** A call push starts the background waiting service for 45 s, which
-  the caller's re-sent wake extends, without changing the saved waiting choice.
+- **Calls.** A call push starts the background waiting service for 45 s from
+  the push, without changing the saved waiting choice; a call that rings keeps
+  Mosh connected past that.
   Moss connects, the caller's re-sent offer arrives, and the call rings
   full-screen through the existing call notification. Nothing rings before the
   offer arrives, so there is nothing to answer before the caller is known.
+  When Android refuses to start the service from the background, the push
+  shows a notice that someone is calling, so the user can open Mosh.
 - **Connected phones.** While Mosh is connected (on screen, or waiting in the
   background), a push shows nothing, because Moss delivers the message itself.
   Groups have no keepalive. A phone repeats its group announcements every 10 s

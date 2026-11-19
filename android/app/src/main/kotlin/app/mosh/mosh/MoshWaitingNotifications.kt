@@ -45,14 +45,15 @@ internal class MoshWaitingNotifications(
     }
 
     /** A message a wake push brought while Mosh was closed: the chat's latest
-     * text under its name, counting the ones before, or one "New message" for
-     * every preview that could not be opened (`chat` null). */
-    fun publishWoken(chat: String?, title: String?, text: String?): String {
+     * text under its name, after a group member's [author] name, counting the
+     * ones before; or one "New message" for every preview that could not be
+     * opened (`chat` null). Both names follow the names setting. */
+    fun publishWoken(chat: String?, title: String?, author: String?, text: String?): String {
         if (!allowed()) return "blocked"
         val tag = WOKEN + (chat?.let(::digest) ?: "")
         return try {
             val shown = manager.activeNotifications.firstOrNull { it.tag == tag && it.id == MESSAGE_ID }
-            manager.notify(tag, MESSAGE_ID, build(title, text, (shown?.notification?.number ?: 0) + 1, true))
+            manager.notify(tag, MESSAGE_ID, build(title, text, (shown?.notification?.number ?: 0) + 1, true, author))
             "posted"
         } catch (_: SecurityException) { "blocked" }
         catch (_: RuntimeException) { "failed" }
@@ -88,15 +89,16 @@ internal class MoshWaitingNotifications(
         }
     }
 
-    private fun build(sender: String?, text: String?, count: Int, alert: Boolean): Notification {
+    private fun build(sender: String?, text: String?, count: Int, alert: Boolean, author: String? = null): Notification {
         val allowed = try { accessAllowed() } catch (_: RuntimeException) { false }
         val locked = context.getSystemService(KeyguardManager::class.java).isDeviceLocked
         val names = policy.namesAllowed(allowed, locked)
         val messages = policy.textAllowed(allowed, locked)
+        val body = clean(text, 8192)?.let { line -> clean(author)?.takeIf { names }?.let { "$it: $line" } ?: line }
         val generic = MoshNotificationFactory.message(context, "Mosh", context.getString(R.string.mosh_new_message), count, false)
         val notification = MoshNotificationFactory.message(context,
             if (names) clean(sender) ?: "Mosh" else "Mosh",
-            if (messages) clean(text, 8192) ?: context.getString(R.string.mosh_new_message)
+            if (messages) body ?: context.getString(R.string.mosh_new_message)
             else context.getString(R.string.mosh_new_message), count, alert)
         return Notification.Builder.recoverBuilder(context, notification)
             .setVisibility(if (locked && (names || messages)) Notification.VISIBILITY_PUBLIC else Notification.VISIBILITY_PRIVATE)

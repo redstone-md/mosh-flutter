@@ -1,6 +1,8 @@
 package app.mosh.mosh
 
 import com.google.firebase.messaging.FirebaseMessagingService
+import java.io.IOException
+import java.security.GeneralSecurityException
 import com.google.firebase.messaging.RemoteMessage
 
 /**
@@ -18,17 +20,19 @@ class MoshFcmService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         if (connected()) return
-        when (message.data["kind"]) {
-            "call" -> MoshWaitingService.wake(this)
-            "message" -> opened(message.data["preview"]).let { shown ->
-                MoshWaitingNotifications.standalone(this).publishWoken(shown?.chat, shown?.title, shown?.text)
-            }
-        }
+        if (message.data["kind"] == "call") return MoshWaitingService.wake(this)
+        // Anything else stands for a message, so no push ends without a notice.
+        val shown = opened(message.data["preview"])
+        MoshWaitingNotifications.standalone(this).publishWoken(shown?.chat, shown?.title, shown?.author, shown?.text)
     }
 
     private fun opened(preview: String?): MoshPreviewBook.Shown? {
         if (preview == null) return null
-        val chats = try { MoshWake.previews(this) } catch (_: Exception) { null } ?: return null
+        // An unreadable vault opens nothing: the push stays "New message".
+        val chats = try { MoshWake.previews(this) }
+            catch (_: GeneralSecurityException) { null }
+            catch (_: IOException) { null }
+            catch (_: IllegalArgumentException) { null } ?: return null
         return MoshPreviewBook.parse(chats)?.open(preview)
     }
 

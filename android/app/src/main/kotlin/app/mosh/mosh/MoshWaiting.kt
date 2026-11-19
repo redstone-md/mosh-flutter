@@ -6,10 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.os.PowerManager
-import android.os.SystemClock
 import android.provider.Settings
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
@@ -27,11 +24,7 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
     private var revision = 0L
     private var restriction: String? = null
     private var transferInteractive: Boolean? = null
-    private val main = Handler(Looper.getMainLooper())
-    /** Until when a call wake keeps Moss connected, in [SystemClock.elapsedRealtime]. */
-    private var wokenUntil = 0L
-    private val wokenEnded = Runnable { execution.changed(); publish() }
-    private val woken: Boolean get() = SystemClock.elapsedRealtime() < wokenUntil
+    private val callWake = MoshWokenWindow { execution.changed(); publish() }
     private val calls = MoshWaitingCalls(context, policy, access, ringtone, { resumed && activity != null }) {
         channel.callActionsChanged()
         publish()
@@ -83,12 +76,9 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
         return status()
     }
 
-    /** A call wake: Moss stays connected long enough for a caller's ring,
-     * which re-sends the wake, so each one extends it. */
+    /** A call wake push: Moss stays connected for the caller's ring. */
     fun woken() {
-        wokenUntil = SystemClock.elapsedRealtime() + WOKEN_FOR_MS
-        main.removeCallbacks(wokenEnded)
-        main.postDelayed(wokenEnded, WOKEN_FOR_MS)
+        callWake.start()
         serviceChanged()
     }
 
@@ -108,7 +98,7 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
             calls.work(count(value["currentCalls"]))
             if (count(value["currentCalls"]) == 0) MoshWaitingService.mediaTypes(false, false)
             val reachability = value["reachability"] as? String ?: "unavailable"
-            if (!policy.snapshot().waitingEnabled && !woken && execution.canRelease(interactive)) {
+            if (!policy.snapshot().waitingEnabled && !callWake.open && execution.canRelease(interactive)) {
                 MoshWaitingService.finishWaiting()
             } else MoshWaitingService.updateStatus(reachability == "ready",
                 value["limitation"] != null || status()["restriction"] != null, count(value["currentCalls"]) > 0)
@@ -190,7 +180,7 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
             .isIgnoringBatteryOptimizations(context.packageName)
         val allowed = notifications.allowed()
         return mapOf("revision" to ++revision, "intentRevision" to execution.revision(),
-            "interactive" to interactive, "waitingEnabled" to choice.waitingEnabled, "woken" to woken,
+            "interactive" to interactive, "waitingEnabled" to choice.waitingEnabled, "woken" to callWake.open,
             "callInteractive" to calls.interactive,
             "serviceRunning" to MoshWaitingService.running, "setupComplete" to choice.setupComplete,
             "notificationsAllowed" to allowed, "batteryExempt" to exempt,
@@ -229,11 +219,6 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
         network.observe(MoshWaitingService.running || transfers.runningCount > 0)
         channel.transferExecutionChanged()
         publish()
-    }
-
-    private companion object {
-        /** The caller's ring lasts 30 s; a woken phone starts in a few. */
-        const val WOKEN_FOR_MS = 45_000L
     }
 
     private fun count(value: Any?): Int = MoshWaitingNotifications.integer(value)

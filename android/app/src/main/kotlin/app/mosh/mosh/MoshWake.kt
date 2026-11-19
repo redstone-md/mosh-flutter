@@ -12,7 +12,7 @@ import java.util.concurrent.Executors
  * This phone's side of its wake registration for Dart
  * (lib/src/platform/android_wake.dart): the build's push token, and the
  * registration and preview keys the push service reads while Mosh is
- * closed. A build without a push service ([MoshPush.platform] null) has no
+ * closed. A build without a push service ([MoshPush.wakeable] false) has no
  * token, and Dart does not register it.
  */
 internal class MoshWake(private val context: Context, messenger: BinaryMessenger) {
@@ -32,7 +32,7 @@ internal class MoshWake(private val context: Context, messenger: BinaryMessenger
 
     private fun dispatch(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
-            "platform" -> result.success(MoshPush.platform)
+            "wakeable" -> result.success(MoshPush.wakeable)
             "tokens" -> MoshPush.token { token ->
                 main.post { result.success(token?.let { mapOf("fcm" to it) }) }
             }
