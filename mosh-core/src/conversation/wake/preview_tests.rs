@@ -86,8 +86,9 @@ fn a_group_preview_is_signed_by_its_author_for_its_group() {
     assert_eq!(signed_text(&preview, "group-2"), None);
 }
 
-// Pinned: ios/NotificationServiceTests/main.swift opens these same
-// previews, so a change on either side fails here or there.
+// Pinned: ios/NotificationServiceTests/main.swift and Android's
+// MoshPreviewBookTest (android/app/src/fcmTest) open these same previews, so
+// a change on any side fails here or there.
 #[test]
 fn the_sealed_forms_are_what_the_notification_extension_opens() {
     let texts = ["Привет".to_string(), "how are you?".to_string()];

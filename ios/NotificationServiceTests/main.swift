@@ -3,8 +3,9 @@ import Foundation
 
 // Opens the previews mosh-core pins in
 // the_sealed_forms_are_what_the_notification_extension_opens
-// (mosh-core/src/conversation/wake/preview_tests.rs), so a change to the
-// sealed form on either side fails one of the two.
+// (mosh-core/src/conversation/wake/preview_tests.rs), as Android's
+// MoshPreviewBookTest does, so a change to the sealed form on any side fails
+// one of the three.
 let key = Data(repeating: 7, count: 32).base64EncodedString()
 let other = Data(repeating: 8, count: 32).base64EncodedString()
 let direct =

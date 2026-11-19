@@ -61,6 +61,9 @@ its settings do not change the background key-access policy.
 The restriction is on Google-hosted event delivery through FCM. Google STUN
 remains permitted for address discovery; it does not receive Mosh chat messages
 or call offers. This is not a blanket prohibition on network contact with Google.
+On 2026-11-19 the owner lifted the restriction for the Google Play and GitHub
+builds, which are also woken through FCM when waiting is stopped or killed
+([ADR 0055](0055-android-wakes-through-fcm.md)); the F-Droid build keeps it.
 
 This direction extends the foreground-only Android scope of
 [ADR 0034](0034-android-linked-text-dm.md), retaining the native media ownership

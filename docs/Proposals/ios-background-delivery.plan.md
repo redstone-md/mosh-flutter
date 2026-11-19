@@ -88,7 +88,9 @@ counterpart installation), so its exact shape comes for approval with layer 2.
   woken by the user's own linked device that follows the channel.
 
 Desktop and Android builds therefore make an HTTPS request to the service when
-a contact uses an iPhone. No request is made otherwise.
+a contact uses an iPhone, or an Android build woken through FCM. No request is
+made otherwise. That Android path, which reuses this service, the sealed
+previews and the group signatures, is [ADR 0055](../ADR/0055-android-wakes-through-fcm.md).
 
 ### 4. iOS client
 

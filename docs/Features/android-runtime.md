@@ -180,3 +180,20 @@ It also reconstructs opaque recovery state across owner replacement, checks
 storage refusal and bounds, and reproduces an OS-stop history eviction before
 verifying that the durable latch survives it. These host checks do not prove
 that a particular device restarts a service or resumes a transfer after reboot.
+
+## Wake pushes (FCM build)
+
+A build with `--android-project-arg=moshFcm=true` is woken through Firebase
+Cloud Messaging when background waiting is off or was killed
+([ADR 0055](../ADR/0055-android-wakes-through-fcm.md)). It needs the Firebase
+project's `google-services.json` in `android/app`, or at the path
+`-PmoshFcmConfig` names. Its JVM tests run against a placeholder project:
+
+```sh
+cd android
+./gradlew :app:testDebugUnitTest -PmoshFcm=true -PmoshFcmConfig=src/fcmTest/google-services.json
+```
+
+On a phone with Mosh swiped away and waiting off, a message from a contact
+shows the chat's name and text under the lock screen settings, and a call
+rings once its offer arrives.
