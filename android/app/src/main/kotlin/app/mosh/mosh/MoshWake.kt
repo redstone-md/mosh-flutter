@@ -25,8 +25,12 @@ internal class MoshWake(private val context: Context, messenger: BinaryMessenger
         channel.setMethodCallHandler(::dispatch)
     }
 
-    /** The push service handed out a new token: Dart registers it. */
-    fun tokensChanged() {
+    /** The push address Dart last took; Firebase reports it again on every registration. */
+    @Volatile private var handed: String? = null
+
+    /** The push service reports [installation]: Dart registers it when it is new. */
+    fun tokensChanged(installation: String) {
+        if (installation == handed) return
         main.post { channel.invokeMethod("tokens", null) }
     }
 
@@ -34,6 +38,7 @@ internal class MoshWake(private val context: Context, messenger: BinaryMessenger
         when (call.method) {
             "wakeable" -> result.success(MoshPush.wakeable)
             "tokens" -> MoshPush.token { token ->
+                handed = token
                 main.post { result.success(token?.let { mapOf("fcm" to it) }) }
             }
             "loadRegistration" -> stored(result) { vault.read(REGISTRATION) }

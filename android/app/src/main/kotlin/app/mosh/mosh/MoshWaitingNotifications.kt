@@ -53,7 +53,11 @@ internal class MoshWaitingNotifications(
         val tag = WOKEN + (chat?.let(::digest) ?: "")
         return try {
             val shown = manager.activeNotifications.firstOrNull { it.tag == tag && it.id == MESSAGE_ID }
-            manager.notify(tag, MESSAGE_ID, build(title, text, (shown?.notification?.number ?: 0) + 1, true, author))
+            val notification = build(title, text, (shown?.notification?.number ?: 0) + 1, true, author)
+            // The text is kept apart from its author, so turning names off hides it later too.
+            notification.extras.putString(AUTHOR, author)
+            notification.extras.putString(TEXT, text)
+            manager.notify(tag, MESSAGE_ID, notification)
             "posted"
         } catch (_: SecurityException) { "blocked" }
         catch (_: RuntimeException) { "failed" }
@@ -75,9 +79,13 @@ internal class MoshWaitingNotifications(
             for (entry in manager.activeNotifications) {
                 if (entry.id != MESSAGE_ID || entry.tag?.startsWith(TAG) != true) continue
                 val old = entry.notification
+                val author = old.extras.getString(AUTHOR)
+                val text = old.extras.getString(TEXT) ?: old.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
                 val notification = build(old.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
-                    old.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(), old.number, false)
+                    text, old.number, false, author)
                 notification.extras.putLong(REVISION, old.extras.getLong(REVISION))
+                notification.extras.putString(AUTHOR, author)
+                notification.extras.putString(TEXT, old.extras.getString(TEXT))
                 manager.notify(entry.tag, entry.id, notification)
             }
         } catch (_: RuntimeException) {
@@ -117,6 +125,8 @@ internal class MoshWaitingNotifications(
         /** Under [TAG], so [refreshPrivacy] applies the lock screen settings to them too. */
         private const val WOKEN = "${TAG}wake."
         private const val REVISION = "mosh.deliveryRevision"
+        private const val AUTHOR = "mosh.wakeAuthor"
+        private const val TEXT = "mosh.wakeText"
 
         /** For a process that runs no Mosh, such as one a wake push started. */
         fun standalone(context: Context) = MoshWaitingNotifications(context,

@@ -15,7 +15,7 @@ import com.google.firebase.messaging.RemoteMessage
  */
 class MoshFcmService : FirebaseMessagingService() {
     override fun onRegistered(installationId: String) {
-        (application as MoshApplication).existingRuntime?.wake?.tokensChanged()
+        (application as MoshApplication).existingRuntime?.wake?.tokensChanged(installationId)
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
@@ -28,11 +28,12 @@ class MoshFcmService : FirebaseMessagingService() {
 
     private fun opened(preview: String?): MoshPreviewBook.Shown? {
         if (preview == null) return null
-        // An unreadable vault opens nothing: the push stays "New message".
+        // An unreadable vault opens nothing: the push stays "New message". Keystore
+        // failures surface as RuntimeExceptions too (ProviderException).
         val chats = try { MoshWake.previews(this) }
             catch (_: GeneralSecurityException) { null }
             catch (_: IOException) { null }
-            catch (_: IllegalArgumentException) { null } ?: return null
+            catch (_: RuntimeException) { null } ?: return null
         return MoshPreviewBook.parse(chats)?.open(preview)
     }
 
