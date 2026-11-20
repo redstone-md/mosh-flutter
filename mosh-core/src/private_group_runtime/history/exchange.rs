@@ -85,30 +85,7 @@ impl GroupSession {
         body: GroupBody,
         permit: transport::DispatchPermit,
     ) -> Result<(), PrivateGroupError> {
-        let mut frame = HistoryFrame {
-            version: 1,
-            conversation: self.deletions.context.clone(),
-            mesh_id: self.mesh_id.clone(),
-            channel: self.control_channel.clone(),
-            sender_key: String::new(),
-            recipient_key: recipient.clone(),
-            request_id,
-            round,
-            payload_b64: String::new(),
-            signature: String::new(),
-        };
-        frame
-            .seal_payload(
-                self.node
-                    .identity_signer()
-                    .map_err(|e| PrivateGroupError::Moss(e.to_string()))?,
-                &body,
-            )
-            .map_err(PrivateGroupError::Codec)?;
-        let envelope = ControlEnvelope::History {
-            group_id: self.group_id.clone(),
-            frame,
-        };
+        let envelope = self.history_envelope(recipient.clone(), request_id, round, &body)?;
         if let Some(recipient) = recipient {
             let proof = self.sign_application(&envelope, &self.control_channel)?;
             let bytes = serde_json::to_vec(&DirectedHistory {
@@ -121,5 +98,40 @@ impl GroupSession {
         } else {
             self.publish_control(&envelope)
         }
+    }
+
+    /// One history body sealed by this device for `recipient`, or for the
+    /// whole room without one.
+    pub(super) fn history_envelope(
+        &self,
+        recipient: Option<String>,
+        request_id: String,
+        round: u64,
+        body: &GroupBody,
+    ) -> Result<ControlEnvelope, PrivateGroupError> {
+        let mut frame = HistoryFrame {
+            version: 1,
+            conversation: self.deletions.context.clone(),
+            mesh_id: self.mesh_id.clone(),
+            channel: self.control_channel.clone(),
+            sender_key: String::new(),
+            recipient_key: recipient,
+            request_id,
+            round,
+            payload_b64: String::new(),
+            signature: String::new(),
+        };
+        frame
+            .seal_payload(
+                self.node
+                    .identity_signer()
+                    .map_err(|e| PrivateGroupError::Moss(e.to_string()))?,
+                body,
+            )
+            .map_err(PrivateGroupError::Codec)?;
+        Ok(ControlEnvelope::History {
+            group_id: self.group_id.clone(),
+            frame,
+        })
     }
 }

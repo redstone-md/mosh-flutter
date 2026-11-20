@@ -169,15 +169,19 @@ impl GroupRecord {
                 content_digest: None,
             }));
         }
-        let Some(key) = Self::key(row, context, mesh)? else {
-            return Ok(None);
-        };
-        let origin = row
+        // A text from a client older than signed origins has no identity an
+        // imported copy could match; it stays local and is never exported.
+        let Some(origin) = row
             .message
             .metadata
             .as_ref()
             .and_then(|m| m.origin.as_ref())
-            .ok_or("group original evidence unavailable")?;
+        else {
+            return Ok(None);
+        };
+        let Some(key) = Self::key(row, context, mesh)? else {
+            return Ok(None);
+        };
         Ok(Some(Occurrence {
             native_id: row.message_id.clone(),
             row_key: format!(
