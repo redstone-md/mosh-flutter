@@ -156,6 +156,14 @@ pub(crate) fn execution_lease() -> Result<RwLockReadGuard<'static, ()>, String> 
         .map_err(|_| "background execution unavailable".into())
 }
 
+/// Whether Dart last applied Mosh as on screen; false before it has.
+#[cfg(target_os = "android")]
+pub(crate) fn interactive() -> bool {
+    OWNER
+        .get()
+        .is_some_and(|owner| owner.state.lock().is_ok_and(|state| state.interactive))
+}
+
 pub(crate) fn managed_execution() -> bool {
     cfg!(target_os = "android") || OWNER.get().is_some()
 }
