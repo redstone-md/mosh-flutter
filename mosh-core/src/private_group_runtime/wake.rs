@@ -3,9 +3,11 @@
 //! group's preview key in the group, as it does in a DM. A group has no
 //! acknowledgements: a text counts as sent once it is in the room, and a
 //! woken phone reads what it missed from the group's history. Nor is there a
-//! keepalive, so an iPhone repeats its announcement every
-//! [`PRESENT_EVERY_MS`] while Mosh runs; iOS suspends Mosh soon after it
-//! leaves the screen, and the announcements stop. Once this device has sent,
+//! keepalive, so a phone repeats its announcement every
+//! [`PRESENT_EVERY_MS`] while Mosh is on its screen; iOS suspends Mosh soon
+//! after it leaves the screen, and an Android phone in the background stops
+//! repeating, so a group's members wake it through its push service rather
+//! than hear from it every few seconds all day. Once this device has sent,
 //! it wakes each member device that announced an address and has sent no
 //! authenticated frame for [`ABSENT_AFTER_MS`], for the texts sent since,
 //! signed with this member's MLS key. The mesh is no sign of a phone: Moss
@@ -23,7 +25,7 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// How often a device with a wake address repeats it in each group while
-/// Mosh runs, as a DM's keepalive.
+/// Mosh is on screen, as a DM's keepalive.
 const PRESENT_EVERY_MS: u64 = 10_000;
 /// A member device unheard this long is taken to be asleep: as long as a DM
 /// takes to call its counterpart lost.
@@ -118,7 +120,8 @@ impl GroupSession {
 
     /// One service turn's wake work: keep the key and the members current,
     /// announce this device's address, and wake absent members for texts.
-    pub(super) fn pump_wake(&mut self, now: u64, setup: &WakeSetup) {
+    /// `on_screen`: the announcement is repeated, not only sent when it changes.
+    pub(super) fn pump_wake(&mut self, now: u64, setup: &WakeSetup, on_screen: bool) {
         if !self.joined || !self.crypto.is_ready() {
             return;
         }
@@ -131,12 +134,12 @@ impl GroupSession {
             self.wake.follow(members, now);
         }
         if let Some(address) = &setup.own {
-            self.announce_wake(address, now);
+            self.announce_wake(address, now, on_screen);
         }
         self.wake_for_texts(now, setup);
     }
 
-    fn announce_wake(&mut self, address: &WakeAddress, now: u64) {
+    fn announce_wake(&mut self, address: &WakeAddress, now: u64, repeat: bool) {
         let next = self.wake.own.next(address, now);
         if next.key_replaced {
             // A new key is made for the members there are now.
@@ -144,7 +147,8 @@ impl GroupSession {
             self.wake.dirty = true;
         }
         let epoch = self.crypto.epoch();
-        let Some(changed) = self.wake.own.due(&next.body, epoch, PRESENT_EVERY_MS) else {
+        let every = if repeat { PRESENT_EVERY_MS } else { u64::MAX };
+        let Some(changed) = self.wake.own.due(&next.body, epoch, every) else {
             return;
         };
         let Ok(wake_ciphertext_b64) = self.crypto.encrypt_json(&next.body) else {

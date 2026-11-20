@@ -1,15 +1,16 @@
 // Sends wakes to APNs over HTTP/2 from Node, keeping one connection per
 // environment open as Apple asks providers to.
 import { connect, type ClientHttp2Session } from "node:http2";
-import { apnsRequest, pushResult, type ProviderToken, type Pusher, type PushResult, type Wake } from "./push.ts";
-import type { Device, Environment } from "./store.ts";
+import { apnsRequest, apnsResult, type ProviderToken } from "./apns.ts";
+import type { Pusher, PushResult, Wake } from "./push.ts";
+import type { AppleDevice, Environment } from "./store.ts";
 
 export const APPLE_ORIGINS: Record<Environment, string> = {
   production: "https://api.push.apple.com",
   sandbox: "https://api.sandbox.push.apple.com",
 };
 
-export class Http2Apns implements Pusher {
+export class Http2Apns implements Pusher<AppleDevice> {
   private readonly sessions = new Map<Environment, ClientHttp2Session>();
   private readonly token: ProviderToken;
   private readonly topic: string;
@@ -21,11 +22,11 @@ export class Http2Apns implements Pusher {
     this.origins = origins;
   }
 
-  async send(device: Device, token: string, wake: Wake): Promise<PushResult> {
-    const request = apnsRequest(wake, token, this.topic, await this.token.current());
+  async send(device: AppleDevice, token: string, wake: Wake): Promise<PushResult> {
     try {
+      const request = apnsRequest(wake, token, this.topic, await this.token.current());
       const { status, body } = await this.post(device.environment, request.path, request.headers, request.body);
-      return pushResult(status, reasonOf(body));
+      return apnsResult(status, reasonOf(body));
     } catch (error) {
       console.error(`APNs ${device.environment} request failed: ${String(error)}`);
       return "failed";

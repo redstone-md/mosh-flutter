@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import java.security.MessageDigest
 
 /** Reduces disclosure against current native state immediately before OS publication. */
 internal class MoshWaitingNotifications(
@@ -43,14 +44,54 @@ internal class MoshWaitingNotifications(
         catch (_: RuntimeException) { "failed" }
     }
 
+    /** A message a wake push brought while Mosh was closed: the chat's latest
+     * text under its name, after a group member's [author] name, counting the
+     * ones before; or one "New message" for every preview that could not be
+     * opened (`chat` null). Both names follow the names setting. */
+    fun publishWoken(chat: String?, title: String?, author: String?, text: String?): String =
+        postWoken(WOKEN + (chat?.let(::digest) ?: ""), title, author, text)
+
+    /** A call wake that could not start Mosh: the call cannot ring, so the user
+     * learns of it apart from any "New message". */
+    fun publishMissedCall(): String = postWoken("${WOKEN}call", null, null, context.getString(R.string.mosh_wake_call))
+
+    private fun postWoken(tag: String, title: String?, author: String?, text: String?): String {
+        if (!allowed()) return "blocked"
+        return try {
+            val shown = manager.activeNotifications.firstOrNull { it.tag == tag && it.id == MESSAGE_ID }
+            val notification = build(title, text, (shown?.notification?.number ?: 0) + 1, true, author)
+            // The text is kept apart from its author, so turning names off hides it later too.
+            notification.extras.putString(AUTHOR, author)
+            notification.extras.putString(TEXT, text)
+            manager.notify(tag, MESSAGE_ID, notification)
+            "posted"
+        } catch (_: SecurityException) { "blocked" }
+        catch (_: RuntimeException) { "failed" }
+    }
+
+    /** Mosh is open: its own delivery shows the messages the pushes stood for. */
+    fun clearWoken() {
+        try {
+            manager.activeNotifications.filter { it.tag?.startsWith(WOKEN) == true }
+                .forEach { manager.cancel(it.tag, it.id) }
+        } catch (_: RuntimeException) { /* Nothing shown can be reached. */ }
+    }
+
+    private fun digest(chat: String): String = MessageDigest.getInstance("SHA-256")
+        .digest(chat.toByteArray(Charsets.UTF_8)).take(16).joinToString("") { "%02x".format(it) }
+
     fun refreshPrivacy() {
         try {
             for (entry in manager.activeNotifications) {
                 if (entry.id != MESSAGE_ID || entry.tag?.startsWith(TAG) != true) continue
                 val old = entry.notification
+                val author = old.extras.getString(AUTHOR)
+                val text = old.extras.getString(TEXT) ?: old.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
                 val notification = build(old.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
-                    old.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(), old.number, false)
+                    text, old.number, false, author)
                 notification.extras.putLong(REVISION, old.extras.getLong(REVISION))
+                notification.extras.putString(AUTHOR, author)
+                notification.extras.putString(TEXT, old.extras.getString(TEXT))
                 manager.notify(entry.tag, entry.id, notification)
             }
         } catch (_: RuntimeException) {
@@ -62,15 +103,16 @@ internal class MoshWaitingNotifications(
         }
     }
 
-    private fun build(sender: String?, text: String?, count: Int, alert: Boolean): Notification {
+    private fun build(sender: String?, text: String?, count: Int, alert: Boolean, author: String? = null): Notification {
         val allowed = try { accessAllowed() } catch (_: RuntimeException) { false }
         val locked = context.getSystemService(KeyguardManager::class.java).isDeviceLocked
         val names = policy.namesAllowed(allowed, locked)
         val messages = policy.textAllowed(allowed, locked)
+        val body = clean(text, 8192)?.let { line -> clean(author)?.takeIf { names }?.let { "$it: $line" } ?: line }
         val generic = MoshNotificationFactory.message(context, "Mosh", context.getString(R.string.mosh_new_message), count, false)
         val notification = MoshNotificationFactory.message(context,
             if (names) clean(sender) ?: "Mosh" else "Mosh",
-            if (messages) clean(text, 8192) ?: context.getString(R.string.mosh_new_message)
+            if (messages) body ?: context.getString(R.string.mosh_new_message)
             else context.getString(R.string.mosh_new_message), count, alert)
         return Notification.Builder.recoverBuilder(context, notification)
             .setVisibility(if (locked && (names || messages)) Notification.VISIBILITY_PUBLIC else Notification.VISIBILITY_PRIVATE)
@@ -86,7 +128,15 @@ internal class MoshWaitingNotifications(
         const val FOREGROUND_ID = 1
         private const val MESSAGE_ID = 2
         private const val TAG = "mosh.delivery."
+        /** Under [TAG], so [refreshPrivacy] applies the lock screen settings to them too. */
+        private const val WOKEN = "${TAG}wake."
         private const val REVISION = "mosh.deliveryRevision"
+        private const val AUTHOR = "mosh.wakeAuthor"
+        private const val TEXT = "mosh.wakeText"
+
+        /** For a process that runs no Mosh, such as one a wake push started. */
+        fun standalone(context: Context) = MoshWaitingNotifications(context,
+            MoshWaitingPolicy(MoshWaitingPreferences(context))) { MoshAccessState(context).policy.allowed() }
 
         fun ongoing(context: Context, label: Int = R.string.mosh_waiting_starting): Notification {
             val manager = context.getSystemService(NotificationManager::class.java)

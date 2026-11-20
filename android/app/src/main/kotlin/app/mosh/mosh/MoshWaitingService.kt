@@ -3,6 +3,7 @@ package app.mosh.mosh
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -34,13 +35,14 @@ class MoshWaitingService : Service() {
         val application = application as MoshApplication
         if (intent?.action == MoshCallIntents.CONTROL) {
             if (MoshCallIntents.capability(intent) == null) { finishWaiting(); return START_NOT_STICKY }
-            try {
-                val runtime = application.runtime
-                runtime.waiting.serviceChanged()
-                runtime.waiting.callIntent(intent)
-                runtime.startInBackground()
-            } catch (_: RuntimeException) { finishWaiting() }
-            catch (_: LinkageError) { finishWaiting() }
+            startRuntime { it.waiting.serviceChanged(); it.waiting.callIntent(intent) }
+            return START_NOT_STICKY
+        }
+        if (intent?.action == WAKE) {
+            // A call wake: started whatever the waiting choice, which it leaves as it is.
+            if (getSystemService(UserManager::class.java).isUserUnlocked != true) { finishWaiting(); return START_NOT_STICKY }
+            startupWake.acquire(15_000)
+            if (!startRuntime { it.waiting.woken() }) MoshWaitingNotifications.standalone(this).publishMissedCall()
             return START_NOT_STICKY
         }
         if (intent?.action == STOP) {
@@ -61,15 +63,18 @@ class MoshWaitingService : Service() {
             else application.existingRuntime?.waiting?.serviceChanged()
             return START_NOT_STICKY
         }
-        try {
-            startupWake.acquire(15_000)
-            val runtime = application.runtime
-            runtime.waiting.serviceChanged()
-            runtime.startInBackground()
-        } catch (_: RuntimeException) { finishWaiting(); return START_NOT_STICKY }
-        catch (_: LinkageError) { finishWaiting(); return START_NOT_STICKY }
-        return START_STICKY
+        startupWake.acquire(15_000)
+        return if (startRuntime { it.waiting.serviceChanged() }) START_STICKY else START_NOT_STICKY
     }
+
+    /** Runs Mosh in the background after [prepare]; a runtime that cannot start ends the service. */
+    private fun startRuntime(prepare: (MoshAndroidRuntime) -> Unit): Boolean = try {
+        val runtime = (application as MoshApplication).runtime
+        prepare(runtime)
+        runtime.startInBackground()
+        true
+    } catch (_: RuntimeException) { finishWaiting(); false }
+    catch (_: LinkageError) { finishWaiting(); false }
 
     private fun eligible(): Boolean {
         if (getSystemService(UserManager::class.java).isUserUnlocked != true) return false
@@ -91,6 +96,7 @@ class MoshWaitingService : Service() {
 
     companion object {
         const val STOP = "app.mosh.mosh.STOP_WAITING"
+        private const val WAKE = "app.mosh.mosh.WAKE_FOR_CALL"
         private var current: MoshWaitingService? = null
         val running: Boolean get() = current != null
         /** The ongoing call notification standing in for the waiting one. */
@@ -129,6 +135,18 @@ class MoshWaitingService : Service() {
                 else service.startForeground(MoshWaitingNotifications.FOREGROUND_ID, notification)
                 true
             } catch (_: RuntimeException) { false }
+        }
+
+        /** A call wake push: connect Moss for a while so the caller's offer
+         * arrives and rings, as with background waiting. */
+        fun wake(context: Context) {
+            try {
+                context.startForegroundService(Intent(context, MoshWaitingService::class.java).setAction(WAKE))
+            } catch (_: RuntimeException) {
+                // Android refused a start from the background: the call cannot ring,
+                // so the user learns of it and can open Mosh.
+                MoshWaitingNotifications.standalone(context).publishMissedCall()
+            }
         }
 
         fun finishWaiting() {

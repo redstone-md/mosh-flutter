@@ -13,10 +13,15 @@ impl PrivateGroupRuntime {
     /// Every group's wake work for one service turn; what changed a
     /// group's record is saved.
     pub(in crate::private_group_runtime) fn pump_wake(&mut self, now: u64) {
+        self.pump_wake_on(now, crate::api::background::on_screen());
+    }
+
+    /// [`Self::pump_wake`] with Mosh on screen or not.
+    pub(in crate::private_group_runtime) fn pump_wake_on(&mut self, now: u64, on_screen: bool) {
         let setup = self.wake.clone();
         let mut changed = Vec::new();
         for session in self.groups.values_mut() {
-            session.pump_wake(now, &setup);
+            session.pump_wake(now, &setup, on_screen);
             if std::mem::take(&mut session.wake.dirty) {
                 changed.push(session.group_id.clone());
             }

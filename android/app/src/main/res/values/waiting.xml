@@ -2,6 +2,7 @@
     <string name="mosh_notification_channel">Mosh notifications</string>
     <string name="mosh_call_channel">Incoming calls</string>
     <string name="mosh_new_message">New message</string>
+    <string name="mosh_wake_call">Someone is calling you. Open Mosh to answer.</string>
     <string name="mosh_waiting_channel">Background messages and calls</string>
     <string name="mosh_waiting_starting">Connecting…</string>
     <string name="mosh_waiting_ready">Waiting for messages and calls</string>

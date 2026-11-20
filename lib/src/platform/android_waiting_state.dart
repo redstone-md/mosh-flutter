@@ -6,6 +6,7 @@ class AndroidWaitingState {
     required this.interactive,
     bool? callInteractive,
     required this.waitingEnabled,
+    this.woken = false,
     required this.serviceRunning,
     required this.setupComplete,
     required this.notificationsAllowed,
@@ -20,6 +21,10 @@ class AndroidWaitingState {
   final int revision, intentRevision;
   final bool interactive, waitingEnabled, serviceRunning, setupComplete;
   final bool callInteractive;
+
+  /// A call wake push started the service for a while, whatever the
+  /// waiting choice, so the caller's offer can arrive.
+  final bool woken;
   final bool notificationsAllowed, batteryExempt, batteryExemptionOffered;
 
   /// Android 14+: incoming calls may open over the lock screen.
@@ -35,6 +40,7 @@ class AndroidWaitingState {
       interactive: map['interactive'] as bool,
       callInteractive: map['callInteractive'] as bool?,
       waitingEnabled: map['waitingEnabled'] as bool,
+      woken: map['woken'] as bool? ?? false,
       serviceRunning: map['serviceRunning'] as bool,
       setupComplete: map['setupComplete'] as bool,
       notificationsAllowed: map['notificationsAllowed'] as bool,

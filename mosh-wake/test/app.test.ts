@@ -6,9 +6,10 @@ import { SqliteStore } from "../src/sqlite-store.ts";
 
 const APNS = "a".repeat(64);
 const VOIP = "b".repeat(64);
+const FCM = "cYk2zV7aQ_m-0Rw1Xb8dLp";
 
-/** Apple as the service sees it: records pushes, answers with `result`. */
-class FakeApple implements Pusher {
+/** A push service as the service sees it: records pushes, answers with `result`. */
+class FakePushes implements Pusher {
   sent: { token: string; wake: Wake }[] = [];
   result: PushResult = "sent";
   async send(_device: unknown, token: string, wake: Wake): Promise<PushResult> {
@@ -17,10 +18,12 @@ class FakeApple implements Pusher {
   }
 }
 
-function service() {
+function service({ fcm = true } = {}) {
   let now = 1_000_000;
-  const apple = new FakeApple();
-  const app = createApp({ store: new SqliteStore(":memory:"), pusher: apple, clientIp: () => "198.51.100.7", now: () => now });
+  const apple = new FakePushes();
+  const google = new FakePushes();
+  const pushers = { apple, ...(fcm ? { fcm: google } : {}) };
+  const app = createApp({ store: new SqliteStore(":memory:"), pushers, clientIp: () => "198.51.100.7", now: () => now });
   const call = (method: string, path: string, body?: object, secret?: string) =>
     app.request(path, {
       method,
@@ -28,13 +31,13 @@ function service() {
       body: body ? JSON.stringify(body) : undefined,
     });
   const register = async (tokens: object = { apns: APNS, voip: VOIP }) => {
-    const response = await call("POST", "/v1/devices", { environment: "production", ...tokens });
+    const response = await call("POST", "/v1/devices", "fcm" in tokens ? tokens : { environment: "production", ...tokens });
     assert.equal(response.status, 201);
     return (await response.json()) as { handle: string; secret: string };
   };
   const wake = (handle: string, kind: string, extra: object = {}) =>
     call("POST", "/v1/wake", { handle, kind, ...extra });
-  return { apple, call, register, wake, advance: (ms: number) => { now += ms; } };
+  return { apple, google, call, register, wake, advance: (ms: number) => { now += ms; } };
 }
 
 // Each chat with new texts wakes the phone; the limit only stops a flood.
@@ -145,4 +148,49 @@ test("one address cannot register more than ten devices an hour", async () => {
   for (let i = 0; i < 10; i++) await register();
   const response = await call("POST", "/v1/devices", { environment: "production", apns: APNS });
   assert.equal(response.status, 429);
+});
+
+// An Android phone gives one FCM token for both kinds, on the same limits.
+test("an Android phone registers its FCM token and is woken through Firebase", async () => {
+  const { apple, google, register, wake, advance } = service();
+  const { handle } = await register({ fcm: FCM });
+
+  assert.equal((await wake(handle, "message", { preview: "sealed" })).status, 202);
+  assert.equal((await wake(handle, "call", { call: "c-1" })).status, 202);
+  assert.equal((await wake(handle, "call", { call: "c-1" })).status, 429);
+  advance(10_000);
+  assert.equal((await wake(handle, "call", { call: "c-1" })).status, 202);
+
+  assert.deepEqual(apple.sent, []);
+  assert.deepEqual(google.sent.map(({ token }) => token), [FCM, FCM, FCM]);
+  assert.deepEqual(google.sent[0]?.wake, { kind: "message", preview: "sealed" });
+});
+
+test("an FCM token Firebase calls dead is forgotten", async () => {
+  const { google, register, wake } = service();
+  const { handle } = await register({ fcm: FCM });
+  google.result = "gone";
+
+  assert.equal((await wake(handle, "message")).status, 404);
+  assert.equal((await wake(handle, "call", { call: "c-1" })).status, 404);
+  assert.equal(google.sent.length, 1);
+});
+
+test("a phone may move from Apple tokens to an FCM token under the same handle", async () => {
+  const { google, call, register, wake } = service();
+  const { handle, secret } = await register();
+
+  assert.equal((await call("PUT", `/v1/devices/${handle}`, { fcm: FCM }, secret)).status, 204);
+  assert.equal((await wake(handle, "message")).status, 202);
+  assert.equal(google.sent[0]?.token, FCM);
+});
+
+test("FCM registrations are refused by a host without a Firebase key, and malformed ones always", async () => {
+  const { call } = service({ fcm: false });
+  assert.equal((await call("POST", "/v1/devices", { fcm: FCM })).status, 400);
+
+  const withFcm = service();
+  for (const body of [{ fcm: "short" }, { fcm: "has:a colon_and_more" }, { fcm: FCM, environment: "production" }, { fcm: 7 }]) {
+    assert.equal((await withFcm.call("POST", "/v1/devices", body)).status, 400, JSON.stringify(body));
+  }
 });

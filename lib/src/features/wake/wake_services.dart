@@ -28,12 +28,37 @@ WakeSender? startWakeSender(Ref ref) {
   return sender;
 }
 
-/// Keeps this iPhone registered with the build's wake service while the
-/// process lives; does nothing elsewhere or without a service.
+/// This phone's side of waking: the iPhone's system calls, or Android's
+/// push service; null elsewhere and in tests.
+final wakeDeviceProvider =
+    Provider<WakeDevice?>((ref) => ref.watch(iosSystemCallsProvider));
+
+/// Keeps this phone registered with the build's wake service while the
+/// process lives; does nothing elsewhere, without a service, or in a build
+/// no push service wakes.
 final wakeRegistrationProvider = Provider<void>((ref) {
-  final device = ref.watch(iosSystemCallsProvider);
+  final device = ref.watch(wakeDeviceProvider);
   if (device == null || kWakeServiceUrl.isEmpty) return;
   final client = WakeClient();
+  Timer? sync;
+  var disposed = false;
+  ref.onDispose(() {
+    disposed = true;
+    sync?.cancel();
+    device.onTokens = null;
+    client.close();
+  });
+  unawaited(device.wakeable().then((wakeable) {
+    if (wakeable && !disposed) sync = _keepRegistered(ref, device, client);
+  },
+      onError: (Object error) => api.noteWakeRegistration(
+          problem: 'push service unknown: ${error.runtimeType}')));
+});
+
+/// Registers now and whenever the tokens change, and keeps the chats'
+/// preview keys where the push's receiver reads them; the timer that does
+/// the latter is returned for disposal.
+Timer _keepRegistered(Ref ref, WakeDevice device, WakeClient client) {
   final registrar = WakeRegistrar(
       service: Uri.parse(kWakeServiceUrl),
       device: device,
@@ -46,7 +71,7 @@ final wakeRegistrationProvider = Provider<void>((ref) {
   Future<void> run() async {
     try {
       if (!await registrar.run()) {
-        await api.noteWakeRegistration(problem: 'no VoIP push token yet');
+        await api.noteWakeRegistration(problem: 'no push token yet');
       }
     } on HttpException catch (error) {
       await api.noteWakeRegistration(problem: error.message);
@@ -56,19 +81,14 @@ final wakeRegistrationProvider = Provider<void>((ref) {
     }
   }
 
-  // iOS shows the service's message alerts only with this permission.
+  // Message alerts show only with this permission.
   unawaited(ref.read(notificationsReadyProvider.future));
   device.onTokens = () => unawaited(run());
   unawaited(run());
-  // Missed now, the next tick writes it; until then the extension shows
+  // Missed now, the next tick writes it; until then the receiver shows
   // "New message" for a chat whose key it lacks.
   final previews =
       WakePreviews(read: api.previewChats, save: device.savePreviews);
-  final sync = Timer.periodic(const Duration(seconds: 1),
+  return Timer.periodic(const Duration(seconds: 1),
       (_) => unawaited(previews.sync().catchError((Object _) {})));
-  ref.onDispose(() {
-    sync.cancel();
-    device.onTokens = null;
-    client.close();
-  });
-});
+}

@@ -13,6 +13,12 @@ plugins {
 // F-Droid builds the release itself and signs it with its own key.
 val unsignedRelease = providers.gradleProperty("moshUnsignedRelease").orNull == "true"
 
+// The Google Play and GitHub builds are woken through Firebase Cloud Messaging
+// (-PmoshFcm=true, ADR 0055); F-Droid's and a plain `flutter build` stay free
+// of Google. Everything FCM needs is in src/fcm, with its build in
+// src/fcm/fcm.gradle.kts (outside the module root, which Android Lint scans).
+val fcm = providers.gradleProperty("moshFcm").orNull == "true"
+
 val releaseKeystore = Properties().apply {
     rootProject.file("key.properties").takeIf(File::isFile)
         ?.inputStream()?.use(::load)
@@ -47,6 +53,7 @@ val androidNdkVersion = providers.environmentVariable("MOSH_ANDROID_NDK_VERSION"
 
 android {
     sourceSets.getByName("main").assets.srcDir(rootProject.projectDir.parentFile.resolve(".dart_tool/android-media/assets"))
+    sourceSets.getByName("main").kotlin.directories.add(if (fcm) "src/fcm/kotlin" else "src/foss/kotlin")
     namespace = "app.mosh.mosh"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = androidNdkVersion
@@ -137,6 +144,8 @@ dependencies {
 flutter {
     source = "../.."
 }
+
+if (fcm) apply { from("src/fcm/fcm.gradle.kts") }
 
 val verifyReleaseSigning = tasks.register("verifyReleaseSigning") {
     doLast {

@@ -2,6 +2,7 @@
     <string name="mosh_notification_channel">Mosh-Benachrichtigungen</string>
     <string name="mosh_call_channel">Eingehende Anrufe</string>
     <string name="mosh_new_message">Neue Nachricht</string>
+    <string name="mosh_wake_call">Jemand ruft Sie an. Öffnen Sie Mosh, um anzunehmen.</string>
     <string name="mosh_waiting_channel">Nachrichten und Anrufe im Hintergrund</string>
     <string name="mosh_waiting_starting">Verbindung wird hergestellt…</string>
     <string name="mosh_waiting_ready">Warte auf Nachrichten und Anrufe</string>

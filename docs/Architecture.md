@@ -41,7 +41,7 @@ flowchart LR
 | `mosh-core/src/moss_ffi/` | Native symbols, callbacks and node operations | `symbols.rs`, `callbacks.rs`, `node.rs` |
 | `mosh-core/src/mls_crypto/` | MLS setup, commits, messages and restoration | `setup.rs`, `commits.rs`, `storage.rs` |
 | `mosh-probe/src/` | Headless reachability diagnostics | `cli.rs`, `dm.rs`, `group.rs`, `channel.rs` |
-| `mosh-wake/src/` | Service that wakes a closed iPhone with an Apple push; texts in it are sealed for the phone | `app.ts`, `push.ts` |
+| `mosh-wake/src/` | Service that wakes a closed phone with an Apple or FCM push; texts in it are sealed for the phone | `app.ts`, `push.ts` |
 | `test/support/` | Scripted bridge and widget dependencies | `scriptable_gateway.dart`, `scriptable_bridge.dart` |
 | `mosh-core/tests/support/` | Independent native installation fixtures | Device-link and transport harnesses |
 
@@ -416,7 +416,12 @@ and the other members keep it per device in the chat's record
 `private_group_runtime/wake.rs`). When a call rings or texts wait for such a
 device that has gone quiet, the runtime asks Dart (through `api/wake.rs`) to
 send the wake service a request, and the service pushes the phone through Apple
-([plan](Proposals/ios-background-delivery.plan.md)). Desktop and Android make
+([plan](Proposals/ios-background-delivery.plan.md)). Our own Android builds
+announce an address too and are pushed through FCM, so a phone whose background
+waiting was stopped still gets messages and calls
+([ADR 0055](ADR/0055-android-wakes-through-fcm.md)); F-Droid's build has no
+push service. A phone repeats its group announcements only while Mosh is on
+screen. Desktop and Android make
 that request only while Mosh runs as an app, and every build only to the
 service it was built with (`MOSH_WAKE_URL`), so a contact cannot point it
 anywhere else.

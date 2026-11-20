@@ -4,8 +4,8 @@ import { createServer, type IncomingHttpHeaders } from "node:http2";
 import type { AddressInfo } from "node:net";
 import { after, test } from "node:test";
 import { Http2Apns } from "../src/apns-http2.ts";
-import { ProviderToken } from "../src/push.ts";
-import type { Device } from "../src/store.ts";
+import { ProviderToken } from "../src/apns.ts";
+import type { AppleDevice } from "../src/store.ts";
 
 const keys = generateKeyPairSync("ec", { namedCurve: "P-256" });
 const p8 = keys.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
@@ -31,7 +31,9 @@ async function fakeApns(reply: { status: number; body?: string }) {
   return { apns, seen };
 }
 
-const device: Device = { handle: "h", secretHash: "s", apns: "aa", voip: "bb", environment: "production" };
+const device: AppleDevice = {
+  handle: "h", secretHash: "s", platform: "apple", apns: "aa", voip: "bb", environment: "production",
+};
 
 test("a call goes as a VoIP push that expires at once, signed by the team's key", async () => {
   const { apns, seen } = await fakeApns({ status: 200 });
@@ -94,4 +96,10 @@ test("Apple's answers map to sent, gone and failed", async () => {
     const { apns } = await fakeApns(reply);
     assert.equal(await apns.send(device, "aa", { kind: "message" }), expected, reply.body);
   }
+});
+
+test("a key that cannot sign fails the push instead of throwing", async () => {
+  const apns = new Http2Apns(new ProviderToken({ p8: "not a key", keyId: "KEY123", teamId: "TEAM456" }), "app.mosh.mosh");
+  after(() => apns.close());
+  assert.equal(await apns.send(device, "aa", { kind: "message" }), "failed");
 });

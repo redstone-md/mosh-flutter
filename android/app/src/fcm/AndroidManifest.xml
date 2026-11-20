@@ -1,0 +1,12 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- FCM reaches the phone by its Firebase installation id (register(), onRegistered). -->
+        <meta-data android:name="firebase_messaging_installation_id_enabled" android:value="true"/>
+        <!-- Wake pushes (ADR 0055); only the Google Play and GitHub builds have it. -->
+        <service android:name=".MoshFcmService" android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

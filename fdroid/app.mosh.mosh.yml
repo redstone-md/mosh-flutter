@@ -34,6 +34,8 @@ Builds:
       - windows
       - moss/examples
       - moss/internal/geo/GeoLite2-Country.mmdb.gz
+      - android/app/src/fcm
+      - android/app/src/fcmTest
     prebuild: fdroid/build.sh prebuild $$flutter$$ $$rustup$$
     build: fdroid/build.sh build $$flutter$$
     ndk: r28c
@@ -50,9 +52,12 @@ MaintainerNotes: |-
   No anti-features apply. The F-Droid build sells no Mosh+ membership and never contacts the billing
   server; it shows a membership bought elsewhere, verified offline against the
   public key in fdroid/build.sh. Crash reports are off: the build has no Sentry
-  DSN. Peers find each other through public BitTorrent trackers and DHT and
-  public STUN servers, not a service run by the developers. The GeoIP database
-  is only used by Moss builds with the geoip tag, which Mosh does not set.
+  DSN. Our own builds can be woken through Firebase Cloud Messaging; that
+  code and its build live in android/app/src/fcm, which the recipe removes,
+  and the F-Droid build never sets -PmoshFcm. Peers find each other through
+  public BitTorrent trackers and DHT and public STUN servers, not a service
+  run by the developers. The GeoIP database is only used by Moss builds with
+  the geoip tag, which Mosh does not set.
   .
   Toolchains come the usual way: Rust through rustup, and Go 1.25.9, newer
   than Debian's, through Go's own toolchain download (GOTOOLCHAIN in
