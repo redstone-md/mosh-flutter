@@ -26,7 +26,7 @@ impl PrivateGroupRuntime {
                 // ("secret deleted for forward secrecy"); drop and keep going,
                 // mirroring the DM runtime.
                 if let Err(error) = session.handle_moss_message(message) {
-                    dlog::write(
+                    dlog::write_repeating(
                         LogLevel::Warn,
                         kinds::FRAME,
                         &group_id,
@@ -38,7 +38,7 @@ impl PrivateGroupRuntime {
         let mut history_ready = Vec::new();
         for session in self.groups.values_mut() {
             if let Err(error) = session.retry_pending_join() {
-                dlog::write(
+                dlog::write_repeating(
                     LogLevel::Warn,
                     kinds::FRAME,
                     &session.group_id,
@@ -46,7 +46,7 @@ impl PrivateGroupRuntime {
                 );
             }
             if let Err(error) = session.apply_deletions() {
-                dlog::write(
+                dlog::write_repeating(
                     LogLevel::Warn,
                     kinds::PERSIST,
                     &session.group_id,
@@ -60,7 +60,7 @@ impl PrivateGroupRuntime {
             // ADR 0005: a roster change may legitimize lag-buffered commits.
             session.sync_roster_state();
             if let Err(error) = session.sync_names() {
-                dlog::write(
+                dlog::write_repeating(
                     LogLevel::Warn,
                     kinds::FRAME,
                     &session.group_id,
@@ -86,7 +86,7 @@ impl PrivateGroupRuntime {
             let session = self.groups.get_mut(id).expect("open history-ready group");
             let before = session.messages.len();
             if let Err(error) = session.sync_history(now_ms()) {
-                dlog::write(
+                dlog::write_repeating(
                     LogLevel::Warn,
                     kinds::FRAME,
                     &session.group_id,

@@ -80,6 +80,17 @@ why it aborts. Once the data directory is known, stderr goes to
 holds a fatal error or a panic, that line goes into a `startup` error
 line and, with consent, a crash report.
 
+## Repeating lines
+
+A retry loop that fails the same way on every turn would push everything
+else out of the file. Such call sites write through
+`dlog::write_repeating`: the same level, kind, context and message is
+written once per five minutes, and the next copy written ends with
+`(repeated N more times)`. Up to 256 lines are tracked at once; past
+that, a new line is written as is rather than lost. The group runtime's
+per-turn warnings (inbound frames dropped, history, admission, deletion
+and name sync deferred) use it.
+
 ## Rotation policy
 
 - The live file is `<data dir>/logs/mosh.log`; a write that would push
@@ -129,6 +140,9 @@ test filter):
   contract: an occupied file path reports no path and drops lines.
 - `the_global_sink_reports_the_resolved_path` — `current_log_path`
   agrees with the resolved data dir.
+- `diagnostics_log/repeats.rs` — a repeating line is written once per
+  window with its held-back count, each line has its own window, and a
+  full table still writes new lines.
 - The panel path is pinned in `api/diagnostics.rs`
   (`moss_library_info_reports_the_loaded_library`): the first
   `moss_library_info` call files the library version under the

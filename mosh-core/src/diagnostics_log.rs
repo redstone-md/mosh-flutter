@@ -10,6 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::api::shared_runtime::resolved_data_dir;
 mod crash_output;
+mod repeats;
 mod timestamp;
 use timestamp::{iso8601_utc, now_unix_secs};
 
@@ -193,6 +194,31 @@ pub fn write(level: LogLevel, kind: &str, context_id: &str, message: &str) {
     let _writing = Writing::enter();
     let sink = guard.get_or_insert_with(|| LogSink::new(logs_dir(), MAX_FILE_BYTES));
     sink.write_line(level, kind, context_id, message);
+}
+
+/// The lines retry loops wrote lately, kept apart from the sink's lock.
+static REPEATS: Mutex<Option<repeats::Repeats>> = Mutex::new(None);
+
+/// [`write`] for a line a retry loop hits every turn: the same level, kind,
+/// context and message is written once per five minutes, and the next
+/// written copy counts the repeats held back in between.
+pub fn write_repeating(level: LogLevel, kind: &str, context_id: &str, message: &str) {
+    let line = format!("{level} {kind} {context_id} {message}");
+    let admitted = REPEATS
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .get_or_insert_with(Default::default)
+        .admit(&line, u64::try_from(now_unix_secs()).unwrap_or_default());
+    match admitted {
+        Some(0) => write(level, kind, context_id, message),
+        Some(held) => write(
+            level,
+            kind,
+            context_id,
+            &format!("{message} (repeated {held} more times)"),
+        ),
+        None => {}
+    }
 }
 
 thread_local! {

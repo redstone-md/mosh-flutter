@@ -15,7 +15,7 @@ impl GroupSession {
                 } else {
                     HistorySyncReason::EvidenceMissing
                 });
-                dlog::write(
+                dlog::write_repeating(
                     LogLevel::Warn,
                     kinds::FRAME,
                     &self.group_id,
@@ -193,7 +193,7 @@ impl PrivateGroupRuntime {
                 session.queue_history(frame, true, &sender)
             })();
             if let Err(error) = result {
-                dlog::write(
+                dlog::write_repeating(
                     LogLevel::Warn,
                     kinds::FRAME,
                     &session.group_id,
