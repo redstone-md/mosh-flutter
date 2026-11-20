@@ -12,6 +12,8 @@ import 'background/types.dart';
 import 'conversation.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `on_screen`
+
 /// Only opaque one-use action capabilities authorize a notification action.
 Future<BackgroundCallActionResult> applyBackgroundCallAction(
         {required String capability}) =>
