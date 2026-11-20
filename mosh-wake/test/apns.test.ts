@@ -97,3 +97,9 @@ test("Apple's answers map to sent, gone and failed", async () => {
     assert.equal(await apns.send(device, "aa", { kind: "message" }), expected, reply.body);
   }
 });
+
+test("a key that cannot sign fails the push instead of throwing", async () => {
+  const apns = new Http2Apns(new ProviderToken({ p8: "not a key", keyId: "KEY123", teamId: "TEAM456" }), "app.mosh.mosh");
+  after(() => apns.close());
+  assert.equal(await apns.send(device, "aa", { kind: "message" }), "failed");
+});

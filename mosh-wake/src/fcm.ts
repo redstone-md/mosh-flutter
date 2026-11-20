@@ -58,11 +58,14 @@ export function fcmMessage(wake: Wake, fid: string): FcmMessage {
   return { message: { fid, data: { kind: "message" }, android: { priority: "HIGH", collapse_key: "mosh-message" } } };
 }
 
-/** Maps FCM's answer: an unregistered installation, or one of another project, is dead. */
+/**
+ * Maps FCM's answer: only an unregistered installation is dead. Another
+ * project's (SENDER_ID_MISMATCH) means this host has the wrong key, which
+ * must not erase the phones' registrations.
+ */
 export function fcmResult(status: number, body: string): PushResult {
   if (status === 200) return "sent";
-  const codes = errorCodes(body);
-  return codes.includes("UNREGISTERED") || codes.includes("SENDER_ID_MISMATCH") ? "gone" : "failed";
+  return errorCodes(body).includes("UNREGISTERED") ? "gone" : "failed";
 }
 
 /** The `errorCode`s of an FCM error answer; none when it is not one. */

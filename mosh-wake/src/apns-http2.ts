@@ -23,8 +23,8 @@ export class Http2Apns implements Pusher<AppleDevice> {
   }
 
   async send(device: AppleDevice, token: string, wake: Wake): Promise<PushResult> {
-    const request = apnsRequest(wake, token, this.topic, await this.token.current());
     try {
+      const request = apnsRequest(wake, token, this.topic, await this.token.current());
       const { status, body } = await this.post(device.environment, request.path, request.headers, request.body);
       return apnsResult(status, reasonOf(body));
     } catch (error) {

@@ -97,7 +97,7 @@ test("FCM's answers map to sent, gone and failed", async () => {
   });
   const cases = [
     [error(404, "UNREGISTERED"), "gone"],
-    [error(403, "SENDER_ID_MISMATCH"), "gone"],
+    [error(403, "SENDER_ID_MISMATCH"), "failed"],
     [error(400, "INVALID_ARGUMENT"), "failed"],
     [error(429, "QUOTA_EXCEEDED"), "failed"],
     [{ status: 503, body: "not json" }, "failed"],
