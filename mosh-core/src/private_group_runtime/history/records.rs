@@ -170,7 +170,8 @@ impl GroupRecord {
             }));
         }
         // A text from a client older than signed origins has no identity an
-        // imported copy could match; it stays local and is never exported.
+        // imported copy could match. It stays local: an export that reaches
+        // it answers Unavailable, so missing evidence never reads as complete.
         let Some(origin) = row
             .message
             .metadata

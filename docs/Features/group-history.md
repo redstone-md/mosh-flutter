@@ -26,6 +26,14 @@ attempt retirement settle in one transaction. Refused settlement remains in the
 ordinary pending writer and does not publish a second copy. Failed and pending
 sends do not enter export manifests.
 
+A text from a client older than signed origins is kept and shown, but it has
+no MessageOrigin to prove: it is not an occurrence an imported copy could match,
+and an export that reaches it answers Unavailable, so the requester looks for
+another source instead of reading the history as complete. It never stops this
+installation's own rounds. A round that fails waits for the next probe rather
+than retrying on every service turn, and this installation's own room probes,
+which Moss hands back, are ignored.
+
 Attachment offers retain the complete original and preview manifests in the
 ordinary encrypted history row. Public acceptance evidence serializes hashes,
 original signatures and context facts, never a second plaintext copy of the

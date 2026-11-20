@@ -89,7 +89,7 @@ written once per five minutes, and the next copy written ends with
 `(repeated N more times)`. Up to 256 lines are tracked at once; past
 that, a new line is written as is rather than lost. The group runtime's
 per-turn warnings (inbound frames dropped, history, admission, deletion
-and name sync deferred) use it.
+and name sync deferred, history requests it cannot answer) use it.
 
 ## Rotation policy
 

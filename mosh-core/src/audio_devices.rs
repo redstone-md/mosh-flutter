@@ -57,33 +57,26 @@ pub fn save(config_dir: &Path, setting: &AudioDevicesSetting) -> std::io::Result
     fs::write(setting_path(config_dir), body)
 }
 
-/// Resolves the stored output pick to a cpal device for a stream start
-/// (playback, ringtone). Order: an explicit pick that matches a live
-/// device wins; a pick that fails to parse or no longer exists logs and
-/// falls back to the default device; `None` (or an empty string) goes
-/// straight to the default. The fallback is the designed behavior, not an
-/// error — a device unplugged between runs must never break a call or a
-/// ringtone.
-///
-/// Lives HERE, not in `api::audio_devices`: the frb scanner mirrors every
-/// public fn in an `api::` module, and a cpal `Device` is not a
-/// bridgeable type. The two stream starts in `api::voice_call_*` call it
-/// directly.
 /// The error callback for every output stream.
 pub fn log_stream_error(context: &str, error: &cpal::Error) {
+    let level = stream_error_level(error, cfg!(target_os = "ios"));
+    let what = match level {
+        LogLevel::Info => "rerouted",
+        _ => "error",
+    };
     dlog::write(
-        stream_error_level(error, cfg!(target_os = "ios")),
+        level,
         kinds::VOICE,
         context,
-        &format!("cpal stream error: {error:?}"),
+        &format!("cpal stream {what}: {error:?}"),
     );
 }
 
 /// cpal reports a default-device switch as `DeviceChanged` after it has
 /// already moved the stream to the new device. On iOS it reports an audio
 /// session route change, as when a call sets the session up while the
-/// ringtone plays, as `StreamInvalidated`, and leaves the stream running.
-/// Both are notes, not failures.
+/// ringtone plays, as `StreamInvalidated`; cpal does not stop the stream
+/// for it. Both are notes, not failures.
 fn stream_error_level(error: &cpal::Error, ios: bool) -> LogLevel {
     match error.kind() {
         cpal::ErrorKind::DeviceChanged => LogLevel::Info,
@@ -97,6 +90,18 @@ fn stream_error_level(error: &cpal::Error, ios: bool) -> LogLevel {
 /// cpal's message for an iOS route change (`session_event_manager.rs`).
 const IOS_ROUTE_CHANGED: &str = "Audio route changed";
 
+/// Resolves the stored output pick to a cpal device for a stream start
+/// (playback, ringtone). Order: an explicit pick that matches a live
+/// device wins; a pick that fails to parse or no longer exists logs and
+/// falls back to the default device; `None` (or an empty string) goes
+/// straight to the default. The fallback is the designed behavior, not an
+/// error — a device unplugged between runs must never break a call or a
+/// ringtone.
+///
+/// Lives HERE, not in `api::audio_devices`: the frb scanner mirrors every
+/// public fn in an `api::` module, and a cpal `Device` is not a
+/// bridgeable type. The two stream starts in `api::voice_call_*` call it
+/// directly.
 pub fn resolve_output_device(stored_id: Option<&str>) -> Result<Device, String> {
     let host = default_host();
     match resolve_decision(stored_id) {
