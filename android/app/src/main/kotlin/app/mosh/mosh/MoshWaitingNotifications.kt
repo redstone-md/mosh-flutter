@@ -48,9 +48,15 @@ internal class MoshWaitingNotifications(
      * text under its name, after a group member's [author] name, counting the
      * ones before; or one "New message" for every preview that could not be
      * opened (`chat` null). Both names follow the names setting. */
-    fun publishWoken(chat: String?, title: String?, author: String?, text: String?): String {
+    fun publishWoken(chat: String?, title: String?, author: String?, text: String?): String =
+        postWoken(WOKEN + (chat?.let(::digest) ?: ""), title, author, text)
+
+    /** A call wake that could not start Mosh: the call cannot ring, so the user
+     * learns of it apart from any "New message". */
+    fun publishMissedCall(): String = postWoken("${WOKEN}call", null, null, context.getString(R.string.mosh_wake_call))
+
+    private fun postWoken(tag: String, title: String?, author: String?, text: String?): String {
         if (!allowed()) return "blocked"
-        val tag = WOKEN + (chat?.let(::digest) ?: "")
         return try {
             val shown = manager.activeNotifications.firstOrNull { it.tag == tag && it.id == MESSAGE_ID }
             val notification = build(title, text, (shown?.notification?.number ?: 0) + 1, true, author)

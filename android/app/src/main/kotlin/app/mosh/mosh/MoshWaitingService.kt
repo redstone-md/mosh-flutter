@@ -42,7 +42,7 @@ class MoshWaitingService : Service() {
             // A call wake: started whatever the waiting choice, which it leaves as it is.
             if (getSystemService(UserManager::class.java).isUserUnlocked != true) { finishWaiting(); return START_NOT_STICKY }
             startupWake.acquire(15_000)
-            startRuntime { it.waiting.woken() }
+            if (!startRuntime { it.waiting.woken() }) MoshWaitingNotifications.standalone(this).publishMissedCall()
             return START_NOT_STICKY
         }
         if (intent?.action == STOP) {
@@ -145,8 +145,7 @@ class MoshWaitingService : Service() {
             } catch (_: RuntimeException) {
                 // Android refused a start from the background: the call cannot ring,
                 // so the user learns of it and can open Mosh.
-                MoshWaitingNotifications.standalone(context).publishWoken(null, null, null,
-                    context.getString(R.string.mosh_wake_call))
+                MoshWaitingNotifications.standalone(context).publishMissedCall()
             }
         }
 

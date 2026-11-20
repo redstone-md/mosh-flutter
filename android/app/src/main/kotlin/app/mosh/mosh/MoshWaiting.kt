@@ -32,6 +32,10 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
     private val media = MoshWaitingMedia(context, { calls.interactive }, ::start)
     val transfers = MoshUserTransfers(context, { interactive }, ::transferExecutionChanged,
         { channel.transferActionsChanged() })
+    @Volatile private var reachable = false
+    /** Moss is reachable on screen or in the background, so Mosh's own delivery
+     * shows what wake pushes stand for. */
+    val connected: Boolean get() = reachable && (MoshWaitingService.running || interactive)
     val interactive: Boolean get() = resumed && activity != null &&
         context.getSystemService(PowerManager::class.java).isInteractive &&
         !context.getSystemService(KeyguardManager::class.java).isDeviceLocked
@@ -50,7 +54,6 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
 
     fun resumed() {
         resumed = true
-        notifications.clearWoken()
         execution.changed()
         if (restriction in setOf("keyUnavailable", "nativeUnavailable")) restriction = null
         if (policy.shouldWait() && !MoshWaitingService.running) start()
@@ -98,6 +101,8 @@ internal class MoshWaiting(private val context: Context, messenger: BinaryMessen
             calls.work(count(value["currentCalls"]))
             if (count(value["currentCalls"]) == 0) MoshWaitingService.mediaTypes(false, false)
             val reachability = value["reachability"] as? String ?: "unavailable"
+            reachable = reachability == "ready"
+            if (reachable && interactive) notifications.clearWoken()
             if (!policy.snapshot().waitingEnabled && !callWake.open && execution.canRelease(interactive)) {
                 MoshWaitingService.finishWaiting()
             } else MoshWaitingService.updateStatus(reachability == "ready",

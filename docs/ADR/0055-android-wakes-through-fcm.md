@@ -50,26 +50,30 @@ any announced address through the build's service.
   goes through the background delivery publisher, so the lock screen settings
   for names and text apply, to a group member's name too. A preview it cannot
   open shows "New message", and so does a push of an unknown kind.
-  Opening Mosh clears these notifications: the messages arrive over Moss then.
+  Mosh clears these notifications once it is on screen with Moss reachable,
+  since the messages arrive over Moss then; opened offline, it keeps them.
 - **Calls.** A call push starts the background waiting service for 45 s from
   the push, without changing the saved waiting choice; a call that rings keeps
   Mosh connected past that.
   Moss connects, the caller's re-sent offer arrives, and the call rings
   full-screen through the existing call notification. Nothing rings before the
   offer arrives, so there is nothing to answer before the caller is known.
-  When Android refuses to start the service from the background, the push
-  shows a notice that someone is calling, so the user can open Mosh.
-- **Connected phones.** While Mosh is connected (on screen, or waiting in the
-  background), a push shows nothing, because Moss delivers the message itself.
+  When Android refuses to start the service from the background, or Mosh
+  cannot start in it, the push shows a notice that someone is calling, apart
+  from any "New message", so the user can open Mosh.
+- **Connected phones.** While Mosh runs (on screen, or waiting in the
+  background) and Moss is reachable, a push shows nothing, because Moss
+  delivers the message itself; a running Mosh that cannot reach Moss shows it.
   Groups have no keepalive. A phone repeats its group announcements every 10 s
-  only while Mosh is on screen. Off screen, a group's members take it for
+  only while Mosh is on screen, behind its app lock too. Off screen, a group's members take it for
   absent after 25 s and wake it, so a connected phone may receive pushes it
   does not show.
 
 ## Consequences
 
-- The FCM build depends on Google Play services. Without them, or after the
-  user force-stops Mosh, only background waiting delivers.
+- The FCM build depends on Google Play services. Without them only
+  background waiting delivers. After the user force-stops Mosh nothing does,
+  neither pushes nor waiting, until Mosh is opened again.
 - Google learns when a phone is woken and whether for a call, as Apple does for
   iPhones. Previews stay sealed end to end.
 - FCM may deprioritize an app whose high-priority messages show no

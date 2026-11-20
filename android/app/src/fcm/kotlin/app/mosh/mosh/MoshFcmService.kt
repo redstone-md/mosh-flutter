@@ -37,9 +37,9 @@ class MoshFcmService : FirebaseMessagingService() {
         return MoshPreviewBook.parse(chats)?.open(preview)
     }
 
-    /** Mosh runs with Moss: on screen, or waiting in the background. */
+    /** Mosh runs with Moss reachable, on screen or waiting in the background. */
     private fun connected(): Boolean {
         val runtime = (application as MoshApplication).existingRuntime ?: return false
-        return runtime.engine.dartExecutor.isExecutingDart && (MoshWaitingService.running || runtime.waiting.interactive)
+        return runtime.engine.dartExecutor.isExecutingDart && runtime.waiting.connected
     }
 }
