@@ -26,8 +26,8 @@ any announced address through the build's service.
 - **Two builds.** `-PmoshFcm=true` adds `android/app/src/fcm`: its build
   (`fcm.gradle.kts`, kept out of the module root, which Android Lint scans),
   Firebase Messaging, Tink and the messaging service.
-  The release workflow sets it when the `MOSH_FIREBASE_CONFIG` secret holds the
-  project's `google-services.json`. F-Droid's recipe removes `src/fcm`, and a
+  The release workflow always sets it, with the project's `google-services.json`
+  from the `MOSH_FIREBASE_CONFIG` secret, and fails without that secret. F-Droid's recipe removes `src/fcm`, and a
   plain `flutter build` does not set the property, so neither build has Google
   code. Both builds share `src/main`; each takes its own `MoshPush` from
   `src/fcm` or `src/foss`. A Gradle property was chosen over product flavours

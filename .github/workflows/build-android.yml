@@ -5,7 +5,7 @@ name: Build Android release
 # release feed, `rustore` is the RuStore upload (no self-update, Mosh+ shows
 # only the membership). Both use the same signing key, so either installs over
 # the other. F-Droid builds the `fdroid` channel itself (fdroid/build.sh).
-# These builds are woken through Firebase Cloud Messaging (ADR 0055) once the
+# These builds are woken through Firebase Cloud Messaging (ADR 0055): the
 # MOSH_FIREBASE_CONFIG secret holds the Firebase project's google-services.json.
 
 on:
@@ -88,26 +88,23 @@ jobs:
           MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
         run: node scripts/plus-build-config.mjs "build/android-dist/plus-build$SUFFIX.json"
 
-      # Until the owner adds the Firebase project, the build has no push
-      # service and receives only through background waiting, as F-Droid's.
+      # Every Google Play, GitHub and RuStore build is woken through FCM; a
+      # release without the Firebase project would silently lose that.
       - name: Restore Firebase configuration
-        id: firebase
         shell: bash
         env:
           MOSH_FIREBASE_CONFIG: ${{ secrets.MOSH_FIREBASE_CONFIG }}
         run: |
           set -euo pipefail
           if [ -z "$MOSH_FIREBASE_CONFIG" ]; then
-            echo '::warning::MOSH_FIREBASE_CONFIG is not set: this build is not woken through FCM'
-            exit 0
+            echo '::error::MOSH_FIREBASE_CONFIG is not set: the release would not be woken through FCM'
+            exit 1
           fi
           printf '%s' "$MOSH_FIREBASE_CONFIG" > android/app/google-services.json
-          echo 'gradle=--android-project-arg=moshFcm=true' >> "$GITHUB_OUTPUT"
 
       - name: Build signed release APK
         shell: bash
         env:
-          FCM: ${{ steps.firebase.outputs.gradle }}
           MOSH_DISTRIBUTION_CHANNEL: ${{ inputs.distribution-channel }}
           MOSH_PLUS_SERVER_URL: ${{ vars.MOSH_PLUS_SERVER_URL }}
           MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
@@ -124,7 +121,7 @@ jobs:
             "--dart-define=MOSH_PLUS_SERVER_URL=$MOSH_PLUS_SERVER_URL" \
             "--dart-define=MOSH_PLUS_ISSUER_KEY=$MOSH_PLUS_ISSUER_KEY" \
             "--dart-define=MOSH_WAKE_URL=$MOSH_WAKE_URL" \
-            ${FCM:+"$FCM"}
+            --android-project-arg=moshFcm=true
 
       # Preserve expensive native compilation even if package validation fails.
       - uses: actions/cache/save@v4
