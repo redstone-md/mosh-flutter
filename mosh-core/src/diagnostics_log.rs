@@ -6,7 +6,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex, OnceLock};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use crate::api::shared_runtime::resolved_data_dir;
 mod crash_output;
@@ -198,6 +198,9 @@ pub fn write(level: LogLevel, kind: &str, context_id: &str, message: &str) {
 
 /// The lines retry loops wrote lately, kept apart from the sink's lock.
 static REPEATS: LazyLock<Mutex<repeats::Repeats>> = LazyLock::new(Default::default);
+/// The windows run on a monotonic clock: a wall clock set back must not keep
+/// a line quiet until it catches up.
+static REPEATS_EPOCH: LazyLock<Instant> = LazyLock::new(Instant::now);
 
 /// [`write`] for a line a retry loop hits every turn: the same level, kind,
 /// context and message is written once per five minutes, and the next
@@ -207,7 +210,7 @@ pub fn write_repeating(level: LogLevel, kind: &str, context_id: &str, message: &
     let admitted = REPEATS
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .admit(&line, u64::try_from(now_unix_secs()).unwrap_or_default());
+        .admit(&line, REPEATS_EPOCH.elapsed().as_secs());
     match admitted {
         Some(0) => write(level, kind, context_id, message),
         Some(held) => write(

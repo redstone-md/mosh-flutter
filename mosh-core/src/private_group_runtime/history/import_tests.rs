@@ -119,3 +119,30 @@ fn erased_slot_discards_partial_bytes_and_requires_the_verified_original_tombsto
     assert!(row.message.body.is_empty());
     assert!(row.message.metadata.unwrap().deletion.is_some());
 }
+
+// A text from a client older than signed origins holds its id: a signed
+// record claiming the same id and time cannot replace it.
+#[test]
+fn a_signed_record_cannot_replace_an_unsigned_text_with_its_id() {
+    use crate::conversation::{history::History, message_log::MessageLog};
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let (record, sender) = retained(&mut fixture, "signed claim");
+    let mut row: StoredMessage<GroupMessage> =
+        serde_json::from_slice(&fixture.store.list_group_messages(&fixture.id).unwrap()[0])
+            .unwrap();
+    row.message.metadata = None;
+    row.message.body = "unsigned original".into();
+    let mut log = MessageLog::default();
+    log.push(row.message);
+    History::new(GROUP_HISTORY)
+        .write_tail(&fixture.store, &fixture.id, &log, None)
+        .unwrap();
+
+    let session = fixture.runtime.groups.get_mut(&fixture.id).unwrap();
+    session.recovery.occurrences_ready = false;
+    session
+        .save_history(session.recovery.checkpoint.clone(), &[], &[], &[])
+        .unwrap();
+    assert!(session.imported_history_row(record, &sender).is_err());
+}
