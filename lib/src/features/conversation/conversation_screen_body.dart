@@ -273,8 +273,9 @@ class _ConversationEmpty extends StatelessWidget {
       ConversationKind.channel => (l.channelEmptyTitle, l.channelEmptyBody),
       ConversationKind.group => (l.groupEmptyTitle, l.groupEmptyBody),
     };
+    // Scrolls when large text does not fit a short or narrow pane.
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
