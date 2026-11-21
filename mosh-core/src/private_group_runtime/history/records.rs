@@ -92,12 +92,7 @@ impl GroupRecord {
         context: &str,
         mesh: &str,
     ) -> Result<Option<HistoryKey>, String> {
-        if row.message.name_change.is_some()
-            || matches!(
-                row.message.delivery_status,
-                Some(MessageDeliveryStatus::Failed | MessageDeliveryStatus::Pending)
-            )
-        {
+        if !Self::is_history(row) {
             return Ok(None);
         }
         if row
@@ -169,24 +164,45 @@ impl GroupRecord {
                 content_digest: None,
             }));
         }
-        let Some(key) = Self::key(row, context, mesh)? else {
-            return Ok(None);
-        };
-        let origin = row
+        let row_key = format!(
+            "{}\u{1}{:020}\u{1}{}",
+            row.conversation_id, row.sent_at_ms, row.message_id
+        );
+        let Some(origin) = row
             .message
             .metadata
             .as_ref()
             .and_then(|m| m.origin.as_ref())
-            .ok_or("group original evidence unavailable")?;
+        else {
+            // A text from a client older than signed origins stays local: an
+            // export that reaches it answers Unavailable. Its own identity
+            // matches no signed origin, so an imported record claiming its
+            // id conflicts instead of replacing it.
+            return Ok(Self::is_history(row).then(|| Occurrence {
+                native_id: row.message_id.clone(),
+                row_key,
+                identity: format!("legacy\u{1}{}", row.message_id),
+                content_digest: None,
+            }));
+        };
+        let Some(key) = Self::key(row, context, mesh)? else {
+            return Ok(None);
+        };
         Ok(Some(Occurrence {
             native_id: row.message_id.clone(),
-            row_key: format!(
-                "{}\u{1}{:020}\u{1}{}",
-                row.conversation_id, row.sent_at_ms, row.message_id
-            ),
+            row_key,
             identity: origin.key()?,
             content_digest: Some(key.digest),
         }))
+    }
+
+    /// Settled messages; name changes and unsent texts are not history.
+    fn is_history(row: &StoredMessage<GroupMessage>) -> bool {
+        row.message.name_change.is_none()
+            && !matches!(
+                row.message.delivery_status,
+                Some(MessageDeliveryStatus::Failed | MessageDeliveryStatus::Pending)
+            )
     }
 
     pub(super) fn verify_original(

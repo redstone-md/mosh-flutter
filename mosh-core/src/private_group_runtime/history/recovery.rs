@@ -57,12 +57,14 @@ impl GroupSession {
                 self.recovery.failed(now);
             }
             self.recovery.permit = None;
+            // Before the round: a round that fails waits for the next probe
+            // instead of retrying on every service turn.
+            self.recovery.probed(now);
             let next = self
                 .recovery
                 .begin_round()
                 .map_err(PrivateGroupError::Codec)?;
             self.save_history(next, &[], &[], &[])?;
-            self.recovery.probed(now);
             self.send_history(None, HistoryMessage::Probe)?;
         }
         Ok(())
@@ -91,3 +93,7 @@ impl GroupSession {
         format!("{}\u{1}local", self.deletions.context)
     }
 }
+
+#[cfg(test)]
+#[path = "recovery_tests.rs"]
+mod tests;

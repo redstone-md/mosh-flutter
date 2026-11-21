@@ -95,6 +95,10 @@ impl GroupSession {
         }
         if let ControlEnvelope::History { frame, .. } = envelope {
             self.require_author(&frame.sender_key, &sender)?;
+            // Moss hands this device's own room probes back to it.
+            if frame.sender_key == self.device_fingerprint {
+                return Ok(());
+            }
             return self.queue_history(frame, false, &sender);
         }
         self.require_application_sender(&sender)?;

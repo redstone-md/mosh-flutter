@@ -57,6 +57,39 @@ pub fn save(config_dir: &Path, setting: &AudioDevicesSetting) -> std::io::Result
     fs::write(setting_path(config_dir), body)
 }
 
+/// The error callback for every output stream.
+pub fn log_stream_error(context: &str, error: &cpal::Error) {
+    let level = stream_error_level(error, cfg!(target_os = "ios"));
+    let what = match level {
+        LogLevel::Info => "rerouted",
+        _ => "error",
+    };
+    dlog::write(
+        level,
+        kinds::VOICE,
+        context,
+        &format!("cpal stream {what}: {error:?}"),
+    );
+}
+
+/// cpal reports a default-device switch as `DeviceChanged` after it has
+/// already moved the stream to the new device. On iOS it reports an audio
+/// session route change, as when a call sets the session up while the
+/// ringtone plays, as `StreamInvalidated`; cpal does not stop the stream
+/// for it. Both are notes, not failures.
+fn stream_error_level(error: &cpal::Error, ios: bool) -> LogLevel {
+    match error.kind() {
+        cpal::ErrorKind::DeviceChanged => LogLevel::Info,
+        cpal::ErrorKind::StreamInvalidated if ios && error.message() == Some(IOS_ROUTE_CHANGED) => {
+            LogLevel::Info
+        }
+        _ => LogLevel::Error,
+    }
+}
+
+/// cpal's message for an iOS route change (`session_event_manager.rs`).
+const IOS_ROUTE_CHANGED: &str = "Audio route changed";
+
 /// Resolves the stored output pick to a cpal device for a stream start
 /// (playback, ringtone). Order: an explicit pick that matches a live
 /// device wins; a pick that fails to parse or no longer exists logs and
@@ -69,22 +102,6 @@ pub fn save(config_dir: &Path, setting: &AudioDevicesSetting) -> std::io::Result
 /// public fn in an `api::` module, and a cpal `Device` is not a
 /// bridgeable type. The two stream starts in `api::voice_call_*` call it
 /// directly.
-/// The error callback for every output stream. cpal reports a default-device
-/// switch as `DeviceChanged` after it has already moved the stream to the new
-/// device, so that one is a note, not a failure.
-pub fn log_stream_error(context: &str, error: &cpal::Error) {
-    let level = match error.kind() {
-        cpal::ErrorKind::DeviceChanged => LogLevel::Info,
-        _ => LogLevel::Error,
-    };
-    dlog::write(
-        level,
-        kinds::VOICE,
-        context,
-        &format!("cpal stream error: {error:?}"),
-    );
-}
-
 pub fn resolve_output_device(stored_id: Option<&str>) -> Result<Device, String> {
     let host = default_host();
     match resolve_decision(stored_id) {
@@ -145,6 +162,23 @@ fn log_fallback(message: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // MOSH-117: a call setting up the iPhone's audio session reroutes a
+    // ringtone that is still playing.
+    #[test]
+    fn an_ios_route_change_is_a_note_and_a_dead_stream_an_error() {
+        let route =
+            cpal::Error::with_message(cpal::ErrorKind::StreamInvalidated, IOS_ROUTE_CHANGED);
+        let reset = cpal::Error::with_message(
+            cpal::ErrorKind::StreamInvalidated,
+            "Audio media services were reset",
+        );
+        let switched = cpal::Error::new(cpal::ErrorKind::DeviceChanged);
+        assert_eq!(stream_error_level(&route, true), LogLevel::Info);
+        assert_eq!(stream_error_level(&route, false), LogLevel::Error);
+        assert_eq!(stream_error_level(&reset, true), LogLevel::Error);
+        assert_eq!(stream_error_level(&switched, false), LogLevel::Info);
+    }
 
     fn scratch(name: &str) -> PathBuf {
         let dir =

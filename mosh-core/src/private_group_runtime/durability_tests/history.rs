@@ -187,14 +187,13 @@ pub(in crate::private_group_runtime) fn member(
     (sender, SigningKey::from_bytes(&[83; 32]))
 }
 
-pub(super) fn text(
+pub(in crate::private_group_runtime) fn text(
     fixture: &Fixture,
     sender: &mut MlsSessionCrypto,
     identity: &SigningKey,
     id: &str,
     body: &str,
 ) -> MossReceivedMessage {
-    let session = fixture.runtime.groups.get(&fixture.id).unwrap();
     let peer = org_signing::peer_id_hex(identity);
     let origin = crate::message_deletion::MessageOrigin::sign_mls(
         &format!("group:{}", fixture.id),
@@ -205,8 +204,32 @@ pub(super) fn text(
         Some(&peer),
     )
     .unwrap();
+    data_text(fixture, sender, identity, id, body, Some(origin))
+}
+
+/// A text from a member whose client predates signed origins.
+pub(in crate::private_group_runtime) fn unsigned_text(
+    fixture: &Fixture,
+    sender: &mut MlsSessionCrypto,
+    identity: &SigningKey,
+    id: &str,
+    body: &str,
+) -> MossReceivedMessage {
+    data_text(fixture, sender, identity, id, body, None)
+}
+
+fn data_text(
+    fixture: &Fixture,
+    sender: &mut MlsSessionCrypto,
+    identity: &SigningKey,
+    id: &str,
+    body: &str,
+    origin: Option<crate::message_deletion::MessageOrigin>,
+) -> MossReceivedMessage {
+    let session = fixture.runtime.groups.get(&fixture.id).unwrap();
+    let peer = org_signing::peer_id_hex(identity);
     let envelope = DataEnvelope {
-        origin: Some(origin),
+        origin,
         group_id: fixture.id.clone(),
         participant_id: "independent-bob".into(),
         from_device: "Bob".into(),

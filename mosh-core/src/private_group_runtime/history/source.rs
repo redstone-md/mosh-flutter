@@ -32,7 +32,7 @@ impl GroupSession {
         ) {
             Ok(message) => message,
             Err(error) => {
-                dlog::write(
+                dlog::write_repeating(
                     LogLevel::Warn,
                     kinds::FRAME,
                     &self.group_id,

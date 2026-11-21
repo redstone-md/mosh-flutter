@@ -5,11 +5,12 @@ use std::fmt;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::{LazyLock, Mutex, OnceLock};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use crate::api::shared_runtime::resolved_data_dir;
 mod crash_output;
+mod repeats;
 mod timestamp;
 use timestamp::{iso8601_utc, now_unix_secs};
 
@@ -193,6 +194,33 @@ pub fn write(level: LogLevel, kind: &str, context_id: &str, message: &str) {
     let _writing = Writing::enter();
     let sink = guard.get_or_insert_with(|| LogSink::new(logs_dir(), MAX_FILE_BYTES));
     sink.write_line(level, kind, context_id, message);
+}
+
+/// The lines retry loops wrote lately, kept apart from the sink's lock.
+static REPEATS: LazyLock<Mutex<repeats::Repeats>> = LazyLock::new(Default::default);
+/// The windows run on a monotonic clock: a wall clock set back must not keep
+/// a line quiet until it catches up.
+static REPEATS_EPOCH: LazyLock<Instant> = LazyLock::new(Instant::now);
+
+/// [`write`] for a line a retry loop hits every turn: the same level, kind,
+/// context and message is written once per five minutes, and the next
+/// written copy counts the repeats held back in between.
+pub fn write_repeating(level: LogLevel, kind: &str, context_id: &str, message: &str) {
+    let line = format!("{level}\u{1}{kind}\u{1}{context_id}\u{1}{message}");
+    let admitted = REPEATS
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .admit(&line, REPEATS_EPOCH.elapsed().as_secs());
+    match admitted {
+        Some(0) => write(level, kind, context_id, message),
+        Some(held) => write(
+            level,
+            kind,
+            context_id,
+            &format!("{message} (repeated {held} more times)"),
+        ),
+        None => {}
+    }
 }
 
 thread_local! {
