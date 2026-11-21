@@ -77,40 +77,9 @@ class MoshColors {
   /// Keyboard focus ring, drawn 2px around the focused control.
   static const Color focusRing = onSurface;
 
-  // Names from before the redesign, each now a role. Screens still read
-  // them; new code reads the role, and the component work (MOSH-130)
-  // replaces these.
-  static const Color bg0 = surfaceContainerLowest;
-  static const Color bg1 = surface;
-  static const Color bg2 = surfaceContainerHigh;
-  static const Color bg3 = surfaceContainerHighest;
-  static const Color bg4 = surfaceBright;
-  static const Color line = outlineVariant;
-  static const Color lineStrong = outlineVariant;
-  static const Color fg1 = onSurface;
-  static const Color fg2 = onSurfaceVariant;
-  static const Color fg3 = onSurfaceMuted;
-  static const Color fg4 = outline;
-  static const Color moss = primary;
-  static const Color moss300 = primary;
-  static const Color mossGlow = secondaryContainer;
-  static const Color mossInk = onPrimary;
-  static const Color warn = warning;
-  static const Color danger = error;
-  static const Color dmAccent = primary;
-  static const Color groupAccent = secondary;
-  static const Color channelAccent = tertiary;
-  static const Color fieldBorder = outline;
-  static const Color channelTint = tertiaryContainer;
-  static const Color avatarSurface = avatar1;
-  static const Color warnSurface = warningContainer;
-  static const Color warnIconSurface = warningContainer;
-  static const Color warnBorder = warning;
-  static const Color dangerSurface = errorContainer;
-  static const Color dangerBorder = error;
-
-  /// Bubble of an own message while its text is still the light [fg1]:
-  /// a deep amber instead of [outgoing], which needs [onOutgoing] text.
+  /// Bubble of an own message while its text is still the light
+  /// [onSurface]: a deep amber instead of [outgoing], which needs
+  /// [onOutgoing] text.
   static const Color outgoingMessage = Color(0xFF45300C);
 }
 

@@ -41,7 +41,7 @@ class SetupHeading extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .bodyLarge
-                  ?.copyWith(color: MoshColors.fg2)),
+                  ?.copyWith(color: MoshColors.onSurfaceVariant)),
         ]);
   }
 }
@@ -52,7 +52,8 @@ class SetupPrivacyNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.lock_outline, size: 16, color: MoshColors.fg2),
+        const Icon(Icons.lock_outline,
+            size: 16, color: MoshColors.onSurfaceVariant),
         const SizedBox(width: 8),
         Flexible(
             child: Text(AppLocalizations.of(context)!.firstRunEncryption,

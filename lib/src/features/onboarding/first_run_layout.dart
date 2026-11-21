@@ -39,7 +39,7 @@ class SetupProgress extends StatelessWidget {
             if (compactLabels) ...[
               const SizedBox(height: 8),
               Text(labels[step.index],
-                  style: const TextStyle(color: MoshColors.fg2)),
+                  style: const TextStyle(color: MoshColors.onSurfaceVariant)),
             ],
           ]);
         }));
@@ -63,7 +63,7 @@ class SetupProgress extends StatelessWidget {
         child: visible
             ? Divider(
                 height: 1,
-                color: reached ? MoshColors.moss : MoshColors.lineStrong)
+                color: reached ? MoshColors.primary : MoshColors.outlineVariant)
             : const SizedBox.shrink());
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Row(children: [
@@ -75,7 +75,10 @@ class SetupProgress extends StatelessWidget {
         const SizedBox(height: 8),
         Text(label,
             textAlign: TextAlign.center,
-            style: TextStyle(color: active ? MoshColors.fg1 : MoshColors.fg2)),
+            style: TextStyle(
+                color: active
+                    ? MoshColors.onSurface
+                    : MoshColors.onSurfaceVariant)),
       ],
     ]);
   }
@@ -91,14 +94,18 @@ class SetupProgress extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: active ? MoshColors.mossGlow : MoshColors.bg1,
+                  color: active
+                      ? MoshColors.secondaryContainer
+                      : MoshColors.surface,
                   border: Border.all(
                       color: active || done
-                          ? MoshColors.moss
-                          : MoshColors.fieldBorder),
+                          ? MoshColors.primary
+                          : MoshColors.outline),
                   boxShadow: active
                       ? const [
-                          BoxShadow(color: MoshColors.mossGlow, blurRadius: 24)
+                          BoxShadow(
+                              color: MoshColors.secondaryContainer,
+                              blurRadius: 24)
                         ]
                       : null),
               child: AnimatedSwitcher(
@@ -107,7 +114,7 @@ class SetupProgress extends StatelessWidget {
                   switchOutCurve: setupStepCurve.flipped,
                   child: done
                       ? const Icon(Icons.check,
-                          size: 18, color: MoshColors.moss)
+                          size: 18, color: MoshColors.primary)
                       : Text('${index + 1}',
                           style: Theme.of(context).textTheme.titleMedium))));
 }
@@ -190,7 +197,8 @@ class SetupFrame extends StatelessWidget {
                 ? l.firstRunWelcomeBody
                 : l.firstRunNetworkIntro,
             textAlign: TextAlign.center,
-            style: text.bodyLarge?.copyWith(color: MoshColors.fg2)),
+            style:
+                text.bodyLarge?.copyWith(color: MoshColors.onSurfaceVariant)),
         if (step == SetupStep.name) ...[
           const SizedBox(height: 24),
           const SetupPrivacyNote(),

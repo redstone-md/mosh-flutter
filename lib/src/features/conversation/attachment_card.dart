@@ -186,7 +186,7 @@ class _FileCardShell extends StatelessWidget {
       padding: EdgeInsets.zero,
       decoration: BoxDecoration(
         borderRadius: MoshShapes.attachment,
-        border: failed ? Border.all(color: MoshColors.danger) : null,
+        border: failed ? Border.all(color: MoshColors.error) : null,
       ),
       child: child,
     );
@@ -216,7 +216,7 @@ Widget _buildBar({
         fileName,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 12.5, color: MoshColors.fg1),
+        style: const TextStyle(fontSize: 12.5, color: MoshColors.onSurface),
       ),
       const SizedBox(height: 2),
       _trailing(
@@ -270,7 +270,7 @@ Widget _attachmentMeta(
     overflow: TextOverflow.ellipsis,
     style: const TextStyle(
         fontSize: 11,
-        color: MoshColors.fg3,
+        color: MoshColors.onSurfaceMuted,
         fontFeatures: kLiveNumberFontFeatures),
   );
 }

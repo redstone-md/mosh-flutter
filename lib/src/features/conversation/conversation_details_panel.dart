@@ -38,7 +38,7 @@ class ConversationDetailsPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     return Material(
-      color: MoshColors.bg1,
+      color: MoshColors.surface,
       child: Column(
         children: [
           SizedBox(

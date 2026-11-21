@@ -84,9 +84,10 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                       child: _name.text.trim().isEmpty
                           ? CircleAvatar(
                               radius: radius,
-                              backgroundColor: MoshColors.avatarSurface,
+                              backgroundColor: MoshColors.avatar1,
                               child: Icon(Icons.person_outline,
-                                  size: radius * .8, color: MoshColors.fg2))
+                                  size: radius * .8,
+                                  color: MoshColors.onSurfaceVariant))
                           : Avatar(
                               name: _name.text,
                               radius: radius,

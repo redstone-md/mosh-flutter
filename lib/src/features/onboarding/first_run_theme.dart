@@ -18,26 +18,28 @@ ThemeData buildSetupTheme(ThemeData theme) {
         isDense: false,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        helperStyle: theme.textTheme.bodyLarge?.copyWith(color: MoshColors.fg2),
-        labelStyle: theme.textTheme.bodyLarge?.copyWith(color: MoshColors.fg2)),
+        helperStyle: theme.textTheme.bodyLarge
+            ?.copyWith(color: MoshColors.onSurfaceVariant),
+        labelStyle: theme.textTheme.bodyLarge
+            ?.copyWith(color: MoshColors.onSurfaceVariant)),
     filledButtonTheme: FilledButtonThemeData(
         style: button.merge(theme.filledButtonTheme.style)),
     outlinedButtonTheme: OutlinedButtonThemeData(
         style: button
             .copyWith(
-                foregroundColor: _foreground(MoshColors.fg1),
+                foregroundColor: _foreground(MoshColors.onSurface),
                 side: WidgetStateProperty.resolveWith((states) => BorderSide(
                     color: states.contains(WidgetState.focused)
                         ? MoshColors.focusRing
                         : states.contains(WidgetState.disabled)
-                            ? MoshColors.line
-                            : MoshColors.fieldBorder)))
+                            ? MoshColors.outlineVariant
+                            : MoshColors.outline)))
             .merge(theme.outlinedButtonTheme.style)),
     textButtonTheme: TextButtonThemeData(
         style: theme.textButtonTheme.style?.copyWith(
             minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
             textStyle: button.textStyle,
-            foregroundColor: _foreground(MoshColors.fg2))),
+            foregroundColor: _foreground(MoshColors.onSurfaceVariant))),
   );
 }
 

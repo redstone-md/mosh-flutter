@@ -145,19 +145,19 @@ class _OpenWarning extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: MoshColors.warnSurface,
+        color: MoshColors.warningContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: MoshColors.warnBorder),
+        border: Border.all(color: MoshColors.warning),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Icon(Icons.lock_open, size: 20, color: MoshColors.warn),
+        const Icon(Icons.lock_open, size: 20, color: MoshColors.warning),
         const SizedBox(width: 12),
         Expanded(
           child: Text(text,
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
-                  ?.copyWith(color: MoshColors.fg1, height: 1.5)),
+                  ?.copyWith(color: MoshColors.onSurface, height: 1.5)),
         ),
       ]),
     );
@@ -178,15 +178,15 @@ class _Examples extends StatelessWidget {
     final style = Theme.of(context)
         .textTheme
         .labelMedium
-        ?.copyWith(color: MoshColors.fg3);
+        ?.copyWith(color: MoshColors.onSurfaceMuted);
     return Column(children: [
       Row(children: [
-        const Expanded(child: Divider(color: MoshColors.line)),
+        const Expanded(child: Divider(color: MoshColors.outlineVariant)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(label, style: style),
         ),
-        const Expanded(child: Divider(color: MoshColors.line)),
+        const Expanded(child: Divider(color: MoshColors.outlineVariant)),
       ]),
       const SizedBox(height: 12),
       Wrap(
@@ -196,7 +196,8 @@ class _Examples extends StatelessWidget {
         children: [
           for (final name in names)
             ActionChip(
-              avatar: const Icon(Icons.tag, size: 16, color: MoshColors.fg3),
+              avatar: const Icon(Icons.tag,
+                  size: 16, color: MoshColors.onSurfaceMuted),
               label: Text(name),
               onPressed: () => onPick(name),
             ),

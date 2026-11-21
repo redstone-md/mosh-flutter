@@ -19,11 +19,11 @@ void main() {
       expect(secondary.fontFamily, primary.fontFamily);
       expect(secondary.fontSize, primary.fontSize);
       expect(secondary.fontWeight, primary.fontWeight);
-      expect(secondary.color, MoshColors.fg1);
+      expect(secondary.color, MoshColors.onSurface);
       expect(tester.getSize(_button(label)).height,
           tester.getSize(_button('Open chat')).height);
     }
-    expect(primary.color, MoshColors.mossInk);
+    expect(primary.color, MoshColors.onPrimary);
   });
 
   testWidgets('copy feedback preserves button styling and disabled actions',

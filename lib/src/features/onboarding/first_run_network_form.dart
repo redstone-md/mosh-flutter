@@ -120,7 +120,7 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
         if (widget.network.vpnDetected) ...[
           Text(
             l.firstRunVpnDetected,
-            style: const TextStyle(color: MoshColors.warn),
+            style: const TextStyle(color: MoshColors.warning),
           ),
           const SizedBox(height: 16),
         ],
@@ -130,7 +130,7 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
           _picked == null ? l.firstRunAutomaticHint : l.firstRunBypassHint,
           style: Theme.of(
             context,
-          ).textTheme.bodyLarge?.copyWith(color: MoshColors.fg2),
+          ).textTheme.bodyLarge?.copyWith(color: MoshColors.onSurfaceVariant),
         ),
         if (_needsRestart) ...[
           const SizedBox(height: 12),

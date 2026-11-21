@@ -80,9 +80,9 @@ class DeviceLinkFlow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: MoshColors.bg0,
+              color: MoshColors.surfaceContainerLowest,
               borderRadius: MoshShapes.conversationRow,
-              border: Border.all(color: MoshColors.lineStrong),
+              border: Border.all(color: MoshColors.outlineVariant),
             ),
             child: SelectableText(snapshot.confirmationCode!,
                 textAlign: TextAlign.center,

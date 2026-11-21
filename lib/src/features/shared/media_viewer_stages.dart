@@ -122,7 +122,7 @@ class _SystemVideoState extends State<_SystemVideo> {
   Widget build(BuildContext context) {
     final player = widget.player;
     return ColoredBox(
-      color: MoshColors.bg2,
+      color: MoshColors.surfaceContainerHigh,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -179,8 +179,8 @@ class _AudioCard extends StatelessWidget {
       // `.media-viewer-audio { padding: 32px 40px; border: 1px solid
       // var(--line); border-radius: 14px; background: var(--bg-2) }`.
       decoration: BoxDecoration(
-        color: MoshColors.bg2,
-        border: Border.all(color: MoshColors.line),
+        color: MoshColors.surfaceContainerHigh,
+        border: Border.all(color: MoshColors.outlineVariant),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -224,7 +224,7 @@ class _PlaybackPlaceholderCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
       decoration: BoxDecoration(
-        color: MoshColors.bg2,
+        color: MoshColors.surfaceContainerHigh,
         border: Border.all(color: theme.dividerColor),
         borderRadius: BorderRadius.circular(14),
       ),

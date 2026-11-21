@@ -2,7 +2,7 @@
 //
 // Audit (2026-09-21) HIGH: the badge painted its numeral with `Colors.white`
 // on the moss primary (#B7D84A) -- ~1.6:1 contrast. The theme already carries
-// the correct on-accent token (`onPrimary` = mossInk), so the badge must read
+// the correct on-accent token (`onPrimary`), so the badge must read
 // it instead of hardcoding white. The count is also a live number, so it
 // renders with tabular figures like the other live timers.
 

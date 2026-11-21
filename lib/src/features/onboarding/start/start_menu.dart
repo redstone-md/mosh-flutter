@@ -43,28 +43,28 @@ class StartMenu extends StatelessWidget {
       child: StartActionList(actions: [
         StartAction(
           icon: Icons.chat_bubble_outline,
-          accent: MoshColors.dmAccent,
+          accent: MoshColors.primary,
           title: l.onboardTileChatTitle,
           description: l.onboardTileChatDesc,
           onTap: onPickChat,
         ),
         StartAction(
           icon: Icons.group_outlined,
-          accent: MoshColors.groupAccent,
+          accent: MoshColors.secondary,
           title: l.onboardTileGroupTitle,
           description: l.onboardTileGroupDesc,
           onTap: onPickGroup,
         ),
         StartAction(
           icon: Icons.link,
-          accent: MoshColors.fg2,
+          accent: MoshColors.onSurfaceVariant,
           title: l.onboardTileJoinTitle,
           description: l.onboardTileJoinDesc,
           onTap: onPickJoin,
         ),
         StartAction(
           icon: Icons.tag,
-          accent: MoshColors.channelAccent,
+          accent: MoshColors.tertiary,
           title: l.onboardTileChannelTitle,
           description: l.onboardTileChannelDesc,
           onTap: onPickChannel,

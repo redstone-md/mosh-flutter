@@ -148,9 +148,10 @@ class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
         scopesRoute: true,
         child: widget.panel ??
             Material(
-              color: MoshColors.bg0,
+              color: MoshColors.surfaceContainerLowest,
               elevation: 0,
-              shape: const Border(left: BorderSide(color: MoshColors.line)),
+              shape: const Border(
+                  left: BorderSide(color: MoshColors.outlineVariant)),
               child: SizedBox.expand(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -204,7 +205,7 @@ class _DrawerHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: MoshColors.line)),
+        border: Border(bottom: BorderSide(color: MoshColors.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -224,7 +225,7 @@ class _DrawerHeader extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 12,
                   letterSpacing: 0.08 * 12,
-                  color: MoshColors.fg2,
+                  color: MoshColors.onSurfaceVariant,
                 ),
               ),
             ),

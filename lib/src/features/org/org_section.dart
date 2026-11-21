@@ -373,7 +373,7 @@ class _MemberRow extends StatelessWidget {
                   child: Icon(
                     Icons.workspace_premium_outlined,
                     size: 14,
-                    color: MoshColors.fg2,
+                    color: MoshColors.onSurfaceVariant,
                     semanticLabel: l.orgAdminBadge,
                   ),
                 ),

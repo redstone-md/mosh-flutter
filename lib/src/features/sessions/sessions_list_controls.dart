@@ -74,15 +74,16 @@ class SessionsListControls extends StatelessWidget {
         focusNode: focusNode,
         controller: controller,
         onChanged: onSearch,
-        style: const TextStyle(fontSize: 13, color: MoshColors.fg1),
+        style: const TextStyle(fontSize: 13, color: MoshColors.onSurface),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(fontSize: 13, color: MoshColors.fg3),
+          hintStyle:
+              const TextStyle(fontSize: 13, color: MoshColors.onSurfaceMuted),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           enabledBorder: const OutlineInputBorder(
               borderRadius: MoshShapes.control,
-              borderSide: BorderSide(color: MoshColors.lineStrong)),
+              borderSide: BorderSide(color: MoshColors.outlineVariant)),
           prefixIconConstraints: const BoxConstraints(
               minWidth: kRailLeadingWidth + 8, minHeight: 40),
           prefixIcon: const Padding(
@@ -100,7 +101,7 @@ class SessionsListControls extends StatelessWidget {
                             ? '⌘K'
                             : 'Ctrl+K',
                         style: const TextStyle(
-                            fontSize: 11, color: MoshColors.fg3),
+                            fontSize: 11, color: MoshColors.onSurfaceMuted),
                       )),
                 ),
         ),
@@ -121,7 +122,8 @@ class SessionsListControls extends StatelessWidget {
         labelStyle: Theme.of(context).textTheme.labelMedium!.copyWith(
               fontSize: 12,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-              color: selected ? MoshColors.fg1 : MoshColors.fg2,
+              color:
+                  selected ? MoshColors.onSurface : MoshColors.onSurfaceVariant,
             ),
         avatarBoxConstraints:
             const BoxConstraints.tightFor(width: 16, height: 16),
@@ -129,11 +131,11 @@ class SessionsListControls extends StatelessWidget {
             ? null
             : Icon(entry.key!.icon,
                 size: 16,
-                color: Color.lerp(
-                    MoshColors.fg2, entry.key!.accent, selected ? 1 : 0.55)),
+                color: Color.lerp(MoshColors.onSurfaceVariant,
+                    entry.key!.accent, selected ? 1 : 0.55)),
         label: Text(entry.value),
-        backgroundColor: MoshColors.bg0,
-        selectedColor: entry.key?.tint ?? MoshColors.bg4,
+        backgroundColor: MoshColors.surfaceContainerLowest,
+        selectedColor: entry.key?.tint ?? MoshColors.surfaceBright,
         side: WidgetStateBorderSide.resolveWith((states) => BorderSide(
               width: 2,
               strokeAlign: BorderSide.strokeAlignOutside,

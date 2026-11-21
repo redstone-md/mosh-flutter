@@ -48,15 +48,15 @@ class StartHero extends StatelessWidget {
               fontWeight: FontWeight.w600,
               height: 1.15,
               letterSpacing: -0.4,
-              color: MoshColors.fg1),
+              color: MoshColors.onSurface),
         ),
       ),
       ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
         child: Text(
           l.startSubtitle,
-          style: text.bodyLarge
-              ?.copyWith(color: MoshColors.fg2, height: 1.55, fontSize: 15),
+          style: text.bodyLarge?.copyWith(
+              color: MoshColors.onSurfaceVariant, height: 1.55, fontSize: 15),
         ),
       ),
     ];

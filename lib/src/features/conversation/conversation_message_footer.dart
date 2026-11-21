@@ -36,7 +36,9 @@ class ConversationMessageFooter extends StatelessWidget {
       locale: AppLocalizations.of(context)!.localeName);
 
   TextStyle get _timeStyle => kMessageTimeStyle.copyWith(
-      color: message.own ? MoshColors.fg2 : MoshColors.fg3);
+      color: message.own
+          ? MoshColors.onSurfaceVariant
+          : MoshColors.onSurfaceMuted);
 
   /// Uses the same inherited font/scaler as the visible time, not a fixed
   /// character-width guess. This size reserves the inline footer's space.

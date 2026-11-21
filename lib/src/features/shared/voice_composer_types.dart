@@ -52,7 +52,7 @@ class VoiceRecordingDot extends StatelessWidget {
       width: 8,
       height: 8,
       decoration: const BoxDecoration(
-        color: MoshColors.danger,
+        color: MoshColors.error,
         shape: BoxShape.circle,
       ),
     );

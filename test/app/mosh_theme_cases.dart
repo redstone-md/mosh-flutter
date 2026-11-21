@@ -14,12 +14,12 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import '../support/contrast.dart';
 
 const _surfaces = <String, Color>{
-  'bg0': MoshColors.bg0,
-  'bg1': MoshColors.bg1,
-  'bg2': MoshColors.bg2,
-  'bg3': MoshColors.bg3,
+  'surfaceContainerLowest': MoshColors.surfaceContainerLowest,
   'surfaceContainerLow': MoshColors.surfaceContainerLow,
+  'surface': MoshColors.surface,
   'surfaceContainer': MoshColors.surfaceContainer,
+  'surfaceContainerHigh': MoshColors.surfaceContainerHigh,
+  'surfaceContainerHighest': MoshColors.surfaceContainerHighest,
 };
 
 /// Text painted on a fill of its own: (name, text, fill).
@@ -57,23 +57,43 @@ const _onFill = <(String, Color, Color)>[
   ('onAvatar on avatar2', MoshColors.onAvatar, MoshColors.avatar2),
   ('onAvatar on avatar3', MoshColors.onAvatar, MoshColors.avatar3),
   ('onAvatar on avatar4', MoshColors.onAvatar, MoshColors.avatar4),
-  // Pairs the current screens paint through the legacy names.
-  ('mossInk on danger', MoshColors.mossInk, MoshColors.danger),
-  ('fg1 on mossGlow', MoshColors.fg1, MoshColors.mossGlow),
-  ('fg2 on mossGlow', MoshColors.fg2, MoshColors.mossGlow),
-  ('fg1 on outgoingMessage', MoshColors.fg1, MoshColors.outgoingMessage),
-  ('fg2 on outgoingMessage', MoshColors.fg2, MoshColors.outgoingMessage),
-  ('danger on outgoingMessage', MoshColors.danger, MoshColors.outgoingMessage),
-  ('danger on dangerSurface', MoshColors.danger, MoshColors.dangerSurface),
-  ('warn on warnSurface', MoshColors.warn, MoshColors.warnSurface),
-  ('info on channelTint', MoshColors.info, MoshColors.channelTint),
+  // Pairs the screens paint across roles.
+  ('onPrimary on error', MoshColors.onPrimary, MoshColors.error),
+  (
+    'onSurface on secondaryContainer',
+    MoshColors.onSurface,
+    MoshColors.secondaryContainer
+  ),
+  (
+    'onSurfaceVariant on secondaryContainer',
+    MoshColors.onSurfaceVariant,
+    MoshColors.secondaryContainer
+  ),
+  (
+    'onSurface on outgoingMessage',
+    MoshColors.onSurface,
+    MoshColors.outgoingMessage
+  ),
+  (
+    'onSurfaceVariant on outgoingMessage',
+    MoshColors.onSurfaceVariant,
+    MoshColors.outgoingMessage
+  ),
+  ('error on outgoingMessage', MoshColors.error, MoshColors.outgoingMessage),
+  ('error on errorContainer', MoshColors.error, MoshColors.errorContainer),
+  (
+    'warning on warningContainer',
+    MoshColors.warning,
+    MoshColors.warningContainer
+  ),
+  ('info on tertiaryContainer', MoshColors.info, MoshColors.tertiaryContainer),
 ];
 
 void main() {
   for (final (name, token) in [
-    ('fg1', MoshColors.fg1),
-    ('fg2', MoshColors.fg2),
-    ('fg3', MoshColors.fg3),
+    ('onSurface', MoshColors.onSurface),
+    ('onSurfaceVariant', MoshColors.onSurfaceVariant),
+    ('onSurfaceMuted', MoshColors.onSurfaceMuted),
     ('primary', MoshColors.primary),
     ('error', MoshColors.error),
     ('warning', MoshColors.warning),
@@ -115,11 +135,11 @@ void main() {
     }
   });
 
-  test('list-row subtitles use a readable token, not the disabled fg4', () {
+  test('list-row subtitles use a readable token, not the outline colour', () {
     final style = moshThemeData.listTileTheme.subtitleTextStyle!;
-    expect(style.color, isNot(MoshColors.fg4));
-    expect(
-        contrastRatio(style.color!, MoshColors.bg2), greaterThanOrEqualTo(4.5));
+    expect(style.color, isNot(MoshColors.outline));
+    expect(contrastRatio(style.color!, MoshColors.surfaceContainerHigh),
+        greaterThanOrEqualTo(4.5));
   });
 
   test('a field edge clears 3:1 against the surfaces fields sit on', () {

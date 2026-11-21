@@ -117,7 +117,9 @@ class ConversationMessageRow extends StatelessWidget {
       );
 
   Color _bubbleColor(BuildContext context) {
-    final base = message.own ? MoshColors.outgoingMessage : MoshColors.bg2;
+    final base = message.own
+        ? MoshColors.outgoingMessage
+        : MoshColors.surfaceContainerHigh;
     final selection = MessageSelectionScope.maybeOf(context)?.selection;
     final id = message.messageId;
     final selected = id != null && (selection?.isSelected(id) ?? false);

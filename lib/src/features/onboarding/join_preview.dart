@@ -28,31 +28,31 @@ class JoinPreview extends StatelessWidget {
     final (icon, color, detail) = switch (kind) {
       InviteDetectionKind.dm => (
           Icons.chat_bubble_outline,
-          MoshColors.moss,
+          MoshColors.primary,
           l.onboardJoinPreviewDm
         ),
       InviteDetectionKind.group => (
           Icons.group_outlined,
-          MoshColors.moss,
+          MoshColors.primary,
           name ?? l.onboardJoinPreviewGroup
         ),
       InviteDetectionKind.org => (
           Icons.business_outlined,
-          MoshColors.moss,
+          MoshColors.primary,
           name ?? l.onboardJoinPreviewOrg
         ),
       InviteDetectionKind.unknown => (
           Icons.link_off,
-          MoshColors.danger,
+          MoshColors.error,
           l.onboardJoinPreviewBad
         ),
       InviteDetectionKind.empty => (
           Icons.forum_outlined,
-          MoshColors.fg3,
+          MoshColors.onSurfaceMuted,
           l.onboardJoinPreviewEmpty
         ),
     };
-    final known = color == MoshColors.moss;
+    final known = color == MoshColors.primary;
     return Semantics(
       liveRegion: true,
       child: AnimatedContainer(
@@ -63,20 +63,22 @@ class JoinPreview extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          color: known ? MoshColors.mossGlow : MoshColors.bg0,
+          color: known
+              ? MoshColors.secondaryContainer
+              : MoshColors.surfaceContainerLowest,
           border: Border.all(
               color: known
-                  ? MoshColors.moss.withValues(alpha: 0.3)
+                  ? MoshColors.primary.withValues(alpha: 0.3)
                   : kind == InviteDetectionKind.unknown
-                      ? MoshColors.dangerBorder
-                      : MoshColors.lineStrong),
+                      ? MoshColors.error
+                      : MoshColors.outlineVariant),
         ),
         child: Row(children: [
           Container(
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: MoshColors.bg3,
+              color: MoshColors.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, size: 24, color: color),
@@ -89,13 +91,13 @@ class JoinPreview extends StatelessWidget {
                 Text(title,
                     style: text.titleSmall?.copyWith(
                         color: kind == InviteDetectionKind.unknown
-                            ? MoshColors.danger
-                            : MoshColors.fg1,
+                            ? MoshColors.error
+                            : MoshColors.onSurface,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
                 Text(detail,
-                    style: text.bodySmall
-                        ?.copyWith(color: MoshColors.fg2, height: 1.4)),
+                    style: text.bodySmall?.copyWith(
+                        color: MoshColors.onSurfaceVariant, height: 1.4)),
               ],
             ),
           ),

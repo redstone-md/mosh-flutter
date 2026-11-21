@@ -121,8 +121,8 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
             color: states.contains(WidgetState.focused)
                 ? MoshColors.focusRing
                 : states.contains(WidgetState.disabled)
-                    ? MoshColors.line
-                    : MoshColors.fieldBorder)),
+                    ? MoshColors.outlineVariant
+                    : MoshColors.outline)),
       );
 
   Widget _item(MoshSelectOption<T> option, VoidCallback select) => MoshMenuItem(

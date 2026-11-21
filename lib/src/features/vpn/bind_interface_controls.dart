@@ -149,7 +149,7 @@ class BindInterfaceControls extends StatelessWidget {
         style: IconButton.styleFrom(
           minimumSize: const Size(44, 44),
           visualDensity: VisualDensity.standard,
-          foregroundColor: MoshColors.fg2,
+          foregroundColor: MoshColors.onSurfaceVariant,
         ),
       );
 }

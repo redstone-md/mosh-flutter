@@ -11,10 +11,8 @@ const read = (file) => fs.readFileSync(path.join(REPO, 'lib', 'src', 'app', file
 
 /** Figma groups its variables; a token's group follows from its name. */
 const GROUPS = [
-  // Names from before the redesign.
-  [/^bg\d$/, 'surface'], [/^fg\d$/, 'text'], [/^line|Border$|^focusRing$/, 'line'], [/^moss/, 'brand'],
-  [/^(warn|danger)(Surface|IconSurface)?$|^info$/, 'status'],
-  [/Accent$|^outgoingMessage$|^channelTint$|^avatarSurface$/, 'accent'],
+  // Mosh roles filed outside the group their name suggests.
+  [/^outgoingMessage$/, 'accent'], [/^info$/, 'status'], [/^focusRing$/, 'line'],
   // Material 3 roles and the Mosh roles beside them.
   [/^(on)?Primary|^primary|^inversePrimary$/, 'primary'], [/^(on)?[Ss]econdary/, 'secondary'],
   [/^(on)?[Tt]ertiary/, 'tertiary'], [/^(on)?[Ee]rror/, 'error'], [/[Ss]urface/, 'surface'], [/^outline/, 'outline'],
@@ -40,7 +38,7 @@ function parseTheme() {
     const [a, r, g, b] = [0, 2, 4, 6].map((i) => parseInt(m[2].slice(i, i + 2), 16) / 255);
     colors[full(m[1])] = { r, g, b, a };
   }
-  // A token defined as another token (bg1 = surface) is an alias variable.
+  // A token defined as another token (info = tertiary) is an alias variable.
   for (const m of src.matchAll(/static const Color (\w+) =\s*(\w+);/g)) {
     if (!colors[full(m[2])]) throw new Error(`mosh_colors.dart: ${m[1]} must name a literal token, not ${m[2]}`);
     aliases[full(m[1])] = full(m[2]);

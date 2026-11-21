@@ -35,12 +35,12 @@ class Avatar extends StatelessWidget {
           ),
         ),
         child: CircleAvatar(
-          backgroundColor: MoshColors.avatarSurface,
+          backgroundColor: MoshColors.avatar1,
           radius: radius,
           child: Text(
             avatarInitials(name),
             style: step.copyWith(
-              color: MoshColors.fg1,
+              color: MoshColors.onSurface,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.04 * step.fontSize!,
             ),

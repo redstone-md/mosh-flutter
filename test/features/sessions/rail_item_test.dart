@@ -23,7 +23,7 @@ Future<void> _pumpRail(
         home: MediaQuery(
           data: MediaQueryData(textScaler: textScaler),
           child: Scaffold(
-            backgroundColor: MoshColors.bg0,
+            backgroundColor: MoshColors.surfaceContainerLowest,
             body: SizedBox(
               width: kRailWidth - 2 * kRailPadding,
               child: SingleChildScrollView(child: Column(children: [child])),
@@ -111,7 +111,7 @@ void main() {
                   of: find.byType(RailItem), matching: find.byType(Material))
               .first)
           .color!;
-      final surface = Color.alphaBlend(fill, MoshColors.bg0);
+      final surface = Color.alphaBlend(fill, MoshColors.surfaceContainerLowest);
       final ink = tester
           .renderObject<RenderParagraph>(find.text('Connected'))
           .text

@@ -74,14 +74,14 @@ class _Section extends StatelessWidget {
     final style = Theme.of(context)
         .textTheme
         .bodySmall
-        ?.copyWith(color: MoshColors.fg3, fontSize: 13);
+        ?.copyWith(color: MoshColors.onSurfaceMuted, fontSize: 13);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
           padding: const EdgeInsetsDirectional.only(start: 4, bottom: 8),
           child: Row(children: [
-            Icon(icon, size: 14, color: MoshColors.fg3),
+            Icon(icon, size: 14, color: MoshColors.onSurfaceMuted),
             const SizedBox(width: 6),
             Flexible(
               child: Semantics(header: true, child: Text(label, style: style)),
@@ -92,18 +92,20 @@ class _Section extends StatelessWidget {
           position: DecorationPosition.foreground,
           decoration: BoxDecoration(
             borderRadius: _radius,
-            border: Border.all(color: MoshColors.lineStrong),
+            border: Border.all(color: MoshColors.outlineVariant),
           ),
           child: ClipRRect(
             borderRadius: _radius,
             child: ColoredBox(
-              color: MoshColors.bg1,
+              color: MoshColors.surface,
               child: Column(children: [
                 for (final (i, action) in actions.indexed) ...[
                   // Inset to the text, as in a settings list.
                   if (i > 0)
                     const Divider(
-                        height: 1, indent: 52, color: MoshColors.line),
+                        height: 1,
+                        indent: 52,
+                        color: MoshColors.outlineVariant),
                   StartRow(action: action),
                 ],
               ]),
@@ -145,14 +147,14 @@ class _StartRowState extends State<StartRow> {
         onHover: (value) => setState(() => _hovered = value),
         onFocusChange: (value) => setState(() => _focused = value),
         hoverColor: Colors.transparent,
-        highlightColor: MoshColors.bg3,
+        highlightColor: MoshColors.surfaceContainerHighest,
         splashFactory: NoSplash.splashFactory,
         child: FocusRing(
           radius: BorderRadius.zero,
           child: AnimatedContainer(
             duration: duration,
             curve: StartMotion.ease,
-            color: lit ? MoshColors.bg2 : MoshColors.bg1,
+            color: lit ? MoshColors.surfaceContainerHigh : MoshColors.surface,
             padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 14, 14),
             child: Row(children: [
               Icon(action.icon, size: 20, color: action.accent),
@@ -165,11 +167,13 @@ class _StartRowState extends State<StartRow> {
                         style: text.titleSmall?.copyWith(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
-                            color: MoshColors.fg1)),
+                            color: MoshColors.onSurface)),
                     const SizedBox(height: 2),
                     Text(action.description,
                         style: text.bodySmall?.copyWith(
-                            fontSize: 13, height: 1.4, color: MoshColors.fg3)),
+                            fontSize: 13,
+                            height: 1.4,
+                            color: MoshColors.onSurfaceMuted)),
                   ],
                 ),
               ),
@@ -181,7 +185,7 @@ class _StartRowState extends State<StartRow> {
                 child: Icon(
                   Icons.chevron_right,
                   size: 20,
-                  color: lit ? MoshColors.fg2 : MoshColors.fg4,
+                  color: lit ? MoshColors.onSurfaceVariant : MoshColors.outline,
                   textDirection: Directionality.of(context),
                 ),
               ),

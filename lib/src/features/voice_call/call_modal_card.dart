@@ -127,7 +127,7 @@ class CallModalCard extends StatelessWidget {
   }
 
   Widget _notice() => Text(notice!,
-      style: const TextStyle(color: MoshColors.warn), softWrap: true);
+      style: const TextStyle(color: MoshColors.warning), softWrap: true);
 
   Widget _header(BuildContext context) => onMinimize == null
       ? _peer(context)

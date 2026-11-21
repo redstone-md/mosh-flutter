@@ -13,7 +13,7 @@ class ConfirmDialog extends StatelessWidget {
     this.cancelLabel,
     required this.onCancel,
     required this.onConfirm,
-    this.dangerColor = MoshColors.danger,
+    this.dangerColor = MoshColors.error,
   });
 
   final String title;

@@ -92,6 +92,6 @@ void main() {
         matching: find.byType(FilledButton),
       ),
     );
-    expect(button.style?.foregroundColor?.resolve({}), MoshColors.fg1);
+    expect(button.style?.foregroundColor?.resolve({}), MoshColors.onSurface);
   });
 }

@@ -294,7 +294,7 @@ class VoiceCardTimeLabel extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           fontSize: 12,
-          color: MoshColors.fg1,
+          color: MoshColors.onSurface,
           fontFeatures: kLiveNumberFontFeatures,
         ),
       ),

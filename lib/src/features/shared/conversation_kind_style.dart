@@ -7,9 +7,9 @@ import 'package:mosh/src/gateway/conversation_target.dart';
 /// Type cues shared by the rail, its filters, and conversation headers.
 extension ConversationKindStyle on ConversationKind {
   Color get accent => switch (this) {
-        ConversationKind.dm => MoshColors.dmAccent,
-        ConversationKind.group => MoshColors.groupAccent,
-        ConversationKind.channel => MoshColors.channelAccent,
+        ConversationKind.dm => MoshColors.primary,
+        ConversationKind.group => MoshColors.secondary,
+        ConversationKind.channel => MoshColors.tertiary,
       };
 
   Color get tint => accent.withValues(alpha: 0.14);
@@ -64,8 +64,9 @@ class ConversationKindAvatar extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: kind.accent,
                               shape: BoxShape.circle,
-                              border:
-                                  Border.all(color: MoshColors.bg0, width: 2),
+                              border: Border.all(
+                                  color: MoshColors.surfaceContainerLowest,
+                                  width: 2),
                             ),
                           )),
                     ),
