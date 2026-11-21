@@ -11,7 +11,13 @@ const fonts = new Map();
   if (n.k === 'text') for (const r of n.runs) { const f = fontOf(r); fonts.set(f.family + f.style, f); }
   for (const k of n.kids ?? []) collect(k);
 })(D.tree);
-for (const f of fonts.values()) await figma.loadFontAsync(f);
+// A font Figma cannot fetch never settles and would hold the plugin for good, so loading is bounded.
+for (const f of fonts.values()) {
+  await Promise.race([
+    figma.loadFontAsync(f),
+    new Promise((_, fail) => setTimeout(() => fail(new Error(`font ${f.family} ${f.style} did not load in 30s`)), 30000)),
+  ]);
+}
 
 // A colour binds to a variable only when every channel matches within half a level.
 const colorVars = [];
