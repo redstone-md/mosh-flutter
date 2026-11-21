@@ -112,7 +112,7 @@ class _StatusBadge extends StatelessWidget {
     final badgeBg = tone == DiagnosticSummaryTone.error
         ? toneColor.withValues(alpha: 0.06)
         : (tone == DiagnosticSummaryTone.ready
-            ? const Color(0x24B7D84A).withValues(alpha: 0.14)
+            ? toneColor.withValues(alpha: 0.14)
             : theme.colorScheme.surfaceContainerHighest);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

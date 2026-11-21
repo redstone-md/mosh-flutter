@@ -95,7 +95,7 @@ for (const [slot, size, line, weight, spacing] of T.styles) {
   let s = styles.find((x) => x.name === 'Mosh/' + slot);
   const same = s && s.fontName.family === want.family && s.fontName.style === want.style && s.fontSize === size &&
     s.lineHeight.unit === 'PERCENT' && Math.abs(s.lineHeight.value - (line / size) * 100) < 0.01 &&
-    Math.abs(s.letterSpacing.value - spacing) < 0.001;
+    s.letterSpacing.unit === 'PIXELS' && Math.abs(s.letterSpacing.value - spacing) < 0.001;
   if (same) continue;
   changes.push((s ? 'style ' : 'new style ') + slot);
   if (DRY) continue;

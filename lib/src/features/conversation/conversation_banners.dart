@@ -20,7 +20,7 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 /// The tint on the channel notice: the same info blue the web app used.
 const Color _channelNoticeAccent = MoshColors.info;
 
-/// The tint on the group notice: moss green.
+/// The tint on the group notice: the brand primary.
 const Color _groupNoticeAccent = MoshColors.primary;
 
 class ConversationBanners extends StatelessWidget {

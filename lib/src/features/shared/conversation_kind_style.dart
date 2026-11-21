@@ -62,7 +62,7 @@ class ConversationKindAvatar extends StatelessWidget {
                             width: radius <= 20 ? 10 : 12,
                             height: radius <= 20 ? 10 : 12,
                             decoration: BoxDecoration(
-                              color: kind.accent,
+                              color: MoshColors.success,
                               shape: BoxShape.circle,
                               border: Border.all(
                                   color: MoshColors.surfaceContainerLowest,

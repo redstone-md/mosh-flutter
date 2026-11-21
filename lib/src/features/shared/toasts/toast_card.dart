@@ -88,7 +88,7 @@ class ToastCard extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final (icon, color) = switch (entry.kind) {
       ToastKind.info => (Icons.info_outline, MoshColors.onSurfaceVariant),
-      ToastKind.success => (Icons.check_circle_outline, MoshColors.primary),
+      ToastKind.success => (Icons.check_circle_outline, MoshColors.success),
       ToastKind.error => (Icons.error_outline, MoshColors.error),
     };
     return Padding(

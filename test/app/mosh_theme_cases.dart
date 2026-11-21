@@ -107,6 +107,13 @@ void main() {
     });
   }
 
+  test('the success mark clears the 3:1 non-text floor on every surface', () {
+    for (final MapEntry(key: surface, value: bg) in _surfaces.entries) {
+      expect(contrastRatio(MoshColors.success, bg), greaterThanOrEqualTo(3),
+          reason: 'success on $surface');
+    }
+  });
+
   test('text on a filled role reads at 4.5:1 or better', () {
     for (final (name, text, fill) in _onFill) {
       expect(contrastRatio(text, fill), greaterThanOrEqualTo(4.5),
