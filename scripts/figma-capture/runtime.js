@@ -3,8 +3,9 @@
 //   family, weights: {weight: Figma style} } — the theme's font and the weights it bundles.
 // A weight the theme does not bundle renders with the nearest bundled one below it, or the lightest.
 const styleOf = (weight) => D.weights[Math.max(...Object.keys(D.weights).filter((w) => w <= Math.max(weight, 400)))];
+// Monospace text is Regular or Bold only: loading Roboto Mono Medium has stalled the plugin.
 const fontOf = (run) => run.family === 'monospace'
-  ? { family: 'Roboto Mono', style: run.weight >= 600 ? 'Bold' : run.weight >= 500 ? 'Medium' : 'Regular' }
+  ? { family: 'Roboto Mono', style: run.weight >= 600 ? 'Bold' : 'Regular' }
   : { family: D.family, style: styleOf(run.weight) };
 const fonts = new Map();
 (function collect(n) {
