@@ -1,10 +1,11 @@
 // Creates the Mosh colour variables and text styles in the Figma file. Idempotent:
 // existing variables and styles are updated in place.
 import fs from 'node:fs';
+import path from 'node:path';
 import { REPO } from './areas.mjs';
 import { execute } from './mcp.mjs';
 
-const src = fs.readFileSync(`${REPO}lib/src/app/mosh_colors.dart`, 'utf8');
+const src = fs.readFileSync(path.join(REPO, 'lib', 'src', 'app', 'mosh_colors.dart'), 'utf8');
 const colors = {};
 for (const m of src.matchAll(/static const Color (\w+) =\s*Color\(0x([0-9A-Fa-f]{8})\)/g)) {
   const h = m[2];

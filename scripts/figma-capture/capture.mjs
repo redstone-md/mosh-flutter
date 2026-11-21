@@ -6,7 +6,8 @@
 //
 // For each area (all by default) and form factor it renders the scenes in
 // scenarios/<area>_test.dart with the real widgets and fictional data,
-// replaces the area's Figma section and builds every scene into it.
+// rebuilds every scene in the area's Figma section and drops frames of
+// scenes that no longer exist.
 // --publish-only reuses the last render in build/figma-capture/.
 // --verify then compares each Figma frame with its Flutter render.
 // Needs: flutter on PATH, `npm ci` in this directory, Figma desktop with the
@@ -36,10 +37,15 @@ function render(area, form) {
   if (run.status !== 0) throw new Error(`${area} ${form}: flutter test failed`);
 }
 
-const clearSection = (page, section) => execute(`
+// Removes the section's frames whose scene is not in [keep]: scenes that no longer exist.
+const pruneSection = (page, section, keep) => execute(`
   await figma.loadAllPagesAsync();
   const page = figma.root.children.find((p) => p.name === ${JSON.stringify(page)});
-  for (const s of page ? [...page.children] : []) if (s.type === 'SECTION' && s.getPluginData('section') === ${JSON.stringify(section)}) s.remove();`);
+  const keep = new Set(${JSON.stringify(keep)});
+  for (const s of page ? page.children : []) {
+    if (s.type !== 'SECTION' || s.getPluginData('section') !== ${JSON.stringify(section)}) continue;
+    for (const f of [...s.children]) if (!keep.has(f.getPluginData('sceneId'))) f.remove();
+  }`);
 
 await ensureTokens();
 const built = [];
@@ -52,12 +58,16 @@ for (const [sectionIndex, { area, section }] of AREAS.entries()) {
       render(area, form);
     }
     const { page, cols } = PAGES[form];
-    await clearSection(page, section);
-    const scenes = fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'scene.json'))).sort();
+    const scenes = fs.existsSync(dir) ? fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'scene.json'))).sort() : [];
+    if (!scenes.length) throw new Error(`${area} ${form}: nothing rendered in ${dir}`);
+    // Frames are replaced scene by scene, so a failed run leaves the previous ones in place.
+    const keep = [];
     for (const [slot, scene] of scenes.entries()) {
-      const { id } = await build(path.join(dir, scene), { page, section, sectionIndex, slot, cols });
+      const { id, sceneId } = await build(path.join(dir, scene), { page, section, sectionIndex, slot, cols });
+      keep.push(sceneId);
       built.push({ id, ref: path.join(dir, scene, 'ref.png'), name: `${area} ${form} ${scene}` });
     }
+    await pruneSection(page, section, keep);
     console.log(`${area} ${form}: ${scenes.length} frames`);
   }
 }

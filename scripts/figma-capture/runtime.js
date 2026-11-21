@@ -180,4 +180,4 @@ const sections = page.children.filter((c) => c.type === 'SECTION').sort((a, b) =
 for (const s of sections) { s.x = 0; s.y = y; y += s.height + 200; }
 let count = 0;
 screen.findAll(() => { count++; return false; });
-return { id: screen.id, nodes: count };
+return { id: screen.id, sceneId: D.id, nodes: count };
