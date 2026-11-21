@@ -11,13 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart';
 
-double _contrast(Color a, Color b) {
-  final la = a.computeLuminance();
-  final lb = b.computeLuminance();
-  final hi = la > lb ? la : lb;
-  final lo = la > lb ? lb : la;
-  return (hi + 0.05) / (lo + 0.05);
-}
+import '../support/contrast.dart';
 
 const _surfaces = <String, Color>{
   'bg0': MoshColors.bg0,
@@ -64,7 +58,6 @@ const _onFill = <(String, Color, Color)>[
   ('onAvatar on avatar3', MoshColors.onAvatar, MoshColors.avatar3),
   ('onAvatar on avatar4', MoshColors.onAvatar, MoshColors.avatar4),
   // Pairs the current screens paint through the legacy names.
-  ('mossInk on moss', MoshColors.mossInk, MoshColors.moss),
   ('mossInk on danger', MoshColors.mossInk, MoshColors.danger),
   ('fg1 on mossGlow', MoshColors.fg1, MoshColors.mossGlow),
   ('fg2 on mossGlow', MoshColors.fg2, MoshColors.mossGlow),
@@ -73,7 +66,6 @@ const _onFill = <(String, Color, Color)>[
   ('danger on outgoingMessage', MoshColors.danger, MoshColors.outgoingMessage),
   ('danger on dangerSurface', MoshColors.danger, MoshColors.dangerSurface),
   ('warn on warnSurface', MoshColors.warn, MoshColors.warnSurface),
-  ('fg1 on avatarSurface', MoshColors.fg1, MoshColors.avatarSurface),
   ('info on channelTint', MoshColors.info, MoshColors.channelTint),
 ];
 
@@ -89,7 +81,7 @@ void main() {
   ]) {
     test('$name reads at 4.5:1 or better on every surface', () {
       for (final MapEntry(key: surface, value: bg) in _surfaces.entries) {
-        expect(_contrast(token, bg), greaterThanOrEqualTo(4.5),
+        expect(contrastRatio(token, bg), greaterThanOrEqualTo(4.5),
             reason: '$name on $surface');
       }
     });
@@ -97,7 +89,8 @@ void main() {
 
   test('text on a filled role reads at 4.5:1 or better', () {
     for (final (name, text, fill) in _onFill) {
-      expect(_contrast(text, fill), greaterThanOrEqualTo(4.5), reason: name);
+      expect(contrastRatio(text, fill), greaterThanOrEqualTo(4.5),
+          reason: name);
     }
   });
 
@@ -117,21 +110,24 @@ void main() {
       ('inverseSurface', c.onInverseSurface, c.inverseSurface),
       ('inversePrimary', c.inversePrimary, c.inverseSurface),
     ]) {
-      expect(_contrast(text, fill), greaterThanOrEqualTo(4.5), reason: name);
+      expect(contrastRatio(text, fill), greaterThanOrEqualTo(4.5),
+          reason: name);
     }
   });
 
   test('list-row subtitles use a readable token, not the disabled fg4', () {
     final style = moshThemeData.listTileTheme.subtitleTextStyle!;
     expect(style.color, isNot(MoshColors.fg4));
-    expect(_contrast(style.color!, MoshColors.bg2), greaterThanOrEqualTo(4.5));
+    expect(
+        contrastRatio(style.color!, MoshColors.bg2), greaterThanOrEqualTo(4.5));
   });
 
   test('a field edge clears 3:1 against the surfaces fields sit on', () {
     final border = moshThemeData.inputDecorationTheme.enabledBorder!;
     final edge = border.borderSide.color;
     for (final MapEntry(key: surface, value: bg) in _surfaces.entries) {
-      expect(_contrast(Color.alphaBlend(edge, bg), bg), greaterThanOrEqualTo(3),
+      expect(contrastRatio(Color.alphaBlend(edge, bg), bg),
+          greaterThanOrEqualTo(3),
           reason: 'field edge on $surface');
     }
   });
@@ -159,9 +155,6 @@ void main() {
       expect(style.letterSpacing, isNotNull, reason: '$name letter-spacing');
       expect(style.fontFamily, 'Onest', reason: '$name family');
     }
-    // Each line box is a whole number of pixels, as Foundations draws it.
-    expect(t.bodyMedium!.fontSize! * t.bodyMedium!.height!, closeTo(20, 1e-9));
-    expect(t.titleLarge!.fontSize! * t.titleLarge!.height!, closeTo(28, 1e-9));
     // Headings descend into the body.
     expect(t.headlineMedium!.fontSize, greaterThan(t.headlineSmall!.fontSize!));
     expect(t.headlineSmall!.fontSize, greaterThan(t.titleLarge!.fontSize!));

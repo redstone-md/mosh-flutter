@@ -26,8 +26,13 @@ const group = (name) => {
   return hit[1];
 };
 
-/** What the theme defines: { colors: {path: rgba}, aliases: {path: path}, family, styles }. */
+let parsed;
+/** What the theme defines, read once per run: { colors: {path: rgba}, aliases: {path: path}, family, styles }. */
 export function themeTokens() {
+  return (parsed ??= parseTheme());
+}
+
+function parseTheme() {
   const src = read('mosh_colors.dart');
   const colors = {}, aliases = {};
   const full = (name) => `${group(name)}/${name}`;

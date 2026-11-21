@@ -1,7 +1,7 @@
 // Runs inside Figma (figma_execute). Expects a global-like `D` defined before it:
 // { id, title, section, sectionIndex, slot, tree, images: {key: base64},
 //   family, weights: {weight: Figma style} } — the theme's font and the weights it bundles.
-// A weight the theme does not bundle renders with the nearest one below it.
+// A weight the theme does not bundle renders with the nearest bundled one below it, or the lightest.
 const styleOf = (weight) => D.weights[Math.max(...Object.keys(D.weights).filter((w) => w <= Math.max(weight, 400)))];
 const fontOf = (run) => run.family === 'monospace'
   ? { family: 'Roboto Mono', style: run.weight >= 600 ? 'Bold' : run.weight >= 500 ? 'Medium' : 'Regular' }

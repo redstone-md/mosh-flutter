@@ -100,10 +100,10 @@ Preserve restored joining and committed delivery states.
 
 ## Layout and assets
 
-Use the existing palette: `bg0` #0B0C0D, `bg1` #111315, `moss` #B7D84A,
-`fg1` #ECEEEA and `fg2` #A8AEB0. Typography uses the app's bundled Inter
-(`assets/fonts/`, OFL). Its balanced metrics keep labels optically centered in
-buttons and step markers; the former Segoe UI fallback sat 1–2px low.
+Use the theme's palette (`MoshColors`, the Foundations tokens of the Figma
+file "Mosh") and its type scale. Typography uses the app's bundled Onest
+(`assets/fonts/`, OFL); a bundled family keeps labels centered in buttons and
+step markers, where the former Segoe UI fallback sat 1–2px low.
 Wide windows use the reference's illustration on the left and controls on the
 right for all three steps. Narrow windows stack these blocks. The outer card
 fills the available viewport below the titlebar with the same inset on all four

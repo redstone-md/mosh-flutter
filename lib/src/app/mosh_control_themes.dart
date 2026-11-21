@@ -30,7 +30,7 @@ final _moshInputDecorationTheme = InputDecorationTheme(
   disabledBorder: _fieldBorder(MoshColors.outlineVariant),
   focusedBorder: _fieldBorder(MoshColors.primary),
   errorBorder: _fieldBorder(MoshColors.error),
-  focusedErrorBorder: _fieldBorder(MoshColors.error),
+  focusedErrorBorder: _fieldBorder(MoshColors.error, width: 2),
 );
 
 final _moshListTileTheme = ListTileThemeData(
@@ -103,8 +103,10 @@ const _moshChipTheme = ChipThemeData(
 
 const _moshIconTheme = IconThemeData(color: MoshColors.onSurfaceVariant);
 
-/// The `.field input` border recipe: 1px solid, 8px radius.
-OutlineInputBorder _fieldBorder(Color color) => OutlineInputBorder(
+/// The `.field input` border recipe: solid, on the control radius. A focused
+/// field in error keeps the error colour and doubles the edge instead.
+OutlineInputBorder _fieldBorder(Color color, {double width = 1}) =>
+    OutlineInputBorder(
       borderRadius: MoshShapes.control,
-      borderSide: BorderSide(color: color),
+      borderSide: BorderSide(color: color, width: width),
     );

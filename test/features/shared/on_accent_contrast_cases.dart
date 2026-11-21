@@ -12,6 +12,8 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors, moshThemeData;
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 
+import '../../support/contrast.dart';
+
 Widget _host(Widget child) => MaterialApp(
       theme: moshThemeData,
       locale: const Locale('en'),
@@ -58,11 +60,7 @@ void main() {
     );
     final label = button.style!.foregroundColor!.resolve({})!;
     final fill = button.style!.backgroundColor!.resolve({})!;
-    final (hi, lo) = label.computeLuminance() > fill.computeLuminance()
-        ? (label, fill)
-        : (fill, label);
-    expect((hi.computeLuminance() + 0.05) / (lo.computeLuminance() + 0.05),
-        greaterThanOrEqualTo(4.5));
+    expect(contrastRatio(label, fill), greaterThanOrEqualTo(4.5));
   });
 
   testWidgets('a dark custom dangerColor flips to the light foreground',

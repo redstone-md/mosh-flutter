@@ -51,8 +51,9 @@ void main() {
         expect(tester.getRect(card), cardRect);
         expect(tester.takeException(), isNull);
       }
-      // test-policy: skip MOSH-130 -- on the Foundations type scale the setup steps differ in height and move the card in a 680px-high window
-    }, skip: size.height < 700);
+    },
+        // test-policy: skip MOSH-130 -- on the Foundations type scale the setup steps differ in height and move the card in a 680px-high window
+        skip: size.height < 700);
   }
 
   testWidgets('returning to device linking keeps the unfinished importer',
