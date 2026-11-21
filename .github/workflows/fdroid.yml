@@ -5,7 +5,8 @@ name: F-Droid build
 # from a clean clone of this commit, with F-Droid's scanner. Run by hand, for
 # every release tag so a release that F-Droid cannot build shows up here
 # first, and for changes to the recipe and the Android build it runs. It
-# takes more than an hour, so other pull requests do not run it.
+# rebuilds every toolchain and dependency from scratch, so other pull
+# requests do not run it.
 on:
   workflow_dispatch:
   push:
@@ -30,17 +31,10 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 300
+    # No disk clean-up: the runner has far more free space than the build
+    # needs, and clearing its preinstalled SDKs took minutes (ADR 0015).
     steps:
       - uses: actions/checkout@v4
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
-        with:
-          tool-cache: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
       - name: The recipe verifies Mosh+ with the key our builds use
         env:
           MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
