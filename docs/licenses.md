@@ -53,7 +53,6 @@ pubspec.lock.
 | Dart packages | BSD-3-Clause, MIT, Apache-2.0, BSD-2-Clause | Permissive. |
 | `dbus`, `gtk` (Dart, Linux only) | MPL-2.0 | Compatible; not in Apple builds. |
 | Go modules of Moss | BSD, MIT, Apache-2.0, ISC, MPL-2.0 (anacrolix) | Permissive or file-level copyleft. |
-| `anacrolix/multiless`, `anacrolix/sync` | MPL-2.0 upstream, no file in the pinned versions | In `REVIEWED`, which names the license; the license page carries the MPL-2.0 text for them. MOSH-79 moves Moss to versions with the file. |
 | libmpv and ffmpeg (media_kit) | LGPL-2.1-or-later; LGPL-3.0 on Windows | Kept, linked dynamically (frameworks on Apple), as VLC ships libVLC on the App Store under the LGPL. Apple uses the `default` build of media-kit's libmpv-darwin-build, made for playback without GPL parts; the Windows build configures ffmpeg with `--disable-gpl --enable-version3` and mpv with `-Dgpl=false`. The license page carries the LGPL texts and each build's release page. |
 | androidx media3 (video_player, Android) | Apache-2.0 | Permissive; from Google's Maven repository. Android has no libmpv ([ADR 0053](ADR/0053-android-playback-through-media3.md)). |
 | Flutter engine and SDK packages | BSD-3-Clause and bundled components | Flutter bundles their notices in every build. |

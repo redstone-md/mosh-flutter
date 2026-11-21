@@ -40,10 +40,11 @@ test("every license file of a package counts", () => {
 });
 
 test("a review covers only the version it was made for", () => {
+  const reviewed = new Map([["go:example.com/bare@v0.4.0", { license: "MPL-2.0" }]]);
   assert.deepEqual(audit([
-    { id: "go:github.com/anacrolix/sync@v0.4.0", texts: [] },
-    { id: "go:github.com/anacrolix/sync@v0.6.0", texts: [] },
-  ]), ["go:github.com/anacrolix/sync@v0.6.0: no license file"]);
+    { id: "go:example.com/bare@v0.4.0", texts: [] },
+    { id: "go:example.com/bare@v0.5.0", texts: [] },
+  ], reviewed), ["go:example.com/bare@v0.5.0: no license file"]);
 });
 
 test("libwebrtc notices name every copyleft or H.264 component", () => {

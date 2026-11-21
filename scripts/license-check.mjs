@@ -15,12 +15,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
  * Package versions decided by hand, with the license they are used under;
  * docs/licenses.md has the reasoning. Any other version is audited again.
  */
-export const REVIEWED = new Map([
-  ["go:github.com/anacrolix/multiless@v0.3.1-0.20221221005021-2d12701f83f7",
-    { license: "MPL-2.0", reason: "MPL-2.0 since v0.4.0; this commit predates its LICENCE" }],
-  ["go:github.com/anacrolix/sync@v0.4.0",
-    { license: "MPL-2.0", reason: "MPL-2.0 since v0.5.0; v0.4.0 predates its LICENCE" }],
-]);
+export const REVIEWED = new Map();
 
 /** Path packages of this repository, under the root LICENSE. */
 const OWN_DART_PACKAGES = new Set(["mosh_core"]);
@@ -45,10 +40,11 @@ const identify = (text) => LICENSES.find(([, pattern]) => pattern.test(text))?.[
 /**
  * Problems with `packages`, each `{ id, texts }` where id is
  * "<ecosystem>:<name>@<version>" and texts its license files' contents.
+ * Versions in `reviewed` pass as decided.
  */
-export function audit(packages) {
+export function audit(packages, reviewed = REVIEWED) {
   return packages.flatMap(({ id, texts }) => {
-    if (REVIEWED.has(id)) return [];
+    if (reviewed.has(id)) return [];
     if (!texts.length) return [`${id}: no license file`];
     const licenses = texts.map(identify);
     if (licenses.includes(undefined)) return [`${id}: license not recognised`];
