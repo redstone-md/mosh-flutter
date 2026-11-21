@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execute } from './mcp.mjs';
 import { simplify } from './simplify.mjs';
+import { themeTokens, WEIGHT_STYLES } from './tokens.mjs';
 
 const runtime = fs.readFileSync(new URL('./runtime.js', import.meta.url), 'utf8');
 
@@ -13,6 +14,6 @@ export async function build(dir, { page, section, sectionIndex, slot, cols }) {
   const used = new Set();
   (function collect(n) { if (n.k === 'image') used.add(n.img); for (const k of n.kids ?? []) collect(k); })(tree);
   const images = Object.fromEntries([...used].map((k) => [k, fs.readFileSync(path.join(dir, `${k}.png`)).toString('base64')]));
-  const D = { id: scene.id, title: scene.title, page, section, sectionIndex, slot, cols, tree, images };
+  const D = { id: scene.id, title: scene.title, page, section, sectionIndex, slot, cols, tree, images, family: themeTokens().family, weights: WEIGHT_STYLES };
   return execute(`const D = ${JSON.stringify(D)};\n${runtime}`);
 }

@@ -1,9 +1,11 @@
 // Runs inside Figma (figma_execute). Expects a global-like `D` defined before it:
-// { id, title, section, sectionIndex, slot, tree, images: {key: base64} }.
-const W = { 100: 'Regular', 200: 'Regular', 300: 'Regular', 400: 'Regular', 500: 'Medium', 600: 'Semi Bold', 700: 'Bold', 800: 'Bold', 900: 'Bold' };
+// { id, title, section, sectionIndex, slot, tree, images: {key: base64},
+//   family, weights: {weight: Figma style} } — the theme's font and the weights it bundles.
+// A weight the theme does not bundle renders with the nearest one below it.
+const styleOf = (weight) => D.weights[Math.max(...Object.keys(D.weights).filter((w) => w <= Math.max(weight, 400)))];
 const fontOf = (run) => run.family === 'monospace'
   ? { family: 'Roboto Mono', style: run.weight >= 600 ? 'Bold' : run.weight >= 500 ? 'Medium' : 'Regular' }
-  : { family: 'Inter', style: (W[run.weight] ?? 'Regular') + '' };
+  : { family: D.family, style: styleOf(run.weight) };
 const fonts = new Map();
 (function collect(n) {
   if (n.k === 'text') for (const r of n.runs) { const f = fontOf(r); fonts.set(f.family + f.style, f); }

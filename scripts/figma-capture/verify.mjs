@@ -3,8 +3,9 @@
 import fs from 'node:fs';
 import { PNG } from 'pngjs';
 import { execute } from './mcp.mjs';
+import { windowColor } from './tokens.mjs';
 
-const BG = [17, 19, 21]; // MoshColors.bg1, under the render's transparent pixels
+const BG = windowColor().map((v) => v * 255); // under the render's transparent pixels
 
 const flatten = (im, i) => {
   const a = im.data[i + 3] / 255;
