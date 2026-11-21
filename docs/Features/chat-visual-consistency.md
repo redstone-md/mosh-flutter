@@ -27,8 +27,8 @@ remain checks on a real device.
   metadata are quieter than content.
 - Domain: personal contacts, group membership, public channels, invitations,
   voice clips and shared files.
-- Color world: the existing near-black canvas, graphite surfaces, off-white
-  text, moss green, channel blue, and a muted lilac for groups.
+- Color world: the theme's warm dark surfaces and off-white text, with the
+  saffron primary, channel blue and a muted sand for groups.
 - Signature: conversation type has the same glyph and accent in the list,
   filters, header and details, independently of runtime security indicators.
 - Defaults corrected: inherited Material pill shapes, separately rounded
@@ -122,9 +122,9 @@ small chat badge, or renders the group/channel glyph on a tinted circle.
 
 | Type | Accent | Glyph |
 | --- | --- | --- |
-| Personal | Moss green | Chat bubble, with the contact's initials |
-| Group | Muted lilac | Participants |
-| Channel | Blue | `#` |
+| Personal | Saffron (`primary`) | Chat bubble, with the contact's initials |
+| Group | Sand (`secondary`) | Participants |
+| Channel | Blue (`tertiary`) | `#` |
 
 Selected rows and filters use the matching tint. Text remains neutral. Glyphs,
 localized tooltip/type labels and channel-name prefixes communicate the type
