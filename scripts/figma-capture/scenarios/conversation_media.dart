@@ -2,10 +2,12 @@
 part of 'conversation_fixtures.dart';
 
 /// A landscape photo on disk, for attachments that finished downloading.
+/// Call it inside a test: the file is deleted when the test ends.
 String landscapeFile(String name, {int seed = 0}) {
   final path = '${Directory.systemTemp.path}/mosh-figma-$name';
-  File(path).writeAsBytesSync(
-      base64Decode(landscapePng(w: 1200, h: 800, seed: seed)));
+  final file = File(path)
+    ..writeAsBytesSync(base64Decode(landscapePng(w: 1200, h: 800, seed: seed)));
+  addTearDown(() => file.existsSync() ? file.deleteSync() : null);
   return path;
 }
 

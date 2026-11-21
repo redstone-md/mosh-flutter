@@ -36,9 +36,10 @@ void fakeRecorder(WidgetTester tester) {
       case 'create':
         final id = args['recorderId'];
         for (final name in ['events', 'eventsRecord']) {
+          final channel = EventChannel('com.llfbandit.record/$name/$id');
           messenger.setMockStreamHandler(
-              EventChannel('com.llfbandit.record/$name/$id'),
-              MockStreamHandler.inline(onListen: (_, __) {}));
+              channel, MockStreamHandler.inline(onListen: (_, __) {}));
+          addTearDown(() => messenger.setMockStreamHandler(channel, null));
         }
         return null;
       case 'hasPermission' || 'isEncoderSupported':

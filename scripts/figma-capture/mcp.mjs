@@ -37,10 +37,13 @@ export async function call(name, args) {
 async function callOnce(name, args) {
   const init = await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'capture', version: '1' } } });
   const sid = init.sid;
-  await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' }, sid);
-  const res = await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name, arguments: args } }, sid);
-  await fetch(cfg.url, { method: 'DELETE', headers: { ...H, 'Mcp-Session-Id': sid } }).catch(() => {});
-  return res.json;
+  try {
+    await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' }, sid);
+    const res = await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name, arguments: args } }, sid);
+    return res.json;
+  } finally {
+    await fetch(cfg.url, { method: 'DELETE', headers: { ...H, 'Mcp-Session-Id': sid } }).catch(() => {});
+  }
 }
 
 /** Runs [code] in the Figma plugin and returns its result, throwing on failure. */

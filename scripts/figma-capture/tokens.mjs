@@ -13,6 +13,10 @@ for (const m of src.matchAll(/static const Color (\w+) =\s*Color\(0x([0-9A-Fa-f]
   colors[m[1]] = { r: parseInt(h.slice(2, 4), 16) / 255, g: parseInt(h.slice(4, 6), 16) / 255, b: parseInt(h.slice(6, 8), 16) / 255, a };
 }
 
+// Tokens defined as another token (dmAccent = moss) become alias variables.
+const aliases = {};
+for (const m of src.matchAll(/static const Color (\w+) = (\w+);/g)) if (colors[m[2]]) aliases[m[1]] = m[2];
+
 const group = (n) =>
   /^bg\d/.test(n) ? 'surface' : /^fg\d/.test(n) ? 'text' : /^line|Border$|focusRing/.test(n) ? 'line'
   : /^moss/.test(n) ? 'brand' : /^(warn|danger|info)/.test(n) ? 'status' : 'accent';
@@ -27,7 +31,8 @@ const textStyles = [
 
 const code = `
 const COLORS = ${JSON.stringify(colors)};
-const GROUP = ${JSON.stringify(Object.fromEntries(Object.keys(colors).map((n) => [n, group(n)])))};
+const ALIASES = ${JSON.stringify(aliases)};
+const GROUP = ${JSON.stringify(Object.fromEntries([...Object.keys(colors), ...Object.keys(aliases)].map((n) => [n, group(n)])))};
 const STYLES = ${JSON.stringify(textStyles)};
 const W = {400:'Regular',500:'Medium',600:'Semi Bold',700:'Bold'};
 let col = (await figma.variables.getLocalVariableCollectionsAsync()).find(c => c.name === 'Mosh');
@@ -40,6 +45,15 @@ for (const [name, rgba] of Object.entries(COLORS)) {
   if (!v) { v = figma.variables.createVariable(full, col, 'COLOR'); made++; }
   v.setValueForMode(col.modes[0].modeId, rgba);
   v.description = 'MoshColors.' + name;
+}
+const all = await figma.variables.getLocalVariablesAsync('COLOR');
+for (const [name, target] of Object.entries(ALIASES)) {
+  const full = GROUP[name] + '/' + name;
+  const base = all.find(x => x.name === GROUP[target] + '/' + target && x.variableCollectionId === col.id);
+  let v = all.find(x => x.name === full && x.variableCollectionId === col.id);
+  if (!v) { v = figma.variables.createVariable(full, col, 'COLOR'); made++; }
+  v.setValueForMode(col.modes[0].modeId, { type: 'VARIABLE_ALIAS', id: base.id });
+  v.description = 'MoshColors.' + name + ' = ' + target;
 }
 const styles = await figma.getLocalTextStylesAsync();
 for (const w of Object.values(W)) await figma.loadFontAsync({family:'Inter', style:w});
