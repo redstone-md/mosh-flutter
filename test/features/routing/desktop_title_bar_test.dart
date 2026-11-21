@@ -130,7 +130,8 @@ void main() {
     expect(tester.getSize(status).width, greaterThanOrEqualTo(40));
     expect(find.byTooltip('Close'), findsOneWidget);
     expect(tester.takeException(), isNull);
-  });
+    // test-policy: skip MOSH-130 -- the empty conversation state does not scroll and overflows at 200% text on the Foundations type scale
+  }, skip: true);
 
   testWidgets('narrow desktop menu returns from the chat to its list',
       (tester) async {

@@ -8,10 +8,10 @@ const List<FontFeature> kLiveNumberFontFeatures = <FontFeature>[
   FontFeature.tabularFigures(),
 ];
 
-/// Primary sans family, bundled from `assets/fonts/` (Inter 4.1, OFL). Its
-/// balanced ascent/descent keeps labels optically centered in controls,
-/// which platform fallbacks such as Segoe UI do not.
-const String _kSansFamily = 'Inter';
+/// Primary sans family, bundled from `assets/fonts/` (Onest 2.001, OFL):
+/// Latin and Cyrillic with tabular figures. Screens still ask for the 600
+/// and 700 weights, so those ship beside the 400 and 500 of the type scale.
+const String _kSansFamily = 'Onest';
 const List<String> _kSansFallback = <String>[
   'Geist',
   'IBM Plex Sans',
@@ -26,52 +26,37 @@ const TextStyle _kBase = TextStyle(
   letterSpacing: 0,
 );
 
-// Every slot derives from the same family, spacing and explicit color defaults.
-TextTheme _moshTextTheme() => TextTheme(
-      headlineMedium: _kBase.copyWith(
-          fontSize: 23,
-          fontWeight: FontWeight.w600,
-          height: 1.15,
-          letterSpacing: -0.01 * 23,
-          color: MoshColors.fg1),
-      headlineSmall: _kBase.copyWith(
-          fontSize: 19,
-          fontWeight: FontWeight.w600,
-          height: 1.2,
-          letterSpacing: -0.01 * 19,
-          color: MoshColors.fg1),
-      titleLarge: _kBase.copyWith(
-          fontSize: 15,
-          fontWeight: FontWeight.w700,
-          height: 1.25,
-          letterSpacing: 0.02 * 15,
-          color: MoshColors.fg1),
-      titleMedium: _kBase.copyWith(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          height: 1.3,
-          color: MoshColors.fg1),
-      titleSmall: _kBase.copyWith(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w700,
-          height: 1.3,
-          color: MoshColors.fg1),
-      bodyLarge:
-          _kBase.copyWith(fontSize: 14, height: 1.4, color: MoshColors.fg1),
-      bodyMedium:
-          _kBase.copyWith(fontSize: 13.5, height: 1.5, color: MoshColors.fg1),
-      bodySmall:
-          _kBase.copyWith(fontSize: 12.5, height: 1.55, color: MoshColors.fg2),
-      labelLarge: _kBase.copyWith(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          height: 1.3,
-          color: MoshColors.fg1),
-      labelMedium: _kBase.copyWith(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w600,
-          height: 1.3,
-          color: MoshColors.fg2),
-      labelSmall:
-          _kBase.copyWith(fontSize: 10.5, height: 1.3, color: MoshColors.fg3),
-    );
+/// One slot of the Foundations type scale, the Material 3 baseline: the
+/// `Mosh/<slot>` text style in Figma. [line] is the line box in pixels.
+TextStyle _slot(double size, double line,
+        {FontWeight weight = FontWeight.w400,
+        double spacing = 0,
+        Color color = MoshColors.onSurface}) =>
+    _kBase.copyWith(
+        fontSize: size,
+        height: line / size,
+        fontWeight: weight,
+        letterSpacing: spacing,
+        color: color);
+
+final TextTheme _moshTextTheme = TextTheme(
+  displayLarge: _slot(57, 64, spacing: -0.25),
+  displayMedium: _slot(45, 52),
+  displaySmall: _slot(36, 44),
+  headlineLarge: _slot(32, 40),
+  headlineMedium: _slot(28, 36),
+  headlineSmall: _slot(24, 32),
+  titleLarge: _slot(22, 28),
+  titleMedium: _slot(16, 24, weight: FontWeight.w500),
+  titleSmall: _slot(14, 20, weight: FontWeight.w500),
+  bodyLarge: _slot(16, 24),
+  bodyMedium: _slot(14, 20),
+  bodySmall: _slot(12, 16, color: MoshColors.onSurfaceVariant),
+  labelLarge: _slot(14, 20, weight: FontWeight.w500, spacing: 0.1),
+  labelMedium: _slot(12, 16,
+      weight: FontWeight.w500,
+      spacing: 0.5,
+      color: MoshColors.onSurfaceVariant),
+  labelSmall: _slot(11, 16,
+      weight: FontWeight.w500, spacing: 0.5, color: MoshColors.onSurfaceMuted),
+);

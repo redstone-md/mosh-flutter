@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 /// Licenses of what Mosh ships beyond its Dart packages, whose notices Flutter
 /// collects itself: Mosh's own license, the Rust crates, the Go modules of
-/// Moss, libmpv and FFmpeg, and the Inter font.
+/// Moss, libmpv and FFmpeg, and the Onest font.
 /// `scripts/third-party-licenses.mjs` generates the asset in the format of
 /// Flutter's own NOTICES.
 const bundledLicensesAsset = 'assets/licenses/NOTICES';

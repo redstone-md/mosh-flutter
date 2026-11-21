@@ -6,21 +6,25 @@ part 'mosh_colors.dart';
 part 'mosh_typography.dart';
 part 'mosh_control_themes.dart';
 
+/// Material 3 state layer for press, hover and focus: the content colour
+/// at 10%, so the surface and its text stay visible under it.
+const Color _stateLayer = Color(0x1AF4EFE9);
+
 ThemeData buildMoshTheme() {
   return ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
     colorScheme: _moshColorScheme,
-    scaffoldBackgroundColor: MoshColors.bg1,
-    canvasColor: MoshColors.bg1,
-    dividerColor: MoshColors.line, // hairline
-    splashColor: MoshColors.mossGlow,
-    highlightColor: MoshColors.mossGlow,
-    focusColor: MoshColors.mossGlow,
+    scaffoldBackgroundColor: MoshColors.surface,
+    canvasColor: MoshColors.surface,
+    dividerColor: MoshColors.outlineVariant, // hairline
+    splashColor: _stateLayer,
+    highlightColor: _stateLayer,
+    focusColor: _stateLayer,
     visualDensity: VisualDensity.compact,
     fontFamily: _kSansFamily,
     fontFamilyFallback: _kSansFallback,
-    textTheme: _moshTextTheme(),
+    textTheme: _moshTextTheme,
     appBarTheme: _moshAppBarTheme,
     dividerTheme: _moshDividerTheme,
     inputDecorationTheme: _moshInputDecorationTheme,
@@ -29,7 +33,7 @@ ThemeData buildMoshTheme() {
     popupMenuTheme: _moshPopupMenuTheme,
     menuTheme: MoshMenuTheme.panel(_moshColorScheme),
     menuButtonTheme:
-        MoshMenuTheme.items(_moshColorScheme, _moshTextTheme().bodyMedium),
+        MoshMenuTheme.items(_moshColorScheme, _moshTextTheme.bodyMedium),
     bottomSheetTheme: MoshMenuTheme.sheet(_moshColorScheme),
     switchTheme: _moshSwitchTheme,
     filledButtonTheme: _moshFilledButtonTheme,

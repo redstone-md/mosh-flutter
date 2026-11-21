@@ -4,7 +4,7 @@
 // license, the Rust crates of mosh-core and the media crates (from their
 // Cargo.lock, through cargo-about), the Go modules of Moss, libmpv and FFmpeg
 // under the LGPL with the sources of the builds media_kit downloads, and the
-// Inter font. The app adds the file to its license page
+// Onest font. The app adds the file to its license page
 // (lib/src/app/bundled_licenses.dart). CI writes it again and fails when the
 // committed file differs: run this script after changing a dependency.
 import { execFileSync } from "node:child_process";
@@ -146,7 +146,7 @@ function libmpv() {
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const components = [
     { names: ["Mosh"], text: read("LICENSE") },
-    { names: ["Inter"], text: read("assets/fonts/Inter-OFL.txt") },
+    { names: ["Onest"], text: read("assets/fonts/Onest-OFL.txt") },
     ...rustCrates(),
     ...mossModules(),
     ...libmpv(),

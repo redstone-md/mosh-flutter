@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'mosh_dimensions.dart';
 import 'mosh_shapes.dart';
 
 /// Shared surfaces and interaction states for anchored menus and pickers.
@@ -14,7 +15,7 @@ abstract final class MoshMenuTheme {
           alignment: AlignmentDirectional.bottomStart,
           shape: WidgetStatePropertyAll(RoundedRectangleBorder(
             borderRadius: MoshShapes.menu,
-            side: BorderSide(color: colors.outline),
+            side: BorderSide(color: colors.outlineVariant),
           )),
         ),
       );
@@ -51,8 +52,9 @@ abstract final class MoshMenuTheme {
         showDragHandle: true,
         dragHandleColor: colors.onSurfaceVariant,
         shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-          side: BorderSide(color: colors.outline),
+          borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(MoshRadius.large)),
+          side: BorderSide(color: colors.outlineVariant),
         ),
         clipBehavior: Clip.antiAlias,
       );

@@ -23,7 +23,6 @@ void main() {
       expect(tester.getSize(_button(label)).height,
           tester.getSize(_button('Open chat')).height);
     }
-    expect(primary.fontWeight, FontWeight.w600);
     expect(primary.color, MoshColors.mossInk);
   });
 
@@ -45,7 +44,6 @@ void main() {
     await _pump(tester, setup: true, width: 240);
     final primary = _label(tester, 'Open chat');
     expect(primary.fontSize, 15);
-    expect(primary.fontWeight, FontWeight.w600);
     for (final label in ['Copy link', 'Replace link']) {
       expect(_label(tester, label).fontSize, primary.fontSize);
       expect(tester.getSize(_button(label)).height,

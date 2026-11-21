@@ -21,6 +21,7 @@ import '../../support/pump.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/event_log.dart';
 import 'package:mosh/src/rust/conversation/mesh.dart';
@@ -152,15 +153,15 @@ void main() {
 
     test('maps all semantic event-name groups', () {
       expect(eventNameColor('peer_joined', fallback: fallback),
-          const Color(0xFFB7D84A));
+          MoshColors.primary);
       expect(eventNameColor('supernode_promoted', fallback: fallback),
-          const Color(0xFFB7D84A));
-      expect(eventNameColor('peer_left', fallback: fallback),
-          const Color(0xFFE8B65A));
+          MoshColors.primary);
+      expect(
+          eventNameColor('peer_left', fallback: fallback), MoshColors.warning);
       expect(eventNameColor('tracker_announce', fallback: fallback),
-          const Color(0xFF6CB7E8));
+          MoshColors.info);
       expect(eventNameColor('tracker_failure', fallback: fallback),
-          const Color(0xFFE86A5A));
+          MoshColors.error);
     });
 
     test('keeps unknown event names on the neutral fallback', () {
