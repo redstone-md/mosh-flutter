@@ -54,9 +54,9 @@ class ToastCard extends StatelessWidget {
     }
     Widget card = DecoratedBox(
       decoration: BoxDecoration(
-        color: MoshColors.bg3,
+        color: MoshColors.surfaceContainerHighest,
         borderRadius: MoshShapes.menu,
-        border: Border.all(color: MoshColors.lineStrong),
+        border: Border.all(color: MoshColors.outlineVariant),
         boxShadow: const [
           BoxShadow(
               color: Color(0x66000000), blurRadius: 24, offset: Offset(0, 8)),
@@ -87,9 +87,9 @@ class ToastCard extends StatelessWidget {
   Widget _body(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final (icon, color) = switch (entry.kind) {
-      ToastKind.info => (Icons.info_outline, MoshColors.fg2),
-      ToastKind.success => (Icons.check_circle_outline, MoshColors.moss),
-      ToastKind.error => (Icons.error_outline, MoshColors.danger),
+      ToastKind.info => (Icons.info_outline, MoshColors.onSurfaceVariant),
+      ToastKind.success => (Icons.check_circle_outline, MoshColors.success),
+      ToastKind.error => (Icons.error_outline, MoshColors.error),
     };
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(14, 6, 6, 6),
@@ -106,7 +106,7 @@ class ToastCard extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
-                  ?.copyWith(color: MoshColors.fg1),
+                  ?.copyWith(color: MoshColors.onSurface),
             ),
           ),
         ),
@@ -123,7 +123,8 @@ class ToastCard extends StatelessWidget {
               radius: MoshShapes.control,
               child: SizedBox.square(
                 dimension: 32,
-                child: Icon(Icons.close, size: 16, color: MoshColors.fg3),
+                child: Icon(Icons.close,
+                    size: 16, color: MoshColors.onSurfaceMuted),
               ),
             ),
           ),

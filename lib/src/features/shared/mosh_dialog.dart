@@ -94,10 +94,10 @@ class MoshDialog extends StatelessWidget {
 }
 
 /// Destructive actions retain readable ink even on custom danger fills.
-ButtonStyle moshDangerButtonStyle([Color color = MoshColors.danger]) =>
+ButtonStyle moshDangerButtonStyle([Color color = MoshColors.error]) =>
     FilledButton.styleFrom(
       backgroundColor: color,
       foregroundColor: color.computeLuminance() > 0.183
-          ? MoshColors.mossInk
-          : MoshColors.fg1,
+          ? MoshColors.onPrimary
+          : MoshColors.onSurface,
     );

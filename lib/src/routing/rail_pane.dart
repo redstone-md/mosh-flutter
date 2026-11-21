@@ -243,7 +243,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
                 width: lit ? 3 : 0,
-                color: _focused ? MoshColors.focusRing : MoshColors.moss,
+                color: _focused ? MoshColors.focusRing : MoshColors.primary,
               ),
             ),
           ),

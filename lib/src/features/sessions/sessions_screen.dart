@@ -53,12 +53,12 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     // The rail carries NO header of
     // its own; the shell titlebar sits above it.
     return Scaffold(
-      backgroundColor: MoshColors.bg0,
+      backgroundColor: MoshColors.surfaceContainerLowest,
       // The rail carries no AppBar, so nothing else keeps it clear of the
       // status bar / camera cutout. Desktop gets that clearance from the
       // shell titlebar above it; the mobile shell is a bare IndexedStack, so
       // on Android 15+ (edge-to-edge is mandatory there) the first row drew
-      // under the cutout. Inside the Scaffold, so bg0 still paints edge to
+      // under the cutout. Inside the Scaffold, so surfaceContainerLowest still paints edge to
       // edge behind the status bar and only the content is inset.
       body: SafeArea(
         // While the pane animates wider than the strip, the strip keeps
@@ -126,7 +126,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     return compact
         ? CompactRailButton(
             icon: const Icon(Icons.settings_outlined,
-                size: 18, color: MoshColors.fg2),
+                size: 18, color: MoshColors.onSurfaceVariant),
             label: label,
             onTap: open)
         : RailSettingsButton(label: label, onTap: open);

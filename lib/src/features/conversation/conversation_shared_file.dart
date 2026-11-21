@@ -43,9 +43,10 @@ class ConversationSharedFile extends StatelessWidget {
             height: kAttachmentThumbSize,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-                color: MoshColors.mossGlow, borderRadius: MoshShapes.control),
+                color: MoshColors.secondaryContainer,
+                borderRadius: MoshShapes.control),
             child: const Icon(Icons.insert_drive_file_outlined,
-                color: MoshColors.moss300, size: 23),
+                color: MoshColors.primary, size: 23),
           ),
           const SizedBox(width: 10),
           Expanded(

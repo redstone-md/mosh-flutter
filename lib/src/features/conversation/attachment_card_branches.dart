@@ -60,7 +60,7 @@ class _MediaPreviewCard extends StatelessWidget {
                             width: constraints.maxWidth),
                         clipBehavior: Clip.antiAlias,
                         decoration: const BoxDecoration(
-                          color: MoshColors.line,
+                          color: MoshColors.outlineVariant,
                           borderRadius: MoshShapes.attachment,
                         ),
                         child: Stack(
@@ -80,8 +80,8 @@ class _MediaPreviewCard extends StatelessWidget {
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color:
-                                        MoshColors.bg0.withValues(alpha: 0.62),
+                                    color: MoshColors.surfaceContainerLowest
+                                        .withValues(alpha: 0.62),
                                   ),
                                   child: const Center(
                                     child: Icon(
@@ -134,9 +134,9 @@ Widget _previewImage(
     gaplessPlayback: true,
     errorBuilder: (context, _, __) => const SizedBox.expand(
       child: ColoredBox(
-        color: MoshColors.line,
-        child:
-            Icon(Icons.broken_image_outlined, size: 32, color: MoshColors.fg3),
+        color: MoshColors.outlineVariant,
+        child: Icon(Icons.broken_image_outlined,
+            size: 32, color: MoshColors.onSurfaceMuted),
       ),
     ),
   );

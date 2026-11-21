@@ -21,7 +21,7 @@ class DeviceFingerprintChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
-        color: MoshColors.bg2,
+        color: MoshColors.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -29,7 +29,7 @@ class DeviceFingerprintChip extends StatelessWidget {
         style: const TextStyle(
           fontFamily: 'monospace',
           fontSize: 10,
-          color: MoshColors.fg3,
+          color: MoshColors.onSurfaceMuted,
         ),
       ),
     );

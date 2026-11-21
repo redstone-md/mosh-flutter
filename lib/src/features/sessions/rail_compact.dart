@@ -156,14 +156,16 @@ class CompactRailButton extends StatelessWidget {
         button: true,
         label: label,
         child: Material(
-          color: filled ? Colors.transparent : MoshColors.bg2,
+          color: filled ? Colors.transparent : MoshColors.surfaceContainerHigh,
           borderRadius: radius,
           child: ResumedInk(
             builder: (focusNode) => InkWell(
               focusNode: focusNode,
               borderRadius: radius,
               onTap: onTap,
-              hoverColor: filled ? MoshColors.mossGlow : MoshColors.bg3,
+              hoverColor: filled
+                  ? MoshColors.secondaryContainer
+                  : MoshColors.surfaceContainerHighest,
               child: FocusRing(
                 radius: radius,
                 child: SizedBox.square(
@@ -182,8 +184,8 @@ class CompactRailButton extends StatelessWidget {
 /// The creation disc, as the expanded New button draws it.
 const Widget kCompactNewIcon = CircleAvatar(
   radius: 16,
-  backgroundColor: MoshColors.moss,
-  child: Icon(Icons.add, size: 20, color: MoshColors.mossInk),
+  backgroundColor: MoshColors.primary,
+  child: Icon(Icons.add, size: 20, color: MoshColors.onPrimary),
 );
 
 /// An organization in the collapsed list: its avatar, which expands the

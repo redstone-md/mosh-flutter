@@ -22,8 +22,8 @@ class MoshProgressBar extends StatelessWidget {
         child: LinearProgressIndicator(
           value: fraction,
           minHeight: 4,
-          backgroundColor: MoshColors.bg3,
-          color: MoshColors.moss,
+          backgroundColor: MoshColors.surfaceContainerHighest,
+          color: MoshColors.primary,
           semanticsLabel: semanticsLabel,
         ),
       );

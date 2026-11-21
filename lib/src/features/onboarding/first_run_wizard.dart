@@ -49,7 +49,7 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
   Widget build(BuildContext context) => Theme(
       data: buildSetupTheme(Theme.of(context)),
       child: Scaffold(
-        backgroundColor: MoshColors.bg0,
+        backgroundColor: MoshColors.surfaceContainerLowest,
         body: SafeArea(
             child: Column(children: [
           if (!DesktopChromeScope.isPresent(context))
@@ -72,15 +72,16 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
           padding: EdgeInsets.all(sizing.cardPadding),
           decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: MoshColors.moss.withValues(alpha: .3)),
+              border:
+                  Border.all(color: MoshColors.primary.withValues(alpha: .3)),
               gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color.alphaBlend(MoshColors.moss.withValues(alpha: .055),
-                        MoshColors.bg0),
-                    MoshColors.bg1,
-                    MoshColors.bg0
+                    Color.alphaBlend(MoshColors.primary.withValues(alpha: .055),
+                        MoshColors.surfaceContainerLowest),
+                    MoshColors.surface,
+                    MoshColors.surfaceContainerLowest
                   ])),
           child: LayoutBuilder(
               builder: (context, constraints) =>

@@ -12,11 +12,12 @@ class ConversationUnreadDivider extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 8),
           padding: const EdgeInsets.symmetric(vertical: 5),
-          color: MoshColors.bg2,
+          color: MoshColors.surfaceContainerHigh,
           alignment: Alignment.center,
           child: Text(
             AppLocalizations.of(context)!.chatUnreadDivider,
-            style: const TextStyle(fontSize: 12, color: MoshColors.fg2),
+            style: const TextStyle(
+                fontSize: 12, color: MoshColors.onSurfaceVariant),
           ),
         ),
       );

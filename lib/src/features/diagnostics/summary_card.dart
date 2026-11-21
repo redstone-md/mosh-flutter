@@ -112,7 +112,7 @@ class _StatusBadge extends StatelessWidget {
     final badgeBg = tone == DiagnosticSummaryTone.error
         ? toneColor.withValues(alpha: 0.06)
         : (tone == DiagnosticSummaryTone.ready
-            ? const Color(0x24B7D84A).withValues(alpha: 0.14)
+            ? toneColor.withValues(alpha: 0.14)
             : theme.colorScheme.surfaceContainerHighest);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -186,8 +186,8 @@ class _FactCell extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
-          color: MoshColors.bg2,
-          border: Border.all(color: MoshColors.line),
+          color: MoshColors.surfaceContainerHigh,
+          border: Border.all(color: MoshColors.outlineVariant),
           borderRadius: BorderRadius.circular(7),
         ),
         child: Column(
@@ -231,7 +231,7 @@ class RuntimeError extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    const danger = MoshColors.danger;
+    const danger = MoshColors.error;
     // Live region: screen readers announce the error when it appears in
     // the drawer.
     return Semantics(
@@ -287,12 +287,12 @@ class RuntimeError extends StatelessWidget {
 Color _toneColor(DiagnosticSummaryTone tone) {
   switch (tone) {
     case DiagnosticSummaryTone.ready:
-      return MoshColors.moss;
+      return MoshColors.primary;
     case DiagnosticSummaryTone.waiting:
-      return MoshColors.warn;
+      return MoshColors.warning;
     case DiagnosticSummaryTone.error:
-      return MoshColors.danger;
+      return MoshColors.error;
     case DiagnosticSummaryTone.idle:
-      return MoshColors.fg3;
+      return MoshColors.onSurfaceMuted;
   }
 }

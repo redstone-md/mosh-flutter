@@ -20,16 +20,16 @@ List<Widget> callControls(CallViewState call, AppLocalizations l,
         CallButton(
             icon: Icons.tune,
             tooltip: l.callDevices,
-            color: MoshColors.bg3,
-            foreground: MoshColors.fg1,
+            color: MoshColors.surfaceContainerHighest,
+            foreground: MoshColors.onSurface,
             onPressed: call.busy ? null : devices),
       _end(call, l, act),
       if (call.phase == CallViewPhase.incoming)
         CallButton(
             icon: Icons.phone,
             tooltip: l.callIncomingAccept,
-            color: MoshColors.moss,
-            foreground: MoshColors.mossInk,
+            color: MoshColors.primary,
+            foreground: MoshColors.onPrimary,
             onPressed: call.busy ? null : () => act(CallViewAction.accept)),
     ];
 
@@ -38,8 +38,11 @@ Widget _microphone(CallViewState call, AppLocalizations l,
     CallButton(
         icon: call.muted ? Icons.mic_off : Icons.mic,
         tooltip: call.muted ? l.callActiveUnmute : l.callActiveMute,
-        color: call.muted ? MoshColors.info : MoshColors.bg3,
-        foreground: call.muted ? MoshColors.bg0 : MoshColors.fg1,
+        color:
+            call.muted ? MoshColors.info : MoshColors.surfaceContainerHighest,
+        foreground: call.muted
+            ? MoshColors.surfaceContainerLowest
+            : MoshColors.onSurface,
         toggled: !call.muted,
         onPressed: call.busy || (call.media == null && !call.audioReady)
             ? null
@@ -55,8 +58,12 @@ Widget _camera(
           : media.cameraRequested
               ? l.callCameraOff
               : l.callCameraOn,
-      color: media.cameraRequested ? MoshColors.info : MoshColors.bg3,
-      foreground: media.cameraRequested ? MoshColors.bg0 : MoshColors.fg1,
+      color: media.cameraRequested
+          ? MoshColors.info
+          : MoshColors.surfaceContainerHighest,
+      foreground: media.cameraRequested
+          ? MoshColors.surfaceContainerLowest
+          : MoshColors.onSurface,
       toggled: media.cameraRequested,
       onPressed: call.busy ? null : () => act(CallViewAction.camera));
 }
@@ -70,8 +77,8 @@ Widget _end(CallViewState call, AppLocalizations l,
           CallViewPhase.active => l.callActiveHangUp,
           _ => l.callOutgoingCancel,
         },
-        color: MoshColors.danger,
-        foreground: MoshColors.bg0,
+        color: MoshColors.error,
+        foreground: MoshColors.surfaceContainerLowest,
         onPressed: () => act(call.phase == CallViewPhase.incoming && !call.busy
             ? CallViewAction.decline
             : CallViewAction.end));

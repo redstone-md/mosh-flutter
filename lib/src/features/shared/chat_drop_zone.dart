@@ -20,7 +20,7 @@ import 'package:mosh/src/features/shared/attachment_picker.dart'
 const int kAttachmentMaxBytes = 50 * 1024 * 1024;
 
 /// `--moss` accent, from the shared theme tokens.
-const Color _kMoss = MoshColors.moss;
+const Color _kMoss = MoshColors.primary;
 
 /// Wraps [child] (the message list) so a desktop file drop ingests through
 /// the same `onAttach`/`onError` pair the paperclip uses.

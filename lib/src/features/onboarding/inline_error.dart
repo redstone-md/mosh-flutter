@@ -26,16 +26,16 @@ class InlineError extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: MoshColors.dangerSurface,
+          color: MoshColors.errorContainer,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: MoshColors.dangerBorder),
+          border: Border.all(color: MoshColors.error),
         ),
         child: Text(
           text,
           style: Theme.of(context)
               .textTheme
               .bodySmall
-              ?.copyWith(color: MoshColors.danger),
+              ?.copyWith(color: MoshColors.error),
         ),
       ),
     );

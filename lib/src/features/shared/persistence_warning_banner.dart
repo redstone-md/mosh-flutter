@@ -38,8 +38,8 @@ class PersistenceWarningBanner extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
-          color: MoshColors.warnSurface,
-          border: Border.all(color: MoshColors.warnBorder),
+          color: MoshColors.warningContainer,
+          border: Border.all(color: MoshColors.warning),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -54,12 +54,13 @@ class PersistenceWarningBanner extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: text.titleSmall?.copyWith(color: MoshColors.warn),
+                    style: text.titleSmall?.copyWith(color: MoshColors.warning),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     body,
-                    style: text.bodySmall?.copyWith(color: MoshColors.fg3),
+                    style: text.bodySmall
+                        ?.copyWith(color: MoshColors.onSurfaceMuted),
                   ),
                 ],
               ),
@@ -82,10 +83,11 @@ class _IconPlate extends StatelessWidget {
       height: 26,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: MoshColors.warnIconSurface,
+        color: MoshColors.warningContainer,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Icon(Icons.warning_amber, size: 15, color: MoshColors.warn),
+      child:
+          const Icon(Icons.warning_amber, size: 15, color: MoshColors.warning),
     );
   }
 }

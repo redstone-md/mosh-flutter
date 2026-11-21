@@ -33,7 +33,7 @@ const double kRailLeadingWidth = 40;
 /// follows the window, and a drag can widen the pane further.
 const double kRailWidth = 348;
 
-/// Hover wash over any row tint: about one bg step lighter on bg2.
+/// Hover wash over any row tint: about one surface step lighter on surfaceContainerHigh.
 final Color _kHoverOverlay = Colors.white.withValues(alpha: 0.03);
 
 /// The conversation kind a rail row stands for, and its accent.
@@ -177,7 +177,7 @@ class RailItem extends StatelessWidget {
 }
 
 /// The row's title over its optional subtitle, in the theme's list-row
-/// styles (the subtitle is fg2, which clears 4.5:1 on every row tint).
+/// styles (the subtitle is onSurfaceVariant, which clears 4.5:1 on every row tint).
 class _RailText extends StatelessWidget {
   const _RailText({
     required this.title,
@@ -216,7 +216,8 @@ class _RailText extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   timestamp!,
-                  style: const TextStyle(fontSize: 11, color: MoshColors.fg3),
+                  style: const TextStyle(
+                      fontSize: 11, color: MoshColors.onSurfaceMuted),
                 ),
               ],
             ],
@@ -236,7 +237,7 @@ class _RailText extends StatelessWidget {
   }
 }
 
-/// A full-width [MoshColors.lineStrong] hairline.
+/// A full-width [MoshColors.outlineVariant] hairline.
 class RailDivider extends StatelessWidget {
   const RailDivider({super.key});
 
@@ -244,7 +245,7 @@ class RailDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: kRailListGap),
-      child: Container(height: 1, color: MoshColors.lineStrong),
+      child: Container(height: 1, color: MoshColors.outlineVariant),
     );
   }
 }
@@ -267,7 +268,7 @@ class RailSettingsButton extends StatelessWidget {
       button: true,
       child: PressScale(
         child: Material(
-          color: MoshColors.bg2,
+          color: MoshColors.surfaceContainerHigh,
           borderRadius: radius,
           // Settings covers the rail; a fresh InkWell drops the press ink
           // that froze under it.
@@ -276,7 +277,7 @@ class RailSettingsButton extends StatelessWidget {
                     focusNode: focusNode,
                     borderRadius: radius,
                     onTap: onTap,
-                    hoverColor: MoshColors.bg3,
+                    hoverColor: MoshColors.surfaceContainerHighest,
                     child: FocusRing(
                       radius: radius,
                       child: Container(
@@ -291,7 +292,7 @@ class RailSettingsButton extends StatelessWidget {
                             const Icon(
                               Icons.settings_outlined,
                               size: 18,
-                              color: MoshColors.fg2,
+                              color: MoshColors.onSurfaceVariant,
                             ),
                             const SizedBox(width: 10),
                             Flexible(
@@ -302,7 +303,7 @@ class RailSettingsButton extends StatelessWidget {
                                 style: const TextStyle(
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w600,
-                                  color: MoshColors.fg2,
+                                  color: MoshColors.onSurfaceVariant,
                                 ),
                               ),
                             ),
@@ -337,7 +338,7 @@ class RailNewButton extends StatelessWidget {
                   borderRadius: radius,
                   onTap: onTap,
                   // `.rail-new:hover { background: var(--moss-glow) }`.
-                  hoverColor: MoshColors.mossGlow,
+                  hoverColor: MoshColors.secondaryContainer,
                   child: FocusRing(
                     radius: radius,
                     child: Container(
@@ -353,9 +354,9 @@ class RailNewButton extends StatelessWidget {
                             child: Center(
                               child: CircleAvatar(
                                   radius: 16,
-                                  backgroundColor: MoshColors.moss,
+                                  backgroundColor: MoshColors.primary,
                                   child: Icon(Icons.add,
-                                      size: 20, color: MoshColors.mossInk)),
+                                      size: 20, color: MoshColors.onPrimary)),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -367,7 +368,7 @@ class RailNewButton extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: MoshColors.fg1,
+                                color: MoshColors.onSurface,
                               ),
                             ),
                           ),

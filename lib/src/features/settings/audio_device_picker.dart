@@ -75,7 +75,7 @@ class AudioDevicePicker extends StatelessWidget {
               onPressed: onRefresh,
               icon: const Icon(Icons.refresh, size: 16),
               label: Text(l.settingsRefreshDevices),
-              style: TextButton.styleFrom(foregroundColor: MoshColors.moss),
+              style: TextButton.styleFrom(foregroundColor: MoshColors.primary),
             ),
           ],
         ),

@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 
-/// Shared geometry for chat surfaces and their controls.
+import 'mosh_dimensions.dart';
+
+/// Shared geometry for chat surfaces and their controls, on the
+/// [MoshRadius] scale of Foundations.
 abstract final class MoshShapes {
-  static const messageRadius = 16.0;
+  static const messageRadius = MoshRadius.large;
   static const messageHorizontalInset = 12.0;
   static const attachmentInset = 8.0;
   static const attachmentFooterInset = messageHorizontalInset - attachmentInset;
 
-  static const control = BorderRadius.all(Radius.circular(8));
-  static const conversationRow = BorderRadius.all(Radius.circular(12));
-  static const menu = BorderRadius.all(Radius.circular(12));
+  static const control = BorderRadius.all(Radius.circular(MoshRadius.small));
+  static const conversationRow =
+      BorderRadius.all(Radius.circular(MoshRadius.medium));
+  static const menu = BorderRadius.all(Radius.circular(MoshRadius.medium));
   static const message = BorderRadius.all(Radius.circular(messageRadius));
-  static const composer = BorderRadius.all(Radius.circular(16));
+  static const composer = BorderRadius.all(Radius.circular(MoshRadius.large));
 
   /// Compact corners for sender-series joins and small embedded controls.
-  static const embedded = BorderRadius.all(Radius.circular(4));
+  static const embedded =
+      BorderRadius.all(Radius.circular(MoshRadius.extraSmall));
 
   static const attachment =
       BorderRadius.all(Radius.circular(messageRadius - attachmentInset));

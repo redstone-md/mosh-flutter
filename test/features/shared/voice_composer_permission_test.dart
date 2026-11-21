@@ -185,7 +185,7 @@ void main() {
         contains(FontFeature.tabularFigures()));
     final dot = tester.widget<Container>(find.descendant(
         of: find.byType(VoiceRecordingDot), matching: find.byType(Container)));
-    expect((dot.decoration! as BoxDecoration).color, MoshColors.danger);
+    expect((dot.decoration! as BoxDecoration).color, MoshColors.error);
     expect(started, hasLength(1), reason: 'the capture must really begin');
     expect(started.single, endsWith('.m4a'));
     expect(find.byIcon(Icons.stop), findsOneWidget);

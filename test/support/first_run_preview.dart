@@ -9,16 +9,16 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 const _enabled = bool.fromEnvironment('SETUP_PREVIEW');
 
-/// Loads the bundled Inter weights and Material icons so previews render
+/// Loads the bundled Onest weights and Material icons so previews render
 /// real glyphs instead of the test font.
 Future<void> prepareSetupPreview(WidgetTester tester) async {
   if (!_enabled) return;
   await tester.runAsync(() async {
-    final inter = FontLoader('Inter');
+    final onest = FontLoader('Onest');
     for (final weight in ['Regular', 'Medium', 'SemiBold', 'Bold']) {
-      inter.addFont(_read('assets/fonts/Inter-$weight.ttf'));
+      onest.addFont(_read('assets/fonts/Onest-$weight.ttf'));
     }
-    await inter.load();
+    await onest.load();
     await (FontLoader('MaterialIcons')
           ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf')))
         .load();
@@ -52,7 +52,7 @@ Future<void> savePreviewPng(WidgetTester tester, Finder boundary, String path,
     final layer = await render.toImage(pixelRatio: pixelRatio);
     final recorder = ui.PictureRecorder();
     Canvas(recorder)
-      ..drawColor(MoshColors.bg1, BlendMode.src)
+      ..drawColor(MoshColors.surface, BlendMode.src)
       ..drawImage(layer, Offset.zero, Paint());
     final picture = recorder.endRecording();
     final image = await picture.toImage(layer.width, layer.height);

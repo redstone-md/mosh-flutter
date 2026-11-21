@@ -79,7 +79,7 @@ class InviteResult extends StatelessWidget {
     );
     final secondary = style.copyWith(
       foregroundColor: WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.disabled) ? null : MoshColors.fg1),
+          states.contains(WidgetState.disabled) ? null : MoshColors.onSurface),
     );
     if (onReplace case final replace?) {
       return [
@@ -99,17 +99,16 @@ class InviteResult extends StatelessWidget {
 
   Widget _footer(BuildContext context, String text) => Column(children: [
         const SizedBox(height: 20),
-        const Divider(height: 1, color: MoshColors.line),
+        const Divider(height: 1, color: MoshColors.outlineVariant),
         const SizedBox(height: 16),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(Icons.lock_outline, size: 20, color: MoshColors.fg3),
+          const Icon(Icons.lock_outline,
+              size: 20, color: MoshColors.onSurfaceMuted),
           const SizedBox(width: 12),
           Expanded(
               child: Text(text,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: MoshColors.fg3, height: 1.5))),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: MoshColors.onSurfaceMuted, height: 1.5))),
         ]),
       ]);
 }
@@ -129,12 +128,12 @@ class _ReadyNote extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          color: MoshColors.mossGlow,
-          border: Border.all(color: MoshColors.moss.withValues(alpha: 0.3)),
+          color: MoshColors.secondaryContainer,
+          border: Border.all(color: MoshColors.primary.withValues(alpha: 0.3)),
         ),
         child: Row(children: [
           const Icon(Icons.check_circle_outline,
-              size: 32, color: MoshColors.moss),
+              size: 32, color: MoshColors.primary),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -142,11 +141,12 @@ class _ReadyNote extends StatelessWidget {
               children: [
                 Text(title,
                     style: text.titleSmall?.copyWith(
-                        color: MoshColors.moss, fontWeight: FontWeight.w600)),
+                        color: MoshColors.primary,
+                        fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
                 Text(note,
-                    style: text.bodySmall
-                        ?.copyWith(color: MoshColors.fg2, height: 1.45)),
+                    style: text.bodySmall?.copyWith(
+                        color: MoshColors.onSurfaceVariant, height: 1.45)),
               ],
             ),
           ),
@@ -175,14 +175,14 @@ class _LinkField extends StatelessWidget {
             style: Theme.of(context)
                 .textTheme
                 .labelMedium
-                ?.copyWith(color: MoshColors.fg2)),
+                ?.copyWith(color: MoshColors.onSurfaceVariant)),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsetsDirectional.fromSTEB(14, 6, 6, 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            color: MoshColors.bg0,
-            border: Border.all(color: MoshColors.lineStrong),
+            color: MoshColors.surfaceContainerLowest,
+            border: Border.all(color: MoshColors.outlineVariant),
           ),
           child: Row(children: [
             Expanded(
@@ -193,7 +193,7 @@ class _LinkField extends StatelessWidget {
                   fontFamily: 'monospace',
                   fontSize: 12.5,
                   height: 1.5,
-                  color: MoshColors.fg1,
+                  color: MoshColors.onSurface,
                 ),
               ),
             ),

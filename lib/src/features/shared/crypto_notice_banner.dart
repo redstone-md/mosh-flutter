@@ -85,7 +85,7 @@ class CryptoNoticeBanner extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
-                        color: MoshColors.fg1,
+                        color: MoshColors.onSurface,
                       ),
                     ),
                     // Body: fg-3, 11.5px/1.5, 3px top margin.
@@ -95,7 +95,7 @@ class CryptoNoticeBanner extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 11.5,
                         height: 1.5,
-                        color: MoshColors.fg3,
+                        color: MoshColors.onSurfaceMuted,
                       ),
                     ),
                   ],
@@ -108,7 +108,8 @@ class CryptoNoticeBanner extends StatelessWidget {
                 onPressed: dismissing ? null : onDismiss,
                 tooltip: AppLocalizations.of(context)!.dialogClose,
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.close, size: 18, color: MoshColors.fg3),
+                color: MoshColors.onSurfaceMuted,
+                icon: const Icon(Icons.close, size: 18),
               ),
             ],
           ],

@@ -14,10 +14,12 @@ class ConversationDateDivider extends StatelessWidget {
               child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
-                color: MoshColors.bg2, borderRadius: MoshShapes.embedded),
+                color: MoshColors.surfaceContainerHigh,
+                borderRadius: MoshShapes.embedded),
             child: Text(
                 MaterialLocalizations.of(context).formatMediumDate(date),
-                style: const TextStyle(fontSize: 11, color: MoshColors.fg3)),
+                style: const TextStyle(
+                    fontSize: 11, color: MoshColors.onSurfaceMuted)),
           )),
         ),
       );

@@ -40,7 +40,8 @@ class StartStep extends StatelessWidget {
                 onPressed: onBack,
                 icon: const Icon(Icons.arrow_back, size: 18),
                 label: Text(l.onboardBack),
-                style: TextButton.styleFrom(foregroundColor: MoshColors.fg2),
+                style: TextButton.styleFrom(
+                    foregroundColor: MoshColors.onSurfaceVariant),
               ),
             ),
             const SizedBox(height: 4),
@@ -58,14 +59,14 @@ class StartStep extends StatelessWidget {
             const SizedBox(height: 10),
             Text(subtitle,
                 textAlign: TextAlign.center,
-                style: text.bodyMedium
-                    ?.copyWith(color: MoshColors.fg2, height: 1.55)),
+                style: text.bodyMedium?.copyWith(
+                    color: MoshColors.onSurfaceVariant, height: 1.55)),
             const SizedBox(height: 24),
             DecoratedBox(
               decoration: BoxDecoration(
-                color: MoshColors.bg1,
+                color: MoshColors.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: MoshColors.line),
+                border: Border.all(color: MoshColors.outlineVariant),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(24),

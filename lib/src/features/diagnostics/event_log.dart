@@ -141,13 +141,13 @@ Color eventNameColor(String eventName, {required Color fallback}) {
   switch (eventName) {
     case 'peer_joined':
     case 'supernode_promoted':
-      return MoshColors.moss;
+      return MoshColors.primary;
     case 'peer_left':
-      return MoshColors.warn;
+      return MoshColors.warning;
     case 'tracker_announce':
       return MoshColors.info;
     case 'tracker_failure':
-      return MoshColors.danger;
+      return MoshColors.error;
     default:
       return fallback;
   }

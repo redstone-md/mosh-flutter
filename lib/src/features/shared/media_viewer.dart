@@ -253,7 +253,7 @@ class _ImageStage extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: ColoredBox(
-        color: MoshColors.bg0,
+        color: MoshColors.surfaceContainerLowest,
         child: Image(
           image: _image,
           fit: BoxFit.contain,
@@ -299,7 +299,7 @@ class _MediaCaption extends StatelessWidget {
         style: TextStyle(
           fontSize: 12.5,
           // Muted fg-2.
-          color: MoshColors.fg2,
+          color: MoshColors.onSurfaceVariant,
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.ellipsis,

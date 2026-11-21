@@ -56,7 +56,7 @@ pubspec.lock.
 | libmpv and ffmpeg (media_kit) | LGPL-2.1-or-later; LGPL-3.0 on Windows | Kept, linked dynamically (frameworks on Apple), as VLC ships libVLC on the App Store under the LGPL. Apple uses the `default` build of media-kit's libmpv-darwin-build, made for playback without GPL parts; the Windows build configures ffmpeg with `--disable-gpl --enable-version3` and mpv with `-Dgpl=false`. The license page carries the LGPL texts and each build's release page. |
 | androidx media3 (video_player, Android) | Apache-2.0 | Permissive; from Google's Maven repository. Android has no libmpv ([ADR 0053](ADR/0053-android-playback-through-media3.md)). |
 | Flutter engine and SDK packages | BSD-3-Clause and bundled components | Flutter bundles their notices in every build. |
-| Inter | SIL Open Font License 1.1 | Permissive for embedding. |
+| Onest | SIL Open Font License 1.1 | Permissive for embedding. |
 
 ## Notices
 
@@ -64,7 +64,7 @@ Settings > About opens Flutter's license page in every build, store builds
 included. Flutter fills it with the license files of the Dart packages;
 `assets/licenses/NOTICES` adds Mosh's own license, the Rust crates of the
 three graphs above (cargo-about with [about.toml](../about.toml), deny.toml's
-list as the accepted licenses), the Go modules of Moss, the Inter font, and libmpv and FFmpeg with
+list as the accepted licenses), the Go modules of Moss, the Onest font, and libmpv and FFmpeg with
 the LGPL text and the release page of each build media_kit downloads. The
 ANGLE build media_kit adds on Windows is BSD-3-Clause, which Flutter's own
 notices carry for the engine's ANGLE. The

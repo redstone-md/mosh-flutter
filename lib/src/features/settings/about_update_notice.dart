@@ -39,19 +39,19 @@ class AboutUpdateNotice extends ConsumerWidget {
         case UpdateInstallApplying():
           return _line(context,
               icon: Icons.system_update_alt,
-              tint: MoshColors.moss,
+              tint: MoshColors.primary,
               message: l.settingsAboutUpdateApplying);
         case UpdateInstallImageOpen():
           return _line(context,
               icon: Icons.folder_open,
-              tint: MoshColors.moss,
+              tint: MoshColors.primary,
               message: l.settingsAboutUpdateImageOpen,
               action: _button(l.settingsAboutUpdateImageShow,
                   () => ref.read(updateInstallProvider.notifier).reveal()));
         case UpdateInstallFailed():
           return _line(context,
               icon: Icons.error_outline,
-              tint: MoshColors.warn,
+              tint: MoshColors.warning,
               message: l.settingsAboutUpdateInstallFailed,
               action: _button(
                   l.settingsAboutUpdateRetry,
@@ -71,22 +71,22 @@ class AboutUpdateNotice extends ConsumerWidget {
       switch (ref.watch(updateCheckProvider)) {
         AsyncData(:final value?) => _line(context,
             icon: Icons.system_update_alt,
-            tint: MoshColors.moss,
+            tint: MoshColors.primary,
             message: l.settingsAboutUpdateAvailable(value.version),
             action: _offerUpdate(context, ref, l, candidate, value)),
         AsyncData() => _line(context,
             icon: Icons.check_circle_outline,
-            tint: MoshColors.moss,
+            tint: MoshColors.primary,
             message: l.settingsAboutUpdateCurrent),
         AsyncError() => _line(context,
             icon: Icons.error_outline,
-            tint: MoshColors.warn,
+            tint: MoshColors.warning,
             message: l.settingsAboutUpdateFailed,
             action: _button(l.settingsAboutUpdateRetry,
                 () => ref.invalidate(updateCheckProvider))),
         _ => _line(context,
             icon: Icons.sync,
-            tint: MoshColors.fg3,
+            tint: MoshColors.onSurfaceMuted,
             message: l.settingsAboutUpdateChecking),
       };
 
@@ -118,7 +118,7 @@ class AboutUpdateNotice extends ConsumerWidget {
       children: [
         _line(context,
             icon: Icons.downloading,
-            tint: MoshColors.moss,
+            tint: MoshColors.primary,
             message: fraction == null
                 ? l.settingsAboutUpdateDownloadingUnknown
                 : l.settingsAboutUpdateDownloading(percent)),

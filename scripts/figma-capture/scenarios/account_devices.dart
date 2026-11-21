@@ -250,7 +250,7 @@ final List<FigmaScene> deviceScenes = [
     Navigator.of(tester.element(find.byType(DevicesSettingsSection)))
         .push(MaterialPageRoute<void>(
             builder: (_) => Scaffold(
-                  backgroundColor: MoshColors.bg0,
+                  backgroundColor: MoshColors.surfaceContainerLowest,
                   appBar: AppBar(title: const Text('Settings')),
                   body: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(

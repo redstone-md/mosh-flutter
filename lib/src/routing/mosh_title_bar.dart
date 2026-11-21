@@ -334,25 +334,25 @@ _PillVariant _pillVariant(String state) {
     case 'ready':
       // ready: moss-glow bg, moss text, moss dot + glow, moss border.
       return _PillVariant(
-        background: MoshColors.mossGlow,
-        textColor: MoshColors.moss,
-        dotColor: MoshColors.moss,
+        background: MoshColors.secondaryContainer,
+        textColor: MoshColors.primary,
+        dotColor: MoshColors.primary,
         dotGlow: <BoxShadow>[
           BoxShadow(
-              color: MoshColors.moss.withValues(alpha: 0.6), blurRadius: 4),
+              color: MoshColors.primary.withValues(alpha: 0.6), blurRadius: 4),
         ],
-        borderColorOverride: MoshColors.moss.withValues(alpha: 0.25),
+        borderColorOverride: MoshColors.primary.withValues(alpha: 0.25),
       );
     case 'waiting':
       // waiting: warn text, warn dot, warn-tinted border; base bg.
       return _PillVariant(
-        textColor: MoshColors.warn,
-        dotColor: MoshColors.warn,
-        borderColorOverride: MoshColors.warn.withValues(alpha: 0.25),
+        textColor: MoshColors.warning,
+        dotColor: MoshColors.warning,
+        borderColorOverride: MoshColors.warning.withValues(alpha: 0.25),
       );
     case 'idle':
     default:
       // idle (and unknown states): default text, fg-3 dot.
-      return _PillVariant(dotColor: MoshColors.fg3);
+      return _PillVariant(dotColor: MoshColors.onSurfaceMuted);
   }
 }

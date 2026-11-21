@@ -24,9 +24,9 @@ class LinkedDeviceList extends StatelessWidget {
       Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: MoshColors.bg1,
+          color: MoshColors.surface,
           borderRadius: MoshShapes.composer,
-          border: Border.all(color: MoshColors.line),
+          border: Border.all(color: MoshColors.outlineVariant),
         ),
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -61,9 +61,9 @@ class _DeviceRow extends StatelessWidget {
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: MoshColors.bg2,
+        color: MoshColors.surfaceContainerHigh,
         borderRadius: MoshShapes.conversationRow,
-        border: Border.all(color: MoshColors.line),
+        border: Border.all(color: MoshColors.outlineVariant),
       ),
       child: Row(children: [
         const Icon(Icons.devices_outlined, size: 24),
@@ -80,7 +80,7 @@ class _DeviceRow extends StatelessWidget {
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
-                      ?.copyWith(color: MoshColors.moss)),
+                      ?.copyWith(color: MoshColors.primary)),
             ],
           ]),
         ),

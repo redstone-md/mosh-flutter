@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import opentype from 'opentype.js';
+import { windowColor } from './tokens.mjs';
 
 // Material icons are glyphs of Flutter's bundled font; their outlines become vectors.
 const flutterBin = fs.realpathSync(execFileSync(process.platform === 'win32' ? 'where' : 'which', ['flutter'], { encoding: 'utf8' }).split(/\r?\n/)[0]);
@@ -150,6 +151,6 @@ function attachShadows(kids) {
 export function simplify(scene) {
   const screen = { x: 0, y: 0, w: scene.w, h: scene.h };
   const kids = walk(scene.tree, { clip: screen, libId: null });
-  // The window paints MoshColors.bg1 beneath the app; translucent hairlines need it.
-  return { k: 'frame', name: scene.title, r: screen, clip: true, fill: [17 / 255, 19 / 255, 21 / 255, 1], kids };
+  // The window paints its colour beneath the app; translucent layers need it.
+  return { k: 'frame', name: scene.title, r: screen, clip: true, fill: [...windowColor(), 1], kids };
 }

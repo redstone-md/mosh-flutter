@@ -171,14 +171,15 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
         ],
         const SizedBox(height: 16),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(Icons.info_outline, size: 18, color: MoshColors.fg3),
+          const Icon(Icons.info_outline,
+              size: 18, color: MoshColors.onSurfaceMuted),
           const SizedBox(width: 10),
           Expanded(
             child: Text(l.onboardGroupMembersNote,
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
-                    ?.copyWith(color: MoshColors.fg3, height: 1.45)),
+                    ?.copyWith(color: MoshColors.onSurfaceMuted, height: 1.45)),
           ),
         ]),
       ],

@@ -29,14 +29,14 @@ TextStyle chatTitleStyle(BuildContext context) =>
           fontWeight: FontWeight.w600,
           height: 1.25,
           letterSpacing: 0,
-          color: MoshColors.fg1,
+          color: MoshColors.onSurface,
         );
 
 TextStyle chatSubtitleStyle(BuildContext context) =>
     Theme.of(context).textTheme.bodySmall!.copyWith(
           fontSize: _isCompactChatHeader(context) ? 11 : 12,
           height: 1.2,
-          color: MoshColors.fg3,
+          color: MoshColors.onSurfaceMuted,
         );
 
 /// The gap under the title: 4px at every width.
@@ -61,18 +61,18 @@ const double kCompactDeliverySize = 15;
 const TextStyle kMessageMetaNameStyle = TextStyle(
   fontSize: 13,
   fontWeight: FontWeight.w700,
-  color: MoshColors.fg1,
+  color: MoshColors.onSurface,
 );
 
 const TextStyle kMessageTimeStyle = TextStyle(
   fontSize: 11,
-  color: MoshColors.fg3,
+  color: MoshColors.onSurfaceMuted,
   fontFeatures: kLiveNumberFontFeatures,
 );
 
 /// The message text itself: 13.5px at 1.5 line height in fg-1.
 const TextStyle kMessageBodyStyle =
-    TextStyle(fontSize: 13.5, height: 1.5, color: MoshColors.fg1);
+    TextStyle(fontSize: 13.5, height: 1.5, color: MoshColors.onSurface);
 
 /// Delivery-tick glyph row for an own-message row. Renders nothing for
 /// `failed` or null status, and shows the state glyph (`sent` -> one tick,
@@ -129,14 +129,16 @@ class DeliveryTicks extends StatelessWidget {
               message: label,
               child: Icon(icon,
                   size: kCompactDeliverySize,
-                  color: read ? MoshColors.moss300 : color ?? MoshColors.fg3)));
+                  color: read
+                      ? MoshColors.primary
+                      : color ?? MoshColors.onSurfaceMuted)));
     }
     // The read receipt changes the COLOR of the same glyphs, never adds a
     // third tick: the delivered marks carry the theme's accent instead of
     // the faint fg-4, exactly like a "seen" mark.
     final style = read
-        ? const TextStyle(fontSize: 10, color: MoshColors.moss)
-        : const TextStyle(fontSize: 10, color: MoshColors.fg4);
+        ? const TextStyle(fontSize: 10, color: MoshColors.primary)
+        : const TextStyle(fontSize: 10, color: MoshColors.outline);
     return Padding(
       padding: const EdgeInsets.only(top: 1),
       // The label already includes the glyph + word, so the a11y string is
@@ -150,7 +152,8 @@ class DeliveryTicks extends StatelessWidget {
             if (status == MessageDeliveryStatus.queued)
               const Padding(
                 padding: EdgeInsets.only(right: 2),
-                child: Icon(Icons.schedule, size: 10, color: MoshColors.fg4),
+                child:
+                    Icon(Icons.schedule, size: 10, color: MoshColors.outline),
               ),
             Text(label, style: style),
           ],
@@ -234,7 +237,7 @@ class UnreadBadge extends StatelessWidget {
         child: Text(
           text,
           textAlign: TextAlign.center,
-          // The theme's on-accent ink (mossInk): white on the moss primary
+          // The theme's on-accent ink (onPrimary): white on the moss primary
           // fails contrast at ~1.6:1 (audit 2026-09-21). Live number ->
           // tabular figures keep the badge from jittering as the count ticks.
           style: theme.textTheme.labelMedium!.copyWith(

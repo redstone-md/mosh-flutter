@@ -1,115 +1,121 @@
 part of 'mosh_theme.dart';
 
-/// All Mosh color tokens.
-///
-/// The three rgba() tokens (line, lineStrong, mossGlow) are converted to
-/// an 8-bit alpha channel:
-///   0.06 -> 0x0F   (15/255 ~= 0.0588)
-///   0.10 -> 0x1A   (26/255 ~= 0.102)
-///   0.14 -> 0x24   (36/255 ~= 0.141)
+/// All Mosh color tokens: the dark theme of Foundations in the Figma file
+/// "Mosh". A token has the name of its variable in the "Mosh" collection
+/// without the group (`primary/primary` is [primary]);
+/// `scripts/figma-capture/tokens.mjs` writes this file back to those
+/// variables, so a token is either a literal or the name of another token.
 class MoshColors {
   const MoshColors._(); // static const surface only; never instantiated
 
-  // Backgrounds: bg0 (deepest) .. bg4 (highest raised surface).
-  static const Color bg0 = Color(0xFF0B0C0D); // deepest (window/body)
-  static const Color bg1 = Color(0xFF111315); // raised surface 1
-  static const Color bg2 = Color(0xFF16181B); // raised surface 2
-  static const Color bg3 = Color(0xFF1D2024); // raised surface 3
-  static const Color bg4 = Color(0xFF262A2F); // raised surface 4
+  // Material 3 roles.
+  static const Color primary = Color(0xFFF5BE62);
+  static const Color onPrimary = Color(0xFF2A1B04);
+  static const Color primaryContainer = Color(0xFFF2B34C);
+  static const Color onPrimaryContainer = Color(0xFF2A1B04);
+  static const Color inversePrimary = Color(0xFF82540A);
 
-  // Hairline borders (rgba white)
-  static const Color line = Color(0x0FFFFFFF); // alpha 0.06
-  static const Color lineStrong = Color(0x1AFFFFFF); // alpha 0.10
+  static const Color secondary = Color(0xFFD9C3A5);
+  static const Color onSecondary = Color(0xFF33261A);
+  static const Color secondaryContainer = Color(0xFF413628);
+  static const Color onSecondaryContainer = Color(0xFFF4E5D2);
 
-  // Foreground text: fg1 (primary) .. fg4 (disabled/faintest)
-  static const Color fg1 = Color(0xFFECEEEA); // primary text
-  static const Color fg2 = Color(0xFFA8AEB0); // secondary text
-  // fg3 clears 4.5:1 on bg0..bg3 (4.57 on bg3); fg4 does not clear it
-  // anywhere, so it is for disabled and decorative marks only, never text a
-  // user must read (interface review 2026-09-30).
-  static const Color fg3 = Color(0xFF83888D); // tertiary/muted text
-  static const Color fg4 = Color(0xFF474B50); // disabled/decorative only
+  static const Color tertiary = Color(0xFF86B6E3);
+  static const Color onTertiary = Color(0xFF0C2A43);
+  static const Color tertiaryContainer = Color(0xFF2A3F52);
+  static const Color onTertiaryContainer = Color(0xFFD2E6F8);
 
-  // Brand (moss)
-  static const Color moss = Color(0xFFB7D84A); // brand primary
-  static const Color moss300 = Color(0xFFD4EB7A); // brand light
-  static const Color mossGlow =
-      Color(0x24B7D84A); // rgba(moss, 0.14) -- used for glow/selection tints
-  static const Color mossInk = Color(0xFF0E1707); // text on moss
+  static const Color error = Color(0xFFF27E6E);
+  static const Color onError = Color(0xFF3D0A04);
+  static const Color errorContainer = Color(0xFF4A2520);
+  static const Color onErrorContainer = Color(0xFFFFD9D3);
 
-  // Semantic accents
-  static const Color warn = Color(0xFFE8B65A);
-  static const Color danger = Color(0xFFE86A5A);
-  static const Color info = Color(0xFF6CB7E8);
+  static const Color surface = Color(0xFF282421);
+  static const Color surfaceDim = Color(0xFF201D1A);
+  static const Color surfaceBright = Color(0xFF45403A);
+  static const Color surfaceContainerLowest = Color(0xFF1E1B18);
+  static const Color surfaceContainerLow = Color(0xFF23201D);
+  static const Color surfaceContainer = Color(0xFF2E2A26);
+  static const Color surfaceContainerHigh = Color(0xFF352F2B);
+  static const Color surfaceContainerHighest = Color(0xFF3C352F);
+  static const Color onSurface = Color(0xFFF4EFE9);
+  static const Color onSurfaceVariant = Color(0xFFC2B8AD);
+  static const Color inverseSurface = Color(0xFFF4EFE9);
+  static const Color onInverseSurface = Color(0xFF2E2A26);
 
-  /// Conversation type accents, used with distinct glyphs, never as status.
-  static const Color dmAccent = moss;
-  static const Color groupAccent = Color(0xFFB49BE0);
-  static const Color channelAccent = info;
-  static const Color outgoingMessage = Color(0xFF273D2D);
+  /// Edges that must be seen (fields, focusable controls): 3:1 on surfaces.
+  static const Color outline = Color(0xFF8F8479);
 
-  // Role tokens built on the primitives above. Components read these
-  // instead of re-deriving an alpha at the call site.
+  /// Decorative hairlines and dividers.
+  static const Color outlineVariant = Color(0xFF3D3833);
 
-  /// Text-field edge: white at 0.35, >= 3:1 against bg0..bg3.
-  static const Color fieldBorder = Color(0x5AFFFFFF);
+  // Mosh roles beyond Material 3.
+
+  /// Tertiary text: clears 4.5:1 on every surface container.
+  static const Color onSurfaceMuted = Color(0xFFADA195);
+
+  static const Color success = Color(0xFF7CCB8F);
+  static const Color warning = Color(0xFFEE9156);
+  static const Color warningContainer = Color(0xFF4A3022);
+  static const Color onWarningContainer = Color(0xFFFFDCC7);
+  static const Color info = tertiary;
+
+  /// Message bubbles. Own messages sit on the saffron fill with dark text.
+  static const Color outgoing = primaryContainer;
+  static const Color incoming = surfaceContainerHigh;
+  static const Color onOutgoing = Color(0xFF2A1B04);
+  static const Color onOutgoingVariant = Color(0xFF5E3F0C);
+  static const Color outgoingError = Color(0xFF7A160B);
+
+  /// Initials-avatar plates, picked per contact, and the initials on them.
+  static const Color avatar1 = Color(0xFF5A3F2E);
+  static const Color avatar2 = Color(0xFF2F4A44);
+  static const Color avatar3 = Color(0xFF4A3A55);
+  static const Color avatar4 = Color(0xFF3E4A2C);
+  static const Color onAvatar = Color(0xFFF4EFE9);
 
   /// Keyboard focus ring, drawn 2px around the focused control.
-  static const Color focusRing = fg1;
+  static const Color focusRing = onSurface;
 
-  /// Channel-row tint: info at 0.10.
-  static const Color channelTint = Color(0x1A6CB7E8);
-
-  /// Initials-avatar plate.
-  static const Color avatarSurface = Color(0xFF2D3F23);
-
-  /// Warning callout fill / icon plate / edge (warn at 0.08 / 0.12 / 0.28).
-  static const Color warnSurface = Color(0x15E8B65A);
-  static const Color warnIconSurface = Color(0x1FE8B65A);
-  static const Color warnBorder = Color(0x47E8B65A);
-
-  /// Error callout fill / edge (danger at 0.08 / 0.35).
-  static const Color dangerSurface = Color(0x14E86A5A);
-  static const Color dangerBorder = Color(0x59E86A5A);
+  /// Bubble of an own message while its text is still the light
+  /// [onSurface]: a deep amber instead of [outgoing], which needs
+  /// [onOutgoing] text.
+  static const Color outgoingMessage = Color(0xFF45300C);
 }
 
-// Neutral Material roles use fg2. Runtime warning/info colors stay explicit.
-// Danger is a light fill and needs dark mossInk for readable contrast.
 const ColorScheme _moshColorScheme = ColorScheme.dark(
   brightness: Brightness.dark,
-  primary: MoshColors.moss,
-  onPrimary: MoshColors.mossInk,
-  primaryContainer: MoshColors.moss,
-  onPrimaryContainer: MoshColors.mossInk,
-  secondary: MoshColors.fg2,
-  onSecondary: MoshColors.bg0,
-  secondaryContainer: MoshColors.bg3,
-  onSecondaryContainer: MoshColors.fg1,
-  tertiary: MoshColors.fg2,
-  onTertiary: MoshColors.bg0,
-  tertiaryContainer: MoshColors.bg3,
-  onTertiaryContainer: MoshColors.fg1,
-  error: MoshColors.danger,
-  onError: MoshColors.mossInk,
-  errorContainer: MoshColors.danger,
-  onErrorContainer: MoshColors.mossInk,
-  surface: MoshColors.bg0,
-  onSurface: MoshColors.fg1,
-  onSurfaceVariant: MoshColors.fg2,
-  outline: MoshColors.lineStrong,
-  outlineVariant: MoshColors.line,
-  shadow: MoshColors.bg0,
-  scrim: MoshColors.bg0,
-  inverseSurface: MoshColors.fg1,
-  onInverseSurface: MoshColors.bg0,
-  inversePrimary: MoshColors.moss300,
-  // Material 3 surfaceContainer* slots (Flutter 3.22+). If a widget resolves
-  // against a ColorScheme lacking these, it falls back to `surface` /
-  // `surfaceVariant`, so the slots below are a refinement, not a hard
-  // requirement.
-  surfaceContainerLowest: MoshColors.bg0,
-  surfaceContainerLow: MoshColors.bg1,
-  surfaceContainer: MoshColors.bg1,
-  surfaceContainerHigh: MoshColors.bg2,
-  surfaceContainerHighest: MoshColors.bg3,
+  primary: MoshColors.primary,
+  onPrimary: MoshColors.onPrimary,
+  primaryContainer: MoshColors.primaryContainer,
+  onPrimaryContainer: MoshColors.onPrimaryContainer,
+  secondary: MoshColors.secondary,
+  onSecondary: MoshColors.onSecondary,
+  secondaryContainer: MoshColors.secondaryContainer,
+  onSecondaryContainer: MoshColors.onSecondaryContainer,
+  tertiary: MoshColors.tertiary,
+  onTertiary: MoshColors.onTertiary,
+  tertiaryContainer: MoshColors.tertiaryContainer,
+  onTertiaryContainer: MoshColors.onTertiaryContainer,
+  error: MoshColors.error,
+  onError: MoshColors.onError,
+  errorContainer: MoshColors.errorContainer,
+  onErrorContainer: MoshColors.onErrorContainer,
+  surface: MoshColors.surface,
+  surfaceDim: MoshColors.surfaceDim,
+  surfaceBright: MoshColors.surfaceBright,
+  surfaceContainerLowest: MoshColors.surfaceContainerLowest,
+  surfaceContainerLow: MoshColors.surfaceContainerLow,
+  surfaceContainer: MoshColors.surfaceContainer,
+  surfaceContainerHigh: MoshColors.surfaceContainerHigh,
+  surfaceContainerHighest: MoshColors.surfaceContainerHighest,
+  onSurface: MoshColors.onSurface,
+  onSurfaceVariant: MoshColors.onSurfaceVariant,
+  outline: MoshColors.outline,
+  outlineVariant: MoshColors.outlineVariant,
+  shadow: Color(0xFF000000),
+  scrim: Color(0xFF000000),
+  inverseSurface: MoshColors.inverseSurface,
+  onInverseSurface: MoshColors.onInverseSurface,
+  inversePrimary: MoshColors.inversePrimary,
 );
