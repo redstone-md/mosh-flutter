@@ -1,0 +1,13 @@
+{
+  "name": "mosh-figma-capture",
+  "private": true,
+  "type": "module",
+  "description": "Captures the Flutter UI into Figma as editable layers",
+  "scripts": {
+    "capture": "node capture.mjs"
+  },
+  "dependencies": {
+    "opentype.js": "^1.3.4",
+    "pngjs": "^7.0.0"
+  }
+}
