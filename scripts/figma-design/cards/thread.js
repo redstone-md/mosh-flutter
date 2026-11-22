@@ -3,6 +3,7 @@
 // captured "Conversation / DM / Thread" and "Conversation / Group / Thread".
 card('Thread', 'The components in use. Bubbles of one run sit 4 px apart and a new run starts 12 px lower. The last example holds what a feed has to survive: a long link, a token without spaces and a long name.');
 const DM = [
+  { kind: 'call', direction: 'Outgoing', detail: '3:07', time: '18:02' },
   { kind: 'call', direction: 'Incoming', detail: '12:34', time: '18:20' },
   { kind: 'date', date: 'Sat, Nov 21' },
   { kind: 'unread' },
@@ -36,12 +37,12 @@ const HARD = [
 const FILES = [
   { kind: 'in', text: 'The route with all the stops', time: '08:15', attach: ['File card', { State: 'Transfer' }, { Name: 'coast-route.pdf', 'Detail, transfer': '58% of 1.2 MB' }] },
   { kind: 'in', time: '08:16', attach: ['File card', { State: 'To download' }, { Name: 'trail-map-with-every-waypoint-and-campsite-final-v3.zip', 'Detail, to download': '24 MB' }] },
-  { kind: 'out', time: '08:20', ticks: 'Delivered', attach: ['File card', { State: 'Failed' }, { Name: 'packing-list.docx' }] },
+  { kind: 'out', time: '08:20', ticks: 'Queued', attach: ['File card', { State: 'Failed' }, { Name: 'packing-list.docx' }] },
   { kind: 'out', text: 'Sunrise from the ridge', time: '09:06', ticks: 'Read', attach: ['Media card', { Kind: 'Image', State: 'Ready' }, { 'Name, image': 'ridge-trail.jpg' }] },
   { kind: 'in', time: '10:02', attach: ['Voice message', { State: 'Idle' }, {}] },
   { kind: 'out', time: '10:04', ticks: 'Read', attach: ['Voice message', { State: 'Playing' }, {}] },
 ];
-const INITIALS = (name) => name.split(' ').slice(0, 2).map((w) => w[0]).join('');
+const initialsOf = (name) => name.split(' ').slice(0, 2).map((w) => w[0]).join('');
 /** Gives the message instance [b] the content of [m]; first: it opens a run. */
 function dress(b, m, device, first) {
   if (m.time) setProps(b, { Time: m.time });
@@ -58,21 +59,18 @@ function dress(b, m, device, first) {
   setProps(b, { Gutter: true, Avatar: first, Sender: first && !m.state });
   if (!first) return;
   if (!m.state) setProps(b, { 'Sender name': m.from, Fingerprint: m.print });
-  const avatar = b.findOne((n) => n.name === 'avatar');
-  avatar.swapComponent(variant('Avatar', { Kind: 'Person', Plate: m.plate ?? '1', Size: 'Compact' }));
-  setProps(avatar, { Initials: INITIALS(m.from) });
+  dressAvatar(b, { Plate: m.plate ?? '1', Size: 'Compact' }, { Initials: initialsOf(m.from) });
 }
 /** A feed of [items] at the width of a conversation on [device]. */
 function thread(name, device, items) {
-  const phone = device === 'Phone';
-  const t = box(`${name} · ${device}`, { dir: 'V', gap: 1, pad: [4, phone ? 3 : 5], w: phone ? 390 : 760, fill: 'surface', align: 'MIN' });
+  const t = box(`${name} · ${device}`, { dir: 'V', gap: 1, pad: [4, feedPad(device)], w: FEED[device], fill: 'surface', align: 'MIN' });
   const run = (a, b) => a && a.kind === b.kind && a.from === b.from && (a.kind === 'in' || a.kind === 'out');
   items.forEach((m, i) => {
     if (m.kind === 'date') return add(t, setProps(inst('Date divider'), { Date: m.date }), { fillW: true });
     if (m.kind === 'unread') return add(t, inst('Unread divider'), { fillW: true });
     if (m.kind === 'notice') return add(t, setProps(inst('Group notice'), { Notice: m.notice }), { fillW: true });
     const first = !run(items[i - 1], m), last = !run(items[i + 1], m);
-    const row = add(t, box('row', { dir: 'H', justify: m.kind === 'out' ? 'MAX' : 'MIN', pad: first && i ? [2, 0, 0, 0] : 0 }), { fillW: true });
+    const row = add(t, box('row', { dir: 'H', justify: m.kind === 'out' || m.direction === 'Outgoing' ? 'MAX' : 'MIN', pad: first && i ? [2, 0, 0, 0] : 0 }), { fillW: true });
     if (m.kind === 'call') return add(row, setProps(inst('Call log entry', { Direction: m.direction }), { Detail: m.detail, Time: m.time }));
     const Position = first && last ? 'Single' : first ? 'First' : last ? 'Last' : 'Middle';
     const b = add(row, inst(m.kind === 'out' ? 'Outgoing message' : 'Incoming message', { Position, Device: device, State: m.state ?? 'Default' }));
@@ -81,5 +79,5 @@ function thread(name, device, items) {
   return t;
 }
 for (const [label, items] of [['Direct chat', DM], ['Group', GROUP], ['Files, pictures and voice', FILES], ['Long link, token and name', HARD]]) {
-  (await examples(label, [thread(label, 'Desktop', items), thread(label, 'Phone', items)])).counterAxisAlignItems = 'MIN';
+  await examples(label, [thread(label, 'Desktop', items), thread(label, 'Phone', items)], 'MIN');
 }

@@ -94,7 +94,7 @@ async function flush() {
   for (const [t, s] of pendingText.splice(0)) await t.setTextStyleIdAsync(s.id);
   for (const [n, s] of pendingEffects.splice(0)) await n.setEffectStyleIdAsync(s.id);
 }
-// Text in a Mosh/* style. o: w (fixed width, wraps), truncate (one line of the width it is given), cut, name.
+// Text in a Mosh/* style. o: w (fixed width, wraps), truncate (one line of the width it is given), cut (one line that hugs, cut at add()'s max), name.
 function text(chars, slot, color, o = {}) {
   const s = TS[slot] ?? fail(slot), t = figma.createText();
   t.fontName = s.fontName; t.fontSize = s.fontSize; t.lineHeight = s.lineHeight; t.letterSpacing = s.letterSpacing;
@@ -235,12 +235,12 @@ async function grid(name, rows, cols, make, minCol = 0) {
   c.resize(Math.max(c.width, left + W + PAD), y + PAD - 40);
   return set;
 }
-/** Adds a row of usage examples (instances) under the sets of the card. */
-async function examples(label, nodes) {
+/** Adds a row of usage examples (instances) under the sets of the card; align 'MIN' levels their tops. */
+async function examples(label, nodes, align = 'CENTER') {
   const c = CARD;
   let y = cursor;
   const t = add(c, text(label, 'titleMedium', 'onSurface')); t.x = PAD; t.y = y;
-  const row = box('Examples · ' + label, { dir: 'H', gap: 2, align: 'CENTER' });
+  const row = box('Examples · ' + label, { dir: 'H', gap: 2, align });
   c.appendChild(row); row.x = PAD; row.y = y + 40;
   nodes.forEach((n) => row.appendChild(n));
   await flush();
@@ -310,7 +310,7 @@ const TONES = {
   Surface: { ink: 'onSurface', quiet: 'onSurfaceMuted', plate: 'surfaceContainerHighest', glyph: 'onSurfaceVariant', error: 'error', failPlate: 'errorContainer', accent: 'primary', onAccent: 'onPrimary', rest: 'outline' },
   Outgoing: { ink: 'onOutgoing', quiet: 'onOutgoingVariant', plate: 'onOutgoingVariant', glyph: 'outgoing', error: 'outgoingError', failPlate: 'outgoingError', accent: 'onOutgoing', onAccent: 'outgoing', rest: 'onOutgoingVariant' },
 };
-const TONE_ROWS = (rows) => Object.keys(TONES).flatMap((t) => rows.map(([label, props]) => [[label, t.toLowerCase()].filter(Boolean).join(', '), { ...props, Tone: t }]));
+const toneRows = (rows) => Object.keys(TONES).flatMap((t) => rows.map(([label, props]) => [[label, t.toLowerCase()].filter(Boolean).join(', '), { ...props, Tone: t }]));
 /** Lays the outgoing bubble's colour under the variants of [set] drawn for it, which the card's own colour would hide. */
 function backdrop(set) {
   const at = CARD.children.indexOf(set), M = 8;
@@ -320,6 +320,35 @@ function backdrop(set) {
     r.x = set.x + v.x - M; r.y = set.y + v.y - M;
   }
   return set;
+}
+// Widths a component is drawn at: a row of the chat list, the feed of a conversation, and the text of a bubble.
+const ROW = { Desktop: 324, Phone: 358 }, FEED = { Desktop: 640, Phone: 390 }, MEASURE = { Desktop: 480, Phone: 232 };
+/** Side padding of the feed, as a space key. */
+const feedPad = (Device) => (Device === 'Phone' ? 3 : 5);
+/** Adds an Avatar that the instances of the component can swap and set: its layer is exposed. */
+function avatarSlot(parent, props) {
+  const a = add(parent, inst('Avatar', { Kind: 'Person', Plate: '2', ...props }));
+  a.name = 'avatar'; a.isExposedInstance = true;
+  return a;
+}
+/** Turns the avatar inside [node] into another variant and sets its properties. */
+function dressAvatar(node, props, values = {}) {
+  const a = node.findOne((n) => n.name === 'avatar');
+  a.swapComponent(variant('Avatar', { Kind: 'Person', ...props }));
+  return setProps(a, values);
+}
+/** The chat list's filters, the first one lit. */
+function filterChips(Device) {
+  const row = box('filters', { dir: 'H', gap: 1 });
+  ['All', 'Personal', 'Groups', 'Channels'].forEach((l, i) => add(row, setProps(inst('Filter chip', { Selected: i ? 'No' : 'Yes', State: 'Default', Device }), { Label: l })));
+  return row;
+}
+/** The All / Files switch of a search; files: Files is the lit one. */
+function segmented(Device, files = false) {
+  const control = box('Segmented control', { dir: 'H', pad: 1, gap: 1, r: 'full', fill: 'surfaceContainerLowest' });
+  add(control, setProps(inst('Segment', { Selected: files ? 'No' : 'Yes', State: 'Default', Device }), { Label: 'All' }));
+  add(control, setProps(inst('Segment', { Selected: files ? 'Yes' : 'No', State: 'Default', Device }), { Label: 'Files', Icon: true }));
+  return control;
 }
 /** Marks a set that is read, not pressed as a whole: audit.js asks no phone tap target of it. */
 function display(set) { set.setPluginData('target', 'none'); return set; }
@@ -331,3 +360,4 @@ const STATES5 = axis('State', ['Default', 'Hover', 'Pressed', 'Focus', 'Disabled
 function perDevice(rows = ONE) {
   return ['Desktop', 'Phone'].flatMap((d) => rows.map(([label, props]) => [[label, d].filter(Boolean).join(', '), { ...props, Device: d }]));
 }
+const DEVICES = axis('Device', ['Desktop', 'Phone']);

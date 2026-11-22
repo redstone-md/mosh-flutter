@@ -3,13 +3,13 @@
 // RailDivider and the list's empty states. The lists at the end are assembled
 // from these and the chat rows, to judge the list as a whole.
 card('Chat list', 'Above the rows: one button to start a conversation, the search and the filters. Below them: settings. The new-chat button is the primary Button, the filters are filter chips, and the collapsed list uses icon buttons, so only the search field, the settings row and the notice of an empty list are new here.');
-const ROW = { Desktop: 324, Phone: 358 };
 const SEARCH = { Empty: ['Search chats', 'onSurfaceMuted'], Focus: ['Search chats', 'onSurfaceMuted'], Query: ['cabin', 'onSurface'] };
-const fields = await grid('Search field', axis('State', Object.keys(SEARCH)), axis('Device', ['Desktop', 'Phone']), ({ State, Device }) => {
+const fields = await grid('Search field', axis('State', Object.keys(SEARCH)), DEVICES, ({ State, Device }) => {
   const [chars, ink] = SEARCH[State];
   const f = box('Search field', { component: true, dir: 'H', gap: 2, pad: [0, 1, 0, 3], w: ROW[Device], hk: controlHeight(Device), r: 'full', clip: true, fill: 'surfaceContainerHigh' });
   add(f, icon('search', 'onSurfaceVariant'));
-  add(f, text(chars, 'bodyMedium', ink, { name: 'text ' + State, truncate: true }), { fillW: true });
+  add(f, text(chars, 'bodyMedium', ink, { name: State === 'Query' ? 'query' : 'placeholder', truncate: true }), { fillW: true });
+  // The clear button stays 40 px: it sits inside the field, whose own height is the target.
   if (State === 'Query') add(f, action('close', 'Desktop')).name = 'clear';
   else if (Device === 'Desktop') {
     const key = add(add(f, box('shortcut', { dir: 'H', pad: [0, 2, 0, 0] })), box('keycap', { dir: 'H', pad: [0, 1], r: 'extraSmall', stroke: 'outlineVariant' }));
@@ -18,11 +18,12 @@ const fields = await grid('Search field', axis('State', Object.keys(SEARCH)), ax
   if (State === 'Focus') focusRing(f);
   return f;
 });
-prop(fields, 'Placeholder', 'TEXT', 'Search chats', 'text Empty');
-prop(fields, 'Query', 'TEXT', 'cabin', 'text Query');
+prop(fields, 'Placeholder', 'TEXT', 'Search chats', 'placeholder');
+prop(fields, 'Query', 'TEXT', 'cabin', 'query');
+prop(fields, 'Clear', 'BOOLEAN', true, 'clear');
 prop(fields, 'Shortcut', 'BOOLEAN', true, 'shortcut');
 
-const settings = await grid('Settings row', axis('State', ['Default', 'Hover', 'Pressed', 'Focus', 'Selected']), axis('Device', ['Desktop', 'Phone']), ({ State, Device }) => {
+await grid('Settings row', axis('State', ['Default', 'Hover', 'Pressed', 'Focus', 'Selected']), DEVICES, ({ State, Device }) => {
   const on = State === 'Selected', ink = on ? 'onSecondaryContainer' : 'onSurfaceVariant';
   const r = box('Settings row', { component: true, dir: 'H', gap: 3, pad: [0, 3], w: ROW[Device], hk: controlHeight(Device), r: 'full', clip: true, fill: on ? 'secondaryContainer' : null });
   add(r, icon('settings', ink));
@@ -48,46 +49,40 @@ const CHATS = [
   { Title: 'Bartholomew Featherstonehaugh-Cholmondeley', Time: 'Nov 20, 2026', Preview: 'https://maps.example.org/routes/coast/2026/november/lighthouse-loop', avatar: { Kind: 'Person', Plate: '4' }, initials: 'BF' },
   { Title: 'Sofia Reyes', Time: '', Preview: '', bare: true, avatar: { Kind: 'Person', Plate: '1' }, initials: 'SR' },
 ];
-/** Sets an exposed avatar to another kind and plate. */
-function dressAvatar(row, size, c) {
-  const a = row.findOne((n) => n.name === 'avatar');
-  a.swapComponent(variant('Avatar', { ...c.avatar, Size: size }));
-  if (c.initials) setProps(a, { Initials: c.initials });
-  if (c.online) setProps(a, { Presence: true });
-}
 function chat(c, Device) {
   const row = setProps(inst('Chat row', { State: c.State ?? 'Default', Device }), { Title: c.Title, Time: c.Time, Preview: c.Preview, Unread: !!c.Unread, 'Show preview': !c.bare });
-  dressAvatar(row, 'Medium', c);
+  dressAvatar(row, { ...c.avatar, Size: 'Medium' }, { ...(c.initials && { Initials: c.initials }), ...(c.online && { Presence: true }) });
   return row;
 }
-/** A chat list on [Device]; body(list) adds what sits between the filters and the settings row. */
-function list(name, Device, body) {
+/** A chat list on [Device]; body(rows) fills the frame between the filters and the settings row. query: what the search holds. */
+function list(name, Device, body, query) {
   const l = box(`${name} · ${Device}`, { dir: 'V', gap: 2, pad: [4, 2], w: ROW[Device] + 16, fill: 'surfaceContainerLow', align: 'MIN' });
   add(l, setProps(inst('Button', { Kind: 'Primary', Device, State: 'Default' }), { Label: 'Start a conversation', Icon: true }), { fillW: true });
-  add(l, inst('Search field', { State: 'Empty', Device }), { fillW: true });
-  const chips = add(l, box('filters', { dir: 'H', gap: 1 }));
-  ['All', 'Personal', 'Groups', 'Channels'].forEach((label, i) => add(chips, setProps(inst('Filter chip', { Selected: i ? 'No' : 'Yes', State: 'Default', Device: 'Desktop' }), { Label: label })));
+  add(l, query ? setProps(inst('Search field', { State: 'Query', Device }), { Query: query }) : inst('Search field', { State: 'Empty', Device }), { fillW: true });
+  add(l, filterChips(Device));
   body(add(l, box('rows', { dir: 'V', gap: 1, align: 'MIN' }), { fillW: true }));
   add(l, inst('Settings row', { State: 'Default', Device }), { fillW: true });
   return l;
 }
 const full = (Device) => list('Chats', Device, (rows) => CHATS.forEach((c) => add(rows, chat(c, Device), { fillW: true })));
-(await examples('Chats, with a long name and a chat without a last message', [full('Desktop'), full('Phone')])).counterAxisAlignItems = 'MIN';
+await examples('Chats, with a long name and a chat without a last message', [full('Desktop'), full('Phone')], 'MIN');
 const invited = list('Invitations', 'Desktop', (rows) => {
   add(add(rows, box('label', { dir: 'H', pad: [1, 3] })), text('Invitations', 'labelLarge', 'onSurfaceMuted'));
   for (const [Title, Detail, initials, Plate] of [['Nina Alvarez', '#photography', 'NA', '3'], ['Omar Haddad', 'Group invite', 'OH', '4']]) {
-    dressAvatar(add(rows, setProps(inst('Invitation row', { Device: 'Desktop' }), { Title, Detail }), { fillW: true }), 'Small', { avatar: { Kind: 'Person', Plate }, initials });
+    dressAvatar(add(rows, setProps(inst('Invitation row', { Device: 'Desktop' }), { Title, Detail }), { fillW: true }), { Plate, Size: 'Small' }, { Initials: initials });
   }
   add(rows, inst('Divider', { Orientation: 'Horizontal' }), { fillW: true });
   CHATS.slice(0, 2).forEach((c) => add(rows, chat({ ...c, State: 'Default' }, 'Desktop'), { fillW: true }));
 });
-const notice = (Kind) => list(Kind, 'Desktop', (rows) => add(rows, inst('List notice', { Kind }), { fillW: true }));
+const notice = (Kind, query) => list(Kind, 'Desktop', (rows) => add(rows, inst('List notice', { Kind }), { fillW: true }), query);
+const found = list('Search results', 'Desktop', (rows) => CHATS.slice(1, 3).forEach((c) => add(rows, chat({ ...c, State: 'Default' }, 'Desktop'), { fillW: true })), 'ma');
+// The collapsed list is a column of 48 px buttons, the size the phone uses, beside 64 px rows.
 const collapsed = box('Collapsed · Desktop', { dir: 'V', gap: 2, pad: [4, 2], fill: 'surfaceContainerLow' });
 const plus = add(collapsed, action('add', 'Phone', { Kind: 'Tonal', ink: 'onPrimary' })); plus.fills = paint('primary');
 add(collapsed, action('search', 'Phone', { Kind: 'Tonal' }));
 CHATS.slice(0, 4).forEach((c) => {
   const row = add(collapsed, setProps(inst('Compact chat row', { State: c.State ?? 'Default' }), { Unread: !!c.Unread }));
-  dressAvatar(row, 'Medium', c);
+  dressAvatar(row, { ...c.avatar, Size: 'Medium' }, c.initials ? { Initials: c.initials } : {});
 });
 add(collapsed, action('settings', 'Phone', { Kind: 'Tonal' }));
-(await examples('Invitations, no results, no chats, could not load, collapsed', [invited, notice('No results'), notice('No chats'), notice('Could not load'), collapsed])).counterAxisAlignItems = 'MIN';
+await examples('Invitations, search results, no results, no chats, could not load, collapsed', [invited, found, notice('No results', 'cabin'), notice('No chats'), notice('Could not load'), collapsed], 'MIN');

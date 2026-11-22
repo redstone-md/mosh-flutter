@@ -1,17 +1,16 @@
 // Messages: ConversationMessageRow with its text, footer, DeliveryTicks and
 // FailedMessageRetry, and the sender line of groups and channels.
 card('Message', 'A bubble hugs its text and wraps it at a fixed measure, 480 px on the desktop and 232 px on the phone, so a long link or a token without spaces breaks inside it. A file, a picture or a voice message rides above the text, or stands in for it. In a run from one sender the corners on the sender\'s side tighten, and only the first bubble carries the sender. A direct chat shows no avatar; a group and a channel show it beside the first bubble and keep its gutter under it.');
-// Read is told from delivered by a heavier, darker pair of ticks: on the saffron bubble a colour alone is too close.
+// The clock stands for a message that is queued or on its way. Read is told from delivered by a heavier, darker pair of ticks: on the saffron bubble a colour alone is too close.
 const TICKS = { Queued: ['schedule', 'onOutgoingVariant'], Sent: ['check', 'onOutgoingVariant'], Delivered: ['done_all', 'onOutgoingVariant'], Read: ['done_all_read', 'onOutgoing'] };
-const ticks = await grid('Delivery ticks', ONE, axis('State', Object.keys(TICKS)), ({ State }) => {
+const tickSet = await grid('Delivery ticks', ONE, axis('State', Object.keys(TICKS)), ({ State }) => {
   const c = box('Delivery ticks', { component: true, dir: 'H' });
   add(c, icon(...TICKS[State], 4));
   return c;
 }, 64);
 // The ticks are drawn for the outgoing bubble, so the set shows them on its colour.
-ticks.fills = paint('outgoing'); radius(ticks, 'medium');
+tickSet.fills = paint('outgoing'); radius(tickSet, 'medium');
 
-const MEASURE = { Desktop: 480, Phone: 232 };
 const ROUND = 'largeIncreased', TIGHT = 'small';
 /** Corner radii of a bubble at its place in a run: the sender's side tightens between neighbours. */
 function corners(bubble, out, position) {
@@ -37,7 +36,7 @@ function message(side, { Position, Device, State }) {
   if (!out) {
     const sender = add(body, box('sender', { dir: 'H', gap: 2 }));
     add(sender, text('Priya Nair', 'labelLarge', 'onSurface', { name: 'sender name', cut: true }), { max: MEASURE[Device] - 96 });
-    add(sender, text('5b80f2…7d36', 'labelSmall', 'onSurfaceMuted', { name: 'fingerprint' }));
+    add(add(sender, box('fingerprint chip', { dir: 'H', pad: [0, 1], r: 'extraSmall', fill: 'surfaceContainerHighest' })), text('5b80f2…7d36', 'labelSmall', 'onSurfaceVariant', { name: 'fingerprint' }));
   }
   if (gone) {
     add(body, text('Message deleted', 'bodyLarge', quiet, { name: 'deleted' }));

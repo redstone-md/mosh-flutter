@@ -2,7 +2,8 @@
 // the picture and video card, and the file row of the conversation details
 // (ConversationSharedFile), which is the file card on a surface.
 card('Attachment', 'A file shows its name, its size and the one thing that can be done with it now: download it, stop the transfer or try again. A picture and a video show their preview first. The cards have no plate of their own; they sit in a bubble, in either of its colours, or in the list of shared files. A long name is cut at the end.');
-const WIDTH = { Desktop: 320, Phone: 248 };
+// A card is as wide as a bubble's text on the phone, so it never widens the bubble past the feed.
+const WIDTH = { Desktop: 320, Phone: MEASURE.Phone };
 // Per state: the line under the name and the action.
 const FILE = { Ready: ['1.2 MB', null], 'To download': ['1.2 MB', 'download'], Transfer: ['58% of 1.2 MB', 'close'], Failed: ['Transfer failed', 'refresh'] };
 function file({ State, Tone, Device }) {
@@ -12,7 +13,7 @@ function file({ State, Tone, Device }) {
   add(thumb, icon(failed ? 'error' : 'file', failed && Tone === 'Surface' ? 'error' : c.glyph));
   const col = add(f, box('file', { dir: 'V', gap: 1, align: 'MIN' }), { fillW: true });
   add(col, text('coast-route.pdf', 'labelLarge', c.ink, { name: 'name', truncate: true }), { fillW: true });
-  add(col, text(detail, 'labelMedium', failed ? c.error : c.quiet, { name: 'detail', truncate: true }), { fillW: true });
+  add(col, text(detail, 'labelMedium', failed ? c.error : c.quiet, { name: 'detail ' + State, truncate: true }), { fillW: true });
   if (State === 'Transfer') {
     const bar = add(col, inst('Linear progress', { Kind: 'Determinate' }), { fillW: true });
     // The bar's own amber would vanish on the outgoing bubble.
@@ -22,15 +23,14 @@ function file({ State, Tone, Device }) {
   return f;
 }
 const STATES = Object.keys(FILE);
-const files = backdrop(await grid('File card', perDevice(TONE_ROWS(ONE)), axis('State', STATES), file));
+const files = backdrop(await grid('File card', perDevice(toneRows(ONE)), axis('State', STATES), file));
 prop(files, 'Name', 'TEXT', 'coast-route.pdf', 'name');
-for (const v of variants(files)) v.findOne((n) => n.name === 'detail').name = 'detail ' + v.name.match(/State=([^,]+)/)[1];
 for (const s of STATES) prop(files, 'Detail, ' + s.toLowerCase(), 'TEXT', FILE[s][0], 'detail ' + s);
 
-const PREVIEW = { Desktop: [320, 200], Phone: [248, 156] };
+const PREVIEW = { Desktop: 200, Phone: 148 };
 const MEDIA = { Ready: '2.7 MB', Loading: '58% of 2.7 MB', Failed: 'Could not load' };
 function media({ Kind, State, Tone, Device }) {
-  const c = TONES[Tone], [w, h] = PREVIEW[Device], failed = State === 'Failed';
+  const c = TONES[Tone], w = WIDTH[Device], h = PREVIEW[Device], failed = State === 'Failed';
   const m = box('Media card', { component: true, dir: 'V', gap: 2, w, align: 'MIN' });
   // The preview stands for the picture itself, which a screen puts in its place.
   const view = add(m, box('preview', { dir: 'H', w, h, r: 'medium', fill: failed ? 'errorContainer' : 'tertiaryContainer', justify: 'CENTER', clip: true }), { fillW: true });
@@ -43,7 +43,7 @@ function media({ Kind, State, Tone, Device }) {
   add(line, text(MEDIA[State], 'labelMedium', failed ? c.error : c.quiet, { name: 'detail' }));
   return m;
 }
-const medias = backdrop(display(await grid('Media card', perDevice(TONE_ROWS(axis('Kind', ['Image', 'Video']))), axis('State', Object.keys(MEDIA)), media)));
+const medias = backdrop(display(await grid('Media card', perDevice(toneRows(axis('Kind', ['Image', 'Video']))), axis('State', Object.keys(MEDIA)), media)));
 prop(medias, 'Name, image', 'TEXT', 'harbour.jpg', 'name Image');
 prop(medias, 'Name, video', 'TEXT', 'waves.mp4', 'name Video');
 

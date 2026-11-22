@@ -26,7 +26,7 @@ for (const n of host().findAll(() => true)) {
   if (n.layoutMode && n.layoutMode !== 'NONE') for (const f of ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'itemSpacing']) if (n[f] && !bound(n, f)) bad(n, f + ' ' + n[f]);
 }
 // A set with a Device property is pressed as a whole and its phone variants need the target,
-// unless a card marked it with display(): a message or a divider is read, not pressed.
+// unless a card marked it with display(): a message is read, not pressed.
 const TARGET = 48;
 const sets = Object.fromEntries(host().findAllWithCriteria({ types: ['COMPONENT_SET'] }).map((s) => [s.name, s]));
 for (const [name, set] of Object.entries(sets)) {
