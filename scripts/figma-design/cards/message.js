@@ -23,7 +23,8 @@ function corners(bubble, out, position) {
 /** One variant of a message. side: 'Incoming' | 'Outgoing'. */
 function message(side, { Position, Device, State }) {
   const out = side === 'Outgoing', ink = out ? 'onOutgoing' : 'onSurface';
-  const root = box(side + ' message', { component: true, dir: 'H', gap: 2, align: 'MIN' });
+  // An incoming message is a row, gutter then bubble; an outgoing one a column, so a failure can sit under its bubble.
+  const root = box(side + ' message', out ? { component: true, dir: 'V', align: 'MAX' } : { component: true, dir: 'H', gap: 2, align: 'MIN' });
   if (!out) {
     const gutter = add(root, box('gutter', { dir: 'H', wk: 8, align: 'MIN' }));
     add(gutter, inst('Avatar', { Kind: 'Person', Plate: '1', Size: 'Compact' })).name = 'avatar';
@@ -47,11 +48,11 @@ function message(side, { Position, Device, State }) {
   const meta = add(bubble, box('meta', { dir: 'H', gap: 1 }));
   add(meta, text('08:31', 'labelSmall', quiet, { name: 'time' }));
   if (State === 'Failed') {
-    const failed = add(body, box('failed', { dir: 'H', gap: 3 }));
-    add(failed, text('peer unreachable', 'labelMedium', 'outgoingError', { name: 'reason' }));
-    // Retry is pressed on its own, so on the phone it holds a 48 px target.
-    const retry = add(failed, box('retry', { dir: 'H', minHk: Device === 'Phone' ? 12 : null, minWk: Device === 'Phone' ? 12 : null, justify: 'CENTER' }));
-    add(retry, text('Retry', 'labelLarge', 'outgoingError'));
+    // The bubble keeps its colour and marks the failure where the ticks would be; the reason and the way out sit under it, on the feed.
+    add(meta, icon('error', 'outgoingError', 4));
+    const failed = add(root, box('failed', { dir: 'H', gap: 1 }));
+    add(failed, text('Not sent: peer unreachable', 'labelMedium', 'error', { name: 'reason', cut: true }), { max: MEASURE[Device] - 64 });
+    add(failed, setProps(inst('Button', { Kind: 'Text', Device, State: 'Default' }), { Label: 'Retry' })).name = 'retry';
   } else if (out) {
     const ticks = add(meta, inst('Delivery ticks', { State: 'Delivered' }));
     ticks.name = 'ticks'; ticks.isExposedInstance = true;
@@ -65,7 +66,7 @@ for (const set of [incoming, outgoing]) {
   prop(set, 'Text', 'TEXT', 'Should we leave at 6 to beat the traffic?', 'text');
   prop(set, 'Time', 'TEXT', '08:31', 'time');
 }
-prop(outgoing, 'Reason', 'TEXT', 'peer unreachable', 'reason');
+prop(outgoing, 'Reason', 'TEXT', 'Not sent: peer unreachable', 'reason');
 prop(incoming, 'Sender', 'BOOLEAN', false, 'sender');
 prop(incoming, 'Sender name', 'TEXT', 'Priya Nair', 'sender name');
 prop(incoming, 'Fingerprint', 'TEXT', '5b80f2…7d36', 'fingerprint');
