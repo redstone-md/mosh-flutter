@@ -84,6 +84,8 @@ function add(parent, child, o = {}) {
   if (o.fillW) child.layoutSizingHorizontal = 'FILL';
   if (o.fillH) child.layoutSizingVertical = 'FILL';
   if (o.abs) { child.layoutPositioning = 'ABSOLUTE'; child.x = o.abs[0]; child.y = o.abs[1]; }
+  // A hugging text or frame wraps its content at max px.
+  if (o.max) child.maxWidth = o.max;
   return child;
 }
 // Style ids are set asynchronously, so nodes queue here until flush().
@@ -92,7 +94,7 @@ async function flush() {
   for (const [t, s] of pendingText.splice(0)) await t.setTextStyleIdAsync(s.id);
   for (const [n, s] of pendingEffects.splice(0)) await n.setEffectStyleIdAsync(s.id);
 }
-// Text in a Mosh/* style. o: w (fixed width, wraps), truncate (one line), name.
+// Text in a Mosh/* style. o: w (fixed width, wraps), truncate (one line of the width it is given), cut, name.
 function text(chars, slot, color, o = {}) {
   const s = TS[slot] ?? fail(slot), t = figma.createText();
   t.fontName = s.fontName; t.fontSize = s.fontSize; t.lineHeight = s.lineHeight; t.letterSpacing = s.letterSpacing;
@@ -101,6 +103,8 @@ function text(chars, slot, color, o = {}) {
   t.fills = paint(color);
   if (o.w) { t.textAutoResize = 'HEIGHT'; t.resize(o.w, t.height); }
   if (o.truncate) { t.textAutoResize = 'HEIGHT'; t.textTruncation = 'ENDING'; t.maxLines = 1; }
+  // One line that hugs its text and is cut where add() caps it with max.
+  if (o.cut) { t.textTruncation = 'ENDING'; t.maxLines = 1; }
   pendingText.push([t, s]);
   return t;
 }
@@ -192,9 +196,9 @@ function card(name, note) {
 /**
  * Adds a component set to the card as a labelled grid. rows and cols are
  * [label, {Property: value}] pairs; make(props) returns the variant.
- * A grid of one cell stays a plain component.
+ * A grid of one cell stays a plain component. minCol keeps the column labels of narrow variants apart.
  */
-async function grid(name, rows, cols, make) {
+async function grid(name, rows, cols, make, minCol = 0) {
   const c = CARD;
   const cells = [];
   for (const [, rp] of rows) for (const [, cp] of cols) {
@@ -203,7 +207,7 @@ async function grid(name, rows, cols, make) {
     cells.push(v);
   }
   await flush();
-  const colW = cols.map((_, j) => Math.max(...rows.map((_, i) => cells[i * cols.length + j].width)));
+  const colW = cols.map((_, j) => Math.max(minCol, ...rows.map((_, i) => cells[i * cols.length + j].width)));
   const rowH = rows.map((_, i) => Math.max(...cols.map((_, j) => cells[i * cols.length + j].height)));
   const GAP = 32, IN = 24;
   let y = cursor;
@@ -280,12 +284,13 @@ function shell(name, visual, device) {
   add(c, visual);
   return c;
 }
-/** An instance of a component built earlier: the variant of [setName] matching [props]. */
-function inst(setName, props = {}) {
+/** A component built earlier: the variant of [setName] matching [props]. */
+function variant(setName, props = {}) {
   const set = host().findOne((n) => (n.type === 'COMPONENT_SET' || n.type === 'COMPONENT') && n.name === setName && n.parent.type !== 'COMPONENT_SET') ?? fail(setName);
   const v = set.type === 'COMPONENT' ? set : set.children.find((c) => Object.entries(props).every(([k, x]) => c.name.split(', ').includes(`${k}=${x}`)));
-  return (v ?? fail(setName + ' ' + JSON.stringify(props))).createInstance();
+  return v ?? fail(setName + ' ' + JSON.stringify(props));
 }
+const inst = (setName, props) => variant(setName, props).createInstance();
 /** Sets component properties of an instance by their display names. */
 function setProps(i, values) {
   for (const [name, value] of Object.entries(values)) {
@@ -294,6 +299,8 @@ function setProps(i, values) {
   }
   return i;
 }
+/** Marks a set that is read, not pressed as a whole: audit.js asks no phone tap target of it. */
+function display(set) { set.setPluginData('target', 'none'); return set; }
 // Grid axes are [label, {Property: value}] pairs; ONE is the axis of a property-less component.
 const ONE = [['', {}]];
 const axis = (property, values) => values.map((v) => [v, { [property]: v }]);

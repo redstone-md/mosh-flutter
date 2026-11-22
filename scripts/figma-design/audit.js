@@ -25,10 +25,12 @@ for (const n of host().findAll(() => true)) {
   for (const f of ['topLeftRadius', 'topRightRadius', 'bottomRightRadius', 'bottomLeftRadius']) if (f in n && n[f] && !bound(n, f)) bad(n, f + ' ' + n[f]);
   if (n.layoutMode && n.layoutMode !== 'NONE') for (const f of ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'itemSpacing']) if (n[f] && !bound(n, f)) bad(n, f + ' ' + n[f]);
 }
-// A set with a Device property is a control that is pressed; its phone variants need the target.
+// A set with a Device property is pressed as a whole and its phone variants need the target,
+// unless a card marked it with display(): a message or a divider is read, not pressed.
 const TARGET = 48;
 const sets = Object.fromEntries(host().findAllWithCriteria({ types: ['COMPONENT_SET'] }).map((s) => [s.name, s]));
 for (const [name, set] of Object.entries(sets)) {
+  if (set.getPluginData('target') === 'none') continue;
   const phone = set.children.filter((v) => v.name.includes('Device=Phone'));
   // A field's target is its well; everything else is pressed as a whole.
   const press = (v) => v.findOne((x) => x.name === 'well') ?? v;
