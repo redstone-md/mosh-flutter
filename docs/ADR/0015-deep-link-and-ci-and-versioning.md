@@ -503,3 +503,33 @@ check of the Linux call media job, which in the run read spent 5.9 of its
 6.5 minutes building its bench in release; and the universal DMG of main,
 whose build took 38 minutes in the run after `Cargo.lock` changed and its
 cargokit cache missed, and 9 with the cache warm.
+
+## Update 2026-11-22: app builds compile with the pinned toolchain
+
+Cargokit ran `rustup run stable cargo`, and naming a toolchain overrides
+`rust-toolchain.toml`. Every app build, the shipped ones included, compiled
+mosh-core with whatever stable the runner image carried. The Windows cargokit
+cache had been built by stable 1.99.1 when the runners moved to 1.100.0, so
+cargo rebuilt all of its crates on every run. The cache key hashed
+`rust-toolchain.toml`, which had not changed, so the key still hit exactly
+and the stale entry was never saved again.
+
+Cargokit now builds with the channel of the nearest `rust-toolchain.toml`
+unless the crate's `cargokit.yaml` names a toolchain
+(`CargokitCrateOptions.toolchain`). The cargokit and iOS cache keys put that
+file's hash first and restore only within it: a restore may cross lockfiles,
+which cargo re-fingerprints, but not compilers, whose artifacts would all
+rebuild. cache-cleanup removes the entries of the old key shape, since they
+belong to the same families. Over nine Windows installer builds the build
+step took 561 to 806 seconds with the cache warm and 792 to 1307 cold.
+
+The F-Droid job no longer clears the runner's preinstalled SDKs. The build
+never came near the free space, and the clean-up took about five minutes:
+the job took 14.5 minutes against a median of 20.
+
+Tried and left out: caching the prepared OpenMLS tree with the cargokit
+outputs. The tree gets fresh mtimes on every checkout, so cargo recompiles
+OpenMLS, 90 to 190 seconds on Windows. With the tree restored it no longer
+did, but three builds each way, two of them side by side, took the same
+time: on four cores mosh-core took the freed time. The extra key segment
+would have turned every OpenMLS patch bump into a cold build.

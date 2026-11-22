@@ -84,8 +84,8 @@ jobs:
             .dart_tool/native-sources
             .dart_tool/native-tools
             ~/Library/Caches/go-build
-          key: ios-build-${{ hashFiles('mosh-core/Cargo.lock', 'mosh-media/**/Cargo.lock', 'third_party/*-patches/source.json', 'third_party/*-patches/mosh.patch', 'third_party/libwebrtc-build/build.json', 'rust-toolchain.toml', 'pubspec.lock', 'moss/go.sum', 'moss/**/*.go') }}
-          restore-keys: ios-build-
+          key: ios-build-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('mosh-core/Cargo.lock', 'mosh-media/**/Cargo.lock', 'third_party/*-patches/source.json', 'third_party/*-patches/mosh.patch', 'third_party/libwebrtc-build/build.json', 'pubspec.lock', 'moss/go.sum', 'moss/**/*.go') }}
+          restore-keys: ios-build-${{ hashFiles('rust-toolchain.toml') }}-
 
       # Same trade as the macOS proof build (build-macos.yml).
       - name: Parallel mosh-core codegen (CI proof builds)

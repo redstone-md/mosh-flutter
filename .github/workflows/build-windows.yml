@@ -91,14 +91,15 @@ jobs:
 
       # cargokit compiles mosh-core into its own target dir under the
       # plugin's CMake binary dir (named after the plugin, mosh_core), which
-      # the cargo cache above does not see. Keyed on the lockfile and
-      # toolchain; a stale hit is safe, cargo re-fingerprints.
+      # the cargo cache above does not see. Keyed on the toolchain, then the
+      # lockfile: a restore may cross lockfiles (cargo re-fingerprints) but
+      # never compilers, whose artifacts would all rebuild and never re-save.
       - id: cargokit
         uses: actions/cache/restore@v4
         with:
           path: build/windows/x64/plugins/mosh_core/cargokit_build
-          key: cargokit-windows-release-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: cargokit-windows-release-
+          key: cargokit-windows-release-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('mosh-core/Cargo.lock') }}
+          restore-keys: cargokit-windows-release-${{ hashFiles('rust-toolchain.toml') }}-
 
       - uses: ./.github/actions/media-kit-windows
 

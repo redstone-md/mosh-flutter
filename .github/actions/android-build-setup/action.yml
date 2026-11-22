@@ -75,10 +75,11 @@ runs:
 
     # cargokit compiles mosh-core into the plugin's Gradle build dir
     # (build/<plugin>/build), which the cargo cache above does not see.
+    # Keyed like the Windows one (build-windows.yml): toolchain, then lockfile.
     - id: cargokit
       uses: actions/cache/restore@v4
       with:
         path: build/mosh_core/build
-        key: cargokit-android-${{ inputs.build-mode }}-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
-        restore-keys: cargokit-android-${{ inputs.build-mode }}-
+        key: cargokit-android-${{ inputs.build-mode }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('mosh-core/Cargo.lock') }}
+        restore-keys: cargokit-android-${{ inputs.build-mode }}-${{ hashFiles('rust-toolchain.toml') }}-
 

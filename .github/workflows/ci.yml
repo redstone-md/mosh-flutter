@@ -347,8 +347,8 @@ jobs:
         id: cargokit-cache
         with:
           path: build/windows/x64/plugins/mosh_core/cargokit_build
-          key: cargokit-windows-debug-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: cargokit-windows-debug-
+          key: cargokit-windows-debug-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('mosh-core/Cargo.lock') }}
+          restore-keys: cargokit-windows-debug-${{ hashFiles('rust-toolchain.toml') }}-
 
       - uses: ./.github/actions/media-kit-windows
 
