@@ -58,8 +58,11 @@ libraries without matching Mosh libraries; final package checks reject that case
   shrinking in the final DEX, including `JniZero.init` and `CommonApis` callbacks;
 - Mosh's initialization, network-change and transfer-execution JNI signatures
   match the exported entry points in the packaged Rust library;
-- no Google Play Services, ML Kit or Firebase class is packaged, which
-  F-Droid-format repositories reject.
+- an FCM build (`--fcm`, every build of `build-android.yml`) declares
+  `MoshFcmService` for FCM messages, carries the class, and packages no
+  closed Google SDK beyond the Play Services and Firebase classes FCM brings
+  in; any other build packages none of them, since F-Droid-format
+  repositories reject them.
 
 The matching WebRTC JAR includes JNI Zero without Chromium's consumer keep
 rules. The application therefore preserves

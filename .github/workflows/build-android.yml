@@ -146,7 +146,7 @@ jobs:
         shell: bash
         env:
           ANDROID_SIGNING_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
-        run: bash scripts/android-package-verify.sh build/app/outputs/flutter-apk/app-release.apk
+        run: bash scripts/android-package-verify.sh build/app/outputs/flutter-apk/app-release.apk --fcm
 
       - name: Package APK and checksum
         shell: bash

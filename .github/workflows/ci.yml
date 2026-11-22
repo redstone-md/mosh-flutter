@@ -323,6 +323,15 @@ jobs:
       - name: PLUS configuration in compiled release code
         run: node --test scripts/plus-runtime-config.test.mjs
 
+      # The patched cargokit picks the Rust toolchain every app build uses.
+      # `dart run`, not `dart test`: Flutter's bundled Dart cannot compile
+      # test suites to kernel.
+      - name: Cargokit build tool tests
+        working-directory: rust_builder/cargokit/build_tool
+        run: |
+          dart pub get
+          for suite in test/*_test.dart; do dart run "$suite"; done
+
       # Widget tests override gatewayProvider with the scriptable gateway in
       # test/support/, so no Rust runtime is needed here (ADR 0013).
       - name: flutter test
