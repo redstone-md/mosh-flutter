@@ -12,7 +12,7 @@
 //
 // Moss-absent graceful path: createInvite needs Moss running (moss.dll built
 // via `moss:prepare`). If Moss is not present in the dev/CI env, the Rust
-// side returns a ConversationBridgeError rather than crashing, and the
+// side returns an Unavailable ConversationBridgeError rather than crashing, and the
 // invite-shape checks are skipped. The test must NOT fail the build when
 // Moss is absent -- it asserts graceful behaviour either way.
 
@@ -21,7 +21,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart'
-    show ConversationBridgeError;
+    show ConversationBridgeError, ConversationBridgeErrorKind;
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/real_bridge_gateway.dart';
 import 'package:mosh/src/rust/frb_generated.dart';
@@ -81,9 +81,10 @@ void main() {
 
       // Tear down the session we just created so the runtime stays clean.
       await gateway.leave(DmTarget(invite.sessionId));
-    } on ConversationBridgeError {
-      // Moss absent (moss.dll not built via moss:prepare): the facade reports
-      // a typed error. A panic or a wrong invite shape still fails the test.
+    } on ConversationBridgeError catch (error) {
+      // Only Moss being absent (moss.dll not built via moss:prepare) is
+      // tolerated; any other failure, a panic or a wrong invite shape fails.
+      if (error.kind != ConversationBridgeErrorKind.unavailable) rethrow;
     }
   });
 }
