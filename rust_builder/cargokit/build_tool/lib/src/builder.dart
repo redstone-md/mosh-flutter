@@ -9,6 +9,7 @@ import 'android_environment.dart';
 import 'cargo.dart';
 import 'environment.dart';
 import 'options.dart';
+import 'pinned_toolchain.dart';
 import 'rustup.dart';
 import 'target.dart';
 import 'util.dart';
@@ -142,7 +143,12 @@ class RustBuilder {
   CargoBuildOptions? get _buildOptions =>
       environment.crateOptions.cargo[environment.configuration];
 
-  String get _toolchain => _buildOptions?.toolchain.name ?? 'stable';
+  // An explicit cargokit.yaml toolchain wins; otherwise the repository's
+  // rust-toolchain.toml, so app builds use the pinned compiler.
+  String get _toolchain =>
+      _buildOptions?.toolchain.name ??
+      pinnedToolchain(environment.manifestDir) ??
+      'stable';
 
   /// Returns the path of directory containing build artifacts.
   Future<String> build() async {
