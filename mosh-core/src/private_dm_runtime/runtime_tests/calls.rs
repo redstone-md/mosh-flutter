@@ -1,4 +1,5 @@
 use super::*;
+use crate::private_dm_runtime::calls::state::OUTGOING_RING_MS;
 
 // Call regression: CallOffer was a one-shot publish, so a ring lost on a
 // flapping link never repeated and the caller waited forever. The offer must
@@ -66,7 +67,12 @@ fn caller_gives_up_once_the_ring_budget_is_spent() {
     call.mark_offer_sent(30_999);
     session.call = Some(call);
 
-    session.pump_call_signaling(31_000);
+    session.pump_call_signaling(1_000 + OUTGOING_RING_MS - 1);
+    assert!(
+        session.call.is_some(),
+        "the caller rings for its whole budget"
+    );
+    session.pump_call_signaling(1_000 + OUTGOING_RING_MS);
     assert!(
         session.call.is_none(),
         "the unanswered call is cleared once the budget is spent"

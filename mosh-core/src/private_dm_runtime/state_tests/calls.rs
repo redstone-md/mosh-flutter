@@ -223,3 +223,25 @@ fn an_echoed_call_control_is_skipped_and_the_counterpart_still_rings() {
         "Bob still rings on the same frame"
     );
 }
+
+// The callee declines with "no_answer" once its own ring budget is spent. The
+// caller must still be ringing when that decline is due, so the callee's real
+// reason reaches it instead of the caller timing out first.
+#[test]
+fn the_caller_outlasts_the_callee_no_answer_window() {
+    const DECLINE_DELIVERY_MS: u64 = 5_000;
+    let callee = CallPhase::Ringing.ring_budget_ms().unwrap();
+    let (_net, mut alice, mut bob) = memory_pair();
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+    alice.call_start(&invite.session_id).expect("call starts");
+    let session = alice
+        .sessions
+        .get_mut(&invite.session_id)
+        .expect("Alice session should exist");
+    let rang = session.call.as_ref().expect("call held").offer_first_ms;
+
+    session.pump_call_signaling(rang + callee + DECLINE_DELIVERY_MS);
+    assert!(session.call.is_some(), "the caller still rings");
+}

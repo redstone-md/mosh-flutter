@@ -104,11 +104,10 @@ fn call_state(session: &PrivateDmSession) -> Option<BackgroundCallState> {
         session_id: session.session_id.clone(),
         call_id: call.call_id.clone(),
         phase,
-        expires_at_ms: if phase == Phase::Active {
-            0
-        } else {
-            call.offer_first_ms.saturating_add(CALL_RING_TIMEOUT_MS)
-        },
+        expires_at_ms: call
+            .phase
+            .ring_budget_ms()
+            .map_or(0, |budget| call.offer_first_ms.saturating_add(budget)),
         sender: call.remote_device.clone(),
         binding: format!(
             "{}\0{}\0{}",

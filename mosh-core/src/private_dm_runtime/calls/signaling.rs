@@ -10,10 +10,10 @@ impl PrivateDmSession {
             return;
         };
         let call_id = call.call_id.clone();
-        if matches!(
-            call.phase,
-            CallPhase::Outgoing | CallPhase::Accepting | CallPhase::Ringing
-        ) && now.saturating_sub(call.offer_first_ms) >= CALL_RING_TIMEOUT_MS
+        if call
+            .phase
+            .ring_budget_ms()
+            .is_some_and(|budget| now.saturating_sub(call.offer_first_ms) >= budget)
         {
             let _ = self.call_end(&call_id, "no_answer");
             return;

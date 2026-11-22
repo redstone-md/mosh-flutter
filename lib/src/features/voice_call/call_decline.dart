@@ -1,14 +1,11 @@
 /// The app's one no-answer window: an incoming call the local user never
 /// picks up is declined with `'no_answer'` once it elapses.
 ///
-/// The callee half of a pair agreed with mosh-core. The caller's budget is
-/// `CALL_RING_TIMEOUT_MS` (`mosh-core/src/private_dm_runtime.rs`): it
-/// re-offers every `CALL_RESEND_MS` and ends the call with the same
-/// `"no_answer"` reason once the budget is spent. This side is deliberately
-/// the shorter of the two, so on a healthy link the callee's real decline
-/// reaches the caller before the caller gives up on its own -- the budget
-/// is the backstop for a lost decline, not a competing deadline. Change the
-/// two together.
+/// Equal to mosh-core's `INCOMING_RING_MS`, which ends a native ring with
+/// no Flutter attached; change the two together
+/// (`mosh-core/src/private_dm_runtime/calls/state.rs`). The caller's
+/// `OUTGOING_RING_MS` is longer, so on a healthy link this decline reaches
+/// the caller before it gives up on its own.
 const Duration kIncomingNoAnswerTimeout = Duration(milliseconds: 30000);
 
 /// The decline reasons the call layer emits, so the orchestration layer can
