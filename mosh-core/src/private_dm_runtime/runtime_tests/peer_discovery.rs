@@ -1,53 +1,10 @@
+use super::super::state_tests::{accept, connect, invite, memory_pair, payload_says, BOB_ID};
 use super::*;
 
-// Task 3: the moss peer-id rides along in the KeyPackage so Alice can
-// learn Bob's relay address without a separate exchange.
-#[test]
-fn handle_control_captures_peer_moss_id_from_key_package() {
-    let _guard = MOSS_TEST_LOCK
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    drain_received_messages();
-
-    let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-    let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
-    let invite = alice
-        .create_invite(StartSessionRequest {
-            display_name: "Alice".to_string(),
-            listen_port: 42183,
-            static_peer: None,
-        })
-        .expect("Alice invite should be created");
-
-    let mut bob_crypto = MlsSessionCrypto::new("Bob").expect("Bob crypto should init");
-    let key_package_b64 = encode(
-        &bob_crypto
-            .key_package_bytes()
-            .expect("Bob key package should build"),
-    );
-    let bob_moss_peer_id = "ab".repeat(32);
-    let payload = serde_json::to_vec(&ControlEnvelope::KeyPackage {
-        session_id: invite.session_id.clone(),
-        participant_id: "bob-participant".to_string(),
-        from_device: "Bob".to_string(),
-        key_package_b64,
-        moss_peer_id: Some(bob_moss_peer_id.clone()),
-    })
-    .expect("KeyPackage envelope should serialize");
-
-    let session = alice
-        .sessions
-        .get_mut(&invite.session_id)
-        .expect("Alice session should exist");
-
-    session
-        .handle_control(payload)
-        .expect("KeyPackage should add Bob");
-    assert_eq!(session.peer_moss_id, Some(bob_moss_peer_id));
-}
-
-// Only an authenticated Hello may replace an established relay address;
-// replaying a KeyPackage cannot authenticate its cleartext routing fields.
+// The moss peer id rides along in the first KeyPackage, so Alice learns Bob's
+// relay address without a separate exchange. Only an authenticated Hello may
+// replace it later; replaying a KeyPackage cannot authenticate its cleartext
+// routing fields.
 #[test]
 fn only_authenticated_hello_replaces_a_stale_moss_pin() {
     let _guard = MOSS_TEST_LOCK
@@ -125,8 +82,8 @@ fn only_authenticated_hello_replaces_a_stale_moss_pin() {
     );
 }
 
-// The peer's DeliveryAck upgrades Sent → Delivered and retires the
-// attempt (stopping the auto-resend loop).
+// Only the peer's genuine DeliveryAck upgrades a text and retires its
+// attempt: a garbage or self-minted ack leaves both as they were.
 #[test]
 fn forged_delivery_ack_does_not_upgrade() {
     let _guard = MOSS_TEST_LOCK
@@ -246,39 +203,48 @@ fn a_peer_announce_cannot_pin_an_unverified_peer_id() {
 }
 
 // The announce is a repair path: it must fire only while the id is missing,
-// and must not flood while it is.
+// and must not flood while it is. Judged by the PeerAnnounce frames that
+// reach the counterpart.
 #[test]
 fn peer_announce_fires_only_while_the_id_is_missing() {
-    let _guard = MOSS_TEST_LOCK
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let (mut alice, session_id) = lone_session(42164);
+    let (net, mut alice, mut bob) = memory_pair();
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+    let announces = || {
+        net.endpoint(BOB_ID)
+            .drain()
+            .iter()
+            .filter(|frame| payload_says(&frame.payload, "PeerAnnounce"))
+            .count()
+    };
+    // The handshake's own traffic is not an announce; start from an empty queue.
+    announces();
     let session = alice
         .sessions
-        .get_mut(&session_id)
+        .get_mut(&invite.session_id)
         .expect("Alice session should exist");
 
-    session.peer_joined = true;
-    session.peer_moss_id = Some("ab".repeat(32));
     session.pump_peer_announce(10_000);
     assert_eq!(
-        session.last_peer_announce_ms, 0,
+        announces(),
+        0,
         "a session that knows its peer never announces"
     );
 
     session.peer_moss_id = None;
     session.pump_peer_announce(10_000);
-    assert_eq!(session.last_peer_announce_ms, 10_000);
+    assert_eq!(announces(), 1);
 
     session.pump_peer_announce(10_000 + PEER_ANNOUNCE_RESEND_MS - 1);
     assert_eq!(
-        session.last_peer_announce_ms, 10_000,
+        announces(),
+        0,
         "announces inside the throttle window are suppressed"
     );
 
-    let due = 10_000 + PEER_ANNOUNCE_RESEND_MS;
-    session.pump_peer_announce(due);
-    assert_eq!(session.last_peer_announce_ms, due);
+    session.pump_peer_announce(10_000 + PEER_ANNOUNCE_RESEND_MS);
+    assert_eq!(announces(), 1);
 }
 
 // Two conversations share the one node the holder keeps, and the node

@@ -14,15 +14,6 @@ fn fixture() -> (SigningKey, DeviceDescriptor, DeviceRoster, DeviceRoster) {
     (root, second, genesis, linked)
 }
 
-fn legacy_extends(current: &DeviceRoster, base: &DeviceRoster) -> Result<bool> {
-    current.devices()?;
-    if current.entries.len() < base.entries.len() {
-        return Ok(false);
-    }
-    let prefix = DeviceRoster::from_entries(current.entries[..base.entries.len()].to_vec());
-    Ok(prefix.digest()? == base.digest()?)
-}
-
 #[test]
 fn unchanged_admission_and_revocation_reads_do_not_rehash_verified_rosters() {
     let (_, second, _, linked) = fixture();
@@ -39,19 +30,24 @@ fn unchanged_admission_and_revocation_reads_do_not_rehash_verified_rosters() {
 }
 
 #[test]
-fn prefixes_forks_and_revocation_results_match_the_legacy_comparison() {
+fn a_roster_extends_exactly_the_chains_it_grew_from() {
     let (root, second, genesis, linked) = fixture();
     let (_, third) = descriptor(33);
     let fork = genesis.extend(third.clone(), &root).unwrap();
     let removed = linked.revoke(&second.device_id, &root).unwrap();
     let readded = removed.extend(second.clone(), &root).unwrap();
     let rosters = [genesis, linked, fork, removed, readded];
-    for current in &rosters {
-        for base in &rosters {
-            assert_eq!(
-                current.extends(base).unwrap(),
-                legacy_extends(current, base).unwrap()
-            );
+    // Rows extend columns: genesis, linked, fork, removed, readded.
+    let expected = [
+        [true, false, false, false, false],
+        [true, true, false, false, false],
+        [true, false, true, false, false],
+        [true, true, false, true, false],
+        [true, true, false, true, true],
+    ];
+    for (current, row) in rosters.iter().zip(expected) {
+        for (base, extends) in rosters.iter().zip(row) {
+            assert_eq!(current.extends(base).unwrap(), extends);
         }
     }
     assert!(!rosters[3]
@@ -73,10 +69,6 @@ fn malformed_current_chain_is_rejected_before_prefix_comparison() {
     changed["entries"][1]["device"]["name"] = serde_json::json!("forged");
     let forged: DeviceRoster = serde_json::from_value(changed).unwrap();
     assert_eq!(forged.extends(&linked).unwrap_err().kind, invalid().kind);
-    assert_eq!(
-        forged.extends(&linked).unwrap_err().kind,
-        legacy_extends(&forged, &linked).unwrap_err().kind
-    );
     let empty = DeviceRoster::from_entries(Vec::new());
     assert_eq!(empty.extends(&genesis).unwrap_err().kind, invalid().kind);
     let restored: DeviceRoster = serde_json::from_value(encoded.clone()).unwrap();

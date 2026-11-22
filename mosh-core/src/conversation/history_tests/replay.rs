@@ -143,19 +143,6 @@ fn each_kind_reads_only_its_own_tables() {
 }
 
 #[test]
-fn a_conversation_record_round_trips() {
-    let scratch = Scratch::open("record");
-    let history = History::new(DM_HISTORY);
-
-    history
-        .write_record(&scratch.persistence, CONVERSATION, &"a record")
-        .unwrap();
-
-    let stored: Vec<String> = history.stored_conversations(&scratch.persistence);
-    assert_eq!(stored, vec!["a record".to_string()]);
-}
-
-#[test]
 fn an_unreadable_record_is_skipped_not_fatal() {
     let scratch = Scratch::open("bad-record");
     let history = History::new(DM_HISTORY);

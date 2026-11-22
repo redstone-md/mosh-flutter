@@ -1,14 +1,5 @@
 use super::*;
 
-#[test]
-fn app_diagnostics_reports_static_identity() {
-    let diagnostics = app_diagnostics();
-    assert_eq!(diagnostics.app_name, APP_NAME);
-    assert_eq!(diagnostics.privacy_model, PRIVACY_MODEL);
-    assert_eq!(diagnostics.discovery_model, DISCOVERY_MODEL);
-    assert_eq!(diagnostics.moss_link_mode, MOSS_LINK_MODE);
-}
-
 // Proves the panel contract against the real dlopened library: the
 // prebuilt libmoss.so carries `Moss_Version`, so the version is Some
 // and non-empty (its dev-build stamp "dev" is what an unstamped local

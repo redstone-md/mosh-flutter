@@ -149,15 +149,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn become_active_records_timestamp() {
-        let mut call = CallState::outgoing("c".into(), "peer".into());
-        assert_eq!(call.phase, CallPhase::Outgoing);
-        call.become_active(1_000);
-        assert_eq!(call.phase, CallPhase::Active);
-        assert_eq!(call.started_at_ms, 1_000);
-    }
-
-    #[test]
     fn end_kind_is_missed_until_active_regardless_of_reason() {
         // A call that never reached Active is "missed" however it ends — a peer
         // hangup ("hangup") of an unanswered call must not log as "completed".

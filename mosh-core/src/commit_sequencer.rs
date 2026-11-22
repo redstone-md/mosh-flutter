@@ -132,21 +132,12 @@ mod tests {
     fn exact_epoch_applies_only_after_confirm() {
         let mut s = CommitSequencer::new();
         assert_eq!(s.offer(5, 5, "c5"), Disposition::Apply);
-        // Not yet confirmed: a redelivery at the SAME epoch still says Apply
+        // Not yet confirmed (e.g. the apply failed): a redelivery at the SAME
+        // epoch still says Apply, so a failed apply does not poison the commit
         // (idempotent — caller re-applies only if its own epoch didn't move).
         assert_eq!(s.offer(5, 5, "c5"), Disposition::Apply);
         s.confirm("c5".into());
         assert_eq!(s.offer(5, 5, "c5"), Disposition::AlreadySeen);
-    }
-
-    #[test]
-    fn failed_apply_does_not_poison() {
-        // Regression guard: a commit that was offered but never confirmed
-        // (apply failed) must still be applicable on redelivery.
-        let mut s = CommitSequencer::new();
-        assert_eq!(s.offer(3, 3, "cX"), Disposition::Apply);
-        // apply failed -> no confirm
-        assert_eq!(s.offer(3, 3, "cX"), Disposition::Apply);
     }
 
     #[test]

@@ -230,6 +230,7 @@ fn a_decrypted_inbound_frame_proves_the_connection() {
     assert_eq!(session.peer_display_name.as_deref(), Some("Bob"));
 }
 
+// A relayed counterpart is reachable too, and the snapshot says how.
 #[test]
 fn a_relayed_counterpart_reads_as_relayed() {
     let (net, mut alice, mut bob) = memory_pair();
@@ -242,8 +243,3 @@ fn a_relayed_counterpart_reads_as_relayed() {
         .expect("poll should pass");
     assert_eq!(view.transport, PeerTransport::Relayed);
 }
-
-// The full settlement: Alice sends, Bob's runtime stores it (Delivered), Bob
-// opens the conversation (mark_viewed, toggle on), and Alice's snapshot says
-// `read: Some(true)` — with a message_read event filed on BOTH sides. The
-// ticks' color is Dart's job; the field is the contract here.

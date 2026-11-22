@@ -244,6 +244,8 @@ fn an_unknown_envelope_variant_is_dropped_by_the_drain() {
     let _ = alice;
 }
 
+// A hint landing in the ring under the pinned typing code, via the same
+// push_app_event insert the node's own reports use.
 #[test]
 fn a_landed_hint_files_a_typing_event_into_the_ring() {
     let (_net, mut alice, mut bob) = memory_pair();
@@ -266,12 +268,3 @@ fn a_landed_hint_files_a_typing_event_into_the_ring() {
         "the synthesized typing event lands in the ring the panel polls"
     );
 }
-
-// ---- voice-call state hygiene ------------------------------------------
-//
-// Each of these pins one failure path in the call state machine: a setup step
-// that fails must leave the session able to try again, never a dead call that
-// only a timeout can clear.
-
-// call_start: a subscribe or offer that never left must clear the slot, or
-// the dead call blocks new calls until the ring budget times out.

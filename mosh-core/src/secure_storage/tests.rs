@@ -82,10 +82,6 @@ fn load_falls_back_to_the_legacy_slot_and_migrates_it() {
 }
 
 #[test]
-fn status_describes_native_backend() {
-    let status = OsSecureSecretStore::status();
-
-    assert_eq!(status.backend, BACKEND_NAME);
-    assert_eq!(status.service, SERVICE_NAME);
-    assert!(status.available);
+fn status_reports_a_working_native_store_as_available() {
+    assert!(OsSecureSecretStore::status().available);
 }

@@ -1,7 +1,5 @@
 use super::*;
 
-// next_path(current, direct_now, direct_stable, direct_gone, elapsed, t_fallback)
-
 // Real two-node loopback handshake; the gossipsub mesh occasionally fails
 // to form in time, so this is an on-demand smoke test (run with
 // `cargo test -- --ignored`). The persistence/resume logic it exercises is

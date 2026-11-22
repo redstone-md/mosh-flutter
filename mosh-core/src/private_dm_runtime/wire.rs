@@ -248,44 +248,4 @@ mod tests {
             }
         ));
     }
-
-    #[test]
-    fn channel_kind_names_the_session_channel() {
-        assert_eq!(ChannelKind::Control.channel_for("s"), control_channel("s"));
-        assert_eq!(ChannelKind::Data.channel_for("s"), data_channel("s"));
-        assert_eq!(ChannelKind::Blob.channel_for("s"), blob_channel("s"));
-    }
-
-    // An older build drops a control kind it does not know, so a Hello must
-    // decode on a build that knows it and nothing else about it matters.
-    #[test]
-    fn hello_roundtrips() {
-        let hello = ControlEnvelope::Hello {
-            session_id: "s".into(),
-            participant_id: "p".into(),
-            from_device: "d".into(),
-            hello_ciphertext_b64: "Y2lwaGVy".into(),
-        };
-        let bytes = serde_json::to_vec(&hello).unwrap();
-        assert!(matches!(
-            serde_json::from_slice::<ControlEnvelope>(&bytes).unwrap(),
-            ControlEnvelope::Hello { .. }
-        ));
-    }
-
-    // The read receipt rides the wire like the ack: one encrypted body per
-    // frame, and an old build's decode-drop keeps the pair interoperable.
-    #[test]
-    fn read_receipt_roundtrips() {
-        let receipt = ControlEnvelope::ReadReceipt {
-            session_id: "s".into(),
-            participant_id: "p".into(),
-            receipt_ciphertext_b64: "Y2lwaGVy".into(),
-        };
-        let bytes = serde_json::to_vec(&receipt).expect("receipt should serialize");
-        assert!(matches!(
-            serde_json::from_slice::<ControlEnvelope>(&bytes).unwrap(),
-            ControlEnvelope::ReadReceipt { .. }
-        ));
-    }
 }

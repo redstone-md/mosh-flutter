@@ -1,9 +1,13 @@
+//! Voice-call state hygiene. Each failure test pins one path in the call
+//! state machine: a setup step that fails must leave the session able to try
+//! again, never a dead call that only a timeout can clear.
 use super::*;
 use std::sync::Mutex;
 
-// A hint landing in the ring under the pinned typing code, via the same
-// push_app_event insert the node's own reports use.
-
+// call_start: an offer that never left must clear the slot, or the dead call
+// blocks new calls until the ring budget times out. The knob is the hard
+// transport fault: the memory net's `refuse_publishes` answers NoPeers, which
+// the control route deliberately tolerates.
 #[test]
 fn a_call_start_failure_frees_the_call_slot() {
     let (net, mut alice, mut bob) = memory_pair();
@@ -43,33 +47,6 @@ fn a_call_start_failure_frees_the_call_slot() {
         assert_eq!(
             session.call.as_ref().expect("call held").call_id,
             call.call_id
-        );
-    }
-}
-
-// call_start's publish failure, same contract: the offer that never left must
-// clear the slot. The knob here is the hard transport fault — the memory net's
-// `refuse_publishes` answers NoPeers, which the control route deliberately
-// tolerates.
-#[test]
-fn a_call_offer_failure_frees_the_call_slot() {
-    let (net, mut alice, mut bob) = memory_pair();
-    let invite = invite(&mut alice);
-    accept(&mut bob, &invite);
-    connect(&mut alice, &mut bob, &invite.session_id);
-
-    net.fail_publishes(ALICE_ID, true);
-    alice
-        .call_start(&invite.session_id)
-        .expect_err("an offer that never left must fail the start");
-    {
-        let session = alice
-            .sessions
-            .get_mut(&invite.session_id)
-            .expect("Alice session should exist");
-        assert!(
-            session.call.is_none(),
-            "the failed offer leaves no dead call behind"
         );
     }
 }
