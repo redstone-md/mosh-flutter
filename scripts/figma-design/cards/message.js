@@ -48,11 +48,13 @@ function message(side, { Position, Device, State }) {
   const meta = add(bubble, box('meta', { dir: 'H', gap: 1 }));
   add(meta, text('08:31', 'labelSmall', quiet, { name: 'time' }));
   if (State === 'Failed') {
-    // The bubble keeps its colour and marks the failure where the ticks would be; the reason and the way out sit under it, on the feed.
-    add(meta, icon('error', 'outgoingError', 4));
+    // The bubble keeps its colour and marks the failure where the ticks would be; the notice and the way out sit under it, on the feed.
+    add(meta, icon('error_fill', 'outgoingError', 4));
     const failed = add(root, box('failed', { dir: 'H', gap: 1 }));
-    add(failed, text('Not sent: peer unreachable', 'labelMedium', 'error', { name: 'reason', cut: true }), { max: MEASURE[Device] - 64 });
-    add(failed, setProps(inst('Button', { Kind: 'Text', Device, State: 'Default' }), { Label: 'Retry' })).name = 'retry';
+    add(failed, text('Not sent', 'labelMedium', 'error', { name: 'reason', cut: true }), { max: MEASURE[Device] - 64 });
+    // Only the failure is red; the way out is in the feed's own ink.
+    const retry = add(failed, setProps(inst('Button', { Kind: 'Text', Device, State: 'Default' }), { Label: 'Retry' }));
+    retry.name = 'retry'; retry.findOne((n) => n.type === 'TEXT').fills = paint('onSurface');
   } else if (out) {
     const ticks = add(meta, inst('Delivery ticks', { State: 'Delivered' }));
     ticks.name = 'ticks'; ticks.isExposedInstance = true;
@@ -66,7 +68,7 @@ for (const set of [incoming, outgoing]) {
   prop(set, 'Text', 'TEXT', 'Should we leave at 6 to beat the traffic?', 'text');
   prop(set, 'Time', 'TEXT', '08:31', 'time');
 }
-prop(outgoing, 'Reason', 'TEXT', 'Not sent: peer unreachable', 'reason');
+prop(outgoing, 'Reason', 'TEXT', 'Not sent', 'reason');
 prop(incoming, 'Sender', 'BOOLEAN', false, 'sender');
 prop(incoming, 'Sender name', 'TEXT', 'Priya Nair', 'sender name');
 prop(incoming, 'Fingerprint', 'TEXT', '5b80f2…7d36', 'fingerprint');

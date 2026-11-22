@@ -1,6 +1,6 @@
 {
   "add": "plus", "close": "x", "download": "download-simple", "refresh": "arrow-clockwise", "expand_more": "caret-down",
-  "check": "check", "error": "warning-circle", "copy": "copy", "group": "users", "tag": "hash", "plus_badge": "seal-check-fill",
+  "check": "check", "error": "warning-circle", "error_fill": "warning-circle-fill", "copy": "copy", "group": "users", "tag": "hash", "plus_badge": "seal-check-fill",
   "attach": "paperclip", "person": "user",
   "done_all": "checks", "done_all_read": "checks-bold", "schedule": "clock", "call_made": "phone-outgoing", "call_received": "phone-incoming", "call_missed": "phone-x",
   "chat": "chat-circle", "search": "magnifying-glass", "settings": "gear", "more": "dots-three-vertical", "back": "arrow-left",
