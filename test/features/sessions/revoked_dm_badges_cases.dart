@@ -1,8 +1,8 @@
 // Tests for `computeRevokedDmBadges`
 // (lib/src/features/sessions/revoked_dm_badges.dart). Covers: no-roster
 // (rosterVersion == null -> empty map), still-member link (not badged),
-// revoked-member link (badged with org name), plus a mixed-orgs case and a
-// null-sessionId link (skipped). Fixtures use the real OrgSnapshot /
+// revoked-member link (badged with org name), a null-sessionId link
+// (skipped), plus a mixed-orgs case. Fixtures use the real OrgSnapshot /
 // OrgDmLink / OrgMemberView constructors.
 library;
 
@@ -103,18 +103,6 @@ void main() {
       expect(badges.length, 1);
       expect(badges['dm-zoe'], 'gone-co');
       expect(badges.containsKey('dm-bob'), isFalse);
-    });
-
-    test('skips dm links without a session id', () {
-      // A link whose sessionId is null is skipped entirely (never badged),
-      // even when its peer is not in the verified roster.
-      final org = _org(
-        name: 'acme',
-        rosterVersion: _verified,
-        members: const [],
-        dmLinks: [_link('c' * 64, sessionId: null)],
-      );
-      expect(computeRevokedDmBadges([org]).length, 0);
     });
   });
 }

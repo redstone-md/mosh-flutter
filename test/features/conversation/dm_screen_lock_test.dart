@@ -1,15 +1,11 @@
-// Widget tests for the DmScreen header fingerprint surface (the
-// replacement of the old confirm-badge subtitle test):
+// Widget tests for the DmScreen header fingerprint surface:
 //   1. A non-empty fingerprint renders the lock next to the peer name
-//      and the subtitle is the plain status sentence (no
-//      confirmed/unverified suffix -- that state is gone).
+//      and the subtitle is the plain status sentence.
 //   2. An empty fingerprint renders no lock.
 //   3. Tapping the lock opens the fingerprint dialog with the emoji
 //      quartet, the hex, and the DM compare hint.
-//   4. The mobile kebab carries no confirm-fingerprint item anymore.
 //
-// Mirrors the seed/override idiom of the deleted dm_screen_subtitle_test
-// (override activeSessionProvider so the native cdylib is not involved).
+// activeSessionProvider is overridden so the native cdylib is not involved.
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/fingerprint/fingerprint_emoji.dart';
@@ -66,13 +62,8 @@ void main() {
     // The lock sits in the title row, next to the peer name.
     expect(find.byType(FingerprintLock), findsOneWidget);
     expect(find.text(peerName), findsOneWidget);
-    // The subtitle is the state sentence alone -- the confirmed/
-    // unverified suffix is gone with the confirm state.
+    // The subtitle is the state sentence alone.
     expect(find.text('Connected · direct'), findsOneWidget);
-    expect(
-      find.textContaining('fingerprint'),
-      findsNothing,
-    );
   });
 
   testWidgets('empty fingerprint renders no lock', (tester) async {

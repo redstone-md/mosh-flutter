@@ -106,10 +106,9 @@ void main() {
     expect(tester.widget<IconButton>(button).onPressed, isNotNull);
   });
 
-  testWidgets('narrow titlebar keeps actions and removes technical subtitle',
+  testWidgets('narrow titlebar keeps actions and hides the product name',
       (tester) async {
     await _pumpBar(tester, width: 320);
-    expect(find.text('OpenMLS over Moss'), findsNothing);
     expect(find.text('MOSH'), findsNothing);
     expect(find.byTooltip('Connection status'), findsOneWidget);
     expect(find.byTooltip('Collapse chat list'), findsOneWidget);

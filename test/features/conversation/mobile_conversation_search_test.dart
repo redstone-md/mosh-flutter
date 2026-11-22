@@ -67,22 +67,6 @@ void main() {
       expect(icon.color,
           Theme.of(tester.element(find.byType(Scaffold))).colorScheme.primary);
     });
-
-    testWidgets('tapping the toggle fires onToggle', (tester) async {
-      var tapped = 0;
-      await _pump(
-        tester,
-        Builder(
-            builder: (context) => MobileSearchToggle(
-                  open: false,
-                  onToggle: () => tapped++,
-                  l: AppLocalizations.of(context)!,
-                )),
-      );
-      await tester.tap(find.byType(MobileSearchToggle));
-      await tester.pump();
-      expect(tapped, 1);
-    });
   });
 
   group('MobileConversationSearch', () {

@@ -45,10 +45,8 @@ void main() {
     });
   });
 
-  // Pin that a target builds its key through a ConversationRef.
   group('key', () {
-    test('a target builds its key through a ConversationRef', () {
-      expect(const DmTarget('s1').key, const DmTarget('s1').ref.key);
+    test('a target names its conversation as a ConversationRef', () {
       expect(
           const DmTarget('s1').ref,
           const ConversationRef(

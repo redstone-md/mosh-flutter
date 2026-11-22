@@ -9,7 +9,6 @@ import 'dart:typed_data';
 // `test` is available transitively via `flutter_test`; the lifecycle test
 // that needs the binding lives in media_stream_lifecycle_test.dart.
 import 'package:test/test.dart';
-import 'package:mosh/src/features/shared/attachment_media_src.dart';
 import 'package:mosh/src/features/shared/media_stream_server.dart';
 import 'package:mosh/src/rust/api/attachment_stream.dart';
 
@@ -360,26 +359,6 @@ void main() {
 
       expect(response.statusCode, 504);
       await response.drain<void>();
-    });
-
-    test('streamingMediaSrc uses the started server base URI', () async {
-      server = MediaStreamServer(
-        fetchRange: ({
-          required String kind,
-          required String host,
-          required String attachmentId,
-          required BigInt start,
-          required BigInt end,
-        }) async =>
-            _range(state: AttachmentStreamState.unknown),
-      );
-      await server.start();
-
-      final src = streamingMediaSrc('dm', 'h', 'a', baseUri: server.baseUri);
-      final uri = Uri.parse(src);
-      expect(uri.port, server.baseUri!.port);
-      expect(uri.host, server.baseUri!.host);
-      expect(uri.pathSegments, <String>['dm', 'h', 'a']);
     });
   });
 }

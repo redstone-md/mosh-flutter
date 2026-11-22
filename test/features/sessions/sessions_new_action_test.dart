@@ -1,6 +1,6 @@
 // Focused coverage for the SessionRail New action. Both entry
-// points must open the existing NewSessionPanel without creating an invite or
-// showing a transient SnackBar, on desktop and mobile.
+// points must open the existing NewSessionPanel without creating an invite,
+// on desktop and mobile.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,8 +56,7 @@ void main() {
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
     expect(find.byType(SessionsScreen), findsNothing);
-    expect(bridge.countOf(BridgeMethod.createInvite), 0);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(bridge.countOf(BridgeMethod.createPendingInvite), 0);
   });
 
   testWidgets(
@@ -72,8 +71,7 @@ void main() {
 
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
-    expect(bridge.countOf(BridgeMethod.createInvite), 0);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(bridge.countOf(BridgeMethod.createPendingInvite), 0);
   });
 
   testWidgets(
@@ -89,8 +87,7 @@ void main() {
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
     expect(find.byType(SessionsScreen), findsNothing);
-    expect(bridge.countOf(BridgeMethod.createInvite), 0);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(bridge.countOf(BridgeMethod.createPendingInvite), 0);
   });
 
   testWidgets('New resets a previous invite before showing the panel',

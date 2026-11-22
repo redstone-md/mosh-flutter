@@ -1,9 +1,8 @@
 // Tests for the desktop drag-and-drop attach slice. Two layers:
 //   1. `ingestAttachment` unit tests -- the DRY helper shared with the
-//      paperclip picker. Synthesize a tiny PNG in-memory via the `image`
-//      package (same as thumbnail_test.dart, no fixture file), assert it
-//      builds a PickedAttachment with the PNG mime + a JPEG thumbnail, and
-//      returns null over the 50 MB ceiling.
+//      paperclip picker: null over the size ceiling, and an empty mime and
+//      no thumbnail for an unknown extension. Image ingest is pinned in
+//      attachment_previews_cases.dart.
 //   2. `ChatDropZone` widget tests driven through desktop_drop's real
 //      MethodChannel seam (mirrors desktop_drop's own channel_linux_test):
 //      pump the zone inside a localized MaterialApp, push an inbound
@@ -56,30 +55,6 @@ String _tempPath(String name) {
 
 void main() {
   group('ingestAttachment', () {
-    test('builds a PickedAttachment with the PNG mime + a JPEG thumbnail',
-        () async {
-      final bytes = _png(64, 48, 0x112233);
-      final picked = await ingestAttachment(
-        bytes: bytes,
-        fileName: 'drop.png',
-        maxBytes: 50 * 1024 * 1024,
-      );
-      expect(picked, isNotNull);
-      expect(picked!.fileName, 'drop.png');
-      // package:mime infers image/png from the .png extension (file_picker /
-      // desktop_drop expose no MIME unlike the browser File.type).
-      expect(picked.mime, 'image/png'); // promoted by the picked! above
-      // dataBase64 round-trips to the original bytes.
-      expect(base64Decode(picked.dataBase64), bytes);
-      // thumbnail is a JPEG preview (FF D8 FF magic) -- null only for
-      // non-images / decode failures.
-      expect(picked.thumbnailBase64, isNotNull);
-      final thumb = base64Decode(picked.thumbnailBase64!);
-      expect(thumb[0], 0xFF);
-      expect(thumb[1], 0xD8);
-      expect(thumb[2], 0xFF);
-    });
-
     test('returns null when bytes exceed maxBytes (caller fires onError)',
         () async {
       final bytes = _png(8, 8, 0x000000);

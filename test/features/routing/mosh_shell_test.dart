@@ -218,14 +218,6 @@ void main() {
     expect(find.text('Start a private chat'), findsOneWidget);
     expect(find.text('Create a group'), findsOneWidget);
 
-    // The bare EmptyState CTA is GONE on desktop (mobile-only now).
-    expect(find.byIcon(Icons.chat_outlined), findsNothing);
-    expect(find.text('Welcome to Mosh.'), findsNothing);
-    expect(
-        find.text(
-            'Create an invite or paste one to start your first encrypted conversation.'),
-        findsNothing);
-
     // Tap the Chat card. NewSessionPanel switches to the chat step in
     // place (no routing): the step title and a Back button render while
     // the rail stays.

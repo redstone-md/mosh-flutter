@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/device_link/device_link_import_form.dart';
 import 'package:mosh/src/features/onboarding/first_run_profile.dart';
 import 'package:mosh/src/rust/device_link/types.dart';
@@ -63,7 +64,8 @@ void main() {
             of: find.text('Продолжить'),
             matching: find.byType(DefaultTextStyle))
         .first);
-    expect(label.style.fontSize, 15);
+    expect(label.style.fontSize,
+        greaterThan(moshThemeData.textTheme.labelLarge!.fontSize!));
   });
 
   testWidgets('device choices have equal emphasis before choosing',

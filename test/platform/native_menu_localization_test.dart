@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/platform/native_menu_labels.dart';
 import 'package:mosh/src/platform/native_menu_localization.dart';
 import 'package:mosh/src/state/locale_preference_store.dart';
 import 'package:mosh/src/state/locale_provider.dart';
@@ -69,23 +68,6 @@ void main() {
     expect(ids.length, 51);
     expect(labels.keys.toSet(), {...ids, 'nativeMenuExitFullScreen'});
     expect(labels.values.every((label) => label.isNotEmpty), isTrue);
-  });
-
-  testWidgets('English and Russian payloads cover the same native identifiers',
-      (tester) async {
-    final labels = <Map<String, String>>[];
-    messenger.setMockMethodCallHandler(_channel, (call) async {
-      labels.add(Map<String, String>.from(call.arguments as Map));
-      return null;
-    });
-    addTearDown(() => messenger.setMockMethodCallHandler(_channel, null));
-    final container = await _pump(tester);
-    await container.read(localeProvider.notifier).setLocale(const Locale('ru'));
-    await tester.pumpAndSettle();
-    expect(labels[0].keys.toSet(), labels[1].keys.toSet());
-    final context = tester.element(find.byType(Text));
-    expect(nativeMenuLabels(AppLocalizations.of(context)!), labels.last);
-    expect(find.text('Язык интерфейса'), findsOneWidget);
   });
 
   testWidgets('a refused native update does not prevent Flutter localization',

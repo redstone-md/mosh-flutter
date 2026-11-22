@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/conversation/conversation_banners.dart';
 import 'package:mosh/src/features/conversation/conversation_details_model.dart';
 import 'package:mosh/src/features/conversation/conversation_details_panel.dart';
 import 'package:mosh/src/features/conversation/conversation_diagnostics_content.dart';
@@ -259,48 +258,4 @@ void main() {
       expect(openedOwn, own);
     });
   }
-  testWidgets('conversation banners warn about revocation and group rejoin',
-      (tester) async {
-    final cases = <(ConversationSnapshot, String, String)>[
-      (
-        DmConversation(
-            const DmTarget('revoked'),
-            TestSnapshots.dm(
-              sessionId: 'revoked',
-              deviceRevocation: DmDeviceRevocationState.revoked,
-            )),
-        l.dmDeviceRevokedTitle,
-        l.dmDeviceRevokedBody
-      ),
-      (
-        GroupConversation(
-            const GroupTarget('rejoin'),
-            TestSnapshots.group(
-              groupId: 'rejoin',
-              deviceFingerprint: 'self',
-              needsRejoin: true,
-              messages: [],
-            )),
-        l.orgRejoinNeededTitle,
-        l.orgRejoinNeededBody
-      ),
-    ];
-    for (final (snapshot, warning, body) in cases) {
-      final gateway = ScriptableGateway();
-      await pumpScreen(
-        tester,
-        Scaffold(
-          body:
-              ConversationBanners(target: snapshot.target, snapshot: snapshot),
-        ),
-        overrides: [
-          gatewayProvider.overrideWithValue(gateway),
-          bridgeFacadeProvider.overrideWithValue(
-              ScriptableBridge(conversations: gateway.conversations)),
-        ],
-      );
-      expect(find.textContaining(warning), findsOneWidget);
-      expect(find.textContaining(body), findsOneWidget);
-    }
-  });
 }

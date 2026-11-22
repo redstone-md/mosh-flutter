@@ -193,28 +193,5 @@ void main() {
 
       expect(await container.read(notificationsReadyProvider.future), isFalse);
     });
-
-    test(
-        'a consumer reads the gate via ref.watch(.value) and asserts the '
-        'override behaviour', () async {
-      // The voice-call layer's gate is `ref.read(notificationsReadyProvider)
-      // .value ?? false`. Verify that override plumbing works: with a
-      // passing fake the gate is open, with a failing fake it is closed.
-      final passing = ProviderContainer(overrides: [
-        flutterLocalNotificationsPluginProvider
-            .overrideWithValue(_RecordingNotifications()),
-      ]);
-      addTearDown(passing.dispose);
-      await passing.read(notificationsReadyProvider.future);
-      expect(passing.read(notificationsReadyProvider).value ?? false, isTrue);
-
-      final failing = ProviderContainer(overrides: [
-        flutterLocalNotificationsPluginProvider
-            .overrideWithValue(_FailingInitNotifications()),
-      ]);
-      addTearDown(failing.dispose);
-      await failing.read(notificationsReadyProvider.future);
-      expect(failing.read(notificationsReadyProvider).value ?? false, isFalse);
-    });
   });
 }

@@ -1,5 +1,6 @@
-// Widget contracts for diagnostics groups, empty state and session details.
-// The group case also protects its DiagnosticsRow label and value.
+// Widget contracts for the diagnostics empty state and session details.
+// The connected case also protects the group's uppercased label and its
+// DiagnosticsRow label and value.
 // Connected/direct, relayed, pending/no-peer and offline remain distinct.
 // Mesh, events and channel/group rendering have their own suites.
 import 'package:flutter/material.dart';
@@ -52,26 +53,6 @@ Future<void> _pump(WidgetTester tester, Widget child) => pumpScreen(
     tester, Scaffold(body: SingleChildScrollView(child: Center(child: child))));
 
 void main() {
-  group('DiagnosticsGroup', () {
-    testWidgets('renders the uppercased label and its children',
-        (tester) async {
-      await _pump(
-        tester,
-        DiagnosticsGroup(
-          label: 'Conversation details',
-          children: const [
-            DiagnosticsRow(label: 'Peer', value: 'alice'),
-          ],
-        ),
-      );
-      // The group label is uppercased in the widget.
-      expect(find.text('CONVERSATION DETAILS'), findsOneWidget);
-      // The child row renders inside the group.
-      expect(find.text('Peer'), findsOneWidget);
-      expect(find.text('alice'), findsOneWidget);
-    });
-  });
-
   group('NoActiveSession', () {
     testWidgets('renders the Session group label + empty-state title + body',
         (tester) async {
@@ -122,9 +103,6 @@ void main() {
         SessionDiagnostics(session: _session(transport: PeerTransport.relayed)),
       );
       expect(find.text('relayed by the network'), findsOneWidget);
-      // Nothing about a relay node of the app's own.
-      expect(find.textContaining('supernode'), findsNothing);
-      expect(find.text('Encryption'), findsNothing);
     });
 
     testWidgets('a pending session has no path and no peer id yet',

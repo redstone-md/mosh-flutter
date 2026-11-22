@@ -5,7 +5,6 @@ import 'package:mosh/l10n/app_localizations.dart';
 
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
-import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -215,17 +214,9 @@ void main() {
       unreadLifecycleProvider.overrideWithBuild((ref, notifier) => unread),
     ]);
 
-    // One UnreadBadge renders with count 3, and the numeral '3' is visible.
-    expect(find.byWidgetPredicate((w) => w is UnreadBadge && w.count == 3),
-        findsOneWidget);
+    // Alice's row shows her count; Bob's read row shows no numeral at all.
     expect(find.text('3'), findsOneWidget);
-
-    // The 0-count row still mounts an UnreadBadge(count: 0) but it renders
-    // nothing (SizedBox.shrink) -- so no extra numeral is present and no
-    // '99+' ever appears.
-    expect(find.byWidgetPredicate((w) => w is UnreadBadge && w.count == 0),
-        findsOneWidget);
-    expect(find.text('99+'), findsNothing);
+    expect(find.text('0'), findsNothing);
   });
 
   testWidgets(
@@ -269,8 +260,8 @@ void main() {
         gateway.countOf(GatewayMethod.dismissDmOffer), dismissBeforeAccept + 1);
     expect(bridge.countOf(BridgeMethod.listSessions),
         sessionCallsBeforeAccept + 1);
-    // The DM screen rendered (its composer is a TextField).
-    expect(find.byType(TextField), findsWidgets);
+    // The DM screen rendered: its composer placeholder is the sentinel.
+    expect(find.text('Write a message\u2026'), findsOneWidget);
   });
 
   testWidgets(

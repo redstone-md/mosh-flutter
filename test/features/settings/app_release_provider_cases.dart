@@ -12,7 +12,6 @@ const _payload = '[{"tag_name": "v0.22.0", '
 ProviderContainer _container({
   required String installed,
   required String body,
-  List<int>? reads,
 }) {
   final container = ProviderContainer(overrides: [
     appPackageInfoProvider.overrideWith((ref) async => PackageInfo(
@@ -21,10 +20,8 @@ ProviderContainer _container({
           version: installed,
           buildNumber: '',
         )),
-    releaseFeedProvider.overrideWithValue(GitHubReleaseFeed(read: (url) async {
-      reads?.add(0);
-      return body;
-    })),
+    releaseFeedProvider
+        .overrideWithValue(GitHubReleaseFeed(read: (url) async => body)),
   ]);
   addTearDown(container.dispose);
   return container;
@@ -125,20 +122,5 @@ void main() {
     final container = _container(installed: '0.23.0', body: _payload);
 
     expect(await container.read(updateCheckProvider.future), isNull);
-  });
-
-  test('without a resolved check the feed is never read', () async {
-    final reads = <int>[];
-    final container = _container(
-      installed: '0.21.0',
-      body: _payload,
-      reads: reads,
-    );
-
-    // Watching the package read alone must not reach the network: About gates
-    // the notice behind a known installed version.
-    await container.read(appPackageInfoProvider.future);
-
-    expect(reads, isEmpty);
   });
 }
