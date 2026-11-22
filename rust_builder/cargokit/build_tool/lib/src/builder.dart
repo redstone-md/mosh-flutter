@@ -128,8 +128,8 @@ class RustBuilder {
     if (rustup.installedTargets(toolchain) == null) {
       rustup.installToolchain(toolchain);
     }
-    if (toolchain == 'nightly') {
-      rustup.installRustSrcForNightly();
+    if (toolchain.startsWith('nightly')) {
+      rustup.installRustSrcForNightly(toolchain);
     }
     if (!rustup.installedTargets(toolchain)!.contains(target.rust)) {
       rustup.installTarget(target.rust, toolchain: toolchain);
