@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Verify the final signed APK, including every bundled native library.
-# --fcm: the build is woken through FCM, so it must carry Mosh's FCM service.
+# --fcm: the build is woken through FCM, so it must declare and carry Mosh's
+# FCM service.
 set -euo pipefail
-APK="${1:?Usage: android-package-verify.sh <release.apk> [--fcm]}"
+USAGE='Usage: android-package-verify.sh <release.apk> [--fcm]'
+APK="${1:?$USAGE}"
 FCM=()
-case "${2:-}" in
-  '') ;;
-  --fcm) FCM=(--fcm) ;;
-  *) echo "Unknown option: $2" >&2; exit 1 ;;
+case "$#:${2:-}" in
+  1:) ;;
+  2:--fcm) FCM=(--fcm) ;;
+  *) echo "$USAGE" >&2; exit 1 ;;
 esac
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?Set ANDROID_HOME or ANDROID_SDK_ROOT}}"
 PIN="${ANDROID_SIGNING_CERT_SHA256:?Set the independent signing certificate SHA-256}"
@@ -27,6 +29,16 @@ test "$actual" = "$PIN"
 grep -qx 'Number of signers: 1' "$WORK/signature.txt"
 
 "$TOOLS/aapt" dump badging "$APK" > "$WORK/manifest.txt"
+if ((${#FCM[@]})); then
+  # Android dispatches FCM messages only to a service declared for the action.
+  "$TOOLS/aapt" dump xmltree "$APK" AndroidManifest.xml |
+    awk '/E: (activity|activity-alias|provider|receiver|service) /{s = 0}
+      /E: service /{s = 1; mosh = 0}
+      s && /android:name.*="app\.mosh\.mosh\.MoshFcmService"/{mosh = 1}
+      s && mosh && /="com\.google\.firebase\.MESSAGING_EVENT"/{found = 1}
+      END {exit !found}' ||
+    { echo 'MoshFcmService is not declared for com.google.firebase.MESSAGING_EVENT' >&2; exit 1; }
+fi
 grep "^package: name='app.mosh.mosh'" "$WORK/manifest.txt"
 grep "^sdkVersion:'26'" "$WORK/manifest.txt"
 grep '^native-code:' "$WORK/manifest.txt"
