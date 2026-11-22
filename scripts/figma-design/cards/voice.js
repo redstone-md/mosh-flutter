@@ -8,7 +8,7 @@ const waves = await grid('Waveform', toneRows(ONE), axis('Progress', ['None', 'P
   BARS.forEach((h, i) => add(w, rect('bar', { fill: Progress === 'Part' && i < PLAYED ? c.accent : c.rest, w: 3, h, r: 'full' })));
   return w;
 });
-const VOICE = { Idle: ['play', '0:14'], Playing: ['pause', '0:05 of 0:14'], Loading: [null, 'Loading'], Failed: ['refresh', 'Could not load'] };
+const VOICE = { Idle: ['play', '0:14'], Playing: ['pause', '0:05 / 0:14'], Loading: [null, 'Loading'], Failed: ['refresh', 'Could not load'] };
 function voice({ State, Tone, Device }) {
   const c = TONES[Tone], [glyph, detail] = VOICE[State], key = controlHeight(Device);
   const v = box('Voice message', { component: true, dir: 'H', gap: 3 });
