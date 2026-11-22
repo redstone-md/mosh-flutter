@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
 import 'package:mosh/src/features/voice_call/call_ringing.dart';
-import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
+import 'package:mosh/src/features/voice_call/call_decline.dart';
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
@@ -70,4 +70,21 @@ void main() {
     ringing.dispose();
     expect(player.stops, 1);
   });
+
+  testWidgets('a ringtone that cannot play still ends an unanswered call',
+      (tester) async {
+    final expired = <String>[];
+    final ringing = CallRinging(_SilentOutput(), expired.add);
+    ringing.update(_incoming, busy: false);
+    await tester.pump(kIncomingNoAnswerTimeout);
+    expect(expired, ['first']);
+    ringing.dispose();
+  });
+}
+
+/// An output device that refuses to play.
+class _SilentOutput implements RingtonePlayer {
+  @override
+  RingtoneHandle start(RingtoneKind kind) =>
+      throw StateError('no output device');
 }

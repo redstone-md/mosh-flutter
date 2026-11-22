@@ -59,7 +59,7 @@ final flutterLocalNotificationsPluginProvider =
 /// init once at startup; on
 /// macOS/iOS requests alert/badge/sound permission; on Windows/Linux no
 /// permission prompt. Resolves false on host-unavailable (the in-app
-/// IncomingCallModal is the user's signal regardless). Read via
+/// call view is the user's signal regardless). Read via
 /// `ref.watch(notificationsReadyProvider).value == true` from the
 /// voice-call layer.
 final notificationsReadyProvider = FutureProvider<bool>((ref) async {

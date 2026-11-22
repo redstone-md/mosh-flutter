@@ -16,7 +16,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
-import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
+import 'package:mosh/src/features/voice_call/call_decline.dart';
 import 'package:mosh/src/state/voice_call_start_provider.dart';
 import 'package:mosh/src/state/notifications_provider.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';

@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
-import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
+import 'package:mosh/src/features/voice_call/call_decline.dart';
 import 'package:mosh/src/features/voice_call/system_call_mirror.dart';
 import 'package:mosh/src/platform/ios_system_calls.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';

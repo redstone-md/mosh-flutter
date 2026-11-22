@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -74,6 +75,23 @@ void main() {
     expect(find.byTooltip('Cancel call'), findsOneWidget,
         reason: 'the mini view keeps the call controls');
     expect(find.byType(TextField).hitTestable(), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('Escape minimizes the expanded call and keeps it running',
+      (tester) async {
+    await _pump(
+        tester,
+        TestSnapshots.dm(
+            sessionId: 'origin',
+            outgoingCall: const OutgoingCall(callId: 'call')));
+    expect(find.byType(TextField).hitTestable(), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+
+    expect(find.byType(TextField).hitTestable(), findsOneWidget);
+    expect(find.byTooltip('Cancel call'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

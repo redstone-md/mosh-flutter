@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'call_dialog.dart';
-import 'incoming_call_modal.dart';
+import 'call_decline.dart';
 import 'ringtone_player.dart';
 
 /// Ringtone and no-answer deadline belong to the call, not its window.

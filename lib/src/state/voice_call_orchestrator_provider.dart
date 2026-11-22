@@ -9,7 +9,7 @@ import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
 import 'package:mosh/src/features/voice_call/call_control_gate.dart';
 import 'package:mosh/src/features/voice_call/call_ringing.dart';
-import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
+import 'package:mosh/src/features/voice_call/call_decline.dart';
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';

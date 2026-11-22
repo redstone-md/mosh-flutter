@@ -10,7 +10,6 @@ class CallModalCard extends StatelessWidget {
     required this.label,
     required this.peer,
     required this.status,
-    required this.onEscape,
     required this.actions,
     this.statusFontFeatures,
     this.compact = false,
@@ -24,13 +23,14 @@ class CallModalCard extends StatelessWidget {
   final String label;
   final String peer;
   final String status;
-  final VoidCallback onEscape;
   final List<Widget> actions;
   final List<FontFeature>? statusFontFeatures;
   final bool compact;
   final VoidCallback? onOpenConversation;
   final String? notice;
   final Widget? stage;
+
+  /// Collapses the expanded card back to the strip; Escape does the same.
   final VoidCallback? onMinimize;
   final bool singleLine;
 
@@ -82,7 +82,8 @@ class CallModalCard extends StatelessWidget {
 
   Widget _standalone(BuildContext context) {
     return ModalFocusTrap(
-      onEscape: onEscape,
+      // Escape minimizes an expanded call; it never ends one.
+      onEscape: onMinimize,
       autofocus: true,
       child: Semantics(
         label: label,
