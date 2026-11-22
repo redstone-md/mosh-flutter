@@ -89,7 +89,7 @@ impl MossDynamicRuntime {
     pub fn first_available_path(&self) -> Option<PathBuf> {
         self.candidate_paths
             .iter()
-            .find(|path| path.exists())
+            .find(|path| is_present(path))
             .cloned()
     }
 
@@ -108,6 +108,17 @@ impl MossDynamicRuntime {
                 .collect(),
         }
     }
+}
+
+/// Whether a candidate can be loaded. Android's linker resolves the bare
+/// library name against the app's nativeLibraryDir, which the filesystem
+/// cannot see, so only dlopen can tell.
+fn is_present(path: &Path) -> bool {
+    #[cfg(target_os = "android")]
+    if path == Path::new(MOSS_LIBRARY_NAME) {
+        return unsafe { Library::new(path) }.is_ok();
+    }
+    path.exists()
 }
 
 fn default_candidate_paths() -> Vec<PathBuf> {
