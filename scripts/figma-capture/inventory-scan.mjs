@@ -3,7 +3,7 @@
 // variants. inventory.mjs groups the counts into design components.
 import fs from 'node:fs';
 import path from 'node:path';
-import { AREAS, OUT, PAGES, REPO } from './areas.mjs';
+import { AREAS, OUT, PAGES } from './areas.mjs';
 import { intersects, leaf, union } from './simplify.mjs';
 import { themeTokens } from './tokens.mjs';
 
@@ -13,10 +13,13 @@ const TOKENS = Object.entries(themeTokens().colors).map(([name, c]) => ({
   rgb: [c.r, c.g, c.b],
 }));
 
-/** The theme token a painted colour comes from, with its opacity: "onSurface@60". */
+/**
+ * The theme token a painted colour comes from, with its opacity: "onSurface@60".
+ * It matches as runtime.js binds colours to variables: within half a level.
+ */
 function colorName(c) {
   if (!c) return '';
-  const hit = TOKENS.find((t) => t.rgb.every((v, i) => Math.abs(v - c[i]) < 0.006));
+  const hit = TOKENS.find((t) => t.rgb.every((v, i) => Math.abs(v - c[i]) < 0.5 / 255));
   const alpha = Math.round(c[3] * 100);
   return `${hit?.name ?? 'raw'}${alpha === 100 ? '' : `@${alpha}`}`;
 }
@@ -37,25 +40,8 @@ const clipTo = (r, c) => {
 };
 const grow = (r, by) => (r ? union([r, by]) : { ...by });
 
-/** Files (by stem) under lib/ declaring each widget class, matched as the recorder matches them. */
-const DECLARED = new Map();
-for (const file of fs.readdirSync(path.join(REPO, 'lib'), { recursive: true })) {
-  if (!file.endsWith('.dart')) continue;
-  const src = fs.readFileSync(path.join(REPO, 'lib', file), 'utf8');
-  for (const [, name] of src.matchAll(/^class (\w+)(?:<[^{]*?>)? extends \w*(?:Stateless|Stateful|Consumer|Animated)\w*Widget\b/gm)) {
-    DECLARED.set(name, [...(DECLARED.get(name) ?? []), path.basename(file, '.dart')]);
-  }
-}
-
-/** A widget's key and file. Private names repeat across files, so they carry their file: "media_viewer._MediaCaption". */
-function identify(name, chain) {
-  const files = DECLARED.get(name) ?? [];
-  if (!files.length) throw new Error(`${name}: no widget class of that name under lib/`);
-  if (!name.startsWith('_')) return { key: name, file: files[0] };
-  const file = files.length > 1 ? files.find((f) => chain.some((i) => i.file === f)) : files[0];
-  if (!file) throw new Error(`${name}: declared in ${files.join(', ')}, none of them above it`);
-  return { key: `${file}.${name}`, file };
-}
+/** A lib widget's key. Private names repeat across files, so they carry their file: "media_viewer._MediaCaption". */
+const keyOf = (node) => (node.libFile ? `${node.libFile}.${node.lib}` : node.lib);
 
 /**
  * Painted instances in one scene: { key, type, state?, rect, looks, kids, parent }, where
@@ -76,12 +62,12 @@ export function sceneInstances(scene, wrappers, met) {
       lib?.looks.add(look(l));
       return;
     }
-    const id = node.lib && node.libId !== lib?.libId ? identify(node.lib, chain) : null;
-    if (id && wrappers.has(id.key)) met.add(id.key);
-    else if (id) {
+    const key = node.lib && node.libId !== lib?.libId ? keyOf(node) : null;
+    if (key && wrappers.has(key)) met.add(key);
+    else if (key) {
       const parent = lib;
-      lib = open(`l${node.libId}`, () => ({ ...id, type: 'lib', libId: node.libId, looks: new Set(), kids: new Set(), up: parent }));
-      parent?.kids.add(id.key);
+      lib = open(`l${node.libId}`, () => ({ key, type: 'lib', libId: node.libId, looks: new Set(), kids: new Set(), up: parent }));
+      parent?.kids.add(key);
       chain = [...chain, lib];
     }
     if (node.control && node.controlId !== control?.controlId) {

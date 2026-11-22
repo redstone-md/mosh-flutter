@@ -16,16 +16,42 @@ import 'package:flutter_test/flutter_test.dart';
 
 part 'recording_canvas.dart';
 
-/// Widget classes declared in lib/: layers are named after the nearest one.
-final Set<String> _libWidgets = {
-  for (final file in Directory('lib').listSync(recursive: true))
-    if (file is File && file.path.endsWith('.dart'))
-      for (final m in RegExp(
-              r'^class (\w+)(?:<[^{]*?>)? extends \w*(Stateless|Stateful|Consumer|Animated)\w*Widget\b',
-              multiLine: true)
-          .allMatches(file.readAsStringSync()))
-        m[1]!,
-};
+/// Widget classes declared in lib/ and the files (by stem) declaring each:
+/// layers are named after the nearest one.
+final Map<String, List<String>> _libWidgets = () {
+  final declared = <String, List<String>>{};
+  for (final file in Directory('lib').listSync(recursive: true)) {
+    if (file is! File || !file.path.endsWith('.dart')) continue;
+    final stem =
+        file.uri.pathSegments.last.replaceFirst(RegExp(r'\.dart$'), '');
+    for (final m in RegExp(
+            r'^class (\w+)(?:<[^{]*?>)? extends \w*(Stateless|Stateful|Consumer|Animated)\w*Widget\b',
+            multiLine: true)
+        .allMatches(file.readAsStringSync())) {
+      (declared[m[1]!] ??= []).add(stem);
+    }
+  }
+  return declared;
+}();
+
+String _typeName(Element e) => e.widget.runtimeType.toString().split('<').first;
+
+/// The file declaring private widget [name] at [e]. Private names repeat
+/// across files, so a repeated one belongs to the file that also declares a
+/// widget above it.
+String _declaringFile(String name, Element e) {
+  final files = _libWidgets[name]!;
+  if (files.length == 1) return files.single;
+  String? file;
+  e.visitAncestorElements((a) {
+    final above = _libWidgets[_typeName(a)] ?? const [];
+    file = files.where(above.contains).firstOrNull;
+    return file == null;
+  });
+  return file ??
+      (throw StateError(
+          '$name: declared in ${files.join(', ')}, none of them above it'));
+}
 
 String? _flags(Map<String, bool> flags) {
   final on = [
@@ -105,17 +131,19 @@ double _c(double v) => (v * 10000).roundToDouble() / 10000;
 List<double> _color(Color c, double opacity) =>
     [_c(c.r), _c(c.g), _c(c.b), _c(c.a * opacity)];
 
+/// A lib widget instance that paints a layer; [file] is set for private ones.
+typedef _Lib = ({String name, String? file, int id});
+
 /// A Material control instance that paints a layer.
 typedef _Control = ({String kind, String? state, int id});
 
 /// A painted scope: one render object, one clip, or the root.
 class _Scope {
-  _Scope(this.kind, this.rect, {this.name, this.lib, this.libId, this.control});
+  _Scope(this.kind, this.rect, {this.name, this.lib, this.control});
   final String kind;
   final Rect? rect;
   final String? name;
-  final String? lib;
-  final int? libId;
+  final _Lib? lib;
   final _Control? control;
   final List<Object> children = [];
   Map<String, Object?>? clip;
@@ -123,8 +151,11 @@ class _Scope {
   Map<String, Object?> toJson() => {
         't': kind,
         if (name != null) 'name': name,
-        if (lib != null) 'lib': lib,
-        if (libId != null) 'libId': libId,
+        if (lib case final l?) ...{
+          'lib': l.name,
+          if (l.file != null) 'libFile': l.file,
+          'libId': l.id,
+        },
         if (control case final c?) ...{
           'control': c.kind,
           if (c.state != null) 'controlState': c.state,
@@ -157,9 +188,8 @@ class _Exporter {
   }
 
   void pushRenderScope(RenderObject ro, Rect? rect) {
-    final (lib, libId, name, control) = _names(ro);
-    final scope =
-        _Scope('g', rect, name: name, lib: lib, libId: libId, control: control);
+    final (lib, name, control) = _names(ro);
+    final scope = _Scope('g', rect, name: name, lib: lib, control: control);
     _scopes.last.children.add(scope);
     _scopes.add(scope);
     _owners.add(ro);
@@ -198,19 +228,18 @@ class _Exporter {
 
   /// The render object's widget type, its nearest lib widget and the nearest
   /// Material control between the two.
-  (String?, int?, String, _Control?) _names(RenderObject ro) {
+  (_Lib?, String, _Control?) _names(RenderObject ro) {
     final creator = ro.debugCreator;
     final element = creator is DebugCreator ? creator.element : null;
-    final type = element?.widget.runtimeType.toString().split('<').first ??
-        ro.runtimeType.toString();
-    String? lib;
-    int? libId;
+    final type =
+        element != null ? _typeName(element) : ro.runtimeType.toString();
+    _Lib? lib;
     _Control? control;
     bool visit(Element e) {
-      final t = e.widget.runtimeType.toString().split('<').first;
-      if (_libWidgets.contains(t)) {
-        lib = t;
-        libId = identityHashCode(e);
+      final t = _typeName(e);
+      if (_libWidgets.containsKey(t)) {
+        final file = t.startsWith('_') ? _declaringFile(t, e) : null;
+        lib = (name: t, file: file, id: identityHashCode(e));
         return false;
       }
       if (control == null) {
@@ -226,7 +255,7 @@ class _Exporter {
     }
 
     if (element != null && visit(element)) element.visitAncestorElements(visit);
-    return (lib, libId, type, control);
+    return (lib, type, control);
   }
 
   void text(

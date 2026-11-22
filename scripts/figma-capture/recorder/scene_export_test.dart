@@ -4,7 +4,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_select.dart';
+import 'package:mosh/src/features/shared/persistence_warning_banner.dart';
+import 'package:mosh/src/state/persistence_warning_provider.dart';
 
 import 'scene_export.dart';
 
@@ -43,6 +46,26 @@ void main() {
     final scopes = await exportScopes(tester);
 
     expect(scopes.map((s) => s['lib']), contains('MoshSelect'));
+  });
+
+  testWidgets('a private lib widget names the file declaring it',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      home: Scaffold(
+        body: PersistenceWarningBanner(
+          warning: PersistenceWarning(kind: PersistenceWarningKind.error),
+        ),
+      ),
+    ));
+
+    final scopes = await exportScopes(tester);
+
+    expect(scopes.map((s) => s['lib']), contains('_IconPlate'));
+    expect(
+      scopes.where((s) => s['lib'] == '_IconPlate').map((s) => s['libFile']),
+      everyElement('persistence_warning_banner'),
+    );
   });
 
   testWidgets('layers carry their Material control and its state',
