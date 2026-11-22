@@ -30,23 +30,31 @@ function message(side, { Position, Device, State }) {
   }
   // A deleted message keeps its place in the run but gives up its colour: an outline and quiet text.
   const gone = State === 'Deleted' || State === 'Awaiting deletion', quiet = out && !gone ? 'onOutgoingVariant' : 'onSurfaceMuted';
-  const bubble = add(root, box('bubble', { dir: 'H', gap: 2, pad: [2, 3, 2, 4], fill: gone ? null : out ? 'outgoing' : 'incoming', stroke: gone ? 'outlineVariant' : null, align: 'MAX', clip: true }));
+  // The bubble's own padding is the same on every side, so an attachment's 12 px corners stay concentric with its 20 px ones; text is set in a little further.
+  const INSET = [0, 1, 0, 2];
+  const bubble = add(root, box('bubble', { dir: 'V', gap: 1, pad: 2, fill: gone ? null : out ? 'outgoing' : 'incoming', stroke: gone ? 'outlineVariant' : null, align: 'MIN', clip: true }));
   corners(bubble, out, Position);
-  const body = add(bubble, box('body', { dir: 'V', gap: 1, align: 'MIN' }));
   if (!out) {
-    const sender = add(body, box('sender', { dir: 'H', gap: 2 }));
+    const sender = add(bubble, box('sender', { dir: 'H', gap: 2, pad: INSET }));
     add(sender, text('Priya Nair', 'labelLarge', 'onSurface', { name: 'sender name', cut: true }), { max: MEASURE[Device] - 96 });
     add(add(sender, box('fingerprint chip', { dir: 'H', pad: [0, 1], r: 'extraSmall', fill: 'surfaceContainerHighest' })), text('5b80f2…7d36', 'labelSmall', 'onSurfaceVariant', { name: 'fingerprint' }));
   }
   if (gone) {
-    add(body, text('Message deleted', 'bodyLarge', quiet, { name: 'deleted' }));
-    if (State === 'Awaiting deletion') add(body, text('Awaiting deletion', 'labelMedium', quiet, { name: 'deletion' }));
+    const note = add(bubble, box('deleted', { dir: 'V', pad: INSET, align: 'MIN' }));
+    add(note, text('Message deleted', 'bodyLarge', quiet));
+    if (State === 'Awaiting deletion') add(note, text('Awaiting deletion', 'labelMedium', quiet));
     return root;
   }
   // A file, a picture or a voice message rides above the text; swap the instance for another kind.
-  add(body, inst('File card', { State: 'Ready', Tone: out ? 'Outgoing' : 'Surface', Device })).name = 'attachment';
-  add(body, text('Should we leave at 6 to beat the traffic?', 'bodyLarge', ink, { name: 'text' }), { max: MEASURE[Device] });
-  const meta = add(bubble, box('meta', { dir: 'H', gap: 1 }));
+  add(bubble, inst('File card', { State: 'Ready', Tone: out ? 'Outgoing' : 'Surface', Device })).name = 'attachment';
+  // The time is pinned to the bubble's far corner, so it stays there under a wider attachment; an unpainted
+  // copy of it ends the text line and keeps the text clear of it.
+  const line = add(bubble, box('line', { dir: 'H', gap: 2, pad: INSET, align: 'MAX' }));
+  add(add(line, box('body', { dir: 'H' })), text('Should we leave at 6 to beat the traffic?', 'bodyLarge', ink, { name: 'text' }), { max: MEASURE[Device] });
+  const room = add(line, box('room for the time', { dir: 'H', gap: 1 }));
+  add(room, text('08:31', 'labelSmall', quiet, { name: 'time' })).fills = [];
+  if (out) add(room, box('room for the mark', { dir: 'H', wk: 4, hk: 4 }));
+  const meta = add(bubble, box('meta', { dir: 'H', gap: 1 }), { abs: [0, 0] });
   add(meta, text('08:31', 'labelSmall', quiet, { name: 'time' }));
   if (State === 'Failed') {
     // The bubble keeps its colour and marks the failure where the ticks would be; the notice and the way out sit under it, on the feed.
@@ -60,6 +68,8 @@ function message(side, { Position, Device, State }) {
     const ticks = add(meta, inst('Delivery ticks', { State: 'Delivered' }));
     ticks.name = 'ticks'; ticks.isExposedInstance = true;
   }
+  meta.x = bubble.width - meta.width - px('space/3'); meta.y = bubble.height - meta.height - px('space/2');
+  meta.constraints = { horizontal: 'MAX', vertical: 'MAX' };
   return root;
 }
 const POSITIONS = perDevice(axis('Position', ['Single', 'First', 'Middle', 'Last']));
@@ -68,7 +78,7 @@ const outgoing = display(await grid('Outgoing message', POSITIONS, axis('State',
 for (const set of [incoming, outgoing]) {
   prop(set, 'Text', 'TEXT', 'Should we leave at 6 to beat the traffic?', 'text');
   prop(set, 'Time', 'TEXT', '08:31', 'time');
-  prop(set, 'Show text', 'BOOLEAN', true, 'text');
+  prop(set, 'Show text', 'BOOLEAN', true, 'body');
   prop(set, 'Attachment', 'BOOLEAN', false, 'attachment');
 }
 prop(outgoing, 'Reason', 'TEXT', 'Not sent', 'reason');
