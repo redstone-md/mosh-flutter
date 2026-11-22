@@ -35,8 +35,10 @@ fn receipt_directory_process() {
     assert_eq!(dir, prior.path().join("mosh"));
 }
 
-// A relayed counterpart is reachable too, and the snapshot says how.
-
+// The full settlement: Alice sends, Bob's runtime stores it (Delivered), Bob
+// opens the conversation (mark_viewed, toggle on), and Alice's snapshot says
+// `read: Some(true)` — with a message_read event filed on BOTH sides. The
+// ticks' color is Dart's job; the field is the contract here.
 #[test]
 fn a_message_settles_from_sent_to_delivered_to_read() {
     let _guard = crate::moss_ffi::MOSS_TEST_LOCK

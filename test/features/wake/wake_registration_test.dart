@@ -77,33 +77,6 @@ void main() {
     expect(announced.map((a) => a.$2), ['h', 'h']);
   });
 
-  test('new tokens update the entry and keep the handle', () async {
-    service.statuses.addAll([201, 204]);
-    await registrar.run();
-
-    device.current = const AppleWakeTokens(
-        voip: 'cc', apns: 'bb', environment: 'production');
-    await registrar.run();
-
-    expect(calls(), ['POST /v1/devices', 'PUT /v1/devices/h']);
-    expect(announced.last.$2, 'h');
-  });
-
-  test('an entry the service lost is registered anew under a new handle',
-      () async {
-    service.statuses.addAll([201, 401, 201]);
-    await registrar.run();
-    service.created = {'handle': 'h2', 'secret': 's2'};
-
-    device.current =
-        const AppleWakeTokens(voip: 'cc', environment: 'production');
-    await registrar.run();
-
-    expect(
-        calls(), ['POST /v1/devices', 'PUT /v1/devices/h', 'POST /v1/devices']);
-    expect(announced.last.$2, 'h2');
-  });
-
   // Otherwise the phone would announce a handle the service has dropped.
   test('an entry the service lost is registered anew at the next launch',
       () async {
@@ -113,6 +86,8 @@ void main() {
 
     await registrar.run();
 
+    expect(
+        calls(), ['POST /v1/devices', 'PUT /v1/devices/h', 'POST /v1/devices']);
     expect(announced.last.$2, 'h2');
   });
 

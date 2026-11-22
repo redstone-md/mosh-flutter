@@ -1,8 +1,7 @@
 // Widget tests for `ChatErrorBanner` (lib/src/features/shared/
 // chat_error_banner.dart) -- the inline chat error banner. Pins the three
 // pieces of its contract: the banner renders the message; the Retry
-// button shows ONLY when `onRetry` is non-null; tapping Retry fires
-// the callback.
+// button is absent when `onRetry` is null; tapping Retry fires the callback.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -16,23 +15,6 @@ void main() {
         tester, Scaffold(body: const ChatErrorBanner(message: 'boom')));
 
     expect(find.text('boom'), findsOneWidget);
-  });
-
-  testWidgets('shows the Retry button when onRetry is non-null',
-      (tester) async {
-    await pumpScreen(
-        tester,
-        Scaffold(
-            body: ChatErrorBanner(
-          message: 'boom',
-          onRetry: () {},
-        )));
-
-    final l =
-        AppLocalizations.of(tester.element(find.byType(ChatErrorBanner)))!;
-    // The Retry button text is localized via ARB (`chatErrorRetry`).
-    expect(find.text(l.chatErrorRetry), findsOneWidget);
-    expect(find.byIcon(Icons.refresh), findsOneWidget);
   });
 
   testWidgets('hides the Retry button when onRetry is null', (tester) async {

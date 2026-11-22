@@ -1,21 +1,16 @@
-import 'dart:async';
-
 import 'call_dialog.dart';
-import 'incoming_call_modal.dart';
 import 'ringtone_player.dart';
 
-/// Ringtone and no-answer deadline belong to the call, not its window.
+/// The ringtone belongs to the call, not its window. mosh-core ends an
+/// unanswered call itself; the ringtone stops when the call leaves the
+/// snapshot.
 class CallRinging {
-  CallRinging(this.player, this.onTimeout, {this.incomingManaged = false});
+  CallRinging(this.player, {this.incomingManaged = false});
 
   final RingtonePlayer player;
-  final void Function(String callId) onTimeout;
   final bool incomingManaged;
   RingtoneHandle? _handle;
-  Timer? _timer;
   String? _callId;
-  DateTime? _deadline;
-  bool _timedOut = false;
 
   void update(CallDialog dialog, {required bool busy}) {
     if (incomingManaged && dialog is IncomingCallDialog) {
@@ -33,11 +28,8 @@ class CallRinging {
     if (_callId != dialog.callId) {
       dispose();
       _callId = dialog.callId;
-      if (dialog is IncomingCallDialog) {
-        _deadline = DateTime.now().add(kIncomingNoAnswerTimeout);
-      }
     }
-    if (busy || _timedOut) {
+    if (busy) {
       stop();
       return;
     }
@@ -50,20 +42,9 @@ class CallRinging {
         // Call controls remain usable when the output device is unavailable.
       }
     }
-    final deadline = _deadline;
-    if (deadline != null && _timer == null && !_timedOut) {
-      final remaining = deadline.difference(DateTime.now());
-      _timer = Timer(remaining.isNegative ? Duration.zero : remaining, () {
-        _timedOut = true;
-        stop();
-        onTimeout(dialog.callId);
-      });
-    }
   }
 
   void stop() {
-    _timer?.cancel();
-    _timer = null;
     final handle = _handle;
     _handle = null;
     try {
@@ -76,7 +57,5 @@ class CallRinging {
   void dispose() {
     stop();
     _callId = null;
-    _deadline = null;
-    _timedOut = false;
   }
 }

@@ -216,11 +216,3 @@ fn send_chunk_reports_the_room_refusal_when_both_paths_fail() {
 }
 
 const ROOM_REFUSAL: &str = "no peers reachable";
-
-#[test]
-fn reserved_prefix_never_collides_with_room_naming() {
-    assert_ne!(
-        STREAM_INBOX_CHANNEL_PREFIX, "mls-blob/",
-        "the stream prefix must not be a room prefix"
-    );
-}

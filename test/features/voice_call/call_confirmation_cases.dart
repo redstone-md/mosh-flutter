@@ -48,8 +48,7 @@ void main() {
   testWidgets('pending confirmation stops ringing and retains cancel',
       (tester) async {
     final player = RecordingRingtone();
-    final timedOut = <String>[];
-    final ringing = CallRinging(player, timedOut.add);
+    final ringing = CallRinging(player);
     ringing.update(_pending, busy: false);
     final actions = <CallViewAction>[];
     final view = CallViewState.fromDialog(
@@ -66,9 +65,7 @@ void main() {
     expect(find.byTooltip('Accept call'), findsNothing);
     await tester.tap(find.byTooltip('Cancel call'));
     expect(actions, [CallViewAction.end]);
-    await tester.pump(const Duration(seconds: 31));
     expect(player.starts, 0);
-    expect(timedOut, isEmpty);
     ringing.dispose();
     await tester.pumpWidget(const SizedBox.shrink());
   });

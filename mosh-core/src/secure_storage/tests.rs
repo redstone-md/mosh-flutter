@@ -82,10 +82,10 @@ fn load_falls_back_to_the_legacy_slot_and_migrates_it() {
 }
 
 #[test]
-fn status_describes_native_backend() {
-    let status = OsSecureSecretStore::status();
-
-    assert_eq!(status.backend, BACKEND_NAME);
-    assert_eq!(status.service, SERVICE_NAME);
-    assert!(status.available);
+fn status_reports_whether_the_native_store_works() {
+    // Android has no native store in mosh-core; desktops must have one.
+    assert_eq!(
+        OsSecureSecretStore::status().available,
+        !cfg!(target_os = "android")
+    );
 }

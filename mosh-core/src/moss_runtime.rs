@@ -89,7 +89,7 @@ impl MossDynamicRuntime {
     pub fn first_available_path(&self) -> Option<PathBuf> {
         self.candidate_paths
             .iter()
-            .find(|path| path.exists())
+            .find(|path| is_present(path))
             .cloned()
     }
 
@@ -110,6 +110,17 @@ impl MossDynamicRuntime {
     }
 }
 
+/// Whether a candidate can be loaded. Android's linker resolves the bare
+/// library name against the app's nativeLibraryDir, which the filesystem
+/// cannot see, so only dlopen can tell.
+fn is_present(path: &Path) -> bool {
+    #[cfg(target_os = "android")]
+    if path == Path::new(MOSS_LIBRARY_NAME) {
+        return unsafe { Library::new(path) }.is_ok();
+    }
+    path.exists()
+}
+
 fn default_candidate_paths() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
 
@@ -117,7 +128,7 @@ fn default_candidate_paths() -> Vec<PathBuf> {
     // nativeLibraryDir, where AGP unpacks jniLibs/arm64-v8a/libmoss.so. Push
     // it first so a packaged build does not accidentally probe desktop paths.
     #[cfg(target_os = "android")]
-    candidates.push(android_candidate());
+    candidates.push(PathBuf::from(MOSS_LIBRARY_NAME));
 
     if let Ok(current_dir) = std::env::current_dir() {
         candidates.push(current_dir.join(MOSS_LIBRARY_NAME));
@@ -141,23 +152,6 @@ fn default_candidate_paths() -> Vec<PathBuf> {
     }
 
     candidates
-}
-
-// The android dlopen candidate: the bare library name, which android's loader
-// resolves against the app's nativeLibraryDir. Off-android this returns a
-// distinct sentinel so the cross-platform test can assert the android candidate
-// never leaks into the desktop candidate list.
-#[cfg(target_os = "android")]
-fn android_candidate() -> PathBuf {
-    PathBuf::from(MOSS_LIBRARY_NAME)
-}
-
-#[cfg(not(target_os = "android"))]
-// Dead in the non-test lib build (only the android arm runs there); the test
-// module exercises it. allow, not expect, since usage flips with --tests.
-#[allow(dead_code)]
-fn android_candidate() -> PathBuf {
-    PathBuf::from("__no_android_candidate__")
 }
 
 fn verify_required_symbols(library: &Library) -> Result<(), MossRuntimeError> {
@@ -187,29 +181,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dynamic_runtime_reports_candidate_paths() {
-        let runtime = MossDynamicRuntime::from_default_candidates();
-        let status = runtime.status();
+    fn status_names_the_required_symbols_without_their_terminators() {
+        let status = MossDynamicRuntime::from_default_candidates().status();
 
-        assert_eq!(status.link_mode, LINK_MODE);
-        assert_eq!(status.library_name, MOSS_LIBRARY_NAME);
         assert!(status.required_symbols.contains(&"Moss_Init".to_string()));
-        assert!(!status.checked_paths.is_empty());
     }
 
-    // Runs on every target. On android, the bare-name candidate is present;
-    // off android it must be absent so desktop hosts never probe a path the
-    // android loader would have resolved.
+    // Only android's loader resolves a bare library name against the app's
+    // nativeLibraryDir; desktop hosts must never probe it.
     #[test]
-    fn android_candidate_only_on_android() {
+    fn only_android_probes_the_bare_library_name() {
+        let bare = PathBuf::from(MOSS_LIBRARY_NAME);
         let candidates = default_candidate_paths();
 
         if cfg!(target_os = "android") {
-            assert!(candidates.contains(&android_candidate()));
-            assert_eq!(android_candidate(), PathBuf::from(MOSS_LIBRARY_NAME));
+            assert_eq!(candidates.first(), Some(&bare));
         } else {
-            assert!(!candidates.contains(&PathBuf::from(MOSS_LIBRARY_NAME)));
-            assert!(!candidates.contains(&android_candidate()));
+            assert!(!candidates.contains(&bare));
         }
     }
 }

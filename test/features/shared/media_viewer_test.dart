@@ -1,17 +1,16 @@
 // Widget tests for the shared MediaViewer
 // (lib/src/features/shared/media_viewer.dart). Pins: the caption + close
-// button render, the mime branching (image -> Image, file:// from disk; video/audio ->
-// play_circle_filled placeholder, other -> insert_drive_file_outlined
-// placeholder), the close button + backdrop tap close the viewer, the stage
-// tap does NOT close, and the Semantics label == file_name.
+// button render, the mime branching (image -> Image from a file:// URL;
+// video/audio without a player -> play_circle_filled placeholder, other ->
+// insert_drive_file_outlined placeholder), the close button + backdrop tap
+// close the viewer, the stage tap does NOT close, and the Semantics label ==
+// file_name.
 //
 // The viewer is pumped via `showDialog` (the same path the real
 // [showMediaViewer] helper uses) so it renders as a true fullscreen route
-// -- mirroring the ConfirmDialog test harness. The image branch uses
-// `Image.network`, so the harness installs a global `HttpOverrides` whose
-// client throws on connect, keeping the test hermetic (no real network
-// fetch) and letting `Image.network`'s `errorBuilder` render
-// deterministically.
+// -- mirroring the ConfirmDialog test harness. The image test installs a
+// global `HttpOverrides` whose client throws on connect, so a file:// image
+// that wrongly went to the network shows the broken-image fallback.
 import 'dart:async';
 import 'dart:io';
 
@@ -23,10 +22,8 @@ import 'package:mosh/src/features/shared/media_viewer.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 import '../../support/pump.dart';
 
-/// An `HttpOverrides` whose `createHttpClient` throws, so `Image.network`
-/// fails fast (no real network I/O) and its `errorBuilder` renders the
-/// broken-image fallback deterministically. Installed globally for the
-/// image-branch test.
+/// An `HttpOverrides` whose `createHttpClient` throws, so an image fetched
+/// over the network fails fast and renders the broken-image fallback.
 class _NoNetworkOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) =>
@@ -138,25 +135,6 @@ void main() {
     expect(find.byTooltip('Close viewer'), findsOneWidget);
   });
 
-  // Pins the image mime branch: an `Image` widget is mounted. A global
-  // `HttpOverrides` short-circuits the
-  // fetch so the errorBuilder renders `broken_image_outlined` -- the test
-  // asserts the Image branch was taken, NOT a real network payload.
-  testWidgets('image mime mounts Image.network (no real fetch)',
-      (tester) async {
-    HttpOverrides.global = _NoNetworkOverrides();
-    addTearDown(() => HttpOverrides.global = null);
-    await _pumpViewer(
-      tester,
-      descriptor: _descriptor(fileName: 'photo.png', mime: 'image/png'),
-    );
-
-    expect(find.byType(Image), findsOneWidget);
-    // No placeholder play/file icon on the image branch.
-    expect(find.byIcon(Icons.play_circle_filled), findsNothing);
-    expect(find.byIcon(Icons.insert_drive_file_outlined), findsNothing);
-  });
-
   // A downloaded attachment arrives as a `file://` URL. It must load from
   // disk -- `NetworkImage` cannot fetch that scheme, and the viewer used to
   // show the broken-image fallback for every local picture.
@@ -189,9 +167,8 @@ void main() {
     expect(tester.widget<RawImage>(find.byType(RawImage)).image, isNotNull);
   });
 
-  // Pins the video mime branch: a placeholder card with
-  // `Icons.play_circle_filled`. No real
-  // player is wired (TODO slice-3) -- the test pins the placeholder icon.
+  // Pins the video mime branch: this isolate has no media_kit backend, so
+  // the player cannot be created and the stage shows its placeholder card.
   testWidgets('video mime renders the play-circle placeholder', (tester) async {
     await _pumpViewer(
       tester,

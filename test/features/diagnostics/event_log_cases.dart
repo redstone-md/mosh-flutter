@@ -5,8 +5,8 @@ import '../../support/pump.dart';
 // directly inside a localized `MaterialApp` (the established DM
 // widget-test pattern, scoped to the section -- no Riverpod /
 // DiagnosticsScreen) and asserts:
-//   - `formatTime` pure: null -> "-", BigInt.zero -> "-", a fixed epoch
-//     -> the local HH:mm:ss computed the same way (deterministic).
+//   - `formatTime` pure: null -> "-", BigInt.zero -> "-", a local
+//     wall-clock time -> its zero-padded HH:mm:ss.
 //   - `compactDetail` pure: empty -> "", empty object -> "", single-key
 //     object -> "foo=bar", multi-key object -> "a=1 b=2", nested-object
 //     value -> 'k={"n":1}', top-level array -> "0=1 1=2" (array indexed
@@ -40,14 +40,10 @@ SnapshotEvent _event({
       epochMillis: epochMillis,
     );
 
-/// Expected local HH:mm:ss for an epoch, computed the SAME way the
-/// implementation does (so the test is deterministic regardless of the
-/// host timezone).
-String _expectedTime(BigInt epoch) {
-  final date = DateTime.fromMillisecondsSinceEpoch(epoch.toInt()).toLocal();
-  String pad(int v) => v < 10 ? '0$v' : v.toString();
-  return '${pad(date.hour)}:${pad(date.minute)}:${pad(date.second)}';
-}
+/// The epoch of a local wall-clock time, so the expected HH:mm:ss holds in
+/// any host timezone.
+BigInt _localEpoch(int hour, int minute, int second) => BigInt.from(
+    DateTime(2026, 1, 15, hour, minute, second).millisecondsSinceEpoch);
 
 Future<void> _pump(WidgetTester tester, Widget child) => pumpScreen(
     tester, Scaffold(body: SingleChildScrollView(child: Center(child: child))));
@@ -62,20 +58,9 @@ void main() {
       expect(formatTime(BigInt.zero), '-');
     });
 
-    test('a fixed epoch -> local HH:mm:ss (deterministic)', () {
-      const epoch = 1716000000000; // arbitrary fixed millis
-      final big = BigInt.from(epoch);
-      expect(formatTime(big), _expectedTime(big));
-    });
-
-    test('sub-10 hour/minute/second get zero-padded', () {
-      // Use an epoch whose local components have at least one sub-10
-      // field; assert against the helper, which pads the same way.
-      final big = BigInt.from(1700000000000);
-      expect(formatTime(big), _expectedTime(big));
-      // The output must be exactly 8 chars "HH:mm:ss" with two digits
-      // per component.
-      expect(formatTime(big).length, 8);
+    test('a local time -> HH:mm:ss, sub-10 fields zero-padded', () {
+      expect(formatTime(_localEpoch(9, 5, 7)), '09:05:07');
+      expect(formatTime(_localEpoch(23, 59, 58)), '23:59:58');
     });
   });
 
@@ -194,17 +179,17 @@ void main() {
       final e1 = _event(
         eventName: 'peer_joined',
         detailJson: '{"peer":"alice"}',
-        epochMillis: BigInt.from(1700000000000),
+        epochMillis: _localEpoch(9, 5, 7),
       );
       final e2 = _event(
         eventName: 'tracker_update',
         detailJson: '',
-        epochMillis: BigInt.from(1710000000000),
+        epochMillis: _localEpoch(12, 30, 45),
       );
       final e3 = _event(
         eventName: 'relay_changed',
         detailJson: '{"from":"a","to":"b"}',
-        epochMillis: BigInt.from(1720000000000),
+        epochMillis: _localEpoch(23, 59, 58),
       );
       await _pump(tester, EventLog(events: [e1, e2, e3]));
 
@@ -223,9 +208,9 @@ void main() {
         lessThan(tester.getTopLeft(find.text('peer_joined')).dy),
       );
       // Each event's local time renders exactly once.
-      expect(find.text(_expectedTime(e1.epochMillis)), findsOneWidget);
-      expect(find.text(_expectedTime(e2.epochMillis)), findsOneWidget);
-      expect(find.text(_expectedTime(e3.epochMillis)), findsOneWidget);
+      expect(find.text('09:05:07'), findsOneWidget);
+      expect(find.text('12:30:45'), findsOneWidget);
+      expect(find.text('23:59:58'), findsOneWidget);
       // The detail strings render for the two events with detail_json.
       expect(find.text('peer=alice'), findsOneWidget);
       expect(find.text('from=a to=b'), findsOneWidget);

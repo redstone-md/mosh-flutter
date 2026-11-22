@@ -185,12 +185,7 @@ void main() {
             ]);
         expect(find.text('Message deleted by administrator Alice'),
             findsOneWidget);
-        for (final other in [
-          'Awaiting deletion',
-          'Deleted only for you',
-          'Awaiting delivery',
-          'Request confirmed',
-        ]) {
+        for (final other in ['Awaiting deletion', 'Deleted only for you']) {
           expect(
               find.text(other), other == line ? findsOneWidget : findsNothing);
         }

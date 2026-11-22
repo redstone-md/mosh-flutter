@@ -16,8 +16,6 @@ import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart'
         extensionForFormat,
         mimeForFormat,
         pickImageFormat;
-import 'package:mosh/src/features/shared/attachment_picker.dart'
-    show AttachmentPickError, PickedAttachment;
 
 /// Minimal fake reader: `canProvide` answers from the seeded format list,
 /// which controls which `pickImageFormat` branch fires. Every other member
@@ -90,32 +88,6 @@ void main() {
       expect(extensionForFormat(Formats.gif), 'gif');
       expect(extensionForFormat(Formats.webp), 'webp');
       expect(extensionForFormat(Formats.tiff), 'tiff');
-    });
-  });
-
-  group('AttachmentPickError', () {
-    test('distinguishes oversized files from unavailable image previews', () {
-      expect(
-          AttachmentPickError.values,
-          containsAll([
-            AttachmentPickError.tooLarge,
-            AttachmentPickError.previewUnavailable
-          ]));
-    });
-  });
-
-  group('PickedAttachment', () {
-    test('constructs with the clipboard-image shape', () {
-      const a = PickedAttachment(
-        fileName: 'clipboard-1.png',
-        mime: 'image/png',
-        dataBase64: 'AA==',
-        thumbnailBase64: null,
-      );
-      expect(a.fileName, 'clipboard-1.png');
-      expect(a.mime, 'image/png');
-      expect(a.dataBase64, 'AA==');
-      expect(a.thumbnailBase64, isNull);
     });
   });
 

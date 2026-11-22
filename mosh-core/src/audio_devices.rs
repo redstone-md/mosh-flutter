@@ -233,20 +233,6 @@ mod tests {
     }
 
     #[test]
-    fn decision_table_a_foreign_platform_id_is_garbage_here() {
-        // "coreaudio:gone" parses on macOS (the host exists there — only
-        // the device is missing, which the host-touching half degrades to
-        // the default) but is unreadable on every other platform, where
-        // the host itself is not compiled in. Both classifications are
-        // correct: the decision table only routes; it must not error
-        // either way.
-        match resolve_decision(Some("coreaudio:gone")) {
-            Decision::ByParsedId(_) | Decision::Unreadable(_) => {}
-            Decision::Default => panic!("an explicit pick is never Default"),
-        }
-    }
-
-    #[test]
     fn picks_round_trip_and_reset_shrinks_the_file() {
         let dir = scratch("roundtrip");
         assert_eq!(

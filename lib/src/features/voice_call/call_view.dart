@@ -23,8 +23,6 @@ class CallView extends StatefulWidget {
     this.onExpand,
     this.onMinimize,
     this.floating = false,
-    this.l,
-    this.tickInterval = const Duration(seconds: 1),
     this.now = _now,
     this.video,
     this.onDeviceSelected,
@@ -36,8 +34,6 @@ class CallView extends StatefulWidget {
   final VoidCallback? onExpand;
   final VoidCallback? onMinimize;
   final bool floating;
-  final AppLocalizations? l;
-  final Duration tickInterval;
   final int Function() now;
   final ValueListenable<CallVideoPictures>? video;
   final void Function(CallViewCommand)? onDeviceSelected;
@@ -53,7 +49,7 @@ class _CallViewState extends State<CallView> {
   @override
   void initState() {
     super.initState();
-    _ticker = Timer.periodic(widget.tickInterval, (_) {
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (widget.call.phase == CallViewPhase.active) setState(() {});
     });
   }
@@ -66,7 +62,7 @@ class _CallViewState extends State<CallView> {
 
   @override
   Widget build(BuildContext context) {
-    final l = widget.l ?? AppLocalizations.of(context)!;
+    final l = AppLocalizations.of(context)!;
     final call = widget.call;
     final active = call.phase == CallViewPhase.active;
     if (widget.floating && widget.video != null) {
@@ -90,7 +86,6 @@ class _CallViewState extends State<CallView> {
       status: _status(l),
       notice: _notice(l),
       statusFontFeatures: active ? const [FontFeature.tabularFigures()] : null,
-      onEscape: widget.onMinimize ?? () => widget.onAction(CallViewAction.end),
       onOpenConversation: () =>
           widget.onAction(CallViewAction.openConversation),
       actions: callControls(call, l, widget.onAction,

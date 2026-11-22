@@ -39,16 +39,6 @@ final class AppleWakeTokens extends WakeTokens {
         if (apns != null) 'apns': apns,
         'environment': environment,
       };
-
-  @override
-  bool operator ==(Object other) =>
-      other is AppleWakeTokens &&
-      other.voip == voip &&
-      other.apns == apns &&
-      other.environment == environment;
-
-  @override
-  int get hashCode => Object.hash(voip, apns, environment);
 }
 
 /// One Firebase installation id carries both calls and messages.
@@ -59,13 +49,6 @@ final class FcmWakeTokens extends WakeTokens {
 
   @override
   Map<String, dynamic> toJson() => {'fcm': installation};
-
-  @override
-  bool operator ==(Object other) =>
-      other is FcmWakeTokens && other.installation == installation;
-
-  @override
-  int get hashCode => installation.hashCode;
 }
 
 /// This device's entry at a wake service: contacts get `handle`; `secret`

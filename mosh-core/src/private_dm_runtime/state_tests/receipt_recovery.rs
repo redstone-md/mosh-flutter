@@ -95,31 +95,6 @@ fn read_state_survives_a_restart() {
     clear_toggle(&dir);
 }
 
-// An old counterpart client fails to decode the unknown ReadReceipt variant
-// and drops the frame — pinned by the same drain-drop shape as typing's test.
-#[test]
-fn a_receipt_from_a_newer_client_decode_drops() {
-    let (net, mut alice, mut bob) = memory_pair();
-    let invite = invite(&mut alice);
-    accept(&mut bob, &invite);
-    connect(&mut alice, &mut bob, &invite.session_id);
-
-    let future = serde_json::json!({
-        "type": "ReadReceiptV2",
-        "session_id": invite.session_id,
-        "participant_id": "peer-participant",
-        "receipt_ciphertext_b64": encode(b"whatever"),
-    });
-    let bytes = serde_json::to_vec(&future).expect("future envelope should serialize");
-    assert!(
-        decode_json::<ControlEnvelope>(&bytes).is_err(),
-        "an unknown variant name must fail decode"
-    );
-    publish_control_from(&net, &invite, ALICE_ID, BOB_ID, &bytes);
-    bob.drain_inbound();
-    let _ = alice;
-}
-
 // A receipt the transport refused must not be recorded as sent: the next
 // `mark_viewed` re-sends it, or the counterpart never learns the message
 // was read. The failed publish used to file the self-read event and pin the

@@ -4,7 +4,8 @@
 // test pattern, scoped to the card -- no Riverpod/DiagnosticsScreen) and
 // asserts the kicker, title, state, description, and all 3 facts render
 // for a ready-tone summary; the idle copy renders for an idle-tone
-// summary; and `RuntimeError` renders the alert icon + the localized
+// summary; an error-tone badge takes the error color; and `RuntimeError`
+// renders the alert icon + the localized
 // "Runtime error" label + the message.
 //
 // The summaries are built via the real `diagnosticsSummary` builder so
@@ -13,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations_en.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/diagnostics/diagnostics_summary.dart';
 import 'package:mosh/src/features/diagnostics/summary_card.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -121,24 +123,19 @@ void main() {
   });
 
   group('SummaryCard - error tone', () {
-    testWidgets('renders the Error state badge when an error is present',
+    testWidgets('an error paints the connected state badge in the error color',
         (tester) async {
-      final l = AppLocalizationsEn();
       final sum = diagnosticsSummary(
-        l: l,
+        l: AppLocalizationsEn(),
         session: _readySession(),
         error: 'boom',
       );
       await _pump(tester, SummaryCard(summary: sum));
 
-      // Tone is error, but the DM branch still drives the description.
-      expect(sum.tone, DiagnosticSummaryTone.error);
-      // The state badge shows the localized ready label ("Connected") since
-      // the DM branch state comes from the session, not the error.
-      expect(find.text('Connected'), findsOneWidget);
-      // The title + kicker still come from the DM branch.
-      expect(find.text('PRIVATE DM'), findsOneWidget);
-      expect(find.text('Alice'), findsOneWidget);
+      // The badge keeps the session's own state; the tone alone signals
+      // the error.
+      final state = tester.widget<Text>(find.text('Connected'));
+      expect(state.style?.color, MoshColors.error);
     });
   });
 

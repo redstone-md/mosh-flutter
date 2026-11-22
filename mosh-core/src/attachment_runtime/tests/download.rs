@@ -210,18 +210,6 @@ fn prepare_outgoing_stamps_voice_onto_the_manifest() {
 }
 
 #[test]
-fn voice_meta_roundtrips_through_json() {
-    let meta = VoiceMeta {
-        duration_ms: 4200,
-        peaks_b64: "AAECAwQF".to_string(),
-    };
-    let json = serde_json::to_string(&meta).expect("serialize");
-    let back: VoiceMeta = serde_json::from_str(&json).expect("deserialize");
-    assert_eq!(back.duration_ms, 4200);
-    assert_eq!(back.peaks_b64, "AAECAwQF");
-}
-
-#[test]
 fn manifest_without_voice_omits_the_field() {
     let manifest = AttachmentManifest {
         origin: None,

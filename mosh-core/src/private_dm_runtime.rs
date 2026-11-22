@@ -64,9 +64,8 @@ const STREAM_BACKOFF_MS: u64 = 10_000;
 // Message-id dedup permits bounded automatic retransmission until DeliveryAck.
 const AUTO_RESEND_MS: u64 = 15_000;
 const AUTO_RESEND_MAX: u32 = 10;
-// Re-offers recover lost accepts. Must outlast Flutter's 30-second auto-decline.
+// Re-offers recover lost accepts until the ring budget is spent.
 const CALL_RESEND_MS: u64 = 2_000;
-const CALL_RING_TIMEOUT_MS: u64 = 30_000;
 
 use crate::conversation::read_events::push_read_event;
 use crate::conversation::typing::{self as typing_shared, TypingGate};

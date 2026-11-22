@@ -62,22 +62,6 @@ impl GroupSession {
         members
     }
 
-    /// The typing roster without expiring: tests read the standing entries.
-    #[cfg(test)]
-    pub(super) fn typing_members_live(&self) -> Vec<TypingMember> {
-        let mut members: Vec<TypingMember> = self
-            .typing_members
-            .iter()
-            .map(|(fingerprint, until)| TypingMember {
-                fingerprint: fingerprint.clone(),
-                display_name: self.member_display_name(fingerprint),
-                until_ms: *until,
-            })
-            .collect();
-        members.sort_by(|a, b| a.fingerprint.cmp(&b.fingerprint));
-        members
-    }
-
     /// A member's best-known display name: the name their authenticated
     /// frames carry, else the fingerprint. Kept cheap by construction — the
     /// map only ever holds entries for members that typed or spoke.

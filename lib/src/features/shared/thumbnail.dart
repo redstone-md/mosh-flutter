@@ -7,22 +7,6 @@ import 'package:mime/mime.dart' show lookupMimeType;
 import 'image_previews.dart';
 import 'video_frame.dart';
 
-/// Generates a base64-encoded JPEG thumbnail for an image or video file, or
-/// null for other types / decode failures.
-///
-/// [fileName] is used to infer the image decoder (via `decodeNamedImage`,
-/// which keys off the extension). [bytes] is the raw file content (already
-/// read by AttachmentPicker).
-///
-/// Image picks use the pure-Dart `image` package (no native plugin). Video
-/// picks take one frame ([takeVideoFrame]) and encode it the same way. The
-/// video branch is best-effort: a video that gives no frame has no
-/// thumbnail. End-to-end capture is verified with real libmpv in the
-/// native media tests.
-Future<String?> createThumbnail(Uint8List bytes, String fileName) async {
-  return (await createAttachmentPreviews(bytes, fileName))?.previewBase64;
-}
-
 /// Decode once and generate both the inline miniature and the clear preview.
 /// [videoFrame] is how a video's frame is taken; the platform's by default.
 Future<AttachmentPreviews?> createAttachmentPreviews(

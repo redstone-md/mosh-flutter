@@ -46,6 +46,10 @@ void _stubRecordChannel({
         return true;
       case 'start':
         final path = (call.arguments as Map)['path'] as String;
+        // Like AVCaptureFileOutput, the recorder never creates parent dirs.
+        if (!File(path).parent.existsSync()) {
+          throw PlatformException(code: 'record', message: 'ENOENT $path');
+        }
         started.add(path);
         return null;
       case 'stop':
@@ -118,7 +122,8 @@ Future<void> _pumpComposer(
 }
 
 void main() {
-  testWidgets('capture targets an explicitly created mosh-voice/ dir',
+  testWidgets(
+      'capture targets a mosh-voice/ dir created under a missing cache base',
       (tester) async {
     final started = <String>[];
     _stubRecordChannel(started: started);
@@ -129,43 +134,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(started, hasLength(1), reason: 'the capture must really begin');
+    expect(started, hasLength(1),
+        reason: 'the clip directory exists before the capture begins');
     // The clip lands in the mosh-voice subdirectory, not the cache root.
     expect(started.single, contains('mosh-voice'));
-    final clipsDir = Directory(
-      started.single.substring(0, started.single.lastIndexOf('/')),
-    );
-    expect(clipsDir.existsSync(), isTrue,
-        reason: 'the recorder writes only into an existing directory');
     expect(started.single, endsWith('.m4a'));
-    expect(errors(), isEmpty);
   });
-
-  testWidgets('the clip dir is created even when the base is missing',
-      (tester) async {
-    final started = <String>[];
-    _stubRecordChannel(started: started);
-    final sent = <VoiceSend>[];
-    await _pumpComposer(tester, sent: sent);
-
-    await tester.tap(find.byIcon(Icons.mic_none_outlined));
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.pump(const Duration(milliseconds: 50));
-
-    // The recursive create is the fix: the recorder receives a path whose
-    // parent chain did NOT exist when the capture started.
-    expect(started, hasLength(1));
-    final clipsDir = Directory(
-      started.single.substring(0, started.single.lastIndexOf('/')),
-    );
-    expect(clipsDir.existsSync(), isTrue,
-        reason: 'errno 2 (No such file or directory) is exactly this state');
-  });
-}
-
-List<String> errors() {
-  // The composer surfaces start failures through onError; the test
-  // harness hands it a no-op, so failures surface as missing started
-  // entries instead. Kept for the first test's assertion symmetry.
-  return const [];
 }

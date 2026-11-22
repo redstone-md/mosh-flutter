@@ -97,7 +97,7 @@ pub(super) fn an_engine_refusal_rings_on_then_asks_to_update(f: &mut Fixture) {
     );
     let session = f.runtime.session_mut(&f.session).unwrap();
     let rang = session.call.as_ref().unwrap().offer_first_ms;
-    session.pump_call_signaling(rang + crate::private_dm_runtime::CALL_RING_TIMEOUT_MS);
+    session.pump_call_signaling(rang + crate::private_dm_runtime::calls::state::OUTGOING_RING_MS);
     assert!(f.snapshot().outgoing_call.is_none());
     assert_eq!(call_events(f), [("update_required".to_owned(), Some(true))]);
 }

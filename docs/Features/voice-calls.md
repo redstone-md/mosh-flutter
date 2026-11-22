@@ -43,7 +43,8 @@ when Mosh is stopped, or guarantee calls after dismissing/locking its Activity.
 - The microphone button follows the engine's microphone state, and muting is
   the engine's microphone choice. A setup error retains hang-up controls when
   signaling also fails.
-- Incoming calls time out after 30 seconds. Answer, decline, cancel and end stop
+- Incoming calls time out after 30 seconds; the caller rings for 45, so the
+  callee's no-answer decline reaches it first. Answer, decline, cancel and end stop
   the ringtone immediately. Failed controls remain retryable.
 - Incoming and outgoing calls play separate recordings. Desktop uses the selected
   CPAL output; Android uses native ringtone/call audio attributes and audio focus,

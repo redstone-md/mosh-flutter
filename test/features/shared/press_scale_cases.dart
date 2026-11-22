@@ -4,46 +4,55 @@ import 'package:mosh/src/features/shared/press_scale.dart';
 
 import '../../support/pump.dart';
 
-Future<void> _testPressScaleInteraction(WidgetTester tester) async {
-  var tapped = false;
-  await pumpScreen(
-    tester,
-    PressScale(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => tapped = true,
-        child: const SizedBox(width: 100, height: 100),
-      ),
-    ),
-  );
+const _target = Key('press-target');
 
-  final finder = find.byType(AnimatedScale);
-  expect(finder, findsOneWidget);
-  expect(tester.widget<AnimatedScale>(finder).scale, 1.0);
-
-  final gesture = await tester.startGesture(tester.getCenter(finder));
-  await tester.pump();
-  expect(tester.widget<AnimatedScale>(finder).scale, 0.96);
-
-  await gesture.up();
-  await tester.pumpAndSettle();
-  expect(tester.widget<AnimatedScale>(finder).scale, 1.0);
-  expect(tapped, isTrue);
-}
-
-void main() {
-  testWidgets('PressScale scales down on pointer down and restores on up',
-      _testPressScaleInteraction);
-
-  testWidgets('PressScale is a no-op when enabled is false', (tester) async {
-    await pumpScreen(
+/// Mounts a 100x100 tappable target under [PressScale].
+Future<void> _pump(WidgetTester tester,
+        {bool enabled = true, VoidCallback? onTap}) =>
+    pumpScreen(
       tester,
-      const PressScale(
-        enabled: false,
-        child: SizedBox(width: 100, height: 100),
+      Center(
+        child: PressScale(
+          enabled: enabled,
+          child: GestureDetector(
+            key: _target,
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: const SizedBox(width: 100, height: 100),
+          ),
+        ),
       ),
     );
-    expect(find.byType(AnimatedScale), findsNothing);
-    expect(find.byType(SizedBox), findsOneWidget);
+
+/// The target's painted size, transforms included.
+Size _painted(WidgetTester tester) => tester.getRect(find.byKey(_target)).size;
+
+void main() {
+  testWidgets('PressScale shrinks while pressed and restores on release',
+      (tester) async {
+    var tapped = false;
+    await _pump(tester, onTap: () => tapped = true);
+    expect(_painted(tester), const Size(100, 100));
+
+    final gesture =
+        await tester.startGesture(tester.getCenter(find.byKey(_target)));
+    await tester.pumpAndSettle();
+    expect(_painted(tester).width, moreOrLessEquals(96));
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(_painted(tester), const Size(100, 100));
+    expect(tapped, isTrue);
+  });
+
+  testWidgets('a disabled PressScale keeps its size while pressed',
+      (tester) async {
+    await _pump(tester, enabled: false);
+
+    final gesture =
+        await tester.startGesture(tester.getCenter(find.byKey(_target)));
+    await tester.pumpAndSettle();
+    expect(_painted(tester), const Size(100, 100));
+    await gesture.up();
   });
 }

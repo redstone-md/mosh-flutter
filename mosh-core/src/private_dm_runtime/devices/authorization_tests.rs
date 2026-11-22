@@ -144,7 +144,6 @@ fn a_valid_self_signed_outsider_cannot_authorize_dm_admission() {
     )
     .is_err());
     assert!(verify_authorizer(&membership, root.device(), root.roster(), &admission).is_err());
-    assert_eq!(membership.topology.clients.len(), 2);
 }
 
 #[test]

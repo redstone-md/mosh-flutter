@@ -270,6 +270,7 @@ mod tests {
             PrivateDmRuntimeError::MissingAttachment("a-1".into()),
             Kind::MissingAttachment,
         );
+        // ADR 0011's fail-closed path must not look like a transient mesh error.
         assert_maps(
             PrivateDmRuntimeError::Persistence("dek unavailable".into()),
             Kind::Persistence,
@@ -369,17 +370,6 @@ mod tests {
         assert_maps(OrgError::Codec("json".into()), Kind::Internal);
     }
 
-    /// ADR 0011's fail-closed path must not look like a transient mesh error.
-    #[test]
-    fn persistence_is_never_folded_into_unavailable() {
-        let dm = ConversationBridgeError::from(PrivateDmRuntimeError::Persistence("dek".into()));
-        let org = ConversationBridgeError::from(OrgError::Persistence("redb".into()));
-        assert_eq!(dm.kind, Kind::Persistence);
-        assert_eq!(org.kind, Kind::Persistence);
-        assert_ne!(dm.kind, Kind::Unavailable);
-        assert_ne!(org.kind, Kind::Unavailable);
-    }
-
     #[test]
     fn oversized_metadata_never_reports_lost_connectivity() {
         assert_maps(
@@ -404,12 +394,5 @@ mod tests {
             ConversationBridgeError::new(Kind::MissingAttachment, "attachment not found: a-1");
         assert_eq!(bridge.to_string(), "attachment not found: a-1");
         assert_eq!(bridge.kind, Kind::MissingAttachment);
-    }
-
-    #[test]
-    fn a_hand_built_error_round_trips_through_the_error_trait() {
-        let bridge = ConversationBridgeError::new(Kind::NeedsRejoin, "epoch gap");
-        let as_error: &dyn std::error::Error = &bridge;
-        assert_eq!(as_error.to_string(), "epoch gap");
     }
 }

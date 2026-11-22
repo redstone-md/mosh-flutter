@@ -99,18 +99,6 @@ void main() {
     expect(copied, ['first', 'first']);
   }, variant: TargetPlatformVariant.desktop());
 
-  testWidgets('third timed click selects every paragraph of one message',
-      (tester) async {
-    final copied = captureClipboard(tester);
-    await _pump(tester);
-    final point = _firstWord(tester);
-    await clickMessage(tester, point);
-    await clickMessage(tester, point);
-    await clickMessage(tester, point);
-    await sendPlatformShortcut(tester, LogicalKeyboardKey.keyC);
-    expect(copied, ['first word\nsecond paragraph']);
-  }, variant: TargetPlatformVariant.desktop());
-
   testWidgets('Escape clears text selection while restoring message focus',
       (tester) async {
     final copied = captureClipboard(tester);

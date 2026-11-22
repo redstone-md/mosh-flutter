@@ -12,7 +12,7 @@ import 'package:mosh/src/state/auto_poll_provider.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
 import 'package:mosh/src/state/voice_call_session_provider.dart';
 import 'call_view_state.dart';
-import 'incoming_call_modal.dart';
+import 'call_decline.dart';
 import 'voice_call_layer.dart';
 import 'main_window_call_host.dart';
 

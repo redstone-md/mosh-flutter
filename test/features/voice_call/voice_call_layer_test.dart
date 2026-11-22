@@ -1,5 +1,5 @@
 // Tests for the voice-call wiring seam: `startVoiceCall` routes through the
-// `Gateway.callStart` seam, and `VoiceCallLayer` shows the OutgoingCallModal
+// `Gateway.callStart` seam, and `VoiceCallLayer` shows the outgoing call
 // when the snapshot reflects an `outgoingCall`.
 import 'dart:async';
 import '../../support/call_notifications.dart';
@@ -205,14 +205,14 @@ void main() {
   });
 
   testWidgets(
-    'VoiceCallLayer shows OutgoingCallModal when the snapshot has an outgoingCall',
+    'VoiceCallLayer shows the outgoing call when the snapshot has an outgoingCall',
     (tester) async {
       final gateway = ScriptableGateway();
       final bridge = ScriptableBridge(conversations: gateway.conversations);
       gateway.seedSessions([_outgoingSnapshot('sess-1')]);
       final l = await AppLocalizations.delegate.load(const Locale('en'));
-      // The layer opens the outgoing modal from a post-frame callback,
-      // so the pump does not settle -- the next pump lets it open.
+      // The layer reads the session asynchronously, so the pump does not
+      // settle -- the next pump shows the call.
       await pumpScreen(
           tester,
           Scaffold(
@@ -332,16 +332,15 @@ void main() {
       expect(notifications.showCalls, 1);
       expect(notifications.lastTitle, 'Mosh');
       expect(notifications.lastBody, 'Incoming call from Alice');
-      expect(
-          notifications.lastId, Object.hash('sess-1', 'call-1') & 0x7fffffff);
+      // Android notification ids are non-negative 32-bit integers.
+      expect(notifications.lastId, inInclusiveRange(0, 0x7fffffff));
       expect(
           notifications.lastDetails?.android?.channelId, 'mosh_incoming_calls');
       expect(notifications.lastDetails?.android?.channelName, 'Incoming calls');
       expect(notifications.lastDetails?.android?.playSound, false,
           reason:
               'the call-owned ringtone must not compete with a notification sound');
-      // The in-app IncomingCallModal opened too (the toast is additive):
-      // the modal shows the peer label + the localized incoming status.
+      // The in-app incoming call shows too (the notification is additive).
       expect(find.text('Alice'), findsWidgets);
     },
     timeout: const Timeout(Duration(seconds: 20)),

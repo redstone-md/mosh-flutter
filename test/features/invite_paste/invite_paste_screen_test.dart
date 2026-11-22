@@ -1,7 +1,7 @@
 // S4.5: widget test for the Invite Paste screen. Pumps it in a ProviderScope
 // + localized MaterialApp.router (the step's Back button uses context.go),
 // drives live detection, and asserts:
-//   - the step title + body render (no AppBar),
+//   - the step title + body render,
 //   - the 3-state detection badge (neutral / ok / bad) flips with input,
 //   - the Connect button is enabled for every detected kind (dm + group +
 //     org -- all three have a wired Gateway seam),
@@ -41,22 +41,18 @@ void main() {
         overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
   }
 
-  testWidgets(
-      'renders the step title (no AppBar) and a neutral preview on empty',
+  testWidgets('renders the step title and a neutral preview on empty',
       (tester) async {
     await pumpPasteStep(tester, ScriptableBridge());
 
-    // The frame renders the join step title (h1), not an AppBar.
     expect(find.text('Join with a link'), findsOneWidget);
-    expect(find.byType(AppBar), findsNothing);
     // The body paragraph renders.
     expect(find.textContaining('Paste a mosh:// invite link'), findsOneWidget);
-    // Empty -> neutral badge: the "waiting" label, no check icon, Connect
-    // disabled (onPressed null).
+    // Empty -> neutral badge: the "waiting" label, Connect disabled
+    // (onPressed null).
     expect(find.text('Waiting for a mosh:// link…'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNull);
-    expect(find.byIcon(Icons.check), findsNothing);
   });
 
   testWidgets('dm detection shows the ok badge and enables Connect',
@@ -66,7 +62,7 @@ void main() {
     await tester.enterText(find.byType(TextField),
         'mosh://invite?mesh=7x9v&session=drift-41#fp=91A4-D2C8-77B0');
     await tester.pump();
-    // ok badge: the "private chat invite detected" label + a check icon.
+    // ok badge: the "private chat invite detected" label.
     expect(find.text('Private chat invite detected'), findsOneWidget);
     expect(find.text('Opens a private chat with the person who sent it.'),
         findsOneWidget);
@@ -81,10 +77,9 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'garbage');
     await tester.pump();
-    // bad badge: the canonical "bad" label, NO check icon, Connect disabled.
+    // bad badge: the canonical "bad" label, Connect disabled.
     expect(
         find.text('That does not look like a mosh:// invite'), findsOneWidget);
-    expect(find.byIcon(Icons.check), findsNothing);
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNull);
   });
@@ -99,8 +94,8 @@ void main() {
     await tester.enterText(find.byType(TextField),
         'mosh://group?mesh=7x9v&group=drift-team#fp=91A4D2C877B091A4D2C877B091A4D2C8');
     await tester.pump();
-    // ok badge: the "group invite detected" label + a check icon (group is a
-    // detected kind, so the badge is green/ok).
+    // ok badge: the "group invite detected" label (group is a detected
+    // kind, so the badge is green/ok).
     expect(find.text('Group invite detected'), findsOneWidget);
     // The link names no group, and the preview says so.
     expect(find.text('The link carries no group name.'), findsOneWidget);
@@ -129,7 +124,7 @@ void main() {
         'mosh://org?mesh=7x9v&name=drift-collective#org='
         '91a4d2c877b091a4d2c877b091a4d2c877b091a4d2c877b091a4d2c877b091a4');
     await tester.pump();
-    // ok badge: the "organization bundle detected" label + a check icon.
+    // ok badge: the "organization bundle detected" label.
     expect(find.text('Organization bundle detected'), findsOneWidget);
     // The preview shows the name the bundle carries.
     expect(find.text('drift-collective'), findsOneWidget);
@@ -291,7 +286,6 @@ void main() {
     // Start empty (neutral), enter a group (ok badge, ENABLED Connect),
     // then garbage (bad badge, disabled Connect).
     expect(find.text('Waiting for a mosh:// link…'), findsOneWidget);
-    expect(find.byIcon(Icons.check), findsNothing);
 
     await tester.enterText(find.byType(TextField),
         'mosh://group?mesh=7x9v&group=drift-team#fp=91A4D2C877B091A4D2C877B091A4D2C8');
@@ -305,7 +299,6 @@ void main() {
     await tester.pump();
     expect(
         find.text('That does not look like a mosh:// invite'), findsOneWidget);
-    expect(find.byIcon(Icons.check), findsNothing);
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNull);
 

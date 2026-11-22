@@ -105,14 +105,6 @@ void main() {
       );
       expect(src, 'http://127.0.0.1:12345/channel/general/att-42');
     });
-
-    test('kind is interpolated verbatim (not encoded)', () {
-      // kind is the path segment, not a user value, so it stays raw.
-      expect(
-        streamingMediaSrc('group', 'g', 'a', baseUri: _testMediaBaseUri),
-        'http://127.0.0.1:12345/group/g/a',
-      );
-    });
   });
 
   group('ConversationAttachment opening policy', () {

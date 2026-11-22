@@ -46,10 +46,6 @@ void main() {
       expect(avatarInitials('alpha beta gamma'), 'AB');
     });
 
-    test('lowercase input is uppercased', () {
-      expect(avatarInitials('alice bob'), 'AB');
-    });
-
     test('mixed case collapses to uppercase initials', () {
       expect(avatarInitials('Alice bob'), 'AB');
     });

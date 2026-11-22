@@ -1,59 +1,44 @@
 // The rail row keeps one corner radius across states.
 //
 // Audit (2026-09-21) LOW: the active row inflated its radius 12 -> 14, so
-// selecting a row made its corners jump. The radius must stay 12 in every
-// state -- the active ring is an inset 2px border that does not move the
-// outer geometry. These tests pin radius 12 for both the plain row and the
-// ringed (active) row.
+// selecting a row made its corners jump. The active ring is an inset border
+// that must not move the outer geometry, so selecting a row keeps the radius
+// of the plain row.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/sessions/rail_item.dart';
 
-Material _rowMaterial(WidgetTester tester) => tester.widget<Material>(
-      find
+Future<BorderRadiusGeometry?> _rowRadius(
+    WidgetTester tester, bool active) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: RailItem(
+          kind: RailItemKind.dm,
+          leading: const Icon(Icons.person),
+          title: 'Peer',
+          subtitle: 'last message',
+          active: active,
+          onTap: null,
+        ),
+      ),
+    ),
+  );
+  return tester
+      .widget<Material>(find
           .descendant(
-            of: find.byType(RailItem),
-            matching: find.byType(Material),
-          )
-          .first,
-    );
+              of: find.byType(RailItem), matching: find.byType(Material))
+          .first)
+      .borderRadius;
+}
 
 void main() {
-  testWidgets('the inactive row is radius 12', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: RailItem(
-            kind: RailItemKind.dm,
-            leading: const Icon(Icons.person),
-            title: 'Peer',
-            subtitle: 'last message',
-            onTap: null,
-          ),
-        ),
-      ),
-    );
+  testWidgets('selecting a row keeps its corner radius', (tester) async {
+    final plain = await _rowRadius(tester, false);
+    final active = await _rowRadius(tester, true);
 
-    expect(_rowMaterial(tester).borderRadius, BorderRadius.circular(12));
-  });
-
-  testWidgets('the active (ringed) row is radius 12 too', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: RailItem(
-            kind: RailItemKind.dm,
-            leading: const Icon(Icons.person),
-            title: 'Peer',
-            subtitle: 'last message',
-            active: true,
-            onTap: null,
-          ),
-        ),
-      ),
-    );
-
-    expect(_rowMaterial(tester).borderRadius, BorderRadius.circular(12));
+    expect(plain, isNotNull);
+    expect(active, plain);
   });
 }

@@ -1,4 +1,4 @@
-// Shared header: admin role once, localized membership, invitation menu and
+// Shared header: admin role, localized membership, invitation menu and
 // fingerprint action. Real clipboard channel calls are observed below.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChannels, LogicalKeyboardKey;
@@ -67,21 +67,9 @@ void main() {
         final members = '$count ${count == 1 ? 'member' : 'members'}';
         expect(find.text('${admin ? 'admin, ' : ''}$members · MLS Active'),
             findsOneWidget);
-        expect(find.byIcon(Icons.workspace_premium_outlined), findsNothing);
-        expect(find.text('admin'), findsNothing);
       });
     }
   }
-
-  testWidgets('invitation is available in the menu, with no duplicate button',
-      (tester) async {
-    await _pumpGroup(
-        tester, _snapshot(invite: 'mosh://invite?mesh=m&session=g#fp=Y'));
-    expect(find.byTooltip('Copy invite'), findsNothing);
-    await _openMenu(tester);
-    expect(find.text('Copy invite'), findsOneWidget);
-    expect(find.byIcon(Icons.copy), findsOneWidget);
-  });
 
   testWidgets('copy invitation writes the URI and acknowledges it in the menu',
       (tester) async {
@@ -98,6 +86,7 @@ void main() {
         .setMockMethodCallHandler(SystemChannels.platform, null));
     await _pumpGroup(tester, _snapshot(invite: uri));
     await _openMenu(tester);
+    expect(find.byIcon(Icons.copy), findsOneWidget);
     await tester.tap(find.text('Copy invite'));
     await tester.pumpAndSettle();
     expect(copied, uri);

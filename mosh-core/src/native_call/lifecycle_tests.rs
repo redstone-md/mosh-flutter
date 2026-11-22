@@ -2,10 +2,10 @@ use super::*;
 use crate::private_dm_runtime::transport::{memory::MemoryNet, PeerTransport, PublishError};
 
 #[test]
-fn memory_transport_can_start_the_native_call_hub() {
-    let transport = MemoryNet::new().endpoint("local");
-    let hub = Hub::new(transport).unwrap();
-    assert!(hub.snapshot("dm", "call").is_none());
+fn a_started_hub_applies_a_prepared_call() {
+    let hub = Hub::new(MemoryNet::new().endpoint("local")).unwrap();
+    hub.prepare(pending("call"), Choices::default()).unwrap();
+    assert!(hub.snapshot("dm", "call").is_some());
 }
 
 fn pending(id: &str) -> Context {

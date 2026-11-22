@@ -48,29 +48,32 @@ fn existing_dm(original: &mut Peer, counterpart: &mut Peer) -> Value {
     counterpart.ask(json!({"action":"dm_accept","argument":invite["invite_uri"]}));
     let session = invite["session_id"].as_str().unwrap();
     wait_connected(counterpart, original, session);
-    counterpart.ask(json!({"action":"dm_send","argument":session,"body":"Before pairing"}));
+    send(counterpart, session, "Before pairing");
     original.wait_dm_text(session, "Before pairing");
     invite
 }
 
-#[test]
-fn linked_desktop_joins_existing_dm_and_both_receive_new_text() {
-    let _network = isolated_network_scenario();
-    let mut original = Peer::new();
-    let mut counterpart = Peer::new();
-    let mut linked = Peer::new();
-    let invite = existing_dm(&mut original, &mut counterpart);
+fn send(peer: &mut Peer, session: &str, body: &str) -> Value {
+    peer.ask(json!({"action":"dm_send","argument":session,"body":body}))
+}
+
+/// The linked desktop joined the existing DM itself, not a copy of it: the
+/// contact's text reaches both desktops under the same fingerprint and the
+/// contact's name, and every installation lists one conversation.
+fn assert_linked_desktop_joined(
+    original: &mut Peer,
+    linked: &mut Peer,
+    counterpart: &mut Peer,
+    invite: &Value,
+) {
     let session = invite["session_id"].as_str().unwrap();
-    pair(&mut original, &mut linked);
-    linked.connect(&counterpart);
-    wait_connected(&mut linked, &mut counterpart, session);
-    counterpart.ask(json!({"action":"dm_send","argument":session,"body":"Both desktops"}));
-    let first = original.wait_dm_text(session, "Both desktops");
-    let second = linked.wait_dm_text(session, "Both desktops");
+    send(counterpart, session, "Ready on both");
+    let first = original.wait_dm_text(session, "Ready on both");
+    let second = linked.wait_dm_text(session, "Ready on both");
     assert_eq!(first["fingerprint"], invite["fingerprint"]);
     assert_eq!(second["fingerprint"], invite["fingerprint"]);
     assert_eq!(second["peer_display_name"], "Counterpart");
-    for peer in [&mut original, &mut linked, &mut counterpart] {
+    for peer in [original, linked, counterpart] {
         assert_eq!(
             peer.ask(json!({"action":"dm_list"}))["sessions"]
                 .as_array()
@@ -79,10 +82,6 @@ fn linked_desktop_joins_existing_dm_and_both_receive_new_text() {
             1
         );
     }
-}
-
-fn send(peer: &mut Peer, session: &str, body: &str) -> Value {
-    peer.ask(json!({"action":"dm_send","argument":session,"body":body}))
 }
 
 #[test]
@@ -96,9 +95,7 @@ fn live_dm_keeps_one_author_for_simultaneous_sends_and_works_without_original() 
     pair(&mut original, &mut linked);
     linked.connect(&counterpart);
     wait_connected(&mut linked, &mut counterpart, session);
-    send(&mut counterpart, session, "Ready on both");
-    original.wait_dm_text(session, "Ready on both");
-    linked.wait_dm_text(session, "Ready on both");
+    assert_linked_desktop_joined(&mut original, &mut linked, &mut counterpart, &invite);
     let (first, second) = std::thread::scope(|scope| {
         let first = scope.spawn(|| send(&mut original, session, "Original sends"));
         let second = scope.spawn(|| send(&mut linked, session, "Linked sends"));

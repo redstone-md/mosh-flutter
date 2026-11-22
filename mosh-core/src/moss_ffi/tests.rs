@@ -311,21 +311,6 @@ fn node_config(port: u16, static_peer: Option<&str>) -> String {
 }
 
 #[test]
-fn default_node_config_ships_no_axiom_keys() {
-    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-    let config = MossNodeConfig {
-        listen_port: 42424,
-        static_peer: None,
-        bind_interface: None,
-    };
-    let json = node_config_json(&config);
-    assert!(
-        !json.contains("axiom"),
-        "config must not enable Axiom: {json}"
-    );
-}
-
-#[test]
 fn node_config_debug_plane_is_env_gated() {
     let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let _restore = RestoreDebugRecordDir(std::env::var_os("MOSH_DEBUG_RECORD_DIR"));

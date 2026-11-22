@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/voice_call/incoming_call_modal.dart'
+import 'package:mosh/src/features/voice_call/call_decline.dart'
     show kCallDeclineReasonHangup;
 import 'package:mosh/src/features/voice_call/voice_call_layer.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart'

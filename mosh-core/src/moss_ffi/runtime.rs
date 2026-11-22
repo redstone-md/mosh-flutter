@@ -3,13 +3,6 @@ use super::*;
 
 impl MossFfiRuntime {
     pub fn load_default() -> Result<Self, MossFfiError> {
-        // Android resolves packaged libraries through its linker namespace.
-        #[cfg(target_os = "android")]
-        if let Ok(runtime) =
-            Self::load_from_path(std::path::Path::new(crate::moss_runtime::MOSS_LIBRARY_NAME))
-        {
-            return Ok(runtime);
-        }
         let path = MossDynamicRuntime::from_default_candidates()
             .first_available_path()
             .ok_or_else(|| {

@@ -1,6 +1,5 @@
-// The message row itself: the avatar slot, and the three small things that
-// follow the kind -- the fingerprint chip, the delivery state, and the
-// absence of a per-sender MLS badge (IVO-26).
+// The message row itself: the avatar slot, and the small things that follow
+// the kind -- the sender meta, the fingerprint chip and the delivery state.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -76,18 +75,6 @@ Future<void> _pumpRow(
         ),
       ),
     );
-
-/// How many meta-row gaps the sender meta drew. One per part that follows
-/// the name.
-int _metaGaps(WidgetTester tester) => tester
-    .widgetList<SizedBox>(
-      find.descendant(
-        of: find.byType(ConversationSenderMeta),
-        matching: find.byType(SizedBox),
-      ),
-    )
-    .where((box) => box.width == kMessageMetaGap)
-    .length;
 
 void main() {
   setUpAll(initializeDateFormatting);
@@ -198,29 +185,6 @@ void main() {
       expect(find.byType(DeviceFingerprintChip), findsNothing);
       expect(find.byType(ConversationSenderMeta), findsNothing);
       expect(find.textContaining('delivered'), findsNothing);
-      expect(_metaGaps(tester), 0);
-    });
-
-    testWidgets('a channel keeps one gap per part it shows', (tester) async {
-      await _pumpRow(
-        tester,
-        message: _message(),
-        kind: ConversationKind.channel,
-      );
-
-      // Name -> chip. Time lives in the bubble footer.
-      expect(_metaGaps(tester), 1);
-    });
-
-    testWidgets('a group keeps one gap per part it shows', (tester) async {
-      await _pumpRow(
-        tester,
-        message: _message(),
-        kind: ConversationKind.group,
-      );
-
-      // Name -> chip, with no badge after it. Time lives in the bubble footer.
-      expect(_metaGaps(tester), 1);
     });
 
     testWidgets('a DM shows the delivery state on an own message',
@@ -241,12 +205,10 @@ void main() {
     });
 
     for (final kind in [ConversationKind.channel, ConversationKind.group]) {
-      testWidgets('a ${kind.name} shows the fingerprint chip and no MLS badge',
-          (tester) async {
+      testWidgets('a ${kind.name} shows the fingerprint chip', (tester) async {
         await _pumpRow(tester, message: _message(), kind: kind);
 
         expect(find.text(shorten('fp-bob-0123456789', 6)), findsOneWidget);
-        expect(find.text('MLS'), findsNothing);
       });
     }
 

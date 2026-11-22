@@ -51,9 +51,6 @@ enum GatewayMethod {
   markViewed,
 }
 
-/// One recorded call to the conversation seam.
-typedef GatewayCall = ScriptedCall<GatewayMethod>;
-
 /// See the file header. Construct it, seed it, script it, assert on [calls].
 class ScriptableGateway
     with ScriptedEngine<GatewayMethod>

@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/settings/connection_settings_section.dart';
-import 'package:mosh/src/features/settings/settings_content.dart';
-import 'package:mosh/src/features/settings/settings_navigation.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
@@ -12,7 +10,7 @@ import '../../support/pump.dart';
 import '../../support/scriptable_bridge.dart';
 
 Future<void> _pump(WidgetTester tester, ScriptableBridge bridge,
-    {Widget? section, double textScale = 1, bool settle = true}) async {
+    {double textScale = 1, bool settle = true}) async {
   final container = ProviderContainer(
     overrides: [bridgeFacadeProvider.overrideWithValue(bridge)],
     retry: (_, __) => null,
@@ -29,7 +27,7 @@ Future<void> _pump(WidgetTester tester, ScriptableBridge bridge,
                   child: Scaffold(
                       body: SingleChildScrollView(
                           padding: const EdgeInsets.all(16),
-                          child: section ?? const ConnectionSettingsSection())),
+                          child: const ConnectionSettingsSection())),
                 )),
       ),
       container: container,
@@ -91,25 +89,6 @@ void main() {
     await _open(tester, 'If a VPN gets in the way');
     expect(find.textContaining('Saved. Close Mosh completely'), findsOneWidget);
     expect(bridge.countOf(BridgeMethod.listInterfaces), 1);
-  });
-
-  testWidgets('read receipts live in Privacy and retain the real write seam',
-      (tester) async {
-    final bridge = _bridge();
-    await _pump(tester, bridge,
-        section: const SettingsContent(
-            section: SettingsSection.privacy, wide: false));
-    expect(find.text('Read receipts'), findsOneWidget);
-    final toggle = find.byType(SwitchListTile).last;
-    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
-    await tester.ensureVisible(toggle);
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    expect(
-        bridge
-            .lastCall(BridgeMethod.setReadReceiptsEnabled)
-            ?.arg<bool>('enabled'),
-        isTrue);
   });
 
   testWidgets('320px with enlarged text keeps the expanded VPN controls usable',

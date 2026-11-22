@@ -221,14 +221,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn sign_roster_inserts_sig_and_serializes() {
-        let mut doc = sample_doc(1);
-        let bytes = sign_roster(&mut doc, &test_key()).unwrap();
-        let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-        assert!(parsed.get("sig").and_then(|v| v.as_str()).is_some());
-    }
-
     fn signed_sample(version: u64) -> Vec<u8> {
         sign_roster(&mut sample_doc(version), &test_key()).unwrap()
     }

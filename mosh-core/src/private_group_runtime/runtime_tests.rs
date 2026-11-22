@@ -199,8 +199,17 @@ impl MemberView {
         serde_json::to_vec(&proof).unwrap()
     }
 
-    fn typing_member_of(&self) -> Option<TypingMember> {
-        self.session().typing_members_live().first().cloned()
+    fn typing_members(&mut self) -> Vec<TypingMember> {
+        self.runtime
+            .groups
+            .get_mut(&self.group_id)
+            .unwrap()
+            .snapshot()
+            .typing_members
+    }
+
+    fn typing_member_of(&mut self) -> Option<TypingMember> {
+        self.typing_members().into_iter().next()
     }
 }
 

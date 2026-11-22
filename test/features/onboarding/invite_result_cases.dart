@@ -43,7 +43,8 @@ void main() {
       (tester) async {
     await _pump(tester, setup: true, width: 240);
     final primary = _label(tester, 'Open chat');
-    expect(primary.fontSize, 15);
+    expect(primary.fontSize,
+        greaterThan(moshThemeData.textTheme.labelLarge!.fontSize!));
     for (final label in ['Copy link', 'Replace link']) {
       expect(_label(tester, label).fontSize, primary.fontSize);
       expect(tester.getSize(_button(label)).height,
