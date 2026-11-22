@@ -18,13 +18,13 @@ display(await grid('Conversation search', axis('State', ['Search', 'Files']), DE
   add(b, phone ? action('close', Device) : segmented(Device, files));
   return b;
 }));
-const empty = await grid('Search empty', ONE, ONE, () => {
-  const e = box('Search empty', { component: true, dir: 'V', gap: 1, pad: [8, 4], w: 390 });
+const empty = display(await grid('Search empty', ONE, DEVICES, ({ Device }) => {
+  const e = box('Search empty', { component: true, dir: 'V', gap: 1, pad: [8, 4], w: FEED[Device] });
   const title = add(e, text('No messages match “lighthouse keeper”', 'titleSmall', 'onSurface', { name: 'title', w: 320 }), { fillW: true });
-  const detail = add(e, text('Search looks through the messages on this device.', 'bodySmall', 'onSurfaceVariant', { w: 320 }), { fillW: true });
+  const detail = add(e, text('Search looks through the messages on this device', 'bodySmall', 'onSurfaceVariant', { w: 320 }), { fillW: true });
   title.textAlignHorizontal = detail.textAlignHorizontal = 'CENTER';
   return e;
-});
+}));
 prop(empty, 'Title', 'TEXT', 'No messages match “lighthouse keeper”', 'title');
 
 await grid('Checkbox', axis('Value', ['Unchecked', 'Checked']), DEVICES, ({ Value, Device }) => {

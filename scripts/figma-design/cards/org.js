@@ -32,12 +32,12 @@ await grid('New group form', axis('State', ['Default', 'Busy']), DEVICES, ({ Sta
   add(f, action('add', Device, { State: control }));
   return f;
 });
-await grid('Roster notice', ONE, ONE, () => {
-  const n = box('Roster notice', { component: true, dir: 'H', gap: 3, pad: [3, 3], w: ROW.Desktop });
+display(await grid('Roster notice', ONE, DEVICES, ({ Device }) => {
+  const n = box('Roster notice', { component: true, dir: 'H', gap: 3, pad: [3, 3], w: ROW[Device] });
   add(n, inst('Circular progress', { Size: 'Small' }));
   add(n, text('Waiting for the list of members', 'bodySmall', 'onSurfaceVariant'));
   return n;
-});
+}));
 
 const PEOPLE = [['Alex (you)', 'peer-a…3a92', 'A', '1', true], ['Maya Chen', 'peer-m…08de', 'MC', '2', true], ['Leo Park', 'peer-l…71aa', 'LP', '4', false], ['Bartholomew Featherstonehaugh-Cholmondeley', 'peer-b…e77b', 'BF', '3', false]];
 /** The section on [Device]; look: 'Roster' | 'Busy' | 'Waiting'. */
@@ -45,7 +45,7 @@ function section(look, Device) {
   const s = box(`${look} · ${Device}`, { dir: 'V', pad: [2, 2], w: ROW[Device] + 16, fill: 'surfaceContainerLow', align: 'MIN' });
   const State = look === 'Busy' ? 'Busy' : 'Default';
   add(s, inst('Organisation header', { State, Device }), { fillW: true });
-  if (look === 'Waiting') { add(s, inst('Roster notice'), { fillW: true }); return s; }
+  if (look === 'Waiting') { add(s, inst('Roster notice', { Device }), { fillW: true }); return s; }
   if (look === 'Roster') {
     const ask = add(s, setProps(inst('Invitation row', { Device }), { Title: 'Daniel Kim', Detail: 'wants to chat' }), { fillW: true });
     dressAvatar(ask, { Plate: '1', Size: 'Small' }, { Initials: 'DK' });

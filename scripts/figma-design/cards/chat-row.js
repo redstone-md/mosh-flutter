@@ -1,6 +1,6 @@
 // Rows of the chat list: RailItem with its text (rail_item._RailText), the
-// invitation row, and CompactRailItem of the collapsed list. ChatRowMenu is
-// the menu of MOSH-125 opened on a row; the row only holds its pressed look.
+// invitation row, CompactRailItem of the collapsed list, and ChatRowMenu, the
+// menu a row opens.
 card('Chat row', 'A chat is its avatar, its name, the last message and when it came. The open chat is the one filled row in the list, the same for a person, a group and a channel: the avatar already tells them apart. A long name and a long message are cut at the end, never wrapped. An invitation offers its two answers in the row. With the list collapsed only the avatar is left.');
 function chatRow({ State, Device }) {
   const on = State === 'Selected';
@@ -47,3 +47,32 @@ const compact = await grid('Compact chat row', ONE, axis('State', ['Default', 'H
   return r;
 });
 prop(compact, 'Unread', 'BOOLEAN', false, 'unread');
+
+const menus = await grid('Chat row menu', ONE, DEVICES, ({ Device }) => {
+  const m = box('Chat row menu', { component: true, dir: 'V', pad: [1, 0], minWk: 16, minHk: 12, r: 'medium', clip: true, fill: 'surfaceContainerHigh', effect: 'elevation2', align: 'MIN' });
+  const item = add(m, box('item', { dir: 'H', gap: 3, pad: [0, 4], hk: controlHeight(Device) }));
+  add(item, icon('edit', 'onSurfaceVariant'));
+  add(item, text('Rename chat', 'labelLarge', 'onSurface', { name: 'action' }));
+  return m;
+});
+prop(menus, 'Action', 'TEXT', 'Rename chat', 'action');
+
+const KINDS = [['Maya Chen', { Plate: '2' }, { Initials: 'MC' }, 'primary'], ['Weekend plans', { Kind: 'Group', Plate: '1' }, {}, 'secondary'], ['#photography', { Kind: 'Channel', Plate: '3' }, {}, 'tertiary']];
+/** The three kinds of chat, selected: in the one tone of the component, or each in the tone of its kind, as the app does today. */
+function selected(perKind) {
+  const col = box(perKind ? 'A tone per kind' : 'One tone', { dir: 'V', gap: 1 });
+  for (const [Title, avatar, values, tone] of KINDS) {
+    const row = setProps(inst('Chat row', { State: perKind ? 'Default' : 'Selected', Device: 'Desktop' }), { Title });
+    dressAvatar(row, { ...avatar, Size: 'Medium' }, values);
+    if (!perKind) { add(col, row); continue; }
+    const plate = add(col, box('selected', { dir: 'H', r: 'large', clip: true }));
+    add(plate, row);
+    tint(plate, tone, 'disabledContainer');
+  }
+  return col;
+}
+await examples('Selected: one tone, or a tone per kind', [selected(false), selected(true)]);
+const open = box('Row with its menu', { dir: 'H', gap: 2, align: 'MIN' });
+add(open, inst('Chat row', { State: 'Menu open', Device: 'Desktop' }));
+add(open, inst('Chat row menu', { Device: 'Desktop' }));
+await examples('A row with its menu open', [open]);

@@ -6,13 +6,12 @@ card('Chat list', 'Above the rows: one button to start a conversation, the searc
 const SEARCH = { Empty: ['Search chats', 'onSurfaceMuted'], Focus: ['Search chats', 'onSurfaceMuted'], Query: ['cabin', 'onSurface'] };
 const fields = await grid('Search field', axis('State', Object.keys(SEARCH)), DEVICES, ({ State, Device }) => {
   const [chars, ink] = SEARCH[State];
-  const f = box('Search field', { component: true, dir: 'H', gap: 2, pad: [0, 1, 0, 3], w: ROW[Device], hk: controlHeight(Device), r: 'full', clip: true, fill: 'surfaceContainerHigh' });
+  const f = box('Search field', { component: true, dir: 'H', gap: 2, pad: [0, 0, 0, 3], w: ROW[Device], hk: controlHeight(Device), r: 'full', clip: true, fill: 'surfaceContainerHigh' });
   add(f, icon('search', 'onSurfaceVariant'));
   add(f, text(chars, 'bodyMedium', ink, { name: State === 'Query' ? 'query' : 'placeholder', truncate: true }), { fillW: true });
-  // The clear button stays 40 px: it sits inside the field, whose own height is the target.
-  if (State === 'Query') add(f, action('close', 'Desktop')).name = 'clear';
+  if (State === 'Query') add(f, action('close', Device)).name = 'clear';
   else if (Device === 'Desktop') {
-    const key = add(add(f, box('shortcut', { dir: 'H', pad: [0, 2, 0, 0] })), box('keycap', { dir: 'H', pad: [0, 1], r: 'extraSmall', stroke: 'outlineVariant' }));
+    const key = add(add(f, box('shortcut', { dir: 'H', pad: [0, 3, 0, 0] })), box('keycap', { dir: 'H', pad: [0, 1], r: 'extraSmall', stroke: 'outlineVariant' }));
     add(key, text('Ctrl K', 'labelSmall', 'onSurfaceMuted'));
   }
   if (State === 'Focus') focusRing(f);
@@ -32,15 +31,15 @@ await grid('Settings row', axis('State', ['Default', 'Hover', 'Pressed', 'Focus'
   return r;
 });
 
-const NOTICE = { 'No chats': ['No conversations yet', 'Start one, or open an invite link someone sent you.'], 'No results': ['Nothing matches “cabin”', 'Search looks through chat names and messages.'], 'Could not load': ['The chat list could not be loaded', 'Your chats are safe on this device. Try again.'] };
-await grid('List notice', ONE, axis('Kind', Object.keys(NOTICE)), ({ Kind }) => {
+const NOTICE = { 'No chats': ['No conversations yet', 'Start one, or open an invite link someone sent you'], 'No results': ['Nothing matches “cabin”', 'Search looks through chat names and messages'], 'Could not load': ['The chat list could not be loaded', 'Your chats are safe on this device. Try again.'] };
+display(await grid('List notice', axis('Kind', Object.keys(NOTICE)), DEVICES, ({ Kind, Device }) => {
   const [title, detail] = NOTICE[Kind], failed = Kind === 'Could not load';
-  const n = box('List notice', { component: true, dir: 'V', gap: 1, pad: [6, 4], w: ROW.Desktop, align: 'MIN' });
+  const n = box('List notice', { component: true, dir: 'V', gap: 1, pad: [6, 4], w: ROW[Device], align: 'MIN' });
   add(n, text(title, 'titleSmall', failed ? 'error' : 'onSurface', { w: 260 }), { fillW: true });
   add(n, text(detail, 'bodySmall', 'onSurfaceVariant', { w: 260 }), { fillW: true });
-  if (failed) add(n, setProps(inst('Button', { Kind: 'Outlined', Device: 'Desktop', State: 'Default' }), { Label: 'Try again' }));
+  if (failed) add(n, setProps(inst('Button', { Kind: 'Outlined', Device, State: 'Default' }), { Label: 'Try again' }));
   return n;
-});
+}));
 
 const CHATS = [
   { Title: 'Weekend plans', Time: '9:20 AM', Preview: 'Leo Park: Leaving at 6 sharp. Coffee is on me.', Unread: true, avatar: { Kind: 'Group', Plate: '1' } },
@@ -74,15 +73,20 @@ const invited = list('Invitations', 'Desktop', (rows) => {
   add(rows, inst('Divider', { Orientation: 'Horizontal' }), { fillW: true });
   CHATS.slice(0, 2).forEach((c) => add(rows, chat({ ...c, State: 'Default' }, 'Desktop'), { fillW: true }));
 });
-const notice = (Kind, query) => list(Kind, 'Desktop', (rows) => add(rows, inst('List notice', { Kind }), { fillW: true }), query);
+const notice = (Kind, query) => list(Kind, 'Desktop', (rows) => add(rows, inst('List notice', { Kind, Device: 'Desktop' }), { fillW: true }), query);
 const found = list('Search results', 'Desktop', (rows) => CHATS.slice(1, 3).forEach((c) => add(rows, chat({ ...c, State: 'Default' }, 'Desktop'), { fillW: true })), 'ma');
 // The collapsed list is a column of 48 px buttons, the size the phone uses, beside 64 px rows.
-const collapsed = box('Collapsed · Desktop', { dir: 'V', gap: 2, pad: [4, 2], fill: 'surfaceContainerLow' });
-const plus = add(collapsed, action('add', 'Phone', { Kind: 'Tonal', ink: 'onPrimary' })); plus.fills = paint('primary');
-add(collapsed, action('search', 'Phone', { Kind: 'Tonal' }));
-CHATS.slice(0, 4).forEach((c) => {
-  const row = add(collapsed, setProps(inst('Compact chat row', { State: c.State ?? 'Default' }), { Unread: !!c.Unread }));
-  dressAvatar(row, { ...c.avatar, Size: 'Medium' }, c.initials ? { Initials: c.initials } : {});
-});
-add(collapsed, action('settings', 'Phone', { Kind: 'Tonal' }));
-await examples('Invitations, search results, no results, no chats, could not load, collapsed', [invited, found, notice('No results', 'cabin'), notice('No chats'), notice('Could not load'), collapsed], 'MIN');
+function collapsed(failed) {
+  const l = box(failed ? 'Collapsed, could not load · Desktop' : 'Collapsed · Desktop', { dir: 'V', gap: 2, pad: [4, 2], fill: 'surfaceContainerLow' });
+  add(l, action('add', 'Phone', { Kind: 'Tonal', ink: 'onPrimary' })).fills = paint('primary');
+  add(l, action('search', 'Phone', { Kind: 'Tonal' }));
+  if (failed) add(l, action('error', 'Phone', { Kind: 'Tonal', ink: 'error' }));
+  else CHATS.slice(0, 4).forEach((c) => {
+    const row = add(l, setProps(inst('Compact chat row', { State: c.State ?? 'Default' }), { Unread: !!c.Unread }));
+    dressAvatar(row, { ...c.avatar, Size: 'Medium' }, c.initials ? { Initials: c.initials } : {});
+  });
+  add(l, action('settings', 'Phone', { Kind: 'Tonal' }));
+  return l;
+}
+await examples('Invitations, search results, no results, no chats, could not load', [invited, found, notice('No results', 'cabin'), notice('No chats'), notice('Could not load')], 'MIN');
+await examples('Collapsed, and collapsed when the list could not be loaded', [collapsed(false), collapsed(true)], 'MIN');

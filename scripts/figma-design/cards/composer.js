@@ -26,7 +26,7 @@ function composer({ State, Device }) {
   if (State === 'Recorded') {
     add(c, action('delete', Device));
     // The recording itself: press it to listen. The waveform is cut where the capsule ends.
-    const take = add(c, box('recording', { dir: 'H', gap: 2, pad: [0, 3], hk: 10, r: 'full', fill: 'surfaceContainerHighest' }), { fillW: true });
+    const take = add(c, box('recording', { dir: 'H', gap: 2, pad: [0, 3], hk: controlHeight(Device), r: 'full', fill: 'surfaceContainerHighest' }), { fillW: true });
     add(take, icon('play', 'onSurface'));
     add(add(take, box('wave', { dir: 'H', hk: 6, clip: true }), { fillW: true }), inst('Waveform', { Progress: 'None', Tone: 'Surface' }));
     add(take, text('0:04', 'labelMedium', 'onSurfaceVariant', { name: 'time' }));
