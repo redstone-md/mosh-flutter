@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
 import 'package:mosh/src/features/voice_call/call_ringing.dart';
-import 'package:mosh/src/features/voice_call/call_decline.dart';
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
@@ -18,7 +17,7 @@ void main() {
   testWidgets('polls share one ringtone; busy, replacement and end release it',
       (tester) async {
     final player = RecordingRingtone();
-    final ringing = CallRinging(player, (_) => fail('unexpected timeout'));
+    final ringing = CallRinging(player);
     ringing.update(_incoming, busy: false);
     ringing.update(_incoming, busy: false);
     expect(player.starts, 1);
@@ -38,46 +37,21 @@ void main() {
         reason: 'each direction plays its own ringtone');
   });
 
-  testWidgets(
-      'no answer fires once and an unchanged pending snapshot stays silent',
+  testWidgets('a phone that rings incoming calls itself plays only outgoing',
       (tester) async {
     final player = RecordingRingtone();
-    final expired = <String>[];
-    final ringing = CallRinging(player, expired.add);
+    final ringing = CallRinging(player, incomingManaged: true);
     ringing.update(_incoming, busy: false);
-    await tester.pump(kIncomingNoAnswerTimeout);
-    expect(expired, ['first']);
-    expect(player.stops, 1);
-    ringing.update(_incoming, busy: false);
-    await tester.pump(kIncomingNoAnswerTimeout);
-    expect(expired, ['first']);
-    expect(player.starts, 1);
-    ringing.update(_outgoing, busy: false);
-    expect(player.starts, 2);
-    ringing.dispose();
-  });
-  testWidgets('Android native incoming owner keeps one ringtone and deadline',
-      (tester) async {
-    final player = RecordingRingtone();
-    final expired = <String>[];
-    final ringing = CallRinging(player, expired.add, incomingManaged: true);
-    ringing.update(_incoming, busy: false);
-    await tester.pump(kIncomingNoAnswerTimeout * 2);
     expect(player.starts, 0);
-    expect(expired, isEmpty);
     ringing.update(_outgoing, busy: false);
     expect(player.kinds, [RingtoneKind.outgoing]);
     ringing.dispose();
     expect(player.stops, 1);
   });
 
-  testWidgets('a ringtone that cannot play still ends an unanswered call',
-      (tester) async {
-    final expired = <String>[];
-    final ringing = CallRinging(_SilentOutput(), expired.add);
-    ringing.update(_incoming, busy: false);
-    await tester.pump(kIncomingNoAnswerTimeout);
-    expect(expired, ['first']);
+  test('a ringtone that cannot play leaves the call usable', () {
+    final ringing = CallRinging(_SilentOutput());
+    expect(() => ringing.update(_incoming, busy: false), returnsNormally);
     ringing.dispose();
   });
 }

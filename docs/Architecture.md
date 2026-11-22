@@ -395,7 +395,7 @@ chats. Its video is two Flutter textures that Rust fills directly
 process, window or engine for a call. Call actions carry both session and call
 IDs, and the orchestrator's state remains authoritative. Without the native
 call engine a strip of call controls sits below the app.
-Ringtone and no-answer timeout belong to the call state. The supplied PCM recording
+The ringtone belongs to the call state; mosh-core ends an unanswered call. The supplied PCM recording
 uses CPAL's selected output device. See [voice calls](Features/voice-calls.md).
 
 Media runs in the native call engine, libwebrtc in `mosh-media/webrtc`, which

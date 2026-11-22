@@ -25,8 +25,8 @@ pub enum CallPhase {
     Active,
 }
 
-/// An unanswered incoming call ends after this, natively or in Flutter
-/// (`kIncomingNoAnswerTimeout` in lib/src/features/voice_call/call_decline.dart).
+/// An unanswered incoming call ends after this with a `no_answer` decline,
+/// whether or not Flutter is attached.
 pub(crate) const INCOMING_RING_MS: u64 = 30_000;
 /// The caller rings longer, so the callee's "no_answer" decline reaches it
 /// before it gives up on its own.

@@ -121,9 +121,7 @@ class VoiceCallOrchestratorNotifier
   VoiceCallOrchestratorState build() {
     _native = ref.read(nativeCallOwnerProvider);
     _native?.addListener(_nativeChanged);
-    _ringing = CallRinging(ref.read(ringtonePlayerProvider), (id) {
-      if (ref.mounted) unawaited(declineCall(id, kCallDeclineReasonNoAnswer));
-    },
+    _ringing = CallRinging(ref.read(ringtonePlayerProvider),
         // The phone's own call screen rings an incoming call there.
         incomingManaged: ref.read(androidWaitingOwnerProvider) != null ||
             ref.read(iosSystemCallsProvider) != null);
