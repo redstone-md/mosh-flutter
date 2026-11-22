@@ -9,6 +9,7 @@ import 'package:hex/hex.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 import 'package:source_span/source_span.dart';
+import 'package:toml/toml.dart';
 import 'package:yaml/yaml.dart';
 
 import 'builder.dart';
@@ -54,7 +55,9 @@ enum Toolchain {
 }
 
 class CargoBuildOptions {
-  final Toolchain toolchain;
+  /// Null when cargokit.yaml names none, so the crate's pinned toolchain
+  /// applies (see [CargokitCrateOptions.toolchain]).
+  final Toolchain? toolchain;
   final List<String> flags;
 
   CargoBuildOptions({
@@ -79,7 +82,7 @@ class CargoBuildOptions {
     if (node is! YamlMap) {
       throw SourceSpanException('Cargo options must be a map', node.span);
     }
-    Toolchain toolchain = Toolchain.stable;
+    Toolchain? toolchain;
     List<String> flags = [];
     for (final MapEntry(:key, :value) in node.nodes.entries) {
       if (key case YamlScalar(value: 'toolchain')) {
@@ -168,12 +171,23 @@ class CargokitCrateOptions {
   CargokitCrateOptions({
     this.cargo = const {},
     this.precompiledBinaries,
+    this.pinnedToolchain,
   });
 
   final Map<BuildConfiguration, CargoBuildOptions> cargo;
   final PrecompiledBinaries? precompiledBinaries;
 
-  static CargokitCrateOptions parse(YamlNode node) {
+  /// The channel of the `rust-toolchain.toml` rustup would honour for the
+  /// crate. Cargokit runs `rustup run <toolchain> cargo`, which overrides
+  /// that file, so it has to pass the pinned channel itself.
+  final String? pinnedToolchain;
+
+  /// The toolchain to build [configuration] with: cargokit.yaml's choice,
+  /// else the crate's pinned one, else stable.
+  String toolchain(BuildConfiguration configuration) =>
+      cargo[configuration]?.toolchain?.name ?? pinnedToolchain ?? 'stable';
+
+  static CargokitCrateOptions parse(YamlNode node, {String? pinnedToolchain}) {
     if (node is! YamlMap) {
       throw SourceSpanException('Cargokit options must be a map', node.span);
     }
@@ -213,6 +227,7 @@ class CargokitCrateOptions {
     return CargokitCrateOptions(
       cargo: options,
       precompiledBinaries: precompiledBinaries,
+      pinnedToolchain: pinnedToolchain,
     );
   }
 
@@ -221,12 +236,38 @@ class CargokitCrateOptions {
   }) {
     final uri = Uri.file(path.join(manifestDir, "cargokit.yaml"));
     final file = File.fromUri(uri);
-    if (file.existsSync()) {
-      final contents = loadYamlNode(file.readAsStringSync(), sourceUrl: uri);
-      return parse(contents);
-    } else {
-      return CargokitCrateOptions();
+    final pinnedToolchain = _pinnedToolchain(manifestDir);
+    if (!file.existsSync()) {
+      return CargokitCrateOptions(pinnedToolchain: pinnedToolchain);
     }
+    return parse(
+      loadYamlNode(file.readAsStringSync(), sourceUrl: uri),
+      pinnedToolchain: pinnedToolchain,
+    );
+  }
+
+  static String? _pinnedToolchain(String manifestDir) {
+    final file = _nearestFile(manifestDir, 'rust-toolchain.toml');
+    if (file == null) return null;
+    final toolchain =
+        TomlDocument.parse(file.readAsStringSync()).toMap()['toolchain'];
+    final channel = toolchain is Map ? toolchain['channel'] : null;
+    if (channel is String) return channel;
+    _log.warning('${file.path} pins no toolchain channel; building with '
+        'the cargokit.yaml toolchain or stable.');
+    return null;
+  }
+}
+
+/// The file named [fileName] in [directory] or its nearest ancestor, where
+/// rustup looks for `rust-toolchain.toml`.
+File? _nearestFile(String directory, String fileName) {
+  var current = Directory(path.normalize(path.absolute(directory)));
+  while (true) {
+    final file = File(path.join(current.path, fileName));
+    if (file.existsSync()) return file;
+    if (current.parent.path == current.path) return null;
+    current = current.parent;
   }
 }
 
