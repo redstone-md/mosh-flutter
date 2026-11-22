@@ -16,16 +16,112 @@ import 'package:flutter_test/flutter_test.dart';
 
 part 'recording_canvas.dart';
 
-/// Widget classes declared in lib/: layers are named after the nearest one.
-final Set<String> _libWidgets = {
-  for (final file in Directory('lib').listSync(recursive: true))
-    if (file is File && file.path.endsWith('.dart'))
-      for (final m in RegExp(
-              r'^class (\w+) extends \w*(Stateless|Stateful|Consumer)\w*Widget\b',
-              multiLine: true)
-          .allMatches(file.readAsStringSync()))
-        m[1]!,
-};
+/// Widget classes declared in lib/ and the files (by stem) declaring each:
+/// layers are named after the nearest one.
+final Map<String, List<String>> _libWidgets = () {
+  final declared = <String, List<String>>{};
+  for (final file in Directory('lib').listSync(recursive: true)) {
+    if (file is! File || !file.path.endsWith('.dart')) continue;
+    final stem =
+        file.uri.pathSegments.last.replaceFirst(RegExp(r'\.dart$'), '');
+    for (final m in RegExp(
+            r'^class (\w+)(?:<[^{]*?>)? extends \w*(Stateless|Stateful|Consumer|Animated)\w*Widget\b',
+            multiLine: true)
+        .allMatches(file.readAsStringSync())) {
+      (declared[m[1]!] ??= []).add(stem);
+    }
+  }
+  return declared;
+}();
+
+String _typeName(Element e) => e.widget.runtimeType.toString().split('<').first;
+
+/// The file declaring private widget [name] at [e]. Private names repeat
+/// across files, so a repeated one belongs to the file that also declares a
+/// widget above it.
+String _declaringFile(String name, Element e) {
+  final files = _libWidgets[name]!;
+  if (files.length == 1) return files.single;
+  String? file;
+  e.visitAncestorElements((a) {
+    final above = _libWidgets[_typeName(a)] ?? const [];
+    file = files.where(above.contains).firstOrNull;
+    return file == null;
+  });
+  return file ??
+      (throw StateError(
+          '$name: declared in ${files.join(', ')}, none of them above it'));
+}
+
+String? _flags(Map<String, bool> flags) {
+  final on = [
+    for (final MapEntry(:key, :value) in flags.entries)
+      if (value) key
+  ];
+  return on.isEmpty ? null : on.join(' ');
+}
+
+/// The Material control [w] is, or null. Layers record the nearest one inside
+/// their lib widget, so the component inventory sees the buttons, fields and
+/// switches lib widgets build. Subclasses (FilledButton.icon) count as their base.
+String? _controlKind(Widget w) => switch (w) {
+      FilledButton() => 'FilledButton',
+      OutlinedButton() => 'OutlinedButton',
+      TextButton() => 'TextButton',
+      ElevatedButton() => 'ElevatedButton',
+      IconButton() => 'IconButton',
+      MenuItemButton() => 'MenuItemButton',
+      PopupMenuItem() => 'PopupMenuItem',
+      TextField() => 'TextField',
+      Switch() => 'Switch',
+      Checkbox() => 'Checkbox',
+      ChoiceChip() => 'ChoiceChip',
+      ActionChip() => 'ActionChip',
+      Slider() => 'Slider',
+      CircularProgressIndicator() => 'CircularProgressIndicator',
+      LinearProgressIndicator() => 'LinearProgressIndicator',
+      ListTile() => 'ListTile',
+      ExpansionTile() => 'ExpansionTile',
+      Dialog() => 'Dialog',
+      Card() => 'Card',
+      Divider() || VerticalDivider() => 'Divider',
+      AppBar() => 'AppBar',
+      _ => null,
+    };
+
+/// The non-default state of control [w]: "disabled", "on disabled", "error"…
+String? _controlState(Widget w) => _flags(switch (w) {
+      ButtonStyleButton(:final enabled) ||
+      PopupMenuItem(:final enabled) ||
+      ListTile(:final enabled) =>
+        {'disabled': !enabled},
+      IconButton(:final onPressed, :final isSelected) => {
+          'disabled': onPressed == null,
+          'selected': isSelected == true,
+        },
+      MenuItemButton(:final onPressed) || ActionChip(:final onPressed) => {
+          'disabled': onPressed == null,
+        },
+      TextField(:final enabled, :final decoration) => {
+          'disabled': enabled == false,
+          'error': decoration?.errorText != null || decoration?.error != null,
+        },
+      Switch(:final value, :final onChanged) => {
+          (value ? 'on' : 'off'): true,
+          'disabled': onChanged == null,
+        },
+      Checkbox(:final value, :final onChanged) => {
+          (value == true ? 'checked' : 'unchecked'): true,
+          'disabled': onChanged == null,
+        },
+      ChoiceChip(:final isEnabled, :final onSelected, :final selected) => {
+          'disabled': !isEnabled || onSelected == null,
+          'selected': selected,
+        },
+      Slider(:final onChanged) => {'disabled': onChanged == null},
+      ProgressIndicator(:final value) => {'determinate': value != null},
+      _ => const {},
+    });
 
 double _r(double v) =>
     v.isFinite ? (v * 100).roundToDouble() / 100 : (v > 0 ? 100000 : -100000);
@@ -38,22 +134,36 @@ double _c(double v) => (v * 10000).roundToDouble() / 10000;
 List<double> _color(Color c, double opacity) =>
     [_c(c.r), _c(c.g), _c(c.b), _c(c.a * opacity)];
 
+/// A lib widget instance that paints a layer; [file] is set for private ones.
+typedef _Lib = ({String name, String? file, int id});
+
+/// A Material control instance that paints a layer.
+typedef _Control = ({String kind, String? state, int id});
+
 /// A painted scope: one render object, one clip, or the root.
 class _Scope {
-  _Scope(this.kind, this.rect, {this.name, this.lib, this.libId});
+  _Scope(this.kind, this.rect, {this.name, this.lib, this.control});
   final String kind;
   final Rect? rect;
   final String? name;
-  final String? lib;
-  final int? libId;
+  final _Lib? lib;
+  final _Control? control;
   final List<Object> children = [];
   Map<String, Object?>? clip;
 
   Map<String, Object?> toJson() => {
         't': kind,
         if (name != null) 'name': name,
-        if (lib != null) 'lib': lib,
-        if (libId != null) 'libId': libId,
+        if (lib case final l?) ...{
+          'lib': l.name,
+          if (l.file != null) 'libFile': l.file,
+          'libId': l.id,
+        },
+        if (control case final c?) ...{
+          'control': c.kind,
+          if (c.state != null) 'controlState': c.state,
+          'controlId': c.id,
+        },
         if (rect != null) ...{'r': _rect(rect!)},
         if (clip != null) 'clip': clip,
         'c': [for (final c in children) c is _Scope ? c.toJson() : c],
@@ -66,6 +176,11 @@ class _Exporter {
   final List<RenderObject?> _owners = [null];
   final Map<ui.Image, String> images = {};
   final Map<LayerLink, Matrix4> leaders = {};
+
+  /// Scene-unique element ids: identity hashes can collide.
+  final Expando<int> _ids = Expando();
+  int _nextId = 0;
+  int _id(Element e) => _ids[e] ??= _nextId++;
 
   void pushScope(_Scope scope) {
     _scopes.last.children.add(scope);
@@ -81,8 +196,8 @@ class _Exporter {
   }
 
   void pushRenderScope(RenderObject ro, Rect? rect) {
-    final (lib, libId, name) = _names(ro);
-    final scope = _Scope('g', rect, name: name, lib: lib, libId: libId);
+    final (lib, name, control) = _names(ro);
+    final scope = _Scope('g', rect, name: name, lib: lib, control: control);
     _scopes.last.children.add(scope);
     _scopes.add(scope);
     _owners.add(ro);
@@ -119,30 +234,32 @@ class _Exporter {
     };
   }
 
-  (String?, int?, String) _names(RenderObject ro) {
+  /// The render object's widget type, its nearest lib widget and the nearest
+  /// Material control between the two.
+  (_Lib?, String, _Control?) _names(RenderObject ro) {
     final creator = ro.debugCreator;
     final element = creator is DebugCreator ? creator.element : null;
-    final type = element?.widget.runtimeType.toString().split('<').first ??
-        ro.runtimeType.toString();
-    String? lib;
-    int? libId;
-    if (element != null) {
-      if (_libWidgets.contains(type)) {
-        lib = type;
-        libId = identityHashCode(element);
-      } else {
-        element.visitAncestorElements((e) {
-          final t = e.widget.runtimeType.toString().split('<').first;
-          if (_libWidgets.contains(t)) {
-            lib = t;
-            libId = identityHashCode(e);
-            return false;
-          }
-          return true;
-        });
+    final type =
+        element != null ? _typeName(element) : ro.runtimeType.toString();
+    _Lib? lib;
+    _Control? control;
+    bool visit(Element e) {
+      final t = _typeName(e);
+      if (_libWidgets.containsKey(t)) {
+        final file = t.startsWith('_') ? _declaringFile(t, e) : null;
+        lib = (name: t, file: file, id: _id(e));
+        return false;
       }
+      if (control == null) {
+        if (_controlKind(e.widget) case final kind?) {
+          control = (kind: kind, state: _controlState(e.widget), id: _id(e));
+        }
+      }
+      return true;
     }
-    return (lib, libId, type);
+
+    if (element != null && visit(element)) element.visitAncestorElements(visit);
+    return (lib, type, control);
   }
 
   void text(

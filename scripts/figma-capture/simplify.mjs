@@ -23,8 +23,8 @@ for (const line of fs.readFileSync(path.join(FONTS, 'codepoints'), 'utf8').split
 const near = (a, b, tol = 0.75) => Math.abs(a - b) <= tol;
 const sameRect = (a, b, tol = 0.75) => a && b && near(a.x, b.x, tol) && near(a.y, b.y, tol) && near(a.w, b.w, tol) && near(a.h, b.h, tol);
 const inside = (a, b) => a.x >= b.x - 0.5 && a.y >= b.y - 0.5 && a.x + a.w <= b.x + b.w + 0.5 && a.y + a.h <= b.y + b.h + 0.5;
-const intersects = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-const union = (rs) => {
+export const intersects = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+export const union = (rs) => {
   const x = Math.min(...rs.map((r) => r.x)), y = Math.min(...rs.map((r) => r.y));
   return { x, y, w: Math.max(...rs.map((r) => r.x + r.w)) - x, h: Math.max(...rs.map((r) => r.y + r.h)) - y };
 };
@@ -44,7 +44,7 @@ function iconNode(op) {
   return { k: 'icon', name: (ICON_NAMES.get(cp) ?? `icon-${cp.toString(16)}`).replace(/_baseline$/, ''), r: { ...op.r, w: Math.max(op.r.w, size), h: Math.max(op.r.h, size) }, size, d, rot: op.rot, color: run.color };
 }
 
-function leaf(op) {
+export function leaf(op) {
   switch (op.t) {
     case 'text': {
       if (!op.text.trim() || !op.runs.length) return null;

@@ -14,10 +14,17 @@ function config() {
   if (!server) throw new Error('Set FIGMA_MCP_URL or configure figma-console-shared in ~/.claude.json');
   return server;
 }
-const cfg = config();
-const H = { ...cfg.headers, 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
+// Read on the first call, so scripts that only import this module run offline.
+let endpoint;
+function connection() {
+  if (endpoint) return endpoint;
+  const cfg = config();
+  const headers = { ...cfg.headers, 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
+  return (endpoint = { url: cfg.url, headers });
+}
 async function rpc(body, sid) {
-  const r = await fetch(cfg.url, { method: 'POST', headers: sid ? { ...H, 'Mcp-Session-Id': sid } : H, body: JSON.stringify(body) });
+  const { url, headers: H } = connection();
+  const r = await fetch(url, { method: 'POST', headers: sid ? { ...H, 'Mcp-Session-Id': sid } : H, body: JSON.stringify(body) });
   const text = await r.text();
   const m = text.match(/^data: (.*)$/m);
   return { sid: r.headers.get('mcp-session-id'), json: m ? JSON.parse(m[1]) : (text ? JSON.parse(text) : null) };
@@ -42,7 +49,8 @@ async function callOnce(name, args) {
     const res = await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name, arguments: args } }, sid);
     return res.json;
   } finally {
-    await fetch(cfg.url, { method: 'DELETE', headers: { ...H, 'Mcp-Session-Id': sid } }).catch(() => {});
+    const { url, headers } = connection();
+    await fetch(url, { method: 'DELETE', headers: { ...headers, 'Mcp-Session-Id': sid } }).catch(() => {});
   }
 }
 
