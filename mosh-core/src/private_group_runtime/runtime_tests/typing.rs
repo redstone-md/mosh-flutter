@@ -27,7 +27,7 @@ fn group_typing_identifies_the_member_and_stops_on_their_message() {
 
     // A refresh renews the same entry (no duplicate rows for one member).
     view.deliver_cleo_typing();
-    assert_eq!(view.session().typing_members_live().len(), 1);
+    assert_eq!(view.typing_members().len(), 1);
 
     // Cleo's own message contradicts "typing": the hint dies at once.
     let body = b"cleo is done typing".to_vec();
