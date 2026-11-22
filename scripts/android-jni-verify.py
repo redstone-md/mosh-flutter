@@ -54,10 +54,10 @@ def read_classes(apk, dexdump):
 
 def verify(apk, dexdump, jni_zero, fcm):
     classes = read_classes(apk, dexdump)
-    nonfree = sorted({name.rsplit(".", 1)[0] for name in classes if name.startswith(NONFREE)})
     if fcm and FCM_SERVICE not in classes:
         raise ValueError(f"FCM build without {FCM_SERVICE}")
-    unexpected = [name for name in nonfree if not (fcm and name.startswith(FCM_SDK))]
+    unexpected = sorted({name.rsplit(".", 1)[0] for name in classes if name.startswith(NONFREE)
+                         and not (fcm and name.startswith(FCM_SDK))})
     if unexpected:
         raise ValueError("Proprietary Google SDK packaged: " + ", ".join(unexpected))
     for template, required in REQUIRED.items():
