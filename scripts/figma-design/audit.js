@@ -5,7 +5,10 @@
 // the ring geometry of spinners and the caret's rotation.
 const issues = [], where = (n) => { const p = []; for (let x = n; x && x.type !== 'SECTION'; x = x.parent) p.unshift(x.name); return p.join(' / '); };
 const bad = (n, what) => issues.push(what + ' — ' + where(n));
-const bound = (n, field) => n.boundVariables && n.boundVariables[field];
+// A token is a variable of the dark "Mosh" colours or of "Mosh Dimensions"; a binding to anything else does not count.
+const TOKENS = new Set([...Object.values(COLOR), ...Object.values(DIM)].map((v) => v.id));
+const token = (binding) => TOKENS.has(binding?.id);
+const bound = (n, field) => token(n.boundVariables?.[field]);
 const styles = Object.fromEntries((await figma.getLocalTextStylesAsync()).map((s) => [s.id, s.name]));
 let nodes = 0;
 for (const n of host().findAll(() => true)) {
@@ -13,7 +16,7 @@ for (const n of host().findAll(() => true)) {
   for (const key of ['fills', 'strokes']) {
     const paints = n[key];
     if (!Array.isArray(paints)) continue;
-    paints.forEach((p) => { if (p.visible !== false && !(p.type === 'SOLID' && p.boundVariables?.color)) bad(n, key + ' not a token'); if (p.opacity !== undefined && p.opacity !== 1) bad(n, key + ' paint opacity ' + p.opacity); });
+    paints.forEach((p) => { if (p.visible !== false && !(p.type === 'SOLID' && token(p.boundVariables?.color))) bad(n, key + ' not a token'); if (p.opacity !== undefined && p.opacity !== 1) bad(n, key + ' paint opacity ' + p.opacity); });
     if (key === 'strokes' && paints.length && !['strokeWeight', 'strokeTopWeight'].some((f) => bound(n, f))) bad(n, 'stroke weight ' + String(n.strokeWeight));
   }
   if (n.type === 'TEXT' && !(styles[n.textStyleId] || '').startsWith('Mosh/')) bad(n, 'text without a Mosh/ style');
