@@ -1,6 +1,5 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/wake/wake_client.dart';
 import 'package:mosh/src/platform/android_wake.dart';
 
 const _channel = MethodChannel('app.mosh.mosh/wake');
@@ -27,7 +26,7 @@ void main() {
     final wake = AndroidWake();
 
     expect(await wake.wakeable(), isTrue);
-    expect(await wake.tokens(), const FcmWakeTokens('fid-1'));
+    expect((await wake.tokens())?.toJson(), {'fcm': 'fid-1'});
   });
 
   test('a build without a push service is not woken', () async {

@@ -1,7 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/system_call_mirror.dart';
-import 'package:mosh/src/features/wake/wake_client.dart';
 import 'package:mosh/src/platform/ios_system_calls.dart';
 
 const _channel = MethodChannel('app.mosh/system-calls');
@@ -56,7 +55,7 @@ void main() {
     await fromRunner('tokens');
 
     expect(told, 1);
-    expect(await calls.tokens(),
-        const AppleWakeTokens(voip: 'aa', apns: 'bb', environment: 'sandbox'));
+    expect((await calls.tokens())?.toJson(),
+        {'voip': 'aa', 'apns': 'bb', 'environment': 'sandbox'});
   });
 }
