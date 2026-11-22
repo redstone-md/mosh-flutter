@@ -114,14 +114,14 @@ jobs:
 
       # cargokit compiles mosh-core into the pod target's Xcode temp dir
       # (TARGET_TEMP_DIR, .../Pods.build/<config>/mosh_core.build), which the
-      # cargo cache above does not see. Keyed on the lockfile and toolchain;
-      # a stale hit is safe, cargo re-fingerprints.
+      # cargo cache above does not see. Keyed like the Windows one
+      # (build-windows.yml): toolchain first, then the lockfile.
       - id: cargokit
         uses: actions/cache/restore@v4
         with:
           path: build/macos/**/mosh_core.build
-          key: cargokit-macos-release-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: cargokit-macos-release-
+          key: cargokit-macos-release-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('mosh-core/Cargo.lock') }}
+          restore-keys: cargokit-macos-release-${{ hashFiles('rust-toolchain.toml') }}-
 
       # Universal release build: cargokit builds one slice per ARCHS
       # entry (arm64 + x86_64) and lipos them, so the x86_64 target must
