@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 # Verify the final signed APK, including every bundled native library.
+# --fcm: the build is woken through FCM, so it must carry Mosh's FCM service.
 set -euo pipefail
-APK="${1:?Usage: android-package-verify.sh <release.apk>}"
+APK="${1:?Usage: android-package-verify.sh <release.apk> [--fcm]}"
+FCM=()
+case "${2:-}" in
+  '') ;;
+  --fcm) FCM=(--fcm) ;;
+  *) echo "Unknown option: $2" >&2; exit 1 ;;
+esac
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?Set ANDROID_HOME or ANDROID_SDK_ROOT}}"
 PIN="${ANDROID_SIGNING_CERT_SHA256:?Set the independent signing certificate SHA-256}"
 PIN="${PIN//:/}"
@@ -70,7 +77,7 @@ for library in "$WORK"/lib/arm64-v8a/*.so; do
 done
 "$TOOLS/zipalign" -c -P 16 4 "$APK"
 python3 "$(dirname "$0")/android-jni-verify.py" "$APK" --dexdump "$TOOLS/dexdump" \
-  --jni-zero-package livekit.org.jni_zero
+  --jni-zero-package livekit.org.jni_zero "${FCM[@]}"
 python3 - "$APK" <<'PY'
 import sys, zipfile
 with zipfile.ZipFile(sys.argv[1]) as apk:
