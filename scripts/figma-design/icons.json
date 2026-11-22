@@ -1,0 +1,5 @@
+{
+  "add": "plus", "close": "x", "download": "download-simple", "refresh": "arrow-clockwise", "expand_more": "caret-down",
+  "check": "check", "error": "warning-circle", "copy": "copy", "group": "users", "tag": "hash", "plus_badge": "seal-check-fill",
+  "attach": "paperclip", "person": "user"
+}
