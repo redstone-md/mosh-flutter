@@ -46,6 +46,10 @@ void _stubRecordChannel({
         return true;
       case 'start':
         final path = (call.arguments as Map)['path'] as String;
+        // Like AVCaptureFileOutput, the recorder never creates parent dirs.
+        if (!File(path).parent.existsSync()) {
+          throw PlatformException(code: 'record', message: 'ENOENT $path');
+        }
         started.add(path);
         return null;
       case 'stop':
@@ -130,16 +134,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(started, hasLength(1), reason: 'the capture must really begin');
+    expect(started, hasLength(1),
+        reason: 'the clip directory exists before the capture begins');
     // The clip lands in the mosh-voice subdirectory, not the cache root.
     expect(started.single, contains('mosh-voice'));
-    final clipsDir = Directory(
-      started.single.substring(0, started.single.lastIndexOf('/')),
-    );
-    // The recursive create is the fix: the parent chain did NOT exist when
-    // the capture started, which is exactly the errno 2 field state.
-    expect(clipsDir.existsSync(), isTrue,
-        reason: 'the recorder writes only into an existing directory');
     expect(started.single, endsWith('.m4a'));
   });
 }

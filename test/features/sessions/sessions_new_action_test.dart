@@ -57,6 +57,7 @@ void main() {
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
     expect(find.byType(SessionsScreen), findsNothing);
     expect(bridge.countOf(BridgeMethod.createPendingInvite), 0);
+    expect(bridge.countOf(BridgeMethod.createInvite), 0);
   });
 
   testWidgets(
@@ -72,6 +73,7 @@ void main() {
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
     expect(bridge.countOf(BridgeMethod.createPendingInvite), 0);
+    expect(bridge.countOf(BridgeMethod.createInvite), 0);
   });
 
   testWidgets(
@@ -88,6 +90,7 @@ void main() {
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
     expect(find.byType(SessionsScreen), findsNothing);
     expect(bridge.countOf(BridgeMethod.createPendingInvite), 0);
+    expect(bridge.countOf(BridgeMethod.createInvite), 0);
   });
 
   testWidgets('New resets a previous invite before showing the panel',

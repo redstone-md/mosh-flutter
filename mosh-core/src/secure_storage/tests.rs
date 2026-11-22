@@ -82,6 +82,10 @@ fn load_falls_back_to_the_legacy_slot_and_migrates_it() {
 }
 
 #[test]
-fn status_reports_a_working_native_store_as_available() {
-    assert!(OsSecureSecretStore::status().available);
+fn status_reports_whether_the_native_store_works() {
+    // Android has no native store in mosh-core; desktops must have one.
+    assert_eq!(
+        OsSecureSecretStore::status().available,
+        !cfg!(target_os = "android")
+    );
 }
