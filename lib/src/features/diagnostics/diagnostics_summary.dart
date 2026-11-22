@@ -14,25 +14,7 @@ enum DiagnosticSummaryTone { ready, waiting, idle, error }
 /// One row of the summary facts grid: a localized label plus a data value.
 /// The value is NOT localized (it is a data token like "booting",
 /// "unknown", "none", "paused", or a numeric relay status).
-class DiagnosticSummaryFact {
-  const DiagnosticSummaryFact({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DiagnosticSummaryFact &&
-          label == other.label &&
-          value == other.value;
-
-  @override
-  int get hashCode => Object.hash(label, value);
-
-  @override
-  String toString() => 'DiagnosticSummaryFact($label: $value)';
-}
+typedef DiagnosticSummaryFact = ({String label, String value});
 
 /// The full summary payload rendered by `SummaryCard`: tone, kicker,
 /// title, state (the localized state-badge text), description, and the
@@ -55,30 +37,7 @@ class DiagnosticSummary {
   final List<DiagnosticSummaryFact> facts;
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DiagnosticSummary &&
-          tone == other.tone &&
-          kicker == other.kicker &&
-          title == other.title &&
-          state == other.state &&
-          description == other.description &&
-          _listEquals(facts, other.facts);
-
-  @override
-  int get hashCode => Object.hash(
-      tone, kicker, title, state, description, Object.hashAll(facts));
-
-  @override
   String toString() => 'DiagnosticSummary($tone, $kicker, $title, $state)';
-}
-
-bool _listEquals(List<DiagnosticSummaryFact> a, List<DiagnosticSummaryFact> b) {
-  if (a.length != b.length) return false;
-  for (var i = 0; i < a.length; i++) {
-    if (a[i] != b[i]) return false;
-  }
-  return true;
 }
 
 /// Builds the diagnostics summary. Resolves the four branches in order:
@@ -114,12 +73,12 @@ DiagnosticSummary diagnosticsSummary({
       state: dmStateLabel(l, session.state),
       description: _dmDescription(l, session.state, mesh),
       facts: [
-        DiagnosticSummaryFact(
-            label: l.summaryFactPeers, value: peerCount(mesh)),
-        DiagnosticSummaryFact(label: l.summaryFactNat, value: natType(mesh)),
-        DiagnosticSummaryFact(
-            label: l.summaryFactRelay,
-            value: mesh != null ? relayStatus(mesh) : 'booting'),
+        (label: l.summaryFactPeers, value: peerCount(mesh)),
+        (label: l.summaryFactNat, value: natType(mesh)),
+        (
+          label: l.summaryFactRelay,
+          value: mesh != null ? relayStatus(mesh) : 'booting'
+        ),
       ],
     );
   }
@@ -138,12 +97,12 @@ DiagnosticSummary diagnosticsSummary({
       state: l.summaryChannelState,
       description: l.summaryChannelDescription,
       facts: [
-        DiagnosticSummaryFact(
-            label: l.summaryFactPeers, value: peerCount(mesh)),
-        DiagnosticSummaryFact(label: l.summaryFactNat, value: natType(mesh)),
-        DiagnosticSummaryFact(
-            label: l.summaryFactRelay,
-            value: mesh != null ? relayStatus(mesh) : 'booting'),
+        (label: l.summaryFactPeers, value: peerCount(mesh)),
+        (label: l.summaryFactNat, value: natType(mesh)),
+        (
+          label: l.summaryFactRelay,
+          value: mesh != null ? relayStatus(mesh) : 'booting'
+        ),
       ],
     );
   }
@@ -165,13 +124,12 @@ DiagnosticSummary diagnosticsSummary({
       state: stateLabel(l, group.state),
       description: l.summaryGroupDescription(group.memberCount.toString()),
       facts: [
-        DiagnosticSummaryFact(
-            label: l.summaryFactMembers, value: group.memberCount.toString()),
-        DiagnosticSummaryFact(
-            label: l.summaryFactPeers, value: peerCount(mesh)),
-        DiagnosticSummaryFact(
-            label: l.summaryFactRelay,
-            value: mesh != null ? relayStatus(mesh) : 'booting'),
+        (label: l.summaryFactMembers, value: group.memberCount.toString()),
+        (label: l.summaryFactPeers, value: peerCount(mesh)),
+        (
+          label: l.summaryFactRelay,
+          value: mesh != null ? relayStatus(mesh) : 'booting'
+        ),
       ],
     );
   }
@@ -186,9 +144,9 @@ DiagnosticSummary diagnosticsSummary({
     state: error != null ? l.summaryStateError : l.summaryStateWaiting,
     description: l.summaryNoSessionDescription,
     facts: [
-      DiagnosticSummaryFact(label: l.summaryFactSession, value: 'none'),
-      DiagnosticSummaryFact(label: l.summaryFactMesh, value: 'paused'),
-      DiagnosticSummaryFact(label: l.summaryFactEvents, value: 'none'),
+      (label: l.summaryFactSession, value: 'none'),
+      (label: l.summaryFactMesh, value: 'paused'),
+      (label: l.summaryFactEvents, value: 'none'),
     ],
   );
 }

@@ -5,10 +5,9 @@
 // (the en delegate) and assert on the returned `DiagnosticSummary` fields
 // for the DM and idle/error branches.
 //
-// In scope (this atomic): the DM branch (ready/waiting/unknown-state +
-// error override) and the idle/error (no-active-session) branch. The
-// channel + group branches are DEFERRED (no contracts in the Flutter
-// fork yet) -- they are not asserted here.
+// Covered here: the DM branch (ready/waiting/unknown-state + error
+// override) and the idle/error (no-active-session) branch. The channel +
+// group branches are not asserted here.
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations_en.dart';
@@ -72,7 +71,7 @@ SessionSnapshot _session({
     );
 
 DiagnosticSummaryFact _fact(String label, String value) =>
-    DiagnosticSummaryFact(label: label, value: value);
+    (label: label, value: value);
 
 void main() {
   group('diagnosticsSummary - DM branch', () {
@@ -269,41 +268,6 @@ void main() {
 
     test('relayStatus: all zero -> "none"', () {
       expect(relayStatus(_mesh()), 'none');
-    });
-  });
-
-  group('DiagnosticSummary value semantics', () {
-    test('equality + hashCode on equal summaries', () {
-      final a = diagnosticsSummary(
-          l: _l,
-          session: _session(
-            state: DmSessionState.connected,
-            mesh: _mesh(peerCount: 1),
-          ));
-      final b = diagnosticsSummary(
-          l: _l,
-          session: _session(
-            state: DmSessionState.connected,
-            mesh: _mesh(peerCount: 1),
-          ));
-      expect(a, b);
-      expect(a.hashCode, b.hashCode);
-    });
-
-    test('equality differs when facts differ', () {
-      final a = diagnosticsSummary(
-          l: _l,
-          session: _session(
-            state: DmSessionState.connected,
-            mesh: _mesh(peerCount: 1),
-          ));
-      final b = diagnosticsSummary(
-          l: _l,
-          session: _session(
-            state: DmSessionState.connected,
-            mesh: _mesh(peerCount: 2),
-          ));
-      expect(a == b, isFalse);
     });
   });
 }
