@@ -311,11 +311,11 @@ const TONES = {
   Outgoing: { ink: 'onOutgoing', quiet: 'onOutgoingVariant', plate: 'onOutgoingVariant', glyph: 'outgoing', error: 'outgoingError', failPlate: 'outgoingError', accent: 'onOutgoing', onAccent: 'outgoing', rest: 'onOutgoingVariant' },
 };
 const toneRows = (rows) => Object.keys(TONES).flatMap((t) => rows.map(([label, props]) => [[label, t.toLowerCase()].filter(Boolean).join(', '), { ...props, Tone: t }]));
-/** Lays the outgoing bubble's colour under the variants of [set] drawn for it, which the card's own colour would hide. */
+/** Lays the outgoing bubble under the variants of [set] drawn for it, which the card's own colour would hide: its colour, its 20 px corners and its 8 px padding, so a 12 px corner inside reads concentric as it will in a message. */
 function backdrop(set) {
   const at = CARD.children.indexOf(set), M = 8;
   for (const v of variants(set).filter((x) => x.name.includes('Tone=Outgoing'))) {
-    const r = rect('outgoing bubble', { fill: 'outgoing', w: v.width + M * 2, h: v.height + M * 2, r: 'medium' });
+    const r = rect('outgoing bubble', { fill: 'outgoing', w: v.width + M * 2, h: v.height + M * 2, r: 'largeIncreased' });
     CARD.insertChild(at, r);
     r.x = set.x + v.x - M; r.y = set.y + v.y - M;
   }
