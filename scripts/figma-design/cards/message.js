@@ -36,7 +36,7 @@ function message(side, { Position, Device, State }) {
   corners(bubble, out, Position);
   if (!out) {
     const sender = add(bubble, box('sender', { dir: 'H', gap: 2, pad: INSET }));
-    add(sender, text('Priya Nair', 'labelLarge', 'onSurface', { name: 'sender name', cut: true }), { max: MEASURE[Device] - 96 });
+    add(sender, text('Priya Nair', 'labelLargeEmphasized', 'onSurface', { name: 'sender name', cut: true }), { max: MEASURE[Device] - 96 });
     add(add(sender, box('fingerprint chip', { dir: 'H', pad: [0, 1], r: 'extraSmall', fill: 'surfaceContainerHighest' })), text('5b80f2…7d36', 'labelSmall', 'onSurfaceVariant', { name: 'fingerprint' }));
   }
   if (gone) {
