@@ -32,7 +32,36 @@ const HARD = [
   { kind: 'out', text: 'mosh1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlhmosh1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', time: '10:03', ticks: 'Delivered' },
   { kind: 'out', text: 'ok', time: '10:03', ticks: 'Sent' },
 ];
+// attach: [component set, its variant, its text properties].
+const FILES = [
+  { kind: 'in', text: 'The route with all the stops', time: '08:15', attach: ['File card', { State: 'Transfer' }, { Name: 'coast-route.pdf', 'Detail, transfer': '58% of 1.2 MB' }] },
+  { kind: 'in', time: '08:16', attach: ['File card', { State: 'To download' }, { Name: 'trail-map-with-every-waypoint-and-campsite-final-v3.zip', 'Detail, to download': '24 MB' }] },
+  { kind: 'out', time: '08:20', ticks: 'Delivered', attach: ['File card', { State: 'Failed' }, { Name: 'packing-list.docx' }] },
+  { kind: 'out', text: 'Sunrise from the ridge', time: '09:06', ticks: 'Read', attach: ['Media card', { Kind: 'Image', State: 'Ready' }, { 'Name, image': 'ridge-trail.jpg' }] },
+  { kind: 'in', time: '10:02', attach: ['Voice message', { State: 'Idle' }, {}] },
+  { kind: 'out', time: '10:04', ticks: 'Read', attach: ['Voice message', { State: 'Playing' }, {}] },
+];
 const INITIALS = (name) => name.split(' ').slice(0, 2).map((w) => w[0]).join('');
+/** Gives the message instance [b] the content of [m]; first: it opens a run. */
+function dress(b, m, device, first) {
+  if (m.time) setProps(b, { Time: m.time });
+  if (m.text) setProps(b, { Text: m.text });
+  if (m.ticks) b.findOne((n) => n.name === 'ticks').setProperties({ State: m.ticks });
+  if (m.attach) {
+    const [set, props, values] = m.attach;
+    setProps(b, { Attachment: true, 'Show text': !!m.text });
+    const a = b.findOne((n) => n.name === 'attachment');
+    a.swapComponent(variant(set, { ...props, Tone: m.kind === 'out' ? 'Outgoing' : 'Surface', Device: device }));
+    setProps(a, values);
+  }
+  if (!m.from) return;
+  setProps(b, { Gutter: true, Avatar: first, Sender: first && !m.state });
+  if (!first) return;
+  if (!m.state) setProps(b, { 'Sender name': m.from, Fingerprint: m.print });
+  const avatar = b.findOne((n) => n.name === 'avatar');
+  avatar.swapComponent(variant('Avatar', { Kind: 'Person', Plate: m.plate ?? '1', Size: 'Compact' }));
+  setProps(avatar, { Initials: INITIALS(m.from) });
+}
 /** A feed of [items] at the width of a conversation on [device]. */
 function thread(name, device, items) {
   const phone = device === 'Phone';
@@ -47,18 +76,10 @@ function thread(name, device, items) {
     if (m.kind === 'call') return add(row, setProps(inst('Call log entry', { Direction: m.direction }), { Detail: m.detail, Time: m.time }));
     const Position = first && last ? 'Single' : first ? 'First' : last ? 'Last' : 'Middle';
     const b = add(row, inst(m.kind === 'out' ? 'Outgoing message' : 'Incoming message', { Position, Device: device, State: m.state ?? 'Default' }));
-    if (m.text) setProps(b, { Text: m.text, Time: m.time });
-    if (m.ticks) b.findOne((n) => n.name === 'ticks').setProperties({ State: m.ticks });
-    if (!m.from) return;
-    setProps(b, { Gutter: true, Avatar: first, Sender: first && !m.state });
-    if (!first) return;
-    if (!m.state) setProps(b, { 'Sender name': m.from, Fingerprint: m.print });
-    const avatar = b.findOne((n) => n.name === 'avatar');
-    avatar.swapComponent(variant('Avatar', { Kind: 'Person', Plate: m.plate ?? '1', Size: 'Compact' }));
-    setProps(avatar, { Initials: INITIALS(m.from) });
+    dress(b, m, device, first);
   });
   return t;
 }
-for (const [label, items] of [['Direct chat', DM], ['Group', GROUP], ['Long link, token and name', HARD]]) {
+for (const [label, items] of [['Direct chat', DM], ['Group', GROUP], ['Files, pictures and voice', FILES], ['Long link, token and name', HARD]]) {
   (await examples(label, [thread(label, 'Desktop', items), thread(label, 'Phone', items)])).counterAxisAlignItems = 'MIN';
 }

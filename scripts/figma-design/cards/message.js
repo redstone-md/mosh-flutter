@@ -1,6 +1,6 @@
 // Messages: ConversationMessageRow with its text, footer, DeliveryTicks and
 // FailedMessageRetry, and the sender line of groups and channels.
-card('Message', 'A bubble hugs its text and wraps it at a fixed measure, 480 px on the desktop and 232 px on the phone, so a long link or a token without spaces breaks inside it. In a run from one sender the corners on the sender\'s side tighten, and only the first bubble carries the sender. A direct chat shows no avatar; a group and a channel show it beside the first bubble and keep its gutter under it.');
+card('Message', 'A bubble hugs its text and wraps it at a fixed measure, 480 px on the desktop and 232 px on the phone, so a long link or a token without spaces breaks inside it. A file, a picture or a voice message rides above the text, or stands in for it. In a run from one sender the corners on the sender\'s side tighten, and only the first bubble carries the sender. A direct chat shows no avatar; a group and a channel show it beside the first bubble and keep its gutter under it.');
 // Read is told from delivered by a heavier, darker pair of ticks: on the saffron bubble a colour alone is too close.
 const TICKS = { Queued: ['schedule', 'onOutgoingVariant'], Sent: ['check', 'onOutgoingVariant'], Delivered: ['done_all', 'onOutgoingVariant'], Read: ['done_all_read', 'onOutgoing'] };
 const ticks = await grid('Delivery ticks', ONE, axis('State', Object.keys(TICKS)), ({ State }) => {
@@ -44,6 +44,8 @@ function message(side, { Position, Device, State }) {
     if (State === 'Awaiting deletion') add(body, text('Awaiting deletion', 'labelMedium', quiet, { name: 'deletion' }));
     return root;
   }
+  // A file, a picture or a voice message rides above the text; swap the instance for another kind.
+  add(body, inst('File card', { State: 'Ready', Tone: out ? 'Outgoing' : 'Surface', Device })).name = 'attachment';
   add(body, text('Should we leave at 6 to beat the traffic?', 'bodyLarge', ink, { name: 'text' }), { max: MEASURE[Device] });
   const meta = add(bubble, box('meta', { dir: 'H', gap: 1 }));
   add(meta, text('08:31', 'labelSmall', quiet, { name: 'time' }));
@@ -67,6 +69,8 @@ const outgoing = display(await grid('Outgoing message', POSITIONS, axis('State',
 for (const set of [incoming, outgoing]) {
   prop(set, 'Text', 'TEXT', 'Should we leave at 6 to beat the traffic?', 'text');
   prop(set, 'Time', 'TEXT', '08:31', 'time');
+  prop(set, 'Show text', 'BOOLEAN', true, 'text');
+  prop(set, 'Attachment', 'BOOLEAN', false, 'attachment');
 }
 prop(outgoing, 'Reason', 'TEXT', 'Not sent', 'reason');
 prop(incoming, 'Sender', 'BOOLEAN', false, 'sender');

@@ -299,6 +299,28 @@ function setProps(i, values) {
   }
   return i;
 }
+/** An Icon button showing [glyph]; ink recolours the glyph where its own colour would not read. */
+function action(glyph, Device, { Kind = 'Standard', State = 'Default', ink } = {}) {
+  const b = setProps(inst('Icon button', { Kind, State, Device }), { 'Icon glyph': ICONS[glyph] ?? fail('Icon/' + glyph) });
+  if (ink) b.findOne((n) => n.name === 'glyph').fills = paint(ink);
+  return b;
+}
+// What sits in a bubble is drawn for both of its colours: the inks of each.
+const TONES = {
+  Surface: { ink: 'onSurface', quiet: 'onSurfaceMuted', plate: 'surfaceContainerHighest', glyph: 'onSurfaceVariant', error: 'error', failPlate: 'errorContainer', accent: 'primary', onAccent: 'onPrimary', rest: 'outline' },
+  Outgoing: { ink: 'onOutgoing', quiet: 'onOutgoingVariant', plate: 'onOutgoingVariant', glyph: 'outgoing', error: 'outgoingError', failPlate: 'outgoingError', accent: 'onOutgoing', onAccent: 'outgoing', rest: 'onOutgoingVariant' },
+};
+const TONE_ROWS = (rows) => Object.keys(TONES).flatMap((t) => rows.map(([label, props]) => [[label, t.toLowerCase()].filter(Boolean).join(', '), { ...props, Tone: t }]));
+/** Lays the outgoing bubble's colour under the variants of [set] drawn for it, which the card's own colour would hide. */
+function backdrop(set) {
+  const at = CARD.children.indexOf(set), M = 8;
+  for (const v of variants(set).filter((x) => x.name.includes('Tone=Outgoing'))) {
+    const r = rect('outgoing bubble', { fill: 'outgoing', w: v.width + M * 2, h: v.height + M * 2, r: 'medium' });
+    CARD.insertChild(at, r);
+    r.x = set.x + v.x - M; r.y = set.y + v.y - M;
+  }
+  return set;
+}
 /** Marks a set that is read, not pressed as a whole: audit.js asks no phone tap target of it. */
 function display(set) { set.setPluginData('target', 'none'); return set; }
 // Grid axes are [label, {Property: value}] pairs; ONE is the axis of a property-less component.
