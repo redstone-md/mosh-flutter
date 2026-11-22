@@ -72,14 +72,18 @@ const PRELUDE = `
     return f;
   };`;
 
-/** Replaces the inventory section with an empty one holding a column per group; returns nothing. */
-const resetSection = (groups) => execute(`${PRELUDE}
-  page.children.find((s) => s.getPluginData('inventory') === 'section')?.remove();
+// The new section is built as a draft beside the published one, which it
+// replaces only once every card is in, so a failed run leaves the old one whole.
+const find = (mark) => `page.children.find((s) => s.getPluginData('inventory') === '${mark}')`;
+
+/** Starts a draft section holding a column per group, dropping a failed run's draft; returns nothing. */
+const startDraft = (groups) => execute(`${PRELUDE}
+  ${find('draft')}?.remove();
   const bottom = Math.max(0, ...page.children.map((c) => c.y + c.height));
   const section = figma.createSection();
   page.appendChild(section);
   section.name = ${JSON.stringify(SECTION)};
-  section.setPluginData('inventory', 'section');
+  section.setPluginData('inventory', 'draft');
   section.fills = paint('surface/surface');
   const root = stack(section, ${JSON.stringify(SECTION)}, 'HORIZONTAL', 120);
   root.x = 100; root.y = 100; root.setPluginData('inventory', 'root');
@@ -90,9 +94,9 @@ const resetSection = (groups) => execute(`${PRELUDE}
   }
   section.x = 0; section.y = bottom + 400;`);
 
-// Appends one card to its group's column and refits the section.
+// Appends one card to its group's column in the draft and refits the draft.
 const CARD = `${PRELUDE}
-  const section = page.children.find((s) => s.getPluginData('inventory') === 'section');
+  const section = ${find('draft')};
   const root = section.children.find((c) => c.getPluginData('inventory') === 'root');
   const col = root.children.find((c) => c.getPluginData('inventory') === C.group);
   const card = stack(col, C.name, 'VERTICAL', 12);
@@ -115,6 +119,12 @@ const CARD = `${PRELUDE}
   }
   section.resizeWithoutConstraints(root.width + 200, root.height + 200);`;
 
+/** Puts the finished draft in the published section's place. */
+const publishDraft = () => execute(`${PRELUDE}
+  const draft = ${find('draft')}, old = ${find('section')};
+  if (old) { draft.x = old.x; draft.y = old.y; old.remove(); }
+  draft.setPluginData('inventory', 'section');`);
+
 /** Fits a crop into the thumbnail box without enlarging it. */
 const fit = ({ w, h }) => {
   const k = Math.min(1, THUMB.w / w, THUMB.h / h);
@@ -123,7 +133,6 @@ const fit = ({ w, h }) => {
 
 /** Rebuilds the section from [components] (inventory.mjs summaries), linking examples through [ids] (frameIds). */
 export async function publishInventory({ components, ids }) {
-  await resetSection([...GROUPS, SCREEN_GROUP]);
   const cards = [
     ...components.map((c) => ({
       group: c.group, name: c.name, states: c.states,
@@ -135,6 +144,8 @@ export async function publishInventory({ components, ids }) {
     })),
     { group: SCREEN_GROUP.id, name: SCREEN_GROUP.title, meta: 'Laid out per screen, not redrawn as components', states: [SCREEN_PARTS.join(', ')], examples: [] },
   ];
+  await startDraft([...GROUPS, SCREEN_GROUP]);
   for (const c of cards) await execute(`const C = ${JSON.stringify(c)};\n${CARD}`);
+  await publishDraft();
   console.log(`Figma: ${PAGE} / ${SECTION}: ${cards.length} cards`);
 }

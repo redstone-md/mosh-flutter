@@ -77,6 +77,7 @@ void main() {
           const OutlinedButton(onPressed: null, child: Text('Retry')),
           const TextField(decoration: InputDecoration(errorText: 'Required')),
           Switch(value: true, onChanged: (_) {}),
+          const ChoiceChip(label: Text('All'), selected: true),
         ]),
       ),
     ));
@@ -92,6 +93,7 @@ void main() {
       'OutlinedButton': 'disabled',
       'TextField': 'error',
       'Switch': 'on',
+      'ChoiceChip': 'disabled selected',
     });
   });
 }

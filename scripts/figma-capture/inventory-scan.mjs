@@ -123,5 +123,7 @@ function record(widgets, i, scene) {
   const v = variantOf(i);
   const variant = w.variants.get(v) ?? w.variants.set(v, { signature: v, count: 0, examples: [] }).get(v);
   variant.count++;
-  if (variant.examples.length < 3 && !variant.examples.some((e) => e.scene.id === scene.id)) variant.examples.push({ scene, rect: i.rect });
+  // Scenes come desktop first, so each form keeps its own examples for the picker.
+  const sameForm = variant.examples.filter((e) => e.scene.form === scene.form);
+  if (sameForm.length < 3 && !sameForm.some((e) => e.scene.id === scene.id)) variant.examples.push({ scene, rect: i.rect });
 }

@@ -114,7 +114,10 @@ String? _controlState(Widget w) => _flags(switch (w) {
           (value == true ? 'checked' : 'unchecked'): true,
           'disabled': onChanged == null,
         },
-      ChoiceChip(:final selected) => {'selected': selected},
+      ChoiceChip(:final isEnabled, :final onSelected, :final selected) => {
+          'disabled': !isEnabled || onSelected == null,
+          'selected': selected,
+        },
       Slider(:final onChanged) => {'disabled': onChanged == null},
       ProgressIndicator(:final value) => {'determinate': value != null},
       _ => const {},
@@ -173,6 +176,11 @@ class _Exporter {
   final List<RenderObject?> _owners = [null];
   final Map<ui.Image, String> images = {};
   final Map<LayerLink, Matrix4> leaders = {};
+
+  /// Scene-unique element ids: identity hashes can collide.
+  final Expando<int> _ids = Expando();
+  int _nextId = 0;
+  int _id(Element e) => _ids[e] ??= _nextId++;
 
   void pushScope(_Scope scope) {
     _scopes.last.children.add(scope);
@@ -239,16 +247,12 @@ class _Exporter {
       final t = _typeName(e);
       if (_libWidgets.containsKey(t)) {
         final file = t.startsWith('_') ? _declaringFile(t, e) : null;
-        lib = (name: t, file: file, id: identityHashCode(e));
+        lib = (name: t, file: file, id: _id(e));
         return false;
       }
       if (control == null) {
         if (_controlKind(e.widget) case final kind?) {
-          control = (
-            kind: kind,
-            state: _controlState(e.widget),
-            id: identityHashCode(e)
-          );
+          control = (kind: kind, state: _controlState(e.widget), id: _id(e));
         }
       }
       return true;
