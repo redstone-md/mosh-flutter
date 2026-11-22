@@ -72,32 +72,38 @@ const PRELUDE = `
     return f;
   };`;
 
-// The new section is built as a draft beside the published one, which it
-// replaces only once every card is in, so a failed run leaves the old one whole.
-const find = (mark) => `page.children.find((s) => s.getPluginData('inventory') === '${mark}')`;
+// The section stays put, so links to it survive a rebuild. New cards go into a
+// draft beside the published content, which the draft replaces only once every
+// card is in, so a failed run leaves the old content whole.
+const SECTION_NODE = `page.children.find((s) => s.getPluginData('inventory') === 'section')`;
+const content = (mark) => `section.children.find((c) => c.getPluginData('inventory') === '${mark}')`;
 
-/** Starts a draft section holding a column per group, dropping a failed run's draft; returns nothing. */
+/** Starts a draft holding a column per group, creating the section on the first run; returns nothing. */
 const startDraft = (groups) => execute(`${PRELUDE}
-  ${find('draft')}?.remove();
-  const bottom = Math.max(0, ...page.children.map((c) => c.y + c.height));
-  const section = figma.createSection();
-  page.appendChild(section);
-  section.name = ${JSON.stringify(SECTION)};
-  section.setPluginData('inventory', 'draft');
-  section.fills = paint('surface/surface');
+  let section = ${SECTION_NODE};
+  if (!section) {
+    const bottom = Math.max(0, ...page.children.map((c) => c.y + c.height));
+    section = figma.createSection();
+    page.appendChild(section);
+    section.name = ${JSON.stringify(SECTION)};
+    section.setPluginData('inventory', 'section');
+    section.fills = paint('surface/surface');
+    section.x = 0; section.y = bottom + 400;
+  }
+  ${content('draft')}?.remove();
   const root = stack(section, ${JSON.stringify(SECTION)}, 'HORIZONTAL', 120);
-  root.x = 100; root.y = 100; root.setPluginData('inventory', 'root');
+  root.setPluginData('inventory', 'draft');
+  root.x = 100; root.y = Math.max(100, ...section.children.filter((c) => c !== root).map((c) => c.y + c.height + 400));
   for (const g of ${JSON.stringify(groups)}) {
     const col = stack(root, g.title, 'VERTICAL', 32);
     col.setPluginData('inventory', g.id);
     text(col, g.title + ' · ' + g.ticket, 40, 'SemiBold');
-  }
-  section.x = 0; section.y = bottom + 400;`);
+  }`);
 
-// Appends one card to its group's column in the draft and refits the draft.
+// Appends one card to its group's column in the draft.
 const CARD = `${PRELUDE}
-  const section = ${find('draft')};
-  const root = section.children.find((c) => c.getPluginData('inventory') === 'root');
+  const section = ${SECTION_NODE};
+  const root = ${content('draft')};
   const col = root.children.find((c) => c.getPluginData('inventory') === C.group);
   const card = stack(col, C.name, 'VERTICAL', 12);
   card.fills = paint('surface/surfaceContainer'); card.cornerRadius = 16;
@@ -117,13 +123,16 @@ const CARD = `${PRELUDE}
     t.resize(${THUMB.w}, t.height); t.textAutoResize = 'HEIGHT';
     t.hyperlink = { type: 'NODE', value: e.node }; t.textDecoration = 'UNDERLINE';
   }
-  section.resizeWithoutConstraints(root.width + 200, root.height + 200);`;
+`;
 
-/** Puts the finished draft in the published section's place. */
+/** Replaces the published content with the finished draft and fits the section to it. */
 const publishDraft = () => execute(`${PRELUDE}
-  const draft = ${find('draft')}, old = ${find('section')};
-  if (old) { draft.x = old.x; draft.y = old.y; old.remove(); }
-  draft.setPluginData('inventory', 'section');`);
+  const section = ${SECTION_NODE};
+  const root = ${content('draft')};
+  ${content('root')}?.remove();
+  root.setPluginData('inventory', 'root');
+  root.x = 100; root.y = 100;
+  section.resizeWithoutConstraints(root.width + 200, root.height + 200);`);
 
 /** Fits a crop into the thumbnail box without enlarging it. */
 const fit = ({ w, h }) => {
