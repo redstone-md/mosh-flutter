@@ -38,7 +38,8 @@ function media({ Kind, State, Tone, Device }) {
   else if (State === 'Loading') add(view, inst('Circular progress', { Size: 'Large' }));
   else if (Kind === 'Image') add(view, icon('image', 'onTertiaryContainer', 8));
   else add(add(view, box('play', { dir: 'H', wk: 12, hk: 12, r: 'full', fill: 'surface', justify: 'CENTER' })), icon('play', 'onSurface', 6));
-  const line = add(m, box('caption', { dir: 'H', gap: 2, pad: [0, 1] }), { fillW: true });
+  // Set in as far as a message's text, so the file name and the text under it start on one line.
+  const line = add(m, box('caption', { dir: 'H', gap: 2, pad: [0, 1, 0, 2] }), { fillW: true });
   add(line, text(Kind === 'Image' ? 'harbour.jpg' : 'waves.mp4', 'labelLarge', c.ink, { name: 'name ' + Kind, truncate: true }), { fillW: true });
   add(line, text(MEDIA[State], 'labelMedium', failed ? c.error : c.quiet, { name: 'detail' }));
   return m;

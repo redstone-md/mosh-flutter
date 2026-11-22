@@ -50,7 +50,7 @@ function dress(b, m, device, first) {
   if (m.ticks) b.findOne((n) => n.name === 'ticks').setProperties({ State: m.ticks });
   if (m.attach) {
     const [set, props, values] = m.attach;
-    setProps(b, { Attachment: true, 'Show text': !!m.text });
+    setProps(b, { Attachment: true, 'Show text': !!m.text, 'Text line': !!m.text || set !== 'Voice message' });
     const a = b.findOne((n) => n.name === 'attachment');
     a.swapComponent(variant(set, { ...props, Tone: m.kind === 'out' ? 'Outgoing' : 'Surface', Device: device }));
     setProps(a, values);
