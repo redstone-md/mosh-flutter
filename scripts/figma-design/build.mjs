@@ -20,10 +20,11 @@
 //     instance nested in another (an avatar's initials in a chat row) when
 //     that one only follows its component onto the new card; relink.js sets
 //     those again. An override that is gone after the move is listed and
-//     fails the build, as Figma may change its rule;
-//   - a component of another card that changed size with what it holds is
-//     listed: its card laid it out at the old size, so rebuild that card too,
-//     or the whole chain with --on.
+//     fails the build, as Figma may change its rule. The list goes by the
+//     overridden field and the layer's name, not by value: look at what it names;
+//   - a component of another card that changed size with the instance it
+//     holds is listed: its card laid it out at the old size, so rebuild that
+//     card too, or the whole chain with --on.
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { execute } from '../figma-capture/mcp.mjs';
@@ -49,7 +50,10 @@ function iconSvg() {
 
 /** The places in CARDS of the cards the arguments ask for, in build order. */
 function chosen(args) {
-  const names = args.filter((a) => !a.startsWith('--'));
+  const names = args.filter((a) => !a.startsWith('--')), flags = args.filter((a) => a.startsWith('--'));
+  // A mistyped flag must not fall through to a build of every card.
+  const stray = flags.filter((f) => !['--on', '--audit'].includes(f));
+  if (stray.length || (flags.includes('--audit') && args.length > 1)) throw new Error(`cannot read "${args.join(' ')}"; see the top of build.mjs`);
   const unknown = names.filter((n) => !CARDS.includes(n));
   if (unknown.length) throw new Error(`no card "${unknown.join('", "')}"; cards: ${CARDS.join(', ')}`);
   if (!names.length) return [...CARDS.keys()];
@@ -66,7 +70,7 @@ async function build(orders) {
     const started = Date.now();
     // Read when its turn comes, so a card edited during a long run is built as edited.
     const script = `try {\n${read(`cards/${CARDS[order]}.js`)}\nreturn await finish();\n} catch (e) { discard(); throw e; }`;
-    const consts = { CARD_ORDER: order, REBUILT_LATER: orders.slice(at + 1), ...(CARDS[order] === 'icons' ? { ICON_SVG: iconSvg() } : {}) };
+    const consts = { CARD_ORDER: order, CARD_SCRIPT: CARDS[order], REBUILT_LATER: orders.slice(at + 1).map((later) => CARDS[later]), ...(CARDS[order] === 'icons' ? { ICON_SVG: iconSvg() } : {}) };
     const { card, sets, moved = 0, touched: users = [], lost: dropped = [], resized = [] } = await run(script, consts);
     console.log(`${card}: ${sets.join(', ') || 'no sets'}; ${moved} instances moved; ${((Date.now() - started) / 1000).toFixed(1)} s`);
     for (const line of resized) console.log(`  changed size, rebuild its card: ${line}`);
@@ -77,9 +81,10 @@ async function build(orders) {
 }
 
 const args = process.argv.slice(2);
-const { cards, lost } = args.includes('--audit') ? { cards: null, lost: [] } : await build(chosen(args));
+const orders = chosen(args);
+const { cards, lost } = args.includes('--audit') ? { cards: null, lost: [] } : await build(orders);
 const audit = await run(read('audit.js'), { AUDIT_CARDS: cards });
-const issues = [...lost.map((line) => `override lost in the move: ${line}`), ...audit.issues];
+const issues = [...lost.map((line) => `override gone after the move: ${line}`), ...audit.issues];
 console.log(`audit of ${cards ? cards.join(', ') : 'every card'}: ${audit.nodes} layers, ${audit.sets} sets with ${audit.variants} variants, ${issues.length} issues`);
 for (const issue of issues) console.log('  ' + issue);
 process.exitCode = issues.length ? 1 : 0;

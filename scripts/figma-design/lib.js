@@ -1,5 +1,6 @@
 // Plugin-side helpers for the card scripts in cards/. build.mjs prepends this
-// file to each of them and sets CARD_ORDER, the card's place in the section.
+// file to each of them and sets CARD_ORDER, the card's place in the section,
+// and CARD_SCRIPT, the name of its file in cards/.
 // Every colour, radius, gap, padding, stroke weight, opacity and text style a
 // helper sets is bound to a Foundations token, so audit.js can check the result.
 await figma.loadAllPagesAsync();
@@ -179,7 +180,7 @@ function host() {
   return s;
 }
 const PAD = 48, ROW_LABEL = 150;
-// The components variant() can ask for, by name. Walking the section for each one took most of a build.
+// The components variant() can ask for, by name: a walk of the section for each one is a fifth of a second.
 const SETS = new Map();
 // Last to first, so of two components with one name the first in the section is the one found.
 for (const n of host().findAllWithCriteria({ types: ['COMPONENT_SET', 'COMPONENT'] }).reverse()) if (n.parent.type !== 'COMPONENT_SET') SETS.set(n.name, n);
@@ -191,7 +192,7 @@ function card(name, note) {
   OLD = s.children.filter((n) => n.name === name);
   for (const [key, n] of SETS) if (OLD.includes(n.parent)) SETS.delete(key);
   const c = CARD = figma.createFrame();
-  c.name = name; c.setPluginData('order', String(CARD_ORDER)); c.fills = paint('surfaceContainerLow'); radius(c, 'extraLarge'); c.clipsContent = false;
+  c.name = name; c.setPluginData('order', String(CARD_ORDER)); c.setPluginData('script', CARD_SCRIPT); c.fills = paint('surfaceContainerLow'); radius(c, 'extraLarge'); c.clipsContent = false;
   s.appendChild(c);
   add(c, text(name, 'headlineSmall', 'onSurface')).y = PAD;
   const n = add(c, text(note, 'bodyMedium', 'onSurfaceVariant', { w: 860 })); n.y = PAD + 40;
@@ -282,10 +283,10 @@ function layoutCards() {
 }
 /** Ends a card script: moves the instances of the replaced card onto this one (relink.js), places the card and reports what it holds. */
 async function finish() {
-  const moved = OLD?.length ? await relink(OLD, CARD) : {};
+  const report = OLD?.length ? await relink(OLD, CARD) : {};
   OLD?.forEach((o) => o.remove());
   layoutCards();
-  return { card: CARD.name, sets: CARD.findAllWithCriteria({ types: ['COMPONENT_SET'] }).map((x) => `${x.name} ${x.children.length}`), ...moved };
+  return { card: CARD.name, sets: CARD.findAllWithCriteria({ types: ['COMPONENT_SET'] }).map((x) => `${x.name} ${x.children.length}`), ...report };
 }
 /** Wraps a control's [visual] as a variant; on the phone it sits in a transparent tap target of at least 48 by 48 px. */
 function shell(name, visual, device) {
