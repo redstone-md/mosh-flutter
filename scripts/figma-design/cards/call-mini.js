@@ -11,26 +11,13 @@ const STATES = {
   Reconnecting: ['4:12, reconnecting…', 'onSurfaceVariant', ['mic']],
   Warning: ['Microphone unavailable', 'warning', ['mic_off', false, true]],
 };
-/** A button of the plate: a small round one, on a plate of [fill] or on none. */
-function small(glyph, fill, ink) {
-  const b = box(glyph, { dir: 'H', wk: 6, hk: 6, r: 'full', fill, justify: 'CENTER' });
-  add(b, icon(glyph, ink, 4));
-  return b;
-}
-/** The name and the line beside it, standing on one baseline. wide: the phone's strip, where the line is cut to the room it has. */
-function who(status, ink, wide) {
-  const w = box('who', { dir: 'H', gap: 2, align: 'BASELINE' });
-  add(w, text('Maya Chen', wide ? 'titleSmall' : 'labelLarge', 'onSurface', { name: 'name' }));
-  add(w, text(status, wide ? 'bodySmall' : 'labelMedium', ink, { name: 'status', truncate: wide }), { fillW: wide });
-  return w;
-}
 const plates = display(await grid('Call plate', axis('State', Object.keys(STATES)), [['Desktop', {}]], ({ State }) => {
   const [status, ink, [glyph, lit, off]] = STATES[State];
   const p = box('Call plate', { component: true, dir: 'H', gap: 2, pad: [0, 1, 0, 3], hk: 8, r: 'full', fill: CALL_TONES.Neutral[0] });
-  add(p, who(status, ink, false));
-  const mic = add(p, small(glyph, lit ? CALL_TONES.Lit[0] : null, lit ? CALL_TONES.Lit[1] : 'onSurface'));
+  add(p, callWho(status, { ink }));
+  const mic = add(p, callMark(glyph, lit && 'Lit'));
   if (off) disable(mic, [mic.children[0]]);
-  add(p, small('call_end', ...CALL_TONES.End));
+  add(p, callMark('call_end', 'End'));
   return p;
 }));
 prop(plates, 'Name', 'TEXT', 'Maya Chen', 'name');
@@ -60,7 +47,7 @@ const STRIPS = { Incoming: ['Incoming voice call', 'onSurfaceVariant', null], ..
 const strips = display(await grid('Call strip', axis('State', Object.keys(STRIPS)), [['Phone', {}]], ({ State }) => {
   const [status, ink, mic] = STRIPS[State];
   const s = box('Call strip', { component: true, dir: 'H', gap: 2, pad: [1, 2, 1, 4], w: PHONE_SCREEN, fill: BENEATH });
-  add(s, who(status, ink, true), { fillW: true });
+  add(s, callWho(status, { ink, wide: true }), { fillW: true });
   if (mic) {
     const [glyph, lit, off] = mic;
     add(s, lit ? toned(glyph, 'Phone', 'Lit') : action(glyph, 'Phone', { State: off ? 'Disabled' : 'Default' })).name = 'microphone';

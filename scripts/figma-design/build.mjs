@@ -32,10 +32,10 @@ import { execute } from '../figma-capture/mcp.mjs';
 // In build order: a card may use the components of the cards before it.
 const CARDS = ['icons', 'button', 'icon-button', 'text-field', 'select', 'switch', 'chips', 'avatar', 'badges', 'progress', 'slider-divider', 'attachment', 'voice', 'message', 'feed', 'thread', 'composer', 'chat-row', 'chat-list', 'org', 'search', 'dialog', 'menu', 'banner', 'toast', 'title-bar', 'settings', 'details', 'wizard', 'empty', 'media-viewer', 'call-controls', 'call', 'call-mini', 'levels'];
 const read = (file) => fs.readFileSync(new URL(file, import.meta.url), 'utf8');
-/** Runs a plugin script with the helpers of lib.js, surfaces.js and relink.js before it; consts are the values it is given. */
+/** Runs a plugin script with the helpers of lib.js, surfaces.js, calls.js and relink.js before it; consts are the values it is given. */
 function run(script, consts = {}) {
   const given = Object.entries(consts).map(([name, value]) => `const ${name} = ${JSON.stringify(value)};\n`).join('');
-  return execute(`${given}${['lib.js', 'surfaces.js', 'relink.js'].map(read).join('\n')}\n${script}`, 280000);
+  return execute(`${given}${['lib.js', 'surfaces.js', 'calls.js', 'relink.js'].map(read).join('\n')}\n${script}`, 280000);
 }
 
 /** icons.json maps an icon's role in the controls to its Phosphor name; returns the role's 24 px SVG. */

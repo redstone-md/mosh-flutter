@@ -2,8 +2,8 @@
 // this file after lib.js. A surface takes its colour, edge, corners and shadow
 // from its level here. The tones under and
 // inside the levels (BENEATH, inset, plate) are named here too, so no card
-// picks a surface colour of its own. Below them: the toned notice, the screens
-// a surface is shown lying over, and the buttons and dock of a call.
+// picks a surface colour of its own. Below them: the toned notice and the
+// screens a surface is shown lying over.
 
 // The four levels a surface can sit on, lowest first. The background is the
 // screen itself; a panel is a part of the screen (the chat list, the title bar,
@@ -90,16 +90,19 @@ const NOTICE_TONES = {
 /**
  * A message on a toned surface: mark, title, detail. The mark is as tall as the first line and stands beside it,
  * as far from the left edge as from the top one; one line of text leaves it as far from the bottom too.
- * A longer message runs on under the first line. The caller adds what the message ends with (banner.js has ending()). o: w, r, plain (a frame, not a component).
+ * A longer message runs on under the first line. The caller adds what the message ends with (banner.js has ending()). o: w, or max (as wide as its text, which runs on to the next line at max px), r, plain (a frame, not a component).
  */
 function notice(name, Tone, glyph, title, detail, o = {}) {
   const [fill, edge, mark, ink, soft] = NOTICE_TONES[Tone];
   const n = box(name, { component: !o.plain, dir: 'H', gap: 3, pad: 4, w: o.w, r: o.r ?? 'large', fill, stroke: edge, align: 'MIN' });
   add(n, icon(glyph, mark)).name = 'mark';
   const col = add(n, box('text', { dir: 'V', gap: 1, align: 'MIN' }), { fillW: true });
-  if (title) para(col, title, 'titleSmall', ink, 'title');
   // Alone, the detail is the message: it takes the line height of the mark beside it.
-  if (detail) para(col, detail, title ? 'bodySmall' : 'bodyMedium', title ? soft : ink, 'detail');
+  const lines = [title && para(col, title, 'titleSmall', ink, 'title'), detail && para(col, detail, title ? 'bodySmall' : 'bodyMedium', title ? soft : ink, 'detail')].filter(Boolean);
+  if (!o.max) return n;
+  const around = n.width - col.width;
+  col.layoutSizingHorizontal = 'HUG';
+  for (const line of lines) { line.textAutoResize = 'WIDTH_AND_HEIGHT'; line.layoutSizingHorizontal = 'HUG'; line.maxWidth = o.max - around; }
   return n;
 }
 
@@ -140,22 +143,4 @@ function over(screen, node, at = 'middle') {
   node.x = (screen.width - node.width) / 2;
   node.y = at === 'bottom' ? screen.height - node.height : at === 'top' ? 16 : (screen.height - node.height) / 2;
   return screen;
-}
-
-// --- Calls ---
-// The four tones of a call button: its plate and its glyph. Lit marks what differs from a plain voice call: a muted microphone, a camera that is on.
-const CALL_TONES = { Neutral: ['surfaceContainerHighest', 'onSurface'], Lit: ['inverseSurface', 'onInverseSurface'], Accept: ['primary', 'onPrimary'], End: ['error', 'onError'] };
-// A button of a dock or a bar is [glyph, Tone, State]; this one ends the call wherever it stands.
-const CALL_END = ['call_end', 'End'];
-/** A Call button showing [glyph]. o: Tone, Size, State. */
-function callAction(glyph, { Tone = 'Neutral', Size = 'Regular', State = 'Default' } = {}) {
-  const b = setProps(inst('Call button', { Tone, Size, State }), { 'Icon glyph': glyphOf(glyph) });
-  b.findOne((n) => n.name === 'glyph').fills = paint(State === 'Disabled' ? 'onSurface' : CALL_TONES[Tone][1]);
-  return b;
-}
-/** The dock of a call: its buttons on a plate of their own, so none of them ever lies on the video itself. buttons: [glyph, Tone, State] each. */
-function callDock(buttons, Size = 'Regular') {
-  const d = surface('dock', 'popup', { dir: 'H', gap: Size === 'Large' ? 4 : 3, pad: 3, r: 'full' });
-  for (const [glyph, Tone, State] of buttons) add(d, callAction(glyph, { Tone, Size, State })).name = glyph;
-  return d;
 }

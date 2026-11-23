@@ -7,15 +7,15 @@ const VIEW = { Desktop: [720, 460], Phone: [390, 640], 'Phone on its side': [844
 const TALK = [['mic'], ['video_off'], ['tune'], CALL_END];
 /** TALK with the button of [glyph] replaced by [button]. */
 const talk = (glyph, button) => TALK.map((b) => (b[0] === glyph ? button : b));
-// Per state: the line under the name, the video stage, the dock's buttons, a notice [tone, text], and what an idle call keeps over its video:
-// 'nothing', or 'muted' for the mark of a muted microphone. The rules of leaving are in the card's note above.
+// Per state: the line under the name, the video stage, the dock's buttons, a notice [tone, text], and whether the microphone is muted.
+// A state without buttons is the call left alone: everything over its video has gone (the card's note has the rules), and only a muted microphone keeps its mark.
 const STATES = {
   Incoming: ['Incoming voice call', null, [CALL_END, ['call', 'Accept']]],
   'Waiting for confirmation': ['Waiting for confirmation…', null, TALK],
   Outgoing: ['Calling…', null, TALK],
   'Connecting audio': ['0:02, connecting audio…', null, TALK],
   Voice: ['4:12', null, TALK],
-  Muted: ['4:12', null, talk('mic', ['mic_off', 'Lit'])],
+  Muted: ['4:12', null, talk('mic', ['mic_off', 'Lit']), null, true],
   Reconnecting: ['4:12, reconnecting…', null, TALK],
   'Microphone unavailable': ['4:12', null, talk('mic', ['mic_off', 'Neutral', 'Disabled']), ['Warning', 'Microphone unavailable. You can still listen.']],
   'Camera unavailable': ['4:12', null, talk('video_off', ['video_off', 'Neutral', 'Disabled']), ['Warning', 'Camera unavailable. Voice remains available.']],
@@ -25,8 +25,8 @@ const STATES = {
   'Remote video': ['4:12', 'Remote video', TALK],
   'Camera preview': ['4:12', 'Camera preview', talk('video_off', ['video', 'Lit'])],
   'Two-way video': ['4:12', 'Two-way video', talk('video_off', ['video', 'Lit'])],
-  'Controls hidden': ['4:12', 'Two-way video', [], null, 'nothing'],
-  'Controls hidden and muted': ['4:12', 'Two-way video', [], null, 'muted'],
+  'Controls hidden': ['4:12', 'Two-way video', null],
+  'Controls hidden and muted': ['4:12', 'Two-way video', null, null, true],
 };
 /** The largest 16:9 stage that fits the window whole, in its middle. It grows with an instance that is made larger in the same proportion; a window of another shape wants its stage fitted again. */
 function fitStage(win, Kind) {
@@ -36,60 +36,39 @@ function fitStage(win, Kind) {
   add(win, s, { abs: [(win.width - w) / 2, (win.height - h) / 2] });
   s.constraints = { horizontal: 'SCALE', vertical: 'SCALE' };
 }
-/** Over video the name and the line under it sit on a plate, as every button does. */
-function whoPlate(status, device) {
-  const p = box('who plate', { dir: 'H', gap: 2, pad: [0, 4], hk: controlHeight(device), r: 'full', fill: CALL_TONES.Neutral[0] });
-  add(p, text('Maya Chen', 'titleSmall', 'onSurface', { name: 'name' }));
-  add(p, text(status, 'bodySmall', 'onSurfaceVariant', { name: 'status' }));
-  return p;
-}
-/** A warning [tone, text] above the dock: as wide as its text, which runs on to a second line at [max] px. */
-function callNotice([Tone, message], max) {
-  const n = notice('notice', Tone, Tone === 'Error' ? 'error' : 'warning', null, message, { plain: true, r: 'largeIncreased' });
-  const line = n.findOne((x) => x.type === 'TEXT'), around = n.width - line.width;
-  line.textAutoResize = 'WIDTH_AND_HEIGHT';
-  line.parent.layoutSizingHorizontal = line.layoutSizingHorizontal = 'HUG';
-  line.maxWidth = max - around;
-  return n;
-}
-/** The mark an idle call keeps while the microphone is muted: the muted button's plate, too small to be taken for a button. */
-function mutedMark() {
-  const m = box('muted', { dir: 'H', wk: 8, hk: 8, r: 'full', fill: CALL_TONES.Lit[0], justify: 'CENTER' });
-  add(m, icon('mic_off', CALL_TONES.Lit[1], 4));
-  return m;
-}
-/** The row along the top of [win]: the way out of the open call, the full screen button and, with video in the middle, who the call is with. over: the line a call over video shows beside the name. */
-function topRow(win, touch, over, idle) {
-  if (idle === 'nothing') return;
+/** The row along the top of [win]: the way out of the open call, the full screen button and, over video, who the call is with on a plate of their own, as every button has. A call left alone keeps only the mark of a muted microphone there. */
+function topRow(win, touch, { over, controls, muted }) {
+  if (!controls && !muted) return;
   const desktop = touch === 'Desktop';
   const top = add(win, box('top', { dir: 'H', pad: desktop ? 3 : 2, justify: 'SPACE_BETWEEN' }), { fillW: true });
-  if (idle) return add(top, mutedMark());
+  // The muted button's plate, too small to be taken for a button.
+  if (!controls) return add(top, callMark('mic_off', 'Lit', 8));
   const lead = add(top, box('lead', { dir: 'H', gap: 2 }));
   add(lead, action('call_minimize', touch, { Kind: 'Tonal' })).name = 'minimize';
-  if (over) add(lead, whoPlate(over, touch));
+  if (over) add(add(lead, box('who plate', { dir: 'H', pad: [0, 4], hk: controlHeight(touch), r: 'full', fill: CALL_TONES.Neutral[0] })), callWho(over));
   // A phone's call already has the whole screen.
   if (desktop) add(top, action('fullscreen', touch, { Kind: 'Tonal' })).name = 'full screen';
 }
 function callWindow({ State, Device }) {
-  const [status, video, buttons, warning, idle] = STATES[State], [w, h] = VIEW[Device];
+  const [status, video, buttons, warning, muted] = STATES[State], [w, h] = VIEW[Device];
   const desktop = Device === 'Desktop', upright = Device === 'Phone', touch = desktop ? 'Desktop' : 'Phone';
   const win = box('Call window', { component: true, dir: 'V', w, h, fill: BENEATH, clip: true });
   if (video) fitStage(win, video);
-  topRow(win, touch, video && status, idle);
+  topRow(win, touch, { over: video && status, controls: !!buttons, muted });
   // On its side the phone has no height to spare: the name goes beside the avatar, not under it.
   const flat = !desktop && !upright;
   const who = add(win, box('who', { dir: flat ? 'H' : 'V', gap: flat ? 4 : 3, pad: [0, 4], justify: 'CENTER' }), { fillW: true, fillH: true });
   if (!video) {
     avatarSlot(who, { Size: 'Large' });
     const lines = add(who, box('lines', { dir: 'V', gap: 1, align: flat ? 'MIN' : 'CENTER' }), { fillW: !flat });
-    for (const [chars, slot, ink, name] of [['Maya Chen', upright ? 'headlineSmall' : 'headlineMedium', 'onSurface', 'name'], [status, 'bodyLarge', State === 'Audio failed' ? 'error' : 'onSurfaceVariant', 'status']]) {
+    for (const [chars, slot, ink, name] of [['Maya Chen', upright ? 'headlineSmall' : 'headlineMedium', 'onSurface', 'name'], [status, 'bodyLarge', warning?.[0] === 'Error' ? 'error' : 'onSurfaceVariant', 'status']]) {
       const line = add(lines, text(chars, slot, ink, flat ? { name } : { name, truncate: true }), { fillW: !flat });
       if (!flat) line.textAlignHorizontal = 'CENTER';
     }
   }
-  if (idle) return win;
+  if (!buttons) return win;
   const foot = add(win, box('foot', { dir: 'V', gap: 3, pad: [0, 4, upright ? 8 : 5, 4] }), { fillW: true });
-  if (warning) add(foot, callNotice(warning, Math.min(w - px('space/4') * 2, DIALOG.Desktop)));
+  if (warning) add(foot, notice('notice', warning[0], warning[0] === 'Error' ? 'error' : 'warning', null, warning[1], { plain: true, max: Math.min(w - px('space/4') * 2, DIALOG.Desktop), r: 'largeIncreased' }));
   add(foot, callDock(buttons, upright ? 'Large' : 'Regular'));
   return win;
 }
