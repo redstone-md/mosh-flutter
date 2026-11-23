@@ -2,13 +2,11 @@
 // the picture and video card, and the file row of the conversation details
 // (ConversationSharedFile), which is the file card on a surface.
 card('Attachment', 'A file shows its name, its size and the one thing that can be done with it now: download it, stop the transfer or try again. A picture and a video show their preview first. The cards have no plate of their own; they sit in a bubble, in either of its colours, or in the list of shared files. A long name is cut at the end.');
-// On the phone a card is as wide as a bubble's text line, so neither widens the bubble past the other.
-const WIDTH = { Desktop: 320, Phone: lineWidth('Phone') };
 // Per state: the line under the name and the action.
 const FILE = { Ready: ['1.2 MB', null], 'To download': ['1.2 MB', 'download'], Transfer: ['58% of 1.2 MB', 'close'], Failed: ['Transfer failed', 'refresh'] };
 function file({ State, Tone, Device }) {
   const c = TONES[Tone], [detail, act] = FILE[State], failed = State === 'Failed';
-  const f = box('File card', { component: true, dir: 'H', gap: 3, w: WIDTH[Device], minHk: 12 });
+  const f = box('File card', { component: true, dir: 'H', gap: 3, w: attachmentWidth(Device), minHk: 12 });
   const thumb = add(f, box('thumb', { dir: 'H', wk: 10, hk: 10, r: 'medium', fill: failed ? c.failPlate : c.plate, justify: 'CENTER' }));
   add(thumb, icon(failed ? 'error' : 'file', failed && Tone === 'Surface' ? 'error' : c.glyph));
   const col = add(f, box('file', { dir: 'V', gap: 1, align: 'MIN' }), { fillW: true });
@@ -30,7 +28,7 @@ for (const s of STATES) prop(files, 'Detail, ' + s.toLowerCase(), 'TEXT', FILE[s
 const PREVIEW = { Desktop: 200, Phone: 148 };
 const MEDIA = { Ready: '2.7 MB', Loading: '58% of 2.7 MB', Failed: 'Could not load' };
 function media({ Kind, State, Tone, Device }) {
-  const c = TONES[Tone], w = WIDTH[Device], h = PREVIEW[Device], failed = State === 'Failed';
+  const c = TONES[Tone], w = attachmentWidth(Device), h = PREVIEW[Device], failed = State === 'Failed';
   const m = box('Media card', { component: true, dir: 'V', gap: 2, w, align: 'MIN' });
   // The preview stands for the picture itself, which a screen puts in its place.
   const view = add(m, box('preview', { dir: 'H', w, h, r: 'medium', fill: failed ? 'errorContainer' : 'tertiaryContainer', justify: 'CENTER', clip: true }), { fillW: true });

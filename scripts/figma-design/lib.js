@@ -325,6 +325,8 @@ function backdrop(set) {
 const ROW = { Desktop: 324, Phone: 358 }, FEED = { Desktop: 640, Phone: 390 }, MEASURE = { Desktop: 480, Phone: 232 };
 /** Width of the text line of a bubble: the measure and the inset of the text on both sides. An attachment on the phone is this wide, so a caption never outgrows it. */
 const lineWidth = (Device) => MEASURE[Device] + px('space/1') + px('space/2');
+/** Width of a file or media card. A caption under it wraps at this width, as the bubble is no wider than the card. */
+const attachmentWidth = (Device) => (Device === 'Desktop' ? 320 : lineWidth(Device));
 /** Side padding of the feed, as a space key. */
 const feedPad = (Device) => (Device === 'Phone' ? 3 : 5);
 /** Adds an Avatar that the instances of the component can swap and set: its layer is exposed. */

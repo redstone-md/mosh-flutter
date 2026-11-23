@@ -38,7 +38,7 @@ const FILES = [
   { kind: 'in', text: 'The route with all the stops', time: '08:15', attach: ['File card', { State: 'Transfer' }, { Name: 'coast-route.pdf', 'Detail, transfer': '58% of 1.2 MB' }] },
   { kind: 'in', time: '08:16', attach: ['File card', { State: 'To download' }, { Name: 'trail-map-with-every-waypoint-and-campsite-final-v3.zip', 'Detail, to download': '24 MB' }] },
   { kind: 'out', time: '08:20', ticks: 'Queued', attach: ['File card', { State: 'Failed' }, { Name: 'packing-list.docx' }] },
-  { kind: 'out', text: 'Sunrise from the ridge', time: '09:06', ticks: 'Read', attach: ['Media card', { Kind: 'Image', State: 'Ready' }, { 'Name, image': 'ridge-trail.jpg' }] },
+  { kind: 'out', text: 'Sunrise from the ridge, just before the fog rolled in over the bay', time: '09:06', ticks: 'Read', attach: ['Media card', { Kind: 'Image', State: 'Ready' }, { 'Name, image': 'ridge-trail.jpg' }] },
   { kind: 'in', time: '10:02', attach: ['Voice message', { State: 'Idle' }, {}] },
   { kind: 'out', time: '10:04', ticks: 'Read', attach: ['Voice message', { State: 'Playing' }, {}] },
 ];
@@ -61,8 +61,9 @@ function lastLineWidth(t) {
   return w;
 }
 /** Puts the time in the last line of a text of several lines when that line leaves room for it. */
-function seatTime(b) {
-  const t = b.findOne((n) => n.name === 'text'), room = b.findOne((n) => n.name === 'room for the time');
+function seatTime(b, caption) {
+  const line = b.findOne((n) => n.name === 'bubble').children.find((n) => n.name === (caption ? 'caption' : 'line'));
+  const t = line.findOne((n) => n.name === 'text'), room = line.findOne((n) => n.name === 'room for the time');
   // One line is a line height tall, which is under two font sizes; two lines are over.
   if (t.height < 2 * t.fontSize) return;
   if (lastLineWidth(t) + px('space/2') + room.width <= t.width) setProps(b, { 'Room for the time': false });
@@ -71,15 +72,17 @@ const initialsOf = (name) => name.split(' ').slice(0, 2).map((w) => w[0]).join('
 /** Gives the message instance [b] the content of [m]; first: it opens a run. */
 function dress(b, m, device, first) {
   if (m.time) setProps(b, { Time: m.time });
-  if (m.text) { setProps(b, { Text: m.text }); seatTime(b); }
+  if (m.text) setProps(b, { Text: m.text });
   if (m.ticks) b.findOne((n) => n.name === 'ticks').setProperties({ State: m.ticks });
   if (m.attach) {
     const [set, props, values] = m.attach;
-    setProps(b, { Attachment: true, 'Show text': !!m.text, 'Text line': !!m.text || set !== 'Voice message' });
+    // A text under an attachment is its caption; with no text the line stays for the time, except under a voice message, which carries the time itself.
+    setProps(b, { Attachment: true, Caption: !!m.text, 'Show text': !!m.text, 'Text line': !m.text && set !== 'Voice message' });
     const a = b.findOne((n) => n.name === 'attachment');
     a.swapComponent(variant(set, { ...props, Tone: m.kind === 'out' ? 'Outgoing' : 'Surface', Device: device }));
     setProps(a, values);
   }
+  if (m.text) seatTime(b, !!m.attach);
   if (!m.from) return;
   setProps(b, { Gutter: true, Avatar: first, Sender: first && !m.state });
   if (!first) return;
