@@ -7,10 +7,12 @@ card('Attachment', 'A file shows its name, its size and, on its plate, the one t
 const FILE = { Ready: ['1.2 MB', 'file'], 'To download': ['1.2 MB', 'download'], Transfer: ['58% of 1.2 MB', 'close'], Failed: ['Transfer failed', 'refresh'] };
 function file({ State, Tone, Device }) {
   const c = TONES[Tone], [detail, glyph] = FILE[State], failed = State === 'Failed';
-  const f = box('File card', { component: true, dir: 'H', gap: 3, w: attachmentWidth(Device), minHk: 12 });
+  // The card is as tall as its plate, so in a bubble the plate keeps the bubble's 8 px on three sides and its 12 px corners stay concentric with the bubble's 20 px ones.
+  const f = box('File card', { component: true, dir: 'H', gap: 3, w: attachmentWidth(Device) });
   const thumb = add(f, box('thumb', { dir: 'H', wk: 10, hk: 10, r: 'medium', fill: failed ? c.failPlate : c.plate, justify: 'CENTER' }));
   add(thumb, icon(glyph, failed && Tone === 'Surface' ? 'error' : c.glyph));
-  const col = add(f, box('file', { dir: 'V', gap: 1, align: 'MIN' }), { fillW: true });
+  // With the bar between them the two lines sit close, to stay within the plate's height.
+  const col = add(f, box('file', { dir: 'V', gap: State === 'Transfer' ? undefined : 1, align: 'MIN' }), { fillW: true });
   add(col, text('coast-route.pdf', 'labelLarge', c.ink, { name: 'name', truncate: true }), { fillW: true });
   // The bar runs above the detail, so the detail stays the last line, level with the time.
   if (State === 'Transfer') {
@@ -22,7 +24,8 @@ function file({ State, Tone, Device }) {
   return f;
 }
 const STATES = Object.keys(FILE);
-const files = backdrop(await grid('File card', perDevice(toneRows(ONE)), axis('State', STATES), file));
+// The card is pressed together with the 8 px the bubble or the list row keeps around it, 56 px in all, so no target is asked of the card alone.
+const files = backdrop(display(await grid('File card', perDevice(toneRows(ONE)), axis('State', STATES), file)));
 prop(files, 'Name', 'TEXT', 'coast-route.pdf', 'name');
 for (const s of STATES) prop(files, 'Detail, ' + s.toLowerCase(), 'TEXT', FILE[s][0], 'detail ' + s);
 
