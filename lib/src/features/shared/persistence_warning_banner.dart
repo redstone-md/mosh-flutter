@@ -29,6 +29,7 @@ class PersistenceWarningBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final (title, body) = _copy(AppLocalizations.of(context)!);
     final text = Theme.of(context).textTheme;
     return Semantics(
@@ -38,8 +39,8 @@ class PersistenceWarningBanner extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
-          color: MoshColors.warningContainer,
-          border: Border.all(color: MoshColors.warning),
+          color: colors.warningContainer,
+          border: Border.all(color: colors.warning),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -54,13 +55,13 @@ class PersistenceWarningBanner extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: text.titleSmall?.copyWith(color: MoshColors.warning),
+                    style: text.titleSmall?.copyWith(color: colors.warning),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     body,
-                    style: text.bodySmall
-                        ?.copyWith(color: MoshColors.onSurfaceMuted),
+                    style:
+                        text.bodySmall?.copyWith(color: colors.onSurfaceMuted),
                   ),
                 ],
               ),
@@ -78,16 +79,16 @@ class _IconPlate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     return Container(
       width: 26,
       height: 26,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: MoshColors.warningContainer,
+        color: colors.warningContainer,
         borderRadius: BorderRadius.circular(8),
       ),
-      child:
-          const Icon(Icons.warning_amber, size: 15, color: MoshColors.warning),
+      child: Icon(Icons.warning_amber, size: 15, color: colors.warning),
     );
   }
 }

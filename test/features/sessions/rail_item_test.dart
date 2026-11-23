@@ -23,7 +23,7 @@ Future<void> _pumpRail(
         home: MediaQuery(
           data: MediaQueryData(textScaler: textScaler),
           child: Scaffold(
-            backgroundColor: MoshColors.surfaceContainerLowest,
+            backgroundColor: MoshColors.dark.surfaceContainerLowest,
             body: SizedBox(
               width: kRailWidth - 2 * kRailPadding,
               child: SingleChildScrollView(child: Column(children: [child])),
@@ -92,7 +92,7 @@ void main() {
       matching: find.byWidgetPredicate(
         (w) => switch (w) {
           DecoratedBox(decoration: BoxDecoration(:final border)) =>
-            border == Border.all(color: MoshColors.focusRing, width: 2),
+            border == Border.all(color: MoshColors.dark.focusRing, width: 2),
           _ => false,
         },
       ),
@@ -111,7 +111,8 @@ void main() {
                   of: find.byType(RailItem), matching: find.byType(Material))
               .first)
           .color!;
-      final surface = Color.alphaBlend(fill, MoshColors.surfaceContainerLowest);
+      final surface =
+          Color.alphaBlend(fill, MoshColors.dark.surfaceContainerLowest);
       final ink = tester
           .renderObject<RenderParagraph>(find.text('Connected'))
           .text

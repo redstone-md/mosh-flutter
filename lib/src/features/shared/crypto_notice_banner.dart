@@ -39,6 +39,7 @@ class CryptoNoticeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     // The group and public variants differ only in the third
     // decimal of the tint alphas, so one set covers both.
     final bg = accent.withValues(alpha: 0.04);
@@ -82,20 +83,20 @@ class CryptoNoticeBanner extends StatelessWidget {
                     // Title: 12.5px/700, fg-1.
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
-                        color: MoshColors.onSurface,
+                        color: colors.onSurface,
                       ),
                     ),
                     // Body: fg-3, 11.5px/1.5, 3px top margin.
                     const SizedBox(height: 3),
                     Text(
                       body,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11.5,
                         height: 1.5,
-                        color: MoshColors.onSurfaceMuted,
+                        color: colors.onSurfaceMuted,
                       ),
                     ),
                   ],
@@ -108,7 +109,7 @@ class CryptoNoticeBanner extends StatelessWidget {
                 onPressed: dismissing ? null : onDismiss,
                 tooltip: AppLocalizations.of(context)!.dialogClose,
                 visualDensity: VisualDensity.compact,
-                color: MoshColors.onSurfaceMuted,
+                color: colors.onSurfaceMuted,
                 icon: const Icon(Icons.close, size: 18),
               ),
             ],

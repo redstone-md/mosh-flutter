@@ -26,6 +26,7 @@ class ConversationSharedFile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     final file = message.attachment!;
     final attachment =
@@ -43,10 +44,10 @@ class ConversationSharedFile extends StatelessWidget {
             height: kAttachmentThumbSize,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-                color: MoshColors.secondaryContainer,
+                color: colors.secondaryContainer,
                 borderRadius: MoshShapes.control),
-            child: const Icon(Icons.insert_drive_file_outlined,
-                color: MoshColors.primary, size: 23),
+            child: Icon(Icons.insert_drive_file_outlined,
+                color: colors.primary, size: 23),
           ),
           const SizedBox(width: 10),
           Expanded(

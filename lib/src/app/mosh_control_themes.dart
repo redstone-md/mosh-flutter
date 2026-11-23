@@ -1,88 +1,89 @@
 part of 'mosh_theme.dart';
 
-final _moshAppBarTheme = AppBarTheme(
-  backgroundColor: MoshColors.surface,
-  foregroundColor: MoshColors.onSurface,
-  elevation: 0,
-  scrolledUnderElevation: 0,
-  toolbarHeight: 70,
-  titleSpacing: 22,
-  shape: const Border(bottom: BorderSide(color: MoshColors.outlineVariant)),
-  titleTextStyle: _moshTextTheme.titleLarge,
-);
+AppBarTheme _appBarTheme(MoshColors c, TextTheme text) => AppBarTheme(
+      backgroundColor: c.surface,
+      foregroundColor: c.onSurface,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      toolbarHeight: 70,
+      titleSpacing: 22,
+      shape: Border(bottom: BorderSide(color: c.outlineVariant)),
+      titleTextStyle: text.titleLarge,
+    );
 
-const _moshDividerTheme = DividerThemeData(
-  color: MoshColors.outlineVariant,
-  thickness: 1,
-  space: 1,
-);
+DividerThemeData _dividerTheme(MoshColors c) => DividerThemeData(
+      color: c.outlineVariant,
+      thickness: 1,
+      space: 1,
+    );
 
-final _moshInputDecorationTheme = InputDecorationTheme(
-  filled: true,
-  fillColor: MoshColors.surface,
-  isDense: true,
-  contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-  hintStyle:
-      _moshTextTheme.bodyMedium!.copyWith(color: MoshColors.onSurfaceMuted),
-  labelStyle: _moshTextTheme.bodySmall,
-  border: _fieldBorder(MoshColors.outline),
-  enabledBorder: _fieldBorder(MoshColors.outline),
-  disabledBorder: _fieldBorder(MoshColors.outlineVariant),
-  focusedBorder: _fieldBorder(MoshColors.primary),
-  errorBorder: _fieldBorder(MoshColors.error),
-  focusedErrorBorder: _fieldBorder(MoshColors.error, width: 2),
-);
+InputDecorationTheme _inputDecorationTheme(MoshColors c, TextTheme text) =>
+    InputDecorationTheme(
+      filled: true,
+      fillColor: c.surface,
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      hintStyle: text.bodyMedium!.copyWith(color: c.onSurfaceMuted),
+      labelStyle: text.bodySmall,
+      border: _fieldBorder(c.outline),
+      enabledBorder: _fieldBorder(c.outline),
+      disabledBorder: _fieldBorder(c.outlineVariant),
+      focusedBorder: _fieldBorder(c.primary),
+      errorBorder: _fieldBorder(c.error),
+      focusedErrorBorder: _fieldBorder(c.error, width: 2),
+    );
 
-final _moshListTileTheme = ListTileThemeData(
-  dense: true,
-  horizontalTitleGap: 10,
-  minVerticalPadding: 6,
-  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-  shape: const RoundedRectangleBorder(
-    borderRadius: MoshShapes.conversationRow,
-  ),
-  selectedColor: MoshColors.onSecondaryContainer,
-  selectedTileColor: MoshColors.secondaryContainer,
-  titleTextStyle: _moshTextTheme.titleSmall,
-  subtitleTextStyle: _moshTextTheme.bodySmall,
-);
+ListTileThemeData _listTileTheme(MoshColors c, TextTheme text) =>
+    ListTileThemeData(
+      dense: true,
+      horizontalTitleGap: 10,
+      minVerticalPadding: 6,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      shape: const RoundedRectangleBorder(
+        borderRadius: MoshShapes.conversationRow,
+      ),
+      selectedColor: c.onSecondaryContainer,
+      selectedTileColor: c.secondaryContainer,
+      titleTextStyle: text.titleSmall,
+      subtitleTextStyle: text.bodySmall,
+    );
 
-final _moshDialogTheme = DialogThemeData(
-  backgroundColor: MoshColors.surfaceContainerHigh,
-  surfaceTintColor: Colors.transparent,
-  shape: RoundedRectangleBorder(
-    // Off the radius scale until the dialog component is redrawn (MOSH-125).
-    borderRadius: BorderRadius.circular(14),
-  ),
-);
+DialogThemeData _dialogTheme(MoshColors c) => DialogThemeData(
+      backgroundColor: c.surfaceContainerHigh,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        // Off the radius scale until the dialog component is redrawn (MOSH-125).
+        borderRadius: BorderRadius.circular(14),
+      ),
+    );
 
-const _moshPopupMenuTheme = PopupMenuThemeData(
-  color: MoshColors.surfaceContainerHigh,
-  surfaceTintColor: Colors.transparent,
-  shadowColor: Color(0xFF000000),
-  elevation: 8,
-  shape: RoundedRectangleBorder(
-    borderRadius: MoshShapes.menu,
-    side: BorderSide(color: MoshColors.outlineVariant),
-  ),
-);
+PopupMenuThemeData _popupMenuTheme(MoshColors c) => PopupMenuThemeData(
+      color: c.surfaceContainerHigh,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: const Color(0xFF000000),
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: MoshShapes.menu,
+        side: BorderSide(color: c.outlineVariant),
+      ),
+    );
 
-final _moshSwitchTheme = SwitchThemeData(
-  thumbColor: WidgetStateProperty.resolveWith(
-      (states) => states.contains(WidgetState.disabled)
-          ? null
-          : states.contains(WidgetState.selected)
-              ? MoshColors.onPrimary
-              : MoshColors.onSurfaceVariant),
-);
+SwitchThemeData _switchTheme(MoshColors c) => SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.disabled)
+              ? null
+              : states.contains(WidgetState.selected)
+                  ? c.onPrimary
+                  : c.onSurfaceVariant),
+    );
 
-final _moshFilledButtonTheme = FilledButtonThemeData(
-  style: FilledButton.styleFrom(
-    backgroundColor: MoshColors.primary,
-    foregroundColor: MoshColors.onPrimary,
-    shape: MoshShapes.controlShape,
-  ),
-);
+FilledButtonThemeData _filledButtonTheme(MoshColors c) => FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: c.primary,
+        foregroundColor: c.onPrimary,
+        shape: MoshShapes.controlShape,
+      ),
+    );
 
 const _moshOutlinedButtonTheme = OutlinedButtonThemeData(
   style: ButtonStyle(shape: WidgetStatePropertyAll(MoshShapes.controlShape)),
@@ -96,12 +97,10 @@ const _moshIconButtonTheme = IconButtonThemeData(
   style: ButtonStyle(shape: WidgetStatePropertyAll(MoshShapes.controlShape)),
 );
 
-const _moshChipTheme = ChipThemeData(
-  shape: MoshShapes.controlShape,
-  side: BorderSide(color: MoshColors.outlineVariant),
-);
-
-const _moshIconTheme = IconThemeData(color: MoshColors.onSurfaceVariant);
+ChipThemeData _chipTheme(MoshColors c) => ChipThemeData(
+      shape: MoshShapes.controlShape,
+      side: BorderSide(color: c.outlineVariant),
+    );
 
 /// The `.field input` border recipe: solid, on the control radius. A focused
 /// field in error keeps the error colour and doubles the edge instead.

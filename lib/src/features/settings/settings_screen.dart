@@ -82,7 +82,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Focus(
             autofocus: true,
             child: Scaffold(
-              backgroundColor: MoshColors.surfaceContainerLowest,
+              backgroundColor: MoshColors.of(context).surfaceContainerLowest,
               appBar: wide ? null : _appBar(),
               body: SafeArea(
                 child: wide ? _wide(section) : _narrow(section),

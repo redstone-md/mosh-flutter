@@ -19,8 +19,9 @@ class FocusRing extends StatelessWidget {
       position: DecorationPosition.foreground,
       decoration: BoxDecoration(
         borderRadius: radius,
-        border:
-            focused ? Border.all(color: MoshColors.focusRing, width: 2) : null,
+        border: focused
+            ? Border.all(color: MoshColors.of(context).focusRing, width: 2)
+            : null,
       ),
       child: child,
     );

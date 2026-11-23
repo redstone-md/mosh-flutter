@@ -57,10 +57,10 @@ class SettingsSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: MoshColors.surface,
-        shape: const RoundedRectangleBorder(
+        color: MoshColors.of(context).surface,
+        shape: RoundedRectangleBorder(
             borderRadius: MoshShapes.composer,
-            side: BorderSide(color: MoshColors.outlineVariant)),
+            side: BorderSide(color: MoshColors.of(context).outlineVariant)),
         clipBehavior: Clip.antiAlias,
         child: Padding(padding: padding, child: child),
       );

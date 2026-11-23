@@ -52,7 +52,7 @@ Future<void> savePreviewPng(WidgetTester tester, Finder boundary, String path,
     final layer = await render.toImage(pixelRatio: pixelRatio);
     final recorder = ui.PictureRecorder();
     Canvas(recorder)
-      ..drawColor(MoshColors.surface, BlendMode.src)
+      ..drawColor(MoshColors.dark.surface, BlendMode.src)
       ..drawImage(layer, Offset.zero, Paint());
     final picture = recorder.endRecording();
     final image = await picture.toImage(layer.width, layer.height);

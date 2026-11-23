@@ -37,7 +37,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
     final border = ringOf(tester).border! as Border;
-    expect(border.top.color, MoshColors.focusRing);
+    expect(border.top.color, MoshColors.dark.focusRing);
     expect(border.top.width, 2);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);

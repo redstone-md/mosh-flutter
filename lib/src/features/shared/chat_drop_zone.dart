@@ -19,9 +19,6 @@ import 'package:mosh/src/features/shared/attachment_picker.dart'
 /// 50 MB attach ceiling -- the paperclip picker's default `maxBytes`.
 const int kAttachmentMaxBytes = 50 * 1024 * 1024;
 
-/// `--moss` accent, from the shared theme tokens.
-const Color _kMoss = MoshColors.primary;
-
 /// Wraps [child] (the message list) so a desktop file drop ingests through
 /// the same `onAttach`/`onError` pair the paperclip uses.
 ///
@@ -146,7 +143,8 @@ class _DropOverlay extends StatelessWidget {
         // 8px inset so the dashes sit just inside the message list.
         padding: const EdgeInsets.all(8),
         child: CustomPaint(
-          painter: _DashedBorderPainter(color: _kMoss, strokeWidth: 2),
+          painter: _DashedBorderPainter(
+              color: MoshColors.of(context).primary, strokeWidth: 2),
           child: Center(
             child: Semantics(
               label: hint,

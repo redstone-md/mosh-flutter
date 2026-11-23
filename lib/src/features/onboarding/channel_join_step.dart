@@ -142,22 +142,23 @@ class _OpenWarning extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: MoshColors.warningContainer,
+        color: colors.warningContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: MoshColors.warning),
+        border: Border.all(color: colors.warning),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Icon(Icons.lock_open, size: 20, color: MoshColors.warning),
+        Icon(Icons.lock_open, size: 20, color: colors.warning),
         const SizedBox(width: 12),
         Expanded(
           child: Text(text,
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
-                  ?.copyWith(color: MoshColors.onSurface, height: 1.5)),
+                  ?.copyWith(color: colors.onSurface, height: 1.5)),
         ),
       ]),
     );
@@ -175,18 +176,19 @@ class _Examples extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final style = Theme.of(context)
         .textTheme
         .labelMedium
-        ?.copyWith(color: MoshColors.onSurfaceMuted);
+        ?.copyWith(color: colors.onSurfaceMuted);
     return Column(children: [
       Row(children: [
-        const Expanded(child: Divider(color: MoshColors.outlineVariant)),
+        Expanded(child: Divider(color: colors.outlineVariant)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(label, style: style),
         ),
-        const Expanded(child: Divider(color: MoshColors.outlineVariant)),
+        Expanded(child: Divider(color: colors.outlineVariant)),
       ]),
       const SizedBox(height: 12),
       Wrap(
@@ -196,8 +198,7 @@ class _Examples extends StatelessWidget {
         children: [
           for (final name in names)
             ActionChip(
-              avatar: const Icon(Icons.tag,
-                  size: 16, color: MoshColors.onSurfaceMuted),
+              avatar: Icon(Icons.tag, size: 16, color: colors.onSurfaceMuted),
               label: Text(name),
               onPressed: () => onPick(name),
             ),

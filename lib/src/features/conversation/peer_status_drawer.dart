@@ -133,6 +133,7 @@ class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
   }
 
   Widget _panel(BuildContext context) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     return ConstrainedBox(
       // At most 392px wide, or viewport minus 24px.
@@ -148,10 +149,9 @@ class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
         scopesRoute: true,
         child: widget.panel ??
             Material(
-              color: MoshColors.surfaceContainerLowest,
+              color: colors.surfaceContainerLowest,
               elevation: 0,
-              shape: const Border(
-                  left: BorderSide(color: MoshColors.outlineVariant)),
+              shape: Border(left: BorderSide(color: colors.outlineVariant)),
               child: SizedBox.expand(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -202,10 +202,11 @@ class _DrawerHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: MoshColors.outlineVariant)),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: colors.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -222,10 +223,10 @@ class _DrawerHeader extends StatelessWidget {
               excludeSemantics: true,
               child: Text(
                 title.toUpperCase(),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   letterSpacing: 0.08 * 12,
-                  color: MoshColors.onSurfaceVariant,
+                  color: colors.onSurfaceVariant,
                 ),
               ),
             ),

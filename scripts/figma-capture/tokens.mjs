@@ -1,7 +1,7 @@
 // Writes the theme's colours and type scale to the Figma file as the "Mosh"
-// variable collection and the Mosh/* text styles. Idempotent: existing
-// variables and styles are updated in place, and a file that already holds the
-// theme's values does not change.
+// and "Mosh Light" variable collections and the Mosh/* text styles.
+// Idempotent: existing variables and styles are updated in place, and a file
+// that already holds the theme's values does not change.
 import fs from 'node:fs';
 import path from 'node:path';
 import { REPO } from './areas.mjs';
@@ -25,21 +25,30 @@ const group = (name) => {
 };
 
 let parsed;
-/** What the theme defines, read once per run: { colors: {path: rgba}, aliases: {path: path}, family, styles }. */
+/** What the theme defines, read once per run: { colors: {path: rgba} of "Mosh", light: the same of "Mosh Light", aliases: {path: path}, family, styles }. */
 export function themeTokens() {
   return (parsed ??= parseTheme());
 }
 
-function parseTheme() {
-  const src = read('mosh_colors.dart');
-  const colors = {}, aliases = {};
-  const full = (name) => `${group(name)}/${name}`;
-  for (const m of src.matchAll(/static const Color (\w+) =\s*Color\(0x([0-9A-Fa-f]{8})\)/g)) {
+const full = (name) => `${group(name)}/${name}`;
+
+/** One palette of mosh_palette.dart, the `_<name>Colors` constant, as {path: rgba}. */
+function palette(src, name) {
+  const block = src.match(new RegExp(String.raw`_${name}Colors = MoshColors\(([\s\S]*?)\n\);`))?.[1];
+  if (!block) throw new Error(`mosh_palette.dart: no _${name}Colors`);
+  const colors = {};
+  for (const m of block.matchAll(/(\w+): Color\(0x([0-9A-Fa-f]{8})\)/g)) {
     const [a, r, g, b] = [0, 2, 4, 6].map((i) => parseInt(m[2].slice(i, i + 2), 16) / 255);
     colors[full(m[1])] = { r, g, b, a };
   }
-  // A token defined as another token (info = tertiary) is an alias variable.
-  for (const m of src.matchAll(/static const Color (\w+) =\s*(\w+);/g)) {
+  return colors;
+}
+
+function parseTheme() {
+  const palettes = read('mosh_palette.dart');
+  const colors = palette(palettes, 'dark'), light = palette(palettes, 'light'), aliases = {};
+  // A token defined as another token (info => tertiary) is an alias variable.
+  for (const m of read('mosh_colors.dart').matchAll(/Color get (\w+) => (\w+);/g)) {
     if (!colors[full(m[2])]) throw new Error(`mosh_colors.dart: ${m[1]} must name a literal token, not ${m[2]}`);
     aliases[full(m[1])] = full(m[2]);
   }
@@ -54,8 +63,8 @@ function parseTheme() {
     ...slots(new RegExp(String.raw`(\w+): ` + ARGS, 'g'), (slot) => slot),
     ...slots(new RegExp(String.raw`static final TextStyle (\w+) =\s*` + ARGS, 'g'), (slot) => slot + 'Emphasized'),
   ];
-  if (!Object.keys(colors).length || !styles.length) throw new Error('no tokens parsed from the theme');
-  return { colors, aliases, family, styles };
+  if (!Object.keys(colors).length || !Object.keys(light).length || !styles.length) throw new Error('no tokens parsed from the theme');
+  return { colors, light, aliases, family, styles };
 }
 
 /** Figma's style name of each weight the theme bundles. */
@@ -66,14 +75,16 @@ export const WEIGHT_STYLES = { 400: 'Regular', 500: 'Medium', 600: 'SemiBold', 7
 const sync = `
 const changes = [];
 const close = (a, b) => Math.abs(a - b) < 0.5 / 255;
-let col = (await figma.variables.getLocalVariableCollectionsAsync()).find((c) => c.name === 'Mosh');
-if (!col) { changes.push('collection Mosh'); if (DRY) return changes; col = figma.variables.createVariableCollection('Mosh'); }
+for (const [collection, colors] of [['Mosh', T.colors], ['Mosh Light', T.light]]) {
+const tag = collection === 'Mosh' ? '' : collection + ': ';
+let col = (await figma.variables.getLocalVariableCollectionsAsync()).find((c) => c.name === collection);
+if (!col) { changes.push('collection ' + collection); if (DRY) continue; col = figma.variables.createVariableCollection(collection); }
 const mode = col.modes[0].modeId;
 const vars = (await figma.variables.getLocalVariablesAsync('COLOR')).filter((v) => v.variableCollectionId === col.id);
 const ensure = (name) => {
   let v = vars.find((x) => x.name === name);
   if (!v) {
-    changes.push('new ' + name);
+    changes.push(tag + 'new ' + name);
     if (DRY) return null;
     v = figma.variables.createVariable(name, col, 'COLOR');
     v.description = 'MoshColors.' + name.split('/')[1];
@@ -81,20 +92,21 @@ const ensure = (name) => {
   }
   return v;
 };
-for (const [name, c] of Object.entries(T.colors)) {
+for (const [name, c] of Object.entries(colors)) {
   const v = ensure(name), now = v && v.valuesByMode[mode];
   if (now && 'r' in now && ['r', 'g', 'b', 'a'].every((k) => close(now[k], c[k]))) continue;
-  if (v) changes.push('value ' + name);
+  if (v) changes.push(tag + 'value ' + name);
   if (!DRY) v.setValueForMode(mode, c);
 }
 for (const [name, target] of Object.entries(T.aliases)) {
   const v = ensure(name), base = vars.find((x) => x.name === target), now = v && v.valuesByMode[mode];
   if (now && base && now.type === 'VARIABLE_ALIAS' && now.id === base.id) continue;
-  if (v) changes.push('alias ' + name + ' -> ' + target);
+  if (v) changes.push(tag + 'alias ' + name + ' -> ' + target);
   if (!DRY) v.setValueForMode(mode, { type: 'VARIABLE_ALIAS', id: base.id });
 }
-const known = new Set([...Object.keys(T.colors), ...Object.keys(T.aliases)]);
-for (const v of vars) if (!known.has(v.name)) changes.push('not in the theme: ' + v.name);
+const known = new Set([...Object.keys(colors), ...Object.keys(T.aliases)]);
+for (const v of vars) if (!known.has(v.name)) changes.push(tag + 'not in the theme: ' + v.name);
+}
 const styles = await figma.getLocalTextStylesAsync();
 for (const [slot, size, line, weight, spacing] of T.styles) {
   const want = { family: T.family, style: W[weight] };

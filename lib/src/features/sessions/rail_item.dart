@@ -43,7 +43,6 @@ extension RailItemKindStyle on RailItemKind {
         RailItemKind.channel => ConversationKind.channel,
         RailItemKind.group => ConversationKind.group,
       };
-  Color get accent => conversationKind.accent;
 }
 
 /// One rail row. [leading] is the avatar (DMs, offers) or the 18px glyph
@@ -83,6 +82,7 @@ class RailItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     if (RailCompactScope.of(context)) return CompactRailItem(item: this);
     // The radius stays 12 in every state; the active ring is an inset
     // border and must not move the outer geometry (audit 2026-09-21:
@@ -91,7 +91,7 @@ class RailItem extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: kRailListGap),
       child: Material(
-        color: active ? kind.conversationKind.tint : Colors.transparent,
+        color: active ? kind.conversationKind.tint(colors) : Colors.transparent,
         borderRadius: radius,
         // Clips the tap target's ink to the row's corners when [action]
         // shares the row.
@@ -103,7 +103,10 @@ class RailItem extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: radius,
             border: active
-                ? Border.all(color: kind.accent.withValues(alpha: 0.4))
+                ? Border.all(
+                    color: kind.conversationKind
+                        .accent(colors)
+                        .withValues(alpha: 0.4))
                 : null,
           ),
           child: Row(
@@ -151,7 +154,10 @@ class RailItem extends StatelessWidget {
                       children: <Widget>[
                         ExcludeSemantics(
                           child: IconTheme.merge(
-                            data: IconThemeData(color: kind.accent, size: 18),
+                            data: IconThemeData(
+                                color: kind.conversationKind
+                                    .accent(MoshColors.of(context)),
+                                size: 18),
                             child: leading,
                           ),
                         ),
@@ -216,8 +222,9 @@ class _RailText extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   timestamp!,
-                  style: const TextStyle(
-                      fontSize: 11, color: MoshColors.onSurfaceMuted),
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: MoshColors.of(context).onSurfaceMuted),
                 ),
               ],
             ],
@@ -245,7 +252,7 @@ class RailDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: kRailListGap),
-      child: Container(height: 1, color: MoshColors.outlineVariant),
+      child: Container(height: 1, color: MoshColors.of(context).outlineVariant),
     );
   }
 }
@@ -261,6 +268,7 @@ class RailSettingsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     const radius = MoshShapes.control;
     // The fill lives on the Material so the InkWell's hover, press and
     // focus ink paint above it instead of under an opaque Container.
@@ -268,7 +276,7 @@ class RailSettingsButton extends StatelessWidget {
       button: true,
       child: PressScale(
         child: Material(
-          color: MoshColors.surfaceContainerHigh,
+          color: colors.surfaceContainerHigh,
           borderRadius: radius,
           // Settings covers the rail; a fresh InkWell drops the press ink
           // that froze under it.
@@ -277,7 +285,7 @@ class RailSettingsButton extends StatelessWidget {
                     focusNode: focusNode,
                     borderRadius: radius,
                     onTap: onTap,
-                    hoverColor: MoshColors.surfaceContainerHighest,
+                    hoverColor: colors.surfaceContainerHighest,
                     child: FocusRing(
                       radius: radius,
                       child: Container(
@@ -289,10 +297,10 @@ class RailSettingsButton extends StatelessWidget {
                         ),
                         child: Row(
                           children: <Widget>[
-                            const Icon(
+                            Icon(
                               Icons.settings_outlined,
                               size: 18,
-                              color: MoshColors.onSurfaceVariant,
+                              color: colors.onSurfaceVariant,
                             ),
                             const SizedBox(width: 10),
                             Flexible(
@@ -300,10 +308,10 @@ class RailSettingsButton extends StatelessWidget {
                                 label,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w600,
-                                  color: MoshColors.onSurfaceVariant,
+                                  color: colors.onSurfaceVariant,
                                 ),
                               ),
                             ),
@@ -328,6 +336,7 @@ class RailNewButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     const radius = MoshShapes.control;
     return Semantics(
       button: true,
@@ -338,25 +347,25 @@ class RailNewButton extends StatelessWidget {
                   borderRadius: radius,
                   onTap: onTap,
                   // `.rail-new:hover { background: var(--moss-glow) }`.
-                  hoverColor: MoshColors.secondaryContainer,
+                  hoverColor: colors.secondaryContainer,
                   child: FocusRing(
                     radius: radius,
                     child: Container(
                       constraints: const BoxConstraints(minHeight: 48),
                       padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         borderRadius: radius,
                       ),
                       child: Row(
                         children: <Widget>[
-                          const SizedBox(
+                          SizedBox(
                             width: kRailLeadingWidth,
                             child: Center(
                               child: CircleAvatar(
                                   radius: 16,
-                                  backgroundColor: MoshColors.primary,
+                                  backgroundColor: colors.primary,
                                   child: Icon(Icons.add,
-                                      size: 20, color: MoshColors.onPrimary)),
+                                      size: 20, color: colors.onPrimary)),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -365,10 +374,10 @@ class RailNewButton extends StatelessWidget {
                               label,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: MoshColors.onSurface,
+                                color: colors.onSurface,
                               ),
                             ),
                           ),

@@ -31,7 +31,7 @@ class MessageSelectionActions extends StatelessWidget {
             onPressed: enabled ? scope.onDeleteSelected : null,
             icon: const Icon(Icons.delete_outline),
             label: Text(l.messageSelectionDelete),
-            style: moshDangerButtonStyle().copyWith(
+            style: moshDangerButtonStyle(context).copyWith(
                 minimumSize: const WidgetStatePropertyAll(Size(48, 48))),
           ),
         ]);

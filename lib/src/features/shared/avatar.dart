@@ -21,6 +21,7 @@ class Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     // ThemeData fills every text slot, so labelMedium is never null.
     final step = Theme.of(context).textTheme.labelMedium!;
     return Stack(clipBehavior: Clip.none, children: [
@@ -35,12 +36,12 @@ class Avatar extends StatelessWidget {
           ),
         ),
         child: CircleAvatar(
-          backgroundColor: MoshColors.avatar1,
+          backgroundColor: colors.avatar1,
           radius: radius,
           child: Text(
             avatarInitials(name),
             style: step.copyWith(
-              color: MoshColors.onSurface,
+              color: colors.onSurface,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.04 * step.fontSize!,
             ),

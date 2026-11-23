@@ -59,8 +59,8 @@ class _MediaPreviewCard extends StatelessWidget {
                         height: attachmentPreviewHeight(mediaSize,
                             width: constraints.maxWidth),
                         clipBehavior: Clip.antiAlias,
-                        decoration: const BoxDecoration(
-                          color: MoshColors.outlineVariant,
+                        decoration: BoxDecoration(
+                          color: MoshColors.of(context).outlineVariant,
                           borderRadius: MoshShapes.attachment,
                         ),
                         child: Stack(
@@ -80,7 +80,8 @@ class _MediaPreviewCard extends StatelessWidget {
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: MoshColors.surfaceContainerLowest
+                                    color: MoshColors.of(context)
+                                        .surfaceContainerLowest
                                         .withValues(alpha: 0.62),
                                   ),
                                   child: const Center(
@@ -104,6 +105,7 @@ class _MediaPreviewCard extends StatelessWidget {
                 10, 8, MoshShapes.attachmentFooterInset, 0),
             child: _buildBar(
               l: l,
+              colors: MoshColors.of(context),
               fileName: descriptor.fileName,
               totalSize: descriptor.totalSize,
               attachment: attachment,
@@ -132,11 +134,11 @@ Widget _previewImage(
     image: _boundedPreview(AttachmentMiniatureImage(bytes, source: source)),
     fit: BoxFit.cover,
     gaplessPlayback: true,
-    errorBuilder: (context, _, __) => const SizedBox.expand(
+    errorBuilder: (context, _, __) => SizedBox.expand(
       child: ColoredBox(
-        color: MoshColors.outlineVariant,
+        color: MoshColors.of(context).outlineVariant,
         child: Icon(Icons.broken_image_outlined,
-            size: 32, color: MoshColors.onSurfaceMuted),
+            size: 32, color: MoshColors.of(context).onSurfaceMuted),
       ),
     ),
   );

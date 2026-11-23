@@ -39,7 +39,8 @@ class SetupProgress extends StatelessWidget {
             if (compactLabels) ...[
               const SizedBox(height: 8),
               Text(labels[step.index],
-                  style: const TextStyle(color: MoshColors.onSurfaceVariant)),
+                  style: TextStyle(
+                      color: MoshColors.of(context).onSurfaceVariant)),
             ],
           ]);
         }));
@@ -57,13 +58,14 @@ class SetupProgress extends StatelessWidget {
   /// Half-lines on both sides of each marker join into one continuous track.
   Widget _item(BuildContext context, String label, int index, double diameter,
       {required bool last, required bool showLabel}) {
+    final colors = MoshColors.of(context);
     final active = index == step.index;
     final done = index < step.index;
     Widget track(bool visible, bool reached) => Expanded(
         child: visible
             ? Divider(
                 height: 1,
-                color: reached ? MoshColors.primary : MoshColors.outlineVariant)
+                color: reached ? colors.primary : colors.outlineVariant)
             : const SizedBox.shrink());
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Row(children: [
@@ -76,9 +78,7 @@ class SetupProgress extends StatelessWidget {
         Text(label,
             textAlign: TextAlign.center,
             style: TextStyle(
-                color: active
-                    ? MoshColors.onSurface
-                    : MoshColors.onSurfaceVariant)),
+                color: active ? colors.onSurface : colors.onSurfaceVariant)),
       ],
     ]);
   }
@@ -95,16 +95,16 @@ class SetupProgress extends StatelessWidget {
               decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: active
-                      ? MoshColors.secondaryContainer
-                      : MoshColors.surface,
+                      ? MoshColors.of(context).secondaryContainer
+                      : MoshColors.of(context).surface,
                   border: Border.all(
                       color: active || done
-                          ? MoshColors.primary
-                          : MoshColors.outline),
+                          ? MoshColors.of(context).primary
+                          : MoshColors.of(context).outline),
                   boxShadow: active
-                      ? const [
+                      ? [
                           BoxShadow(
-                              color: MoshColors.secondaryContainer,
+                              color: MoshColors.of(context).secondaryContainer,
                               blurRadius: 24)
                         ]
                       : null),
@@ -113,8 +113,8 @@ class SetupProgress extends StatelessWidget {
                   switchInCurve: setupStepCurve,
                   switchOutCurve: setupStepCurve.flipped,
                   child: done
-                      ? const Icon(Icons.check,
-                          size: 18, color: MoshColors.primary)
+                      ? Icon(Icons.check,
+                          size: 18, color: MoshColors.of(context).primary)
                       : Text('${index + 1}',
                           style: Theme.of(context).textTheme.titleMedium))));
 }
@@ -197,8 +197,8 @@ class SetupFrame extends StatelessWidget {
                 ? l.firstRunWelcomeBody
                 : l.firstRunNetworkIntro,
             textAlign: TextAlign.center,
-            style:
-                text.bodyLarge?.copyWith(color: MoshColors.onSurfaceVariant)),
+            style: text.bodyLarge
+                ?.copyWith(color: MoshColors.of(context).onSurfaceVariant)),
         if (step == SetupStep.name) ...[
           const SizedBox(height: 24),
           const SetupPrivacyNote(),

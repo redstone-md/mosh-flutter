@@ -17,12 +17,6 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show DmHistorySyncState;
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-/// The tint on the channel notice: the same info blue the web app used.
-const Color _channelNoticeAccent = MoshColors.info;
-
-/// The tint on the group notice: the brand primary.
-const Color _groupNoticeAccent = MoshColors.primary;
-
 class ConversationBanners extends StatelessWidget {
   const ConversationBanners({
     super.key,
@@ -38,6 +32,7 @@ class ConversationBanners extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     // A local, so the type check below promotes it.
     final loaded = snapshot;
@@ -48,10 +43,11 @@ class ConversationBanners extends StatelessWidget {
                   ? loaded.source.deviceRevocation
                   : null),
           if (loaded is DmConversation && !loaded.revoked)
-            _historyBanner(l, _dmHistoryState(loaded.source.historySync)),
+            _historyBanner(
+                colors, l, _dmHistoryState(loaded.source.historySync)),
         ]),
-      ConversationKind.channel => _channelNotices(
-          l, loaded is ChannelConversation ? loaded.source.historySync : null),
+      ConversationKind.channel => _channelNotices(colors, l,
+          loaded is ChannelConversation ? loaded.source.historySync : null),
       ConversationKind.group => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -60,7 +56,7 @@ class ConversationBanners extends StatelessWidget {
               icon: Icons.lock,
               title: l.groupNoticeTitle,
               body: l.groupNoticeBody,
-              accent: _groupNoticeAccent,
+              accent: colors.primary,
             ),
             if (loaded is GroupConversation && loaded.source.needsRejoin)
               GroupRejoinNeededError(
@@ -81,7 +77,9 @@ HistorySyncState? _dmHistoryState(DmHistorySyncState? state) => switch (state) {
       null => null,
     };
 
-Widget _channelNotices(AppLocalizations l, HistorySync? status) => Column(
+Widget _channelNotices(
+        MoshColors colors, AppLocalizations l, HistorySync? status) =>
+    Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         DismissibleConversationNotice(
@@ -89,13 +87,14 @@ Widget _channelNotices(AppLocalizations l, HistorySync? status) => Column(
           icon: Icons.tag,
           title: l.channelNoticeTitle,
           body: l.channelNoticeBody,
-          accent: _channelNoticeAccent,
+          accent: colors.info,
         ),
-        _historyBanner(l, status?.state),
+        _historyBanner(colors, l, status?.state),
       ],
     );
 
-Widget _historyBanner(AppLocalizations l, HistorySyncState? state) {
+Widget _historyBanner(
+    MoshColors colors, AppLocalizations l, HistorySyncState? state) {
   final copy = switch (state) {
     HistorySyncState.waitingForSource => (
         l.dmHistoryWaitingTitle,
@@ -112,7 +111,7 @@ Widget _historyBanner(AppLocalizations l, HistorySyncState? state) {
     icon: Icons.history,
     title: copy.$1,
     body: copy.$2,
-    accent: MoshColors.info,
+    accent: colors.info,
   );
 }
 

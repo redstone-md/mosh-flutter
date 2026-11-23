@@ -100,7 +100,7 @@ Preserve restored joining and committed delivery states.
 
 ## Layout and assets
 
-Use the theme's palette (`MoshColors`, the Foundations tokens of the Figma
+Use the theme's palette (`MoshColors.of(context)`, the Foundations tokens of the Figma
 file "Mosh") and its type scale. Typography uses the app's bundled Onest
 (`assets/fonts/`, OFL); a bundled family keeps labels centered in buttons and
 step markers, where the former Segoe UI fallback sat 1–2px low.

@@ -40,6 +40,7 @@ class CallModalCard extends StatelessWidget {
   }
 
   Widget _compact(BuildContext context) {
+    final colors = MoshColors.of(context);
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainer,
       child: Semantics(
@@ -54,19 +55,20 @@ class CallModalCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                          _identity(),
+                          _identity(colors),
                           const SizedBox(height: 8),
                           Wrap(spacing: 12, runSpacing: 8, children: actions)
                         ])
-                  : Row(
-                      spacing: 12,
-                      children: [Expanded(child: _identity()), ...actions])),
+                  : Row(spacing: 12, children: [
+                      Expanded(child: _identity(colors)),
+                      ...actions
+                    ])),
         ),
       ),
     );
   }
 
-  Widget _identity() => InkWell(
+  Widget _identity(MoshColors colors) => InkWell(
       onTap: onOpenConversation,
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,7 +79,7 @@ class CallModalCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontFeatures: statusFontFeatures)),
-            if (notice != null) _notice(),
+            if (notice != null) _notice(colors),
           ]));
 
   Widget _standalone(BuildContext context) {
@@ -111,7 +113,7 @@ class CallModalCard extends StatelessWidget {
                   if (notice != null)
                     Padding(
                         padding: const EdgeInsets.only(top: 8),
-                        child: _notice()),
+                        child: _notice(MoshColors.of(context))),
                   const SizedBox(height: 12),
                   Wrap(
                       spacing: 12,
@@ -127,8 +129,8 @@ class CallModalCard extends StatelessWidget {
     );
   }
 
-  Widget _notice() => Text(notice!,
-      style: const TextStyle(color: MoshColors.warning), softWrap: true);
+  Widget _notice(MoshColors colors) =>
+      Text(notice!, style: TextStyle(color: colors.warning), softWrap: true);
 
   Widget _header(BuildContext context) => onMinimize == null
       ? _peer(context)

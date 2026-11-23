@@ -33,7 +33,7 @@ Widget _row({VoidCallback? onTap}) => SizedBox(
       child: StartRow(
         action: StartAction(
           icon: Icons.link,
-          accent: MoshColors.onSurfaceVariant,
+          accent: MoshColors.dark.onSurfaceVariant,
           title: 'Join with a link',
           description: 'Join with an invite a contact sent you.',
           onTap: onTap ?? () {},
@@ -63,15 +63,15 @@ void main() {
   testWidgets('hovering lifts the row and edges the chevron; leaving drops it',
       (tester) async {
     await _pump(tester, _row());
-    expect(_surface(tester), MoshColors.surface);
+    expect(_surface(tester), MoshColors.dark.surface);
 
     final mouse = await _hover(tester);
-    expect(_surface(tester), MoshColors.surfaceContainerHigh);
+    expect(_surface(tester), MoshColors.dark.surfaceContainerHigh);
     expect(_chevronShift(tester).dx, greaterThan(0));
 
     await mouse.moveTo(Offset.zero);
     await tester.pumpAndSettle();
-    expect(_surface(tester), MoshColors.surface);
+    expect(_surface(tester), MoshColors.dark.surface);
     expect(_chevronShift(tester), Offset.zero);
   });
 
@@ -79,7 +79,7 @@ void main() {
       (tester) async {
     await _pump(tester, _row(), reduceMotion: true);
     await _hover(tester);
-    expect(_surface(tester), MoshColors.surfaceContainerHigh);
+    expect(_surface(tester), MoshColors.dark.surfaceContainerHigh);
     expect(_chevronShift(tester), Offset.zero);
   });
 
@@ -101,7 +101,7 @@ void main() {
     await _pump(tester, _row(onTap: () => taps++));
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
-    expect(_surface(tester), MoshColors.surfaceContainerHigh);
+    expect(_surface(tester), MoshColors.dark.surfaceContainerHigh);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
     expect(taps, 1);

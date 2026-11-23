@@ -175,7 +175,7 @@ void main() {
       final box = tester.widget<DecoratedBox>(
           find.descendant(of: ring, matching: find.byType(DecoratedBox)).first);
       final border = (box.decoration as BoxDecoration).border as Border?;
-      return border?.top.color == MoshColors.focusRing;
+      return border?.top.color == MoshColors.dark.focusRing;
     }
 
     expect(ringShown(), isFalse);

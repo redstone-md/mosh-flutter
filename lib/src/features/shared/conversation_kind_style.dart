@@ -6,13 +6,13 @@ import 'package:mosh/src/gateway/conversation_target.dart';
 
 /// Type cues shared by the rail, its filters, and conversation headers.
 extension ConversationKindStyle on ConversationKind {
-  Color get accent => switch (this) {
-        ConversationKind.dm => MoshColors.primary,
-        ConversationKind.group => MoshColors.secondary,
-        ConversationKind.channel => MoshColors.tertiary,
+  Color accent(MoshColors colors) => switch (this) {
+        ConversationKind.dm => colors.primary,
+        ConversationKind.group => colors.secondary,
+        ConversationKind.channel => colors.tertiary,
       };
 
-  Color get tint => accent.withValues(alpha: 0.14);
+  Color tint(MoshColors colors) => accent(colors).withValues(alpha: 0.14);
 
   IconData get icon => switch (this) {
         ConversationKind.dm => Icons.chat_bubble_outline,
@@ -62,10 +62,11 @@ class ConversationKindAvatar extends StatelessWidget {
                             width: radius <= 20 ? 10 : 12,
                             height: radius <= 20 ? 10 : 12,
                             decoration: BoxDecoration(
-                              color: MoshColors.success,
+                              color: MoshColors.of(context).success,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                  color: MoshColors.surfaceContainerLowest,
+                                  color: MoshColors.of(context)
+                                      .surfaceContainerLowest,
                                   width: 2),
                             ),
                           )),
@@ -74,8 +75,8 @@ class ConversationKindAvatar extends StatelessWidget {
               )
             : CircleAvatar(
                 radius: radius,
-                backgroundColor: kind.tint,
-                foregroundColor: kind.accent,
+                backgroundColor: kind.tint(MoshColors.of(context)),
+                foregroundColor: kind.accent(MoshColors.of(context)),
                 child: Icon(kind.icon, size: radius),
               ),
       );

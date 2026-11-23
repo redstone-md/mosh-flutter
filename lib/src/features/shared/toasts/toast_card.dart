@@ -33,6 +33,7 @@ class ToastCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     // One node per toast, so its text and its close button stay apart
     // from whatever the stack covers.
     Widget body = _MeasuredHeight(
@@ -54,9 +55,9 @@ class ToastCard extends StatelessWidget {
     }
     Widget card = DecoratedBox(
       decoration: BoxDecoration(
-        color: MoshColors.surfaceContainerHighest,
+        color: colors.surfaceContainerHighest,
         borderRadius: MoshShapes.menu,
-        border: Border.all(color: MoshColors.outlineVariant),
+        border: Border.all(color: colors.outlineVariant),
         boxShadow: const [
           BoxShadow(
               color: Color(0x66000000), blurRadius: 24, offset: Offset(0, 8)),
@@ -85,11 +86,12 @@ class ToastCard extends StatelessWidget {
   }
 
   Widget _body(BuildContext context) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     final (icon, color) = switch (entry.kind) {
-      ToastKind.info => (Icons.info_outline, MoshColors.onSurfaceVariant),
-      ToastKind.success => (Icons.check_circle_outline, MoshColors.success),
-      ToastKind.error => (Icons.error_outline, MoshColors.error),
+      ToastKind.info => (Icons.info_outline, colors.onSurfaceVariant),
+      ToastKind.success => (Icons.check_circle_outline, colors.success),
+      ToastKind.error => (Icons.error_outline, colors.error),
     };
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(14, 6, 6, 6),
@@ -106,7 +108,7 @@ class ToastCard extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
-                  ?.copyWith(color: MoshColors.onSurface),
+                  ?.copyWith(color: colors.onSurface),
             ),
           ),
         ),
@@ -119,12 +121,12 @@ class ToastCard extends StatelessWidget {
           child: InkWell(
             onTap: onDismiss,
             borderRadius: MoshShapes.control,
-            child: const FocusRing(
+            child: FocusRing(
               radius: MoshShapes.control,
               child: SizedBox.square(
                 dimension: 32,
-                child: Icon(Icons.close,
-                    size: 16, color: MoshColors.onSurfaceMuted),
+                child:
+                    Icon(Icons.close, size: 16, color: colors.onSurfaceMuted),
               ),
             ),
           ),

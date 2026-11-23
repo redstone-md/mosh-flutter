@@ -16,6 +16,7 @@ class InlineError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final text = message;
     if (text == null) return const SizedBox.shrink();
     return Semantics(
@@ -26,16 +27,16 @@ class InlineError extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: MoshColors.errorContainer,
+          color: colors.errorContainer,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: MoshColors.error),
+          border: Border.all(color: colors.error),
         ),
         child: Text(
           text,
           style: Theme.of(context)
               .textTheme
               .bodySmall
-              ?.copyWith(color: MoshColors.error),
+              ?.copyWith(color: colors.error),
         ),
       ),
     );

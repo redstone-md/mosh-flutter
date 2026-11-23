@@ -74,16 +74,17 @@ class SessionsListControls extends StatelessWidget {
         focusNode: focusNode,
         controller: controller,
         onChanged: onSearch,
-        style: const TextStyle(fontSize: 13, color: MoshColors.onSurface),
+        style: TextStyle(fontSize: 13, color: MoshColors.of(context).onSurface),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle:
-              const TextStyle(fontSize: 13, color: MoshColors.onSurfaceMuted),
+          hintStyle: TextStyle(
+              fontSize: 13, color: MoshColors.of(context).onSurfaceMuted),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          enabledBorder: const OutlineInputBorder(
+          enabledBorder: OutlineInputBorder(
               borderRadius: MoshShapes.control,
-              borderSide: BorderSide(color: MoshColors.outlineVariant)),
+              borderSide:
+                  BorderSide(color: MoshColors.of(context).outlineVariant)),
           prefixIconConstraints: const BoxConstraints(
               minWidth: kRailLeadingWidth + 8, minHeight: 40),
           prefixIcon: const Padding(
@@ -100,8 +101,9 @@ class SessionsListControls extends StatelessWidget {
                         Theme.of(context).platform == TargetPlatform.macOS
                             ? '⌘K'
                             : 'Ctrl+K',
-                        style: const TextStyle(
-                            fontSize: 11, color: MoshColors.onSurfaceMuted),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: MoshColors.of(context).onSurfaceMuted),
                       )),
                 ),
         ),
@@ -109,6 +111,7 @@ class SessionsListControls extends StatelessWidget {
 
   Widget _filterChip(
       BuildContext context, MapEntry<ConversationKind?, String> entry) {
+    final colors = MoshColors.of(context);
     final selected = entry.key == kind;
     final mobile = isMobileBreakpoint(context);
     return Padding(
@@ -122,8 +125,7 @@ class SessionsListControls extends StatelessWidget {
         labelStyle: Theme.of(context).textTheme.labelMedium!.copyWith(
               fontSize: 12,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-              color:
-                  selected ? MoshColors.onSurface : MoshColors.onSurfaceVariant,
+              color: selected ? colors.onSurface : colors.onSurfaceVariant,
             ),
         avatarBoxConstraints:
             const BoxConstraints.tightFor(width: 16, height: 16),
@@ -131,16 +133,16 @@ class SessionsListControls extends StatelessWidget {
             ? null
             : Icon(entry.key!.icon,
                 size: 16,
-                color: Color.lerp(MoshColors.onSurfaceVariant,
-                    entry.key!.accent, selected ? 1 : 0.55)),
+                color: Color.lerp(colors.onSurfaceVariant,
+                    entry.key!.accent(colors), selected ? 1 : 0.55)),
         label: Text(entry.value),
-        backgroundColor: MoshColors.surfaceContainerLowest,
-        selectedColor: entry.key?.tint ?? MoshColors.surfaceBright,
+        backgroundColor: colors.surfaceContainerLowest,
+        selectedColor: entry.key?.tint(colors) ?? colors.surfaceBright,
         side: WidgetStateBorderSide.resolveWith((states) => BorderSide(
               width: 2,
               strokeAlign: BorderSide.strokeAlignOutside,
               color: states.contains(WidgetState.focused)
-                  ? MoshColors.focusRing
+                  ? colors.focusRing
                   : Colors.transparent,
             )),
         elevation: 0,

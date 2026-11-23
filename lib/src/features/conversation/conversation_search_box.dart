@@ -79,6 +79,7 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     return Semantics(
       label: widget.l.chatSearchPlaceholder,
       textField: true,
@@ -87,13 +88,13 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: _focused
-              ? MoshColors.surfaceContainerLowest
-              : MoshColors.surfaceContainerHigh,
+              ? colors.surfaceContainerLowest
+              : colors.surfaceContainerHigh,
           borderRadius: MoshShapes.control,
           border: Border.all(
             color: _focused
-                ? MoshColors.primary.withValues(alpha: 0.45)
-                : MoshColors.outlineVariant,
+                ? colors.primary.withValues(alpha: 0.45)
+                : colors.outlineVariant,
           ),
         ),
         child: Row(
@@ -101,8 +102,7 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
             Icon(
               Icons.search,
               size: 16,
-              color:
-                  _focused ? MoshColors.onSurface : MoshColors.onSurfaceMuted,
+              color: _focused ? colors.onSurface : colors.onSurfaceMuted,
             ),
             const SizedBox(width: 8), // glyph-to-input gap
             Expanded(
@@ -112,8 +112,7 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
                 autofocus: widget.autofocus,
                 onChanged: widget.onSearch,
                 textInputAction: TextInputAction.search,
-                style: const TextStyle(
-                    fontSize: 12.5, color: MoshColors.onSurface),
+                style: TextStyle(fontSize: 12.5, color: colors.onSurface),
                 decoration: InputDecoration(
                   isDense: true,
                   filled: false,
@@ -122,8 +121,8 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                   hintText: widget.l.chatSearchPlaceholder,
-                  hintStyle: const TextStyle(
-                      fontSize: 12.5, color: MoshColors.onSurfaceMuted),
+                  hintStyle:
+                      TextStyle(fontSize: 12.5, color: colors.onSurfaceMuted),
                 ),
               ),
             ),
@@ -153,15 +152,16 @@ class ConversationFilterToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     return Semantics(
       label: l.chatFilterAttachments,
       child: Container(
         height: kConversationToolHeight,
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: MoshColors.surfaceContainerHigh,
+          color: colors.surfaceContainerHigh,
           borderRadius: MoshShapes.control,
-          border: Border.all(color: MoshColors.outlineVariant),
+          border: Border.all(color: colors.outlineVariant),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -199,12 +199,13 @@ class _FilterSegment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     // Concentric radius: outer track 8 - 3 padding = 5.
     final radius =
         MoshShapes.control - const BorderRadius.all(Radius.circular(3));
-    final color = active ? MoshColors.onSurface : MoshColors.onSurfaceMuted;
+    final color = active ? colors.onSurface : colors.onSurfaceMuted;
     return Material(
-      color: active ? MoshColors.surfaceBright : Colors.transparent,
+      color: active ? colors.surfaceBright : Colors.transparent,
       borderRadius: radius,
       child: InkWell(
         borderRadius: radius,

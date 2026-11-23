@@ -45,9 +45,9 @@ Future<void> _pump(
                 child: MediaQuery(
                   data: MediaQueryData(
                       size: size, textScaler: TextScaler.linear(textScale)),
-                  child: const Scaffold(
-                    backgroundColor: MoshColors.surfaceContainerLowest,
-                    body: SettingsContent(
+                  child: Scaffold(
+                    backgroundColor: MoshColors.dark.surfaceContainerLowest,
+                    body: const SettingsContent(
                         section: SettingsSection.privacy, wide: false),
                   ),
                 ),

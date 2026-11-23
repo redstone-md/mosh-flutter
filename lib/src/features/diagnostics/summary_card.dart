@@ -15,7 +15,7 @@ class SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final toneColor = _toneColor(summary.tone);
+    final toneColor = _toneColor(summary.tone, MoshColors.of(context));
     return Container(
       padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
@@ -180,14 +180,15 @@ class _FactCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final theme = Theme.of(context);
     return ConstrainedBox(
       constraints: const BoxConstraints(minWidth: 92),
       child: Container(
         padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
-          color: MoshColors.surfaceContainerHigh,
-          border: Border.all(color: MoshColors.outlineVariant),
+          color: colors.surfaceContainerHigh,
+          border: Border.all(color: colors.outlineVariant),
           borderRadius: BorderRadius.circular(7),
         ),
         child: Column(
@@ -231,7 +232,7 @@ class RuntimeError extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    const danger = MoshColors.error;
+    final danger = MoshColors.of(context).error;
     // Live region: screen readers announce the error when it appears in
     // the drawer.
     return Semantics(
@@ -248,7 +249,7 @@ class RuntimeError extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.warning_amber, size: 18, color: danger),
+            Icon(Icons.warning_amber, size: 18, color: danger),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -284,15 +285,15 @@ class RuntimeError extends StatelessWidget {
 }
 
 /// Maps a `DiagnosticSummaryTone` to its color token.
-Color _toneColor(DiagnosticSummaryTone tone) {
+Color _toneColor(DiagnosticSummaryTone tone, MoshColors colors) {
   switch (tone) {
     case DiagnosticSummaryTone.ready:
-      return MoshColors.primary;
+      return colors.primary;
     case DiagnosticSummaryTone.waiting:
-      return MoshColors.warning;
+      return colors.warning;
     case DiagnosticSummaryTone.error:
-      return MoshColors.error;
+      return colors.error;
     case DiagnosticSummaryTone.idle:
-      return MoshColors.onSurfaceMuted;
+      return colors.onSurfaceMuted;
   }
 }

@@ -49,9 +49,9 @@ class SettingsIcon extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: 44,
         height: 44,
-        decoration: const BoxDecoration(
-            color: MoshColors.secondaryContainer,
+        decoration: BoxDecoration(
+            color: MoshColors.of(context).secondaryContainer,
             borderRadius: MoshShapes.conversationRow),
-        child: Icon(icon, color: MoshColors.primary, size: 24),
+        child: Icon(icon, color: MoshColors.of(context).primary, size: 24),
       );
 }

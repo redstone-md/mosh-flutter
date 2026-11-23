@@ -241,7 +241,7 @@ class _DeletionPrompt extends StatelessWidget {
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, DeleteScope.forMe),
-          style: moshDangerButtonStyle(),
+          style: moshDangerButtonStyle(context),
           child: Text(l.messageDeleteForMe),
         ),
       ],

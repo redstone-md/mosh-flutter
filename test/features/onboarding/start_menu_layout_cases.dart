@@ -99,7 +99,8 @@ void main() {
     expect(ringOf(l.onboardTileChatTitle), isNull);
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
-    expect(ringOf(l.onboardTileChatTitle)?.top.color, MoshColors.focusRing);
+    expect(
+        ringOf(l.onboardTileChatTitle)?.top.color, MoshColors.dark.focusRing);
   });
 
   testWidgets('a reveal plays in, and reduced motion shows it at rest',

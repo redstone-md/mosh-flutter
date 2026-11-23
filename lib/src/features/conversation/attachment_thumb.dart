@@ -56,8 +56,9 @@ class AttachmentThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
-    final surface = MoshColors.onSurface.withValues(alpha: 0.08);
+    final surface = colors.onSurface.withValues(alpha: 0.08);
     final icon = descriptor.mime.startsWith('image/')
         ? Icons.image_outlined
         : Icons.play_arrow;
@@ -78,7 +79,7 @@ class AttachmentThumb extends StatelessWidget {
             child: InkWell(
               borderRadius: MoshShapes.attachment,
               onTap: onOpenPressed,
-              hoverColor: MoshColors.onSurface.withValues(alpha: 0.14),
+              hoverColor: colors.onSurface.withValues(alpha: 0.14),
               child: SizedBox(
                 width: kAttachmentThumbSize,
                 height: kAttachmentThumbSize,
@@ -86,7 +87,7 @@ class AttachmentThumb extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: 20,
-                    color: MoshColors.primary,
+                    color: colors.primary,
                   ),
                 ),
               ),
@@ -111,7 +112,7 @@ class AttachmentThumb extends StatelessWidget {
                 ? icon
                 : Icons.insert_drive_file_outlined,
         size: 20,
-        color: failed ? MoshColors.error : MoshColors.onSurfaceVariant,
+        color: failed ? colors.error : colors.onSurfaceVariant,
       ),
     );
   }

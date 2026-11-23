@@ -18,18 +18,19 @@ class DeviceFingerprintChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
-        color: MoshColors.surfaceContainerHigh,
+        color: colors.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         shorten(fingerprint, 6),
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'monospace',
           fontSize: 10,
-          color: MoshColors.onSurfaceMuted,
+          color: colors.onSurfaceMuted,
         ),
       ),
     );
@@ -99,7 +100,8 @@ class ConversationSenderMeta extends StatelessWidget {
             const SizedBox(width: kMessageMetaGap),
             Tooltip(
               message: full,
-              child: Text(clock, style: kMessageTimeStyle),
+              child:
+                  Text(clock, style: messageTimeStyle(MoshColors.of(context))),
             ),
           ],
         ],
@@ -113,7 +115,7 @@ class ConversationSenderMeta extends StatelessWidget {
   Widget _peerName(BuildContext context, ThemeData theme) {
     final text = Text(
       fromDevice,
-      style: kMessageMetaNameStyle,
+      style: messageMetaNameStyle(MoshColors.of(context)),
       overflow: TextOverflow.ellipsis,
     );
     final actions = peer;

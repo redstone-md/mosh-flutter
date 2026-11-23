@@ -37,34 +37,35 @@ class StartMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     final list = StartReveal(
       delay: StartMotion.lineStagger * 2,
       child: StartActionList(actions: [
         StartAction(
           icon: Icons.chat_bubble_outline,
-          accent: MoshColors.primary,
+          accent: colors.primary,
           title: l.onboardTileChatTitle,
           description: l.onboardTileChatDesc,
           onTap: onPickChat,
         ),
         StartAction(
           icon: Icons.group_outlined,
-          accent: MoshColors.secondary,
+          accent: colors.secondary,
           title: l.onboardTileGroupTitle,
           description: l.onboardTileGroupDesc,
           onTap: onPickGroup,
         ),
         StartAction(
           icon: Icons.link,
-          accent: MoshColors.onSurfaceVariant,
+          accent: colors.onSurfaceVariant,
           title: l.onboardTileJoinTitle,
           description: l.onboardTileJoinDesc,
           onTap: onPickJoin,
         ),
         StartAction(
           icon: Icons.tag,
-          accent: MoshColors.tertiary,
+          accent: colors.tertiary,
           title: l.onboardTileChannelTitle,
           description: l.onboardTileChannelDesc,
           onTap: onPickChannel,

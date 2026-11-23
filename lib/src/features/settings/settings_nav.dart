@@ -75,10 +75,11 @@ class _SectionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     return Semantics(
       selected: selected,
       child: Material(
-        color: selected ? MoshColors.secondaryContainer : Colors.transparent,
+        color: selected ? colors.secondaryContainer : Colors.transparent,
         borderRadius: MoshShapes.conversationRow,
         child: InkWell(
           onTap: onTap,
@@ -90,9 +91,7 @@ class _SectionRow extends StatelessWidget {
               child: Row(children: [
                 Icon(section.icon,
                     size: 22,
-                    color: selected
-                        ? MoshColors.primary
-                        : MoshColors.onSurfaceVariant),
+                    color: selected ? colors.primary : colors.onSurfaceVariant),
                 const SizedBox(width: SettingsCardHeader.iconTextGap),
                 Expanded(
                   child: Text(section.label(AppLocalizations.of(context)!),

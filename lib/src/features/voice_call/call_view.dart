@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'call_controls.dart';
 import 'package:mosh/src/features/voice_call/call_modal_card.dart';
@@ -88,7 +89,7 @@ class _CallViewState extends State<CallView> {
       statusFontFeatures: active ? const [FontFeature.tabularFigures()] : null,
       onOpenConversation: () =>
           widget.onAction(CallViewAction.openConversation),
-      actions: callControls(call, l, widget.onAction,
+      actions: callControls(call, l, MoshColors.of(context), widget.onAction,
           expand: widget.onExpand,
           camera: !(widget.compact && widget.onMinimize != null),
           devices: widget.compact || widget.onDeviceSelected == null

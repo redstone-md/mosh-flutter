@@ -63,6 +63,7 @@ class CompactRailItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context);
     final kind = item.kind.conversationKind;
     final expands = item.action != null;
@@ -86,14 +87,15 @@ class CompactRailItem extends ConsumerWidget {
           hint: expands ? l?.chatListExpand : null,
           onTap: onTap,
           child: Material(
-            color: item.active ? kind.tint : Colors.transparent,
+            color: item.active ? kind.tint(colors) : Colors.transparent,
             borderRadius: radius,
             child: ResumedInk(
               builder: (focusNode) => InkWell(
                 focusNode: focusNode,
                 borderRadius: radius,
                 onTap: onTap,
-                child: FocusRing(radius: radius, child: _tile(kind, radius)),
+                child: FocusRing(
+                    radius: radius, child: _tile(colors, kind, radius)),
               ),
             ),
           ),
@@ -103,13 +105,14 @@ class CompactRailItem extends ConsumerWidget {
   }
 
   /// The avatar, the active ring and the unread badge on the corner.
-  Widget _tile(ConversationKind kind, BorderRadius radius) => Container(
+  Widget _tile(MoshColors colors, ConversationKind kind, BorderRadius radius) =>
+      Container(
         width: _kCompactItem,
         height: _kCompactItem,
         decoration: BoxDecoration(
           borderRadius: radius,
           border: item.active
-              ? Border.all(color: kind.accent.withValues(alpha: 0.4))
+              ? Border.all(color: kind.accent(colors).withValues(alpha: 0.4))
               : null,
         ),
         child: Stack(
@@ -118,7 +121,7 @@ class CompactRailItem extends ConsumerWidget {
           children: [
             ExcludeSemantics(
               child: IconTheme.merge(
-                data: IconThemeData(color: kind.accent, size: 18),
+                data: IconThemeData(color: kind.accent(colors), size: 18),
                 child: item.leading,
               ),
             ),
@@ -148,6 +151,7 @@ class CompactRailButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     const radius = MoshShapes.control;
     return Tooltip(
       message: label,
@@ -156,7 +160,7 @@ class CompactRailButton extends StatelessWidget {
         button: true,
         label: label,
         child: Material(
-          color: filled ? Colors.transparent : MoshColors.surfaceContainerHigh,
+          color: filled ? Colors.transparent : colors.surfaceContainerHigh,
           borderRadius: radius,
           child: ResumedInk(
             builder: (focusNode) => InkWell(
@@ -164,8 +168,8 @@ class CompactRailButton extends StatelessWidget {
               borderRadius: radius,
               onTap: onTap,
               hoverColor: filled
-                  ? MoshColors.secondaryContainer
-                  : MoshColors.surfaceContainerHighest,
+                  ? colors.secondaryContainer
+                  : colors.surfaceContainerHighest,
               child: FocusRing(
                 radius: radius,
                 child: SizedBox.square(
@@ -182,11 +186,19 @@ class CompactRailButton extends StatelessWidget {
 }
 
 /// The creation disc, as the expanded New button draws it.
-const Widget kCompactNewIcon = CircleAvatar(
-  radius: 16,
-  backgroundColor: MoshColors.primary,
-  child: Icon(Icons.add, size: 20, color: MoshColors.onPrimary),
-);
+class CompactNewIcon extends StatelessWidget {
+  const CompactNewIcon({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
+    return CircleAvatar(
+      radius: 16,
+      backgroundColor: colors.primary,
+      child: Icon(Icons.add, size: 20, color: colors.onPrimary),
+    );
+  }
+}
 
 /// An organization in the collapsed list: its avatar, which expands the
 /// list to the full section.

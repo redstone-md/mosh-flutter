@@ -51,8 +51,8 @@ class VoiceRecordingDot extends StatelessWidget {
     return Container(
       width: 8,
       height: 8,
-      decoration: const BoxDecoration(
-        color: MoshColors.error,
+      decoration: BoxDecoration(
+        color: MoshColors.of(context).error,
         shape: BoxShape.circle,
       ),
     );

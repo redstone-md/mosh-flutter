@@ -53,8 +53,9 @@ class TypingHint extends StatelessWidget {
                 alignment: AlignmentDirectional.centerStart,
                 child: Text(
                   text,
-                  style: const TextStyle(
-                      fontSize: 11, color: MoshColors.onSurfaceMuted),
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: MoshColors.of(context).onSurfaceMuted),
                 ),
               ),
             ),

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_message_footer.dart';
 import 'package:mosh/src/features/conversation/conversation_text_metrics.dart';
@@ -20,8 +21,9 @@ class ConversationMessageText extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
-          final style =
-              DefaultTextStyle.of(context).style.merge(kMessageBodyStyle);
+          final style = DefaultTextStyle.of(context)
+              .style
+              .merge(messageBodyStyle(MoshColors.of(context)));
           final footerSize = footer.measure(context);
           final layout =
               _measure(context, style, constraints.maxWidth, footerSize);

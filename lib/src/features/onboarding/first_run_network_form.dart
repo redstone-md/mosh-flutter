@@ -111,6 +111,7 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     ref.watch(networkChoiceProvider(ref.watch(bridgeFacadeProvider)));
     final l = AppLocalizations.of(context)!;
     final relauncher = DesktopAppRelauncherScope.of(context);
@@ -120,7 +121,7 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
         if (widget.network.vpnDetected) ...[
           Text(
             l.firstRunVpnDetected,
-            style: const TextStyle(color: MoshColors.warning),
+            style: TextStyle(color: colors.warning),
           ),
           const SizedBox(height: 16),
         ],
@@ -130,7 +131,7 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
           _picked == null ? l.firstRunAutomaticHint : l.firstRunBypassHint,
           style: Theme.of(
             context,
-          ).textTheme.bodyLarge?.copyWith(color: MoshColors.onSurfaceVariant),
+          ).textTheme.bodyLarge?.copyWith(color: colors.onSurfaceVariant),
         ),
         if (_needsRestart) ...[
           const SizedBox(height: 12),

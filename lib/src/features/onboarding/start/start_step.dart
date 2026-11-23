@@ -26,6 +26,7 @@ class StartStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     final text = Theme.of(context).textTheme;
     return Center(
@@ -41,7 +42,7 @@ class StartStep extends StatelessWidget {
                 icon: const Icon(Icons.arrow_back, size: 18),
                 label: Text(l.onboardBack),
                 style: TextButton.styleFrom(
-                    foregroundColor: MoshColors.onSurfaceVariant),
+                    foregroundColor: colors.onSurfaceVariant),
               ),
             ),
             const SizedBox(height: 4),
@@ -59,14 +60,14 @@ class StartStep extends StatelessWidget {
             const SizedBox(height: 10),
             Text(subtitle,
                 textAlign: TextAlign.center,
-                style: text.bodyMedium?.copyWith(
-                    color: MoshColors.onSurfaceVariant, height: 1.55)),
+                style: text.bodyMedium
+                    ?.copyWith(color: colors.onSurfaceVariant, height: 1.55)),
             const SizedBox(height: 24),
             DecoratedBox(
               decoration: BoxDecoration(
-                color: MoshColors.surface,
+                color: colors.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: MoshColors.outlineVariant),
+                border: Border.all(color: colors.outlineVariant),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(24),

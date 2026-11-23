@@ -28,6 +28,6 @@ class DmRevocationBanner extends StatelessWidget {
         icon: Icons.link_off,
         title: copy.$1,
         body: copy.$2,
-        accent: MoshColors.info);
+        accent: MoshColors.of(context).info);
   }
 }
