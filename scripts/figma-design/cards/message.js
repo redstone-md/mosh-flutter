@@ -52,7 +52,7 @@ function message(side, { Position, Device, State }) {
   // copy of it follows the text and keeps the text clear of it: beside a short text, on a row of its own
   // when the text fills the measure. Where the last of several lines leaves room, the copy is switched off
   // and the time sits in that line.
-  const line = add(bubble, box('line', { dir: 'H', gap: 2, pad: INSET, align: 'MAX' }), { max: MEASURE[Device] + px('space/' + INSET[1]) + px('space/' + INSET[3]) });
+  const line = add(bubble, box('line', { dir: 'H', gap: 2, pad: INSET, align: 'MAX' }), { max: lineWidth(Device) });
   line.layoutWrap = 'WRAP';
   add(add(line, box('body', { dir: 'H' })), text('Should we leave at 6 to beat the traffic?', 'bodyLarge', ink, { name: 'text' }), { max: MEASURE[Device] });
   const room = add(line, box('room for the time', { dir: 'H', gap: 1 }));

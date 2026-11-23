@@ -2,8 +2,8 @@
 // the picture and video card, and the file row of the conversation details
 // (ConversationSharedFile), which is the file card on a surface.
 card('Attachment', 'A file shows its name, its size and the one thing that can be done with it now: download it, stop the transfer or try again. A picture and a video show their preview first. The cards have no plate of their own; they sit in a bubble, in either of its colours, or in the list of shared files. A long name is cut at the end.');
-// A card is as wide as a bubble's text on the phone, so it never widens the bubble past the feed.
-const WIDTH = { Desktop: 320, Phone: MEASURE.Phone };
+// On the phone a card is as wide as a bubble's text line, so neither widens the bubble past the other.
+const WIDTH = { Desktop: 320, Phone: lineWidth('Phone') };
 // Per state: the line under the name and the action.
 const FILE = { Ready: ['1.2 MB', null], 'To download': ['1.2 MB', 'download'], Transfer: ['58% of 1.2 MB', 'close'], Failed: ['Transfer failed', 'refresh'] };
 function file({ State, Tone, Device }) {

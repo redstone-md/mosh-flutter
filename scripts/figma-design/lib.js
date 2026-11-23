@@ -323,6 +323,8 @@ function backdrop(set) {
 }
 // Widths a component is drawn at: a row of the chat list, the feed of a conversation, and the text of a bubble.
 const ROW = { Desktop: 324, Phone: 358 }, FEED = { Desktop: 640, Phone: 390 }, MEASURE = { Desktop: 480, Phone: 232 };
+/** Width of the text line of a bubble: the measure and the inset of the text on both sides. An attachment on the phone is this wide, so a caption never outgrows it. */
+const lineWidth = (Device) => MEASURE[Device] + px('space/1') + px('space/2');
 /** Side padding of the feed, as a space key. */
 const feedPad = (Device) => (Device === 'Phone' ? 3 : 5);
 /** Adds an Avatar that the instances of the component can swap and set: its layer is exposed. */
