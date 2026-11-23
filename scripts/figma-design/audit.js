@@ -31,7 +31,15 @@ for (const n of scope.flatMap((c) => [c, ...c.findAll(() => true)])) {
 }
 // A screen is put together, not drawn: outside the instances of components it holds only the frames that lay them out.
 // A layer inside an instance has an id that starts with I.
-if (AUDIT_SECTION === 'Screens') for (const c of scope) for (const n of c.findAll((x) => x.type !== 'FRAME' && x.type !== 'INSTANCE' && !x.id.startsWith('I'))) bad(n, n.type.toLowerCase() + ' outside a component');
+// Such a frame may give its panel the tone of its level and nothing else: an edge, a corner or a shadow is a thing drawn.
+if (AUDIT_SECTION === 'Screens') for (const c of scope) {
+  const own = c.findAll((x) => x.type !== 'INSTANCE' && !x.id.startsWith('I'));
+  if (own.length === c.findAll(() => true).length) bad(c, 'a screen without a component');
+  for (const n of own) {
+    if (n.type !== 'FRAME') bad(n, n.type.toLowerCase() + ' outside a component');
+    else if (n.strokes.length || n.effects.length || n.topLeftRadius) bad(n, 'a frame drawn outside a component');
+  }
+}
 // A set with a Device property is pressed as a whole and its phone variants need the target,
 // unless a card marked it with display(): a message is read, not pressed.
 const TARGET = 48;

@@ -7,6 +7,7 @@
 //   node screens.mjs --audit       only the check
 //
 // A screen that is built again keeps its frame and node id; only what is in it is new.
+// So a script that throws leaves its screens empty or half filled: run it again once it is mended.
 import { read, run } from './run.mjs';
 
 // In the order their columns stand in the section.

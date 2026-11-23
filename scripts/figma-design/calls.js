@@ -1,5 +1,5 @@
 // Plugin-side helpers of the call cards (call-controls, call, call-mini):
-// build.mjs prepends this file after surfaces.js. What a call's buttons look
+// run.mjs prepends this file after surfaces.js. What a call's buttons look
 // like and what the name of a call is set in are decided here, so the open
 // call and the minimized one cannot drift apart.
 

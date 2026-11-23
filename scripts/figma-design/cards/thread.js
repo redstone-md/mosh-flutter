@@ -1,7 +1,8 @@
 // Threads assembled from the message and feed components, to judge the
 // density of the feed and the rhythm of its runs on real conversations: the
 // captured "Conversation / DM / Thread" and "Conversation / Group / Thread",
-// then a feed of attachments and one of text that is hard to wrap.
+// then a feed of attachments and one of text that is hard to wrap. thread() and the
+// two captured conversations are in compose.js, which the screens share.
 card('Thread', 'The components in use. Bubbles of one run sit 4 px apart and a new run starts 12 px lower. The last example holds what a feed has to survive: a long link, a token without spaces and a long name.');
 const HARD = [
   { kind: 'in', from: 'Bartholomew Featherstonehaugh-Cholmondeley of the Outer Hebrides', print: 'a01f9c…e77b', plate: '1', text: 'The map is at https://maps.example.org/routes/coast/2026/november/lighthouse-loop?start=harbour&stops=cabin,viewpoint,cafe&share=7f3a9c1e', time: '10:02' },

@@ -1,7 +1,8 @@
 // What stands around the rows of the chat list: SessionsListControls (search
 // and filters), RailNewButton, RailSettingsButton, CompactRailButton,
 // RailDivider and the list's empty states. The lists at the end are assembled
-// from these and the chat rows, to judge the list as a whole.
+// from these and the chat rows, to judge the list as a whole; list() and chat()
+// are in compose.js, which the screens share.
 card('Chat list', 'Above the rows: one button to start a conversation, the search and the filters. Below them: settings. The new-chat button is the primary Button, the filters are filter chips, and the collapsed list uses icon buttons, so only the search field, the settings row and the notice of an empty list are new here.');
 const SEARCH = { Empty: ['Search chats', 'onSurfaceMuted'], Focus: ['Search chats', 'onSurfaceMuted'], Query: ['cabin', 'onSurface'] };
 const fields = await grid('Search field', axis('State', Object.keys(SEARCH)), DEVICES, ({ State, Device }) => {

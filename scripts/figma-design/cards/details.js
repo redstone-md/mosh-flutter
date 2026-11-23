@@ -46,7 +46,7 @@ const panels = display(await grid('Details panel', axis('Kind', Object.keys(PANE
   add(who, setProps(inst('Avatar', { ...avatar, Size: 'Large' }), avatar.Kind === 'Person' ? { Initials: 'MC', Presence: true } : {}));
   add(add(who, box('name', { dir: 'H', pad: [2, 0, 0, 0] })), text(name, 'headlineSmall', 'onSurface', { name: 'name' }));
   add(who, text(line, 'bodySmall', 'onSurfaceVariant', { name: 'line' }));
-  const members = section(body, 'Participants', 1);
+  const members = section(body, 'Participants', EDGE);
   for (const i of people) {
     const [Name, Initials, Plate, Admin] = PEOPLE[i];
     dressAvatar(add(members, setProps(inst('Member row', { Device }), { Name, 'Show peer': false, Admin: Admin && avatar.Kind === 'Group' }), { fillW: true }), { Plate, Size: 'Compact' }, { Initials });
@@ -57,7 +57,7 @@ const panels = display(await grid('Details panel', axis('Kind', Object.keys(PANE
   // The one place a conversation shows its encryption: the row opens the fingerprint to compare.
   // A public channel is not encrypted and has no such row.
   if (avatar.Kind !== 'Channel') add(body, setProps(inst('Start row', { State: 'Default', Device }), { Title: 'End-to-end encrypted', Line: 'Compare the fingerprint to verify', 'Icon glyph': glyphOf('lock') }), { fillW: true }).name = 'encryption';
-  const link = add(body, box('connection', { dir: 'V', pad: [0, 1], align: 'MIN' }), { fillW: true });
+  const link = add(body, box('connection', { dir: 'V', pad: [0, EDGE], align: 'MIN' }), { fillW: true });
   add(link, setProps(inst('Disclosure', { State: open ? 'Open' : 'Closed', Device }), { Label: 'Connection details' }), { fillW: true });
   if (open) {
     const list = add(link, box('values', { dir: 'V', pad: [0, 3], align: 'MIN' }), { fillW: true });

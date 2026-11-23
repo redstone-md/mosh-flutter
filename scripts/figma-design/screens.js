@@ -4,13 +4,10 @@
 // components and the frames that lay them out, and with the capture's data, so
 // it can be put beside its frame on the "current" pages.
 const SIZE = { Desktop: [1280, 800], Phone: [390, 844] };
+const screensHost = () => host('Screens');
+screensHost();
 // What is on the page before the script adds to it: a script that throws takes back the rest.
 const BEFORE = new Set(PAGE.children.map((n) => n.id));
-function screensHost() {
-  let s = PAGE.children.find((n) => n.type === 'SECTION' && n.name === 'Screens');
-  if (!s) { s = figma.createSection(); s.name = 'Screens'; s.fills = paint('surfaceDim'); PAGE.appendChild(s); BEFORE.add(s.id); }
-  return s;
-}
 const BUILT = [];
 /**
  * The frame of the screen [name] on [Device], empty. A screen built before keeps its frame, and with it its node id and the links to it.
@@ -28,7 +25,7 @@ function screen(name, Device, bar = 'With state') {
   return f;
 }
 /** What fills a screen under the title bar: a row of panels, or with dir 'V' a column. o as for box(). */
-const fill = (parent, name, o = {}) => add(parent, box(name, { dir: 'H', align: 'MIN', ...o }), { fillW: true, fillH: true });
+const stretch = (parent, name, o = {}) => add(parent, box(name, { dir: 'H', align: 'MIN', ...o }), { fillW: true, fillH: true });
 /** Takes back what a script that threw had added to the page outside the frames of its screens. */
 function scrap() { for (const n of PAGE.children) if (!BEFORE.has(n.id)) n.remove(); }
 /** Ends a screen script: places the screens of every script in columns, the desktop's above the phone's, and names the ones built. */
@@ -38,9 +35,10 @@ async function done() {
   let x = GAP, bottom = 0;
   for (const script of SCREENS) {
     const mine = s.children.filter((n) => n.getPluginData('script') === script);
-    let y = GAP, px = x, right = x;
-    for (const f of mine.filter((n) => n.width > SIZE.Phone[0])) { f.x = x; f.y = y; y += f.height + GAP; right = Math.max(right, x + f.width); }
-    for (const f of mine.filter((n) => n.width <= SIZE.Phone[0])) { f.x = px; f.y = y; px += f.width + GAP; right = Math.max(right, px - GAP); bottom = Math.max(bottom, y + f.height); }
+    const phone = (n) => n.name.endsWith(' · Phone');
+    let y = GAP, across = x, right = x;
+    for (const f of mine.filter((n) => !phone(n))) { f.x = x; f.y = y; y += f.height + GAP; right = Math.max(right, x + f.width); bottom = Math.max(bottom, y - GAP); }
+    for (const f of mine.filter(phone)) { f.x = across; f.y = y; across += f.width + GAP; right = Math.max(right, across - GAP); bottom = Math.max(bottom, y + f.height); }
     if (mine.length) x = right + GAP;
   }
   s.resizeWithoutConstraints(x, bottom + GAP);
@@ -50,18 +48,30 @@ async function done() {
   return BUILT.map((n) => n.name);
 }
 
-// The chats of the capture's list; who is the open one is up to the screen.
+// The chats beside an open conversation in the capture; who is the open one is up to the screen.
 const CHATS = [
   { Title: 'Weekend plans', Time: '9:20 AM', Preview: 'Leo Park: Leaving at 6 sharp. Coffee is on me.', Unread: true, avatar: { Kind: 'Group', Plate: '1' } },
   { Title: 'Maya Chen', Time: '8:34 AM', Preview: 'You: Here is the route I mapped out.', avatar: { Kind: 'Person', Plate: '2' }, initials: 'MC', online: true },
   { Title: '#photography', Time: '8:14 AM', Preview: 'Leo Park: ND filter and a sturdy tripod.', avatar: { Kind: 'Channel', Plate: '3' } },
   { Title: 'Leo Park', Time: 'Nov 20, 2026', Preview: 'Thanks for the photos!', avatar: { Kind: 'Person', Plate: '4' }, initials: 'LP', online: true },
 ];
-/** The chat list as a panel of [parent], as tall as it; open: the title of the chat that is open, none: the list is empty. */
-function chats(parent, Device, { open, none } = {}) {
+// The chats of the capture's "Chats / List / Chats", as far as a screen shows them.
+const person = (Plate, initials, online) => ({ avatar: { Kind: 'Person', Plate }, initials, online });
+const ALL_CHATS = [
+  { Title: 'Maya Chen', Time: '9:43 AM', Preview: 'See you by the bridge!', Unread: '2', ...person('2', 'MC', true) },
+  { Title: 'Weekend plans', Time: '9:31 AM', Preview: 'Leo Park: Saturday works for everyone.', Unread: '5', avatar: { Kind: 'Group', Plate: '1' } },
+  { Title: 'Leo Park', Time: '9:12 AM', Preview: 'You: Got it, thanks for the photos too.', ...person('4', 'LP', true) },
+  { Title: 'Priya Nair', Time: '8:05 AM', Preview: 'Sharing the venue shortlist now', Unread: '99+', ...person('3', 'PN', true) },
+  { Title: '#photography', Time: 'Nov 20, 2026', Preview: 'Nina Alvarez: A few frames from the coast.', avatar: { Kind: 'Channel', Plate: '3' } },
+  { Title: '#city-cycling', Time: '', Preview: 'Group rides every Sunday', avatar: { Kind: 'Channel', Plate: '1' } },
+  { Title: 'Jonas Weber', Time: '', Preview: 'Contact is offline', ...person('1', 'JW') },
+  { Title: 'Sofia Reyes', Time: '', Preview: 'Waiting for your contact', ...person('2', 'SR') },
+];
+/** The chat list as a panel of [parent], as tall as it; open: the title of the chat that is open, none: the list is empty, of: the chats in it. */
+function chats(parent, Device, { open, none, of = CHATS } = {}) {
   const l = add(parent, list('Chats', Device, (rows) => {
     if (none) add(rows, inst('List notice', { Kind: 'No chats', Device }), { fillW: true });
-    else CHATS.forEach((c) => add(rows, chat({ ...c, State: c.Title === open ? 'Selected' : 'Default', Unread: c.Unread && c.Title !== open }, Device), { fillW: true }));
+    else of.forEach((c) => add(rows, chat({ ...c, State: c.Title === open ? 'Selected' : 'Default', Unread: c.Title !== open && c.Unread }, Device), { fillW: true }));
   }), { fillH: true });
   // The rows take the room the list has, so settings stays at its foot.
   l.findOne((n) => n.name === 'rows').layoutSizingVertical = 'FILL';
@@ -80,7 +90,7 @@ function conversation(parent, Device, Kind, items, banner) {
 }
 /** The screen [name] with the direct chat open: on the desktop beside the chat list, and with details beside the details panel. */
 function directChat(name, Device, details = false) {
-  const f = screen(name, Device), row = fill(f, 'panels');
+  const f = screen(name, Device), row = stretch(f, 'panels');
   if (Device === 'Desktop') chats(row, Device, { open: 'Maya Chen' });
   conversation(row, Device, 'Private chat', DM);
   if (details) add(row, inst('Details panel', { Kind: 'Private chat', Device }), { fillH: true });

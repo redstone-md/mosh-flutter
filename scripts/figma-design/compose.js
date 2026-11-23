@@ -1,5 +1,5 @@
 // Plugin-side: what a conversation's feed and a chat list are assembled from,
-// out of the components of the cards. build.mjs and screens.mjs prepend this
+// out of the components of the cards. run.mjs prepends this
 // file after calls.js, so the examples of a card and a screen are put together
 // by the same code and cannot drift apart.
 
@@ -104,6 +104,8 @@ function thread(name, device, items) {
 function chat(c, Device) {
   const row = setProps(inst('Chat row', { State: c.State ?? 'Default', Device }), { Title: c.Title, Time: c.Time, Preview: c.Preview, Unread: !!c.Unread, 'Show preview': !c.bare });
   dressAvatar(row, { ...c.avatar, Size: 'Medium' }, { ...(c.initials && { Initials: c.initials }), ...(c.online && { Presence: true }) });
+  // Unread may be the count itself.
+  if (typeof c.Unread === 'string') setProps(row.findOne((n) => n.name === 'unread'), { Count: c.Unread });
   return row;
 }
 /** A chat list on [Device]; body(rows) fills the frame between the filters and the settings row. query: what the search holds. */
