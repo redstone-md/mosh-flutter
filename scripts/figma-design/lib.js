@@ -295,7 +295,8 @@ const inst = (setName, props) => variant(setName, props).createInstance();
 function setProps(i, values) {
   for (const [name, value] of Object.entries(values)) {
     const key = Object.keys(i.componentProperties).find((k) => k.split('#')[0] === name) ?? fail('property ' + name);
-    i.setProperties({ [key]: value?.id ?? value });
+    // Setting a swap to the component it already shows resets the nested instance, size and name included.
+    if (i.componentProperties[key].value !== (value?.id ?? value)) i.setProperties({ [key]: value?.id ?? value });
   }
   return i;
 }
