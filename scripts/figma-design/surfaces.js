@@ -29,10 +29,10 @@ const inset = (name, o = {}) => box(name, { fill: 'surfaceContainer', r: 'small'
 /** The Icon/<name> component. */
 const glyphOf = (name) => ICONS[name] ?? fail('Icon/' + name);
 
-/** The plate with the icon of a card's subject. */
-function plate(glyph) {
-  const p = box('plate', { dir: 'H', wk: 10, hk: 10, r: 'medium', fill: 'surfaceContainerHighest', justify: 'CENTER' });
-  add(p, icon(glyph, 'primary'));
+/** The plate with the icon of a card's subject; a toned banner gives it its own fill and ink. */
+function plate(glyph, fill = 'surfaceContainerHighest', ink = 'primary') {
+  const p = box('plate', { dir: 'H', wk: 10, hk: 10, r: 'medium', fill, justify: 'CENTER' });
+  add(p, icon(glyph, ink));
   return p;
 }
 /** The header of a card: plate, title, a line about it and, at the right, [tail]. */

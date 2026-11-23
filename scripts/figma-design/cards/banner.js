@@ -4,19 +4,24 @@
 // and the notes set inside a form (SetupPrivacyNote, the open-channel warning,
 // the note of a ready invite).
 card('Banner', 'A banner says something about the whole conversation or the whole app and stays until it stops being true or is closed. Its tone is how much it asks of the reader: a fact about the chat is quiet and carries only a coloured mark, a warning and an error take the whole plate. A banner with something to do offers one action. An inline note is the same message inside a form, beside the field it is about.');
-// A tone is the plate, the edge, the ink of the mark, of the title and of the detail.
+// A tone is the fill, the edge, the ink of the mark, of the title and of the detail, then the fill and the ink of the mark's plate.
 // A quiet tone lies on the panel level and differs only in the colour of its mark.
-const quiet = (mark) => [LEVEL.panel.fill, 'outlineVariant', mark, 'onSurface', 'onSurfaceVariant'];
+// On a warning and an error the plate is the background's tone, so the mark is the one bright thing on them.
+const quiet = (mark) => [LEVEL.panel.fill, 'outlineVariant', mark, 'onSurface', 'onSurfaceVariant', 'surfaceContainerHighest', mark];
 const NOTICE_TONES = {
   Secure: quiet('primary'), Open: quiet('tertiary'), Neutral: quiet('onSurfaceVariant'), Success: quiet('success'),
-  Warning: ['warningContainer', null, 'onWarningContainer', 'onWarningContainer', 'onWarningContainer'],
-  Error: ['errorContainer', null, 'onErrorContainer', 'onErrorContainer', 'onErrorContainer'],
+  Warning: ['warningContainer', null, 'onWarningContainer', 'onWarningContainer', 'onWarningContainer', LEVEL.background.fill, 'warning'],
+  Error: ['errorContainer', null, 'onErrorContainer', 'onErrorContainer', 'onErrorContainer', LEVEL.background.fill, 'error'],
 };
-/** A message on a toned plate: mark, title, detail; the caller adds what it ends with (an action, a close button). o: w, r. */
+/**
+ * A message on a toned surface: mark, title, detail; the caller adds what it ends with (an action, a close button).
+ * Everything is centred on the middle of the message. A title with a detail under it is tall enough for the mark
+ * to stand on a plate; beside one line the mark is the bare icon. o: w, r.
+ */
 function notice(name, Tone, glyph, title, detail, o = {}) {
-  const [fill, edge, mark, ink, soft] = NOTICE_TONES[Tone];
-  const n = box(name, { component: true, dir: 'H', gap: 3, pad: [3, 3, 3, 4], w: o.w, r: o.r ?? 'large', fill, stroke: edge, align: 'MIN' });
-  add(add(n, box('mark', { dir: 'H', hk: 5 })), icon(glyph, mark));
+  const [fill, edge, mark, ink, soft, plateFill, plateInk] = NOTICE_TONES[Tone], plated = title && detail;
+  const n = box(name, { component: true, dir: 'H', gap: 3, pad: [3, 3, 3, plated ? 3 : 4], w: o.w, r: o.r ?? 'large', fill, stroke: edge });
+  add(n, plated ? plate(glyph, plateFill, plateInk) : icon(glyph, mark)).name = 'mark';
   const col = add(n, box('text', { dir: 'V', gap: 1, align: 'MIN' }), { fillW: true });
   if (title) para(col, title, 'titleSmall', ink, 'title');
   if (detail) para(col, detail, 'bodySmall', title ? soft : ink, 'detail');
@@ -39,8 +44,8 @@ display(await grid('Banner', axis('Kind', Object.keys(BANNERS)), DEVICES, ({ Kin
   // On a toned plate the close button takes the plate's ink.
   if (tail === 'close') add(b, action('close', Device, { ink: NOTICE_TONES[Tone][1] ? null : NOTICE_TONES[Tone][2] })).name = 'close';
   else if (tail) add(b, labelButton(Device, tail, { Kind: 'Outlined' }));
-  // The close button and the action are taller than a line of text: the plate keeps its padding around the text.
-  if (tail) { space(b, 'paddingTop', 2); space(b, 'paddingBottom', 2); space(b, 'paddingRight', 2); b.counterAxisAlignItems = detail ? 'MIN' : 'CENTER'; }
+  // A control at the end brings its own room around its glyph or label.
+  if (tail) space(b, 'paddingRight', 2);
   return b;
 }));
 
