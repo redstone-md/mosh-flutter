@@ -24,18 +24,20 @@ const notices = await grid('Group notice', ONE, ONE, () => {
 });
 prop(notices, 'Notice', 'TEXT', 'Leo Park changed the group name to Weekend plans', 'notice');
 
-const CALLS = { Outgoing: ['call_made', 'Outgoing call', 'primary', 'secondaryContainer'], Incoming: ['call_received', 'Incoming call', 'primary', 'secondaryContainer'], Missed: ['call_missed', 'Missed call', 'error', 'errorContainer'] };
+// The arrow tells who rang and, in the error colour, that nobody answered; the handset rings back.
+const CALLS = { Outgoing: ['call_made', 'Outgoing call', 'primary'], Incoming: ['call_received', 'Incoming call', 'primary'], Missed: ['call_received', 'Missed call', 'error'] };
 const calls = await grid('Call log entry', ONE, axis('Direction', Object.keys(CALLS)), ({ Direction }) => {
-  const [glyph, title, ink, plate] = CALLS[Direction];
-  const c = box('Call log entry', { component: true, dir: 'H', gap: 3, pad: [2, 4, 2, 2], r: 'largeIncreased', fill: 'incoming' });
-  const p = add(c, box('plate', { dir: 'H', wk: 8, hk: 8, r: 'full', fill: plate, justify: 'CENTER' }));
-  add(p, icon(glyph, ink, 4));
+  const [glyph, title, ink] = CALLS[Direction];
+  const c = box('Call log entry', { component: true, dir: 'H', gap: 6, pad: [2, 3, 2, 4], r: 'largeIncreased', fill: 'incoming' });
   const col = add(c, box('call', { dir: 'V', align: 'MIN' }));
   add(col, text(title, 'labelLarge', 'onSurface'));
-  // A missed call has no length to show.
-  if (Direction !== 'Missed') add(col, text('12:34', 'labelMedium', 'onSurfaceMuted', { name: 'detail' }));
-  add(c, text('18:20', 'labelSmall', 'onSurfaceMuted', { name: 'time' }));
+  const meta = add(col, box('meta', { dir: 'H', gap: 1 }));
+  add(meta, icon(glyph, ink, 4));
+  // A missed call has no length to show, only when it rang.
+  const missed = Direction === 'Missed';
+  add(meta, text(missed ? '18:26' : '18:26, 2 min 5 s', 'labelMedium', 'onSurfaceMuted', { name: missed ? 'rang' : 'detail' }));
+  add(c, icon('call', 'primary', 6));
   return c;
 });
-prop(calls, 'Detail', 'TEXT', '12:34', 'detail');
-prop(calls, 'Time', 'TEXT', '18:20', 'time');
+prop(calls, 'Detail', 'TEXT', '18:26, 2 min 5 s', 'detail');
+prop(calls, 'Detail, missed', 'TEXT', '18:26', 'rang');

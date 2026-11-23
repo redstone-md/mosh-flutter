@@ -3,8 +3,8 @@
 // captured "Conversation / DM / Thread" and "Conversation / Group / Thread".
 card('Thread', 'The components in use. Bubbles of one run sit 4 px apart and a new run starts 12 px lower. The last example holds what a feed has to survive: a long link, a token without spaces and a long name.');
 const DM = [
-  { kind: 'call', direction: 'Outgoing', detail: '3:07', time: '18:02' },
-  { kind: 'call', direction: 'Incoming', detail: '12:34', time: '18:20' },
+  { kind: 'call', direction: 'Outgoing', detail: '18:02, 3 min 7 s' },
+  { kind: 'call', direction: 'Incoming', detail: '18:20, 12 min 34 s' },
   { kind: 'date', date: 'Sat, Nov 21' },
   { kind: 'unread' },
   { kind: 'in', text: 'Leo can drive. He has room for three and the gear.', time: '08:12' },
@@ -71,7 +71,7 @@ function thread(name, device, items) {
     if (m.kind === 'notice') return add(t, setProps(inst('Group notice'), { Notice: m.notice }), { fillW: true });
     const first = !run(items[i - 1], m), last = !run(items[i + 1], m);
     const row = add(t, box('row', { dir: 'H', justify: m.kind === 'out' || m.direction === 'Outgoing' ? 'MAX' : 'MIN', pad: first && i ? [2, 0, 0, 0] : 0 }), { fillW: true });
-    if (m.kind === 'call') return add(row, setProps(inst('Call log entry', { Direction: m.direction }), { Detail: m.detail, Time: m.time }));
+    if (m.kind === 'call') return add(row, setProps(inst('Call log entry', { Direction: m.direction }), { Detail: m.detail }));
     const Position = first && last ? 'Single' : first ? 'First' : last ? 'Last' : 'Middle';
     const b = add(row, inst(m.kind === 'out' ? 'Outgoing message' : 'Incoming message', { Position, Device: device, State: m.state ?? 'Default' }));
     dress(b, m, device, first);
