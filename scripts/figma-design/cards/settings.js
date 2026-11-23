@@ -94,8 +94,8 @@ prop(starts, 'Title', 'TEXT', START_TITLE, 'title');
 prop(starts, 'Line', 'TEXT', START_LINE, 'line');
 prop(starts, 'Icon glyph', 'INSTANCE_SWAP', glyphOf(START_GLYPH), 'start icon');
 
-// The app today lists a removal as bare text under the devices (device_list._RevocationRow). The redesign
-// keeps it a row of the device it is about, marked by its icon and its note, without the action to remove.
+// A device stands on a plate. A removal (device_list._RevocationRow) is a status about a device that is leaving
+// or gone, so it is the same row without the plate and without the action to remove: it reads as a note under the list.
 // Per kind: name, id, the note under them and its ink, and whether the device can be removed.
 const DEVICES_OF = {
   'This device': ['alex-workstation', '7f3a9c1e…9c1e', 'This device', 'primary', false],
@@ -105,7 +105,7 @@ const DEVICES_OF = {
 };
 display(await grid('Device row', axis('Kind', Object.keys(DEVICES_OF)), DEVICES, ({ Kind, Device }) => {
   const [name, id, note, ink, removable] = DEVICES_OF[Kind], gone = Kind.startsWith('Removal');
-  const r = inset('Device row', { component: true, dir: 'H', gap: 3, pad: [2, removable ? 1 : 4, 2, 4], w: CARD_W[Device] - 40, minHk: 16 });
+  const r = (gone ? box : inset)('Device row', { component: true, dir: 'H', gap: 3, pad: [2, removable ? 1 : 4, 2, 4], w: CARD_W[Device] - 40, minHk: 16 });
   const glyph = add(r, icon(gone ? 'link_off' : 'devices', 'onSurfaceVariant'));
   const col = add(r, box('text', { dir: 'V', align: 'MIN' }), { fillW: true });
   const title = add(col, text(name, 'titleSmall', 'onSurface', { name: 'name', truncate: true }), { fillW: true });
