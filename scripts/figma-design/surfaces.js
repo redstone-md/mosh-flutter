@@ -1,7 +1,8 @@
-// Plugin-side helpers for the surface cards (dialog and after) and the
-// buttons several cards share: build.mjs prepends this file after lib.js.
-// A surface takes its colour, edge and shadow from its level here, never
-// from a colour picked where it is drawn.
+// Plugin-side helpers shared by the search card and the surface cards (dialog
+// and after): build.mjs prepends this file after lib.js. A surface takes its
+// colour, edge, corners and shadow from its level here. The tones under and
+// inside the levels (BENEATH, inset, plate) are named here too, so no card
+// picks a surface colour of its own.
 
 // The four levels a surface can sit on, lowest first. The background is the
 // screen itself; a panel is a part of the screen (the chat list, the title bar,
@@ -12,18 +13,26 @@
 const LEVEL = {
   background: { fill: 'surface' },
   panel: { fill: 'surfaceContainerLow' },
-  popup: { fill: 'surfaceContainerHigh', stroke: 'outlineVariant', effect: 'elevation2' },
-  modal: { fill: 'surfaceContainerHigh', stroke: 'outlineVariant', effect: 'elevation3' },
+  popup: { fill: 'surfaceContainerHigh', stroke: 'outlineVariant', effect: 'elevation2', r: 'large' },
+  modal: { fill: 'surfaceContainerHigh', stroke: 'outlineVariant', effect: 'elevation3', r: 'extraLarge' },
 };
+// Under every level: the scrim, and the stage of the media viewer, which wants nothing brighter than the picture.
+const BENEATH = 'surfaceContainerLowest';
 /** A box on one of the LEVELs; o as for box(). */
 const surface = (name, level, o = {}) => box(name, { ...(LEVEL[level] ?? fail('level ' + level)), ...o });
 /** A panel drawn as a card inside the background: the panel's tone with a quiet edge. */
 const cardSurface = (name, o = {}) => surface(name, 'panel', { stroke: 'outlineVariant', r: 'extraLarge', ...o });
+/** Padding of a card, as a space key. */
+const cardPad = (Device) => (Device === 'Phone' ? 4 : 5);
+/** A plate set into a card to hold one thing apart (a device, a code): a tone up, with corners concentric to the card's. */
+const inset = (name, o = {}) => box(name, { fill: 'surfaceContainer', r: 'small', ...o });
+/** The Icon/<name> component. */
+const glyphOf = (name) => ICONS[name] ?? fail('Icon/' + name);
 
 /** The plate with the icon of a card's subject. */
-function plate(glyph, tint = 'primary') {
+function plate(glyph) {
   const p = box('plate', { dir: 'H', wk: 10, hk: 10, r: 'medium', fill: 'surfaceContainerHighest', justify: 'CENTER' });
-  add(p, icon(glyph, tint));
+  add(p, icon(glyph, 'primary'));
   return p;
 }
 /** The header of a card: plate, title, a line about it and, at the right, [tail]. */
@@ -36,14 +45,14 @@ function header(parent, glyph, title, line, tail) {
   if (tail) add(h, tail);
   return h;
 }
-/** A Button by its label. o: Kind, State, glyph (shows the leading icon). */
-function button(Device, Label, { Kind = 'Primary', State = 'Default', glyph } = {}) {
-  return setProps(inst('Button', { Kind, Device, State }), glyph ? { Label, Icon: true, 'Icon glyph': ICONS[glyph] ?? fail('Icon/' + glyph) } : { Label });
+/** A Button by its label (button() is the Button card's own builder). o: Kind, State, glyph (shows the leading icon). */
+function labelButton(Device, Label, { Kind = 'Primary', State = 'Default', glyph } = {}) {
+  return setProps(inst('Button', { Kind, Device, State }), glyph ? { Label, Icon: true, 'Icon glyph': glyphOf(glyph) } : { Label });
 }
-const textButton = (Device, Label, glyph) => button(Device, Label, { Kind: 'Text', glyph });
+const textButton = (Device, Label, glyph) => labelButton(Device, Label, { Kind: 'Text', glyph });
 /** A Button turned destructive: the error colour takes the place of the primary one. */
 function danger(Device, Label, glyph) {
-  const b = button(Device, Label, { glyph });
+  const b = labelButton(Device, Label, { glyph });
   b.fills = paint('error');
   b.findOne((n) => n.type === 'TEXT').fills = paint('onError');
   if (glyph) b.findOne((n) => n.name === 'glyph').fills = paint('onError');
@@ -59,5 +68,12 @@ function dim(frame) {
   s.constraints = { horizontal: 'STRETCH', vertical: 'STRETCH' };
   return s;
 }
-// Widths of a dialog and of the phone's screen, which a sheet spans.
-const DIALOG = { Desktop: 400, Phone: 326 }, SCREEN = { Desktop: 1280, Phone: 390 };
+/** A title over a line about it, both wrapping at the width of [parent]. title and line are [chars, text style, colour]. */
+function titled(parent, title, line, centred = false) {
+  for (const [i, [chars, slot, ink]] of [title, line].entries()) {
+    const t = para(parent, chars, slot, ink, i ? 'line' : 'title');
+    if (centred) t.textAlignHorizontal = 'CENTER';
+  }
+}
+// Widths of a dialog (and of a note or a notice inside a card), and of the phone's screen, which a sheet spans.
+const DIALOG = { Desktop: 400, Phone: 326 }, PHONE_SCREEN = 390;

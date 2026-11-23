@@ -1,12 +1,12 @@
 // Toasts: ToastCard, alone and stacked (ToastHost).
 card('Toast', 'A toast confirms what just happened and leaves on its own; an error stays until it is closed. It floats on the popup level, at the top of the window on the desktop and above the bottom edge on the phone. The mark tells the tone and the text stays the ordinary colour, so a toast never reads as an alarm it is not. Several toasts stack behind the newest one and fan out under the pointer.');
 const TOASTS = { Success: ['success', 'success', 'Link copied'], Info: ['info', 'onSurfaceVariant', 'Chat renamed'], Error: ['error', 'error', 'Mosh could not reach the network. Try again in a moment.'] };
-const WIDTH = { Desktop: 360, Phone: 358 };
+const WIDTH = { Desktop: 360, Phone: ROW.Phone };
 const toasts = display(await grid('Toast', axis('Tone', Object.keys(TOASTS)), DEVICES, ({ Tone, Device }) => {
   const [glyph, ink, message] = TOASTS[Tone];
-  const t = surface('Toast', 'popup', { component: true, dir: 'H', gap: 3, pad: [1, 1, 1, 4], w: WIDTH[Device], minHk: 12, r: 'large' });
+  const t = surface('Toast', 'popup', { component: true, dir: 'H', gap: 3, pad: [1, 1, 1, 4], w: WIDTH[Device], minHk: 12 });
   add(t, icon(glyph, ink));
-  add(add(t, box('text', { dir: 'V', pad: [2, 0] }), { fillW: true }), text(message, 'bodyMedium', 'onSurface', { name: Tone === 'Error' ? 'message, error' : 'message', w: 200 }), { fillW: true });
+  para(add(t, box('text', { dir: 'V', pad: [2, 0] }), { fillW: true }), message, 'bodyMedium', 'onSurface', Tone === 'Error' ? 'message, error' : 'message');
   add(t, action('close', Device)).name = 'close';
   return t;
 }));

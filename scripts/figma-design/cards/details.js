@@ -1,6 +1,6 @@
 // The side panel of a conversation (ConversationDetailsPanel with its
 // sections) and the connection status that opens from it (PeerStatusDrawer,
-// SummaryCard, DiagnosticsGroup, DiagnosticsRow, Metric, the event log,
+// SummaryCard, DiagnosticsGroup, DiagnosticsRow as the Value row, Metric, the event log,
 // DiagnosticsEmptyState and RuntimeError).
 card('Details and diagnostics', 'The details panel is a panel beside the conversation on the desktop and a screen of its own on the phone: who is here, what was shared, and how the conversation is connected. Connection status is for looking closely. It opens with a summary a person can read, graded by one word, and keeps the raw values under it in plain rows, label at the left and value at the right, grouped by what they describe.');
 const PANEL = { Desktop: 360, Phone: 390 };
@@ -25,17 +25,9 @@ const PANELS = {
   'Connection open': [{ Kind: 'Person', Plate: '2' }, 'Maya Chen', 'Connected', [0, 2], false, true],
   Loading: null,
 };
-const ROWS = [['Status', 'Connected'], ['Path', 'Direct'], ['Round trip', '42 ms'], ['Encryption', 'OpenMLS, epoch 12']];
-const rows = display(await grid('Diagnostics row', ONE, DEVICES, ({ Device }) => {
-  const r = box('Diagnostics row', { component: true, dir: 'H', gap: 4, w: 320, minHk: Device === 'Phone' ? 10 : 8 });
-  add(r, text('Peer RTT', 'bodySmall', 'onSurfaceVariant', { name: 'label' }));
-  const v = add(r, text('42 ms', 'labelMedium', 'onSurface', { name: 'value', truncate: true }), { fillW: true });
-  v.textAlignHorizontal = 'RIGHT';
-  return r;
-}));
-prop(rows, 'Label', 'TEXT', 'Peer RTT', 'label');
-prop(rows, 'Value', 'TEXT', '42 ms', 'value');
-const row = (parent, Device, [Label, Value]) => add(parent, setProps(inst('Diagnostics row', { Device }), { Label, Value }), { fillW: true });
+const CONNECTION = [['Status', 'Connected'], ['Path', 'Direct'], ['Round trip', '42 ms'], ['Encryption', 'OpenMLS, epoch 12']];
+/** A reading: the Value row of the Settings card. */
+const row = (parent, Device, [Label, Value]) => add(parent, setProps(inst('Value row', { Device }), { Label, Value }), { fillW: true });
 
 display(await grid('Details panel', axis('Kind', Object.keys(PANELS)), DEVICES, ({ Kind, Device }) => {
   const p = surface('Details panel', 'panel', { component: true, dir: 'V', w: PANEL[Device], align: 'MIN' });
@@ -62,8 +54,8 @@ display(await grid('Details panel', axis('Kind', Object.keys(PANELS)), DEVICES, 
   add(link, setProps(inst('Disclosure', { State: open ? 'Open' : 'Closed', Device }), { Label: 'Connection details' }), { fillW: true });
   if (open) {
     const list = add(link, box('values', { dir: 'V', pad: [0, 3], align: 'MIN' }), { fillW: true });
-    ROWS.forEach((r) => row(list, Device, r));
-    add(list, button(Device, 'Open connection status', { Kind: 'Text' }));
+    CONNECTION.forEach((r) => row(list, Device, r));
+    add(list, labelButton(Device, 'Open connection status', { Kind: 'Text' }));
   }
   return p;
 }));
@@ -84,7 +76,7 @@ const SUMMARY = {
 };
 display(await grid('Summary card', ONE, axis('Tone', Object.keys(SUMMARY)), ({ Tone }) => {
   const [title, line, list] = SUMMARY[Tone];
-  const c = box('Summary card', { component: true, dir: 'V', gap: 3, pad: 4, w: 320, r: 'large', fill: 'surfaceContainer', align: 'MIN' });
+  const c = inset('Summary card', { component: true, dir: 'V', gap: 3, pad: 4, w: 320, r: 'large', align: 'MIN' });
   add(c, inst('Status badge', { Tone }));
   const head = add(c, box('text', { dir: 'V', gap: 1, align: 'MIN' }), { fillW: true });
   para(head, title, 'titleMedium', 'onSurface', 'title');
@@ -115,7 +107,7 @@ function group(parent, title, fill) {
   fill(g);
   return g;
 }
-/** Connection status; state picks the summary, and what stands in for the values when there are none. */
+/** Connection status; Tone picks the summary, and what stands in for the values when there are none. */
 function status(Device, Tone) {
   const d = surface(`Connection status, ${Tone.toLowerCase()} · ${Device}`, 'panel', { dir: 'V', w: PANEL[Device], align: 'MIN' });
   panelHead(d, 'Connection status', Device, ['refresh', 'close']);

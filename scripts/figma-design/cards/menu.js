@@ -27,11 +27,11 @@ const MENUS = {
 };
 display(await grid('Menu', axis('Kind', Object.keys(MENUS)), DEVICES, ({ Kind, Device }) => {
   const { items: list, ends } = MENUS[Kind];
-  const m = surface('Menu', 'popup', { component: true, dir: 'V', pad: 2, gap: 1, w: 232, r: 'large', align: 'MIN' });
+  const m = surface('Menu', 'popup', { component: true, dir: 'V', pad: 2, gap: 1, w: 232, align: 'MIN' });
   list.forEach(([glyph, Label], i) => {
     const last = ends && i === list.length - 1;
     if (last) add(m, inst('Divider', { Orientation: 'Horizontal' }), { fillW: true });
-    add(m, setProps(inst('Menu item', { Tone: last ? 'Destructive' : 'Default', State: 'Default', Device }), { Label, 'Icon glyph': ICONS[glyph] ?? fail('Icon/' + glyph) }), { fillW: true });
+    add(m, setProps(inst('Menu item', { Tone: last ? 'Destructive' : 'Default', State: 'Default', Device }), { Label, 'Icon glyph': glyphOf(glyph) }), { fillW: true });
   });
   return m;
 }));
@@ -43,8 +43,9 @@ const SHEETS = {
   'Network adapter': ['Automatic', 'Ethernet, 192.168.1.24', 'Wi-Fi, 192.168.1.31'],
 };
 display(await grid('Sheet', ONE, axis('Kind', Object.keys(SHEETS)), ({ Kind }) => {
-  const s = surface('Sheet', 'modal', { component: true, dir: 'V', pad: [3, 3, 6, 3], gap: 2, w: SCREEN.Phone, stroke: null });
-  ['topLeftRadius', 'topRightRadius'].forEach((f) => bind(s, f, 'radius/extraLarge'));
+  // A sheet is held by three edges of the screen: it has no edge of its own, and only its top corners are the modal's.
+  const s = surface('Sheet', 'modal', { component: true, dir: 'V', pad: [3, 3, 6, 3], gap: 2, w: PHONE_SCREEN, stroke: null, r: null });
+  ['topLeftRadius', 'topRightRadius'].forEach((f) => bind(s, f, 'radius/' + LEVEL.modal.r));
   add(s, rect('handle', { fill: 'outline', wk: 8, hk: 1, r: 'full' }));
   const head = add(s, box('title', { dir: 'H', pad: [0, 0, 0, 3] }), { fillW: true });
   add(head, text(Kind, 'titleMedium', 'onSurface', { name: 'sheet title' }), { fillW: true });
@@ -53,6 +54,6 @@ display(await grid('Sheet', ONE, axis('Kind', Object.keys(SHEETS)), ({ Kind }) =
   return s;
 }));
 
-const adapters = surface('Adapter menu', 'popup', { dir: 'V', pad: 2, gap: 1, w: 280, r: 'large' });
-SHEETS['Network adapter'].forEach((Label, i) => add(adapters, setProps(inst('Select option', { State: i === 1 ? 'Selected' : 'Default', Device: 'Desktop' }), { Label }), { fillW: true }));
+const adapters = inst('Select menu');
+adapters.children.forEach((option, i) => setProps(option, { Label: SHEETS['Network adapter'][i] }));
 await examples('The adapter menu on the desktop is the Select menu', [adapters], 'MIN');

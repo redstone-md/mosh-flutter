@@ -5,22 +5,21 @@
 // the note of a ready invite).
 card('Banner', 'A banner says something about the whole conversation or the whole app and stays until it stops being true or is closed. Its tone is how much it asks of the reader: a fact about the chat is quiet and carries only a coloured mark, a warning and an error take the whole plate. A banner with something to do offers one action. An inline note is the same message inside a form, beside the field it is about.');
 // A tone is the plate, the edge, the ink of the mark, of the title and of the detail.
-const TONES_OF = {
-  Secure: ['surfaceContainerLow', 'outlineVariant', 'primary', 'onSurface', 'onSurfaceVariant'],
-  Open: ['surfaceContainerLow', 'outlineVariant', 'tertiary', 'onSurface', 'onSurfaceVariant'],
-  Neutral: ['surfaceContainerLow', 'outlineVariant', 'onSurfaceVariant', 'onSurface', 'onSurfaceVariant'],
-  Success: ['surfaceContainerLow', 'outlineVariant', 'success', 'onSurface', 'onSurfaceVariant'],
+// A quiet tone lies on the panel level and differs only in the colour of its mark.
+const quiet = (mark) => [LEVEL.panel.fill, 'outlineVariant', mark, 'onSurface', 'onSurfaceVariant'];
+const NOTICE_TONES = {
+  Secure: quiet('primary'), Open: quiet('tertiary'), Neutral: quiet('onSurfaceVariant'), Success: quiet('success'),
   Warning: ['warningContainer', null, 'onWarningContainer', 'onWarningContainer', 'onWarningContainer'],
   Error: ['errorContainer', null, 'onErrorContainer', 'onErrorContainer', 'onErrorContainer'],
 };
-/** A message on a toned plate: mark, title, detail, then what [tail] adds (an action, a close button). */
+/** A message on a toned plate: mark, title, detail; the caller adds what it ends with (an action, a close button). o: w, r. */
 function notice(name, Tone, glyph, title, detail, o = {}) {
-  const [plate, edge, mark, ink, quiet] = TONES_OF[Tone];
-  const n = box(name, { component: true, dir: 'H', gap: 3, pad: [3, 3, 3, 4], w: o.w, r: o.r ?? 'large', fill: plate, stroke: edge, align: 'MIN' });
+  const [fill, edge, mark, ink, soft] = NOTICE_TONES[Tone];
+  const n = box(name, { component: true, dir: 'H', gap: 3, pad: [3, 3, 3, 4], w: o.w, r: o.r ?? 'large', fill, stroke: edge, align: 'MIN' });
   add(add(n, box('mark', { dir: 'H', hk: 5 })), icon(glyph, mark));
   const col = add(n, box('text', { dir: 'V', gap: 1, align: 'MIN' }), { fillW: true });
   if (title) para(col, title, 'titleSmall', ink, 'title');
-  if (detail) para(col, detail, 'bodySmall', title ? quiet : ink, 'detail');
+  if (detail) para(col, detail, 'bodySmall', title ? soft : ink, 'detail');
   return n;
 }
 // Per banner: tone, mark, title, detail, and what it ends with.
@@ -37,10 +36,11 @@ const BANNERS = {
 display(await grid('Banner', axis('Kind', Object.keys(BANNERS)), DEVICES, ({ Kind, Device }) => {
   const [Tone, glyph, title, detail, tail] = BANNERS[Kind];
   const b = notice('Banner', Tone, glyph, title, detail, { w: FEED[Device] - px('space/' + feedPad(Device)) * 2 });
-  if (tail === 'close') add(b, action('close', Device, { ink: TONES_OF[Tone][2] === 'primary' || TONES_OF[Tone][2] === 'tertiary' ? null : TONES_OF[Tone][2] })).name = 'close';
-  else if (tail) add(b, button(Device, tail, { Kind: 'Outlined' }));
+  // On a toned plate the close button takes the plate's ink.
+  if (tail === 'close') add(b, action('close', Device, { ink: NOTICE_TONES[Tone][1] ? null : NOTICE_TONES[Tone][2] })).name = 'close';
+  else if (tail) add(b, labelButton(Device, tail, { Kind: 'Outlined' }));
   // The close button and the action are taller than a line of text: the plate keeps its padding around the text.
-  if (tail) { b.paddingTop = b.paddingBottom = 0; space(b, 'paddingTop', 2); space(b, 'paddingBottom', 2); space(b, 'paddingRight', 2); b.counterAxisAlignItems = detail ? 'MIN' : 'CENTER'; }
+  if (tail) { space(b, 'paddingTop', 2); space(b, 'paddingBottom', 2); space(b, 'paddingRight', 2); b.counterAxisAlignItems = detail ? 'MIN' : 'CENTER'; }
   return b;
 }));
 
@@ -57,7 +57,7 @@ const UPDATES = {
 };
 display(await grid('Update notice', axis('State', Object.keys(UPDATES)), DEVICES, ({ State, Device }) => {
   const [glyph, ink, line, act] = UPDATES[State];
-  const n = box('Update notice', { component: true, dir: 'V', gap: 2, w: Device === 'Desktop' ? 480 : 326, minHk: controlHeight(Device), justify: 'CENTER', align: 'MIN' });
+  const n = box('Update notice', { component: true, dir: 'V', gap: 2, w: Device === 'Desktop' ? 480 : DIALOG.Phone, minHk: controlHeight(Device), justify: 'CENTER', align: 'MIN' });
   const row = add(n, box('line', { dir: 'H', gap: 3 }), { fillW: true });
   add(row, icon(glyph, ink));
   para(row, line, 'bodyMedium', 'onSurfaceVariant', 'status');
@@ -74,5 +74,5 @@ const NOTES = {
 display(await grid('Inline note', axis('Kind', Object.keys(NOTES)), DEVICES, ({ Kind, Device }) => {
   const [Tone, glyph, title, detail] = NOTES[Kind];
   // A note sits inside a card, so its corners are a step tighter than a banner's.
-  return notice('Inline note', Tone, glyph, title, detail, { w: Device === 'Desktop' ? 400 : 326, r: 'medium' });
+  return notice('Inline note', Tone, glyph, title, detail, { w: DIALOG[Device], r: 'medium' });
 }));

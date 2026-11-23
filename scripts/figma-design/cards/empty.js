@@ -14,8 +14,8 @@ display(await grid('Conversation empty', axis('Kind', Object.keys(EMPTY)), DEVIC
   const [title, line, act] = EMPTY[Kind];
   const e = surface('Conversation empty', 'background', { component: true, dir: 'V', gap: 2, pad: [12, feedPad(Device)], w: FEED[Device] });
   const col = add(e, box('text', { dir: 'V', gap: 1, w: Math.min(360, FEED[Device] - 64) }));
-  for (const t of [para(col, title, 'titleMedium', act ? 'error' : 'onSurface', 'title'), para(col, line, 'bodyMedium', 'onSurfaceVariant', 'line')]) t.textAlignHorizontal = 'CENTER';
-  if (act) add(e, button(Device, act, { Kind: 'Outlined' }));
+  titled(col, [title, 'titleMedium', act ? 'error' : 'onSurface'], [line, 'bodyMedium', 'onSurfaceVariant'], true);
+  if (act) add(e, labelButton(Device, act, { Kind: 'Outlined' }));
   return e;
 }));
 await examples('The chat list: no chats, nothing found, could not load', ['No chats', 'No results', 'Could not load'].map((Kind) => inst('List notice', { Kind, Device: 'Desktop' })), 'MIN');

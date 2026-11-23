@@ -3,7 +3,7 @@
 card('Dialog', 'A dialog stops the screen for one decision. It names the decision in its title, says what follows in a sentence or two, and ends with the answers, the one that goes on at the right. A destructive answer is the only red on it. Cancel, Escape and a press on the scrim all leave without a change, so only a dialog without answers of its own has a close button. On the phone long answers stack, the main one on top.');
 
 await grid('Scrim', ONE, ONE, () => {
-  const s = box('Scrim', { component: true, w: 240, h: 96, fill: 'surfaceContainerLowest' });
+  const s = box('Scrim', { component: true, w: 240, h: 96, fill: BENEATH });
   bind(s, 'opacity', 'state/scrim');
   return s;
 });
@@ -23,7 +23,7 @@ const KINDS = {
 };
 function dialog({ Kind, Device }) {
   const [title, body, leave, go] = KINDS[Kind], vpn = Kind.startsWith('VPN'), busy = Kind === 'VPN restarting';
-  const d = surface('Dialog', 'modal', { component: true, dir: 'V', gap: 4, pad: 6, w: DIALOG[Device], r: 'extraLarge', align: 'MIN' });
+  const d = surface('Dialog', 'modal', { component: true, dir: 'V', gap: 4, pad: 6, w: DIALOG[Device], align: 'MIN' });
   const head = add(d, box('head', { dir: 'H', gap: 2, align: 'MIN' }), { fillW: true });
   para(head, title, 'titleLarge', 'onSurface', 'title');
   if (Kind === 'Devices') add(head, action('close', Device)).name = 'close';
@@ -38,8 +38,8 @@ function dialog({ Kind, Device }) {
   // The phone has no room for two long answers side by side.
   const stacked = vpn && Device === 'Phone';
   const answers = add(d, box('answers', { dir: stacked ? 'V' : 'H', gap: 2, pad: [2, 0, 0, 0], justify: stacked ? 'MIN' : 'MAX' }), { fillW: true });
-  const main = Kind === 'Destructive' ? danger(Device, go) : button(Device, go, { Kind: leave ? 'Primary' : 'Text', State: busy ? 'Loading' : 'Default' });
-  const other = leave && button(Device, leave, { Kind: 'Text', State: busy ? 'Disabled' : 'Default' });
+  const main = Kind === 'Destructive' ? danger(Device, go) : labelButton(Device, go, { Kind: leave ? 'Primary' : 'Text', State: busy ? 'Loading' : 'Default' });
+  const other = leave && labelButton(Device, leave, { Kind: 'Text', State: busy ? 'Disabled' : 'Default' });
   for (const b of stacked ? [main, other] : [other, main]) if (b) add(answers, b, { fillW: stacked });
   return d;
 }
