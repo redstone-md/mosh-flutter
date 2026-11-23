@@ -1,6 +1,6 @@
 // Settings: SettingsSurface with SettingsCardHeader, SettingsIcon and its
 // ListTile rows and ExpansionTile; SettingsNav with its section rows; the
-// start menu's StartRow and section label; LinkedDeviceList with its device,
+// start menu's StartRow and section label; the head of a settings screen; LinkedDeviceList with its device,
 // id and revocation rows.
 card('Settings', 'A settings screen is a column of cards, one subject to a card. The card names its subject beside a small plate with its icon, and puts the one control that matters most at the right of that header. What explains the control is folded under a line that opens. The navigation rows lead to the sections, and on the phone they are the whole first screen. A device row tells this device from the others, and a device being removed says how far the removal has got.');
 const CARD_W = { Desktop: 560, Phone: ROW.Phone };
@@ -35,7 +35,9 @@ const CONTENTS = {
     add(c, inst('Update notice', { State: 'Available', Device }), { fillW: true });
   },
   Control: (c, Device) => {
-    header(c, 'mic', 'Microphone', 'Used for calls and voice messages');
+    const h = header(c, 'mic', 'Microphone', 'Used for calls and voice messages');
+    // Named apart from the headers of the other kinds: what this kind is about is a property, so one card serves the microphone, the camera and the speakers.
+    for (const [layer, name] of [['title', 'subject'], ['line', 'about'], ['icon', 'subject glyph']]) h.findOne((n) => n.name === layer).name = name;
     add(c, setProps(inst('Select', { State: 'Closed', Device }), { Label: 'Input device' }), { fillW: true });
   },
   'Switch': (c, Device) => {
@@ -57,11 +59,29 @@ const CONTENTS = {
     add(c, setProps(inst('Inline error'), { Message: 'The list of devices could not be loaded' }), { fillW: true });
   },
 };
-display(await grid('Settings card', axis('Kind', Object.keys(CONTENTS)), DEVICES, ({ Kind, Device }) => {
+const cards = display(await grid('Settings card', axis('Kind', Object.keys(CONTENTS)), DEVICES, ({ Kind, Device }) => {
   const c = cardSurface('Settings card', { component: true, dir: 'V', gap: 3, pad: cardPad(Device), w: CARD_W[Device], align: 'MIN' });
   CONTENTS[Kind](c, Device);
   return c;
 }));
+prop(cards, 'Subject', 'TEXT', 'Microphone', 'subject');
+prop(cards, 'About', 'TEXT', 'Used for calls and voice messages', 'about');
+prop(cards, 'Subject glyph', 'INSTANCE_SWAP', glyphOf('mic'), 'subject glyph');
+
+// The head of a screen that is not a conversation: its name and, when there is one, a line about the whole screen. The phone's has the way back.
+const heads = display(await grid('Page header', ONE, DEVICES, ({ Device }) => {
+  const phone = Device === 'Phone';
+  const h = box('Page header', { component: true, dir: 'H', gap: 1, w: CARD_W[Device], minHk: phone ? 12 : null });
+  // The arrow, not the edge of its target, stands on the line the text under the header starts on.
+  if (phone) add(add(h, box('back place', { dir: 'H', w: px('space/12') - px('space/3'), h: px('space/12'), justify: 'MAX' })), action('back', Device)).name = 'back';
+  const col = add(h, box('text', { dir: 'V', gap: phone ? 0 : 1, align: 'MIN' }), { fillW: true });
+  add(col, text('Sound and video', phone ? 'titleLarge' : 'headlineMedium', 'onSurface', { name: 'title', truncate: true }), { fillW: true });
+  para(col, 'Changes are saved as you make them', phone ? 'bodySmall' : 'bodyMedium', 'onSurfaceVariant', 'line');
+  return h;
+}));
+prop(heads, 'Title', 'TEXT', 'Sound and video', 'title');
+prop(heads, 'Line', 'TEXT', 'Changes are saved as you make them', 'line');
+prop(heads, 'Show line', 'BOOLEAN', true, 'line');
 
 const SECTIONS = [['mic', 'Sound and video'], ['person', 'Profile'], ['devices', 'Devices'], ['link', 'Connection'], ['lock', 'Privacy'], ['info', 'About']];
 const navs = await grid('Navigation row', axis('State', ['Default', 'Hover', 'Pressed', 'Focus', 'Selected']), DEVICES, ({ State, Device }) => {
@@ -78,7 +98,7 @@ prop(navs, 'Label', 'TEXT', 'Devices', 'label');
 prop(navs, 'Icon glyph', 'INSTANCE_SWAP', ICONS.devices, 'glyph');
 
 // The start menu: what a new conversation can be. Per row: glyph, its colour, title, line.
-const STARTS = [['chat', 'primary', 'Start a private chat', 'A secure one-to-one conversation'], ['group', 'secondary', 'Create a group', 'A closed group for your team or friends'], ['link', 'onSurfaceVariant', 'Join with a link', 'Use an invite a contact sent you'], ['tag', 'tertiary', 'Join a public channel', 'An open room anyone can read, not encrypted']];
+const STARTS = [['chat', 'primary', 'Start a private chat', 'A secure one-to-one conversation'], ['group', 'secondary', 'Create a group', 'A closed group for your team or friends'], ['link', 'onSurfaceVariant', 'Join with a link', 'Use an invite a contact sent you'], ['tag', 'tertiary', 'Join a public channel', 'Open to anyone, not encrypted']];
 const [[START_GLYPH, START_INK, START_TITLE, START_LINE]] = STARTS, START_W = { Desktop: 440, Phone: ROW.Phone };
 const starts = await grid('Start row', STATES5.slice(0, 4), DEVICES, ({ State, Device }) => {
   const r = box('Start row', { component: true, dir: 'H', gap: 4, pad: [3, 4], w: START_W[Device], minHk: 16, r: 'large', clip: true });
@@ -116,36 +136,45 @@ display(await grid('Device row', axis('Kind', Object.keys(DEVICES_OF)), DEVICES,
   return r;
 }));
 
-/** The sections of settings as the desktop's side list and as the phone's first screen. */
-function sections(Device) {
-  const l = surface(`Sections · ${Device}`, Device === 'Phone' ? 'background' : 'panel', { dir: 'V', gap: 1, pad: [4, Device === 'Phone' ? 4 : 2], align: 'MIN' });
-  add(add(l, box('heading', { dir: 'H', pad: [0, 4, 2, 4] })), text('Settings', 'titleLarge', 'onSurface'));
-  SECTIONS.forEach(([glyph, Label], i) => add(l, setProps(inst('Navigation row', { State: i === 2 && Device === 'Desktop' ? 'Selected' : 'Default', Device }), { Label, 'Icon glyph': glyphOf(glyph) })));
+// The sections of settings: the desktop's side list, with the way back to the chats it stands in for, and the phone's first screen.
+display(await grid('Settings navigation', ONE, DEVICES, ({ Device }) => {
+  const phone = Device === 'Phone';
+  const l = surface('Settings navigation', phone ? 'background' : 'panel', { component: true, dir: 'V', gap: 1, pad: phone ? [1, 4, 4, 4] : [4, 2], align: 'MIN' });
+  if (phone) add(l, setProps(inst('Page header', { Device }), { Title: 'Settings', 'Show line': false }), { fillW: true });
+  else {
+    add(l, labelButton(Device, 'Back to chats', { Kind: 'Text', glyph: 'back' }));
+    add(add(l, box('heading', { dir: 'H', pad: [3, 4, 2, 4] })), text('Settings', 'titleLarge', 'onSurface'));
+  }
+  // The desktop opens on its first section; the phone shows the list alone.
+  SECTIONS.forEach(([glyph, Label], i) => add(l, setProps(inst('Navigation row', { State: !i && !phone ? 'Selected' : 'Default', Device }), { Label, 'Icon glyph': glyphOf(glyph) })));
   return l;
-}
+}));
 /** A start row for one of STARTS, in its own colour. */
-function startRow([glyph, ink, Title, Line]) {
-  const r = setProps(inst('Start row', { State: 'Default', Device: 'Desktop' }), { Title, Line, 'Icon glyph': glyphOf(glyph) });
+function startRow([glyph, ink, Title, Line], Device) {
+  const r = setProps(inst('Start row', { State: 'Default', Device }), { Title, Line, 'Icon glyph': glyphOf(glyph) });
   if (ink !== START_INK) r.findOne((n) => n.name === 'start icon').children[0].fills = paint(ink);
   return r;
 }
-/** The start menu: its rows grouped by who can read the conversation, each group under its label. */
-function startMenu() {
-  const m = surface('Start menu', 'background', { dir: 'V', gap: 2, pad: 4, align: 'MIN' });
+// The start menu: its rows grouped by who can read the conversation, each group under its label.
+display(await grid('Start menu', ONE, DEVICES, ({ Device }) => {
+  const phone = Device === 'Phone';
+  const m = surface('Start menu', 'background', { component: true, dir: 'V', gap: 2, pad: phone ? [1, 4, 4, 4] : 4, align: 'MIN' });
+  // The phone opens the menu as a screen of its own, so its name comes with the way back.
+  if (phone) add(m, setProps(inst('Page header', { Device }), { Title: 'Start a conversation', 'Show line': false }), { fillW: true });
+  else add(add(m, box('heading', { dir: 'H', pad: [0, 4, 2, 4] })), text('Start a conversation', 'headlineMedium', 'onSurface'));
   for (const [glyph, label, rows] of [['lock', 'End-to-end encrypted', STARTS.slice(0, 3)], ['language', 'Open to everyone', STARTS.slice(3)]]) {
     const l = add(m, box('label', { dir: 'H', gap: 2, pad: [2, 4, 0, 4] }));
     add(l, icon(glyph, 'onSurfaceMuted', 4));
     add(l, text(label, 'labelLarge', 'onSurfaceMuted'));
     const g = add(m, cardSurface('group', { dir: 'V', r: 'large' }));
-    rows.forEach((row) => add(g, startRow(row)));
+    rows.forEach((row) => add(g, startRow(row, Device)));
   }
   return m;
-}
+}));
 function deviceList() {
   const c = cardSurface('Your devices', { dir: 'V', gap: 2, pad: 5, w: CARD_W.Desktop, align: 'MIN' });
   add(add(c, box('heading', { dir: 'H', pad: [0, 0, 1, 0] })), text('Your devices', 'titleMedium', 'onSurface'));
   Object.keys(DEVICES_OF).forEach((Kind) => add(c, inst('Device row', { Kind, Device: 'Desktop' }), { fillW: true }));
   return c;
 }
-await examples('The sections on the desktop and on the phone, and the start menu', [sections('Desktop'), sections('Phone'), startMenu()], 'MIN');
 await examples('The devices of one user', [deviceList()], 'MIN');

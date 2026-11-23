@@ -28,13 +28,15 @@ const STATES = {
   'Controls hidden': ['4:12', 'Two-way video', null],
   'Controls hidden and muted': ['4:12', 'Two-way video', null, null, true],
 };
-/** The largest 16:9 stage that fits the window whole, in its middle. It grows with an instance that is made larger in the same proportion; a window of another shape wants its stage fitted again. */
+/** The largest 16:9 stage that fits the window whole, in its middle. It keeps its shape in an instance of another size: it takes the window's width, or its height on a phone turned on its side, and the other side follows. */
 function fitStage(win, Kind) {
-  const s = inst('Call video stage', { Kind }), w = Math.min(win.width, Math.round(win.height * 16 / 9)), h = Math.round(w * 9 / 16);
+  const wide = win.width >= win.height * 16 / 9;
+  const place = add(win, box('stage place', { dir: wide ? 'H' : 'V', w: win.width, h: win.height, justify: 'CENTER' }), { abs: [0, 0] });
+  place.constraints = { horizontal: 'STRETCH', vertical: 'STRETCH' };
+  const s = add(place, inst('Call video stage', { Kind }));
   s.name = 'stage';
-  s.resize(w, h);
-  add(win, s, { abs: [(win.width - w) / 2, (win.height - h) / 2] });
-  s.constraints = { horizontal: 'SCALE', vertical: 'SCALE' };
+  s.resize(160, 90); s.lockAspectRatio();
+  s[wide ? 'layoutSizingVertical' : 'layoutSizingHorizontal'] = 'FILL';
 }
 /** The row along the top of [win]: the way out of the open call, the full screen button and, over video, who the call is with on a plate of their own, as every button has. A call left alone keeps only the mark of a muted microphone there. line: what a call over video says beside the name. */
 function topRow(win, touch, { line, controls, muted }) {

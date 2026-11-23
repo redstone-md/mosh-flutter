@@ -2,9 +2,10 @@
   "name": "mosh-figma-design",
   "private": true,
   "type": "module",
-  "description": "Builds the redesign's components in Figma on the Foundations tokens",
+  "description": "Builds the redesign's components and reference screens in Figma on the Foundations tokens",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "screens": "node screens.mjs"
   },
   "dependencies": {
     "@iconify-json/ph": "^1.2.2"
