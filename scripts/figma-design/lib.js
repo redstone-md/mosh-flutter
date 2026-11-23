@@ -1,6 +1,6 @@
 // Plugin-side helpers for the card scripts in cards/. build.mjs prepends this
-// file to each of them and sets CARD_ORDER, the card's place in the section,
-// and CARD_SCRIPT, the name of its file in cards/.
+// file to each of them and sets CARD_SCRIPT, the name of the card's file in
+// cards/, and CARDS, those names in the order the cards stand in the section.
 // Every colour, radius, gap, padding, stroke weight, opacity and text style a
 // helper sets is bound to a Foundations token, so audit.js can check the result.
 await figma.loadAllPagesAsync();
@@ -179,6 +179,8 @@ function host() {
   if (!s) { s = figma.createSection(); s.name = 'Components'; s.fills = paint('surfaceDim'); PAGE.appendChild(s); }
   return s;
 }
+/** A layer's path below the section, for a message. */
+const where = (n) => { const p = []; for (let x = n; x && x.type !== 'SECTION'; x = x.parent) p.unshift(x.name); return p.join(' / '); };
 const PAD = 48, ROW_LABEL = 150;
 // The components variant() can ask for, by name: a walk of the section for each one is a fifth of a second.
 const SETS = new Map();
@@ -192,7 +194,7 @@ function card(name, note) {
   OLD = s.children.filter((n) => n.name === name);
   for (const [key, n] of SETS) if (OLD.includes(n.parent)) SETS.delete(key);
   const c = CARD = figma.createFrame();
-  c.name = name; c.setPluginData('order', String(CARD_ORDER)); c.setPluginData('script', CARD_SCRIPT); c.fills = paint('surfaceContainerLow'); radius(c, 'extraLarge'); c.clipsContent = false;
+  c.name = name; c.setPluginData('script', CARD_SCRIPT); c.fills = paint('surfaceContainerLow'); radius(c, 'extraLarge'); c.clipsContent = false;
   s.appendChild(c);
   add(c, text(name, 'headlineSmall', 'onSurface')).y = PAD;
   const n = add(c, text(note, 'bodyMedium', 'onSurfaceVariant', { w: 860 })); n.y = PAD + 40;
@@ -272,7 +274,7 @@ function prop(set, name, type, value, layer) {
 function layoutCards() {
   const s = host(), GAP = 64, MAX = 6600;
   let x = GAP, y = GAP, colW = 0, bottom = 0;
-  for (const c of [...s.children].sort((a, b) => a.getPluginData('order') - b.getPluginData('order'))) {
+  for (const c of [...s.children].sort((a, b) => CARDS.indexOf(a.getPluginData('script')) - CARDS.indexOf(b.getPluginData('script')))) {
     if (y > GAP && y + c.height > MAX) { x += colW + GAP; y = GAP; colW = 0; }
     c.x = x; c.y = y; y += c.height + GAP; colW = Math.max(colW, c.width); bottom = Math.max(bottom, y);
   }
@@ -283,7 +285,7 @@ function layoutCards() {
 }
 /** Ends a card script: moves the instances of the replaced card onto this one (relink.js), places the card and reports what it holds. */
 async function finish() {
-  const report = OLD?.length ? await relink(OLD, CARD) : {};
+  const report = await relink(OLD ?? [], CARD);
   OLD?.forEach((o) => o.remove());
   layoutCards();
   return { card: CARD.name, sets: CARD.findAllWithCriteria({ types: ['COMPONENT_SET'] }).map((x) => `${x.name} ${x.children.length}`), ...report };

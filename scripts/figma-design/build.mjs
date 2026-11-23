@@ -70,8 +70,8 @@ async function build(orders) {
     const started = Date.now();
     // Read when its turn comes, so a card edited during a long run is built as edited.
     const script = `try {\n${read(`cards/${CARDS[order]}.js`)}\nreturn await finish();\n} catch (e) { discard(); throw e; }`;
-    const consts = { CARD_ORDER: order, CARD_SCRIPT: CARDS[order], REBUILT_LATER: orders.slice(at + 1).map((later) => CARDS[later]), ...(CARDS[order] === 'icons' ? { ICON_SVG: iconSvg() } : {}) };
-    const { card, sets, moved = 0, touched: users = [], lost: dropped = [], resized = [] } = await run(script, consts);
+    const consts = { CARDS, CARD_SCRIPT: CARDS[order], REBUILT_LATER: orders.slice(at + 1).map((later) => CARDS[later]), ...(CARDS[order] === 'icons' ? { ICON_SVG: iconSvg() } : {}) };
+    const { card, sets, moved, touched: users, lost: dropped, resized } = await run(script, consts);
     console.log(`${card}: ${sets.join(', ') || 'no sets'}; ${moved} instances moved; ${((Date.now() - started) / 1000).toFixed(1)} s`);
     for (const line of resized) console.log(`  changed size, rebuild its card: ${line}`);
     [card, ...users].forEach((name) => touched.add(name));

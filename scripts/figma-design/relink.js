@@ -3,8 +3,6 @@
 // every instance of the old ones onto the component of the same name in the
 // new card, so the cards that use them keep their own components and node ids.
 
-/** A layer's path below the section, for a message. */
-const where = (n) => { const p = []; for (let x = n; x && x.type !== 'SECTION'; x = x.parent) p.unshift(x.name); return p.join(' / '); };
 /** A component as variant() names it: its set and its variant, or its own name. */
 const address = (c) => (c.parent.type === 'COMPONENT_SET' ? `${c.parent.name} / ${c.name}` : c.name);
 /** The card a layer is in, by name; outside the section, the frame that holds it. */
