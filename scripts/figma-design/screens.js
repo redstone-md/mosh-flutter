@@ -5,9 +5,6 @@
 // it can be put beside its frame on the "current" pages.
 const SIZE = { Desktop: [1280, 800], Phone: [390, 844] };
 const screensHost = () => host('Screens');
-screensHost();
-// What is on the page before the script adds to it: a script that throws takes back the rest.
-const BEFORE = new Set(PAGE.children.map((n) => n.id));
 const BUILT = [];
 /**
  * The frame of the screen [name] on [Device], empty. A screen built before keeps its frame, and with it its node id and the links to it.
@@ -26,8 +23,6 @@ function screen(name, Device, bar = 'With state') {
 }
 /** What fills a screen under the title bar: a row of panels, or with dir 'V' a column. o as for box(). */
 const stretch = (parent, name, o = {}) => add(parent, box(name, { dir: 'H', align: 'MIN', ...o }), { fillW: true, fillH: true });
-/** Takes back what a script that threw had added to the page outside the frames of its screens. */
-function scrap() { for (const n of PAGE.children) if (!BEFORE.has(n.id)) n.remove(); }
 /** Ends a screen script: places the screens of every script in columns, the desktop's above the phone's, and names the ones built. */
 async function done() {
   await flush();

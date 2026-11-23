@@ -20,6 +20,8 @@ for (const n of scope.flatMap((c) => [c, ...c.findAll(() => true)])) {
   for (const key of ['fills', 'strokes']) {
     const paints = n[key];
     if (!Array.isArray(paints)) continue;
+    // A picture is what a screen shows, not how it is drawn: the layer a component keeps for it may hold an image.
+    if (n.name === 'picture' && paints.every((p) => p.type === 'IMAGE')) continue;
     paints.forEach((p) => { if (p.visible !== false && !(p.type === 'SOLID' && token(p.boundVariables?.color))) bad(n, key + ' not a token'); if (p.opacity !== undefined && p.opacity !== 1) bad(n, key + ' paint opacity ' + p.opacity); });
     if (key === 'strokes' && paints.length && !['strokeWeight', 'strokeTopWeight'].some((f) => bound(n, f))) bad(n, 'stroke weight ' + String(n.strokeWeight));
   }
@@ -54,4 +56,4 @@ for (const [name, set] of Object.entries(sets)) {
   const small = phone.filter((v) => !holds(v, 'minWidth', 'layoutSizingHorizontal', 'width') || !holds(press(v), 'minHeight', 'layoutSizingVertical', 'height'));
   small.forEach((v) => issues.push(`tap target can shrink below ${TARGET} px (${press(v).width}x${press(v).height} now) — ${name} / ${v.name}`));
 }
-return { nodes, issues, sets: Object.keys(sets).length, variants: Object.values(sets).reduce((n, s) => n + s.children.length, 0) };
+return { nodes, issues, checked: scope.map((c) => c.name), sets: Object.keys(sets).length, variants: Object.values(sets).reduce((n, s) => n + s.children.length, 0) };

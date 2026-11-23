@@ -77,6 +77,6 @@ const orders = chosen(args);
 const { cards, lost } = args.includes('--audit') ? { cards: null, lost: [] } : await build(orders);
 const audit = await run(read('audit.js'), { AUDIT_SECTION: 'Components', AUDIT_CARDS: cards });
 const issues = [...lost.map((line) => `override gone after the move: ${line}`), ...audit.issues];
-console.log(`audit of ${cards ? cards.join(', ') : 'every card'}: ${audit.nodes} layers, ${audit.sets} sets with ${audit.variants} variants, ${issues.length} issues`);
+console.log(`audit of ${cards ? audit.checked.join(', ') : 'every card'}: ${audit.nodes} layers, ${audit.sets} sets with ${audit.variants} variants, ${issues.length} issues`);
 for (const issue of issues) console.log('  ' + issue);
 process.exitCode = issues.length ? 1 : 0;

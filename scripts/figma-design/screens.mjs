@@ -22,13 +22,13 @@ if (!args.includes('--audit')) {
   built = [];
   for (const SCREEN_SCRIPT of names.length ? SCREENS.filter((s) => names.includes(s)) : SCREENS) {
     const started = Date.now();
-    const script = `try {\n${read(`screens/${SCREEN_SCRIPT}.js`)}\nreturn await done();\n} catch (e) { scrap(); throw e; }`;
+    const script = `try {\n${read(`screens/${SCREEN_SCRIPT}.js`)}\nreturn await done();\n} catch (e) { sweep(); throw e; }`;
     const frames = await run(script, { SCREENS, SCREEN_SCRIPT }, ['screens.js']);
     console.log(`${SCREEN_SCRIPT}: ${frames.join(', ')}; ${((Date.now() - started) / 1000).toFixed(1)} s`);
     built.push(...frames);
   }
 }
 const audit = await run(read('audit.js'), { AUDIT_SECTION: 'Screens', AUDIT_CARDS: names.length ? built : null });
-console.log(`audit of ${names.length ? built.join(', ') : 'every screen'}: ${audit.nodes} layers, ${audit.issues.length} issues`);
+console.log(`audit of ${audit.checked.join(', ')}: ${audit.nodes} layers, ${audit.issues.length} issues`);
 for (const issue of audit.issues) console.log('  ' + issue);
 process.exitCode = audit.issues.length ? 1 : 0;
