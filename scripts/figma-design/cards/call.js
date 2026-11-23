@@ -45,10 +45,10 @@ function callWindow({ State, Device }) {
   const desktop = Device === 'Desktop', upright = Device === 'Phone', touch = desktop ? 'Desktop' : 'Phone';
   const win = box('Call window', { component: true, dir: 'V', w, h, fill: BENEATH, clip: true });
   if (video) fitStage(win, video);
-  const top = add(win, box('top', { dir: 'H', gap: 2, pad: desktop ? 3 : 2 }), { fillW: true });
-  add(top, action('call_minimize', touch, { Kind: 'Tonal' })).name = 'minimize';
-  if (video) add(top, whoPlate(status, touch));
-  add(top, box('room', { dir: 'H' }), { fillW: true });
+  const top = add(win, box('top', { dir: 'H', pad: desktop ? 3 : 2, justify: 'SPACE_BETWEEN' }), { fillW: true });
+  const lead = add(top, box('lead', { dir: 'H', gap: 2 }));
+  add(lead, action('call_minimize', touch, { Kind: 'Tonal' })).name = 'minimize';
+  if (video) add(lead, whoPlate(status, touch));
   // A phone's call already has the whole screen.
   if (desktop) add(top, action('fullscreen', touch, { Kind: 'Tonal' })).name = 'full screen';
   // On its side the phone has no height to spare: the name goes beside the avatar, not under it.
