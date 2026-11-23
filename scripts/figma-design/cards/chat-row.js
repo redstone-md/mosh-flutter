@@ -1,6 +1,6 @@
 // Rows of the chat list: RailItem with its text (rail_item._RailText), the
-// invitation row, CompactRailItem of the collapsed list, and ChatRowMenu, the
-// menu a row opens.
+// invitation row and CompactRailItem of the collapsed list. ChatRowMenu, the
+// menu a row opens, is the Chat row kind of the Menu card.
 card('Chat row', 'A chat is its avatar, its name, the last message and when it came. The open chat is the one filled row in the list, the same for a person, a group and a channel: the avatar already tells them apart. A long name and a long message are cut at the end, never wrapped. An invitation offers its two answers in the row. With the list collapsed only the avatar is left.');
 function chatRow({ State, Device }) {
   const on = State === 'Selected';
@@ -47,17 +47,3 @@ const compact = await grid('Compact chat row', ONE, axis('State', ['Default', 'H
   return r;
 });
 prop(compact, 'Unread', 'BOOLEAN', false, 'unread');
-
-const menus = await grid('Chat row menu', ONE, DEVICES, ({ Device }) => {
-  const m = box('Chat row menu', { component: true, dir: 'V', pad: [1, 0], minWk: 16, minHk: 12, r: 'medium', clip: true, fill: 'surfaceContainerHigh', effect: 'elevation2', align: 'MIN' });
-  const item = add(m, box('item', { dir: 'H', gap: 3, pad: [0, 4], hk: controlHeight(Device) }));
-  add(item, icon('edit', 'onSurfaceVariant'));
-  add(item, text('Rename chat', 'labelLarge', 'onSurface', { name: 'action' }));
-  return m;
-});
-prop(menus, 'Action', 'TEXT', 'Rename chat', 'action');
-
-const open = box('Row with its menu', { dir: 'H', gap: 2, align: 'MIN' });
-add(open, inst('Chat row', { State: 'Menu open', Device: 'Desktop' }));
-add(open, inst('Chat row menu', { Device: 'Desktop' }));
-await examples('A row with its menu open', [open]);

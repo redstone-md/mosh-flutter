@@ -56,4 +56,7 @@ display(await grid('Sheet', ONE, axis('Kind', Object.keys(SHEETS)), ({ Kind }) =
 
 const adapters = inst('Select menu');
 adapters.children.forEach((option, i) => setProps(option, { Label: SHEETS['Network adapter'][i] }));
-await examples('The adapter menu on the desktop is the Select menu', [adapters], 'MIN');
+const open = box('Row with its menu', { dir: 'H', gap: 2, align: 'MIN' });
+add(open, inst('Chat row', { State: 'Menu open', Device: 'Desktop' }));
+add(open, inst('Menu', { Kind: 'Chat row', Device: 'Desktop' }));
+await examples('A chat row with its menu open, and the adapter menu, which is the Select menu', [open, adapters], 'MIN');

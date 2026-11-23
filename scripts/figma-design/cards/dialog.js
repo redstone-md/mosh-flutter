@@ -1,5 +1,5 @@
-// Dialogs: MoshDialog (confirmations, the rename form, notices), the call's
-// device dialog and VpnConsentModal, with the scrim every modal surface lies on.
+// Dialogs: MoshDialog (confirmations, the rename form, notices, the
+// encryption fingerprint), the call's device dialog and VpnConsentModal, with the scrim every modal surface lies on.
 card('Dialog', 'A dialog stops the screen for one decision. It names the decision in its title, says what follows in a sentence or two, and ends with the answers, the one that goes on at the right. A destructive answer is the only red on it. Cancel, Escape and a press on the scrim all leave without a change, so only a dialog without answers of its own has a close button. On the phone long answers stack, the main one on top.');
 
 await grid('Scrim', ONE, ONE, () => {
@@ -17,6 +17,7 @@ const KINDS = {
   Input: ['Rename chat', [], 'Cancel', 'Save'],
   Notice: ['Restart Mosh to apply the connection', ['Setup is saved. Close Mosh completely and open it again to apply the network interface. The running connection has not changed.'], null, 'Understood'],
   Devices: ['Call devices', [], null, null],
+  Fingerprint: ['Encryption fingerprint', ['The same on both sides. Compare it with Maya Chen over a call or in person.'], null, null],
   'VPN consent': [VPN_TITLE, VPN_BODY, 'Keep using the VPN', 'Route around the VPN'],
   'VPN restarting': [VPN_TITLE, VPN_BODY, 'Keep using the VPN', 'Restarting…'],
   'VPN not saved': [VPN_TITLE, VPN_BODY, 'Keep using the VPN', 'Route around the VPN'],
@@ -26,12 +27,18 @@ function dialog({ Kind, Device }) {
   const d = surface('Dialog', 'modal', { component: true, dir: 'V', gap: 4, pad: 6, w: DIALOG[Device], align: 'MIN' });
   const head = add(d, box('head', { dir: 'H', gap: 2, align: 'MIN' }), { fillW: true });
   para(head, title, 'titleLarge', 'onSurface', 'title');
-  if (Kind === 'Devices') add(head, action('close', Device)).name = 'close';
+  if (!go) add(head, action('close', Device)).name = 'close';
   body.forEach((p, i) => para(d, p, 'bodyMedium', 'onSurfaceVariant', i ? 'body, more' : 'body'));
   if (Kind === 'Input') add(d, setProps(inst('Text field', { State: 'Filled', Device }), { Label: 'Chat name', Value: 'Weekend plans' }), { fillW: true });
   if (Kind === 'Devices') {
     for (const [Label, Value] of [['Microphone', 'USB Microphone'], ['Speaker', 'Studio Headphones'], ['Camera', 'System default']]) add(d, setProps(inst('Select', { State: 'Closed', Device }), { Label, Value }), { fillW: true });
     para(d, 'Video is sent as VP8 at 1280×720, 30 frames a second', 'bodySmall', 'onSurfaceMuted', 'video format');
+  }
+  if (Kind === 'Fingerprint') {
+    // Four pictures are quicker to compare aloud than the digits under them.
+    const print = add(d, inset('fingerprint', { dir: 'V', gap: 2, pad: [4, 0] }), { fillW: true });
+    add(print, text('🦊 🌵 🚲 🎈', 'displaySmall', 'onSurface', { name: 'pictures' }));
+    add(print, text('7F3A 9C1E 4B8E 2D61', 'labelLarge', 'onSurfaceVariant', { name: 'digits' }));
   }
   if (Kind === 'VPN not saved') add(d, setProps(inst('Inline error'), { Message: 'Your answer could not be saved. Try again.' }), { fillW: true });
   if (!go) return d;

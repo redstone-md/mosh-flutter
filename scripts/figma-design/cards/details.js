@@ -2,7 +2,7 @@
 // sections) and the connection status that opens from it (PeerStatusDrawer,
 // SummaryCard, DiagnosticsGroup, DiagnosticsRow as the Value row, Metric, the event log,
 // DiagnosticsEmptyState and RuntimeError).
-card('Details and diagnostics', 'The details panel is a panel beside the conversation on the desktop and a screen of its own on the phone: who is here, what was shared, and how the conversation is connected. Connection status is for looking closely. It opens with a summary a person can read, graded by one word, and keeps the raw values under it in plain rows, label at the left and value at the right, grouped by what they describe.');
+card('Details and diagnostics', 'The details panel is a panel beside the conversation on the desktop and a screen of its own on the phone: who is here, what was shared, how the conversation is encrypted and how it is connected. Connection status is for looking closely. It opens with a summary a person can read, graded by one word, and keeps the raw values under it in plain rows, label at the left and value at the right, grouped by what they describe.');
 const PANEL = { Desktop: 360, Phone: 390 };
 /** The head of a panel: its title and its buttons at the right. */
 function panelHead(parent, title, Device, glyphs) {
@@ -50,6 +50,8 @@ display(await grid('Details panel', axis('Kind', Object.keys(PANELS)), DEVICES, 
   const shared = section(body, 'Shared files');
   if (files) add(shared, inst('File card', { Tone: 'Surface', State: 'Ready', Device }), { fillW: true });
   else add(shared, text('No shared files yet', 'bodyMedium', 'onSurfaceMuted'));
+  // The one place a conversation shows its encryption: the row opens the fingerprint to compare.
+  add(body, setProps(inst('Start row', { State: 'Default', Device }), { Title: 'End-to-end encrypted', Line: 'Compare the fingerprint to verify', 'Icon glyph': glyphOf('lock') }), { fillW: true }).name = 'encryption';
   const link = add(body, box('connection', { dir: 'V', align: 'MIN' }), { fillW: true });
   add(link, setProps(inst('Disclosure', { State: open ? 'Open' : 'Closed', Device }), { Label: 'Connection details' }), { fillW: true });
   if (open) {

@@ -1,7 +1,8 @@
 // The window's title bar on the desktop (MoshTitleBar with its chat list
 // toggle and DesktopCaptionButtons) and the bar at the top of a conversation
-// (ConversationAppBar, ConversationHeaderTitle, FingerprintLock, ChatHeaderMenu, MobileSearchToggle).
-card('Title bar and top bar', 'The title bar belongs to the window: the app’s mark, a toggle for the chat list and whether Mosh is connected, on the panel level so it reads as part of the frame and not of the chat. The phone has no window, so it has no title bar. The top bar belongs to the conversation: who it is with, how it is connected, and what can be done with it. A lock beside the name means end-to-end encryption; a public channel has none.');
+// (ConversationAppBar, ConversationHeaderTitle, ChatHeaderMenu, MobileSearchToggle).
+// FingerprintLock is not in the bar: checking the fingerprint is a row of the details panel.
+card('Title bar and top bar', 'The title bar belongs to the window: the app’s mark, a toggle for the chat list and whether Mosh is connected, on the panel level so it reads as part of the frame and not of the chat. The phone has no window, so it has no title bar. The top bar belongs to the conversation: who it is with, how it is connected, and what can be done with it. Private chats and groups are always end-to-end encrypted, so the bar does not say so beside every name. It names the exception: a public channel says in its line that it is not encrypted. Checking the fingerprint is in the details panel.');
 function logo() {
   const m = box('logo', { dir: 'H', wk: 6, hk: 6, r: 'small', fill: 'primary', justify: 'CENTER' });
   add(m, text('M', 'labelLargeEmphasized', 'onPrimary'));
@@ -33,23 +34,21 @@ display(await grid('Window title bar', axis('Kind', Object.keys(BARS)), [['Deskt
   return b;
 }));
 
-// Per kind: avatar, name, lock, the line under the name, and whether a call can be placed.
+// Per kind: avatar, name, the line under the name, and whether a call can be placed.
 const TOPS = {
-  'Private chat': [{ Kind: 'Person', Plate: '2' }, 'Maya Chen', true, 'Connected, direct', true],
-  'Waiting for contact': [{ Kind: 'Person', Plate: '2' }, 'Maya Chen', true, 'Waiting for Maya to open the invite', false],
-  'Status unknown': [{ Kind: 'Person', Plate: '2' }, 'Maya Chen', true, null, true],
-  Group: [{ Kind: 'Group', Plate: '1' }, 'Weekend plans', true, 'Admin, 4 members, MLS ready', false],
-  Channel: [{ Kind: 'Channel', Plate: '3' }, '#photography', false, 'Public channel, not encrypted', false],
+  'Private chat': [{ Kind: 'Person', Plate: '2' }, 'Maya Chen', 'Connected, direct', true],
+  'Waiting for contact': [{ Kind: 'Person', Plate: '2' }, 'Maya Chen', 'Waiting for Maya to open the invite', false],
+  'Status unknown': [{ Kind: 'Person', Plate: '2' }, 'Maya Chen', null, true],
+  Group: [{ Kind: 'Group', Plate: '1' }, 'Weekend plans', 'Admin, 4 members, MLS ready', false],
+  Channel: [{ Kind: 'Channel', Plate: '3' }, '#photography', 'Public channel, not encrypted', false],
 };
 function topBar({ Kind, Device }) {
-  const [avatar, name, locked, line, calls] = TOPS[Kind], phone = Device === 'Phone';
+  const [avatar, name, line, calls] = TOPS[Kind], phone = Device === 'Phone';
   const b = surface('Top bar', 'background', { component: true, dir: 'H', gap: phone ? 2 : 3, pad: [2, phone ? 1 : feedPad(Device)], w: FEED[Device], minHk: 16 });
   if (phone) add(b, action('back', Device)).name = 'back';
   avatarSlot(b, { ...avatar, Size: phone ? 'Small' : 'Medium' });
   const col = add(b, box('title', { dir: 'V', align: 'MIN' }), { fillW: true });
-  const top = add(col, box('name line', { dir: 'H', gap: 1 }), { fillW: true });
-  add(top, text(name, 'titleMedium', 'onSurface', { name: 'name', cut: true }), { max: phone ? 150 : 320 });
-  if (locked) add(top, icon('lock', 'onSurfaceMuted', 4)).name = 'encrypted';
+  add(col, text(name, 'titleMedium', 'onSurface', { name: 'name', truncate: true }), { fillW: true });
   if (line) add(col, text(line, 'bodySmall', 'onSurfaceVariant', { name: 'status', truncate: true }), { fillW: true });
   const actions = add(b, box('actions', { dir: 'H' }));
   if (calls) add(actions, action('call', Device)).name = 'call';
