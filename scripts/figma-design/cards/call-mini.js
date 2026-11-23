@@ -92,7 +92,7 @@ function screen(Device, State, under = 'Conversation') {
 }
 /** Lays [node] in the upper right corner of [frame], under the title bar where there is one. */
 function corner(frame, node) {
-  const bar = frame.children[0].type === 'INSTANCE' ? frame.children[0].height : 0;
+  const bar = frame.children[0].name === 'Window title bar' ? frame.children[0].height : 0;
   add(frame, node, { abs: [frame.width - node.width - EDGE, bar + EDGE] });
   return frame;
 }

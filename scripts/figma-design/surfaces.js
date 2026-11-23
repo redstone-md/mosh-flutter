@@ -17,7 +17,7 @@ const LEVEL = {
   popup: { fill: 'surfaceContainerHigh', stroke: 'outlineVariant', effect: 'elevation2', r: 'large' },
   modal: { fill: 'surfaceContainerHigh', stroke: 'outlineVariant', effect: 'elevation3', r: 'extraLarge' },
 };
-// Under every level: the scrim, and what shows a picture and wants nothing brighter than it: the stage of the media viewer, and a call in all its forms.
+// Under every level: the scrim, and what shows a picture and wants nothing brighter than it: the stage of the media viewer, the open call and the phone's call strip.
 const BENEATH = 'surfaceContainerLowest';
 /** A box on one of the LEVELs; o as for box(). */
 const surface = (name, level, o = {}) => box(name, { ...(LEVEL[level] ?? fail('level ' + level)), ...o });
