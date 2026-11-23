@@ -1,7 +1,7 @@
 // Checks a section of the Redesign page: no value outside the Foundations tokens, a
 // tap target of at least 48 px on every phone variant and, on a screen, nothing
 // drawn outside a component. AUDIT_SECTION is Components (build.mjs) or Screens
-// (screens.mjs); AUDIT_CARDS names its cards or screens to check, null is all of them.
+// (screens.mjs); AUDIT_NAMES names its cards or screens to check, null is all of them.
 // Not checked, because Foundations has no token for them: widths and heights
 // (they are layout, bound to space/* where they sit on the scale), positions,
 // the ring geometry of spinners and the caret's rotation.
@@ -13,7 +13,7 @@ const token = (binding) => TOKENS.has(binding?.id);
 const bound = (n, field) => token(n.boundVariables?.[field]);
 const styles = Object.fromEntries((await figma.getLocalTextStylesAsync()).map((s) => [s.id, s.name]));
 const section = PAGE.children.find((n) => n.type === 'SECTION' && n.name === AUDIT_SECTION) ?? fail('section ' + AUDIT_SECTION);
-const scope = section.children.filter((c) => !AUDIT_CARDS || AUDIT_CARDS.includes(c.name));
+const scope = section.children.filter((c) => !AUDIT_NAMES || AUDIT_NAMES.includes(c.name));
 let nodes = 0;
 for (const n of scope.flatMap((c) => [c, ...c.findAll(() => true)])) {
   nodes++;

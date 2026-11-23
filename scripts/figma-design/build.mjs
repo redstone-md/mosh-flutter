@@ -26,7 +26,7 @@
 //     holds is listed: its card laid it out at the old size, so rebuild that
 //     card too, or the whole chain with --on.
 import { createRequire } from 'node:module';
-import { read, run } from './run.mjs';
+import { check, guarded, parse, read, run } from './run.mjs';
 
 // In build order: a card may use the components of the cards before it.
 const CARDS = ['icons', 'button', 'icon-button', 'text-field', 'select', 'switch', 'chips', 'avatar', 'badges', 'progress', 'slider-divider', 'attachment', 'voice', 'message', 'feed', 'thread', 'composer', 'chat-row', 'chat-list', 'org', 'search', 'dialog', 'menu', 'banner', 'toast', 'title-bar', 'settings', 'details', 'wizard', 'empty', 'media-viewer', 'call-controls', 'call', 'call-mini', 'levels'];
@@ -40,17 +40,11 @@ function iconSvg() {
   }));
 }
 
-/** The places in CARDS of the cards the arguments ask for, in build order. */
-function chosen(args) {
-  const names = args.filter((a) => !a.startsWith('--')), flags = args.filter((a) => a.startsWith('--'));
-  // A mistyped flag must not fall through to a build of every card.
-  const stray = flags.filter((f) => !['--on', '--audit'].includes(f));
-  if (stray.length || (flags.includes('--audit') && args.length > 1)) throw new Error(`cannot read "${args.join(' ')}"; see the top of build.mjs`);
-  const unknown = names.filter((n) => !CARDS.includes(n));
-  if (unknown.length) throw new Error(`no card "${unknown.join('", "')}"; cards: ${CARDS.join(', ')}`);
-  if (flags.includes('--on') && names.length !== 1) throw new Error('--on takes one card: the build runs from it to the last');
+/** The places in CARDS of the cards the command line asks for, in build order. */
+function chosen({ names, has }) {
+  if (has('--on') && names.length !== 1) throw new Error('--on takes one card: the build runs from it to the last');
   if (!names.length) return [...CARDS.keys()];
-  if (!flags.includes('--on')) return [...CARDS.keys()].filter((order) => names.includes(CARDS[order]));
+  if (!has('--on')) return [...CARDS.keys()].filter((order) => names.includes(CARDS[order]));
   return [...CARDS.keys()].slice(CARDS.indexOf(names[0]));
 }
 
@@ -60,10 +54,8 @@ async function build(orders) {
   console.log('tokens', JSON.stringify(await run(read('tokens.js'))));
   for (const [at, order] of orders.entries()) {
     const started = Date.now();
-    // Read when its turn comes, so a card edited during a long run is built as edited.
-    const script = `try {\n${read(`cards/${CARDS[order]}.js`)}\nreturn await finish();\n} catch (e) { discard(); throw e; }`;
     const consts = { CARDS, CARD_SCRIPT: CARDS[order], REBUILT_LATER: orders.slice(at + 1).map((later) => CARDS[later]), ...(CARDS[order] === 'icons' ? { ICON_SVG: iconSvg() } : {}) };
-    const { card, sets, moved, touched: users, lost: dropped, resized } = await run(script, consts);
+    const { card, sets, moved, touched: users, lost: dropped, resized } = await run(guarded(`cards/${CARDS[order]}.js`, 'finish'), consts);
     console.log(`${card}: ${sets.join(', ') || 'no sets'}; ${moved} instances moved; ${((Date.now() - started) / 1000).toFixed(1)} s`);
     for (const line of resized) console.log(`  changed size, rebuild its card: ${line}`);
     [card, ...users].forEach((name) => touched.add(name));
@@ -72,11 +64,6 @@ async function build(orders) {
   return { cards: orders.length === CARDS.length ? null : [...touched], lost };
 }
 
-const args = process.argv.slice(2);
-const orders = chosen(args);
-const { cards, lost } = args.includes('--audit') ? { cards: null, lost: [] } : await build(orders);
-const audit = await run(read('audit.js'), { AUDIT_SECTION: 'Components', AUDIT_CARDS: cards });
-const issues = [...lost.map((line) => `override gone after the move: ${line}`), ...audit.issues];
-console.log(`audit of ${cards ? audit.checked.join(', ') : 'every card'}: ${audit.nodes} layers, ${audit.sets} sets with ${audit.variants} variants, ${issues.length} issues`);
-for (const issue of issues) console.log('  ' + issue);
-process.exitCode = issues.length ? 1 : 0;
+const line = parse(process.argv.slice(2), CARDS, ['--on']);
+const { cards, lost } = line.audit ? { cards: null, lost: [] } : await build(chosen(line));
+await check('Components', cards, lost.map((gone) => `override gone after the move: ${gone}`));

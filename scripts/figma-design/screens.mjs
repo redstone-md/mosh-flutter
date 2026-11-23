@@ -8,27 +8,16 @@
 //
 // A screen that is built again keeps its frame and node id; only what is in it is new.
 // So a script that throws leaves its screens empty or half filled: run it again once it is mended.
-import { read, run } from './run.mjs';
+import { check, guarded, parse, run } from './run.mjs';
 
 // In the order their columns stand in the section.
 const SCREENS = ['chats', 'group', 'start', 'setup', 'settings', 'call', 'dialog', 'media'];
-const args = process.argv.slice(2), names = args.filter((a) => !a.startsWith('--'));
-const unknown = names.filter((n) => !SCREENS.includes(n));
-// A mistyped flag must not fall through to a build of every screen.
-if (unknown.length || args.some((a) => a.startsWith('--') && a !== '--audit') || (args.includes('--audit') && args.length > 1)) throw new Error(`cannot read "${args.join(' ')}"; screens: ${SCREENS.join(', ')}`);
-
-let built = null;
-if (!args.includes('--audit')) {
-  built = [];
-  for (const SCREEN_SCRIPT of names.length ? SCREENS.filter((s) => names.includes(s)) : SCREENS) {
-    const started = Date.now();
-    const script = `try {\n${read(`screens/${SCREEN_SCRIPT}.js`)}\nreturn await done();\n} catch (e) { sweep(); throw e; }`;
-    const frames = await run(script, { SCREENS, SCREEN_SCRIPT }, ['screens.js']);
-    console.log(`${SCREEN_SCRIPT}: ${frames.join(', ')}; ${((Date.now() - started) / 1000).toFixed(1)} s`);
-    built.push(...frames);
-  }
+const { names, audit } = parse(process.argv.slice(2), SCREENS);
+const built = [];
+for (const SCREEN_SCRIPT of audit ? [] : SCREENS.filter((s) => !names.length || names.includes(s))) {
+  const started = Date.now();
+  const frames = await run(guarded(`screens/${SCREEN_SCRIPT}.js`, 'done'), { SCREENS, SCREEN_SCRIPT }, ['screens.js']);
+  console.log(`${SCREEN_SCRIPT}: ${frames.join(', ')}; ${((Date.now() - started) / 1000).toFixed(1)} s`);
+  built.push(...frames);
 }
-const audit = await run(read('audit.js'), { AUDIT_SECTION: 'Screens', AUDIT_CARDS: names.length ? built : null });
-console.log(`audit of ${audit.checked.join(', ')}: ${audit.nodes} layers, ${audit.issues.length} issues`);
-for (const issue of audit.issues) console.log('  ' + issue);
-process.exitCode = audit.issues.length ? 1 : 0;
+await check('Screens', names.length ? built : null);
