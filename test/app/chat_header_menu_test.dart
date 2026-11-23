@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/conversation/chat_header_menu.dart';
 
@@ -30,11 +31,11 @@ void main() {
     await _pumpMenu(tester, [
       ChatHeaderMenuAction(
           label: 'Delete chat',
-          icon: Icons.delete_outline,
+          icon: MoshIcons.delete,
           danger: true,
           onSelect: () => calls++),
     ]);
-    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.tap(find.byIcon(MoshIcons.more));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Delete chat'));
@@ -49,13 +50,13 @@ void main() {
     await _pumpMenu(tester, [
       ChatHeaderMenuAction(
           label: 'Unavailable action',
-          icon: Icons.link,
+          icon: MoshIcons.link,
           disabled: true,
           onSelect: () => calls++),
       ChatHeaderMenuAction(
-          label: 'Copy invitation', icon: Icons.copy, onSelect: () {}),
+          label: 'Copy invitation', icon: MoshIcons.copy, onSelect: () {}),
     ]);
-    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.tap(find.byIcon(MoshIcons.more));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Unavailable action'));
     await tester.pumpAndSettle();

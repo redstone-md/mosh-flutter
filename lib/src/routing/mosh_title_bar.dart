@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
@@ -127,8 +128,7 @@ class _ChatListToggle extends ConsumerWidget {
       tooltip: onPressed != null || collapsed
           ? l.chatListExpand
           : l.chatListCollapse,
-      icon: Icon(onPressed != null || collapsed ? Icons.menu : Icons.menu_open,
-          size: 18),
+      icon: const Icon(MoshIcons.listToggle, size: 18),
       style: _focusRingStyle(MoshColors.of(context)),
       visualDensity: VisualDensity.compact,
       onPressed:

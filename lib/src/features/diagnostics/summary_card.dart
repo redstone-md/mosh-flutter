@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -249,7 +250,7 @@ class RuntimeError extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.warning_amber, size: 18, color: danger),
+            Icon(MoshIcons.warning, size: 18, color: danger),
             const SizedBox(width: 8),
             Expanded(
               child: Column(

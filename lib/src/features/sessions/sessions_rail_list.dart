@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/state/chat_names_provider.dart';
 import 'package:mosh/src/features/conversation/chat_row_menu.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -204,7 +205,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 18),
             FilledButton.icon(
               onPressed: onStart,
-              icon: const Icon(Icons.add),
+              icon: const Icon(MoshIcons.add),
               label: Text(l.shellNewSession),
             ),
           ],

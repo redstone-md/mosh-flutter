@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 
@@ -86,7 +87,7 @@ class MoshDialog extends StatelessWidget {
           IconButton(
             tooltip: closeLabel,
             onPressed: canCancel ? () => _cancel(context) : null,
-            icon: const Icon(Icons.close, size: 16),
+            icon: const Icon(MoshIcons.close, size: 16),
             visualDensity: VisualDensity.standard,
             constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
             padding: EdgeInsets.zero,

@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart';
 import 'package:mosh/src/features/shared/system_player.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
@@ -66,10 +67,10 @@ void main() {
   testWidgets('the controls pause, resume and seek the video', (tester) async {
     await open(tester);
 
-    await tester.tap(find.byIcon(Icons.pause));
+    await tester.tap(find.byIcon(MoshIcons.pause));
     await tester.pump();
-    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.play_arrow));
+    expect(find.byIcon(MoshIcons.play), findsOneWidget);
+    await tester.tap(find.byIcon(MoshIcons.play));
     await tester.tapAt(tester.getCenter(find.byType(Slider)));
     await tester.pump();
 
@@ -127,7 +128,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(VideoPlayer), findsNothing);
 
-    await tester.tap(find.byIcon(Icons.play_arrow));
+    await tester.tap(find.byIcon(MoshIcons.play));
     await tester.pumpAndSettle();
 
     expect(system.opened, hasLength(2));
@@ -141,7 +142,7 @@ void main() {
 
     await open(tester);
 
-    expect(find.byIcon(Icons.play_circle_filled), findsOneWidget);
+    expect(find.byIcon(MoshIcons.playCircle), findsOneWidget);
     expect(find.byType(VideoPlayer), findsNothing);
     expect(screen.awake, isFalse);
   });

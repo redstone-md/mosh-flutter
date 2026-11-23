@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/state/camera_device_picks_provider.dart';
 
 import 'audio_device_picker.dart';
@@ -32,7 +33,7 @@ class _CameraSettingsCardState extends ConsumerState<CameraSettingsCard> {
           for (final device in devices) (id: device.id, label: device.name),
         ]);
     return SettingsCard(
-      icon: Icons.videocam_outlined,
+      icon: MoshIcons.video,
       title: l.callCamera,
       hint: l.settingsCameraDeviceHint,
       child: Column(

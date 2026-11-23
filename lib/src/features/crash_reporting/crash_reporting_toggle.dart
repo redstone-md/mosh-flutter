@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/settings/settings_toggle_card.dart';
 import 'package:mosh/src/features/settings/settings_card.dart';
 import 'package:mosh/src/features/shared/async_switch_tile.dart';
@@ -21,7 +22,7 @@ class CrashReportingToggle extends ConsumerWidget {
       detailsTitle: l.settingsCrashReportsDetailsTitle,
       details: l.settingsCrashReportsDetails,
       toggle: AsyncSwitchTile(
-        secondary: const SettingsIcon(Icons.bug_report_outlined),
+        secondary: const SettingsIcon(MoshIcons.bug),
         title: l.settingsCrashReportsTitle,
         subtitle: reporting.available
             ? l.settingsCrashReportsSubtitle

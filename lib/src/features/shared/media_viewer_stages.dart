@@ -65,7 +65,7 @@ class _PlayingStageState extends State<_PlayingStage> {
       _playing ??
       _PlaybackPlaceholderCard(
         fileName: widget.descriptor.fileName,
-        icon: Icons.play_circle_filled,
+        icon: MoshIcons.playCircle,
       );
 }
 
@@ -189,7 +189,7 @@ class _AudioCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(
-            Icons.play_circle_filled,
+            MoshIcons.playCircle,
             size: 32,
             color: theme.colorScheme.primary,
           ),

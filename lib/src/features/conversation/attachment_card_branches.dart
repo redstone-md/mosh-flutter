@@ -86,7 +86,7 @@ class _MediaPreviewCard extends StatelessWidget {
                                   ),
                                   child: const Center(
                                     child: Icon(
-                                      Icons.play_arrow,
+                                      MoshIcons.play,
                                       size: 24,
                                       color: Colors.white,
                                     ),
@@ -137,7 +137,7 @@ Widget _previewImage(
     errorBuilder: (context, _, __) => SizedBox.expand(
       child: ColoredBox(
         color: MoshColors.of(context).outlineVariant,
-        child: Icon(Icons.broken_image_outlined,
+        child: Icon(MoshIcons.imageBroken,
             size: 32, color: MoshColors.of(context).onSurfaceMuted),
       ),
     ),

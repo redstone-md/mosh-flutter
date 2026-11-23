@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'conversation_attachment.dart';
 
 /// The actions row. At most ONE `IconButton` renders, gated on `state` +
 /// `outgoing` (outgoing and available files have no transfer button):
-///   - !outgoing && offered   -> Download (Icons.download).
-///   - !outgoing && cancelled -> Retry-download (Icons.download, the same
+///   - !outgoing && offered   -> Download (MoshIcons.download).
+///   - !outgoing && cancelled -> Retry-download (MoshIcons.download, the same
 ///                               button with the "Retry download" label).
-///   - !outgoing && failed    -> Retry (Icons.refresh).
-///   - !outgoing && downloading -> Cancel (Icons.close).
+///   - !outgoing && failed    -> Retry (MoshIcons.refresh).
+///   - !outgoing && downloading -> Cancel (MoshIcons.close).
 /// Download/Retry are disabled when `busy`; Cancel is always enabled.
 /// Each button's `Semantics(label:)` carries the full accessible label
 /// (interpolates the file name) and `IconButton.tooltip` carries the short
@@ -37,27 +38,27 @@ class AttachmentActions extends StatelessWidget {
     final file = attachment.descriptor;
     final (icon, tooltip, label) = switch (control.action) {
       AttachmentTransferAction.download => (
-          Icons.download,
+          MoshIcons.download,
           l.attachmentDownload,
           l.attachmentDownloadAria(file.fileName)
         ),
       AttachmentTransferAction.resumeDownload => (
-          Icons.play_arrow,
+          MoshIcons.play,
           l.attachmentResumeDownload,
           l.attachmentResumeDownloadAria(file.fileName)
         ),
       AttachmentTransferAction.retryDownload => (
-          Icons.download,
+          MoshIcons.download,
           l.attachmentRetryDownload,
           l.attachmentRetryDownloadAria(file.fileName)
         ),
       AttachmentTransferAction.retry => (
-          Icons.refresh,
+          MoshIcons.refresh,
           l.attachmentRetry,
           l.attachmentRetryAria(file.fileName)
         ),
       AttachmentTransferAction.cancel => (
-          Icons.close,
+          MoshIcons.close,
           l.attachmentCancelDownload,
           l.attachmentCancelDownloadAria(file.fileName)
         ),

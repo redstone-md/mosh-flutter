@@ -109,3 +109,9 @@ OutlineInputBorder _fieldBorder(Color color, {double width = 1}) =>
       borderRadius: MoshShapes.control,
       borderSide: BorderSide(color: color, width: width),
     );
+
+/// The back and close buttons Material builds on its own, in the app's icons.
+final _moshActionIconTheme = ActionIconThemeData(
+  backButtonIconBuilder: (_) => const Icon(MoshIcons.back),
+  closeButtonIconBuilder: (_) => const Icon(MoshIcons.close),
+);

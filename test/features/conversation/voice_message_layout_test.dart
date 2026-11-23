@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/voice_message_card.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 import 'package:mosh/src/rust/conversation/attachments.dart';
@@ -36,7 +37,7 @@ Future<void> _pumpVoice(WidgetTester tester, {double width = 280}) =>
 void main() {
   testWidgets('voice play glyph is centered in its hit target', (tester) async {
     await _pumpVoice(tester);
-    final icon = find.byIcon(Icons.play_arrow_rounded);
+    final icon = find.byIcon(MoshIcons.play);
     final target =
         find.ancestor(of: icon, matching: find.byType(InkWell)).first;
     expect(tester.getCenter(icon), tester.getCenter(target));

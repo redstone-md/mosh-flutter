@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/settings/settings_card.dart';
@@ -17,7 +18,7 @@ class LinkedDeviceList extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       SettingsCard(
-          icon: Icons.people_outline,
+          icon: MoshIcons.group,
           title: l.deviceLinkUserId,
           hint: l.deviceLinkDevicesHint,
           child: _Id(snapshot.userId)),
@@ -68,7 +69,7 @@ class _DeviceRow extends StatelessWidget {
         border: Border.all(color: colors.outlineVariant),
       ),
       child: Row(children: [
-        const Icon(Icons.devices_outlined, size: 24),
+        const Icon(MoshIcons.devices, size: 24),
         const SizedBox(width: SettingsCardHeader.iconTextGap),
         Expanded(
           child:
@@ -90,7 +91,7 @@ class _DeviceRow extends StatelessWidget {
           IconButton(
               tooltip: l.deviceLinkRemove,
               onPressed: () => onRemove!(device),
-              icon: const Icon(Icons.link_off, size: 20)),
+              icon: const Icon(MoshIcons.linkOff, size: 20)),
       ]),
     );
   }

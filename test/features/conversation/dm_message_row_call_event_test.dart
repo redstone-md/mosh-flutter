@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/call_log_entry.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
@@ -55,7 +56,7 @@ void main() {
     await _pumpRow(tester, _message(callEvent: _missedCall(), own: true));
     expect(find.text('No answer'), findsOneWidget);
     expect(find.text('Missed call'), findsNothing);
-    expect(find.byIcon(Icons.call_made), findsOneWidget);
+    expect(find.byIcon(MoshIcons.callMade), findsOneWidget);
   });
 
   testWidgets('completed incoming and outgoing calls show their direction',
@@ -70,11 +71,11 @@ void main() {
           callId: 'call');
       await _pumpRow(tester, _message(callEvent: event, own: true));
       expect(find.text('Outgoing call$suffix'), findsOneWidget);
-      expect(find.byIcon(Icons.call_made), findsOneWidget);
+      expect(find.byIcon(MoshIcons.callMade), findsOneWidget);
       await _pumpRow(tester, _message(callEvent: event));
       expect(find.text('Incoming call$suffix'), findsOneWidget);
-      expect(find.byIcon(Icons.call_received), findsOneWidget);
-      expect(find.byIcon(Icons.call_missed), findsNothing);
+      expect(find.byIcon(MoshIcons.callReceived), findsOneWidget);
+      expect(find.byIcon(MoshIcons.callMissed), findsNothing);
     }
   });
   testWidgets('a call between incompatible versions asks to update Mosh',
@@ -92,8 +93,8 @@ void main() {
     await _pumpRow(tester, _message(callEvent: _missedCall()));
 
     expect(find.text('Missed call'), findsOneWidget);
-    expect(find.byIcon(Icons.call_missed), findsOneWidget);
-    expect(find.byIcon(Icons.call_received), findsNothing);
+    expect(find.byIcon(MoshIcons.callMissed), findsOneWidget);
+    expect(find.byIcon(MoshIcons.callReceived), findsNothing);
     expect(
         find.descendant(
             of: find.byType(CallLogEntry),
@@ -105,7 +106,7 @@ void main() {
     await _pumpRow(tester, _message());
 
     expect(find.text('Missed call'), findsNothing);
-    expect(find.byIcon(Icons.call_missed), findsNothing);
+    expect(find.byIcon(MoshIcons.callMissed), findsNothing);
   });
 
   test('formatCallDuration renders duration text', () {

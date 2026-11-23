@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/rename_chat_dialog.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -32,7 +33,8 @@ void main() {
     expect(find.byType(RenameChatDialog), findsOneWidget);
     expect(
         tester
-            .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.close))
+            .widget<IconButton>(
+                find.widgetWithIcon(IconButton, MoshIcons.close))
             .onPressed,
         isNull);
     expect(

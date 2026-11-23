@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mime/mime.dart' show lookupMimeType;
 
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/shared/thumbnail.dart'
     show createAttachmentPreviews;
 
@@ -115,7 +116,7 @@ class AttachmentPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      icon: const Icon(Icons.attach_file, size: 18),
+      icon: const Icon(MoshIcons.attach, size: 18),
       tooltip: ariaLabel,
       onPressed: disabled ? null : _pick,
       padding: EdgeInsets.zero,

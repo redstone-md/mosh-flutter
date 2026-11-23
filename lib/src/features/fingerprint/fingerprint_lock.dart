@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_emoji.dart';
 import 'package:mosh/src/features/shared/mosh_dialog.dart';
@@ -69,7 +70,7 @@ class FingerprintLock extends StatelessWidget {
                 ? const EdgeInsets.all(6)
                 : const EdgeInsets.all(_lockTapInset),
             child: Icon(
-              Icons.lock,
+              MoshIcons.lock,
               size: besideName ? _inlineLockIconSize : _lockIconSize,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),

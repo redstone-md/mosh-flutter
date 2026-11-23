@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/deeplink/mosh_deep_link.dart';
 import 'package:mosh/src/features/device_link/device_link_provider.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
@@ -71,8 +72,8 @@ void main() {
     await tapSetup(tester, 'Connect to an existing profile');
     await tester.enterText(
         find.byType(TextField), 'mosh://device-link/example');
-    await tester.ensureVisible(find.byIcon(Icons.arrow_forward));
-    await tester.tap(find.byIcon(Icons.arrow_forward));
+    await tester.ensureVisible(find.byIcon(MoshIcons.forward));
+    await tester.tap(find.byIcon(MoshIcons.forward));
     await tester.pumpAndSettle();
     expect(harness.link.imported, ['mosh://device-link/example']);
     expect(find.text('ABCDEF123456'), findsOneWidget);

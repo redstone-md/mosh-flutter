@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
@@ -73,7 +74,7 @@ void main() {
         base64Encode(img.encodeJpg(img.Image(width: 320, height: 480)));
     await _pump(tester, null, [], thumbnail: miniature);
 
-    expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
+    expect(find.byIcon(MoshIcons.imageBroken), findsNothing);
     expect(tester.widget<RawImage>(find.byType(RawImage)).image!.height, 480);
     expect(tester.takeException(), isNull);
   });
@@ -85,7 +86,7 @@ void main() {
     expect(miniature.length, lessThan(2048));
     await _pump(tester, null, [], thumbnail: miniature);
 
-    expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
+    expect(find.byIcon(MoshIcons.imageBroken), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -169,7 +170,7 @@ void main() {
         tester, '${Directory.systemTemp.path}/mosh-missing-preview.jpg', []);
 
     expect(find.byWidgetPredicate(_isMiniature), findsOneWidget);
-    expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
+    expect(find.byIcon(MoshIcons.imageBroken), findsNothing);
     expect(find.text('photo.png'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

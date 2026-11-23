@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
@@ -102,7 +103,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       leading: IconButton(
         tooltip: l.settingsBackToSections,
         onPressed: () => _back(false),
-        icon: const Icon(Icons.arrow_back),
+        icon: const Icon(MoshIcons.back),
       ),
     );
   }

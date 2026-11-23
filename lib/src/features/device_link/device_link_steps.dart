@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/rust/device_link/types.dart';
 
@@ -71,7 +72,7 @@ class _Step extends StatelessWidget {
                   : MoshColors.of(context).surfaceContainerHigh,
             ),
             child: index < current
-                ? Icon(Icons.check,
+                ? Icon(MoshIcons.check,
                     size: 16, color: MoshColors.of(context).primary)
                 : Text('${index + 1}',
                     style: TextStyle(

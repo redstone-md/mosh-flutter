@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentState;
@@ -95,8 +96,8 @@ void main() {
       );
 
       expect(find.textContaining('Transfer failed'), findsOneWidget);
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      expect(find.byIcon(Icons.insert_drive_file_outlined), findsNothing);
+      expect(find.byIcon(MoshIcons.error), findsOneWidget);
+      expect(find.byIcon(MoshIcons.file), findsNothing);
     });
 
     testWidgets(

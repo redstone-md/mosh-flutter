@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/distribution_channel.dart';
 import 'package:mosh/src/app/distribution_channel_provider.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/plus/plus_commands.dart';
 import 'package:mosh/src/features/plus/plus_provider.dart';
 import 'package:mosh/src/features/plus/plus_settings_card.dart';
@@ -53,7 +54,7 @@ void main() {
     await pumpScreen(
         tester, const Scaffold(body: UserPlusBadge(identity: 'paid-peer')),
         overrides: overrides(SyncedCommands(active: false), () {}));
-    expect(find.byIcon(Icons.workspace_premium), findsOneWidget);
+    expect(find.byIcon(MoshIcons.plusBadge), findsOneWidget);
   });
 }
 

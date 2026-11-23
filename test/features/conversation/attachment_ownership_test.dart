@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart';
@@ -32,7 +33,7 @@ void main() {
       await pumpConversation(tester, testCase,
           gateway: gateway, messages: [TestMessage.own(attachment: file)]);
 
-      await tester.tap(_rowIcon(true, Icons.play_arrow));
+      await tester.tap(_rowIcon(true, MoshIcons.play));
       await tester.pump();
 
       expect(gateway.countOf(GatewayMethod.downloadAttachment), 0);
@@ -50,14 +51,14 @@ void main() {
         TestMessage(messageId: 'incoming', attachment: file),
       ]);
 
-      await tester.tap(_rowIcon(true, Icons.image_outlined));
+      await tester.tap(_rowIcon(true, MoshIcons.image));
       await tester.pump();
       expect(gateway.countOf(GatewayMethod.downloadAttachment), 0);
       expect(find.byType(MediaViewer), findsNothing);
 
       expect(tester.takeException(), isNull);
 
-      await tester.tap(_rowIcon(false, Icons.image_outlined));
+      await tester.tap(_rowIcon(false, MoshIcons.image));
       await tester.pump();
       expect(gateway.countOf(GatewayMethod.downloadAttachment), 1);
       expect(find.byType(MediaViewer), findsNothing);
@@ -76,7 +77,7 @@ void main() {
               : TestMessage(attachment: voice),
         ]);
 
-        await tester.tap(_rowIcon(own, Icons.play_arrow_rounded));
+        await tester.tap(_rowIcon(own, MoshIcons.play));
         await tester.pump();
 
         expect(gateway.countOf(GatewayMethod.downloadAttachment), own ? 0 : 1);
@@ -101,7 +102,7 @@ void main() {
               state: AttachmentState.offered),
         ]);
 
-        await tester.tap(_rowIcon(!outgoing, Icons.image_outlined));
+        await tester.tap(_rowIcon(!outgoing, MoshIcons.image));
         await tester.pump();
 
         expect(gateway.countOf(GatewayMethod.downloadAttachment),
@@ -126,7 +127,7 @@ void main() {
             chunkCount: 2),
       ]);
 
-      await tester.tap(_rowIcon(false, Icons.close));
+      await tester.tap(_rowIcon(false, MoshIcons.close));
       await tester.pump();
 
       expect(gateway.countOf(GatewayMethod.cancelAttachment), 1);

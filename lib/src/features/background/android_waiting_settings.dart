@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/settings/settings_card.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/mosh_dialog_route.dart';
@@ -42,7 +43,7 @@ class _WaitingSettingsState extends ConsumerState<AndroidWaitingSettings> {
       child: ListenableBuilder(
         listenable: owner,
         builder: (context, _) => SettingsCard(
-          icon: Icons.notifications_active_outlined,
+          icon: MoshIcons.notifications,
           title: l.settingsBackgroundTitle,
           hint: _availability(owner, l),
           child: _controls(owner, l),

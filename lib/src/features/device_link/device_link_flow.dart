@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
@@ -36,7 +37,7 @@ class DeviceLinkFlow extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final joining = role == DeviceLinkRole.joining;
     return SettingsCard(
-      icon: joining ? Icons.qr_code_scanner : Icons.add_link,
+      icon: joining ? MoshIcons.scan : MoshIcons.link,
       title: joining ? l.deviceLinkConnectThis : l.deviceLinkLinkOther,
       hint: importForm != null
           ? l.deviceLinkJoinHelp
@@ -65,7 +66,7 @@ class DeviceLinkFlow extends StatelessWidget {
               await Clipboard.setData(ClipboardData(text: snapshot.qrUri!));
               toaster.show(l.messageCopied, kind: ToastKind.success);
             },
-            icon: const Icon(Icons.copy, size: 18),
+            icon: const Icon(MoshIcons.copy, size: 18),
             label: Text(l.deviceLinkCopy),
           ),
           Text(l.deviceLinkExpires,

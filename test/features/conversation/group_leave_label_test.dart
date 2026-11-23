@@ -1,9 +1,9 @@
 // An unnamed group uses a readable confirmation without its technical id.
 // The rest of the leave flow is shared and covered in
 // test/features/conversation/conversation_close_flow_test.dart.
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
@@ -46,7 +46,7 @@ void main() {
 
     await tester.tap(find.byTooltip('More chat actions'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.logout));
+    await tester.tap(find.byIcon(MoshIcons.leave));
     await tester.pumpAndSettle();
 
     expect(find.text('Leave this group?'), findsOneWidget);

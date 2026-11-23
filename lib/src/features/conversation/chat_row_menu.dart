@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_menu_item.dart';
 import 'package:mosh/src/features/conversation/rename_chat_dialog.dart';
 import 'package:mosh/src/features/sessions/rail_entry.dart';
@@ -29,7 +30,7 @@ class ChatRowMenu extends ConsumerWidget {
       menuChildren: [
         MoshMenuItem(
             label: l.chatRename,
-            icon: Icons.edit_outlined,
+            icon: MoshIcons.edit,
             onPressed: !enabled
                 ? null
                 : () => showRenameChatDialog(context, entry.ref!.target,

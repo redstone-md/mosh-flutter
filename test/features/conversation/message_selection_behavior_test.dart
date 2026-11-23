@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/gateway/conversation_target.dart' show DmTarget;
 
 import '../../support/conversation_cases.dart';
@@ -28,7 +29,7 @@ void main() {
       expect(gateway.lastCall(GatewayMethod.downloadAttachment), isNull);
       await tester.tapAt(const Offset(700, 500));
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.download));
+      await tester.tap(find.byIcon(MoshIcons.download));
       await tester.pumpAndSettle();
       expect(gateway.lastCall(GatewayMethod.downloadAttachment), isNotNull);
     }, variant: TargetPlatformVariant.mobile());
@@ -72,7 +73,7 @@ void main() {
             messageId: 'file',
             attachment: testAttachment(attachmentId: 'file')),
       ]);
-      final control = find.byIcon(Icons.download);
+      final control = find.byIcon(MoshIcons.download);
       expect(control, findsOneWidget);
       await tester.tap(control,
           buttons: kSecondaryMouseButton, kind: PointerDeviceKind.mouse);

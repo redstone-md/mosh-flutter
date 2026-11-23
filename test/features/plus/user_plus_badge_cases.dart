@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/plus/plus_provider.dart';
@@ -29,7 +30,7 @@ void main() {
     await pumpScreen(
         tester, const Scaffold(body: Avatar(name: 'Me', ownPlus: true)),
         container: container);
-    expect(find.byIcon(Icons.workspace_premium), findsNothing);
+    expect(find.byIcon(MoshIcons.plusBadge), findsNothing);
   });
   testWidgets('shared badges expire and conversation titles stay ordinary',
       (tester) async {
@@ -60,12 +61,12 @@ void main() {
               plusIdentity: 'dm:test'),
         ])),
         container: container);
-    expect(find.byIcon(Icons.workspace_premium), findsOneWidget);
+    expect(find.byIcon(MoshIcons.plusBadge), findsOneWidget);
     native.current =
         const PlusSnapshot(active: false, visible: false, peerBadges: []);
     await container.read(plusProvider.notifier).refresh();
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.workspace_premium), findsNothing);
+    expect(find.byIcon(MoshIcons.plusBadge), findsNothing);
   });
 
   testWidgets('a claimed legacy channel author cannot borrow a verified badge',
@@ -82,10 +83,10 @@ void main() {
     addTearDown(container.dispose);
     await pumpScreen(tester, Scaffold(body: _messageRow(false)),
         container: container);
-    expect(find.byIcon(Icons.workspace_premium), findsNothing);
+    expect(find.byIcon(MoshIcons.plusBadge), findsNothing);
     await pumpScreen(tester, Scaffold(body: _messageRow(true)),
         container: container);
-    expect(find.byIcon(Icons.workspace_premium), findsNWidgets(2));
+    expect(find.byIcon(MoshIcons.plusBadge), findsNWidgets(2));
   });
 
   testWidgets('legacy DM messages use the authenticated conversation badge',
@@ -116,7 +117,7 @@ void main() {
                 onRetry: (_) {},
                 l: lookupAppLocalizations(const Locale('en')))),
         container: container);
-    expect(find.byIcon(Icons.workspace_premium), findsOneWidget);
+    expect(find.byIcon(MoshIcons.plusBadge), findsOneWidget);
   });
 }
 

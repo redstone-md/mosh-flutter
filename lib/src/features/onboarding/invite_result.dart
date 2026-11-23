@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 /// At most two URI lines, with the complete link available to Copy.
@@ -54,14 +55,14 @@ class InviteResult extends StatelessWidget {
 
   Widget _copy(AppLocalizations l, ButtonStyle style) => OutlinedButton.icon(
         onPressed: busy ? null : onCopy,
-        icon: Icon(copied ? Icons.check : Icons.copy_outlined, size: 18),
+        icon: Icon(copied ? MoshIcons.check : MoshIcons.copy, size: 18),
         label: Text(copied ? l.onboardCopied : l.onboardCopyLink),
         style: style,
       );
 
   Widget _open(ButtonStyle style) => FilledButton.icon(
         onPressed: busy ? null : onOpen,
-        icon: const Icon(Icons.arrow_forward, size: 18),
+        icon: const Icon(MoshIcons.forward, size: 18),
         label: Text(openLabel),
         style: style,
       );
@@ -90,7 +91,7 @@ class InviteResult extends StatelessWidget {
           _open(style),
           OutlinedButton.icon(
               onPressed: busy ? null : replace,
-              icon: const Icon(Icons.refresh, size: 18),
+              icon: const Icon(MoshIcons.refresh, size: 18),
               label: Text(replaceLabel ?? l.onboardChatRecreate),
               style: secondary),
         ])
@@ -104,7 +105,7 @@ class InviteResult extends StatelessWidget {
         Divider(height: 1, color: MoshColors.of(context).outlineVariant),
         const SizedBox(height: 16),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(Icons.lock_outline,
+          Icon(MoshIcons.lock,
               size: 20, color: MoshColors.of(context).onSurfaceMuted),
           const SizedBox(width: 12),
           Expanded(
@@ -136,7 +137,7 @@ class _ReadyNote extends StatelessWidget {
           border: Border.all(color: colors.primary.withValues(alpha: 0.3)),
         ),
         child: Row(children: [
-          Icon(Icons.check_circle_outline, size: 32, color: colors.primary),
+          Icon(MoshIcons.success, size: 32, color: colors.primary),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -204,7 +205,7 @@ class _LinkField extends StatelessWidget {
             IconButton(
               onPressed: onCopy,
               tooltip: l.onboardCopyLink,
-              icon: const Icon(Icons.copy_outlined, size: 18),
+              icon: const Icon(MoshIcons.copy, size: 18),
             ),
           ]),
         ),

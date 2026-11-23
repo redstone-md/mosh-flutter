@@ -9,7 +9,7 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 const _enabled = bool.fromEnvironment('SETUP_PREVIEW');
 
-/// Loads the bundled Onest weights and Material icons so previews render
+/// Loads the bundled Onest weights and the icon fonts so previews render
 /// real glyphs instead of the test font.
 Future<void> prepareSetupPreview(WidgetTester tester) async {
   if (!_enabled) return;
@@ -22,6 +22,14 @@ Future<void> prepareSetupPreview(WidgetTester tester) async {
     await (FontLoader('MaterialIcons')
           ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf')))
         .load();
+    for (final (family, file) in [
+      ('Phosphor', 'Phosphor'),
+      ('PhosphorFill', 'Phosphor-Fill'),
+      ('PhosphorBold', 'Phosphor-Bold'),
+    ]) {
+      await (FontLoader(family)..addFont(_read('assets/fonts/$file.ttf')))
+          .load();
+    }
   });
 }
 

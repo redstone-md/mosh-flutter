@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_menu_theme.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 
@@ -46,6 +47,7 @@ ThemeData buildMoshTheme([MoshColors colors = MoshColors.dark]) {
     iconButtonTheme: _moshIconButtonTheme,
     chipTheme: _chipTheme(colors),
     iconTheme: IconThemeData(color: colors.onSurfaceVariant),
+    actionIconTheme: _moshActionIconTheme,
   );
 }
 

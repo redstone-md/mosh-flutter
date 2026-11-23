@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/onboarding/join_preview.dart';
 import 'package:mosh/src/features/onboarding/start/start_hero.dart';
@@ -32,7 +33,7 @@ Widget _row({VoidCallback? onTap}) => SizedBox(
       width: 480,
       child: StartRow(
         action: StartAction(
-          icon: Icons.link,
+          icon: MoshIcons.link,
           accent: MoshColors.dark.onSurfaceVariant,
           title: 'Join with a link',
           description: 'Join with an invite a contact sent you.',

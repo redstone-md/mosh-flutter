@@ -3,6 +3,7 @@ import 'dart:io' show File;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart'
     show MoshColors, kLiveNumberFontFeatures;
 
@@ -214,7 +215,7 @@ class _MediaStage extends StatelessWidget {
             ),
           AttachmentMediaKind.file => _PlaybackPlaceholderCard(
               fileName: descriptor.fileName,
-              icon: Icons.insert_drive_file_outlined,
+              icon: MoshIcons.file,
             ),
         },
       ),
@@ -267,7 +268,7 @@ class _ImageStage extends StatelessWidget {
             height: maxStageHeight,
             child: Center(
               child: Icon(
-                Icons.broken_image_outlined,
+                MoshIcons.imageBroken,
                 size: 48,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -343,7 +344,7 @@ class _MediaCloseButton extends StatelessWidget {
               width: 36,
               height: 36,
               child: Icon(
-                Icons.close,
+                MoshIcons.close,
                 size: 18,
                 // Muted fg-2.
                 color: theme.colorScheme.onSurfaceVariant,

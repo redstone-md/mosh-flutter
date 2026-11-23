@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import '../../support/pump.dart';
 
@@ -24,7 +25,7 @@ void main() {
     final l =
         AppLocalizations.of(tester.element(find.byType(ChatErrorBanner)))!;
     expect(find.text(l.chatErrorRetry), findsNothing);
-    expect(find.byIcon(Icons.refresh), findsNothing);
+    expect(find.byIcon(MoshIcons.refresh), findsNothing);
   });
 
   testWidgets('tapping Retry fires the callback', (tester) async {

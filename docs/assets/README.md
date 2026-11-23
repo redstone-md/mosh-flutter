@@ -25,7 +25,7 @@ recreation. The test executable stays outside the installer bundle.
 ## Desktop screenshot
 
 `chat-desktop.png` renders the real `MoshApp` at 1440 × 900 logical pixels,
-captured at 1.5× resolution. The bundled Onest weights and Material icons are
+captured at 1.5× resolution. The bundled Onest weights and the icon fonts are
 loaded through the existing preview helper.
 
 The names, messages, attachments, delivery indicators and connection states

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_select.dart';
 import 'package:mosh/src/features/lock/android_app_access.dart';
 import 'package:mosh/src/features/lock/android_access_state.dart';
@@ -44,7 +45,7 @@ class _AppLockSettingsCardState extends ConsumerState<AppLockSettingsCard> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       SettingsCardHeader(
-                          icon: Icons.lock_outline,
+                          icon: MoshIcons.lock,
                           subtitle: Text(l.appLockDelay),
                           title: Text(l.appLockTitle,
                               style: Theme.of(context).textTheme.titleMedium)),

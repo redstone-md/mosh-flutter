@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'call_button.dart';
 import 'call_view_state.dart';
@@ -12,13 +13,13 @@ List<Widget> callControls(CallViewState call, AppLocalizations l,
         IconButton(
             tooltip: l.callExpand,
             onPressed: expand,
-            icon: const Icon(Icons.open_in_full)),
+            icon: const Icon(MoshIcons.callExpand)),
       if (call.phase == CallViewPhase.active || call.media != null)
         _microphone(call, l, colors, act),
       if (camera && call.media != null) _camera(call, l, colors, act),
       if (devices != null && call.media != null)
         CallButton(
-            icon: Icons.tune,
+            icon: MoshIcons.tune,
             tooltip: l.callDevices,
             color: colors.surfaceContainerHighest,
             foreground: colors.onSurface,
@@ -26,7 +27,7 @@ List<Widget> callControls(CallViewState call, AppLocalizations l,
       _end(call, l, colors, act),
       if (call.phase == CallViewPhase.incoming)
         CallButton(
-            icon: Icons.phone,
+            icon: MoshIcons.call,
             tooltip: l.callIncomingAccept,
             color: colors.primary,
             foreground: colors.onPrimary,
@@ -36,7 +37,7 @@ List<Widget> callControls(CallViewState call, AppLocalizations l,
 Widget _microphone(CallViewState call, AppLocalizations l, MoshColors colors,
         void Function(CallViewAction) act) =>
     CallButton(
-        icon: call.muted ? Icons.mic_off : Icons.mic,
+        icon: call.muted ? MoshIcons.micOff : MoshIcons.mic,
         tooltip: call.muted ? l.callActiveUnmute : l.callActiveMute,
         color: call.muted ? colors.info : colors.surfaceContainerHighest,
         foreground:
@@ -50,7 +51,7 @@ Widget _camera(CallViewState call, AppLocalizations l, MoshColors colors,
     void Function(CallViewAction) act) {
   final media = call.media!;
   return CallButton(
-      icon: media.cameraRequested ? Icons.videocam : Icons.videocam_off,
+      icon: media.cameraRequested ? MoshIcons.video : MoshIcons.videoOff,
       tooltip: media.cameraStarting
           ? l.callCameraStarting
           : media.cameraRequested
@@ -68,7 +69,7 @@ Widget _camera(CallViewState call, AppLocalizations l, MoshColors colors,
 Widget _end(CallViewState call, AppLocalizations l, MoshColors colors,
         void Function(CallViewAction) act) =>
     CallButton(
-        icon: Icons.phone_disabled,
+        icon: MoshIcons.callEnd,
         tooltip: switch (call.phase) {
           CallViewPhase.incoming when !call.busy => l.callIncomingDecline,
           CallViewPhase.active => l.callActiveHangUp,

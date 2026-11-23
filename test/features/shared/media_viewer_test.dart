@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 import '../../support/pump.dart';
@@ -129,8 +130,8 @@ void main() {
     // widget, so the caption is the only `Text` rendering the filename on
     // the image branch.)
     expect(find.text('photo.png'), findsOneWidget);
-    // The close button (Icons.close) renders.
-    expect(find.byIcon(Icons.close), findsOneWidget);
+    // The close button (MoshIcons.close) renders.
+    expect(find.byIcon(MoshIcons.close), findsOneWidget);
     // The close button carries the localized tooltip.
     expect(find.byTooltip('Close viewer'), findsOneWidget);
   });
@@ -163,7 +164,7 @@ void main() {
     });
 
     expect(find.byType(Image), findsOneWidget);
-    expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
+    expect(find.byIcon(MoshIcons.imageBroken), findsNothing);
     expect(tester.widget<RawImage>(find.byType(RawImage)).image, isNotNull);
   });
 
@@ -175,7 +176,7 @@ void main() {
       descriptor: _descriptor(fileName: 'clip.mp4', mime: 'video/mp4'),
     );
 
-    expect(find.byIcon(Icons.play_circle_filled), findsOneWidget);
+    expect(find.byIcon(MoshIcons.playCircle), findsOneWidget);
     // The filename renders TWICE -- the placeholder card's bold
     // filename label AND the caption.
     expect(find.text('clip.mp4'), findsNWidgets(2));
@@ -184,32 +185,32 @@ void main() {
   });
 
   // Pins the audio mime branch: a placeholder card with
-  // `Icons.play_circle_filled`.
+  // `MoshIcons.playCircle`.
   testWidgets('audio mime renders the play-circle placeholder', (tester) async {
     await _pumpViewer(
       tester,
       descriptor: _descriptor(fileName: 'song.mp3', mime: 'audio/mpeg'),
     );
 
-    expect(find.byIcon(Icons.play_circle_filled), findsOneWidget);
+    expect(find.byIcon(MoshIcons.playCircle), findsOneWidget);
     // The filename renders in the placeholder card + the caption.
     expect(find.text('song.mp3'), findsNWidgets(2));
     expect(find.byType(Image), findsNothing);
   });
 
   // Pins the "other" mime branch: a placeholder card with
-  // `Icons.insert_drive_file_outlined`.
+  // `MoshIcons.file`.
   testWidgets('other mime renders the file placeholder', (tester) async {
     await _pumpViewer(
       tester,
       descriptor: _descriptor(fileName: 'doc.pdf', mime: 'application/pdf'),
     );
 
-    expect(find.byIcon(Icons.insert_drive_file_outlined), findsOneWidget);
+    expect(find.byIcon(MoshIcons.file), findsOneWidget);
     // The filename renders in the placeholder card + the caption.
     expect(find.text('doc.pdf'), findsNWidgets(2));
     // No play icon on the file branch.
-    expect(find.byIcon(Icons.play_circle_filled), findsNothing);
+    expect(find.byIcon(MoshIcons.playCircle), findsNothing);
     expect(find.byType(Image), findsNothing);
   });
 
@@ -222,7 +223,7 @@ void main() {
     );
     expect(find.byType(MediaViewer), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byIcon(MoshIcons.close));
     await tester.pumpAndSettle();
 
     expect(find.byType(MediaViewer), findsNothing);
@@ -258,7 +259,7 @@ void main() {
 
     // Tap the centered placeholder card (the stage) -- the inner
     // GestureDetector swallows the tap.
-    await tester.tap(find.byIcon(Icons.play_circle_filled));
+    await tester.tap(find.byIcon(MoshIcons.playCircle));
     await tester.pumpAndSettle();
 
     expect(find.byType(MediaViewer), findsOneWidget);
@@ -307,10 +308,10 @@ void main() {
 
     // The viewer opened: caption (placeholder bold + caption, 2x) + close.
     expect(find.text('clip.mp4'), findsNWidgets(2));
-    expect(find.byIcon(Icons.close), findsOneWidget);
+    expect(find.byIcon(MoshIcons.close), findsOneWidget);
 
     // Close via the close button -> the viewer is gone.
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byIcon(MoshIcons.close));
     await tester.pumpAndSettle();
 
     expect(find.byType(MediaViewer), findsNothing);

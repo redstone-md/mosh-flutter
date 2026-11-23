@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -100,7 +101,7 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
             labelText: l.onboardChannelNameLabel,
             hintText: l.onboardChannelPlaceholder,
             helperText: l.onboardChannelNameRule,
-            prefixIcon: const Icon(Icons.tag, size: 20),
+            prefixIcon: const Icon(MoshIcons.tag, size: 20),
           ),
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => _onJoin(),
@@ -151,7 +152,7 @@ class _OpenWarning extends StatelessWidget {
         border: Border.all(color: colors.warning),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(Icons.lock_open, size: 20, color: colors.warning),
+        Icon(MoshIcons.lockOpen, size: 20, color: colors.warning),
         const SizedBox(width: 12),
         Expanded(
           child: Text(text,
@@ -198,7 +199,8 @@ class _Examples extends StatelessWidget {
         children: [
           for (final name in names)
             ActionChip(
-              avatar: Icon(Icons.tag, size: 16, color: colors.onSurfaceMuted),
+              avatar:
+                  Icon(MoshIcons.tag, size: 16, color: colors.onSurfaceMuted),
               label: Text(name),
               onPressed: () => onPick(name),
             ),

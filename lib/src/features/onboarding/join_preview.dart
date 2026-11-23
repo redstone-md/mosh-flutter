@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/invite/invite_detection.dart';
 
@@ -28,27 +29,27 @@ class JoinPreview extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final (icon, color, detail) = switch (kind) {
       InviteDetectionKind.dm => (
-          Icons.chat_bubble_outline,
+          MoshIcons.chat,
           colors.primary,
           l.onboardJoinPreviewDm
         ),
       InviteDetectionKind.group => (
-          Icons.group_outlined,
+          MoshIcons.group,
           colors.primary,
           name ?? l.onboardJoinPreviewGroup
         ),
       InviteDetectionKind.org => (
-          Icons.business_outlined,
+          MoshIcons.organisation,
           colors.primary,
           name ?? l.onboardJoinPreviewOrg
         ),
       InviteDetectionKind.unknown => (
-          Icons.link_off,
+          MoshIcons.linkOff,
           colors.error,
           l.onboardJoinPreviewBad
         ),
       InviteDetectionKind.empty => (
-          Icons.forum_outlined,
+          MoshIcons.chats,
           colors.onSurfaceMuted,
           l.onboardJoinPreviewEmpty
         ),

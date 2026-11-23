@@ -8,6 +8,7 @@ import 'package:flutter/gestures.dart'
     show PointerDeviceKind, kSecondaryMouseButton;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_notice_preferences.dart';
 import 'package:mosh/src/features/conversation/dismissible_conversation_notice.dart';
 
@@ -51,7 +52,7 @@ void main() {
           builder: (context, value, _) => value
               ? const DismissibleConversationNotice(
                   kind: ConversationNoticeKind.publicChannel,
-                  icon: Icons.public,
+                  icon: MoshIcons.language,
                   title: 'Public channel',
                   body: 'Anyone with the link can read it.',
                   accent: Colors.blue,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/onboarding/display_name_form.dart';
 import 'package:mosh/src/features/onboarding/first_run_provider.dart';
 
@@ -26,7 +27,7 @@ class ProfileSettingsSection extends ConsumerWidget {
                   child: Text(l.deviceLinkRetry)),
             ]),
             data: (profile) => SettingsCard(
-                icon: Icons.person_outline,
+                icon: MoshIcons.person,
                 title: l.firstRunNameTitle,
                 hint: l.firstRunNameScope,
                 child: DisplayNameForm(

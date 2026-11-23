@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/settings/settings_card.dart';
 
 /// Choose the installation's role before entering the sequential linking flow.
@@ -23,19 +24,19 @@ class DeviceLinkStartActions extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (!revoked) ...[
         SettingsCard(
-          icon: Icons.qr_code_2,
+          icon: MoshIcons.qr,
           title: l.deviceLinkLinkOther,
           hint: l.deviceLinkHelp,
           child: FilledButton.icon(
             onPressed: onAuthorize,
-            icon: const Icon(Icons.add_link, size: 20),
+            icon: const Icon(MoshIcons.link, size: 20),
             label: Text(l.deviceLinkJoin),
           ),
         ),
         const SizedBox(height: 16),
       ],
       SettingsCard(
-        icon: Icons.devices_outlined,
+        icon: MoshIcons.devices,
         title: l.deviceLinkConnectThis,
         hint: revoked
             ? l.deviceLinkRevokedBody
@@ -44,7 +45,7 @@ class DeviceLinkStartActions extends StatelessWidget {
                 : l.deviceLinkIneligible,
         child: OutlinedButton.icon(
           onPressed: canJoin ? onJoin : null,
-          icon: const Icon(Icons.qr_code_scanner, size: 20),
+          icon: const Icon(MoshIcons.scan, size: 20),
           label:
               Text(revoked ? l.deviceLinkFreshJoin : l.deviceLinkConnectThis),
         ),

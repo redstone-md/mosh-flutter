@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 import 'start_hero.dart';
@@ -43,28 +44,28 @@ class StartMenu extends StatelessWidget {
       delay: StartMotion.lineStagger * 2,
       child: StartActionList(actions: [
         StartAction(
-          icon: Icons.chat_bubble_outline,
+          icon: MoshIcons.chat,
           accent: colors.primary,
           title: l.onboardTileChatTitle,
           description: l.onboardTileChatDesc,
           onTap: onPickChat,
         ),
         StartAction(
-          icon: Icons.group_outlined,
+          icon: MoshIcons.group,
           accent: colors.secondary,
           title: l.onboardTileGroupTitle,
           description: l.onboardTileGroupDesc,
           onTap: onPickGroup,
         ),
         StartAction(
-          icon: Icons.link,
+          icon: MoshIcons.link,
           accent: colors.onSurfaceVariant,
           title: l.onboardTileJoinTitle,
           description: l.onboardTileJoinDesc,
           onTap: onPickJoin,
         ),
         StartAction(
-          icon: Icons.tag,
+          icon: MoshIcons.tag,
           accent: colors.tertiary,
           title: l.onboardTileChannelTitle,
           description: l.onboardTileChannelDesc,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/state/chat_names_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
@@ -50,7 +51,7 @@ class ConversationDetailsPanel extends ConsumerWidget {
               IconButton(
                   onPressed: onClose,
                   tooltip: l.dialogClose,
-                  icon: const Icon(Icons.close, size: 20)),
+                  icon: const Icon(MoshIcons.close, size: 20)),
               const SizedBox(width: 8),
             ]),
           ),
@@ -91,7 +92,7 @@ class ConversationDetailsPanel extends ConsumerWidget {
                 onPressed: ref
                     .read(conversationControllerProvider(target).notifier)
                     .refresh,
-                icon: const Icon(Icons.refresh, size: 18),
+                icon: const Icon(MoshIcons.refresh, size: 18),
                 label: Text(l.refreshStatus)),
             ConversationDiagnosticsContent(
               session: snapshot is DmConversation ? snapshot.source : null,

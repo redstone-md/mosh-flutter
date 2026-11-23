@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
@@ -116,7 +117,7 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          const Icon(Icons.apartment_outlined, size: 14),
+          const Icon(MoshIcons.organisation, size: 14),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -127,7 +128,7 @@ class _Header extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close, size: 16),
+            icon: const Icon(MoshIcons.close, size: 16),
             tooltip: l.orgLeave,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -202,7 +203,7 @@ class _OfferRow extends StatelessWidget {
                       _OfferRowKind.dm => Avatar(
                           name: fromName, radius: 12, plusIdentity: fromPeerId),
                       _OfferRowKind.group =>
-                        const Icon(Icons.group_outlined, size: 18),
+                        const Icon(MoshIcons.group, size: 18),
                     },
                     const SizedBox(width: 8),
                     Expanded(
@@ -232,14 +233,14 @@ class _OfferRow extends StatelessWidget {
                       ),
                     ),
                     if (_kind == _OfferRowKind.dm)
-                      const Icon(Icons.chat_bubble_outline, size: 14),
+                      const Icon(MoshIcons.chat, size: 14),
                   ],
                 ),
               ),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close, size: 16),
+            icon: const Icon(MoshIcons.close, size: 16),
             tooltip: switch (_kind) {
               _OfferRowKind.dm => l.orgDismissDmAria(fromName),
               _OfferRowKind.group => l.orgDismissGroupAria(fromName),
@@ -307,7 +308,7 @@ class _NewGroupFormState extends State<_NewGroupForm> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.add, size: 16),
+            icon: const Icon(MoshIcons.add, size: 16),
             tooltip: widget.l.orgNewGroup,
             onPressed: widget.busy ? null : _submit,
           ),
@@ -371,7 +372,7 @@ class _MemberRow extends StatelessWidget {
                   padding: const EdgeInsets.only(left: 4),
                   // A static role marker, so text ink rather than the accent.
                   child: Icon(
-                    Icons.workspace_premium_outlined,
+                    MoshIcons.plus,
                     size: 14,
                     color: MoshColors.of(context).onSurfaceVariant,
                     semanticLabel: l.orgAdminBadge,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
@@ -18,7 +19,7 @@ Widget? railBackButton(BuildContext context) {
   if (!isMobileBreakpoint(context)) return null;
   final l = AppLocalizations.of(context)!;
   return IconButton(
-    icon: const Icon(Icons.arrow_back),
+    icon: const Icon(MoshIcons.back),
     tooltip: l.backToConversations,
     onPressed: () => context.go(AppRoutes.sessions),
   );

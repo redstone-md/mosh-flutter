@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
@@ -143,7 +144,8 @@ void main() {
     testWidgets('missing time is not invented (own=$own)', (tester) async {
       await _pumpBubble(tester, 'hello', own: own, showTime: false);
       expect(find.text(formatClock(_sentAt, locale: 'en')!), findsNothing);
-      expect(find.byIcon(Icons.done_all), own ? findsOneWidget : findsNothing);
+      expect(
+          find.byIcon(MoshIcons.doneAll), own ? findsOneWidget : findsNothing);
       expect(tester.takeException(), isNull);
     });
   }
@@ -163,7 +165,7 @@ void main() {
     await _pumpBubble(tester, body, width: 260, scale: 2, own: true);
     final bubble = tester.getRect(find.byKey(ValueKey('message-bubble-$body')));
     expect(_clock(tester).right, lessThanOrEqualTo(bubble.right - 10));
-    expect(tester.getRect(find.byIcon(Icons.done_all)).right,
+    expect(tester.getRect(find.byIcon(MoshIcons.doneAll)).right,
         lessThanOrEqualTo(bubble.right - 10));
     expect(tester.takeException(), isNull);
   });

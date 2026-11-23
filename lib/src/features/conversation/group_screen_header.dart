@@ -1,4 +1,5 @@
 import 'dart:async' show Timer;
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/rename_chat_dialog.dart';
 
 import 'package:flutter/material.dart';
@@ -78,12 +79,12 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
             besideName: true),
       ),
       leaveMenuLabel: l.groupLeaveLabel,
-      leaveMenuIcon: Icons.logout,
+      leaveMenuIcon: MoshIcons.leave,
       menuActions: [
         if (group != null && group.isAdmin && group.state == 'ready')
           ChatHeaderMenuAction(
               label: l.chatRename,
-              icon: Icons.edit_outlined,
+              icon: MoshIcons.edit,
               onSelect: () => showRenameChatDialog(
                   context, GroupTarget(widget.groupId),
                   name: group.label ?? l.groupUntitled,
@@ -91,7 +92,7 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
         if (group?.inviteUri != null)
           ChatHeaderMenuAction(
             label: _inviteCopied ? l.groupCopyInviteDone : l.groupCopyInvite,
-            icon: _inviteCopied ? Icons.check : Icons.copy,
+            icon: _inviteCopied ? MoshIcons.check : MoshIcons.copy,
             onSelect: () => _copyInvite(group?.inviteUri),
           ),
       ],

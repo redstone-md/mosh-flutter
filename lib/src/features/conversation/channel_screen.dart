@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/state/chat_names_provider.dart';
 import 'package:mosh/src/features/conversation/rename_chat_dialog.dart';
 
@@ -32,11 +33,11 @@ class ChannelScreen extends ConsumerWidget {
             onOpenDetails: chrome.onOpenPeerStatus,
             subtitle: AppLocalizations.of(context)!.channelNoticeTitle),
         leaveMenuLabel: AppLocalizations.of(context)!.channelLeaveLabel,
-        leaveMenuIcon: Icons.logout,
+        leaveMenuIcon: MoshIcons.leave,
         menuActions: [
           ChatHeaderMenuAction(
               label: AppLocalizations.of(context)!.chatRename,
-              icon: Icons.edit_outlined,
+              icon: MoshIcons.edit,
               disabled: !ref.watch(personalChatRenameAvailableProvider),
               onSelect: () => showRenameChatDialog(context, target,
                   name: title,

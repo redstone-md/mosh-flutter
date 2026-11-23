@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import '../support/pump_route.dart';
 import '../support/scriptable_gateway.dart';
@@ -47,7 +48,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SessionsScreen), findsNothing);
 
-    final back = find.byIcon(Icons.arrow_back);
+    final back = find.byIcon(MoshIcons.back);
     expect(back, findsOneWidget,
         reason: 'without this the pane is a dead end on mobile');
 
@@ -64,7 +65,7 @@ void main() {
 
     // Both panes are mounted side by side, so a back control would be a
     // no-op affordance.
-    expect(find.byIcon(Icons.arrow_back), findsNothing);
+    expect(find.byIcon(MoshIcons.back), findsNothing);
     expect(find.byType(SessionsScreen), findsOneWidget);
   });
 }

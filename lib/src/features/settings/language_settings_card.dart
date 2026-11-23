@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_select.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 
@@ -37,7 +38,7 @@ class _LanguageSettingsCardState extends ConsumerState<LanguageSettingsCard> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     return SettingsCard(
-      icon: Icons.language,
+      icon: MoshIcons.language,
       title: l.interfaceLanguageTitle,
       hint: l.interfaceLanguageHint,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

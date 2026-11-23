@@ -5,12 +5,26 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import opentype from 'opentype.js';
+import { REPO } from './areas.mjs';
 import { windowColor } from './tokens.mjs';
 
-// Material icons are glyphs of Flutter's bundled font; their outlines become vectors.
+// Icons are glyphs of a font; their outlines become vectors. The app's icons
+// come from the Phosphor fonts in assets/fonts (MoshIcons), the ones Material
+// draws on its own (checkbox, expansion chevron) from Flutter's bundled font.
 const flutterBin = fs.realpathSync(execFileSync(process.platform === 'win32' ? 'where' : 'which', ['flutter'], { encoding: 'utf8' }).split(/\r?\n/)[0]);
 const FONTS = path.join(path.dirname(flutterBin), 'cache', 'artifacts', 'material_fonts');
-const ICON_FONT = opentype.loadSync(path.join(FONTS, 'MaterialIcons-Regular.otf'));
+const phosphor = (file) => opentype.loadSync(path.join(REPO, 'assets', 'fonts', file));
+const ICON_FONTS = {
+  MaterialIcons: opentype.loadSync(path.join(FONTS, 'MaterialIcons-Regular.otf')),
+  Phosphor: phosphor('Phosphor.ttf'), PhosphorFill: phosphor('Phosphor-Fill.ttf'), PhosphorBold: phosphor('Phosphor-Bold.ttf'),
+};
+/** "family:codepoint" → the MoshIcons role that draws it (the first, when two roles share a glyph). */
+const ROLES = new Map();
+for (const [, role, hex, family] of fs.readFileSync(path.join(REPO, 'lib', 'src', 'app', 'mosh_icons.dart'), 'utf8')
+  .matchAll(/static const IconData (\w+) =\s*IconData\(0x([0-9a-f]+), fontFamily: '(\w+)'\)/g)) {
+  const key = `${family}:${parseInt(hex, 16)}`;
+  if (!ROLES.has(key)) ROLES.set(key, role);
+}
 const ICON_NAMES = new Map();
 for (const line of fs.readFileSync(path.join(FONTS, 'codepoints'), 'utf8').split('\n')) {
   const [name, hex] = line.trim().split(' ');
@@ -34,21 +48,24 @@ function iconNode(op) {
   const run = op.runs[0];
   const cp = op.text.codePointAt(0);
   const size = run.size;
-  const glyph = ICON_FONT.charToGlyph(String.fromCodePoint(cp));
-  const upm = ICON_FONT.unitsPerEm, asc = ICON_FONT.ascender, desc = -ICON_FONT.descender;
+  const font = ICON_FONTS[run.family];
+  const glyph = font.charToGlyph(String.fromCodePoint(cp));
+  const upm = font.unitsPerEm, asc = font.ascender, desc = -font.descender;
+  // An app icon goes by its MoshIcons role; Material's names come from the codepoints file.
+  const name = ROLES.get(`${run.family}:${cp}`) ?? ((run.family === 'MaterialIcons' && ICON_NAMES.get(cp)) || `icon-${cp.toString(16)}`).replace(/_baseline$/, '');
   // Icon paints with height 1.0 and even leading: the em box is centred in the line.
   const baseline = (size - (size * (asc + desc)) / upm) / 2 + (size * asc) / upm;
   const d = glyph.getPath(0, baseline, size).toPathData(2);
   // A rotated icon (expanded ExpansionTile chevron) keeps its unrotated box;
   // the rotation is applied around the box centre.
-  return { k: 'icon', name: (ICON_NAMES.get(cp) ?? `icon-${cp.toString(16)}`).replace(/_baseline$/, ''), r: { ...op.r, w: Math.max(op.r.w, size), h: Math.max(op.r.h, size) }, size, d, rot: op.rot, color: run.color };
+  return { k: 'icon', name, r: { ...op.r, w: Math.max(op.r.w, size), h: Math.max(op.r.h, size) }, size, d, rot: op.rot, color: run.color };
 }
 
 export function leaf(op) {
   switch (op.t) {
     case 'text': {
       if (!op.text.trim() || !op.runs.length) return null;
-      if (op.runs[0].family === 'MaterialIcons') return visible(op.runs[0].color) ? iconNode(op) : null;
+      if (op.runs[0].family in ICON_FONTS) return visible(op.runs[0].color) ? iconNode(op) : null;
       let text = op.text, runs = op.runs;
       // Insert a line separator at each mid-word break, shifting later runs.
       for (const at of (op.lines > 1 ? (op.breaks ?? []).slice(0, op.lines - 1) : []).reverse()) {

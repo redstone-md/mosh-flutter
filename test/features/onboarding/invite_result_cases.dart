@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/onboarding/first_run_theme.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
@@ -32,7 +33,7 @@ void main() {
     final before = _label(tester, 'Copy link');
     await _pump(tester, copied: true);
     expect(_label(tester, 'Copied'), before);
-    expect(find.byIcon(Icons.check), findsOneWidget);
+    expect(find.byIcon(MoshIcons.check), findsOneWidget);
     await _pump(tester, copied: true, busy: true);
     final buttons = tester.widgetList<ButtonStyleButton>(
         find.byWidgetPredicate((widget) => widget is ButtonStyleButton));

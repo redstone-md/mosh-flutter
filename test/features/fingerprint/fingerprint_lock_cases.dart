@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_emoji.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_lock.dart';
 import '../../support/pump.dart';
@@ -20,7 +21,7 @@ void main() {
   testWidgets('empty fingerprint renders no lock', (tester) async {
     await pumpScreen(tester, lockWith(''));
     // The widget self-gates: it stays in the tree but renders nothing.
-    expect(find.byIcon(Icons.lock), findsNothing);
+    expect(find.byIcon(MoshIcons.lock), findsNothing);
     expect(
       tester.getSize(find.byType(FingerprintLock)),
       Size.zero,
@@ -30,9 +31,9 @@ void main() {
   testWidgets('tapping the lock opens the dialog with emoji, hex, hint',
       (tester) async {
     await pumpScreen(tester, lockWith(fingerprint));
-    expect(find.byIcon(Icons.lock), findsOneWidget);
+    expect(find.byIcon(MoshIcons.lock), findsOneWidget);
     expect(find.byTooltip('End-to-end encrypted'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.lock));
+    await tester.tap(find.byIcon(MoshIcons.lock));
     await tester.pumpAndSettle();
 
     // Title, hex, hint, and the quartet (joined emoji string).

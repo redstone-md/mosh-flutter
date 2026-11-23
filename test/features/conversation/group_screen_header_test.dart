@@ -1,8 +1,8 @@
 // Shared header: admin role, localized membership, invitation menu and
 // fingerprint action. Real clipboard channel calls are observed below.
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChannels, LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart'
     show GroupSnapshot, GroupNameStatus;
@@ -86,13 +86,13 @@ void main() {
         .setMockMethodCallHandler(SystemChannels.platform, null));
     await _pumpGroup(tester, _snapshot(invite: uri));
     await _openMenu(tester);
-    expect(find.byIcon(Icons.copy), findsOneWidget);
+    expect(find.byIcon(MoshIcons.copy), findsOneWidget);
     await tester.tap(find.text('Copy invite'));
     await tester.pumpAndSettle();
     expect(copied, uri);
     await _openMenu(tester);
     expect(find.text('Invite copied'), findsOneWidget);
-    expect(find.byIcon(Icons.check), findsOneWidget);
+    expect(find.byIcon(MoshIcons.check), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 1600));
     await tester.pumpAndSettle();
     // A popup is a snapshot of its entries; reopen to read the reverted state.

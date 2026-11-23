@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/distribution_channel_provider.dart';
@@ -63,7 +64,7 @@ class AboutSettingsSection extends ConsumerWidget {
       BuildContext context, AppLocalizations l, AsyncValue<PackageInfo> info) {
     final text = Theme.of(context).textTheme;
     return SettingsCardHeader(
-      icon: Icons.verified_user,
+      icon: MoshIcons.shield,
       title: Text('Mosh', style: text.headlineSmall),
       subtitle: Text(_version(l, info), style: text.bodySmall),
     );

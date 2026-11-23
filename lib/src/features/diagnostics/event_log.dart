@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
 import 'package:mosh/src/rust/conversation/mesh.dart';
@@ -33,7 +34,7 @@ class EventLog extends StatelessWidget {
         : events.reversed.toList();
     return DiagnosticsGroup(
       label: l.diagGroupMossEvents,
-      leading: const Icon(Icons.show_chart, size: 11),
+      leading: const Icon(MoshIcons.chart, size: 11),
       children: [
         if (slice.isEmpty)
           DiagnosticsEmptyState(

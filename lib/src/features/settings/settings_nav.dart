@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
@@ -30,7 +31,7 @@ class SettingsNav extends StatelessWidget {
       children: [
         OutlinedButton.icon(
           onPressed: onExit,
-          icon: const Icon(Icons.arrow_back, size: 18),
+          icon: const Icon(MoshIcons.back, size: 18),
           label: Text(l.settingsBackToChats),
           style: OutlinedButton.styleFrom(
             alignment: AlignmentDirectional.centerStart,
@@ -100,7 +101,7 @@ class _SectionRow extends StatelessWidget {
                                 selected ? FontWeight.w600 : FontWeight.w500,
                           )),
                 ),
-                if (showChevron) const Icon(Icons.chevron_right, size: 18),
+                if (showChevron) const Icon(MoshIcons.chevronRight, size: 18),
               ]),
             ),
           ),

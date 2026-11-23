@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 
 import 'settings_card.dart';
 
@@ -42,7 +43,7 @@ class SettingsToggleCard extends StatelessWidget {
   Widget _notice(BuildContext context) => Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Icon(Icons.info_outline, size: 20),
+          const Icon(MoshIcons.info, size: 20),
           const SizedBox(width: SettingsCardHeader.iconTextGap),
           Expanded(
               child:

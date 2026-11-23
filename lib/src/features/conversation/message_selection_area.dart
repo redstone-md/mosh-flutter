@@ -65,22 +65,22 @@ class _MessageSelectionAreaState extends State<MessageSelectionArea>
     final selected = _selectedText;
     _menuKey.currentState?.show([
       if (selected.isNotEmpty)
-        MessageMenuAction(l.messageCopySelectedText, Icons.content_copy, () {
+        MessageMenuAction(l.messageCopySelectedText, MoshIcons.copy, () {
           if (message.mounted) unawaited(copy(selected));
         }),
       if (message.widget.body.isNotEmpty)
-        MessageMenuAction(l.messageCopyText, Icons.copy_all_outlined, () {
+        MessageMenuAction(l.messageCopyText, MoshIcons.copy, () {
           if (message.mounted) unawaited(copy(message.widget.body));
         }),
       if (message.widget.body.isNotEmpty) ..._nativeActions(),
       if (message.widget.onSelect != null)
-        MessageMenuAction(l.messageSelect, Icons.check_circle_outline, () {
+        MessageMenuAction(l.messageSelect, MoshIcons.success, () {
           if (!message.mounted) return;
           _clear();
           message.widget.onSelect?.call();
         }),
       if (message.widget.onDelete != null)
-        MessageMenuAction(l.messageDelete, Icons.delete_outline, () {
+        MessageMenuAction(l.messageDelete, MoshIcons.delete, () {
           if (!message.mounted) return;
           _clear();
           message.widget.onDelete?.call();
@@ -111,9 +111,9 @@ class _MessageSelectionAreaState extends State<MessageSelectionArea>
             MessageMenuAction(
               AdaptiveTextSelectionToolbar.getButtonLabel(context, item),
               switch (item.type) {
-                ContextMenuButtonType.selectAll => Icons.select_all,
-                ContextMenuButtonType.share => Icons.share_outlined,
-                _ => Icons.text_fields,
+                ContextMenuButtonType.selectAll => MoshIcons.selectAll,
+                ContextMenuButtonType.share => MoshIcons.share,
+                _ => MoshIcons.text,
               },
               item.onPressed!,
             ),
