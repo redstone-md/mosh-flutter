@@ -1,5 +1,5 @@
 // Plugin-side: what lets one card be rebuilt alone. build.mjs prepends this
-// file after surfaces.js. A rebuilt card has new components; relink() moves
+// file after the helpers of lib.js, surfaces.js and calls.js. A rebuilt card has new components; relink() moves
 // every instance of the old ones onto the component of the same name in the
 // new card, so the cards that use them keep their own components and node ids.
 
