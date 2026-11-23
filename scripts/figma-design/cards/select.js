@@ -1,4 +1,4 @@
-// Select: MoshSelect and AudioDevicePicker. A popover menu on the desktop, a bottom sheet on the phone.
+// Select: MoshSelect and AudioDevicePicker. A popover menu on the desktop; the phone's bottom sheet is the Sheet of the Menu card.
 card('Select', 'One choice out of a short list. The closed control reads like a text field with a caret. On the desktop it opens a menu under itself, on the phone a sheet from the bottom edge. When the list cannot load, the control says so and offers a retry.');
 function option({ State, Device }) {
   const on = State === 'Selected', off = State === 'Disabled';
@@ -38,19 +38,7 @@ prop(set, 'Value', 'TEXT', 'USB Microphone', 'value');
 const OPTIONS = [['System default', 'Default'], ['USB Microphone', 'Selected'], ['Built-in Microphone', 'Default']];
 const options = (parent, Device) => OPTIONS.forEach(([label, State]) => add(parent, setProps(inst('Select option', { State, Device }), { Label: label }), { fillW: true }));
 await grid('Select menu', ONE, [['Desktop', {}]], () => {
-  const m = box('Select menu', { component: true, pad: 2, gap: 1, w: 280, r: 'large', fill: 'surfaceContainerHigh', stroke: 'outlineVariant', effect: 'elevation2' });
+  const m = surface('Select menu', 'popup', { component: true, pad: 2, gap: 1, w: 280 });
   options(m, 'Desktop');
   return m;
-});
-await grid('Select sheet', ONE, [['Phone', {}]], () => {
-  const frame = box('Select sheet', { component: true, w: 390, h: 420, justify: 'MAX', clip: true, fill: 'surface' });
-  tint(frame, 'surfaceContainerLowest', 'scrim').name = 'scrim';
-  const sheet = add(frame, box('sheet', { pad: [3, 3, 6, 3], gap: 2, fill: 'surfaceContainerHigh', effect: 'elevation3' }), { fillW: true });
-  ['topLeftRadius', 'topRightRadius'].forEach((f) => bind(sheet, f, 'radius/extraLarge'));
-  add(sheet, rect('handle', { fill: 'outline', wk: 8, hk: 1, r: 'full' }));
-  const head = add(sheet, box('title', { dir: 'H', pad: [0, 0, 0, 3] }), { fillW: true });
-  add(head, text('Microphone', 'titleMedium', 'onSurface', { name: 'sheet title' }), { fillW: true });
-  add(head, inst('Icon button', { Kind: 'Standard', State: 'Default', Device: 'Phone' }));
-  options(sheet, 'Phone');
-  return frame;
 });

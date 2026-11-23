@@ -124,9 +124,11 @@ function dot(name, color, key) {
 }
 const ICONS = {};
 for (const c of PAGE.findAllWithCriteria({ types: ['COMPONENT'] })) if (c.name.startsWith('Icon/')) ICONS[c.name.slice(5)] = c;
+/** The Icon/<name> component. */
+const glyphOf = (name) => ICONS[name] ?? fail('Icon/' + name);
 /** An instance of Icon/<name>, recoloured, at a space-token size (5 is 20 px). */
 function icon(name, color, key = 5) {
-  const i = (ICONS[name] ?? fail('Icon/' + name)).createInstance();
+  const i = glyphOf(name).createInstance();
   i.name = 'icon';
   size(i, key, key);
   // The glyph is onSurfaceVariant in its component; only another colour is an override.
@@ -295,13 +297,14 @@ const inst = (setName, props) => variant(setName, props).createInstance();
 function setProps(i, values) {
   for (const [name, value] of Object.entries(values)) {
     const key = Object.keys(i.componentProperties).find((k) => k.split('#')[0] === name) ?? fail('property ' + name);
-    i.setProperties({ [key]: value?.id ?? value });
+    // Setting a swap to the component it already shows resets the nested instance, size and name included.
+    if (i.componentProperties[key].value !== (value?.id ?? value)) i.setProperties({ [key]: value?.id ?? value });
   }
   return i;
 }
 /** An Icon button showing [glyph]; ink recolours the glyph where its own colour would not read. */
 function action(glyph, Device, { Kind = 'Standard', State = 'Default', ink } = {}) {
-  const b = setProps(inst('Icon button', { Kind, State, Device }), { 'Icon glyph': ICONS[glyph] ?? fail('Icon/' + glyph) });
+  const b = setProps(inst('Icon button', { Kind, State, Device }), { 'Icon glyph': glyphOf(glyph) });
   if (ink) b.findOne((n) => n.name === 'glyph').fills = paint(ink);
   return b;
 }

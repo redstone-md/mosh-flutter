@@ -55,7 +55,7 @@ function chat(c, Device) {
 }
 /** A chat list on [Device]; body(rows) fills the frame between the filters and the settings row. query: what the search holds. */
 function list(name, Device, body, query) {
-  const l = box(`${name} · ${Device}`, { dir: 'V', gap: 2, pad: [4, 2], w: ROW[Device] + 16, fill: 'surfaceContainerLow', align: 'MIN' });
+  const l = surface(`${name} · ${Device}`, 'panel', { dir: 'V', gap: 2, pad: [4, 2], w: ROW[Device] + 16, align: 'MIN' });
   add(l, setProps(inst('Button', { Kind: 'Primary', Device, State: 'Default' }), { Label: 'Start a conversation', Icon: true }), { fillW: true });
   add(l, query ? setProps(inst('Search field', { State: 'Query', Device }), { Query: query }) : inst('Search field', { State: 'Empty', Device }), { fillW: true });
   add(l, filterChips(Device));
@@ -78,7 +78,7 @@ const QUERY = 'ma', matches = (c) => (c.Title + ' ' + c.Preview).toLowerCase().i
 const found = list('Search results', 'Desktop', (rows) => CHATS.filter(matches).forEach((c) => add(rows, chat({ ...c, State: 'Default' }, 'Desktop'), { fillW: true })), QUERY);
 // The collapsed list is a column of 48 px buttons, the size the phone uses, beside 64 px rows.
 function collapsed(failed) {
-  const l = box(failed ? 'Collapsed, could not load · Desktop' : 'Collapsed · Desktop', { dir: 'V', gap: 2, pad: [4, 2], fill: 'surfaceContainerLow' });
+  const l = surface(failed ? 'Collapsed, could not load · Desktop' : 'Collapsed · Desktop', 'panel', { dir: 'V', gap: 2, pad: [4, 2] });
   add(l, action('add', 'Phone', { Kind: 'Tonal', ink: 'onPrimary' })).fills = paint('primary');
   add(l, action('search', 'Phone', { Kind: 'Tonal' }));
   if (failed) add(l, action('error', 'Phone', { Kind: 'Tonal', ink: 'error' }));

@@ -97,7 +97,7 @@ function dress(b, m, device, first) {
 }
 /** A feed of [items] at the width of a conversation on [device]. */
 function thread(name, device, items) {
-  const t = box(`${name} · ${device}`, { dir: 'V', gap: 1, pad: [4, feedPad(device)], w: FEED[device], fill: 'surface', align: 'MIN' });
+  const t = surface(`${name} · ${device}`, 'background', { dir: 'V', gap: 1, pad: [4, feedPad(device)], w: FEED[device], align: 'MIN' });
   const run = (a, b) => a && a.kind === b.kind && a.from === b.from && (a.kind === 'in' || a.kind === 'out');
   items.forEach((m, i) => {
     if (m.kind === 'date') return add(t, setProps(inst('Date divider'), { Date: m.date }), { fillW: true });

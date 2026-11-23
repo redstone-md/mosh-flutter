@@ -33,27 +33,18 @@ await grid('Checkbox', axis('Value', ['Unchecked', 'Checked']), DEVICES, ({ Valu
   if (on) add(mark, icon('check', 'onPrimary', 4));
   return shell('Checkbox', mark, Device);
 }, 64);
-/** A Button turned destructive: the error colour takes the place of the primary one. */
-function danger(Device, Label, glyph) {
-  const b = setProps(inst('Button', { Kind: 'Primary', Device, State: 'Default' }), { Label, Icon: true, 'Icon glyph': ICONS[glyph] });
-  b.fills = paint('error');
-  b.findOne((n) => n.type === 'TEXT').fills = paint('onError');
-  b.findOne((n) => n.name === 'glyph').fills = paint('onError');
-  return b;
-}
-const textButton = (Device, Label, glyph) => setProps(inst('Button', { Kind: 'Text', Device, State: 'Default' }), glyph ? { Label, Icon: true, 'Icon glyph': ICONS[glyph] } : { Label });
 const bars = display(await grid('Selection bar', ONE, DEVICES, ({ Device }) => {
   const phone = Device === 'Phone';
-  const b = box('Selection bar', { component: true, dir: 'H', gap: 2, pad: [2, feedPad(Device)], w: FEED[Device], fill: 'surface' });
+  const b = surface('Selection bar', 'background', { component: true, dir: 'H', gap: 2, pad: [2, feedPad(Device)], w: FEED[Device] });
   add(b, text('3 selected', 'titleMedium', 'onSurface', { name: 'count', truncate: true }), { fillW: true });
-  if (!phone) { add(b, textButton(Device, 'Copy', 'copy')); add(b, danger(Device, 'Delete', 'delete')); }
-  add(b, textButton(Device, 'Cancel'));
+  if (!phone) { add(b, labelButton(Device, 'Copy', { Kind: 'Text', glyph: 'copy' })); add(b, danger(Device, 'Delete', 'delete')); }
+  add(b, labelButton(Device, 'Cancel', { Kind: 'Text' }));
   return b;
 }));
 prop(bars, 'Count', 'TEXT', '3 selected', 'count');
 display(await grid('Selection actions', ONE, axis('Device', ['Phone']), ({ Device }) => {
-  const b = box('Selection actions', { component: true, dir: 'H', gap: 2, pad: [2, 3], w: FEED[Device], fill: 'surface', justify: 'CENTER' });
-  add(b, textButton(Device, 'Copy', 'copy'));
+  const b = surface('Selection actions', 'background', { component: true, dir: 'H', gap: 2, pad: [2, 3], w: FEED[Device], justify: 'CENTER' });
+  add(b, labelButton(Device, 'Copy', { Kind: 'Text', glyph: 'copy' }));
   add(b, danger(Device, 'Delete', 'delete'));
   return b;
 }));
@@ -64,7 +55,7 @@ const PICKED = [
 ];
 /** A feed in selection mode: every message gets a checkbox, and a chosen one a band across the feed. */
 function selecting(Device) {
-  const t = box('Selecting · ' + Device, { dir: 'V', w: FEED[Device], fill: 'surface', align: 'MIN' });
+  const t = surface('Selecting · ' + Device, 'background', { dir: 'V', w: FEED[Device], align: 'MIN' });
   add(t, inst('Selection bar', { Device }), { fillW: true });
   for (const [side, Text, on] of PICKED) {
     const row = add(t, box('row', { dir: 'H', gap: 2, pad: [1, feedPad(Device)], fill: on ? 'secondaryContainer' : null }), { fillW: true });
