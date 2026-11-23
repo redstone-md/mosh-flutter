@@ -20,19 +20,41 @@ function corners(bubble, out, position) {
   const names = out ? [ROUND, top, bottom, ROUND] : [top, ROUND, ROUND, bottom];
   ['topLeftRadius', 'topRightRadius', 'bottomRightRadius', 'bottomLeftRadius'].forEach((f, i) => bind(bubble, f, 'radius/' + names[i]));
 }
+// The time is pinned to the bubble's far corner, so it stays there under a wider attachment. An unpainted
+// copy of it follows the text and keeps the text clear of it: beside a short text, on a row of its own
+// when the text fills the measure. Where the last of several lines leaves room, the copy is switched off
+// and the time sits in that line.
+// Under an attachment the text is a caption, which wraps at the attachment's width; an instance cannot
+// narrow its own line, so the caption is a second line that takes the place of the first.
+function textLines(bubble, Device, ink, quiet, out) {
+  for (const [name, width] of [['line', lineWidth(Device)], ['caption', attachmentWidth(Device)]]) {
+    const line = add(bubble, box(name, { dir: 'H', gap: 2, pad: INSET, align: 'MAX' }), { max: width });
+    line.layoutWrap = 'WRAP'; line.visible = name === 'line';
+    add(add(line, box('body', { dir: 'H' })), text('Should we leave at 6 to beat the traffic?', 'bodyLarge', ink, { name: 'text' }), { max: width - lineWidth(Device) + MEASURE[Device] });
+    const room = add(line, box('room for the time', { dir: 'H', gap: 1 }));
+    add(room, text('08:31', 'labelSmall', quiet, { name: 'time' })).fills = [];
+    if (out) add(room, box('room for the mark', { dir: 'H', wk: 4, hk: 4 }));
+  }
+}
+/** The notice and the way out under a bubble that was not sent, on the feed. */
+function failure(root, Device) {
+  const failed = add(root, box('failed', { dir: 'H', gap: 1 }));
+  add(failed, text('Not sent', 'labelMedium', 'error', { name: 'reason', cut: true }), { max: MEASURE[Device] - 64 });
+  // Only the failure is red; the way out is in the feed's own ink.
+  const retry = add(failed, setProps(inst('Button', { Kind: 'Text', Device, State: 'Default' }), { Label: 'Retry' }));
+  retry.name = 'retry'; retry.findOne((n) => n.type === 'TEXT').fills = paint('onSurface');
+}
 /** One variant of a message. side: 'Incoming' | 'Outgoing'. */
 function message(side, { Position, Device, State }) {
   const out = side === 'Outgoing', ink = out ? 'onOutgoing' : 'onSurface';
   // An incoming message is a row, gutter then bubble; an outgoing one a column, so a failure can sit under its bubble.
   const root = box(side + ' message', out ? { component: true, dir: 'V', align: 'MAX' } : { component: true, dir: 'H', gap: 2, align: 'MIN' });
   if (!out) {
-    const gutter = add(root, box('gutter', { dir: 'H', wk: 8, align: 'MIN' }));
-    add(gutter, inst('Avatar', { Kind: 'Person', Plate: '1', Size: 'Compact' })).name = 'avatar';
+    avatarSlot(add(root, box('gutter', { dir: 'H', wk: 8, align: 'MIN' })), { Plate: '1', Size: 'Compact' });
   }
   // A deleted message keeps its place in the run but gives up its colour: an outline and quiet text.
   const gone = State === 'Deleted' || State === 'Awaiting deletion', quiet = out && !gone ? 'onOutgoingVariant' : 'onSurfaceMuted';
-  // The bubble's own padding is the same on every side, so an attachment's 12 px corners stay concentric with its 20 px ones; text is set in a little further.
-  const INSET = [0, 1, 0, 2];
+  // The bubble's own padding is the same on every side, so an attachment's 12 px corners stay concentric with its 20 px ones.
   const bubble = add(root, box('bubble', { dir: 'V', gap: 1, pad: 2, fill: gone ? null : out ? 'outgoing' : 'incoming', stroke: gone ? 'outlineVariant' : null, align: 'MIN', clip: true }));
   corners(bubble, out, Position);
   if (!out) {
@@ -48,30 +70,13 @@ function message(side, { Position, Device, State }) {
   }
   // A file, a picture or a voice message rides above the text; swap the instance for another kind.
   add(bubble, inst('File card', { State: 'Ready', Tone: out ? 'Outgoing' : 'Surface', Device })).name = 'attachment';
-  // The time is pinned to the bubble's far corner, so it stays there under a wider attachment. An unpainted
-  // copy of it follows the text and keeps the text clear of it: beside a short text, on a row of its own
-  // when the text fills the measure. Where the last of several lines leaves room, the copy is switched off
-  // and the time sits in that line.
-  // Under an attachment the text is a caption, which wraps at the attachment's width; an instance cannot
-  // narrow its own line, so the caption is a second line that takes the place of the first.
-  for (const [name, width] of [['line', lineWidth(Device)], ['caption', attachmentWidth(Device)]]) {
-    const line = add(bubble, box(name, { dir: 'H', gap: 2, pad: INSET, align: 'MAX' }), { max: width });
-    line.layoutWrap = 'WRAP'; line.visible = name === 'line';
-    add(add(line, box('body', { dir: 'H' })), text('Should we leave at 6 to beat the traffic?', 'bodyLarge', ink, { name: 'text' }), { max: width - lineWidth(Device) + MEASURE[Device] });
-    const room = add(line, box('room for the time', { dir: 'H', gap: 1 }));
-    add(room, text('08:31', 'labelSmall', quiet, { name: 'time' })).fills = [];
-    if (out) add(room, box('room for the mark', { dir: 'H', wk: 4, hk: 4 }));
-  }
+  textLines(bubble, Device, ink, quiet, out);
   const meta = add(bubble, box('meta', { dir: 'H', gap: 1 }), { abs: [0, 0] });
   add(meta, text('08:31', 'labelSmall', quiet, { name: 'time' }));
   if (State === 'Failed') {
-    // The bubble keeps its colour and marks the failure where the ticks would be; the notice and the way out sit under it, on the feed.
+    // The bubble keeps its colour and marks the failure where the ticks would be.
     add(meta, icon('error_fill', 'outgoingError', 4));
-    const failed = add(root, box('failed', { dir: 'H', gap: 1 }));
-    add(failed, text('Not sent', 'labelMedium', 'error', { name: 'reason', cut: true }), { max: MEASURE[Device] - 64 });
-    // Only the failure is red; the way out is in the feed's own ink.
-    const retry = add(failed, setProps(inst('Button', { Kind: 'Text', Device, State: 'Default' }), { Label: 'Retry' }));
-    retry.name = 'retry'; retry.findOne((n) => n.type === 'TEXT').fills = paint('onSurface');
+    failure(root, Device);
   } else if (out) {
     const ticks = add(meta, inst('Delivery ticks', { State: 'Delivered' }));
     ticks.name = 'ticks'; ticks.isExposedInstance = true;

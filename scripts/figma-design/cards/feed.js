@@ -1,6 +1,6 @@
 // Rows of the feed that are not messages: ConversationDateDivider,
 // ConversationUnreadDivider, CallLogEntry and the notice a group posts about itself.
-card('Feed rows', 'Between the messages the feed marks a new day, the first unread message, a call and a change to the group. They span the feed and stay quieter than a bubble; a call sits on the side of whoever made it, in the bubble colour of that side.');
+card('Feed rows', 'Between the messages the feed marks a new day, the first unread message, a call and a change to the group. The marks span the feed and stay quieter than a bubble; a call is a bubble of its own, on the side and in the colour of whoever made it.');
 const SPAN = MEASURE.Desktop;
 const dates = await grid('Date divider', ONE, ONE, () => {
   const c = box('Date divider', { component: true, dir: 'H', w: SPAN, pad: [3, 0, 2, 0], justify: 'CENTER' });

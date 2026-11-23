@@ -1,6 +1,7 @@
 // Threads assembled from the message and feed components, to judge the
 // density of the feed and the rhythm of its runs on real conversations: the
-// captured "Conversation / DM / Thread" and "Conversation / Group / Thread".
+// captured "Conversation / DM / Thread" and "Conversation / Group / Thread",
+// then a feed of attachments and one of text that is hard to wrap.
 card('Thread', 'The components in use. Bubbles of one run sit 4 px apart and a new run starts 12 px lower. The last example holds what a feed has to survive: a long link, a token without spaces and a long name.');
 const DM = [
   { kind: 'call', direction: 'Outgoing', detail: '18:02, 3 min 7 s' },
@@ -55,7 +56,11 @@ function lastLineWidth(t) {
     probe.characters = t.characters.slice(0, mid);
     if (probe.height < full) fits = mid; else over = mid;
   }
-  probe.textAutoResize = 'WIDTH_AND_HEIGHT'; probe.characters = t.characters.slice(fits).trim();
+  // The character at [fits] is the first to need the last line. It takes the start of its word down with it, unless the word is too long for a line and is broken there.
+  const word = t.characters.lastIndexOf(' ', fits) + 1;
+  probe.textAutoResize = 'WIDTH_AND_HEIGHT'; probe.characters = t.characters.slice(word, fits + 1);
+  const from = probe.width <= t.width ? word : fits;
+  probe.characters = t.characters.slice(from);
   const w = probe.width;
   probe.remove();
   return w;

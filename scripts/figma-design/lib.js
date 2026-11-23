@@ -323,8 +323,10 @@ function backdrop(set) {
 }
 // Widths a component is drawn at: a row of the chat list, the feed of a conversation, and the text of a bubble.
 const ROW = { Desktop: 324, Phone: 358 }, FEED = { Desktop: 640, Phone: 390 }, MEASURE = { Desktop: 480, Phone: 232 };
+// Text in a bubble, and the caption of a picture, is set in a little further than the bubble's 8 px padding.
+const INSET = [0, 1, 0, 2];
 /** Width of the text line of a bubble: the measure and the inset of the text on both sides. An attachment on the phone is this wide, so a caption never outgrows it. */
-const lineWidth = (Device) => MEASURE[Device] + px('space/1') + px('space/2');
+const lineWidth = (Device) => MEASURE[Device] + px('space/' + INSET[1]) + px('space/' + INSET[3]);
 /** Width of a file or media card. A caption under it wraps at this width, as the bubble is no wider than the card. */
 const attachmentWidth = (Device) => (Device === 'Desktop' ? 320 : lineWidth(Device));
 /** Side padding of the feed, as a space key. */
@@ -356,18 +358,21 @@ function segmented(Device, files = false) {
 }
 /** Names the file or media card [card]. A name too long for it is cut in the middle: its start, an ellipsis and its last characters, extension included. */
 function nameFile(card, name) {
-  const label = card.findOne((n) => n.type === 'TEXT' && n.visible && n.name.startsWith('name') && n.name !== 'name end'), KEPT = 9;
+  const label = card.findOne((n) => n.type === 'TEXT' && n.visible && n.name.startsWith('name') && n.name !== 'name end');
+  const end = card.findOne((n) => n.name === 'name end'), KEPT = 9;
   // A media card has a name property per kind; the label knows which one is its own.
   const key = label.componentPropertyReferences.characters;
   setProps(card, { 'Name end': '' }).setProperties({ [key]: name });
   // Figma cuts a text only at its end, so the start is shortened here until it fits beside the end.
-  for (let start = name.slice(0, -KEPT); label.width >= label.maxWidth && start.length > 1;) {
+  if (label.width < label.maxWidth) return card;
+  setProps(card, { 'Name end': name.slice(-KEPT) });
+  for (let start = name.slice(0, -KEPT); label.width + end.width > label.maxWidth && start.length > 1;) {
     start = start.slice(0, -1);
-    setProps(card, { 'Name end': name.slice(-KEPT) }).setProperties({ [key]: start + '…' });
+    card.setProperties({ [key]: start + '…' });
   }
   return card;
 }
-/** Marks a set that is read, or pressed together with the padding of what holds it: audit.js asks no phone tap target of it alone. */
+/** Marks a set that is not one target itself: it is read, holds targets of its own, or is pressed together with the padding of what holds it. audit.js asks no phone tap target of the set as a whole. */
 function display(set) { set.setPluginData('target', 'none'); return set; }
 // Grid axes are [label, {Property: value}] pairs; ONE is the axis of a property-less component.
 const ONE = [['', {}]];

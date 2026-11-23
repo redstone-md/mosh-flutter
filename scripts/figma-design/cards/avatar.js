@@ -1,5 +1,5 @@
 // Avatar: Avatar, ConversationKindAvatar and UserPlusBadge.
-card('Avatar', 'A person shows initials, a group and a channel show their sign. The plate is one of four muted colours picked per contact. Compact sits beside a message and in a roster, small in headers, medium in the chat list, large on a profile. Presence and the Mosh+ mark switch on as properties.');
+card('Avatar', 'A person shows initials, a group and a channel show their sign. The plate is one of four muted colours picked per contact. Compact sits beside a message and in a roster, small in an invitation, medium in the chat list, large on a profile. Presence and the Mosh+ mark switch on as properties.');
 // Per size: the plate's edge as a space key, the initials' text style, the sign's and the presence dot's size keys.
 const SIZES = { Compact: [8, 'labelMedium', 4, 3], Small: [10, 'titleSmall', 5, 3], Medium: [12, 'titleMedium', 6, 3], Large: [16, 'headlineSmall', 8, 4] };
 await grid('Mosh+ badge', ONE, axis('Tone', ['Accent', 'Plain', 'Muted']), ({ Tone }) => {

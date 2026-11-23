@@ -1,15 +1,14 @@
 // Attachments: the file card (attachment_card._FileCardShell, AttachmentThumb),
 // the picture and video card, and the file row of the conversation details
 // (ConversationSharedFile), which is the file card on a surface.
-card('Attachment', 'A file shows its name, its size and, on its plate, the one thing that can be done with it now: download it, stop the transfer or try again; the whole card is the target. A picture and a video show their preview first. The cards have no plate of their own; they sit in a bubble, in either of its colours, or in the list of shared files. A long name is cut in the middle, so its start and its extension both show.');
+card('Attachment', 'A file shows its name, its size and, on its plate, the one thing that can be done with it now: download it, stop the transfer, pick it up again or try again; the whole card is the target. A picture and a video show their preview first. The cards have no background of their own; they sit in a bubble, in either of its colours, or in the list of shared files. A long name is cut in the middle, so its start and its extension both show.');
 // Per state: the line under the name and what the plate shows. The plate is the action and the whole card its target,
 // which leaves the far corner free for the time of a message that is a file alone.
-const FILE = { Ready: ['1.2 MB', 'file'], 'To download': ['1.2 MB', 'download'], Transfer: ['58% of 1.2 MB', 'close'], Failed: ['Transfer failed', 'refresh'] };
-/** The name of a file in [parent], at most [max] px wide. A long name is cut in the middle: its end is a text of its own, empty for a name that fits, and NAME_END px of [max] are held back for it. */
-const NAME_END = 72;
+const FILE = { Ready: ['1.2 MB', 'file'], 'To download': ['1.2 MB', 'download'], Transfer: ['58% of 1.2 MB', 'close'], Paused: ['Paused', 'download'], Cancelled: ['Transfer cancelled', 'refresh'], Failed: ['Transfer failed', 'refresh'] };
+/** The name of a file in [parent], at most [max] px wide. A long name is cut in the middle: its end is a text of its own, empty for a name that fits, and nameFile() shortens the start until both fit. */
 function fileName(parent, chars, ink, layer, max) {
   const title = add(parent, box('title', { dir: 'H' }));
-  add(title, text(chars, 'labelLarge', ink, { name: layer, cut: true }), { max: max - NAME_END });
+  add(title, text(chars, 'labelLarge', ink, { name: layer, cut: true }), { max });
   add(title, text('', 'labelLarge', ink, { name: 'name end' }));
   return title;
 }
@@ -51,9 +50,9 @@ function media({ Kind, State, Tone, Device }) {
   else if (Kind === 'Image') add(view, icon('image', 'onTertiaryContainer', 8));
   else add(add(view, box('play', { dir: 'H', wk: 12, hk: 12, r: 'full', fill: 'surface', justify: 'CENTER' })), icon('play', 'onSurface', 6));
   // Set in as far as a message's text, so the file name and the text under it start on one line.
-  const line = add(m, box('caption', { dir: 'H', gap: 2, pad: [0, 1, 0, 2] }), { fillW: true });
+  const line = add(m, box('caption', { dir: 'H', gap: 2, pad: INSET }), { fillW: true });
   const [detail, room] = MEDIA[State];
-  fileName(line, Kind === 'Image' ? 'harbour.jpg' : 'waves.mp4', c.ink, 'name ' + Kind, w - px('space/1') - px('space/2') - px('space/2') - room).layoutSizingHorizontal = 'FILL';
+  fileName(line, Kind === 'Image' ? 'harbour.jpg' : 'waves.mp4', c.ink, 'name ' + Kind, w - lineWidth(Device) + MEASURE[Device] - px('space/2') - room).layoutSizingHorizontal = 'FILL';
   add(line, text(detail, 'labelMedium', failed ? c.error : c.quiet, { name: 'detail' }));
   return m;
 }
@@ -62,6 +61,7 @@ prop(medias, 'Name, image', 'TEXT', 'harbour.jpg', 'name Image');
 prop(medias, 'Name, video', 'TEXT', 'waves.mp4', 'name Video');
 prop(medias, 'Name end', 'TEXT', '', 'name end');
 
-const shared = box('Shared files', { dir: 'V', gap: 1, w: 320 });
-[['Ready', 'ridge-trail.jpg'], ['To download', 'waves.mp4'], ['Transfer', 'tide-tables.xlsx'], ['Failed', 'packing-list.docx']].forEach(([State, Name]) => add(shared, nameFile(inst('File card', { State, Tone: 'Surface', Device: 'Desktop' }), Name), { fillW: true }));
+// A row keeps 8 px around its card, as a bubble does, so the row is the 56 px target.
+const shared = box('Shared files', { dir: 'V', w: 320 + 2 * px('space/2') });
+[['Ready', 'ridge-trail.jpg'], ['To download', 'waves.mp4'], ['Transfer', 'tide-tables.xlsx'], ['Failed', 'packing-list.docx']].forEach(([State, Name]) => add(add(shared, box('row', { dir: 'H', pad: 2 })), nameFile(inst('File card', { State, Tone: 'Surface', Device: 'Desktop' }), Name)));
 await examples('Shared files in the conversation details', [shared]);
