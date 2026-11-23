@@ -45,9 +45,15 @@ function parseTheme() {
   }
   const type = read('mosh_typography.dart');
   const family = type.match(/_kSansFamily = '([^']+)'/)[1];
-  // [slot, size, line box px, weight, letter-spacing px] from the _slot() calls.
-  const styles = [...type.matchAll(/(\w+): _slot\(\s*([\d.]+),\s*([\d.]+)([^)]*)\)/g)].map(([, slot, size, line, rest]) =>
-    [slot, +size, +line, +(rest.match(/FontWeight\.w(\d+)/)?.[1] ?? 400), +(rest.match(/spacing: (-?[\d.]+)/)?.[1] ?? 0)]);
+  // [slot, size, line box px, weight, letter-spacing px] from the _slot() calls: the scale's slots are
+  // "slot: _slot(…)", an emphasized one is "static final TextStyle slot = _slot(…)" and is named <slot>Emphasized.
+  const slots = (pattern, name) => [...type.matchAll(pattern)].map(([, slot, size, line, rest]) =>
+    [name(slot), +size, +line, +(rest.match(/FontWeight\.w(\d+)/)?.[1] ?? 400), +(rest.match(/spacing: (-?[\d.]+)/)?.[1] ?? 0)]);
+  const ARGS = String.raw`_slot\(\s*([\d.]+),\s*([\d.]+)([^)]*)\)`;
+  const styles = [
+    ...slots(new RegExp(String.raw`(\w+): ` + ARGS, 'g'), (slot) => slot),
+    ...slots(new RegExp(String.raw`static final TextStyle (\w+) =\s*` + ARGS, 'g'), (slot) => slot + 'Emphasized'),
+  ];
   if (!Object.keys(colors).length || !styles.length) throw new Error('no tokens parsed from the theme');
   return { colors, aliases, family, styles };
 }
@@ -100,7 +106,7 @@ for (const [slot, size, line, weight, spacing] of T.styles) {
   changes.push((s ? 'style ' : 'new style ') + slot);
   if (DRY) continue;
   await figma.loadFontAsync(want);
-  if (!s) { s = figma.createTextStyle(); s.name = 'Mosh/' + slot; s.description = 'Theme.of(context).textTheme.' + slot; }
+  if (!s) { s = figma.createTextStyle(); s.name = 'Mosh/' + slot; s.description = slot.endsWith('Emphasized') ? 'MoshEmphasizedText.' + slot.slice(0, -'Emphasized'.length) : 'Theme.of(context).textTheme.' + slot; }
   s.fontName = want;
   s.fontSize = size;
   s.lineHeight = { unit: 'PERCENT', value: (line / size) * 100 };

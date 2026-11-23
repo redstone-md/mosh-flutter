@@ -40,9 +40,5 @@ prop(segments, 'Label', 'TEXT', 'Files', 'label');
 prop(segments, 'Icon', 'BOOLEAN', false, 'leading icon');
 prop(segments, 'Icon glyph', 'INSTANCE_SWAP', ICONS.attach, 'leading icon');
 
-const chipRow = ['All', 'Personal', 'Groups', 'Channels'].map((l, i) => setProps(inst('Filter chip', { Selected: i ? 'No' : 'Yes', State: 'Default', Device: 'Desktop' }), { Label: l }));
-await examples('Chat list filters', chipRow);
-const control = box('Segmented control', { dir: 'H', pad: 1, gap: 1, r: 'full', fill: 'surfaceContainerLowest' });
-add(control, setProps(inst('Segment', { Selected: 'Yes', State: 'Default', Device: 'Desktop' }), { Label: 'All' }));
-add(control, setProps(inst('Segment', { Selected: 'No', State: 'Default', Device: 'Desktop' }), { Label: 'Files', Icon: true }));
-await examples('Search filter', [control]);
+await examples('Chat list filters', [filterChips('Desktop')]);
+await examples('Search filter', [segmented('Desktop', false)]);

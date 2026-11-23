@@ -4,6 +4,7 @@
 //
 //   node build.mjs            every card
 //   node build.mjs select     the select card and every card after it
+//   node build.mjs icons --only   the icons alone, the one card that is updated in place
 //   node build.mjs --audit    only the check
 //
 // A card is rebuilt from scratch, which detaches the instances that later
@@ -13,7 +14,7 @@ import { createRequire } from 'node:module';
 import { execute } from '../figma-capture/mcp.mjs';
 
 // In build order: a card may use the components of the cards before it.
-const CARDS = ['icons', 'button', 'icon-button', 'text-field', 'select', 'switch', 'chips', 'avatar', 'badges', 'progress', 'slider-divider'];
+const CARDS = ['icons', 'button', 'icon-button', 'text-field', 'select', 'switch', 'chips', 'avatar', 'badges', 'progress', 'slider-divider', 'attachment', 'voice', 'message', 'feed', 'thread', 'composer', 'chat-row', 'chat-list', 'org', 'search'];
 const read = (file) => fs.readFileSync(new URL(file, import.meta.url), 'utf8');
 /** Runs a plugin script with the helpers of lib.js before it. */
 const run = (script, prelude = '') => execute(`${prelude}${read('lib.js')}\n${script}`, 280000);
@@ -28,13 +29,14 @@ function iconSvg() {
   }));
 }
 
-const [arg] = process.argv.slice(2);
+const [arg, only] = process.argv.slice(2);
 if (arg !== '--audit') {
   const from = arg ? CARDS.indexOf(arg) : 0;
   if (from < 0) throw new Error(`no card "${arg}"; cards: ${CARDS.join(', ')}`);
+  if (only === '--only' && arg !== 'icons') throw new Error('--only is for icons: another card is rebuilt from scratch, which would detach its instances in the cards after it');
   console.log('tokens', JSON.stringify(await run(read('tokens.js'))));
   for (const [order, name] of CARDS.entries()) {
-    if (order < from) continue;
+    if (order < from || (only === '--only' && order > from)) continue;
     const icons = name === 'icons' ? `const ICON_SVG = ${JSON.stringify(iconSvg())};\n` : '';
     console.log(JSON.stringify(await run(`${read(`cards/${name}.js`)}\nreturn finish();`, `const CARD_ORDER = ${order};\n${icons}`)));
   }

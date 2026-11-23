@@ -1,5 +1,9 @@
 {
   "add": "plus", "close": "x", "download": "download-simple", "refresh": "arrow-clockwise", "expand_more": "caret-down",
-  "check": "check", "error": "warning-circle", "copy": "copy", "group": "users", "tag": "hash", "plus_badge": "seal-check-fill",
-  "attach": "paperclip", "person": "user"
+  "check": "check", "error": "warning-circle", "error_fill": "warning-circle-fill", "copy": "copy", "group": "users", "tag": "hash", "plus_badge": "seal-check-fill",
+  "attach": "paperclip", "person": "user",
+  "done_all": "checks", "done_all_read": "checks-bold", "schedule": "clock", "call": "phone", "call_made": "arrow-up-right", "call_received": "arrow-down-left",
+  "chat": "chat-circle", "search": "magnifying-glass", "settings": "gear",
+  "play": "play-fill", "pause": "pause-fill", "mic": "microphone", "send": "paper-plane-right", "delete": "trash", "edit": "pencil-simple",
+  "file": "file", "image": "image", "organisation": "buildings", "admin": "crown-simple"
 }

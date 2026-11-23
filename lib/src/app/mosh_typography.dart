@@ -60,3 +60,12 @@ final TextTheme _moshTextTheme = TextTheme(
   labelSmall: _slot(11, 16,
       weight: FontWeight.w500, spacing: 0.5, color: MoshColors.onSurfaceMuted),
 );
+
+/// Emphasized styles of the Foundations type scale, after Material 3
+/// Expressive: a slot at a heavier weight, for text that has to stand apart
+/// from the text set beside it, such as a sender's name above their message.
+/// The `Mosh/<slot>Emphasized` text styles in Figma.
+abstract final class MoshEmphasizedText {
+  static final TextStyle labelLarge =
+      _slot(14, 20, weight: FontWeight.w600, spacing: 0.1);
+}
