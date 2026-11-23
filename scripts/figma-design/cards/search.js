@@ -33,15 +33,6 @@ await grid('Checkbox', axis('Value', ['Unchecked', 'Checked']), DEVICES, ({ Valu
   if (on) add(mark, icon('check', 'onPrimary', 4));
   return shell('Checkbox', mark, Device);
 }, 64);
-/** A Button turned destructive: the error colour takes the place of the primary one. */
-function danger(Device, Label, glyph) {
-  const b = setProps(inst('Button', { Kind: 'Primary', Device, State: 'Default' }), { Label, Icon: true, 'Icon glyph': ICONS[glyph] });
-  b.fills = paint('error');
-  b.findOne((n) => n.type === 'TEXT').fills = paint('onError');
-  b.findOne((n) => n.name === 'glyph').fills = paint('onError');
-  return b;
-}
-const textButton = (Device, Label, glyph) => setProps(inst('Button', { Kind: 'Text', Device, State: 'Default' }), glyph ? { Label, Icon: true, 'Icon glyph': ICONS[glyph] } : { Label });
 const bars = display(await grid('Selection bar', ONE, DEVICES, ({ Device }) => {
   const phone = Device === 'Phone';
   const b = box('Selection bar', { component: true, dir: 'H', gap: 2, pad: [2, feedPad(Device)], w: FEED[Device], fill: 'surface' });

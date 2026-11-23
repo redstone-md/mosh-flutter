@@ -14,10 +14,10 @@ import { createRequire } from 'node:module';
 import { execute } from '../figma-capture/mcp.mjs';
 
 // In build order: a card may use the components of the cards before it.
-const CARDS = ['icons', 'button', 'icon-button', 'text-field', 'select', 'switch', 'chips', 'avatar', 'badges', 'progress', 'slider-divider', 'attachment', 'voice', 'message', 'feed', 'thread', 'composer', 'chat-row', 'chat-list', 'org', 'search'];
+const CARDS = ['icons', 'button', 'icon-button', 'text-field', 'select', 'switch', 'chips', 'avatar', 'badges', 'progress', 'slider-divider', 'attachment', 'voice', 'message', 'feed', 'thread', 'composer', 'chat-row', 'chat-list', 'org', 'search', 'dialog', 'menu', 'banner', 'toast', 'title-bar', 'settings', 'details'];
 const read = (file) => fs.readFileSync(new URL(file, import.meta.url), 'utf8');
-/** Runs a plugin script with the helpers of lib.js before it. */
-const run = (script, prelude = '') => execute(`${prelude}${read('lib.js')}\n${script}`, 280000);
+/** Runs a plugin script with the helpers of lib.js and surfaces.js before it. */
+const run = (script, prelude = '') => execute(`${prelude}${read('lib.js')}\n${read('surfaces.js')}\n${script}`, 280000);
 
 /** icons.json maps an icon's role in the controls to its Phosphor name; returns the role's 24 px SVG. */
 function iconSvg() {

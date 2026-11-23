@@ -5,5 +5,9 @@
   "done_all": "checks", "done_all_read": "checks-bold", "schedule": "clock", "call": "phone", "call_made": "arrow-up-right", "call_received": "arrow-down-left",
   "chat": "chat-circle", "search": "magnifying-glass", "settings": "gear",
   "play": "play-fill", "pause": "pause-fill", "mic": "microphone", "send": "paper-plane-right", "delete": "trash", "edit": "pencil-simple",
-  "file": "file", "image": "image", "organisation": "buildings", "admin": "crown-simple"
+  "file": "file", "image": "image", "organisation": "buildings", "admin": "crown-simple",
+  "back": "arrow-left", "more": "dots-three-vertical", "list_toggle": "sidebar-simple", "lock": "lock-simple", "info": "info", "warning": "warning", "success": "check-circle",
+  "history": "clock-counter-clockwise", "link": "link", "link_off": "link-break", "devices": "devices", "video": "video-camera", "minimize": "minus", "maximize": "square",
+  "chevron_right": "caret-right", "update": "arrow-circle-down", "select_all": "selection-all", "leave": "sign-out", "language": "globe", "shield": "shield-check", "bug": "bug",
+  "activity": "pulse", "qr": "qr-code", "share": "share-network", "speaker": "speaker-high", "network": "network", "storage": "hard-drives"
 }
