@@ -12,22 +12,26 @@ function callButton({ Tone, Size, State }) {
   interact(b, State, ink);
   return b;
 }
-const tones = Object.keys(CALL_TONES).flatMap((Tone) => Object.keys(SIZES).map((Size) => [`${Tone}, ${Size.toLowerCase()}`, { Tone, Size }]));
-const buttons = await grid('Call button', tones, STATES5, callButton);
+const plates = Object.keys(CALL_TONES).flatMap((Tone) => Object.keys(SIZES).map((Size) => [`${Tone}, ${Size.toLowerCase()}`, { Tone, Size }]));
+const buttons = await grid('Call button', plates, STATES5, callButton);
 prop(buttons, 'Icon glyph', 'INSTANCE_SWAP', ICONS.call, 'icon');
 
-/** A button with what it does under it; the name is the tooltip on the desktop and what a screen reader says. */
-function named(label, glyph, o) {
+/** A control with what it does under it; the name is the tooltip on the desktop and what a screen reader says. */
+function named(label, control) {
   const col = box(label, { dir: 'V', gap: 2 });
-  add(col, callAction(glyph, o));
+  add(col, control);
   add(col, text(label, 'labelMedium', 'onSurfaceMuted'));
   return col;
 }
+const button = (label, glyph, o) => named(label, callAction(glyph, o));
 await examples('The buttons of a call', [
-  named('Accept', 'call', { Tone: 'Accept' }), named('Decline, end', 'call_end', { Tone: 'End' }),
-  named('Microphone', 'mic'), named('Muted', 'mic_off', { Tone: 'Lit' }), named('No microphone', 'mic_off', { State: 'Disabled' }),
-  named('Camera off', 'video_off'), named('Camera on', 'video', { Tone: 'Lit' }), named('Devices', 'tune'),
+  button('Accept', 'call', { Tone: 'Accept' }), button('Decline, end', 'call_end', { Tone: 'End' }),
+  button('Microphone', 'mic'), button('Muted', 'mic_off', { Tone: 'Lit' }), button('No microphone', 'mic_off', { State: 'Disabled' }),
+  button('Camera off', 'video_off'), button('Camera on', 'video', { Tone: 'Lit' }), button('Devices', 'tune'),
 ], 'MIN');
+// What moves the call between its sizes is not a call button: it is the tonal Icon button, which has a plate of its own too.
+const sized = (label, glyph) => named(label, action(glyph, 'Desktop', { Kind: 'Tonal' }));
+await examples('Around the call: its sizes', [sized('Minimize', 'call_minimize'), sized('Expand', 'call_expand'), sized('Full screen', 'fullscreen'), sized('Leave full screen', 'fullscreen_exit')], 'MIN');
 
 /** A plate that stands for a camera's picture, which a screen puts in its place. */
 function picture(name, fill, ink, glyphKey) {
@@ -64,7 +68,7 @@ display(await grid('Call video stage', axis('Kind', Object.keys(KINDS)), ONE, st
 function docked(fill) {
   const v = box('over ' + fill, { dir: 'V', w: 320, h: 140, fill, justify: 'CENTER' });
   radius(v, 'medium');
-  add(v, callDock([['mic', 'Neutral'], ['video', 'Lit'], ['tune', 'Neutral'], ['call_end', 'End']]));
+  add(v, callDock([['mic'], ['video', 'Lit'], ['tune'], CALL_END]));
   return v;
 }
 await examples('The dock over a red, a light, a saffron and a dark picture', ['error', 'inverseSurface', 'primary', BENEATH].map(docked));

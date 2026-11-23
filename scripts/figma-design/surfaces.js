@@ -17,7 +17,7 @@ const LEVEL = {
   popup: { fill: 'surfaceContainerHigh', stroke: 'outlineVariant', effect: 'elevation2', r: 'large' },
   modal: { fill: 'surfaceContainerHigh', stroke: 'outlineVariant', effect: 'elevation3', r: 'extraLarge' },
 };
-// Under every level: the scrim, and the stage of the media viewer, which wants nothing brighter than the picture.
+// Under every level: the scrim, and what shows a picture and wants nothing brighter than it: the stage of the media viewer, and a call in all its forms.
 const BENEATH = 'surfaceContainerLowest';
 /** A box on one of the LEVELs; o as for box(). */
 const surface = (name, level, o = {}) => box(name, { ...(LEVEL[level] ?? fail('level ' + level)), ...o });
@@ -145,6 +145,8 @@ function over(screen, node, at = 'middle') {
 // --- Calls ---
 // The four tones of a call button: its plate and its glyph. Lit marks what differs from a plain voice call: a muted microphone, a camera that is on.
 const CALL_TONES = { Neutral: ['surfaceContainerHighest', 'onSurface'], Lit: ['inverseSurface', 'onInverseSurface'], Accept: ['primary', 'onPrimary'], End: ['error', 'onError'] };
+// A button of a dock or a bar is [glyph, Tone, State]; this one ends the call wherever it stands.
+const CALL_END = ['call_end', 'End'];
 /** A Call button showing [glyph]. o: Tone, Size, State. */
 function callAction(glyph, { Tone = 'Neutral', Size = 'Regular', State = 'Default' } = {}) {
   const b = setProps(inst('Call button', { Tone, Size, State }), { 'Icon glyph': glyphOf(glyph) });
