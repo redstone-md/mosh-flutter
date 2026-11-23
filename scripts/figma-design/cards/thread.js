@@ -80,7 +80,9 @@ function dress(b, m, device, first) {
     setProps(b, { Attachment: true, Caption: !!m.text, 'Show text': !!m.text, 'Text line': !m.text && set === 'Media card' });
     const a = b.findOne((n) => n.name === 'attachment');
     a.swapComponent(variant(set, { ...props, Tone: m.kind === 'out' ? 'Outgoing' : 'Surface', Device: device }));
-    setProps(a, values);
+    const { Name, ...rest } = values;
+    setProps(a, rest);
+    if (Name) nameFile(a, Name);
   }
   if (m.text) seatTime(b, !!m.attach);
   if (!m.from) return;

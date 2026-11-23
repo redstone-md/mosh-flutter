@@ -1,10 +1,11 @@
 // Attachments: the file card (attachment_card._FileCardShell, AttachmentThumb),
 // the picture and video card, and the file row of the conversation details
 // (ConversationSharedFile), which is the file card on a surface.
-card('Attachment', 'A file shows its name, its size and, on its plate, the one thing that can be done with it now: download it, stop the transfer or try again; the whole card is the target. A picture and a video show their preview first. The cards have no plate of their own; they sit in a bubble, in either of its colours, or in the list of shared files. A long name is cut at the end.');
+card('Attachment', 'A file shows its name, its size and, on its plate, the one thing that can be done with it now: download it, stop the transfer or try again; the whole card is the target. A picture and a video show their preview first. The cards have no plate of their own; they sit in a bubble, in either of its colours, or in the list of shared files. A long name is cut in the middle, so its start and its extension both show.');
 // Per state: the line under the name and what the plate shows. The plate is the action and the whole card its target,
 // which leaves the far corner free for the time of a message that is a file alone.
 const FILE = { Ready: ['1.2 MB', 'file'], 'To download': ['1.2 MB', 'download'], Transfer: ['58% of 1.2 MB', 'close'], Failed: ['Transfer failed', 'refresh'] };
+const NAME_END = 72;
 function file({ State, Tone, Device }) {
   const c = TONES[Tone], [detail, glyph] = FILE[State], failed = State === 'Failed';
   // The card is as tall as its plate, so in a bubble the plate keeps the bubble's 8 px on three sides and its 12 px corners stay concentric with the bubble's 20 px ones.
@@ -13,7 +14,10 @@ function file({ State, Tone, Device }) {
   add(thumb, icon(glyph, failed && Tone === 'Surface' ? 'error' : c.glyph));
   // With the bar between them the two lines sit close, to stay within the plate's height.
   const col = add(f, box('file', { dir: 'V', gap: State === 'Transfer' ? undefined : 1, align: 'MIN' }), { fillW: true });
-  add(col, text('coast-route.pdf', 'labelLarge', c.ink, { name: 'name', truncate: true }), { fillW: true });
+  // A long name is cut in the middle: its end is a text of its own, empty for a name that fits, and NAME_END px are held back for it.
+  const title = add(col, box('title', { dir: 'H' }));
+  add(title, text('coast-route.pdf', 'labelLarge', c.ink, { name: 'name', cut: true }), { max: attachmentWidth(Device) - px('space/10') - px('space/3') - NAME_END });
+  add(title, text('', 'labelLarge', c.ink, { name: 'name end' }));
   // The bar runs above the detail, so the detail stays the last line, level with the time.
   if (State === 'Transfer') {
     const bar = add(col, inst('Linear progress', { Kind: 'Determinate' }), { fillW: true });
@@ -27,6 +31,7 @@ const STATES = Object.keys(FILE);
 // The card is pressed together with the 8 px the bubble or the list row keeps around it, 56 px in all, so no target is asked of the card alone.
 const files = backdrop(display(await grid('File card', perDevice(toneRows(ONE)), axis('State', STATES), file)));
 prop(files, 'Name', 'TEXT', 'coast-route.pdf', 'name');
+prop(files, 'Name end', 'TEXT', '', 'name end');
 for (const s of STATES) prop(files, 'Detail, ' + s.toLowerCase(), 'TEXT', FILE[s][0], 'detail ' + s);
 
 const PREVIEW = { Desktop: 200, Phone: 148 };
@@ -51,5 +56,5 @@ prop(medias, 'Name, image', 'TEXT', 'harbour.jpg', 'name Image');
 prop(medias, 'Name, video', 'TEXT', 'waves.mp4', 'name Video');
 
 const shared = box('Shared files', { dir: 'V', gap: 1, w: 320 });
-[['Ready', 'ridge-trail.jpg'], ['To download', 'waves.mp4'], ['Transfer', 'tide-tables.xlsx'], ['Failed', 'packing-list.docx']].forEach(([State, Name]) => add(shared, setProps(inst('File card', { State, Tone: 'Surface', Device: 'Desktop' }), { Name }), { fillW: true }));
+[['Ready', 'ridge-trail.jpg'], ['To download', 'waves.mp4'], ['Transfer', 'tide-tables.xlsx'], ['Failed', 'packing-list.docx']].forEach(([State, Name]) => add(shared, nameFile(inst('File card', { State, Tone: 'Surface', Device: 'Desktop' }), Name), { fillW: true }));
 await examples('Shared files in the conversation details', [shared]);

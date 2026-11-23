@@ -354,6 +354,17 @@ function segmented(Device, files = false) {
   add(control, setProps(inst('Segment', { Selected: files ? 'Yes' : 'No', State: 'Default', Device }), { Label: 'Files', Icon: true }));
   return control;
 }
+/** Names the File card [card]. A name too long for it is cut in the middle: its start, an ellipsis and its last characters, extension included. */
+function nameFile(card, name) {
+  const label = card.findOne((n) => n.name === 'name'), KEPT = 9;
+  setProps(card, { Name: name, 'Name end': '' });
+  // Figma cuts a text only at its end, so the start is shortened here until it fits beside the end.
+  for (let start = name.slice(0, -KEPT); label.width >= label.maxWidth && start.length > 1;) {
+    start = start.slice(0, -1);
+    setProps(card, { Name: start + '…', 'Name end': name.slice(-KEPT) });
+  }
+  return card;
+}
 /** Marks a set that is read, not pressed as a whole: audit.js asks no phone tap target of it. */
 function display(set) { set.setPluginData('target', 'none'); return set; }
 // Grid axes are [label, {Property: value}] pairs; ONE is the axis of a property-less component.
