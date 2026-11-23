@@ -40,6 +40,15 @@ function whoPlate(status, device) {
   add(p, text(status, 'bodySmall', 'onSurfaceVariant', { name: 'status' }));
   return p;
 }
+/** A warning [tone, text] above the dock: as wide as its text, which runs on to a second line at [max] px. */
+function callNotice([Tone, message], max) {
+  const n = notice('notice', Tone, Tone === 'Error' ? 'error' : 'warning', null, message, { plain: true, r: 'largeIncreased' });
+  const line = n.findOne((x) => x.type === 'TEXT'), around = n.width - line.width;
+  line.textAutoResize = 'WIDTH_AND_HEIGHT';
+  line.parent.layoutSizingHorizontal = line.layoutSizingHorizontal = 'HUG';
+  line.maxWidth = max - around;
+  return n;
+}
 function callWindow({ State, Device }) {
   const [status, video, buttons, warning] = STATES[State], [w, h] = VIEW[Device];
   const desktop = Device === 'Desktop', upright = Device === 'Phone', touch = desktop ? 'Desktop' : 'Phone';
@@ -63,7 +72,7 @@ function callWindow({ State, Device }) {
     }
   }
   const foot = add(win, box('foot', { dir: 'V', gap: 3, pad: [0, 4, upright ? 8 : 5, 4] }), { fillW: true });
-  if (warning) add(foot, notice('notice', warning[0], warning[0] === 'Error' ? 'error' : 'warning', null, warning[1], { plain: true, w: Math.min(w - px('space/4') * 2, DIALOG.Desktop), r: 'largeIncreased' }));
+  if (warning) add(foot, callNotice(warning, Math.min(w - px('space/4') * 2, DIALOG.Desktop)));
   add(foot, callDock(buttons, upright ? 'Large' : 'Regular'));
   return win;
 }
