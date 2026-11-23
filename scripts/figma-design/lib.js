@@ -354,18 +354,20 @@ function segmented(Device, files = false) {
   add(control, setProps(inst('Segment', { Selected: files ? 'Yes' : 'No', State: 'Default', Device }), { Label: 'Files', Icon: true }));
   return control;
 }
-/** Names the file or media card [card] through its text property [key]. A name too long for it is cut in the middle: its start, an ellipsis and its last characters, extension included. */
-function nameFile(card, name, key = 'Name') {
+/** Names the file or media card [card]. A name too long for it is cut in the middle: its start, an ellipsis and its last characters, extension included. */
+function nameFile(card, name) {
   const label = card.findOne((n) => n.type === 'TEXT' && n.visible && n.name.startsWith('name') && n.name !== 'name end'), KEPT = 9;
-  setProps(card, { [key]: name, 'Name end': '' });
+  // A media card has a name property per kind; the label knows which one is its own.
+  const key = label.componentPropertyReferences.characters;
+  setProps(card, { 'Name end': '' }).setProperties({ [key]: name });
   // Figma cuts a text only at its end, so the start is shortened here until it fits beside the end.
   for (let start = name.slice(0, -KEPT); label.width >= label.maxWidth && start.length > 1;) {
     start = start.slice(0, -1);
-    setProps(card, { [key]: start + '…', 'Name end': name.slice(-KEPT) });
+    setProps(card, { 'Name end': name.slice(-KEPT) }).setProperties({ [key]: start + '…' });
   }
   return card;
 }
-/** Marks a set that is read, not pressed as a whole: audit.js asks no phone tap target of it. */
+/** Marks a set that is read, or pressed together with the padding of what holds it: audit.js asks no phone tap target of it alone. */
 function display(set) { set.setPluginData('target', 'none'); return set; }
 // Grid axes are [label, {Property: value}] pairs; ONE is the axis of a property-less component.
 const ONE = [['', {}]];

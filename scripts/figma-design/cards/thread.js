@@ -33,12 +33,12 @@ const HARD = [
   { kind: 'out', text: 'mosh1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlhmosh1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', time: '10:03', ticks: 'Delivered' },
   { kind: 'out', text: 'ok', time: '10:03', ticks: 'Sent' },
 ];
-// attach: [component set, its variant, its text properties].
+// attach: [component set, its variant, its text properties, the file's name].
 const FILES = [
-  { kind: 'in', text: 'The route with all the stops', time: '08:15', attach: ['File card', { State: 'Transfer' }, { Name: 'coast-route.pdf', 'Detail, transfer': '58% of 1.2 MB' }] },
-  { kind: 'in', time: '08:16', attach: ['File card', { State: 'To download' }, { Name: 'trail-map-with-every-waypoint-and-campsite-final-v3.zip', 'Detail, to download': '24 MB' }] },
-  { kind: 'out', time: '08:20', ticks: 'Queued', attach: ['File card', { State: 'Failed' }, { Name: 'packing-list.docx' }] },
-  { kind: 'out', text: 'Sunrise from the ridge, just before the fog rolled in over the bay', time: '09:06', ticks: 'Read', attach: ['Media card', { Kind: 'Image', State: 'Ready' }, { 'Name, image': 'ridge-trail-at-sunrise-from-the-north-face.jpg' }] },
+  { kind: 'in', text: 'The route with all the stops', time: '08:15', attach: ['File card', { State: 'Transfer' }, { 'Detail, transfer': '58% of 1.2 MB' }, 'coast-route.pdf'] },
+  { kind: 'in', time: '08:16', attach: ['File card', { State: 'To download' }, { 'Detail, to download': '24 MB' }, 'trail-map-with-every-waypoint-and-campsite-final-v3.zip'] },
+  { kind: 'out', time: '08:20', ticks: 'Queued', attach: ['File card', { State: 'Failed' }, {}, 'packing-list.docx'] },
+  { kind: 'out', text: 'Sunrise from the ridge, just before the fog rolled in over the bay', time: '09:06', ticks: 'Read', attach: ['Media card', { Kind: 'Image', State: 'Ready' }, {}, 'ridge-trail-at-sunrise-from-the-north-face.jpg'] },
   { kind: 'in', time: '10:02', attach: ['Voice message', { State: 'Idle' }, {}] },
   { kind: 'out', time: '10:04', ticks: 'Read', attach: ['Voice message', { State: 'Playing' }, {}] },
 ];
@@ -75,14 +75,13 @@ function dress(b, m, device, first) {
   if (m.text) setProps(b, { Text: m.text });
   if (m.ticks) b.findOne((n) => n.name === 'ticks').setProperties({ State: m.ticks });
   if (m.attach) {
-    const [set, props, values] = m.attach;
+    const [set, props, values, name] = m.attach;
     // A text under an attachment is its caption. With no text the time sits in the last line of a file or a voice message; a picture keeps a line for it.
     setProps(b, { Attachment: true, Caption: !!m.text, 'Show text': !!m.text, 'Text line': !m.text && set === 'Media card' });
     const a = b.findOne((n) => n.name === 'attachment');
     a.swapComponent(variant(set, { ...props, Tone: m.kind === 'out' ? 'Outgoing' : 'Surface', Device: device }));
-    const key = Object.keys(values).find((k) => k.startsWith('Name')), { [key]: name, ...rest } = values;
-    setProps(a, rest);
-    if (name) nameFile(a, name, key);
+    setProps(a, values);
+    if (name) nameFile(a, name);
   }
   if (m.text) seatTime(b, !!m.attach);
   if (!m.from) return;

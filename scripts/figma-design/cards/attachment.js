@@ -5,7 +5,14 @@ card('Attachment', 'A file shows its name, its size and, on its plate, the one t
 // Per state: the line under the name and what the plate shows. The plate is the action and the whole card its target,
 // which leaves the far corner free for the time of a message that is a file alone.
 const FILE = { Ready: ['1.2 MB', 'file'], 'To download': ['1.2 MB', 'download'], Transfer: ['58% of 1.2 MB', 'close'], Failed: ['Transfer failed', 'refresh'] };
+/** The name of a file in [parent], at most [max] px wide. A long name is cut in the middle: its end is a text of its own, empty for a name that fits, and NAME_END px of [max] are held back for it. */
 const NAME_END = 72;
+function fileName(parent, chars, ink, layer, max) {
+  const title = add(parent, box('title', { dir: 'H' }));
+  add(title, text(chars, 'labelLarge', ink, { name: layer, cut: true }), { max: max - NAME_END });
+  add(title, text('', 'labelLarge', ink, { name: 'name end' }));
+  return title;
+}
 function file({ State, Tone, Device }) {
   const c = TONES[Tone], [detail, glyph] = FILE[State], failed = State === 'Failed';
   // The card is as tall as its plate, so in a bubble the plate keeps the bubble's 8 px on three sides and its 12 px corners stay concentric with the bubble's 20 px ones.
@@ -14,10 +21,7 @@ function file({ State, Tone, Device }) {
   add(thumb, icon(glyph, failed && Tone === 'Surface' ? 'error' : c.glyph));
   // With the bar between them the two lines sit close, to stay within the plate's height.
   const col = add(f, box('file', { dir: 'V', gap: State === 'Transfer' ? undefined : 1, align: 'MIN' }), { fillW: true });
-  // A long name is cut in the middle: its end is a text of its own, empty for a name that fits, and NAME_END px are held back for it.
-  const title = add(col, box('title', { dir: 'H' }));
-  add(title, text('coast-route.pdf', 'labelLarge', c.ink, { name: 'name', cut: true }), { max: attachmentWidth(Device) - px('space/10') - px('space/3') - NAME_END });
-  add(title, text('', 'labelLarge', c.ink, { name: 'name end' }));
+  fileName(col, 'coast-route.pdf', c.ink, 'name', attachmentWidth(Device) - px('space/10') - px('space/3'));
   // The bar runs above the detail, so the detail stays the last line, level with the time.
   if (State === 'Transfer') {
     const bar = add(col, inst('Linear progress', { Kind: 'Determinate' }), { fillW: true });
@@ -48,10 +52,8 @@ function media({ Kind, State, Tone, Device }) {
   else add(add(view, box('play', { dir: 'H', wk: 12, hk: 12, r: 'full', fill: 'surface', justify: 'CENTER' })), icon('play', 'onSurface', 6));
   // Set in as far as a message's text, so the file name and the text under it start on one line.
   const line = add(m, box('caption', { dir: 'H', gap: 2, pad: [0, 1, 0, 2] }), { fillW: true });
-  // The name is cut in the middle like a file's, with its end a text of its own.
-  const [detail, room] = MEDIA[State], title = add(line, box('title', { dir: 'H' }), { fillW: true });
-  add(title, text(Kind === 'Image' ? 'harbour.jpg' : 'waves.mp4', 'labelLarge', c.ink, { name: 'name ' + Kind, cut: true }), { max: w - px('space/1') - px('space/2') - px('space/2') - room - NAME_END });
-  add(title, text('', 'labelLarge', c.ink, { name: 'name end' }));
+  const [detail, room] = MEDIA[State];
+  fileName(line, Kind === 'Image' ? 'harbour.jpg' : 'waves.mp4', c.ink, 'name ' + Kind, w - px('space/1') - px('space/2') - px('space/2') - room).layoutSizingHorizontal = 'FILL';
   add(line, text(detail, 'labelMedium', failed ? c.error : c.quiet, { name: 'detail' }));
   return m;
 }

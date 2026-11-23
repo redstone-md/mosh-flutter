@@ -25,20 +25,20 @@ const notices = await grid('Group notice', ONE, ONE, () => {
 prop(notices, 'Notice', 'TEXT', 'Leo Park changed the group name to Weekend plans', 'notice');
 
 // The arrow tells who rang and, in the error colour, that nobody answered; the handset rings back.
-const CALLS = { Outgoing: ['call_made', 'Outgoing call', 'primary'], Incoming: ['call_received', 'Incoming call', 'primary'], Missed: ['call_received', 'Missed call', 'error'] };
+// Per direction: the arrow, the title, the bubble it sits in and the ink of the arrow.
+const CALLS = { Outgoing: ['call_made', 'Outgoing call', 'Outgoing', 'accent'], Incoming: ['call_received', 'Incoming call', 'Surface', 'accent'], Missed: ['call_received', 'Missed call', 'Surface', 'error'] };
 const calls = await grid('Call log entry', ONE, axis('Direction', Object.keys(CALLS)), ({ Direction }) => {
-  const [glyph, title, mark] = CALLS[Direction];
   // A call the user made is theirs, like a message they sent, and takes the outgoing bubble's colour and inks.
-  const tone = TONES[Direction === 'Outgoing' ? 'Outgoing' : 'Surface'], ink = Direction === 'Outgoing' ? tone.ink : mark;
-  const c = box('Call log entry', { component: true, dir: 'H', gap: 6, pad: [2, 3, 2, 4], r: 'largeIncreased', fill: Direction === 'Outgoing' ? 'outgoing' : 'incoming' });
+  const [glyph, title, Tone, mark] = CALLS[Direction], tone = TONES[Tone];
+  const c = box('Call log entry', { component: true, dir: 'H', gap: 6, pad: [2, 3, 2, 4], r: 'largeIncreased', fill: Tone === 'Outgoing' ? 'outgoing' : 'incoming' });
   const col = add(c, box('call', { dir: 'V', align: 'MIN' }));
   add(col, text(title, 'labelLarge', tone.ink));
   const meta = add(col, box('meta', { dir: 'H', gap: 1 }));
-  add(meta, icon(glyph, ink, 4));
+  add(meta, icon(glyph, tone[mark], 4));
   // A missed call has no length to show, only when it rang.
   const missed = Direction === 'Missed';
   add(meta, text(missed ? '18:26' : '18:26, 2 min 5 s', 'labelMedium', tone.quiet, { name: missed ? 'rang' : 'detail' }));
-  add(c, icon('call', Direction === 'Outgoing' ? tone.ink : 'primary', 6));
+  add(c, icon('call', tone.accent, 6));
   return c;
 });
 prop(calls, 'Detail', 'TEXT', '18:26, 2 min 5 s', 'detail');
