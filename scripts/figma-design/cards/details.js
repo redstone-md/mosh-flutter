@@ -23,13 +23,14 @@ const PANELS = {
   Group: [{ Kind: 'Group', Plate: '1' }, 'Weekend plans', '4 members', [0, 1, 2, 3], false, false],
   'Shared files': [{ Kind: 'Person', Plate: '2' }, 'Maya Chen', 'Connected', [0, 2], true, false],
   'Connection open': [{ Kind: 'Person', Plate: '2' }, 'Maya Chen', 'Connected', [0, 2], false, true],
+  Channel: [{ Kind: 'Channel', Plate: '3' }, '#photography', 'Public channel, not encrypted', [0, 1, 2], false, false],
   Loading: null,
 };
 const CONNECTION = [['Status', 'Connected'], ['Path', 'Direct'], ['Round trip', '42 ms'], ['Encryption', 'OpenMLS, epoch 12']];
 /** A reading: the Value row of the Settings card. */
 const row = (parent, Device, [Label, Value]) => add(parent, setProps(inst('Value row', { Device }), { Label, Value }), { fillW: true });
 
-display(await grid('Details panel', axis('Kind', Object.keys(PANELS)), DEVICES, ({ Kind, Device }) => {
+const panels = display(await grid('Details panel', axis('Kind', Object.keys(PANELS)), DEVICES, ({ Kind, Device }) => {
   const p = surface('Details panel', 'panel', { component: true, dir: 'V', w: PANEL[Device], align: 'MIN' });
   panelHead(p, 'Conversation details', Device, ['close']);
   if (!PANELS[Kind]) {
@@ -51,7 +52,8 @@ display(await grid('Details panel', axis('Kind', Object.keys(PANELS)), DEVICES, 
   if (files) add(shared, inst('File card', { Tone: 'Surface', State: 'Ready', Device }), { fillW: true });
   else add(shared, text('No shared files yet', 'bodyMedium', 'onSurfaceMuted'));
   // The one place a conversation shows its encryption: the row opens the fingerprint to compare.
-  add(body, setProps(inst('Start row', { State: 'Default', Device }), { Title: 'End-to-end encrypted', Line: 'Compare the fingerprint to verify', 'Icon glyph': glyphOf('lock') }), { fillW: true }).name = 'encryption';
+  // A public channel is not encrypted and has no such row.
+  if (avatar.Kind !== 'Channel') add(body, setProps(inst('Start row', { State: 'Default', Device }), { Title: 'End-to-end encrypted', Line: 'Compare the fingerprint to verify', 'Icon glyph': glyphOf('lock') }), { fillW: true }).name = 'encryption';
   const link = add(body, box('connection', { dir: 'V', align: 'MIN' }), { fillW: true });
   add(link, setProps(inst('Disclosure', { State: open ? 'Open' : 'Closed', Device }), { Label: 'Connection details' }), { fillW: true });
   if (open) {
@@ -61,6 +63,8 @@ display(await grid('Details panel', axis('Kind', Object.keys(PANELS)), DEVICES, 
   }
   return p;
 }));
+// Off for a conversation whose fingerprint is not known yet.
+prop(panels, 'Encryption', 'BOOLEAN', true, 'encryption');
 
 /** A small label over a value, and a note under it when [note] is given. */
 function cell(label, value, note) {
@@ -110,8 +114,8 @@ function group(parent, title, fill) {
   return g;
 }
 /** Connection status; Tone picks the summary, and what stands in for the values when there are none. */
-function status(Device, Tone) {
-  const d = surface(`Connection status, ${Tone.toLowerCase()} · ${Device}`, 'panel', { dir: 'V', w: PANEL[Device], align: 'MIN' });
+function status({ Tone, Device }) {
+  const d = surface('Connection status', 'panel', { component: true, dir: 'V', w: PANEL[Device], align: 'MIN' });
   panelHead(d, 'Connection status', Device, ['refresh', 'close']);
   const body = add(d, box('body', { dir: 'V', gap: 6, pad: [0, 5, 6, 5], align: 'MIN' }), { fillW: true });
   add(body, inst('Summary card', { Tone }), { fillW: true });
@@ -126,4 +130,4 @@ function status(Device, Tone) {
   group(body, 'Moss events', (g) => EVENTS.forEach(([Time, Event, Detail], i) => add(g, setProps(inst('Event row', { Tone: i === 3 ? 'Accent' : 'Default' }), { Time, Event, Detail }), { fillW: true })));
   return d;
 }
-await examples('Connection status: connected, waiting and failed, and connected on the phone', [status('Desktop', 'Ok'), status('Desktop', 'Warning'), status('Desktop', 'Error'), status('Phone', 'Ok')], 'MIN');
+display(await grid('Connection status', axis('Tone', Object.keys(SUMMARY)), DEVICES, status));
