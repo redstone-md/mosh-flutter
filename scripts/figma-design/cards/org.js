@@ -42,7 +42,7 @@ display(await grid('Roster notice', ONE, DEVICES, ({ Device }) => {
 const PEOPLE = [['Alex (you)', 'peer-a…3a92', 'A', '1', true], ['Maya Chen', 'peer-m…08de', 'MC', '2', true], ['Leo Park', 'peer-l…71aa', 'LP', '4', false], ['Bartholomew Featherstonehaugh-Cholmondeley', 'peer-b…e77b', 'BF', '3', false]];
 /** The section on [Device]; look: 'Roster' | 'Busy' | 'Waiting'. */
 function section(look, Device) {
-  const s = box(`${look} · ${Device}`, { dir: 'V', pad: [2, 2], w: ROW[Device] + 16, fill: 'surfaceContainerLow', align: 'MIN' });
+  const s = surface(`${look} · ${Device}`, 'panel', { dir: 'V', pad: [2, 2], w: ROW[Device] + 16, align: 'MIN' });
   const State = look === 'Busy' ? 'Busy' : 'Default';
   add(s, inst('Organisation header', { State, Device }), { fillW: true });
   if (look === 'Waiting') { add(s, inst('Roster notice', { Device }), { fillW: true }); return s; }

@@ -1,6 +1,6 @@
-// Plugin-side helpers shared by the search card and the surface cards (dialog
-// and after): build.mjs prepends this file after lib.js. A surface takes its
-// colour, edge, corners and shadow from its level here. The tones under and
+// Plugin-side helpers for surfaces and what stands on them: build.mjs prepends
+// this file after lib.js. A surface takes its colour, edge, corners and shadow
+// from its level here. The tones under and
 // inside the levels (BENEATH, inset, plate) are named here too, so no card
 // picks a surface colour of its own.
 
@@ -26,8 +26,6 @@ const cardSurface = (name, o = {}) => surface(name, 'panel', { stroke: 'outlineV
 const cardPad = (Device) => (Device === 'Phone' ? 4 : 5);
 /** A plate set into a card to hold one thing apart (a device, a code): a tone up, with corners concentric to the card's. */
 const inset = (name, o = {}) => box(name, { fill: 'surfaceContainer', r: 'small', ...o });
-/** The Icon/<name> component. */
-const glyphOf = (name) => ICONS[name] ?? fail('Icon/' + name);
 
 /** The plate with the icon of a card's subject. */
 function plate(glyph) {
@@ -52,7 +50,6 @@ function header(parent, glyph, title, line, tail) {
 function labelButton(Device, Label, { Kind = 'Primary', State = 'Default', glyph } = {}) {
   return setProps(inst('Button', { Kind, Device, State }), glyph ? { Label, Icon: true, 'Icon glyph': glyphOf(glyph) } : { Label });
 }
-const textButton = (Device, Label, glyph) => labelButton(Device, Label, { Kind: 'Text', glyph });
 /** A Button turned destructive: the error colour takes the place of the primary one. */
 function danger(Device, Label, glyph) {
   const b = labelButton(Device, Label, { glyph });

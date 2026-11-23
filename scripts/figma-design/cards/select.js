@@ -38,7 +38,7 @@ prop(set, 'Value', 'TEXT', 'USB Microphone', 'value');
 const OPTIONS = [['System default', 'Default'], ['USB Microphone', 'Selected'], ['Built-in Microphone', 'Default']];
 const options = (parent, Device) => OPTIONS.forEach(([label, State]) => add(parent, setProps(inst('Select option', { State, Device }), { Label: label }), { fillW: true }));
 await grid('Select menu', ONE, [['Desktop', {}]], () => {
-  const m = box('Select menu', { component: true, pad: 2, gap: 1, w: 280, r: 'large', fill: 'surfaceContainerHigh', stroke: 'outlineVariant', effect: 'elevation2' });
+  const m = surface('Select menu', 'popup', { component: true, pad: 2, gap: 1, w: 280 });
   options(m, 'Desktop');
   return m;
 });

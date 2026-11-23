@@ -67,7 +67,7 @@ const STEPS = {
     add(s, labelButton(Device, 'Back', { Kind: 'Text' }));
   },
   'Start menu step': (s, Device) => {
-    add(add(s, box('back', { dir: 'H' }), { fillW: true }), textButton(Device, 'Back', 'back'));
+    add(add(s, box('back', { dir: 'H' }), { fillW: true }), labelButton(Device, 'Back', { Kind: 'Text', glyph: 'back' }));
     question(s, 'Join a public channel', 'Join an open room by its name', true);
     const c = add(s, cardSurface('channel card', { dir: 'V', gap: 4, pad: cardPad(Device) }), { fillW: true });
     add(c, inst('Inline note', { Kind: 'Open channel', Device }), { fillW: true });
