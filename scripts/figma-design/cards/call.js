@@ -3,35 +3,35 @@
 // draws around it today. The redesign makes them one component.
 card('Call window', 'An open call takes the whole window, on the lowest tone, like the media viewer. A voice call puts the person in the middle: who it is and how the call is going. With video the picture takes that place and grows as far as the window lets it without being cut, so a phone turned on its side gives it the whole screen; the name and the time move to a plate in the corner. The buttons stay on their dock at the bottom in every state, and a warning sits just above them, where the button it is about is.');
 
-const VIEW = { Desktop: [720, 460], Phone: [390, 640], 'Phone on its side': [640, 390] };
-const TALK = [['mic'], ['video_off'], ['tune'], CALL_END], MIC_OFF = ['mic', 'Neutral', 'Disabled'];
+const VIEW = { Desktop: [720, 460], Phone: [390, 640], 'Phone on its side': [844, 390] };
+const TALK = [['mic'], ['video_off'], ['tune'], CALL_END];
 /** TALK with the button of [glyph] replaced by [button]. */
 const talk = (glyph, button) => TALK.map((b) => (b[0] === glyph ? button : b));
 // Per state: the line under the name, the video stage, the dock's buttons and a notice [tone, text].
 const STATES = {
   Incoming: ['Incoming voice call', null, [CALL_END, ['call', 'Accept']]],
-  'Waiting for confirmation': ['Waiting for confirmation…', null, [MIC_OFF, CALL_END]],
-  Outgoing: ['Calling…', null, [['mic'], ['video_off'], CALL_END]],
+  'Waiting for confirmation': ['Waiting for confirmation…', null, TALK],
+  Outgoing: ['Calling…', null, TALK],
   'Connecting audio': ['0:02, connecting audio…', null, TALK],
   Voice: ['4:12', null, TALK],
   Muted: ['4:12', null, talk('mic', ['mic_off', 'Lit'])],
   Reconnecting: ['4:12, reconnecting…', null, TALK],
   'Microphone unavailable': ['4:12', null, talk('mic', ['mic_off', 'Neutral', 'Disabled']), ['Warning', 'Microphone unavailable. You can still listen.']],
   'Camera unavailable': ['4:12', null, talk('video_off', ['video_off', 'Neutral', 'Disabled']), ['Warning', 'Camera unavailable. Voice remains available.']],
-  'Audio failed': ['Audio unavailable', null, [MIC_OFF, CALL_END], ['Error', 'Microphone is in use by another app']],
+  'Audio failed': ['Audio unavailable', null, [['mic', 'Neutral', 'Disabled'], CALL_END], ['Error', 'Microphone is in use by another app']],
   'Calls on another device': ['4:12', null, TALK, ['Warning', 'Calls are active on different devices. New calls are unavailable until they end.']],
   'Waiting for video': ['4:12', 'Waiting for video', TALK],
   'Remote video': ['4:12', 'Remote video', TALK],
   'Camera preview': ['4:12', 'Camera preview', talk('video_off', ['video', 'Lit'])],
   'Two-way video': ['4:12', 'Two-way video', talk('video_off', ['video', 'Lit'])],
 };
-/** The largest 16:9 stage that fits the window whole, in its middle. */
+/** The largest 16:9 stage that fits the window whole, in its middle. It grows with an instance that is made larger in the same proportion; a window of another shape wants its stage fitted again. */
 function fitStage(win, Kind) {
   const s = inst('Call video stage', { Kind }), w = Math.min(win.width, Math.round(win.height * 16 / 9)), h = Math.round(w * 9 / 16);
   s.name = 'stage';
   s.resize(w, h);
   add(win, s, { abs: [(win.width - w) / 2, (win.height - h) / 2] });
-  s.constraints = { horizontal: 'CENTER', vertical: 'CENTER' };
+  s.constraints = { horizontal: 'SCALE', vertical: 'SCALE' };
 }
 /** Over video the name and the line under it sit on a plate, as every button does. */
 function whoPlate(status, device) {
