@@ -42,11 +42,36 @@ const FILES = [
   { kind: 'in', time: '10:02', attach: ['Voice message', { State: 'Idle' }, {}] },
   { kind: 'out', time: '10:04', ticks: 'Read', attach: ['Voice message', { State: 'Playing' }, {}] },
 ];
+/** Width of the last line of the wrapped text [t]: a copy is cut shorter until it loses a line. */
+function lastLineWidth(t) {
+  const probe = text(t.characters, 'bodyLarge', 'onSurface');
+  pendingText.pop();
+  // Resizing a text fixes its height, so the copy is told to grow only after it.
+  probe.resize(t.width, t.height); probe.textAutoResize = 'HEIGHT';
+  const full = probe.height;
+  let fits = 0, over = t.characters.length;
+  while (over - fits > 1) {
+    const mid = (fits + over) >> 1;
+    probe.characters = t.characters.slice(0, mid);
+    if (probe.height < full) fits = mid; else over = mid;
+  }
+  probe.textAutoResize = 'WIDTH_AND_HEIGHT'; probe.characters = t.characters.slice(fits).trim();
+  const w = probe.width;
+  probe.remove();
+  return w;
+}
+/** Puts the time in the last line of a text of several lines when that line leaves room for it. */
+function seatTime(b) {
+  const t = b.findOne((n) => n.name === 'text'), room = b.findOne((n) => n.name === 'room for the time');
+  // One line is a line height tall, which is under two font sizes; two lines are over.
+  if (t.height < 2 * t.fontSize) return;
+  if (lastLineWidth(t) + px('space/2') + room.width <= t.width) setProps(b, { 'Room for the time': false });
+}
 const initialsOf = (name) => name.split(' ').slice(0, 2).map((w) => w[0]).join('');
 /** Gives the message instance [b] the content of [m]; first: it opens a run. */
 function dress(b, m, device, first) {
   if (m.time) setProps(b, { Time: m.time });
-  if (m.text) setProps(b, { Text: m.text });
+  if (m.text) { setProps(b, { Text: m.text }); seatTime(b); }
   if (m.ticks) b.findOne((n) => n.name === 'ticks').setProperties({ State: m.ticks });
   if (m.attach) {
     const [set, props, values] = m.attach;

@@ -1,6 +1,6 @@
 // Messages: ConversationMessageRow with its text, footer, DeliveryTicks and
 // FailedMessageRetry, and the sender line of groups and channels.
-card('Message', 'A bubble hugs its text and wraps it at a fixed measure, 480 px on the desktop and 232 px on the phone, so a long link or a token without spaces breaks inside it. A file, a picture or a voice message rides above the text, or stands in for it; a voice message alone keeps the time in its own last line. In a run from one sender the corners on the sender\'s side tighten, and only the first bubble carries the sender. A direct chat shows no avatar; a group and a channel show it beside the first bubble and keep its gutter under it.');
+card('Message', 'A bubble hugs its text and wraps it at a fixed measure, 480 px on the desktop and 232 px on the phone, so a long link or a token without spaces breaks inside it. The time ends the last line of the text; when that line is full it drops to a row of its own. A file, a picture or a voice message rides above the text, or stands in for it; a voice message alone keeps the time in its own last line. In a run from one sender the corners on the sender\'s side tighten, and only the first bubble carries the sender. A direct chat shows no avatar; a group and a channel show it beside the first bubble and keep its gutter under it.');
 // The clock stands for a message that is queued or on its way. Read is told from delivered by a heavier, darker pair of ticks: on the saffron bubble a colour alone is too close.
 // Each of the paired ticks is drawn smaller than a lone one, so the lone tick and the clock are set a step down and every mark reads the same size beside the time.
 const TICKS = { Queued: ['schedule', 'onOutgoingVariant', 3], Sent: ['check', 'onOutgoingVariant', 3], Delivered: ['done_all', 'onOutgoingVariant', 4], Read: ['done_all_read', 'onOutgoing', 4] };
@@ -48,9 +48,12 @@ function message(side, { Position, Device, State }) {
   }
   // A file, a picture or a voice message rides above the text; swap the instance for another kind.
   add(bubble, inst('File card', { State: 'Ready', Tone: out ? 'Outgoing' : 'Surface', Device })).name = 'attachment';
-  // The time is pinned to the bubble's far corner, so it stays there under a wider attachment; an unpainted
-  // copy of it ends the text line and keeps the text clear of it.
-  const line = add(bubble, box('line', { dir: 'H', gap: 2, pad: INSET, align: 'MAX' }));
+  // The time is pinned to the bubble's far corner, so it stays there under a wider attachment. An unpainted
+  // copy of it follows the text and keeps the text clear of it: beside a short text, on a row of its own
+  // when the text fills the measure. Where the last of several lines leaves room, the copy is switched off
+  // and the time sits in that line.
+  const line = add(bubble, box('line', { dir: 'H', gap: 2, pad: INSET, align: 'MAX' }), { max: MEASURE[Device] + px('space/' + INSET[1]) + px('space/' + INSET[3]) });
+  line.layoutWrap = 'WRAP';
   add(add(line, box('body', { dir: 'H' })), text('Should we leave at 6 to beat the traffic?', 'bodyLarge', ink, { name: 'text' }), { max: MEASURE[Device] });
   const room = add(line, box('room for the time', { dir: 'H', gap: 1 }));
   add(room, text('08:31', 'labelSmall', quiet, { name: 'time' })).fills = [];
@@ -83,6 +86,8 @@ for (const set of [incoming, outgoing]) {
   // Off for a voice message alone: the time then sits in the attachment's own last line instead of a line of its own.
   prop(set, 'Text line', 'BOOLEAN', true, 'line');
   prop(set, 'Attachment', 'BOOLEAN', false, 'attachment');
+  // Off where the last of several lines has room for the time.
+  prop(set, 'Room for the time', 'BOOLEAN', true, 'room for the time');
 }
 prop(outgoing, 'Reason', 'TEXT', 'Not sent', 'reason');
 prop(incoming, 'Sender', 'BOOLEAN', false, 'sender');
