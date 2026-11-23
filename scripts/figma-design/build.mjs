@@ -56,9 +56,9 @@ function chosen(args) {
   if (stray.length || (flags.includes('--audit') && args.length > 1)) throw new Error(`cannot read "${args.join(' ')}"; see the top of build.mjs`);
   const unknown = names.filter((n) => !CARDS.includes(n));
   if (unknown.length) throw new Error(`no card "${unknown.join('", "')}"; cards: ${CARDS.join(', ')}`);
+  if (flags.includes('--on') && names.length !== 1) throw new Error('--on takes one card: the build runs from it to the last');
   if (!names.length) return [...CARDS.keys()];
-  if (!args.includes('--on')) return [...CARDS.keys()].filter((order) => names.includes(CARDS[order]));
-  if (names.length > 1) throw new Error('--on takes one card: the build runs from it to the last');
+  if (!flags.includes('--on')) return [...CARDS.keys()].filter((order) => names.includes(CARDS[order]));
   return [...CARDS.keys()].slice(CARDS.indexOf(names[0]));
 }
 
