@@ -69,7 +69,12 @@ display(await grid('Update notice', axis('State', Object.keys(UPDATES)), DEVICES
   const row = add(n, box('line', { dir: 'H', gap: 3 }), { fillW: true });
   add(row, icon(glyph, ink));
   para(row, line, 'bodyMedium', 'onSurfaceVariant', 'status');
-  if (act) add(row, textButton(Device, act));
+  if (act) {
+    // A text button's label, not its invisible edge, ends on the line the values above it end on:
+    // the button hangs over the right edge by its own side padding.
+    const b = textButton(Device, act);
+    add(add(row, box('action', { dir: 'H', w: b.width - px('space/4'), h: b.height })), b);
+  }
   if (State === 'Downloading') add(n, inst('Linear progress', { Kind: 'Determinate' }), { fillW: true });
   return n;
 }));
