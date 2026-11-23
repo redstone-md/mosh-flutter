@@ -1,23 +1,24 @@
 // Attachments: the file card (attachment_card._FileCardShell, AttachmentThumb),
 // the picture and video card, and the file row of the conversation details
 // (ConversationSharedFile), which is the file card on a surface.
-card('Attachment', 'A file shows its name, its size and the one thing that can be done with it now: download it, stop the transfer or try again. A picture and a video show their preview first. The cards have no plate of their own; they sit in a bubble, in either of its colours, or in the list of shared files. A long name is cut at the end.');
-// Per state: the line under the name and the action.
-const FILE = { Ready: ['1.2 MB', null], 'To download': ['1.2 MB', 'download'], Transfer: ['58% of 1.2 MB', 'close'], Failed: ['Transfer failed', 'refresh'] };
+card('Attachment', 'A file shows its name, its size and, on its plate, the one thing that can be done with it now: download it, stop the transfer or try again; the whole card is the target. A picture and a video show their preview first. The cards have no plate of their own; they sit in a bubble, in either of its colours, or in the list of shared files. A long name is cut at the end.');
+// Per state: the line under the name and what the plate shows. The plate is the action and the whole card its target,
+// which leaves the far corner free for the time of a message that is a file alone.
+const FILE = { Ready: ['1.2 MB', 'file'], 'To download': ['1.2 MB', 'download'], Transfer: ['58% of 1.2 MB', 'close'], Failed: ['Transfer failed', 'refresh'] };
 function file({ State, Tone, Device }) {
-  const c = TONES[Tone], [detail, act] = FILE[State], failed = State === 'Failed';
+  const c = TONES[Tone], [detail, glyph] = FILE[State], failed = State === 'Failed';
   const f = box('File card', { component: true, dir: 'H', gap: 3, w: attachmentWidth(Device), minHk: 12 });
   const thumb = add(f, box('thumb', { dir: 'H', wk: 10, hk: 10, r: 'medium', fill: failed ? c.failPlate : c.plate, justify: 'CENTER' }));
-  add(thumb, icon(failed ? 'error' : 'file', failed && Tone === 'Surface' ? 'error' : c.glyph));
+  add(thumb, icon(glyph, failed && Tone === 'Surface' ? 'error' : c.glyph));
   const col = add(f, box('file', { dir: 'V', gap: 1, align: 'MIN' }), { fillW: true });
   add(col, text('coast-route.pdf', 'labelLarge', c.ink, { name: 'name', truncate: true }), { fillW: true });
-  add(col, text(detail, 'labelMedium', failed ? c.error : c.quiet, { name: 'detail ' + State, truncate: true }), { fillW: true });
+  // The bar runs above the detail, so the detail stays the last line, level with the time.
   if (State === 'Transfer') {
     const bar = add(col, inst('Linear progress', { Kind: 'Determinate' }), { fillW: true });
     // The bar's own amber would vanish on the outgoing bubble.
     if (Tone === 'Outgoing') { bar.fills = paint(c.rest); bar.children[0].fills = paint(c.accent); }
   }
-  if (act) add(f, action(act, Device, { ink: Tone === 'Outgoing' ? c.ink : null }));
+  add(col, text(detail, 'labelMedium', failed ? c.error : c.quiet, { name: 'detail ' + State, truncate: true }), { fillW: true });
   return f;
 }
 const STATES = Object.keys(FILE);

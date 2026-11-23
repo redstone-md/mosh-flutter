@@ -76,8 +76,8 @@ function dress(b, m, device, first) {
   if (m.ticks) b.findOne((n) => n.name === 'ticks').setProperties({ State: m.ticks });
   if (m.attach) {
     const [set, props, values] = m.attach;
-    // A text under an attachment is its caption; with no text the line stays for the time, except under a voice message, which carries the time itself.
-    setProps(b, { Attachment: true, Caption: !!m.text, 'Show text': !!m.text, 'Text line': !m.text && set !== 'Voice message' });
+    // A text under an attachment is its caption. With no text the time sits in the last line of a file or a voice message; a picture keeps a line for it.
+    setProps(b, { Attachment: true, Caption: !!m.text, 'Show text': !!m.text, 'Text line': !m.text && set === 'Media card' });
     const a = b.findOne((n) => n.name === 'attachment');
     a.swapComponent(variant(set, { ...props, Tone: m.kind === 'out' ? 'Outgoing' : 'Surface', Device: device }));
     setProps(a, values);
