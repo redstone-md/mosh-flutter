@@ -14,7 +14,7 @@ import { createRequire } from 'node:module';
 import { execute } from '../figma-capture/mcp.mjs';
 
 // In build order: a card may use the components of the cards before it.
-const CARDS = ['icons', 'button', 'icon-button', 'text-field', 'select', 'switch', 'chips', 'avatar', 'badges', 'progress', 'slider-divider', 'attachment', 'voice', 'message', 'feed', 'thread', 'composer', 'chat-row', 'chat-list', 'org', 'search', 'dialog', 'menu', 'banner', 'toast', 'title-bar', 'settings', 'details'];
+const CARDS = ['icons', 'button', 'icon-button', 'text-field', 'select', 'switch', 'chips', 'avatar', 'badges', 'progress', 'slider-divider', 'attachment', 'voice', 'message', 'feed', 'thread', 'composer', 'chat-row', 'chat-list', 'org', 'search', 'dialog', 'menu', 'banner', 'toast', 'title-bar', 'settings', 'details', 'wizard', 'empty', 'media-viewer', 'levels'];
 const read = (file) => fs.readFileSync(new URL(file, import.meta.url), 'utf8');
 /** Runs a plugin script with the helpers of lib.js and surfaces.js before it. */
 const run = (script, prelude = '') => execute(`${prelude}${read('lib.js')}\n${read('surfaces.js')}\n${script}`, 280000);

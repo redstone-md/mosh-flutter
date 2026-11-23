@@ -1,6 +1,7 @@
-// Plugin-side helpers for the surface cards (dialog and after): build.mjs
-// prepends this file after lib.js. A surface takes its colour, edge and shadow
-// from its level here, never from a colour picked where it is drawn.
+// Plugin-side helpers for the surface cards (dialog and after) and the
+// buttons several cards share: build.mjs prepends this file after lib.js.
+// A surface takes its colour, edge and shadow from its level here, never
+// from a colour picked where it is drawn.
 
 // The four levels a surface can sit on, lowest first. The background is the
 // screen itself; a panel is a part of the screen (the chat list, the title bar,
@@ -19,6 +20,22 @@ const surface = (name, level, o = {}) => box(name, { ...(LEVEL[level] ?? fail('l
 /** A panel drawn as a card inside the background: the panel's tone with a quiet edge. */
 const cardSurface = (name, o = {}) => surface(name, 'panel', { stroke: 'outlineVariant', r: 'extraLarge', ...o });
 
+/** The plate with the icon of a card's subject. */
+function plate(glyph, tint = 'primary') {
+  const p = box('plate', { dir: 'H', wk: 10, hk: 10, r: 'medium', fill: 'surfaceContainerHighest', justify: 'CENTER' });
+  add(p, icon(glyph, tint));
+  return p;
+}
+/** The header of a card: plate, title, a line about it and, at the right, [tail]. */
+function header(parent, glyph, title, line, tail) {
+  const h = add(parent, box('header', { dir: 'H', gap: 3 }), { fillW: true });
+  add(h, plate(glyph));
+  const col = add(h, box('text', { dir: 'V', align: 'MIN' }), { fillW: true });
+  para(col, title, 'titleMedium', 'onSurface', 'title');
+  if (line) para(col, line, 'bodySmall', 'onSurfaceVariant', 'line');
+  if (tail) add(h, tail);
+  return h;
+}
 /** A Button by its label. o: Kind, State, glyph (shows the leading icon). */
 function button(Device, Label, { Kind = 'Primary', State = 'Default', glyph } = {}) {
   return setProps(inst('Button', { Kind, Device, State }), glyph ? { Label, Icon: true, 'Icon glyph': ICONS[glyph] ?? fail('Icon/' + glyph) } : { Label });

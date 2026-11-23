@@ -12,7 +12,7 @@ const VPN_TITLE = 'A VPN is carrying Mosh’s traffic';
 const VPN_BODY = ['Everything Mosh sends goes through your VPN, which stops other people from finding you. Mosh can use wlan0 instead.', 'Peers will see your real network address rather than the VPN’s. Mosh restarts to apply this, and you can change it later in Settings.'];
 // Per kind: the title, the body, the answer that leaves and the answer that goes on.
 const KINDS = {
-  Confirm: ['Leave #photography?', ['You can join this channel again by its name.'], 'Cancel', 'Leave channel'],
+  Confirm: ['Leave #photography?', ['You can join this channel again by its name'], 'Cancel', 'Leave channel'],
   Destructive: ['Delete chat with Maya Chen?', ['Saved history for this private chat will be removed from this device. You cannot undo this.'], 'Cancel', 'Delete chat'],
   Input: ['Rename chat', [], 'Cancel', 'Save'],
   Notice: ['Restart Mosh to apply the connection', ['Setup is saved. Close Mosh completely and open it again to apply the network interface. The running connection has not changed.'], null, 'Understood'],

@@ -78,8 +78,8 @@ function cell(label, value, note) {
 }
 // Per tone: the headline, the sentence under it and the three facts.
 const SUMMARY = {
-  Ok: ['Connected to Maya', 'Messages travel directly between your devices.', [['Path', 'Direct'], ['Round trip', '42 ms'], ['Peers', '6']]],
-  Warning: ['Waiting for Maya', 'The network is still starting. Messages are kept and sent when she is reachable.', [['Path', 'None yet'], ['Round trip', 'No data'], ['Peers', '0']]],
+  Ok: ['Connected to Maya', 'Messages travel directly between your devices', [['Path', 'Direct'], ['Round trip', '42 ms'], ['Peers', '6']]],
+  Warning: ['Waiting for Maya', 'The network is still starting. Messages are kept and sent once Maya is reachable.', [['Path', 'None yet'], ['Round trip', 'No data'], ['Peers', '0']]],
   Error: ['Mosh cannot reach the network', 'The network runtime stopped. Restart Mosh to connect again.', [['Path', 'None'], ['Round trip', 'No data'], ['Peers', '0']]],
 };
 display(await grid('Summary card', ONE, axis('Tone', Object.keys(SUMMARY)), ({ Tone }) => {
@@ -124,7 +124,7 @@ function status(Device, Tone) {
   if (Tone === 'Error') { add(body, setProps(inst('Inline error'), { Message: 'moss runtime exited: address already in use (port 41641)' }), { fillW: true }); return d; }
   group(body, 'Session', (g) => [['Role', 'Inviter'], ['Display name', 'Alex Rivera'], ['Session', 'maya']].forEach((r) => row(g, Device, r)));
   group(body, 'Moss network', (g) => {
-    if (Tone === 'Warning') { add(add(g, box('empty', { dir: 'H', pad: [3, 0] })), text('No values yet. They appear when the network has started.', 'bodySmall', 'onSurfaceMuted')); return; }
+    if (Tone === 'Warning') { add(add(g, box('empty', { dir: 'H', pad: [3, 0] })), text('Values appear when the network has started', 'bodySmall', 'onSurfaceMuted')); return; }
     const metrics = add(g, box('metrics', { dir: 'H', gap: 4, pad: [2, 0], align: 'MIN' }), { fillW: true });
     [['Peers', '6', '4 direct, 2 relayed'], ['NAT', 'Port-restricted', 'Reported type'], ['Relay', '1 active', '3 capable']].forEach((m) => add(metrics, cell(...m), { fillW: true }));
     [['Advertised', '198.51.100.23:41641'], ['Listen port', '41641'], ['Mesh id', 'mesh-4f2a91c07b3e'], ['Library version', '0.9.3']].forEach((r) => row(g, Device, r));

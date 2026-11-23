@@ -4,22 +4,6 @@
 // id and revocation rows.
 card('Settings', 'A settings screen is a column of cards, one subject to a card. The card names its subject beside a small plate with its icon, and puts the one control that matters most at the right of that header. What explains the control is folded under a line that opens. The navigation rows lead to the sections, and on the phone they are the whole first screen. A device row tells this device from the others, and a device being removed says how far the removal has got.');
 const CARD_W = { Desktop: 560, Phone: 358 };
-/** The plate with the icon of a card's subject. */
-function plate(glyph, tint = 'primary') {
-  const p = box('plate', { dir: 'H', wk: 10, hk: 10, r: 'medium', fill: 'surfaceContainerHighest', justify: 'CENTER' });
-  add(p, icon(glyph, tint));
-  return p;
-}
-/** The header of a card: plate, title, a line about it and, at the right, [tail]. */
-function header(parent, glyph, title, line, tail) {
-  const h = add(parent, box('header', { dir: 'H', gap: 3 }), { fillW: true });
-  add(h, plate(glyph));
-  const col = add(h, box('text', { dir: 'V', align: 'MIN' }), { fillW: true });
-  para(col, title, 'titleMedium', 'onSurface', 'title');
-  if (line) para(col, line, 'bodySmall', 'onSurfaceVariant', 'line');
-  if (tail) add(h, tail);
-  return h;
-}
 const disclosures = await grid('Disclosure', axis('State', ['Closed', 'Hover', 'Focus', 'Open']), DEVICES, ({ State, Device }) => {
   const d = box('Disclosure', { component: true, dir: 'H', gap: 2, pad: [0, 2, 0, 3], w: 320, hk: controlHeight(Device), r: 'small', clip: true });
   add(d, text('What is sent', 'labelLarge', 'onSurfaceVariant', { name: 'label', truncate: true }), { fillW: true });
@@ -53,12 +37,12 @@ const CARDS = {
     header(c, 'mic', 'Microphone', 'Used for calls and voice messages');
     add(c, setProps(inst('Select', { State: 'Closed', Device }), { Label: 'Input device' }), { fillW: true });
   },
-  'Switch, details closed': (c, Device) => {
+  'Switch': (c, Device) => {
     header(c, 'bug', ...CRASH, inst('Switch', { Value: 'Off', State: 'Default', Device }));
     add(c, inst('Divider', { Orientation: 'Horizontal' }), { fillW: true });
     add(c, inst('Disclosure', { State: 'Closed', Device }), { fillW: true });
   },
-  'Switch, details open': (c, Device) => {
+  'Switch and details': (c, Device) => {
     header(c, 'bug', ...CRASH, inst('Switch', { Value: 'On', State: 'Default', Device }));
     add(c, inst('Divider', { Orientation: 'Horizontal' }), { fillW: true });
     add(c, inst('Disclosure', { State: 'Open', Device }), { fillW: true });
@@ -69,7 +53,7 @@ const CARDS = {
   },
   'Could not load': (c, Device) => {
     header(c, 'devices', 'Your devices', null, button(Device, 'Try again', { Kind: 'Outlined' }));
-    add(c, setProps(inst('Inline error'), { Message: 'The list of devices could not be loaded.' }), { fillW: true });
+    add(c, setProps(inst('Inline error'), { Message: 'The list of devices could not be loaded' }), { fillW: true });
   },
 };
 display(await grid('Settings card', axis('Kind', Object.keys(CARDS)), DEVICES, ({ Kind, Device }) => {
@@ -117,7 +101,7 @@ const DEVICES_OF = {
 };
 display(await grid('Device row', axis('Kind', Object.keys(DEVICES_OF)), DEVICES, ({ Kind, Device }) => {
   const [name, id, note, ink, removable] = DEVICES_OF[Kind], gone = Kind.startsWith('Removal');
-  const r = box('Device row', { component: true, dir: 'H', gap: 3, pad: [2, removable ? 1 : 4, 2, 4], w: CARD_W[Device] - 40, minHk: 16, r: 'large', fill: 'surfaceContainer' });
+  const r = box('Device row', { component: true, dir: 'H', gap: 3, pad: [2, removable ? 1 : 4, 2, 4], w: CARD_W[Device] - 40, minHk: 16, r: 'small', fill: 'surfaceContainer' });
   const glyph = add(r, icon(gone ? 'link_off' : 'devices', 'onSurfaceVariant'));
   const col = add(r, box('text', { dir: 'V', align: 'MIN' }), { fillW: true });
   const title = add(col, text(name, 'titleSmall', 'onSurface', { name: 'name', truncate: true }), { fillW: true });
