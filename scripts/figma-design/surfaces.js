@@ -35,14 +35,17 @@ function plate(glyph) {
   add(p, icon(glyph, 'primary'));
   return p;
 }
-/** The header of a card: plate, title, a line about it and, at the right, [tail]. */
+/**
+ * The header of a card: plate, title, a line about it and, at the right, [tail].
+ * The plate keeps its place at the top however long the line runs; the title alone, and the tail, sit level with the plate's middle.
+ */
 function header(parent, glyph, title, line, tail) {
-  const h = add(parent, box('header', { dir: 'H', gap: 3 }), { fillW: true });
+  const h = add(parent, box('header', { dir: 'H', gap: 3, align: 'MIN' }), { fillW: true });
   add(h, plate(glyph));
-  const col = add(h, box('text', { dir: 'V', align: 'MIN' }), { fillW: true });
+  const col = add(h, box('text', { dir: 'V', align: 'MIN', justify: 'CENTER', minHk: 10 }), { fillW: true });
   para(col, title, 'titleMedium', 'onSurface', 'title');
   if (line) para(col, line, 'bodySmall', 'onSurfaceVariant', 'line');
-  if (tail) add(h, tail);
+  if (tail) add(add(h, box('tail', { dir: 'H', hk: 10 })), tail);
   return h;
 }
 /** A Button by its label (button() is the Button card's own builder). o: Kind, State, glyph (shows the leading icon). */
