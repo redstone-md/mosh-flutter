@@ -1,6 +1,6 @@
 // Composer: ConversationComposer with its attach button (AttachmentPicker), VoiceComposer,
 // VoiceRecordingDot and the TypingHint above it.
-card('Composer', 'One field for everything a person sends. Send lights up once there is something to send. Past the limit the field turns red and counts the characters to cut. A voice recording takes over the whole field: send it as it is, cancel it, or pause to hear it first. A paused recording can be played, sent or thrown away.');
+card('Composer', 'One field for everything a person sends. With nothing typed the far end holds the microphone; the first character turns it into Send. Past the limit the field turns red and counts the characters to cut. A voice recording takes over the whole field: send it as it is, cancel it, or pause to hear it first. A paused recording can be played, sent or thrown away.');
 const TEXT = { Empty: ['Write a message', 'onSurfaceMuted'], Draft: ['We have two. Packing them now', 'onSurface'], 'Over the limit': ['Anything else we need?', 'onSurface'], Disabled: ['Write a message', 'onSurface'] };
 /** The send button; a 40 px plate, in a 48 px target on the phone. */
 function send(Device, on) {
@@ -34,12 +34,13 @@ function composer({ State, Device }) {
     return c;
   }
   add(c, action('attach', Device, { State: off ? 'Disabled' : 'Default' }));
-  add(c, action('mic', Device, { State: off ? 'Disabled' : 'Default' }));
   const [chars, ink] = TEXT[State];
   const field = add(c, text(chars, 'bodyLarge', ink, { name: 'text ' + State, truncate: true }), { fillW: true });
   if (off) bind(field, 'opacity', 'state/disabledContent');
   if (over) add(add(c, box('count', { dir: 'H', pad: [0, 2] })), text('-19', 'labelLarge', 'error', { name: 'over' }));
-  add(c, send(Device, State === 'Draft'));
+  // One place for both ways to send: the microphone while the field is empty, Send once there is text, unlit while the text is too long.
+  if (State === 'Empty' || off) add(c, action('mic', Device, { State: off ? 'Disabled' : 'Default' }));
+  else add(c, send(Device, State === 'Draft'));
   return c;
 }
 const set = display(await grid('Composer', axis('State', [...Object.keys(TEXT), 'Recording', 'Recorded']), DEVICES, composer));
