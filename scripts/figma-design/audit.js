@@ -1,17 +1,19 @@
 // Checks the Components section: no value outside the Foundations tokens, and a
-// tap target of at least 48 px on every phone variant.
+// tap target of at least 48 px on every phone variant. AUDIT_CARDS (build.mjs)
+// names the cards to check; null is every card.
 // Not checked, because Foundations has no token for them: widths and heights
 // (they are layout, bound to space/* where they sit on the scale), positions,
 // the ring geometry of spinners and the caret's rotation.
-const issues = [], where = (n) => { const p = []; for (let x = n; x && x.type !== 'SECTION'; x = x.parent) p.unshift(x.name); return p.join(' / '); };
+const issues = [];
 const bad = (n, what) => issues.push(what + ' — ' + where(n));
 // A token is a variable of the dark "Mosh" colours or of "Mosh Dimensions"; a binding to anything else does not count.
 const TOKENS = new Set([...Object.values(COLOR), ...Object.values(DIM)].map((v) => v.id));
 const token = (binding) => TOKENS.has(binding?.id);
 const bound = (n, field) => token(n.boundVariables?.[field]);
 const styles = Object.fromEntries((await figma.getLocalTextStylesAsync()).map((s) => [s.id, s.name]));
+const scope = host().children.filter((c) => !AUDIT_CARDS || AUDIT_CARDS.includes(c.name));
 let nodes = 0;
-for (const n of host().findAll(() => true)) {
+for (const n of scope.flatMap((c) => [c, ...c.findAll(() => true)])) {
   nodes++;
   for (const key of ['fills', 'strokes']) {
     const paints = n[key];
@@ -28,7 +30,7 @@ for (const n of host().findAll(() => true)) {
 // A set with a Device property is pressed as a whole and its phone variants need the target,
 // unless a card marked it with display(): a message is read, not pressed.
 const TARGET = 48;
-const sets = Object.fromEntries(host().findAllWithCriteria({ types: ['COMPONENT_SET'] }).map((s) => [s.name, s]));
+const sets = Object.fromEntries(scope.flatMap((c) => c.findAllWithCriteria({ types: ['COMPONENT_SET'] })).map((s) => [s.name, s]));
 for (const [name, set] of Object.entries(sets)) {
   if (set.getPluginData('target') === 'none') continue;
   const phone = set.children.filter((v) => v.name.includes('Device=Phone'));

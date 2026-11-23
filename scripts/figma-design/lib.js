@@ -179,12 +179,17 @@ function host() {
   return s;
 }
 const PAD = 48, ROW_LABEL = 150;
-// The card being built and the y where its next block goes.
-let CARD, cursor;
-/** A fresh card for one component family; replaces the card of the same name. */
+// The components variant() can ask for, by name. Walking the section for each one took most of a build.
+const SETS = new Map();
+// Last to first, so of two components with one name the first in the section is the one found.
+for (const n of host().findAllWithCriteria({ types: ['COMPONENT_SET', 'COMPONENT'] }).reverse()) if (n.parent.type !== 'COMPONENT_SET') SETS.set(n.name, n);
+// The card being built, the cards it replaces (null for a card updated in place) and the y where its next block goes.
+let CARD, OLD = null, cursor;
+/** A fresh card for one component family. The card of the same name stays beside it until finish() has moved its instances over. */
 function card(name, note) {
   const s = host();
-  s.children.filter((n) => n.name === name).forEach((n) => n.remove());
+  OLD = s.children.filter((n) => n.name === name);
+  for (const [key, n] of SETS) if (OLD.includes(n.parent)) SETS.delete(key);
   const c = CARD = figma.createFrame();
   c.name = name; c.setPluginData('order', String(CARD_ORDER)); c.fills = paint('surfaceContainerLow'); radius(c, 'extraLarge'); c.clipsContent = false;
   s.appendChild(c);
@@ -235,6 +240,7 @@ async function grid(name, rows, cols, make, minCol = 0) {
   y += H + 40;
   cursor = y;
   c.resize(Math.max(c.width, left + W + PAD), y + PAD - 40);
+  SETS.set(name, set);
   return set;
 }
 /** Adds a row of usage examples (instances) under the sets of the card; align 'MIN' levels their tops. */
@@ -274,10 +280,12 @@ function layoutCards() {
   const f = PAGE.children.find((n) => n.name === 'Foundations');
   s.x = f.x + f.width + 200; s.y = f.y;
 }
-/** Ends a card script: places the card and reports what it holds. */
-function finish() {
+/** Ends a card script: moves the instances of the replaced card onto this one (relink.js), places the card and reports what it holds. */
+async function finish() {
+  const moved = OLD?.length ? await relink(OLD, CARD) : {};
+  OLD?.forEach((o) => o.remove());
   layoutCards();
-  return { card: CARD.name, sets: CARD.findAllWithCriteria({ types: ['COMPONENT_SET'] }).map((x) => `${x.name} ${x.children.length}`) };
+  return { card: CARD.name, sets: CARD.findAllWithCriteria({ types: ['COMPONENT_SET'] }).map((x) => `${x.name} ${x.children.length}`), ...moved };
 }
 /** Wraps a control's [visual] as a variant; on the phone it sits in a transparent tap target of at least 48 by 48 px. */
 function shell(name, visual, device) {
@@ -288,7 +296,7 @@ function shell(name, visual, device) {
 }
 /** A component built earlier: the variant of [setName] matching [props]. */
 function variant(setName, props = {}) {
-  const set = host().findOne((n) => (n.type === 'COMPONENT_SET' || n.type === 'COMPONENT') && n.name === setName && n.parent.type !== 'COMPONENT_SET') ?? fail(setName);
+  const set = SETS.get(setName) ?? fail(setName);
   const v = set.type === 'COMPONENT' ? set : set.children.find((c) => Object.entries(props).every(([k, x]) => c.name.split(', ').includes(`${k}=${x}`)));
   return v ?? fail(setName + ' ' + JSON.stringify(props));
 }
