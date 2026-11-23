@@ -74,7 +74,8 @@ const invited = list('Invitations', 'Desktop', (rows) => {
   CHATS.slice(0, 2).forEach((c) => add(rows, chat({ ...c, State: 'Default' }, 'Desktop'), { fillW: true }));
 });
 const notice = (Kind, query) => list(Kind, 'Desktop', (rows) => add(rows, inst('List notice', { Kind, Device: 'Desktop' }), { fillW: true }), query);
-const found = list('Search results', 'Desktop', (rows) => CHATS.slice(1, 3).forEach((c) => add(rows, chat({ ...c, State: 'Default' }, 'Desktop'), { fillW: true })), 'ma');
+const QUERY = 'ma', matches = (c) => (c.Title + ' ' + c.Preview).toLowerCase().includes(QUERY);
+const found = list('Search results', 'Desktop', (rows) => CHATS.filter(matches).forEach((c) => add(rows, chat({ ...c, State: 'Default' }, 'Desktop'), { fillW: true })), QUERY);
 // The collapsed list is a column of 48 px buttons, the size the phone uses, beside 64 px rows.
 function collapsed(failed) {
   const l = box(failed ? 'Collapsed, could not load · Desktop' : 'Collapsed · Desktop', { dir: 'V', gap: 2, pad: [4, 2], fill: 'surfaceContainerLow' });

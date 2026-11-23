@@ -4,7 +4,7 @@
 //
 //   node build.mjs            every card
 //   node build.mjs select     the select card and every card after it
-//   node build.mjs icons --only   that card alone (icons are updated in place)
+//   node build.mjs icons --only   the icons alone, the one card that is updated in place
 //   node build.mjs --audit    only the check
 //
 // A card is rebuilt from scratch, which detaches the instances that later
@@ -33,6 +33,7 @@ const [arg, only] = process.argv.slice(2);
 if (arg !== '--audit') {
   const from = arg ? CARDS.indexOf(arg) : 0;
   if (from < 0) throw new Error(`no card "${arg}"; cards: ${CARDS.join(', ')}`);
+  if (only === '--only' && arg !== 'icons') throw new Error('--only is for icons: another card is rebuilt from scratch, which would detach its instances in the cards after it');
   console.log('tokens', JSON.stringify(await run(read('tokens.js'))));
   for (const [order, name] of CARDS.entries()) {
     if (order < from || (only === '--only' && order > from)) continue;

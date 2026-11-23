@@ -106,7 +106,7 @@ for (const [slot, size, line, weight, spacing] of T.styles) {
   changes.push((s ? 'style ' : 'new style ') + slot);
   if (DRY) continue;
   await figma.loadFontAsync(want);
-  if (!s) { s = figma.createTextStyle(); s.name = 'Mosh/' + slot; s.description = 'Theme.of(context).textTheme.' + slot; }
+  if (!s) { s = figma.createTextStyle(); s.name = 'Mosh/' + slot; s.description = slot.endsWith('Emphasized') ? 'MoshEmphasizedText.' + slot.slice(0, -'Emphasized'.length) : 'Theme.of(context).textTheme.' + slot; }
   s.fontName = want;
   s.fontSize = size;
   s.lineHeight = { unit: 'PERCENT', value: (line / size) * 100 };
