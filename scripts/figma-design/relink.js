@@ -11,6 +11,8 @@ const address = (c) => (c.parent.type === 'COMPONENT_SET' ? `${c.parent.name} / 
 const cardOf = (n) => where(n).split(' / ')[0];
 /** The nearest layer above [n] that [is] what is asked for. */
 const up = (n, is) => { for (let x = n.parent; x; x = x.parent) if (is(x)) return x; return null; };
+/** The instance that holds [i] and is in no other; [i] itself when nothing holds it. */
+const outermost = (i) => { let top = i; for (let x = i.parent; x; x = x.parent) if (x.type === 'INSTANCE') top = x; return top; };
 // An instance inside another one has the ids of both in its own.
 const depth = (i) => i.id.split(';').length;
 /** What [i] overrides, each as "field of layer". The layer's name stands for it, as a swap gives it a new id. */
@@ -25,34 +27,35 @@ async function ownValues(i) {
   const own = Object.entries(i.componentProperties).filter(([key, p]) => p.type !== 'VARIANT' && p.value !== defaults[key]?.defaultValue);
   return Object.fromEntries(own.map(([key, p]) => [key.split('#')[0], p.value]));
 }
+/** Sets the properties [values] on [i] by their display names; [renewed] turns an old component a property swaps in into the new one. What [i] has no property for goes to [lost]. */
+function setValues(i, values, renewed, lost) {
+  for (const [name, old] of Object.entries(values)) {
+    const value = renewed.get(old)?.id ?? old, key = Object.keys(i.componentProperties).find((k) => k.split('#')[0] === name);
+    if (!key) lost.push(`property ${name} — ${where(i)}`);
+    else if (i.componentProperties[key].value !== value) i.setProperties({ [key]: value });
+  }
+}
 // Set once instances start to move: from then on the new card is the one in use.
 let relinking = false;
 /** Takes back the card of a script that threw, so the card it was replacing stays the only one. */
 function discard() { if (OLD && !relinking) CARD?.remove(); }
 
 /**
- * Sets again the properties the instances in [was] had set before the move, where the move dropped them.
- * [renewed] maps the id of an old component to the new one's, for a property that swaps one in.
- * Returns what could not be kept: a property the new component lacks, an override that is gone.
+ * Sets again the properties the instances in [was] had set before the move, where the move dropped them,
+ * and adds to [lost] the overrides that are gone.
  */
-async function restore(was, renewed) {
-  const lost = [];
-  for (const { id, overrides, values } of was) {
-    // Asked for again by its id: the layers of the node held from before are those of the old component.
+function restore(was, renewed, lost) {
+  for (const { top, id, overrides, values } of was) {
+    // Found again by its id under the outermost instance that holds it: the node held from before has the layers of the
+    // old component, and figma.getNodeByIdAsync can hang for ten seconds and throw on an id that is gone.
     // An instance inside an old component is gone with it, and what it had set is among the overrides of the one that held it.
-    const i = await figma.getNodeByIdAsync(id);
+    const i = top.id === id ? top : top.findOne((x) => x.id === id);
     if (!i) continue;
-    for (const [name, old] of Object.entries(values)) {
-      const value = renewed.get(old) ?? old;
-      const key = Object.keys(i.componentProperties).find((k) => k.split('#')[0] === name);
-      if (!key) lost.push(`property ${name} — ${where(i)}`);
-      else if (i.componentProperties[key].value !== value) i.setProperties({ [key]: value });
-    }
+    setValues(i, values, renewed, lost);
     // One for one: two layers of one name with the same field overridden are two entries.
     const kept = overridden(i);
     for (const o of overrides) { const at = kept.indexOf(o); if (at < 0) lost.push(`${o} — ${where(i)}`); else kept.splice(at, 1); }
   }
-  return lost;
 }
 
 /**
@@ -63,21 +66,15 @@ async function restore(was, renewed) {
 async function relink(olds, fresh) {
   const next = new Map(fresh.findAllWithCriteria({ types: ['COMPONENT'] }).map((c) => [address(c), c]));
   const prev = olds.flatMap((o) => o.findAllWithCriteria({ types: ['COMPONENT'] }));
-  // Left alone: the old card's own examples, and the cards this run rebuilds anyway.
-  const leaving = (n) => olds.includes(n) || (n.parent === host() && REBUILT_LATER.includes(n.getPluginData('script')));
-  /** Whether [i], nested in another instance, only repeats a layer of a leaving card: it moves when that card is rebuilt, and moved here it would become an override. */
-  async function follows(i, c) {
-    if (depth(i) === 1) return false;
-    // The layer [i] repeats is the one of its holder's component whose id ends the id of [i].
-    // Looked up there: figma.getNodeByIdAsync has hung for ten seconds and thrown on an id like it.
-    const holder = await up(i, (x) => x.type === 'INSTANCE').getMainComponentAsync(), id = i.id.slice(i.id.lastIndexOf(';') + 1);
-    const source = holder?.findOne((n) => n.id === id);
-    return !!source && !!up(source, leaving) && (await source.getMainComponentAsync())?.id === c.id;
-  }
+  // Left alone: the old card's own examples. In a card this run rebuilds later, only an instance with no namesake to move to,
+  // which that card's new script no longer asks for. Every other instance moves, in such a card too: left on a component
+  // that is then removed it turns into a plain frame, and the move of the layers that hold it goes wrong.
+  const later = (n) => n.parent === host() && REBUILT_LATER.includes(n.getPluginData('script'));
+  const stays = (i, c) => up(i, (n) => olds.includes(n)) || (!next.has(address(c)) && up(i, later));
   /** The instances to move off an old component, anywhere in the file, each with the name of that component. */
   async function stale() {
     const out = [];
-    for (const c of prev) for (const i of await c.getInstancesAsync()) if (!up(i, leaving) && !(await follows(i, c))) out.push([i, address(c)]);
+    for (const c of prev) for (const i of await c.getInstancesAsync()) if (!stays(i, c)) out.push([i, address(c)]);
     return out;
   }
   const first = await stale(), gone = new Map();
@@ -87,9 +84,9 @@ async function relink(olds, fresh) {
   // component onto the new card is not swapped here, and Figma drops the properties it had set.
   // Named now, as is every card with an instance that moves or follows: after the move some of these layers are no more.
   const was = [], touched = [...new Set(first.map(([i]) => cardOf(i)))];
-  for (const [i] of first) was.push({ id: i.id, overrides: overridden(i), values: await ownValues(i) });
+  for (const [i] of first) was.push({ top: outermost(i), id: i.id, overrides: overridden(i), values: await ownValues(i) });
   relinking = true;
-  const holders = new Map();
+  const holders = new Map(), lost = [], renewed = new Map(prev.filter((c) => next.has(address(c))).map((c) => [c.id, next.get(address(c))]));
   let moved = 0;
   // Outermost first: an instance inside another follows its own component, unless its swap is an override, and then it is still stale on the next pass.
   for (let todo = await stale(), pass = 0; todo.length; todo = await stale(), pass++) {
@@ -103,7 +100,7 @@ async function relink(olds, fresh) {
       moved++;
     }
   }
-  const lost = await restore(was, new Map(prev.map((c) => [c.id, next.get(address(c)).id])));
+  restore(was, renewed, lost);
   const resized = [...holders].filter(([h, size]) => size !== `${h.width}x${h.height}`).map(([h, size]) => `${where(h)}: ${size} → ${h.width}x${h.height}`);
   return { moved, lost, resized, touched };
 }
