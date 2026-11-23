@@ -1,6 +1,7 @@
-// Checks the Components section: no value outside the Foundations tokens, and a
-// tap target of at least 48 px on every phone variant. AUDIT_CARDS (build.mjs)
-// names the cards to check; null is every card.
+// Checks a section of the Redesign page: no value outside the Foundations tokens, a
+// tap target of at least 48 px on every phone variant and, on a screen, nothing
+// drawn outside a component. AUDIT_SECTION is Components (build.mjs) or Screens
+// (screens.mjs); AUDIT_CARDS names its cards or screens to check, null is all of them.
 // Not checked, because Foundations has no token for them: widths and heights
 // (they are layout, bound to space/* where they sit on the scale), positions,
 // the ring geometry of spinners and the caret's rotation.
@@ -11,7 +12,8 @@ const TOKENS = new Set([...Object.values(COLOR), ...Object.values(DIM)].map((v) 
 const token = (binding) => TOKENS.has(binding?.id);
 const bound = (n, field) => token(n.boundVariables?.[field]);
 const styles = Object.fromEntries((await figma.getLocalTextStylesAsync()).map((s) => [s.id, s.name]));
-const scope = host().children.filter((c) => !AUDIT_CARDS || AUDIT_CARDS.includes(c.name));
+const section = PAGE.children.find((n) => n.type === 'SECTION' && n.name === AUDIT_SECTION) ?? fail('section ' + AUDIT_SECTION);
+const scope = section.children.filter((c) => !AUDIT_CARDS || AUDIT_CARDS.includes(c.name));
 let nodes = 0;
 for (const n of scope.flatMap((c) => [c, ...c.findAll(() => true)])) {
   nodes++;
@@ -27,6 +29,9 @@ for (const n of scope.flatMap((c) => [c, ...c.findAll(() => true)])) {
   for (const f of ['topLeftRadius', 'topRightRadius', 'bottomRightRadius', 'bottomLeftRadius']) if (f in n && n[f] && !bound(n, f)) bad(n, f + ' ' + n[f]);
   if (n.layoutMode && n.layoutMode !== 'NONE') for (const f of ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'itemSpacing']) if (n[f] && !bound(n, f)) bad(n, f + ' ' + n[f]);
 }
+// A screen is put together, not drawn: outside the instances of components it holds only the frames that lay them out.
+// A layer inside an instance has an id that starts with I.
+if (AUDIT_SECTION === 'Screens') for (const c of scope) for (const n of c.findAll((x) => x.type !== 'FRAME' && x.type !== 'INSTANCE' && !x.id.startsWith('I'))) bad(n, n.type.toLowerCase() + ' outside a component');
 // A set with a Device property is pressed as a whole and its phone variants need the target,
 // unless a card marked it with display(): a message is read, not pressed.
 const TARGET = 48;

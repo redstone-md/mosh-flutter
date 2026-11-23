@@ -25,19 +25,11 @@
 //   - a component of another card that changed size with the instance it
 //     holds is listed: its card laid it out at the old size, so rebuild that
 //     card too, or the whole chain with --on.
-import fs from 'node:fs';
 import { createRequire } from 'node:module';
-import { execute } from '../figma-capture/mcp.mjs';
+import { read, run } from './run.mjs';
 
 // In build order: a card may use the components of the cards before it.
 const CARDS = ['icons', 'button', 'icon-button', 'text-field', 'select', 'switch', 'chips', 'avatar', 'badges', 'progress', 'slider-divider', 'attachment', 'voice', 'message', 'feed', 'thread', 'composer', 'chat-row', 'chat-list', 'org', 'search', 'dialog', 'menu', 'banner', 'toast', 'title-bar', 'settings', 'details', 'wizard', 'empty', 'media-viewer', 'call-controls', 'call', 'call-mini', 'levels'];
-const read = (file) => fs.readFileSync(new URL(file, import.meta.url), 'utf8');
-/** Runs a plugin script with the helpers of lib.js, surfaces.js, calls.js and relink.js before it; consts are the values it is given. */
-function run(script, consts = {}) {
-  const given = Object.entries(consts).map(([name, value]) => `const ${name} = ${JSON.stringify(value)};\n`).join('');
-  return execute(`${given}${['lib.js', 'surfaces.js', 'calls.js', 'relink.js'].map(read).join('\n')}\n${script}`, 280000);
-}
-
 /** icons.json maps an icon's role in the controls to its Phosphor name; returns the role's 24 px SVG. */
 function iconSvg() {
   const phosphor = createRequire(import.meta.url)('@iconify-json/ph/icons.json');
@@ -83,7 +75,7 @@ async function build(orders) {
 const args = process.argv.slice(2);
 const orders = chosen(args);
 const { cards, lost } = args.includes('--audit') ? { cards: null, lost: [] } : await build(orders);
-const audit = await run(read('audit.js'), { AUDIT_CARDS: cards });
+const audit = await run(read('audit.js'), { AUDIT_SECTION: 'Components', AUDIT_CARDS: cards });
 const issues = [...lost.map((line) => `override gone after the move: ${line}`), ...audit.issues];
 console.log(`audit of ${cards ? cards.join(', ') : 'every card'}: ${audit.nodes} layers, ${audit.sets} sets with ${audit.variants} variants, ${issues.length} issues`);
 for (const issue of issues) console.log('  ' + issue);
