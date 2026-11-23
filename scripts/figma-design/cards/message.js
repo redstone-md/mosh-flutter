@@ -2,10 +2,11 @@
 // FailedMessageRetry, and the sender line of groups and channels.
 card('Message', 'A bubble hugs its text and wraps it at a fixed measure, 480 px on the desktop and 232 px on the phone, so a long link or a token without spaces breaks inside it. A file, a picture or a voice message rides above the text, or stands in for it; a voice message alone keeps the time in its own last line. In a run from one sender the corners on the sender\'s side tighten, and only the first bubble carries the sender. A direct chat shows no avatar; a group and a channel show it beside the first bubble and keep its gutter under it.');
 // The clock stands for a message that is queued or on its way. Read is told from delivered by a heavier, darker pair of ticks: on the saffron bubble a colour alone is too close.
-const TICKS = { Queued: ['schedule', 'onOutgoingVariant'], Sent: ['check', 'onOutgoingVariant'], Delivered: ['done_all', 'onOutgoingVariant'], Read: ['done_all_read', 'onOutgoing'] };
+// Each of the paired ticks is drawn smaller than a lone one, so the lone tick and the clock are set a step down and every mark reads the same size beside the time.
+const TICKS = { Queued: ['schedule', 'onOutgoingVariant', 3], Sent: ['check', 'onOutgoingVariant', 3], Delivered: ['done_all', 'onOutgoingVariant', 4], Read: ['done_all_read', 'onOutgoing', 4] };
 const tickSet = await grid('Delivery ticks', ONE, axis('State', Object.keys(TICKS)), ({ State }) => {
-  const c = box('Delivery ticks', { component: true, dir: 'H' });
-  add(c, icon(...TICKS[State], 4));
+  const c = box('Delivery ticks', { component: true, dir: 'H', wk: 4, hk: 4, justify: 'CENTER' });
+  add(c, icon(...TICKS[State]));
   return c;
 }, 64);
 // The ticks are drawn for the outgoing bubble, so the set shows them on its colour.
