@@ -38,7 +38,7 @@ const FILES = [
   { kind: 'in', text: 'The route with all the stops', time: '08:15', attach: ['File card', { State: 'Transfer' }, { Name: 'coast-route.pdf', 'Detail, transfer': '58% of 1.2 MB' }] },
   { kind: 'in', time: '08:16', attach: ['File card', { State: 'To download' }, { Name: 'trail-map-with-every-waypoint-and-campsite-final-v3.zip', 'Detail, to download': '24 MB' }] },
   { kind: 'out', time: '08:20', ticks: 'Queued', attach: ['File card', { State: 'Failed' }, { Name: 'packing-list.docx' }] },
-  { kind: 'out', text: 'Sunrise from the ridge, just before the fog rolled in over the bay', time: '09:06', ticks: 'Read', attach: ['Media card', { Kind: 'Image', State: 'Ready' }, { 'Name, image': 'ridge-trail.jpg' }] },
+  { kind: 'out', text: 'Sunrise from the ridge, just before the fog rolled in over the bay', time: '09:06', ticks: 'Read', attach: ['Media card', { Kind: 'Image', State: 'Ready' }, { 'Name, image': 'ridge-trail-at-sunrise-from-the-north-face.jpg' }] },
   { kind: 'in', time: '10:02', attach: ['Voice message', { State: 'Idle' }, {}] },
   { kind: 'out', time: '10:04', ticks: 'Read', attach: ['Voice message', { State: 'Playing' }, {}] },
 ];
@@ -80,9 +80,9 @@ function dress(b, m, device, first) {
     setProps(b, { Attachment: true, Caption: !!m.text, 'Show text': !!m.text, 'Text line': !m.text && set === 'Media card' });
     const a = b.findOne((n) => n.name === 'attachment');
     a.swapComponent(variant(set, { ...props, Tone: m.kind === 'out' ? 'Outgoing' : 'Surface', Device: device }));
-    const { Name, ...rest } = values;
+    const key = Object.keys(values).find((k) => k.startsWith('Name')), { [key]: name, ...rest } = values;
     setProps(a, rest);
-    if (Name) nameFile(a, Name);
+    if (name) nameFile(a, name, key);
   }
   if (m.text) seatTime(b, !!m.attach);
   if (!m.from) return;

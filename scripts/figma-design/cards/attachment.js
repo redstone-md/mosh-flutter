@@ -35,7 +35,8 @@ prop(files, 'Name end', 'TEXT', '', 'name end');
 for (const s of STATES) prop(files, 'Detail, ' + s.toLowerCase(), 'TEXT', FILE[s][0], 'detail ' + s);
 
 const PREVIEW = { Desktop: 200, Phone: 148 };
-const MEDIA = { Ready: '2.7 MB', Loading: '58% of 2.7 MB', Failed: 'Could not load' };
+// Per state: the line beside the name and the px held back for it, so the name knows where to be cut.
+const MEDIA = { Ready: ['2.7 MB', 48], Loading: ['58% of 2.7 MB', 88], Failed: ['Could not load', 88] };
 function media({ Kind, State, Tone, Device }) {
   const c = TONES[Tone], w = attachmentWidth(Device), h = PREVIEW[Device], failed = State === 'Failed';
   const m = box('Media card', { component: true, dir: 'V', gap: 2, w, align: 'MIN' });
@@ -47,13 +48,17 @@ function media({ Kind, State, Tone, Device }) {
   else add(add(view, box('play', { dir: 'H', wk: 12, hk: 12, r: 'full', fill: 'surface', justify: 'CENTER' })), icon('play', 'onSurface', 6));
   // Set in as far as a message's text, so the file name and the text under it start on one line.
   const line = add(m, box('caption', { dir: 'H', gap: 2, pad: [0, 1, 0, 2] }), { fillW: true });
-  add(line, text(Kind === 'Image' ? 'harbour.jpg' : 'waves.mp4', 'labelLarge', c.ink, { name: 'name ' + Kind, truncate: true }), { fillW: true });
-  add(line, text(MEDIA[State], 'labelMedium', failed ? c.error : c.quiet, { name: 'detail' }));
+  // The name is cut in the middle like a file's, with its end a text of its own.
+  const [detail, room] = MEDIA[State], title = add(line, box('title', { dir: 'H' }), { fillW: true });
+  add(title, text(Kind === 'Image' ? 'harbour.jpg' : 'waves.mp4', 'labelLarge', c.ink, { name: 'name ' + Kind, cut: true }), { max: w - px('space/1') - px('space/2') - px('space/2') - room - NAME_END });
+  add(title, text('', 'labelLarge', c.ink, { name: 'name end' }));
+  add(line, text(detail, 'labelMedium', failed ? c.error : c.quiet, { name: 'detail' }));
   return m;
 }
 const medias = backdrop(display(await grid('Media card', perDevice(toneRows(axis('Kind', ['Image', 'Video']))), axis('State', Object.keys(MEDIA)), media)));
 prop(medias, 'Name, image', 'TEXT', 'harbour.jpg', 'name Image');
 prop(medias, 'Name, video', 'TEXT', 'waves.mp4', 'name Video');
+prop(medias, 'Name end', 'TEXT', '', 'name end');
 
 const shared = box('Shared files', { dir: 'V', gap: 1, w: 320 });
 [['Ready', 'ridge-trail.jpg'], ['To download', 'waves.mp4'], ['Transfer', 'tide-tables.xlsx'], ['Failed', 'packing-list.docx']].forEach(([State, Name]) => add(shared, nameFile(inst('File card', { State, Tone: 'Surface', Device: 'Desktop' }), Name), { fillW: true }));

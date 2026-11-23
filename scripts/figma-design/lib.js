@@ -354,14 +354,14 @@ function segmented(Device, files = false) {
   add(control, setProps(inst('Segment', { Selected: files ? 'Yes' : 'No', State: 'Default', Device }), { Label: 'Files', Icon: true }));
   return control;
 }
-/** Names the File card [card]. A name too long for it is cut in the middle: its start, an ellipsis and its last characters, extension included. */
-function nameFile(card, name) {
-  const label = card.findOne((n) => n.name === 'name'), KEPT = 9;
-  setProps(card, { Name: name, 'Name end': '' });
+/** Names the file or media card [card] through its text property [key]. A name too long for it is cut in the middle: its start, an ellipsis and its last characters, extension included. */
+function nameFile(card, name, key = 'Name') {
+  const label = card.findOne((n) => n.type === 'TEXT' && n.visible && n.name.startsWith('name') && n.name !== 'name end'), KEPT = 9;
+  setProps(card, { [key]: name, 'Name end': '' });
   // Figma cuts a text only at its end, so the start is shortened here until it fits beside the end.
   for (let start = name.slice(0, -KEPT); label.width >= label.maxWidth && start.length > 1;) {
     start = start.slice(0, -1);
-    setProps(card, { Name: start + '…', 'Name end': name.slice(-KEPT) });
+    setProps(card, { [key]: start + '…', 'Name end': name.slice(-KEPT) });
   }
   return card;
 }
