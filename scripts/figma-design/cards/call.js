@@ -1,13 +1,14 @@
 // The call opened to the whole window or screen: CallModalCard as it stands
 // alone, with the backdrop and the full-screen button that MainWindowCallHost
 // draws around it today. The redesign makes them one component.
-card('Call window', 'An open call takes the whole window, on the lowest tone, like the media viewer. A voice call puts the person in the middle: who it is and how the call is going. With video the picture takes that place and grows as far as the window lets it without being cut, so a phone turned on its side gives it the whole screen; the name and the time move to a plate in the corner. The buttons stay on their dock at the bottom in every state, and a warning sits just above them, where the button it is about is.');
+card('Call window', 'An open call takes the whole window, on the lowest tone, like the media viewer. A voice call puts the person in the middle: who it is and how the call is going. With video the picture takes that place and grows as far as the window lets it without being cut, so a phone turned on its side gives it the whole screen; the name and the time move to a plate in the corner. The buttons stay on their dock at the bottom in every state, and a warning sits just above them, where the button it is about is. While the other side’s video is showing, everything laid over it but your own camera leaves after three seconds without a pointer move, a touch or a key, and any of those brings it back. It stays while the call is voice only, ringing or waiting for video, while a warning is shown, while the keyboard’s focus is on a button and while the pointer is over the dock. A muted microphone keeps a mark in the corner when the rest is gone, so being unheard is never hidden.');
 
 const VIEW = { Desktop: [720, 460], Phone: [390, 640], 'Phone on its side': [844, 390] };
 const TALK = [['mic'], ['video_off'], ['tune'], CALL_END];
 /** TALK with the button of [glyph] replaced by [button]. */
 const talk = (glyph, button) => TALK.map((b) => (b[0] === glyph ? button : b));
-// Per state: the line under the name, the video stage, the dock's buttons and a notice [tone, text].
+// Per state: the line under the name, the video stage, the dock's buttons, a notice [tone, text], and what an idle call keeps over its video:
+// 'nothing', or 'muted' for the mark of a muted microphone. The rules of leaving are in the card's note above.
 const STATES = {
   Incoming: ['Incoming voice call', null, [CALL_END, ['call', 'Accept']]],
   'Waiting for confirmation': ['Waiting for confirmation…', null, TALK],
@@ -24,6 +25,8 @@ const STATES = {
   'Remote video': ['4:12', 'Remote video', TALK],
   'Camera preview': ['4:12', 'Camera preview', talk('video_off', ['video', 'Lit'])],
   'Two-way video': ['4:12', 'Two-way video', talk('video_off', ['video', 'Lit'])],
+  'Controls hidden': ['4:12', 'Two-way video', [], null, 'nothing'],
+  'Controls hidden and muted': ['4:12', 'Two-way video', [], null, 'muted'],
 };
 /** The largest 16:9 stage that fits the window whole, in its middle. It grows with an instance that is made larger in the same proportion; a window of another shape wants its stage fitted again. */
 function fitStage(win, Kind) {
@@ -49,17 +52,30 @@ function callNotice([Tone, message], max) {
   line.maxWidth = max - around;
   return n;
 }
+/** The mark an idle call keeps while the microphone is muted: the muted button's plate, too small to be taken for a button. */
+function mutedMark() {
+  const m = box('muted', { dir: 'H', wk: 8, hk: 8, r: 'full', fill: CALL_TONES.Lit[0], justify: 'CENTER' });
+  add(m, icon('mic_off', CALL_TONES.Lit[1], 4));
+  return m;
+}
+/** The row along the top of [win]: the way out of the open call, the full screen button and, with video in the middle, who the call is with. over: the line a call over video shows beside the name. */
+function topRow(win, touch, over, idle) {
+  if (idle === 'nothing') return;
+  const desktop = touch === 'Desktop';
+  const top = add(win, box('top', { dir: 'H', pad: desktop ? 3 : 2, justify: 'SPACE_BETWEEN' }), { fillW: true });
+  if (idle) return add(top, mutedMark());
+  const lead = add(top, box('lead', { dir: 'H', gap: 2 }));
+  add(lead, action('call_minimize', touch, { Kind: 'Tonal' })).name = 'minimize';
+  if (over) add(lead, whoPlate(over, touch));
+  // A phone's call already has the whole screen.
+  if (desktop) add(top, action('fullscreen', touch, { Kind: 'Tonal' })).name = 'full screen';
+}
 function callWindow({ State, Device }) {
-  const [status, video, buttons, warning] = STATES[State], [w, h] = VIEW[Device];
+  const [status, video, buttons, warning, idle] = STATES[State], [w, h] = VIEW[Device];
   const desktop = Device === 'Desktop', upright = Device === 'Phone', touch = desktop ? 'Desktop' : 'Phone';
   const win = box('Call window', { component: true, dir: 'V', w, h, fill: BENEATH, clip: true });
   if (video) fitStage(win, video);
-  const top = add(win, box('top', { dir: 'H', pad: desktop ? 3 : 2, justify: 'SPACE_BETWEEN' }), { fillW: true });
-  const lead = add(top, box('lead', { dir: 'H', gap: 2 }));
-  add(lead, action('call_minimize', touch, { Kind: 'Tonal' })).name = 'minimize';
-  if (video) add(lead, whoPlate(status, touch));
-  // A phone's call already has the whole screen.
-  if (desktop) add(top, action('fullscreen', touch, { Kind: 'Tonal' })).name = 'full screen';
+  topRow(win, touch, video && status, idle);
   // On its side the phone has no height to spare: the name goes beside the avatar, not under it.
   const flat = !desktop && !upright;
   const who = add(win, box('who', { dir: flat ? 'H' : 'V', gap: flat ? 4 : 3, pad: [0, 4], justify: 'CENTER' }), { fillW: true, fillH: true });
@@ -71,6 +87,7 @@ function callWindow({ State, Device }) {
       if (!flat) line.textAlignHorizontal = 'CENTER';
     }
   }
+  if (idle) return win;
   const foot = add(win, box('foot', { dir: 'V', gap: 3, pad: [0, 4, upright ? 8 : 5, 4] }), { fillW: true });
   if (warning) add(foot, callNotice(warning, Math.min(w - px('space/4') * 2, DIALOG.Desktop)));
   add(foot, callDock(buttons, upright ? 'Large' : 'Regular'));
