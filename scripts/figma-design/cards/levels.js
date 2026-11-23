@@ -13,43 +13,6 @@ for (const level of Object.keys(LEVEL)) {
 }
 await examples('The levels, lowest first', [ladder], 'MIN');
 
-const THREAD = [['Incoming', 'I booked the cabin near the lighthouse for two nights.'], ['Outgoing', 'Perfect. I will bring the camera and the thermos.'], ['Outgoing', 'Should we leave at 6 to beat the traffic?'], ['Incoming', 'Leo can drive. He has room for three and the gear.']];
-// What a surface may have to lie over: each makes a screen of the given width and height.
-const BACKDROPS = {
-  Conversation: (Device, w, h) => {
-    const f = surface('Conversation', 'background', { dir: 'V', w, h, clip: true, align: 'MIN' });
-    add(f, inst('Top bar', { Kind: 'Private chat', Device }), { fillW: true });
-    const feed = add(f, box('feed', { dir: 'V', gap: 1, pad: [3, feedPad(Device)], align: 'MIN' }), { fillW: true });
-    for (const [side, Text] of THREAD) add(add(feed, box('place', { dir: 'H', justify: side === 'Outgoing' ? 'MAX' : 'MIN' }), { fillW: true }), setProps(inst(side + ' message', { Position: 'Single', Device, State: 'Default' }), { Text }));
-    return f;
-  },
-  'Chat list': (Device, w, h) => {
-    const f = surface('Chat list', 'panel', { dir: 'V', gap: 1, pad: [4, 2], w, h, clip: true });
-    for (const State of ['Default', 'Selected', 'Default', 'Default', 'Default']) add(f, inst('Chat row', { State, Device }), { fillW: true });
-    return f;
-  },
-  Settings: (Device, w, h) => {
-    const f = surface('Settings', 'background', { dir: 'V', gap: 3, pad: 5, w, h, clip: true });
-    for (const Kind of ['Switch and details', 'Control']) add(f, inst('Settings card', { Kind, Device }), { fillW: true });
-    return f;
-  },
-  'Media viewer': (Device, w, h) => {
-    const v = inst('Media viewer', { Kind: 'Image', Device });
-    v.resize(w, h);
-    const f = box('Media viewer', { dir: 'V', w, h, clip: true });
-    add(f, v);
-    return f;
-  },
-};
-/** Lays [node] over [screen]: in its middle, or along its top or bottom edge. */
-function over(screen, node, at = 'middle') {
-  screen.appendChild(node);
-  node.layoutPositioning = 'ABSOLUTE';
-  if (at === 'bottom') node.resize(screen.width, node.height);
-  node.x = (screen.width - node.width) / 2;
-  node.y = at === 'bottom' ? screen.height - node.height : at === 'top' ? 16 : (screen.height - node.height) / 2;
-  return screen;
-}
 function stopped(name, Device, node, at) {
   const [w, h] = Device === 'Phone' ? [PHONE_SCREEN, 560] : [480, 400], screen = BACKDROPS[name](Device, w, h);
   dim(screen);

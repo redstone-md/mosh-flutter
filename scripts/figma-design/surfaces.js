@@ -2,7 +2,8 @@
 // this file after lib.js. A surface takes its colour, edge, corners and shadow
 // from its level here. The tones under and
 // inside the levels (BENEATH, inset, plate) are named here too, so no card
-// picks a surface colour of its own.
+// picks a surface colour of its own. Below them: the toned notice, the screens
+// a surface is shown lying over, and the buttons and dock of a call.
 
 // The four levels a surface can sit on, lowest first. The background is the
 // screen itself; a panel is a part of the screen (the chat list, the title bar,
@@ -77,3 +78,82 @@ function titled(parent, title, line, centred = false) {
 }
 // Widths of a dialog (and of a note or a notice inside a card), and of the phone's screen, which a sheet spans.
 const DIALOG = { Desktop: 400, Phone: 326 }, PHONE_SCREEN = 390;
+
+// A tone is the fill, the edge, the ink of the mark, of the title and of the detail.
+// A quiet tone lies on the panel level and differs only in the colour of its mark.
+const quiet = (mark) => [LEVEL.panel.fill, 'outlineVariant', mark, 'onSurface', 'onSurfaceVariant'];
+const NOTICE_TONES = {
+  Secure: quiet('primary'), Open: quiet('tertiary'), Neutral: quiet('onSurfaceVariant'), Success: quiet('success'),
+  Warning: ['warningContainer', null, 'onWarningContainer', 'onWarningContainer', 'onWarningContainer'],
+  Error: ['errorContainer', null, 'onErrorContainer', 'onErrorContainer', 'onErrorContainer'],
+};
+/**
+ * A message on a toned surface: mark, title, detail. The mark is as tall as the first line and stands beside it,
+ * as far from the left edge as from the top one; one line of text leaves it as far from the bottom too.
+ * A longer message runs on under the first line. The caller adds what the message ends with (banner.js has ending()). o: w, r, plain (a frame, not a component).
+ */
+function notice(name, Tone, glyph, title, detail, o = {}) {
+  const [fill, edge, mark, ink, soft] = NOTICE_TONES[Tone];
+  const n = box(name, { component: !o.plain, dir: 'H', gap: 3, pad: 4, w: o.w, r: o.r ?? 'large', fill, stroke: edge, align: 'MIN' });
+  add(n, icon(glyph, mark)).name = 'mark';
+  const col = add(n, box('text', { dir: 'V', gap: 1, align: 'MIN' }), { fillW: true });
+  if (title) para(col, title, 'titleSmall', ink, 'title');
+  // Alone, the detail is the message: it takes the line height of the mark beside it.
+  if (detail) para(col, detail, title ? 'bodySmall' : 'bodyMedium', title ? soft : ink, 'detail');
+  return n;
+}
+
+// --- Screens to lay a surface over ---
+const THREAD = [['Incoming', 'I booked the cabin near the lighthouse for two nights.'], ['Outgoing', 'Perfect. I will bring the camera and the thermos.'], ['Outgoing', 'Should we leave at 6 to beat the traffic?'], ['Incoming', 'Leo can drive. He has room for three and the gear.']];
+// What a surface may have to lie over: each makes a screen of the given width and height.
+const BACKDROPS = {
+  Conversation: (Device, w, h) => {
+    const f = surface('Conversation', 'background', { dir: 'V', w, h, clip: true, align: 'MIN' });
+    add(f, inst('Top bar', { Kind: 'Private chat', Device }), { fillW: true });
+    const feed = add(f, box('feed', { dir: 'V', gap: 1, pad: [3, feedPad(Device)], align: 'MIN' }), { fillW: true });
+    for (const [side, Text] of THREAD) add(add(feed, box('place', { dir: 'H', justify: side === 'Outgoing' ? 'MAX' : 'MIN' }), { fillW: true }), setProps(inst(side + ' message', { Position: 'Single', Device, State: 'Default' }), { Text }));
+    return f;
+  },
+  'Chat list': (Device, w, h) => {
+    const f = surface('Chat list', 'panel', { dir: 'V', gap: 1, pad: [4, 2], w, h, clip: true });
+    for (const State of ['Default', 'Selected', 'Default', 'Default', 'Default']) add(f, inst('Chat row', { State, Device }), { fillW: true });
+    return f;
+  },
+  Settings: (Device, w, h) => {
+    const f = surface('Settings', 'background', { dir: 'V', gap: 3, pad: 5, w, h, clip: true });
+    for (const Kind of ['Switch and details', 'Control']) add(f, inst('Settings card', { Kind, Device }), { fillW: true });
+    return f;
+  },
+  'Media viewer': (Device, w, h) => {
+    const v = inst('Media viewer', { Kind: 'Image', Device });
+    v.resize(w, h);
+    const f = box('Media viewer', { dir: 'V', w, h, clip: true });
+    add(f, v);
+    return f;
+  },
+};
+/** Lays [node] over [screen]: in its middle, or along its top or bottom edge. */
+function over(screen, node, at = 'middle') {
+  screen.appendChild(node);
+  node.layoutPositioning = 'ABSOLUTE';
+  if (at === 'bottom') node.resize(screen.width, node.height);
+  node.x = (screen.width - node.width) / 2;
+  node.y = at === 'bottom' ? screen.height - node.height : at === 'top' ? 16 : (screen.height - node.height) / 2;
+  return screen;
+}
+
+// --- Calls ---
+// The four tones of a call button: its plate and its glyph. Lit marks what differs from a plain voice call: a muted microphone, a camera that is on.
+const CALL_TONES = { Neutral: ['surfaceContainerHighest', 'onSurface'], Lit: ['inverseSurface', 'onInverseSurface'], Accept: ['primary', 'onPrimary'], End: ['error', 'onError'] };
+/** A Call button showing [glyph]. o: Tone, Size, State. */
+function callAction(glyph, { Tone = 'Neutral', Size = 'Regular', State = 'Default' } = {}) {
+  const b = setProps(inst('Call button', { Tone, Size, State }), { 'Icon glyph': glyphOf(glyph) });
+  b.findOne((n) => n.name === 'glyph').fills = paint(State === 'Disabled' ? 'onSurface' : CALL_TONES[Tone][1]);
+  return b;
+}
+/** The dock of a call: its buttons on a plate of their own, so none of them ever lies on the video itself. buttons: [glyph, Tone, State] each. */
+function callDock(buttons, Size = 'Regular') {
+  const d = surface('dock', 'popup', { dir: 'H', gap: Size === 'Large' ? 4 : 3, pad: 3, r: 'full' });
+  for (const [glyph, Tone, State] of buttons) add(d, callAction(glyph, { Tone, Size, State })).name = glyph;
+  return d;
+}

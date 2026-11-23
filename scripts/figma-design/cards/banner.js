@@ -4,29 +4,6 @@
 // and the notes set inside a form (SetupPrivacyNote, the open-channel warning,
 // the note of a ready invite).
 card('Banner', 'A banner says something about the whole conversation or the whole app and stays until it stops being true or is closed. Its tone is how much it asks of the reader: a fact about the chat is quiet and carries only a coloured mark, a warning and an error take the whole plate. A banner with something to do offers one action. An inline note is the same message inside a form, beside the field it is about.');
-// A tone is the fill, the edge, the ink of the mark, of the title and of the detail.
-// A quiet tone lies on the panel level and differs only in the colour of its mark.
-const quiet = (mark) => [LEVEL.panel.fill, 'outlineVariant', mark, 'onSurface', 'onSurfaceVariant'];
-const NOTICE_TONES = {
-  Secure: quiet('primary'), Open: quiet('tertiary'), Neutral: quiet('onSurfaceVariant'), Success: quiet('success'),
-  Warning: ['warningContainer', null, 'onWarningContainer', 'onWarningContainer', 'onWarningContainer'],
-  Error: ['errorContainer', null, 'onErrorContainer', 'onErrorContainer', 'onErrorContainer'],
-};
-/**
- * A message on a toned surface: mark, title, detail. The mark is as tall as the first line and stands beside it,
- * as far from the left edge as from the top one; one line of text leaves it as far from the bottom too.
- * A longer message runs on under the first line. The caller adds what the message ends with through ending(). o: w, r.
- */
-function notice(name, Tone, glyph, title, detail, o = {}) {
-  const [fill, edge, mark, ink, soft] = NOTICE_TONES[Tone];
-  const n = box(name, { component: true, dir: 'H', gap: 3, pad: 4, w: o.w, r: o.r ?? 'large', fill, stroke: edge, align: 'MIN' });
-  add(n, icon(glyph, mark)).name = 'mark';
-  const col = add(n, box('text', { dir: 'V', gap: 1, align: 'MIN' }), { fillW: true });
-  if (title) para(col, title, 'titleSmall', ink, 'title');
-  // Alone, the detail is the message: it takes the line height of the mark beside it.
-  if (detail) para(col, detail, title ? 'bodySmall' : 'bodyMedium', title ? soft : ink, 'detail');
-  return n;
-}
 /** Ends [banner] with a control on its first line: the control is taller than the line and keeps its own room around it. edge: the space key left to the banner's edge. */
 function ending(banner, control, edge) {
   add(add(banner, box('ending', { dir: 'H', hk: 5 })), control);
