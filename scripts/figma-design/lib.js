@@ -1,5 +1,6 @@
 // Plugin-side helpers for the card scripts in cards/. build.mjs prepends this
-// file to each of them and sets CARD_ORDER, the card's place in the section.
+// file to each of them and sets CARD_SCRIPT, the name of the card's file in
+// cards/, and CARDS, those names in the order the cards stand in the section.
 // Every colour, radius, gap, padding, stroke weight, opacity and text style a
 // helper sets is bound to a Foundations token, so audit.js can check the result.
 await figma.loadAllPagesAsync();
@@ -178,15 +179,22 @@ function host() {
   if (!s) { s = figma.createSection(); s.name = 'Components'; s.fills = paint('surfaceDim'); PAGE.appendChild(s); }
   return s;
 }
+/** A layer's path below the section, for a message. */
+const where = (n) => { const p = []; for (let x = n; x && x.type !== 'SECTION'; x = x.parent) p.unshift(x.name); return p.join(' / '); };
 const PAD = 48, ROW_LABEL = 150;
-// The card being built and the y where its next block goes.
-let CARD, cursor;
-/** A fresh card for one component family; replaces the card of the same name. */
+// The components variant() can ask for, by name: a walk of the section for each one is a fifth of a second.
+const SETS = new Map();
+// Last to first, so of two components with one name the first in the section is the one found.
+for (const n of host().findAllWithCriteria({ types: ['COMPONENT_SET', 'COMPONENT'] }).reverse()) if (n.parent.type !== 'COMPONENT_SET') SETS.set(n.name, n);
+// The card being built, the cards it replaces (null for a card updated in place) and the y where its next block goes.
+let CARD, OLD = null, cursor;
+/** A fresh card for one component family. The card of the same name stays beside it until finish() has moved its instances over. */
 function card(name, note) {
   const s = host();
-  s.children.filter((n) => n.name === name).forEach((n) => n.remove());
+  OLD = s.children.filter((n) => n.name === name);
+  for (const [key, n] of SETS) if (OLD.includes(n.parent)) SETS.delete(key);
   const c = CARD = figma.createFrame();
-  c.name = name; c.setPluginData('order', String(CARD_ORDER)); c.fills = paint('surfaceContainerLow'); radius(c, 'extraLarge'); c.clipsContent = false;
+  c.name = name; c.setPluginData('script', CARD_SCRIPT); c.fills = paint('surfaceContainerLow'); radius(c, 'extraLarge'); c.clipsContent = false;
   s.appendChild(c);
   add(c, text(name, 'headlineSmall', 'onSurface')).y = PAD;
   const n = add(c, text(note, 'bodyMedium', 'onSurfaceVariant', { w: 860 })); n.y = PAD + 40;
@@ -235,6 +243,7 @@ async function grid(name, rows, cols, make, minCol = 0) {
   y += H + 40;
   cursor = y;
   c.resize(Math.max(c.width, left + W + PAD), y + PAD - 40);
+  SETS.set(name, set);
   return set;
 }
 /** Adds a row of usage examples (instances) under the sets of the card; align 'MIN' levels their tops. */
@@ -265,7 +274,7 @@ function prop(set, name, type, value, layer) {
 function layoutCards() {
   const s = host(), GAP = 64, MAX = 6600;
   let x = GAP, y = GAP, colW = 0, bottom = 0;
-  for (const c of [...s.children].sort((a, b) => a.getPluginData('order') - b.getPluginData('order'))) {
+  for (const c of [...s.children].sort((a, b) => CARDS.indexOf(a.getPluginData('script')) - CARDS.indexOf(b.getPluginData('script')))) {
     if (y > GAP && y + c.height > MAX) { x += colW + GAP; y = GAP; colW = 0; }
     c.x = x; c.y = y; y += c.height + GAP; colW = Math.max(colW, c.width); bottom = Math.max(bottom, y);
   }
@@ -274,10 +283,12 @@ function layoutCards() {
   const f = PAGE.children.find((n) => n.name === 'Foundations');
   s.x = f.x + f.width + 200; s.y = f.y;
 }
-/** Ends a card script: places the card and reports what it holds. */
-function finish() {
+/** Ends a card script: moves the instances of the replaced card onto this one (relink.js), places the card and reports what it holds. */
+async function finish() {
+  const report = await relink(OLD ?? [], CARD);
+  OLD?.forEach((o) => o.remove());
   layoutCards();
-  return { card: CARD.name, sets: CARD.findAllWithCriteria({ types: ['COMPONENT_SET'] }).map((x) => `${x.name} ${x.children.length}`) };
+  return { card: CARD.name, sets: CARD.findAllWithCriteria({ types: ['COMPONENT_SET'] }).map((x) => `${x.name} ${x.children.length}`), ...report };
 }
 /** Wraps a control's [visual] as a variant; on the phone it sits in a transparent tap target of at least 48 by 48 px. */
 function shell(name, visual, device) {
@@ -288,7 +299,7 @@ function shell(name, visual, device) {
 }
 /** A component built earlier: the variant of [setName] matching [props]. */
 function variant(setName, props = {}) {
-  const set = host().findOne((n) => (n.type === 'COMPONENT_SET' || n.type === 'COMPONENT') && n.name === setName && n.parent.type !== 'COMPONENT_SET') ?? fail(setName);
+  const set = SETS.get(setName) ?? fail(setName);
   const v = set.type === 'COMPONENT' ? set : set.children.find((c) => Object.entries(props).every(([k, x]) => c.name.split(', ').includes(`${k}=${x}`)));
   return v ?? fail(setName + ' ' + JSON.stringify(props));
 }

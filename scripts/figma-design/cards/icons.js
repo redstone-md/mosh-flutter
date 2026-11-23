@@ -9,7 +9,7 @@ if (!CARD) {
   CARD.appendChild(icons); icons.x = PAD; icons.y = cursor;
   await flush();
 }
-CARD.setPluginData('order', String(CARD_ORDER));
+CARD.setPluginData('script', CARD_SCRIPT);
 const row = CARD.children.find((n) => n.type === 'FRAME');
 CARD.children[1].characters = NOTE;
 // A role taken out of icons.json leaves the file too.
