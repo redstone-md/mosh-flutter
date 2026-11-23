@@ -57,21 +57,6 @@ const menus = await grid('Chat row menu', ONE, DEVICES, ({ Device }) => {
 });
 prop(menus, 'Action', 'TEXT', 'Rename chat', 'action');
 
-const KINDS = [['Maya Chen', { Plate: '2' }, { Initials: 'MC' }, 'primary'], ['Weekend plans', { Kind: 'Group', Plate: '1' }, {}, 'secondary'], ['#photography', { Kind: 'Channel', Plate: '3' }, {}, 'tertiary']];
-/** The three kinds of chat, selected: in the one tone of the component, or each in the tone of its kind, as the app does today. */
-function selected(perKind) {
-  const col = box(perKind ? 'A tone per kind' : 'One tone', { dir: 'V', gap: 1 });
-  for (const [Title, avatar, values, tone] of KINDS) {
-    const row = setProps(inst('Chat row', { State: perKind ? 'Default' : 'Selected', Device: 'Desktop' }), { Title });
-    dressAvatar(row, { ...avatar, Size: 'Medium' }, values);
-    if (!perKind) { add(col, row); continue; }
-    const plate = add(col, box('selected', { dir: 'H', r: 'large', clip: true }));
-    add(plate, row);
-    tint(plate, tone, 'disabledContainer');
-  }
-  return col;
-}
-await examples('Selected: one tone, or a tone per kind', [selected(false), selected(true)]);
 const open = box('Row with its menu', { dir: 'H', gap: 2, align: 'MIN' });
 add(open, inst('Chat row', { State: 'Menu open', Device: 'Desktop' }));
 add(open, inst('Chat row menu', { Device: 'Desktop' }));
