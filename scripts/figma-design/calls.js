@@ -1,5 +1,5 @@
 // Plugin-side helpers of the call cards (call-controls, call, call-mini):
-// build.mjs prepends this file after surfaces.js. What a call's buttons look
+// run.mjs prepends this file after surfaces.js. What a call's buttons look
 // like and what the name of a call is set in are decided here, so the open
 // call and the minimized one cannot drift apart.
 
@@ -32,4 +32,15 @@ function callWho(status, { ink = 'onSurfaceVariant', wide = false } = {}) {
   add(w, text('Maya Chen', wide ? 'titleSmall' : 'labelLarge', 'onSurface', { name: 'name' }));
   add(w, text(status, wide ? 'bodySmall' : 'labelMedium', ink, { name: 'status', truncate: wide }), { fillW: wide });
   return w;
+}
+/**
+ * Fits the 16:9 stage of the call window [win] to the window's shape: it takes the width, or the height where the window is wider than 16:9, and the other side follows.
+ * The stage keeps the side it was fitted to, so an instance given another shape than its component is fitted again with this.
+ */
+function fitStage(win) {
+  const s = win.findOne((n) => n.name === 'stage'), wide = win.width >= win.height * 16 / 9;
+  if (!s) return win;
+  s[wide ? 'layoutSizingHorizontal' : 'layoutSizingVertical'] = 'FIXED';
+  s[wide ? 'layoutSizingVertical' : 'layoutSizingHorizontal'] = 'FILL';
+  return win;
 }

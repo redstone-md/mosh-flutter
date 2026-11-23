@@ -11,10 +11,13 @@ function panelHead(parent, title, Device, glyphs) {
   for (const g of glyphs) add(h, action(g, Device)).name = g;
   return h;
 }
-function section(parent, title) {
+// Everything in the panel starts on one line, 20 px in: a text stands on it, and a row that is pressed reaches past it by its own padding.
+const EDGE = 1, TEXT_IN = 4;
+/** A titled part of the panel; returns the box for what it holds, set in by the space key [inset]. */
+function section(parent, title, inset = TEXT_IN) {
   const s = add(parent, box(title, { dir: 'V', gap: 2, align: 'MIN' }), { fillW: true });
-  add(s, text(title, 'titleSmall', 'onSurface'));
-  return s;
+  add(add(s, box('title', { dir: 'H', pad: [0, TEXT_IN] })), text(title, 'titleSmall', 'onSurface'));
+  return add(s, box('content', { dir: 'V', pad: [0, inset], align: 'MIN' }), { fillW: true });
 }
 const PEOPLE = [['Alex (you)', 'A', '1', false], ['Leo Park', 'LP', '4', false], ['Maya Chen', 'MC', '2', true], ['Priya Nair', 'PN', '3', false]];
 // Per kind: avatar, name, the line under it, how many of PEOPLE take part, shared files, and whether the connection is open.
@@ -38,12 +41,12 @@ const panels = display(await grid('Details panel', axis('Kind', Object.keys(PANE
     return p;
   }
   const [avatar, name, line, people, files, open] = PANELS[Kind];
-  const body = add(p, box('body', { dir: 'V', gap: 6, pad: [2, 5, 6, 5], align: 'MIN' }), { fillW: true });
+  const body = add(p, box('body', { dir: 'V', gap: 6, pad: [2, EDGE, 6, EDGE], align: 'MIN' }), { fillW: true });
   const who = add(body, box('identity', { dir: 'V', gap: 1 }), { fillW: true });
   add(who, setProps(inst('Avatar', { ...avatar, Size: 'Large' }), avatar.Kind === 'Person' ? { Initials: 'MC', Presence: true } : {}));
   add(add(who, box('name', { dir: 'H', pad: [2, 0, 0, 0] })), text(name, 'headlineSmall', 'onSurface', { name: 'name' }));
   add(who, text(line, 'bodySmall', 'onSurfaceVariant', { name: 'line' }));
-  const members = section(body, 'Participants');
+  const members = section(body, 'Participants', EDGE);
   for (const i of people) {
     const [Name, Initials, Plate, Admin] = PEOPLE[i];
     dressAvatar(add(members, setProps(inst('Member row', { Device }), { Name, 'Show peer': false, Admin: Admin && avatar.Kind === 'Group' }), { fillW: true }), { Plate, Size: 'Compact' }, { Initials });
@@ -54,7 +57,7 @@ const panels = display(await grid('Details panel', axis('Kind', Object.keys(PANE
   // The one place a conversation shows its encryption: the row opens the fingerprint to compare.
   // A public channel is not encrypted and has no such row.
   if (avatar.Kind !== 'Channel') add(body, setProps(inst('Start row', { State: 'Default', Device }), { Title: 'End-to-end encrypted', Line: 'Compare the fingerprint to verify', 'Icon glyph': glyphOf('lock') }), { fillW: true }).name = 'encryption';
-  const link = add(body, box('connection', { dir: 'V', align: 'MIN' }), { fillW: true });
+  const link = add(body, box('connection', { dir: 'V', pad: [0, EDGE], align: 'MIN' }), { fillW: true });
   add(link, setProps(inst('Disclosure', { State: open ? 'Open' : 'Closed', Device }), { Label: 'Connection details' }), { fillW: true });
   if (open) {
     const list = add(link, box('values', { dir: 'V', pad: [0, 3], align: 'MIN' }), { fillW: true });

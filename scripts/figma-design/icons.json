@@ -9,7 +9,7 @@
   "back": "arrow-left", "more": "dots-three-vertical", "list_toggle": "sidebar-simple", "lock": "lock-simple", "info": "info", "warning": "warning", "success": "check-circle",
   "history": "clock-counter-clockwise", "link": "link", "link_off": "link-break", "devices": "devices", "video": "video-camera", "minimize": "minus", "maximize": "square",
   "chevron_right": "caret-right", "update": "arrow-circle-down", "select_all": "selection-all", "leave": "sign-out", "language": "globe", "shield": "shield-check", "bug": "bug",
-  "qr": "qr-code",
+  "qr": "qr-code", "speaker": "speaker-high",
   "mic_off": "microphone-slash", "video_off": "video-camera-slash", "call_end": "phone-disconnect", "tune": "sliders-horizontal",
   "fullscreen": "corners-out", "fullscreen_exit": "corners-in", "call_expand": "arrows-out-simple", "call_minimize": "arrows-in-simple"
 }

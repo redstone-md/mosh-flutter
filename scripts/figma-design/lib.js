@@ -1,5 +1,5 @@
-// Plugin-side helpers for the card scripts in cards/. build.mjs prepends this
-// file to each of them and sets CARD_SCRIPT, the name of the card's file in
+// Plugin-side helpers for the scripts in cards/ and screens/: run.mjs prepends this
+// file to each of them. For a card build.mjs sets CARD_SCRIPT, the name of its file in
 // cards/, and CARDS, those names in the order the cards stand in the section.
 // Every colour, radius, gap, padding, stroke weight, opacity and text style a
 // helper sets is bound to a Foundations token, so audit.js can check the result.
@@ -174,9 +174,9 @@ function interact(node, state, color) {
 }
 
 // --- Section, cards and component sets ---
-function host() {
-  let s = PAGE.children.find((n) => n.type === 'SECTION' && n.name === 'Components');
-  if (!s) { s = figma.createSection(); s.name = 'Components'; s.fills = paint('surfaceDim'); PAGE.appendChild(s); }
+function host(name = 'Components') {
+  let s = PAGE.children.find((n) => n.type === 'SECTION' && n.name === name);
+  if (!s) { s = figma.createSection(); s.name = name; s.fills = paint('surfaceDim'); PAGE.appendChild(s); }
   return s;
 }
 /** A layer's path below the section, for a message. */

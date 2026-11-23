@@ -1,31 +1,47 @@
-// Checks the Components section: no value outside the Foundations tokens, and a
-// tap target of at least 48 px on every phone variant. AUDIT_CARDS (build.mjs)
-// names the cards to check; null is every card.
+// Checks a section of the Redesign page: no value outside the Foundations tokens, a
+// tap target of at least 48 px on every phone variant and, on a screen, nothing
+// drawn outside a component. AUDIT_SECTION is Components (build.mjs) or Screens
+// (screens.mjs); AUDIT_NAMES names its cards or screens to check, null is all of them.
 // Not checked, because Foundations has no token for them: widths and heights
 // (they are layout, bound to space/* where they sit on the scale), positions,
 // the ring geometry of spinners and the caret's rotation.
-const issues = [];
+const issues = [], CORNERS = ['topLeftRadius', 'topRightRadius', 'bottomRightRadius', 'bottomLeftRadius'];
 const bad = (n, what) => issues.push(what + ' — ' + where(n));
 // A token is a variable of the dark "Mosh" colours or of "Mosh Dimensions"; a binding to anything else does not count.
 const TOKENS = new Set([...Object.values(COLOR), ...Object.values(DIM)].map((v) => v.id));
 const token = (binding) => TOKENS.has(binding?.id);
 const bound = (n, field) => token(n.boundVariables?.[field]);
 const styles = Object.fromEntries((await figma.getLocalTextStylesAsync()).map((s) => [s.id, s.name]));
-const scope = host().children.filter((c) => !AUDIT_CARDS || AUDIT_CARDS.includes(c.name));
+const section = PAGE.children.find((n) => n.type === 'SECTION' && n.name === AUDIT_SECTION) ?? fail('section ' + AUDIT_SECTION);
+const scope = section.children.filter((c) => !AUDIT_NAMES || AUDIT_NAMES.includes(c.name));
 let nodes = 0;
 for (const n of scope.flatMap((c) => [c, ...c.findAll(() => true)])) {
   nodes++;
   for (const key of ['fills', 'strokes']) {
     const paints = n[key];
     if (!Array.isArray(paints)) continue;
-    paints.forEach((p) => { if (p.visible !== false && !(p.type === 'SOLID' && token(p.boundVariables?.color))) bad(n, key + ' not a token'); if (p.opacity !== undefined && p.opacity !== 1) bad(n, key + ' paint opacity ' + p.opacity); });
+    // A picture is what a screen shows, not how it is drawn: the layer a component keeps for it may hold an image.
+    const picture = n.name === 'picture' && paints.every((p) => p.type === 'IMAGE');
+    paints.forEach((p) => { if (!picture && p.visible !== false && !(p.type === 'SOLID' && token(p.boundVariables?.color))) bad(n, key + ' not a token'); if (p.opacity !== undefined && p.opacity !== 1) bad(n, key + ' paint opacity ' + p.opacity); });
     if (key === 'strokes' && paints.length && !['strokeWeight', 'strokeTopWeight'].some((f) => bound(n, f))) bad(n, 'stroke weight ' + String(n.strokeWeight));
   }
   if (n.type === 'TEXT' && !(styles[n.textStyleId] || '').startsWith('Mosh/')) bad(n, 'text without a Mosh/ style');
   if ('effects' in n && n.effects.length && !n.effectStyleId) bad(n, 'effect without a style');
   if ('opacity' in n && n.opacity !== 1 && !bound(n, 'opacity')) bad(n, 'opacity ' + n.opacity);
-  for (const f of ['topLeftRadius', 'topRightRadius', 'bottomRightRadius', 'bottomLeftRadius']) if (f in n && n[f] && !bound(n, f)) bad(n, f + ' ' + n[f]);
+  for (const f of CORNERS) if (f in n && n[f] && !bound(n, f)) bad(n, f + ' ' + n[f]);
   if (n.layoutMode && n.layoutMode !== 'NONE') for (const f of ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'itemSpacing']) if (n[f] && !bound(n, f)) bad(n, f + ' ' + n[f]);
+}
+// A screen is put together, not drawn: outside the instances of components it holds only the frames that lay them out.
+// A layer inside an instance has an id that starts with I.
+// Such a frame may give its panel the tone of its level and nothing else: an edge, a corner or a shadow is a thing drawn.
+if (AUDIT_SECTION === 'Screens') for (const c of scope) {
+  const own = c.findAll((x) => x.type !== 'INSTANCE' && !x.id.startsWith('I'));
+  if (own.length === c.findAll(() => true).length) bad(c, 'a screen without a component');
+  // The screen's own frame is held to the same rule.
+  for (const n of [c, ...own]) {
+    if (n.type !== 'FRAME') bad(n, n.type.toLowerCase() + ' outside a component');
+    else if (n.strokes.length || n.effects.length || CORNERS.some((f) => n[f])) bad(n, 'a frame drawn outside a component');
+  }
 }
 // A set with a Device property is pressed as a whole and its phone variants need the target,
 // unless a card marked it with display(): a message is read, not pressed.
@@ -41,4 +57,4 @@ for (const [name, set] of Object.entries(sets)) {
   const small = phone.filter((v) => !holds(v, 'minWidth', 'layoutSizingHorizontal', 'width') || !holds(press(v), 'minHeight', 'layoutSizingVertical', 'height'));
   small.forEach((v) => issues.push(`tap target can shrink below ${TARGET} px (${press(v).width}x${press(v).height} now) — ${name} / ${v.name}`));
 }
-return { nodes, issues, sets: Object.keys(sets).length, variants: Object.values(sets).reduce((n, s) => n + s.children.length, 0) };
+return { nodes, issues, checked: scope.map((c) => c.name), sets: Object.keys(sets).length, variants: Object.values(sets).reduce((n, s) => n + s.children.length, 0) };

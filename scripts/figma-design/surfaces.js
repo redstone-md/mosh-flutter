@@ -1,4 +1,4 @@
-// Plugin-side helpers for surfaces and what stands on them: build.mjs prepends
+// Plugin-side helpers for surfaces and what stands on them: run.mjs prepends
 // this file after lib.js. A surface takes its colour, edge, corners and shadow
 // from its level here. The tones under and
 // inside the levels (BENEATH, inset, plate) are named here too, so no card

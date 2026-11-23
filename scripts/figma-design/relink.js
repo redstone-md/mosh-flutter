@@ -1,5 +1,5 @@
-// Plugin-side: what lets one card be rebuilt alone. build.mjs prepends this
-// file after the helpers of lib.js, surfaces.js and calls.js. A rebuilt card has new components; relink() moves
+// Plugin-side: what lets one card be rebuilt alone. run.mjs prepends this
+// file after the helpers of lib.js, surfaces.js, calls.js and compose.js. A rebuilt card has new components; relink() moves
 // every instance of the old ones onto the component of the same name in the
 // new card, so the cards that use them keep their own components and node ids.
 
@@ -35,8 +35,12 @@ function setValues(i, values, renewed, lost) {
 }
 // Set once instances start to move: from then on the new card is the one in use.
 let relinking = false;
+// What is on the page before the script adds to it. A frame a script has made and not yet put into its card or screen lies on the page itself.
+const PAGE_BEFORE = new Set(PAGE.children.map((n) => n.id));
+/** Takes back what a script that threw had left lying on the page. */
+function sweep() { for (const n of PAGE.children) if (!PAGE_BEFORE.has(n.id)) n.remove(); }
 /** Takes back the card of a script that threw, so the card it was replacing stays the only one. */
-function discard() { if (OLD && !relinking) CARD?.remove(); }
+function discard() { if (OLD && !relinking) CARD?.remove(); sweep(); }
 
 /**
  * Sets again the properties the instances in [was] had set before the move, where the move dropped them,
