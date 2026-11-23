@@ -5,7 +5,7 @@
 // Not checked, because Foundations has no token for them: widths and heights
 // (they are layout, bound to space/* where they sit on the scale), positions,
 // the ring geometry of spinners and the caret's rotation.
-const issues = [];
+const issues = [], CORNERS = ['topLeftRadius', 'topRightRadius', 'bottomRightRadius', 'bottomLeftRadius'];
 const bad = (n, what) => issues.push(what + ' — ' + where(n));
 // A token is a variable of the dark "Mosh" colours or of "Mosh Dimensions"; a binding to anything else does not count.
 const TOKENS = new Set([...Object.values(COLOR), ...Object.values(DIM)].map((v) => v.id));
@@ -21,14 +21,14 @@ for (const n of scope.flatMap((c) => [c, ...c.findAll(() => true)])) {
     const paints = n[key];
     if (!Array.isArray(paints)) continue;
     // A picture is what a screen shows, not how it is drawn: the layer a component keeps for it may hold an image.
-    if (n.name === 'picture' && paints.every((p) => p.type === 'IMAGE')) continue;
-    paints.forEach((p) => { if (p.visible !== false && !(p.type === 'SOLID' && token(p.boundVariables?.color))) bad(n, key + ' not a token'); if (p.opacity !== undefined && p.opacity !== 1) bad(n, key + ' paint opacity ' + p.opacity); });
+    const picture = n.name === 'picture' && paints.every((p) => p.type === 'IMAGE');
+    paints.forEach((p) => { if (!picture && p.visible !== false && !(p.type === 'SOLID' && token(p.boundVariables?.color))) bad(n, key + ' not a token'); if (p.opacity !== undefined && p.opacity !== 1) bad(n, key + ' paint opacity ' + p.opacity); });
     if (key === 'strokes' && paints.length && !['strokeWeight', 'strokeTopWeight'].some((f) => bound(n, f))) bad(n, 'stroke weight ' + String(n.strokeWeight));
   }
   if (n.type === 'TEXT' && !(styles[n.textStyleId] || '').startsWith('Mosh/')) bad(n, 'text without a Mosh/ style');
   if ('effects' in n && n.effects.length && !n.effectStyleId) bad(n, 'effect without a style');
   if ('opacity' in n && n.opacity !== 1 && !bound(n, 'opacity')) bad(n, 'opacity ' + n.opacity);
-  for (const f of ['topLeftRadius', 'topRightRadius', 'bottomRightRadius', 'bottomLeftRadius']) if (f in n && n[f] && !bound(n, f)) bad(n, f + ' ' + n[f]);
+  for (const f of CORNERS) if (f in n && n[f] && !bound(n, f)) bad(n, f + ' ' + n[f]);
   if (n.layoutMode && n.layoutMode !== 'NONE') for (const f of ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'itemSpacing']) if (n[f] && !bound(n, f)) bad(n, f + ' ' + n[f]);
 }
 // A screen is put together, not drawn: outside the instances of components it holds only the frames that lay them out.
@@ -37,9 +37,10 @@ for (const n of scope.flatMap((c) => [c, ...c.findAll(() => true)])) {
 if (AUDIT_SECTION === 'Screens') for (const c of scope) {
   const own = c.findAll((x) => x.type !== 'INSTANCE' && !x.id.startsWith('I'));
   if (own.length === c.findAll(() => true).length) bad(c, 'a screen without a component');
-  for (const n of own) {
+  // The screen's own frame is held to the same rule.
+  for (const n of [c, ...own]) {
     if (n.type !== 'FRAME') bad(n, n.type.toLowerCase() + ' outside a component');
-    else if (n.strokes.length || n.effects.length || n.topLeftRadius) bad(n, 'a frame drawn outside a component');
+    else if (n.strokes.length || n.effects.length || CORNERS.some((f) => n[f])) bad(n, 'a frame drawn outside a component');
   }
 }
 // A set with a Device property is pressed as a whole and its phone variants need the target,
