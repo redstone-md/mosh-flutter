@@ -1,5 +1,5 @@
 // Toasts: ToastCard, alone and stacked (ToastHost).
-card('Toast', 'A toast confirms what just happened and leaves on its own; an error stays until it is closed. It floats on the popup level, at the top of the window on the desktop and above the bottom edge on the phone. The mark tells the tone and the text stays the ordinary colour, so a toast never reads as an alarm it is not. Several toasts stack behind the newest one and fan out under the pointer.');
+card('Toast', 'A toast confirms what just happened and leaves on its own, an error a little later. It floats on the popup level, at the top of the window on the desktop and above the bottom edge on the phone. The mark tells the tone and the text stays the ordinary colour, so a toast never reads as an alarm it is not. Several toasts stack behind the newest one and fan out under the pointer.');
 const TOASTS = { Success: ['success', 'success', 'Link copied'], Info: ['info', 'onSurfaceVariant', 'Chat renamed'], Error: ['error', 'error', 'Mosh could not reach the network. Try again in a moment.'] };
 const WIDTH = { Desktop: 360, Phone: ROW.Phone };
 const toasts = display(await grid('Toast', axis('Tone', Object.keys(TOASTS)), DEVICES, ({ Tone, Device }) => {

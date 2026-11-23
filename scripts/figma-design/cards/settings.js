@@ -94,6 +94,8 @@ prop(starts, 'Title', 'TEXT', START_TITLE, 'title');
 prop(starts, 'Line', 'TEXT', START_LINE, 'line');
 prop(starts, 'Icon glyph', 'INSTANCE_SWAP', glyphOf(START_GLYPH), 'start icon');
 
+// The app today lists a removal as bare text under the devices (device_list._RevocationRow). The redesign
+// keeps it a row of the device it is about, marked by its icon and its note, without the action to remove.
 // Per kind: name, id, the note under them and its ink, and whether the device can be removed.
 const DEVICES_OF = {
   'This device': ['alex-workstation', '7f3a9c1e…9c1e', 'This device', 'primary', false],

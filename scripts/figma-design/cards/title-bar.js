@@ -1,7 +1,8 @@
 // The window's title bar on the desktop (MoshTitleBar with its chat list
 // toggle and DesktopCaptionButtons) and the bar at the top of a conversation
 // (ConversationAppBar, ConversationHeaderTitle, ChatHeaderMenu, MobileSearchToggle).
-// FingerprintLock is not in the bar: checking the fingerprint is a row of the details panel.
+// The app today shows FingerprintLock beside the name. The redesign takes it out of the bar:
+// checking the fingerprint becomes a row of the details panel (cards/details.js).
 card('Title bar and top bar', 'The title bar belongs to the window: the app’s mark, a toggle for the chat list and whether Mosh is connected, on the panel level so it reads as part of the frame and not of the chat. The phone has no window, so it has no title bar. The top bar belongs to the conversation: who it is with, how it is connected, and what can be done with it. Private chats and groups are always end-to-end encrypted, so the bar does not say so beside every name. It names the exception: a public channel says in its line that it is not encrypted. Checking the fingerprint is in the details panel.');
 function logo() {
   const m = box('logo', { dir: 'H', wk: 6, hk: 6, r: 'small', fill: 'primary', justify: 'CENTER' });
