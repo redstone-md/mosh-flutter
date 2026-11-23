@@ -33,3 +33,14 @@ function callWho(status, { ink = 'onSurfaceVariant', wide = false } = {}) {
   add(w, text(status, wide ? 'bodySmall' : 'labelMedium', ink, { name: 'status', truncate: wide }), { fillW: wide });
   return w;
 }
+/**
+ * Fits the 16:9 stage of the call window [win] to the window's shape: it takes the width, or the height where the window is wider than 16:9, and the other side follows.
+ * The stage keeps the side it was fitted to, so an instance given another shape than its component is fitted again with this.
+ */
+function fitStage(win) {
+  const s = win.findOne((n) => n.name === 'stage'), wide = win.width >= win.height * 16 / 9;
+  if (!s) return win;
+  s[wide ? 'layoutSizingHorizontal' : 'layoutSizingVertical'] = 'FIXED';
+  s[wide ? 'layoutSizingVertical' : 'layoutSizingHorizontal'] = 'FILL';
+  return win;
+}
