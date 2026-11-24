@@ -55,13 +55,12 @@ class MoshColors extends ThemeExtension<MoshColors> {
   static const MoshColors dark = _darkColors;
   static const MoshColors light = _lightColors;
 
-  /// The palette of the theme around [context]; [dark], the app's default,
-  /// under a theme that is not one of [buildMoshTheme].
+  /// The palette of the theme around [context], which is one of
+  /// [buildMoshTheme].
   static MoshColors of(BuildContext context) => from(Theme.of(context));
 
   /// The palette [theme] was built on.
-  static MoshColors from(ThemeData theme) =>
-      theme.extension<MoshColors>() ?? dark;
+  static MoshColors from(ThemeData theme) => theme.extension<MoshColors>()!;
 
   // Material 3 roles. [outline] is for edges that must be seen (fields,
   // focusable controls): 3:1 on surfaces. [outlineVariant] is for decorative

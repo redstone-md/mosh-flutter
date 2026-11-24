@@ -4,6 +4,7 @@
 // selecting a row made its corners jump. The active ring is an inset border
 // that must not move the outer geometry, so selecting a row keeps the radius
 // of the plain row.
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -13,6 +14,7 @@ Future<BorderRadiusGeometry?> _rowRadius(
     WidgetTester tester, bool active) async {
   await tester.pumpWidget(
     MaterialApp(
+      theme: moshThemeData,
       home: Scaffold(
         body: RailItem(
           kind: RailItemKind.dm,

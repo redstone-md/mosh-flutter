@@ -24,6 +24,7 @@
 // real on the host filesystem.
 import 'dart:io';
 
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -101,6 +102,7 @@ Future<void> _pumpComposer(
           const MethodChannel('plugins.flutter.io/path_provider'), null));
 
   await tester.pumpWidget(MaterialApp(
+    theme: moshThemeData,
     home: Scaffold(
       body: Center(
         child: VoiceComposer(

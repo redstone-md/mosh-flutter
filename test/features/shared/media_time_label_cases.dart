@@ -4,6 +4,7 @@
 // proportional digits inside its fixed 80px box, so the text reflowed on
 // every position tick. This pins the label's text and its tabular figures.
 
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -13,6 +14,7 @@ void main() {
   Future<void> pumpLabel(WidgetTester tester, Duration position) async {
     await tester.pumpWidget(
       MaterialApp(
+        theme: moshThemeData,
         home: Scaffold(
           body: Center(
             child: MediaTimeLabel(
@@ -45,6 +47,7 @@ void main() {
     // row height (CodeAnt #12 comment on media_viewer.dart).
     await tester.pumpWidget(
       MaterialApp(
+        theme: moshThemeData,
         home: Scaffold(
           body: Center(
             child: SizedBox(

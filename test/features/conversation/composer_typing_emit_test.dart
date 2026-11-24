@@ -2,6 +2,7 @@
 // ticket #6): a growing draft fires onTyping on every keystroke (the
 // runtime throttles repeats), and a draft cleared back to empty fires
 // nothing — an empty draft is not typing.
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
@@ -20,6 +21,7 @@ void main() {
     required List<String> typing,
   }) async {
     await tester.pumpWidget(MaterialApp(
+      theme: moshThemeData,
       home: Scaffold(
         body: ConversationComposer(
           controller: c,

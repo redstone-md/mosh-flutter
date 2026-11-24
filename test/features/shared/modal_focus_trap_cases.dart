@@ -1,6 +1,7 @@
 // Shared ModalFocusTrap test suite.
 // Verifies Tab and Shift+Tab focus cycling and wrap-around behavior.
 
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: moshThemeData,
         home: Scaffold(
           body: ModalFocusTrap(
             child: Column(
