@@ -55,6 +55,14 @@ class _ConversationDetailsPanelState
   AnyConversationTarget get _target => widget.target;
 
   @override
+  void didUpdateWidget(covariant ConversationDetailsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The docked panel is reused for the next conversation, which opens on
+    // its details, not on the status the last one was showing.
+    if (widget.target != oldWidget.target) _status = false;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final async = widget.async;

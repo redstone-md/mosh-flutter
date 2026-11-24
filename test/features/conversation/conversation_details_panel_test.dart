@@ -151,4 +151,38 @@ void main() {
     expect(find.text('Conversation details'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
+
+  testWidgets('the panel reused for another chat opens on its details',
+      (tester) async {
+    await _pump(tester, AsyncData(_dm()));
+    await tester.tap(find.text('Connection details'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Open connection status'));
+    await tester.tap(find.text('Open connection status'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ConnectionStatusPanel), findsOneWidget);
+
+    final group = _group();
+    await _pump(tester, AsyncData(group), target: group.target);
+    expect(find.byType(ConnectionStatusPanel), findsNothing);
+    expect(
+        find.widgetWithText(PanelHead, 'Conversation details'), findsOneWidget);
+  });
+
+  testWidgets('a long label in large text leaves the value its place',
+      (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await pumpScreen(
+        tester,
+        const Scaffold(
+            body: SizedBox(
+                width: 280,
+                child: ValueRow(
+                    label: 'Последнее подключение к собеседнику',
+                    value: 'requested, moss is dialing'))));
+    expect(tester.takeException(), isNull);
+    expect(tester.getSize(find.text('requested, moss is dialing')).width,
+        greaterThan(100));
+  });
 }

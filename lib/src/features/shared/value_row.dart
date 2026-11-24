@@ -19,25 +19,33 @@ class ValueRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.bodyMedium!;
     final colors = MoshColors.of(context);
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-          minHeight:
-              MoshControl.height(Theme.of(context).platform) - MoshSpace.s2),
-      child: Row(children: [
-        Text(label, style: style.copyWith(color: colors.onSurfaceVariant)),
-        const SizedBox(width: MoshSpace.s4),
-        Expanded(
-          // A value cut short by the row's width stays readable in full.
-          child: Tooltip(
-            message: value,
-            child: Text(value,
-                textAlign: TextAlign.end,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: style.copyWith(color: colors.onSurface)),
+    return LayoutBuilder(
+      builder: (context, constraints) => ConstrainedBox(
+        constraints: BoxConstraints(
+            minHeight:
+                MoshControl.height(Theme.of(context).platform) - MoshSpace.s2),
+        child: Row(children: [
+          // The label keeps its width up to half the row, so a long one in
+          // large text cannot push the value out.
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: constraints.maxWidth / 2),
+            child: Text(label,
+                style: style.copyWith(color: colors.onSurfaceVariant)),
           ),
-        ),
-      ]),
+          const SizedBox(width: MoshSpace.s4),
+          Expanded(
+            // A value cut short by the row's width stays readable in full.
+            child: Tooltip(
+              message: value,
+              child: Text(value,
+                  textAlign: TextAlign.end,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: style.copyWith(color: colors.onSurface)),
+            ),
+          ),
+        ]),
+      ),
     );
   }
 }
