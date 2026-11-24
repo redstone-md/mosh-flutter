@@ -266,7 +266,9 @@ void main() {
         ),
       );
       // The crown is the only cue for the role, so it carries a name.
-      expect(find.bySemanticsLabel(RegExp('Org admin')), findsOneWidget);
+      final crown = tester.widget<Icon>(find.byWidgetPredicate(
+          (w) => w is Icon && w.semanticLabel == 'Org admin'));
+      expect(crown.icon, MoshIcons.admin);
     },
   );
 

@@ -372,7 +372,7 @@ class _MemberRow extends StatelessWidget {
                   padding: const EdgeInsets.only(left: 4),
                   // A static role marker, so text ink rather than the accent.
                   child: Icon(
-                    MoshIcons.plus,
+                    MoshIcons.admin,
                     size: 14,
                     color: MoshColors.of(context).onSurfaceVariant,
                     semanticLabel: l.orgAdminBadge,
