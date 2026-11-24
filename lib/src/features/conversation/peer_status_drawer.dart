@@ -1,10 +1,10 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:flutter/services.dart';
-import 'package:mosh/src/features/conversation/conversation_diagnostics_content.dart';
+import 'package:mosh/src/features/conversation/connection_status_panel.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart'
+    show kConversationPanelWidth;
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show isMobileBreakpoint;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart';
@@ -21,7 +21,7 @@ import 'package:mosh/src/rust/private_group_runtime.dart';
 /// `SessionSnapshot` from `activeSessionProvider` (DM screen); `channel`
 /// the `ChannelSnapshot` from `channelSnapshotProvider` (ChannelScreen);
 /// `group` the `GroupSnapshot` from `groupSnapshotProvider` (GroupScreen).
-/// `error` is a runtime error string to surface via `RuntimeError`, or null.
+/// `error` is a runtime error worded for the user, or null.
 /// `refreshing` toggles the refresh button (disabled while a refresh is
 /// in flight). `onRefresh` / `onClose` are the header button callbacks.
 class PeerStatusDrawer extends StatefulWidget {
@@ -51,7 +51,7 @@ class PeerStatusDrawer extends StatefulWidget {
   /// active (GroupScreen host).
   final GroupSnapshot? group;
 
-  /// A runtime error to surface via `RuntimeError`, or null.
+  /// A runtime error worded for the user, or null.
   final String? error;
 
   /// Whether a refresh is in flight (disables the refresh button).
@@ -134,12 +134,14 @@ class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
   }
 
   Widget _panel(BuildContext context) {
-    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     return ConstrainedBox(
-      // At most 392px wide, or viewport minus 24px.
+      // A panel beside the conversation on the desktop, a screen of its own
+      // in a narrow window.
       constraints: BoxConstraints(
-        maxWidth: math.min(392, MediaQuery.sizeOf(context).width - 24),
+        maxWidth: isMobileBreakpoint(context)
+            ? double.infinity
+            : kConversationPanelWidth,
       ),
       // `scopesRoute` announces the drawer as a modal boundary named by
       // `label`; the framework requires `explicitChildNodes` with it.
@@ -149,104 +151,15 @@ class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
         explicitChildNodes: true,
         scopesRoute: true,
         child: widget.panel ??
-            Material(
-              color: colors.surfaceContainerLowest,
-              elevation: 0,
-              shape: Border(left: BorderSide(color: colors.outlineVariant)),
-              child: SizedBox.expand(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _DrawerHeader(
-                      title: l.peerStatusTitle,
-                      refreshTooltip: l.refreshStatus,
-                      closeTooltip: l.closePeerStatus,
-                      refreshing: widget.refreshing,
-                      onRefresh: widget.onRefresh,
-                      onClose: widget.onClose,
-                    ),
-                    Expanded(
-                      child: ConversationDiagnosticsContent(
-                        session: widget.session,
-                        channel: widget.channel,
-                        group: widget.group,
-                        error: widget.error,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            ConnectionStatusPanel(
+              session: widget.session,
+              channel: widget.channel,
+              group: widget.group,
+              error: widget.error,
+              refreshing: widget.refreshing,
+              onRefresh: widget.onRefresh,
+              onClose: widget.onClose,
             ),
-      ),
-    );
-  }
-}
-
-/// The drawer header: plug icon + title + refresh + close `IconButton`s
-/// (refresh disabled while refreshing).
-class _DrawerHeader extends StatelessWidget {
-  const _DrawerHeader({
-    required this.title,
-    required this.refreshTooltip,
-    required this.closeTooltip,
-    required this.refreshing,
-    required this.onRefresh,
-    required this.onClose,
-  });
-
-  final String title;
-  final String refreshTooltip;
-  final String closeTooltip;
-  final bool refreshing;
-  final VoidCallback onRefresh;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: colors.outlineVariant)),
-      ),
-      child: Row(
-        children: [
-          // A plug glyph, matching the trigger used on the DM/Channel/Group
-          // screens' AppBar action for visual consistency.
-          const Icon(MoshIcons.connection, size: 16),
-          const SizedBox(width: 8),
-          // Uppercase 12px title with wide letter spacing in fg-2.
-          // Flutter has no text-transform, so the string itself is
-          // uppercased; the Semantics label keeps the natural-case name.
-          Expanded(
-            child: Semantics(
-              label: title,
-              excludeSemantics: true,
-              child: Text(
-                title.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 12,
-                  letterSpacing: 0.08 * 12,
-                  color: colors.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
-          IconButton(
-            tooltip: refreshTooltip,
-            icon: const Icon(MoshIcons.refresh, size: 14),
-            onPressed: refreshing ? null : onRefresh,
-            visualDensity: VisualDensity.compact,
-            splashRadius: 18,
-          ),
-          IconButton(
-            tooltip: closeTooltip,
-            icon: const Icon(MoshIcons.close, size: 14),
-            onPressed: onClose,
-            visualDensity: VisualDensity.compact,
-            splashRadius: 18,
-          ),
-        ],
       ),
     );
   }

@@ -1,5 +1,5 @@
-// Shared header: admin role, localized membership, invitation menu and
-// fingerprint action. Real clipboard channel calls are observed below.
+// Shared header: admin role, localized membership and the invitation menu.
+// Real clipboard channel calls are observed below.
 import 'package:flutter/services.dart' show SystemChannels, LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
@@ -26,8 +26,7 @@ GroupSnapshot _snapshot(
         {bool admin = false,
         int members = 2,
         GroupNameStatus? nameStatus,
-        String? invite,
-        String fingerprint = ''}) =>
+        String? invite}) =>
     TestSnapshots.group(
         groupId: 'header-group',
         deviceFingerprint: 'fp-me',
@@ -37,8 +36,7 @@ GroupSnapshot _snapshot(
         nameStatus: nameStatus,
         memberCount: BigInt.from(members),
         state: 'Active',
-        inviteUri: invite,
-        creatorFingerprint: fingerprint);
+        inviteUri: invite);
 
 void main() {
   for (final status in [
@@ -108,29 +106,5 @@ void main() {
     await _openMenu(tester);
     expect(find.text('Copy invite'), findsNothing);
     expect(find.text('Invite copied'), findsNothing);
-  });
-
-  testWidgets('a non-empty creator fingerprint exposes the security action',
-      (tester) async {
-    await _pumpGroup(tester, _snapshot(fingerprint: '0011223344556677'));
-    expect(find.byTooltip('End-to-end encrypted'), findsOneWidget);
-  });
-
-  testWidgets('group fingerprint opens the dialog with the group-specific hint',
-      (tester) async {
-    const fingerprint = '0011223344556677';
-    await _pumpGroup(tester, _snapshot(fingerprint: fingerprint));
-    await tester.tap(find.byTooltip('End-to-end encrypted'));
-    await tester.pumpAndSettle();
-    expect(find.text('Encryption fingerprint'), findsOneWidget);
-    expect(find.text(fingerprint), findsOneWidget);
-    expect(
-        find.text(
-            'The same for every member. Compare it with the group creator.'),
-        findsOneWidget);
-    expect(
-        find.text(
-            'The same on both sides. Compare it with your peer over a call or in person.'),
-        findsNothing);
   });
 }

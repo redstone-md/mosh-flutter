@@ -118,10 +118,8 @@ void main() {
         onClose: () {},
       ),
     );
-    // Header h2 (peerStatusTitle).
-    // `.diagnostics-drawer > header h2` is uppercased by CSS; the
-    // accessible name stays natural-case.
-    expect(find.text('CONNECTION STATUS'), findsOneWidget);
+    // The panel's head names it.
+    expect(find.text('Connection status'), findsOneWidget);
     // NoActiveSession fallback: `diagNoActiveTitle` is "No active session".
     // It renders twice -- once as the `Session` group label and once as
     // the empty-state title (mirrors `diagnostics_sections_cases.dart`'s
@@ -141,10 +139,8 @@ void main() {
         onClose: () {},
       ),
     );
-    // Header is always present.
-    // `.diagnostics-drawer > header h2` is uppercased by CSS; the
-    // accessible name stays natural-case.
-    expect(find.text('CONNECTION STATUS'), findsOneWidget);
+    // The head is always present.
+    expect(find.text('Connection status'), findsOneWidget);
     // SessionDiagnostics renders the peer display name in its Peer row
     // (diagnostics_sections_cases asserts the same value for this branch).
     expect(find.text('alice'), findsWidgets);

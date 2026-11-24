@@ -1,8 +1,7 @@
 import 'package:flutter/animation.dart';
 
-/// Start menu motion: transitions.dev's texts reveal (18), a fade-through
-/// between pages and a quiet row hover. Every value here is off under
-/// reduced motion.
+/// Start menu motion: transitions.dev's texts reveal (18) and a fade-through
+/// between pages. Every value here is off under reduced motion.
 abstract final class StartMotion {
   /// Smooth ease out, shared by every move.
   static const ease = Cubic(0.22, 1, 0.36, 1);
@@ -19,7 +18,4 @@ abstract final class StartMotion {
   /// fades in from the right, and back again.
   static const page = Duration(milliseconds: 250);
   static const pageShift = 8.0;
-
-  /// A row lifts a step on hover and its chevron edges forward.
-  static const hover = Duration(milliseconds: 140);
 }

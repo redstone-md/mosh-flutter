@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/focus_ring.dart';
-
-import 'start_motion.dart';
 
 /// One way to start a conversation.
 class StartAction {
@@ -49,7 +48,7 @@ class StartActionList extends StatelessWidget {
           label: l.startGroupEncrypted,
           actions: [...actions.where((a) => a.encrypted)],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: MoshSpace.s2),
         _Section(
           icon: MoshIcons.language,
           label: l.startGroupOpen,
@@ -68,127 +67,88 @@ class _Section extends StatelessWidget {
   final String label;
   final List<StartAction> actions;
 
-  static const _radius = BorderRadius.all(Radius.circular(12));
-
   @override
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
-    final style = Theme.of(context)
-        .textTheme
-        .bodySmall
-        ?.copyWith(color: colors.onSurfaceMuted, fontSize: 13);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsetsDirectional.only(start: 4, bottom: 8),
+          padding: const EdgeInsets.fromLTRB(
+              MoshSpace.s4, MoshSpace.s2, MoshSpace.s4, MoshSpace.s2),
           child: Row(children: [
-            Icon(icon, size: 14, color: colors.onSurfaceMuted),
-            const SizedBox(width: 6),
+            Icon(icon, size: MoshSpace.s4, color: colors.onSurfaceMuted),
+            const SizedBox(width: MoshSpace.s2),
             Flexible(
-              child: Semantics(header: true, child: Text(label, style: style)),
+              child: Semantics(
+                  header: true,
+                  child: Text(label,
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelLarge!
+                          .copyWith(color: colors.onSurfaceMuted))),
             ),
           ]),
         ),
-        DecoratedBox(
-          position: DecorationPosition.foreground,
-          decoration: BoxDecoration(
-            borderRadius: _radius,
-            border: Border.all(color: colors.outlineVariant),
-          ),
-          child: ClipRRect(
-            borderRadius: _radius,
-            child: ColoredBox(
-              color: colors.surface,
-              child: Column(children: [
-                for (final (i, action) in actions.indexed) ...[
-                  // Inset to the text, as in a settings list.
-                  if (i > 0)
-                    Divider(
-                        height: 1, indent: 52, color: colors.outlineVariant),
-                  StartRow(action: action),
-                ],
-              ]),
-            ),
-          ),
+        Material(
+          color: colors.surfaceContainerLow,
+          shape: RoundedRectangleBorder(
+              borderRadius: StartRow.radius,
+              side: BorderSide(color: colors.outlineVariant)),
+          clipBehavior: Clip.antiAlias,
+          child: Column(children: [
+            for (final action in actions) StartRow(action: action),
+          ]),
         ),
       ],
     );
   }
 }
 
-/// A row: accent icon, title, description and a chevron. Hover and
-/// keyboard focus raise it a step and brighten the chevron.
-class StartRow extends StatefulWidget {
+/// The Start row card: an icon in the action's colour, a title, a line about
+/// it and a chevron, on a row that takes the state layers of any control.
+class StartRow extends StatelessWidget {
   const StartRow({super.key, required this.action});
 
   final StartAction action;
 
-  @override
-  State<StartRow> createState() => _StartRowState();
-}
-
-class _StartRowState extends State<StartRow> {
-  bool _hovered = false;
-  bool _focused = false;
+  static const radius = BorderRadius.all(Radius.circular(MoshRadius.large));
 
   @override
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
-    final lit = _hovered || _focused;
-    final action = widget.action;
     final text = Theme.of(context).textTheme;
-    final duration = MediaQuery.disableAnimationsOf(context)
-        ? Duration.zero
-        : StartMotion.hover;
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
         onTap: action.onTap,
-        onHover: (value) => setState(() => _hovered = value),
-        onFocusChange: (value) => setState(() => _focused = value),
-        hoverColor: Colors.transparent,
-        highlightColor: colors.surfaceContainerHighest,
-        splashFactory: NoSplash.splashFactory,
+        borderRadius: radius,
+        overlayColor: MoshState.layer(colors.onSurface),
         child: FocusRing(
-          radius: BorderRadius.zero,
-          child: AnimatedContainer(
-            duration: duration,
-            curve: StartMotion.ease,
-            color: lit ? colors.surfaceContainerHigh : colors.surface,
-            padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 14, 14),
+          radius: radius,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: MoshSpace.s16),
+            padding: const EdgeInsets.symmetric(
+                horizontal: MoshSpace.s4, vertical: MoshSpace.s3),
             child: Row(children: [
-              Icon(action.icon, size: 20, color: action.accent),
-              const SizedBox(width: 16),
+              Icon(action.icon, size: MoshSpace.s6, color: action.accent),
+              const SizedBox(width: MoshSpace.s4),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(action.title,
-                        style: text.titleSmall?.copyWith(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: colors.onSurface)),
-                    const SizedBox(height: 2),
-                    Text(action.description,
-                        style: text.bodySmall?.copyWith(
-                            fontSize: 13,
-                            height: 1.4,
-                            color: colors.onSurfaceMuted)),
+                    Text(action.title, style: text.titleSmall),
+                    Text(action.description, style: text.bodySmall),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              AnimatedSlide(
-                duration: duration,
-                curve: StartMotion.ease,
-                offset: Offset(lit && duration > Duration.zero ? 0.15 : 0, 0),
-                child: Icon(
-                  MoshIcons.chevronRight,
-                  size: 20,
-                  color: lit ? colors.onSurfaceVariant : colors.outline,
-                  textDirection: Directionality.of(context),
-                ),
+              const SizedBox(width: MoshSpace.s4),
+              Icon(
+                MoshIcons.chevronRight,
+                size: MoshSpace.s4,
+                color: colors.onSurfaceMuted,
+                textDirection: Directionality.of(context),
               ),
             ]),
           ),

@@ -59,7 +59,7 @@ void main() {
       await _pump(tester, const MeshDiagnostics(mesh: null));
 
       // Group label "Moss network" is uppercased in the widget.
-      expect(find.text('MOSS NETWORK'), findsOneWidget);
+      expect(find.text('Moss network'), findsOneWidget);
       // The booting empty-state title + description.
       expect(find.text('Mesh booting'), findsOneWidget);
       expect(
@@ -79,7 +79,7 @@ void main() {
       await _pump(tester, MeshDiagnostics(mesh: m));
 
       // Group label.
-      expect(find.text('MOSS NETWORK'), findsOneWidget);
+      expect(find.text('Moss network'), findsOneWidget);
 
       // Metric labels (Peers/NAT/Relay reuse the summary fact labels,
       // Supernode is its own key).

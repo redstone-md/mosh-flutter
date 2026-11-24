@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/conversation/conversation_helpers.dart'
-    show chatHeaderHeight;
 import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
 import 'package:mosh/src/features/conversation/message_selection_actions.dart';
@@ -25,7 +23,6 @@ class MessageSelectionBar extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final compact = isMobileBreakpoint(context);
     return AppBar(
-      toolbarHeight: chatHeaderHeight(context),
       automaticallyImplyLeading: false,
       titleSpacing: compact ? 8 : 22,
       title: Semantics(

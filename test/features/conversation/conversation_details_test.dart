@@ -5,7 +5,6 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_details_model.dart';
 import 'package:mosh/src/features/conversation/conversation_details_panel.dart';
-import 'package:mosh/src/features/conversation/conversation_diagnostics_content.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -169,7 +168,7 @@ void main() {
     expect(model.participants.first.name, 'Alice');
   });
 
-  testWidgets('files reuse download actions; diagnostics expand on demand',
+  testWidgets('files reuse download actions; the panel closes from its head',
       (tester) async {
     final file = testAttachment(attachmentId: 'file-1');
     final source =
@@ -204,12 +203,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(gateway.countOf(GatewayMethod.downloadAttachment), 1);
     expect(find.text('report.pdf'), findsOneWidget);
-    expect(find.byType(ConversationDiagnosticsContent), findsNothing);
-    final diagnostics = find.text(l.chatDetailsDiagnostics);
-    await tester.ensureVisible(diagnostics);
-    await tester.tap(diagnostics);
-    await tester.pumpAndSettle();
-    expect(find.byType(ConversationDiagnosticsContent), findsOneWidget);
     await tester.tap(find.byTooltip(l.dialogClose));
     await tester.pump();
     expect(closed, isTrue);

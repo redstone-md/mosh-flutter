@@ -128,25 +128,17 @@ void main() {
         '');
   });
 
-  // Regression (CodeAnt PR #17): the kind headers report
-  // preferredSize = kToolbarHeight (56) while their AppBar draws 54px
-  // (compact, <=640 wide) or 70px (desktop). Scaffold sizes the appBar slot
-  // from preferredSize, so the 70px toolbar was clipped to 56px on desktop
-  // and the 54px toolbar left a 2px band of app-bar background on mobile.
-  // The screen now re-reports the header height via chatHeaderHeight.
-  testWidgets('app bar slot height matches the toolbar at both breakpoints',
+  // Regression (CodeAnt PR #17): Scaffold sizes the appBar slot from the
+  // header's preferredSize. A slot shorter than the toolbar clipped it, a
+  // taller one left a band of app-bar background above the body.
+  testWidgets('app bar slot is the 64px toolbar at both breakpoints',
       (tester) async {
-    Future<void> expectSlotMatches(double width) async {
+    for (final width in [400.0, 800.0]) {
       await _pumpDm(tester, sessionId: 'sess-h', width: width);
-      final appBarRect = tester.getRect(find.byType(AppBar).first);
-      // The body must start exactly at the app bar's bottom edge: no gap
-      // (reported too tall) and no clipping (reported too short).
-      final expected = width <= 640 ? 54.0 : 70.0;
-      expect(appBarRect.height, expected,
+      expect(tester.getRect(find.byType(AppBar).first).height, 64,
           reason: 'slot height at width $width');
+      expect(tester.getSize(find.byType(NavigationToolbar).first).height, 64,
+          reason: 'toolbar height at width $width');
     }
-
-    await expectSlotMatches(400); // compact: 54
-    await expectSlotMatches(800); // desktop: 70
   });
 }

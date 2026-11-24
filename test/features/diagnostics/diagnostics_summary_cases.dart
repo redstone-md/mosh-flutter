@@ -82,7 +82,6 @@ void main() {
       final sum = diagnosticsSummary(l: _l, session: s);
 
       expect(sum.tone, DiagnosticSummaryTone.ready);
-      expect(sum.kicker, 'Private DM');
       expect(sum.title, 'Alice'); // peerDisplayName wins
       expect(sum.state, 'Connected'); // stateReady
       expect(sum.description,
@@ -188,7 +187,6 @@ void main() {
       final sum = diagnosticsSummary(l: _l, session: null);
 
       expect(sum.tone, DiagnosticSummaryTone.idle);
-      expect(sum.kicker, 'Diagnostics idle');
       expect(sum.title, 'No active session');
       expect(sum.state, 'Waiting');
       expect(sum.description,
@@ -206,7 +204,6 @@ void main() {
       expect(sum.tone, DiagnosticSummaryTone.error);
       expect(sum.state, 'Error');
       // Kicker/title/description/facts still come from the idle branch.
-      expect(sum.kicker, 'Diagnostics idle');
       expect(sum.title, 'No active session');
       expect(sum.facts, [
         _fact('Session', 'none'),

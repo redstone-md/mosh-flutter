@@ -238,6 +238,7 @@
   "channelLeaveLabel": "Покинуть канал",
   "channelBroadcastBadge": "Трансляция",
   "channelNoticeTitle": "Публичный канал",
+  "channelHeaderLine": "Публичный канал, без шифрования",
   "channelNoticeBody": "Сквозное шифрование выключено для публичных каналов. Любой, кто присоединится к этому каналу, может читать сообщения.",
   "channelEmptyTitle": "В этом канале пока нет сообщений.",
   "channelEmptyBody": "Скажите привет. Любой, кто подписан на этот канал, увидит ваше сообщение.",
@@ -264,14 +265,6 @@
   },
   "peerMessageAction": "Написать",
   "peerInviteSent": "Приглашение отправлено",
-  "summaryDmKicker": "Личный диалог",
-  "@summaryDmKicker": {
-    "description": "Kicker label for the diagnostics summary card when a private DM session is active"
-  },
-  "summaryIdleKicker": "Диагностика неактивна",
-  "@summaryIdleKicker": {
-    "description": "Kicker label for the diagnostics summary card when no session is active"
-  },
   "summaryNoSessionTitle": "Нет активной сессии",
   "@summaryNoSessionTitle": {
     "description": "Title of the diagnostics summary card when no session is active"
@@ -327,10 +320,6 @@
   "summaryStateError": "Ошибка",
   "@summaryStateError": {
     "description": "State badge text for the diagnostics summary card when a runtime error is present"
-  },
-  "runtimeError": "Ошибка среды выполнения",
-  "@runtimeError": {
-    "description": "Label of the runtime-error alert shown in the diagnostics drawer"
   },
   "diagConversationDetails": "Детали диалога",
   "@diagConversationDetails": {
@@ -594,10 +583,6 @@
       }
     }
   },
-  "summaryChannelKicker": "Публичный канал",
-  "@summaryChannelKicker": {
-    "description": "Kicker label for the diagnostics summary card when a public channel is active"
-  },
   "summaryChannelState": "Трансляция",
   "@summaryChannelState": {
     "description": "State badge text for the diagnostics summary card when a public channel is active (channels are always in the Broadcast state)"
@@ -605,10 +590,6 @@
   "summaryChannelDescription": "Трафик открытого канала идёт поверх текущей сети Moss.",
   "@summaryChannelDescription": {
     "description": "Description of the diagnostics summary card when a public channel is active"
-  },
-  "summaryGroupKicker": "Приватная группа",
-  "@summaryGroupKicker": {
-    "description": "Kicker label for the diagnostics summary card when a private group is active"
   },
   "summaryGroupFallbackTitle": "Зашифрованная группа",
   "@summaryGroupFallbackTitle": {
@@ -941,6 +922,9 @@
   "chatDetailsTitle": "Сведения о беседе",
   "chatDetailsFiles": "Общие файлы",
   "chatDetailsNoFiles": "Общих файлов пока нет",
+  "chatDetailsEncryptionLine": "Сравните отпечаток, чтобы проверить",
+  "chatDetailsStatus": "Состояние",
+  "chatDetailsOpenStatus": "Открыть статус подключения",
   "chatDetailsParticipants": "Участники",
   "chatDetailsDiagnostics": "Сведения о соединении",
   "chatDetailsProtection": "Защита беседы",

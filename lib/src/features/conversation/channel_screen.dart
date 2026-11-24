@@ -31,7 +31,7 @@ class ChannelScreen extends ConsumerWidget {
         title: ConversationHeaderTitle(
             name: title,
             onOpenDetails: chrome.onOpenPeerStatus,
-            subtitle: AppLocalizations.of(context)!.channelNoticeTitle),
+            subtitle: AppLocalizations.of(context)!.channelHeaderLine),
         leaveMenuLabel: AppLocalizations.of(context)!.channelLeaveLabel,
         leaveMenuIcon: MoshIcons.leave,
         menuActions: [

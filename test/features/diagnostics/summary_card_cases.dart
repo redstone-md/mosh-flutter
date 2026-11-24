@@ -1,12 +1,9 @@
-// Widget tests for `SummaryCard` + `RuntimeError`
-// (lib/src/features/diagnostics/summary_card.dart). Pumps the widgets
-// directly inside a localized `MaterialApp` (the established DM widget-
-// test pattern, scoped to the card -- no Riverpod/DiagnosticsScreen) and
-// asserts the kicker, title, state, description, and all 3 facts render
-// for a ready-tone summary; the idle copy renders for an idle-tone
-// summary; an error-tone badge takes the error color; and `RuntimeError`
-// renders the alert icon + the localized
-// "Runtime error" label + the message.
+// Widget tests for `SummaryCard`
+// (lib/src/features/diagnostics/summary_card.dart). Pumps the card inside a
+// localized `MaterialApp` and asserts that the title, state, description and
+// all 3 facts render for a ready-tone summary; that the idle copy renders
+// for an idle-tone summary; and that an error-tone badge takes the error
+// plate.
 //
 // The summaries are built via the real `diagnosticsSummary` builder so
 // the widget test also pins the round-trip from builder -> widget.
@@ -14,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations_en.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/diagnostics/diagnostics_summary.dart';
 import 'package:mosh/src/features/diagnostics/summary_card.dart';
@@ -66,7 +62,7 @@ Future<void> _pump(WidgetTester tester, Widget child) =>
 
 void main() {
   group('SummaryCard - ready tone', () {
-    testWidgets('renders kicker, title, state, description, and all 3 facts',
+    testWidgets('renders title, state, description, and all 3 facts',
         (tester) async {
       final l = AppLocalizationsEn(); // resolved via the test's en locale
       final sum = diagnosticsSummary(
@@ -75,8 +71,6 @@ void main() {
       );
       await _pump(tester, SummaryCard(summary: sum));
 
-      // Kicker is uppercased in the widget ("PRIVATE DM").
-      expect(find.text('PRIVATE DM'), findsOneWidget);
       // Title falls back to peerDisplayName "Alice".
       expect(find.text('Alice'), findsOneWidget);
       // State badge shows the localized ready label ("Connected").
@@ -86,10 +80,9 @@ void main() {
         find.text('MLS is ready and Moss sees at least one peer on this mesh.'),
         findsOneWidget,
       );
-      // Fact labels are uppercased ("PEERS", "NAT", "RELAY").
-      expect(find.text('PEERS'), findsOneWidget);
+      expect(find.text('Peers'), findsOneWidget);
       expect(find.text('NAT'), findsOneWidget);
-      expect(find.text('RELAY'), findsOneWidget);
+      expect(find.text('Relay'), findsOneWidget);
       // Fact values: peerCount=1, natType=full-cone, relay none.
       expect(find.text('1'), findsOneWidget);
       expect(find.text('full-cone'), findsOneWidget);
@@ -105,7 +98,6 @@ void main() {
       final sum = diagnosticsSummary(l: l, session: null);
       await _pump(tester, SummaryCard(summary: sum));
 
-      expect(find.text('DIAGNOSTICS IDLE'), findsOneWidget);
       expect(find.text('No active session'), findsOneWidget);
       expect(find.text('Waiting'), findsOneWidget);
       expect(
@@ -114,9 +106,9 @@ void main() {
         findsOneWidget,
       );
       // Fact labels.
-      expect(find.text('SESSION'), findsOneWidget);
-      expect(find.text('MESH'), findsOneWidget);
-      expect(find.text('EVENTS'), findsOneWidget);
+      expect(find.text('Session'), findsOneWidget);
+      expect(find.text('Mesh'), findsOneWidget);
+      expect(find.text('Events'), findsOneWidget);
       // Fact values stay literal (data, not localized).
       expect(find.text('none'), findsNWidgets(2)); // Session + Events
       expect(find.text('paused'), findsOneWidget);
@@ -143,21 +135,6 @@ void main() {
           .first);
       expect((plate.decoration! as ShapeDecoration).color,
           MoshColors.dark.errorContainer);
-    });
-  });
-
-  group('RuntimeError', () {
-    testWidgets('renders the alert icon + "Runtime error" label + the message',
-        (tester) async {
-      await _pump(tester, const RuntimeError(message: 'mesh down'));
-
-      // The alert-triangle icon (MoshIcons.warning, the IconAlertTriangle
-      // equivalent).
-      expect(find.byIcon(MoshIcons.warning), findsOneWidget);
-      // The localized label is uppercased in the widget ("RUNTIME ERROR").
-      expect(find.text('RUNTIME ERROR'), findsOneWidget);
-      // The raw message renders.
-      expect(find.text('mesh down'), findsOneWidget);
     });
   });
 }

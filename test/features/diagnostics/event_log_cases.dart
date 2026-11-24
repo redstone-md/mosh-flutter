@@ -168,7 +168,7 @@ void main() {
       await _pump(tester, const EventLog(events: []));
 
       // Group label "Moss events" is uppercased in the widget.
-      expect(find.text('MOSS EVENTS'), findsOneWidget);
+      expect(find.text('Moss events'), findsOneWidget);
       // The empty-state title + description.
       expect(find.text('No events yet'), findsOneWidget);
       expect(
@@ -202,7 +202,7 @@ void main() {
       await _pump(tester, EventLog(events: [e1, e2, e3]));
 
       // Group label.
-      expect(find.text('MOSS EVENTS'), findsOneWidget);
+      expect(find.text('Moss events'), findsOneWidget);
       // Each event name renders exactly once.
       expect(find.text('peer_joined'), findsOneWidget);
       expect(find.text('tracker_update'), findsOneWidget);

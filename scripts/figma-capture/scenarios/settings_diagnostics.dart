@@ -184,8 +184,12 @@ final diagnosticsScenes = [
     final g = _gateway();
     await mountSettings(tester, size,
         location: AppRoutes.dmFor('maya'), gateway: g);
-    await tester.tap(find.byType(ConversationHeaderTitle).first);
-    await tester.pumpAndSettle();
+    // A wide window opens with the details docked; pressing the title
+    // there would close them.
+    if (find.text(l10n.chatDetailsDiagnostics).evaluate().isEmpty) {
+      await tester.tap(find.byType(ConversationHeaderTitle).first);
+      await tester.pumpAndSettle();
+    }
     await tapVisible(tester, find.text(l10n.chatDetailsDiagnostics));
     await revealTop(tester, find.text(l10n.chatDetailsDiagnostics));
   }),

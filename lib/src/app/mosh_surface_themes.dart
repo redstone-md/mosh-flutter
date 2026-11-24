@@ -1,14 +1,15 @@
 part of 'mosh_theme.dart';
 
+/// A bar at the top of a screen, as the Top bar card draws it: the
+/// background's own tone, 64 px tall, with no line under it.
 AppBarTheme _appBarTheme(MoshColors c, TextTheme text) => AppBarTheme(
       backgroundColor: c.surface,
       foregroundColor: c.onSurface,
       elevation: 0,
       scrolledUnderElevation: 0,
-      toolbarHeight: 70,
-      titleSpacing: 22,
-      shape: Border(bottom: BorderSide(color: c.outlineVariant)),
-      titleTextStyle: text.titleLarge,
+      toolbarHeight: MoshSpace.s16,
+      titleSpacing: MoshSpace.s5,
+      titleTextStyle: text.titleMedium,
     );
 
 DividerThemeData _dividerTheme(MoshColors c) => DividerThemeData(

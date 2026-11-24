@@ -31,7 +31,24 @@ class ConversationDetailsModel {
         DmConversation(:final source) => dmStateLabel(l, source.state),
         GroupConversation(:final source) =>
           l.membersCount(source.memberCount.toInt()),
-        ChannelConversation() => l.channelNoticeTitle,
+        ChannelConversation() => l.channelHeaderLine,
+      };
+
+  /// What the two sides compare to verify the encryption, once it is known.
+  /// A public channel is not encrypted and has none.
+  String? get fingerprint {
+    final value = switch (snapshot) {
+      DmConversation(:final source) => source.fingerprint,
+      GroupConversation(:final source) => source.creatorFingerprint,
+      ChannelConversation() => '',
+    };
+    return value.isEmpty ? null : value;
+  }
+
+  /// Whether this device's user administers the group.
+  bool get ownAdmin => switch (snapshot) {
+        GroupConversation(:final source) => source.isAdmin,
+        _ => false,
       };
 
   bool get knownAuthorsOnly => switch (snapshot) {

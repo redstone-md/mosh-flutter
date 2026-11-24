@@ -786,6 +786,10 @@
   "@channelNoticeTitle": {
     "description": "Title of the public-channel notice"
   },
+  "channelHeaderLine": "Public channel, not encrypted",
+  "@channelHeaderLine": {
+    "description": "Line under a public channel's name in the bar at the top of the conversation and in its details: the one kind of conversation that is not end-to-end encrypted says so"
+  },
   "channelNoticeBody": "End-to-end encryption is disabled for public channels. Anyone who joins this channel can read messages.",
   "@channelNoticeBody": {
     "description": "Body of the public-channel notice"
@@ -873,14 +877,6 @@
   "@peerInviteSent": {
     "description": "Disabled-state label for the Message button in the PeerNickname popover when a DM offer was already sent to this peer this session (React MessageLists.tsx alreadyOffered ? \"Invite sent\" : \"Message\")"
   },
-  "summaryDmKicker": "Private DM",
-  "@summaryDmKicker": {
-    "description": "Kicker label for the diagnostics summary card when a private DM session is active"
-  },
-  "summaryIdleKicker": "Diagnostics idle",
-  "@summaryIdleKicker": {
-    "description": "Kicker label for the diagnostics summary card when no session is active"
-  },
   "summaryNoSessionTitle": "No active session",
   "@summaryNoSessionTitle": {
     "description": "Title of the diagnostics summary card when no session is active"
@@ -936,10 +932,6 @@
   "summaryStateError": "Error",
   "@summaryStateError": {
     "description": "State badge text for the diagnostics summary card when a runtime error is present"
-  },
-  "runtimeError": "Runtime error",
-  "@runtimeError": {
-    "description": "Label of the runtime-error alert shown in the diagnostics drawer"
   },
   "diagConversationDetails": "Conversation details",
   "@diagConversationDetails": {
@@ -1224,10 +1216,6 @@
       }
     }
   },
-  "summaryChannelKicker": "Public channel",
-  "@summaryChannelKicker": {
-    "description": "Kicker label for the diagnostics summary card when a public channel is active"
-  },
   "summaryChannelState": "Broadcast",
   "@summaryChannelState": {
     "description": "State badge text for the diagnostics summary card when a public channel is active (channels are always in the Broadcast state)"
@@ -1235,10 +1223,6 @@
   "summaryChannelDescription": "Plaintext channel traffic is riding over the current Moss mesh.",
   "@summaryChannelDescription": {
     "description": "Description of the diagnostics summary card when a public channel is active"
-  },
-  "summaryGroupKicker": "Private group",
-  "@summaryGroupKicker": {
-    "description": "Kicker label for the diagnostics summary card when a private group is active"
   },
   "summaryGroupFallbackTitle": "Encrypted group",
   "@summaryGroupFallbackTitle": {
@@ -1941,6 +1925,18 @@
   "chatDetailsTitle": "Conversation details",
   "chatDetailsFiles": "Shared files",
   "chatDetailsNoFiles": "No shared files yet",
+  "chatDetailsEncryptionLine": "Compare the fingerprint to verify",
+  "@chatDetailsEncryptionLine": {
+    "description": "Line under 'End-to-end encrypted' in a conversation's details; pressing the row opens the fingerprint to compare"
+  },
+  "chatDetailsStatus": "Status",
+  "@chatDetailsStatus": {
+    "description": "Label of the first reading under 'Connection details' in a conversation's details: the state of the conversation in one word"
+  },
+  "chatDetailsOpenStatus": "Open connection status",
+  "@chatDetailsOpenStatus": {
+    "description": "Button under the readings of 'Connection details': opens the full connection status in place of the details"
+  },
   "chatDetailsParticipants": "Participants",
   "chatDetailsDiagnostics": "Connection details",
   "chatDetailsProtection": "Conversation protection",

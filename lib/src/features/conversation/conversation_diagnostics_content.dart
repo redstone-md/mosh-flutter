@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/features/shared/inline_error.dart';
 import 'package:mosh/src/state/session_providers.dart'
     show mossLibraryInfoProvider;
 import 'package:mosh/src/features/diagnostics/channel_group_diagnostics.dart';
@@ -12,7 +14,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart' show MossLibraryInfo;
 
-/// The scrollable content column: SummaryCard, then RuntimeError (if any),
+/// The scrollable content column: SummaryCard, then the runtime error (if any),
 /// then the active conversation's diagnostics section, else NoActiveSession.
 /// Branch order: `session ? SessionDiagnostics : channel ?
 /// ChannelDiagnostics : group ? GroupDiagnostics : NoActiveSession`.
@@ -23,14 +25,12 @@ class ConversationDiagnosticsContent extends ConsumerWidget {
     required this.channel,
     required this.group,
     required this.error,
-    this.scrollable = true,
   });
 
   final SessionSnapshot? session;
   final ChannelSnapshot? channel;
   final GroupSnapshot? group;
   final String? error;
-  final bool scrollable;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -47,16 +47,17 @@ class ConversationDiagnosticsContent extends ConsumerWidget {
       _ => null,
     };
     final body = Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(
+          MoshSpace.s5, 0, MoshSpace.s5, MoshSpace.s6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SummaryCard(summary: summary),
           if (error != null) ...[
-            const SizedBox(height: 12),
-            RuntimeError(message: error!),
+            const SizedBox(height: MoshSpace.s6),
+            InlineError(message: error),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: MoshSpace.s6),
           if (session != null)
             SessionDiagnostics(
               session: session!,
@@ -71,6 +72,6 @@ class ConversationDiagnosticsContent extends ConsumerWidget {
         ],
       ),
     );
-    return scrollable ? SingleChildScrollView(child: body) : body;
+    return SingleChildScrollView(child: body);
   }
 }

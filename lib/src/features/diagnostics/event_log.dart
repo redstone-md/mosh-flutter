@@ -1,77 +1,43 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
 import 'package:mosh/src/rust/conversation/mesh.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, kLiveNumberFontFeatures;
 
-/// The "Moss events" diagnostics group: the last 40 events, newest first
-/// (an empty slice renders the empty-state). Each row is a time span
-/// (left) + a strong column (event name + optional detail span). The
-/// row's time is `formatTime(event.epoch_millis)` (local HH:mm:ss,
-/// plain digits). The detail span is `compactDetail(event.detail_json)`
-/// when non-empty, omitted when empty.
-///
-/// The group label ("Moss events"), the empty-state title ("No events
-/// yet"), and the description are localized (ARB). The event NAME, the
-/// formatted TIME, and the detail string are DATA (not localized). The
-/// per-event-name color tint is applied to the event name only; time and
-/// detail remain neutral.
+/// The "Moss events" group of connection status: the last 40 events, newest
+/// first, or its empty state. The event's name, time and detail are data,
+/// not localized; the name alone takes the colour of what happened.
 class EventLog extends StatelessWidget {
   const EventLog({super.key, required this.events});
 
-  /// The session's recent events, oldest first (the slice takes the last
-  /// 40 and reverses to newest first).
+  /// The session's recent events, oldest first.
   final List<SnapshotEvent> events;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final slice = events.length > 40
-        ? events.sublist(events.length - 40).reversed.toList()
-        : events.reversed.toList();
+        ? events.sublist(events.length - 40).reversed
+        : events.reversed;
     return DiagnosticsGroup(
       label: l.diagGroupMossEvents,
-      leading: const Icon(MoshIcons.chart, size: 11),
       children: [
         if (slice.isEmpty)
           DiagnosticsEmptyState(
             title: l.diagNoEventsTitle,
             description: l.diagNoEventsBody,
-          )
-        else
-          _EventScroll(slice: slice),
-      ],
-    );
-  }
-}
-
-/// The scrollable list of event rows inside `EventLog`. A bounded
-/// `ListView` is safe here because the drawer already constrains the
-/// group's max height. Private to this file.
-class _EventScroll extends StatelessWidget {
-  const _EventScroll({required this.slice});
-
-  /// The already-sliced, newest-first events to render.
-  final List<SnapshotEvent> slice;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      shrinkWrap: true,
-      physics: const ClampingScrollPhysics(),
-      padding: EdgeInsets.zero,
-      children: [
+          ),
         for (final event in slice) _EventRow(event: event),
       ],
     );
   }
 }
 
-/// A single event row: a time span (left) + a strong column (event name
-/// + optional detail span).
+/// The Event row card: when it happened, what happened, and its detail.
 class _EventRow extends StatelessWidget {
   const _EventRow({required this.event});
 
@@ -79,54 +45,36 @@ class _EventRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurfaceVariant;
-    final time = formatTime(event.epochMillis);
+    final text = Theme.of(context).textTheme;
+    final colors = MoshColors.of(context);
     final detail = compactDetail(event.detailJson);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: MoshSpace.s1),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // The time span: left-aligned, mono, muted.
-          Text(
-            time,
-            style: TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 10,
-              color: muted,
-            ),
-          ),
-          const SizedBox(width: 10),
-          // The event name (bold) + the optional detail span.
+          Text(formatTime(event.epochMillis),
+              style: text.labelSmall!
+                  .copyWith(fontFeatures: kLiveNumberFontFeatures)),
+          const SizedBox(width: MoshSpace.s3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  event.eventName,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    color: eventNameColor(
-                      event.eventName,
-                      MoshColors.of(context),
-                      fallback: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ),
+                Text(event.eventName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.labelMedium!.copyWith(
+                        color: eventNameColor(event.eventName, colors,
+                            fallback: colors.onSurface))),
                 if (detail.isNotEmpty)
-                  Text(
-                    detail,
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 10,
-                      color: muted,
-                    ),
+                  Tooltip(
+                    message: detail,
+                    child: Text(detail,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.bodySmall),
                   ),
               ],
             ),

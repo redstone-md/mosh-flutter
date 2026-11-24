@@ -12,9 +12,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/features/conversation/conversation_chrome.dart';
-import 'package:mosh/src/features/fingerprint/fingerprint_lock.dart';
 import 'package:mosh/src/features/conversation/conversation_app_bar.dart';
 import 'package:mosh/src/features/conversation/conversation_header_title.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart'
+    show kChatHeaderHeight;
 import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/conversation/peer_label.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
@@ -37,7 +38,7 @@ class DmScreenHeader extends ConsumerStatefulWidget
   final ConversationChrome chrome;
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => const Size.fromHeight(kChatHeaderHeight);
 
   @override
   ConsumerState<DmScreenHeader> createState() => _DmScreenHeaderState();
@@ -92,7 +93,6 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
     final s = async.value;
     // What the runtime has proven about the contact, in one sentence.
     final status = s == null ? '' : dmStateSentence(l, s.state, s.transport);
-    final fingerprint = s?.fingerprint ?? '';
     final target = DmTarget(widget.sessionId);
     final original = s == null ? widget.sessionId : peerLabel(l, s);
     final personal = ref.watch(personalChatNameProvider(target.ref));
@@ -106,10 +106,6 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
         name: name,
         subtitle: status,
         onOpenDetails: widget.chrome.onOpenPeerStatus,
-        nameAction: FingerprintLock(
-            fingerprint: fingerprint,
-            hint: l.inviteFingerprintHint,
-            besideName: true),
       ),
       leaveMenuLabel: l.deleteChatConfirm,
       leaveMenuIcon: MoshIcons.delete,
@@ -120,12 +116,12 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
       inlineActions: [
         if (widget.onStartVideoCall != null)
           IconButton(
-              icon: const Icon(MoshIcons.video, size: 20),
+              icon: const Icon(MoshIcons.video),
               tooltip: l.callStartVideo,
               onPressed: widget.onStartVideoCall),
         // Primary action precedes search and the menu in every header.
         IconButton(
-          icon: const Icon(MoshIcons.call, size: 20),
+          icon: const Icon(MoshIcons.call),
           tooltip: l.callStart,
           onPressed: widget.onStartCall,
         ),

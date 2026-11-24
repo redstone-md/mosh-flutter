@@ -16,13 +16,12 @@ enum DiagnosticSummaryTone { ready, waiting, idle, error }
 /// "unknown", "none", "paused", or a numeric relay status).
 typedef DiagnosticSummaryFact = ({String label, String value});
 
-/// The full summary payload rendered by `SummaryCard`: tone, kicker,
+/// The full summary payload rendered by `SummaryCard`: tone,
 /// title, state (the localized state-badge text), description, and the
 /// facts grid.
 class DiagnosticSummary {
   const DiagnosticSummary({
     required this.tone,
-    required this.kicker,
     required this.title,
     required this.state,
     required this.description,
@@ -30,14 +29,13 @@ class DiagnosticSummary {
   });
 
   final DiagnosticSummaryTone tone;
-  final String kicker;
   final String title;
   final String state;
   final String description;
   final List<DiagnosticSummaryFact> facts;
 
   @override
-  String toString() => 'DiagnosticSummary($tone, $kicker, $title, $state)';
+  String toString() => 'DiagnosticSummary($tone, $title, $state)';
 }
 
 /// Builds the diagnostics summary. Resolves the four branches in order:
@@ -64,7 +62,6 @@ DiagnosticSummary diagnosticsSummary({
       tone: error != null
           ? DiagnosticSummaryTone.error
           : _summaryTone(dmPillState(session.state)),
-      kicker: l.summaryDmKicker,
       title: session.peerDisplayName.isNotEmpty
           ? session.peerDisplayName
           : (session.displayName.isNotEmpty
@@ -92,7 +89,6 @@ DiagnosticSummary diagnosticsSummary({
       tone: error != null
           ? DiagnosticSummaryTone.error
           : DiagnosticSummaryTone.ready,
-      kicker: l.summaryChannelKicker,
       title: '#${channel.name}',
       state: l.summaryChannelState,
       description: l.summaryChannelDescription,
@@ -119,7 +115,6 @@ DiagnosticSummary diagnosticsSummary({
       tone: error != null
           ? DiagnosticSummaryTone.error
           : _summaryTone(group.state),
-      kicker: l.summaryGroupKicker,
       title: group.label ?? l.summaryGroupFallbackTitle,
       state: stateLabel(l, group.state),
       description: l.summaryGroupDescription(group.memberCount.toString()),
@@ -139,7 +134,6 @@ DiagnosticSummary diagnosticsSummary({
     tone: error != null
         ? DiagnosticSummaryTone.error
         : DiagnosticSummaryTone.idle,
-    kicker: l.summaryIdleKicker,
     title: l.summaryNoSessionTitle,
     state: error != null ? l.summaryStateError : l.summaryStateWaiting,
     description: l.summaryNoSessionDescription,
