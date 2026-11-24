@@ -23,7 +23,10 @@ const double _kCompactWidth = 640;
 /// Widest the live state pill grows before its label ellipsizes.
 const double _kStatePillMaxWidth = 240;
 
-/// Shared application branding and selected-conversation diagnostics.
+/// The Window title bar card: the app's mark, the chat list toggle and the
+/// state of the selected conversation, on the panel level so it reads as part
+/// of the window's frame. The desktop window frame adds the window buttons
+/// and the drag area; a phone has no title bar.
 class MoshTitleBar extends ConsumerWidget {
   const MoshTitleBar(
       {super.key,
@@ -32,7 +35,7 @@ class MoshTitleBar extends ConsumerWidget {
       this.onToggleChatList,
       this.integrated = false,
       this.leading = const SizedBox.shrink(),
-      this.trailing = const SizedBox.shrink(),
+      this.trailing,
       this.dragArea});
 
   const MoshTitleBar.brand({super.key})
@@ -41,15 +44,24 @@ class MoshTitleBar extends ConsumerWidget {
         onToggleChatList = null,
         integrated = false,
         leading = const SizedBox.shrink(),
-        trailing = const SizedBox.shrink(),
+        trailing = null,
         dragArea = null;
+
+  /// The bar's height at the normal text size; it grows with larger text.
+  static const double height = MoshSpace.s10;
 
   final VoidCallback? onOpenPeerStatus;
   final bool showChatList;
   final VoidCallback? onToggleChatList;
   final bool integrated;
+
+  /// What the window puts before the bar's own content: the buttons of a
+  /// window that has them on the left, or the room macOS keeps for its own.
   final Widget leading;
-  final Widget trailing;
+
+  /// The window buttons at the right. Without them the bar ends with its
+  /// own padding.
+  final Widget? trailing;
   final Widget Function(Widget child)? dragArea;
 
   @override
@@ -57,59 +69,64 @@ class MoshTitleBar extends ConsumerWidget {
     if (!integrated && DesktopChromeScope.isPresent(context)) {
       return const SizedBox.shrink();
     }
-    final theme = Theme.of(context);
     final active =
         onOpenPeerStatus == null ? null : ref.watch(activeConversationProvider);
     return Material(
-      color: theme.scaffoldBackgroundColor,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: theme.dividerColor))),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 44),
-          child: LayoutBuilder(builder: (context, constraints) {
-            final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
-            return Row(children: [
-              leading,
-              const SizedBox(width: 8),
-              if (showChatList) _ChatListToggle(onPressed: onToggleChatList),
-              Expanded(
-                  child: _branding(context,
-                      showName: constraints.maxWidth >= 480 * scale)),
-              if (active != null)
-                Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: ConstrainedBox(
-                      constraints:
-                          const BoxConstraints(maxWidth: _kStatePillMaxWidth),
-                      child: _StatePillSlot(
-                          activeKey: active,
-                          compact:
-                              constraints.maxWidth < _kCompactWidth * scale,
-                          onTap: onOpenPeerStatus!),
-                    )),
-              trailing,
-              if (!integrated) const SizedBox(width: 8),
-            ]);
-          }),
-        ),
+      color: MoshColors.of(context).surfaceContainerLow,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: height),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          return Row(children: [
+            leading,
+            SizedBox(width: showChatList ? MoshSpace.s1 : MoshSpace.s3),
+            if (showChatList) ...[
+              _ChatListToggle(onPressed: onToggleChatList),
+              const SizedBox(width: MoshSpace.s2),
+            ],
+            Expanded(
+                child: _branding(context,
+                    showName: constraints.maxWidth >= 480 * scale)),
+            if (active != null)
+              Padding(
+                  padding: const EdgeInsets.only(left: MoshSpace.s2),
+                  child: ConstrainedBox(
+                    constraints:
+                        const BoxConstraints(maxWidth: _kStatePillMaxWidth),
+                    child: _StatePillSlot(
+                        activeKey: active,
+                        compact: constraints.maxWidth < _kCompactWidth * scale,
+                        onTap: onOpenPeerStatus!),
+                  )),
+            if (trailing case final buttons?) ...[
+              const SizedBox(width: MoshSpace.s2),
+              buttons,
+            ] else
+              const SizedBox(width: MoshSpace.s3),
+          ]);
+        }),
       ),
     );
   }
 
+  /// The mark and the name. They fill the bar between its controls, so the
+  /// window is dragged by them and by the empty bar beside them.
   Widget _branding(BuildContext context, {required bool showName}) {
-    final brand = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    final brand = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: height),
       child: Row(children: [
         Image.asset('assets/branding/mosh-mark.png',
-            width: 18, height: 18, excludeFromSemantics: true),
+            width: MoshSpace.s6,
+            height: MoshSpace.s6,
+            excludeFromSemantics: true),
         if (showName) ...[
-          const SizedBox(width: 8),
-          Text(AppLocalizations.of(context)!.shellProductName,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.56)),
+          const SizedBox(width: MoshSpace.s2),
+          Flexible(
+            child: Text(AppLocalizations.of(context)!.shellProductName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleSmall),
+          ),
         ],
       ]),
     );
@@ -130,24 +147,12 @@ class _ChatListToggle extends ConsumerWidget {
       tooltip: onPressed != null || collapsed
           ? l.chatListExpand
           : l.chatListCollapse,
-      icon: const Icon(MoshIcons.listToggle, size: 18),
-      style: _focusRingStyle(MoshColors.of(context)),
-      visualDensity: VisualDensity.compact,
+      icon: const Icon(MoshIcons.listToggle),
       onPressed:
           onPressed ?? () => ref.read(railLayoutProvider.notifier).toggle(),
     );
   }
 }
-
-/// The [FocusRing] border for a stock button: `focused` is only set while
-/// the keyboard focus highlight shows.
-ButtonStyle _focusRingStyle(MoshColors colors) => ButtonStyle(
-      side: WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.focused)
-            ? BorderSide(color: colors.focusRing, width: 2)
-            : null,
-      ),
-    );
 
 /// Uses existing conversation state mapping; never claims global connectivity.
 ///

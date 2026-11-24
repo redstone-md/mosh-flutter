@@ -86,7 +86,10 @@ class _DesktopWindowFrameState extends ConsumerState<DesktopWindowFrame> {
                       leading:
                           DesktopCaptionButtons(controller: c, leading: true),
                       trailing:
-                          DesktopCaptionButtons(controller: c, leading: false),
+                          DesktopCaptionButtons.names(c, leading: false).isEmpty
+                              ? null
+                              : DesktopCaptionButtons(
+                                  controller: c, leading: false),
                       dragArea: (child) => _dragArea(c, child),
                       onOpenPeerStatus: hasStatus
                           ? () => setState(() => _showStatus = true)

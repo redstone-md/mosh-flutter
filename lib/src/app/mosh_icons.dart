@@ -94,6 +94,8 @@ abstract final class MoshIcons {
       IconData(0xe32a, fontFamily: 'Phosphor'); // minus
   static const IconData maximize =
       IconData(0xe45e, fontFamily: 'Phosphor'); // square
+  static const IconData restore =
+      IconData(0xe1cc, fontFamily: 'Phosphor'); // copy-simple
   static const IconData chevronRight =
       IconData(0xe13a, fontFamily: 'Phosphor'); // caret-right
   static const IconData update =
