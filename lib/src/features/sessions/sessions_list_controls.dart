@@ -61,7 +61,7 @@ class SessionsListControls extends StatelessWidget {
             clipBehavior: Clip.none,
             child: Row(
               children: [
-                for (final entry in labels.entries) _filterChip(entry),
+                for (final entry in labels.entries) _filterChip(context, entry),
               ],
             ),
           ),
@@ -110,13 +110,19 @@ class SessionsListControls extends StatelessWidget {
         ),
       );
 
-  Widget _filterChip(MapEntry<ConversationKind?, String> entry) {
+  Widget _filterChip(
+      BuildContext context, MapEntry<ConversationKind?, String> entry) {
     return Padding(
       padding: const EdgeInsetsDirectional.only(end: 4),
       // The Filter chip card: 32 px, inside a 48 px tap target on a phone.
       child: ChoiceChip(
         visualDensity: VisualDensity.standard,
-        avatar: entry.key == null ? null : Icon(entry.key!.icon),
+        avatar: entry.key == null
+            ? null
+            : Icon(entry.key!.icon,
+                color: entry.key == kind
+                    ? MoshColors.of(context).onSecondaryContainer
+                    : null),
         label: Text(entry.value),
         selected: entry.key == kind,
         onSelected: (_) => onKind(entry.key),

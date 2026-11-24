@@ -222,15 +222,15 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
           name: _name,
         ),
         const SizedBox(height: 20),
-        FilledButton.icon(
-          onPressed: _busy
-              ? MoshSpinner.blockPress
-              : _detected
-                  ? _connect
-                  : null,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          icon: _busy ? const MoshSpinner() : null,
-          label: Text(l.onboardJoinConnect),
+        MoshLoading(
+          loading: _busy,
+          child: FilledButton.icon(
+            onPressed: _detected ? _connect : null,
+            style:
+                FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            icon: _busy ? const MoshSpinner() : null,
+            label: Text(l.onboardJoinConnect),
+          ),
         ),
         if (_error != null) ...[
           const SizedBox(height: 16),

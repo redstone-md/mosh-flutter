@@ -45,10 +45,13 @@ class OrgAddMissingBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          FilledButton.icon(
-            onPressed: busy ? MoshSpinner.blockPress : onAdd,
-            icon: busy ? const MoshSpinner() : null,
-            label: Text(addLabel),
+          MoshLoading(
+            loading: busy,
+            child: FilledButton.icon(
+              onPressed: onAdd,
+              icon: busy ? const MoshSpinner() : null,
+              label: Text(addLabel),
+            ),
           ),
         ],
       ),

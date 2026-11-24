@@ -160,15 +160,15 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
           ),
         ),
         const SizedBox(height: 20),
-        FilledButton.icon(
-          onPressed: _busy
-              ? MoshSpinner.blockPress
-              : _named
-                  ? _onCreate
-                  : null,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          icon: _busy ? const MoshSpinner() : null,
-          label: Text(l.onboardGroupCreate),
+        MoshLoading(
+          loading: _busy,
+          child: FilledButton.icon(
+            onPressed: _named ? _onCreate : null,
+            style:
+                FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            icon: _busy ? const MoshSpinner() : null,
+            label: Text(l.onboardGroupCreate),
+          ),
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),

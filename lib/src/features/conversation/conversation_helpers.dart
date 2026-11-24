@@ -231,8 +231,8 @@ class UnreadBadge extends StatelessWidget {
       label: l.unreadBadge(count),
       excludeSemantics: true,
       child: Container(
-        height: MoshSpace.s5,
-        constraints: const BoxConstraints(minWidth: MoshSpace.s5),
+        constraints: const BoxConstraints(
+            minWidth: MoshSpace.s5, minHeight: MoshSpace.s5),
         padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s1),
         alignment: Alignment.center,
         decoration:

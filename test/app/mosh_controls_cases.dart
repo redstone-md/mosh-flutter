@@ -1,4 +1,4 @@
-// Contracts of the control themes (Components page, MOSH-123): on a phone a
+// Contracts of the control themes (Components page, MOSH-133): on a phone a
 // control is a 48 px target, keyboard focus is always drawn, and whatever a
 // control says stays readable under its hover and pressed layers and in its
 // lit state. They hold for both palettes.

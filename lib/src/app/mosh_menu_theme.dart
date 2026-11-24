@@ -36,16 +36,13 @@ abstract final class MoshMenuTheme {
               states.contains(WidgetState.disabled)
                   ? MoshState.tint(colors.onSurface, MoshState.disabledContent)
                   : colors.onSurface),
-          backgroundColor: WidgetStateProperty.resolveWith((states) =>
-              states.contains(WidgetState.hovered) ||
-                      states.contains(WidgetState.focused)
-                  ? colors.surfaceContainerHighest
-                  : Colors.transparent),
+          // The row tints itself like any control; keyboard focus adds the
+          // ring.
+          overlayColor: MoshState.layer(colors.onSurface),
           side: WidgetStateProperty.resolveWith((states) =>
               states.contains(WidgetState.focused)
-                  ? BorderSide(color: colors.onSurface)
+                  ? BorderSide(color: colors.onSurface, width: MoshBorder.thick)
                   : BorderSide.none),
-          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
         ),
       );
 

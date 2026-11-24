@@ -4,6 +4,10 @@ part of 'mosh_theme.dart';
 // of `scripts/figma-design/cards/`. Colours, radii, spacing and state layers
 // come from Foundations; [platform] picks the desktop or the phone size.
 
+/// The plate that stands in for a disabled control's fill.
+Color _disabledPlate(MoshColors c) =>
+    MoshState.tint(c.onSurface, MoshState.disabledContainer);
+
 /// A control's content while it is disabled.
 Color _disabledInk(MoshColors c) =>
     MoshState.tint(c.onSurface, MoshState.disabledContent);
@@ -45,8 +49,7 @@ FilledButtonThemeData _filledButtonTheme(
         MoshColors c, TextTheme text, TargetPlatform platform) =>
     FilledButtonThemeData(
       style: _buttonStyle(c, text, platform, ink: c.onPrimary).copyWith(
-        backgroundColor: MoshState.unlessDisabled(c.primary,
-            MoshState.tint(c.onSurface, MoshState.disabledContainer)),
+        backgroundColor: MoshState.unlessDisabled(c.primary, _disabledPlate(c)),
       ),
     );
 
@@ -91,8 +94,8 @@ IconButtonThemeData _iconButtonTheme(MoshColors c, TargetPlatform platform) {
 /// own, for the top of media and file cards.
 ButtonStyle moshTonalIconButtonStyle(MoshColors c) => ButtonStyle(
       foregroundColor: MoshState.unlessDisabled(c.onSurface, _disabledInk(c)),
-      backgroundColor: MoshState.unlessDisabled(c.surfaceContainerHighest,
-          MoshState.tint(c.onSurface, MoshState.disabledContainer)),
+      backgroundColor: MoshState.unlessDisabled(
+          c.surfaceContainerHighest, _disabledPlate(c)),
     );
 
 /// The well of the Text field and Select cards. The label stands above it
@@ -181,13 +184,14 @@ SwitchThemeData _switchTheme(MoshColors c) {
         on: c.primary,
         off: c.surfaceContainerHighest,
         disabled: states.contains(WidgetState.selected)
-            ? MoshState.tint(c.onSurface, MoshState.disabledContainer)
+            ? _disabledPlate(c)
             : Colors.transparent)),
-    trackOutlineColor: WidgetStateProperty.resolveWith((states) =>
-        states.contains(WidgetState.selected)
-            ? Colors.transparent
-            : pick(states,
-                on: c.outline, off: c.outline, disabled: c.outlineVariant)),
+    trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) return Colors.transparent;
+      return states.contains(WidgetState.disabled)
+          ? c.outlineVariant
+          : c.outline;
+    }),
     trackOutlineWidth: const WidgetStatePropertyAll(MoshBorder.thin),
     overlayColor: WidgetStateProperty.resolveWith((states) => MoshState.layer(
             states.contains(WidgetState.selected) ? c.onPrimary : c.onSurface)
@@ -214,22 +218,25 @@ ChipThemeData _chipTheme(MoshColors c, TextTheme text) {
     color: WidgetStateProperty.resolveWith((states) {
       if (!states.contains(WidgetState.selected)) return Colors.transparent;
       return states.contains(WidgetState.disabled)
-          ? MoshState.tint(c.onSurface, MoshState.disabledContainer)
+          ? _disabledPlate(c)
           : c.secondaryContainer;
     }),
     showCheckmark: false,
+    avatarBoxConstraints: const BoxConstraints.tightFor(
+        width: MoshSpace.s4, height: MoshSpace.s4),
     elevation: 0,
     pressElevation: 0,
     padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s2),
     labelPadding: const EdgeInsets.symmetric(horizontal: MoshSpace.s1),
     labelStyle:
         text.labelLarge!.copyWith(color: WidgetStateColor.resolveWith(ink)),
-    iconTheme: IconThemeData(
-        color: WidgetStateColor.resolveWith(ink), size: MoshSpace.s4),
+    // A chip does not resolve its icon's colour by state: a chip that can be
+    // lit colours its own icon.
+    iconTheme: IconThemeData(color: c.onSurfaceVariant, size: MoshSpace.s4),
   );
 }
 
-/// The Progress card: a spinner and a 4 px bar in saffron.
+/// The Progress card: a 24 px spinner and a 4 px bar in saffron.
 ProgressIndicatorThemeData _progressTheme(MoshColors c) =>
     ProgressIndicatorThemeData(
       color: c.primary,
@@ -237,6 +244,10 @@ ProgressIndicatorThemeData _progressTheme(MoshColors c) =>
       linearMinHeight: MoshSpace.s1,
       borderRadius: const BorderRadius.all(Radius.circular(MoshRadius.full)),
       circularTrackColor: Colors.transparent,
+      // The Medium spinner; a wait that fills a screen sizes its own.
+      strokeWidth: MoshBorder.thick,
+      constraints:
+          const BoxConstraints(minWidth: MoshSpace.s6, minHeight: MoshSpace.s6),
       stopIndicatorColor: Colors.transparent,
       trackGap: 0,
     );

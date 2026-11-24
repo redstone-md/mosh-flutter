@@ -163,6 +163,7 @@ class ConversationFilterToggle extends StatelessWidget {
             color: colors.surfaceContainerLowest, shape: MoshShapes.pill),
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             _FilterSegment(
               label: l.chatFilterAll,

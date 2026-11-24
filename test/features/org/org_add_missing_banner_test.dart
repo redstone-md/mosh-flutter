@@ -1,6 +1,7 @@
 // While members are being added the button is Loading: it keeps its label,
 // so the row does not lose its meaning, and a second press adds nothing.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart';
@@ -32,7 +33,9 @@ void main() {
 
     expect(find.text('Add to group'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    await tester.tap(find.text('Add to group'));
+    await tester.tap(find.text('Add to group'), warnIfMissed: false);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     expect(added(), 0);
   });
 

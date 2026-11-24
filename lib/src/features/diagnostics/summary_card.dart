@@ -127,7 +127,7 @@ class _StatusBadge extends StatelessWidget {
         ),
     };
     return Container(
-      height: MoshSpace.s6,
+      constraints: const BoxConstraints(minHeight: MoshSpace.s6),
       padding: const EdgeInsetsDirectional.only(
           start: MoshSpace.s2, end: MoshSpace.s3),
       decoration: ShapeDecoration(color: plate, shape: MoshShapes.pill),

@@ -98,12 +98,12 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
     });
   }
 
-  Widget _button(ThemeData theme, bool isOpen, VoidCallback open) {
+  Widget _button(ThemeData theme, bool isOpen, VoidCallback toggle) {
     final selected = widget.options.where((o) => o.value == widget.value);
     final text = selected.isEmpty ? widget.label : selected.first.label;
     final well = OutlinedButton(
       focusNode: _focus,
-      onPressed: widget.onChanged == null ? null : open,
+      onPressed: widget.onChanged == null ? null : toggle,
       style: moshSelectWellStyle(theme, open: isOpen, failed: widget.failed),
       child: Row(children: [
         Expanded(

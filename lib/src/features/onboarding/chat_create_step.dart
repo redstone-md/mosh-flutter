@@ -110,15 +110,15 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
   }
 
   Widget _createButton(AppLocalizations l, {required bool hasInvites}) =>
-      FilledButton.icon(
-        onPressed: _creating
-            ? MoshSpinner.blockPress
-            : _busy
-                ? null
-                : _create,
-        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-        icon: _creating ? const MoshSpinner() : const Icon(MoshIcons.link),
-        label: Text(hasInvites ? l.createNewInvitation : l.onboardChatCreate),
+      MoshLoading(
+        loading: _creating,
+        child: FilledButton.icon(
+          // Opening a saved invitation also keeps this button off.
+          onPressed: _busy && !_creating ? null : _create,
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+          icon: _creating ? const MoshSpinner() : const Icon(MoshIcons.link),
+          label: Text(hasInvites ? l.createNewInvitation : l.onboardChatCreate),
+        ),
       );
 
   List<Widget> _savedInvitations(

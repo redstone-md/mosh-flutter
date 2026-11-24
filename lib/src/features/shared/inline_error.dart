@@ -5,8 +5,8 @@ import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 /// The Inline error of the Text field card: the error mark and what to fix,
-/// in the error colour. It stays below the primary button of an onboarding
-/// step when a create/join handler fails.
+/// in the error colour: below the primary button of an onboarding step when
+/// a create/join handler fails, and under a select whose choices did not load.
 ///
 /// Renders only when [message] is non-null. When null it returns
 /// `const SizedBox.shrink()` so the layout below the button does not jump.
