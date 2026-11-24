@@ -109,6 +109,8 @@ InputDecorationTheme _inputDecorationTheme(
             ? Colors.transparent
             : c.surfaceContainerLowest),
     hoverColor: MoshState.tint(c.onSurface, MoshState.hover),
+    // The app theme is compact; a well keeps the height of its card.
+    visualDensity: VisualDensity.standard,
     isDense: true,
     contentPadding: EdgeInsets.symmetric(
         horizontal: MoshSpace.s4, vertical: (height - line) / 2),

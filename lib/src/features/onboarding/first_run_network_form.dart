@@ -171,6 +171,7 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
         !candidates.any((adapter) => adapter.name == _picked);
     return MoshSelect<String?>(
       label: l.firstRunNetworkAdapter,
+      showLabel: false,
       value: _picked,
       options: [
         MoshSelectOption(null, l.firstRunAutomatic),
