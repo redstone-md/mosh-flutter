@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show LicenseRegistry;
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/bundled_licenses.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/distribution_channel.dart';
 import 'package:mosh/src/app/distribution_channel_provider.dart';
@@ -179,7 +180,7 @@ final settingsScenes = <FigmaScene>[
       (tester, size) async {
     await mountSettings(tester, size, section: _connection);
     await tapVisible(tester, find.text(l10n.settingsVpnTitle));
-    await tapVisible(tester, find.byType(Switch).first);
+    await tapVisible(tester, find.byType(MoshSwitchRow).first);
   }),
   FigmaScene('connection-vpn-bound', 'Settings / Connection / VPN bypass on',
       (tester, size) async {
