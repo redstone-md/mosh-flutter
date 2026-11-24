@@ -98,8 +98,8 @@ ButtonStyle moshTonalIconButtonStyle(MoshColors c) => ButtonStyle(
           c.surfaceContainerHighest, _disabledPlate(c)),
     );
 
-/// The well of the Text field and Select cards. The label stands above it
-/// in a [MoshField].
+/// The well of the Text field and Select cards. A text field's label stands
+/// above it in a [MoshField].
 InputDecorationTheme _inputDecorationTheme(
     MoshColors c, TextTheme text, TargetPlatform platform) {
   final height = MoshControl.height(platform);
@@ -169,10 +169,34 @@ OutlineInputBorder _fieldBorder(Color color,
       borderSide: BorderSide(color: color, width: width),
     );
 
-/// The edge of the Suggestion chip: none at rest, the ring under the keyboard.
-WidgetStateBorderSide moshSuggestionChipEdge(MoshColors c) =>
+/// The Suggestion chip of the Chip and segment card, for a [ChipTheme]
+/// around such chips: a plate of its own and no edge.
+ChipThemeData moshSuggestionChipTheme(ThemeData theme, MoshColors c) =>
+    theme.chipTheme.copyWith(
+      side: _chipEdge(c, (_) => BorderSide.none),
+      color: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.disabled)
+              ? _disabledPlate(c)
+              : _hovered(states, c.surfaceContainerHigh, c.onSurface)),
+      labelStyle: theme.textTheme.labelLarge!.copyWith(
+          color: WidgetStateColor.resolveWith((states) =>
+              states.contains(WidgetState.disabled)
+                  ? _disabledInk(c)
+                  : c.onSurface)),
+    );
+
+/// A chip's edge by state, with the focus ring in its place under the keyboard.
+WidgetStateBorderSide _chipEdge(
+        MoshColors c, BorderSide Function(Set<WidgetState> states) rest) =>
     WidgetStateBorderSide.resolveWith(
-        (states) => _edge(c, rest: BorderSide.none).resolve(states));
+        (states) => _edge(c, rest: rest(states)).resolve(states));
+
+/// A chip's [fill] under the hover layer of its [ink]. A chip with a fill
+/// of its own draws no hover layer; focus and press come from the theme.
+Color _hovered(Set<WidgetState> states, Color fill, Color ink) =>
+    states.contains(WidgetState.hovered)
+        ? Color.alphaBlend(MoshState.tint(ink, MoshState.hover), fill)
+        : fill;
 
 /// The Filter chip of the Chip and segment card: lit while it applies.
 ChipThemeData _chipTheme(MoshColors c, TextTheme text) {
@@ -185,16 +209,18 @@ ChipThemeData _chipTheme(MoshColors c, TextTheme text) {
 
   return ChipThemeData(
     shape: MoshShapes.pill,
-    side: WidgetStateBorderSide.resolveWith((states) => _edge(c,
-            rest: states.contains(WidgetState.selected)
-                ? BorderSide.none
-                : BorderSide(color: c.outlineVariant))
-        .resolve(states)),
+    side: _chipEdge(
+        c,
+        (states) => states.contains(WidgetState.selected)
+            ? BorderSide.none
+            : BorderSide(color: c.outlineVariant)),
     color: WidgetStateProperty.resolveWith((states) {
-      if (!states.contains(WidgetState.selected)) return Colors.transparent;
-      return states.contains(WidgetState.disabled)
-          ? _disabledPlate(c)
-          : c.secondaryContainer;
+      final lit = states.contains(WidgetState.selected);
+      if (states.contains(WidgetState.disabled)) {
+        return lit ? _disabledPlate(c) : Colors.transparent;
+      }
+      return _hovered(
+          states, lit ? c.secondaryContainer : Colors.transparent, ink(states));
     }),
     showCheckmark: false,
     elevation: 0,
@@ -233,7 +259,10 @@ SliderThemeData _sliderTheme(MoshColors c) => SliderThemeData(
       disabledInactiveTrackColor: c.surfaceContainerHighest,
       thumbColor: c.primary,
       disabledThumbColor: _disabledInk(c),
-      thumbShape: const _GrowingThumb(),
+      thumbShape: const RoundSliderThumbShape(
+          enabledThumbRadius: _ThumbHalo._thumb,
+          elevation: 0,
+          pressedElevation: 0),
       overlayShape: _ThumbHalo(ring: c.focusRing),
       // The slider resolves this by state and hands the halo the result.
       overlayColor: WidgetStateColor.resolveWith((states) =>
@@ -267,18 +296,20 @@ class _EvenTrack extends RoundedRectSliderTrackShape {
           additionalActiveTrackHeight: 0);
 }
 
-/// What stands behind the slider's thumb: the 20 px it grows to under the
-/// pointer, or the focus ring 2 px outside it under the keyboard.
+/// What stands behind the slider's 16 px thumb: the 20 px it grows to under
+/// the pointer and while dragged, or the focus ring 2 px outside it under
+/// the keyboard.
 class _ThumbHalo extends SliderComponentShape {
   const _ThumbHalo({required this.ring});
 
+  /// The colour the theme resolves under focus, which asks for the ring.
   final Color ring;
 
-  static const _hover = MoshSpace.s5 / 2;
+  static const _thumb = MoshSpace.s2, _grown = MoshSpace.s5 / 2;
 
   @override
   Size getPreferredSize(bool isEnabled, bool isDiscrete) =>
-      const Size.fromRadius(_hover);
+      const Size.fromRadius(_grown);
 
   @override
   void paint(PaintingContext context, Offset center,
@@ -295,46 +326,15 @@ class _ThumbHalo extends SliderComponentShape {
     final color = sliderTheme.overlayColor!;
     final shown = activationAnimation.value;
     if (color != ring) {
-      context.canvas.drawCircle(center, _hover * shown, Paint()..color = color);
+      context.canvas.drawCircle(center, _grown * shown, Paint()..color = color);
       return;
     }
     context.canvas.drawCircle(
         center,
-        _GrowingThumb._rest + MoshBorder.thick / 2,
+        _thumb + MoshBorder.thick / 2,
         Paint()
           ..color = color.withValues(alpha: color.a * shown)
           ..style = PaintingStyle.stroke
           ..strokeWidth = MoshBorder.thick);
-  }
-}
-
-/// The slider's thumb: 16 px at rest and 24 px while it is dragged.
-class _GrowingThumb extends SliderComponentShape {
-  const _GrowingThumb();
-
-  static const _rest = MoshSpace.s2, _pressed = MoshSpace.s3;
-
-  @override
-  Size getPreferredSize(bool isEnabled, bool isDiscrete) =>
-      const Size.fromRadius(_pressed);
-
-  @override
-  void paint(PaintingContext context, Offset center,
-      {required Animation<double> activationAnimation,
-      required Animation<double> enableAnimation,
-      required bool isDiscrete,
-      required TextPainter labelPainter,
-      required RenderBox parentBox,
-      required SliderThemeData sliderTheme,
-      required TextDirection textDirection,
-      required double value,
-      required double textScaleFactor,
-      required Size sizeWithOverflow}) {
-    final color = Color.lerp(sliderTheme.disabledThumbColor,
-        sliderTheme.thumbColor, enableAnimation.value)!;
-    context.canvas.drawCircle(
-        center,
-        _rest + (_pressed - _rest) * activationAnimation.value,
-        Paint()..color = color);
   }
 }

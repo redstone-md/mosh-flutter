@@ -131,25 +131,27 @@ void _contracts(MoshColors c) {
 
   testWidgets('a switch shows which way it is set in both of its states',
       (tester) async {
-    Future<(Color, Color)> drawn(bool value) async {
+    Future<(Color, Color, BorderSide)> drawn(bool value) async {
       await tester.pumpWidget(MaterialApp(
           theme: buildMoshTheme(c),
           home: Scaffold(
               body: MoshSwitchRow(
                   title: 'Read receipts', value: value, onChanged: (_) {}))));
       await tester.pumpAndSettle();
-      final parts = tester
+      final [track, thumb] = tester
           .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
-          .map((part) => part.decoration)
           .toList();
+      final edge = track.foregroundDecoration! as ShapeDecoration;
       return (
-        (parts[0]! as ShapeDecoration).color!,
-        (parts[1]! as BoxDecoration).color!
+        (track.decoration! as ShapeDecoration).color!,
+        (thumb.decoration! as BoxDecoration).color!,
+        (edge.shape as StadiumBorder).side,
       );
     }
 
-    final (onTrack, onThumb) = await drawn(true);
-    final (offTrack, offThumb) = await drawn(false);
+    final (onTrack, onThumb, _) = await drawn(true);
+    final (offTrack, offThumb, offEdge) = await drawn(false);
+    expect(contrastRatio(offEdge.color, c.surface), greaterThanOrEqualTo(3));
     expect(contrastRatio(onThumb, onTrack), greaterThanOrEqualTo(3));
     expect(contrastRatio(offThumb, offTrack), greaterThanOrEqualTo(3));
     // On and off differ by more than the thumb's place.
@@ -199,21 +201,63 @@ void _contracts(MoshColors c) {
     semantics.dispose();
   });
 
-  testWidgets('a switch row being saved takes no press', (tester) async {
+  testWidgets('a switch row being saved or turned off takes no press',
+      (tester) async {
     final changes = <bool>[];
-    await tester.pumpWidget(MaterialApp(
-        theme: buildMoshTheme(c),
-        home: Scaffold(
-            body: MoshSwitchRow(
-                title: 'Read receipts',
-                value: true,
-                saving: true,
-                onChanged: changes.add))));
-    await tester.tap(find.byType(MoshSwitchRow));
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
-    await tester.pump();
+    Future<void> press({required bool saving, required bool off}) async {
+      await tester.pumpWidget(MaterialApp(
+          theme: buildMoshTheme(c, TargetPlatform.windows),
+          home: Scaffold(
+              body: MoshSwitchRow(
+                  title: 'Read receipts',
+                  value: true,
+                  saving: saving,
+                  onChanged: off ? null : changes.add))));
+      await tester.tap(find.byType(MoshSwitchRow));
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pump();
+    }
+
+    await press(saving: true, off: false);
     expect(changes, isEmpty);
+    expect(
+        Focus.of(tester.element(find.text('Read receipts'))).hasFocus, isTrue,
+        reason: 'the keyboard keeps its place while the change is saved');
+    await press(saving: false, off: true);
+    expect(changes, isEmpty);
+  });
+
+  testWidgets('Tab draws the focus ring around a slider thumb and a chip',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+        theme: buildMoshTheme(c, TargetPlatform.windows),
+        home: Scaffold(body: Slider(value: 0.4, onChanged: (_) {}))));
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    expect(
+        find.byType(Slider),
+        paints
+          ..circle(
+              color: c.focusRing, style: PaintingStyle.stroke, strokeWidth: 2));
+
+    await tester.pumpWidget(MaterialApp(
+        theme: buildMoshTheme(c, TargetPlatform.windows),
+        home: Builder(
+            builder: (context) => Scaffold(
+                body: ChipTheme(
+                    data: moshSuggestionChipTheme(Theme.of(context), c),
+                    child: ActionChip(
+                        label: const Text('#photography'),
+                        onPressed: () {}))))));
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    final shape = tester
+        .widget<Material>(find.descendant(
+            of: find.byType(ActionChip), matching: find.byType(Material)))
+        .shape! as OutlinedBorder;
+    expect(shape.side.color, c.focusRing);
+    expect(shape.side.strokeAlign, BorderSide.strokeAlignOutside);
   });
 
   test('a lit filter chip reads on its fill, a resting one on the surface', () {

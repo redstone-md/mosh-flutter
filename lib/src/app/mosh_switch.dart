@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'mosh_dimensions.dart';
+import 'mosh_shapes.dart';
 import 'mosh_spinner.dart';
 import 'mosh_theme.dart' show MoshColors;
 
@@ -43,8 +44,7 @@ class _MoshSwitchRowState extends State<MoshSwitchRow> {
     super.dispose();
   }
 
-  static const _shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.all(Radius.circular(MoshRadius.medium)));
+  static const _shape = RoundedRectangleBorder(borderRadius: MoshShapes.field);
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +60,7 @@ class _MoshSwitchRowState extends State<MoshSwitchRow> {
             statesController: _states,
             customBorder: _shape,
             overlayColor: MoshState.layer(c.onSurface),
-            onTap: enabled ? () => widget.onChanged!(!widget.value) : null,
+            onTap: widget.onChanged == null ? null : _press,
             child: ListenableBuilder(
               listenable: _states,
               builder: (context, child) => DecoratedBox(
@@ -80,6 +80,12 @@ class _MoshSwitchRowState extends State<MoshSwitchRow> {
         ),
       ),
     );
+  }
+
+  /// A row being saved takes the press and does nothing with it: turned
+  /// off instead, it would drop the keyboard focus that started the save.
+  void _press() {
+    if (!widget.saving) widget.onChanged!(!widget.value);
   }
 
   /// The keyboard focus ring, 2 px outside the row.
@@ -171,8 +177,9 @@ class _SwitchTrack extends StatelessWidget {
       alignment: value
           ? AlignmentDirectional.centerEnd
           : AlignmentDirectional.centerStart,
-      decoration: ShapeDecoration(color: fill, shape: const StadiumBorder()),
-      foregroundDecoration: ShapeDecoration(shape: StadiumBorder(side: edge)),
+      decoration: ShapeDecoration(color: fill, shape: MoshShapes.pill),
+      foregroundDecoration:
+          ShapeDecoration(shape: MoshShapes.pill.copyWith(side: edge)),
       child: AnimatedContainer(
         duration: duration,
         curve: motion.curve,

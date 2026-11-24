@@ -199,34 +199,22 @@ class _FilterSegment extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
     final color = active ? colors.onSurface : colors.onSurfaceVariant;
-    return Material(
-      color: active ? colors.surfaceBright : Colors.transparent,
-      shape: MoshShapes.pill,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        overlayColor: MoshState.layer(colors.onSurface),
-        child: Container(
-          height: MoshSpace.s8,
-          padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s3),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              if (icon != null) ...<Widget>[
-                Icon(icon, size: MoshSpace.s4, color: color),
-                const SizedBox(width: MoshSpace.s1),
-              ],
-              Text(
-                label,
-                style: Theme.of(context)
-                    .textTheme
-                    .labelLarge!
-                    .copyWith(color: color),
-              ),
-            ],
-          ),
-        ),
-      ),
+    // A text button resized to the card: it brings the pill, the label
+    // style and the focus ring.
+    final style = TextButton.styleFrom(
+      foregroundColor: color,
+      iconColor: color,
+      backgroundColor: active ? colors.surfaceBright : Colors.transparent,
+      minimumSize: const Size(0, MoshSpace.s8),
+      padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s3),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      iconSize: MoshSpace.s4,
+    ).copyWith(overlayColor: MoshState.layer(colors.onSurface));
+    return TextButton.icon(
+      onPressed: onTap,
+      style: style,
+      icon: icon == null ? null : Icon(icon),
+      label: Text(label),
     );
   }
 }

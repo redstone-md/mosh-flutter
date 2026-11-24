@@ -82,7 +82,7 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
       final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
       final separateSummary =
           widget.secondary == null && constraints.maxWidth < 360 * textScale;
-      // What stands under the row lines up with the row's own words.
+      // What stands under the row keeps the row's inset.
       const inset = EdgeInsets.symmetric(horizontal: MoshSpace.s3);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,6 +117,6 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
         subtitle: separateSummary ? null : widget.subtitle,
         value: _value ?? false,
         saving: _writing,
-        onChanged: widget.enabled && _value != null && !_writing ? _set : null,
+        onChanged: widget.enabled && _value != null ? _set : null,
       );
 }

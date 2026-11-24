@@ -128,7 +128,7 @@ class SessionsListControls extends StatelessWidget {
                   builder: (context) => Icon(entry.key!.icon,
                       size: MoshSpace.s4,
                       color: DefaultTextStyle.of(context).style.color)),
-            Text(entry.value),
+            Flexible(child: Text(entry.value, overflow: TextOverflow.ellipsis)),
           ],
         ),
         selected: entry.key == kind,

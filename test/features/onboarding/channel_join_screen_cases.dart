@@ -61,7 +61,7 @@ void main() {
     expect(find.text('Channel name'), findsOneWidget);
     expect(find.text('Join channel'), findsOneWidget);
     for (final name in ['news', 'dev', 'community']) {
-      expect(find.widgetWithText(ActionChip, name), findsOneWidget);
+      expect(find.widgetWithText(ActionChip, '#$name'), findsOneWidget);
     }
 
     expect(joinButton(tester).onPressed, isNull);
@@ -72,7 +72,7 @@ void main() {
     await tester.enterText(_nameField, '');
     await tester.pump();
     expect(joinButton(tester).onPressed, isNull);
-    final chip = find.widgetWithText(ActionChip, 'dev');
+    final chip = find.widgetWithText(ActionChip, '#dev');
     await tester.ensureVisible(chip);
     await tester.tap(chip);
     await tester.pump();

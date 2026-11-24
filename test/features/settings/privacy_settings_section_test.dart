@@ -197,7 +197,7 @@ void main() {
     final crash =
         tester.widget<MoshSwitchRow>(_switch(_l.settingsCrashReportsTitle));
     expect(crash.value, isTrue);
-    expect(crash.onChanged, isNull);
+    expect(crash.saving, isTrue);
     expect(fixture.bridge.countOf(BridgeMethod.crashReportingSalt), 1);
     expect(fixture.bridge.countOf(BridgeMethod.enableCrashReporting), 1);
     fixture.bridge.release(BridgeMethod.enableCrashReporting);
@@ -206,8 +206,8 @@ void main() {
     expect(
         tester
             .widget<MoshSwitchRow>(_switch(_l.settingsCrashReportsTitle))
-            .onChanged,
-        isNotNull);
+            .saving,
+        isFalse);
     expect(tester.takeException(), isNull);
   });
 
