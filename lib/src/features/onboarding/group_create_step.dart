@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_button_spinner.dart';
+import 'package:mosh/src/app/mosh_spinner.dart';
 import 'package:mosh/src/app/mosh_field.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/features/onboarding/inline_error.dart';
+import 'package:mosh/src/features/shared/inline_error.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/private_group_runtime.dart';
@@ -162,12 +162,12 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
         const SizedBox(height: 20),
         FilledButton.icon(
           onPressed: _busy
-              ? MoshButtonSpinner.blockPress
+              ? MoshSpinner.blockPress
               : _named
                   ? _onCreate
                   : null,
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          icon: _busy ? const MoshButtonSpinner() : null,
+          icon: _busy ? const MoshSpinner() : null,
           label: Text(l.onboardGroupCreate),
         ),
         if (_error != null) ...[

@@ -33,9 +33,13 @@ void main() {
     await tester.pump();
     expect(writes, [true],
         reason: 'overlapping writes can finish out of order');
+    expect(find.byType(CircularProgressIndicator), findsOneWidget,
+        reason: 'the row says the change is still being saved');
 
     pending.complete();
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
     await tester.tap(find.byType(SwitchListTile));
     await tester.pump();
     expect(writes, [true, false], reason: 'the switch re-enables once done');

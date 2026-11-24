@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_button_spinner.dart';
+import 'package:mosh/src/app/mosh_spinner.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/features/onboarding/inline_error.dart';
+import 'package:mosh/src/features/shared/inline_error.dart';
 import 'package:mosh/src/features/onboarding/pending_invitation_card.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
@@ -112,13 +112,12 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
   Widget _createButton(AppLocalizations l, {required bool hasInvites}) =>
       FilledButton.icon(
         onPressed: _creating
-            ? MoshButtonSpinner.blockPress
+            ? MoshSpinner.blockPress
             : _busy
                 ? null
                 : _create,
         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-        icon:
-            _creating ? const MoshButtonSpinner() : const Icon(MoshIcons.link),
+        icon: _creating ? const MoshSpinner() : const Icon(MoshIcons.link),
         label: Text(hasInvites ? l.createNewInvitation : l.onboardChatCreate),
       );
 

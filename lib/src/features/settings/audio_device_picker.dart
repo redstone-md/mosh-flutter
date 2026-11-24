@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_select.dart';
-import 'package:mosh/src/app/mosh_theme.dart';
+import 'package:mosh/src/features/shared/inline_error.dart';
 
 typedef AudioDeviceOption = ({String id, String label});
 
@@ -39,6 +39,8 @@ class AudioDevicePicker extends StatelessWidget {
           value: preferredId,
           options: _items(l, options, missing),
           onChanged: devices.isLoading ? null : onChanged,
+          showLabel: false,
+          failed: devices.hasError,
         ),
         if (devices.isLoading) _hint(context, l.settingsDevicesLoading),
         if (devices.hasError) _retry(context, l),
@@ -62,24 +64,18 @@ class AudioDevicePicker extends StatelessWidget {
       ];
 
   Widget _hint(BuildContext context, String text) => Padding(
-        padding: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.only(top: MoshSpace.s2),
         child: Text(text, style: Theme.of(context).textTheme.bodySmall),
       );
 
-  Widget _retry(BuildContext context, AppLocalizations l) => Semantics(
-        liveRegion: true,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _hint(context, l.settingsDevicesLoadError),
-            TextButton.icon(
-              onPressed: onRefresh,
-              icon: const Icon(MoshIcons.refresh, size: 16),
-              label: Text(l.settingsRefreshDevices),
-              style: TextButton.styleFrom(
-                  foregroundColor: MoshColors.of(context).primary),
-            ),
-          ],
-        ),
+  /// The error line of the Select card: what failed, and a retry beside it.
+  Widget _retry(BuildContext context, AppLocalizations l) => Padding(
+        padding: const EdgeInsets.only(top: MoshSpace.s2),
+        child: Row(children: [
+          Expanded(child: InlineError(message: l.settingsDevicesLoadError)),
+          const SizedBox(width: MoshSpace.s2),
+          TextButton(
+              onPressed: onRefresh, child: Text(l.settingsRefreshDevices)),
+        ]),
       );
 }

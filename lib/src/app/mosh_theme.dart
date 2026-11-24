@@ -46,7 +46,7 @@ ThemeData buildMoshTheme(
     dialogTheme: _dialogTheme(colors),
     popupMenuTheme: _popupMenuTheme(colors),
     menuTheme: MoshMenuTheme.panel(scheme),
-    menuButtonTheme: MoshMenuTheme.items(scheme, text.bodyMedium),
+    menuButtonTheme: MoshMenuTheme.items(scheme, text.bodyMedium, platform),
     bottomSheetTheme: MoshMenuTheme.sheet(scheme),
     switchTheme: _switchTheme(colors),
     filledButtonTheme: _filledButtonTheme(colors, text, platform),

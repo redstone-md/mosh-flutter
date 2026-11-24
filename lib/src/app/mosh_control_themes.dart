@@ -128,6 +128,34 @@ InputDecorationTheme _inputDecorationTheme(
   );
 }
 
+/// The well of the Select card as a button; it keeps the thick saffron edge
+/// while its choices are [open] and a red one when they [failed] to load.
+ButtonStyle moshSelectWellStyle(ThemeData theme,
+    {required bool open, bool failed = false}) {
+  final c = MoshColors.from(theme);
+  return ButtonStyle(
+    visualDensity: VisualDensity.standard,
+    textStyle: WidgetStatePropertyAll(theme.textTheme.bodyMedium),
+    minimumSize:
+        WidgetStatePropertyAll(Size(0, MoshControl.height(theme.platform))),
+    padding: const WidgetStatePropertyAll(
+        EdgeInsetsDirectional.only(start: MoshSpace.s4, end: MoshSpace.s3)),
+    shape: const WidgetStatePropertyAll(
+        RoundedRectangleBorder(borderRadius: MoshShapes.field)),
+    backgroundColor:
+        MoshState.unlessDisabled(c.surfaceContainerLowest, Colors.transparent),
+    foregroundColor: MoshState.unlessDisabled(c.onSurface, _disabledInk(c)),
+    iconColor: MoshState.unlessDisabled(c.onSurfaceVariant, _disabledInk(c)),
+    overlayColor: MoshState.layer(c.onSurface),
+    side: open
+        ? WidgetStatePropertyAll(
+            BorderSide(color: c.primary, width: MoshBorder.thick))
+        : _edge(c,
+            rest: BorderSide(color: failed ? c.error : c.outline),
+            disabled: BorderSide(color: c.outlineVariant)),
+  );
+}
+
 /// The edge of a well; the focused one is thick.
 OutlineInputBorder _fieldBorder(Color color,
         {double width = MoshBorder.thin}) =>

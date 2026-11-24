@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
+import 'package:mosh/src/app/mosh_spinner.dart';
+
+/// The Switch row card: a setting that is read and saved on its own. The
+/// whole row is the press target, and a spinner stands beside the switch
+/// while a change is being saved.
+
 class AsyncSwitchTile extends StatefulWidget {
   const AsyncSwitchTile({
     super.key,
@@ -109,13 +117,23 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
   Widget _tile(BuildContext context, bool separateSummary) => SwitchListTile(
         contentPadding: EdgeInsets.zero,
         dense: true,
+        shape: const RoundedRectangleBorder(
+            borderRadius: MoshShapes.conversationRow),
         secondary: widget.secondary,
-        title:
-            Text(widget.title, style: Theme.of(context).textTheme.titleMedium),
+        title: Row(children: [
+          Expanded(
+              child: Text(widget.title,
+                  style: Theme.of(context).textTheme.titleSmall)),
+          if (_writing)
+            const Padding(
+              padding: EdgeInsetsDirectional.only(start: MoshSpace.s4),
+              child: MoshSpinner(),
+            ),
+        ]),
         subtitle: separateSummary
             ? null
             : Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: MoshSpace.s1),
                 child: Text(widget.subtitle,
                     style: Theme.of(context).textTheme.bodySmall),
               ),

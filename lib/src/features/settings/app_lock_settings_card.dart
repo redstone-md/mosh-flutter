@@ -52,6 +52,7 @@ class _AppLockSettingsCardState extends ConsumerState<AppLockSettingsCard> {
                       const SizedBox(height: 12),
                       MoshSelect<int>(
                           label: l.appLockDelay,
+                          showLabel: false,
                           value: access.delaySeconds,
                           options: [
                             for (final seconds in AndroidAccessState.delays)

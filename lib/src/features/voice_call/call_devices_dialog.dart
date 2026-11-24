@@ -46,6 +46,7 @@ Widget _select(
         height: 44,
         child: MoshSelect<String?>(
             label: label,
+            showLabel: false,
             value: selected,
             options: [
               MoshSelectOption(null, defaultLabel),

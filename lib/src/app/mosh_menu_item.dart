@@ -28,14 +28,18 @@ class MoshMenuItem extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         overflowAxis: Axis.vertical,
         style: ButtonStyle(
-          foregroundColor: danger && onPressed != null
-              ? WidgetStatePropertyAll(colors.error)
-              : null,
+          foregroundColor: onPressed == null
+              ? null
+              : danger
+                  ? WidgetStatePropertyAll(colors.error)
+                  : selected == true
+                      ? WidgetStatePropertyAll(colors.onSecondaryContainer)
+                      : null,
           iconColor: danger && onPressed != null
               ? WidgetStatePropertyAll(colors.error)
               : null,
           backgroundColor: selected == true
-              ? WidgetStatePropertyAll(colors.primary.withValues(alpha: 0.14))
+              ? WidgetStatePropertyAll(colors.secondaryContainer)
               : null,
         ),
         leadingIcon: icon == null ? null : Icon(icon, size: 18),
@@ -44,7 +48,8 @@ class MoshMenuItem extends StatelessWidget {
             : SizedBox(
                 width: 20,
                 child: selected!
-                    ? Icon(MoshIcons.check, size: 20, color: colors.primary)
+                    ? Icon(MoshIcons.check,
+                        size: 20, color: colors.onSecondaryContainer)
                     : null),
         child: Text(label),
       ),

@@ -22,6 +22,16 @@ Future<void> _tap(WidgetTester tester, String title) async {
   await tester.pumpAndSettle();
 }
 
+/// Taps a switch whose write stays pending: the row then spins until the
+/// write is done, so it never settles; this pumps the tap's frames instead.
+Future<void> _tapPending(WidgetTester tester, String title) async {
+  final target = find.text(title).first;
+  await tester.ensureVisible(target);
+  await tester.tap(target);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
 Future<void> _pump(
   WidgetTester tester,
   PrivacyFixture fixture, {
@@ -179,9 +189,10 @@ void main() {
     final fixture = PrivacyFixture();
     fixture.bridge.hold(BridgeMethod.enableCrashReporting);
     await _pump(tester, fixture);
-    await _tap(tester, _l.settingsCrashReportsTitle);
+    await _tapPending(tester, _l.settingsCrashReportsTitle);
     tester.view.physicalSize = const Size(390, 900);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     final crash =
         tester.widget<SwitchListTile>(_switch(_l.settingsCrashReportsTitle));
     expect(crash.value, isTrue);
@@ -224,7 +235,7 @@ void main() {
             .widget<SwitchListTile>(_switch(_l.settingsCrashReportsTitle))
             .onChanged,
         isNotNull);
-    await _tap(tester, _l.settingsCrashReportsTitle);
+    await _tapPending(tester, _l.settingsCrashReportsTitle);
     // Stream cancellation completes on the real event loop, beyond UI frames.
     await tester.runAsync(() async => await pumpEventQueue());
     await tester.pumpAndSettle();
