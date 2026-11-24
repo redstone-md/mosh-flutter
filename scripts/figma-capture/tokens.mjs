@@ -78,9 +78,10 @@ const close = (a, b) => Math.abs(a - b) < 0.5 / 255;
 for (const [collection, colors] of [['Mosh', T.colors], ['Mosh Light', T.light]]) {
 const tag = collection === 'Mosh' ? '' : collection + ': ';
 let col = (await figma.variables.getLocalVariableCollectionsAsync()).find((c) => c.name === collection);
-if (!col) { changes.push('collection ' + collection); if (DRY) continue; col = figma.variables.createVariableCollection(collection); }
-const mode = col.modes[0].modeId;
-const vars = (await figma.variables.getLocalVariablesAsync('COLOR')).filter((v) => v.variableCollectionId === col.id);
+if (!col) { changes.push('collection ' + collection); if (!DRY) col = figma.variables.createVariableCollection(collection); }
+// A dry run of an absent collection lists every variable as new.
+const mode = col?.modes[0].modeId;
+const vars = col ? (await figma.variables.getLocalVariablesAsync('COLOR')).filter((v) => v.variableCollectionId === col.id) : [];
 const ensure = (name) => {
   let v = vars.find((x) => x.name === name);
   if (!v) {
