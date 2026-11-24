@@ -228,6 +228,26 @@ void _contracts(MoshColors c) {
     expect(changes, isEmpty);
   });
 
+  testWidgets('a slider thumb grows to 24 px while it is dragged',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+        theme: buildMoshTheme(c, TargetPlatform.windows),
+        home: Scaffold(body: Slider(value: 0.5, onChanged: (_) {}))));
+    final slider = find.byType(Slider);
+    expect(slider, paints..circle(radius: 8, color: c.primary));
+
+    final drag = await tester.startGesture(tester.getCenter(slider));
+    await tester.pump(const Duration(milliseconds: 300));
+    // The halo behind it first, then the thumb.
+    expect(
+        slider,
+        paints
+          ..circle()
+          ..circle(radius: 12, color: c.primary));
+    await drag.up();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('Tab draws the focus ring around a slider thumb and a chip',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
