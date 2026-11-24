@@ -12,8 +12,6 @@
   "firstRunDeviceStep": "Device",
   "firstRunNetworkStep": "Network",
   "firstRunProgress": "Step {step} of {total}",
-  "firstRunWelcome": "Welcome to Mosh",
-  "firstRunWelcomeBody": "Private conversations. In your hands.",
   "firstRunEncryption": "Private messages are end-to-end encrypted",
   "firstRunNameTitle": "Choose your name",
   "firstRunNameBody": "Choose the name people will see when you start a conversation.",
@@ -32,8 +30,6 @@
   "firstRunCancelLink": "Cancel linking and continue independently",
   "firstRunLinkAlreadyApproved": "Linking was already approved. This device is now connected to your existing profile. Continue with this profile.",
   "firstRunDeviceError": "Could not finish the device step. Retry or cancel the pending link.",
-  "firstRunAlmostReady": "Almost ready",
-  "firstRunNetworkIntro": "Mosh discovers peers automatically. Choose how this device connects.",
   "firstRunNetworkTitle": "Choose your connection",
   "firstRunNetworkBody": "Use the system connection, or choose a physical network interface if a VPN interferes with discovery.",
   "firstRunVpnDetected": "Your VPN currently carries the default network route.",
@@ -522,10 +518,6 @@
   "startTitleAccent": "conversation",
   "@startTitleAccent": {
     "description": "Second part of the start menu title, after startTitleLead"
-  },
-  "startSubtitle": "Private chats and groups are end-to-end encrypted. Public channels are open to anyone who joins.",
-  "@startSubtitle": {
-    "description": "Start menu subtitle; must not promise encryption for public channels"
   },
   "startGroupEncrypted": "End-to-end encrypted",
   "@startGroupEncrypted": {
@@ -1836,6 +1828,10 @@
   "deviceLinkImportImage": "Choose QR image",
   "deviceLinkPasteLabel": "Paste the link from your trusted device",
   "deviceLinkImport": "Connect",
+  "deviceLinkConfirmationCode": "Confirmation code",
+  "@deviceLinkConfirmationCode": {
+    "description": "Label over the code a new device shows while it is being linked, to be compared on the trusted device"
+  },
   "deviceLinkCodeLabel": "Code from the new device",
   "deviceLinkApprove": "Approve device",
   "deviceLinkDecline": "Cancel link",

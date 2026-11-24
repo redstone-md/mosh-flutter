@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show isMobileBreakpoint;
 
-import 'start_hero.dart';
 import 'start_list.dart';
 import 'start_motion.dart';
 import 'start_reveal.dart';
 
-/// The start menu: the welcome beside, or above, the four ways to begin,
-/// grouped by whether what they open is encrypted.
-///
-/// A wide pane puts the welcome left of the list. Narrower panes stack
-/// them in one column, and a phone drops the mark so the actions come
-/// first.
+/// The Start menu card: what a new conversation can be. The four ways to
+/// begin stand under their heading, grouped by who can read the conversation.
 class StartMenu extends StatelessWidget {
   const StartMenu({
     super.key,
@@ -29,19 +27,15 @@ class StartMenu extends StatelessWidget {
   final VoidCallback onPickJoin;
   final VoidCallback onPickChannel;
 
-  /// From this content width (the pane less its side padding) the
-  /// welcome and the list sit side by side.
-  static const twoColumnWidth = 860.0;
-
-  /// Below this content width the mark is dropped.
-  static const markWidth = 480.0;
+  /// Width of the menu on the desktop: a 440 px row and the menu's padding.
+  static const maxWidth = 472.0;
 
   @override
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     final list = StartReveal(
-      delay: StartMotion.lineStagger * 2,
+      delay: StartMotion.lineStagger,
       child: StartActionList(actions: [
         StartAction(
           icon: MoshIcons.chat,
@@ -74,39 +68,30 @@ class StartMenu extends StatelessWidget {
         ),
       ]),
     );
-    return LayoutBuilder(builder: (context, constraints) {
-      final width = constraints.maxWidth;
-      if (width >= twoColumnWidth) {
-        return Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1040),
-            child: Row(children: [
-              const Expanded(
-                flex: 5,
-                child: Padding(
-                  padding: EdgeInsetsDirectional.only(end: 56),
-                  child: StartHero(mark: true, titleSize: 40),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: maxWidth),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // A narrow window opens the menu as a screen of its own, and
+            // the bar with the way back already names it.
+            if (!isMobileBreakpoint(context))
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    MoshSpace.s4, 0, MoshSpace.s4, MoshSpace.s2),
+                child: StartReveal(
+                  child: Semantics(
+                    header: true,
+                    child: Text('${l.startTitleLead} ${l.startTitleAccent}',
+                        style: Theme.of(context).textTheme.headlineMedium),
+                  ),
                 ),
               ),
-              Expanded(flex: 6, child: list),
-            ]),
-          ),
-        );
-      }
-      return Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              StartHero(
-                  mark: width >= markWidth, titleSize: width < 600 ? 26 : 30),
-              const SizedBox(height: 28),
-              list,
-            ],
-          ),
+            list,
+          ],
         ),
-      );
-    });
+      ),
+    );
   }
 }

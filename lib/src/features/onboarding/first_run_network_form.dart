@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/features/shared/inline_error.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_select.dart';
@@ -123,10 +125,10 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
             l.firstRunVpnDetected,
             style: TextStyle(color: colors.warning),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: MoshSpace.s4),
         ],
         _picker(l),
-        const SizedBox(height: 16),
+        const SizedBox(height: MoshSpace.s4),
         Text(
           _picked == null ? l.firstRunAutomaticHint : l.firstRunBypassHint,
           style: Theme.of(
@@ -134,10 +136,10 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
           ).textTheme.bodyLarge?.copyWith(color: colors.onSurfaceVariant),
         ),
         if (_needsRestart) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: MoshSpace.s3),
           Text(l.bindAdapterRestartNeeded),
         ],
-        const SizedBox(height: 28),
+        const SizedBox(height: MoshSpace.s5),
         FilledButton(
           onPressed: _saving || !_selectionAvailable ? null : _finish,
           child: Text(
@@ -148,19 +150,14 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
                     : l.firstRunFinish,
           ),
         ),
-        const SizedBox(height: 12),
-        TextButton(
-          onPressed: _saving ? null : _back,
-          child: Text(l.firstRunBack),
-        ),
-        if (_error != null)
-          Semantics(
-            liveRegion: true,
-            child: Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
+        const SizedBox(height: MoshSpace.s3),
+        Center(
+          child: TextButton(
+            onPressed: _saving ? null : _back,
+            child: Text(l.firstRunBack),
           ),
+        ),
+        if (_error != null) InlineError(message: _error),
       ],
     );
   }

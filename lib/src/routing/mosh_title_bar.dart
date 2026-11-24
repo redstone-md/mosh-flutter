@@ -47,6 +47,13 @@ class MoshTitleBar extends ConsumerWidget {
         trailing = null,
         dragArea = null;
 
+  /// Whether a screen outside the chat shell draws the bar itself: the
+  /// desktop's window frame has not drawn one, and the device is not a phone,
+  /// which has no window and so no title bar.
+  static bool standsAlone(BuildContext context) =>
+      !DesktopChromeScope.isPresent(context) &&
+      !MoshControl.touch(Theme.of(context).platform);
+
   /// The bar's height at the normal text size; it grows with larger text.
   static const double height = MoshSpace.s10;
 

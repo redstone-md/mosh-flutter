@@ -16,11 +16,11 @@ void main() {
           FirstRunHarness(profile: const FirstRunProfile(displayName: 'Yuna'));
       await harness.pump(tester, size: size);
       final progress = find.byType(SetupProgress);
-      final card =
-          find.ancestor(of: progress, matching: find.byType(Container)).first;
-      final originalCard = tester.renderObject(card);
+      final originalStep = tester.renderObject(setupStep);
       final originalProgress = tester.element(progress);
-      final cardRect = tester.getRect(card);
+      // Steps differ in height: the shell is where the step starts and how
+      // wide it is, not how far down it reaches.
+      final stepRect = tester.getRect(setupStep);
       final progressRect = tester.getRect(progress);
       for (final step in [
         SetupStep.device,
@@ -38,9 +38,10 @@ void main() {
           const Duration(milliseconds: 160)
         ]) {
           await tester.pump(frame);
-          expect(tester.renderObject(card), same(originalCard));
+          expect(tester.renderObject(setupStep), same(originalStep));
           expect(tester.element(progress), same(originalProgress));
-          expect(tester.getRect(card), cardRect);
+          expect(tester.getRect(setupStep).topLeft, stepRect.topLeft);
+          expect(tester.getRect(setupStep).width, stepRect.width);
           expect(tester.getRect(progress), progressRect);
           expect(
               find.ancestor(
@@ -48,12 +49,11 @@ void main() {
               findsNothing);
         }
         await tester.pumpAndSettle();
-        expect(tester.getRect(card), cardRect);
+        expect(tester.getRect(setupStep).topLeft, stepRect.topLeft);
+        expect(tester.getRect(progress), progressRect);
         expect(tester.takeException(), isNull);
       }
-    },
-        // test-policy: skip MOSH-130 -- on the Foundations type scale the setup steps differ in height and move the card in a 680px-high window
-        skip: size.height < 700);
+    });
   }
 
   testWidgets('returning to device linking keeps the unfinished importer',

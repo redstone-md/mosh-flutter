@@ -3,7 +3,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
-import 'package:mosh/src/features/onboarding/first_run_theme.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 
 import '../../support/pump.dart';
@@ -40,12 +39,9 @@ void main() {
     expect(buttons.every((button) => button.onPressed == null), isTrue);
   });
 
-  testWidgets('setup actions keep larger text and wrap within a narrow card',
-      (tester) async {
-    await _pump(tester, setup: true, width: 240);
+  testWidgets('actions under a note wrap within a narrow card', (tester) async {
+    await _pump(tester, note: true, width: 240);
     final primary = _label(tester, 'Open chat');
-    expect(primary.fontSize,
-        greaterThan(moshThemeData.textTheme.labelLarge!.fontSize!));
     for (final label in ['Copy link', 'Replace link']) {
       expect(_label(tester, label).fontSize, primary.fontSize);
       expect(tester.getSize(_button(label)).height,
@@ -66,18 +62,18 @@ Finder _button(String label) => find.ancestor(
 Future<void> _pump(WidgetTester tester,
         {bool copied = false,
         bool busy = false,
-        bool setup = false,
+        bool note = false,
         double width = 520}) =>
     pumpScreen(
         tester,
         Theme(
-            data: setup ? buildSetupTheme(moshThemeData) : moshThemeData,
+            data: moshThemeData,
             child: Scaffold(
                 body: Center(
                     child: SizedBox(
                         width: width,
                         child: InviteResult(
-                            note: setup ? 'Share this invitation' : '',
+                            note: note ? 'Share this invitation' : '',
                             uri: 'mosh://invite?session=alice',
                             copied: copied,
                             busy: busy,

@@ -208,7 +208,6 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
               maxLines: 4,
               minLines: 1,
               enabled: !_busy,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
               decoration: InputDecoration(
                 hintText: l.onboardJoinPlaceholder,
                 prefixIcon: const Icon(MoshIcons.link, size: 20),

@@ -118,8 +118,6 @@ flutter:
     - assets/audio/ringtone_outgoing.wav
     - assets/branding/
     - assets/licenses/NOTICES
-    - assets/onboarding/
-    - assets/start/
   fonts:
     - family: Onest
       fonts:

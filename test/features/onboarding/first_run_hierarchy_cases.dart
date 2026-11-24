@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/device_link/device_link_import_form.dart';
 import 'package:mosh/src/features/onboarding/first_run_profile.dart';
 import 'package:mosh/src/rust/device_link/types.dart';
@@ -28,10 +27,6 @@ void main() {
           find.byWidgetPredicate((widget) =>
               widget is Semantics && widget.properties.header == true),
           findsOneWidget);
-      expect(tester.getRect(title).bottom,
-          lessThan(tester.getRect(setupIllustration).top));
-      expect(find.text('Добро пожаловать в Mosh'), findsNothing);
-      expect(find.text('Почти готово'), findsNothing);
       await saveSetupPreview(tester, 'first-run-hierarchy-${step.name}-phone');
     });
 
@@ -49,35 +44,16 @@ void main() {
     });
   }
 
-  testWidgets('the task heading outranks the desktop welcome', (tester) async {
-    await _pump(tester, SetupStep.name, const Size(1280, 680));
-    final task = tester.widget<Text>(find.text(_titles[SetupStep.name]!));
-    final welcome = tester.widget<Text>(find.text('Добро пожаловать в Mosh'));
-    expect(task.style!.fontSize, greaterThan(welcome.style!.fontSize!));
-  });
-
-  testWidgets('setup actions use the readable setup label, not the app label',
-      (tester) async {
-    await _pump(tester, SetupStep.name, const Size(1280, 680));
-    final label = tester.widget<DefaultTextStyle>(find
-        .ancestor(
-            of: find.text('Продолжить'),
-            matching: find.byType(DefaultTextStyle))
-        .first);
-    expect(label.style.fontSize,
-        greaterThan(moshThemeData.textTheme.labelLarge!.fontSize!));
-  });
-
-  testWidgets('device choices have equal emphasis before choosing',
+  testWidgets('one primary button moves on; connecting is the quiet choice',
       (tester) async {
     await _pump(tester, SetupStep.device, const Size(1280, 680));
-    expect(find.byType(FilledButton), findsNothing);
-    expect(find.widgetWithText(OutlinedButton, 'Это моё первое устройство'),
+    expect(find.widgetWithText(FilledButton, 'Это моё первое устройство'),
         findsOneWidget);
     expect(
         find.widgetWithText(
             OutlinedButton, 'Подключить к существующему профилю'),
         findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Назад'), findsOneWidget);
   });
 
   testWidgets('a small progress indicator labels only the current step',

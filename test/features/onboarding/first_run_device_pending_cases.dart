@@ -24,8 +24,8 @@ void main() {
     expect(harness.link.countOf(DeviceLinkMethod.joinLink), 1);
     expect(harness.link.current.phase, DeviceLinkPhase.idle);
     final independent =
-        find.widgetWithText(OutlinedButton, 'This is my first device');
-    expect(tester.widget<OutlinedButton>(independent).onPressed, isNull);
+        find.widgetWithText(FilledButton, 'This is my first device');
+    expect(tester.widget<FilledButton>(independent).onPressed, isNull);
     expect(
         tester
             .widget<TextButton>(find.widgetWithText(TextButton, 'Back'))
@@ -52,8 +52,8 @@ void main() {
     expect(find.text('Retry'), findsOneWidget);
     expect(
         tester
-            .widget<OutlinedButton>(
-                find.widgetWithText(OutlinedButton, 'This is my first device'))
+            .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'This is my first device'))
             .onPressed,
         isNull);
     expect(harness.store.profile!.step, SetupStep.device);

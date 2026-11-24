@@ -1,5 +1,4 @@
-// IVO-50: the start menu fits its pane. A wide pane puts the welcome
-// beside the list, narrower ones stack them and a phone drops the mark;
+// IVO-50: the start menu fits its pane as one column under its heading;
 // actions sit under encrypted and open headings, descriptions wrap in full
 // in Russian, a keyboard user sees which row holds focus, and reduced
 // motion shows everything at rest.
@@ -10,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
-import 'package:mosh/src/features/onboarding/start/start_hero.dart';
 import 'package:mosh/src/features/onboarding/start/start_list.dart';
 import 'package:mosh/src/features/onboarding/start/start_menu.dart';
 import 'package:mosh/src/features/onboarding/start/start_reveal.dart';
@@ -44,22 +42,21 @@ Future<AppLocalizations> _pumpMenu(WidgetTester tester, double width,
 }
 
 void main() {
-  for (final (width, sideBySide, mark) in [
-    (1200.0, true, true),
-    (800.0, false, true),
-    (390.0, false, false),
-  ]) {
-    testWidgets(
-        'at ${width.toInt()}px: '
-        '${sideBySide ? 'side by side' : 'stacked'}, '
-        '${mark ? 'with' : 'without'} the mark', (tester) async {
-      await _pumpMenu(tester, width);
-      final hero = tester.getRect(find.byType(StartHero));
-      final list = tester.getRect(find.byType(StartActionList));
-      expect(list.left > hero.right, sideBySide);
-      expect(find.byType(Image), mark ? findsOneWidget : findsNothing);
-    });
-  }
+  testWidgets('a wide pane shows the menu as one centred column of 472px',
+      (tester) async {
+    final l = await _pumpMenu(tester, 1200);
+    final heading =
+        tester.getRect(find.text('${l.startTitleLead} ${l.startTitleAccent}'));
+    final list = tester.getRect(find.byType(StartActionList));
+    expect(heading.bottom, lessThan(list.top));
+    expect(list.width, 472);
+    expect(list.center.dx, closeTo(600, 1));
+  });
+
+  testWidgets('a phone fills its width with the rows', (tester) async {
+    await _pumpMenu(tester, 390);
+    expect(tester.getRect(find.byType(StartActionList)).width, 390);
+  });
 
   testWidgets('the public channel sits apart, under the open heading',
       (tester) async {

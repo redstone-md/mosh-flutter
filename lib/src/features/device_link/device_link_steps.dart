@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/app/mosh_theme.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/features/shared/step_mark.dart';
 import 'package:mosh/src/rust/device_link/types.dart';
 
+/// The steps of linking a device, counted as setup counts its own: each a
+/// Link step of the Wizard step card, wrapping when the card is narrow.
 class DeviceLinkSteps extends StatelessWidget {
   const DeviceLinkSteps({
     super.key,
@@ -32,61 +34,29 @@ class DeviceLinkSteps extends StatelessWidget {
       l.deviceLinkStepApprove,
       l.deviceLinkStepFinish,
     ];
-    return LayoutBuilder(builder: (context, size) {
-      final steps = [
-        for (var i = 0; i < labels.length; i++)
-          _Step(label: labels[i], index: i, current: _current),
-      ];
-      if (size.maxWidth < 420) {
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          for (final step in steps)
-            Padding(padding: const EdgeInsets.only(bottom: 8), child: step),
-        ]);
-      }
-      return Row(children: [
-        for (final step in steps) Expanded(child: step),
-      ]);
-    });
+    return Wrap(spacing: MoshSpace.s4, runSpacing: MoshSpace.s2, children: [
+      for (final (index, label) in labels.indexed)
+        _Step(
+            label: label,
+            number: index + 1,
+            state: StepProgress.of(index, _current)),
+    ]);
   }
 }
 
 class _Step extends StatelessWidget {
-  const _Step(
-      {required this.label, required this.index, required this.current});
+  const _Step({required this.label, required this.number, required this.state});
   final String label;
-  final int index;
-  final int current;
+  final int number;
+  final StepProgress state;
 
   @override
   Widget build(BuildContext context) => Semantics(
-        selected: current == index,
-        child: Row(children: [
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: index <= current
-                  ? MoshColors.of(context).secondaryContainer
-                  : MoshColors.of(context).surfaceContainerHigh,
-            ),
-            child: index < current
-                ? Icon(MoshIcons.check,
-                    size: 16, color: MoshColors.of(context).primary)
-                : Text('${index + 1}',
-                    style: TextStyle(
-                        color: index == current
-                            ? MoshColors.of(context).primary
-                            : MoshColors.of(context).onSurfaceMuted)),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-              child: Text(label,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: index == current
-                          ? MoshColors.of(context).onSurface
-                          : MoshColors.of(context).onSurfaceMuted))),
+        selected: state == StepProgress.current,
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          StepMark(number: number, state: state, size: MoshSpace.s6),
+          const SizedBox(width: MoshSpace.s2),
+          Flexible(child: Text(label, style: stepLabelStyle(context, state))),
         ]),
       );
 }
