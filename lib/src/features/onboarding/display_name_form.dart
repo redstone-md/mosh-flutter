@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_field.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 
 /// Shared name editor for setup and Settings. Persist before reporting success.
@@ -67,7 +66,6 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     final radius = widget.compact ? 36.0 : 48.0;
     return Form(
@@ -76,25 +74,13 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (widget.showAvatar) ...[
+              // Until there is a name to take initials from, the person sign.
               Center(
-                  child: Theme(
-                      data: Theme.of(context).copyWith(
-                          textTheme: Theme.of(context).textTheme.copyWith(
-                              labelMedium: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
-                                  ?.copyWith(fontSize: 28))),
-                      child: _name.text.trim().isEmpty
-                          ? CircleAvatar(
-                              radius: radius,
-                              backgroundColor: colors.avatar1,
-                              child: Icon(MoshIcons.person,
-                                  size: radius * .8,
-                                  color: colors.onSurfaceVariant))
-                          : Avatar(
-                              name: _name.text,
-                              radius: radius,
-                              ownPlus: widget.showPlus))),
+                  child: Avatar(
+                      name: _name.text,
+                      sign: _name.text.trim().isEmpty ? MoshIcons.person : null,
+                      radius: radius,
+                      ownPlus: widget.showPlus)),
               SizedBox(height: widget.compact ? 16 : 28),
             ],
             MoshField(

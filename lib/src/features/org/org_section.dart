@@ -294,6 +294,8 @@ class _NewGroupFormState extends State<_NewGroupForm> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Row(
+        // The button stands beside the well, below the label.
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
             child: MoshField(

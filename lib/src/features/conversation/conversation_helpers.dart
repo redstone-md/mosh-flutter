@@ -234,17 +234,19 @@ class UnreadBadge extends StatelessWidget {
         constraints: const BoxConstraints(
             minWidth: MoshSpace.s5, minHeight: MoshSpace.s5),
         padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s1),
-        alignment: Alignment.center,
         decoration:
             ShapeDecoration(color: colors.primary, shape: MoshShapes.pill),
-        // A live number: tabular figures keep the badge from jittering as
-        // the count ticks.
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.labelMedium!.copyWith(
-            color: colors.onPrimary,
-            fontFeatures: kLiveNumberFontFeatures,
+        // The badge hugs its count wherever a row puts it. A live number:
+        // tabular figures keep it from jittering as the count ticks.
+        child: Center(
+          widthFactor: 1,
+          heightFactor: 1,
+          child: Text(
+            text,
+            style: theme.textTheme.labelMedium!.copyWith(
+              color: colors.onPrimary,
+              fontFeatures: kLiveNumberFontFeatures,
+            ),
           ),
         ),
       ),
