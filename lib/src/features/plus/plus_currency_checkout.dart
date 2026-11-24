@@ -51,6 +51,7 @@ class _PlusCurrencyCheckoutState extends State<PlusCurrencyCheckout> {
   Widget _currencies() => Wrap(spacing: 8, runSpacing: 8, children: [
         for (final item in widget.catalog.assets)
           ChoiceChip(
+              visualDensity: VisualDensity.standard,
               label: Text(item.id),
               selected: item.id == _asset,
               onSelected:

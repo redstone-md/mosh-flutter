@@ -176,7 +176,6 @@ void main() {
         matching: find.byType(ConversationKindAvatar)));
     expect(avatars.map((a) => a.kind).toSet(), ConversationKind.values.toSet());
     final glyphs = <IconData>{};
-    final colors = <Color>{};
     for (final kind in ConversationKind.values) {
       final avatar = find.byWidgetPredicate(
           (w) => w is ConversationKindAvatar && w.kind == kind);
@@ -185,12 +184,9 @@ void main() {
             find.descendant(of: avatar, matching: find.byIcon(kind.icon)));
         glyphs.add(icon.icon!);
       }
-      final circle = tester.widget<CircleAvatar>(
-          find.descendant(of: avatar, matching: find.byType(CircleAvatar)));
-      colors.add(circle.backgroundColor!);
     }
+    // A type is told by its glyph; the plate's colour belongs to the contact.
     expect(glyphs, hasLength(2));
-    expect(colors, hasLength(3));
     for (final (title, kind) in [
       ('Alice', ConversationKind.dm),
       ('Design team', ConversationKind.group),

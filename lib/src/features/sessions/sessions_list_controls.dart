@@ -61,7 +61,7 @@ class SessionsListControls extends StatelessWidget {
             clipBehavior: Clip.none,
             child: Row(
               children: [
-                for (final entry in labels.entries) _filterChip(context, entry),
+                for (final entry in labels.entries) _filterChip(entry),
               ],
             ),
           ),
@@ -110,46 +110,15 @@ class SessionsListControls extends StatelessWidget {
         ),
       );
 
-  Widget _filterChip(
-      BuildContext context, MapEntry<ConversationKind?, String> entry) {
-    final colors = MoshColors.of(context);
-    final selected = entry.key == kind;
-    final mobile = isMobileBreakpoint(context);
+  Widget _filterChip(MapEntry<ConversationKind?, String> entry) {
     return Padding(
       padding: const EdgeInsetsDirectional.only(end: 4),
+      // The Filter chip card: 32 px, inside a 48 px tap target on a phone.
       child: ChoiceChip(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        labelPadding:
-            EdgeInsets.symmetric(horizontal: 4, vertical: mobile ? 0 : 2),
-        visualDensity: mobile ? VisualDensity.standard : VisualDensity.compact,
-        materialTapTargetSize: MaterialTapTargetSize.padded,
-        labelStyle: Theme.of(context).textTheme.labelMedium!.copyWith(
-              fontSize: 12,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-              color: selected ? colors.onSurface : colors.onSurfaceVariant,
-            ),
-        avatarBoxConstraints:
-            const BoxConstraints.tightFor(width: 16, height: 16),
-        avatar: entry.key == null
-            ? null
-            : Icon(entry.key!.icon,
-                size: 16,
-                color: Color.lerp(colors.onSurfaceVariant,
-                    entry.key!.accent(colors), selected ? 1 : 0.55)),
+        visualDensity: VisualDensity.standard,
+        avatar: entry.key == null ? null : Icon(entry.key!.icon),
         label: Text(entry.value),
-        backgroundColor: colors.surfaceContainerLowest,
-        selectedColor: entry.key?.tint(colors) ?? colors.surfaceBright,
-        side: WidgetStateBorderSide.resolveWith((states) => BorderSide(
-              width: 2,
-              strokeAlign: BorderSide.strokeAlignOutside,
-              color: states.contains(WidgetState.focused)
-                  ? colors.focusRing
-                  : Colors.transparent,
-            )),
-        elevation: 0,
-        pressElevation: 0,
-        selected: selected,
-        showCheckmark: false,
+        selected: entry.key == kind,
         onSelected: (_) => onKind(entry.key),
       ),
     );

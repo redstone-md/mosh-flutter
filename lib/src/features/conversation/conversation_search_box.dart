@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 
@@ -134,9 +135,8 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
   }
 }
 
-/// The filter segment group: a 34px bordered bg-2 track with 3px of
-/// padding around two 28px radius-5 buttons at 11.5px/600. The selected one
-/// sits on bg-4 in fg-1; the other is fg-3.
+/// The Segment card: a recessed pill track around two segments, of which
+/// exactly one is lit. The track is as tall as the search box beside it.
 class ConversationFilterToggle extends StatelessWidget {
   const ConversationFilterToggle({
     super.key,
@@ -158,12 +158,9 @@ class ConversationFilterToggle extends StatelessWidget {
       label: l.chatFilterAttachments,
       child: Container(
         height: kConversationToolHeight,
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          color: colors.surfaceContainerHigh,
-          borderRadius: MoshShapes.control,
-          border: Border.all(color: colors.outlineVariant),
-        ),
+        padding: const EdgeInsets.all(MoshSpace.s1),
+        decoration: ShapeDecoration(
+            color: colors.surfaceContainerLowest, shape: MoshShapes.pill),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
@@ -201,34 +198,29 @@ class _FilterSegment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
-    // Concentric radius: outer track 8 - 3 padding = 5.
-    final radius =
-        MoshShapes.control - const BorderRadius.all(Radius.circular(3));
-    final color = active ? colors.onSurface : colors.onSurfaceMuted;
+    final color = active ? colors.onSurface : colors.onSurfaceVariant;
     return Material(
       color: active ? colors.surfaceBright : Colors.transparent,
-      borderRadius: radius,
+      shape: MoshShapes.pill,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: radius,
         onTap: onTap,
-        child: Container(
-          height: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          alignment: Alignment.center,
+        overlayColor: MoshState.layer(colors.onSurface),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s3),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               if (icon != null) ...<Widget>[
-                Icon(icon, size: 13, color: color),
-                const SizedBox(width: 5), // icon-to-label gap
+                Icon(icon, size: MoshSpace.s4, color: color),
+                const SizedBox(width: MoshSpace.s1),
               ],
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge!
+                    .copyWith(color: color),
               ),
             ],
           ),

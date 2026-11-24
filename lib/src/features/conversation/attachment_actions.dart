@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
@@ -77,7 +78,7 @@ class AttachmentActions extends StatelessWidget {
   }
 }
 
-/// One compact action button. Wraps `IconButton` in a `Semantics` with the
+/// One action button, the Tonal kind of the Icon button card. Wraps `IconButton` in a `Semantics` with the
 /// full accessible label (file name interpolated); `IconButton.tooltip`
 /// carries the short label. `busy` toggles `Semantics(enabled: !busy)` so
 /// screen readers announce the disabled state.
@@ -103,13 +104,10 @@ class _ActionIcon extends StatelessWidget {
       button: true,
       enabled: onPressed != null && !busy,
       child: IconButton(
-        icon: Icon(icon, size: 18),
+        icon: Icon(icon),
         tooltip: tooltip,
         onPressed: onPressed,
-        visualDensity: VisualDensity.compact,
-        splashRadius: 20,
-        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-        padding: EdgeInsets.zero,
+        style: moshTonalIconButtonStyle(MoshColors.of(context)),
       ),
     );
   }

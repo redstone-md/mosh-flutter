@@ -201,9 +201,13 @@ class _Examples extends StatelessWidget {
         alignment: WrapAlignment.center,
         children: [
           for (final name in names)
+            // The Suggestion chip card: a plate of its own and no edge.
             ActionChip(
-              avatar:
-                  Icon(MoshIcons.tag, size: 16, color: colors.onSurfaceMuted),
+              visualDensity: VisualDensity.standard,
+              color: WidgetStatePropertyAll(colors.surfaceContainerHigh),
+              side: BorderSide.none,
+              labelStyle: Theme.of(context).textTheme.labelLarge,
+              avatar: Icon(MoshIcons.tag, color: colors.onSurface),
               label: Text(name),
               onPressed: () => onPick(name),
             ),

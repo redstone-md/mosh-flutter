@@ -204,10 +204,11 @@ ChipThemeData _chipTheme(MoshColors c, TextTheme text) {
 
   return ChipThemeData(
     shape: MoshShapes.pill,
-    side: WidgetStateBorderSide.resolveWith((states) =>
-        states.contains(WidgetState.selected)
-            ? BorderSide.none
-            : BorderSide(color: c.outlineVariant)),
+    side: WidgetStateBorderSide.resolveWith((states) => _edge(c,
+            rest: states.contains(WidgetState.selected)
+                ? BorderSide.none
+                : BorderSide(color: c.outlineVariant))
+        .resolve(states)),
     color: WidgetStateProperty.resolveWith((states) {
       if (!states.contains(WidgetState.selected)) return Colors.transparent;
       return states.contains(WidgetState.disabled)
