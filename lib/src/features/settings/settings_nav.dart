@@ -4,6 +4,7 @@ import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
+import 'package:mosh/src/features/shared/focus_ring.dart';
 
 import 'settings_navigation.dart';
 import 'settings_page_header.dart';
@@ -49,7 +50,7 @@ class SettingsNav extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
-                MoshSpace.s4, MoshSpace.s4, MoshSpace.s4, MoshSpace.s3),
+                MoshSpace.s4, MoshSpace.s4, MoshSpace.s4, MoshSpace.s2),
             child: Semantics(
               header: true,
               child: Text(l.settingsTitle,
@@ -106,7 +107,8 @@ class _SectionRow extends StatelessWidget {
           onTap: onTap,
           customBorder: MoshShapes.pill,
           overlayColor: MoshState.layer(colors.onSurface),
-          child: _FocusPill(
+          child: FocusRing(
+            radius: const BorderRadius.all(Radius.circular(MoshRadius.full)),
             child: Container(
               constraints: BoxConstraints(
                   minHeight: MoshControl.height(Theme.of(context).platform)),
@@ -136,30 +138,6 @@ class _SectionRow extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// The keyboard focus ring of a pill-shaped row.
-class _FocusPill extends StatelessWidget {
-  const _FocusPill({required this.child});
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final node = Focus.maybeOf(context);
-    final focused = (node?.hasPrimaryFocus ?? false) &&
-        FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
-    return DecoratedBox(
-      position: DecorationPosition.foreground,
-      decoration: ShapeDecoration(
-          shape: focused
-              ? MoshShapes.pill.copyWith(
-                  side: BorderSide(
-                      color: MoshColors.of(context).focusRing,
-                      width: MoshBorder.thick))
-              : MoshShapes.pill),
-      child: child,
     );
   }
 }

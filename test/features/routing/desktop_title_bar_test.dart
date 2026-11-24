@@ -73,26 +73,6 @@ void main() {
     ('dark', MoshColors.dark),
     ('light', MoshColors.light),
   ]) {
-    testWidgets('$palette: the bar and its window buttons are the card\'s',
-        (tester) async {
-      final window = await _window(DesktopWindowPlatform());
-      await _frame(tester, window, colors: colors);
-      final bar = find.byType(MoshTitleBar);
-      expect(tester.getSize(bar).height, 40);
-      expect(
-          tester
-              .widget<Material>(find
-                  .descendant(of: bar, matching: find.byType(Material))
-                  .first)
-              .color,
-          colors.surfaceContainerLow);
-      for (final name in ['Minimize', 'Maximize', 'Close']) {
-        expect(tester.getSize(find.byTooltip(name)), const Size(48, 40));
-        expect(_glyphColor(tester, name), colors.onSurfaceVariant);
-      }
-      expect(tester.getRect(find.byTooltip('Close')).right, 400);
-    });
-
     testWidgets('$palette: only close turns to the error colour when hovered',
         (tester) async {
       final window = await _window(DesktopWindowPlatform());

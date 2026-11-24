@@ -88,7 +88,7 @@ class _FirstRunDeviceStepState extends ConsumerState<FirstRunDeviceStep> {
             onPressed: locked ? null : _continue,
             child:
                 Text(connected ? l.firstRunContinue : l.firstRunFirstDevice)),
-      const SizedBox(height: MoshSpace.s3),
+      const SizedBox(height: MoshSpace.s5),
       Center(
         child: TextButton(
             onPressed: locked || pending ? null : () => _back(),

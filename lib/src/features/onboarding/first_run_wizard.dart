@@ -37,7 +37,8 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
   Widget build(BuildContext context) => Scaffold(
         body: SafeArea(
             child: Column(children: [
-          if (MoshTitleBar.standsAlone(context)) const MoshTitleBar.brand(),
+          if (MoshTitleBar.standsAlone(context))
+            const MoshTitleBar.brand(showName: false),
           Expanded(child: LayoutBuilder(builder: _viewport)),
         ])),
       );

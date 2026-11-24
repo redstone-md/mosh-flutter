@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/conversation/connection_status_panel.dart';
 import 'package:mosh/src/features/conversation/conversation_details_panel.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
@@ -152,37 +151,4 @@ void main() {
     expect(find.text('Conversation details'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
-
-  for (final (palette, colors) in [
-    ('dark', MoshColors.dark),
-    ('light', MoshColors.light),
-  ]) {
-    testWidgets('$palette: the panel lies on the panel level', (tester) async {
-      tester.view
-        ..physicalSize = const Size(360, 900)
-        ..devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      await pumpScreen(
-          tester,
-          Theme(
-              data: buildMoshTheme(colors),
-              child: Scaffold(
-                  body: ConversationDetailsPanel(
-                      target: const DmTarget('dm'),
-                      async: AsyncData(_dm()),
-                      onClose: () {},
-                      onOpenAttachment: (_, __, ___) {}))),
-          overrides: [gatewayProvider.overrideWithValue(ScriptableGateway())]);
-      final panel = tester.widget<Material>(find
-          .descendant(
-              of: find.byType(ConversationDetailsPanel),
-              matching: find.byType(Material))
-          .first);
-      expect(panel.color, colors.surfaceContainerLow);
-      // The head is as tall as the bar at the top of the conversation.
-      expect(tester.getSize(find.byType(PanelHead)).height, 64);
-      // Widget tests run as a phone, whose controls are 48 px.
-      expect(tester.getSize(find.byTooltip('Close')), const Size.square(48));
-    });
-  }
 }

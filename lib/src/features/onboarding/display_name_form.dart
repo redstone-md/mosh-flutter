@@ -87,27 +87,7 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                       ownPlus: widget.showPlus)),
               const SizedBox(height: MoshSpace.s6),
             ],
-            MoshField(
-              enabled: !_busy,
-              label: l.setupDisplayNameLabel,
-              child: TextFormField(
-                  controller: _name,
-                  enabled: !_busy,
-                  maxLength: 64,
-                  textCapitalization: TextCapitalization.words,
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => _save(),
-                  onChanged: (_) => setState(() => _saved = false),
-                  validator: (name) => name == null || name.trim().isEmpty
-                      ? l.firstRunNameRequired
-                      : null,
-                  decoration: InputDecoration(
-                      prefixIcon: const Icon(MoshIcons.person),
-                      counterText: '',
-                      helperText: l.firstRunNameHint,
-                      helperMaxLines: 3,
-                      errorMaxLines: 3)),
-            ),
+            _field(l),
             if (widget.note case final note?) ...[
               const SizedBox(height: MoshSpace.s5),
               note,
@@ -130,4 +110,26 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
           ],
         ));
   }
+
+  Widget _field(AppLocalizations l) => MoshField(
+        enabled: !_busy,
+        label: l.setupDisplayNameLabel,
+        child: TextFormField(
+            controller: _name,
+            enabled: !_busy,
+            maxLength: 64,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => _save(),
+            onChanged: (_) => setState(() => _saved = false),
+            validator: (name) => name == null || name.trim().isEmpty
+                ? l.firstRunNameRequired
+                : null,
+            decoration: InputDecoration(
+                prefixIcon: const Icon(MoshIcons.person),
+                counterText: '',
+                helperText: l.firstRunNameHint,
+                helperMaxLines: 3,
+                errorMaxLines: 3)),
+      );
 }

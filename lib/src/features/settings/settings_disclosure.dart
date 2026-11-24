@@ -59,7 +59,7 @@ class SettingsFold extends StatelessWidget {
             label: label,
             child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                    MoshSpace.s3, MoshSpace.s1, MoshSpace.s3, 0),
+                    MoshSpace.s3, MoshSpace.s3, MoshSpace.s3, 0),
                 child: child),
           ),
         ],

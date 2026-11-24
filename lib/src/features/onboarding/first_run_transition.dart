@@ -10,7 +10,8 @@ const setupStepCurve = Cubic(.23, 1, .32, 1);
 /// Places the wizard in its viewport: the step it opens with stands in the
 /// middle, and from then on its top stays where it is, so the progress does
 /// not move when a taller or a shorter step takes the place of the first.
-/// A step taller than the room under that top scrolls.
+/// A step too tall for the room under that top raises it, and one taller
+/// than the window scrolls.
 ///
 /// A change of [layout] (the viewport, the text size, the language) measures
 /// anew.
@@ -51,8 +52,11 @@ class _StableLayout extends RenderShiftedBox {
     final step = child!;
     step.layout(BoxConstraints(maxWidth: constraints.maxWidth),
         parentUsesSize: true);
-    final top = _top ??=
-        ((_viewportHeight - step.size.height) / 2).clamp(0.0, double.infinity);
+    final room =
+        (_viewportHeight - step.size.height).clamp(0.0, double.infinity);
+    // A step that no longer fits under the top it was given (it opened
+    // while still loading, say) pulls the top up just far enough, for good.
+    final top = _top = (_top ?? room / 2).clamp(0.0, room);
     size = constraints.constrain(Size(constraints.maxWidth,
         (top + step.size.height).clamp(_viewportHeight, double.infinity)));
     (step.parentData! as BoxParentData).offset =

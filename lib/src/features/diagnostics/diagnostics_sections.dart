@@ -46,7 +46,9 @@ class DiagnosticsGroup extends StatelessWidget {
           const SizedBox(height: MoshSpace.s1),
           ...children,
           for (final (label, value) in rows)
-            ValueRow(label: label, value: value),
+            Padding(
+                padding: const EdgeInsets.only(top: MoshSpace.s1),
+                child: ValueRow(label: label, value: value)),
         ],
       );
 }

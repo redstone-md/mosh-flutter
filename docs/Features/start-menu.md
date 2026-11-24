@@ -72,16 +72,13 @@ rows still lift on hover and focus, without the chevron moving.
 ## Ownership
 
 `NewSessionPanel` owns the current page; `StartPages` keeps the pages
-mounted and fades between them. `StartMenu` lays out `StartHero` and
+mounted and fades between them. `StartMenu` lays out its heading and
 `StartActionList` (rows are `StartRow`); `StartStep` frames a step. The step widgets
 (`ChatCreateStep`, `GroupCreateStep`, `OnboardJoinStep`, `ChannelJoinStep`)
-keep their bridge calls. Illustrations and their prompts live in
-[`assets/start/`](../../assets/start/README.md).
+keep their bridge calls.
 
 ## Known gaps
 
-- `hero.png` carries transparent margins; `StartHero` pulls the mark left
-  by the art's share of the canvas so it lines up with the title.
 - With the storage warning shown, the pane is taller than the window by
   the banner's height, so it scrolls.
 - A private chat invite is not single-use in the core: until a contact

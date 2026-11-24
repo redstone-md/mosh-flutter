@@ -37,20 +37,24 @@ class DeviceLinkFlow extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final joining = role == DeviceLinkRole.joining;
     return SettingsCard(
-      icon: joining ? MoshIcons.scan : MoshIcons.link,
+      icon: joining ? MoshIcons.qr : MoshIcons.devices,
       title: joining ? l.deviceLinkConnectThis : l.deviceLinkLinkOther,
       hint: importForm != null
           ? l.deviceLinkJoinHelp
           : deviceLinkPhase(l, snapshot.phase),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        const SizedBox(height: MoshSpace.s1),
         DeviceLinkSteps(role: role, phase: snapshot.phase),
         const SizedBox(height: MoshSpace.s4),
         ..._content(context, l),
         const SizedBox(height: MoshSpace.s4),
         if (snapshot.phase != DeviceLinkPhase.delivering)
-          TextButton(
-              onPressed: busy ? null : onCancel,
-              child: Text(l.deviceLinkDecline)),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+                onPressed: busy ? null : onCancel,
+                child: Text(l.deviceLinkDecline)),
+          ),
       ]),
     );
   }

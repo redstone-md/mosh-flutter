@@ -150,7 +150,7 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
                     : l.firstRunFinish,
           ),
         ),
-        const SizedBox(height: MoshSpace.s3),
+        const SizedBox(height: MoshSpace.s5),
         Center(
           child: TextButton(
             onPressed: _saving ? null : _back,

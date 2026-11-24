@@ -34,11 +34,12 @@ class MoshTitleBar extends ConsumerWidget {
       this.showChatList = true,
       this.onToggleChatList,
       this.integrated = false,
+      this.showName = true,
       this.leading = const SizedBox.shrink(),
       this.trailing,
       this.dragArea});
 
-  const MoshTitleBar.brand({super.key})
+  const MoshTitleBar.brand({super.key, this.showName = true})
       : onOpenPeerStatus = null,
         showChatList = false,
         onToggleChatList = null,
@@ -61,6 +62,9 @@ class MoshTitleBar extends ConsumerWidget {
   final bool showChatList;
   final VoidCallback? onToggleChatList;
   final bool integrated;
+
+  /// False during setup, whose bar is the mark alone.
+  final bool showName;
 
   /// What the window puts before the bar's own content: the buttons of a
   /// window that has them on the left, or the room macOS keeps for its own.
@@ -93,7 +97,7 @@ class MoshTitleBar extends ConsumerWidget {
             ],
             Expanded(
                 child: _branding(context,
-                    showName: constraints.maxWidth >= 480 * scale)),
+                    showName: showName && constraints.maxWidth >= 480 * scale)),
             if (active != null)
               Padding(
                   padding: const EdgeInsets.only(left: MoshSpace.s2),

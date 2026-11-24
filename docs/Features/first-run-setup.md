@@ -182,10 +182,6 @@ require all three default steps to fit at 1280×680 and 900×700 in Russian, and
 verify equal insets, content centering, internal scrolling, image resizing,
 name preservation and keyboard access.
 
-The three illustrations are bundled in `assets/onboarding/` with their original
-RGBA transparency. Their generation prompts are recorded in
-[the asset notes](../../assets/onboarding/README.md).
-
 The titlebar, card, progress indicator and responsive frame stay mounted across
 steps. Only the body below progress participates in the
 [shared-axis transition](https://pub.dev/documentation/animations/latest/animations/SharedAxisTransition-class.html):

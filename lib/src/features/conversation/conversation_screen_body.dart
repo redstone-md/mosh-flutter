@@ -10,6 +10,7 @@ import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
 import 'package:mosh/src/features/conversation/conversation_notice.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart'
     show PeerActions;
 import 'package:mosh/src/features/conversation/conversation_peer_status.dart';
@@ -179,7 +180,8 @@ class ConversationScreenBody extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => ConversationNotice(
               title: l.chatLoadErrorTitle,
-              line: l.chatLoadErrorBody,
+              // Worded from the error's kind where the kind is known.
+              line: ConversationActionError.of(error).describe(l),
               failed: true,
               actionLabel: l.sessionsRetry,
               onAction: controller.refresh),

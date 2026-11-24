@@ -49,7 +49,7 @@ class StartMenu extends StatelessWidget {
             if (!isMobileBreakpoint(context))
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                    MoshSpace.s4, 0, MoshSpace.s4, MoshSpace.s2),
+                    MoshSpace.s4, 0, MoshSpace.s4, MoshSpace.s4),
                 child: StartReveal(
                   child: Semantics(
                     header: true,

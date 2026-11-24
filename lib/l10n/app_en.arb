@@ -1925,10 +1925,6 @@
   "@chatLoadErrorTitle": {
     "description": "Title shown in place of the messages when a conversation failed to load"
   },
-  "chatLoadErrorBody": "Its messages are safe on this device",
-  "@chatLoadErrorBody": {
-    "description": "Line under the load error title of a conversation: nothing was lost, only the read failed"
-  },
   "chatDetailsEncryptionLine": "Compare the fingerprint to verify",
   "@chatDetailsEncryptionLine": {
     "description": "Line under 'End-to-end encrypted' in a conversation's details; pressing the row opens the fingerprint to compare"

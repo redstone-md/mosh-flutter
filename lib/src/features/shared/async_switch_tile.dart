@@ -88,22 +88,23 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // One node for a screen reader: the switch under the card's words.
-        MergeSemantics(
-          child: SettingsCardHeader(
-            icon: widget.icon,
-            title: widget.title,
-            subtitle: widget.subtitle,
-            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (_writing) ...[
-                const MoshSpinner(),
-                const SizedBox(width: MoshSpace.s3),
-              ],
-              MoshSwitch(
+        SettingsCardHeader(
+          icon: widget.icon,
+          title: widget.title,
+          subtitle: widget.subtitle,
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (_writing) ...[
+              const MoshSpinner(),
+              const SizedBox(width: MoshSpace.s3),
+            ],
+            // The heading stays a heading; the switch carries its name.
+            Semantics(
+              label: widget.title,
+              child: MoshSwitch(
                   value: value ?? false,
                   onChanged: widget.enabled && value != null ? _set : null),
-            ]),
-          ),
+            ),
+          ]),
         ),
         if (_error case final error?) ...[
           const SizedBox(height: MoshSpace.s2),

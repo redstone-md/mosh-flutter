@@ -4,6 +4,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_spinner.dart';
+import 'package:mosh/src/features/settings/settings_card.dart';
+import 'package:mosh/src/features/shared/inline_error.dart';
 import 'package:mosh/src/rust/device_link/types.dart';
 
 import 'device_link_copy.dart';
@@ -81,13 +86,26 @@ class _DevicesSettingsSectionState
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     return ref.watch(deviceLinkProvider).when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Column(children: [
-            Text(deviceLinkError(l, error)),
-            TextButton(
-                onPressed: () => ref.invalidate(deviceLinkProvider),
-                child: Text(l.deviceLinkRetry)),
-          ]),
+          // The Loading and Could not load kinds of the Settings card.
+          loading: () => SettingsSurface(
+              child: SettingsCardHeader(
+                  icon: MoshIcons.devices,
+                  title: l.deviceLinkDevicesTitle,
+                  trailing: const MoshSpinner())),
+          error: (error, _) => SettingsSurface(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SettingsCardHeader(
+                      icon: MoshIcons.devices,
+                      title: l.deviceLinkDevicesTitle,
+                      trailing: OutlinedButton(
+                          onPressed: () => ref.invalidate(deviceLinkProvider),
+                          child: Text(l.deviceLinkRetry))),
+                  const SizedBox(height: MoshSpace.s3),
+                  InlineError(message: deviceLinkError(l, error)),
+                ]),
+          ),
           data: (link) => _body(l, link),
         );
   }

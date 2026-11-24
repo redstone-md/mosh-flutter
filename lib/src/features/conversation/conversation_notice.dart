@@ -8,7 +8,7 @@ import 'package:mosh/src/features/conversation/conversation_tools.dart'
 /// The Conversation empty card: what a conversation shows when it has
 /// nothing to show. It says what will appear here and what to do next, in
 /// the app's own voice and without a drawing. When loading [failed] the
-/// title is in the error colour, the line says what is safe, and
+/// title is in the error colour, the line says what went wrong, and
 /// [onAction] under [actionLabel] offers to try again.
 class ConversationNotice extends StatelessWidget {
   const ConversationNotice({
@@ -41,7 +41,10 @@ class ConversationNotice extends StatelessWidget {
             horizontal:
                 isMobileBreakpoint(context) ? MoshSpace.s3 : MoshSpace.s5),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: measure),
+          // No wider than the measure, and 32 px clear of each edge.
+          constraints: BoxConstraints(
+              maxWidth: (MediaQuery.sizeOf(context).width - MoshSpace.s16)
+                  .clamp(0.0, measure)),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Text(title,
                 textAlign: TextAlign.center,

@@ -6,8 +6,7 @@ import 'settings_card_header.dart';
 export 'settings_card_header.dart' show SettingsCardHeader, SettingsIcon;
 
 /// The Settings card: one subject to a card. The header names the subject
-/// and holds the control that matters most in [trailing]; [child] is what
-/// the card holds under it.
+/// and [child] is what the card holds under it.
 class SettingsCard extends StatelessWidget {
   const SettingsCard({
     super.key,
@@ -15,14 +14,12 @@ class SettingsCard extends StatelessWidget {
     required this.title,
     required this.hint,
     required this.child,
-    this.trailing,
   });
 
   final IconData icon;
   final String title;
   final String hint;
   final Widget child;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -30,8 +27,7 @@ class SettingsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SettingsCardHeader(
-              icon: icon, title: title, subtitle: hint, trailing: trailing),
+          SettingsCardHeader(icon: icon, title: title, subtitle: hint),
           const SizedBox(height: MoshSpace.s3),
           child,
         ],

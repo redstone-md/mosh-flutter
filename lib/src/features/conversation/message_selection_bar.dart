@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
 import 'package:mosh/src/features/conversation/message_selection_actions.dart';
@@ -24,7 +25,7 @@ class MessageSelectionBar extends StatelessWidget {
     final compact = isMobileBreakpoint(context);
     return AppBar(
       automaticallyImplyLeading: false,
-      titleSpacing: compact ? 8 : 22,
+      titleSpacing: compact ? MoshSpace.s3 : MoshSpace.s5,
       title: Semantics(
         liveRegion: true,
         label: l.messagesSelected(count),
@@ -35,7 +36,8 @@ class MessageSelectionBar extends StatelessWidget {
       actions: [
         if (!compact) const MessageSelectionActions(),
         Padding(
-          padding: EdgeInsets.only(right: compact ? 8 : 16),
+          padding:
+              EdgeInsets.only(right: compact ? MoshSpace.s1 : MoshSpace.s5),
           child: TextButton(
               onPressed: busy ? null : onCancel, child: Text(l.dialogCancel)),
         ),
