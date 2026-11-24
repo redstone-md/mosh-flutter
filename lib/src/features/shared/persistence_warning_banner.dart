@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/state/persistence_warning_provider.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
@@ -88,7 +89,7 @@ class _IconPlate extends StatelessWidget {
         color: colors.warningContainer,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Icon(Icons.warning_amber, size: 15, color: colors.warning),
+      child: Icon(MoshIcons.warning, size: 15, color: colors.warning),
     );
   }
 }

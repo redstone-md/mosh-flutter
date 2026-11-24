@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/lock/android_app_lock_gate.dart';
 import 'package:mosh/src/platform/desktop_window_controller.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
@@ -142,8 +143,9 @@ class _MainWindowCallHostState extends ConsumerState<MainWindowCallHost> {
                 ? l.nativeMenuExitFullScreen
                 : l.nativeMenuEnterFullScreen,
             onPressed: () => _toggleFullScreen(window),
-            icon: Icon(
-                window.fullScreen ? Icons.fullscreen_exit : Icons.fullscreen));
+            icon: Icon(window.fullScreen
+                ? MoshIcons.fullscreenExit
+                : MoshIcons.fullscreen));
       });
 
   Widget _controls(String session) => BackButtonListener(

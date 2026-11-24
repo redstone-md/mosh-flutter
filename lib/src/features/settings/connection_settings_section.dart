@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/vpn/bind_interface_field.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -20,7 +21,7 @@ class ConnectionSettingsSection extends ConsumerWidget {
       const AndroidWaitingSettings(),
       SettingsDisclosure(
         key: const PageStorageKey('connection-vpn'),
-        icon: Icons.lan_outlined,
+        icon: MoshIcons.network,
         title: l.settingsVpnTitle,
         summary: l.settingsVpnSummary,
         child: BindInterfaceField(

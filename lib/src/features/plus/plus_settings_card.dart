@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/distribution_channel_provider.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/settings/settings_card.dart';
 import 'package:mosh/src/rust/plus/types.dart';
 import 'plus_checkout.dart';
@@ -41,7 +42,7 @@ class _PlusSettingsCardState extends ConsumerState<PlusSettingsCard> {
     if (!config.enabled) return const SizedBox.shrink();
     final l = AppLocalizations.of(context)!;
     return SettingsCard(
-        icon: Icons.workspace_premium_outlined,
+        icon: MoshIcons.plus,
         title: 'Mosh+',
         hint: config.mainnet ? l.plusSupportHint : l.plusPilotHint,
         child: ref.watch(plusProvider).when(

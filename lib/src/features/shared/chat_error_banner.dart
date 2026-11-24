@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 
 /// Inline chat error banner. Renders an error-container background row
 /// with the error message plus an optional Retry button. The caller gates
@@ -61,7 +62,7 @@ class ChatErrorBanner extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.refresh, size: 13),
+                    const Icon(MoshIcons.refresh, size: 13),
                     const SizedBox(width: 4),
                     Text(l.chatErrorRetry),
                   ],

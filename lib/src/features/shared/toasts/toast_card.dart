@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
@@ -89,9 +90,9 @@ class ToastCard extends StatelessWidget {
     final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     final (icon, color) = switch (entry.kind) {
-      ToastKind.info => (Icons.info_outline, colors.onSurfaceVariant),
-      ToastKind.success => (Icons.check_circle_outline, colors.success),
-      ToastKind.error => (Icons.error_outline, colors.error),
+      ToastKind.info => (MoshIcons.info, colors.onSurfaceVariant),
+      ToastKind.success => (MoshIcons.success, colors.success),
+      ToastKind.error => (MoshIcons.error, colors.error),
     };
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(14, 6, 6, 6),
@@ -125,8 +126,8 @@ class ToastCard extends StatelessWidget {
               radius: MoshShapes.control,
               child: SizedBox.square(
                 dimension: 32,
-                child:
-                    Icon(Icons.close, size: 16, color: colors.onSurfaceMuted),
+                child: Icon(MoshIcons.close,
+                    size: 16, color: colors.onSurfaceMuted),
               ),
             ),
           ),

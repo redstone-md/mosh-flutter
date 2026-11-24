@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/channel_screen.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/conversation/group_screen.dart';
@@ -187,7 +188,7 @@ List<ConversationCase> conversationCases({
         target: DmTarget(dmId),
         screen: DmScreen(sessionId: dmId),
         route: AppRoutes.dmFor(dmId),
-        leaveIcon: Icons.close,
+        leaveIcon: MoshIcons.close,
         leaveTitle: 'Delete chat with peer?',
         leaveConfirmLabel: 'Delete chat',
         snapshotOverride: ({
@@ -218,7 +219,7 @@ List<ConversationCase> conversationCases({
         target: ChannelTarget(channelName),
         screen: ChannelScreen(name: channelName),
         route: AppRoutes.channelFor(channelName),
-        leaveIcon: Icons.logout,
+        leaveIcon: MoshIcons.leave,
         leaveTitle: 'Leave #$channelName?',
         leaveConfirmLabel: 'Leave channel',
         snapshotOverride: ({
@@ -246,7 +247,7 @@ List<ConversationCase> conversationCases({
         target: GroupTarget(groupId),
         screen: GroupScreen(groupId: groupId),
         route: AppRoutes.groupFor(groupId),
-        leaveIcon: Icons.logout,
+        leaveIcon: MoshIcons.leave,
         leaveTitle: 'Leave Squad?',
         leaveConfirmLabel: 'Leave group',
         snapshotOverride: ({

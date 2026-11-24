@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_modal_card.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
@@ -77,7 +78,7 @@ CallView _shown(WidgetTester tester) =>
 
 /// Declines, cancels or hangs up, whichever the shown call offers.
 Future<void> _close(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.phone_disabled));
+  await tester.tap(find.byIcon(MoshIcons.callEnd));
   await frames(tester);
 }
 

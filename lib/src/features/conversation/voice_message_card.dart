@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart'
     show MoshColors, kLiveNumberFontFeatures;
 
@@ -222,9 +223,7 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
                       height: 40,
                       child: Center(
                         child: ContextualIconSwitcher(
-                          icon: _playing
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
+                          icon: _playing ? MoshIcons.pause : MoshIcons.play,
                           size: 18,
                           color: theme.colorScheme.onPrimary,
                         ),

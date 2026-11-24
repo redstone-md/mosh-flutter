@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart'
@@ -254,7 +255,7 @@ class ConversationComposer extends StatelessWidget {
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2))
                           : const OpticalIcon(
-                              icon: Icons.send,
+                              icon: MoshIcons.send,
                               size: 16,
                               offset: Offset(1.0, 0),
                             ),

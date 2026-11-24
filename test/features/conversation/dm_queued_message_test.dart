@@ -1,9 +1,9 @@
 // A DM text never fails and never asks to be retried: while it waits for
 // the contact it shows a clock, and the Retry row stays reserved for a
 // `failed` message -- which an attachment can still be.
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
 
@@ -31,7 +31,7 @@ void main() {
     );
 
     expect(find.text('typed while offline'), findsOneWidget);
-    expect(find.byIcon(Icons.schedule), findsOneWidget);
+    expect(find.byIcon(MoshIcons.schedule), findsOneWidget);
     expect(find.byTooltip('queued'), findsOneWidget);
     expect(find.text('Retry'), findsNothing);
     expect(find.text('Failed to send'), findsNothing);

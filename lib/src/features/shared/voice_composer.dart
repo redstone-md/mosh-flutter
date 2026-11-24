@@ -4,6 +4,7 @@ import 'dart:io' show Directory, File;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/shared/contextual_icon_switcher.dart';
 import 'package:mosh/src/features/shared/media_player.dart';
 import 'package:mosh/src/features/shared/voice_composer_types.dart';
@@ -333,7 +334,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
 
   /// The mic button; gated by the composer's `disabled` flag.
   Widget _buildIdle() => IconButton(
-        icon: const Icon(Icons.mic_none_outlined),
+        icon: const Icon(MoshIcons.mic),
         tooltip: widget.recordLabel,
         onPressed: widget.disabled ? null : _startRecording,
       );
@@ -347,12 +348,12 @@ class _VoiceComposerState extends State<VoiceComposer> {
           Text(formatVoiceClock(_elapsed.inMilliseconds),
               style: kVoiceTimerStyle),
           IconButton(
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(MoshIcons.delete),
             tooltip: widget.discardLabel,
             onPressed: _discard,
           ),
           IconButton(
-            icon: const Icon(Icons.stop),
+            icon: const Icon(MoshIcons.stop),
             tooltip: widget.stopLabel,
             onPressed: _finishRecording,
           ),
@@ -366,7 +367,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
           IconButton(
             // Toggles the preview play state with a centered cross-fade.
             icon: ContextualIconSwitcher(
-              icon: _previewPlaying ? Icons.pause : Icons.play_arrow,
+              icon: _previewPlaying ? MoshIcons.pause : MoshIcons.play,
               size: 24,
             ),
             tooltip: widget.playLabel,
@@ -378,12 +379,12 @@ class _VoiceComposerState extends State<VoiceComposer> {
             style: kVoiceTimerStyle,
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(MoshIcons.delete),
             tooltip: widget.discardLabel,
             onPressed: _discard,
           ),
           IconButton(
-            icon: const Icon(Icons.send),
+            icon: const Icon(MoshIcons.send),
             tooltip: widget.sendLabel,
             onPressed: _send,
           ),

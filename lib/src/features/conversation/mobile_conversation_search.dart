@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 
 /// Header icon button that opens/closes the mobile search panel: a ghost
 /// icon button (rendered only on mobile by the host gating it behind
 /// [isMobileBreakpoint]).
 ///
-/// The icon is `Icons.search` at size 20. The tooltip/semantics flip
+/// The icon is `MoshIcons.search` at size 20. The tooltip/semantics flip
 /// between [AppLocalizations.chatSearchPlaceholder] (closed) and
 /// [AppLocalizations.closeMessageSearch] (open). The open state tints the
 /// icon with `colorScheme.primary` as the active highlight.
@@ -28,7 +29,7 @@ class MobileSearchToggle extends StatelessWidget {
     final theme = Theme.of(context);
     return IconButton(
       icon: Icon(
-        Icons.search,
+        MoshIcons.search,
         size: 20,
         // Tint while the panel is open.
         color: open ? theme.colorScheme.primary : null,
@@ -108,7 +109,7 @@ class _MobileConversationSearchState extends State<MobileConversationSearch> {
           // Close button: clears the query THEN closes (order matters; the
           // panel unmounts after the clear).
           IconButton(
-            icon: const Icon(Icons.close, size: 15),
+            icon: const Icon(MoshIcons.close, size: 15),
             tooltip: widget.l.closeMessageSearch,
             onPressed: () {
               widget.onSearch('');
@@ -152,7 +153,7 @@ class MobileConversationFilterNotice extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       child: Row(
         children: [
-          Icon(Icons.attach_file, size: 13, color: theme.colorScheme.primary),
+          Icon(MoshIcons.attach, size: 13, color: theme.colorScheme.primary),
           const SizedBox(width: 6),
           Expanded(child: Text(l.chatFilterAttachments)),
           TextButton(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
@@ -15,9 +16,9 @@ extension ConversationKindStyle on ConversationKind {
   Color tint(MoshColors colors) => accent(colors).withValues(alpha: 0.14);
 
   IconData get icon => switch (this) {
-        ConversationKind.dm => Icons.chat_bubble_outline,
-        ConversationKind.group => Icons.group_outlined,
-        ConversationKind.channel => Icons.tag,
+        ConversationKind.dm => MoshIcons.chat,
+        ConversationKind.group => MoshIcons.group,
+        ConversationKind.channel => MoshIcons.tag,
       };
 
   String label(AppLocalizations l) => switch (this) {

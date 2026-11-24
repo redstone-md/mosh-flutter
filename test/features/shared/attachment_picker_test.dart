@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 
 import '../../support/file_picker.dart';
@@ -39,7 +40,7 @@ void main() {
         )));
     await tester.runAsync(() async {
       completed = Completer<void>();
-      await tester.tap(find.byIcon(Icons.attach_file));
+      await tester.tap(find.byIcon(MoshIcons.attach));
       // test-policy: timeout https://github.com/redstone-md/mosh-flutter/issues/56 -- retain the previous 2s ingest callback bound without polling
       await completed.future.timeout(const Duration(seconds: 2));
     });
@@ -73,7 +74,7 @@ void main() {
         )));
     await tester.runAsync(() async {
       completed = Completer<void>();
-      await tester.tap(find.byIcon(Icons.attach_file));
+      await tester.tap(find.byIcon(MoshIcons.attach));
       // test-policy: timeout https://github.com/redstone-md/mosh-flutter/issues/56 -- retain the previous 2s ingest callback bound without polling
       await completed.future.timeout(const Duration(seconds: 2));
     });

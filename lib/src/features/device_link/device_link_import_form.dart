@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 
 class DeviceLinkImportForm extends StatefulWidget {
   const DeviceLinkImportForm({
@@ -35,14 +36,14 @@ class _DeviceLinkImportFormState extends State<DeviceLinkImportForm> {
       if (widget.onScan != null) ...[
         FilledButton.icon(
           onPressed: widget.busy ? null : widget.onScan,
-          icon: const Icon(Icons.qr_code_scanner, size: 20),
+          icon: const Icon(MoshIcons.scan, size: 20),
           label: Text(l.deviceLinkScan),
         ),
         const SizedBox(height: 12),
       ],
       OutlinedButton.icon(
         onPressed: widget.busy ? null : widget.onImage,
-        icon: const Icon(Icons.image_outlined, size: 20),
+        icon: const Icon(MoshIcons.image, size: 20),
         label: Text(l.deviceLinkImportImage),
       ),
       const SizedBox(height: 16),
@@ -60,7 +61,7 @@ class _DeviceLinkImportFormState extends State<DeviceLinkImportForm> {
             tooltip: l.deviceLinkImport,
             onPressed:
                 widget.busy ? null : () => widget.onSubmit(_uri.text.trim()),
-            icon: const Icon(Icons.arrow_forward),
+            icon: const Icon(MoshIcons.forward),
           ),
         ),
       ),

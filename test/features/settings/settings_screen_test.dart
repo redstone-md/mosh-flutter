@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
@@ -36,7 +37,7 @@ void main() {
     final router = await _route(tester, AppRoutes.sessions);
     final railState = tester.state(find.byType(SessionsScreen));
     await tester.enterText(find.byType(TextField).first, 'retained search');
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.tap(find.byIcon(MoshIcons.settings));
     await tester.pumpAndSettle();
     expect(find.byType(SettingsScreen), findsOneWidget);
     expect(find.byType(MoshShell), findsNothing);
@@ -51,14 +52,14 @@ void main() {
     expect(router.routeInformationProvider.value.uri.path, AppRoutes.sessions);
     expect(tester.state(find.byType(SessionsScreen)), same(railState));
     expect(find.text('retained search'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.tap(find.byIcon(MoshIcons.settings));
     await tester.pumpAndSettle();
     await tester.tap(find.text('About'));
     await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsNothing);
     router.pop();
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.tap(find.byIcon(MoshIcons.settings));
     await tester.pumpAndSettle();
     expect(find.text('About'), findsNWidgets(2));
     expect(find.text('Microphone'), findsNothing);
@@ -97,7 +98,7 @@ void main() {
     scroll.position.jumpTo(180);
     await tester.pump();
     final offset = scroll.position.pixels;
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.tap(find.byIcon(MoshIcons.settings));
     await tester.pumpAndSettle();
     expect(find.byType(ConversationComposer), findsNothing);
     await tester.tap(find.text('Back to chats'));
@@ -129,7 +130,7 @@ void main() {
       (tester) async {
     _size(tester, const Size(390, 844));
     final router = await _route(tester, AppRoutes.sessions);
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.tap(find.byIcon(MoshIcons.settings));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sound & Video'));
     await tester.pumpAndSettle();
@@ -139,7 +140,7 @@ void main() {
     expect(find.text('Connection'), findsOneWidget);
     await tester.tap(find.text('Back to chats'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.tap(find.byIcon(MoshIcons.settings));
     await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsNothing);
     expect(find.text('Sound & Video'), findsOneWidget);

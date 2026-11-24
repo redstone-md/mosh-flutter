@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/plus/plus_provider.dart';
 import 'package:mosh/src/features/sessions/rail_entry.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
@@ -47,7 +48,7 @@ void main() {
             plusPollIntervalProvider.overrideWithValue(null),
           ]);
       expect(find.text('Forged name'), findsOneWidget);
-      expect(find.byIcon(Icons.workspace_premium),
+      expect(find.byIcon(MoshIcons.plusBadge),
           authenticated ? findsOneWidget : findsNothing);
     });
   }

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
@@ -200,7 +201,7 @@ void main() {
         kind: ConversationKind.dm,
       );
 
-      expect(find.byIcon(Icons.done_all), findsOneWidget);
+      expect(find.byIcon(MoshIcons.doneAll), findsOneWidget);
       expect(find.byTooltip('✓✓ delivered'), findsOneWidget);
     });
 

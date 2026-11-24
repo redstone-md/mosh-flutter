@@ -18,6 +18,7 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/voice_message_card.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 import 'package:mosh/src/rust/conversation/attachments.dart';
@@ -135,7 +136,7 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byIcon(MoshIcons.play));
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(downloaded, ['att-voice']);
@@ -154,7 +155,7 @@ void main() {
     ));
     await tester.pump();
     expect(tester.takeException(), isNull);
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byIcon(MoshIcons.play));
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(downloaded, ['att-voice']);
@@ -173,6 +174,6 @@ void main() {
     ));
     await tester.pump();
     expect(tester.takeException(), isNull);
-    expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+    expect(find.byIcon(MoshIcons.play), findsOneWidget);
   });
 }

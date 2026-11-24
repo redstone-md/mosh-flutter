@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart'
     show MoshColors, kLiveNumberFontFeatures;
 
@@ -118,10 +119,10 @@ class DeliveryTicks extends StatelessWidget {
     if (label == null) return const SizedBox.shrink();
     if (compact) {
       final icon = switch (status) {
-        MessageDeliveryStatus.delivered => Icons.done_all,
-        MessageDeliveryStatus.sent => Icons.check,
-        MessageDeliveryStatus.queued => Icons.schedule,
-        _ => Icons.more_horiz,
+        MessageDeliveryStatus.delivered => MoshIcons.doneAll,
+        MessageDeliveryStatus.sent => MoshIcons.check,
+        MessageDeliveryStatus.queued => MoshIcons.schedule,
+        _ => MoshIcons.moreHorizontal,
       };
       return Semantics(
           label: label,
@@ -152,7 +153,8 @@ class DeliveryTicks extends StatelessWidget {
             if (status == MessageDeliveryStatus.queued)
               Padding(
                 padding: const EdgeInsets.only(right: 2),
-                child: Icon(Icons.schedule, size: 10, color: colors.outline),
+                child:
+                    Icon(MoshIcons.schedule, size: 10, color: colors.outline),
               ),
             Text(label, style: style),
           ],

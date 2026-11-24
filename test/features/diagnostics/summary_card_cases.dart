@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations_en.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/diagnostics/diagnostics_summary.dart';
 import 'package:mosh/src/features/diagnostics/summary_card.dart';
@@ -144,9 +145,9 @@ void main() {
         (tester) async {
       await _pump(tester, const RuntimeError(message: 'mesh down'));
 
-      // The alert-triangle icon (Icons.warning_amber, the IconAlertTriangle
+      // The alert-triangle icon (MoshIcons.warning, the IconAlertTriangle
       // equivalent).
-      expect(find.byIcon(Icons.warning_amber), findsOneWidget);
+      expect(find.byIcon(MoshIcons.warning), findsOneWidget);
       // The localized label is uppercased in the widget ("RUNTIME ERROR").
       expect(find.text('RUNTIME ERROR'), findsOneWidget);
       // The raw message renders.

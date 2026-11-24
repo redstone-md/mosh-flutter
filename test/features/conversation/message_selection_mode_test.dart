@@ -6,6 +6,7 @@ import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_app_bar.dart';
 import 'package:mosh/src/features/conversation/conversation_search_box.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
@@ -243,7 +244,7 @@ void main() {
       (tester) async {
     final gateway = ScriptableGateway();
     await pumpConversation(tester, dm, gateway: gateway, messages: _messages);
-    await tester.tap(find.byIcon(Icons.search));
+    await tester.tap(find.byIcon(MoshIcons.search));
     await tester.pumpAndSettle();
     await startMessageSelection(tester, 'first note');
     await tester.tap(find.text('second note'));

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/state/audio_device_picks_provider.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
@@ -113,7 +114,7 @@ class _VoiceSettingsSectionState extends ConsumerState<VoiceSettingsSection> {
           for (final device in devices) (id: device.id, label: device.label),
         ]);
     return SettingsCard(
-      icon: Icons.mic_none_outlined,
+      icon: MoshIcons.mic,
       title: l.settingsInputDeviceLabel,
       hint: pairedRoute
           ? l.settingsInputDeviceHintAndroid
@@ -133,7 +134,7 @@ class _VoiceSettingsSectionState extends ConsumerState<VoiceSettingsSection> {
           for (final device in devices) (id: device.id, label: device.name),
         ]);
     return SettingsCard(
-      icon: Icons.volume_up_outlined,
+      icon: MoshIcons.speaker,
       title: l.settingsOutputDeviceLabel,
       hint: l.settingsOutputDeviceHint,
       child: AudioDevicePicker(
@@ -148,8 +149,7 @@ class _VoiceSettingsSectionState extends ConsumerState<VoiceSettingsSection> {
 
   Widget _testButton(AppLocalizations l) => FilledButton.icon(
         onPressed: _toggleTest,
-        icon: Icon(
-            _ringtone == null ? Icons.volume_up_outlined : Icons.stop_outlined,
+        icon: Icon(_ringtone == null ? MoshIcons.speaker : MoshIcons.stop,
             size: 20),
         label: Text(_ringtone == null
             ? l.settingsTestRingtone

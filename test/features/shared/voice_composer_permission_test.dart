@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/shared/media_player.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show moshThemeData, MoshColors;
@@ -152,7 +153,7 @@ Future<void> _pumpComposer(
   await tester.pumpAndSettle();
 }
 
-Finder _micButton() => find.byIcon(Icons.mic_none_outlined);
+Finder _micButton() => find.byIcon(MoshIcons.mic);
 
 void main() {
   testWidgets('mount probes nothing; the mic button renders', (tester) async {
@@ -189,8 +190,8 @@ void main() {
     expect((dot.decoration! as BoxDecoration).color, MoshColors.dark.error);
     expect(started, hasLength(1), reason: 'the capture must really begin');
     expect(started.single, endsWith('.m4a'));
-    expect(find.byIcon(Icons.stop), findsOneWidget);
-    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+    expect(find.byIcon(MoshIcons.stop), findsOneWidget);
+    expect(find.byIcon(MoshIcons.delete), findsOneWidget);
     expect(errors, isEmpty);
   });
 
@@ -206,7 +207,7 @@ void main() {
 
     expect(errors, contains('mic denied'),
         reason: 'the refusal must surface through onError, not vanish');
-    expect(find.byIcon(Icons.stop), findsNothing,
+    expect(find.byIcon(MoshIcons.stop), findsNothing,
         reason: 'no recording may start on a refusal');
     expect(_micButton(), findsOneWidget,
         reason: 'a later grant must be able to retry from the button');
@@ -226,7 +227,7 @@ void main() {
     await tester.tap(_micButton());
     await tester.pump(const Duration(milliseconds: 50));
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(find.byIcon(Icons.stop));
+    await tester.tap(find.byIcon(MoshIcons.stop));
     await tester.pump(const Duration(milliseconds: 50));
     await tester.pump(const Duration(milliseconds: 50));
 
@@ -234,10 +235,10 @@ void main() {
     expect(tester.widget<Text>(find.text('0:00')).style!.fontFeatures,
         contains(FontFeature.tabularFigures()));
     // Review phase: play + discard + send icons.
-    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
-    expect(find.byIcon(Icons.send), findsOneWidget);
+    expect(find.byIcon(MoshIcons.play), findsOneWidget);
+    expect(find.byIcon(MoshIcons.send), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(MoshIcons.send));
     await tester.pumpAndSettle();
 
     expect(sent, hasLength(1));
@@ -260,15 +261,15 @@ void main() {
     await tester.tap(_micButton());
     await tester.pump(const Duration(milliseconds: 50));
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(find.byIcon(Icons.stop));
+    await tester.tap(find.byIcon(MoshIcons.stop));
     await tester.pump(const Duration(milliseconds: 50));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.play_arrow));
+    await tester.tap(find.byIcon(MoshIcons.play));
     await tester.pumpAndSettle();
 
     expect(playback.disposed, isTrue);
-    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    expect(find.byIcon(MoshIcons.play), findsOneWidget);
   });
 }
 

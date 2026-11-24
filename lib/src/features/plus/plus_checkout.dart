@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/src/rust/plus/types.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -116,7 +117,7 @@ class PlusPendingPayment extends ConsumerWidget {
       if (awaiting) _PaymentLinkActions(paymentUri: order.paymentUri),
       TextButton.icon(
           onPressed: busy ? null : onRefresh,
-          icon: const Icon(Icons.refresh),
+          icon: const Icon(MoshIcons.refresh),
           label: Text(l.plusRefresh)),
     ]);
   }
@@ -143,11 +144,11 @@ class _PaymentLinkActions extends ConsumerWidget {
           if (_hasWalletApps)
             FilledButton.icon(
                 onPressed: () => _open(ref, l),
-                icon: const Icon(Icons.account_balance_wallet_outlined),
+                icon: const Icon(MoshIcons.wallet),
                 label: Text(l.plusOpenWallet)),
           OutlinedButton.icon(
               onPressed: () => _copy(ref, l),
-              icon: const Icon(Icons.copy_outlined),
+              icon: const Icon(MoshIcons.copy),
               label: Text(l.plusCopyPayment)),
         ]);
   }

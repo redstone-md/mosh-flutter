@@ -28,6 +28,7 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
 
 const MethodChannel _recordChannel =
@@ -132,7 +133,7 @@ void main() {
     final sent = <VoiceSend>[];
     await _pumpComposer(tester, sent: sent);
 
-    await tester.tap(find.byIcon(Icons.mic_none_outlined));
+    await tester.tap(find.byIcon(MoshIcons.mic));
     await tester.pump(const Duration(milliseconds: 50));
     await tester.pump(const Duration(milliseconds: 50));
 

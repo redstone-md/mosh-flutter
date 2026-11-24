@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -100,7 +101,7 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
         child: Row(
           children: <Widget>[
             Icon(
-              Icons.search,
+              MoshIcons.search,
               size: 16,
               color: _focused ? colors.onSurface : colors.onSurfaceMuted,
             ),
@@ -173,7 +174,7 @@ class ConversationFilterToggle extends StatelessWidget {
             ),
             _FilterSegment(
               label: l.chatFilterAttachments,
-              icon: Icons.attach_file,
+              icon: MoshIcons.attach,
               active: attachmentsActive,
               onTap: onAttachments,
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -59,9 +60,8 @@ class AttachmentThumb extends StatelessWidget {
     final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     final surface = colors.onSurface.withValues(alpha: 0.08);
-    final icon = descriptor.mime.startsWith('image/')
-        ? Icons.image_outlined
-        : Icons.play_arrow;
+    final icon =
+        descriptor.mime.startsWith('image/') ? MoshIcons.image : MoshIcons.play;
     if (viewable && onOpen != null) {
       void onOpenPressed() => onOpen!(descriptor);
       return Semantics(
@@ -107,10 +107,10 @@ class AttachmentThumb extends StatelessWidget {
       ),
       child: Icon(
         failed
-            ? Icons.error_outline
+            ? MoshIcons.error
             : viewable
                 ? icon
-                : Icons.insert_drive_file_outlined,
+                : MoshIcons.file,
         size: 20,
         color: failed ? colors.error : colors.onSurfaceVariant,
       ),

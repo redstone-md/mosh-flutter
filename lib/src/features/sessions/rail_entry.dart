@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/state/chat_names_provider.dart' show chatDisplayName;
 import 'package:go_router/go_router.dart';
 
@@ -188,7 +189,7 @@ final class DmRailEntry extends RailEntry {
   }
 }
 
-/// One channel row: leading `Icons.tag`, title `#<name>`, subtitle the
+/// One channel row: leading `MoshIcons.tag`, title `#<name>`, subtitle the
 /// topic, trailing `UnreadBadge`. `onTap` opens the channel screen.
 final class ChannelRailEntry extends RailEntry {
   ChannelRailEntry(this.channel, {this.personalName})
@@ -229,7 +230,7 @@ final class ChannelRailEntry extends RailEntry {
   }
 }
 
-/// One group row: leading `Icons.group_outlined`, title the group label
+/// One group row: leading `MoshIcons.group`, title the group label
 /// (falling back to a shortened group id), subtitle the member count,
 /// trailing `UnreadBadge`. `onTap` opens the group screen.
 final class GroupRailEntry extends RailEntry {
@@ -310,13 +311,13 @@ final class OfferRailEntry extends RailEntry {
       semanticLabel: l.railOfferAccept(fromDevice),
       // Offer badge icon.
       trailing: Icon(
-        Icons.chat_bubble_outline,
+        MoshIcons.chat,
         size: 14,
         color: Theme.of(context).colorScheme.primary,
       ),
       // Beside the accept target, not inside it: two sibling buttons.
       action: IconButton(
-        icon: const Icon(Icons.close, size: 16),
+        icon: const Icon(MoshIcons.close, size: 16),
         tooltip: l.railOfferDismiss,
         visualDensity: VisualDensity.compact,
         onPressed: onDismiss,

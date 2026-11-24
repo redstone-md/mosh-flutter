@@ -2,6 +2,7 @@ import 'dart:io' show File;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart'

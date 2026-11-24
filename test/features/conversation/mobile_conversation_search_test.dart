@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import '../../support/pump.dart';
 
@@ -61,7 +62,7 @@ void main() {
       final icon = tester.widget<Icon>(
         find.descendant(
           of: find.byType(MobileSearchToggle),
-          matching: find.byIcon(Icons.search),
+          matching: find.byIcon(MoshIcons.search),
         ),
       );
       expect(icon.color,
@@ -142,7 +143,7 @@ void main() {
       );
       // The notice collapses to a zero-size box that takes no layout space,
       // rendering neither the paperclip nor the "All" reset button.
-      expect(find.byIcon(Icons.attach_file), findsNothing);
+      expect(find.byIcon(MoshIcons.attach), findsNothing);
       expect(find.byType(TextButton), findsNothing);
       // The returned SizedBox.shrink() renders at zero size.
       final size = tester.getSize(find.byType(MobileConversationFilterNotice));
@@ -161,9 +162,9 @@ void main() {
                 )),
       );
       final l = _l(tester);
-      // Paperclip icon (Icons.attach_file) + the "Files" label + the "All"
+      // Paperclip icon (MoshIcons.attach) + the "Files" label + the "All"
       // reset button.
-      expect(find.byIcon(Icons.attach_file), findsOneWidget);
+      expect(find.byIcon(MoshIcons.attach), findsOneWidget);
       expect(find.text(l.chatFilterAttachments), findsOneWidget);
       expect(find.text(l.chatFilterAll), findsOneWidget);
     });

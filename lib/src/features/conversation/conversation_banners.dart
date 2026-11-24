@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_notice_preferences.dart';
@@ -53,7 +54,7 @@ class ConversationBanners extends StatelessWidget {
           children: [
             DismissibleConversationNotice(
               kind: ConversationNoticeKind.encryptedGroup,
-              icon: Icons.lock,
+              icon: MoshIcons.lock,
               title: l.groupNoticeTitle,
               body: l.groupNoticeBody,
               accent: colors.primary,
@@ -84,7 +85,7 @@ Widget _channelNotices(
       children: [
         DismissibleConversationNotice(
           kind: ConversationNoticeKind.publicChannel,
-          icon: Icons.tag,
+          icon: MoshIcons.tag,
           title: l.channelNoticeTitle,
           body: l.channelNoticeBody,
           accent: colors.info,
@@ -108,7 +109,7 @@ Widget _historyBanner(
   };
   if (copy == null) return const SizedBox.shrink();
   return CryptoNoticeBanner(
-    icon: Icons.history,
+    icon: MoshIcons.history,
     title: copy.$1,
     body: copy.$2,
     accent: colors.info,

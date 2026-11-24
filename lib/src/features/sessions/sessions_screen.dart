@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/conversation_action_error.dart'
     show ConversationActionError;
@@ -112,7 +113,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
   Widget _search(BuildContext context, bool compact) => compact
       ? CompactRailButton(
-          icon: const Icon(Icons.search, size: 20),
+          icon: const Icon(MoshIcons.search, size: 20),
           label: AppLocalizations.of(context)!.chatListSearch,
           onTap: () => expandChatList(ref, focusSearch: true))
       : SessionsListControls(
@@ -128,7 +129,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     void open() => context.push(AppRoutes.settings);
     return compact
         ? CompactRailButton(
-            icon: Icon(Icons.settings_outlined,
+            icon: Icon(MoshIcons.settings,
                 size: 18, color: MoshColors.of(context).onSurfaceVariant),
             label: label,
             onTap: open)
@@ -148,7 +149,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
         ),
         error: (e, _) => compact
             ? CompactRailButton(
-                icon: const Icon(Icons.error_outline, size: 20),
+                icon: const Icon(MoshIcons.error, size: 20),
                 label: l.sessionsError,
                 onTap: _retry)
             : _ErrorState(error: e, ref: ref),

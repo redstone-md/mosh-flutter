@@ -90,7 +90,6 @@ dependencies:
   # F-Droid-format repositories (IVO-158).
   camera: ^0.12.2
   share_plus: ^13.3.1
-
 # record_macos 2.1.1 with one patch (InputHelper.swift, getInputSampleRates):
 # a virtual audio driver that reports the sample-rate range 0...DBL_MAX made
 # Int(DBL_MAX) trap and crash the app whenever Settings listed the inputs.
@@ -131,6 +130,15 @@ flutter:
           weight: 600
         - asset: assets/fonts/Onest-Bold.ttf
           weight: 700
+    - family: Phosphor
+      fonts:
+        - asset: assets/fonts/Phosphor.ttf
+    - family: PhosphorFill
+      fonts:
+        - asset: assets/fonts/Phosphor-Fill.ttf
+    - family: PhosphorBold
+      fonts:
+        - asset: assets/fonts/Phosphor-Bold.ttf
 
 flutter_rust_bridge:
   rust_input: crate::api

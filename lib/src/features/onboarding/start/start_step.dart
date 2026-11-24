@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 /// A start menu step: Back, the step's illustration, its title and what it
@@ -39,7 +40,7 @@ class StartStep extends StatelessWidget {
               alignment: AlignmentDirectional.centerStart,
               child: TextButton.icon(
                 onPressed: onBack,
-                icon: const Icon(Icons.arrow_back, size: 18),
+                icon: const Icon(MoshIcons.back, size: 18),
                 label: Text(l.onboardBack),
                 style: TextButton.styleFrom(
                     foregroundColor: colors.onSurfaceVariant),

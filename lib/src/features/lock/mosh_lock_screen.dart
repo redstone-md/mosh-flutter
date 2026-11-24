@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/platform/mobile_dek.dart' show initMobileDek;
 
 /// Visual state of [MoshLockScreen]: `authenticating` is the spinner while
@@ -160,21 +161,21 @@ class _MoshLockScreenState extends ConsumerState<MoshLockScreen> {
                   ],
                 ),
               LockState.canceled => _LockBody(
-                  icon: Icons.lock_outline,
+                  icon: MoshIcons.lock,
                   title: l.lockScreenTitle,
                   message: l.lockScreenCanceledMessage,
                   retryLabel: l.lockScreenRetry,
                   onRetry: _retry,
                 ),
               LockState.failed => _LockBody(
-                  icon: Icons.error_outline,
+                  icon: MoshIcons.error,
                   title: l.lockScreenTitle,
                   message: l.lockScreenFailedMessage,
                   retryLabel: l.lockScreenRetry,
                   onRetry: _retry,
                 ),
               LockState.insecureDevice => _LockBody(
-                  icon: Icons.security_update_warning_outlined,
+                  icon: MoshIcons.shieldWarning,
                   title: l.lockScreenInsecureDeviceTitle,
                   message: l.lockScreenInsecureDeviceMessage,
                 ),
@@ -229,7 +230,7 @@ class _LockBody extends StatelessWidget {
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(MoshIcons.refresh),
             label: Text(retryLabel!),
           ),
         ],

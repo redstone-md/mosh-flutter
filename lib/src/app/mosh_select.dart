@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 
 import 'mosh_menu_item.dart';
 import 'mosh_shapes.dart';
@@ -98,7 +99,7 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
           Expanded(
               child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis)),
           const SizedBox(width: 12),
-          const Icon(Icons.keyboard_arrow_down, size: 20),
+          const Icon(MoshIcons.expandMore, size: 20),
         ]),
       ),
     );
@@ -152,7 +153,7 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
               IconButton(
                   tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, size: 20)),
+                  icon: const Icon(MoshIcons.close, size: 20)),
             ]),
             const SizedBox(height: 8),
             Flexible(

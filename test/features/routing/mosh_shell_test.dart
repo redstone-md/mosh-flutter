@@ -26,6 +26,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/onboarding/chat_create_step.dart';
 import 'package:mosh/src/features/onboarding/start/start_menu.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
@@ -123,12 +124,12 @@ void main() {
     // context.go('/sessions')). On MOBILE the standalone close button is
     // desktop-only; the leave entry point is
     // the mobile kebab menu's "Delete chat" item. Open the kebab
-    // (Icons.more_vert, ChatHeaderMenu's action-menu trigger), tap
+    // (MoshIcons.more, ChatHeaderMenu's action-menu trigger), tap
     // "Delete chat" from the dropdown -> ConfirmDialog -> tap the dialog's
     // "Delete chat" confirm button. The rail returns. (The menu closes
     // when its item is selected, so `find.text('Delete chat')` resolves
     // to exactly one widget at each stage -- menu item, then dialog.)
-    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.tap(find.byIcon(MoshIcons.more));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete chat'));
     await tester.pumpAndSettle();
@@ -178,7 +179,7 @@ void main() {
       semantics.dispose();
     }
 
-    // Leave the DM (Icons.close -> ConfirmDialog -> "Delete chat"). On
+    // Leave the DM (MoshIcons.close -> ConfirmDialog -> "Delete chat"). On
     // desktop the screen's _leave routes to /chat, so branch B swaps back
     // to its initialLocation -- the inline NewSessionPanel reappears.
     await tester.tap(find.byTooltip('More chat actions'));

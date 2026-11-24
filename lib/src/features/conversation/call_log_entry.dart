@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 /// The event kind literal for a missed call.
@@ -71,8 +72,10 @@ class CallLogEntry extends StatelessWidget {
           Icon(
             // Phone-off glyph for a missed call, phone for completed.
             outgoing
-                ? Icons.call_made
-                : (notConnected ? Icons.call_missed : Icons.call_received),
+                ? MoshIcons.callMade
+                : (notConnected
+                    ? MoshIcons.callMissed
+                    : MoshIcons.callReceived),
             size: 14,
             color: accent,
           ),

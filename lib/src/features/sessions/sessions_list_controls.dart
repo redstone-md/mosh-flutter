@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/conversation_kind_style.dart';
@@ -89,7 +90,7 @@ class SessionsListControls extends StatelessWidget {
               minWidth: kRailLeadingWidth + 8, minHeight: 40),
           prefixIcon: const Padding(
             padding: EdgeInsetsDirectional.only(end: 8),
-            child: Icon(Icons.search, size: 20),
+            child: Icon(MoshIcons.search, size: 20),
           ),
           suffixIcon: mobile
               ? null

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/native_call/types.dart' as native;
@@ -76,8 +77,7 @@ class CallVideoStage extends StatelessWidget {
       else
         Center(
             child: Semantics(
-                label: peer,
-                child: const Icon(Icons.person_outline, size: 32))),
+                label: peer, child: const Icon(MoshIcons.person, size: 32))),
       if (remoteStage && preview != null) _preview(preview, l.callLocalPreview),
     ];
   }

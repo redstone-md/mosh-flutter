@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 
 /// Material owns focus, keyboard navigation and dismissal for every row.
 class MoshMenuItem extends StatelessWidget {
@@ -43,7 +44,7 @@ class MoshMenuItem extends StatelessWidget {
             : SizedBox(
                 width: 20,
                 child: selected!
-                    ? Icon(Icons.check, size: 20, color: colors.primary)
+                    ? Icon(MoshIcons.check, size: 20, color: colors.primary)
                     : null),
         child: Text(label),
       ),

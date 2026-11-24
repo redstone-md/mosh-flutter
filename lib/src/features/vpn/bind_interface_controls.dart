@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_select.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
@@ -146,7 +147,7 @@ class BindInterfaceControls extends StatelessWidget {
   Widget _refresh(MoshColors colors) => IconButton(
         tooltip: l.settingsRefreshDevices,
         onPressed: loading || busy ? null : onRefresh,
-        icon: const Icon(Icons.refresh, size: 20),
+        icon: const Icon(MoshIcons.refresh, size: 20),
         style: IconButton.styleFrom(
           minimumSize: const Size(44, 44),
           visualDensity: VisualDensity.standard,

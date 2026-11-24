@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/src/state/pending_invites_provider.dart';
@@ -111,7 +112,7 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
             besideName: true),
       ),
       leaveMenuLabel: l.deleteChatConfirm,
-      leaveMenuIcon: Icons.delete_outline,
+      leaveMenuIcon: MoshIcons.delete,
       menuActions: [
         ..._invitationActions(s, l),
         _renameAction(l, target, name, original, personal),
@@ -119,12 +120,12 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
       inlineActions: [
         if (widget.onStartVideoCall != null)
           IconButton(
-              icon: const Icon(Icons.videocam_outlined, size: 20),
+              icon: const Icon(MoshIcons.video, size: 20),
               tooltip: l.callStartVideo,
               onPressed: widget.onStartVideoCall),
         // Primary action precedes search and the menu in every header.
         IconButton(
-          icon: const Icon(Icons.phone_outlined, size: 20),
+          icon: const Icon(MoshIcons.call, size: 20),
           tooltip: l.callStart,
           onPressed: widget.onStartCall,
         ),
@@ -139,12 +140,12 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
       return [
         ChatHeaderMenuAction(
             label: l.onboardCopyLink,
-            icon: Icons.copy_outlined,
+            icon: MoshIcons.copy,
             disabled: _busy,
             onSelect: () => _copy(uri)),
         ChatHeaderMenuAction(
             label: l.onboardChatRecreate,
-            icon: Icons.refresh,
+            icon: MoshIcons.refresh,
             disabled: _busy,
             onSelect: _replace),
       ];
@@ -156,7 +157,7 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
           String name, String original, String? personal) =>
       ChatHeaderMenuAction(
           label: l.chatRename,
-          icon: Icons.edit_outlined,
+          icon: MoshIcons.edit,
           disabled: !ref.watch(personalChatRenameAvailableProvider),
           onSelect: () => showRenameChatDialog(context, target,
               name: name,

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_details_panel.dart';
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
@@ -117,7 +118,7 @@ Future<void> _checkDockedDetails(WidgetTester tester, String title,
   if (screenshot != null) await _screenshot(tester, screenshot);
   await tester.tap(find.descendant(
       of: find.byType(ConversationDetailsPanel),
-      matching: find.byIcon(Icons.close)));
+      matching: find.byIcon(MoshIcons.close)));
   await tester.pumpAndSettle();
   expect(find.byType(ConversationDetailsPanel), findsNothing, reason: title);
   await tester.tap(find.byTooltip('Conversation details'));
@@ -155,7 +156,7 @@ void main() {
     await _open(tester, 'Alice');
     await tester.tap(find.descendant(
         of: find.byType(ConversationDetailsPanel),
-        matching: find.byIcon(Icons.close)));
+        matching: find.byIcon(MoshIcons.close)));
     await tester.pumpAndSettle();
 
     tester.view.physicalSize = const Size(1280, 900);

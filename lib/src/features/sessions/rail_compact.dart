@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/sessions/rail_item.dart';
@@ -195,7 +196,7 @@ class CompactNewIcon extends StatelessWidget {
     return CircleAvatar(
       radius: 16,
       backgroundColor: colors.primary,
-      child: Icon(Icons.add, size: 20, color: colors.onPrimary),
+      child: Icon(MoshIcons.add, size: 20, color: colors.onPrimary),
     );
   }
 }

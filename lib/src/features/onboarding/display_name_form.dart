@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 
@@ -86,7 +87,7 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                           ? CircleAvatar(
                               radius: radius,
                               backgroundColor: colors.avatar1,
-                              child: Icon(Icons.person_outline,
+                              child: Icon(MoshIcons.person,
                                   size: radius * .8,
                                   color: colors.onSurfaceVariant))
                           : Avatar(
@@ -108,7 +109,7 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                     : null,
                 decoration: InputDecoration(
                     labelText: l.setupDisplayNameLabel,
-                    prefixIcon: const Icon(Icons.person_outline),
+                    prefixIcon: const Icon(MoshIcons.person),
                     counterText: '',
                     helperText: l.firstRunNameHint,
                     helperMaxLines: 3,

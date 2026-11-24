@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/features/onboarding/pending_invitation_card.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
@@ -116,7 +117,7 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(strokeWidth: 2))
-            : const Icon(Icons.link, size: 18),
+            : const Icon(MoshIcons.link, size: 18),
         label: Text(hasInvites ? l.createNewInvitation : l.onboardChatCreate),
       );
 

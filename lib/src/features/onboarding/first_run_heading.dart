@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 
 import 'first_run_profile.dart';
@@ -52,7 +53,7 @@ class SetupPrivacyNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.lock_outline,
+        Icon(MoshIcons.lock,
             size: 16, color: MoshColors.of(context).onSurfaceVariant),
         const SizedBox(width: 8),
         Flexible(

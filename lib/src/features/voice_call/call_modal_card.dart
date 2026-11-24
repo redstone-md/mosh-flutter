@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/l10n/app_localizations.dart';
@@ -139,7 +140,7 @@ class CallModalCard extends StatelessWidget {
           IconButton(
               tooltip: AppLocalizations.of(context)!.callMinimize,
               onPressed: onMinimize,
-              icon: const Icon(Icons.keyboard_arrow_down))
+              icon: const Icon(MoshIcons.callMinimize))
         ]);
 
   Widget _peer(BuildContext context) => InkWell(

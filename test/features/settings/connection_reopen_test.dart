@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/settings/settings_screen.dart';
 import 'package:mosh/src/features/settings/settings_content.dart';
@@ -130,7 +131,7 @@ void main() {
       (tester) async {
     await _pump(tester, width: 390);
     await _tap(tester, 'If a VPN gets in the way');
-    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.tap(find.byIcon(MoshIcons.back));
     await tester.pumpAndSettle();
     await _tap(tester, 'Connection');
     expect(tester.takeException(), isNull);

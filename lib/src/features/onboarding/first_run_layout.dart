@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 
 import 'first_run_profile.dart';
@@ -113,7 +114,7 @@ class SetupProgress extends StatelessWidget {
                   switchInCurve: setupStepCurve,
                   switchOutCurve: setupStepCurve.flipped,
                   child: done
-                      ? Icon(Icons.check,
+                      ? Icon(MoshIcons.check,
                           size: 18, color: MoshColors.of(context).primary)
                       : Text('${index + 1}',
                           style: Theme.of(context).textTheme.titleMedium))));

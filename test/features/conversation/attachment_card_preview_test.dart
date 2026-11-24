@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 import '../../support/pump.dart';
@@ -107,7 +108,7 @@ void main() {
     // thumbnail bytes and keeps the open surface.
     expect(find.byType(Image), findsOneWidget);
     expect(find.bySemanticsLabel('Open photo.png'), findsOneWidget);
-    expect(find.byIcon(Icons.play_arrow), findsNothing);
+    expect(find.byIcon(MoshIcons.play), findsNothing);
     await tester.tap(find.byType(Image));
     expect(_openCount, 1);
     expect(_opened, descriptor);
@@ -140,25 +141,24 @@ void main() {
 
     // No preview: no Image.memory in the tree.
     expect(find.byType(Image), findsNothing);
-    expect(find.byIcon(Icons.image_outlined), findsOneWidget);
+    expect(find.byIcon(MoshIcons.image), findsOneWidget);
     // The thumb owns the accessible action; IconButton's visual tooltip is
     // excluded from semantics, so there is exactly one Open announcement.
     expect(find.bySemanticsLabel('Open photo2.png'), findsOneWidget);
     final thumbButton = find.ancestor(
-      of: find.byIcon(Icons.image_outlined),
+      of: find.byIcon(MoshIcons.image),
       matching: find.byType(InkWell),
     );
     expect(thumbButton, findsOneWidget);
     // The thumb button is a fixed 40x40 square.
     expect(tester.getSize(thumbButton), const Size(40, 40));
     final semanticsHandle = tester.ensureSemantics();
-    final thumbSemantics = tester
-        .getSemantics(find.byIcon(Icons.image_outlined))
-        .getSemanticsData();
+    final thumbSemantics =
+        tester.getSemantics(find.byIcon(MoshIcons.image)).getSemanticsData();
     expect(thumbSemantics.label, 'Open photo2.png');
     expect(thumbSemantics.hasAction(SemanticsAction.tap), isTrue);
     semanticsHandle.dispose();
-    await tester.tap(find.byIcon(Icons.image_outlined));
+    await tester.tap(find.byIcon(MoshIcons.image));
     expect(_openCount, 1);
     expect(_opened, descriptor);
     // The file name still renders.
@@ -188,7 +188,7 @@ void main() {
     );
 
     expect(find.byType(Image), findsOneWidget);
-    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    expect(find.byIcon(MoshIcons.play), findsOneWidget);
   });
 
   testWidgets('video without thumbnail opens from the thumb button',
@@ -213,9 +213,9 @@ void main() {
     );
 
     expect(find.byType(Image), findsNothing);
-    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    expect(find.byIcon(MoshIcons.play), findsOneWidget);
     expect(find.bySemanticsLabel('Open clip2.mp4'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.play_arrow));
+    await tester.tap(find.byIcon(MoshIcons.play));
     expect(_openCount, 1);
     expect(_opened, descriptor);
   });
@@ -244,9 +244,9 @@ void main() {
 
     // Audio is viewable without a thumbnail, but it is not a media preview.
     expect(find.byType(Image), findsNothing);
-    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    expect(find.byIcon(MoshIcons.play), findsOneWidget);
     expect(find.bySemanticsLabel('Open song.mp3'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.play_arrow));
+    await tester.tap(find.byIcon(MoshIcons.play));
     expect(_openCount, 1);
     expect(_opened, descriptor);
     expect(find.text('song.mp3'), findsOneWidget);
@@ -279,7 +279,7 @@ void main() {
 
     // Pins the `isImage || isVideo` guard: no Image.memory.
     expect(find.byType(Image), findsNothing);
-    final fileIcon = find.byIcon(Icons.insert_drive_file_outlined);
+    final fileIcon = find.byIcon(MoshIcons.file);
     expect(fileIcon, findsOneWidget);
     expect(
       find.ancestor(of: fileIcon, matching: find.byType(IconButton)),
@@ -289,7 +289,7 @@ void main() {
     expect(find.byType(IconButton), findsOneWidget);
     expect(tester.widget<IconButton>(find.byType(IconButton)).onPressed,
         isNotNull);
-    await tester.tap(find.byIcon(Icons.insert_drive_file_outlined));
+    await tester.tap(find.byIcon(MoshIcons.file));
     expect(_openCount, 0);
     expect(find.text('doc.pdf'), findsOneWidget);
   });
@@ -318,7 +318,7 @@ void main() {
       ),
     );
 
-    final errorIcon = find.byIcon(Icons.error_outline);
+    final errorIcon = find.byIcon(MoshIcons.error);
     expect(errorIcon, findsOneWidget);
     expect(
       find.ancestor(of: errorIcon, matching: find.byType(IconButton)),
@@ -360,7 +360,7 @@ void main() {
 
     // The fallback icon renders (Image.memory's errorBuilder) and the card
     // survives: the name + open semantics are still there.
-    expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
+    expect(find.byIcon(MoshIcons.imageBroken), findsOneWidget);
     expect(find.bySemanticsLabel('Open photo3.png'), findsOneWidget);
     expect(find.text('photo3.png'), findsOneWidget);
   });

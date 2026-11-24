@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 
 enum SettingsSection {
-  sound(Icons.mic_none_outlined),
-  profile(Icons.person_outline),
-  devices(Icons.devices_outlined),
-  connection(Icons.link_outlined),
-  privacy(Icons.lock_outline),
-  about(Icons.info_outline);
+  sound(MoshIcons.mic),
+  profile(MoshIcons.person),
+  devices(MoshIcons.devices),
+  connection(MoshIcons.link),
+  privacy(MoshIcons.lock),
+  about(MoshIcons.info);
 
   const SettingsSection(this.icon);
   final IconData icon;

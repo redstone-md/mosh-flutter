@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_lock.dart';
 import 'package:mosh/src/features/org/org_section.dart';
@@ -154,7 +155,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final size = tester.getSize(
-      find.widgetWithIcon(IconButton, Icons.close),
+      find.widgetWithIcon(IconButton, MoshIcons.close),
     );
     expect(size.width, greaterThanOrEqualTo(40));
     expect(size.height, greaterThanOrEqualTo(40));
@@ -204,7 +205,7 @@ void main() {
     );
 
     final size = tester.getSize(
-      find.widgetWithIcon(IconButton, Icons.close).first,
+      find.widgetWithIcon(IconButton, MoshIcons.close).first,
     );
     expect(size.width, greaterThanOrEqualTo(40));
     expect(size.height, greaterThanOrEqualTo(40));

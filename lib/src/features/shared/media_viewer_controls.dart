@@ -44,7 +44,7 @@ class _PlaybackControlsState extends State<_PlaybackControls> {
     return Row(
       children: [
         IconButton(
-          icon: Icon(playing ? Icons.pause : Icons.play_arrow),
+          icon: Icon(playing ? MoshIcons.pause : MoshIcons.play),
           onPressed: player.playOrPause,
         ),
         Expanded(

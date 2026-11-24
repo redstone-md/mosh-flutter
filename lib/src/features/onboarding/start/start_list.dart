@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/focus_ring.dart';
 
@@ -44,13 +45,13 @@ class StartActionList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Section(
-          icon: Icons.lock_outline,
+          icon: MoshIcons.lock,
           label: l.startGroupEncrypted,
           actions: [...actions.where((a) => a.encrypted)],
         ),
         const SizedBox(height: 20),
         _Section(
-          icon: Icons.public,
+          icon: MoshIcons.language,
           label: l.startGroupOpen,
           actions: [...actions.where((a) => !a.encrypted)],
         ),
@@ -183,7 +184,7 @@ class _StartRowState extends State<StartRow> {
                 curve: StartMotion.ease,
                 offset: Offset(lit && duration > Duration.zero ? 0.15 : 0, 0),
                 child: Icon(
-                  Icons.chevron_right,
+                  MoshIcons.chevronRight,
                   size: 20,
                   color: lit ? colors.onSurfaceVariant : colors.outline,
                   textDirection: Directionality.of(context),

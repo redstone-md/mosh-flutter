@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
 import 'package:mosh/src/features/conversation/message_selection.dart';
@@ -23,13 +24,13 @@ class MessageSelectionActions extends StatelessWidget {
         children: [
           TextButton.icon(
             onPressed: enabled && text.isNotEmpty ? scope.onCopySelected : null,
-            icon: const Icon(Icons.copy_outlined),
+            icon: const Icon(MoshIcons.copy),
             label: Text(l.nativeMenuCopy),
             style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
           ),
           FilledButton.icon(
             onPressed: enabled ? scope.onDeleteSelected : null,
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(MoshIcons.delete),
             label: Text(l.messageSelectionDelete),
             style: moshDangerButtonStyle(context).copyWith(
                 minimumSize: const WidgetStatePropertyAll(Size(48, 48))),

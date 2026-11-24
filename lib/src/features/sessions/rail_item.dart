@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/features/shared/conversation_kind_style.dart';
 import 'package:mosh/src/features/sessions/rail_compact.dart';
@@ -298,7 +299,7 @@ class RailSettingsButton extends StatelessWidget {
                         child: Row(
                           children: <Widget>[
                             Icon(
-                              Icons.settings_outlined,
+                              MoshIcons.settings,
                               size: 18,
                               color: colors.onSurfaceVariant,
                             ),
@@ -364,7 +365,7 @@ class RailNewButton extends StatelessWidget {
                               child: CircleAvatar(
                                   radius: 16,
                                   backgroundColor: colors.primary,
-                                  child: Icon(Icons.add,
+                                  child: Icon(MoshIcons.add,
                                       size: 20, color: colors.onPrimary)),
                             ),
                           ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/voice_message_card.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
@@ -76,7 +77,7 @@ void main() {
     await _pumpVoice(tester, player,
         own: true, path: '/tmp/voice.m4a', state: AttachmentState.available);
 
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byIcon(MoshIcons.play));
     await tester.pumpAndSettle();
 
     expect(playback.events, ['open', 'play']);
@@ -101,7 +102,7 @@ void main() {
                 playLabel: 'Play',
                 pauseLabel: 'Pause')));
 
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byIcon(MoshIcons.play));
     await tester.pump();
 
     expect(downloads, ['voice']);
@@ -114,7 +115,7 @@ void main() {
     final playback = _RecordingPlayback()..failOpen = true;
     final player = Player(platformPlayer: playback);
     await _pumpVoice(tester, player);
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byIcon(MoshIcons.play));
     await tester.pump();
 
     await _pumpVoice(tester, player,
@@ -122,7 +123,7 @@ void main() {
 
     expect(playback.events, ['open']);
     playback.failOpen = false;
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byIcon(MoshIcons.play));
     await tester.pumpAndSettle();
     expect(playback.events, ['open', 'open', 'play']);
     expect(tester.takeException(), isNull);
@@ -134,7 +135,7 @@ void main() {
     final playback = _RecordingPlayback()..openGate = gate;
     final player = Player(platformPlayer: playback);
     await _pumpVoice(tester, player);
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byIcon(MoshIcons.play));
     await tester.pump();
     await _pumpVoice(tester, player,
         path: '/tmp/voice.m4a', state: AttachmentState.available);
@@ -154,7 +155,7 @@ void main() {
       final playback = _RecordingPlayback()..openGate = gate;
       final player = Player(platformPlayer: playback);
       await _pumpVoice(tester, player);
-      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.tap(find.byIcon(MoshIcons.play));
       await tester.pump();
       await _pumpVoice(tester, player,
           path: '/tmp/voice.m4a', state: AttachmentState.available);
@@ -176,13 +177,13 @@ void main() {
     final playback = _RecordingPlayback()..failPlay = true;
     final player = Player(platformPlayer: playback);
     await _pumpVoice(tester, player);
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byIcon(MoshIcons.play));
     await tester.pump();
     await _pumpVoice(tester, player,
         path: '/tmp/first.m4a', state: AttachmentState.available);
 
     playback.failPlay = false;
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byIcon(MoshIcons.play));
     await tester.pumpAndSettle();
     await _pumpVoice(tester, player,
         path: '/tmp/second.m4a', state: AttachmentState.available);

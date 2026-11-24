@@ -14,7 +14,7 @@ class CallButton extends StatelessWidget {
     this.toggled,
   });
 
-  /// The icon (Icons.phone / Icons.phone_disabled / Icons.mic / Icons.mic_off).
+  /// The icon (MoshIcons.call / MoshIcons.callEnd / MoshIcons.mic / MoshIcons.micOff).
   final IconData icon;
   final bool? toggled;
 

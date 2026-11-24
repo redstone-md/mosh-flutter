@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/invite/invite_detection.dart';
@@ -209,7 +210,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
             decoration: InputDecoration(
               labelText: l.onboardInviteLinkLabel,
               hintText: l.onboardJoinPlaceholder,
-              prefixIcon: const Icon(Icons.link, size: 20),
+              prefixIcon: const Icon(MoshIcons.link, size: 20),
             ),
           ),
         ),

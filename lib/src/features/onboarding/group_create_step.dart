@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
@@ -149,7 +150,7 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
           decoration: InputDecoration(
             labelText: l.onboardGroupNameLabel,
             helperText: l.onboardGroupNameHint,
-            prefixIcon: const Icon(Icons.group_outlined, size: 20),
+            prefixIcon: const Icon(MoshIcons.group, size: 20),
           ),
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => _onCreate(),
@@ -172,7 +173,7 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
         ],
         const SizedBox(height: 16),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(Icons.info_outline, size: 18, color: colors.onSurfaceMuted),
+          Icon(MoshIcons.info, size: 18, color: colors.onSurfaceMuted),
           const SizedBox(width: 10),
           Expanded(
             child: Text(l.onboardGroupMembersNote,

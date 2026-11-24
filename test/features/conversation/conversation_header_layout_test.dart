@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/state/session_providers.dart';
@@ -20,7 +21,7 @@ Future<void> _pumpHeader(WidgetTester tester) =>
 void main() {
   testWidgets('clicking the chat name opens details', (tester) async {
     await _pumpHeader(tester);
-    final icons = [Icons.phone_outlined, Icons.search, Icons.more_vert];
+    final icons = [MoshIcons.call, MoshIcons.search, MoshIcons.more];
     final centers =
         icons.map((icon) => tester.getCenter(find.byIcon(icon)).dx).toList();
     expect(centers[0], lessThan(centers[1]));

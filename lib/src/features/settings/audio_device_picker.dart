@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_select.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 
@@ -73,7 +74,7 @@ class AudioDevicePicker extends StatelessWidget {
             _hint(context, l.settingsDevicesLoadError),
             TextButton.icon(
               onPressed: onRefresh,
-              icon: const Icon(Icons.refresh, size: 16),
+              icon: const Icon(MoshIcons.refresh, size: 16),
               label: Text(l.settingsRefreshDevices),
               style: TextButton.styleFrom(
                   foregroundColor: MoshColors.of(context).primary),

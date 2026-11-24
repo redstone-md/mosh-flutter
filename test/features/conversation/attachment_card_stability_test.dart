@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
@@ -151,7 +152,7 @@ void main() {
       unknown = tester.getSize(_preview).height;
     });
     expect(tester.getSize(_preview).height, unknown);
-    expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
+    expect(find.byIcon(MoshIcons.imageBroken), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

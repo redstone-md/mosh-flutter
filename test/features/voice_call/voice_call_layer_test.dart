@@ -4,6 +4,7 @@
 import 'dart:async';
 import '../../support/call_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -267,12 +268,12 @@ void main() {
           settle: false);
       await tester.pump(const Duration(milliseconds: 50));
       // The overlay opens with the mic (unmuted) affordance.
-      expect(find.byIcon(Icons.mic), findsOneWidget);
+      expect(find.byIcon(MoshIcons.mic), findsOneWidget);
       expect(
         ref.read(voiceCallOrchestratorProvider('sess-1')).muted,
         isFalse,
       );
-      await tester.tap(find.byIcon(Icons.mic));
+      await tester.tap(find.byIcon(MoshIcons.mic));
       await tester.pump(const Duration(milliseconds: 10));
       // The toggle hit the orchestrator notifier; the provider state flipped.
       expect(

@@ -4,7 +4,7 @@
 // license, the Rust crates of mosh-core and the media crates (from their
 // Cargo.lock, through cargo-about), the Go modules of Moss, libmpv and FFmpeg
 // under the LGPL with the sources of the builds media_kit downloads, and the
-// Onest font. The app adds the file to its license page
+// Onest and Phosphor fonts. The app adds the file to its license page
 // (lib/src/app/bundled_licenses.dart). CI writes it again and fails when the
 // committed file differs: run this script after changing a dependency.
 import { execFileSync } from "node:child_process";
@@ -147,6 +147,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   const components = [
     { names: ["Mosh"], text: read("LICENSE") },
     { names: ["Onest"], text: read("assets/fonts/Onest-OFL.txt") },
+    { names: ["Phosphor Icons"], text: read("assets/fonts/Phosphor-MIT.txt") },
     ...rustCrates(),
     ...mossModules(),
     ...libmpv(),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'call_video_textures.dart';
 import 'call_video_stage.dart';
@@ -42,7 +43,7 @@ class FloatingCallView extends StatelessWidget {
           IconButton(
               tooltip: l.callExpand,
               onPressed: onRestore,
-              icon: const Icon(Icons.open_in_full, size: 20)),
+              icon: const Icon(MoshIcons.callExpand, size: 20)),
           Expanded(
               child: Text(call.peer,
                   maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -50,7 +51,7 @@ class FloatingCallView extends StatelessWidget {
               tooltip: l.callActiveHangUp,
               onPressed: onEnd,
               color: MoshColors.of(context).error,
-              icon: const Icon(Icons.call_end, size: 20)),
+              icon: const Icon(MoshIcons.callEnd, size: 20)),
         ]),
       ]),
     );

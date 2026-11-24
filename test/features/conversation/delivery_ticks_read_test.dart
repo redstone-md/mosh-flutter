@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
@@ -62,7 +63,7 @@ Future<void> _pumpRow(
     );
 
 Icon deliveredIcon(WidgetTester tester) =>
-    tester.widget<Icon>(find.byIcon(Icons.done_all));
+    tester.widget<Icon>(find.byIcon(MoshIcons.doneAll));
 
 void main() {
   setUpAll(() => initializeDateFormatting());

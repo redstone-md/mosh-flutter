@@ -11,5 +11,8 @@
   "chevron_right": "caret-right", "update": "arrow-circle-down", "select_all": "selection-all", "leave": "sign-out", "language": "globe", "shield": "shield-check", "bug": "bug",
   "qr": "qr-code", "speaker": "speaker-high",
   "mic_off": "microphone-slash", "video_off": "video-camera-slash", "call_end": "phone-disconnect", "tune": "sliders-horizontal",
-  "fullscreen": "corners-out", "fullscreen_exit": "corners-in", "call_expand": "arrows-out-simple", "call_minimize": "arrows-in-simple"
+  "fullscreen": "corners-out", "fullscreen_exit": "corners-in", "call_expand": "arrows-out-simple", "call_minimize": "arrows-in-simple",
+  "forward": "arrow-right", "wallet": "wallet", "image_broken": "image-broken", "call_missed": "phone-x", "chats": "chats-circle", "connection": "plugs-connected", "folder": "folder-open",
+  "network": "network", "lock_open": "lock-simple-open", "more_horizontal": "dots-three", "notifications": "bell-ringing", "open_external": "arrow-square-out", "play_circle": "play-circle-fill", "shield_warning": "shield-warning",
+  "share": "share-network", "chart": "chart-line", "stop": "stop-fill", "text": "text-aa", "plus": "seal-check", "scan": "scan"
 }

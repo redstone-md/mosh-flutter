@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
@@ -25,7 +26,7 @@ class DmRevocationBanner extends StatelessWidget {
     };
     if (copy == null) return const SizedBox.shrink();
     return CryptoNoticeBanner(
-        icon: Icons.link_off,
+        icon: MoshIcons.linkOff,
         title: copy.$1,
         body: copy.$2,
         accent: MoshColors.of(context).info);

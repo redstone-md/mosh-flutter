@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/attachment_actions.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
@@ -14,7 +15,7 @@ final _controls = [
     'download',
     find.descendant(
         of: find.byType(AttachmentActions),
-        matching: find.byIcon(Icons.download)),
+        matching: find.byIcon(MoshIcons.download)),
     GatewayMethod.downloadAttachment,
     TestMessage(
         messageId: 'file', attachment: testAttachment(attachmentId: 'file')),
@@ -23,7 +24,8 @@ final _controls = [
   (
     'cancel download',
     find.descendant(
-        of: find.byType(AttachmentActions), matching: find.byIcon(Icons.close)),
+        of: find.byType(AttachmentActions),
+        matching: find.byIcon(MoshIcons.close)),
     GatewayMethod.cancelAttachment,
     TestMessage(
         messageId: 'file', attachment: testAttachment(attachmentId: 'file')),

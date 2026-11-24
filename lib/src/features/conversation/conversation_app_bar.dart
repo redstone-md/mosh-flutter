@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/features/conversation/chat_header_menu.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
@@ -61,12 +62,12 @@ class ConversationAppBar extends StatelessWidget
       switch (chrome.filter) {
         ConversationFilter.attachments => ChatHeaderMenuAction(
             label: l.chatFilterAll,
-            icon: Icons.chat_bubble_outline,
+            icon: MoshIcons.chat,
             onSelect: () => chrome.onFilter(ConversationFilter.all),
           ),
         ConversationFilter.all => ChatHeaderMenuAction(
             label: l.chatFilterAttachments,
-            icon: Icons.attach_file,
+            icon: MoshIcons.attach,
             onSelect: () => chrome.onFilter(ConversationFilter.attachments),
           ),
       };
@@ -140,7 +141,7 @@ class ConversationAppBar extends StatelessWidget
       ChatHeaderMenu(l: l, actions: [
         ChatHeaderMenuAction(
             label: l.chatDetailsTitle,
-            icon: Icons.info_outline,
+            icon: MoshIcons.info,
             onSelect: chrome.onOpenPeerStatus),
         _filterAction(l),
         ...menuActions,

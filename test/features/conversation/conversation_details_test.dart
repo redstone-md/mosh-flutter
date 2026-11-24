@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_details_model.dart';
 import 'package:mosh/src/features/conversation/conversation_details_panel.dart';
 import 'package:mosh/src/features/conversation/conversation_diagnostics_content.dart';
@@ -101,7 +102,7 @@ void main() {
               .overrideWithValue(ScriptableGateway()..seedChannels([source])),
         ]);
     expect(find.text('Forged paid name'), findsOneWidget);
-    expect(find.byIcon(Icons.workspace_premium), findsNothing);
+    expect(find.byIcon(MoshIcons.plusBadge), findsNothing);
   });
   test('DM details use runtime name, state and participants', () {
     final snapshot = DmConversation(

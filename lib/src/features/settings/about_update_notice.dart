@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/mosh_progress_bar.dart';
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
@@ -39,19 +40,19 @@ class AboutUpdateNotice extends ConsumerWidget {
           return _downloading(context, l, received: received, total: total);
         case UpdateInstallApplying():
           return _line(context,
-              icon: Icons.system_update_alt,
+              icon: MoshIcons.update,
               tint: colors.primary,
               message: l.settingsAboutUpdateApplying);
         case UpdateInstallImageOpen():
           return _line(context,
-              icon: Icons.folder_open,
+              icon: MoshIcons.folder,
               tint: colors.primary,
               message: l.settingsAboutUpdateImageOpen,
               action: _button(l.settingsAboutUpdateImageShow,
                   () => ref.read(updateInstallProvider.notifier).reveal()));
         case UpdateInstallFailed():
           return _line(context,
-              icon: Icons.error_outline,
+              icon: MoshIcons.error,
               tint: colors.warning,
               message: l.settingsAboutUpdateInstallFailed,
               action: _button(
@@ -71,22 +72,22 @@ class AboutUpdateNotice extends ConsumerWidget {
           UpdateCandidate? candidate) =>
       switch (ref.watch(updateCheckProvider)) {
         AsyncData(:final value?) => _line(context,
-            icon: Icons.system_update_alt,
+            icon: MoshIcons.update,
             tint: MoshColors.of(context).primary,
             message: l.settingsAboutUpdateAvailable(value.version),
             action: _offerUpdate(context, ref, l, candidate, value)),
         AsyncData() => _line(context,
-            icon: Icons.check_circle_outline,
+            icon: MoshIcons.success,
             tint: MoshColors.of(context).primary,
             message: l.settingsAboutUpdateCurrent),
         AsyncError() => _line(context,
-            icon: Icons.error_outline,
+            icon: MoshIcons.error,
             tint: MoshColors.of(context).warning,
             message: l.settingsAboutUpdateFailed,
             action: _button(l.settingsAboutUpdateRetry,
                 () => ref.invalidate(updateCheckProvider))),
         _ => _line(context,
-            icon: Icons.sync,
+            icon: MoshIcons.refresh,
             tint: MoshColors.of(context).onSurfaceMuted,
             message: l.settingsAboutUpdateChecking),
       };
@@ -118,7 +119,7 @@ class AboutUpdateNotice extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _line(context,
-            icon: Icons.downloading,
+            icon: MoshIcons.download,
             tint: MoshColors.of(context).primary,
             message: fraction == null
                 ? l.settingsAboutUpdateDownloadingUnknown

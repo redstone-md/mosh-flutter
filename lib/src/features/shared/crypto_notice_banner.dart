@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 /// Tinted crypto notice banner. Renders an icon in a rounded tinted square
@@ -20,8 +21,7 @@ class CryptoNoticeBanner extends StatelessWidget {
     this.dismissing = false,
   });
 
-  /// The icon glyph (`Icons.lock` for group, `Icons.hash` for public).
-  /// Material equivalents: `Icons.lock` (group), `Icons.tag` (public hash).
+  /// The icon glyph (`MoshIcons.lock` for group, `MoshIcons.tag` for public).
   final IconData icon;
 
   /// Bold title line.
@@ -110,7 +110,7 @@ class CryptoNoticeBanner extends StatelessWidget {
                 tooltip: AppLocalizations.of(context)!.dialogClose,
                 visualDensity: VisualDensity.compact,
                 color: colors.onSurfaceMuted,
-                icon: const Icon(Icons.close, size: 18),
+                icon: const Icon(MoshIcons.close, size: 18),
               ),
             ],
           ],

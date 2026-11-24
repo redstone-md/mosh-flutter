@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -48,7 +49,7 @@ void main() {
     await _pumpRail(tester, const Size(390, 844));
     await tester.tap(find.byType(RailNewButton));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.tap(find.byIcon(MoshIcons.back));
     await tester.pump();
     expect(_ink(tester, RailNewButton), isEmpty);
   });

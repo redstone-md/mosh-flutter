@@ -3,6 +3,7 @@ import 'dart:io' show Directory, File;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -77,7 +78,7 @@ class _FieldLogButtonState extends ConsumerState<FieldLogButton> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TextButton.icon(
-          icon: const Icon(Icons.share_outlined),
+          icon: const Icon(MoshIcons.share),
           label: Text(l.fieldLogShare),
           onPressed: _sharing ? null : () => _share(context, l),
         ),

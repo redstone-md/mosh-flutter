@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:flutter/services.dart';
 import 'package:mosh/src/features/conversation/conversation_diagnostics_content.dart';
@@ -212,7 +213,7 @@ class _DrawerHeader extends StatelessWidget {
         children: [
           // A plug glyph, matching the trigger used on the DM/Channel/Group
           // screens' AppBar action for visual consistency.
-          const Icon(Icons.electrical_services_outlined, size: 16),
+          const Icon(MoshIcons.connection, size: 16),
           const SizedBox(width: 8),
           // Uppercase 12px title with wide letter spacing in fg-2.
           // Flutter has no text-transform, so the string itself is
@@ -233,14 +234,14 @@ class _DrawerHeader extends StatelessWidget {
           ),
           IconButton(
             tooltip: refreshTooltip,
-            icon: const Icon(Icons.refresh, size: 14),
+            icon: const Icon(MoshIcons.refresh, size: 14),
             onPressed: refreshing ? null : onRefresh,
             visualDensity: VisualDensity.compact,
             splashRadius: 18,
           ),
           IconButton(
             tooltip: closeTooltip,
-            icon: const Icon(Icons.close, size: 14),
+            icon: const Icon(MoshIcons.close, size: 14),
             onPressed: onClose,
             visualDensity: VisualDensity.compact,
             splashRadius: 18,

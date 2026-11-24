@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/device_link/device_link_provider.dart';
 import 'package:mosh/src/features/device_link/device_link_state.dart';
 import 'package:mosh/src/features/device_link/devices_settings_section.dart';
@@ -70,7 +71,7 @@ class _FirstRunDeviceStepState extends ConsumerState<FirstRunDeviceStep> {
       ] else ...[
         OutlinedButton.icon(
             onPressed: locked ? null : () => setState(() => _connecting = true),
-            icon: const Icon(Icons.qr_code_scanner),
+            icon: const Icon(MoshIcons.scan),
             label: Text(l.firstRunConnectDevice)),
         const SizedBox(height: 12),
       ],

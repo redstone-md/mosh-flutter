@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/org/org_section.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
@@ -77,7 +78,7 @@ void main() {
         ),
       );
       expect(find.text('Acme'), findsOneWidget);
-      await tester.tap(find.byIcon(Icons.close).first);
+      await tester.tap(find.byIcon(MoshIcons.close).first);
       expect(left, isTrue);
     },
   );
@@ -150,7 +151,7 @@ void main() {
       expect(acceptKey, 'pk');
       expect(acceptId, 'o1');
       // dismiss X (the close icon within the offer row).
-      await tester.tap(find.byIcon(Icons.close).at(1));
+      await tester.tap(find.byIcon(MoshIcons.close).at(1));
       expect(dismissKey, 'pk');
     },
   );
@@ -207,7 +208,7 @@ void main() {
           l: await _l(),
         ),
       );
-      expect(find.byIcon(Icons.add), findsOneWidget);
+      expect(find.byIcon(MoshIcons.add), findsOneWidget);
       // The field is named by a label, not only by its placeholder.
       expect(find.text('Group name'), findsOneWidget);
     },
@@ -265,7 +266,9 @@ void main() {
         ),
       );
       // The crown is the only cue for the role, so it carries a name.
-      expect(find.bySemanticsLabel(RegExp('Org admin')), findsOneWidget);
+      final crown = tester.widget<Icon>(find.byWidgetPredicate(
+          (w) => w is Icon && w.semanticLabel == 'Org admin'));
+      expect(crown.icon, MoshIcons.admin);
     },
   );
 

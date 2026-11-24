@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/settings/audio_device_picker.dart';
 
@@ -52,7 +53,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getTopLeft(find.text('Headset microphone')).dy,
         greaterThan(fieldBottom));
-    expect(find.byIcon(Icons.check), findsOneWidget);
+    expect(find.byIcon(MoshIcons.check), findsOneWidget);
     await tester.tap(find.text('Headset microphone'));
     await tester.pumpAndSettle();
     expect(selected, 'headset');
