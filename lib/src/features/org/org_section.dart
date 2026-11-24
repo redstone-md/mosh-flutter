@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_field.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
@@ -295,16 +296,18 @@ class _NewGroupFormState extends State<_NewGroupForm> {
       child: Row(
         children: [
           Expanded(
-            child: TextField(
-              controller: _controller,
-              enabled: !widget.busy,
-              // The theme draws the radius-8 edge in every state, busy
-              // (disabled) included.
-              decoration: InputDecoration(
-                labelText: widget.l.orgNewGroupLabel,
-                hintText: widget.l.orgNewGroupPlaceholder,
+            child: MoshField(
+              label: widget.l.orgNewGroupLabel,
+              child: TextField(
+                controller: _controller,
+                enabled: !widget.busy,
+                // The theme draws the well's edge in every state, busy
+                // (disabled) included.
+                decoration: InputDecoration(
+                  hintText: widget.l.orgNewGroupPlaceholder,
+                ),
+                onSubmitted: (_) => _submit(),
               ),
-              onSubmitted: (_) => _submit(),
             ),
           ),
           IconButton(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_button_spinner.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -110,14 +111,14 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
 
   Widget _createButton(AppLocalizations l, {required bool hasInvites}) =>
       FilledButton.icon(
-        onPressed: _busy ? null : _create,
+        onPressed: _creating
+            ? MoshButtonSpinner.blockPress
+            : _busy
+                ? null
+                : _create,
         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-        icon: _creating
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2))
-            : const Icon(MoshIcons.link, size: 18),
+        icon:
+            _creating ? const MoshButtonSpinner() : const Icon(MoshIcons.link),
         label: Text(hasInvites ? l.createNewInvitation : l.onboardChatCreate),
       );
 

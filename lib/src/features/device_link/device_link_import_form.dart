@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_field.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 
@@ -47,21 +48,23 @@ class _DeviceLinkImportFormState extends State<DeviceLinkImportForm> {
         label: Text(l.deviceLinkImportImage),
       ),
       const SizedBox(height: 16),
-      TextField(
-        controller: _uri,
-        maxLength: 2048,
-        autocorrect: false,
-        enableSuggestions: false,
-        textInputAction: TextInputAction.go,
-        onSubmitted: widget.busy ? null : widget.onSubmit,
-        decoration: InputDecoration(
-          labelText: l.deviceLinkPasteLabel,
-          counterText: '',
-          suffixIcon: IconButton(
-            tooltip: l.deviceLinkImport,
-            onPressed:
-                widget.busy ? null : () => widget.onSubmit(_uri.text.trim()),
-            icon: const Icon(MoshIcons.forward),
+      MoshField(
+        label: l.deviceLinkPasteLabel,
+        child: TextField(
+          controller: _uri,
+          maxLength: 2048,
+          autocorrect: false,
+          enableSuggestions: false,
+          textInputAction: TextInputAction.go,
+          onSubmitted: widget.busy ? null : widget.onSubmit,
+          decoration: InputDecoration(
+            counterText: '',
+            suffixIcon: IconButton(
+              tooltip: l.deviceLinkImport,
+              onPressed:
+                  widget.busy ? null : () => widget.onSubmit(_uri.text.trim()),
+              icon: const Icon(MoshIcons.forward),
+            ),
           ),
         ),
       ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_button_spinner.dart';
+import 'package:mosh/src/app/mosh_field.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -145,27 +147,28 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          controller: _labelController,
-          decoration: InputDecoration(
-            labelText: l.onboardGroupNameLabel,
-            helperText: l.onboardGroupNameHint,
-            prefixIcon: const Icon(MoshIcons.group, size: 20),
+        MoshField(
+          label: l.onboardGroupNameLabel,
+          child: TextField(
+            controller: _labelController,
+            decoration: InputDecoration(
+              helperText: l.onboardGroupNameHint,
+              prefixIcon: const Icon(MoshIcons.group, size: 20),
+            ),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _onCreate(),
           ),
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => _onCreate(),
         ),
         const SizedBox(height: 20),
-        FilledButton(
-          onPressed: _busy || !_named ? null : _onCreate,
+        FilledButton.icon(
+          onPressed: _busy
+              ? MoshButtonSpinner.blockPress
+              : _named
+                  ? _onCreate
+                  : null,
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          child: _busy
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(l.onboardGroupCreate),
+          icon: _busy ? const MoshButtonSpinner() : null,
+          label: Text(l.onboardGroupCreate),
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),

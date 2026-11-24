@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_field.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
@@ -96,24 +97,26 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                               ownPlus: widget.showPlus))),
               SizedBox(height: widget.compact ? 16 : 28),
             ],
-            TextFormField(
-                controller: _name,
-                enabled: !_busy,
-                maxLength: 64,
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _save(),
-                onChanged: (_) => setState(() => _saved = false),
-                validator: (name) => name == null || name.trim().isEmpty
-                    ? l.firstRunNameRequired
-                    : null,
-                decoration: InputDecoration(
-                    labelText: l.setupDisplayNameLabel,
-                    prefixIcon: const Icon(MoshIcons.person),
-                    counterText: '',
-                    helperText: l.firstRunNameHint,
-                    helperMaxLines: 3,
-                    errorMaxLines: 3)),
+            MoshField(
+              label: l.setupDisplayNameLabel,
+              child: TextFormField(
+                  controller: _name,
+                  enabled: !_busy,
+                  maxLength: 64,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _save(),
+                  onChanged: (_) => setState(() => _saved = false),
+                  validator: (name) => name == null || name.trim().isEmpty
+                      ? l.firstRunNameRequired
+                      : null,
+                  decoration: InputDecoration(
+                      prefixIcon: const Icon(MoshIcons.person),
+                      counterText: '',
+                      helperText: l.firstRunNameHint,
+                      helperMaxLines: 3,
+                      errorMaxLines: 3)),
+            ),
             SizedBox(height: widget.compact ? 16 : 24),
             FilledButton(
                 onPressed: _busy ? null : _save,

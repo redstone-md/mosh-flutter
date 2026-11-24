@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_button_spinner.dart';
+import 'package:mosh/src/app/mosh_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -95,28 +97,29 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
       children: [
         _OpenWarning(text: l.onboardChannelStepBody),
         const SizedBox(height: 20),
-        TextField(
-          controller: _nameController,
-          decoration: InputDecoration(
-            labelText: l.onboardChannelNameLabel,
-            hintText: l.onboardChannelPlaceholder,
-            helperText: l.onboardChannelNameRule,
-            prefixIcon: const Icon(MoshIcons.tag, size: 20),
+        MoshField(
+          label: l.onboardChannelNameLabel,
+          child: TextField(
+            controller: _nameController,
+            decoration: InputDecoration(
+              hintText: l.onboardChannelPlaceholder,
+              helperText: l.onboardChannelNameRule,
+              prefixIcon: const Icon(MoshIcons.tag, size: 20),
+            ),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _onJoin(),
           ),
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => _onJoin(),
         ),
         const SizedBox(height: 20),
-        FilledButton(
-          onPressed: (_canJoin && !_busy) ? _onJoin : null,
+        FilledButton.icon(
+          onPressed: _busy
+              ? MoshButtonSpinner.blockPress
+              : _canJoin
+                  ? _onJoin
+                  : null,
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          child: _busy
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(l.onboardChannelJoin),
+          icon: _busy ? const MoshButtonSpinner() : null,
+          label: Text(l.onboardChannelJoin),
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),

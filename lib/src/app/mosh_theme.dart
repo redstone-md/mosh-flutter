@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_menu_theme.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
@@ -7,15 +9,19 @@ part 'mosh_colors.dart';
 part 'mosh_palette.dart';
 part 'mosh_typography.dart';
 part 'mosh_control_themes.dart';
+part 'mosh_surface_themes.dart';
 
 /// The app theme on one palette: [MoshColors.dark] or [MoshColors.light].
-ThemeData buildMoshTheme([MoshColors colors = MoshColors.dark]) {
+/// [platform] sizes the controls: 48 px on a phone, 40 px on the desktop.
+ThemeData buildMoshTheme(
+    [MoshColors colors = MoshColors.dark, TargetPlatform? platform]) {
+  platform ??= defaultTargetPlatform;
   final brightness = ThemeData.estimateBrightnessForColor(colors.surface);
   final scheme = _colorScheme(colors, brightness);
   final text = _textTheme(colors);
-  // Material 3 state layer for press, hover and focus: the content colour
-  // at 10%, so the surface and its text stay visible under it.
-  final stateLayer = colors.onSurface.withAlpha(0x1A);
+  // State layers of controls without a theme of their own: the content
+  // colour at the `state/*` opacity, so the surface stays visible under it.
+  final pressed = MoshState.tint(colors.onSurface, MoshState.pressed);
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
@@ -24,16 +30,18 @@ ThemeData buildMoshTheme([MoshColors colors = MoshColors.dark]) {
     scaffoldBackgroundColor: colors.surface,
     canvasColor: colors.surface,
     dividerColor: colors.outlineVariant, // hairline
-    splashColor: stateLayer,
-    highlightColor: stateLayer,
-    focusColor: stateLayer,
+    platform: platform,
+    splashColor: pressed,
+    highlightColor: pressed,
+    hoverColor: MoshState.tint(colors.onSurface, MoshState.hover),
+    focusColor: MoshState.tint(colors.onSurface, MoshState.focus),
     visualDensity: VisualDensity.compact,
     fontFamily: _kSansFamily,
     fontFamilyFallback: _kSansFallback,
     textTheme: text,
     appBarTheme: _appBarTheme(colors, text),
     dividerTheme: _dividerTheme(colors),
-    inputDecorationTheme: _inputDecorationTheme(colors, text),
+    inputDecorationTheme: _inputDecorationTheme(colors, text, platform),
     listTileTheme: _listTileTheme(colors, text),
     dialogTheme: _dialogTheme(colors),
     popupMenuTheme: _popupMenuTheme(colors),
@@ -41,11 +49,13 @@ ThemeData buildMoshTheme([MoshColors colors = MoshColors.dark]) {
     menuButtonTheme: MoshMenuTheme.items(scheme, text.bodyMedium),
     bottomSheetTheme: MoshMenuTheme.sheet(scheme),
     switchTheme: _switchTheme(colors),
-    filledButtonTheme: _filledButtonTheme(colors),
-    outlinedButtonTheme: _moshOutlinedButtonTheme,
-    textButtonTheme: _moshTextButtonTheme,
-    iconButtonTheme: _moshIconButtonTheme,
-    chipTheme: _chipTheme(colors),
+    filledButtonTheme: _filledButtonTheme(colors, text, platform),
+    outlinedButtonTheme: _outlinedButtonTheme(colors, text, platform),
+    textButtonTheme: _textButtonTheme(colors, text, platform),
+    iconButtonTheme: _iconButtonTheme(colors, platform),
+    chipTheme: _chipTheme(colors, text),
+    progressIndicatorTheme: _progressTheme(colors),
+    sliderTheme: _sliderTheme(colors),
     iconTheme: IconThemeData(color: colors.onSurfaceVariant),
     actionIconTheme: _moshActionIconTheme,
   );

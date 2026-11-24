@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_button_spinner.dart';
+import 'package:mosh/src/app/mosh_field.dart';
 import 'package:flutter/semantics.dart' show SemanticsValidationResult;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -189,9 +191,6 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    // _detected already excludes empty + unknown, so this is just the
-    // busy guard.
-    final ready = _detected && !_busy;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -201,16 +200,18 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
           validationResult: _detection.kind == InviteDetectionKind.unknown
               ? SemanticsValidationResult.invalid
               : SemanticsValidationResult.none,
-          child: TextField(
-            controller: _controller,
-            maxLines: 4,
-            minLines: 1,
-            enabled: !_busy,
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-            decoration: InputDecoration(
-              labelText: l.onboardInviteLinkLabel,
-              hintText: l.onboardJoinPlaceholder,
-              prefixIcon: const Icon(MoshIcons.link, size: 20),
+          child: MoshField(
+            label: l.onboardInviteLinkLabel,
+            child: TextField(
+              controller: _controller,
+              maxLines: 4,
+              minLines: 1,
+              enabled: !_busy,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+              decoration: InputDecoration(
+                hintText: l.onboardJoinPlaceholder,
+                prefixIcon: const Icon(MoshIcons.link, size: 20),
+              ),
             ),
           ),
         ),
@@ -221,16 +222,15 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
           name: _name,
         ),
         const SizedBox(height: 20),
-        FilledButton(
-          onPressed: ready ? _connect : null,
+        FilledButton.icon(
+          onPressed: _busy
+              ? MoshButtonSpinner.blockPress
+              : _detected
+                  ? _connect
+                  : null,
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          child: _busy
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(l.onboardJoinConnect),
+          icon: _busy ? const MoshButtonSpinner() : null,
+          label: Text(l.onboardJoinConnect),
         ),
         if (_error != null) ...[
           const SizedBox(height: 16),

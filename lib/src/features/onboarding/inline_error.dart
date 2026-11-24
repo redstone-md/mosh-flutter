@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-/// Persistent inline error displayed below the primary button on the
-/// onboarding step screens when a create/join handler fails.
+/// The Inline error of the Text field card: the error mark and what to fix,
+/// in the error colour. It stays below the primary button of an onboarding
+/// step when a create/join handler fails.
 ///
 /// Renders only when [message] is non-null. When null it returns
 /// `const SizedBox.shrink()` so the layout below the button does not jump.
-/// The error-colored `Text` is wrapped in a live-region `Semantics` whose
+/// The row is wrapped in a live-region `Semantics` whose
 /// label replaces the Text's own, so screen readers announce it once.
 class InlineError extends StatelessWidget {
   const InlineError({super.key, this.message});
@@ -24,20 +27,21 @@ class InlineError extends StatelessWidget {
       container: true,
       label: text,
       excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: colors.errorContainer,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: colors.error),
-        ),
-        child: Text(
-          text,
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: colors.error),
-        ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(MoshIcons.error, size: MoshSpace.s4, color: colors.error),
+          const SizedBox(width: MoshSpace.s1),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall!
+                  .copyWith(color: colors.error),
+            ),
+          ),
+        ],
       ),
     );
   }
