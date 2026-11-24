@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
@@ -9,7 +10,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'app_release_provider.dart';
 import 'app_update_install.dart';
-import 'settings_card.dart';
 
 /// Opens a page outside the app. Injectable, so a widget test records the
 /// attempt instead of calling a platform plugin.
@@ -144,7 +144,7 @@ class AboutUpdateNotice extends ConsumerWidget {
   }) =>
       Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: SettingsCardHeader.iconTextGap,
+        spacing: MoshSpace.s3,
         runSpacing: 4,
         children: [
           Icon(icon, size: 20, color: tint),

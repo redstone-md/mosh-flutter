@@ -18,7 +18,6 @@ class MoshSwitchRow extends StatefulWidget {
     required this.value,
     required this.onChanged,
     this.saving = false,
-    this.leading,
   });
 
   final String title;
@@ -26,9 +25,6 @@ class MoshSwitchRow extends StatefulWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
   final bool saving;
-
-  /// Stands before the words, a glyph of the setting for instance.
-  final Widget? leading;
 
   @override
   State<MoshSwitchRow> createState() => _MoshSwitchRowState();
@@ -106,10 +102,6 @@ class _MoshSwitchRowState extends State<MoshSwitchRow> {
         : MoshState.tint(colour, MoshState.disabledContent);
     final subtitle = widget.subtitle;
     return Row(children: [
-      if (widget.leading != null) ...[
-        widget.leading!,
-        const SizedBox(width: MoshSpace.s4),
-      ],
       Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

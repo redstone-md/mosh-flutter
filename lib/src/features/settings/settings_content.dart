@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/features/device_link/devices_settings_section.dart';
 
 import 'about_settings_section.dart';
@@ -7,39 +8,44 @@ import 'connection_settings_section.dart';
 import 'privacy_settings_section.dart';
 import 'profile_settings_section.dart';
 import 'settings_navigation.dart';
+import 'settings_page_header.dart';
 import 'voice_settings_section.dart';
 
-/// One bounded scroller per section, including its heading.
+/// One bounded scroller per section, under its page header.
 class SettingsContent extends StatelessWidget {
-  const SettingsContent({super.key, required this.section, required this.wide});
+  const SettingsContent(
+      {super.key, required this.section, required this.wide, this.onBack});
 
   final SettingsSection section;
   final bool wide;
 
+  /// The way back to the list of sections, in a narrow window.
+  final VoidCallback? onBack;
+
+  /// The widest a settings card is drawn.
+  static const double maxWidth = 560;
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final text = Theme.of(context).textTheme;
     return SingleChildScrollView(
       key: PageStorageKey(section),
-      padding: EdgeInsets.symmetric(
-          horizontal: wide ? 40 : 16, vertical: wide ? 40 : 24),
+      padding: wide
+          ? const EdgeInsets.all(MoshSpace.s10)
+          : const EdgeInsets.fromLTRB(
+              MoshSpace.s4, MoshSpace.s1, MoshSpace.s4, MoshSpace.s6),
       child: Align(
         alignment: AlignmentDirectional.topStart,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
+          constraints: const BoxConstraints(maxWidth: maxWidth),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (wide) ...[
-                Text(l.settingsTitle, style: text.bodySmall),
-                const SizedBox(height: 8),
-              ],
-              Semantics(
-                header: true,
-                child: Text(section.label(l), style: text.headlineMedium),
-              ),
-              const SizedBox(height: 28),
+              SettingsPageHeader(
+                  title: section.label(l),
+                  onBack: wide ? null : onBack,
+                  backTooltip: l.settingsBackToSections),
+              SizedBox(height: wide ? MoshSpace.s6 : MoshSpace.s3),
               _body(),
             ],
           ),

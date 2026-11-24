@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
-import 'package:mosh/src/features/shared/focus_ring.dart';
 
 import 'settings_navigation.dart';
-import 'settings_card_header.dart';
+import 'settings_page_header.dart';
 
-/// The same keyboard-accessible section rows serve the sidebar and narrow list.
+/// The Settings navigation card: the sections of settings. On the desktop it
+/// is the side list, with the way back to the chats it stands in for; in a
+/// narrow window it is the whole first screen under its page header.
 class SettingsNav extends StatelessWidget {
   const SettingsNav({
     super.key,
@@ -23,32 +25,45 @@ class SettingsNav extends StatelessWidget {
   final VoidCallback onExit;
   final bool sidebar;
 
+  /// Width of the desktop's side list: a 232 px row and the list's padding.
+  static const double sidebarWidth = 248;
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     return ListView(
-      padding: EdgeInsets.all(sidebar ? 20 : 16),
+      padding: sidebar
+          ? const EdgeInsets.symmetric(
+              horizontal: MoshSpace.s2, vertical: MoshSpace.s4)
+          : const EdgeInsets.fromLTRB(
+              MoshSpace.s4, MoshSpace.s1, MoshSpace.s4, MoshSpace.s4),
       children: [
-        OutlinedButton.icon(
-          onPressed: onExit,
-          icon: const Icon(MoshIcons.back, size: 18),
-          label: Text(l.settingsBackToChats),
-          style: OutlinedButton.styleFrom(
+        if (sidebar) ...[
+          Align(
             alignment: AlignmentDirectional.centerStart,
-            minimumSize: const Size.fromHeight(44),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: TextButton.icon(
+              onPressed: onExit,
+              icon: const Icon(MoshIcons.back),
+              label: Text(l.settingsBackToChats),
+            ),
           ),
-        ),
-        const SizedBox(height: 32),
-        Semantics(
-          header: true,
-          child: Text(l.settingsTitle,
-              style: Theme.of(context).textTheme.titleLarge),
-        ),
-        const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                MoshSpace.s4, MoshSpace.s4, MoshSpace.s4, MoshSpace.s3),
+            child: Semantics(
+              header: true,
+              child: Text(l.settingsTitle,
+                  style: Theme.of(context).textTheme.titleLarge),
+            ),
+          ),
+        ] else
+          SettingsPageHeader(
+              title: l.settingsTitle,
+              onBack: onExit,
+              backTooltip: l.settingsBackToChats),
         for (final section in SettingsSection.values)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(top: MoshSpace.s1),
             child: _SectionRow(
               section: section,
               selected: sidebar && selected == section,
@@ -61,6 +76,9 @@ class SettingsNav extends StatelessWidget {
   }
 }
 
+/// The Navigation row card: a pill as tall as a control. The selected one is
+/// lit; in a narrow window a row opens a screen of its own and says so with
+/// a chevron.
 class _SectionRow extends StatelessWidget {
   const _SectionRow({
     required this.section,
@@ -77,36 +95,71 @@ class _SectionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
+    final ink = selected ? colors.onSecondaryContainer : colors.onSurface;
     return Semantics(
       selected: selected,
       child: Material(
         color: selected ? colors.secondaryContainer : Colors.transparent,
-        borderRadius: MoshShapes.conversationRow,
+        shape: MoshShapes.pill,
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          borderRadius: MoshShapes.conversationRow,
-          child: FocusRing(
-            radius: MoshShapes.conversationRow,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
+          customBorder: MoshShapes.pill,
+          overlayColor: MoshState.layer(colors.onSurface),
+          child: _FocusPill(
+            child: Container(
+              constraints: BoxConstraints(
+                  minHeight: MoshControl.height(Theme.of(context).platform)),
+              padding: const EdgeInsetsDirectional.only(
+                  start: MoshSpace.s4, end: MoshSpace.s3),
               child: Row(children: [
                 Icon(section.icon,
-                    size: 22,
-                    color: selected ? colors.primary : colors.onSurfaceVariant),
-                const SizedBox(width: SettingsCardHeader.iconTextGap),
+                    size: MoshSpace.s5,
+                    color: selected
+                        ? colors.onSecondaryContainer
+                        : colors.onSurfaceVariant),
+                const SizedBox(width: MoshSpace.s3),
                 Expanded(
                   child: Text(section.label(AppLocalizations.of(context)!),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight:
-                                selected ? FontWeight.w600 : FontWeight.w500,
-                          )),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelLarge!
+                          .copyWith(color: ink)),
                 ),
-                if (showChevron) const Icon(MoshIcons.chevronRight, size: 18),
+                if (showChevron)
+                  Icon(MoshIcons.chevronRight,
+                      size: MoshSpace.s4, color: colors.onSurfaceMuted),
               ]),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The keyboard focus ring of a pill-shaped row.
+class _FocusPill extends StatelessWidget {
+  const _FocusPill({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final node = Focus.maybeOf(context);
+    final focused = (node?.hasPrimaryFocus ?? false) &&
+        FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
+    return DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: ShapeDecoration(
+          shape: focused
+              ? MoshShapes.pill.copyWith(
+                  side: BorderSide(
+                      color: MoshColors.of(context).focusRing,
+                      width: MoshBorder.thick))
+              : MoshShapes.pill),
+      child: child,
     );
   }
 }

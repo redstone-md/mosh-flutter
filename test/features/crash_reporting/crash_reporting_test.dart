@@ -183,7 +183,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(MoshSwitchRow));
+    await tester.tap(find.byType(MoshSwitch));
     await tester.pumpAndSettle();
 
     expect(sdk.events, ['start scripted-salt']);

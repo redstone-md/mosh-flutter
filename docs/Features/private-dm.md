@@ -33,7 +33,7 @@ sequenceDiagram
     BF->>Api: private_dm::accept_invite(request)
     Api-->>BF: SessionSnapshot { fingerprint }
     BF-->>Bob: SessionSnapshot
-    Note over Bob: native parser verifies invitation signatures<br/>fingerprint readable via the header lock
+    Note over Bob: native parser verifies invitation signatures<br/>fingerprint readable from the conversation's details
     Bob->>GW: send(DmTarget(sessionId), body)
     GW->>Api: conversation::send(BridgeConversationRef { Dm, session_id }, body)
     Api-->>GW: () — delivery state arrives in the next poll
@@ -119,7 +119,7 @@ sequenceDiagram
     Peer-->>RT: DeliveryAck → Delivered
 ```
 
-## The fingerprint lock
+## The fingerprint
 
 The DM fingerprint is the **creator's** fingerprint: Alice's runtime
 derives it from her key (`create_invite`), the invite carries it, and
@@ -129,24 +129,27 @@ string. Because both sides see the same value, there is nothing to
 having verified anything. The old confirm pill, its dead full-screen
 confirm page and the confirmed/unverified subtitle are gone.
 
-What remains is Telegram-style and read-only:
+What remains is read-only:
 
-- a small **lock** next to the peer name in the chat header (hover:
-  "End-to-end encrypted"), and
-- tapping it opens one shared **dialog**: the 4-emoji fingerprint
+- Private chats and groups are always end-to-end encrypted, so the bar at
+  the top of a conversation does not say so beside every name. It names the
+  exception: a public channel's line says it is not encrypted.
+- The conversation's details hold one **End-to-end encrypted** row. It is
+  there once the fingerprint is known, and a public channel has none.
+- Pressing it opens one shared **dialog**: the 4-emoji fingerprint
   (Telegram's 333-emoji pool, deterministic from the fingerprint
   string — `fingerprint_emoji.dart`), the hex string, and a hint to
   compare the emoji over a call or in person. Groups show the same
   dialog fed `creator_fingerprint`, with a "compare with the creator"
-  hint; channels stay as they are (open groups, no shared value).
+  hint.
 
 ```mermaid
 flowchart LR
     Snap["SessionSnapshot.fingerprint<br/>(creator's, same on both sides)"]
-    Lock["Lock in the header title<br/>(renders when non-empty)"]
+    Row["End-to-end encrypted row in the details<br/>(renders when non-empty)"]
     Dialog["Dialog: emoji quartet + hex + hint"]
     Compare["Both sides read the<br/>same emoji out-of-band"]
-    Snap --> Lock --> Dialog --> Compare
+    Snap --> Row --> Dialog --> Compare
 ```
 
 A swapped invite shows up here: the two sides' emoji differ, and no
@@ -157,7 +160,7 @@ local state ever marked anything "verified".
 - Poll-based, no streams. `api::private_dm` exposes no `StreamSink` in slice
   one (the React frontend polled on `AUTO_POLL_MS`); the Dart DM screen
   re-polls via `activeSessionProvider.family`.
-- The fingerprint surface is read-only (the lock + dialog above); the
+- The fingerprint surface is read-only (the row + dialog above); the
   runtime has no confirm-fingerprint call, and the UI keeps no
   confirmed-fingerprint state.
 - Compact `mosh://invite/<base64url>` and legacy query links are parsed by

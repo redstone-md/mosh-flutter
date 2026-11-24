@@ -1998,6 +1998,10 @@
   "deviceLinkStepApprove": "Confirm code",
   "deviceLinkStepFinish": "Link devices",
   "settingsVpnTitle": "If a VPN gets in the way",
+  "settingsVpnSetup": "Set up VPN bypass",
+  "@settingsVpnSetup": {
+    "description": "Line in the VPN card of Connection settings that opens the bypass switch and the choice of a network adapter"
+  },
   "settingsVpnSummary": "Choose an adapter to route Mosh around a VPN.",
   "bindAdapterAutoRestart": "Mosh restarts after applying or clearing this choice.",
   "bindAdapterManualRestart": "After saving, close Mosh completely and open it again to apply the change.",

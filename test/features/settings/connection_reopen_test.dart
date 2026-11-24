@@ -45,7 +45,7 @@ void main() {
       ..seedInterfaces(
           [_iface('Ethernet', '192.168.1.5'), _iface('Wi-Fi', '192.168.1.6')]);
     await _pump(tester, bridge: bridge);
-    await _tap(tester, 'If a VPN gets in the way');
+    await _tap(tester, 'Set up VPN bypass');
     await _tap(tester, 'Ethernet - 192.168.1.5');
     expect(tester.takeException(), isNull);
     await _tap(tester, 'Wi-Fi - 192.168.1.6');
@@ -59,7 +59,7 @@ void main() {
       ..seedInterfaces(
           [for (var i = 0; i < 20; i++) _iface('Adapter $i', '192.168.1.$i')]);
     await _pump(tester, bridge: bridge);
-    await _tap(tester, 'If a VPN gets in the way');
+    await _tap(tester, 'Set up VPN bypass');
     await _tap(tester, 'Adapter 0 - 192.168.1.0');
     final menuScroll = find.descendant(
         of: find.byType(MenuAnchor), matching: find.byType(Scrollable));
@@ -80,15 +80,15 @@ void main() {
   testWidgets('restored VPN disclosure can be collapsed and reopened',
       (tester) async {
     await _pump(tester);
-    await _tap(tester, 'If a VPN gets in the way');
+    await _tap(tester, 'Set up VPN bypass');
     expect(find.text('No connected physical adapter found.'), findsOneWidget);
     await _tap(tester, 'About');
     await _tap(tester, 'Connection');
     expect(tester.takeException(), isNull);
     expect(find.text('No connected physical adapter found.'), findsOneWidget);
-    await _tap(tester, 'If a VPN gets in the way');
+    await _tap(tester, 'Set up VPN bypass');
     expect(find.text('No connected physical adapter found.'), findsNothing);
-    await _tap(tester, 'If a VPN gets in the way');
+    await _tap(tester, 'Set up VPN bypass');
     expect(find.text('No connected physical adapter found.'), findsOneWidget);
   });
 
@@ -98,7 +98,7 @@ void main() {
       ..seedVpnConsent(const VpnBypassConsent(interface_: 'Ethernet', index: 1))
       ..seedInterfaces([_iface('Ethernet', '192.168.1.5')]);
     await _pump(tester, bridge: bridge);
-    await _tap(tester, 'If a VPN gets in the way');
+    await _tap(tester, 'Set up VPN bypass');
     expect(
         tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value, isTrue);
     await _tap(tester, 'About');
@@ -113,7 +113,7 @@ void main() {
   testWidgets('Connection restores scroll offset alongside open disclosures',
       (tester) async {
     await _pump(tester, height: 400);
-    await _tap(tester, 'If a VPN gets in the way');
+    await _tap(tester, 'Set up VPN bypass');
     final scroller = find.descendant(
         of: find.byType(SettingsContent), matching: find.byType(Scrollable));
     tester.state<ScrollableState>(scroller).position.jumpTo(50);
@@ -131,7 +131,7 @@ void main() {
   testWidgets('narrow Back and reopening preserve the usable Connection view',
       (tester) async {
     await _pump(tester, width: 390);
-    await _tap(tester, 'If a VPN gets in the way');
+    await _tap(tester, 'Set up VPN bypass');
     await tester.tap(find.byIcon(MoshIcons.back));
     await tester.pumpAndSettle();
     await _tap(tester, 'Connection');

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/features/shared/mosh_disclosure.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'plus_catalog.dart';
 
@@ -15,25 +17,20 @@ class PlusPaymentDetails extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final text = Theme.of(context).textTheme.bodySmall!;
     // Expansion and selectable text scrolling need independent storage slots.
-    return ExpansionTile(
+    return MoshDisclosure(
       key: const PageStorageKey('plus-payment-details'),
-      title: Text(l.plusPaymentDetails, style: text),
-      tilePadding: EdgeInsets.zero,
-      childrenPadding: const EdgeInsets.only(bottom: 4),
-      minTileHeight: 40,
-      visualDensity: VisualDensity.standard,
-      shape: const Border(),
-      collapsedShape: const Border(),
-      children: [
-        DefaultTextStyle(
+      label: l.plusPaymentDetails,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s3),
+        child: DefaultTextStyle(
           style: text,
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             PlusPaymentTerms(
                 mint: asset.mint, recipient: catalog.recipient, mainnet: true),
             Text(l.plusMainnetPrivacy),
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, runSpacing: 4, children: [
+            const SizedBox(height: MoshSpace.s2),
+            Wrap(spacing: MoshSpace.s2, runSpacing: MoshSpace.s1, children: [
               if (catalog.termsUrl case final url?)
                 TextButton(
                     onPressed: () =>
@@ -47,7 +44,7 @@ class PlusPaymentDetails extends StatelessWidget {
             ]),
           ]),
         ),
-      ],
+      ),
     );
   }
 }

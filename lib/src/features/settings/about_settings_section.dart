@@ -26,7 +26,6 @@ class AboutSettingsSection extends ConsumerWidget {
     final info = ref.watch(appPackageInfoProvider);
     final selfUpdates = ref.watch(distributionChannelProvider).selfUpdates;
     return SettingsSurface(
-      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -62,12 +61,8 @@ class AboutSettingsSection extends ConsumerWidget {
 
   Widget _identity(
       BuildContext context, AppLocalizations l, AsyncValue<PackageInfo> info) {
-    final text = Theme.of(context).textTheme;
     return SettingsCardHeader(
-      icon: MoshIcons.shield,
-      title: Text('Mosh', style: text.headlineSmall),
-      subtitle: Text(_version(l, info), style: text.bodySmall),
-    );
+        icon: MoshIcons.shield, title: 'Mosh', subtitle: _version(l, info));
   }
 
   /// The update notice compares against the installed version, so it waits

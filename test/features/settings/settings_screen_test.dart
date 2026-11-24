@@ -138,7 +138,8 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.text('Connection'), findsOneWidget);
-    await tester.tap(find.text('Back to chats'));
+    // A narrow window's way back is the arrow of the page header.
+    await tester.tap(find.byTooltip('Back to chats'));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(MoshIcons.settings));
     await tester.pumpAndSettle();

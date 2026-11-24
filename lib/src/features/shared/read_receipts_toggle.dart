@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/settings/settings_toggle_card.dart';
-import 'package:mosh/src/features/settings/settings_card.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 
@@ -29,7 +28,7 @@ class ReadReceiptsToggle extends ConsumerWidget {
       detailsTitle: l.settingsReadReceiptsDetailsTitle,
       details: l.settingsReadReceiptsDetails,
       toggle: AsyncSwitchTile(
-        secondary: const SettingsIcon(MoshIcons.doneAll),
+        icon: MoshIcons.doneAll,
         title: l.settingsReadReceiptsTitle,
         subtitle: l.settingsReadReceiptsSubtitle,
         read: facade.readReceiptsEnabled,

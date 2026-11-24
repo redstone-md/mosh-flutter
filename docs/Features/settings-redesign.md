@@ -10,15 +10,18 @@ Read receipts have moved to Privacy.
 - The rail gear pushes a root settings route above the chat shell. Closing
   settings restores the mounted conversation rather than recreating it.
   Direct route entry falls back to the chat list.
-- At widths of at least 800px a 280px sidebar accompanies content capped at
-  800px. The existing titlebar retains branding without a global network badge.
+- At widths of at least 800px a 248px sidebar on the panel level accompanies
+  cards capped at 560px. The existing titlebar retains branding without a
+  global network badge.
   Sound & Video opens first; the last section survives closing settings during this
   application launch. Restarting the application resets that choice.
 - Narrow windows and Android start with the section list. Selecting a section
-  opens its detail view. The toolbar back button, system Back and Escape return
-  to the list before closing settings. Every narrow entry starts at the list;
-  only the wide sidebar restores the last section's content.
-  The explicit Back to chats action closes settings directly.
+  opens its detail view. Each narrow screen starts with the Page header card:
+  the way back before its name. The header's back button, system Back and
+  Escape return to the list before closing settings. Every narrow entry starts
+  at the list; only the wide sidebar restores the last section's content.
+  The explicit Back to chats action closes settings directly: a text button in
+  the sidebar, the back arrow of the list's page header in a narrow window.
 - Shared Mosh colors, shapes, focus rings and Material controls supply the
   visual style. Longer hardware names truncate inside selectors; explanations
   wrap and the entire section scrolls for narrow windows or larger text.
@@ -27,16 +30,17 @@ Read receipts have moved to Privacy.
 
 ## Card headers
 
-Connection is the reference for all five settings sections. The shared
-SettingsCardHeader uses native ListTile geometry with a 44px icon plate,
-10px icon/text gap, centered leading icon and 4px between title and description.
-Its scoped theme uses standard visual density so the global compact theme
-cannot reduce the actual gap to 6px. The same theme supplies ExpansionTile
-headers. A switch is a MoshSwitchRow, the Switch row card: it sets its own
-size and padding and takes the header's icon plate as its leading widget.
+Every section is a column of Settings cards (`scripts/figma-design/cards/settings.js`).
+A card is a panel with a quiet edge, 28px corners and 20px of padding, 16px on
+a phone. The shared SettingsCardHeader puts a 40px icon plate beside the
+title and its description, 12px apart, and the control that matters most at
+its right: the switch of an opt-in (AsyncSwitchTile), a retry, a spinner.
+What explains a control is folded under a MoshDisclosure, the line of the
+Disclosure card; it mounts its content on the first opening. A setting
+inside a card that needs a whole row is still a MoshSwitchRow.
 Sound and device card descriptions are grouped with their titles, with
-controls below. About retains its brand typography inside the same header.
-The navigation and device rows read the same icon/text gap constant.
+controls below. Navigation rows are pills as tall as a control, and a device
+stands on a plate while a removal reads as a note under the list.
 
 Privacy switches place their icon in the native secondary slot. Titles and
 summaries wrap together at narrow widths, using the same instance during
@@ -355,7 +359,7 @@ fix follows the same requested no-tests scope; format and analysis are checked.
 
 Privacy presents crash reporting and read receipts as two opt-in cards using
 the existing settings surfaces, icon plates and async switch. Short summaries
-include the default-off behavior. Material ExpansionTile owns keyboard and
+include the default-off behavior. MoshDisclosure owns keyboard and
 expanded-state semantics for the longer explanations; each card has its own
 PageStorage key, independent of the section's scroll offset.
 

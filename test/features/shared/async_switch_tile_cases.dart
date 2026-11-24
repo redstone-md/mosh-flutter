@@ -2,6 +2,7 @@ import 'dart:async' show Completer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_switch.dart';
 
 import 'package:mosh/src/features/shared/async_switch_tile.dart';
@@ -16,6 +17,7 @@ void main() {
       tester,
       Scaffold(
         body: AsyncSwitchTile(
+          icon: MoshIcons.bug,
           title: 't',
           subtitle: 's',
           read: () async => false,
@@ -28,20 +30,20 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(MoshSwitchRow));
+    await tester.tap(find.byType(MoshSwitch));
     await tester.pump();
-    await tester.tap(find.byType(MoshSwitchRow));
+    await tester.tap(find.byType(MoshSwitch));
     await tester.pump();
     expect(writes, [true],
         reason: 'overlapping writes can finish out of order');
     expect(find.byType(CircularProgressIndicator), findsOneWidget,
-        reason: 'the row says the change is still being saved');
+        reason: 'the header says the change is still being saved');
 
     pending.complete();
     await tester.pump();
     await tester.pump();
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    await tester.tap(find.byType(MoshSwitchRow));
+    await tester.tap(find.byType(MoshSwitch));
     await tester.pump();
     expect(writes, [true, false], reason: 'the switch re-enables once done');
   });

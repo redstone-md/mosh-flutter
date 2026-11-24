@@ -953,6 +953,7 @@
   "deviceLinkStepApprove": "Подтвердить код",
   "deviceLinkStepFinish": "Связать устройства",
   "settingsVpnTitle": "Если мешает VPN",
+  "settingsVpnSetup": "Настроить обход VPN",
   "settingsVpnSummary": "Выберите адаптер, чтобы Mosh работал в обход VPN.",
   "bindAdapterAutoRestart": "После применения или отмены выбора Mosh перезапустится.",
   "bindAdapterManualRestart": "После сохранения полностью закройте Mosh и откройте снова, чтобы применить изменение.",

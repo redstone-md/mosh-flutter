@@ -1,30 +1,33 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/app/mosh_spinner.dart';
 import 'package:mosh/src/app/mosh_switch.dart';
+import 'package:mosh/src/features/settings/settings_card_header.dart';
+import 'package:mosh/src/features/shared/inline_error.dart';
 
-/// A [MoshSwitchRow] whose setting is read and saved on its own: a spinner
-/// stands beside the switch while a change is being saved, and a failure
-/// is said under the row.
+/// The header of a Settings card whose switch is read and saved on its own:
+/// a spinner stands beside the switch while a change is being saved, and a
+/// failure is said under the header.
 class AsyncSwitchTile extends StatefulWidget {
   const AsyncSwitchTile({
     super.key,
+    required this.icon,
     required this.title,
     required this.subtitle,
     required this.read,
     required this.write,
     this.enabled = true,
-    this.secondary,
   });
 
+  final IconData icon;
   final String title;
   final String subtitle;
   final Future<bool> Function() read;
   final Future<void> Function(bool value) write;
 
-  /// False greys the row out regardless of the stored value.
+  /// False turns the switch off regardless of the stored value.
   final bool enabled;
-  final Widget? secondary;
 
   @override
   State<AsyncSwitchTile> createState() => _AsyncSwitchTileState();
@@ -55,7 +58,10 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
     }
   }
 
+  /// A change being saved takes the press and does nothing with it: turned
+  /// off instead, the switch would drop the keyboard focus that started it.
   Future<void> _set(bool value) async {
+    if (_writing) return;
     final previous = _value;
     setState(() {
       _value = value;
@@ -77,46 +83,33 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return LayoutBuilder(builder: (context, constraints) {
-      final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-      final separateSummary =
-          widget.secondary == null && constraints.maxWidth < 360 * textScale;
-      // What stands under the row keeps the row's inset.
-      const inset = EdgeInsets.symmetric(horizontal: MoshSpace.s3);
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _tile(separateSummary),
-          if (separateSummary)
-            Padding(
-              padding: inset,
-              child: Text(widget.subtitle, style: text.bodySmall),
-            ),
-          if (_error != null)
-            Padding(
-              padding: inset,
-              child: Semantics(
-                liveRegion: true,
-                child: Text(
-                  _error!,
-                  style: text.bodySmall
-                      ?.copyWith(color: Theme.of(context).colorScheme.error),
-                ),
-              ),
-            ),
+    final value = _value;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // One node for a screen reader: the switch under the card's words.
+        MergeSemantics(
+          child: SettingsCardHeader(
+            icon: widget.icon,
+            title: widget.title,
+            subtitle: widget.subtitle,
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              if (_writing) ...[
+                const MoshSpinner(),
+                const SizedBox(width: MoshSpace.s3),
+              ],
+              MoshSwitch(
+                  value: value ?? false,
+                  onChanged: widget.enabled && value != null ? _set : null),
+            ]),
+          ),
+        ),
+        if (_error case final error?) ...[
+          const SizedBox(height: MoshSpace.s2),
+          InlineError(message: error),
         ],
-      );
-    });
+      ],
+    );
   }
-
-  Widget _tile(bool separateSummary) => MoshSwitchRow(
-        leading: widget.secondary,
-        title: widget.title,
-        subtitle: separateSummary ? null : widget.subtitle,
-        value: _value ?? false,
-        saving: _writing,
-        onChanged: widget.enabled && _value != null ? _set : null,
-      );
 }

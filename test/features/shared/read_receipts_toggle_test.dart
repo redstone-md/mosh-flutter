@@ -26,7 +26,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value,
+      tester.widget<MoshSwitch>(find.byType(MoshSwitch)).value,
       isTrue,
     );
     expect(find.text(_l.settingsReadReceiptsTitle), findsOneWidget);
@@ -38,11 +38,11 @@ void main() {
         tester, Scaffold(body: ReadReceiptsToggle(bridge: bridge)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(MoshSwitchRow));
+    await tester.tap(find.byType(MoshSwitch));
     await tester.pumpAndSettle();
 
     expect(
-      tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value,
+      tester.widget<MoshSwitch>(find.byType(MoshSwitch)).value,
       isTrue,
     );
     expect(
@@ -60,12 +60,12 @@ void main() {
         tester, Scaffold(body: ReadReceiptsToggle(bridge: bridge)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(MoshSwitchRow));
+    await tester.tap(find.byType(MoshSwitch));
     await tester.pumpAndSettle();
 
     // Rolled back to the stored answer, with the write's failure visible.
     expect(
-      tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value,
+      tester.widget<MoshSwitch>(find.byType(MoshSwitch)).value,
       isTrue,
     );
     expect(find.textContaining('disk full'), findsOneWidget);
