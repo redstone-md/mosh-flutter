@@ -299,6 +299,7 @@ class _NewGroupFormState extends State<_NewGroupForm> {
         children: [
           Expanded(
             child: MoshField(
+              enabled: !widget.busy,
               label: widget.l.orgNewGroupLabel,
               child: TextField(
                 controller: _controller,
@@ -352,7 +353,6 @@ class _MemberRow extends StatelessWidget {
             children: [
               Avatar(
                   name: member.name,
-                  radius: 12,
                   plusIdentity: member.mossPeerId,
                   ownPlus: member.isSelf),
               const SizedBox(width: 8),

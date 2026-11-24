@@ -5,25 +5,34 @@ import 'mosh_theme.dart';
 
 /// The Text field and Select cards' label: it stands above the well and
 /// stays there while the user types. [child] is the well, a [TextField] or
-/// the button of a select, and is announced under [label].
+/// the button of a select, and is announced under [label]. The label fades
+/// with a well that is not [enabled].
 class MoshField extends StatelessWidget {
-  const MoshField({super.key, required this.label, required this.child});
+  const MoshField(
+      {super.key,
+      required this.label,
+      required this.child,
+      this.enabled = true});
 
   final String label;
   final Widget child;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final text = theme.textTheme;
+    final ink = MoshColors.of(context).onSurfaceVariant;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ExcludeSemantics(
           child: Text(label,
-              style: text.labelMedium!
-                  .copyWith(color: MoshColors.of(context).onSurfaceVariant)),
+              style: text.labelMedium!.copyWith(
+                  color: enabled
+                      ? ink
+                      : MoshState.tint(ink, MoshState.disabledContent))),
         ),
         const SizedBox(height: MoshSpace.s2),
         Semantics(

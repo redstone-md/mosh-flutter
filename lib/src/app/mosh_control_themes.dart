@@ -169,6 +169,11 @@ OutlineInputBorder _fieldBorder(Color color,
       borderSide: BorderSide(color: color, width: width),
     );
 
+/// The edge of the Suggestion chip: none at rest, the ring under the keyboard.
+WidgetStateBorderSide moshSuggestionChipEdge(MoshColors c) =>
+    WidgetStateBorderSide.resolveWith(
+        (states) => _edge(c, rest: BorderSide.none).resolve(states));
+
 /// The Filter chip of the Chip and segment card: lit while it applies.
 ChipThemeData _chipTheme(MoshColors c, TextTheme text) {
   Color ink(Set<WidgetState> states) {

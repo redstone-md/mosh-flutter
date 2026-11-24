@@ -135,8 +135,8 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
   }
 }
 
-/// The Segment card: a recessed pill track around two segments, of which
-/// exactly one is lit. The track is as tall as the search box beside it.
+/// The Segment card: a recessed pill track around two 32 px segments, of
+/// which exactly one is lit.
 class ConversationFilterToggle extends StatelessWidget {
   const ConversationFilterToggle({
     super.key,
@@ -157,13 +157,12 @@ class ConversationFilterToggle extends StatelessWidget {
     return Semantics(
       label: l.chatFilterAttachments,
       child: Container(
-        height: kConversationToolHeight,
         padding: const EdgeInsets.all(MoshSpace.s1),
         decoration: ShapeDecoration(
             color: colors.surfaceContainerLowest, shape: MoshShapes.pill),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: MoshSpace.s1,
           children: <Widget>[
             _FilterSegment(
               label: l.chatFilterAll,
@@ -207,7 +206,8 @@ class _FilterSegment extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         overlayColor: MoshState.layer(colors.onSurface),
-        child: Padding(
+        child: Container(
+          height: MoshSpace.s8,
           padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s3),
           child: Row(
             mainAxisSize: MainAxisSize.min,

@@ -84,6 +84,7 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
               SizedBox(height: widget.compact ? 16 : 28),
             ],
             MoshField(
+              enabled: !_busy,
               label: l.setupDisplayNameLabel,
               child: TextFormField(
                   controller: _name,

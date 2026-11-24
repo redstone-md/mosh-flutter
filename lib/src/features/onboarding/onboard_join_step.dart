@@ -201,6 +201,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
               ? SemanticsValidationResult.invalid
               : SemanticsValidationResult.none,
           child: MoshField(
+            enabled: !_busy,
             label: l.onboardInviteLinkLabel,
             child: TextField(
               controller: _controller,

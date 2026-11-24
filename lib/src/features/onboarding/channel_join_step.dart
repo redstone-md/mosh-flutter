@@ -6,7 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, moshSuggestionChipEdge;
 import 'package:mosh/src/features/shared/inline_error.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
@@ -205,9 +206,8 @@ class _Examples extends StatelessWidget {
             ActionChip(
               visualDensity: VisualDensity.standard,
               color: WidgetStatePropertyAll(colors.surfaceContainerHigh),
-              side: BorderSide.none,
+              side: moshSuggestionChipEdge(colors),
               labelStyle: Theme.of(context).textTheme.labelLarge,
-              avatar: Icon(MoshIcons.tag, color: colors.onSurface),
               label: Text(name),
               onPressed: () => onPick(name),
             ),

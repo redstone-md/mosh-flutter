@@ -128,6 +128,7 @@ class _RenameChatDialogState extends ConsumerState<RenameChatDialog> {
           Text(shared ? l.chatNameShared : l.chatNamePersonal),
           const SizedBox(height: 16),
           MoshField(
+            enabled: !_busy,
             label: l.chatName,
             child: TextField(
               controller: _text,
