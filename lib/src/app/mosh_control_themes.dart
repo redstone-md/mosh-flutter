@@ -197,17 +197,12 @@ ChipThemeData _chipTheme(MoshColors c, TextTheme text) {
           : c.secondaryContainer;
     }),
     showCheckmark: false,
-    avatarBoxConstraints: const BoxConstraints.tightFor(
-        width: MoshSpace.s4, height: MoshSpace.s4),
     elevation: 0,
     pressElevation: 0,
     padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s2),
     labelPadding: const EdgeInsets.symmetric(horizontal: MoshSpace.s1),
     labelStyle:
         text.labelLarge!.copyWith(color: WidgetStateColor.resolveWith(ink)),
-    // A chip does not resolve its icon's colour by state: a chip that can be
-    // lit colours its own icon.
-    iconTheme: IconThemeData(color: c.onSurfaceVariant, size: MoshSpace.s4),
   );
 }
 
@@ -231,6 +226,7 @@ ProgressIndicatorThemeData _progressTheme(MoshColors c) =>
 /// pointer, the finger and the keyboard focus.
 SliderThemeData _sliderTheme(MoshColors c) => SliderThemeData(
       trackHeight: MoshSpace.s1,
+      trackShape: const _EvenTrack(),
       activeTrackColor: c.primary,
       inactiveTrackColor: c.surfaceContainerHighest,
       disabledActiveTrackColor: _disabledInk(c),
@@ -238,12 +234,81 @@ SliderThemeData _sliderTheme(MoshColors c) => SliderThemeData(
       thumbColor: c.primary,
       disabledThumbColor: _disabledInk(c),
       thumbShape: const _GrowingThumb(),
-      overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-      overlayColor: c.primary,
+      overlayShape: _ThumbHalo(ring: c.focusRing),
+      // The slider resolves this by state and hands the halo the result.
+      overlayColor: WidgetStateColor.resolveWith((states) =>
+          states.contains(WidgetState.focused) ? c.focusRing : c.primary),
     );
 
-/// The slider's thumb: 16 px at rest and 24 px while it is dragged. The
-/// overlay behind it makes the 20 px of a hover or a focus.
+/// The slider's track: the played part as thick as the rest.
+class _EvenTrack extends RoundedRectSliderTrackShape {
+  const _EvenTrack();
+
+  @override
+  void paint(PaintingContext context, Offset offset,
+          {required RenderBox parentBox,
+          required SliderThemeData sliderTheme,
+          required Animation<double> enableAnimation,
+          required TextDirection textDirection,
+          required Offset thumbCenter,
+          Offset? secondaryOffset,
+          bool isDiscrete = false,
+          bool isEnabled = false,
+          double additionalActiveTrackHeight = 0}) =>
+      super.paint(context, offset,
+          parentBox: parentBox,
+          sliderTheme: sliderTheme,
+          enableAnimation: enableAnimation,
+          textDirection: textDirection,
+          thumbCenter: thumbCenter,
+          secondaryOffset: secondaryOffset,
+          isDiscrete: isDiscrete,
+          isEnabled: isEnabled,
+          additionalActiveTrackHeight: 0);
+}
+
+/// What stands behind the slider's thumb: the 20 px it grows to under the
+/// pointer, or the focus ring 2 px outside it under the keyboard.
+class _ThumbHalo extends SliderComponentShape {
+  const _ThumbHalo({required this.ring});
+
+  final Color ring;
+
+  static const _hover = MoshSpace.s5 / 2;
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) =>
+      const Size.fromRadius(_hover);
+
+  @override
+  void paint(PaintingContext context, Offset center,
+      {required Animation<double> activationAnimation,
+      required Animation<double> enableAnimation,
+      required bool isDiscrete,
+      required TextPainter labelPainter,
+      required RenderBox parentBox,
+      required SliderThemeData sliderTheme,
+      required TextDirection textDirection,
+      required double value,
+      required double textScaleFactor,
+      required Size sizeWithOverflow}) {
+    final color = sliderTheme.overlayColor!;
+    final shown = activationAnimation.value;
+    if (color != ring) {
+      context.canvas.drawCircle(center, _hover * shown, Paint()..color = color);
+      return;
+    }
+    context.canvas.drawCircle(
+        center,
+        _GrowingThumb._rest + MoshBorder.thick / 2,
+        Paint()
+          ..color = color.withValues(alpha: color.a * shown)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = MoshBorder.thick);
+  }
+}
+
+/// The slider's thumb: 16 px at rest and 24 px while it is dragged.
 class _GrowingThumb extends SliderComponentShape {
   const _GrowingThumb();
 

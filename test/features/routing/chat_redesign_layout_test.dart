@@ -200,8 +200,10 @@ void main() {
       await _checkDockedDetails(tester, title,
           screenshot: 'desktop-${kind.name}');
     }
-    final chips = tester.widgetList<ChoiceChip>(find.byType(ChoiceChip));
-    expect(chips.where((c) => c.avatar is Icon), hasLength(3));
+    expect(
+        find.descendant(
+            of: find.byType(ChoiceChip), matching: find.byType(Icon)),
+        findsNWidgets(3));
   });
   setUp(() {
     const channel = MethodChannel('com.llfbandit.record/messages');
