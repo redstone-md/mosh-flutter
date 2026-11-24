@@ -138,13 +138,75 @@ class _MoshSwitchRowState extends State<MoshSwitchRow> {
   }
 }
 
+/// The Switch card on its own, for a setting whose words stand elsewhere,
+/// in a card's header for instance. On a phone it is a 48 px press target.
+/// A null [onChanged] draws it disabled. Give it a [Semantics] label where
+/// nothing beside it names the setting to a screen reader.
+class MoshSwitch extends StatefulWidget {
+  const MoshSwitch({super.key, required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  State<MoshSwitch> createState() => _MoshSwitchState();
+}
+
+class _MoshSwitchState extends State<MoshSwitch> {
+  final _states = WidgetStatesController();
+
+  @override
+  void dispose() {
+    _states.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final onChanged = widget.onChanged;
+    final target =
+        MoshControl.touch(Theme.of(context).platform) ? MoshSpace.s12 : 0.0;
+    return Semantics(
+      toggled: widget.value,
+      enabled: onChanged != null,
+      child: Material(
+        type: MaterialType.transparency,
+        // The track draws its own state layer; the press target is wider.
+        child: InkWell(
+          statesController: _states,
+          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+          onTap: onChanged == null ? null : () => onChanged(!widget.value),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: target, minHeight: target),
+            child: Center(
+              widthFactor: 1,
+              heightFactor: 1,
+              child: ListenableBuilder(
+                listenable: _states,
+                builder: (context, _) => _SwitchTrack(
+                    value: widget.value,
+                    enabled: onChanged != null,
+                    states: _states.value),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The Switch card: a 40×24 track with a 16 px thumb. On is the primary
 /// track; off is an outlined one; disabled keeps only a faint plate or edge.
+/// A switch pressed on its own passes its [states] for the layer and the
+/// focus ring; in a row the row draws both.
 class _SwitchTrack extends StatelessWidget {
-  const _SwitchTrack({required this.value, required this.enabled});
+  const _SwitchTrack(
+      {required this.value, required this.enabled, this.states = const {}});
 
   final bool value;
   final bool enabled;
+  final Set<WidgetState> states;
 
   @override
   Widget build(BuildContext context) {
@@ -159,11 +221,6 @@ class _SwitchTrack extends StatelessWidget {
       fill = value ? c.primary : c.surfaceContainerHighest;
       thumb = value ? c.onPrimary : c.outline;
     }
-    final edge = value
-        ? BorderSide.none
-        : BorderSide(
-            color: enabled ? c.outline : c.outlineVariant,
-            width: MoshBorder.thin);
     final motion = MoshMotion.effectsFast;
     final duration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
@@ -178,8 +235,10 @@ class _SwitchTrack extends StatelessWidget {
           ? AlignmentDirectional.centerEnd
           : AlignmentDirectional.centerStart,
       decoration: ShapeDecoration(color: fill, shape: MoshShapes.pill),
-      foregroundDecoration:
-          ShapeDecoration(shape: MoshShapes.pill.copyWith(side: edge)),
+      foregroundDecoration: ShapeDecoration(
+          color: MoshState.layer(value ? c.onPrimary : c.onSurface)
+              .resolve(states),
+          shape: MoshShapes.pill.copyWith(side: _edge(c))),
       child: AnimatedContainer(
         duration: duration,
         curve: motion.curve,
@@ -188,5 +247,18 @@ class _SwitchTrack extends StatelessWidget {
         decoration: BoxDecoration(color: thumb, shape: BoxShape.circle),
       ),
     );
+  }
+
+  /// The focus ring in place of the edge; an off track is outlined.
+  BorderSide _edge(MoshColors c) {
+    if (states.contains(WidgetState.focused)) {
+      return BorderSide(
+          color: c.focusRing,
+          width: MoshBorder.thick,
+          strokeAlign: BorderSide.strokeAlignOutside);
+    }
+    if (value) return BorderSide.none;
+    return BorderSide(
+        color: enabled ? c.outline : c.outlineVariant, width: MoshBorder.thin);
   }
 }

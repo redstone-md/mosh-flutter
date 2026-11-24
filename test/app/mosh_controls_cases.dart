@@ -228,6 +228,30 @@ void _contracts(MoshColors c) {
     expect(changes, isEmpty);
   });
 
+  testWidgets('a switch on its own is a 48 px target and flips by keyboard',
+      (tester) async {
+    var value = false;
+    await tester.pumpWidget(MaterialApp(
+        theme: buildMoshTheme(c, TargetPlatform.android),
+        home: Scaffold(
+            body: Center(
+                child: StatefulBuilder(
+                    builder: (context, setState) => MoshSwitch(
+                        value: value,
+                        onChanged: (next) => setState(() => value = next)))))));
+    final target = tester.getRect(find.byType(MoshSwitch));
+    expect(target.size, const Size(48, 48));
+    // Above the 24 px track, still inside the target.
+    await tester.tapAt(target.topCenter + const Offset(0, 4));
+    await tester.pumpAndSettle();
+    expect(value, isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(value, isFalse);
+  });
+
   testWidgets('a slider thumb grows to 24 px while it is dragged',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
