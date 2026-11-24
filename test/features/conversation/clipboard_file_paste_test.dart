@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -188,6 +189,7 @@ void main() {
       draft.dispose();
     });
     await tester.pumpWidget(MaterialApp(
+      theme: moshThemeData,
       home: Scaffold(
         body: ConversationComposer(
           controller: draft,

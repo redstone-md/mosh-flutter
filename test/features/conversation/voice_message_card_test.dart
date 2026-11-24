@@ -14,6 +14,7 @@
 import 'dart:convert' show base64Encode;
 import 'dart:typed_data' show Uint8List;
 
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -27,6 +28,7 @@ void main() {
     double? ratio;
     await tester.pumpWidget(
       MaterialApp(
+        theme: moshThemeData,
         home: Scaffold(
           body: Align(
             alignment: Alignment.topLeft,
@@ -67,7 +69,8 @@ void main() {
   testWidgets('the time label renders with tabular figures', (tester) async {
     // Exercise the timer's text styling independently of native playback.
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
+        theme: moshThemeData,
         home: Scaffold(
           body: Center(child: VoiceCardTimeLabel(ms: 5000)),
         ),
@@ -93,6 +96,7 @@ void main() {
       'survives the path arriving with the play queued', (tester) async {
     final downloaded = <String>[];
     Widget pumpCard(AttachmentView view) => MaterialApp(
+          theme: moshThemeData,
           home: Scaffold(
             body: Center(
               child: VoiceMessageCard(

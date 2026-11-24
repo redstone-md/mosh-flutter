@@ -1,4 +1,5 @@
 // Confirm/cancel route results and repeated/modifier Escape handling.
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,7 @@ Future<void> _pumpDialog(
 }) async {
   await tester.pumpWidget(
     MaterialApp(
+      theme: moshThemeData,
       home: Scaffold(
         body: Center(
           child: ConfirmDialog(
@@ -72,7 +74,8 @@ class HelperHostState extends State<HelperHost> {
 /// Pumps [HelperHost], settles the post-frame callback that opens the
 /// dialog, and returns the helper's pending `Future<bool>`.
 Future<Future<bool>> _pumpHelper(WidgetTester tester) async {
-  await tester.pumpWidget(const MaterialApp(home: HelperHost()));
+  await tester
+      .pumpWidget(MaterialApp(theme: moshThemeData, home: HelperHost()));
   await tester.pumpAndSettle();
   final result = tester.state<HelperHostState>(find.byType(HelperHost)).result;
   // The post-frame callback fired during pumpAndSettle, so the dialog is

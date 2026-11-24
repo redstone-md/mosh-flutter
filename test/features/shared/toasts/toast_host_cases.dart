@@ -1,6 +1,7 @@
 // IVO-30: toasts render once over the app, in Mosh's theme, announce
 // themselves, close on a timer, a button or a swipe, and never block the
 // screen around them.
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -19,6 +20,7 @@ Future<Toaster> _pump(WidgetTester tester,
   addTearDown(tester.view.reset);
   await tester.pumpWidget(ProviderScope(
     child: MaterialApp(
+      theme: moshThemeData,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) => ToastHost(child: child!),
@@ -42,6 +44,7 @@ Future<Toaster> _mountScope(WidgetTester tester) async {
   await tester.pumpWidget(UncontrolledProviderScope(
     container: container,
     child: MaterialApp(
+      theme: moshThemeData,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) => ToastHost(child: child!),
