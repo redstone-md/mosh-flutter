@@ -36,7 +36,37 @@ class StartMenu extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final list = StartReveal(
       delay: StartMotion.lineStagger,
-      child: StartActionList(actions: [
+      child: StartActionList(actions: _actions(colors, l)),
+    );
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: maxWidth),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // A narrow window opens the menu as a screen of its own, and
+            // the bar with the way back already names it.
+            if (!isMobileBreakpoint(context))
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    MoshSpace.s4, 0, MoshSpace.s4, MoshSpace.s2),
+                child: StartReveal(
+                  child: Semantics(
+                    header: true,
+                    child: Text('${l.startTitleLead} ${l.startTitleAccent}',
+                        style: Theme.of(context).textTheme.headlineMedium),
+                  ),
+                ),
+              ),
+            list,
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The four ways to begin, each in the colour of what it opens.
+  List<StartAction> _actions(MoshColors colors, AppLocalizations l) => [
         StartAction(
           icon: MoshIcons.chat,
           accent: colors.primary,
@@ -66,32 +96,5 @@ class StartMenu extends StatelessWidget {
           onTap: onPickChannel,
           encrypted: false,
         ),
-      ]),
-    );
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: maxWidth),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // A narrow window opens the menu as a screen of its own, and
-            // the bar with the way back already names it.
-            if (!isMobileBreakpoint(context))
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    MoshSpace.s4, 0, MoshSpace.s4, MoshSpace.s2),
-                child: StartReveal(
-                  child: Semantics(
-                    header: true,
-                    child: Text('${l.startTitleLead} ${l.startTitleAccent}',
-                        style: Theme.of(context).textTheme.headlineMedium),
-                  ),
-                ),
-              ),
-            list,
-          ],
-        ),
-      ),
-    );
-  }
+      ];
 }

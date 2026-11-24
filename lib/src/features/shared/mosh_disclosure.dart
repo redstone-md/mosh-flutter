@@ -49,7 +49,6 @@ class _MoshDisclosureState extends State<MoshDisclosure> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
     final motion = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : MoshMotion.effectsDefault.duration;
@@ -57,48 +56,7 @@ class _MoshDisclosureState extends State<MoshDisclosure> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Semantics(
-          expanded: _open,
-          child: Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              onTap: _toggle,
-              borderRadius: MoshShapes.control,
-              overlayColor: MoshState.layer(colors.onSurface),
-              child: FocusRing(
-                radius: MoshShapes.control,
-                child: Container(
-                  constraints: BoxConstraints(
-                      minHeight:
-                          MoshControl.height(Theme.of(context).platform)),
-                  padding: const EdgeInsetsDirectional.only(
-                      start: MoshSpace.s3, end: MoshSpace.s2),
-                  child: Row(children: [
-                    Expanded(
-                      child: Text(widget.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelLarge!
-                              .copyWith(color: colors.onSurfaceVariant)),
-                    ),
-                    const SizedBox(width: MoshSpace.s2),
-                    AnimatedRotation(
-                      turns: _open ? 0.5 : 0,
-                      duration: motion,
-                      curve: MoshMotion.effectsDefault.curve,
-                      child: Icon(MoshIcons.expandMore,
-                          size: MoshSpace.s5,
-                          color:
-                              _open ? colors.primary : colors.onSurfaceVariant),
-                    ),
-                  ]),
-                ),
-              ),
-            ),
-          ),
-        ),
+        _line(context, motion),
         AnimatedSize(
           duration: motion,
           curve: MoshMotion.effectsDefault.curve,
@@ -109,6 +67,51 @@ class _MoshDisclosureState extends State<MoshDisclosure> {
               : const SizedBox(width: double.infinity),
         ),
       ],
+    );
+  }
+
+  /// The line itself: its label, and the caret that turns when it opens.
+  Widget _line(BuildContext context, Duration motion) {
+    final colors = MoshColors.of(context);
+    return Semantics(
+      expanded: _open,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: _toggle,
+          borderRadius: MoshShapes.control,
+          overlayColor: MoshState.layer(colors.onSurface),
+          child: FocusRing(
+            radius: MoshShapes.control,
+            child: Container(
+              constraints: BoxConstraints(
+                  minHeight: MoshControl.height(Theme.of(context).platform)),
+              padding: const EdgeInsetsDirectional.only(
+                  start: MoshSpace.s3, end: MoshSpace.s2),
+              child: Row(children: [
+                Expanded(
+                  child: Text(widget.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelLarge!
+                          .copyWith(color: colors.onSurfaceVariant)),
+                ),
+                const SizedBox(width: MoshSpace.s2),
+                AnimatedRotation(
+                  turns: _open ? 0.5 : 0,
+                  duration: motion,
+                  curve: MoshMotion.effectsDefault.curve,
+                  child: Icon(MoshIcons.expandMore,
+                      size: MoshSpace.s5,
+                      color: _open ? colors.primary : colors.onSurfaceVariant),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

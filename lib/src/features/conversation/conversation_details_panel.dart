@@ -128,18 +128,7 @@ class _ConversationDetailsPanelState
           inset: MoshSpace.s4,
           child: _files(snapshot, model, l)),
       if (model.fingerprint case final fingerprint?)
-        StartRow(
-            action: StartAction(
-          icon: MoshIcons.lock,
-          accent: MoshColors.of(context).primary,
-          title: l.cryptoNoticeTitle,
-          description: l.chatDetailsEncryptionLine,
-          onTap: () => showFingerprintDialog(context,
-              fingerprint: fingerprint,
-              hint: snapshot is GroupConversation
-                  ? l.groupFingerprintHint
-                  : l.inviteFingerprintHint),
-        )),
+        _encryption(fingerprint, snapshot is GroupConversation, l),
       Padding(
           padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s1),
           child: _connection(snapshot, l)),
@@ -160,6 +149,20 @@ class _ConversationDetailsPanelState
       ),
     );
   }
+
+  /// The one place a conversation shows its encryption: the row opens the
+  /// fingerprint to compare.
+  Widget _encryption(String fingerprint, bool group, AppLocalizations l) =>
+      StartRow(
+          action: StartAction(
+        icon: MoshIcons.lock,
+        accent: MoshColors.of(context).primary,
+        title: l.cryptoNoticeTitle,
+        description: l.chatDetailsEncryptionLine,
+        onTap: () => showFingerprintDialog(context,
+            fingerprint: fingerprint,
+            hint: group ? l.groupFingerprintHint : l.inviteFingerprintHint),
+      ));
 
   Widget _profile(ConversationDetailsModel model) {
     final text = Theme.of(context).textTheme;
