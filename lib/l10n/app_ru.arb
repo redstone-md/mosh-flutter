@@ -918,6 +918,8 @@
   "chatDetailsTitle": "Сведения о беседе",
   "chatDetailsFiles": "Общие файлы",
   "chatDetailsNoFiles": "Общих файлов пока нет",
+  "chatLoadErrorTitle": "Не удалось загрузить переписку",
+  "chatLoadErrorBody": "Её сообщения сохранены на этом устройстве",
   "chatDetailsEncryptionLine": "Сравните отпечаток, чтобы проверить",
   "chatDetailsStatus": "Состояние",
   "chatDetailsOpenStatus": "Открыть статус подключения",
