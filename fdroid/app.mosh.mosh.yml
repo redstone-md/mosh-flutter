@@ -36,8 +36,30 @@ Builds:
       - moss/internal/geo/GeoLite2-Country.mmdb.gz
       - android/app/src/fcm
       - android/app/src/fcmTest
-    prebuild: fdroid/build.sh prebuild $$flutter$$ $$rustup$$
-    build: fdroid/build.sh build $$flutter$$
+    prebuild:
+      - flutterVersion=$(node -p 'JSON.parse(require("fs").readFileSync(".fvmrc","utf8")).flutter')
+      - '[[ $flutterVersion ]]'
+      - git -C $$flutter$$ checkout -f $flutterVersion
+      - export PATH=$HOME/.cargo/bin:$PATH
+      - sh $$rustup$$/rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain
+        none
+      - rustup toolchain install
+      - rustup target add aarch64-linux-android
+      - cat scripts/support/android-cargo-config.toml >> $HOME/.cargo/config.toml
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter config --no-analytics
+      - $$flutter$$/bin/flutter pub get --enforce-lockfile
+      - node scripts/android-native-hooks-prepare.mjs
+    scandelete:
+      - .pub-cache
+    build:
+      - export PATH=$HOME/.cargo/bin:$PATH
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - plusIssuerKey=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2rCIa1c9TGzmlloAKF7dqmc1TWVOOzOkfj563g3FE/hU2tyg+engiPhkZ0/IoxTDF13FmXZ48NQiuaA1Tt3JFJwuhe4VJe5hlWcS3JW99AYFDpTzEl1geelrIG6AFOeodujhsJUMXyGbMmwErEHisnAcZGuOGvv4NRWIMUPQxcyBa/EvBnDIYVlruoKIPnMp1MgQvBOm5UGPuZ3pGqjInuFQ7cx2n9Z5d50UZb/fVd1j2vK+3tI7fukC7IsDjhv9byLOfetv27U+IdDa0duEHInTFwDloHgwShX7D7oBhE0LZs929CDI6SGT1UGGWAJjUPjS6UEUCs1qm+1jzFFL+QIDAQAB
+      - $$flutter$$/bin/flutter build apk --release --target-platform android-arm64
+        --split-debug-info=build/android-symbols --dart-define=MOSH_DISTRIBUTION_CHANNEL=fdroid
+        --dart-define=MOSH_PLUS_NETWORK=solana-mainnet --dart-define=MOSH_PLUS_ISSUER_KEY=$plusIssuerKey
+        --android-project-arg=moshUnsignedRelease=true
     ndk: r28c
 
 MaintainerNotes: |-
@@ -51,7 +73,7 @@ MaintainerNotes: |-
   .
   No anti-features apply. The F-Droid build sells no Mosh+ membership and never contacts the billing
   server; it shows a membership bought elsewhere, verified offline against the
-  public key in fdroid/build.sh. Crash reports are off: the build has no Sentry
+  public key in the build step. Crash reports are off: the build has no Sentry
   DSN. Our own builds can be woken through Firebase Cloud Messaging; that
   code and its build live in android/app/src/fcm, which the recipe removes,
   and the F-Droid build never sets -PmoshFcm. Peers find each other through
@@ -63,8 +85,8 @@ MaintainerNotes: |-
   than Debian's, through Go's own toolchain download (GOTOOLCHAIN in
   scripts/moss-prepare-android.mjs), checked against sum.golang.org.
   .
-  fdroid/build.sh is the build script; the fdroid workflow of the repository
-  runs this recipe in the fdroidserver buildserver image on every release.
+  The fdroid workflow of the repository runs this recipe in the fdroidserver
+  buildserver image on every release.
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$

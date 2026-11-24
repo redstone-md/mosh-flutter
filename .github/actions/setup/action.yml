@@ -101,7 +101,7 @@ runs:
 
     # Pinned in .fvmrc, not `channel: stable`: a runner picking up a newer
     # Flutter than the one the release was built with is a drift nobody asked
-    # for. F-Droid's build reads the same file (fdroid/build.sh).
+    # for. F-Droid's build reads the same file (fdroid/app.mosh.mosh.yml).
     # The SDK is not cached: installing it takes 50-95 s, restoring it hardly
     # less, and it took 1.6-1.8 GB of cache per OS.
     - if: inputs.flutter == 'true'
