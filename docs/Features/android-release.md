@@ -110,7 +110,10 @@ a higher version code.
 
 The main F-Droid catalog builds Mosh from source with the recipe in
 [fdroid/app.mosh.mosh.yml](../../fdroid/app.mosh.mosh.yml), the draft of its
-fdroiddata entry, which runs [fdroid/build.sh](../../fdroid/build.sh). That
+fdroiddata entry. Its steps follow fdroiddata's
+[Flutter template](https://gitlab.com/fdroid/fdroiddata/-/blob/master/templates/build-flutter.yml):
+they sit in the recipe itself, and the pub cache stays inside the source tree
+so F-Droid's scanner checks the Dart packages. The recipe
 builds the `fdroid` channel without a signing key (`-PmoshUnsignedRelease=true`),
 and F-Droid signs it with its own, so it does not install over our APKs. Like
 RuStore's, its Mosh+ card shows only the membership: buying needs our closed

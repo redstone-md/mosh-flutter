@@ -39,8 +39,8 @@ jobs:
         env:
           MOSH_PLUS_ISSUER_KEY: ${{ vars.MOSH_PLUS_ISSUER_KEY }}
         run: |
-          grep -qxF "PLUS_ISSUER_KEY=$MOSH_PLUS_ISSUER_KEY" fdroid/build.sh \
-            || { echo '::error::fdroid/build.sh has a different Mosh+ issuer key than MOSH_PLUS_ISSUER_KEY'; exit 1; }
+          grep -qxF "      - plusIssuerKey=$MOSH_PLUS_ISSUER_KEY" fdroid/app.mosh.mosh.yml \
+            || { echo '::error::fdroid/app.mosh.mosh.yml has a different Mosh+ issuer key than MOSH_PLUS_ISSUER_KEY'; exit 1; }
       - name: Build with the recipe
         env:
           # F-Droid clones the repository, where a pull request's merge commit

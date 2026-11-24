@@ -4,7 +4,7 @@ name: Build Android release
 # The distribution channel picks the build: `github` updates itself from the
 # release feed, `rustore` is the RuStore upload (no self-update, Mosh+ shows
 # only the membership). Both use the same signing key, so either installs over
-# the other. F-Droid builds the `fdroid` channel itself (fdroid/build.sh).
+# the other. F-Droid builds the `fdroid` channel itself (fdroid/app.mosh.mosh.yml).
 # These builds are woken through Firebase Cloud Messaging (ADR 0055): the
 # MOSH_FIREBASE_CONFIG secret holds the Firebase project's google-services.json.
 
