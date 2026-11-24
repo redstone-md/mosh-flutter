@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:mosh/src/features/plus/plus_provider.dart';
 import 'package:mosh/src/features/plus/plus_settings_card.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -41,7 +42,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(native.selectedAsset, 'CLXAI');
     expect(await readQr(tester), mainnetOrder['payment_uri']);
-    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+    expect(
+        tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value, isTrue);
   });
 
   testWidgets(

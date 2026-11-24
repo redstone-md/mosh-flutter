@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_select.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
 
@@ -47,7 +48,7 @@ class BindInterfaceControls extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _toggle(context),
+        _toggle(),
         if (stateKnown) ...[
           const SizedBox(height: 16),
           Text(
@@ -90,22 +91,16 @@ class BindInterfaceControls extends StatelessWidget {
     );
   }
 
-  Widget _toggle(BuildContext context) => Material(
-        type: MaterialType.transparency,
-        child: SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(l.bindAdapterToggle,
-              style: Theme.of(context).textTheme.titleMedium),
-          subtitle:
-              Text(_status(), style: Theme.of(context).textTheme.bodySmall),
-          value: current != null,
-          onChanged: !stateKnown ||
-                  loading ||
-                  busy ||
-                  (current == null && picked.isEmpty)
-              ? null
-              : onToggle,
-        ),
+  Widget _toggle() => MoshSwitchRow(
+        title: l.bindAdapterToggle,
+        subtitle: _status(),
+        value: current != null,
+        onChanged: !stateKnown ||
+                loading ||
+                busy ||
+                (current == null && picked.isEmpty)
+            ? null
+            : onToggle,
       );
 
   String _status() {

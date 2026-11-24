@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bind_interface_field.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
@@ -38,7 +39,7 @@ void main() {
         ..seedVpnConsent(saved ? _consent : null)
         ..seedBindInterface(saved ? null : 'Ethernet');
       await _pump(tester, bridge);
-      expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      expect(tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value,
           saved);
       expect(find.text(saved ? 'On' : 'Off'), findsOneWidget);
       expect(bridge.countOf(BridgeMethod.getBindInterface), 0);
@@ -51,14 +52,14 @@ void main() {
         ..seedInterfaces([_adapter])
         ..seedVpnConsent(saved ? _consent : null);
       await _pump(tester, bridge);
-      await tester.tap(find.byType(SwitchListTile));
+      await tester.tap(find.byType(MoshSwitchRow));
       await tester.pumpAndSettle();
       expect(bridge.countOf(BridgeMethod.setVpnBypassConsent), 1);
       expect((await bridge.getVpnBypassConsent()) != null, !saved);
       // Disposing the entire field discards its optimistic/local state.
       await tester.pumpWidget(const SizedBox.shrink());
       await _pump(tester, bridge);
-      expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      expect(tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value,
           !saved);
       expect(find.text(saved ? 'Off' : 'On'), findsOneWidget);
       expect(bridge.countOf(BridgeMethod.getBindInterface), 0);

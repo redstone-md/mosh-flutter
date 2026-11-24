@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_dimensions.dart';
-import 'package:mosh/src/app/mosh_shapes.dart';
-import 'package:mosh/src/app/mosh_spinner.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 
-/// The Switch row card: a setting that is read and saved on its own. The
-/// whole row is the press target, and a spinner stands beside the switch
-/// while a change is being saved.
-
+/// A [MoshSwitchRow] whose setting is read and saved on its own: a spinner
+/// stands beside the switch while a change is being saved, and a failure
+/// is said under the row.
 class AsyncSwitchTile extends StatefulWidget {
   const AsyncSwitchTile({
     super.key,
@@ -80,27 +78,26 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    // Settings cards paint their own background, so the tile gets a
-    // transparent Material of its own — ListTile's ink splashes would
-    // otherwise be invisible under it.
     return LayoutBuilder(builder: (context, constraints) {
       final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
       final separateSummary =
           widget.secondary == null && constraints.maxWidth < 360 * textScale;
-      return Material(
-        type: MaterialType.transparency,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _tile(context, separateSummary),
-            if (separateSummary)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(widget.subtitle, style: text.bodySmall),
-              ),
-            if (_error != null)
-              Semantics(
+      // What stands under the row lines up with the row's own words.
+      const inset = EdgeInsets.symmetric(horizontal: MoshSpace.s3);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _tile(separateSummary),
+          if (separateSummary)
+            Padding(
+              padding: inset,
+              child: Text(widget.subtitle, style: text.bodySmall),
+            ),
+          if (_error != null)
+            Padding(
+              padding: inset,
+              child: Semantics(
                 liveRegion: true,
                 child: Text(
                   _error!,
@@ -108,36 +105,18 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
                       ?.copyWith(color: Theme.of(context).colorScheme.error),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       );
     });
   }
 
-  Widget _tile(BuildContext context, bool separateSummary) => SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        dense: true,
-        shape: const RoundedRectangleBorder(
-            borderRadius: MoshShapes.conversationRow),
-        secondary: widget.secondary,
-        title: Row(children: [
-          Expanded(
-              child: Text(widget.title,
-                  style: Theme.of(context).textTheme.titleSmall)),
-          if (_writing)
-            const Padding(
-              padding: EdgeInsetsDirectional.only(start: MoshSpace.s4),
-              child: MoshSpinner(),
-            ),
-        ]),
-        subtitle: separateSummary
-            ? null
-            : Padding(
-                padding: const EdgeInsets.only(top: MoshSpace.s1),
-                child: Text(widget.subtitle,
-                    style: Theme.of(context).textTheme.bodySmall),
-              ),
+  Widget _tile(bool separateSummary) => MoshSwitchRow(
+        leading: widget.secondary,
+        title: widget.title,
+        subtitle: separateSummary ? null : widget.subtitle,
         value: _value ?? false,
+        saving: _writing,
         onChanged: widget.enabled && _value != null && !_writing ? _set : null,
       );
 }

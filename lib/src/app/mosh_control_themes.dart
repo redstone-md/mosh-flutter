@@ -169,36 +169,6 @@ OutlineInputBorder _fieldBorder(Color color,
       borderSide: BorderSide(color: color, width: width),
     );
 
-/// The Switch card: a saffron track when on, an outlined one when off.
-SwitchThemeData _switchTheme(MoshColors c) {
-  T pick<T>(Set<WidgetState> states,
-      {required T on, required T off, required T disabled}) {
-    if (states.contains(WidgetState.disabled)) return disabled;
-    return states.contains(WidgetState.selected) ? on : off;
-  }
-
-  return SwitchThemeData(
-    thumbColor: WidgetStateProperty.resolveWith((states) => pick(states,
-        on: c.onPrimary, off: c.outline, disabled: _disabledInk(c))),
-    trackColor: WidgetStateProperty.resolveWith((states) => pick(states,
-        on: c.primary,
-        off: c.surfaceContainerHighest,
-        disabled: states.contains(WidgetState.selected)
-            ? _disabledPlate(c)
-            : Colors.transparent)),
-    trackOutlineColor: WidgetStateProperty.resolveWith((states) {
-      if (states.contains(WidgetState.selected)) return Colors.transparent;
-      return states.contains(WidgetState.disabled)
-          ? c.outlineVariant
-          : c.outline;
-    }),
-    trackOutlineWidth: const WidgetStatePropertyAll(MoshBorder.thin),
-    overlayColor: WidgetStateProperty.resolveWith((states) => MoshState.layer(
-            states.contains(WidgetState.selected) ? c.onPrimary : c.onSurface)
-        .resolve(states)),
-  );
-}
-
 /// The Filter chip of the Chip and segment card: lit while it applies.
 ChipThemeData _chipTheme(MoshColors c, TextTheme text) {
   Color ink(Set<WidgetState> states) {

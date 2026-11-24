@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/mosh_field.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_select.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 
 import '../support/contrast.dart';
@@ -128,22 +129,91 @@ void _contracts(MoshColors c) {
     }
   });
 
-  test('a switch shows which way it is set in both of its states', () {
-    final theme = buildMoshTheme(c).switchTheme;
-    for (final (name, states) in <(String, Set<WidgetState>)>[
-      ('on', {WidgetState.selected}),
-      ('off', {}),
-    ]) {
-      final thumb = theme.thumbColor!.resolve(states)!;
-      final track = theme.trackColor!.resolve(states)!;
-      expect(contrastRatio(thumb, track), greaterThanOrEqualTo(3),
-          reason: 'thumb on the $name track');
+  testWidgets('a switch shows which way it is set in both of its states',
+      (tester) async {
+    Future<(Color, Color)> drawn(bool value) async {
+      await tester.pumpWidget(MaterialApp(
+          theme: buildMoshTheme(c),
+          home: Scaffold(
+              body: MoshSwitchRow(
+                  title: 'Read receipts', value: value, onChanged: (_) {}))));
+      await tester.pumpAndSettle();
+      final parts = tester
+          .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+          .map((part) => part.decoration)
+          .toList();
+      return (
+        (parts[0]! as ShapeDecoration).color!,
+        (parts[1]! as BoxDecoration).color!
+      );
     }
+
+    final (onTrack, onThumb) = await drawn(true);
+    final (offTrack, offThumb) = await drawn(false);
+    expect(contrastRatio(onThumb, onTrack), greaterThanOrEqualTo(3));
+    expect(contrastRatio(offThumb, offTrack), greaterThanOrEqualTo(3));
     // On and off differ by more than the thumb's place.
-    expect(theme.trackColor!.resolve({WidgetState.selected}),
-        isNot(theme.trackColor!.resolve({})));
-    final offEdge = theme.trackOutlineColor!.resolve({})!;
-    expect(contrastRatio(offEdge, c.surface), greaterThanOrEqualTo(3));
+    expect(onTrack, isNot(offTrack));
+  });
+
+  testWidgets('the keyboard reaches a switch row and flips it', (tester) async {
+    final semantics = tester.ensureSemantics();
+    var value = false;
+    await tester.pumpWidget(MaterialApp(
+        theme: buildMoshTheme(c, TargetPlatform.windows),
+        home: Scaffold(
+            body: StatefulBuilder(
+                builder: (context, setState) => MoshSwitchRow(
+                    title: 'Read receipts',
+                    subtitle: 'Let contacts see it',
+                    value: value,
+                    onChanged: (next) => setState(() => value = next))))));
+    expect(
+        tester.getSemantics(find.byType(MoshSwitchRow)),
+        isSemantics(
+            label: 'Read receipts\nLet contacts see it',
+            hasToggledState: true,
+            isToggled: false,
+            hasEnabledState: true,
+            isEnabled: true,
+            isFocusable: true,
+            hasTapAction: true,
+            hasFocusAction: true));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    final ring = tester
+        .widgetList<DecoratedBox>(find.descendant(
+            of: find.byType(MoshSwitchRow),
+            matching: find.byType(DecoratedBox)))
+        .map((box) => box.decoration)
+        .whereType<ShapeDecoration>()
+        .map((decoration) => decoration.shape)
+        .whereType<RoundedRectangleBorder>()
+        .where((shape) => shape.side.color == c.focusRing);
+    expect(ring, hasLength(1), reason: 'keyboard focus is drawn');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(value, isTrue);
+    semantics.dispose();
+  });
+
+  testWidgets('a switch row being saved takes no press', (tester) async {
+    final changes = <bool>[];
+    await tester.pumpWidget(MaterialApp(
+        theme: buildMoshTheme(c),
+        home: Scaffold(
+            body: MoshSwitchRow(
+                title: 'Read receipts',
+                value: true,
+                saving: true,
+                onChanged: changes.add))));
+    await tester.tap(find.byType(MoshSwitchRow));
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump();
+    expect(changes, isEmpty);
   });
 
   test('a lit filter chip reads on its fill, a resting one on the surface', () {

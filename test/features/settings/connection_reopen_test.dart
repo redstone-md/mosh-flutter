@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/settings/settings_screen.dart';
@@ -98,12 +99,12 @@ void main() {
       ..seedInterfaces([_iface('Ethernet', '192.168.1.5')]);
     await _pump(tester, bridge: bridge);
     await _tap(tester, 'If a VPN gets in the way');
-    expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
-        isTrue);
+    expect(
+        tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value, isTrue);
     await _tap(tester, 'About');
     await _tap(tester, 'Connection');
-    expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
-        isTrue);
+    expect(
+        tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value, isTrue);
     expect(find.text('On'), findsOneWidget);
     expect(bridge.countOf(BridgeMethod.setVpnBypassConsent), 0);
     expect(tester.takeException(), isNull);
