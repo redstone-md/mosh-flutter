@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/mosh_dialog.dart';
@@ -126,17 +127,20 @@ class _RenameChatDialogState extends ConsumerState<RenameChatDialog> {
         children: [
           Text(shared ? l.chatNameShared : l.chatNamePersonal),
           const SizedBox(height: 16),
-          TextField(
-            controller: _text,
-            autofocus: true,
+          MoshField(
             enabled: !_busy,
-            maxLines: 1,
-            decoration: InputDecoration(
-              labelText: l.chatName,
-              errorText: _invalid ? l.chatNameInvalid : null,
+            label: l.chatName,
+            child: TextField(
+              controller: _text,
+              autofocus: true,
+              enabled: !_busy,
+              maxLines: 1,
+              decoration: InputDecoration(
+                errorText: _invalid ? l.chatNameInvalid : null,
+              ),
+              onSubmitted: (_) => _save(),
+              onChanged: (_) => setState(() => _invalid = false),
             ),
-            onSubmitted: (_) => _save(),
-            onChanged: (_) => setState(() => _invalid = false),
           ),
           if (!shared) ...[
             const SizedBox(height: 12),

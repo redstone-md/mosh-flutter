@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart'
     show MoshColors, kLiveNumberFontFeatures;
 
@@ -212,8 +214,7 @@ String avatarInitials(String name) {
 /// label uses the localized `unreadBadge(count)` ARB string so screen
 /// readers announce `{count} unread` (en) / `{count} непрочитанных` (ru).
 ///
-/// Styled as a small circular badge in the theme's primary color so it
-/// reads as a notification indicator.
+/// The Unread badge card: a 20 px pill in the primary colour.
 class UnreadBadge extends StatelessWidget {
   const UnreadBadge({super.key, required this.count});
 
@@ -224,27 +225,28 @@ class UnreadBadge extends StatelessWidget {
     if (count <= 0) return const SizedBox.shrink();
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final colors = MoshColors.of(context);
     final text = count > 99 ? '99+' : '$count';
     return Semantics(
       label: l.unreadBadge(count),
       excludeSemantics: true,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primary,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        constraints: const BoxConstraints(minWidth: 18),
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          // The theme's on-accent ink (onPrimary): white on the moss primary
-          // fails contrast at ~1.6:1 (audit 2026-09-21). Live number ->
-          // tabular figures keep the badge from jittering as the count ticks.
-          style: theme.textTheme.labelMedium!.copyWith(
-            color: theme.colorScheme.onPrimary,
-            fontWeight: FontWeight.w600,
-            fontFeatures: kLiveNumberFontFeatures,
+        constraints: const BoxConstraints(
+            minWidth: MoshSpace.s5, minHeight: MoshSpace.s5),
+        padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s1),
+        decoration:
+            ShapeDecoration(color: colors.primary, shape: MoshShapes.pill),
+        // The badge hugs its count wherever a row puts it. A live number:
+        // tabular figures keep it from jittering as the count ticks.
+        child: Center(
+          widthFactor: 1,
+          heightFactor: 1,
+          child: Text(
+            text,
+            style: theme.textTheme.labelMedium!.copyWith(
+              color: colors.onPrimary,
+              fontFeatures: kLiveNumberFontFeatures,
+            ),
           ),
         ),
       ),

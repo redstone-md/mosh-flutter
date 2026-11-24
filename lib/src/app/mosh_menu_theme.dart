@@ -20,29 +20,29 @@ abstract final class MoshMenuTheme {
         ),
       );
 
-  static MenuButtonThemeData items(ColorScheme colors, TextStyle? text) =>
+  /// A menu row and a Select option: as tall as a control on [platform].
+  static MenuButtonThemeData items(
+          ColorScheme colors, TextStyle? text, TargetPlatform platform) =>
       MenuButtonThemeData(
         style: ButtonStyle(
           visualDensity: VisualDensity.standard,
           textStyle: WidgetStatePropertyAll(text),
-          minimumSize: const WidgetStatePropertyAll(Size(0, 44)),
+          minimumSize:
+              WidgetStatePropertyAll(Size(0, MoshControl.height(platform))),
           padding: const WidgetStatePropertyAll(
               EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
           shape: const WidgetStatePropertyAll(MoshShapes.controlShape),
           foregroundColor: WidgetStateProperty.resolveWith((states) =>
               states.contains(WidgetState.disabled)
-                  ? colors.onSurface.withValues(alpha: 0.38)
+                  ? MoshState.tint(colors.onSurface, MoshState.disabledContent)
                   : colors.onSurface),
-          backgroundColor: WidgetStateProperty.resolveWith((states) =>
-              states.contains(WidgetState.hovered) ||
-                      states.contains(WidgetState.focused)
-                  ? colors.surfaceContainerHighest
-                  : Colors.transparent),
+          // The row tints itself like any control; keyboard focus adds the
+          // ring.
+          overlayColor: MoshState.layer(colors.onSurface),
           side: WidgetStateProperty.resolveWith((states) =>
               states.contains(WidgetState.focused)
-                  ? BorderSide(color: colors.onSurface)
+                  ? BorderSide(color: colors.onSurface, width: MoshBorder.thick)
                   : BorderSide.none),
-          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
         ),
       );
 

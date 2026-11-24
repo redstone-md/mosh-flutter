@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_spinner.dart';
+import 'package:mosh/src/app/mosh_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
-import 'package:mosh/src/features/onboarding/inline_error.dart';
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, moshSuggestionChipTheme;
+import 'package:mosh/src/features/shared/inline_error.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
@@ -95,28 +98,29 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
       children: [
         _OpenWarning(text: l.onboardChannelStepBody),
         const SizedBox(height: 20),
-        TextField(
-          controller: _nameController,
-          decoration: InputDecoration(
-            labelText: l.onboardChannelNameLabel,
-            hintText: l.onboardChannelPlaceholder,
-            helperText: l.onboardChannelNameRule,
-            prefixIcon: const Icon(MoshIcons.tag, size: 20),
+        MoshField(
+          label: l.onboardChannelNameLabel,
+          child: TextField(
+            controller: _nameController,
+            decoration: InputDecoration(
+              hintText: l.onboardChannelPlaceholder,
+              helperText: l.onboardChannelNameRule,
+              prefixIcon: const Icon(MoshIcons.tag, size: 20),
+            ),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _onJoin(),
           ),
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => _onJoin(),
         ),
         const SizedBox(height: 20),
-        FilledButton(
-          onPressed: (_canJoin && !_busy) ? _onJoin : null,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          child: _busy
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(l.onboardChannelJoin),
+        MoshLoading(
+          loading: _busy,
+          child: FilledButton.icon(
+            onPressed: _canJoin ? _onJoin : null,
+            style:
+                FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            icon: _busy ? const MoshSpinner() : null,
+            label: Text(l.onboardChannelJoin),
+          ),
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),
@@ -192,19 +196,21 @@ class _Examples extends StatelessWidget {
         Expanded(child: Divider(color: colors.outlineVariant)),
       ]),
       const SizedBox(height: 12),
-      Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        alignment: WrapAlignment.center,
-        children: [
-          for (final name in names)
-            ActionChip(
-              avatar:
-                  Icon(MoshIcons.tag, size: 16, color: colors.onSurfaceMuted),
-              label: Text(name),
-              onPressed: () => onPick(name),
-            ),
-        ],
+      ChipTheme(
+        data: moshSuggestionChipTheme(Theme.of(context), colors),
+        child: Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          alignment: WrapAlignment.center,
+          children: [
+            for (final name in names)
+              ActionChip(
+                visualDensity: VisualDensity.standard,
+                label: Text('#$name'),
+                onPressed: () => onPick(name),
+              ),
+          ],
+        ),
       ),
     ]);
   }

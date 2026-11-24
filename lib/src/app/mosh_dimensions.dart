@@ -1,4 +1,4 @@
-import 'package:flutter/animation.dart';
+import 'package:flutter/widgets.dart';
 
 /// Corner radii of Foundations: the `radius/*` variables of the
 /// "Mosh Dimensions" collection in Figma, the Material 3 corner scale.
@@ -27,6 +27,55 @@ abstract final class MoshSpace {
   static const s10 = 40.0;
   static const s12 = 48.0;
   static const s16 = 64.0;
+}
+
+/// Sizes a control takes from the device it runs on.
+abstract final class MoshControl {
+  /// A phone is pressed with a finger: its controls and tap targets are
+  /// 48 px, the desktop's 40 px.
+  static bool touch(TargetPlatform platform) =>
+      platform == TargetPlatform.android || platform == TargetPlatform.iOS;
+
+  /// Height of a button, a field and a menu row.
+  static double height(TargetPlatform platform) =>
+      touch(platform) ? MoshSpace.s12 : MoshSpace.s10;
+}
+
+/// Stroke weights of Foundations: the `border/*` variables.
+abstract final class MoshBorder {
+  static const thin = 1.0;
+  static const thick = 2.0;
+}
+
+/// Layer opacities of Foundations: the `state/*` variables, the Material 3
+/// state layers. A control tints itself with its content colour at [hover],
+/// [focus] or [pressed]; a disabled one fades its content to
+/// [disabledContent] and swaps its fill for a [disabledContainer] plate.
+abstract final class MoshState {
+  static const hover = 0.08;
+  static const focus = 0.10;
+  static const pressed = 0.10;
+  static const disabledContainer = 0.12;
+  static const disabledContent = 0.38;
+  static const scrim = 0.54;
+
+  /// The state layer of a control whose content is [ink]: nothing at rest.
+  static WidgetStateProperty<Color?> layer(Color ink) =>
+      WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.pressed)) return tint(ink, pressed);
+        if (states.contains(WidgetState.hovered)) return tint(ink, hover);
+        if (states.contains(WidgetState.focused)) return tint(ink, focus);
+        return null;
+      });
+
+  /// [ink] at one of the opacities above.
+  static Color tint(Color ink, double opacity) =>
+      ink.withValues(alpha: opacity);
+
+  /// [enabled] at rest and [disabled] when the control is off.
+  static WidgetStateProperty<T> unlessDisabled<T>(T enabled, T disabled) =>
+      WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.disabled) ? disabled : enabled);
 }
 
 /// One `motion/*` token: how long a transition runs and along which curve.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:mosh/src/features/settings/settings_card.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/mosh_dialog_route.dart';
@@ -56,9 +57,8 @@ class _WaitingSettingsState extends ConsumerState<AndroidWaitingSettings> {
     final platform = owner.platform;
     final state = platform.state;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(l.settingsBackgroundEnabled),
+      MoshSwitchRow(
+        title: l.settingsBackgroundEnabled,
         value: state?.waitingEnabled ?? false,
         onChanged: _busy || state == null
             ? null
@@ -110,9 +110,8 @@ class _WaitingSettingsState extends ConsumerState<AndroidWaitingSettings> {
     final platform = owner.platform;
     final state = platform.state;
     return Column(children: [
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(l.settingsLockedNotificationNames),
+      MoshSwitchRow(
+        title: l.settingsLockedNotificationNames,
         value: state?.showNamesWhenLocked ?? false,
         onChanged: _busy || state == null
             ? null
@@ -120,9 +119,8 @@ class _WaitingSettingsState extends ConsumerState<AndroidWaitingSettings> {
                 showNamesWhenLocked: enabled,
                 showTextWhenLocked: state.showTextWhenLocked)),
       ),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(l.settingsLockedNotificationText),
+      MoshSwitchRow(
+        title: l.settingsLockedNotificationText,
         value: state?.showTextWhenLocked ?? false,
         onChanged: _busy || state == null
             ? null

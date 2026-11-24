@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_spinner.dart';
 
 /// The banner. [count] is the number of missing roster members; [busy] gates
 /// the Add button; [onAdd] fires the invite. [missingOne]/[missingMany] are
@@ -44,15 +45,13 @@ class OrgAddMissingBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          FilledButton(
-            onPressed: busy ? null : onAdd,
-            child: busy
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(addLabel),
+          MoshLoading(
+            loading: busy,
+            child: FilledButton.icon(
+              onPressed: onAdd,
+              icon: busy ? const MoshSpinner() : null,
+              label: Text(addLabel),
+            ),
           ),
         ],
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/settings/connection_settings_section.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
@@ -76,8 +77,8 @@ void main() {
     await _open(tester, 'If a VPN gets in the way');
     expect(find.textContaining('After saving, close Mosh completely'),
         findsOneWidget);
-    await tester.ensureVisible(find.byType(SwitchListTile));
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.ensureVisible(find.byType(MoshSwitchRow));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
     expect(
         bridge

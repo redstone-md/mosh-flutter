@@ -32,6 +32,25 @@ void main() {
         container: container);
     expect(find.byIcon(MoshIcons.plusBadge), findsNothing);
   });
+  testWidgets('an own badge stays while the profile has no name yet',
+      (tester) async {
+    final native = MemoryPlusCommands()
+      ..current = PlusSnapshot(
+          active: true,
+          visible: true,
+          expiresAtMs: BigInt.from(DateTime.now()
+              .add(const Duration(days: 1))
+              .millisecondsSinceEpoch),
+          peerBadges: []);
+    final container = _container(native);
+    addTearDown(container.dispose);
+    await pumpScreen(
+        tester,
+        const Scaffold(
+            body: Avatar(name: '', sign: MoshIcons.person, ownPlus: true)),
+        container: container);
+    expect(find.byIcon(MoshIcons.plusBadge), findsOneWidget);
+  });
   testWidgets('shared badges expire and conversation titles stay ordinary',
       (tester) async {
     final native = MemoryPlusCommands()

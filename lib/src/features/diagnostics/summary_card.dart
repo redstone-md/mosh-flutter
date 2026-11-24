@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
@@ -85,65 +87,63 @@ class _Heading extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        _StatusBadge(
-          state: summary.state,
-          tone: summary.tone,
-          toneColor: toneColor,
-        ),
+        _StatusBadge(state: summary.state, tone: summary.tone),
       ],
     );
   }
 }
 
-/// The pill-shaped status badge with a tone dot + the state text.
+/// The Status badge card: a tone dot and the state's word on a plate.
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.state,
-    required this.tone,
-    required this.toneColor,
-  });
+  const _StatusBadge({required this.state, required this.tone});
 
   final String state;
   final DiagnosticSummaryTone tone;
-  final Color toneColor;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final badgeBg = tone == DiagnosticSummaryTone.error
-        ? toneColor.withValues(alpha: 0.06)
-        : (tone == DiagnosticSummaryTone.ready
-            ? toneColor.withValues(alpha: 0.14)
-            : theme.colorScheme.surfaceContainerHighest);
+    final colors = MoshColors.of(context);
+    // The word carries the meaning; the plate and the dot repeat it.
+    final (mark, plate, ink) = switch (tone) {
+      DiagnosticSummaryTone.error => (
+          colors.error,
+          colors.errorContainer,
+          colors.onErrorContainer
+        ),
+      DiagnosticSummaryTone.waiting => (
+          colors.warning,
+          colors.warningContainer,
+          colors.onWarningContainer
+        ),
+      DiagnosticSummaryTone.ready => (
+          colors.success,
+          colors.surfaceContainerHighest,
+          colors.onSurface
+        ),
+      DiagnosticSummaryTone.idle => (
+          colors.outline,
+          colors.surfaceContainerHighest,
+          colors.onSurface
+        ),
+    };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: badgeBg,
-        border: Border.all(color: toneColor.withValues(alpha: 0.24)),
-        borderRadius: BorderRadius.circular(999),
-      ),
+      constraints: const BoxConstraints(minHeight: MoshSpace.s6),
+      padding: const EdgeInsetsDirectional.only(
+          start: MoshSpace.s2, end: MoshSpace.s3),
+      decoration: ShapeDecoration(color: plate, shape: MoshShapes.pill),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: toneColor,
-              shape: BoxShape.circle,
-              boxShadow: tone == DiagnosticSummaryTone.ready
-                  ? [BoxShadow(color: toneColor, blurRadius: 4)]
-                  : null,
-            ),
+            width: MoshSpace.s2,
+            height: MoshSpace.s2,
+            decoration: BoxDecoration(color: mark, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: MoshSpace.s2),
           Text(
             state,
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              fontSize: 10,
-              color: toneColor,
-            ),
+            style:
+                Theme.of(context).textTheme.labelMedium!.copyWith(color: ink),
           ),
         ],
       ),

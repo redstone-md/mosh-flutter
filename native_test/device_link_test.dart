@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:mosh/src/features/device_link/devices_settings_section.dart';
+import 'package:mosh/src/app/mosh_field.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/rust/frb_generated.dart';
 import 'package:mosh/src/rust/api/private_dm.dart' as setup;
@@ -14,6 +15,11 @@ import '../test/support/pump.dart';
 import 'support/native_peer.dart';
 
 const _pasteLabel = 'Paste the link from your trusted device';
+
+/// The text field standing under [label].
+Finder _field(String label) => find.descendant(
+    of: find.widgetWithText(MoshField, label),
+    matching: find.byType(TextField));
 
 void main() {
   late Directory appDir;
@@ -56,8 +62,7 @@ void main() {
     await pumpUntil(tester, find.text('Create linking QR'));
     await tapVisible(
         tester, find.widgetWithText(OutlinedButton, 'Connect this device'));
-    await tester.enterText(
-        find.widgetWithText(TextField, _pasteLabel), 'broken');
+    await tester.enterText(_field(_pasteLabel), 'broken');
     await tapVisible(tester, find.byTooltip('Connect'));
     await pumpUntil(tester, find.textContaining('This QR or link is invalid'));
     await tapVisible(tester, find.text('Cancel link'));
@@ -77,14 +82,11 @@ void main() {
     await pumpUntil(tester, find.text('Code from the new device'));
     final confirmation =
         await tester.runAsync(() => peer.waitPhase('AwaitingConfirmation'));
-    await tester.enterText(
-        find.widgetWithText(TextField, 'Code from the new device'),
-        '000000000000');
+    await tester.enterText(_field('Code from the new device'), '000000000000');
     await tapVisible(tester, find.text('Approve device'));
     await pumpUntil(tester, find.textContaining('The code does not match'));
     expect((await tester.runAsync(link.snapshot))!.devices.length, 1);
-    await tester.enterText(
-        find.widgetWithText(TextField, 'Code from the new device'),
+    await tester.enterText(_field('Code from the new device'),
         confirmation!['confirmation_code'] as String);
     await tapVisible(tester, find.text('Approve device'));
     await pumpUntil(tester, find.textContaining('Device linked.'));
@@ -138,8 +140,7 @@ Future<void> approveFreshPeer(WidgetTester tester, NativePeer peer) async {
   await pumpUntil(tester, find.text('Code from the new device'));
   final ready =
       await tester.runAsync(() => peer.waitPhase('AwaitingConfirmation'));
-  await tester.enterText(
-      find.widgetWithText(TextField, 'Code from the new device'),
+  await tester.enterText(_field('Code from the new device'),
       ready!['confirmation_code'] as String);
   await tapVisible(tester, find.text('Approve device'));
   await pumpUntil(tester, find.textContaining('Device linked.'));
@@ -154,8 +155,7 @@ Future<void> requestFreshAccess(
   expect(find.text('Create linking QR'), findsNothing);
   await tapVisible(tester, find.text('Request access again'));
   final request = await tester.runAsync(() => peer.ask({'action': 'qr'}));
-  await tester.enterText(find.widgetWithText(TextField, _pasteLabel),
-      request!['qr_uri'] as String);
+  await tester.enterText(_field(_pasteLabel), request!['qr_uri'] as String);
   await tapVisible(tester, find.byTooltip('Connect'));
   await pumpUntil(
       tester,

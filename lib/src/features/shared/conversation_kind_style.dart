@@ -28,7 +28,8 @@ extension ConversationKindStyle on ConversationKind {
       };
 }
 
-/// Personal initials with actual connection presence; groups/channels use type glyphs.
+/// The avatar of a conversation: personal initials with actual connection
+/// presence; a group and a channel show the glyph of their type.
 class ConversationKindAvatar extends StatelessWidget {
   const ConversationKindAvatar({
     super.key,
@@ -48,37 +49,13 @@ class ConversationKindAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Tooltip(
         message: kind.label(AppLocalizations.of(context)!),
-        child: kind == ConversationKind.dm
-            ? Stack(
-                children: [
-                  Avatar(
-                      name: name, radius: radius, plusIdentity: plusIdentity),
-                  if (online)
-                    PositionedDirectional(
-                      bottom: 0,
-                      end: 0,
-                      child: Tooltip(
-                          message: AppLocalizations.of(context)!.stateReady,
-                          child: Container(
-                            width: radius <= 20 ? 10 : 12,
-                            height: radius <= 20 ? 10 : 12,
-                            decoration: BoxDecoration(
-                              color: MoshColors.of(context).success,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: MoshColors.of(context)
-                                      .surfaceContainerLowest,
-                                  width: 2),
-                            ),
-                          )),
-                    ),
-                ],
-              )
-            : CircleAvatar(
-                radius: radius,
-                backgroundColor: kind.tint(MoshColors.of(context)),
-                foregroundColor: kind.accent(MoshColors.of(context)),
-                child: Icon(kind.icon, size: radius),
-              ),
+        child: Avatar(
+          name: name,
+          radius: radius,
+          sign: kind == ConversationKind.dm ? null : kind.icon,
+          online: kind == ConversationKind.dm && online,
+          // Only a person holds Mosh+.
+          plusIdentity: kind == ConversationKind.dm ? plusIdentity : null,
+        ),
       );
 }

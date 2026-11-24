@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/onboarding/inline_error.dart';
+import 'package:mosh/src/features/shared/inline_error.dart';
 import '../../support/pump.dart';
 
 void main() {

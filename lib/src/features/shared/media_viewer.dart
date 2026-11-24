@@ -5,7 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart'
-    show MoshColors, kLiveNumberFontFeatures;
+    show MoshColors, kLiveNumberFontFeatures, moshTonalIconButtonStyle;
 
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -310,51 +310,20 @@ class _MediaCaption extends StatelessWidget {
   }
 }
 
-/// The close button
-/// (`position:absolute; top:16px; right:18px; width:36px; height:36px;
-/// display:grid; place-items:center; border:1px var(--line);
-/// border-radius:9px; background:var(--bg-2); color:var(--fg-2)`;
-/// `IconX size=18`). Hover swaps to `bg-3/fg-1`
-/// -- Material's `IconButton` hover/inherited state covers that.
+/// The viewer's close button: the Tonal kind of the Icon button card, a
+/// plate of its own over the media. Its tooltip is its accessible name.
 class _MediaCloseButton extends StatelessWidget {
   const _MediaCloseButton({required this.onPressed});
 
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    return Semantics(
-      // "Close viewer", localized via the `closeViewer` ARB key.
-      label: l.closeViewer,
-      button: true,
-      child: Tooltip(
-        message: l.closeViewer,
-        child: Material(
-          color: theme.colorScheme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(9),
-            side: BorderSide(color: theme.dividerColor),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onPressed,
-            child: SizedBox(
-              width: 36,
-              height: 36,
-              child: Icon(
-                MoshIcons.close,
-                size: 18,
-                // Muted fg-2.
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => IconButton(
+        tooltip: AppLocalizations.of(context)!.closeViewer,
+        onPressed: onPressed,
+        style: moshTonalIconButtonStyle(MoshColors.of(context)),
+        icon: const Icon(MoshIcons.close),
+      );
 }
 
 /// Shows a [MediaViewer] as a fullscreen modal. The caller resolves the

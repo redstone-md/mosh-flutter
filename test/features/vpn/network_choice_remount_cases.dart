@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bind_interface_field.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
@@ -35,13 +36,13 @@ void main() {
               throw StateError('replacement unavailable');
             }));
     await pumpScreen(tester, field(), container: container);
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
     await pumpScreen(tester, const Scaffold(), container: container);
     await pumpScreen(tester, field(), container: container);
     expect(find.text(l.bindAdapterRestartNeeded), findsOneWidget);
-    expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
-        isTrue);
+    expect(
+        tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value, isTrue);
     expect(bridge.countOf(BridgeMethod.getBindInterface), 0);
   });
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:mosh/src/features/plus/plus_checkout.dart';
 import 'package:mosh/src/features/plus/plus_provider.dart';
 import 'package:mosh/src/features/plus/plus_settings_card.dart';
@@ -50,7 +51,7 @@ void main() {
           testOrder['payment_uri']);
       image.dispose();
     });
-    expect(find.byType(Switch), findsNothing);
+    expect(find.byType(MoshSwitchRow), findsNothing);
 
     billing.paid = true;
     billing.failIssue = true;
@@ -64,9 +65,10 @@ void main() {
     expect(billing.requests,
         ['durable-blinded-request', 'durable-blinded-request']);
     expect(native.current.active, isTrue);
-    expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+    expect(tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value,
+        isFalse);
     expect(native.current.order?.status, PlusPaymentStatus.issued);
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
     expect(native.current.visible, isTrue);
   });

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 
 import 'package:mosh/src/features/settings/connection_settings_section.dart';
 import 'package:mosh/src/features/vpn/vpn_consent_overlay.dart';
@@ -141,7 +142,7 @@ void main() {
 
       await tester.tap(find.text('If a VPN gets in the way'));
       await tester.pumpAndSettle();
-      final toggle = find.byType(SwitchListTile);
+      final toggle = find.byType(MoshSwitchRow);
       await tester.ensureVisible(toggle);
       await tester.tap(toggle);
       await tester.pumpAndSettle();

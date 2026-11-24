@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
@@ -112,44 +113,25 @@ class SessionsListControls extends StatelessWidget {
 
   Widget _filterChip(
       BuildContext context, MapEntry<ConversationKind?, String> entry) {
-    final colors = MoshColors.of(context);
-    final selected = entry.key == kind;
-    final mobile = isMobileBreakpoint(context);
     return Padding(
       padding: const EdgeInsetsDirectional.only(end: 4),
+      // The Filter chip card: 32 px, inside a 48 px tap target on a phone.
       child: ChoiceChip(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        labelPadding:
-            EdgeInsets.symmetric(horizontal: 4, vertical: mobile ? 0 : 2),
-        visualDensity: mobile ? VisualDensity.standard : VisualDensity.compact,
-        materialTapTargetSize: MaterialTapTargetSize.padded,
-        labelStyle: Theme.of(context).textTheme.labelMedium!.copyWith(
-              fontSize: 12,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-              color: selected ? colors.onSurface : colors.onSurfaceVariant,
-            ),
-        avatarBoxConstraints:
-            const BoxConstraints.tightFor(width: 16, height: 16),
-        avatar: entry.key == null
-            ? null
-            : Icon(entry.key!.icon,
-                size: 16,
-                color: Color.lerp(colors.onSurfaceVariant,
-                    entry.key!.accent(colors), selected ? 1 : 0.55)),
-        label: Text(entry.value),
-        backgroundColor: colors.surfaceContainerLowest,
-        selectedColor: entry.key?.tint(colors) ?? colors.surfaceBright,
-        side: WidgetStateBorderSide.resolveWith((states) => BorderSide(
-              width: 2,
-              strokeAlign: BorderSide.strokeAlignOutside,
-              color: states.contains(WidgetState.focused)
-                  ? colors.focusRing
-                  : Colors.transparent,
-            )),
-        elevation: 0,
-        pressElevation: 0,
-        selected: selected,
-        showCheckmark: false,
+        visualDensity: VisualDensity.standard,
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: MoshSpace.s1,
+          children: [
+            // The glyph takes the label's colour, lit or not.
+            if (entry.key != null)
+              Builder(
+                  builder: (context) => Icon(entry.key!.icon,
+                      size: MoshSpace.s4,
+                      color: DefaultTextStyle.of(context).style.color)),
+            Flexible(child: Text(entry.value, overflow: TextOverflow.ellipsis)),
+          ],
+        ),
+        selected: entry.key == kind,
         onSelected: (_) => onKind(entry.key),
       ),
     );

@@ -11,6 +11,12 @@ abstract final class MoshShapes {
   static const attachmentFooterInset = messageHorizontalInset - attachmentInset;
 
   static const control = BorderRadius.all(Radius.circular(MoshRadius.small));
+
+  /// The well of a text field or a select.
+  static const field = BorderRadius.all(Radius.circular(MoshRadius.medium));
+
+  /// Buttons, chips, badges and everything else drawn as a pill.
+  static const pill = StadiumBorder();
   static const conversationRow =
       BorderRadius.all(Radius.circular(MoshRadius.medium));
   static const menu = BorderRadius.all(Radius.circular(MoshRadius.medium));

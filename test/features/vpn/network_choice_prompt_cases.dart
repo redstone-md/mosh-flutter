@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bind_interface_field.dart';
 import 'package:mosh/src/features/vpn/vpn_consent_modal.dart';
@@ -44,7 +45,7 @@ void main() {
           VpnConsentModal(bridge: bridge, l: l, onAccept: () async {}),
           BindInterfaceField(bridge: bridge, l: l, onAccept: () async {}),
         ])));
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
     consent.complete(null);
     await tester.pumpAndSettle();

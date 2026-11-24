@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_field.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
@@ -293,18 +294,23 @@ class _NewGroupFormState extends State<_NewGroupForm> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Row(
+        // The button stands beside the well, below the label.
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
-            child: TextField(
-              controller: _controller,
+            child: MoshField(
               enabled: !widget.busy,
-              // The theme draws the radius-8 edge in every state, busy
-              // (disabled) included.
-              decoration: InputDecoration(
-                labelText: widget.l.orgNewGroupLabel,
-                hintText: widget.l.orgNewGroupPlaceholder,
+              label: widget.l.orgNewGroupLabel,
+              child: TextField(
+                controller: _controller,
+                enabled: !widget.busy,
+                // The theme draws the well's edge in every state, busy
+                // (disabled) included.
+                decoration: InputDecoration(
+                  hintText: widget.l.orgNewGroupPlaceholder,
+                ),
+                onSubmitted: (_) => _submit(),
               ),
-              onSubmitted: (_) => _submit(),
             ),
           ),
           IconButton(
@@ -347,7 +353,6 @@ class _MemberRow extends StatelessWidget {
             children: [
               Avatar(
                   name: member.name,
-                  radius: 12,
                   plusIdentity: member.mossPeerId,
                   ownPlus: member.isSelf),
               const SizedBox(width: 8),

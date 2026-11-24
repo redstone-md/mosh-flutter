@@ -124,7 +124,7 @@ void main() {
   });
 
   group('SummaryCard - error tone', () {
-    testWidgets('an error paints the connected state badge in the error color',
+    testWidgets('an error puts the connected state badge on the error plate',
         (tester) async {
       final sum = diagnosticsSummary(
         l: AppLocalizationsEn(),
@@ -136,7 +136,13 @@ void main() {
       // The badge keeps the session's own state; the tone alone signals
       // the error.
       final state = tester.widget<Text>(find.text('Connected'));
-      expect(state.style?.color, MoshColors.dark.error);
+      expect(state.style?.color, MoshColors.dark.onErrorContainer);
+      final plate = tester.widget<Container>(find
+          .ancestor(
+              of: find.text('Connected'), matching: find.byType(Container))
+          .first);
+      expect((plate.decoration! as ShapeDecoration).color,
+          MoshColors.dark.errorContainer);
     });
   });
 

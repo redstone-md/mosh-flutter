@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -216,17 +218,10 @@ class _StatePillSlot extends ConsumerWidget {
   }
 }
 
-/// StatePill: inline-flex row, gap 8, min height 26 (grows with the text),
-/// padding 12x3, radius 999, labelMedium ellipsized (full label in a
-/// tooltip), raised-surface bg, 1px hairline border, a 7x7 round dot.
-/// Compact drops the label and the width around the dot, so the surface is a
-/// circle of the pill's own height: the same shape at a glance, no stretched
-/// stadium with the dot off to one side.
-/// Variants:
-///   ready   = moss-glow bg + moss text + moss dot with glow
-///   waiting = warn text + warn dot (default bg)
-///   idle    = default text + fg-3 dot
-/// Unknown states fall back to the idle chrome.
+/// The State pill card: tells in the title bar whether Mosh is connected.
+/// A dot in the state's colour and the label, in an outlined pill; [compact]
+/// shrinks it to the dot in a narrow window. The dot is green when `ready`,
+/// orange while `waiting` and neutral in any other state.
 class StatePill extends StatelessWidget {
   const StatePill(
       {super.key,
@@ -235,7 +230,7 @@ class StatePill extends StatelessWidget {
       this.compact = false});
 
   /// The pill's resting height; the compact badge is a circle of this size.
-  static const double height = 26;
+  static const double height = MoshSpace.s6;
 
   /// The raw state string ('idle' / 'waiting' / 'ready' / ...).
   final String state;
@@ -248,7 +243,7 @@ class StatePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final variant = _pillVariant(state, MoshColors.of(context));
+    final colors = MoshColors.of(context);
     return Tooltip(
       message: label,
       excludeFromSemantics: true,
@@ -258,101 +253,40 @@ class StatePill extends StatelessWidget {
             : const BoxConstraints(minHeight: height),
         padding: compact
             ? EdgeInsets.zero
-            : const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-        decoration: BoxDecoration(
-          color:
-              variant.background ?? theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: variant.border(theme)),
-        ),
+            : const EdgeInsets.symmetric(horizontal: MoshSpace.s3),
+        decoration: ShapeDecoration(
+            shape: MoshShapes.pill
+                .copyWith(side: BorderSide(color: colors.outlineVariant))),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment:
               compact ? MainAxisAlignment.center : MainAxisAlignment.start,
           children: <Widget>[
-            // 7x7 round state dot; ready gets a moss glow shadow.
             Container(
-              width: 7,
-              height: 7,
+              width: MoshSpace.s2,
+              height: MoshSpace.s2,
               decoration: BoxDecoration(
-                color: variant.dotColor,
+                color: switch (state) {
+                  'ready' => colors.success,
+                  'waiting' => colors.warning,
+                  _ => colors.outline,
+                },
                 shape: BoxShape.circle,
-                boxShadow: variant.dotGlow,
               ),
             ),
-            if (!compact) const SizedBox(width: 8),
+            if (!compact) const SizedBox(width: MoshSpace.s2),
             if (!compact)
               Flexible(
                 child: Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    letterSpacing: 0.02 * 11.5,
-                    color: variant.textColor,
-                  ),
+                  style: theme.textTheme.labelMedium,
                 ),
               ),
           ],
         ),
       ),
     );
-  }
-}
-
-/// The resolved pill visual variant for a given state. null fields fall
-/// back to the neutral pill chrome in [StatePill.build].
-class _PillVariant {
-  const _PillVariant({
-    this.background,
-    this.textColor,
-    this.dotColor,
-    this.dotGlow,
-    this.borderColorOverride,
-  });
-
-  /// The pill background; null = base bg-2 (surfaceContainerHighest).
-  final Color? background;
-
-  /// The label text color; null = base fg-2 (onSurfaceVariant).
-  final Color? textColor;
-
-  /// The dot color; null = base fg-3 (onSurfaceVariant).
-  final Color? dotColor;
-
-  /// The dot box-shadow list (ready gets the moss glow); null = none.
-  final List<BoxShadow>? dotGlow;
-
-  /// An explicit border color (ready/waiting tint); null = line.
-  final Color? borderColorOverride;
-
-  Color border(ThemeData theme) => borderColorOverride ?? theme.dividerColor;
-}
-
-_PillVariant _pillVariant(String state, MoshColors colors) {
-  switch (state) {
-    case 'ready':
-      // ready: moss-glow bg, moss text, moss dot + glow, moss border.
-      return _PillVariant(
-        background: colors.secondaryContainer,
-        textColor: colors.primary,
-        dotColor: colors.primary,
-        dotGlow: <BoxShadow>[
-          BoxShadow(
-              color: colors.primary.withValues(alpha: 0.6), blurRadius: 4),
-        ],
-        borderColorOverride: colors.primary.withValues(alpha: 0.25),
-      );
-    case 'waiting':
-      // waiting: warn text, warn dot, warn-tinted border; base bg.
-      return _PillVariant(
-        textColor: colors.warning,
-        dotColor: colors.warning,
-        borderColorOverride: colors.warning.withValues(alpha: 0.25),
-      );
-    case 'idle':
-    default:
-      // idle (and unknown states): default text, fg-3 dot.
-      return _PillVariant(dotColor: colors.onSurfaceMuted);
   }
 }

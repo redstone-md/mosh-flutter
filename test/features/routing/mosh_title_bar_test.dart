@@ -128,7 +128,7 @@ void main() {
         matching: find.byWidgetPredicate((widget) =>
             widget is Container &&
             widget.constraints ==
-                const BoxConstraints.tightFor(width: 7, height: 7)));
+                const BoxConstraints.tightFor(width: 8, height: 8)));
     final target = find.ancestor(
         of: find.byType(StatePill), matching: find.byType(InkWell));
 

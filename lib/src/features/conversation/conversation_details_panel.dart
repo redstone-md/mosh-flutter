@@ -145,7 +145,6 @@ class ConversationDetailsPanel extends ConsumerWidget {
               child: Row(children: [
                 Avatar(
                     name: participant.name,
-                    radius: 17,
                     ownPlus: participant.authenticated && participant.own,
                     plusIdentity: participant.authenticated
                         ? '${target.key}:${participant.identity}'

@@ -5,6 +5,7 @@ import 'dart:io' show File;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 
 import 'package:mosh/src/features/crash_reporting/crash_reporting.dart';
 import 'package:mosh/src/features/crash_reporting/crash_reporting_toggle.dart';
@@ -182,7 +183,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
 
     expect(sdk.events, ['start scripted-salt']);

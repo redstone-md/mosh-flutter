@@ -192,7 +192,8 @@ void main() {
     expect(time.top, greaterThanOrEqualTo(meta.bottom));
     expect(time.center.dy, closeTo(progress.center.dy, 1));
     expect(progress.right, lessThanOrEqualTo(time.left));
-    expect(time.right, closeTo(cancel.right, 1));
+    // The button's plate reaches the card's edge; the time keeps its inset.
+    expect(time.right, lessThanOrEqualTo(cancel.right));
     expect(tester.takeException(), isNull);
   });
 }

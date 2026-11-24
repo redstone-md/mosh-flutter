@@ -172,7 +172,7 @@ final List<FigmaScene> startScenes = [
   FigmaScene('channel-filled', 'Onboarding / Public channel / Name picked',
       (tester, size) async {
     await _step(tester, size, 'Join a public channel');
-    await _tap(tester, find.widgetWithText(ActionChip, 'community'));
+    await _tap(tester, find.widgetWithText(ActionChip, '#community'));
   }),
   FigmaScene('channel-error', 'Onboarding / Public channel / Join failed',
       (tester, size) async {

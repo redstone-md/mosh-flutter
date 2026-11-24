@@ -4,6 +4,7 @@
 // error branch.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bind_interface_field.dart';
@@ -75,14 +76,14 @@ void main() {
       interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
     )..hold(BridgeMethod.listInterfaces);
     await _pump(tester, gateway: gateway, settle: false);
-    expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).onChanged,
+    expect(tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).onChanged,
         isNull);
     expect(find.text('Off'), findsNothing);
     expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 0);
     gateway.release(BridgeMethod.listInterfaces);
     await tester.pumpAndSettle();
     expect(find.text('Off'), findsOneWidget);
-    expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).onChanged,
+    expect(tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).onChanged,
         isNotNull);
   });
 
@@ -95,7 +96,7 @@ void main() {
     expect(find.text('Could not read network state'), findsOneWidget);
     expect(find.text('State unavailable'), findsOneWidget);
     expect(find.text('Off'), findsNothing);
-    expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).onChanged,
+    expect(tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).onChanged,
         isNull);
     await tester.tap(find.byTooltip('Refresh devices'));
     await tester.pumpAndSettle();
@@ -113,12 +114,12 @@ void main() {
     await _pump(tester, gateway: gateway, onAccept: () async {
       throw StateError('replacement could not start');
     });
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
     expect(find.text('Saved adapter: eth0.'), findsOneWidget);
     expect(find.textContaining('Saved, but Mosh could not restart'),
         findsOneWidget);
-    final toggle = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
+    final toggle = tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow));
     expect(toggle.value, isTrue);
     expect(toggle.onChanged, isNotNull);
   });
@@ -130,13 +131,13 @@ void main() {
     )..hold(BridgeMethod.setVpnBypassConsent);
     var restarts = 0;
     await _pump(tester, gateway: gateway, onAccept: () async => restarts++);
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pump();
-    final toggle = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
-    expect(toggle.onChanged, isNull);
+    final toggle = tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow));
+    expect(toggle.saving, isTrue);
     expect(toggle.value, isFalse);
     expect(find.text('Saving…'), findsOneWidget);
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 1);
     await tester.pumpWidget(const SizedBox.shrink());
     gateway.release(BridgeMethod.setVpnBypassConsent);
@@ -152,17 +153,17 @@ void main() {
     );
     var restarts = 0;
     await _pump(tester, gateway: gateway, onAccept: () async => restarts++);
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
-    final toggle = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
+    final toggle = tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow));
     expect(toggle.value, isTrue);
     expect(toggle.onChanged, isNotNull);
     expect(find.text('On'), findsOneWidget);
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
     expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 2);
     expect(restarts, 2);
-    expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+    expect(tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value,
         isFalse);
     expect(find.text('Off'), findsOneWidget);
     expect(
@@ -176,7 +177,7 @@ void main() {
       (tester) async {
     final gateway = _bindGateway(interfaces: [], bind: 'eth0');
     await _pump(tester, gateway: gateway);
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
     expect(
         gateway
@@ -192,10 +193,10 @@ void main() {
         bind: 'old-ethernet',
         interfaces: [_iface(name: 'wifi', ipv4: '192.168.1.8')]);
     await _pump(tester, gateway: gateway);
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
     expect(find.text('wifi - 192.168.1.8'), findsOneWidget);
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
     expect(
         gateway
@@ -216,7 +217,7 @@ void main() {
     await tester.tap(find.text('eth1 - 192.168.1.6'));
     await tester.pumpAndSettle();
     expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 0);
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
     expect(
         gateway
@@ -237,7 +238,7 @@ void main() {
         find.text('Choose your network adapter, such as Ethernet or Wi-Fi.'),
         findsOneWidget,
       );
-      expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      expect(tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value,
           isFalse);
       expect(find.text('VPN bypass'), findsOneWidget);
       expect(find.text('Off'), findsOneWidget);
@@ -253,7 +254,7 @@ void main() {
       );
       await _pump(tester, gateway: gateway);
       expect(find.text('Saved adapter: eth0.'), findsOneWidget);
-      expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      expect(tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value,
           isTrue);
       expect(find.text('On'), findsOneWidget);
       expect(find.textContaining('restarts after applying'), findsOneWidget);
@@ -284,7 +285,7 @@ void main() {
       ]);
       await _pump(tester, gateway: gateway);
       expect(find.text('No connected physical adapter found.'), findsOneWidget);
-      final toggle = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
+      final toggle = tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow));
       expect(toggle.value, isFalse);
       expect(toggle.onChanged, isNull);
     },
@@ -305,7 +306,7 @@ void main() {
           acceptCount++;
         },
       );
-      await tester.tap(find.byType(SwitchListTile));
+      await tester.tap(find.byType(MoshSwitchRow));
       await tester.pumpAndSettle();
       expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 1);
       expect(
@@ -332,7 +333,7 @@ void main() {
           acceptCount++;
         },
       );
-      await tester.tap(find.byType(SwitchListTile));
+      await tester.tap(find.byType(MoshSwitchRow));
       await tester.pumpAndSettle();
       expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 1);
       expect(
@@ -355,11 +356,10 @@ void main() {
         );
         var restarts = 0;
         await _pump(tester, gateway: gateway, onAccept: () async => restarts++);
-        await tester.tap(find.byType(SwitchListTile));
+        await tester.tap(find.byType(MoshSwitchRow));
         await tester.pumpAndSettle();
         expect(find.text('Could not apply override'), findsOneWidget);
-        final toggle =
-            tester.widget<SwitchListTile>(find.byType(SwitchListTile));
+        final toggle = tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow));
         expect(toggle.value, savedAdapter != null);
         expect(toggle.onChanged, isNotNull);
         expect(restarts, 0);

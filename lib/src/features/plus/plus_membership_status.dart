@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:mosh/src/rust/plus/types.dart';
 
 class PlusMembershipStatus extends StatelessWidget {
@@ -17,10 +18,9 @@ class PlusMembershipStatus extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text(l.plusUntil(formatPlusDate(snapshot.expiresAtMs!))),
-      SwitchListTile.adaptive(
-          contentPadding: EdgeInsets.zero,
-          title: Text(l.plusVisibility),
-          subtitle: Text(l.plusVisibilityHint),
+      MoshSwitchRow(
+          title: l.plusVisibility,
+          subtitle: l.plusVisibilityHint,
           value: snapshot.visible,
           onChanged: busy ? null : onVisibility),
     ]);

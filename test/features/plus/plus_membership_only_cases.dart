@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:mosh/src/app/distribution_channel.dart';
 import 'package:mosh/src/app/distribution_channel_provider.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
@@ -41,10 +42,11 @@ void main() {
     await card(tester, native, () => billing++);
 
     expect(find.textContaining('Mosh+ valid until'), findsOneWidget);
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
     expect(native.visible, isFalse);
-    expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+    expect(tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value,
+        isFalse);
     expect(find.byType(FilledButton), findsNothing);
     expect(billing, 0);
   }, variant: desktop);

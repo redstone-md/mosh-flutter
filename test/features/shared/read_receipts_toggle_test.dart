@@ -3,6 +3,7 @@
 // and rolls back with an inline error when the write fails.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_switch.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -25,7 +26,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value,
       isTrue,
     );
     expect(find.text(_l.settingsReadReceiptsTitle), findsOneWidget);
@@ -37,11 +38,11 @@ void main() {
         tester, Scaffold(body: ReadReceiptsToggle(bridge: bridge)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
 
     expect(
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value,
       isTrue,
     );
     expect(
@@ -59,12 +60,12 @@ void main() {
         tester, Scaffold(body: ReadReceiptsToggle(bridge: bridge)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(MoshSwitchRow));
     await tester.pumpAndSettle();
 
     // Rolled back to the stored answer, with the write's failure visible.
     expect(
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow)).value,
       isTrue,
     );
     expect(find.textContaining('disk full'), findsOneWidget);

@@ -32,7 +32,8 @@ SettingsCardHeader uses native ListTile geometry with a 44px icon plate,
 10px icon/text gap, centered leading icon and 4px between title and description.
 Its scoped theme uses standard visual density so the global compact theme
 cannot reduce the actual gap to 6px. The same theme supplies ExpansionTile
-and SwitchListTile headers.
+headers. A switch is a MoshSwitchRow, the Switch row card: it sets its own
+size and padding and takes the header's icon plate as its leading widget.
 Sound and device card descriptions are grouped with their titles, with
 controls below. About retains its brand typography inside the same header.
 The navigation and device rows read the same icon/text gap constant.
