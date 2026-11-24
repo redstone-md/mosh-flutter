@@ -79,7 +79,9 @@ class InviteResult extends StatelessWidget {
     );
     final secondary = style.copyWith(
       foregroundColor: WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.disabled) ? null : MoshColors.onSurface),
+          states.contains(WidgetState.disabled)
+              ? null
+              : MoshColors.of(context).onSurface),
     );
     if (onReplace case final replace?) {
       return [
@@ -99,16 +101,17 @@ class InviteResult extends StatelessWidget {
 
   Widget _footer(BuildContext context, String text) => Column(children: [
         const SizedBox(height: 20),
-        const Divider(height: 1, color: MoshColors.outlineVariant),
+        Divider(height: 1, color: MoshColors.of(context).outlineVariant),
         const SizedBox(height: 16),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(Icons.lock_outline,
-              size: 20, color: MoshColors.onSurfaceMuted),
+          Icon(Icons.lock_outline,
+              size: 20, color: MoshColors.of(context).onSurfaceMuted),
           const SizedBox(width: 12),
           Expanded(
               child: Text(text,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: MoshColors.onSurfaceMuted, height: 1.5))),
+                      color: MoshColors.of(context).onSurfaceMuted,
+                      height: 1.5))),
         ]),
       ]);
 }
@@ -121,6 +124,7 @@ class _ReadyNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final text = Theme.of(context).textTheme;
     return Semantics(
       liveRegion: true,
@@ -128,12 +132,11 @@ class _ReadyNote extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          color: MoshColors.secondaryContainer,
-          border: Border.all(color: MoshColors.primary.withValues(alpha: 0.3)),
+          color: colors.secondaryContainer,
+          border: Border.all(color: colors.primary.withValues(alpha: 0.3)),
         ),
         child: Row(children: [
-          const Icon(Icons.check_circle_outline,
-              size: 32, color: MoshColors.primary),
+          Icon(Icons.check_circle_outline, size: 32, color: colors.primary),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -141,12 +144,11 @@ class _ReadyNote extends StatelessWidget {
               children: [
                 Text(title,
                     style: text.titleSmall?.copyWith(
-                        color: MoshColors.primary,
-                        fontWeight: FontWeight.w600)),
+                        color: colors.primary, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
                 Text(note,
                     style: text.bodySmall?.copyWith(
-                        color: MoshColors.onSurfaceVariant, height: 1.45)),
+                        color: colors.onSurfaceVariant, height: 1.45)),
               ],
             ),
           ),
@@ -167,6 +169,7 @@ class _LinkField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,25 +178,25 @@ class _LinkField extends StatelessWidget {
             style: Theme.of(context)
                 .textTheme
                 .labelMedium
-                ?.copyWith(color: MoshColors.onSurfaceVariant)),
+                ?.copyWith(color: colors.onSurfaceVariant)),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsetsDirectional.fromSTEB(14, 6, 6, 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            color: MoshColors.surfaceContainerLowest,
-            border: Border.all(color: MoshColors.outlineVariant),
+            color: colors.surfaceContainerLowest,
+            border: Border.all(color: colors.outlineVariant),
           ),
           child: Row(children: [
             Expanded(
               child: SelectableText(
                 uri,
                 maxLines: 2,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'monospace',
                   fontSize: 12.5,
                   height: 1.5,
-                  color: MoshColors.onSurface,
+                  color: colors.onSurface,
                 ),
               ),
             ),

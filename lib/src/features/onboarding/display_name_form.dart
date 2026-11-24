@@ -65,6 +65,7 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     final radius = widget.compact ? 36.0 : 48.0;
     return Form(
@@ -84,10 +85,10 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                       child: _name.text.trim().isEmpty
                           ? CircleAvatar(
                               radius: radius,
-                              backgroundColor: MoshColors.avatar1,
+                              backgroundColor: colors.avatar1,
                               child: Icon(Icons.person_outline,
                                   size: radius * .8,
-                                  color: MoshColors.onSurfaceVariant))
+                                  color: colors.onSurfaceVariant))
                           : Avatar(
                               name: _name.text,
                               radius: radius,

@@ -113,6 +113,7 @@ class _EventRow extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     color: eventNameColor(
                       event.eventName,
+                      MoshColors.of(context),
                       fallback: theme.colorScheme.onSurface,
                     ),
                   ),
@@ -137,17 +138,18 @@ class _EventRow extends StatelessWidget {
 
 /// Maps event names to semantic colors, preserving the supplied neutral
 /// fallback for event types without an explicit mapping.
-Color eventNameColor(String eventName, {required Color fallback}) {
+Color eventNameColor(String eventName, MoshColors colors,
+    {required Color fallback}) {
   switch (eventName) {
     case 'peer_joined':
     case 'supernode_promoted':
-      return MoshColors.primary;
+      return colors.primary;
     case 'peer_left':
-      return MoshColors.warning;
+      return colors.warning;
     case 'tracker_announce':
-      return MoshColors.info;
+      return colors.info;
     case 'tracker_failure':
-      return MoshColors.error;
+      return colors.error;
     default:
       return fallback;
   }

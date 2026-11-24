@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,6 +25,7 @@ Future<ProviderContainer> _pump(WidgetTester tester) async {
     container: container,
     child: Consumer(
         builder: (context, ref, _) => MaterialApp(
+              theme: moshThemeData,
               locale: ref.watch(localeProvider),
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,

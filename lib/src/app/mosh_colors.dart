@@ -1,121 +1,226 @@
 part of 'mosh_theme.dart';
 
-/// All Mosh color tokens: the dark theme of Foundations in the Figma file
-/// "Mosh". A token has the name of its variable in the "Mosh" collection
-/// without the group (`primary/primary` is [primary]);
-/// `scripts/figma-capture/tokens.mjs` writes this file back to those
-/// variables, so a token is either a literal or the name of another token.
-class MoshColors {
-  const MoshColors._(); // static const surface only; never instantiated
+/// All Mosh color tokens, read with [MoshColors.of]. A token has the name of
+/// its variable in the Figma file "Mosh" without the group (`primary/primary`
+/// is [primary]); [dark] and [light] hold the values of the two collections.
+class MoshColors extends ThemeExtension<MoshColors> {
+  const MoshColors({
+    required this.primary,
+    required this.onPrimary,
+    required this.primaryContainer,
+    required this.onPrimaryContainer,
+    required this.inversePrimary,
+    required this.secondary,
+    required this.onSecondary,
+    required this.secondaryContainer,
+    required this.onSecondaryContainer,
+    required this.tertiary,
+    required this.onTertiary,
+    required this.tertiaryContainer,
+    required this.onTertiaryContainer,
+    required this.error,
+    required this.onError,
+    required this.errorContainer,
+    required this.onErrorContainer,
+    required this.surface,
+    required this.surfaceDim,
+    required this.surfaceBright,
+    required this.surfaceContainerLowest,
+    required this.surfaceContainerLow,
+    required this.surfaceContainer,
+    required this.surfaceContainerHigh,
+    required this.surfaceContainerHighest,
+    required this.onSurface,
+    required this.onSurfaceVariant,
+    required this.inverseSurface,
+    required this.onInverseSurface,
+    required this.outline,
+    required this.outlineVariant,
+    required this.onSurfaceMuted,
+    required this.success,
+    required this.warning,
+    required this.warningContainer,
+    required this.onWarningContainer,
+    required this.onOutgoing,
+    required this.onOutgoingVariant,
+    required this.outgoingError,
+    required this.avatar1,
+    required this.avatar2,
+    required this.avatar3,
+    required this.avatar4,
+    required this.onAvatar,
+    required this.outgoingMessage,
+  });
 
-  // Material 3 roles.
-  static const Color primary = Color(0xFFF5BE62);
-  static const Color onPrimary = Color(0xFF2A1B04);
-  static const Color primaryContainer = Color(0xFFF2B34C);
-  static const Color onPrimaryContainer = Color(0xFF2A1B04);
-  static const Color inversePrimary = Color(0xFF82540A);
+  static const MoshColors dark = _darkColors;
+  static const MoshColors light = _lightColors;
 
-  static const Color secondary = Color(0xFFD9C3A5);
-  static const Color onSecondary = Color(0xFF33261A);
-  static const Color secondaryContainer = Color(0xFF413628);
-  static const Color onSecondaryContainer = Color(0xFFF4E5D2);
+  /// The palette of the theme around [context], which is one of
+  /// [buildMoshTheme].
+  static MoshColors of(BuildContext context) => from(Theme.of(context));
 
-  static const Color tertiary = Color(0xFF86B6E3);
-  static const Color onTertiary = Color(0xFF0C2A43);
-  static const Color tertiaryContainer = Color(0xFF2A3F52);
-  static const Color onTertiaryContainer = Color(0xFFD2E6F8);
+  /// The palette [theme] was built on.
+  static MoshColors from(ThemeData theme) => theme.extension<MoshColors>()!;
 
-  static const Color error = Color(0xFFF27E6E);
-  static const Color onError = Color(0xFF3D0A04);
-  static const Color errorContainer = Color(0xFF4A2520);
-  static const Color onErrorContainer = Color(0xFFFFD9D3);
+  // Material 3 roles. [outline] is for edges that must be seen (fields,
+  // focusable controls): 3:1 on surfaces. [outlineVariant] is for decorative
+  // hairlines and dividers.
+  final Color primary,
+      onPrimary,
+      primaryContainer,
+      onPrimaryContainer,
+      inversePrimary,
+      secondary,
+      onSecondary,
+      secondaryContainer,
+      onSecondaryContainer,
+      tertiary,
+      onTertiary,
+      tertiaryContainer,
+      onTertiaryContainer,
+      error,
+      onError,
+      errorContainer,
+      onErrorContainer,
+      surface,
+      surfaceDim,
+      surfaceBright,
+      surfaceContainerLowest,
+      surfaceContainerLow,
+      surfaceContainer,
+      surfaceContainerHigh,
+      surfaceContainerHighest,
+      onSurface,
+      onSurfaceVariant,
+      inverseSurface,
+      onInverseSurface,
+      outline,
+      outlineVariant;
 
-  static const Color surface = Color(0xFF282421);
-  static const Color surfaceDim = Color(0xFF201D1A);
-  static const Color surfaceBright = Color(0xFF45403A);
-  static const Color surfaceContainerLowest = Color(0xFF1E1B18);
-  static const Color surfaceContainerLow = Color(0xFF23201D);
-  static const Color surfaceContainer = Color(0xFF2E2A26);
-  static const Color surfaceContainerHigh = Color(0xFF352F2B);
-  static const Color surfaceContainerHighest = Color(0xFF3C352F);
-  static const Color onSurface = Color(0xFFF4EFE9);
-  static const Color onSurfaceVariant = Color(0xFFC2B8AD);
-  static const Color inverseSurface = Color(0xFFF4EFE9);
-  static const Color onInverseSurface = Color(0xFF2E2A26);
+  // Mosh roles beyond Material 3. [onSurfaceMuted] is tertiary text and
+  // clears 4.5:1 on every surface container. [onOutgoing], its variant and
+  // [outgoingError] sit on [outgoing]. An initials avatar takes one of the
+  // four plates per contact with [onAvatar] initials. [outgoingMessage] is
+  // the bubble of an own message while its text is still [onSurface].
+  final Color onSurfaceMuted,
+      success,
+      warning,
+      warningContainer,
+      onWarningContainer,
+      onOutgoing,
+      onOutgoingVariant,
+      outgoingError,
+      avatar1,
+      avatar2,
+      avatar3,
+      avatar4,
+      onAvatar,
+      outgoingMessage;
 
-  /// Edges that must be seen (fields, focusable controls): 3:1 on surfaces.
-  static const Color outline = Color(0xFF8F8479);
-
-  /// Decorative hairlines and dividers.
-  static const Color outlineVariant = Color(0xFF3D3833);
-
-  // Mosh roles beyond Material 3.
-
-  /// Tertiary text: clears 4.5:1 on every surface container.
-  static const Color onSurfaceMuted = Color(0xFFADA195);
-
-  static const Color success = Color(0xFF7CCB8F);
-  static const Color warning = Color(0xFFEE9156);
-  static const Color warningContainer = Color(0xFF4A3022);
-  static const Color onWarningContainer = Color(0xFFFFDCC7);
-  static const Color info = tertiary;
-
-  /// Message bubbles. Own messages sit on the saffron fill with dark text.
-  static const Color outgoing = primaryContainer;
-  static const Color incoming = surfaceContainerHigh;
-  static const Color onOutgoing = Color(0xFF2A1B04);
-  static const Color onOutgoingVariant = Color(0xFF5E3F0C);
-  static const Color outgoingError = Color(0xFF7A160B);
-
-  /// Initials-avatar plates, picked per contact, and the initials on them.
-  static const Color avatar1 = Color(0xFF5A3F2E);
-  static const Color avatar2 = Color(0xFF2F4A44);
-  static const Color avatar3 = Color(0xFF4A3A55);
-  static const Color avatar4 = Color(0xFF3E4A2C);
-  static const Color onAvatar = Color(0xFFF4EFE9);
+  // A token that is another token is an alias variable in Figma.
+  Color get info => tertiary;
+  Color get outgoing => primaryContainer;
+  Color get incoming => surfaceContainerHigh;
 
   /// Keyboard focus ring, drawn 2px around the focused control.
-  static const Color focusRing = onSurface;
+  Color get focusRing => onSurface;
 
-  /// Bubble of an own message while its text is still the light
-  /// [onSurface]: a deep amber instead of [outgoing], which needs
-  /// [onOutgoing] text.
-  static const Color outgoingMessage = Color(0xFF45300C);
+  /// The palettes are complete, so nothing overrides a single token.
+  @override
+  MoshColors copyWith() => this;
+
+  // One line per token, so longer than the 50-line function limit.
+  @override
+  MoshColors lerp(MoshColors? other, double t) {
+    if (other == null) return this;
+    Color mix(Color a, Color b) => Color.lerp(a, b, t)!;
+    return MoshColors(
+      primary: mix(primary, other.primary),
+      onPrimary: mix(onPrimary, other.onPrimary),
+      primaryContainer: mix(primaryContainer, other.primaryContainer),
+      onPrimaryContainer: mix(onPrimaryContainer, other.onPrimaryContainer),
+      inversePrimary: mix(inversePrimary, other.inversePrimary),
+      secondary: mix(secondary, other.secondary),
+      onSecondary: mix(onSecondary, other.onSecondary),
+      secondaryContainer: mix(secondaryContainer, other.secondaryContainer),
+      onSecondaryContainer:
+          mix(onSecondaryContainer, other.onSecondaryContainer),
+      tertiary: mix(tertiary, other.tertiary),
+      onTertiary: mix(onTertiary, other.onTertiary),
+      tertiaryContainer: mix(tertiaryContainer, other.tertiaryContainer),
+      onTertiaryContainer: mix(onTertiaryContainer, other.onTertiaryContainer),
+      error: mix(error, other.error),
+      onError: mix(onError, other.onError),
+      errorContainer: mix(errorContainer, other.errorContainer),
+      onErrorContainer: mix(onErrorContainer, other.onErrorContainer),
+      surface: mix(surface, other.surface),
+      surfaceDim: mix(surfaceDim, other.surfaceDim),
+      surfaceBright: mix(surfaceBright, other.surfaceBright),
+      surfaceContainerLowest:
+          mix(surfaceContainerLowest, other.surfaceContainerLowest),
+      surfaceContainerLow: mix(surfaceContainerLow, other.surfaceContainerLow),
+      surfaceContainer: mix(surfaceContainer, other.surfaceContainer),
+      surfaceContainerHigh:
+          mix(surfaceContainerHigh, other.surfaceContainerHigh),
+      surfaceContainerHighest:
+          mix(surfaceContainerHighest, other.surfaceContainerHighest),
+      onSurface: mix(onSurface, other.onSurface),
+      onSurfaceVariant: mix(onSurfaceVariant, other.onSurfaceVariant),
+      inverseSurface: mix(inverseSurface, other.inverseSurface),
+      onInverseSurface: mix(onInverseSurface, other.onInverseSurface),
+      outline: mix(outline, other.outline),
+      outlineVariant: mix(outlineVariant, other.outlineVariant),
+      onSurfaceMuted: mix(onSurfaceMuted, other.onSurfaceMuted),
+      success: mix(success, other.success),
+      warning: mix(warning, other.warning),
+      warningContainer: mix(warningContainer, other.warningContainer),
+      onWarningContainer: mix(onWarningContainer, other.onWarningContainer),
+      onOutgoing: mix(onOutgoing, other.onOutgoing),
+      onOutgoingVariant: mix(onOutgoingVariant, other.onOutgoingVariant),
+      outgoingError: mix(outgoingError, other.outgoingError),
+      avatar1: mix(avatar1, other.avatar1),
+      avatar2: mix(avatar2, other.avatar2),
+      avatar3: mix(avatar3, other.avatar3),
+      avatar4: mix(avatar4, other.avatar4),
+      onAvatar: mix(onAvatar, other.onAvatar),
+      outgoingMessage: mix(outgoingMessage, other.outgoingMessage),
+    );
+  }
 }
 
-const ColorScheme _moshColorScheme = ColorScheme.dark(
-  brightness: Brightness.dark,
-  primary: MoshColors.primary,
-  onPrimary: MoshColors.onPrimary,
-  primaryContainer: MoshColors.primaryContainer,
-  onPrimaryContainer: MoshColors.onPrimaryContainer,
-  secondary: MoshColors.secondary,
-  onSecondary: MoshColors.onSecondary,
-  secondaryContainer: MoshColors.secondaryContainer,
-  onSecondaryContainer: MoshColors.onSecondaryContainer,
-  tertiary: MoshColors.tertiary,
-  onTertiary: MoshColors.onTertiary,
-  tertiaryContainer: MoshColors.tertiaryContainer,
-  onTertiaryContainer: MoshColors.onTertiaryContainer,
-  error: MoshColors.error,
-  onError: MoshColors.onError,
-  errorContainer: MoshColors.errorContainer,
-  onErrorContainer: MoshColors.onErrorContainer,
-  surface: MoshColors.surface,
-  surfaceDim: MoshColors.surfaceDim,
-  surfaceBright: MoshColors.surfaceBright,
-  surfaceContainerLowest: MoshColors.surfaceContainerLowest,
-  surfaceContainerLow: MoshColors.surfaceContainerLow,
-  surfaceContainer: MoshColors.surfaceContainer,
-  surfaceContainerHigh: MoshColors.surfaceContainerHigh,
-  surfaceContainerHighest: MoshColors.surfaceContainerHighest,
-  onSurface: MoshColors.onSurface,
-  onSurfaceVariant: MoshColors.onSurfaceVariant,
-  outline: MoshColors.outline,
-  outlineVariant: MoshColors.outlineVariant,
-  shadow: Color(0xFF000000),
-  scrim: Color(0xFF000000),
-  inverseSurface: MoshColors.inverseSurface,
-  onInverseSurface: MoshColors.onInverseSurface,
-  inversePrimary: MoshColors.inversePrimary,
-);
+ColorScheme _colorScheme(MoshColors c, Brightness brightness) => ColorScheme(
+      brightness: brightness,
+      primary: c.primary,
+      onPrimary: c.onPrimary,
+      primaryContainer: c.primaryContainer,
+      onPrimaryContainer: c.onPrimaryContainer,
+      inversePrimary: c.inversePrimary,
+      secondary: c.secondary,
+      onSecondary: c.onSecondary,
+      secondaryContainer: c.secondaryContainer,
+      onSecondaryContainer: c.onSecondaryContainer,
+      tertiary: c.tertiary,
+      onTertiary: c.onTertiary,
+      tertiaryContainer: c.tertiaryContainer,
+      onTertiaryContainer: c.onTertiaryContainer,
+      error: c.error,
+      onError: c.onError,
+      errorContainer: c.errorContainer,
+      onErrorContainer: c.onErrorContainer,
+      surface: c.surface,
+      surfaceDim: c.surfaceDim,
+      surfaceBright: c.surfaceBright,
+      surfaceContainerLowest: c.surfaceContainerLowest,
+      surfaceContainerLow: c.surfaceContainerLow,
+      surfaceContainer: c.surfaceContainer,
+      surfaceContainerHigh: c.surfaceContainerHigh,
+      surfaceContainerHighest: c.surfaceContainerHighest,
+      onSurface: c.onSurface,
+      onSurfaceVariant: c.onSurfaceVariant,
+      inverseSurface: c.inverseSurface,
+      onInverseSurface: c.onInverseSurface,
+      outline: c.outline,
+      outlineVariant: c.outlineVariant,
+      shadow: const Color(0xFF000000),
+      scrim: const Color(0xFF000000),
+    );

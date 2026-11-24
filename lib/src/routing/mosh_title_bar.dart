@@ -129,7 +129,7 @@ class _ChatListToggle extends ConsumerWidget {
           : l.chatListCollapse,
       icon: Icon(onPressed != null || collapsed ? Icons.menu : Icons.menu_open,
           size: 18),
-      style: _focusRingStyle,
+      style: _focusRingStyle(MoshColors.of(context)),
       visualDensity: VisualDensity.compact,
       onPressed:
           onPressed ?? () => ref.read(railLayoutProvider.notifier).toggle(),
@@ -139,13 +139,13 @@ class _ChatListToggle extends ConsumerWidget {
 
 /// The [FocusRing] border for a stock button: `focused` is only set while
 /// the keyboard focus highlight shows.
-final ButtonStyle _focusRingStyle = ButtonStyle(
-  side: WidgetStateProperty.resolveWith(
-    (states) => states.contains(WidgetState.focused)
-        ? const BorderSide(color: MoshColors.focusRing, width: 2)
-        : null,
-  ),
-);
+ButtonStyle _focusRingStyle(MoshColors colors) => ButtonStyle(
+      side: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.focused)
+            ? BorderSide(color: colors.focusRing, width: 2)
+            : null,
+      ),
+    );
 
 /// Uses existing conversation state mapping; never claims global connectivity.
 ///
@@ -248,7 +248,7 @@ class StatePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final variant = _pillVariant(state);
+    final variant = _pillVariant(state, MoshColors.of(context));
     return Tooltip(
       message: label,
       excludeFromSemantics: true,
@@ -329,30 +329,30 @@ class _PillVariant {
   Color border(ThemeData theme) => borderColorOverride ?? theme.dividerColor;
 }
 
-_PillVariant _pillVariant(String state) {
+_PillVariant _pillVariant(String state, MoshColors colors) {
   switch (state) {
     case 'ready':
       // ready: moss-glow bg, moss text, moss dot + glow, moss border.
       return _PillVariant(
-        background: MoshColors.secondaryContainer,
-        textColor: MoshColors.primary,
-        dotColor: MoshColors.primary,
+        background: colors.secondaryContainer,
+        textColor: colors.primary,
+        dotColor: colors.primary,
         dotGlow: <BoxShadow>[
           BoxShadow(
-              color: MoshColors.primary.withValues(alpha: 0.6), blurRadius: 4),
+              color: colors.primary.withValues(alpha: 0.6), blurRadius: 4),
         ],
-        borderColorOverride: MoshColors.primary.withValues(alpha: 0.25),
+        borderColorOverride: colors.primary.withValues(alpha: 0.25),
       );
     case 'waiting':
       // waiting: warn text, warn dot, warn-tinted border; base bg.
       return _PillVariant(
-        textColor: MoshColors.warning,
-        dotColor: MoshColors.warning,
-        borderColorOverride: MoshColors.warning.withValues(alpha: 0.25),
+        textColor: colors.warning,
+        dotColor: colors.warning,
+        borderColorOverride: colors.warning.withValues(alpha: 0.25),
       );
     case 'idle':
     default:
       // idle (and unknown states): default text, fg-3 dot.
-      return _PillVariant(dotColor: MoshColors.onSurfaceMuted);
+      return _PillVariant(dotColor: colors.onSurfaceMuted);
   }
 }

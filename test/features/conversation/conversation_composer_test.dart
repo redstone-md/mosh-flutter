@@ -4,6 +4,7 @@
 // iff the hard gate is set or the text is empty. Sending permits more text.
 // Pumping the composer directly (no screen) keeps the test hermetic; the
 // AttachmentPicker file dialog only opens on tap, so pumping it is safe.
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
@@ -23,6 +24,7 @@ void main() {
       int maxTextChars = 4096,
       VoidCallback? onSend}) async {
     await tester.pumpWidget(MaterialApp(
+      theme: moshThemeData,
       home: Scaffold(
         body: ConversationComposer(
           controller: c,

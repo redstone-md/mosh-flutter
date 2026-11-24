@@ -100,8 +100,8 @@ class MediaViewer extends StatelessWidget {
                   // (A `backdrop-filter: blur(6px)` nicety is deferred:
                   // Flutter `BackdropFilter` needs the ImageFilter to blur
                   // what is *behind* the route.)
-                  Positioned.fill(
-                    child: ColoredBox(color: const Color(0xEB08090A)),
+                  const Positioned.fill(
+                    child: ColoredBox(color: Color(0xEB08090A)),
                   ),
                   // Centered flex column, gap 14px, padding 48px 32px 32px.
                   // The Column is centered + padded; the close button is
@@ -253,7 +253,7 @@ class _ImageStage extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: ColoredBox(
-        color: MoshColors.surfaceContainerLowest,
+        color: MoshColors.of(context).surfaceContainerLowest,
         child: Image(
           image: _image,
           fit: BoxFit.contain,
@@ -299,7 +299,7 @@ class _MediaCaption extends StatelessWidget {
         style: TextStyle(
           fontSize: 12.5,
           // Muted fg-2.
-          color: MoshColors.onSurfaceVariant,
+          color: MoshColors.of(context).onSurfaceVariant,
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.ellipsis,

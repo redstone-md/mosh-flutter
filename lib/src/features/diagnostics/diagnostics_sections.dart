@@ -74,7 +74,7 @@ class _GroupLabel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: MoshColors.surface,
+        color: MoshColors.of(context).surface,
         border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(

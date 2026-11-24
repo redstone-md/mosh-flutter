@@ -8,7 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors, moshThemeData;
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, buildMoshTheme, moshThemeData;
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 
@@ -31,37 +32,43 @@ void main() {
     expect(text.style!.color, moshThemeData.colorScheme.onErrorContainer);
   });
 
-  testWidgets('the confirm danger button label reads at 4.5:1 on its fill',
-      (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: moshThemeData,
-        home: Scaffold(
-          body: Center(
-            child: ConfirmDialog(
-              title: 'Leave chat?',
-              body: 'This will erase the keys. Are you sure?',
-              confirmLabel: 'Leave',
-              cancelLabel: 'Cancel',
-              onCancel: () {},
-              onConfirm: () {},
+  for (final (name, theme) in [
+    ('dark', moshThemeData),
+    ('light', buildMoshTheme(MoshColors.light)),
+  ]) {
+    testWidgets(
+        'the confirm danger button label reads at 4.5:1 on its fill ($name)',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: Center(
+              child: ConfirmDialog(
+                title: 'Leave chat?',
+                body: 'This will erase the keys. Are you sure?',
+                confirmLabel: 'Leave',
+                cancelLabel: 'Cancel',
+                onCancel: () {},
+                onConfirm: () {},
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    final button = tester.widget<FilledButton>(
-      find.ancestor(
-        of: find.text('Leave'),
-        matching: find.byType(FilledButton),
-      ),
-    );
-    final label = button.style!.foregroundColor!.resolve({})!;
-    final fill = button.style!.backgroundColor!.resolve({})!;
-    expect(contrastRatio(label, fill), greaterThanOrEqualTo(4.5));
-  });
+      final button = tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Leave'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      final label = button.style!.foregroundColor!.resolve({})!;
+      final fill = button.style!.backgroundColor!.resolve({})!;
+      expect(contrastRatio(label, fill), greaterThanOrEqualTo(4.5));
+    });
+  }
 
   testWidgets('a dark custom dangerColor flips to the light foreground',
       (tester) async {
@@ -92,6 +99,7 @@ void main() {
         matching: find.byType(FilledButton),
       ),
     );
-    expect(button.style?.foregroundColor?.resolve({}), MoshColors.onSurface);
+    expect(
+        button.style?.foregroundColor?.resolve({}), MoshColors.dark.onSurface);
   });
 }

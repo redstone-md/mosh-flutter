@@ -53,7 +53,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     // The rail carries NO header of
     // its own; the shell titlebar sits above it.
     return Scaffold(
-      backgroundColor: MoshColors.surfaceContainerLowest,
+      backgroundColor: MoshColors.of(context).surfaceContainerLowest,
       // The rail carries no AppBar, so nothing else keeps it clear of the
       // status bar / camera cutout. Desktop gets that clearance from the
       // shell titlebar above it; the mobile shell is a bare IndexedStack, so
@@ -103,7 +103,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     void open() => openNewSessionAction(context, ref);
     return compact
         ? CompactRailButton(
-            icon: kCompactNewIcon, label: label, filled: true, onTap: open)
+            icon: const CompactNewIcon(),
+            label: label,
+            filled: true,
+            onTap: open)
         : RailNewButton(label: label, onTap: open);
   }
 
@@ -125,8 +128,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     void open() => context.push(AppRoutes.settings);
     return compact
         ? CompactRailButton(
-            icon: const Icon(Icons.settings_outlined,
-                size: 18, color: MoshColors.onSurfaceVariant),
+            icon: Icon(Icons.settings_outlined,
+                size: 18, color: MoshColors.of(context).onSurfaceVariant),
             label: label,
             onTap: open)
         : RailSettingsButton(label: label, onTap: open);

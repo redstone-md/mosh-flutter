@@ -61,7 +61,8 @@ class BindInterfaceControls extends StatelessWidget {
             _pickerRow(context, candidates)
           else
             Align(
-                alignment: AlignmentDirectional.centerStart, child: _refresh()),
+                alignment: AlignmentDirectional.centerStart,
+                child: _refresh(MoshColors.of(context))),
           if (error != null) ...[
             const SizedBox(height: 12),
             Semantics(
@@ -122,7 +123,7 @@ class BindInterfaceControls extends StatelessWidget {
                     style: Theme.of(context).textTheme.bodySmall)
                 : _selector(candidates)),
         const SizedBox(width: 8),
-        _refresh(),
+        _refresh(MoshColors.of(context)),
       ]);
 
   Widget _selector(List<NetworkInterfaceInfo> candidates) {
@@ -142,14 +143,14 @@ class BindInterfaceControls extends StatelessWidget {
     );
   }
 
-  Widget _refresh() => IconButton(
+  Widget _refresh(MoshColors colors) => IconButton(
         tooltip: l.settingsRefreshDevices,
         onPressed: loading || busy ? null : onRefresh,
         icon: const Icon(Icons.refresh, size: 20),
         style: IconButton.styleFrom(
           minimumSize: const Size(44, 44),
           visualDensity: VisualDensity.standard,
-          foregroundColor: MoshColors.onSurfaceVariant,
+          foregroundColor: colors.onSurfaceVariant,
         ),
       );
 }

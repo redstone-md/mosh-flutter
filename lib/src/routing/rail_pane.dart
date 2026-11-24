@@ -208,7 +208,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
     // the start widens it there.
     final sign = Directionality.of(context) == TextDirection.rtl ? -1.0 : 1.0;
     final collapsed = widget.layout.collapsed;
-    final lit = _hovered || _focused || widget.dragging;
+    final colors = MoshColors.of(context);
     return Semantics(
       slider: true,
       label: l.chatListResize,
@@ -242,8 +242,8 @@ class _ResizeHandleState extends State<_ResizeHandle> {
             child: Center(
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
-                width: lit ? 3 : 0,
-                color: _focused ? MoshColors.focusRing : MoshColors.primary,
+                width: _hovered || _focused || widget.dragging ? 3 : 0,
+                color: _focused ? colors.focusRing : colors.primary,
               ),
             ),
           ),

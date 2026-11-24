@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
@@ -93,11 +95,22 @@ class MoshDialog extends StatelessWidget {
       );
 }
 
-/// Destructive actions retain readable ink even on custom danger fills.
-ButtonStyle moshDangerButtonStyle([Color color = MoshColors.error]) =>
-    FilledButton.styleFrom(
-      backgroundColor: color,
-      foregroundColor: color.computeLuminance() > 0.183
-          ? MoshColors.onPrimary
-          : MoshColors.onSurface,
-    );
+/// Destructive actions take whichever ink of the palette reads better on
+/// the fill, so a custom danger colour stays legible on either palette.
+ButtonStyle moshDangerButtonStyle(BuildContext context, [Color? fill]) {
+  final colors = MoshColors.of(context);
+  final background = fill ?? colors.error;
+  final luminance = background.computeLuminance();
+  double contrast(Color ink) {
+    final other = ink.computeLuminance();
+    return (math.max(luminance, other) + 0.05) /
+        (math.min(luminance, other) + 0.05);
+  }
+
+  return FilledButton.styleFrom(
+    backgroundColor: background,
+    foregroundColor: contrast(colors.onPrimary) >= contrast(colors.onSurface)
+        ? colors.onPrimary
+        : colors.onSurface,
+  );
+}

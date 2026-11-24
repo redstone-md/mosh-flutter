@@ -67,24 +67,25 @@ class _Step extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: index <= current
-                  ? MoshColors.secondaryContainer
-                  : MoshColors.surfaceContainerHigh,
+                  ? MoshColors.of(context).secondaryContainer
+                  : MoshColors.of(context).surfaceContainerHigh,
             ),
             child: index < current
-                ? const Icon(Icons.check, size: 16, color: MoshColors.primary)
+                ? Icon(Icons.check,
+                    size: 16, color: MoshColors.of(context).primary)
                 : Text('${index + 1}',
                     style: TextStyle(
                         color: index == current
-                            ? MoshColors.primary
-                            : MoshColors.onSurfaceMuted)),
+                            ? MoshColors.of(context).primary
+                            : MoshColors.of(context).onSurfaceMuted)),
           ),
           const SizedBox(width: 8),
           Expanded(
               child: Text(label,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: index == current
-                          ? MoshColors.onSurface
-                          : MoshColors.onSurfaceMuted))),
+                          ? MoshColors.of(context).onSurface
+                          : MoshColors.of(context).onSurfaceMuted))),
         ]),
       );
 }

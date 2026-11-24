@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/mosh_dialog.dart';
 import 'package:mosh/src/features/shared/mosh_dialog_route.dart';
 
@@ -13,7 +12,7 @@ class ConfirmDialog extends StatelessWidget {
     this.cancelLabel,
     required this.onCancel,
     required this.onConfirm,
-    this.dangerColor = MoshColors.error,
+    this.dangerColor,
   });
 
   final String title;
@@ -24,7 +23,7 @@ class ConfirmDialog extends StatelessWidget {
   final String? cancelLabel;
   final VoidCallback onCancel;
   final VoidCallback onConfirm;
-  final Color dangerColor;
+  final Color? dangerColor;
 
   static const String defaultCancelLabel = 'Cancel';
 
@@ -40,7 +39,7 @@ class ConfirmDialog extends StatelessWidget {
         TextButton(onPressed: onCancel, child: Text(cancel)),
         FilledButton(
           onPressed: onConfirm,
-          style: moshDangerButtonStyle(dangerColor),
+          style: moshDangerButtonStyle(context, dangerColor),
           child: Text(confirmLabel),
         ),
       ],

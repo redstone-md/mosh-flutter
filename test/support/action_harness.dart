@@ -5,6 +5,7 @@
 // The frame is the app's localization plus a router that starts on a
 // marker screen and knows the DM and group routes, so a test can prove an
 // action navigated (or did not: [kActionHarnessStartLabel] still renders).
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -61,6 +62,7 @@ Future<ActionHarness> mountActionHarness(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp.router(
+        theme: moshThemeData,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         routerConfig: router,

@@ -1,5 +1,6 @@
 // Mount a screen with the app's localization, toast host and provider scope.
 // Route-based tests import pump_route.dart explicitly.
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -29,6 +30,7 @@ Future<void> pumpScreen(
     pumpScopedApp(
       tester,
       MaterialApp(
+        theme: moshThemeData,
         navigatorObservers: observers,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,

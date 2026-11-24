@@ -117,9 +117,9 @@ class ConversationMessageRow extends StatelessWidget {
       );
 
   Color _bubbleColor(BuildContext context) {
-    final base = message.own
-        ? MoshColors.outgoingMessage
-        : MoshColors.surfaceContainerHigh;
+    final colors = MoshColors.of(context);
+    final base =
+        message.own ? colors.outgoingMessage : colors.surfaceContainerHigh;
     final selection = MessageSelectionScope.maybeOf(context)?.selection;
     final id = message.messageId;
     final selected = id != null && (selection?.isSelected(id) ?? false);
@@ -198,7 +198,8 @@ class ConversationMessageRow extends StatelessWidget {
               if (textOnly)
                 ConversationMessageText(body: message.body, footer: footer)
               else
-                Text(message.body, style: kMessageBodyStyle),
+                Text(message.body,
+                    style: messageBodyStyle(MoshColors.of(context))),
             if (message.body.isNotEmpty && message.attachment != null)
               const SizedBox(height: 6),
             SelectionContainer.disabled(

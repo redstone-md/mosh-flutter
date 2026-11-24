@@ -23,6 +23,7 @@ class StartHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     final text = Theme.of(context).textTheme;
     final markHeight = titleSize >= 36 ? StartHero.markHeight : 104.0;
@@ -48,7 +49,7 @@ class StartHero extends StatelessWidget {
               fontWeight: FontWeight.w600,
               height: 1.15,
               letterSpacing: -0.4,
-              color: MoshColors.onSurface),
+              color: colors.onSurface),
         ),
       ),
       ConstrainedBox(
@@ -56,7 +57,7 @@ class StartHero extends StatelessWidget {
         child: Text(
           l.startSubtitle,
           style: text.bodyLarge?.copyWith(
-              color: MoshColors.onSurfaceVariant, height: 1.55, fontSize: 15),
+              color: colors.onSurfaceVariant, height: 1.55, fontSize: 15),
         ),
       ),
     ];

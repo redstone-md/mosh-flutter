@@ -292,9 +292,9 @@ class VoiceCardTimeLabel extends StatelessWidget {
         label,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
-          color: MoshColors.onSurface,
+          color: MoshColors.of(context).onSurface,
           fontFeatures: kLiveNumberFontFeatures,
         ),
       ),

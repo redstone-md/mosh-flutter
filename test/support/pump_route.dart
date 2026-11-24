@@ -1,4 +1,5 @@
 // Mount the real app routes; screen-only tests need not load this graph.
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -44,6 +45,7 @@ Future<GoRouter> pumpRoute(
   await pumpScopedApp(
     tester,
     MaterialApp.router(
+      theme: moshThemeData,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: router,

@@ -94,6 +94,7 @@ class AttachmentCard extends StatelessWidget {
     final footer = messageFooter;
     final bar = _buildBar(
       l: l,
+      colors: MoshColors.of(context),
       fileName: descriptor.fileName,
       totalSize: descriptor.totalSize,
       attachment: attachment,
@@ -186,7 +187,7 @@ class _FileCardShell extends StatelessWidget {
       padding: EdgeInsets.zero,
       decoration: BoxDecoration(
         borderRadius: MoshShapes.attachment,
-        border: failed ? Border.all(color: MoshColors.error) : null,
+        border: failed ? Border.all(color: MoshColors.of(context).error) : null,
       ),
       child: child,
     );
@@ -200,6 +201,7 @@ class _FileCardShell extends StatelessWidget {
 /// last line: the progress bar while downloading, otherwise the metadata.
 Widget _buildBar({
   required AppLocalizations l,
+  required MoshColors colors,
   required String fileName,
   required BigInt totalSize,
   required ConversationAttachment attachment,
@@ -216,11 +218,11 @@ Widget _buildBar({
         fileName,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 12.5, color: MoshColors.onSurface),
+        style: TextStyle(fontSize: 12.5, color: colors.onSurface),
       ),
       const SizedBox(height: 2),
       _trailing(
-        _attachmentMeta(l, totalSize, attachment.state, percent),
+        _attachmentMeta(colors, l, totalSize, attachment.state, percent),
         progress == null ? messageFooter : null,
       ),
     ],
@@ -259,8 +261,8 @@ Widget _trailing(Widget content, Widget? footer) => footer == null
       ]);
 
 /// Size only when available; every other state appends " · {label}".
-Widget _attachmentMeta(
-    AppLocalizations l, BigInt totalSize, AttachmentState state, int percent) {
+Widget _attachmentMeta(MoshColors colors, AppLocalizations l, BigInt totalSize,
+    AttachmentState state, int percent) {
   final size = formatBytes(totalSize);
   return Text(
     state == AttachmentState.available
@@ -268,9 +270,9 @@ Widget _attachmentMeta(
         : '$size \u00b7 ${_attachmentStateLabel(l, state, percent)}',
     maxLines: 1,
     overflow: TextOverflow.ellipsis,
-    style: const TextStyle(
+    style: TextStyle(
         fontSize: 11,
-        color: MoshColors.onSurfaceMuted,
+        color: colors.onSurfaceMuted,
         fontFeatures: kLiveNumberFontFeatures),
   );
 }

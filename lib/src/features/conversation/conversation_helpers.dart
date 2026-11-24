@@ -29,14 +29,14 @@ TextStyle chatTitleStyle(BuildContext context) =>
           fontWeight: FontWeight.w600,
           height: 1.25,
           letterSpacing: 0,
-          color: MoshColors.onSurface,
+          color: MoshColors.of(context).onSurface,
         );
 
 TextStyle chatSubtitleStyle(BuildContext context) =>
     Theme.of(context).textTheme.bodySmall!.copyWith(
           fontSize: _isCompactChatHeader(context) ? 11 : 12,
           height: 1.2,
-          color: MoshColors.onSurfaceMuted,
+          color: MoshColors.of(context).onSurfaceMuted,
         );
 
 /// The gap under the title: 4px at every width.
@@ -58,21 +58,21 @@ double messageRowSpacing(bool grouped) => grouped ? 4 : 12;
 const double kCompactDeliverySize = 15;
 
 /// Sender name in a message meta row: 13px bold fg-1.
-const TextStyle kMessageMetaNameStyle = TextStyle(
-  fontSize: 13,
-  fontWeight: FontWeight.w700,
-  color: MoshColors.onSurface,
-);
+TextStyle messageMetaNameStyle(MoshColors colors) => TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w700,
+      color: colors.onSurface,
+    );
 
-const TextStyle kMessageTimeStyle = TextStyle(
-  fontSize: 11,
-  color: MoshColors.onSurfaceMuted,
-  fontFeatures: kLiveNumberFontFeatures,
-);
+TextStyle messageTimeStyle(MoshColors colors) => TextStyle(
+      fontSize: 11,
+      color: colors.onSurfaceMuted,
+      fontFeatures: kLiveNumberFontFeatures,
+    );
 
 /// The message text itself: 13.5px at 1.5 line height in fg-1.
-const TextStyle kMessageBodyStyle =
-    TextStyle(fontSize: 13.5, height: 1.5, color: MoshColors.onSurface);
+TextStyle messageBodyStyle(MoshColors colors) =>
+    TextStyle(fontSize: 13.5, height: 1.5, color: colors.onSurface);
 
 /// Delivery-tick glyph row for an own-message row. Renders nothing for
 /// `failed` or null status, and shows the state glyph (`sent` -> one tick,
@@ -103,6 +103,7 @@ class DeliveryTicks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     // Localized full label: "✓✓ delivered" / "✓ sent" / "sending…". The
     // visible text IS the label (glyph + word). A queued message has no
     // glyph in the font, so it draws a clock icon in front of its word.
@@ -129,16 +130,15 @@ class DeliveryTicks extends StatelessWidget {
               message: label,
               child: Icon(icon,
                   size: kCompactDeliverySize,
-                  color: read
-                      ? MoshColors.primary
-                      : color ?? MoshColors.onSurfaceMuted)));
+                  color:
+                      read ? colors.primary : color ?? colors.onSurfaceMuted)));
     }
     // The read receipt changes the COLOR of the same glyphs, never adds a
     // third tick: the delivered marks carry the theme's accent instead of
     // the faint fg-4, exactly like a "seen" mark.
     final style = read
-        ? const TextStyle(fontSize: 10, color: MoshColors.primary)
-        : const TextStyle(fontSize: 10, color: MoshColors.outline);
+        ? TextStyle(fontSize: 10, color: colors.primary)
+        : TextStyle(fontSize: 10, color: colors.outline);
     return Padding(
       padding: const EdgeInsets.only(top: 1),
       // The label already includes the glyph + word, so the a11y string is
@@ -150,10 +150,9 @@ class DeliveryTicks extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (status == MessageDeliveryStatus.queued)
-              const Padding(
-                padding: EdgeInsets.only(right: 2),
-                child:
-                    Icon(Icons.schedule, size: 10, color: MoshColors.outline),
+              Padding(
+                padding: const EdgeInsets.only(right: 2),
+                child: Icon(Icons.schedule, size: 10, color: colors.outline),
               ),
             Text(label, style: style),
           ],

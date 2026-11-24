@@ -53,7 +53,7 @@ class CallVideoStage extends StatelessWidget {
                   _surfaces(context, box.biggest, remoteStage),
                   child: RepaintBoundary(
                       child: ColoredBox(
-                          color: MoshColors.surfaceContainerLowest,
+                          color: MoshColors.of(context).surfaceContainerLowest,
                           child: Stack(
                               fit: StackFit.expand,
                               children: _layers(context, pictures,

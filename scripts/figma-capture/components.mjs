@@ -28,7 +28,7 @@ export const COMPONENTS = [
   component('controls', 'Divider', ['Divider']),
 
   component('rows', 'Chat row', ['RailItem', 'rail_item._RailText', 'CompactRailItem']),
-  component('rows', 'Chat list controls', ['SessionsListControls', 'RailNewButton', 'RailSettingsButton', 'CompactRailButton', 'RailDivider']),
+  component('rows', 'Chat list controls', ['SessionsListControls', 'RailNewButton', 'RailSettingsButton', 'CompactRailButton', 'CompactNewIcon', 'RailDivider']),
   component('rows', 'Org section', ['OrgSection', 'org_section._Header', 'org_section._MemberRow', 'org_section._OfferRow', 'org_section._NewGroupForm']),
   component('rows', 'Message bubble', ['ConversationMessageRow', 'ConversationMessageText', 'ConversationMessageFooter', 'DeliveryTicks', 'FailedMessageRetry']),
   component('rows', 'Sender meta', ['conversation_sender_meta._PeerNickname', 'DeviceFingerprintChip']),

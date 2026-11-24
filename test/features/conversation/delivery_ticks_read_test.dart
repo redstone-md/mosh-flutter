@@ -72,7 +72,7 @@ void main() {
       (tester) async {
     await _pumpRow(tester, message: _ownMessage(read: null));
     final icon = deliveredIcon(tester);
-    expect(icon.color, MoshColors.onSurfaceVariant);
+    expect(icon.color, MoshColors.dark.onSurfaceVariant);
   });
 
   testWidgets('the read receipt changes the color of the SAME delivered ticks',
@@ -85,7 +85,7 @@ void main() {
     expect(find.byTooltip(label), findsOneWidget);
 
     final icon = deliveredIcon(tester);
-    expect(icon.color, MoshColors.primary);
+    expect(icon.color, MoshColors.dark.primary);
   });
 
   testWidgets('the ticks render nothing on a counterpart message',

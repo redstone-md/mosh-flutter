@@ -119,10 +119,10 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
                 : theme.colorScheme.onSurface),
         side: WidgetStateProperty.resolveWith((states) => BorderSide(
             color: states.contains(WidgetState.focused)
-                ? MoshColors.focusRing
+                ? MoshColors.of(context).focusRing
                 : states.contains(WidgetState.disabled)
-                    ? MoshColors.outlineVariant
-                    : MoshColors.outline)),
+                    ? MoshColors.of(context).outlineVariant
+                    : MoshColors.of(context).outline)),
       );
 
   Widget _item(MoshSelectOption<T> option, VoidCallback select) => MoshMenuItem(

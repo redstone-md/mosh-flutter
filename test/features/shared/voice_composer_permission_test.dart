@@ -29,7 +29,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:mosh/src/features/shared/media_player.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_theme.dart' show moshThemeData, MoshColors;
 
 const MethodChannel _recordChannel =
     MethodChannel('com.llfbandit.record/messages');
@@ -130,6 +130,7 @@ Future<void> _pumpComposer(
           const MethodChannel('plugins.flutter.io/path_provider'), null));
 
   await tester.pumpWidget(MaterialApp(
+    theme: moshThemeData,
     home: Scaffold(
       body: Center(
         child: VoiceComposer(
@@ -185,7 +186,7 @@ void main() {
         contains(FontFeature.tabularFigures()));
     final dot = tester.widget<Container>(find.descendant(
         of: find.byType(VoiceRecordingDot), matching: find.byType(Container)));
-    expect((dot.decoration! as BoxDecoration).color, MoshColors.error);
+    expect((dot.decoration! as BoxDecoration).color, MoshColors.dark.error);
     expect(started, hasLength(1), reason: 'the capture must really begin');
     expect(started.single, endsWith('.m4a'));
     expect(find.byIcon(Icons.stop), findsOneWidget);

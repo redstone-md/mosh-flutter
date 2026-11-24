@@ -71,17 +71,18 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final style = Theme.of(context)
         .textTheme
         .bodySmall
-        ?.copyWith(color: MoshColors.onSurfaceMuted, fontSize: 13);
+        ?.copyWith(color: colors.onSurfaceMuted, fontSize: 13);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
           padding: const EdgeInsetsDirectional.only(start: 4, bottom: 8),
           child: Row(children: [
-            Icon(icon, size: 14, color: MoshColors.onSurfaceMuted),
+            Icon(icon, size: 14, color: colors.onSurfaceMuted),
             const SizedBox(width: 6),
             Flexible(
               child: Semantics(header: true, child: Text(label, style: style)),
@@ -92,20 +93,18 @@ class _Section extends StatelessWidget {
           position: DecorationPosition.foreground,
           decoration: BoxDecoration(
             borderRadius: _radius,
-            border: Border.all(color: MoshColors.outlineVariant),
+            border: Border.all(color: colors.outlineVariant),
           ),
           child: ClipRRect(
             borderRadius: _radius,
             child: ColoredBox(
-              color: MoshColors.surface,
+              color: colors.surface,
               child: Column(children: [
                 for (final (i, action) in actions.indexed) ...[
                   // Inset to the text, as in a settings list.
                   if (i > 0)
-                    const Divider(
-                        height: 1,
-                        indent: 52,
-                        color: MoshColors.outlineVariant),
+                    Divider(
+                        height: 1, indent: 52, color: colors.outlineVariant),
                   StartRow(action: action),
                 ],
               ]),
@@ -134,6 +133,7 @@ class _StartRowState extends State<StartRow> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final lit = _hovered || _focused;
     final action = widget.action;
     final text = Theme.of(context).textTheme;
@@ -147,14 +147,14 @@ class _StartRowState extends State<StartRow> {
         onHover: (value) => setState(() => _hovered = value),
         onFocusChange: (value) => setState(() => _focused = value),
         hoverColor: Colors.transparent,
-        highlightColor: MoshColors.surfaceContainerHighest,
+        highlightColor: colors.surfaceContainerHighest,
         splashFactory: NoSplash.splashFactory,
         child: FocusRing(
           radius: BorderRadius.zero,
           child: AnimatedContainer(
             duration: duration,
             curve: StartMotion.ease,
-            color: lit ? MoshColors.surfaceContainerHigh : MoshColors.surface,
+            color: lit ? colors.surfaceContainerHigh : colors.surface,
             padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 14, 14),
             child: Row(children: [
               Icon(action.icon, size: 20, color: action.accent),
@@ -167,13 +167,13 @@ class _StartRowState extends State<StartRow> {
                         style: text.titleSmall?.copyWith(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
-                            color: MoshColors.onSurface)),
+                            color: colors.onSurface)),
                     const SizedBox(height: 2),
                     Text(action.description,
                         style: text.bodySmall?.copyWith(
                             fontSize: 13,
                             height: 1.4,
-                            color: MoshColors.onSurfaceMuted)),
+                            color: colors.onSurfaceMuted)),
                   ],
                 ),
               ),
@@ -185,7 +185,7 @@ class _StartRowState extends State<StartRow> {
                 child: Icon(
                   Icons.chevron_right,
                   size: 20,
-                  color: lit ? MoshColors.onSurfaceVariant : MoshColors.outline,
+                  color: lit ? colors.onSurfaceVariant : colors.outline,
                   textDirection: Directionality.of(context),
                 ),
               ),

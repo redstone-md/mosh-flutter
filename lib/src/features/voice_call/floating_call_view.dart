@@ -49,7 +49,7 @@ class FloatingCallView extends StatelessWidget {
           IconButton(
               tooltip: l.callActiveHangUp,
               onPressed: onEnd,
-              color: MoshColors.error,
+              color: MoshColors.of(context).error,
               icon: const Icon(Icons.call_end, size: 20)),
         ]),
       ]),

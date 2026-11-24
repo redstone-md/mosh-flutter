@@ -13,6 +13,7 @@
 //    of center;
 //  - confirm-dialog close X and the org offer dismiss X: same >= 40 layout
 //    contract.
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -31,6 +32,7 @@ void main() {
     var sends = 0;
     await tester.pumpWidget(
       MaterialApp(
+        theme: moshThemeData,
         home: Scaffold(
           body: Center(
             child: ConversationComposer(
@@ -86,6 +88,7 @@ void main() {
   testWidgets('the paperclip picker is at least a 40px target', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        theme: moshThemeData,
         home: Scaffold(
           body: Center(
             child: AttachmentPicker(
@@ -133,6 +136,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        theme: moshThemeData,
         home: Scaffold(
           body: Center(
             child: ConfirmDialog(

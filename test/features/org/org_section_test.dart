@@ -297,7 +297,7 @@ void main() {
       matching: find.byWidgetPredicate(
         (w) => switch (w) {
           DecoratedBox(decoration: BoxDecoration(:final border)) =>
-            border == Border.all(color: MoshColors.focusRing, width: 2),
+            border == Border.all(color: MoshColors.dark.focusRing, width: 2),
           _ => false,
         },
       ),

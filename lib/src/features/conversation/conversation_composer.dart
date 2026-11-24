@@ -104,6 +104,7 @@ class ConversationComposer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final paste = PasteAttachmentAction(
       onAttach: onAttach,
       onAttachmentPickError: onAttachmentPickError,
@@ -113,9 +114,9 @@ class ConversationComposer extends StatelessWidget {
     // Composer chrome: bg-1 surface with a hairline top border.
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-      decoration: const BoxDecoration(
-        color: MoshColors.surface,
-        border: Border(top: BorderSide(color: MoshColors.outlineVariant)),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(top: BorderSide(color: colors.outlineVariant)),
       ),
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: controller,
@@ -127,9 +128,9 @@ class ConversationComposer extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 54),
             padding: MoshShapes.composerPadding,
             decoration: BoxDecoration(
-              color: MoshColors.surfaceContainerHigh,
+              color: colors.surfaceContainerHigh,
               borderRadius: MoshShapes.composer,
-              border: Border.all(color: MoshColors.outlineVariant),
+              border: Border.all(color: colors.outlineVariant),
             ),
             child: Row(
               children: [
@@ -195,12 +196,11 @@ class ConversationComposer extends StatelessWidget {
                       },
                       // A bare 13px field on the box's own background -- no
                       // border, no fill of its own.
-                      style: const TextStyle(
-                          fontSize: 13, color: MoshColors.onSurface),
+                      style: TextStyle(fontSize: 13, color: colors.onSurface),
                       decoration: InputDecoration(
                         hintText: placeholder,
-                        hintStyle: const TextStyle(
-                            fontSize: 13, color: MoshColors.onSurfaceMuted),
+                        hintStyle: TextStyle(
+                            fontSize: 13, color: colors.onSurfaceMuted),
                         filled: false,
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
@@ -221,9 +221,8 @@ class ConversationComposer extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontFeatures: kLiveNumberFontFeatures,
-                      color: remaining < 0
-                          ? MoshColors.error
-                          : MoshColors.onSurfaceMuted,
+                      color:
+                          remaining < 0 ? colors.error : colors.onSurfaceMuted,
                     ),
                   ),
                 ],
@@ -246,9 +245,8 @@ class ConversationComposer extends StatelessWidget {
                         minimumSize: const Size.square(kComposerButtonSize),
                         padding: EdgeInsets.zero,
                         shape: MoshShapes.controlShape,
-                        disabledBackgroundColor:
-                            MoshColors.surfaceContainerHighest,
-                        disabledForegroundColor: MoshColors.outline,
+                        disabledBackgroundColor: colors.surfaceContainerHighest,
+                        disabledForegroundColor: colors.outline,
                       ),
                       child: sending && value.text.trim().isEmpty
                           ? const SizedBox(

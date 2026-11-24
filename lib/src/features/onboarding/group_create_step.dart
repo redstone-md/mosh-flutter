@@ -120,6 +120,7 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     final created = _created;
     if (created != null) {
@@ -171,15 +172,14 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
         ],
         const SizedBox(height: 16),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(Icons.info_outline,
-              size: 18, color: MoshColors.onSurfaceMuted),
+          Icon(Icons.info_outline, size: 18, color: colors.onSurfaceMuted),
           const SizedBox(width: 10),
           Expanded(
             child: Text(l.onboardGroupMembersNote,
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
-                    ?.copyWith(color: MoshColors.onSurfaceMuted, height: 1.45)),
+                    ?.copyWith(color: colors.onSurfaceMuted, height: 1.45)),
           ),
         ]),
       ],

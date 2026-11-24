@@ -13,6 +13,7 @@ class LinkedDeviceList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       SettingsCard(
@@ -24,9 +25,9 @@ class LinkedDeviceList extends StatelessWidget {
       Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: MoshColors.surface,
+          color: colors.surface,
           borderRadius: MoshShapes.composer,
-          border: Border.all(color: MoshColors.outlineVariant),
+          border: Border.all(color: colors.outlineVariant),
         ),
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -56,14 +57,15 @@ class _DeviceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: MoshColors.surfaceContainerHigh,
+        color: colors.surfaceContainerHigh,
         borderRadius: MoshShapes.conversationRow,
-        border: Border.all(color: MoshColors.outlineVariant),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Row(children: [
         const Icon(Icons.devices_outlined, size: 24),
@@ -80,7 +82,7 @@ class _DeviceRow extends StatelessWidget {
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
-                      ?.copyWith(color: MoshColors.primary)),
+                      ?.copyWith(color: colors.primary)),
             ],
           ]),
         ),

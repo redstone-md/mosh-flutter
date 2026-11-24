@@ -13,94 +13,99 @@ import 'package:mosh/src/app/mosh_theme.dart';
 
 import '../support/contrast.dart';
 
-const _surfaces = <String, Color>{
-  'surfaceContainerLowest': MoshColors.surfaceContainerLowest,
-  'surfaceContainerLow': MoshColors.surfaceContainerLow,
-  'surface': MoshColors.surface,
-  'surfaceContainer': MoshColors.surfaceContainer,
-  'surfaceContainerHigh': MoshColors.surfaceContainerHigh,
-  'surfaceContainerHighest': MoshColors.surfaceContainerHighest,
-};
+Map<String, Color> _surfaces(MoshColors c) => {
+      'surfaceContainerLowest': c.surfaceContainerLowest,
+      'surfaceContainerLow': c.surfaceContainerLow,
+      'surface': c.surface,
+      'surfaceContainer': c.surfaceContainer,
+      'surfaceContainerHigh': c.surfaceContainerHigh,
+      'surfaceContainerHighest': c.surfaceContainerHighest,
+    };
 
 /// Text painted on a fill of its own: (name, text, fill).
-const _onFill = <(String, Color, Color)>[
-  ('onPrimary', MoshColors.onPrimary, MoshColors.primary),
-  (
-    'onPrimaryContainer',
-    MoshColors.onPrimaryContainer,
-    MoshColors.primaryContainer
-  ),
-  ('onSecondary', MoshColors.onSecondary, MoshColors.secondary),
-  (
-    'onSecondaryContainer',
-    MoshColors.onSecondaryContainer,
-    MoshColors.secondaryContainer
-  ),
-  ('onTertiary', MoshColors.onTertiary, MoshColors.tertiary),
-  (
-    'onTertiaryContainer',
-    MoshColors.onTertiaryContainer,
-    MoshColors.tertiaryContainer
-  ),
-  ('onError', MoshColors.onError, MoshColors.error),
-  ('onErrorContainer', MoshColors.onErrorContainer, MoshColors.errorContainer),
-  (
-    'onWarningContainer',
-    MoshColors.onWarningContainer,
-    MoshColors.warningContainer
-  ),
-  ('onInverseSurface', MoshColors.onInverseSurface, MoshColors.inverseSurface),
-  ('onOutgoing', MoshColors.onOutgoing, MoshColors.outgoing),
-  ('onOutgoingVariant', MoshColors.onOutgoingVariant, MoshColors.outgoing),
-  ('outgoingError', MoshColors.outgoingError, MoshColors.outgoing),
-  ('onAvatar on avatar1', MoshColors.onAvatar, MoshColors.avatar1),
-  ('onAvatar on avatar2', MoshColors.onAvatar, MoshColors.avatar2),
-  ('onAvatar on avatar3', MoshColors.onAvatar, MoshColors.avatar3),
-  ('onAvatar on avatar4', MoshColors.onAvatar, MoshColors.avatar4),
-  // Pairs the screens paint across roles.
-  ('onPrimary on error', MoshColors.onPrimary, MoshColors.error),
-  (
-    'onSurface on secondaryContainer',
-    MoshColors.onSurface,
-    MoshColors.secondaryContainer
-  ),
-  (
-    'onSurfaceVariant on secondaryContainer',
-    MoshColors.onSurfaceVariant,
-    MoshColors.secondaryContainer
-  ),
-  (
-    'onSurface on outgoingMessage',
-    MoshColors.onSurface,
-    MoshColors.outgoingMessage
-  ),
-  (
-    'onSurfaceVariant on outgoingMessage',
-    MoshColors.onSurfaceVariant,
-    MoshColors.outgoingMessage
-  ),
-  ('error on outgoingMessage', MoshColors.error, MoshColors.outgoingMessage),
-  ('error on errorContainer', MoshColors.error, MoshColors.errorContainer),
-  (
-    'warning on warningContainer',
-    MoshColors.warning,
-    MoshColors.warningContainer
-  ),
-  ('info on tertiaryContainer', MoshColors.info, MoshColors.tertiaryContainer),
-];
+List<(String, Color, Color)> _onFill(MoshColors c) => [
+      ('onPrimary', c.onPrimary, c.primary),
+      ('onPrimaryContainer', c.onPrimaryContainer, c.primaryContainer),
+      ('onSecondary', c.onSecondary, c.secondary),
+      ('onSecondaryContainer', c.onSecondaryContainer, c.secondaryContainer),
+      ('onTertiary', c.onTertiary, c.tertiary),
+      ('onTertiaryContainer', c.onTertiaryContainer, c.tertiaryContainer),
+      ('onError', c.onError, c.error),
+      ('onErrorContainer', c.onErrorContainer, c.errorContainer),
+      ('onWarningContainer', c.onWarningContainer, c.warningContainer),
+      ('onInverseSurface', c.onInverseSurface, c.inverseSurface),
+      ('onOutgoing', c.onOutgoing, c.outgoing),
+      ('onOutgoingVariant', c.onOutgoingVariant, c.outgoing),
+      ('outgoingError', c.outgoingError, c.outgoing),
+      ('onAvatar on avatar1', c.onAvatar, c.avatar1),
+      ('onAvatar on avatar2', c.onAvatar, c.avatar2),
+      ('onAvatar on avatar3', c.onAvatar, c.avatar3),
+      ('onAvatar on avatar4', c.onAvatar, c.avatar4),
+      // Pairs the screens paint across roles.
+      ('onPrimary on error', c.onPrimary, c.error),
+      ('onSurface on secondaryContainer', c.onSurface, c.secondaryContainer),
+      (
+        'onSurfaceVariant on secondaryContainer',
+        c.onSurfaceVariant,
+        c.secondaryContainer
+      ),
+      ('onSurface on outgoingMessage', c.onSurface, c.outgoingMessage),
+      (
+        'onSurfaceVariant on outgoingMessage',
+        c.onSurfaceVariant,
+        c.outgoingMessage
+      ),
+      ('error on outgoingMessage', c.error, c.outgoingMessage),
+      ('error on errorContainer', c.error, c.errorContainer),
+      ('warning on warningContainer', c.warning, c.warningContainer),
+      ('info on tertiaryContainer', c.info, c.tertiaryContainer),
+    ];
 
 void main() {
+  group('dark', () => _contracts(MoshColors.dark, Brightness.dark));
+  group('light', () => _contracts(MoshColors.light, Brightness.light));
+
+  test('a theme change fades each token from one palette to the other', () {
+    const from = MoshColors.dark, to = MoshColors.light;
+    final half = from.lerp(to, 0.5);
+    expect(from.lerp(to, 0).surface, from.surface);
+    expect(from.lerp(to, 1).onAvatar, to.onAvatar);
+    expect(half.primary, Color.lerp(from.primary, to.primary, 0.5));
+    expect(half.outgoing, Color.lerp(from.outgoing, to.outgoing, 0.5));
+  });
+}
+
+/// The contracts every palette keeps.
+void _contracts(MoshColors c, Brightness expected) {
+  final surfaces = _surfaces(c);
+  final theme = buildMoshTheme(c);
+
+  testWidgets('widgets under the theme read its palette and brightness',
+      (tester) async {
+    late MoshColors seen;
+    late Brightness brightness;
+    await tester.pumpWidget(MaterialApp(
+        theme: theme,
+        home: Builder(builder: (context) {
+          seen = MoshColors.of(context);
+          brightness = Theme.of(context).colorScheme.brightness;
+          return const SizedBox();
+        })));
+    expect(seen, same(c));
+    expect(brightness, expected);
+  });
+
   for (final (name, token) in [
-    ('onSurface', MoshColors.onSurface),
-    ('onSurfaceVariant', MoshColors.onSurfaceVariant),
-    ('onSurfaceMuted', MoshColors.onSurfaceMuted),
-    ('primary', MoshColors.primary),
-    ('error', MoshColors.error),
-    ('warning', MoshColors.warning),
-    ('tertiary', MoshColors.tertiary),
+    ('onSurface', c.onSurface),
+    ('onSurfaceVariant', c.onSurfaceVariant),
+    ('onSurfaceMuted', c.onSurfaceMuted),
+    ('primary', c.primary),
+    ('error', c.error),
+    ('warning', c.warning),
+    ('tertiary', c.tertiary),
   ]) {
     test('$name reads at 4.5:1 or better on every surface', () {
-      for (final MapEntry(key: surface, value: bg) in _surfaces.entries) {
+      for (final MapEntry(key: surface, value: bg) in surfaces.entries) {
         expect(contrastRatio(token, bg), greaterThanOrEqualTo(4.5),
             reason: '$name on $surface');
       }
@@ -108,21 +113,21 @@ void main() {
   }
 
   test('the success mark clears the 3:1 non-text floor on every surface', () {
-    for (final MapEntry(key: surface, value: bg) in _surfaces.entries) {
-      expect(contrastRatio(MoshColors.success, bg), greaterThanOrEqualTo(3),
+    for (final MapEntry(key: surface, value: bg) in surfaces.entries) {
+      expect(contrastRatio(c.success, bg), greaterThanOrEqualTo(3),
           reason: 'success on $surface');
     }
   });
 
   test('text on a filled role reads at 4.5:1 or better', () {
-    for (final (name, text, fill) in _onFill) {
+    for (final (name, text, fill) in _onFill(c)) {
       expect(contrastRatio(text, fill), greaterThanOrEqualTo(4.5),
           reason: name);
     }
   });
 
   test('the Material colour scheme pairs read at 4.5:1 or better', () {
-    final c = moshThemeData.colorScheme;
+    final c = theme.colorScheme;
     for (final (name, text, fill) in [
       ('primary', c.onPrimary, c.primary),
       ('primaryContainer', c.onPrimaryContainer, c.primaryContainer),
@@ -143,16 +148,16 @@ void main() {
   });
 
   test('list-row subtitles use a readable token, not the outline colour', () {
-    final style = moshThemeData.listTileTheme.subtitleTextStyle!;
-    expect(style.color, isNot(MoshColors.outline));
-    expect(contrastRatio(style.color!, MoshColors.surfaceContainerHigh),
+    final style = theme.listTileTheme.subtitleTextStyle!;
+    expect(style.color, isNot(c.outline));
+    expect(contrastRatio(style.color!, c.surfaceContainerHigh),
         greaterThanOrEqualTo(4.5));
   });
 
   test('a field edge clears 3:1 against the surfaces fields sit on', () {
-    final border = moshThemeData.inputDecorationTheme.enabledBorder!;
+    final border = theme.inputDecorationTheme.enabledBorder!;
     final edge = border.borderSide.color;
-    for (final MapEntry(key: surface, value: bg) in _surfaces.entries) {
+    for (final MapEntry(key: surface, value: bg) in surfaces.entries) {
       expect(contrastRatio(Color.alphaBlend(edge, bg), bg),
           greaterThanOrEqualTo(3),
           reason: 'field edge on $surface');
@@ -160,7 +165,7 @@ void main() {
   });
 
   test('the type scale pins letter-spacing and line-height on every slot', () {
-    final t = moshThemeData.textTheme;
+    final t = theme.textTheme;
     for (final (name, style) in [
       ('displayLarge', t.displayLarge),
       ('displayMedium', t.displayMedium),

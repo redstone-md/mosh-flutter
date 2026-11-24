@@ -137,20 +137,28 @@ void main() {
     const fallback = Color(0xFF6B7075);
 
     test('maps all semantic event-name groups', () {
-      expect(eventNameColor('peer_joined', fallback: fallback),
-          MoshColors.primary);
-      expect(eventNameColor('supernode_promoted', fallback: fallback),
-          MoshColors.primary);
+      expect(eventNameColor('peer_joined', MoshColors.dark, fallback: fallback),
+          MoshColors.dark.primary);
       expect(
-          eventNameColor('peer_left', fallback: fallback), MoshColors.warning);
-      expect(eventNameColor('tracker_announce', fallback: fallback),
-          MoshColors.info);
-      expect(eventNameColor('tracker_failure', fallback: fallback),
-          MoshColors.error);
+          eventNameColor('supernode_promoted', MoshColors.dark,
+              fallback: fallback),
+          MoshColors.dark.primary);
+      expect(eventNameColor('peer_left', MoshColors.dark, fallback: fallback),
+          MoshColors.dark.warning);
+      expect(
+          eventNameColor('tracker_announce', MoshColors.dark,
+              fallback: fallback),
+          MoshColors.dark.info);
+      expect(
+          eventNameColor('tracker_failure', MoshColors.dark,
+              fallback: fallback),
+          MoshColors.dark.error);
     });
 
     test('keeps unknown event names on the neutral fallback', () {
-      expect(eventNameColor('tracker_update', fallback: fallback), fallback);
+      expect(
+          eventNameColor('tracker_update', MoshColors.dark, fallback: fallback),
+          fallback);
     });
   });
 

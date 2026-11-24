@@ -5,7 +5,7 @@ import 'call_button.dart';
 import 'call_view_state.dart';
 
 List<Widget> callControls(CallViewState call, AppLocalizations l,
-        void Function(CallViewAction) act,
+        MoshColors colors, void Function(CallViewAction) act,
         {VoidCallback? expand, VoidCallback? devices, bool camera = true}) =>
     [
       if (expand != null)
@@ -14,42 +14,40 @@ List<Widget> callControls(CallViewState call, AppLocalizations l,
             onPressed: expand,
             icon: const Icon(Icons.open_in_full)),
       if (call.phase == CallViewPhase.active || call.media != null)
-        _microphone(call, l, act),
-      if (camera && call.media != null) _camera(call, l, act),
+        _microphone(call, l, colors, act),
+      if (camera && call.media != null) _camera(call, l, colors, act),
       if (devices != null && call.media != null)
         CallButton(
             icon: Icons.tune,
             tooltip: l.callDevices,
-            color: MoshColors.surfaceContainerHighest,
-            foreground: MoshColors.onSurface,
+            color: colors.surfaceContainerHighest,
+            foreground: colors.onSurface,
             onPressed: call.busy ? null : devices),
-      _end(call, l, act),
+      _end(call, l, colors, act),
       if (call.phase == CallViewPhase.incoming)
         CallButton(
             icon: Icons.phone,
             tooltip: l.callIncomingAccept,
-            color: MoshColors.primary,
-            foreground: MoshColors.onPrimary,
+            color: colors.primary,
+            foreground: colors.onPrimary,
             onPressed: call.busy ? null : () => act(CallViewAction.accept)),
     ];
 
-Widget _microphone(CallViewState call, AppLocalizations l,
+Widget _microphone(CallViewState call, AppLocalizations l, MoshColors colors,
         void Function(CallViewAction) act) =>
     CallButton(
         icon: call.muted ? Icons.mic_off : Icons.mic,
         tooltip: call.muted ? l.callActiveUnmute : l.callActiveMute,
-        color:
-            call.muted ? MoshColors.info : MoshColors.surfaceContainerHighest,
-        foreground: call.muted
-            ? MoshColors.surfaceContainerLowest
-            : MoshColors.onSurface,
+        color: call.muted ? colors.info : colors.surfaceContainerHighest,
+        foreground:
+            call.muted ? colors.surfaceContainerLowest : colors.onSurface,
         toggled: !call.muted,
         onPressed: call.busy || (call.media == null && !call.audioReady)
             ? null
             : () => act(CallViewAction.mute));
 
-Widget _camera(
-    CallViewState call, AppLocalizations l, void Function(CallViewAction) act) {
+Widget _camera(CallViewState call, AppLocalizations l, MoshColors colors,
+    void Function(CallViewAction) act) {
   final media = call.media!;
   return CallButton(
       icon: media.cameraRequested ? Icons.videocam : Icons.videocam_off,
@@ -58,17 +56,16 @@ Widget _camera(
           : media.cameraRequested
               ? l.callCameraOff
               : l.callCameraOn,
-      color: media.cameraRequested
-          ? MoshColors.info
-          : MoshColors.surfaceContainerHighest,
+      color:
+          media.cameraRequested ? colors.info : colors.surfaceContainerHighest,
       foreground: media.cameraRequested
-          ? MoshColors.surfaceContainerLowest
-          : MoshColors.onSurface,
+          ? colors.surfaceContainerLowest
+          : colors.onSurface,
       toggled: media.cameraRequested,
       onPressed: call.busy ? null : () => act(CallViewAction.camera));
 }
 
-Widget _end(CallViewState call, AppLocalizations l,
+Widget _end(CallViewState call, AppLocalizations l, MoshColors colors,
         void Function(CallViewAction) act) =>
     CallButton(
         icon: Icons.phone_disabled,
@@ -77,8 +74,8 @@ Widget _end(CallViewState call, AppLocalizations l,
           CallViewPhase.active => l.callActiveHangUp,
           _ => l.callOutgoingCancel,
         },
-        color: MoshColors.error,
-        foreground: MoshColors.surfaceContainerLowest,
+        color: colors.error,
+        foreground: colors.surfaceContainerLowest,
         onPressed: () => act(call.phase == CallViewPhase.incoming && !call.busy
             ? CallViewAction.decline
             : CallViewAction.end));
