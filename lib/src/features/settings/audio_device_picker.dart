@@ -39,7 +39,6 @@ class AudioDevicePicker extends StatelessWidget {
           value: preferredId,
           options: _items(l, options, missing),
           onChanged: devices.isLoading ? null : onChanged,
-          showLabel: false,
           failed: devices.hasError,
         ),
         if (devices.isLoading) _hint(context, l.settingsDevicesLoading),

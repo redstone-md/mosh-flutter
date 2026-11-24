@@ -127,7 +127,6 @@ class BindInterfaceControls extends StatelessWidget {
         current != null && !candidates.any((iface) => iface.name == current);
     return MoshSelect<String>(
       label: l.bindAdapterTitle,
-      showLabel: false,
       value: current ?? picked,
       options: [
         if (missing)

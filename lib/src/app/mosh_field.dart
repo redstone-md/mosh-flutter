@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'mosh_dimensions.dart';
 import 'mosh_theme.dart';
 
-/// The Text field and Select cards' label: it stands above the well and
-/// stays there while the user types. [child] is the well, a [TextField] or
-/// the button of a select, and is announced under [label]. The label fades
-/// with a well that is not [enabled].
+/// The Text field card's label: it stands above the well and stays there
+/// while the user types. [child] is the well, a [TextField], and is
+/// announced under [label]. The label fades with a well that is not
+/// [enabled].
 class MoshField extends StatelessWidget {
   const MoshField(
       {super.key,

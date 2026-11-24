@@ -44,7 +44,6 @@ class _LanguageSettingsCardState extends ConsumerState<LanguageSettingsCard> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         MoshSelect<Locale?>(
           label: l.interfaceLanguageTitle,
-          showLabel: false,
           value: ref.watch(localeProvider),
           options: [
             MoshSelectOption(null, l.interfaceLanguageSystem),

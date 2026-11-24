@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 
 import 'mosh_dimensions.dart';
-import 'mosh_field.dart';
 import 'mosh_menu_item.dart';
 import 'mosh_theme.dart';
 
@@ -27,15 +26,12 @@ class MoshSelect<T> extends StatefulWidget {
     required this.value,
     required this.options,
     required this.onChanged,
-    this.showLabel = true,
     this.failed = false,
   });
 
-  /// Stands above the well, and names the control to a screen reader.
+  /// Names the control to a screen reader and titles the phone's sheet;
+  /// on screen the heading above the select says what is chosen.
   final String label;
-
-  /// False where a heading right above already says what is chosen.
-  final bool showLabel;
 
   /// True while the choices could not be loaded: the well's edge turns red.
   final bool failed;
@@ -117,9 +113,7 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
         ),
       ]),
     );
-    return widget.showLabel
-        ? MoshField(label: widget.label, child: well)
-        : Semantics(label: widget.label, child: well);
+    return Semantics(label: widget.label, child: well);
   }
 
   Widget _item(MoshSelectOption<T> option, VoidCallback select) => MoshMenuItem(
