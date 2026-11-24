@@ -134,7 +134,7 @@ void main() {
     await tester.tap(find.byType(MoshSwitchRow));
     await tester.pump();
     final toggle = tester.widget<MoshSwitchRow>(find.byType(MoshSwitchRow));
-    expect(toggle.onChanged, isNull);
+    expect(toggle.saving, isTrue);
     expect(toggle.value, isFalse);
     expect(find.text('Saving…'), findsOneWidget);
     await tester.tap(find.byType(MoshSwitchRow));

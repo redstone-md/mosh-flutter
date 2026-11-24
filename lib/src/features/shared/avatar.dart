@@ -93,13 +93,12 @@ class Avatar extends StatelessWidget {
             ),
           ),
         ),
-      if (sign == null)
-        PositionedDirectional(
-          top: inset - UserPlusBadge.size / 2,
-          end: inset - UserPlusBadge.size / 2,
-          child:
-              UserPlusBadge(identity: plusIdentity, own: ownPlus, plated: true),
-        ),
+      PositionedDirectional(
+        top: inset - UserPlusBadge.size / 2,
+        end: inset - UserPlusBadge.size / 2,
+        child:
+            UserPlusBadge(identity: plusIdentity, own: ownPlus, plated: true),
+      ),
     ]);
   }
 }

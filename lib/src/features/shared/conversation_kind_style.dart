@@ -54,7 +54,8 @@ class ConversationKindAvatar extends StatelessWidget {
           radius: radius,
           sign: kind == ConversationKind.dm ? null : kind.icon,
           online: kind == ConversationKind.dm && online,
-          plusIdentity: plusIdentity,
+          // Only a person holds Mosh+.
+          plusIdentity: kind == ConversationKind.dm ? plusIdentity : null,
         ),
       );
 }

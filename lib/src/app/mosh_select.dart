@@ -47,6 +47,8 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
   final _focus = FocusNode();
   // Overlay scroll views must not read a surrounding disclosure's bool state.
   final _menuStorage = PageStorageBucket();
+  // The phone's sheet is not the menu, so the caret is told of it here.
+  bool _sheetOpen = false;
 
   @override
   void dispose() {
@@ -80,7 +82,7 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
               _item(option, () => widget.onChanged?.call(option.value)),
           ],
           builder: (context, controller, _) =>
-              _button(theme, controller.isOpen, () {
+              _button(theme, controller.isOpen || _sheetOpen, () {
             if (sheet) {
               _openSheet();
             } else if (controller.isOpen) {
@@ -123,6 +125,7 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
       );
 
   Future<void> _openSheet() async {
+    setState(() => _sheetOpen = true);
     final choice = await showModalBottomSheet<MoshSelectOption<T>>(
       context: context,
       routeSettings: RouteSettings(name: ModalRoute.of(context)?.settings.name),
@@ -155,6 +158,8 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
         ),
       ),
     );
-    if (mounted && choice != null) widget.onChanged?.call(choice.value);
+    if (!mounted) return;
+    setState(() => _sheetOpen = false);
+    if (choice != null) widget.onChanged?.call(choice.value);
   }
 }

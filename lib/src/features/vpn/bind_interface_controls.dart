@@ -95,10 +95,8 @@ class BindInterfaceControls extends StatelessWidget {
         title: l.bindAdapterToggle,
         subtitle: _status(),
         value: current != null,
-        onChanged: !stateKnown ||
-                loading ||
-                busy ||
-                (current == null && picked.isEmpty)
+        saving: busy,
+        onChanged: !stateKnown || loading || (current == null && picked.isEmpty)
             ? null
             : onToggle,
       );
