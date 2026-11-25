@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/org/org_section.dart';
+import 'package:mosh/src/features/sessions/dm_offer_row.dart';
 import 'package:mosh/src/features/sessions/org_actions.dart';
 import 'package:mosh/src/features/sessions/rail_compact.dart';
 import 'package:mosh/src/features/sessions/rail_entry.dart';
@@ -89,12 +90,22 @@ class SessionsRailList extends ConsumerWidget {
     );
   }
 
+  /// The row of [entry] with what the rail knows about its conversation.
   Widget _row(WidgetRef ref, RailEntry entry) {
-    final chrome = _chrome(ref, entry);
+    final key = entry.ref.key;
+    final unreadCount = ref.watch(unreadLifecycleProvider)[key] ?? 0;
+    final active = key == ref.watch(activeConversationKeyProvider);
     return ChatRowMenu(
         entry: entry,
-        builder: (context, menuOpen) =>
-            entry.buildRow(context, chrome, menuOpen: menuOpen));
+        builder: (context, menuOpen) => entry.buildRow(context, (
+              unreadCount: unreadCount,
+              active: active,
+              menuOpen: menuOpen,
+              // The badge hides once the selected conversation is the active
+              // one; the core clears its count when the screen marks it viewed.
+              onSelect: () =>
+                  ref.read(activeConversationKeyProvider.notifier).set(key),
+            )));
   }
 
   /// Nothing passes the search, or with no search the filter by kind.
@@ -126,21 +137,6 @@ class SessionsRailList extends ConsumerWidget {
     ];
   }
 
-  RailRowChrome _chrome(WidgetRef ref, RailEntry entry) {
-    final conversation = entry.ref;
-    if (conversation == null) return _noChrome;
-    final key = conversation.key;
-    final unread = ref.watch(unreadLifecycleProvider);
-    final active = ref.watch(activeConversationKeyProvider);
-    return (
-      unreadCount: unread[key] ?? 0,
-      active: key == active,
-      // The badge hides once the selected conversation is the active one;
-      // the core clears its count when the screen marks it viewed.
-      onSelect: () => ref.read(activeConversationKeyProvider.notifier).set(key),
-    );
-  }
-
   List<Widget> _offers(BuildContext context, WidgetRef ref,
       List<PendingDmOffer> offers, AppLocalizations l,
       {required bool compact}) {
@@ -156,11 +152,11 @@ class SessionsRailList extends ConsumerWidget {
                     .labelLarge!
                     .copyWith(color: MoshColors.of(context).onSurfaceMuted))),
       for (final offer in offers)
-        OfferRailEntry(
+        DmOfferRow(
           pending: offer,
           onAccept: () => acceptOfferAction(context, ref, offer),
           onDismiss: () => dismissOfferAction(context, ref, offer),
-        ).buildRow(context, _noChrome),
+        ),
       const RailDivider(),
     ];
   }
@@ -192,6 +188,3 @@ List<Widget> _orgSections(BuildContext context, WidgetRef ref,
     ]
   ];
 }
-
-/// The chrome of a row that opens no conversation.
-const RailRowChrome _noChrome = (unreadCount: 0, active: false, onSelect: null);

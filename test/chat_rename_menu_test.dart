@@ -28,9 +28,12 @@ void main() {
         Scaffold(
             body: ChatRowMenu(
                 entry: entry,
-                builder: (context, menuOpen) => entry.buildRow(
-                    context, (unreadCount: 0, active: false, onSelect: null),
-                    menuOpen: menuOpen))),
+                builder: (context, menuOpen) => entry.buildRow(context, (
+                      unreadCount: 0,
+                      active: false,
+                      menuOpen: menuOpen,
+                      onSelect: () {},
+                    )))),
         overrides: [
           gatewayProvider.overrideWithValue(gateway),
           bridgeFacadeProvider.overrideWithValue(

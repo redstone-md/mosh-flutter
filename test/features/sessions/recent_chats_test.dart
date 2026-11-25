@@ -53,7 +53,7 @@ void main() {
       DmRailEntry(dm),
       ChannelRailEntry(channel),
     ], l);
-    expect(rows.map((r) => r.ref!.key),
+    expect(rows.map((r) => r.ref.key),
         ['channel:general', 'dm:dm', 'group:group', 'dm:empty']);
     expect(rows[1].preview(l), 'You: first message');
     expect(rows[1].activity.sentAtMs, BigInt.from(20));
@@ -67,12 +67,10 @@ void main() {
       ChannelRailEntry(channel),
       GroupRailEntry(group)
     ];
+    expect(recentRailEntries(entries, l, query: ' ALICE ').single.ref.id, 'dm');
     expect(
-        recentRailEntries(entries, l, query: ' ALICE ').single.ref!.id, 'dm');
-    expect(
-        recentRailEntries(entries, l, query: 'bob').single.ref!.id, 'general');
-    expect(
-        recentRailEntries(entries, l, query: 'crew').single.ref!.id, 'group');
+        recentRailEntries(entries, l, query: 'bob').single.ref.id, 'general');
+    expect(recentRailEntries(entries, l, query: 'crew').single.ref.id, 'group');
     expect(
         recentRailEntries(entries, l,
             query: 'Charlie', kind: ConversationKind.dm),
@@ -80,7 +78,7 @@ void main() {
     expect(
         recentRailEntries(entries, l, kind: ConversationKind.group)
             .single
-            .ref!
+            .ref
             .id,
         'group');
   });
@@ -91,7 +89,7 @@ void main() {
       ChannelRailEntry(channel),
       GroupRailEntry(group)
     ];
-    expect(recentRailEntries(entries, l, query: 'Channel NEWS').single.ref!.id,
+    expect(recentRailEntries(entries, l, query: 'Channel NEWS').single.ref.id,
         'general');
     expect(recentRailEntries(entries, l, query: 'never said'), isEmpty);
   });

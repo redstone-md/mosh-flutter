@@ -17,7 +17,6 @@ class ChatRowMenu extends ConsumerWidget {
 
   bool get _canRename => switch (entry) {
         GroupRailEntry(:final group) => group.isAdmin && group.state == 'ready',
-        OfferRailEntry() => false,
         _ => true,
       };
 
@@ -35,7 +34,7 @@ class ChatRowMenu extends ConsumerWidget {
             icon: MoshIcons.edit,
             onPressed: !enabled
                 ? null
-                : () => showRenameChatDialog(context, entry.ref!.target,
+                : () => showRenameChatDialog(context, entry.ref.target,
                     name: entry.displayName(l),
                     originalName: entry.originalName(l),
                     hasPersonalName: entry.personalName != null))

@@ -5,13 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/peer_label.dart' show peerLabel;
 import 'package:mosh/src/features/conversation/dm_state.dart' show dmStateLabel;
-import 'package:mosh/src/features/sessions/rail_compact.dart'
-    show CompactExpandItem, RailCompactScope;
 import 'package:mosh/src/features/sessions/rail_item.dart' show RailItem;
 import 'package:mosh/src/features/sessions/rail_activity.dart';
-import 'package:mosh/src/features/shared/avatar.dart' show Avatar;
 import 'package:mosh/src/features/shared/conversation_kind_style.dart';
-import 'package:mosh/src/features/shared/invitation_row.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind, ConversationRef;
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
@@ -20,20 +16,16 @@ import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show SessionSnapshot, DmSessionState;
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
-import 'package:mosh/src/state/dm_offer_providers.dart' show PendingDmOffer;
 import 'package:mosh/src/util/format.dart' show shorten;
 
 /// What the rail knows about a row and the row does not: its unread count,
-/// whether it is the open conversation, and the hook that clears the badge
-/// and marks the conversation open.
-///
-/// All three come from the row's [RailEntry.ref], so a row that opens no
-/// conversation gets zero, false and null -- there is no badge to clear and
-/// no conversation to mark open.
+/// whether it is the open conversation, whether its menu is open, and the
+/// hook that clears the badge and marks the conversation open.
 typedef RailRowChrome = ({
   int unreadCount,
   bool active,
-  VoidCallback? onSelect,
+  bool menuOpen,
+  VoidCallback onSelect,
 });
 
 /// One row of the sessions rail: the conversation it opens, plus the chrome
@@ -41,17 +33,14 @@ typedef RailRowChrome = ({
 sealed class RailEntry {
   const RailEntry();
 
-  /// The conversation this row opens, or null for a row that opens no
-  /// conversation yet -- a pending DM offer has no session behind it until
-  /// it is accepted.
-  ConversationRef? get ref;
+  /// The conversation this row opens.
+  ConversationRef get ref;
 
   String originalName(AppLocalizations l) => switch (this) {
         DmRailEntry(:final session) => peerLabel(l, session),
         ChannelRailEntry(:final channel) => '#${channel.name}',
         GroupRailEntry(:final group) =>
           group.label ?? shorten(group.groupId, 6),
-        OfferRailEntry() => '',
       };
 
   String? get personalName => null;
@@ -60,7 +49,7 @@ sealed class RailEntry {
 
   RailActivity get activity => const RailActivity();
 
-  String searchText(AppLocalizations l) => ref?.id ?? '';
+  String searchText(AppLocalizations l) => ref.id;
 
   String? preview(AppLocalizations l) {
     if (activity.deletion case final deleted?) {
@@ -72,7 +61,7 @@ sealed class RailEntry {
     if (text == null) return null;
     final prefix = activity.own
         ? l.chatListYou
-        : ref?.kind == ConversationKind.dm
+        : ref.kind == ConversationKind.dm
             ? null
             : activity.sender;
     return prefix == null ? text : '$prefix: $text';
@@ -93,10 +82,8 @@ sealed class RailEntry {
   }
 
   /// This row's widget. [chrome] is what the rail computed from [ref]; the
-  /// row decides what to render with it. [menuOpen] keeps the row pressed
-  /// under its open menu.
-  Widget buildRow(BuildContext context, RailRowChrome chrome,
-      {bool menuOpen = false});
+  /// row decides what to render with it.
+  Widget buildRow(BuildContext context, RailRowChrome chrome);
 }
 
 List<RailEntry> recentRailEntries(
@@ -109,7 +96,7 @@ List<RailEntry> recentRailEntries(
   final visible = entries
       .where(
         (entry) =>
-            (kind == null || entry.ref?.kind == kind) &&
+            (kind == null || entry.ref.kind == kind) &&
             (entry.searchText(l).toLowerCase().contains(search) ||
                 (search.isNotEmpty && entry.activity.mentions(search))),
       )
@@ -127,7 +114,7 @@ List<RailEntry> recentRailEntries(
     }
     if (a.activity.text != null && b.activity.text == null) return -1;
     if (b.activity.text != null && a.activity.text == null) return 1;
-    return (a.ref?.key ?? '').compareTo(b.ref?.key ?? '');
+    return a.ref.key.compareTo(b.ref.key);
   });
   return visible;
 }
@@ -163,8 +150,7 @@ final class DmRailEntry extends RailEntry {
       ConversationRef(kind: ConversationKind.dm, id: session.sessionId);
 
   @override
-  Widget buildRow(BuildContext context, RailRowChrome chrome,
-      {bool menuOpen = false}) {
+  Widget buildRow(BuildContext context, RailRowChrome chrome) {
     final l = AppLocalizations.of(context)!;
     final label = displayName(l);
     return RailItem(
@@ -180,12 +166,12 @@ final class DmRailEntry extends RailEntry {
           ? l.orgRevokedBadge(revokedOrgName!)
           : preview(l) ?? dmStateLabel(l, session.state),
       unreadCount: chrome.unreadCount,
-      menuOpen: menuOpen,
+      menuOpen: chrome.menuOpen,
       active: chrome.active,
       onTap: () {
         // Clear the badge + mark the conversation open first, then
         // navigate.
-        chrome.onSelect?.call();
+        chrome.onSelect();
         context.go(AppRoutes.dmFor(session.sessionId));
       },
     );
@@ -214,8 +200,7 @@ final class ChannelRailEntry extends RailEntry {
       ConversationRef(kind: ConversationKind.channel, id: channel.name);
 
   @override
-  Widget buildRow(BuildContext context, RailRowChrome chrome,
-      {bool menuOpen = false}) {
+  Widget buildRow(BuildContext context, RailRowChrome chrome) {
     return RailItem(
       kind: ref.kind,
       leading: ConversationKindAvatar(
@@ -225,10 +210,10 @@ final class ChannelRailEntry extends RailEntry {
       // An empty topic yields no subtitle line ([RailItem] hides it).
       subtitle: preview(AppLocalizations.of(context)!) ?? channel.topic,
       unreadCount: chrome.unreadCount,
-      menuOpen: menuOpen,
+      menuOpen: chrome.menuOpen,
       active: chrome.active,
       onTap: () {
-        chrome.onSelect?.call();
+        chrome.onSelect();
         context.go(AppRoutes.channelFor(channel.name));
       },
     );
@@ -255,8 +240,7 @@ final class GroupRailEntry extends RailEntry {
       ConversationRef(kind: ConversationKind.group, id: group.groupId);
 
   @override
-  Widget buildRow(BuildContext context, RailRowChrome chrome,
-      {bool menuOpen = false}) {
+  Widget buildRow(BuildContext context, RailRowChrome chrome) {
     final l = AppLocalizations.of(context)!;
     final label = displayName(l);
     return RailItem(
@@ -268,63 +252,12 @@ final class GroupRailEntry extends RailEntry {
       // realistic member counts.
       subtitle: preview(l) ?? l.membersCount(group.memberCount.toInt()),
       unreadCount: chrome.unreadCount,
-      menuOpen: menuOpen,
+      menuOpen: chrome.menuOpen,
       active: chrome.active,
       onTap: () {
-        chrome.onSelect?.call();
+        chrome.onSelect();
         context.go(AppRoutes.groupFor(group.groupId));
       },
-    );
-  }
-}
-
-/// One pending DM offer: an [InvitationRow] whose two buttons accept and
-/// dismiss it. In the collapsed list it is an avatar that expands the list.
-///
-/// It is the one row that opens no conversation: [ref] is null, because an
-/// offer has no session behind it until it is accepted. It takes the accept
-/// and dismiss callbacks straight from the rail's actions instead.
-final class OfferRailEntry extends RailEntry {
-  const OfferRailEntry({
-    required this.pending,
-    required this.onAccept,
-    required this.onDismiss,
-  });
-
-  final PendingDmOffer pending;
-  final VoidCallback onAccept;
-  final VoidCallback onDismiss;
-
-  @override
-  ConversationRef? get ref => null;
-
-  @override
-  Widget buildRow(BuildContext context, RailRowChrome chrome,
-      {bool menuOpen = false}) {
-    final l = AppLocalizations.of(context)!;
-    final fromDevice = pending.offer.fromDevice;
-    final compact = RailCompactScope.of(context);
-    final avatar = Avatar(
-        name: fromDevice,
-        radius: compact ? 24 : 20,
-        plusIdentity: pending.offer.authenticated == true
-            ? pending.offer.fromFingerprint
-            : null);
-    final detail = pending.kind == ConversationKind.channel
-        ? '#${pending.host}'
-        : l.onboardGroupInvite;
-    if (compact) {
-      return CompactExpandItem(
-          leading: avatar, name: fromDevice, detail: detail);
-    }
-    return InvitationRow(
-      leading: avatar,
-      title: fromDevice,
-      detail: detail,
-      acceptLabel: l.railOfferAccept(fromDevice),
-      declineLabel: l.railOfferDismiss,
-      onAccept: onAccept,
-      onDecline: onDismiss,
     );
   }
 }
