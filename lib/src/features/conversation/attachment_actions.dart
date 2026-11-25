@@ -57,33 +57,7 @@ AttachmentAction? attachmentAction(
       attachment.viewable) {
     return open;
   }
-  final (glyph, tooltip, label) = switch (control.action) {
-    AttachmentTransferAction.download => (
-        MoshIcons.download,
-        l.attachmentDownload,
-        l.attachmentDownloadAria(name)
-      ),
-    AttachmentTransferAction.resumeDownload => (
-        MoshIcons.download,
-        l.attachmentResumeDownload,
-        l.attachmentResumeDownloadAria(name)
-      ),
-    AttachmentTransferAction.retryDownload => (
-        MoshIcons.refresh,
-        l.attachmentRetryDownload,
-        l.attachmentRetryDownloadAria(name)
-      ),
-    AttachmentTransferAction.retry => (
-        MoshIcons.refresh,
-        l.attachmentRetry,
-        l.attachmentRetryAria(name)
-      ),
-    AttachmentTransferAction.cancel => (
-        MoshIcons.close,
-        l.attachmentCancelDownload,
-        l.attachmentCancelDownloadAria(name)
-      ),
-  };
+  final (glyph, tooltip, label) = _transfer(control.action, name, l);
   return (
     opens: false,
     glyph: glyph,
@@ -96,6 +70,38 @@ AttachmentAction? attachmentAction(
             : () => onDownload(file.attachmentId),
   );
 }
+
+/// How a step of a transfer shows on the plate and reads: the glyph, the
+/// short tooltip and the full label naming the file.
+(IconData, String, String) _transfer(
+        AttachmentTransferAction action, String name, AppLocalizations l) =>
+    switch (action) {
+      AttachmentTransferAction.download => (
+          MoshIcons.download,
+          l.attachmentDownload,
+          l.attachmentDownloadAria(name)
+        ),
+      AttachmentTransferAction.resumeDownload => (
+          MoshIcons.download,
+          l.attachmentResumeDownload,
+          l.attachmentResumeDownloadAria(name)
+        ),
+      AttachmentTransferAction.retryDownload => (
+          MoshIcons.refresh,
+          l.attachmentRetryDownload,
+          l.attachmentRetryDownloadAria(name)
+        ),
+      AttachmentTransferAction.retry => (
+          MoshIcons.refresh,
+          l.attachmentRetry,
+          l.attachmentRetryAria(name)
+        ),
+      AttachmentTransferAction.cancel => (
+          MoshIcons.close,
+          l.attachmentCancelDownload,
+          l.attachmentCancelDownloadAria(name)
+        ),
+    };
 
 /// The line under an attachment's name: its size, how far its transfer has
 /// come, or why there is none.

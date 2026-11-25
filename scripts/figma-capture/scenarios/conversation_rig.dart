@@ -80,6 +80,7 @@ Future<void> openShellUnsettled(WidgetTester tester, Size size,
       bridgeFacadeProvider.overrideWithValue(
           ScriptableBridge(conversations: gateway.conversations)),
       ...figmaLocale,
+      figmaCalls,
       ...overrides,
     ],
     child: const MoshApp(),

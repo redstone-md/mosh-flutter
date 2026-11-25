@@ -17,6 +17,7 @@ import '../../../test/support/settings.dart' show settingsAudioOverrides;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/conversation/conversation_call_binding.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
@@ -288,6 +289,13 @@ ScriptableGateway seededGateway({
       ..seedGroups([group ?? groupSnapshot()])
       ..seedChannels([channel ?? channelSnapshot()]);
 
+/// A call module that starts nothing, so a conversation draws the controls
+/// of its calls as it does in the app: the handset of a call entry is lit.
+final Override figmaCalls = conversationCallBindingProvider.overrideWithValue(
+    ConversationCallBinding(
+        start: (ref, id) async => null,
+        overlay: (context, host) => const SizedBox.shrink()));
+
 /// Mounts the real shell on [location] with [gateway].
 Future<ScriptableBridge> openShell(WidgetTester tester, Size size,
     {required ScriptableGateway gateway,
@@ -299,7 +307,7 @@ Future<ScriptableBridge> openShell(WidgetTester tester, Size size,
       bridge: bridge,
       physical: size,
       location: location.isEmpty ? AppRoutes.dmFor(dmId) : location,
-      overrides: [...figmaLocale, ...overrides]);
+      overrides: [...figmaLocale, figmaCalls, ...overrides]);
   return bridge;
 }
 

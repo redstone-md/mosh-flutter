@@ -73,6 +73,26 @@ class CallLogEntry extends StatelessWidget {
         formatCallDuration(l, event.durationMs),
       ].where((part) => part != null && part.isNotEmpty).join(', ');
 
+  /// The arrow and the line beside it: who rang, when and for how long.
+  Widget _meta(ThemeData theme, MessageTone tone) {
+    final full = formatClockFull(sentAtMs, locale: l.localeName);
+    final detail = Text(_detail,
+        style: theme.textTheme.labelMedium!.copyWith(
+            color: tone.quiet, fontFeatures: kLiveNumberFontFeatures));
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: MoshSpace.s1,
+      children: [
+        Icon(outgoing ? MoshIcons.callMade : MoshIcons.callReceived,
+            size: MoshSpace.s4,
+            color: _notConnected ? tone.error : tone.accent),
+        Flexible(
+            child:
+                full == null ? detail : Tooltip(message: full, child: detail)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -80,10 +100,6 @@ class CallLogEntry extends StatelessWidget {
     // The button is taller than the glyph it shows; the entry's own padding
     // gives way to it, so the handset stays 12 px from the edge.
     final slack = (MoshControl.height(theme.platform) - MoshSpace.s6) / 2;
-    final full = formatClockFull(sentAtMs, locale: l.localeName);
-    final detail = Text(_detail,
-        style: theme.textTheme.labelMedium!.copyWith(
-            color: tone.quiet, fontFeatures: kLiveNumberFontFeatures));
     return Container(
       padding: EdgeInsetsDirectional.only(
           start: MoshSpace.s4, end: MoshSpace.s3 - slack),
@@ -103,22 +119,7 @@ class CallLogEntry extends StatelessWidget {
                   Text(_title,
                       style: theme.textTheme.labelLarge!
                           .copyWith(color: tone.ink)),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    spacing: MoshSpace.s1,
-                    children: [
-                      Icon(
-                          outgoing
-                              ? MoshIcons.callMade
-                              : MoshIcons.callReceived,
-                          size: MoshSpace.s4,
-                          color: _notConnected ? tone.error : tone.accent),
-                      Flexible(
-                          child: full == null
-                              ? detail
-                              : Tooltip(message: full, child: detail)),
-                    ],
-                  ),
+                  _meta(theme, tone),
                 ],
               ),
             ),

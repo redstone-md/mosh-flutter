@@ -40,85 +40,13 @@ class FileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final text = Theme.of(context).textTheme;
-    final failed = attachment.failed;
-    final progress = attachment.progress;
-    final act = action;
-    final glyph = SizedBox.square(
-      dimension: plate,
-      child: Icon(act?.glyph ?? attachmentGlyph(attachment),
-          size: MoshSpace.s5, color: failed ? tone.failGlyph : tone.glyph),
-    );
     final card = Row(
       spacing: MoshSpace.s3,
       // The plate keeps its place whatever the last line holds.
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Material(
-          color: failed ? tone.failPlate : tone.plate,
-          borderRadius: MoshShapes.attachment,
-          clipBehavior: Clip.antiAlias,
-          // The plate is the control a keyboard and a screen reader find,
-          // named for the action. The text beside it stays part of the
-          // message, so a long press there still opens the message's menu.
-          child: act == null
-              ? glyph
-              : Tooltip(
-                  message: act.tooltip,
-                  child: Semantics(
-                    container: true,
-                    label: act.label,
-                    button: true,
-                    enabled: act.onPressed != null,
-                    onTap: act.onPressed,
-                    excludeSemantics: true,
-                    child: InkWell(
-                      overlayColor: MoshState.layer(tone.glyph),
-                      excludeFromSemantics: true,
-                      onTap: act.onPressed,
-                      child: glyph,
-                    ),
-                  ),
-                ),
-        ),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            // With the bar between them the two lines sit close, to stay
-            // within the plate's height.
-            spacing: progress == null ? MoshSpace.s1 : 0,
-            children: [
-              MiddleCutText(attachment.descriptor.fileName,
-                  style: text.labelLarge!.copyWith(color: tone.ink)),
-              // The bar runs above the detail, so the detail stays the last
-              // line, level with the time.
-              if (progress != null)
-                MoshProgressBar(
-                    fraction: progress.fraction,
-                    semanticsLabel:
-                        l.attachmentStateDownloading(progress.percent),
-                    color: tone.accent,
-                    track: tone.track),
-              Row(spacing: MoshSpace.s2, children: [
-                Expanded(
-                  child: Text(
-                    attachmentDetail(attachment, l),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: text.labelMedium!.copyWith(
-                        color: failed ? tone.error : tone.quiet,
-                        fontFeatures: kLiveNumberFontFeatures),
-                  ),
-                ),
-                if (footer case final footer?) footer,
-              ]),
-            ],
-          ),
-        ),
-      ],
+      children: [_plate(), Expanded(child: _lines(context))],
     );
+    final act = action;
     if (act == null) return card;
     // The whole card is the pointer's target.
     return Material(
@@ -131,6 +59,81 @@ class FileCard extends StatelessWidget {
         onTap: act.onPressed,
         child: card,
       ),
+    );
+  }
+
+  /// The plate is the control a keyboard and a screen reader find, named
+  /// for the action. The text beside it stays part of the message, so a
+  /// long press there still opens the message's menu.
+  Widget _plate() {
+    final failed = attachment.failed;
+    final act = action;
+    final glyph = SizedBox.square(
+      dimension: plate,
+      child: Icon(act?.glyph ?? attachmentGlyph(attachment),
+          size: MoshSpace.s5, color: failed ? tone.failGlyph : tone.glyph),
+    );
+    return Material(
+      color: failed ? tone.failPlate : tone.plate,
+      borderRadius: MoshShapes.attachment,
+      clipBehavior: Clip.antiAlias,
+      child: act == null
+          ? glyph
+          : Tooltip(
+              message: act.tooltip,
+              child: Semantics(
+                container: true,
+                label: act.label,
+                button: true,
+                enabled: act.onPressed != null,
+                onTap: act.onPressed,
+                excludeSemantics: true,
+                child: InkWell(
+                  overlayColor: MoshState.layer(tone.glyph),
+                  excludeFromSemantics: true,
+                  onTap: act.onPressed,
+                  child: glyph,
+                ),
+              ),
+            ),
+    );
+  }
+
+  /// The name, the bar of a running transfer and the detail, which is the
+  /// card's last line and so the one the time of the message ends.
+  Widget _lines(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final text = Theme.of(context).textTheme;
+    final progress = attachment.progress;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      // With the bar between them the two lines sit close, to stay within
+      // the plate's height.
+      spacing: progress == null ? MoshSpace.s1 : 0,
+      children: [
+        MiddleCutText(attachment.descriptor.fileName,
+            style: text.labelLarge!.copyWith(color: tone.ink)),
+        if (progress != null)
+          MoshProgressBar(
+              fraction: progress.fraction,
+              semanticsLabel: l.attachmentStateDownloading(progress.percent),
+              color: tone.accent,
+              track: tone.track),
+        Row(spacing: MoshSpace.s2, children: [
+          Expanded(
+            child: Text(
+              attachmentDetail(attachment, l),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.labelMedium!.copyWith(
+                  color: attachment.failed ? tone.error : tone.quiet,
+                  fontFeatures: kLiveNumberFontFeatures),
+            ),
+          ),
+          if (footer case final footer?) footer,
+        ]),
+      ],
     );
   }
 }

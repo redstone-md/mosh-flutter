@@ -172,70 +172,85 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
     player.seek(Duration(milliseconds: ms));
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l = AppLocalizations.of(context)!;
-    final tone = MessageTone.of(context, own: widget.own);
-    final voice = widget.descriptor.voice;
-    final durationMs = voice?.durationMs ?? 0;
-    final attachment = _attachment;
-    // A transfer that failed or was stopped has no audio to play: the
-    // button tries again. While the audio is still arriving it spins.
-    final failed =
-        attachment.failed || attachment.state == AttachmentState.cancelled;
-    final loading = attachment.progress != null;
-    final started = _playing || _position.inMilliseconds > 0;
-    final enabled = !loading &&
-        (attachment.localPath != null || !(widget.busy || attachment.outgoing));
-    final side = MoshControl.height(theme.platform);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      spacing: MoshSpace.s3,
-      children: [
-        Opacity(
-          opacity: enabled || loading ? 1 : MoshState.disabledContent,
-          child: PressScale(
-            enabled: enabled,
-            child: Material(
-              color: tone.accent,
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                overlayColor: MoshState.layer(tone.onAccent),
-                onTap: enabled ? _toggle : null,
-                child: Tooltip(
-                  message: failed
-                      ? l.attachmentRetry
-                      : _playing
-                          ? widget.pauseLabel
-                          : widget.playLabel,
-                  child: SizedBox.square(
-                    dimension: side,
-                    child: Center(
-                      child: loading
-                          ? SizedBox.square(
-                              dimension: MoshSpace.s5,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: MoshBorder.thick,
-                                  color: tone.onAccent),
-                            )
-                          : ContextualIconSwitcher(
-                              icon: failed
-                                  ? MoshIcons.refresh
-                                  : _playing
-                                      ? MoshIcons.pause
-                                      : MoshIcons.play,
-                              size: MoshSpace.s5,
-                              color: tone.onAccent,
-                            ),
-                    ),
-                  ),
+  /// A transfer that failed or was stopped has no audio to play: the
+  /// button tries again.
+  bool get _failed =>
+      _attachment.failed || _attachment.state == AttachmentState.cancelled;
+
+  /// The audio is still arriving: the button spins.
+  bool get _loading => _attachment.progress != null;
+
+  int get _durationMs => widget.descriptor.voice?.durationMs ?? 0;
+
+  /// How long the message is, how far it has played, or why it cannot.
+  String _detail(AppLocalizations l) {
+    if (_failed) return l.attachmentMediaFailed;
+    if (_loading) return l.voiceMessageLoading;
+    final length = formatVoiceClock(_durationMs);
+    return _playing || _position.inMilliseconds > 0
+        ? '${formatVoiceClock(_position.inMilliseconds)} / $length'
+        : length;
+  }
+
+  /// The one round button: play and pause, a spinner, or try again.
+  Widget _button(BuildContext context, MessageTone tone, AppLocalizations l) {
+    final enabled = !_loading &&
+        (_attachment.localPath != null ||
+            !(widget.busy || _attachment.outgoing));
+    final glyph = _failed
+        ? MoshIcons.refresh
+        : _playing
+            ? MoshIcons.pause
+            : MoshIcons.play;
+    return Opacity(
+      opacity: enabled || _loading ? 1 : MoshState.disabledContent,
+      child: PressScale(
+        enabled: enabled,
+        child: Material(
+          color: tone.accent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            overlayColor: MoshState.layer(tone.onAccent),
+            onTap: enabled ? _toggle : null,
+            child: Tooltip(
+              message: _failed
+                  ? l.attachmentRetry
+                  : _playing
+                      ? widget.pauseLabel
+                      : widget.playLabel,
+              child: SizedBox.square(
+                dimension: MoshControl.height(Theme.of(context).platform),
+                child: Center(
+                  child: _loading
+                      ? SizedBox.square(
+                          dimension: MoshSpace.s5,
+                          child: CircularProgressIndicator(
+                              strokeWidth: MoshBorder.thick,
+                              color: tone.onAccent),
+                        )
+                      : ContextualIconSwitcher(
+                          icon: glyph,
+                          size: MoshSpace.s5,
+                          color: tone.onAccent),
                 ),
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final tone = MessageTone.of(context, own: widget.own);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: MoshSpace.s3,
+      children: [
+        _button(context, tone, l),
         Flexible(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -243,9 +258,10 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
             spacing: MoshSpace.s1,
             children: [
               VoiceWaveform(
-                  peaks: voicePeaksFromBase64(voice?.peaksB64),
-                  progress: durationMs > 0
-                      ? math.min(1.0, _position.inMilliseconds / durationMs)
+                  peaks:
+                      voicePeaksFromBase64(widget.descriptor.voice?.peaksB64),
+                  progress: _durationMs > 0
+                      ? math.min(1.0, _position.inMilliseconds / _durationMs)
                       : 0.0,
                   played: tone.accent,
                   unplayed: tone.rest,
@@ -258,16 +274,8 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
                 child: Row(spacing: MoshSpace.s2, children: [
                   Expanded(
                     child: VoiceCardTimeLabel(
-                      label: failed
-                          ? l.attachmentMediaFailed
-                          : loading
-                              ? l.voiceMessageLoading
-                              : started
-                                  ? '${formatVoiceClock(_position.inMilliseconds)}'
-                                      ' / ${formatVoiceClock(durationMs)}'
-                                  : formatVoiceClock(durationMs),
-                      color: failed ? tone.error : tone.quiet,
-                    ),
+                        label: _detail(l),
+                        color: _failed ? tone.error : tone.quiet),
                   ),
                   if (widget.messageFooter case final footer?) footer,
                 ]),

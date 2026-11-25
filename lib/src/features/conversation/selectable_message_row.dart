@@ -57,18 +57,7 @@ class SelectableMessageRow extends StatelessWidget {
               spacing: MoshSpace.s2,
               children: [
                 if (selecting && id != null)
-                  // The Checkbox card's 24 px mark.
-                  Transform.scale(
-                    scale: MoshSpace.s6 / Checkbox.width,
-                    child: Checkbox(
-                      key: ValueKey('message-selector-$id'),
-                      value: selected,
-                      semanticLabel:
-                          AppLocalizations.of(context)!.messageSelect,
-                      onChanged:
-                          selection!.busy ? null : (_) => _pick(selection, id),
-                    ),
-                  ),
+                  _selector(context, selection!, id, selected),
                 Expanded(
                   child: CopyableMessage(
                     key: ValueKey(message.messageId ?? message),
@@ -92,6 +81,19 @@ class SelectableMessageRow extends StatelessWidget {
       ),
     );
   }
+
+  /// The Checkbox card's 24 px mark, which picks the row.
+  Widget _selector(BuildContext context, MessageSelection selection, String id,
+          bool selected) =>
+      Transform.scale(
+        scale: MoshSpace.s6 / Checkbox.width,
+        child: Checkbox(
+          key: ValueKey('message-selector-$id'),
+          value: selected,
+          semanticLabel: AppLocalizations.of(context)!.messageSelect,
+          onChanged: selection.busy ? null : (_) => _pick(selection, id),
+        ),
+      );
 
   void _pick(MessageSelection selection, String id) =>
       HardwareKeyboard.instance.isShiftPressed

@@ -53,8 +53,12 @@ final _dmScenes = <FigmaScene>[
   }),
   scene('dm-voice', 'Conversation / DM / Voice messages', (tester, size) async {
     final data = dmVoice();
-    await _dm(tester, size,
-        dmSession(messages: data.messages, attachments: data.transfers));
+    // The note that is still arriving spins, so the scene never settles.
+    await openShellUnsettled(tester, size,
+        gateway: seededGateway(
+            dm: dmSession(
+                messages: data.messages, attachments: data.transfers)),
+        location: AppRoutes.dmFor(dmId));
   }),
   scene('dm-calls', 'Conversation / DM / Call log', (tester, size) async {
     await _dm(tester, size, dmSession(messages: dmCalls()));

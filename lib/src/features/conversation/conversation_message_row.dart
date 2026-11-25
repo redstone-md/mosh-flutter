@@ -88,8 +88,6 @@ class ConversationMessageRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gutter = _namesSender ? messageAvatarSize + kMessageRowGap : 0.0;
-    final failed =
-        message.own && message.deliveryStatus == MessageDeliveryStatus.failed;
     return LayoutBuilder(
       builder: (context, constraints) => Row(
         mainAxisAlignment:
@@ -112,46 +110,51 @@ class ConversationMessageRow extends StatelessWidget {
             constraints: BoxConstraints(
                 maxWidth: (constraints.maxWidth - gutter)
                     .clamp(0.0, double.infinity)),
-            // A failure sits under its bubble, on the bubble's side.
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // A call is a bubble of its own.
-                if (message.callEvent case final call?)
-                  SelectionContainer.disabled(
-                    child: CallLogEntry(
-                        event: call,
-                        outgoing: message.own,
-                        sentAtMs: message.sentAtMs,
-                        conversationId: conversationId,
-                        l: l),
-                  )
-                else
-                  MessageBubble(
-                    id: message.messageId ?? message.body,
-                    tone: MessageTone.of(context, own: message.own),
-                    own: message.own,
-                    grouped: grouped,
-                    continuesBelow: continuesBelow,
-                    gone: message.deletion != null,
-                    child: _body(context),
-                  ),
-                if (failed)
-                  SelectionContainer.disabled(
-                    child: FailedMessageRetry(
-                      deliveryError: message.deliveryError,
-                      onRetry: message.canRetry
-                          ? () => onRetry(message.messageId!)
-                          : null,
-                      l: l.toFailedMessageRetryL10n(),
-                    ),
-                  ),
-              ],
-            ),
+            child: _bubbleAndFailure(context),
           ),
         ],
       ),
+    );
+  }
+
+  /// The bubble, or the call that is a bubble of its own, and under it, on
+  /// the same side, the notice of a message that was not sent.
+  Widget _bubbleAndFailure(BuildContext context) {
+    final failed =
+        message.own && message.deliveryStatus == MessageDeliveryStatus.failed;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (message.callEvent case final call?)
+          SelectionContainer.disabled(
+            child: CallLogEntry(
+                event: call,
+                outgoing: message.own,
+                sentAtMs: message.sentAtMs,
+                conversationId: conversationId,
+                l: l),
+          )
+        else
+          MessageBubble(
+            id: message.messageId ?? message.body,
+            tone: MessageTone.of(context, own: message.own),
+            own: message.own,
+            grouped: grouped,
+            continuesBelow: continuesBelow,
+            gone: message.deletion != null,
+            child: _body(context),
+          ),
+        if (failed)
+          SelectionContainer.disabled(
+            child: FailedMessageRetry(
+              deliveryError: message.deliveryError,
+              onRetry:
+                  message.canRetry ? () => onRetry(message.messageId!) : null,
+              l: l.toFailedMessageRetryL10n(),
+            ),
+          ),
+      ],
     );
   }
 
@@ -184,7 +187,8 @@ class ConversationMessageRow extends StatelessWidget {
 
   /// What the bubble holds, top to bottom: the sender, a file, a picture or
   /// a voice message, then the text. The time ends the last line of the
-  /// text; a file or a voice message alone keeps it in its own last line.
+  /// text; a file or a voice message alone keeps it in its own last line,
+  /// and a picture, like a message with nothing else, keeps a line for it.
   Widget _body(BuildContext context) {
     if (message.deletion case final deleted?) return _deleted(context, deleted);
     final compact = isMobileBreakpoint(context);
@@ -192,8 +196,6 @@ class ConversationMessageRow extends StatelessWidget {
     final hasFooter = footer.measure(context).height > 0;
     final attachment = message.attachment;
     final hasText = message.body.isNotEmpty;
-    // A file or a voice message alone keeps the time in its own last line;
-    // a picture, like a message with nothing else, keeps a line for it.
     final timeInCard = attachment != null &&
         AttachmentCard.timeRidesIn(ConversationAttachment(
             descriptor: attachment, view: attachmentView, own: message.own));
@@ -221,21 +223,9 @@ class ConversationMessageRow extends StatelessWidget {
                 fromFingerprint: message.fromFingerprint,
                 peer: peer,
               )),
-            // The controls of an attachment remain outside text selection.
             if (attachment != null)
-              SelectionContainer.disabled(
-                child: AttachmentCard(
-                  descriptor: attachment,
-                  view: attachmentView,
-                  own: message.own,
-                  busy: busy,
-                  onDownload: onAttachmentDownload,
-                  onCancel: onAttachmentCancel,
-                  onOpen: onAttachmentOpen,
-                  messageFooter:
-                      hasText || !hasFooter || !timeInCard ? null : footer,
-                ),
-              ),
+              _attachmentCard(attachment,
+                  hasText || !hasFooter || !timeInCard ? null : footer),
             if (hasText)
               inset(ConversationMessageText(
                   body: message.body, footer: footer, own: message.own)),
@@ -245,4 +235,19 @@ class ConversationMessageRow extends StatelessWidget {
       ],
     );
   }
+
+  /// The controls of an attachment remain outside text selection.
+  Widget _attachmentCard(AttachmentDescriptor attachment, Widget? footer) =>
+      SelectionContainer.disabled(
+        child: AttachmentCard(
+          descriptor: attachment,
+          view: attachmentView,
+          own: message.own,
+          busy: busy,
+          onDownload: onAttachmentDownload,
+          onCancel: onAttachmentCancel,
+          onOpen: onAttachmentOpen,
+          messageFooter: footer,
+        ),
+      );
 }
