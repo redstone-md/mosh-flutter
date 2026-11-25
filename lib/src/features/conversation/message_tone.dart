@@ -19,6 +19,7 @@ class MessageTone {
     required this.accent,
     required this.onAccent,
     required this.rest,
+    required this.track,
   });
 
   /// The tone of a message in the palette around [context]: [own] for one
@@ -39,6 +40,7 @@ class MessageTone {
           accent: c.onOutgoing,
           onAccent: c.outgoing,
           rest: c.onOutgoingVariant,
+          track: c.onOutgoingVariant,
         )
       : MessageTone._(
           fill: c.incoming,
@@ -52,6 +54,7 @@ class MessageTone {
           accent: c.primary,
           onAccent: c.onPrimary,
           rest: c.outline,
+          track: c.surfaceContainerHighest,
         );
 
   /// The bubble itself.
@@ -71,7 +74,7 @@ class MessageTone {
   /// play button of a voice message; [accent] also fills what has played.
   final Color accent, onAccent;
 
-  /// What has not happened yet: the bars still to play, the track of a
-  /// transfer.
-  final Color rest;
+  /// What has not happened yet: the bars of a voice message still to play
+  /// are [rest], and [track] is the part of a transfer bar still to fill.
+  final Color rest, track;
 }

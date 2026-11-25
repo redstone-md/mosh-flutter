@@ -117,8 +117,7 @@ void main() {
     expect(find.textContaining('4.0 KB'), findsOneWidget);
   });
 
-  testWidgets('image without thumbnail renders an open thumb button',
-      (tester) async {
+  testWidgets('image without thumbnail opens from its card', (tester) async {
     final descriptor = _descriptor(
       attachmentId: 'att-img-nothumb',
       fileName: 'photo2.png',
@@ -142,16 +141,9 @@ void main() {
     // No preview: no Image.memory in the tree.
     expect(find.byType(Image), findsNothing);
     expect(find.byIcon(MoshIcons.image), findsOneWidget);
-    // The thumb owns the accessible action; IconButton's visual tooltip is
-    // excluded from semantics, so there is exactly one Open announcement.
+    // The plate owns the accessible action, so there is exactly one Open
+    // announcement; the whole card is the pointer's target.
     expect(find.bySemanticsLabel('Open photo2.png'), findsOneWidget);
-    final thumbButton = find.ancestor(
-      of: find.byIcon(MoshIcons.image),
-      matching: find.byType(InkWell),
-    );
-    expect(thumbButton, findsOneWidget);
-    // The thumb button is a fixed 40x40 square.
-    expect(tester.getSize(thumbButton), const Size(40, 40));
     final semanticsHandle = tester.ensureSemantics();
     final thumbSemantics =
         tester.getSemantics(find.byIcon(MoshIcons.image)).getSemanticsData();
@@ -191,8 +183,7 @@ void main() {
     expect(find.byIcon(MoshIcons.play), findsOneWidget);
   });
 
-  testWidgets('video without thumbnail opens from the thumb button',
-      (tester) async {
+  testWidgets('video without thumbnail opens from its card', (tester) async {
     final descriptor = _descriptor(
       attachmentId: 'att-vid-nothumb-open',
       fileName: 'clip2.mp4',
@@ -220,8 +211,7 @@ void main() {
     expect(_opened, descriptor);
   });
 
-  testWidgets('audio without thumbnail renders an open thumb button',
-      (tester) async {
+  testWidgets('audio without thumbnail opens from its card', (tester) async {
     final descriptor = _descriptor(
       attachmentId: 'att-audio',
       fileName: 'song.mp3',
@@ -279,22 +269,13 @@ void main() {
 
     // Pins the `isImage || isVideo` guard: no Image.memory.
     expect(find.byType(Image), findsNothing);
-    final fileIcon = find.byIcon(MoshIcons.file);
-    expect(fileIcon, findsOneWidget);
-    expect(
-      find.ancestor(of: fileIcon, matching: find.byType(IconButton)),
-      findsNothing,
-    );
     expect(find.bySemanticsLabel('Open doc.pdf'), findsNothing);
-    expect(find.byType(IconButton), findsOneWidget);
-    expect(tester.widget<IconButton>(find.byType(IconButton)).onPressed,
-        isNotNull);
-    await tester.tap(find.byIcon(MoshIcons.file));
+    expect(find.bySemanticsLabel('Download doc.pdf'), findsOneWidget);
+    await tester.tap(find.text('doc.pdf'));
     expect(_openCount, 0);
-    expect(find.text('doc.pdf'), findsOneWidget);
   });
 
-  testWidgets('failed non-viewable attachment keeps a non-tappable error icon',
+  testWidgets('a failed file offers to try again and does not open',
       (tester) async {
     final descriptor = _descriptor(
       attachmentId: 'att-failed-pdf',
@@ -318,14 +299,9 @@ void main() {
       ),
     );
 
-    final errorIcon = find.byIcon(MoshIcons.error);
-    expect(errorIcon, findsOneWidget);
-    expect(
-      find.ancestor(of: errorIcon, matching: find.byType(IconButton)),
-      findsNothing,
-    );
+    expect(find.bySemanticsLabel('Retry broken.pdf'), findsOneWidget);
     expect(find.bySemanticsLabel('Open broken.pdf'), findsNothing);
-    await tester.tap(errorIcon);
+    await tester.tap(find.byIcon(MoshIcons.refresh));
     expect(_openCount, 0);
   });
 
@@ -363,5 +339,78 @@ void main() {
     expect(find.byIcon(MoshIcons.imageBroken), findsOneWidget);
     expect(find.bySemanticsLabel('Open photo3.png'), findsOneWidget);
     expect(find.text('photo3.png'), findsOneWidget);
+  });
+
+  group('a picture in transfer', () {
+    AttachmentCard card(AttachmentState state, List<String> calls) {
+      final descriptor = _descriptor(
+        attachmentId: 'att-photo',
+        fileName: 'ridge.jpg',
+        mime: 'image/jpeg',
+        totalSize: 4096,
+        thumbnailB64: _pngThumbB64,
+      );
+      return AttachmentCard(
+        descriptor: descriptor,
+        view: _view(
+            attachmentId: 'att-photo', state: state, completed: 58, total: 100),
+        own: false,
+        busy: false,
+        onDownload: (id) => calls.add('download $id'),
+        onCancel: (id) => calls.add('cancel $id'),
+        onOpen: _onOpen,
+      );
+    }
+
+    testWidgets('shows how far it has come, and its ring stops it',
+        (tester) async {
+      final calls = <String>[];
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body: Center(child: card(AttachmentState.downloading, calls))),
+          settle: false);
+      expect(find.text('58% of 4.0 KB'), findsOneWidget);
+      await tester.tap(find.byTooltip('Cancel download'));
+      expect(calls, ['cancel att-photo']);
+      expect(_openCount, 0);
+    });
+
+    testWidgets('that failed says so and offers to try again', (tester) async {
+      final calls = <String>[];
+      await _pump(tester, card(AttachmentState.failed, calls));
+      expect(find.text('Could not load'), findsOneWidget);
+      await tester.tap(find.byTooltip('Retry'));
+      expect(calls, ['download att-photo']);
+    });
+  });
+
+  testWidgets('a long name is cut in the middle and keeps its extension',
+      (tester) async {
+    const name = 'trail-map-with-every-waypoint-and-campsite-final-v3.zip';
+    await _pump(
+      tester,
+      AttachmentCard(
+        descriptor: _descriptor(
+            attachmentId: 'att-long',
+            fileName: name,
+            mime: 'application/zip',
+            totalSize: 1024),
+        view: _view(attachmentId: 'att-long'),
+        own: false,
+        busy: false,
+        onDownload: _onDownload,
+        onCancel: _onCancel,
+        onOpen: _onOpen,
+      ),
+    );
+    final shown = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((text) => text.data!)
+        .firstWhere((data) => data.contains('…'));
+    expect(shown, startsWith('trail-map'));
+    expect(shown, endsWith('al-v3.zip'));
+    expect(find.bySemanticsLabel(RegExp(RegExp.escape(name))), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 }

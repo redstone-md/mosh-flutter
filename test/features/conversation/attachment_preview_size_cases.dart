@@ -42,12 +42,14 @@ void main() {
   });
 
   test('preview height follows the aspect ratio within its bounds', () {
-    expect(attachmentPreviewHeight(const Size(300, 200)), closeTo(213.3, 0.1));
-    expect(attachmentPreviewHeight(const Size(10, 100)),
+    expect(attachmentPreviewHeight(const Size(300, 200), width: 320),
+        closeTo(213.3, 0.1));
+    expect(attachmentPreviewHeight(const Size(10, 100), width: 320),
         kAttachmentPreviewMaxHeight);
-    expect(attachmentPreviewHeight(const Size(100, 1)),
+    expect(attachmentPreviewHeight(const Size(100, 1), width: 320),
         kAttachmentPreviewMinHeight);
-    expect(attachmentPreviewHeight(null), kAttachmentPreviewFallbackHeight);
+    expect(attachmentPreviewHeight(null, width: 320),
+        kAttachmentPreviewFallbackHeight);
     expect(attachmentPreviewHeight(const Size(300, 200), width: 240), 160);
   });
 }

@@ -5,6 +5,7 @@ import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/attachment_card.dart';
+import 'package:mosh/src/features/conversation/conversation_attachment.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_message_footer.dart';
 import 'package:mosh/src/features/conversation/conversation_message_text.dart';
@@ -195,6 +196,11 @@ class ConversationMessageRow extends StatelessWidget {
     final hasFooter = footer.measure(context).height > 0;
     final attachment = message.attachment;
     final hasText = message.body.isNotEmpty;
+    // A file or a voice message alone keeps the time in its own last line;
+    // a picture, like a message with nothing else, keeps a line for it.
+    final timeInCard = attachment != null &&
+        AttachmentCard.timeRidesIn(ConversationAttachment(
+            descriptor: attachment, view: attachmentView, own: message.own));
     // Under an attachment the text is a caption and wraps at its width.
     final measure = attachment == null
         ? messageMeasure(compact: compact)
@@ -230,7 +236,8 @@ class ConversationMessageRow extends StatelessWidget {
                   onDownload: onAttachmentDownload,
                   onCancel: onAttachmentCancel,
                   onOpen: onAttachmentOpen,
-                  messageFooter: hasText || !hasFooter ? null : footer,
+                  messageFooter:
+                      hasText || !hasFooter || !timeInCard ? null : footer,
                 ),
               ),
             if (hasText)
@@ -238,7 +245,7 @@ class ConversationMessageRow extends StatelessWidget {
                   body: message.body, footer: footer, own: message.own)),
           ],
         ),
-        if (!hasText && attachment == null && hasFooter) inset(footer),
+        if (!hasText && !timeInCard && hasFooter) inset(footer),
       ],
     );
   }

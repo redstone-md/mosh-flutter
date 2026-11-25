@@ -92,7 +92,10 @@ void main() {
             messageId: 'file',
             attachment: testAttachment(attachmentId: 'file')),
       ]);
-      tester.semantics.longPress(find.semantics.byLabel(RegExp('report.pdf')));
+      // The file's name is part of the message; the plate beside it is the
+      // button of its own action.
+      tester.semantics
+          .longPress(find.semantics.byLabel(RegExp(r'^report\.pdf')));
       await tester.pumpAndSettle();
       expect(find.text('Select message'), findsOneWidget);
       expect(find.text('Delete…'), findsOneWidget);

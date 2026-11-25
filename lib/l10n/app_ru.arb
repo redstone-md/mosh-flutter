@@ -243,10 +243,17 @@
   "orgRejoinNeededTitle": "Группа рассинхронизирована",
   "orgRejoinNeededBody": "Внутри группы произошла рассинхронизация. Попросите администратора пригласить вас заново.",
   "diagnosticsDiagnostics": "Диагностика",
-  "attachmentStateAvailable": "Доступно",
+  "attachmentProgressOf": "{percent}% из {size}",
+  "@attachmentProgressOf": {
+    "description": "The line under a file's name while it is being downloaded: how much has arrived, of its size",
+    "placeholders": { "percent": { "type": "int" }, "size": { "type": "String" } }
+  },
+  "attachmentMediaFailed": "Не удалось загрузить",
+  "@attachmentMediaFailed": {
+    "description": "The line beside the name of a picture or a video whose transfer failed"
+  },
   "attachmentStateFailed": "Передача не удалась",
   "attachmentStateCancelled": "Передача отменена",
-  "attachmentStateOffered": "Готово к загрузке",
   "attachmentStateDownloading": "Загрузка {percent}%",
   "unreadBadge": "{count} непрочитанных",
   "@unreadBadge": {

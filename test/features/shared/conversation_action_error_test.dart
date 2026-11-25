@@ -198,7 +198,7 @@ void main() {
 
     await tester.tap(find.descendant(
       of: find.byType(AttachmentCard),
-      matching: find.byType(IconButton),
+      matching: find.byTooltip('Download'),
     ));
     await tester.pumpAndSettle();
 
