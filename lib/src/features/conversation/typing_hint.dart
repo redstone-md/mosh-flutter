@@ -28,26 +28,24 @@ class TypingHint extends StatelessWidget {
   /// localization delegate.
   final String Function(String name)? typingLabel;
 
+  /// The line to show, or null when nobody is typing.
+  String? _text(AppLocalizations? l) {
+    if (names.isEmpty) return null;
+    final label = typingLabel;
+    if (label != null) {
+      return names.length == 1
+          ? label(names.first)
+          : '${names.join(', ')} and others are typing';
+    }
+    if (l == null) return null;
+    return names.length == 1
+        ? l.typingHint(names.first)
+        : '${names.join(', ')} ${l.typingHintAnd}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    final String? text;
-    if (names.isNotEmpty) {
-      if (typingLabel != null) {
-        text = names.length == 1
-            ? typingLabel!(names.first)
-            : '${names.join(', ')} and others are typing';
-      } else if (l != null) {
-        text = names.length == 1
-            ? l.typingHint(names.first)
-            : '${names.join(', ')} ${l.typingHintAnd}';
-      } else {
-        text = null;
-      }
-    } else {
-      text = null;
-    }
-
+    final text = _text(AppLocalizations.of(context));
     return AnimatedSize(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutCubic,
@@ -64,6 +62,8 @@ class TypingHint extends StatelessWidget {
               child: Align(
                 alignment: AlignmentDirectional.centerStart,
                 child: ConstrainedBox(
+                  // No wider than a line of a message on the phone, as the
+                  // card draws it on both devices.
                   constraints:
                       BoxConstraints(maxWidth: messageMeasure(compact: true)),
                   child: Text(

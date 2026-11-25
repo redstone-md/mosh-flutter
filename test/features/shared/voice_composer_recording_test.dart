@@ -80,6 +80,52 @@ void main() {
     expect(find.byTooltip('Record'), findsOneWidget);
   });
 
+  testWidgets('a press on Send in the first second sends nothing',
+      (tester) async {
+    final recorder = VoiceRecorderProbe(tester);
+    final sent = <VoiceSend>[];
+    await pumpVoiceComposer(tester, sent: sent);
+    await _record(tester, const Duration(milliseconds: 400));
+
+    await tester.tap(find.byTooltip('Send voice'));
+    await tester.pumpAndSettle();
+
+    expect(sent, isEmpty);
+    expect(find.byTooltip('Record'), findsOneWidget);
+    expect(File(recorder.started.single).existsSync(), isFalse);
+  });
+
+  testWidgets('a microphone that cannot start is told and the row stays',
+      (tester) async {
+    VoiceRecorderProbe(tester).failStart = true;
+    final errors = <String>[];
+    await pumpVoiceComposer(tester, errors: errors);
+
+    await tester.tap(find.byTooltip('Record'));
+    await tester.pumpAndSettle();
+
+    expect(errors.single, contains('busy'));
+    expect(find.byTooltip('Record'), findsOneWidget);
+  });
+
+  testWidgets('a recording that cannot go on keeps what was paused',
+      (tester) async {
+    final recorder = VoiceRecorderProbe(tester);
+    final errors = <String>[];
+    await pumpVoiceComposer(tester, errors: errors);
+    await _record(tester, const Duration(seconds: 2));
+    await _press(tester, 'Pause');
+
+    recorder.failStart = true;
+    await tester.tap(find.byTooltip('Resume'));
+    await tester.pumpAndSettle();
+
+    expect(errors.single, contains('busy'));
+    expect(find.byTooltip('Play'), findsOneWidget);
+    expect(find.text('0:02'), findsOneWidget);
+    expect(File(recorder.started.first).existsSync(), isTrue);
+  });
+
   testWidgets('pause stops the clock and offers the recording to listen to',
       (tester) async {
     final recorder = VoiceRecorderProbe(tester);

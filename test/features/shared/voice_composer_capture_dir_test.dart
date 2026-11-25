@@ -13,7 +13,7 @@
 //  1. The clip path the recorder receives lives inside an explicitly
 //     created `mosh-voice/` subdirectory (not the raw cache root).
 //  2. The directory is created recursively EVEN WHEN the base dir does not
-//     exist yet (the exact macOS state: base missing → errno 2 today).
+//     exist yet (the exact macOS state: base missing → errno 2).
 //  3. The base dir switches to the app cache dir
 //     (`getApplicationCacheDirectory`), whose plugin path DOES create the
 //     base — belt and braces with the explicit recursive create.

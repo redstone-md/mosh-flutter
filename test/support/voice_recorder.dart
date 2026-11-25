@@ -99,6 +99,9 @@ class VoiceRecorderProbe {
   /// Every file a capture was started into, in order.
   final started = <String>[];
 
+  /// Makes the next capture fail to start, as a busy device does.
+  bool failStart = false;
+
   /// What the microphone hears, dBFS.
   double level = -60;
 
@@ -117,6 +120,7 @@ class VoiceRecorderProbe {
       case 'hasPermission':
         return permission?.future ?? allowed;
       case 'start':
+        if (failStart) throw PlatformException(code: 'record', message: 'busy');
         path = (call.arguments as Map)['path'] as String;
         started.add(path!);
         File(path!).writeAsBytesSync([1, 2, 3]);

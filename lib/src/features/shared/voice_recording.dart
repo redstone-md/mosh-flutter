@@ -39,15 +39,10 @@ class VoiceRecording extends ChangeNotifier {
   final VoidCallback onPermissionDenied;
   final void Function(Object error) onError;
 
-  static const _mime = 'audio/mp4';
-
   final AudioRecorder _recorder = AudioRecorder();
   VoiceRecordingPhase _phase = VoiceRecordingPhase.idle;
   late final _VoiceMeter _meter = _VoiceMeter(onTick: _onTick);
-  // The finished clip, and the meter's reading when it was closed: what a
-  // piece that cannot be joined falls back to.
   final _VoiceFiles _files = _VoiceFiles();
-  _MeterReading _clipReading = _VoiceMeter.zero;
   // One recorder transition at a time: a cancel racing a pause would
   // delete the file the pause is still closing.
   bool _busy = false;
@@ -80,7 +75,7 @@ class VoiceRecording extends ChangeNotifier {
         if (_disposed) return;
         if (!allowed) return onPermissionDenied();
         if (!canCapture()) return;
-        _meter.rewind(_VoiceMeter.zero);
+        _meter.reset();
         await _capture();
       });
 
@@ -103,8 +98,8 @@ class VoiceRecording extends ChangeNotifier {
         _set(VoiceRecordingPhase.idle);
       });
 
-  /// Ends the recording and hands it over; null when there is nothing to
-  /// send. The clip's file is the caller's from here on.
+  /// Ends the recording and hands its file over; null when nothing is sent:
+  /// one shorter than [minRecording] is thrown away.
   Future<VoiceSend?> finish() async {
     VoiceSend? voice;
     await _exclusive(() async {
@@ -112,11 +107,15 @@ class VoiceRecording extends ChangeNotifier {
       if (_phase == VoiceRecordingPhase.recording && !await _close()) {
         return _set(VoiceRecordingPhase.paused);
       }
+      if (elapsed < minRecording) {
+        await _discard();
+        return _set(VoiceRecordingPhase.idle);
+      }
       final path = _files.release();
       if (path == null) return;
       voice = VoiceSend(
         path: path,
-        mime: _mime,
+        mime: 'audio/mp4',
         durationMs: elapsed.inMilliseconds,
         peaksBase64: base64Encode(peaks),
       );
@@ -134,8 +133,7 @@ class VoiceRecording extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Runs one recorder transition; a second one asked for meanwhile is
-  /// dropped. A failure ends the recording and is reported.
+  /// Runs one recorder transition; one asked for meanwhile is dropped.
   Future<void> _exclusive(Future<void> Function() transition) async {
     if (_busy || _disposed) return;
     _busy = true;
@@ -152,12 +150,10 @@ class VoiceRecording extends ChangeNotifier {
     }
   }
 
-  /// Starts a new file and the clock. A composer that went out of sight
-  /// while the recorder was starting is paused at once.
+  /// Starts a new file and the clock; out of sight by then, pauses at once.
   Future<void> _capture() async {
     final path = _files.live = await _VoiceFiles.create();
-    // The stored input pick (audio-devices.json); null = platform default.
-    // The label is cosmetic on the platform side, so the id doubles as it.
+    // Null is the platform default; the label is cosmetic, so the id serves.
     final picked = inputDeviceId();
     await _recorder.start(
       RecordConfig(
@@ -190,25 +186,29 @@ class VoiceRecording extends ChangeNotifier {
       await _files.close(segment, join);
     } catch (error) {
       joined = false;
-      _meter.rewind(_clipReading);
+      _meter.rewind();
       if (!_disposed) onError(error);
     }
-    _clipReading = _meter.reading;
+    _meter.mark();
     return joined;
   }
 
+  /// A recorder that failed is told; what was paused before it stays.
   Future<void> _abort(Object error) async {
     if (!_disposed) onError(error);
-    await _discard();
-    _set(VoiceRecordingPhase.idle);
+    await _discard(keepClip: true);
+    _meter.rewind();
+    _set(_files.clip == null
+        ? VoiceRecordingPhase.idle
+        : VoiceRecordingPhase.paused);
   }
 
-  Future<void> _discard() async {
+  Future<void> _discard({bool keepClip = false}) async {
     _meter.stop();
     try {
       await _recorder.cancel();
     } catch (_) {/* best-effort */}
-    _files.deleteAll();
+    keepClip ? _files.deleteLive() : _files.deleteAll();
   }
 
   void _set(VoiceRecordingPhase phase) {
@@ -230,20 +230,21 @@ class _VoiceFiles {
   /// Adds the captured [segment] to [clip]. Throws when the two cannot be
   /// joined: the segment is gone then and [clip] is as it was.
   Future<void> close(String? segment, VoiceSegmentJoin join) async {
-    live = null;
     final before = clip;
     if (before == null || segment == null) {
       clip = segment ?? before;
+      live = null;
       return;
     }
-    final joined = await _VoiceFiles.create();
+    // [live] stays ours until the join is over, so a failure deletes it.
+    final joined = await create();
     try {
       await join(segments: [before, segment], output: joined);
     } catch (_) {
       _delete(joined);
       rethrow;
     } finally {
-      _delete(segment);
+      deleteLive();
     }
     clip = joined;
     _delete(before);
@@ -256,10 +257,15 @@ class _VoiceFiles {
     return released;
   }
 
-  void deleteAll() {
+  void deleteLive() {
     _delete(live);
+    live = null;
+  }
+
+  void deleteAll() {
+    deleteLive();
     _delete(clip);
-    live = clip = null;
+    clip = null;
   }
 
   /// A new file for a piece of a recording, in `mosh-voice/` under the app
@@ -288,15 +294,11 @@ class _VoiceFiles {
   }
 }
 
-/// How long a recording is and how many loudness readings it has.
-typedef _MeterReading = ({Duration elapsed, int levels});
-
 /// The clock and the loudness of a recording, running only while the
 /// microphone captures, so pauses are left out of both.
 class _VoiceMeter {
   _VoiceMeter({required this.onTick});
 
-  static const _MeterReading zero = (elapsed: Duration.zero, levels: 0);
   static const _tick = Duration(milliseconds: 200);
 
   final VoidCallback onTick;
@@ -307,7 +309,22 @@ class _VoiceMeter {
   Timer? _clock;
   StreamSubscription<Amplitude>? _amplitudes;
 
-  _MeterReading get reading => (elapsed: elapsed, levels: levels.length);
+  // Where the meter stood when the clip was last closed: what a piece
+  // that failed to start, to stop or to join falls back to.
+  ({Duration elapsed, int levels}) _mark = (elapsed: Duration.zero, levels: 0);
+
+  void mark() => _mark = (elapsed: elapsed, levels: levels.length);
+
+  /// Drops what was metered after the last [mark].
+  void rewind() {
+    elapsed = _mark.elapsed;
+    levels.length = _mark.levels;
+  }
+
+  void reset() {
+    _mark = (elapsed: Duration.zero, levels: 0);
+    rewind();
+  }
 
   /// The loudness as the [waveformBuckets] peaks a voice message carries,
   /// spread over the recording's length.
@@ -342,11 +359,5 @@ class _VoiceMeter {
     _clock = null;
     _amplitudes?.cancel();
     _amplitudes = null;
-  }
-
-  /// Goes back to an earlier [reading], dropping what came after it.
-  void rewind(_MeterReading to) {
-    elapsed = to.elapsed;
-    levels.length = to.levels;
   }
 }

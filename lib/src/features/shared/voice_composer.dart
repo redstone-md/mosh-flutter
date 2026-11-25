@@ -19,10 +19,6 @@ import 'package:mosh/src/rust/api/voice_clip.dart' show joinVoiceSegments;
 
 export 'package:mosh/src/features/shared/voice_composer_types.dart';
 
-/// The production input pick: mosh-core's audio-devices store. A top-level
-/// default (not inline) so the composers stay const-constructible.
-String? storedVoiceInputDeviceId() => audioInputDeviceId();
-
 /// The voice half of the Composer card. At rest it shows [idle], the row
 /// its owner draws around the microphone it is handed. A press on the
 /// microphone turns the whole row into the recording, as Telegram's locked
@@ -39,7 +35,7 @@ class VoiceComposer extends StatefulWidget {
     required this.onSend,
     required this.onError,
     required this.idle,
-    this.inputDeviceId = storedVoiceInputDeviceId,
+    this.inputDeviceId = audioInputDeviceId,
     this.createPlayer = createMediaPlayer,
     this.joinSegments = joinVoiceSegments,
   });
@@ -79,74 +75,29 @@ class _VoiceComposerState extends State<VoiceComposer> {
     onPermissionDenied: () => widget.onError(widget.labels.permissionDenied),
     onError: (error) => widget.onError(error.toString()),
   );
-  // Made on the first listen; let go when the clip changes hands.
-  Player? _player;
-  final List<StreamSubscription<Object?>> _playerEvents = [];
-  bool _playing = false;
-  double _played = 0;
+  late final _ClipPlayer _listening =
+      _ClipPlayer(create: () => widget.createPlayer());
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Hidden controls must not leave the microphone capturing unattended.
-    if (!Visibility.of(context)) unawaited(_recording.pause());
+    // Hidden controls leave neither the microphone capturing nor the
+    // recording playing unattended.
+    if (Visibility.of(context)) return;
+    _listening.close();
+    unawaited(_recording.pause());
   }
 
   @override
   void dispose() {
-    _closePlayer();
+    _listening.dispose();
     _recording.dispose();
     super.dispose();
   }
 
-  /// Plays or pauses the paused recording; without a player, does nothing.
-  Future<void> _listen() async {
-    final clip = _recording.clip;
-    if (clip == null) return;
-    final player = _player;
-    try {
-      if (player != null) return await player.playOrPause();
-    } catch (_) {
-      return _ifMounted(_closePlayer);
-    }
-    final opened = _player = widget.createPlayer();
-    _playerEvents
-      ..add(opened.stream.playing
-          .listen((playing) => _ifMounted(() => _playing = playing)))
-      ..add(opened.stream.position.listen(_onPosition));
-    try {
-      await opened.open(Media(clip));
-    } catch (_) {
-      // Only the player that failed: a newer one may have taken its place.
-      if (_player == opened) _ifMounted(_closePlayer);
-    }
-  }
-
-  void _onPosition(Duration position) {
-    final length = _recording.elapsed.inMilliseconds;
-    if (length == 0) return;
-    _ifMounted(
-        () => _played = (position.inMilliseconds / length).clamp(0.0, 1.0));
-  }
-
-  void _ifMounted(VoidCallback change) {
-    if (mounted) setState(change);
-  }
-
-  void _closePlayer() {
-    for (final event in _playerEvents) {
-      unawaited(event.cancel());
-    }
-    _playerEvents.clear();
-    unawaited(_player?.dispose());
-    _player = null;
-    _playing = false;
-    _played = 0;
-  }
-
   /// Lets go of the clip's player before the clip changes.
   Future<void> _afterListening(Future<void> Function() action) {
-    setState(_closePlayer);
+    _listening.close();
     return action();
   }
 
@@ -157,7 +108,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-        listenable: _recording,
+        listenable: Listenable.merge([_recording, _listening]),
         builder: (context, _) => AnimatedSwitcher(
           duration: MoshMotion.effectsFast.duration,
           switchInCurve: MoshMotion.effectsFast.curve,
@@ -195,6 +146,9 @@ class _VoiceComposerState extends State<VoiceComposer> {
         onPressed: widget.disabled ? null : _recording.start,
       );
 
+  /// Send rests with the microphone: while another send is on its way.
+  VoidCallback? get _sendPressed => widget.disabled ? null : _unlessBusy(_send);
+
   VoidCallback? _unlessBusy(VoidCallback action) =>
       _recording.busy ? null : action;
 
@@ -231,7 +185,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
           tooltip: labels.pause,
           onPressed: _unlessBusy(_recording.pause),
         ),
-        ComposerSendButton(label: labels.send, onPressed: _unlessBusy(_send)),
+        ComposerSendButton(label: labels.send, onPressed: _sendPressed),
       ],
     );
   }
@@ -250,12 +204,13 @@ class _VoiceComposerState extends State<VoiceComposer> {
         ),
         Expanded(
           child: _RecordedTake(
-            label: _playing ? labels.pausePlayback : labels.play,
-            playing: _playing,
-            played: _played,
+            label: _listening.playing ? labels.pausePlayback : labels.play,
+            playing: _listening.playing,
+            played: _listening.played,
             peaks: _recording.peaks,
             durationMs: _recording.elapsed.inMilliseconds,
-            onPressed: _unlessBusy(_listen),
+            onPressed: _unlessBusy(
+                () => _listening.toggle(_recording.clip, _recording.elapsed)),
           ),
         ),
         IconButton(
@@ -265,7 +220,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
               ? null
               : _unlessBusy(() => _afterListening(_recording.resume)),
         ),
-        ComposerSendButton(label: labels.send, onPressed: _unlessBusy(_send)),
+        ComposerSendButton(label: labels.send, onPressed: _sendPressed),
       ],
     );
   }
@@ -289,6 +244,22 @@ class _RecordedTake extends StatelessWidget {
   final Uint8List peaks;
   final int durationMs;
   final VoidCallback? onPressed;
+
+  /// The bars keep their pitch: a narrow capsule cuts the wave where it
+  /// ends.
+  Widget _wave(MoshColors c) => ClipRect(
+        child: OverflowBox(
+          alignment: AlignmentDirectional.centerStart,
+          minWidth: VoiceWaveform.width,
+          maxWidth: VoiceWaveform.width,
+          child: VoiceWaveform(
+            peaks: peaks,
+            progress: played,
+            played: c.primary,
+            unplayed: c.outline,
+          ),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -314,23 +285,7 @@ class _RecordedTake extends StatelessWidget {
                   size: MoshSpace.s5,
                   color: c.onSurface,
                 ),
-                Expanded(
-                  // The bars keep their pitch: a narrow capsule cuts the
-                  // wave where it ends.
-                  child: ClipRect(
-                    child: OverflowBox(
-                      alignment: AlignmentDirectional.centerStart,
-                      minWidth: VoiceWaveform.width,
-                      maxWidth: VoiceWaveform.width,
-                      child: VoiceWaveform(
-                        peaks: peaks,
-                        progress: played,
-                        played: c.primary,
-                        unplayed: c.outline,
-                      ),
-                    ),
-                  ),
-                ),
+                Expanded(child: _wave(c)),
                 Text(
                   formatVoiceClock(durationMs),
                   style: theme.textTheme.labelMedium!.copyWith(
@@ -344,5 +299,70 @@ class _RecordedTake extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// The player a paused recording is listened to with. Made on the first
+/// listen and let go whenever the clip changes hands: a resume, a send, a
+/// cancel, a composer out of sight.
+class _ClipPlayer extends ChangeNotifier {
+  _ClipPlayer({required this.create});
+
+  final MediaPlayerFactory create;
+  Player? _player;
+  final List<StreamSubscription<Object?>> _events = [];
+  bool _disposed = false;
+
+  bool playing = false;
+
+  /// How much of the clip has played, 0..1.
+  double played = 0;
+
+  /// Plays or pauses [clip], [length] long. Where no player can be made (a
+  /// test host without libmpv) it does nothing.
+  Future<void> toggle(String? clip, Duration length) async {
+    if (clip == null) return;
+    final player = _player;
+    try {
+      if (player != null) return await player.playOrPause();
+    } catch (_) {
+      return close();
+    }
+    final opened = _player = create();
+    _events
+      ..add(opened.stream.playing.listen((now) => _set(() => playing = now)))
+      ..add(opened.stream.position.listen((at) => _set(() => played =
+          length == Duration.zero
+              ? 0
+              : (at.inMilliseconds / length.inMilliseconds).clamp(0.0, 1.0))));
+    try {
+      await opened.open(Media(clip));
+    } catch (_) {
+      // Only the player that failed: a newer one may have taken its place.
+      if (_player == opened) close();
+    }
+  }
+
+  void close() {
+    for (final event in _events) {
+      unawaited(event.cancel());
+    }
+    _events.clear();
+    unawaited(_player?.dispose());
+    _player = null;
+    _set(() => playing = false);
+    played = 0;
+  }
+
+  @override
+  void dispose() {
+    close();
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _set(VoidCallback change) {
+    change();
+    if (!_disposed) notifyListeners();
   }
 }

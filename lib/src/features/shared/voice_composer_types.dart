@@ -22,6 +22,10 @@ class VoiceSend {
 /// 64 amplitude buckets (one byte each, 0-255).
 const int waveformBuckets = 64;
 
+/// The shortest recording that is sent: a press on Send before this, such
+/// as a second press that was meant for the microphone, throws it away.
+const Duration minRecording = Duration(seconds: 1);
+
 /// Maximum recording length; the recording pauses itself here.
 const Duration maxRecording = Duration(minutes: 5);
 

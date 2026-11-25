@@ -13,6 +13,7 @@ import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
 import 'package:mosh/src/features/shared/composer_send_button.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
+import 'package:mosh/src/rust/api/audio_devices.dart' show audioInputDeviceId;
 import 'package:super_clipboard/super_clipboard.dart' show ClipboardDataReader;
 
 /// The send button's key. It holds an icon, not a label, so widget tests
@@ -46,7 +47,7 @@ class ConversationComposer extends StatelessWidget {
     required this.voiceLabels,
     required this.onSendVoice,
     required this.onVoiceError,
-    this.inputDeviceId = storedVoiceInputDeviceId,
+    this.inputDeviceId = audioInputDeviceId,
     this.onTyping,
     this.readClipboard = readSystemClipboard,
   });
