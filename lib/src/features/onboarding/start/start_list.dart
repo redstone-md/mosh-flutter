@@ -4,7 +4,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
-import 'package:mosh/src/features/shared/focus_ring.dart';
+import 'package:mosh/src/features/shared/start_row.dart';
 
 /// One way to start a conversation.
 class StartAction {
@@ -97,63 +97,16 @@ class _Section extends StatelessWidget {
               side: BorderSide(color: colors.outlineVariant)),
           clipBehavior: Clip.antiAlias,
           child: Column(children: [
-            for (final action in actions) StartRow(action: action),
+            for (final action in actions)
+              StartRow(
+                  icon: action.icon,
+                  accent: action.accent,
+                  title: action.title,
+                  line: action.description,
+                  onTap: action.onTap),
           ]),
         ),
       ],
-    );
-  }
-}
-
-/// The Start row card: an icon in the action's colour, a title, a line about
-/// it and a chevron, on a row that takes the state layers of any control.
-class StartRow extends StatelessWidget {
-  const StartRow({super.key, required this.action});
-
-  final StartAction action;
-
-  static const radius = BorderRadius.all(Radius.circular(MoshRadius.large));
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
-    final text = Theme.of(context).textTheme;
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        onTap: action.onTap,
-        borderRadius: radius,
-        overlayColor: MoshState.layer(colors.onSurface),
-        child: FocusRing(
-          radius: radius,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: MoshSpace.s16),
-            padding: const EdgeInsets.symmetric(
-                horizontal: MoshSpace.s4, vertical: MoshSpace.s3),
-            child: Row(children: [
-              Icon(action.icon, size: MoshSpace.s6, color: action.accent),
-              const SizedBox(width: MoshSpace.s4),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(action.title, style: text.titleSmall),
-                    Text(action.description, style: text.bodySmall),
-                  ],
-                ),
-              ),
-              const SizedBox(width: MoshSpace.s4),
-              Icon(
-                MoshIcons.chevronRight,
-                size: MoshSpace.s4,
-                color: colors.onSurfaceMuted,
-                textDirection: Directionality.of(context),
-              ),
-            ]),
-          ),
-        ),
-      ),
     );
   }
 }

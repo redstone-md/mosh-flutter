@@ -12,7 +12,7 @@ import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/panel_head.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_summary.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_dialog.dart';
-import 'package:mosh/src/features/onboarding/start/start_list.dart';
+import 'package:mosh/src/features/shared/start_row.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/shared/conversation_kind_style.dart';
@@ -162,15 +162,14 @@ class _ConversationDetailsPanelState
   /// fingerprint to compare.
   Widget _encryption(String fingerprint, bool group, AppLocalizations l) =>
       StartRow(
-          action: StartAction(
         icon: MoshIcons.lock,
         accent: MoshColors.of(context).primary,
         title: l.cryptoNoticeTitle,
-        description: l.chatDetailsEncryptionLine,
+        line: l.chatDetailsEncryptionLine,
         onTap: () => showFingerprintDialog(context,
             fingerprint: fingerprint,
             hint: group ? l.groupFingerprintHint : l.inviteFingerprintHint),
-      ));
+      );
 
   Widget _profile(ConversationDetailsModel model) {
     final text = Theme.of(context).textTheme;

@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/onboarding/join_preview.dart';
-import 'package:mosh/src/features/onboarding/start/start_list.dart';
+import 'package:mosh/src/features/shared/start_row.dart';
 import 'package:mosh/src/invite/invite_detection.dart';
 import '../../support/pump.dart';
 
@@ -29,13 +29,11 @@ Future<void> _pump(WidgetTester tester, Widget child,
 Widget _row({VoidCallback? onTap}) => SizedBox(
       width: 480,
       child: StartRow(
-        action: StartAction(
-          icon: MoshIcons.link,
-          accent: MoshColors.dark.onSurfaceVariant,
-          title: 'Join with a link',
-          description: 'Join with an invite a contact sent you.',
-          onTap: onTap ?? () {},
-        ),
+        icon: MoshIcons.link,
+        accent: MoshColors.dark.onSurfaceVariant,
+        title: 'Join with a link',
+        line: 'Join with an invite a contact sent you.',
+        onTap: onTap ?? () {},
       ),
     );
 
