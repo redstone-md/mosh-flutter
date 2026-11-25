@@ -5,6 +5,7 @@ import 'package:mosh/src/app/mosh_icons.dart';
 
 import 'mosh_dimensions.dart';
 import 'mosh_menu_item.dart';
+import 'mosh_shapes.dart';
 import 'mosh_theme.dart';
 
 @immutable
@@ -77,10 +78,10 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
             maximumSize: WidgetStatePropertyAll(
                 Size(width, math.min(360, size.height * 0.6))),
           ),
-          menuChildren: [
+          menuChildren: MoshMenuItem.rows([
             for (final option in widget.options)
               _item(option, () => widget.onChanged?.call(option.value)),
-          ],
+          ]),
           builder: (context, controller, _) =>
               _button(theme, controller.isOpen || _sheetOpen, () {
             if (sheet) {
@@ -118,7 +119,8 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
     return Semantics(label: widget.label, child: well);
   }
 
-  Widget _item(MoshSelectOption<T> option, VoidCallback select) => MoshMenuItem(
+  MoshMenuItem _item(MoshSelectOption<T> option, VoidCallback select) =>
+      MoshMenuItem(
         label: option.label,
         selected: option.value == widget.value,
         onPressed: option.enabled && widget.onChanged != null ? select : null,
@@ -134,26 +136,40 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
       builder: (context) => ConstrainedBox(
         constraints:
             BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.75),
+        // The Sheet card: the handle, the title with the way out, then the
+        // choices, a step wider apart than a menu's.
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+          padding: const EdgeInsets.fromLTRB(
+              MoshSpace.s3, MoshSpace.s3, MoshSpace.s3, MoshSpace.s6),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: MoshSpace.s8,
+              height: MoshSpace.s1,
+              margin: const EdgeInsets.only(bottom: MoshSpace.s2),
+              decoration: ShapeDecoration(
+                  color: MoshColors.of(context).outline,
+                  shape: MoshShapes.pill),
+            ),
             Row(children: [
               Expanded(
                   child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding:
+                          const EdgeInsetsDirectional.only(start: MoshSpace.s3),
                       child: Text(widget.label,
                           style: Theme.of(context).textTheme.titleMedium))),
               IconButton(
                   tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(MoshIcons.close, size: 20)),
+                  icon: const Icon(MoshIcons.close)),
             ]),
-            const SizedBox(height: 8),
+            const SizedBox(height: MoshSpace.s2),
             Flexible(
-                child: ListView(shrinkWrap: true, children: [
-              for (final option in widget.options)
-                _item(option, () => Navigator.of(context).pop(option)),
-            ])),
+                child: ListView(
+                    shrinkWrap: true,
+                    children: MoshMenuItem.rows([
+                      for (final option in widget.options)
+                        _item(option, () => Navigator.of(context).pop(option)),
+                    ], gap: MoshSpace.s2))),
           ]),
         ),
       ),

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'network_choice_provider.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/app/mosh_spinner.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/features/shared/inline_error.dart';
 import 'package:mosh/src/features/shared/mosh_dialog.dart';
 import 'package:mosh/src/features/shared/mosh_dialog_motion.dart';
 
@@ -158,7 +162,7 @@ class _VpnConsentModalState extends ConsumerState<VpnConsentModal> {
       FadeTransition(
         opacity: animation,
         child: ModalBarrier(
-          color: Colors.black54,
+          color: MoshColors.of(context).scrim,
           dismissible: true,
           onDismiss: _decline,
           semanticsLabel: widget.l.dialogCancel,
@@ -177,18 +181,15 @@ class _VpnConsentModalState extends ConsumerState<VpnConsentModal> {
       closeLabel: l.dialogCancel,
       onCancel: _decline,
       canCancel: !saving,
+      stackOnPhone: true,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
+        spacing: MoshSpace.s4,
         children: [
           Text(l.vpnConsentBody(_adapter!)),
-          const SizedBox(height: 12),
           Text(l.vpnConsentCaveat),
-          if (_error case final error?) ...[
-            const SizedBox(height: 12),
-            Text(error,
-                style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          ],
+          if (_error != null) InlineError(message: _error),
         ],
       ),
       actions: [
@@ -196,9 +197,14 @@ class _VpnConsentModalState extends ConsumerState<VpnConsentModal> {
           onPressed: saving ? null : _decline,
           child: Text(l.vpnConsentDecline),
         ),
-        FilledButton(
-          onPressed: saving ? null : _accept,
-          child: Text(saving ? l.vpnConsentAcceptSaving : l.vpnConsentAccept),
+        // While the answer is saved the button keeps its colours and spins.
+        MoshLoading(
+          loading: saving,
+          child: FilledButton.icon(
+            onPressed: _accept,
+            icon: saving ? const MoshSpinner() : null,
+            label: Text(saving ? l.vpnConsentAcceptSaving : l.vpnConsentAccept),
+          ),
         ),
       ],
     );

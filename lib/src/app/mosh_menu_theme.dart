@@ -2,21 +2,27 @@ import 'package:flutter/material.dart';
 
 import 'mosh_dimensions.dart';
 import 'mosh_shapes.dart';
+import 'mosh_theme.dart' show MoshColors, MoshLevel;
 
 /// Shared surfaces and interaction states for anchored menus and pickers.
 abstract final class MoshMenuTheme {
-  static MenuThemeData panel(ColorScheme colors) => MenuThemeData(
+  /// The width of a menu of actions; a longer label makes it wider.
+  static const double width = 232;
+  static const double _inset = MoshSpace.s2;
+
+  /// The width of a row that fills such a menu.
+  static const double rowWidth = width - _inset * 2;
+
+  /// The panel of a menu, a surface of the popup level.
+  static MenuThemeData panel(MoshColors c) => MenuThemeData(
         style: MenuStyle(
-          backgroundColor: WidgetStatePropertyAll(colors.surfaceContainerHigh),
+          backgroundColor: WidgetStatePropertyAll(MoshLevel.popup.fill(c)),
           surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
-          shadowColor: WidgetStatePropertyAll(colors.shadow),
-          elevation: const WidgetStatePropertyAll(8),
-          padding: const WidgetStatePropertyAll(EdgeInsets.all(4)),
+          shadowColor: WidgetStatePropertyAll(c.shadow),
+          elevation: WidgetStatePropertyAll(MoshLevel.popup.elevation!.dp),
+          padding: const WidgetStatePropertyAll(EdgeInsets.all(_inset)),
           alignment: AlignmentDirectional.bottomStart,
-          shape: WidgetStatePropertyAll(RoundedRectangleBorder(
-            borderRadius: MoshShapes.menu,
-            side: BorderSide(color: colors.outlineVariant),
-          )),
+          shape: WidgetStatePropertyAll(MoshLevel.popup.shape(c)),
         ),
       );
 
@@ -46,15 +52,18 @@ abstract final class MoshMenuTheme {
         ),
       );
 
-  static BottomSheetThemeData sheet(ColorScheme colors) => BottomSheetThemeData(
-        backgroundColor: colors.surfaceContainerHigh,
+  /// The phone's sheet: the modal level held by three edges of the screen,
+  /// so it has no edge of its own and only its top corners are the modal's.
+  /// The sheet draws its own handle (see MoshSelect).
+  static BottomSheetThemeData sheet(MoshColors c) => BottomSheetThemeData(
+        backgroundColor: MoshLevel.modal.fill(c),
         surfaceTintColor: Colors.transparent,
-        showDragHandle: true,
-        dragHandleColor: colors.onSurfaceVariant,
-        shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(MoshRadius.large)),
-          side: BorderSide(color: colors.outlineVariant),
+        shadowColor: c.shadow,
+        modalElevation: MoshLevel.modal.elevation!.dp,
+        modalBarrierColor: c.scrim,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+              top: Radius.circular(MoshRadius.extraLarge)),
         ),
         clipBehavior: Clip.antiAlias,
       );

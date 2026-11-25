@@ -93,6 +93,28 @@ void main() {
     semantics.dispose();
   });
 
+  // Regression: the button was named to a screen reader but gave it
+  // nothing to activate.
+  testWidgets('a screen reader can activate the close button', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final toaster = await _pump(tester);
+    toaster.show('Copied');
+    await tester.pumpAndSettle();
+
+    tester
+        .getSemantics(find.bySemanticsLabel('Dismiss notification'))
+        .owner!
+        .performAction(
+            tester
+                .getSemantics(find.bySemanticsLabel('Dismiss notification'))
+                .id,
+            SemanticsAction.tap);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Copied'), findsNothing);
+    semantics.dispose();
+  });
+
   testWidgets('a swipe toward the edge dismisses, a short one springs back',
       (tester) async {
     final toaster = await _pump(tester);

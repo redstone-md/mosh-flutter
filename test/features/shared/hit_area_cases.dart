@@ -21,7 +21,7 @@ import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/org/org_section.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
-import 'package:mosh/src/features/shared/confirm_dialog.dart';
+import 'package:mosh/src/features/shared/mosh_dialog.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 import '../../support/pump.dart';
 
@@ -96,21 +96,14 @@ void main() {
     expect(size.height, greaterThanOrEqualTo(40));
   });
 
-  testWidgets('the confirm-dialog close X is at least a 40px target',
+  testWidgets('the close X of a dialog without answers is a 40px target',
       (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: moshThemeData,
         home: Scaffold(
           body: Center(
-            child: ConfirmDialog(
-              title: 'Leave chat?',
-              body: 'This will erase the keys. Are you sure?',
-              confirmLabel: 'Leave',
-              cancelLabel: 'Cancel',
-              onCancel: () {},
-              onConfirm: () {},
-            ),
+            child: MoshDialog(title: 'Call devices', closeLabel: 'Close'),
           ),
         ),
       ),

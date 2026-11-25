@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_spinner.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/features/shared/mosh_notice.dart';
 
-/// The banner. [count] is the number of missing roster members; [busy] gates
-/// the Add button; [onAdd] fires the invite. [missingOne]/[missingMany] are
-/// the localized "roster member(s) not in this group" phrases, singular
-/// vs plural picked on count == 1; [addLabel] is "Add to group".
+/// The Add members kind of the Banner card. [count] is the number of missing
+/// roster members; [busy] gates the Add button; [onAdd] fires the invite.
+/// [missingOne]/[missingMany] are the localized "roster member(s) not in
+/// this group" phrases, singular vs plural picked on count == 1; [addLabel]
+/// is "Add to group".
 class OrgAddMissingBanner extends StatelessWidget {
   const OrgAddMissingBanner({
     super.key,
@@ -24,37 +26,12 @@ class OrgAddMissingBanner extends StatelessWidget {
   final String addLabel;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final phrase = count == 1 ? missingOne : missingMany;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        border: Border(
-          top: BorderSide(color: theme.dividerColor, width: 0.5),
-          bottom: BorderSide(color: theme.dividerColor, width: 0.5),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              '$count $phrase',
-              style: theme.textTheme.bodyMedium,
-            ),
-          ),
-          const SizedBox(width: 8),
-          MoshLoading(
-            loading: busy,
-            child: FilledButton.icon(
-              onPressed: onAdd,
-              icon: busy ? const MoshSpinner() : null,
-              label: Text(addLabel),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => MoshNotice(
+        tone: MoshNoticeTone.neutral,
+        icon: MoshIcons.group,
+        title: '$count ${count == 1 ? missingOne : missingMany}',
+        actionLabel: addLabel,
+        onAction: onAdd,
+        busy: busy,
+      );
 }

@@ -12,6 +12,7 @@ import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart'
     show kChatHeaderHeight, kConversationPanelWidth;
 import 'package:mosh/src/features/conversation/conversation_leave_prompt.dart';
+import 'package:mosh/src/features/conversation/conversation_media.dart';
 import 'package:mosh/src/features/conversation/conversation_screen_body.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/message_selection_host.dart';
@@ -22,8 +23,6 @@ import 'package:mosh/src/features/shared/attachment_launcher.dart';
 import 'package:mosh/src/features/shared/attachment_open.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
-import 'package:mosh/src/features/shared/media_viewer.dart'
-    show showMediaViewer;
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -179,7 +178,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       case AttachmentExternalOpenIntent(:final localPath):
         unawaited(_openWithSystemApp(localPath));
       case AttachmentMediaOpenIntent(:final descriptor, :final src):
-        showMediaViewer(context: context, descriptor: descriptor, src: src);
+        showConversationMedia(context, ref, _target, descriptor, src, own: own);
       case AttachmentNoopOpenIntent():
         break;
     }
@@ -232,6 +231,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       body: prompt.body,
       confirmLabel: prompt.confirmLabel,
       cancelLabel: l.dialogCancel,
+      destructive: prompt.destructive,
     );
     if (confirmed) await _leave();
   }
@@ -366,7 +366,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     if (attachments == null || attachments.isEmpty) return;
     switch (_controller.resolvePendingOpen(attachments)) {
       case ConversationPendingShow(:final descriptor, :final src):
-        showMediaViewer(context: context, descriptor: descriptor, src: src);
+        // What was waited for is a download: someone else's message.
+        showConversationMedia(context, ref, _target, descriptor, src,
+            own: false);
       case ConversationPendingDropped():
       case ConversationPendingNone():
         break;

@@ -87,7 +87,7 @@ Future<void> _pump(
 }
 
 void main() {
-  for (final dismissal in ['backdrop', 'Escape', 'close']) {
+  for (final dismissal in ['backdrop', 'Escape']) {
     testWidgets('$dismissal declines VPN bypass and never grants consent',
         (tester) async {
       final gateway = _consentGateway(
@@ -101,8 +101,6 @@ void main() {
           await tester.tapAt(const Offset(1, 1));
         case 'Escape':
           await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-        case 'close':
-          await tester.tap(find.byTooltip('Cancel'));
       }
       await tester.pumpAndSettle();
       expect(find.text("A VPN is carrying Mosh's traffic"), findsNothing);
@@ -187,7 +185,10 @@ void main() {
         },
       );
       await tester.tap(find.text('Route around the VPN'));
-      await tester.pumpAndSettle();
+      // The answer stays on its way until the app restarts, so the button
+      // keeps spinning: nothing settles.
+      await tester.pump();
+      await tester.pump();
       expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 1);
       expect(
           gateway

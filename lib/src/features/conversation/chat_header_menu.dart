@@ -59,11 +59,10 @@ class _ChatHeaderMenuState extends State<ChatHeaderMenu> {
       alignmentOffset: const Offset(0, 6),
       style: MenuStyle(
         alignment: AlignmentDirectional.bottomEnd,
-        minimumSize: const WidgetStatePropertyAll(Size(220, 0)),
         maximumSize: WidgetStatePropertyAll(
             Size(360, MediaQuery.sizeOf(context).height * 0.6)),
       ),
-      menuChildren: [
+      menuChildren: MoshMenuItem.rows([
         for (final action in widget.actions)
           MoshMenuItem(
             label: action.label,
@@ -71,7 +70,7 @@ class _ChatHeaderMenuState extends State<ChatHeaderMenu> {
             danger: action.danger,
             onPressed: action.disabled ? null : action.onSelect,
           ),
-      ],
+      ]),
       builder: (context, controller, _) => IconButton(
         focusNode: _focus,
         icon: const Icon(MoshIcons.more),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
-import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
+import 'package:mosh/src/features/shared/mosh_notice.dart';
+import 'conversation_banners.dart' show FeedBanner;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show DmDeviceRevocationState;
 
@@ -25,10 +25,10 @@ class DmRevocationBanner extends StatelessWidget {
       DmDeviceRevocationState.applied || null => null,
     };
     if (copy == null) return const SizedBox.shrink();
-    return CryptoNoticeBanner(
+    return FeedBanner(MoshNotice(
+        tone: MoshNoticeTone.open,
         icon: MoshIcons.linkOff,
         title: copy.$1,
-        body: copy.$2,
-        accent: MoshColors.of(context).info);
+        detail: copy.$2));
   }
 }

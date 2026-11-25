@@ -71,7 +71,10 @@ Future<void> _consent(WidgetTester tester, Size size,
 
 Future<void> _accept(WidgetTester tester) async {
   await tester.tap(find.text('Route around the VPN'));
-  await tester.pumpAndSettle();
+  // While the answer is saved the button spins, so nothing settles.
+  for (var i = 0; i < 5; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
 }
 
 final List<FigmaScene> vpnScenes = [

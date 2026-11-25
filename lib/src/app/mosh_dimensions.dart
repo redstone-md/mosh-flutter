@@ -47,6 +47,36 @@ abstract final class MoshBorder {
   static const thick = 2.0;
 }
 
+/// Shadows of Foundations: the `Mosh/elevation<n>` effect styles, the
+/// Material 3 elevation levels. A surface painted by hand takes [shadows], a
+/// key and an ambient layer; one Material paints takes the level's [dp].
+enum MoshElevation {
+  level1(1, 1, 2, 1, 3, 1),
+  level2(3, 1, 2, 2, 6, 2),
+  level3(6, 1, 3, 4, 8, 3),
+  level4(8, 2, 3, 6, 10, 4),
+  level5(12, 4, 4, 8, 12, 6);
+
+  const MoshElevation(this.dp, this._keyY, this._keyBlur, this._ambientY,
+      this._ambientBlur, this._ambientSpread);
+
+  /// The Material elevation of the level.
+  final double dp;
+  final double _keyY, _keyBlur, _ambientY, _ambientBlur, _ambientSpread;
+
+  List<BoxShadow> get shadows => [
+        BoxShadow(
+            color: const Color(0x4D000000),
+            offset: Offset(0, _keyY),
+            blurRadius: _keyBlur),
+        BoxShadow(
+            color: const Color(0x26000000),
+            offset: Offset(0, _ambientY),
+            blurRadius: _ambientBlur,
+            spreadRadius: _ambientSpread),
+      ];
+}
+
 /// Layer opacities of Foundations: the `state/*` variables, the Material 3
 /// state layers. A control tints itself with its content colour at [hover],
 /// [focus] or [pressed]; a disabled one fades its content to

@@ -3,21 +3,23 @@ part of 'media_viewer.dart';
 /// A stage that plays the attachment in a player of its own, from the
 /// moment it opens. Where no player can be made (a test host without
 /// libmpv) or the player cannot open the source (a missing codec, an
-/// unreadable file), the stage shows the file's card instead.
+/// unreadable file), the stage shows [unavailable] instead.
 class _PlayingStage extends StatefulWidget {
   const _PlayingStage({
-    required this.descriptor,
     required this.src,
     required this.createPlayer,
     required this.builder,
+    required this.unavailable,
   });
 
-  final AttachmentDescriptor descriptor;
   final String src;
   final MediaPlayerFactory createPlayer;
 
   /// What the stage shows of its player. Called once.
   final Widget Function(Player player) builder;
+
+  /// Says that the attachment cannot play here and offers the way out.
+  final Widget unavailable;
 
   @override
   State<_PlayingStage> createState() => _PlayingStageState();
@@ -61,20 +63,14 @@ class _PlayingStageState extends State<_PlayingStage> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      _playing ??
-      _PlaybackPlaceholderCard(
-        fileName: widget.descriptor.fileName,
-        icon: MoshIcons.playCircle,
-      );
+  Widget build(BuildContext context) => _playing ?? widget.unavailable;
 }
 
 /// A video's picture with its controls, in the box the stage constrains so
-/// a tall or wide clip never overflows the viewport (max-width 92vw;
-/// max-height 82vh). libmpv's player brings media_kit's picture and
+/// a tall or wide clip never overflows the viewport. libmpv's player brings media_kit's picture and
 /// Material controls; the system's player on Android gets [_SystemVideo].
 Widget _videoPicture(Player player) => ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: const BorderRadius.all(Radius.circular(MoshRadius.medium)),
       child: switch (player.platform) {
         final SystemPlayer system =>
           _SystemVideo(player: player, system: system),
@@ -122,7 +118,7 @@ class _SystemVideoState extends State<_SystemVideo> {
   Widget build(BuildContext context) {
     final player = widget.player;
     return ColoredBox(
-      color: MoshColors.of(context).surfaceContainerHigh,
+      color: MoshLevel.panel.fill(MoshColors.of(context)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -163,97 +159,80 @@ class _SystemVideoState extends State<_SystemVideo> {
   }
 }
 
-/// An audio attachment: a card with a play icon, the file's name and the
-/// controls.
+/// The player of a sound: a card on the panel level with play or pause, the
+/// seek bar and the time.
 class _AudioCard extends StatelessWidget {
-  const _AudioCard({required this.fileName, required this.player});
+  const _AudioCard({required this.player});
 
-  final String fileName;
   final Player player;
 
   @override
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
-      // `.media-viewer-audio { padding: 32px 40px; border: 1px solid
-      // var(--line); border-radius: 14px; background: var(--bg-2) }`.
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerHigh,
-        border: Border.all(color: colors.outlineVariant),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(
-            MoshIcons.playCircle,
-            size: 32,
-            color: theme.colorScheme.primary,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 640),
+      child: DecoratedBox(
+        decoration: MoshLevel.card(colors,
+            const BorderRadius.all(Radius.circular(MoshRadius.extraLarge))),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+              MoshSpace.s3, MoshSpace.s3, MoshSpace.s5, MoshSpace.s3),
+          // A slider is as tall as it is allowed to be: the column lets
+          // the controls keep their own height.
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [_PlaybackControls(player: player)],
           ),
-          const SizedBox(height: 14),
-          Text(
-            fileName,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 14),
-          _PlaybackControls(player: player),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _PlaybackPlaceholderCard extends StatelessWidget {
-  const _PlaybackPlaceholderCard({
-    required this.fileName,
+/// A message in place of media the viewer cannot show, with the way out:
+/// saving the file to open it elsewhere.
+class _Unavailable extends StatelessWidget {
+  const _Unavailable({
     required this.icon,
+    required this.title,
+    required this.line,
+    required this.onSave,
   });
 
-  final String fileName;
   final IconData icon;
+  final String title;
+  final String line;
+  final VoidCallback? onSave;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
-      decoration: BoxDecoration(
-        color: MoshColors.of(context).surfaceContainerHigh,
-        border: Border.all(color: theme.dividerColor),
-        borderRadius: BorderRadius.circular(14),
-      ),
+    final colors = MoshColors.of(context);
+    final text = Theme.of(context).textTheme;
+    return SizedBox(
+      width: 300,
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
+        spacing: MoshSpace.s2,
         children: [
-          Icon(
-            // Play icon (video/audio) or file icon (other).
-            icon,
-            size: 32,
-            // Moss accent. Material has no
-            // per-app moss token; the theme primary is the closest accent.
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(height: 14),
-          Text(
-            fileName,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              color: theme.colorScheme.onSurface,
+          Icon(icon, size: MoshSpace.s10, color: colors.onSurfaceVariant),
+          Text(title,
+              textAlign: TextAlign.center,
+              style: text.titleMedium?.copyWith(color: colors.onSurface)),
+          // A file still arriving cannot be saved yet: no way out to offer.
+          if (onSave != null) ...[
+            Text(line,
+                textAlign: TextAlign.center,
+                style:
+                    text.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
+            Padding(
+              padding: const EdgeInsets.only(top: MoshSpace.s2),
+              child: OutlinedButton.icon(
+                onPressed: onSave,
+                icon: const Icon(MoshIcons.download),
+                label: Text(AppLocalizations.of(context)!.mediaViewerSave),
+              ),
             ),
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            maxLines: 2,
-          ),
+          ],
         ],
       ),
     );

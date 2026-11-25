@@ -25,6 +25,26 @@ Future<void> _pumpMenu(
 }
 
 void main() {
+  // Regression: one short action made a menu as narrow as its label.
+  testWidgets('a menu keeps its width and sets the destructive action apart',
+      (tester) async {
+    await _pumpMenu(tester, [
+      ChatHeaderMenuAction(
+          label: 'Files', icon: MoshIcons.attach, onSelect: () {}),
+      ChatHeaderMenuAction(
+          label: 'Leave', icon: MoshIcons.leave, danger: true, onSelect: () {}),
+    ]);
+    await tester.tap(find.byIcon(MoshIcons.more));
+    await tester.pumpAndSettle();
+
+    final files = tester.getRect(find.widgetWithText(MenuItemButton, 'Files'));
+    final leave = tester.getRect(find.widgetWithText(MenuItemButton, 'Leave'));
+    expect(files.width, 232 - 16);
+    final line = tester.getRect(find.byType(Divider));
+    expect(line.top, greaterThanOrEqualTo(files.bottom));
+    expect(line.bottom, lessThanOrEqualTo(leave.top));
+  });
+
   testWidgets('enabled action closes the popover and runs once',
       (tester) async {
     var calls = 0;

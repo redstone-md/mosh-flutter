@@ -119,6 +119,13 @@ class MoshColors extends ThemeExtension<MoshColors> {
   Color get outgoing => primaryContainer;
   Color get incoming => surfaceContainerHigh;
 
+  /// What lies under a modal and stops the screen: the lowest tone at the
+  /// `state/scrim` opacity.
+  Color get scrim => MoshState.tint(surfaceContainerLowest, MoshState.scrim);
+
+  /// Every shadow is cast in black, at the opacity of its [MoshElevation].
+  Color get shadow => const Color(0xFF000000);
+
   /// Keyboard focus ring, drawn 2px around the focused control.
   Color get focusRing => onSurface;
 
@@ -217,6 +224,6 @@ ColorScheme _colorScheme(MoshColors c, Brightness brightness) => ColorScheme(
       onInverseSurface: c.onInverseSurface,
       outline: c.outline,
       outlineVariant: c.outlineVariant,
-      shadow: const Color(0xFF000000),
-      scrim: const Color(0xFF000000),
+      shadow: c.shadow,
+      scrim: c.surfaceContainerLowest,
     );

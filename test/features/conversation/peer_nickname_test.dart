@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
+import 'package:mosh/src/features/shared/mosh_dialog.dart';
 import 'package:mosh/src/features/shared/toasts/toast_card.dart';
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart';
@@ -45,12 +46,12 @@ void main() {
         // The visible name renders.
         expect(find.text('bob'), findsOneWidget);
         // No popover yet.
-        expect(find.byType(AlertDialog), findsNothing);
+        expect(find.byType(MoshDialog), findsNothing);
 
         // Tap the name to open the popover.
         await tester.tap(find.text('bob'));
         await tester.pumpAndSettle();
-        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(find.byType(MoshDialog), findsOneWidget);
         // The Message button (en) renders + is enabled.
         final messageButton = find.text('Message');
         expect(messageButton, findsOneWidget);
@@ -175,7 +176,7 @@ void main() {
 
         expect(offered, [peerFp]);
         // The popover Dialog closed after the tap.
-        expect(find.byType(AlertDialog), findsNothing);
+        expect(find.byType(MoshDialog), findsNothing);
       },
     );
 
@@ -201,7 +202,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Message'));
       await tester.pumpAndSettle();
-      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.byType(MoshDialog), findsNothing);
 
       pending.completeError(const ConversationBridgeError(
         kind: ConversationBridgeErrorKind.unavailable,

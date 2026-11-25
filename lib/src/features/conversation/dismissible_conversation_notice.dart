@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
+import 'package:mosh/src/features/shared/mosh_notice.dart';
 
+import 'conversation_banners.dart' show FeedBanner;
 import 'conversation_notice_preferences.dart';
 
 /// Hides the informational notice throughout this installation after saving.
@@ -14,14 +15,14 @@ class DismissibleConversationNotice extends ConsumerStatefulWidget {
     required this.icon,
     required this.title,
     required this.body,
-    required this.accent,
+    required this.tone,
   });
 
   final ConversationNoticeKind kind;
   final IconData icon;
   final String title;
   final String body;
-  final Color accent;
+  final MoshNoticeTone tone;
 
   @override
   ConsumerState<DismissibleConversationNotice> createState() =>
@@ -53,13 +54,13 @@ class _DismissibleConversationNoticeState
     final dismissed = ref.watch(dismissedConversationNoticesProvider
         .select((kinds) => kinds.contains(widget.kind)));
     if (dismissed) return const SizedBox.shrink();
-    return CryptoNoticeBanner(
+    return FeedBanner(MoshNotice(
+      tone: widget.tone,
       icon: widget.icon,
       title: widget.title,
-      body: widget.body,
-      accent: widget.accent,
-      onDismiss: _dismiss,
-      dismissing: _saving,
-    );
+      detail: widget.body,
+      onClose: _dismiss,
+      busy: _saving,
+    ));
   }
 }

@@ -3,6 +3,7 @@ import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
@@ -211,18 +212,11 @@ class _DeletionPrompt extends StatelessWidget {
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
+        spacing: MoshSpace.s4,
         children: [
           Text(l.messageDeleteExplanation),
-          if (messages.any((m) => m.localOnly))
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(l.messageDeleteLocalOnly),
-            ),
-          if (!everyone)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(l.messageDeleteMixed),
-            ),
+          if (messages.any((m) => m.localOnly)) Text(l.messageDeleteLocalOnly),
+          if (!everyone) Text(l.messageDeleteMixed),
         ],
       ),
       actions: [
@@ -234,9 +228,6 @@ class _DeletionPrompt extends StatelessWidget {
           onPressed: everyone
               ? () => Navigator.pop(context, DeleteScope.forEveryone)
               : null,
-          style: TextButton.styleFrom(
-            foregroundColor: Theme.of(context).colorScheme.error,
-          ),
           child: Text(l.messageDeleteForEveryone),
         ),
         FilledButton(

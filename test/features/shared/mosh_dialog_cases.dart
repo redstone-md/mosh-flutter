@@ -1,12 +1,71 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/mosh_dialog.dart';
 import 'package:mosh/src/features/shared/mosh_dialog_route.dart';
 
 import '../../support/pump.dart';
 
 void main() {
+  testWidgets('only a dialog without answers of its own has a close button',
+      (tester) async {
+    var closed = 0;
+    await pumpScreen(
+        tester,
+        MoshDialog(
+            title: 'Call devices',
+            closeLabel: 'Close',
+            onCancel: () => closed++));
+    await tester.tap(find.byTooltip('Close'));
+    expect(closed, 1);
+
+    await pumpScreen(
+        tester,
+        MoshDialog(
+          title: 'Leave #photography?',
+          closeLabel: 'Close',
+          onCancel: () {},
+          actions: [TextButton(onPressed: () {}, child: const Text('Cancel'))],
+        ));
+    expect(find.byTooltip('Close'), findsNothing);
+  });
+
+  for (final (device, platform, stacked) in [
+    ('the phone', TargetPlatform.android, true),
+    ('the desktop', TargetPlatform.windows, false),
+  ]) {
+    testWidgets(
+        'answers marked as long ${stacked ? 'stack' : 'share a line'} on $device',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        theme: buildMoshTheme(MoshColors.dark, platform),
+        home: MoshDialog(
+          title: 'A VPN is carrying Mosh’s traffic',
+          closeLabel: 'Cancel',
+          stackOnPhone: true,
+          onCancel: () {},
+          actions: [
+            TextButton(onPressed: () {}, child: const Text('Keep')),
+            FilledButton(onPressed: () {}, child: const Text('Go')),
+          ],
+        ),
+      ));
+
+      final leave = tester.getRect(find.byType(TextButton));
+      final go = tester.getRect(find.byType(FilledButton));
+      if (stacked) {
+        // The main answer on top, both as wide as the dialog allows.
+        expect(go.bottom, lessThanOrEqualTo(leave.top));
+        expect(go.width, leave.width);
+      } else {
+        // The answer that goes on at the right.
+        expect(go.left, greaterThanOrEqualTo(leave.right));
+        expect(go.center.dy, leave.center.dy);
+      }
+    });
+  }
+
   testWidgets('a second Escape during close preserves the underlying page',
       (tester) async {
     await pumpScreen(tester, Builder(builder: (context) {

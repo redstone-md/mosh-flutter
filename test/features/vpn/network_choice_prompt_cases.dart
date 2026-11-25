@@ -74,7 +74,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(l.bindAdapterRestartError), findsOneWidget);
     await tester.tap(find.text(l.vpnConsentAccept));
-    await tester.pumpAndSettle();
+    // The restart is on its way and the button spins: nothing settles.
+    await tester.pump();
+    await tester.pump();
     expect(restarts, 2);
     expect(bridge.countOf(BridgeMethod.setVpnBypassConsent), 1);
   });

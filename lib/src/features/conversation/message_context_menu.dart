@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'package:mosh/src/app/mosh_menu_item.dart';
 import 'package:mosh/src/app/mosh_menu_theme.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 part 'message_menu_layout.dart';
 
@@ -201,7 +202,7 @@ class _MessageMenuPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = MoshMenuTheme.panel(Theme.of(context).colorScheme).style!;
+    final style = MoshMenuTheme.panel(MoshColors.of(context)).style!;
     const states = <WidgetState>{};
     return Semantics(
       scopesRoute: true,
@@ -221,7 +222,7 @@ class _MessageMenuPanel extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+                children: MoshMenuItem.rows([
                   for (final action in actions)
                     MoshMenuItem(
                       label: action.label,
@@ -229,7 +230,7 @@ class _MessageMenuPanel extends StatelessWidget {
                       danger: action.danger,
                       onPressed: () => onSelect(action),
                     ),
-                ],
+                ]),
               ),
             ),
           ),

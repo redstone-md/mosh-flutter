@@ -7,6 +7,7 @@ class ConversationLeavePrompt {
     required this.title,
     required this.body,
     required this.confirmLabel,
+    this.destructive = true,
   });
 
   /// Builds the prompt for [target]. [snapshot] is null while the
@@ -29,6 +30,8 @@ class ConversationLeavePrompt {
             title: l.leaveChannelTitle(target.id),
             body: l.leaveChannelBody,
             confirmLabel: l.leaveChannelConfirm,
+            // A channel can be joined again by its name.
+            destructive: false,
           ),
         ConversationKind.group => ConversationLeavePrompt(
             title: switch (_groupName(snapshot)) {
@@ -43,6 +46,9 @@ class ConversationLeavePrompt {
   final String title;
   final String body;
   final String confirmLabel;
+
+  /// Whether going on loses something for good: the answer is then red.
+  final bool destructive;
 }
 
 /// Technical session IDs belong in details, never in confirmation titles.

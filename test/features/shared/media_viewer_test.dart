@@ -65,11 +65,15 @@ class _ViewerHost extends StatefulWidget {
   const _ViewerHost({
     required this.descriptor,
     this.src = 'https://example.invalid/test',
+    this.sent,
+    this.onSave,
     this.onClose,
   });
 
   final AttachmentDescriptor descriptor;
   final String src;
+  final String? sent;
+  final VoidCallback? onSave;
   final VoidCallback? onClose;
 
   @override
@@ -90,6 +94,8 @@ class _ViewerHostState extends State<_ViewerHost> {
         builder: (dialogContext) => MediaViewer(
           descriptor: widget.descriptor,
           src: widget.src,
+          sent: widget.sent,
+          onSave: widget.onSave,
           onClose: widget.onClose ?? () => Navigator.of(dialogContext).pop(),
         ),
       );
@@ -107,33 +113,76 @@ Future<void> _pumpViewer(
   WidgetTester tester, {
   required AttachmentDescriptor descriptor,
   String src = 'https://example.invalid/test',
+  String? sent,
+  VoidCallback? onSave,
   VoidCallback? onClose,
 }) =>
-    pumpScreen(tester,
-        _ViewerHost(descriptor: descriptor, src: src, onClose: onClose));
+    pumpScreen(
+        tester,
+        _ViewerHost(
+            descriptor: descriptor,
+            src: src,
+            sent: sent,
+            onSave: onSave,
+            onClose: onClose));
 
 void main() {
-  // Pins that the caption (file_name) + the close button render, and the
-  // close button's tooltip == the localized `closeViewer` ("Close viewer"
-  // in the en locale).
-  testWidgets('renders the caption + close button (en)', (tester) async {
+  testWidgets('the bar names the file and who sent it, and offers the way out',
+      (tester) async {
     await _pumpViewer(
       tester,
       descriptor: _descriptor(fileName: 'photo.png', mime: 'image/png'),
+      sent: 'Maya Chen, Nov 21, 2026 9:38',
     );
 
-    // The caption renders the file_name. It also appears
-    // inside the image's `semanticLabel`, so `findsNWidgets(2)` is expected
-    // -- the caption Text + the Image.network semanticLabel node.
-    // (The image branch's `Image.network` `semanticLabel`
-    // is semantics metadata, not a visible `Text`
-    // widget, so the caption is the only `Text` rendering the filename on
-    // the image branch.)
     expect(find.text('photo.png'), findsOneWidget);
-    // The close button (MoshIcons.close) renders.
-    expect(find.byIcon(MoshIcons.close), findsOneWidget);
-    // The close button carries the localized tooltip.
+    expect(find.text('Maya Chen, Nov 21, 2026 9:38'), findsOneWidget);
     expect(find.byTooltip('Close viewer'), findsOneWidget);
+  });
+
+  testWidgets('a file on this device is saved from the bar', (tester) async {
+    var saves = 0;
+    await _pumpViewer(
+      tester,
+      descriptor: _descriptor(fileName: 'photo.png', mime: 'image/png'),
+      onSave: () => saves++,
+    );
+
+    await tester.tap(find.byTooltip('Save as…'));
+    expect(saves, 1);
+    // Saving is not leaving.
+    expect(find.byType(MediaViewer), findsOneWidget);
+  });
+
+  testWidgets('a file still arriving cannot be saved yet', (tester) async {
+    await _pumpViewer(
+      tester,
+      descriptor: _descriptor(fileName: 'doc.pdf', mime: 'application/pdf'),
+    );
+
+    expect(
+        tester
+            .widget<IconButton>(
+                find.widgetWithIcon(IconButton, MoshIcons.download))
+            .onPressed,
+        isNull);
+    // No way out to offer yet, so none is promised.
+    expect(find.text('No preview for this file'), findsOneWidget);
+    expect(find.text('Save it to open it in another app'), findsNothing);
+  });
+
+  testWidgets('a file without a preview offers to be saved instead',
+      (tester) async {
+    var saves = 0;
+    await _pumpViewer(
+      tester,
+      descriptor: _descriptor(fileName: 'route.gpx', mime: 'application/gpx'),
+      onSave: () => saves++,
+    );
+
+    expect(find.text('No preview for this file'), findsOneWidget);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Save as…'));
+    expect(saves, 1);
   });
 
   // A downloaded attachment arrives as a `file://` URL. It must load from
@@ -168,50 +217,28 @@ void main() {
     expect(tester.widget<RawImage>(find.byType(RawImage)).image, isNotNull);
   });
 
-  // Pins the video mime branch: this isolate has no media_kit backend, so
-  // the player cannot be created and the stage shows its placeholder card.
-  testWidgets('video mime renders the play-circle placeholder', (tester) async {
+  // This isolate has no media_kit backend, so no player can be made and
+  // the stage says so instead of standing empty.
+  testWidgets('a video that cannot play here says so', (tester) async {
     await _pumpViewer(
       tester,
       descriptor: _descriptor(fileName: 'clip.mp4', mime: 'video/mp4'),
+      onSave: () {},
     );
 
-    expect(find.byIcon(MoshIcons.playCircle), findsOneWidget);
-    // The filename renders TWICE -- the placeholder card's bold
-    // filename label AND the caption.
-    expect(find.text('clip.mp4'), findsNWidgets(2));
-    // No image on the video branch.
-    expect(find.byType(Image), findsNothing);
+    expect(find.text('This video cannot be played here'), findsOneWidget);
+    expect(find.text('Save it to watch it in another app'), findsOneWidget);
   });
 
-  // Pins the audio mime branch: a placeholder card with
-  // `MoshIcons.playCircle`.
-  testWidgets('audio mime renders the play-circle placeholder', (tester) async {
+  testWidgets('a sound that cannot play here says so', (tester) async {
     await _pumpViewer(
       tester,
       descriptor: _descriptor(fileName: 'song.mp3', mime: 'audio/mpeg'),
+      onSave: () {},
     );
 
-    expect(find.byIcon(MoshIcons.playCircle), findsOneWidget);
-    // The filename renders in the placeholder card + the caption.
-    expect(find.text('song.mp3'), findsNWidgets(2));
-    expect(find.byType(Image), findsNothing);
-  });
-
-  // Pins the "other" mime branch: a placeholder card with
-  // `MoshIcons.file`.
-  testWidgets('other mime renders the file placeholder', (tester) async {
-    await _pumpViewer(
-      tester,
-      descriptor: _descriptor(fileName: 'doc.pdf', mime: 'application/pdf'),
-    );
-
-    expect(find.byIcon(MoshIcons.file), findsOneWidget);
-    // The filename renders in the placeholder card + the caption.
-    expect(find.text('doc.pdf'), findsNWidgets(2));
-    // No play icon on the file branch.
-    expect(find.byIcon(MoshIcons.playCircle), findsNothing);
-    expect(find.byType(Image), findsNothing);
+    expect(find.text('This recording cannot be played here'), findsOneWidget);
+    expect(find.text('Save it to listen to it in another app'), findsOneWidget);
   });
 
   // Pins that tapping the close button closes the viewer. The viewer's
@@ -238,14 +265,23 @@ void main() {
     );
     expect(find.byType(MediaViewer), findsOneWidget);
 
-    // Tap the top-left corner -- outside the centered stage, on the
-    // backdrop. `barrierDismissible: true` also pops on barrier tap, but
-    // the viewer's own backdrop GestureDetector
-    // is the faithful close path being pinned here.
-    await tester.tapAt(const Offset(1, 1));
+    // Tap the room at the stage's side, beside the media.
+    await tester.tapAt(const Offset(5, 300));
     await tester.pumpAndSettle();
 
     expect(find.byType(MediaViewer), findsNothing);
+  });
+
+  testWidgets('a press on the bar does not close the viewer', (tester) async {
+    await _pumpViewer(
+      tester,
+      descriptor: _descriptor(fileName: 'clip.mp4', mime: 'video/mp4'),
+    );
+
+    await tester.tap(find.text('clip.mp4'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MediaViewer), findsOneWidget);
   });
 
   // Pins that tapping the stage (the media itself) does NOT close the
@@ -257,9 +293,9 @@ void main() {
     );
     expect(find.byType(MediaViewer), findsOneWidget);
 
-    // Tap the centered placeholder card (the stage) -- the inner
-    // GestureDetector swallows the tap.
-    await tester.tap(find.byIcon(MoshIcons.playCircle));
+    // Tap the note in the middle (the stage) -- the inner GestureDetector
+    // swallows the tap.
+    await tester.tap(find.text('This video cannot be played here'));
     await tester.pumpAndSettle();
 
     expect(find.byType(MediaViewer), findsOneWidget);
@@ -287,6 +323,55 @@ void main() {
 
   // === showMediaViewer helper contract ===
 
+  testWidgets('a file on this device can be saved, one still arriving cannot',
+      (tester) async {
+    late BuildContext ctx;
+    await pumpScreen(tester, Builder(builder: (context) {
+      ctx = context;
+      return const SizedBox.shrink();
+    }));
+    for (final (src, canSave) in [
+      ('file:///downloads/notes.txt', true),
+      ('https://example.invalid/stream', false),
+    ]) {
+      unawaited(showMediaViewer(
+        context: ctx,
+        descriptor: _descriptor(fileName: 'notes.txt', mime: 'text/plain'),
+        src: src,
+      ));
+      await tester.pumpAndSettle();
+
+      final save = tester.widget<IconButton>(
+          find.widgetWithIcon(IconButton, MoshIcons.download));
+      expect(save.onPressed, canSave ? isNotNull : isNull, reason: src);
+      await tester.tap(find.byTooltip('Close viewer'));
+      await tester.pumpAndSettle();
+    }
+  });
+
+  testWidgets('Save on a file still arriving says so instead of resting',
+      (tester) async {
+    late BuildContext ctx;
+    await pumpScreen(tester, Builder(builder: (context) {
+      ctx = context;
+      return const SizedBox.shrink();
+    }));
+    unawaited(showMediaViewer(
+      context: ctx,
+      descriptor: _descriptor(fileName: 'clip.mp4', mime: 'video/mp4'),
+      src: 'https://example.invalid/stream',
+      // The conversation knows where the file is once it has arrived.
+      localPath: () => null,
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Save as…'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('The file is still downloading'), findsOneWidget);
+  });
+
   // Pins that `showMediaViewer` opens the viewer (the caption renders) and
   // the close button pops the route (the viewer disappears).
   testWidgets('showMediaViewer opens the viewer; close pops it',
@@ -306,8 +391,8 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    // The viewer opened: caption (placeholder bold + caption, 2x) + close.
-    expect(find.text('clip.mp4'), findsNWidgets(2));
+    // The viewer opened: the bar names the file and offers the way out.
+    expect(find.text('clip.mp4'), findsOneWidget);
     expect(find.byIcon(MoshIcons.close), findsOneWidget);
 
     // Close via the close button -> the viewer is gone.

@@ -9,6 +9,7 @@ import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart'
     show MoshColors, moshSuggestionChipTheme;
 import 'package:mosh/src/features/shared/inline_error.dart';
+import 'package:mosh/src/features/shared/mosh_notice.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
@@ -139,35 +140,20 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
   }
 }
 
-/// Public channels are plaintext; say so before anyone types.
+/// The Open channel kind of the Inline note card: public channels are
+/// plaintext; say so before anyone types.
 class _OpenWarning extends StatelessWidget {
   const _OpenWarning({required this.text});
 
   final String text;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.warningContainer,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.warning),
-      ),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(MoshIcons.lockOpen, size: 20, color: colors.warning),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(text,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: colors.onSurface, height: 1.5)),
-        ),
-      ]),
-    );
-  }
+  Widget build(BuildContext context) => MoshNotice(
+        inline: true,
+        tone: MoshNoticeTone.warning,
+        icon: MoshIcons.warning,
+        detail: text,
+      );
 }
 
 /// Names that pass the core's rule, one tap to fill in.

@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/features/shared/mosh_notice.dart';
 import 'package:mosh/src/state/persistence_warning_provider.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
+/// The Storage kind of the Banner card: history is not being saved, and why.
 class PersistenceWarningBanner extends StatelessWidget {
   const PersistenceWarningBanner({super.key, required this.warning});
 
@@ -30,66 +31,12 @@ class PersistenceWarningBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
     final (title, body) = _copy(AppLocalizations.of(context)!);
-    final text = Theme.of(context).textTheme;
-    return Semantics(
-      container: true,
-      label: '$title. $body',
-      excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        decoration: BoxDecoration(
-          color: colors.warningContainer,
-          border: Border.all(color: colors.warning),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const _IconPlate(),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: text.titleSmall?.copyWith(color: colors.warning),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    body,
-                    style:
-                        text.bodySmall?.copyWith(color: colors.onSurfaceMuted),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The banner's 26px warn-tinted plate around the alert glyph.
-class _IconPlate extends StatelessWidget {
-  const _IconPlate();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
-    return Container(
-      width: 26,
-      height: 26,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: colors.warningContainer,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(MoshIcons.warning, size: 15, color: colors.warning),
+    return MoshNotice(
+      tone: MoshNoticeTone.warning,
+      icon: MoshIcons.warning,
+      title: title,
+      detail: body,
     );
   }
 }
