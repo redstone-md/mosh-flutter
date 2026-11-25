@@ -147,27 +147,31 @@ class AboutUpdateNotice extends ConsumerWidget {
     return ConstrainedBox(
       constraints:
           BoxConstraints(minHeight: MoshControl.height(theme.platform)),
+      // The full width, so the action can end the line at the far edge.
       child: Align(
         alignment: AlignmentDirectional.centerStart,
-        child: Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: MoshSpace.s3,
-          runSpacing: MoshSpace.s1,
-          children: [
-            Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: MoshSpace.s3,
-                children: [
-                  Icon(icon, size: MoshSpace.s5, color: tint),
-                  Flexible(
-                    child: Text(message,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                            color: MoshColors.of(context).onSurfaceVariant)),
-                  ),
-                ]),
-            if (action != null) action,
-          ],
+        child: SizedBox(
+          width: double.infinity,
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: MoshSpace.s3,
+            runSpacing: MoshSpace.s1,
+            children: [
+              Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: MoshSpace.s3,
+                  children: [
+                    Icon(icon, size: MoshSpace.s5, color: tint),
+                    Flexible(
+                      child: Text(message,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                              color: MoshColors.of(context).onSurfaceVariant)),
+                    ),
+                  ]),
+              if (action != null) action,
+            ],
+          ),
         ),
       ),
     );
