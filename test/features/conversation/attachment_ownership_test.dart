@@ -114,6 +114,40 @@ void main() {
     }
 
     testWidgets(
+        '${testCase.label}: a downloaded video opens in the viewer under its sender and time',
+        (tester) async {
+      final file = testAttachment(attachmentId: 'clip', mime: 'video/mp4');
+      final sentAt = DateTime(2026, 11, 21, 9, 38);
+      await pumpConversation(tester, testCase, messages: [
+        TestMessage(
+            fromDevice: 'Maya Chen',
+            sentAtMs: BigInt.from(sentAt.millisecondsSinceEpoch),
+            attachment: file),
+      ], attachments: [
+        testAttachmentView(
+            attachmentId: 'clip',
+            state: AttachmentState.available,
+            localPath: '/downloads/clip.mp4'),
+      ]);
+
+      await tester.tap(_rowIcon(false, MoshIcons.file));
+      await tester.pumpAndSettle();
+
+      expect(
+          find.descendant(
+              of: find.byType(MediaViewer),
+              matching: find.text('Maya Chen, Nov 21, 2026 09:38')),
+          findsOneWidget);
+      // A file that is here can be saved from the bar.
+      expect(
+          tester
+              .widget<IconButton>(
+                  find.widgetWithIcon(IconButton, MoshIcons.download))
+              .onPressed,
+          isNotNull);
+    });
+
+    testWidgets(
         '${testCase.label}: incoming transfers keep their cancel action',
         (tester) async {
       final gateway = ScriptableGateway();
