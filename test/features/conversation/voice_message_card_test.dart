@@ -21,7 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/voice_message_card.dart';
-import 'package:mosh/src/features/conversation/voice_waveform.dart';
+import 'package:mosh/src/features/shared/voice_waveform.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 import 'package:mosh/src/rust/conversation/attachments.dart';
 

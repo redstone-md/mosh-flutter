@@ -4,6 +4,8 @@
 // the session has a known id + 0 messages), types a message, taps send, and
 // asserts the seeded + sent messages render.
 import 'package:flutter/material.dart';
+import 'package:mosh/src/features/conversation/conversation_composer.dart'
+    show kComposerSendButtonKey;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/conversation_text_sends.dart'
@@ -58,7 +60,9 @@ void main() {
       }
 
       await tester.enterText(find.byType(TextField).first, 'fresh');
-      await tester.tap(find.byType(FilledButton));
+      // The far end turns from the microphone into Send with the draft.
+      await tester.pump();
+      await tester.tap(find.byKey(kComposerSendButtonKey));
       await tester.pumpAndSettle();
 
       expect(find.text('fresh'), findsOneWidget);
@@ -89,7 +93,7 @@ void main() {
     await tester.enterText(find.byType(TextField).first, 'x' * 12);
     await tester.pump();
     expect(counter('2 characters over the limit'), findsOneWidget);
-    await tester.tap(find.byType(FilledButton));
+    await tester.tap(find.byKey(kComposerSendButtonKey));
     await tester.pumpAndSettle();
     expect(gateway.conversations.sessions[invite.sessionId]?.messages ?? [],
         isEmpty);

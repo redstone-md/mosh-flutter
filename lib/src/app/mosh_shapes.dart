@@ -35,7 +35,8 @@ abstract final class MoshShapes {
   static const message =
       BorderRadius.all(Radius.circular(MoshRadius.largeIncreased));
   static const messageJoin = Radius.circular(MoshRadius.small);
-  static const composer = BorderRadius.all(Radius.circular(MoshRadius.large));
+  static const composer =
+      BorderRadius.all(Radius.circular(MoshRadius.extraLarge));
 
   /// Compact corners for small embedded marks: a fingerprint, a keycap.
   static const embedded =
@@ -46,5 +47,5 @@ abstract final class MoshShapes {
       BorderRadius.all(Radius.circular(MoshRadius.medium));
 
   static const controlShape = RoundedRectangleBorder(borderRadius: control);
-  static const composerPadding = EdgeInsets.all(8);
+  static const composerPadding = EdgeInsets.all(MoshSpace.s1);
 }

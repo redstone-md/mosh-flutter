@@ -2,10 +2,9 @@
 // stay unchanged (audit 2026-09-21, hit-areas finding).
 //
 // Per control:
-//  - composer send button: the painted 32px square keeps its size; the
-//    theme's M3 padded tap target makes the button's own layout box the
-//    >= 40px target (pinned here so no wrapper ever re-introduces a layout
-//    cost beside the input);
+//  - composer send button: the painted plate is the 40px target itself
+//    (pinned here so no wrapper ever re-introduces a layout cost beside
+//    the input);
 //  - paperclip picker: the compact density shrank its hit box to 32px; the
 //    LAYOUT box must be >= 40 (IconButton's hit area IS its layout box);
 //  - fingerprint lock: a 15px glyph with a left-only inset was a ~19x15 tap
@@ -26,8 +25,10 @@ import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 import '../../support/pump.dart';
 
+import '../../support/voice_recorder.dart';
+
 void main() {
-  testWidgets('the send button catches taps just outside its 32px paint',
+  testWidgets('the send button is a 40px plate that takes a press at its edge',
       (tester) async {
     var sends = 0;
     await tester.pumpWidget(
@@ -44,12 +45,7 @@ void main() {
               attachLabel: 'Attach',
               onAttach: (_) {},
               onAttachmentPickError: (_) {},
-              voiceRecordLabel: 'Record',
-              voiceDiscardLabel: 'Discard',
-              voiceStopLabel: 'Stop',
-              voicePlayLabel: 'Play',
-              voiceSendLabel: 'Send voice',
-              voicePermissionDeniedLabel: 'denied',
+              voiceLabels: testVoiceLabels,
               onSendVoice: (_) {},
               onVoiceError: (_) {},
             ),
@@ -60,14 +56,9 @@ void main() {
     await tester.pumpAndSettle();
 
     final rect = tester.getRect(find.byKey(kComposerSendButtonKey));
-    // Composer layout: the Row child is the button's own M3 padded
-    // layout box (>= 40px on every platform; the exact height tracks the
-    // row). The painted square inside stays 32x32. No wrapper consumes
-    // composer Row space (CodeAnt #12 comment on
-    // conversation_composer.dart).
     expect(rect.width, greaterThanOrEqualTo(40));
     expect(rect.height, greaterThanOrEqualTo(40));
-    final paintedRect = tester.getRect(
+    final plate = tester.getRect(
       find
           .descendant(
             of: find.byKey(kComposerSendButtonKey),
@@ -75,11 +66,9 @@ void main() {
           )
           .first,
     );
-    expect(paintedRect.size, const Size(32, 32));
+    expect(plate.size, const Size(40, 40));
 
-    // 20px left of center: outside the painted square, inside the button's
-    // own padded tap target.
-    await tester.tapAt(rect.center - const Offset(20, 0));
+    await tester.tapAt(rect.center - const Offset(18, 0));
     await tester.pump();
 
     expect(sends, 1);

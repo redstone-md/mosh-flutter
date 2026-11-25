@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/features/conversation/conversation_helpers.dart'
+    show feedPadding;
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show isMobileBreakpoint;
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 
+/// The Typing hint card: who is writing, in one quiet line over the
+/// composer and in line with its text.
 class TypingHint extends StatelessWidget {
   const TypingHint({
     super.key,
@@ -47,12 +55,22 @@ class TypingHint extends StatelessWidget {
       child: text == null
           ? const SizedBox.shrink()
           : Padding(
-              padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
+              padding: EdgeInsets.symmetric(
+                vertical: MoshSpace.s1,
+                horizontal:
+                    feedPadding(compact: isMobileBreakpoint(context)).left +
+                        MoshSpace.s4,
+              ),
               child: Align(
                 alignment: AlignmentDirectional.centerStart,
                 child: Text(
                   text,
-                  style: Theme.of(context).textTheme.labelSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelMedium!
+                      .copyWith(color: MoshColors.of(context).onSurfaceMuted),
                 ),
               ),
             ),

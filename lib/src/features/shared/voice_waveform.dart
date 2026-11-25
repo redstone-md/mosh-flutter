@@ -4,7 +4,7 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
-import 'package:mosh/src/features/shared/voice_composer.dart'
+import 'package:mosh/src/features/shared/voice_composer_types.dart'
     show waveformBuckets;
 
 /// Decodes the peaks a voice message carries. Malformed peaks are flat
@@ -23,8 +23,8 @@ Uint8List voicePeaksFromBase64(String? b64) {
   return peaks;
 }
 
-/// The Waveform card: 28 rounded bars that fill as the message plays. A
-/// press on it seeks; it measures its own width, independently of the card
+/// The Waveform card: 28 rounded bars that fill as the message plays. With
+/// [onSeekRatio] a press on it seeks; it measures its own width, independently of the card
 /// around it, and narrows with a narrow message.
 class VoiceWaveform extends StatelessWidget {
   const VoiceWaveform({
@@ -33,7 +33,7 @@ class VoiceWaveform extends StatelessWidget {
     required this.progress,
     required this.played,
     required this.unplayed,
-    required this.onSeekRatio,
+    this.onSeekRatio,
   });
 
   /// Bars drawn, each [barWidth] wide and [gap] from the next.
@@ -49,34 +49,40 @@ class VoiceWaveform extends StatelessWidget {
   final Color unplayed;
 
   /// Called with the pressed position as a 0..1 fraction of the wave width.
-  final ValueChanged<double> onSeekRatio;
+  /// Without it the wave takes no press.
+  final ValueChanged<double>? onSeekRatio;
 
   @override
-  Widget build(BuildContext context) => Builder(
-        builder: (context) => GestureDetector(
-          onTapDown: (details) {
-            final box = context.findRenderObject() as RenderBox?;
-            final width = box?.size.width ?? 0;
-            if (width == 0) return;
-            onSeekRatio((details.localPosition.dx / width).clamp(0.0, 1.0));
-          },
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: width),
-            child: SizedBox(
-              width: double.infinity,
-              height: height,
-              child: CustomPaint(
-                painter: _WaveformPainter(
-                  peaks: peaks,
-                  progress: progress,
-                  played: played,
-                  unplayed: unplayed,
-                ),
-              ),
-            ),
+  Widget build(BuildContext context) {
+    final wave = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: width),
+      child: SizedBox(
+        width: double.infinity,
+        height: height,
+        child: CustomPaint(
+          painter: _WaveformPainter(
+            peaks: peaks,
+            progress: progress,
+            played: played,
+            unplayed: unplayed,
           ),
         ),
-      );
+      ),
+    );
+    final seek = onSeekRatio;
+    if (seek == null) return wave;
+    return Builder(
+      builder: (context) => GestureDetector(
+        onTapDown: (details) {
+          final box = context.findRenderObject() as RenderBox?;
+          final width = box?.size.width ?? 0;
+          if (width == 0) return;
+          seek((details.localPosition.dx / width).clamp(0.0, 1.0));
+        },
+        child: wave,
+      ),
+    );
+  }
 }
 
 /// Draws the bars, each as tall as the loudest of the peaks it stands for,

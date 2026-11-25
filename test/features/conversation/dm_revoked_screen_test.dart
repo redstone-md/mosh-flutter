@@ -41,10 +41,8 @@ void main() {
             .enabled,
         false);
     expect(
-        tester
-            .widget<FilledButton>(find.descendant(
-                of: composer, matching: find.byType(FilledButton)))
-            .onPressed,
-        isNull);
+        find.descendant(
+            of: composer, matching: find.byKey(kComposerSendButtonKey)),
+        findsNothing);
   });
 }

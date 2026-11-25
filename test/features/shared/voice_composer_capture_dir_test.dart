@@ -18,129 +18,37 @@
 //     (`getApplicationCacheDirectory`), whose plugin path DOES create the
 //     base — belt and braces with the explicit recursive create.
 //
-// Driven through the real `record` plugin seam like
-// voice_composer_permission_test.dart; `path_provider` is stubbed to a
-// fresh (non-existent) base dir so the recursive create is exercised for
-// real on the host filesystem.
+// Driven through the real `record` plugin seam (VoiceRecorderProbe, whose
+// capture fails like AVCaptureFileOutput when the directory is missing);
+// `path_provider` answers a base dir that does not exist yet, so the
+// recursive create is exercised for real on the host filesystem. Only
+// `getApplicationCacheDirectory` is answered: a regression back to the
+// temp dir gets no path at all.
 import 'dart:io';
 
-import 'package:mosh/src/app/mosh_theme.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/features/shared/voice_composer.dart';
 
-const MethodChannel _recordChannel =
-    MethodChannel('com.llfbandit.record/messages');
-
-void _stubRecordChannel({
-  required List<String> started,
-}) {
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(_recordChannel, (call) async {
-    switch (call.method) {
-      case 'create':
-      case 'dispose':
-      case 'cancel':
-        return null;
-      case 'hasPermission':
-        return true;
-      case 'start':
-        final path = (call.arguments as Map)['path'] as String;
-        // Like AVCaptureFileOutput, the recorder never creates parent dirs.
-        if (!File(path).parent.existsSync()) {
-          throw PlatformException(code: 'record', message: 'ENOENT $path');
-        }
-        started.add(path);
-        return null;
-      case 'stop':
-        return started.lastOrNull;
-      case 'isRecording':
-        return false;
-      case 'getAmplitude':
-        return {'current': -60.0, 'max': -60.0};
-      case 'isEncoderSupported':
-        return true;
-      default:
-        return null;
-    }
-  });
-  addTearDown(() => TestDefaultBinaryMessengerBinding
-      .instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(_recordChannel, null));
-}
-
-Future<void> _pumpComposer(
-  WidgetTester tester, {
-  required List<VoiceSend> sent,
-}) async {
-  // A base dir that DOES NOT exist: this is the macOS field state
-  // (Caches/app.mosh.mosh absent on first voice message). The stub hands
-  // its path to path_provider, so the composer's recursive create is what
-  // makes the capture work at all.
-  final base =
-      Directory.systemTemp.createTempSync('mosh-voice-dir-test-parent');
-  addTearDown(() {
-    if (base.existsSync()) base.deleteSync(recursive: true);
-  });
-  final cacheRoot = Directory('${base.path}/Caches/app.mosh.mosh');
-
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          (call) async {
-    // getTemporaryDirectory must NOT be answered on the new path: the
-    // fix switches to getApplicationCacheDirectory, so only that call
-    // returns the (missing) dir. Answering getTemporaryDirectory would
-    // mask a regression back to the temp dir.
-    if (call.method == 'getApplicationCacheDirectory') return cacheRoot.path;
-    return null;
-  });
-  addTearDown(() => TestDefaultBinaryMessengerBinding
-      .instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'), null));
-
-  await tester.pumpWidget(MaterialApp(
-    theme: moshThemeData,
-    home: Scaffold(
-      body: Center(
-        child: VoiceComposer(
-          disabled: false,
-          onSend: sent.add,
-          onError: (_) {},
-          recordLabel: 'Record',
-          discardLabel: 'Discard',
-          stopLabel: 'Stop',
-          playLabel: 'Play',
-          sendLabel: 'Send voice',
-          permissionDeniedLabel: 'mic denied',
-          inputDeviceId: () => null,
-        ),
-      ),
-    ),
-  ));
-  await tester.pumpAndSettle();
-}
+import '../../support/voice_recorder.dart';
 
 void main() {
   testWidgets(
       'capture targets a mosh-voice/ dir created under a missing cache base',
       (tester) async {
-    final started = <String>[];
-    _stubRecordChannel(started: started);
-    final sent = <VoiceSend>[];
-    await _pumpComposer(tester, sent: sent);
+    final base =
+        Directory.systemTemp.createTempSync('mosh-voice-dir-test-parent');
+    addTearDown(() => base.deleteSync(recursive: true));
+    final recorder = VoiceRecorderProbe(tester,
+        cache: Directory('${base.path}/Caches/app.mosh.mosh'));
+    final errors = <String>[];
+    await pumpVoiceComposer(tester, errors: errors);
 
-    await tester.tap(find.byIcon(MoshIcons.mic));
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.byTooltip('Record'));
+    await pumpVoiceFrames(tester);
 
-    expect(started, hasLength(1),
+    expect(errors, isEmpty,
         reason: 'the clip directory exists before the capture begins');
     // The clip lands in the mosh-voice subdirectory, not the cache root.
-    expect(started.single, contains('mosh-voice'));
-    expect(started.single, endsWith('.m4a'));
+    expect(recorder.started.single, contains('mosh-voice'));
+    expect(recorder.started.single, endsWith('.m4a'));
   });
 }

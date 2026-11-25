@@ -1,9 +1,10 @@
-// ConversationComposer `disabled` vs `sending` test: the composer keeps a
-// hard `disabled` gate distinct from the in-flight `sending` flag. The
-// send button is the cleanest assertion target: its `onPressed` is null
-// iff the hard gate is set or the text is empty. Sending permits more text.
-// Pumping the composer directly (no screen) keeps the test hermetic; the
-// AttachmentPicker file dialog only opens on tap, so pumping it is safe.
+// The far end of the ConversationComposer: the microphone while there is
+// nothing to send, Send once there is. The composer keeps a hard `disabled`
+// gate distinct from the in-flight `sending` flag: sending permits more
+// text. Pumping the composer directly (no screen) keeps the test hermetic;
+// the AttachmentPicker file dialog only opens on tap, so pumping it is safe.
+import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_spinner.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +12,8 @@ import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart'
     show PickedAttachment;
 import 'package:mosh/src/features/shared/voice_composer.dart' show VoiceSend;
+
+import '../../support/voice_recorder.dart';
 
 void main() {
   void noAttach(PickedAttachment _) {}
@@ -38,12 +41,8 @@ void main() {
           attachLabel: 'a',
           onAttach: noAttach,
           onAttachmentPickError: (_) {},
-          voiceRecordLabel: 'r',
-          voiceDiscardLabel: 'd',
-          voiceStopLabel: 's',
-          voicePlayLabel: 'pl',
-          voiceSendLabel: 'vs',
-          voicePermissionDeniedLabel: 'denied',
+          voiceLabels: testVoiceLabels,
+          inputDeviceId: () => null,
           onSendVoice: noVoice,
           onVoiceError: (_) {},
         ),
@@ -51,32 +50,69 @@ void main() {
     ));
   }
 
-  testWidgets('disabled gate (independent of sending) disables the send button',
+  IconButton send(WidgetTester tester) => tester.widget(find.descendant(
+      of: find.byKey(kComposerSendButtonKey),
+      matching: find.byType(IconButton)));
+
+  IconButton microphone(WidgetTester tester) => tester.widget(find.ancestor(
+      of: find.byIcon(MoshIcons.mic), matching: find.byType(IconButton)));
+
+  testWidgets('an empty field ends in the microphone, a draft in Send',
       (tester) async {
-    final c = TextEditingController(text: 'hello');
-    await pump(tester, sending: false, disabled: true, c: c);
-    final button = find.byType(FilledButton);
-    expect(button, findsOneWidget);
-    final FilledButton b = tester.widget(button);
-    expect(b.onPressed, isNull,
-        reason: 'disabled must gate send even when not sending');
+    final c = TextEditingController();
+    await pump(tester, sending: false, disabled: false, c: c);
+    expect(microphone(tester).onPressed, isNotNull);
+    expect(find.byKey(kComposerSendButtonKey), findsNothing);
+
+    c.text = 'hello';
+    await tester.pump();
+    expect(send(tester).onPressed, isNotNull);
+    expect(find.byIcon(MoshIcons.mic), findsNothing);
   });
 
-  testWidgets('disabled false + sending false + non-empty text enables send',
-      (tester) async {
-    final c = TextEditingController(text: 'hello');
+  testWidgets('a voice recording takes over the whole field', (tester) async {
+    VoiceRecorderProbe(tester);
+    final c = TextEditingController();
     await pump(tester, sending: false, disabled: false, c: c);
-    final FilledButton b = tester.widget(find.byType(FilledButton));
-    expect(b.onPressed, isNotNull,
-        reason: 'send enabled when not sending, not disabled, non-empty');
+
+    await tester.tap(find.byTooltip('Record'));
+    await pumpVoiceFrames(tester);
+    expect(find.byType(TextField), findsNothing);
+    expect(find.byTooltip('a'), findsNothing, reason: 'no attach button');
+    expect(find.text('0:00'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsOneWidget);
+  });
+
+  testWidgets('disabled gate (independent of sending) takes no send',
+      (tester) async {
+    var sent = 0;
+    final c = TextEditingController(text: 'hello');
+    await pump(tester,
+        sending: false, disabled: true, c: c, onSend: () => sent++);
+
+    expect(find.byKey(kComposerSendButtonKey), findsNothing);
+    expect(microphone(tester).onPressed, isNull);
+    expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+    expect(sent, 0);
   });
 
   testWidgets('sending permits another draft and submission', (tester) async {
     final c = TextEditingController(text: 'hello');
     await pump(tester, sending: true, disabled: false, c: c);
-    final FilledButton b = tester.widget(find.byType(FilledButton));
-    expect(b.onPressed, isNotNull);
+    expect(send(tester).onPressed, isNotNull);
     expect(tester.widget<TextField>(find.byType(TextField)).enabled, isTrue);
+  });
+
+  testWidgets('a send on its way with an empty draft spins where Send is',
+      (tester) async {
+    final c = TextEditingController();
+    await pump(tester, sending: true, disabled: false, c: c);
+    expect(send(tester).onPressed, isNull);
+    expect(find.byType(MoshSpinner), findsOneWidget);
+    expect(find.byIcon(MoshIcons.mic), findsNothing);
   });
 
   testWidgets('the counter appears near the limit and counts characters',
@@ -101,9 +137,9 @@ void main() {
         c: c,
         maxTextChars: 10,
         onSend: () => sent++);
-    expect(find.text('-2'), findsOneWidget);
-    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
-        isNull);
+    expect(tester.widget<Text>(find.text('-2')).style!.color,
+        MoshColors.dark.error);
+    expect(send(tester).onPressed, isNull);
     await tester.showKeyboard(find.byType(TextField));
     await tester.testTextInput.receiveAction(TextInputAction.done);
     expect(sent, 0);
@@ -111,7 +147,6 @@ void main() {
     // The send trims the draft, so trailing whitespace does not count.
     c.text = '${'x' * 10}\n  ';
     await tester.pump();
-    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
-        isNotNull);
+    expect(send(tester).onPressed, isNotNull);
   });
 }

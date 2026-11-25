@@ -77,6 +77,11 @@ and navigation. Action methods return results instead of navigating or editing
 the composer. A sealed `ConversationSnapshot` gives shared rendering one message
 shape while preserving each kind's native snapshot for kind-specific controls.
 
+A voice note is recorded in the composer by `VoiceRecording`, the one owner of
+the recorder. A pause closes the file so it can be listened to, and a resume
+starts another; `join_voice_segments` in the core copies the AAC frames of both
+into the one clip that is sent.
+
 The message list retains one text selection area. Row delegates expand a timed
 third mouse click to the whole body; one animated menu owner shares Mosh controls
 across text and attachments while retaining selection through menu focus.

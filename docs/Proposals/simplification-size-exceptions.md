@@ -145,7 +145,6 @@ The following existing declaration spans include their signatures and internal c
 | `lib/src/features/shared/media_viewer.dart:44` | `MediaViewer.build` | 108 | Existing declarative widget subtree. |
 | `lib/src/features/shared/media_viewer_stages.dart:202` | `_AudioStageState.build` | 70 | Existing declarative widget subtree. |
 | `lib/src/features/shared/thumbnail.dart:71` | `_createVideoThumbnail` | 84 | Native media acquisition and cleanup. |
-| `lib/src/features/shared/voice_composer.dart:62` | `_VoiceComposerState` | 318 | One recording/send/disposal lifetime. |
 | `lib/src/features/voice_call/voice_call_layer.dart:68` | `_VoiceCallLayerState` | 225 | One dialog/ringtone/overlay lifetime. |
 | `lib/src/features/voice_call/voice_call_layer.dart:101` | `_VoiceCallLayerState._syncDialog` | 61 | Call phase and dialog lifetime mapping. |
 | `lib/src/features/voice_call/voice_call_layer.dart:163` | `_VoiceCallLayerState._buildDialogFor` | 59 | Call phase and dialog lifetime mapping. |

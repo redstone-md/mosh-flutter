@@ -7,6 +7,8 @@ import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
     show ConversationCallHost, conversationCallBindingProvider;
 import 'package:mosh/src/features/conversation/conversation_chrome.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
+import 'package:mosh/src/features/shared/voice_composer.dart'
+    show VoiceComposerLabels;
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
 import 'package:mosh/src/features/conversation/conversation_notice.dart';
@@ -261,12 +263,17 @@ class ConversationScreenBody extends ConsumerWidget {
         attachLabel: l.chatAttachLabel,
         onAttach: controller.sendAttachment,
         onAttachmentPickError: onAttachmentPickError,
-        voiceRecordLabel: l.voiceRecordLabel,
-        voiceDiscardLabel: l.voiceDiscardLabel,
-        voiceStopLabel: l.voiceStopLabel,
-        voicePlayLabel: l.voicePlayLabel,
-        voiceSendLabel: l.voiceSendLabel,
-        voicePermissionDeniedLabel: l.voicePermissionDenied,
+        voiceLabels: VoiceComposerLabels(
+          record: l.voiceRecordLabel,
+          cancel: l.voiceCancelLabel,
+          pause: l.voicePauseLabel,
+          resume: l.voiceResumeLabel,
+          discard: l.voiceDiscardLabel,
+          play: l.voicePlayLabel,
+          pausePlayback: l.voicePausePlaybackLabel,
+          send: l.voiceSendLabel,
+          permissionDenied: l.voicePermissionDenied,
+        ),
         onSendVoice: controller.sendVoice,
         onVoiceError: onVoiceError,
       );

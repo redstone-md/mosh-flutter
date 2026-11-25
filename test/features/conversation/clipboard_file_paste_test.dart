@@ -17,6 +17,8 @@ import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 
+import '../../support/voice_recorder.dart';
+
 /// Answers from the seeded formats. [file] is what a file manager put on
 /// the clipboard; [gate] holds the read back until a test releases it.
 /// Image reads go through `noSuchMethod`, so a test fails if they run.
@@ -203,12 +205,7 @@ void main() {
             observePaste?.call();
           },
           onAttachmentPickError: (_) => fail('nothing to report'),
-          voiceRecordLabel: 'r',
-          voiceDiscardLabel: 'd',
-          voiceStopLabel: 's',
-          voicePlayLabel: 'pl',
-          voiceSendLabel: 'vs',
-          voicePermissionDeniedLabel: 'denied',
+          voiceLabels: testVoiceLabels,
           onSendVoice: (_) {},
           onVoiceError: (_) {},
           inputDeviceId: () => null,
