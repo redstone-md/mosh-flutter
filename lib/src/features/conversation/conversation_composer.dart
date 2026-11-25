@@ -195,13 +195,15 @@ class ConversationComposer extends StatelessWidget {
                           onSend();
                         }
                       },
-                      // A bare 13px field on the box's own background -- no
+                      // A bare field on the box's own background -- no
                       // border, no fill of its own.
-                      style: TextStyle(fontSize: 13, color: colors.onSurface),
+                      style: Theme.of(context).textTheme.bodyMedium,
                       decoration: InputDecoration(
                         hintText: placeholder,
-                        hintStyle: TextStyle(
-                            fontSize: 13, color: colors.onSurfaceMuted),
+                        hintStyle: Theme.of(context)
+                            .textTheme
+                            .bodyMedium!
+                            .copyWith(color: colors.onSurfaceMuted),
                         filled: false,
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
@@ -219,12 +221,12 @@ class ConversationComposer extends StatelessWidget {
                   Text(
                     '$remaining',
                     semanticsLabel: textLimit!.label(remaining),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontFeatures: kLiveNumberFontFeatures,
-                      color:
-                          remaining < 0 ? colors.error : colors.onSurfaceMuted,
-                    ),
+                    style: Theme.of(context).textTheme.labelMedium!.copyWith(
+                          fontFeatures: kLiveNumberFontFeatures,
+                          color: remaining < 0
+                              ? colors.error
+                              : colors.onSurfaceMuted,
+                        ),
                   ),
                 ],
                 const SizedBox(width: kComposerGap),

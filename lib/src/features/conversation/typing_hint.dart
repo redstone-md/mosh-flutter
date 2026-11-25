@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 
 class TypingHint extends StatelessWidget {
@@ -53,9 +52,7 @@ class TypingHint extends StatelessWidget {
                 alignment: AlignmentDirectional.centerStart,
                 child: Text(
                   text,
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: MoshColors.of(context).onSurfaceMuted),
+                  style: Theme.of(context).textTheme.labelSmall,
                 ),
               ),
             ),
