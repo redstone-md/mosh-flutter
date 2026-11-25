@@ -23,7 +23,6 @@ import 'package:mosh/src/features/shared/attachment_launcher.dart';
 import 'package:mosh/src/features/shared/attachment_open.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
-    show showMediaViewer;
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/routing/app_router.dart';
