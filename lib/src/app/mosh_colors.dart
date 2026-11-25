@@ -49,7 +49,6 @@ class MoshColors extends ThemeExtension<MoshColors> {
     required this.avatar3,
     required this.avatar4,
     required this.onAvatar,
-    required this.outgoingMessage,
   });
 
   static const MoshColors dark = _darkColors;
@@ -100,8 +99,7 @@ class MoshColors extends ThemeExtension<MoshColors> {
   // Mosh roles beyond Material 3. [onSurfaceMuted] is tertiary text and
   // clears 4.5:1 on every surface container. [onOutgoing], its variant and
   // [outgoingError] sit on [outgoing]. An initials avatar takes one of the
-  // four plates per contact with [onAvatar] initials. [outgoingMessage] is
-  // the bubble of an own message while its text is still [onSurface].
+  // four plates per contact with [onAvatar] initials.
   final Color onSurfaceMuted,
       success,
       warning,
@@ -114,8 +112,7 @@ class MoshColors extends ThemeExtension<MoshColors> {
       avatar2,
       avatar3,
       avatar4,
-      onAvatar,
-      outgoingMessage;
+      onAvatar;
 
   // A token that is another token is an alias variable in Figma.
   Color get info => tertiary;
@@ -183,7 +180,6 @@ class MoshColors extends ThemeExtension<MoshColors> {
       avatar3: mix(avatar3, other.avatar3),
       avatar4: mix(avatar4, other.avatar4),
       onAvatar: mix(onAvatar, other.onAvatar),
-      outgoingMessage: mix(outgoingMessage, other.outgoingMessage),
     );
   }
 }

@@ -1229,9 +1229,9 @@
   "@summaryFactMembers": {
     "description": "Fact label for the member-count row of the diagnostics summary card when a private group is active"
   },
-  "messageFailedToSend": "Failed to send",
+  "messageFailedToSend": "Not sent",
   "@messageFailedToSend": {
-    "description": "Fallback error text shown in the FailedMessageRetry row below a failed outbound message when deliveryError is null/empty (React inline literal in MessageLists.tsx FailedMessageRetry, the <span> fallback)"
+    "description": "The notice under a message that was not sent, beside its Retry button; the reason the network gave, when there is one, is its tooltip"
   },
   "messageFailedWithError": "Failed: {error}",
   "@messageFailedWithError": {

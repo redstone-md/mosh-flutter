@@ -12,7 +12,7 @@ const read = (file) => fs.readFileSync(path.join(REPO, 'lib', 'src', 'app', file
 /** Figma groups its variables; a token's group follows from its name. */
 const GROUPS = [
   // Mosh roles filed outside the group their name suggests.
-  [/^outgoingMessage$/, 'accent'], [/^info$/, 'status'], [/^focusRing$/, 'line'],
+  [/^info$/, 'status'], [/^focusRing$/, 'line'],
   // Material 3 roles and the Mosh roles beside them.
   [/^(on)?Primary|^primary|^inversePrimary$/, 'primary'], [/^(on)?[Ss]econdary/, 'secondary'],
   [/^(on)?[Tt]ertiary/, 'tertiary'], [/^(on)?[Ee]rror/, 'error'], [/[Ss]urface/, 'surface'], [/^outline/, 'outline'],

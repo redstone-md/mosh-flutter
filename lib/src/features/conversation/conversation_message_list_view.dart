@@ -9,6 +9,8 @@ import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_unread_divider.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show isMobileBreakpoint;
 import 'package:mosh/src/features/conversation/message_copy.dart';
 import 'package:mosh/src/features/conversation/selectable_message_row.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
@@ -224,7 +226,7 @@ class _ConversationMessageListViewState
       key: ValueKey(widget.snapshot.target),
       child: ListView.builder(
         controller: _scroll,
-        padding: kChatScrollPadding,
+        padding: feedPadding(compact: isMobileBreakpoint(context)),
         reverse: true,
         itemCount: rows.length,
         itemBuilder: (context, index) {

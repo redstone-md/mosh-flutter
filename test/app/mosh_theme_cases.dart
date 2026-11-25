@@ -49,13 +49,6 @@ List<(String, Color, Color)> _onFill(MoshColors c) => [
         c.onSurfaceVariant,
         c.secondaryContainer
       ),
-      ('onSurface on outgoingMessage', c.onSurface, c.outgoingMessage),
-      (
-        'onSurfaceVariant on outgoingMessage',
-        c.onSurfaceVariant,
-        c.outgoingMessage
-      ),
-      ('error on outgoingMessage', c.error, c.outgoingMessage),
       ('error on errorContainer', c.error, c.errorContainer),
       ('warning on warningContainer', c.warning, c.warningContainer),
       ('info on tertiaryContainer', c.info, c.tertiaryContainer),

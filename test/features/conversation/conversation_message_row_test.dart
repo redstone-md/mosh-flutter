@@ -81,21 +81,24 @@ void main() {
   setUpAll(initializeDateFormatting);
 
   group('Retry', () {
-    testWidgets('an own failed retryable message shows the trimmed error',
-        (tester) async {
+    testWidgets(
+        'an own failed retryable message says Not sent and keeps the reason '
+        'for the tooltip and the screen reader', (tester) async {
       await _pumpRow(tester,
           message: _failed(deliveryError: '  peer offline  '),
           kind: ConversationKind.dm);
       expect(find.text('boom'), findsOneWidget);
-      expect(find.text('peer offline'), findsOneWidget);
+      expect(find.text('Not sent'), findsOneWidget);
+      expect(find.text('peer offline'), findsNothing);
+      expect(find.byTooltip('peer offline'), findsOneWidget);
+      expect(find.bySemanticsLabel('Failed: peer offline'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
     });
 
-    testWidgets('missing error text falls back to Failed to send',
-        (tester) async {
+    testWidgets('with no reason the notice stands alone', (tester) async {
       await _pumpRow(tester,
           message: _failed(deliveryError: null), kind: ConversationKind.dm);
-      expect(find.text('Failed to send'), findsOneWidget);
+      expect(find.bySemanticsLabel('Not sent'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
     });
 
@@ -107,11 +110,11 @@ void main() {
       expect(find.text('Retry'), findsNothing);
     });
 
-    testWidgets('a failure the runtime will not retry shows no Retry',
+    testWidgets('a failure the runtime will not retry is told without Retry',
         (tester) async {
       await _pumpRow(tester,
           message: _failed(retryable: false), kind: ConversationKind.dm);
-      expect(find.text('peer offline'), findsNothing);
+      expect(find.text('Not sent'), findsOneWidget);
       expect(find.text('Retry'), findsNothing);
     });
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/attachment_card.dart';
@@ -9,8 +10,11 @@ import 'package:mosh/src/features/conversation/conversation_message_footer.dart'
 import 'package:mosh/src/features/conversation/conversation_message_text.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show isMobileBreakpoint;
+import 'package:mosh/src/features/conversation/message_bubble.dart';
+import 'package:mosh/src/features/conversation/message_tone.dart';
 import 'package:mosh/src/features/conversation/call_log_entry.dart';
-import 'package:mosh/src/features/conversation/message_selection.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/features/shared/failed_message_retry.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
@@ -18,6 +22,8 @@ import 'package:mosh/src/gateway/conversation_target.dart'
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/rust/message_deletion/types.dart';
+import 'package:mosh/src/rust/outbound_delivery.dart'
+    show MessageDeliveryStatus;
 import 'package:mosh/src/features/plus/plus_identity.dart';
 
 class ConversationMessageRow extends StatelessWidget {
@@ -43,10 +49,11 @@ class ConversationMessageRow extends StatelessWidget {
   final String? conversationKey;
 
   String? get _plusIdentity =>
-      verifiedMessagePlusIdentity(message, conversationKey, kind);
+      verifiedMessagePlusIdentity(message, conversationKey);
 
-  /// Whether this row continues the previous sender's block. A continuation
-  /// row drops the meta and indents under the first row's avatar.
+  /// Whether this row continues the previous sender's run. A continuation
+  /// row drops the sender line and keeps the gutter under the first row's
+  /// avatar.
   final bool grouped;
   final bool continuesBelow;
 
@@ -64,86 +71,76 @@ class ConversationMessageRow extends StatelessWidget {
   final void Function(String attachmentId) onAttachmentCancel;
   final void Function(AttachmentDescriptor descriptor) onAttachmentOpen;
 
-  /// Sends a failed message again.
+  /// Sends a failed message again, where it can be sent again.
   final void Function(String messageId) onRetry;
 
   final AppLocalizations l;
 
+  /// A group and a channel name the sender; a direct chat has one peer and
+  /// shows neither their name nor their avatar beside a message.
+  bool get _namesSender => !message.own && kind != ConversationKind.dm;
+
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(top: messageRowSpacing(grouped)),
-        child: LayoutBuilder(
-            builder: (context, constraints) => Row(
-                  mainAxisAlignment: message.own
-                      ? MainAxisAlignment.end
-                      : MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (!message.own) ...[
-                      if (grouped)
-                        const SizedBox(width: messageAvatarSize)
-                      else
-                        SelectionContainer.disabled(
-                            child: Avatar(
-                                name: message.fromDevice,
-                                plusIdentity: _plusIdentity,
-                                radius: messageAvatarSize / 2)),
-                      const SizedBox(width: kMessageRowGap),
-                    ],
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                          maxWidth: (constraints.maxWidth * 0.78).clamp(
-                              0.0,
-                              (constraints.maxWidth -
-                                      (message.own
-                                          ? 0
-                                          : messageAvatarSize + kMessageRowGap))
-                                  .clamp(0.0, 520.0))),
-                      child: Container(
-                        key: ValueKey(
-                            'message-bubble-${message.messageId ?? message.body}'),
-                        padding: _hasRectangularAttachment
-                            ? MoshShapes.attachmentPadding
-                            : MoshShapes.messagePadding,
-                        decoration: BoxDecoration(
-                          color: _bubbleColor(context),
-                          borderRadius: _corners,
-                        ),
-                        child: _body(context),
+  Widget build(BuildContext context) {
+    final gutter = _namesSender ? messageAvatarSize + kMessageRowGap : 0.0;
+    final failed =
+        message.own && message.deliveryStatus == MessageDeliveryStatus.failed;
+    return Padding(
+      padding: EdgeInsets.only(top: messageRowSpacing(grouped)),
+      child: LayoutBuilder(
+        builder: (context, constraints) => Row(
+          mainAxisAlignment:
+              message.own ? MainAxisAlignment.end : MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_namesSender) ...[
+              // The gutter stays under the avatar of the run's first row.
+              if (grouped)
+                const SizedBox(width: messageAvatarSize)
+              else
+                SelectionContainer.disabled(
+                    child: Avatar(
+                        name: message.fromDevice,
+                        plusIdentity: _plusIdentity,
+                        radius: messageAvatarSize / 2)),
+              const SizedBox(width: kMessageRowGap),
+            ],
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxWidth: (constraints.maxWidth - gutter)
+                      .clamp(0.0, double.infinity)),
+              // A failure sits under its bubble, on the bubble's side.
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MessageBubble(
+                    id: message.messageId ?? message.body,
+                    tone: MessageTone.of(context, own: message.own),
+                    own: message.own,
+                    grouped: grouped,
+                    continuesBelow: continuesBelow,
+                    gone: message.deletion != null,
+                    selectionId: message.messageId,
+                    child: _body(context),
+                  ),
+                  if (failed)
+                    SelectionContainer.disabled(
+                      child: FailedMessageRetry(
+                        deliveryError: message.deliveryError,
+                        onRetry: message.canRetry
+                            ? () => onRetry(message.messageId!)
+                            : null,
+                        l: l.toFailedMessageRetryL10n(),
                       ),
                     ),
-                  ],
-                )),
-      );
-
-  Color _bubbleColor(BuildContext context) {
-    final colors = MoshColors.of(context);
-    final base =
-        message.own ? colors.outgoingMessage : colors.surfaceContainerHigh;
-    final selection = MessageSelectionScope.maybeOf(context)?.selection;
-    final id = message.messageId;
-    final selected = id != null && (selection?.isSelected(id) ?? false);
-    return selected
-        ? Color.alphaBlend(
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.22), base)
-        : base;
-  }
-
-  BorderRadiusDirectional get _corners {
-    final outer = MoshShapes.message.topLeft;
-    final join =
-        _hasRectangularAttachment ? outer : MoshShapes.embedded.topLeft;
-    return BorderRadiusDirectional.only(
-      topStart: !message.own && grouped ? join : outer,
-      bottomStart: !message.own && continuesBelow ? join : outer,
-      topEnd: message.own && grouped ? join : outer,
-      bottomEnd: message.own && continuesBelow ? join : outer,
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
-  }
-
-  bool get _hasRectangularAttachment {
-    final attachment = message.attachment;
-    return attachment != null && attachment.voice == null;
   }
 
   /// A confirmed deletion needs no status line; a pending or refused one does.
@@ -153,9 +150,12 @@ class ConversationMessageRow extends StatelessWidget {
         DeletionStatus.rejected => l.messageDeletionLocalOnly,
       };
 
-  Widget _body(BuildContext context) {
-    if (message.deletion case final deleted?) {
-      return Column(
+  Widget _deleted(BuildContext context, DeletionMarker deleted) {
+    final text = Theme.of(context).textTheme;
+    final quiet = MoshColors.of(context).onSurfaceMuted;
+    return Padding(
+      padding: MoshShapes.bubbleInset,
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -163,20 +163,32 @@ class ConversationMessageRow extends StatelessWidget {
                 deleted.administrator == null
                     ? l.messageDeleted
                     : l.messageDeletedByAdmin(deleted.administrator!),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(fontStyle: FontStyle.italic)),
+                style: text.bodyLarge!.copyWith(color: quiet)),
             if (_deletionStatus(deleted.status) case final status?)
-              Text(status, style: Theme.of(context).textTheme.bodySmall),
-          ]);
-    }
+              Text(status, style: text.labelMedium!.copyWith(color: quiet)),
+          ]),
+    );
+  }
+
+  /// What the bubble holds, top to bottom: the sender, a file, a picture or
+  /// a voice message, then the text. The time ends the last line of the
+  /// text; a file or a voice message alone keeps it in its own last line.
+  Widget _body(BuildContext context) {
+    if (message.deletion case final deleted?) return _deleted(context, deleted);
+    final compact = isMobileBreakpoint(context);
     final footer = ConversationMessageFooter(message: message, kind: kind);
     final hasFooter = footer.measure(context).height > 0;
-    final textOnly = message.body.isNotEmpty &&
-        message.attachment == null &&
-        message.callEvent == null &&
-        !message.canRetry;
+    final attachment = message.attachment;
+    final callEvent = message.callEvent;
+    final hasText = message.body.isNotEmpty;
+    // Under an attachment the text is a caption and wraps at its width.
+    final measure = attachment == null
+        ? messageMeasure(compact: compact)
+        : attachmentWidth(compact: compact) - MoshShapes.bubbleInset.horizontal;
+    Widget inset(Widget child) => Padding(
+        padding: MoshShapes.bubbleInset,
+        child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: measure), child: child));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
@@ -184,61 +196,39 @@ class ConversationMessageRow extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
+          spacing: MoshSpace.s1,
           children: [
-            if (!grouped && !message.own && kind != ConversationKind.dm)
-              ConversationSenderMeta(
+            if (_namesSender && !grouped)
+              inset(ConversationSenderMeta(
                 fromDevice: message.fromDevice,
                 plusIdentity: _plusIdentity,
                 fromFingerprint: message.fromFingerprint,
-                sentAtMs: message.sentAtMs,
-                showTime: false,
                 peer: peer,
+              )),
+            // Attachment and call controls remain outside text selection.
+            if (attachment != null)
+              SelectionContainer.disabled(
+                child: AttachmentCard(
+                  descriptor: attachment,
+                  view: attachmentView,
+                  own: message.own,
+                  busy: busy,
+                  onDownload: onAttachmentDownload,
+                  onCancel: onAttachmentCancel,
+                  onOpen: onAttachmentOpen,
+                  messageFooter: hasText || !hasFooter ? null : footer,
+                ),
               ),
-            if (message.body.isNotEmpty)
-              if (textOnly)
-                ConversationMessageText(body: message.body, footer: footer)
-              else
-                Text(message.body,
-                    style: messageBodyStyle(MoshColors.of(context))),
-            if (message.body.isNotEmpty && message.attachment != null)
-              const SizedBox(height: 6),
-            SelectionContainer.disabled(
-                child: _trailing(hasFooter ? footer : null)),
+            if (callEvent != null)
+              SelectionContainer.disabled(
+                  child: CallLogEntry(
+                      event: callEvent, outgoing: message.own, l: l)),
+            if (hasText)
+              inset(ConversationMessageText(
+                  body: message.body, footer: footer, own: message.own)),
           ],
         ),
-        if (!textOnly && message.attachment == null && hasFooter)
-          Padding(padding: const EdgeInsets.only(top: 4), child: footer),
-      ],
-    );
-  }
-
-  /// Attachment and call controls remain outside text selection.
-  Widget _trailing(Widget? footer) {
-    final attachment = message.attachment;
-    final callEvent = message.callEvent;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (attachment != null)
-          AttachmentCard(
-            descriptor: attachment,
-            view: attachmentView,
-            own: message.own,
-            busy: busy,
-            onDownload: onAttachmentDownload,
-            onCancel: onAttachmentCancel,
-            onOpen: onAttachmentOpen,
-            messageFooter: footer,
-          ),
-        if (callEvent != null)
-          CallLogEntry(event: callEvent, outgoing: message.own, l: l),
-        if (message.canRetry)
-          FailedMessageRetry(
-            deliveryError: message.deliveryError,
-            onRetry: () => onRetry(message.messageId!),
-            l: l.toFailedMessageRetryL10n(),
-          ),
+        if (!hasText && attachment == null && hasFooter) inset(footer),
       ],
     );
   }

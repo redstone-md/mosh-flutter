@@ -2,6 +2,7 @@ import 'dart:io' show File;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 
@@ -111,8 +112,7 @@ class AttachmentCard extends StatelessWidget {
       messageFooter: footer == null
           ? null
           : Padding(
-              padding: const EdgeInsetsDirectional.only(
-                  end: MoshShapes.attachmentFooterInset),
+              padding: const EdgeInsetsDirectional.only(end: MoshSpace.s1),
               child: footer,
             ),
     );

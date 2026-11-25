@@ -101,8 +101,8 @@ class _MediaPreviewCard extends StatelessWidget {
           // Controls precede time in the metadata row so its trailing
           // position stays fixed. The bubble supplies the bottom inset.
           Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(
-                10, 8, MoshShapes.attachmentFooterInset, 0),
+            padding:
+                const EdgeInsetsDirectional.fromSTEB(10, 8, MoshSpace.s1, 0),
             child: _buildBar(
               l: l,
               colors: MoshColors.of(context),

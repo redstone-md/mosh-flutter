@@ -62,31 +62,27 @@ Future<void> _pumpRow(
       ),
     );
 
-Icon deliveredIcon(WidgetTester tester) =>
-    tester.widget<Icon>(find.byIcon(MoshIcons.doneAll));
-
 void main() {
   setUpAll(() => initializeDateFormatting());
 
-  testWidgets(
-      'unread delivered ticks use the readable outgoing-bubble foreground',
+  testWidgets('delivered ticks take the quiet ink of the outgoing bubble',
       (tester) async {
     await _pumpRow(tester, message: _ownMessage(read: null));
-    final icon = deliveredIcon(tester);
-    expect(icon.color, MoshColors.dark.onSurfaceVariant);
+    final icon = tester.widget<Icon>(find.byIcon(MoshIcons.doneAll));
+    expect(icon.color, MoshColors.dark.onOutgoingVariant);
   });
 
-  testWidgets('the read receipt changes the color of the SAME delivered ticks',
+  testWidgets(
+      'the read receipt redraws the SAME pair of ticks, heavier and darker',
       (tester) async {
     await _pumpRow(tester, message: _ownMessage(read: true, file: true));
 
-    // Never a third tick: the visible text is still the delivered label,
-    // and the row carries exactly one tick row.
-    final label = _l.deliveryDelivered;
-    expect(find.byTooltip(label), findsOneWidget);
-
-    final icon = deliveredIcon(tester);
-    expect(icon.color, MoshColors.dark.primary);
+    // Never a third tick: the label is still the delivered one, and the
+    // row carries exactly one mark.
+    expect(find.byTooltip(_l.deliveryDelivered), findsOneWidget);
+    expect(find.byIcon(MoshIcons.doneAll), findsNothing);
+    final icon = tester.widget<Icon>(find.byIcon(MoshIcons.doneAllRead));
+    expect(icon.color, MoshColors.dark.onOutgoing);
   });
 
   testWidgets('the ticks render nothing on a counterpart message',

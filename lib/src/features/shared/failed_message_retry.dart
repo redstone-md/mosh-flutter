@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 
-/// The render-side retry row for an outbound failed+retryable message.
-/// Renders an error line + a compact Retry button. The caller gates the
-/// render condition
-/// (`own && deliveryStatus == failed && retryable && messageId != null`)
-/// and only constructs this widget when it holds -- this widget does NOT
-/// re-check those conditions (it has no `message` reference, only the
-/// `deliveryError` + `onRetry` + localized strings).
+/// The notice and the way out under a message that was not sent: "Not sent"
+/// in the error colour and, where the message can be sent again, a Retry
+/// button in the feed's own ink. The caller renders it only under a failed
+/// message of the user's own.
 ///
-/// Accessibility: the whole row is a `Semantics` status node labeled by
-/// `messageFailedWithError(deliveryError)` (or `messageFailedToSend` when
-/// `deliveryError` is null/empty). The Retry button carries its own
-/// `Retry failed message` semantics label.
+/// The reason the network gave is not part of the line. It is the notice's
+/// tooltip and its screen-reader label, `messageFailedWithError`; with no
+/// reason both fall back to the notice itself. The Retry button carries its
+/// own `Retry failed message` label.
 class FailedMessageRetry extends StatelessWidget {
   const FailedMessageRetry({
     super.key,
@@ -22,71 +20,59 @@ class FailedMessageRetry extends StatelessWidget {
     required this.l,
   });
 
-  /// The server-reported failure detail.
-  /// Trimmed before display (`deliveryError?.trim()`); null/empty falls
-  /// back to the localized "Failed to send".
+  /// The failure detail the network reported, trimmed before use.
   final String? deliveryError;
 
-  /// Retry callback. The row screens wire this to the Gateway retry seam
-  /// (`retryChannelMessage` / `retryGroupMessage`); fire-and-forget then
-  /// invalidate the conversation snapshot so the next poll re-renders.
-  final VoidCallback onRetry;
+  /// Sends the message again; null when it cannot be sent again, which
+  /// leaves the notice alone.
+  final VoidCallback? onRetry;
 
-  /// Localized strings, localized via ARB. Built from
-  /// `AppLocalizations.of(context)!` via the [toFailedMessageRetryL10n]
-  /// extension at the call site.
+  /// Localized strings, built from `AppLocalizations.of(context)!` via the
+  /// [toFailedMessageRetryL10n] extension at the call site.
   final FailedMessageRetryL10n l;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final trimmed = deliveryError?.trim();
-    final hasError = trimmed != null && trimmed.isNotEmpty;
-    // "Failed to send" when there is no trimmed error detail.
-    final errorText = hasError ? trimmed : l.messageFailedToSend;
-    // The status label: "Failed: {error}" or "Failed to send".
-    final statusLabel =
-        hasError ? l.messageFailedWithError(trimmed) : l.messageFailedToSend;
-    return Semantics(
-      label: statusLabel,
-      container: true,
-      excludeSemantics: true,
-      child: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Flexible(
-              child: Text(
-                errorText,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.error),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 2,
-              ),
-            ),
-            const SizedBox(width: 8),
-            TextButton(
-              onPressed: onRetry,
-              style: TextButton.styleFrom(
-                // Error-tinted button with comfortable >=40px hit area.
-                foregroundColor: theme.colorScheme.error,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                minimumSize: const Size(0, 40),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Semantics(
-                label: l.retryFailedMessage,
-                button: true,
-                excludeSemantics: true,
-                child: Text(l.retry),
-              ),
-            ),
-          ],
+    final reason = trimmed == null || trimmed.isEmpty ? null : trimmed;
+    final notice = Text(
+      l.messageFailedToSend,
+      style:
+          theme.textTheme.labelMedium!.copyWith(color: theme.colorScheme.error),
+      overflow: TextOverflow.ellipsis,
+      maxLines: 1,
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: MoshSpace.s1,
+      children: [
+        Flexible(
+          child: Semantics(
+            label: reason == null
+                ? l.messageFailedToSend
+                : l.messageFailedWithError(reason),
+            container: true,
+            excludeSemantics: true,
+            child: reason == null
+                ? notice
+                : Tooltip(message: reason, child: notice),
+          ),
         ),
-      ),
+        if (onRetry != null)
+          TextButton(
+            onPressed: onRetry,
+            // Only the failure is red; the way out is in the feed's ink.
+            style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.onSurface),
+            child: Semantics(
+              label: l.retryFailedMessage,
+              button: true,
+              excludeSemantics: true,
+              child: Text(l.retry),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -99,7 +85,7 @@ class FailedMessageRetryL10n {
     required this.retry,
   });
 
-  /// "Failed to send" -- the fallback text.
+  /// "Not sent" -- the notice.
   final String messageFailedToSend;
 
   /// "Failed: {error}" -- the status label when `deliveryError` is present.

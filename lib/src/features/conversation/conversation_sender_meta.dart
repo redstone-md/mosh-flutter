@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:mosh/src/features/plus/user_plus_badge.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, MoshEmphasizedText;
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/shared/mosh_dialog.dart';
 import 'package:mosh/src/features/shared/mosh_dialog_route.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
 
-/// The shortened fingerprint chip in a multi-party sender meta: mono 10px
-/// fg-3 text on a bg-2 rounded-4 background.
+/// The shortened fingerprint beside a sender's name in a group or a
+/// channel: a small plate that tells two members of one name apart.
 class DeviceFingerprintChip extends StatelessWidget {
   const DeviceFingerprintChip({super.key, required this.fingerprint});
 
@@ -20,40 +23,36 @@ class DeviceFingerprintChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s1),
       decoration: BoxDecoration(
-        color: colors.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(4),
+        color: colors.surfaceContainerHighest,
+        borderRadius: MoshShapes.embedded,
       ),
       child: Text(
         shorten(fingerprint, 6),
-        style: TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 10,
-          color: colors.onSurfaceMuted,
-        ),
+        style: Theme.of(context)
+            .textTheme
+            .labelSmall!
+            .copyWith(color: colors.onSurfaceVariant),
       ),
     );
   }
 }
 
-/// The meta row above the first message of a group of messages: the sender
-/// name in bold, then the shortened fingerprint and the local HH:mm time.
-/// Hovering the time shows the full date.
+/// The sender line inside the first bubble of a run in a group or a
+/// channel: the name, emphasized, then the shortened fingerprint.
 ///
 /// A DM has no per-message fingerprint, so [fromFingerprint] is null and the
 /// chip is left out.
 ///
 /// Callers render this only on non-grouped rows: a continuation row omits
-/// the whole meta.
+/// the whole line.
 class ConversationSenderMeta extends StatelessWidget {
   const ConversationSenderMeta({
     super.key,
     required this.fromDevice,
-    required this.sentAtMs,
     this.fromFingerprint,
     this.peer,
-    this.showTime = true,
     this.plusIdentity,
   });
 
@@ -66,56 +65,35 @@ class ConversationSenderMeta extends StatelessWidget {
   /// fingerprint.
   final String? fromFingerprint;
 
-  final BigInt? sentAtMs;
-
   /// Turns a peer's name into a tap target that opens the nickname popover,
   /// where the user can start a DM with them. Null (the default) keeps the
-  /// name plain bold, and so does the user's own name.
+  /// name plain, and so does the user's own name.
   final PeerActions? peer;
-
-  final bool showTime;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final locale = AppLocalizations.of(context)?.localeName;
-    final clock = formatClock(sentAtMs, locale: locale);
-    final full = formatClockFull(sentAtMs, locale: locale);
     final fingerprint = fromFingerprint;
-    final nameWidget = _peerName(context, theme);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
-          Flexible(child: nameWidget),
-          UserPlusBadge(identity: plusIdentity),
-          if (fingerprint != null) ...[
-            const SizedBox(width: kMessageMetaGap),
-            DeviceFingerprintChip(fingerprint: fingerprint),
-          ],
-          if (showTime && clock != null && full != null) ...[
-            const SizedBox(width: kMessageMetaGap),
-            Tooltip(
-              message: full,
-              child:
-                  Text(clock, style: messageTimeStyle(MoshColors.of(context))),
-            ),
-          ],
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(child: _peerName(context)),
+        UserPlusBadge(identity: plusIdentity),
+        if (fingerprint != null) ...[
+          const SizedBox(width: kMessageMetaGap),
+          DeviceFingerprintChip(fingerprint: fingerprint),
         ],
-      ),
+      ],
     );
   }
 
   /// The name. Plain bold when there are no peer actions, when the row has
   /// no fingerprint to act on, or when the sender is the user. Otherwise the
   /// same bold text becomes a tap target that opens the nickname popover.
-  Widget _peerName(BuildContext context, ThemeData theme) {
+  Widget _peerName(BuildContext context) {
     final text = Text(
       fromDevice,
-      style: messageMetaNameStyle(MoshColors.of(context)),
+      style: MoshEmphasizedText.labelLarge
+          .copyWith(color: MoshColors.of(context).onSurface),
       overflow: TextOverflow.ellipsis,
     );
     final actions = peer;
@@ -202,7 +180,7 @@ class _PeerNickname extends StatelessWidget {
     final alreadyOffered = peer.offered.contains(fingerprint);
     return InkWell(
       onTap: () => _show(context, l, alreadyOffered),
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: MoshShapes.embedded,
       child: child,
     );
   }
