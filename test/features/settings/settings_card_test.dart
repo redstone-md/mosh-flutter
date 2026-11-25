@@ -119,4 +119,22 @@ void main() {
     await tester.pump();
     expect(writes, [true, false], reason: 'the switch re-enables once done');
   });
+
+  testWidgets('a switch that cannot be used shows off whatever is stored',
+      (tester) async {
+    await _pump(
+        tester,
+        SettingsToggleCard(
+            key: const PageStorageKey('card'),
+            icon: MoshIcons.bug,
+            title: 't',
+            subtitle: 's',
+            detailsTitle: 'What is sent',
+            details: 'd',
+            enabled: false,
+            read: () async => true,
+            write: (_) async {}));
+    await tester.pumpAndSettle();
+    expect(tester.widget<MoshSwitch>(find.byType(MoshSwitch)).value, isFalse);
+  });
 }

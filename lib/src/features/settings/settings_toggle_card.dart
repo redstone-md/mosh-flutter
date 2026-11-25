@@ -113,7 +113,7 @@ class _SettingsToggleCardState extends State<SettingsToggleCard> {
               Semantics(
                 label: widget.title,
                 child: MoshSwitch(
-                    value: value ?? false,
+                    value: widget.enabled && (value ?? false),
                     onChanged: widget.enabled && value != null ? _set : null),
               ),
             ]),
