@@ -719,6 +719,10 @@
   "@mediaViewerSaved": {
     "description": "Toast after a copy of an attachment was saved from the media viewer"
   },
+  "mediaViewerSaveArriving": "Файл ещё загружается",
+  "@mediaViewerSaveArriving": {
+    "description": "Toast when Save is pressed in the media viewer before the attachment has finished downloading"
+  },
   "mediaViewerSaveFailed": "Не удалось сохранить файл",
   "@mediaViewerSaveFailed": {
     "description": "Toast when saving a copy of an attachment from the media viewer failed"

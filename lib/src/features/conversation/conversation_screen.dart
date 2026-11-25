@@ -10,8 +10,9 @@ import 'package:mosh/src/features/conversation/conversation_chrome.dart';
 import 'package:mosh/src/features/conversation/conversation_details_panel.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart'
-    show formatClockFull, kChatHeaderHeight, kConversationPanelWidth;
+    show kChatHeaderHeight, kConversationPanelWidth;
 import 'package:mosh/src/features/conversation/conversation_leave_prompt.dart';
+import 'package:mosh/src/features/conversation/conversation_media.dart';
 import 'package:mosh/src/features/conversation/conversation_screen_body.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/message_selection_host.dart';
@@ -22,7 +23,6 @@ import 'package:mosh/src/features/shared/attachment_launcher.dart';
 import 'package:mosh/src/features/shared/attachment_open.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
-import 'package:mosh/src/features/shared/media_viewer.dart'
     show showMediaViewer;
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
@@ -179,32 +179,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       case AttachmentExternalOpenIntent(:final localPath):
         unawaited(_openWithSystemApp(localPath));
       case AttachmentMediaOpenIntent(:final descriptor, :final src):
-        _showMedia(descriptor, src, own: own);
+        showConversationMedia(context, ref, _target, descriptor, src, own: own);
       case AttachmentNoopOpenIntent():
         break;
     }
-  }
-
-  /// Opens the viewer on an attachment, saying who sent it and when. Two
-  /// messages may carry one attachment, so [own] picks the pressed one.
-  void _showMedia(AttachmentDescriptor descriptor, String src, {bool? own}) {
-    final l = AppLocalizations.of(context)!;
-    final message = ref
-        .read(conversationSnapshotProvider(_target))
-        .value
-        ?.messages
-        .where((m) =>
-            m.attachment?.attachmentId == descriptor.attachmentId &&
-            (own == null || m.own == own))
-        .firstOrNull;
-    final sent = message == null
-        ? null
-        : [
-            message.own ? l.chatListYou : message.fromDevice,
-            formatClockFull(message.sentAtMs, locale: l.localeName),
-          ].nonNulls.join(', ');
-    showMediaViewer(
-        context: context, descriptor: descriptor, src: src, sent: sent);
   }
 
   Future<void> _openWithSystemApp(String localPath) async {
@@ -389,7 +367,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     if (attachments == null || attachments.isEmpty) return;
     switch (_controller.resolvePendingOpen(attachments)) {
       case ConversationPendingShow(:final descriptor, :final src):
-        _showMedia(descriptor, src);
+        // What was waited for is a download: someone else's message.
+        showConversationMedia(context, ref, _target, descriptor, src,
+            own: false);
       case ConversationPendingDropped():
       case ConversationPendingNone():
         break;

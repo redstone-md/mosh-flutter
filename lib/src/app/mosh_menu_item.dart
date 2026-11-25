@@ -52,10 +52,10 @@ class MoshMenuItem extends StatelessWidget {
             ? null
             : SizedBox(
                 width: MoshSpace.s5,
+                // The mark takes the row's ink, so it dims with a row that
+                // cannot be picked.
                 child: choice
-                    ? Icon(MoshIcons.check,
-                        size: MoshSpace.s5,
-                        color: theme.colorScheme.onSecondaryContainer)
+                    ? const Icon(MoshIcons.check, size: MoshSpace.s5)
                     : null),
         child: Text(label),
       ),
@@ -86,6 +86,9 @@ class MoshMenuItem extends StatelessWidget {
       ? null
       : ButtonStyle(
           foregroundColor: onPressed == null
+              ? null
+              : WidgetStatePropertyAll(theme.colorScheme.onSecondaryContainer),
+          iconColor: onPressed == null
               ? null
               : WidgetStatePropertyAll(theme.colorScheme.onSecondaryContainer),
           backgroundColor:

@@ -349,6 +349,29 @@ void main() {
     }
   });
 
+  testWidgets('Save on a file still arriving says so instead of resting',
+      (tester) async {
+    late BuildContext ctx;
+    await pumpScreen(tester, Builder(builder: (context) {
+      ctx = context;
+      return const SizedBox.shrink();
+    }));
+    unawaited(showMediaViewer(
+      context: ctx,
+      descriptor: _descriptor(fileName: 'clip.mp4', mime: 'video/mp4'),
+      src: 'https://example.invalid/stream',
+      // The conversation knows where the file is once it has arrived.
+      localPath: () => null,
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Save as…'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('The file is still downloading'), findsOneWidget);
+  });
+
   // Pins that `showMediaViewer` opens the viewer (the caption renders) and
   // the close button pops the route (the viewer disappears).
   testWidgets('showMediaViewer opens the viewer; close pops it',

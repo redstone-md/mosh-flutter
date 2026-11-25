@@ -28,8 +28,10 @@ abstract final class ToastMotion {
   static const scale = 0.97;
 
   /// Older toasts peek behind the newest and shrink, dim and soften per
-  /// step back: as the Toast card stacks them, each 8 px narrower on a side
-  /// and its edge 8 px lower.
+  /// step back. The Toast card stacks them 8 px narrower on a side with the
+  /// edge 8 px lower: a toast 360 px wide loses 16 px to [depthScale], and
+  /// as the scale also shortens it by about 2 px, it moves [peek] to show
+  /// 8 px of its edge.
   static const peek = 10.0;
   static const depthScale = 16 / 360;
   static const depthFade = 0.4;

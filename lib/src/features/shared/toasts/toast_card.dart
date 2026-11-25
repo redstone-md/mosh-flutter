@@ -113,6 +113,7 @@ class ToastCard extends StatelessWidget {
             container: true,
             button: true,
             label: l.toastDismiss,
+            onTap: onDismiss,
             excludeSemantics: true,
             child: IconButton(
                 onPressed: onDismiss, icon: const Icon(MoshIcons.close)),

@@ -281,24 +281,32 @@ class _ImageStage extends StatelessWidget {
 
 /// Shows a [MediaViewer] as a fullscreen modal: the close button, a press
 /// beside the media and Esc all pop the route. [sent] says who sent the file
-/// and when. A file that is on this device (a `file://` [src]) can be saved
-/// as a copy; one still arriving cannot yet.
+/// and when.
+///
+/// A file that is on this device can be saved as a copy. [localPath] says
+/// where it is at the moment Save is pressed, so a file that was still
+/// arriving when the viewer opened can be saved once it is here; until then
+/// Save says that it is still downloading. Without [localPath] only a
+/// `file://` [src] can be saved.
 Future<void> showMediaViewer({
   required BuildContext context,
   required AttachmentDescriptor descriptor,
   required String src,
   String? sent,
+  String? Function()? localPath,
 }) {
   final l = AppLocalizations.of(context)!;
   final toaster = context.toaster;
   final saver = ProviderScope.containerOf(context, listen: false)
       .read(attachmentSaverProvider);
   final uri = Uri.parse(src);
-  final localPath = uri.scheme == 'file' ? uri.toFilePath() : null;
+  final opened = uri.scheme == 'file' ? uri.toFilePath() : null;
   // One save dialog at a time, however often the button is pressed.
   var saving = false;
-  Future<void> save(String path) async {
+  Future<void> save() async {
     if (saving) return;
+    final path = localPath?.call() ?? opened;
+    if (path == null) return toaster.show(l.mediaViewerSaveArriving);
     saving = true;
     await saveAttachmentAs(
         saver: saver,
@@ -318,7 +326,8 @@ Future<void> showMediaViewer({
       src: src,
       sent: sent,
       onClose: () => Navigator.of(dialogContext).pop(),
-      onSave: localPath == null ? null : () => unawaited(save(localPath)),
+      onSave:
+          localPath == null && opened == null ? null : () => unawaited(save()),
     ),
   );
 }
