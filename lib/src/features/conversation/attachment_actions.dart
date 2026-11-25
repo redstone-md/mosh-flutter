@@ -46,7 +46,17 @@ AttachmentAction? attachmentAction(
   if (control == null) return attachment.localPath == null ? null : open;
   if (control.action == AttachmentTransferAction.download &&
       attachment.viewable) {
-    return open;
+    // Opening it starts its download, so it waits for another transfer
+    // like any download.
+    return control.enabled
+        ? open
+        : (
+            opens: true,
+            glyph: open.glyph,
+            tooltip: open.tooltip,
+            label: open.label,
+            onPressed: null
+          );
   }
   final (glyph, tooltip, label) = _transfer(control.action, name, l);
   return (

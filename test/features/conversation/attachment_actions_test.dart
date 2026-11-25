@@ -82,6 +82,13 @@ void main() {
     expect(calls, ['open']);
   });
 
+  test('opening media that has not arrived waits for another transfer', () {
+    final action =
+        _action(AttachmentState.offered, [], mime: 'audio/mpeg', busy: true)!;
+    expect(action.opens, isTrue);
+    expect(action.onPressed, isNull);
+  });
+
   test('media that can play before it has arrived opens straight away', () {
     final calls = <String>[];
     _action(AttachmentState.offered, calls, mime: 'audio/mpeg')!.onPressed!();

@@ -204,9 +204,12 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
           glyph: glyph,
           label: label,
           loading: _loading,
+          // A note that is here needs a player; one that is not, a free
+          // transfer to fetch it.
           onPressed: !_loading &&
-                  (_attachment.localPath != null ||
-                      !(widget.busy || _attachment.outgoing))
+                  (_attachment.localPath != null
+                      ? _player != null
+                      : !(widget.busy || _attachment.outgoing))
               ? _toggle
               : null,
         ),

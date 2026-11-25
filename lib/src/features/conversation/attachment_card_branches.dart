@@ -88,7 +88,8 @@ class _MediaCard extends StatelessWidget {
       image: true,
       button: true,
       child: GestureDetector(
-        onTap: onOpen,
+        // A press opens it, unless opening has to wait for another transfer.
+        onTap: action?.opens == true ? action!.onPressed : onOpen,
         // The reserved height follows the width the bubble leaves.
         child: LayoutBuilder(
           builder: (context, constraints) => Container(

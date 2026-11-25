@@ -131,8 +131,10 @@ class ConversationMessageRow extends StatelessWidget {
   /// The bubble, or the call that is a bubble of its own, and under it, on
   /// the same side, the notice of a message that was not sent.
   Widget _bubbleAndFailure(BuildContext context) {
-    final failed =
-        message.own && message.deliveryStatus == MessageDeliveryStatus.failed;
+    // An authenticated read receipt proves delivery, as in the footer.
+    final failed = message.own &&
+        message.read != true &&
+        message.deliveryStatus == MessageDeliveryStatus.failed;
     final onBand = _onBand(context);
     final tone = MessageTone.of(context, own: message.own);
     return Column(

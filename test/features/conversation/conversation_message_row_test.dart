@@ -102,6 +102,23 @@ void main() {
       expect(find.text('Retry'), findsOneWidget);
     });
 
+    testWidgets('a read receipt outweighs a failed status', (tester) async {
+      await _pumpRow(tester,
+          message: ConversationMessage(
+              fromDevice: 'me',
+              body: 'boom',
+              own: true,
+              sentAtMs: _sentAt,
+              messageId: 'm1',
+              deliveryStatus: MessageDeliveryStatus.failed,
+              retryable: true,
+              read: true),
+          kind: ConversationKind.dm);
+      expect(find.text('Not sent'), findsNothing);
+      expect(find.text('Retry'), findsNothing);
+      expect(find.byIcon(MoshIcons.doneAllRead), findsOneWidget);
+    });
+
     testWidgets('a message that did not fail shows no Retry', (tester) async {
       await _pumpRow(tester,
           message: _failed(
