@@ -79,8 +79,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
     onPermissionDenied: () => widget.onError(widget.labels.permissionDenied),
     onError: (error) => widget.onError(error.toString()),
   );
-  // The player of a paused recording. Made on the first listen and let go
-  // whenever the clip changes hands: a resume, a send, a cancel.
+  // Made on the first listen; let go when the clip changes hands.
   Player? _player;
   final List<StreamSubscription<Object?>> _playerEvents = [];
   bool _playing = false;
@@ -100,22 +99,26 @@ class _VoiceComposerState extends State<VoiceComposer> {
     super.dispose();
   }
 
-  /// Plays or pauses the paused recording. Where no player can be made (a
-  /// test host without libmpv) the press does nothing.
+  /// Plays or pauses the paused recording; without a player, does nothing.
   Future<void> _listen() async {
     final clip = _recording.clip;
     if (clip == null) return;
+    final player = _player;
     try {
-      final player = _player;
       if (player != null) return await player.playOrPause();
-      final opened = _player = widget.createPlayer();
-      _playerEvents
-        ..add(opened.stream.playing
-            .listen((playing) => _ifMounted(() => _playing = playing)))
-        ..add(opened.stream.position.listen(_onPosition));
+    } catch (_) {
+      return _ifMounted(_closePlayer);
+    }
+    final opened = _player = widget.createPlayer();
+    _playerEvents
+      ..add(opened.stream.playing
+          .listen((playing) => _ifMounted(() => _playing = playing)))
+      ..add(opened.stream.position.listen(_onPosition));
+    try {
       await opened.open(Media(clip));
     } catch (_) {
-      _ifMounted(_closePlayer);
+      // Only the player that failed: a newer one may have taken its place.
+      if (_player == opened) _ifMounted(_closePlayer);
     }
   }
 
@@ -159,9 +162,8 @@ class _VoiceComposerState extends State<VoiceComposer> {
           duration: MoshMotion.effectsFast.duration,
           switchInCurve: MoshMotion.effectsFast.curve,
           switchOutCurve: MoshMotion.effectsFast.curve,
-          // A fade that drops its row from the semantics tree while it is
-          // clear trips the framework's tree check when the rows swap, so
-          // the row coming in is read from its first frame.
+          // A fade that hides a clear row from semantics trips the
+          // framework's tree check on the swap: the new row is read at once.
           transitionBuilder: (row, animation) => FadeTransition(
             opacity: animation,
             alwaysIncludeSemantics: true,
@@ -193,7 +195,6 @@ class _VoiceComposerState extends State<VoiceComposer> {
         onPressed: widget.disabled ? null : _recording.start,
       );
 
-  /// A transition in flight takes no second press.
   VoidCallback? _unlessBusy(VoidCallback action) =>
       _recording.busy ? null : action;
 
@@ -254,13 +255,13 @@ class _VoiceComposerState extends State<VoiceComposer> {
             played: _played,
             peaks: _recording.peaks,
             durationMs: _recording.elapsed.inMilliseconds,
-            onPressed: _listen,
+            onPressed: _unlessBusy(_listen),
           ),
         ),
         IconButton(
           icon: const Icon(MoshIcons.mic),
           tooltip: labels.resume,
-          onPressed: widget.disabled
+          onPressed: widget.disabled || !_recording.canResume
               ? null
               : _unlessBusy(() => _afterListening(_recording.resume)),
         ),
@@ -287,7 +288,7 @@ class _RecordedTake extends StatelessWidget {
   final double played;
   final Uint8List peaks;
   final int durationMs;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -314,13 +315,19 @@ class _RecordedTake extends StatelessWidget {
                   color: c.onSurface,
                 ),
                 Expanded(
-                  child: Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: VoiceWaveform(
-                      peaks: peaks,
-                      progress: played,
-                      played: c.primary,
-                      unplayed: c.outline,
+                  // The bars keep their pitch: a narrow capsule cuts the
+                  // wave where it ends.
+                  child: ClipRect(
+                    child: OverflowBox(
+                      alignment: AlignmentDirectional.centerStart,
+                      minWidth: VoiceWaveform.width,
+                      maxWidth: VoiceWaveform.width,
+                      child: VoiceWaveform(
+                        peaks: peaks,
+                        progress: played,
+                        played: c.primary,
+                        unplayed: c.outline,
+                      ),
                     ),
                   ),
                 ),

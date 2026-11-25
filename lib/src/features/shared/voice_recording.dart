@@ -39,19 +39,15 @@ class VoiceRecording extends ChangeNotifier {
   final VoidCallback onPermissionDenied;
   final void Function(Object error) onError;
 
-  static const _tick = Duration(milliseconds: 200);
   static const _mime = 'audio/mp4';
 
   final AudioRecorder _recorder = AudioRecorder();
   VoiceRecordingPhase _phase = VoiceRecordingPhase.idle;
-  Duration _elapsed = Duration.zero;
-  Timer? _clock;
-  StreamSubscription<Amplitude>? _amplitudes;
-  // One loudness reading per amplitude tick of the whole recording.
-  final List<int> _levels = <int>[];
-  Uint8List _peaks = Uint8List(waveformBuckets);
-  String? _clip;
-  String? _live;
+  late final _VoiceMeter _meter = _VoiceMeter(onTick: _onTick);
+  // The finished clip, and the meter's reading when it was closed: what a
+  // piece that cannot be joined falls back to.
+  final _VoiceFiles _files = _VoiceFiles();
+  _MeterReading _clipReading = _VoiceMeter.zero;
   // One recorder transition at a time: a pause, a cancel, a send and the
   // length limit all tear the capture down asynchronously, and a cancel
   // racing a pause would delete the file the pause is still closing.
@@ -61,16 +57,20 @@ class VoiceRecording extends ChangeNotifier {
   VoiceRecordingPhase get phase => _phase;
 
   /// How much has been recorded, pauses left out.
-  Duration get elapsed => _elapsed;
+  Duration get elapsed => _meter.elapsed;
 
   /// The finished clip of a paused recording, to listen to.
-  String? get clip => _clip;
+  String? get clip => _files.clip;
 
-  /// The waveform of a paused recording.
-  Uint8List get peaks => _peaks;
+  /// The waveform of the recording so far.
+  Uint8List get peaks => voiceWaveform(_meter.levels);
 
   /// Whether an action is still closing or joining files.
   bool get busy => _busy;
+
+  /// Whether a paused recording has room to go on.
+  bool get canResume =>
+      _phase == VoiceRecordingPhase.paused && elapsed < maxRecording;
 
   /// Asks for the microphone and starts capturing.
   Future<void> start() => _exclusive(() async {
@@ -78,10 +78,11 @@ class VoiceRecording extends ChangeNotifier {
         // Ask at the moment of intent: hasPermission() requests when the
         // status is undetermined and just reports otherwise. `record`'s
         // start() never requests on its own, so this call is the only gate.
-        if (!await _recorder.hasPermission()) return onPermissionDenied();
-        if (_disposed || !canCapture()) return;
-        _elapsed = Duration.zero;
-        _levels.clear();
+        final allowed = await _recorder.hasPermission();
+        if (_disposed) return;
+        if (!allowed) return onPermissionDenied();
+        if (!canCapture()) return;
+        _meter.rewind(_VoiceMeter.zero);
         await _capture();
       });
 
@@ -94,8 +95,7 @@ class VoiceRecording extends ChangeNotifier {
 
   /// Goes on recording after a pause.
   Future<void> resume() => _exclusive(() async {
-        if (_phase != VoiceRecordingPhase.paused || !canCapture()) return;
-        await _capture();
+        if (canResume && canCapture()) await _capture();
       });
 
   /// Throws the recording away.
@@ -111,15 +111,14 @@ class VoiceRecording extends ChangeNotifier {
     VoiceSend? voice;
     await _exclusive(() async {
       if (_phase == VoiceRecordingPhase.recording) await _close();
-      final path = _clip;
+      final path = _files.release();
       if (path == null) return;
       voice = VoiceSend(
         path: path,
         mime: _mime,
-        durationMs: _elapsed.inMilliseconds,
-        peaksBase64: base64Encode(_peaks),
+        durationMs: elapsed.inMilliseconds,
+        peaksBase64: base64Encode(peaks),
       );
-      _clip = null;
       _set(VoiceRecordingPhase.idle);
     });
     return voice;
@@ -128,44 +127,34 @@ class VoiceRecording extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _stopClock();
+    _meter.stop();
     unawaited(_recorder.dispose());
-    _delete(_clip);
+    _files.deleteAll();
     super.dispose();
   }
 
   /// Runs one recorder transition; a second one asked for meanwhile is
   /// dropped. A failure ends the recording and is reported.
   Future<void> _exclusive(Future<void> Function() transition) async {
-    if (_busy) return;
+    if (_busy || _disposed) return;
     _busy = true;
+    _notify();
     try {
       await transition();
     } catch (error) {
       await _abort(error);
     } finally {
       _busy = false;
+      // A transition that outlived the composer leaves no file behind.
+      if (_disposed) _files.deleteAll();
       _notify();
     }
   }
 
   /// Starts a new file and the clock. A composer that went out of sight
   /// while the recorder was starting is paused at once.
-  ///
-  /// The file lands in an explicit `mosh-voice/` subdirectory of the app
-  /// cache, created recursively HERE. Two reasons (macOS 0.9.3 field bug):
-  /// `getTemporaryDirectory()` maps to `NSCachesDirectory` + the bundle id
-  /// and path_provider never creates that base, and `record_macos` writes
-  /// via `AVCaptureFileOutput.startRecording(to:)`, which creates no
-  /// parent directory and reports the failure only to an unsurfaced
-  /// delegate: `stop()` still returns the path, so the file's absence
-  /// surfaced later as errno 2 when the clip was read for sending. The app
-  /// cache base (`getApplicationCacheDirectory`) IS created by the plugin,
-  /// and the explicit recursive create makes the invariant ours: a broken
-  /// directory fails at capture time, visibly, not at send time.
   Future<void> _capture() async {
-    final path = await _newPath();
-    _live = path;
+    final path = _files.live = await newVoiceClipPath();
     // The stored input pick (audio-devices.json); null = platform default.
     // The label is cosmetic on the platform side, so the id doubles as it.
     final picked = inputDeviceId();
@@ -176,10 +165,7 @@ class VoiceRecording extends ChangeNotifier {
       ),
       path: path,
     );
-    _amplitudes = _recorder
-        .onAmplitudeChanged(const Duration(milliseconds: 100))
-        .listen(_onAmplitude);
-    _clock = Timer.periodic(_tick, (_) => _onTick());
+    _meter.start(_recorder);
     _set(VoiceRecordingPhase.recording);
     if (!canCapture()) {
       await _close();
@@ -187,90 +173,38 @@ class VoiceRecording extends ChangeNotifier {
     }
   }
 
-  Future<String> _newPath() async {
-    final cache = await getApplicationCacheDirectory();
-    final dir = Directory('${cache.path}/mosh-voice');
-    // Sync: the directory must exist before the recorder gets the path.
-    dir.createSync(recursive: true);
-    return '${dir.path}/mosh-voice-${DateTime.now().microsecondsSinceEpoch}.m4a';
-  }
-
   void _onTick() {
-    _elapsed += _tick;
     _notify();
     // The longest recording pauses itself, to be listened to or sent.
-    if (_elapsed >= maxRecording) unawaited(pause());
+    if (elapsed >= maxRecording) unawaited(pause());
   }
 
-  void _onAmplitude(Amplitude amplitude) {
-    // Amplitude.current is dBFS (-60..0); keep it as 0..255.
-    final normalized = ((amplitude.current + 60) / 60).clamp(0.0, 1.0);
-    _levels.add((normalized * 255).round());
-  }
-
-  /// Stops the capture and adds its file to [clip].
+  /// Stops the capture and adds its file to [clip]. A piece that cannot be
+  /// joined is told and dropped: what was paused before it stays.
   Future<void> _close() async {
-    _stopClock();
-    final segment = _live = await _recorder.stop() ?? _live;
-    final before = _clip;
-    if (before == null || segment == null) {
-      _clip = segment ?? before;
-    } else {
-      final joined = await _newPath();
-      await join(segments: [before, segment], output: joined);
-      _clip = joined;
-      _delete(before);
-      _delete(segment);
+    _meter.stop();
+    final segment = await _recorder.stop() ?? _files.live;
+    try {
+      await _files.close(segment, join);
+    } catch (error) {
+      _meter.rewind(_clipReading);
+      if (!_disposed) onError(error);
     }
-    _live = null;
-    _peaks = _waveform();
-  }
-
-  /// The recording's loudness as the [waveformBuckets] peaks a voice
-  /// message carries, spread over its real length.
-  Uint8List _waveform() {
-    final peaks = Uint8List(waveformBuckets);
-    final count = _levels.length;
-    if (count == 0) return peaks;
-    for (var bucket = 0; bucket < waveformBuckets; bucket++) {
-      final from = bucket * count ~/ waveformBuckets;
-      final to = math.max(from + 1, (bucket + 1) * count ~/ waveformBuckets);
-      peaks[bucket] = _levels.sublist(from, to).reduce(math.max);
-    }
-    return peaks;
+    _clipReading = _meter.reading;
   }
 
   Future<void> _abort(Object error) async {
-    onError(error);
+    if (!_disposed) onError(error);
     await _discard();
     _set(VoiceRecordingPhase.idle);
   }
 
   Future<void> _discard() async {
-    _stopClock();
+    _meter.stop();
     try {
       await _recorder.cancel();
     } catch (_) {/* best-effort */}
-    _delete(_live);
-    _delete(_clip);
-    _live = null;
-    _clip = null;
-  }
-
-  void _stopClock() {
-    _clock?.cancel();
-    _clock = null;
-    _amplitudes?.cancel();
-    _amplitudes = null;
-  }
-
-  /// Best effort and synchronous: a clip is a few megabytes at most.
-  void _delete(String? path) {
-    if (path == null) return;
-    try {
-      final file = File(path);
-      if (file.existsSync()) file.deleteSync();
-    } catch (_) {/* best-effort */}
+    _files.deleteAll();
   }
 
   void _set(VoiceRecordingPhase phase) {
@@ -281,4 +215,133 @@ class VoiceRecording extends ChangeNotifier {
   void _notify() {
     if (!_disposed) notifyListeners();
   }
+}
+
+/// The files of one recording: the piece being captured and the clip of
+/// everything finished before it.
+class _VoiceFiles {
+  String? clip;
+  String? live;
+
+  /// Adds the captured [segment] to [clip]. Throws when the two cannot be
+  /// joined: the segment is gone then and [clip] is as it was.
+  Future<void> close(String? segment, VoiceSegmentJoin join) async {
+    live = null;
+    final before = clip;
+    if (before == null || segment == null) {
+      clip = segment ?? before;
+      return;
+    }
+    final joined = await newVoiceClipPath();
+    try {
+      await join(segments: [before, segment], output: joined);
+    } catch (_) {
+      deleteVoiceClip(joined);
+      rethrow;
+    } finally {
+      deleteVoiceClip(segment);
+    }
+    clip = joined;
+    deleteVoiceClip(before);
+  }
+
+  /// Hands [clip] over: its file is the caller's from here on.
+  String? release() {
+    final released = clip;
+    clip = null;
+    return released;
+  }
+
+  void deleteAll() {
+    deleteVoiceClip(live);
+    deleteVoiceClip(clip);
+    live = clip = null;
+  }
+}
+
+/// How long a recording is and how many loudness readings it has.
+typedef _MeterReading = ({Duration elapsed, int levels});
+
+/// The clock and the loudness of a recording, running only while the
+/// microphone captures, so pauses are left out of both.
+class _VoiceMeter {
+  _VoiceMeter({required this.onTick});
+
+  static const _MeterReading zero = (elapsed: Duration.zero, levels: 0);
+  static const _tick = Duration(milliseconds: 200);
+
+  final VoidCallback onTick;
+
+  /// One loudness reading, 0..255, per amplitude tick of the recording.
+  final List<int> levels = <int>[];
+  Duration elapsed = Duration.zero;
+  Timer? _clock;
+  StreamSubscription<Amplitude>? _amplitudes;
+
+  _MeterReading get reading => (elapsed: elapsed, levels: levels.length);
+
+  void start(AudioRecorder recorder) {
+    _amplitudes = recorder
+        .onAmplitudeChanged(const Duration(milliseconds: 100))
+        .listen((amplitude) {
+      // Amplitude.current is dBFS (-60..0); keep it as 0..255.
+      final normalized = ((amplitude.current + 60) / 60).clamp(0.0, 1.0);
+      levels.add((normalized * 255).round());
+    });
+    _clock = Timer.periodic(_tick, (_) {
+      elapsed += _tick;
+      onTick();
+    });
+  }
+
+  void stop() {
+    _clock?.cancel();
+    _clock = null;
+    _amplitudes?.cancel();
+    _amplitudes = null;
+  }
+
+  /// Goes back to an earlier [reading], dropping what came after it.
+  void rewind(_MeterReading to) {
+    elapsed = to.elapsed;
+    levels.length = to.levels;
+  }
+}
+
+/// A new file for a piece of a recording, in `mosh-voice/` under the app
+/// cache. The directory is created here, recursively: `record_macos` writes
+/// through `AVCaptureFileOutput`, which creates no parent directory and
+/// reports that only to a delegate nobody hears, so a missing directory
+/// surfaced as errno 2 when the clip was read for sending (macOS 0.9.3).
+/// Created here, a broken directory fails at capture time, visibly.
+Future<String> newVoiceClipPath() async {
+  final cache = await getApplicationCacheDirectory();
+  final dir = Directory('${cache.path}/mosh-voice');
+  // Sync: the directory must exist before the recorder gets the path.
+  dir.createSync(recursive: true);
+  return '${dir.path}/mosh-voice-${DateTime.now().microsecondsSinceEpoch}.m4a';
+}
+
+/// Removes a recorded file. Best effort and synchronous: a clip is a few
+/// megabytes at most.
+void deleteVoiceClip(String? path) {
+  if (path == null) return;
+  try {
+    final file = File(path);
+    if (file.existsSync()) file.deleteSync();
+  } catch (_) {/* best-effort */}
+}
+
+/// Loudness readings, one per tick of a recording, as the
+/// [waveformBuckets] peaks a voice message carries, spread over its length.
+Uint8List voiceWaveform(List<int> levels) {
+  final peaks = Uint8List(waveformBuckets);
+  final count = levels.length;
+  if (count == 0) return peaks;
+  for (var bucket = 0; bucket < waveformBuckets; bucket++) {
+    final from = bucket * count ~/ waveformBuckets;
+    final to = math.max(from + 1, (bucket + 1) * count ~/ waveformBuckets);
+    peaks[bucket] = levels.sublist(from, to).reduce(math.max);
+  }
+  return peaks;
 }

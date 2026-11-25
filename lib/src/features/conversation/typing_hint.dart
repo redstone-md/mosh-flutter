@@ -4,7 +4,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/conversation_helpers.dart'
-    show feedPadding;
+    show feedPadding, messageMeasure;
 import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
@@ -23,7 +23,7 @@ class TypingHint extends StatelessWidget {
   /// the same way; several names join with the localized "and".
   final List<String> names;
 
-  /// The localized `name is typing…` shape; defaults to the ARB
+  /// The localized `name is typing` shape; defaults to the ARB
   /// `typingHint` so tests can pin the wording without building the full
   /// localization delegate.
   final String Function(String name)? typingLabel;
@@ -36,7 +36,7 @@ class TypingHint extends StatelessWidget {
       if (typingLabel != null) {
         text = names.length == 1
             ? typingLabel!(names.first)
-            : '${names.join(', ')} and others are typing…';
+            : '${names.join(', ')} and others are typing';
       } else if (l != null) {
         text = names.length == 1
             ? l.typingHint(names.first)
@@ -63,14 +63,18 @@ class TypingHint extends StatelessWidget {
               ),
               child: Align(
                 alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium!
-                      .copyWith(color: MoshColors.of(context).onSurfaceMuted),
+                child: ConstrainedBox(
+                  constraints:
+                      BoxConstraints(maxWidth: messageMeasure(compact: true)),
+                  child: Text(
+                    text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelMedium!
+                        .copyWith(color: MoshColors.of(context).onSurfaceMuted),
+                  ),
                 ),
               ),
             ),

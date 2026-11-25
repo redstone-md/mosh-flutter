@@ -36,7 +36,7 @@ export const COMPONENTS = [
   component('rows', 'Call log entry', ['CallLogEntry']),
   component('rows', 'Attachment card', ['FileCard', 'MiddleCutText', 'attachment_card._MediaCard', 'ConversationSharedFile']),
   component('rows', 'Voice message', ['VoiceMessageCard', 'VoiceWaveform', 'VoiceCardTimeLabel']),
-  component('rows', 'Composer', ['ConversationComposer', 'AttachmentPicker', 'VoiceComposer', 'VoiceRecordingDot', 'TypingHint']),
+  component('rows', 'Composer', ['ConversationComposer', 'ComposerSendButton', 'AttachmentPicker', 'VoiceComposer', 'voice_composer._RecordedTake', 'VoiceRecordingDot', 'TypingHint']),
   component('rows', 'Search bar', ['ConversationSearchBox', 'ConversationFilterToggle', 'MobileConversationSearch', 'MobileConversationFilterNotice']),
   component('rows', 'Selection bar', ['MessageSelectionBar', 'MessageSelectionActions', 'MessageSelectionComposer', 'Checkbox']),
 

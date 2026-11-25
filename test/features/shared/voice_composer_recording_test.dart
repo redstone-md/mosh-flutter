@@ -99,6 +99,17 @@ void main() {
     expect(find.text('Cancel'), findsNothing);
   });
 
+  testWidgets('a composer that goes away mid-recording leaves no file',
+      (tester) async {
+    final recorder = VoiceRecorderProbe(tester);
+    await pumpVoiceComposer(tester);
+    await _record(tester, const Duration(seconds: 1));
+
+    await tester.pumpWidget(const SizedBox());
+
+    expect(File(recorder.started.single).existsSync(), isFalse);
+  });
+
   testWidgets('a paused recording can be deleted', (tester) async {
     final recorder = VoiceRecorderProbe(tester);
     final sent = <VoiceSend>[];
@@ -146,15 +157,17 @@ void main() {
         reason: 'the pieces are gone once they are one clip');
   });
 
-  testWidgets('a recording that cannot be joined is told and dropped',
+  testWidgets('a piece that cannot be joined is told and what was paused stays',
       (tester) async {
     final recorder = VoiceRecorderProbe(tester);
     final errors = <String>[];
+    final sent = <VoiceSend>[];
     await pumpVoiceComposer(tester,
         errors: errors,
+        sent: sent,
         join: ({required segments, required output}) =>
             throw StateError('no muxer'));
-    await _record(tester, const Duration(seconds: 1));
+    await _record(tester, const Duration(seconds: 2));
     await _press(tester, 'Pause');
     await tester.tap(find.byTooltip('Resume'));
     await tester.pump();
@@ -164,9 +177,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(errors.single, contains('no muxer'));
-    expect(find.byTooltip('Record'), findsOneWidget);
-    expect(recorder.started.map((piece) => File(piece).existsSync()),
-        everyElement(isFalse));
+    expect(find.text('0:02'), findsOneWidget);
+    expect(File(recorder.started.last).existsSync(), isFalse);
+
+    await tester.tap(find.byTooltip('Send voice'));
+    await tester.pumpAndSettle();
+    expect(sent.single.path, recorder.started.first);
+    expect(sent.single.durationMs, 2000);
   });
 
   testWidgets('the longest recording pauses itself', (tester) async {
@@ -179,6 +196,14 @@ void main() {
     expect(recorder.recording, isFalse);
     expect(find.text('5:00'), findsOneWidget);
     expect(find.byTooltip('Play'), findsOneWidget);
+    expect(
+        tester
+            .widget<IconButton>(find.ancestor(
+                of: find.byTooltip('Resume'),
+                matching: find.byType(IconButton)))
+            .onPressed,
+        isNull,
+        reason: 'the limit leaves no room to go on');
   });
 
   // Regression: the peaks were bucketed against the five-minute maximum, so

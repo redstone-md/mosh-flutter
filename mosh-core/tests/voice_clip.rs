@@ -41,6 +41,7 @@ fn joined_clip_plays_every_segment_in_order() {
     let (samples, ms) = audio_track(&joined);
     assert_eq!(samples, first_samples + second_samples);
     assert!(ms.abs_diff(first_ms + second_ms) <= 1, "{ms} ms");
+    std::fs::remove_file(joined).expect("joined clip is removed");
 }
 
 #[test]

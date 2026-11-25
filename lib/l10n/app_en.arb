@@ -1815,11 +1815,11 @@
   "@lockScreenInsecureDeviceMessage": {
     "description": "Body shown on MoshLockScreen in the insecureDevice state; explains the screen-lock requirement and points the user at Settings - Security (no Open Settings button is wired: android_intent_plus / url_launcher are not deps, so the deep-link is a documented follow-up)"
   },
-  "typingHint": "{name} is typing…",
+  "typingHint": "{name} is typing",
   "@typingHint": {
     "description": "Typing indicator hint shown under the DM/group message list while the counterpart types; {name} is the display name"
   },
-  "typingHintAnd": "and more are typing…",
+  "typingHintAnd": "and more are typing",
   "@typingHintAnd": {
     "description": "Tail of the multi-member typing hint in a group, appended after the comma-joined names"
   },
