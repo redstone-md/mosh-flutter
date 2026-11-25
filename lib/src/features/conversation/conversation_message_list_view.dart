@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_date_divider.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
@@ -258,8 +259,9 @@ class _ConversationMessageListViewState
     AppLocalizations l,
   ) {
     if (row.message.nameChange case final change?) {
+      // The Group notice card: what a group says about itself.
       return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+          padding: const EdgeInsets.symmetric(vertical: MoshSpace.s2),
           child: Text(
               row.message.deliveryError != null
                   ? row.message.deliveryError == 'superseded'
@@ -267,7 +269,7 @@ class _ConversationMessageListViewState
                       : l.chatNameRejected
                   : l.chatNameChanged(row.message.fromDevice, change.name),
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall));
+              style: Theme.of(context).textTheme.labelMedium));
     }
     final attachment = row.message.attachment;
     final view = attachment == null
@@ -276,6 +278,7 @@ class _ConversationMessageListViewState
     final callbacks = widget.attachmentCallbacks(view, own: row.message.own);
     final messageRow = ConversationMessageRow(
       message: row.message,
+      conversationId: widget.snapshot.target.id,
       conversationKey: widget.snapshot.target.key,
       kind: kind,
       grouped: row.grouped,

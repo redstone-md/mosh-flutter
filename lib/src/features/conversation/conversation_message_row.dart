@@ -38,6 +38,7 @@ class ConversationMessageRow extends StatelessWidget {
     required this.onAttachmentOpen,
     required this.onRetry,
     required this.l,
+    this.conversationId,
     this.attachmentView,
     this.peer,
     this.conversationKey,
@@ -73,6 +74,9 @@ class ConversationMessageRow extends StatelessWidget {
 
   /// Sends a failed message again, where it can be sent again.
   final void Function(String messageId) onRetry;
+
+  /// The conversation's id, which a call in the feed of a DM rings back.
+  final String? conversationId;
 
   final AppLocalizations l;
 
@@ -114,16 +118,27 @@ class ConversationMessageRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  MessageBubble(
-                    id: message.messageId ?? message.body,
-                    tone: MessageTone.of(context, own: message.own),
-                    own: message.own,
-                    grouped: grouped,
-                    continuesBelow: continuesBelow,
-                    gone: message.deletion != null,
-                    selectionId: message.messageId,
-                    child: _body(context),
-                  ),
+                  // A call is a bubble of its own.
+                  if (message.callEvent case final call?)
+                    SelectionContainer.disabled(
+                      child: CallLogEntry(
+                          event: call,
+                          outgoing: message.own,
+                          sentAtMs: message.sentAtMs,
+                          conversationId: conversationId,
+                          l: l),
+                    )
+                  else
+                    MessageBubble(
+                      id: message.messageId ?? message.body,
+                      tone: MessageTone.of(context, own: message.own),
+                      own: message.own,
+                      grouped: grouped,
+                      continuesBelow: continuesBelow,
+                      gone: message.deletion != null,
+                      selectionId: message.messageId,
+                      child: _body(context),
+                    ),
                   if (failed)
                     SelectionContainer.disabled(
                       child: FailedMessageRetry(
@@ -179,7 +194,6 @@ class ConversationMessageRow extends StatelessWidget {
     final footer = ConversationMessageFooter(message: message, kind: kind);
     final hasFooter = footer.measure(context).height > 0;
     final attachment = message.attachment;
-    final callEvent = message.callEvent;
     final hasText = message.body.isNotEmpty;
     // Under an attachment the text is a caption and wraps at its width.
     final measure = attachment == null
@@ -205,7 +219,7 @@ class ConversationMessageRow extends StatelessWidget {
                 fromFingerprint: message.fromFingerprint,
                 peer: peer,
               )),
-            // Attachment and call controls remain outside text selection.
+            // The controls of an attachment remain outside text selection.
             if (attachment != null)
               SelectionContainer.disabled(
                 child: AttachmentCard(
@@ -219,10 +233,6 @@ class ConversationMessageRow extends StatelessWidget {
                   messageFooter: hasText || !hasFooter ? null : footer,
                 ),
               ),
-            if (callEvent != null)
-              SelectionContainer.disabled(
-                  child: CallLogEntry(
-                      event: callEvent, outgoing: message.own, l: l)),
             if (hasText)
               inset(ConversationMessageText(
                   body: message.body, footer: footer, own: message.own)),

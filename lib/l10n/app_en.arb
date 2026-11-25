@@ -2281,6 +2281,16 @@
   "@callLogUpdateRequiredLabel": {
     "description": "Call log pill for a call that could not connect because the two devices run incompatible Mosh versions."
   },
+  "callLogSeconds": "{seconds} s",
+  "@callLogSeconds": {
+    "description": "How long a call under a minute lasted, in the call entry of a DM's feed after the time it rang",
+    "placeholders": { "seconds": { "type": "int" } }
+  },
+  "callLogMinutesSeconds": "{minutes} min {seconds} s",
+  "@callLogMinutesSeconds": {
+    "description": "How long a call lasted, in the call entry of a DM's feed after the time it rang",
+    "placeholders": { "minutes": { "type": "int" }, "seconds": { "type": "int" } }
+  },
   "callLogOutgoingLabel": "Outgoing call",
   "callLogIncomingLabel": "Incoming call",
   "callMinimize": "Minimize call",

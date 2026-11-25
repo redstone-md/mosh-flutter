@@ -1220,6 +1220,16 @@
   "plusPaymentDetails": "Условия и реквизиты",
   "callLogNoAnswerLabel": "Нет ответа",
   "callLogUpdateRequiredLabel": "Звонок не состоялся: обновите Mosh",
+  "callLogSeconds": "{seconds} с",
+  "@callLogSeconds": {
+    "description": "How long a call under a minute lasted, in the call entry of a DM's feed after the time it rang",
+    "placeholders": { "seconds": { "type": "int" } }
+  },
+  "callLogMinutesSeconds": "{minutes} мин {seconds} с",
+  "@callLogMinutesSeconds": {
+    "description": "How long a call lasted, in the call entry of a DM's feed after the time it rang",
+    "placeholders": { "minutes": { "type": "int" }, "seconds": { "type": "int" } }
+  },
   "callLogOutgoingLabel": "Исходящий звонок",
   "callLogIncomingLabel": "Входящий звонок",
   "callMinimize": "Свернуть звонок",
