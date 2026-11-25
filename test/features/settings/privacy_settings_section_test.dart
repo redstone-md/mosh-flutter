@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/mosh_spinner.dart';
 import 'package:mosh/src/app/mosh_switch.dart';
-import 'package:mosh/src/features/shared/async_switch_tile.dart';
+import 'package:mosh/src/features/settings/settings_toggle_card.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/settings/settings_content.dart';
@@ -17,12 +17,12 @@ import '../../support/scriptable_bridge.dart';
 final _l = lookupAppLocalizations(const Locale('en'));
 
 Finder _switch(String title) => find.descendant(
-    of: find.widgetWithText(AsyncSwitchTile, title),
+    of: find.widgetWithText(SettingsToggleCard, title),
     matching: find.byType(MoshSwitch));
 
 /// The spinner beside the switch of the card titled [title].
 Finder _saving(String title) => find.descendant(
-    of: find.widgetWithText(AsyncSwitchTile, title),
+    of: find.widgetWithText(SettingsToggleCard, title),
     matching: find.byType(MoshSpinner));
 
 /// Presses the switch in the header of the card titled [title].

@@ -34,7 +34,7 @@ Every section is a column of Settings cards (`scripts/figma-design/cards/setting
 A card is a panel with a quiet edge, 28px corners and 20px of padding, 16px on
 a phone. The shared SettingsCardHeader puts a 40px icon plate beside the
 title and its description, 12px apart, and the control that matters most at
-its right: the switch of an opt-in (AsyncSwitchTile), a retry, a spinner.
+its right: the switch of an opt-in (`SettingsToggleCard`), a retry, a spinner.
 What explains a control is folded under a MoshDisclosure, the line of the
 Disclosure card; it mounts its content on the first opening. A setting
 inside a card that needs a whole row is still a MoshSwitchRow.
@@ -398,7 +398,7 @@ Sentry remain for runtime review; widget checks substitute local SDK callbacks.
 
 Privacy changes settings_content.dart, adds privacy_settings_section.dart and
 settings_toggle_card.dart, and updates crash_reporting_toggle.dart,
-read_receipts_toggle.dart, async_switch_tile.dart, mosh_theme.dart and both ARB
+read_receipts_toggle.dart, mosh_theme.dart and both ARB
 files. Tests live in privacy_settings_section_test.dart and test/support/privacy.dart.
 The architecture map, ADR 0035 and this guide describe the result. No native
 API, storage schema, dependency or reporting data flow changes.
