@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:mosh/src/features/shared/mosh_dialog.dart';
 import 'package:mosh/src/features/shared/mosh_dialog_route.dart';
 
-/// Confirmation requires an explicit action; initial focus stays on cancellation.
+/// Confirmation requires an explicit action; initial focus stays on
+/// cancellation. What it confirms is [destructive] unless said otherwise:
+/// the answer that goes on is then the dialog's only red.
 class ConfirmDialog extends StatelessWidget {
   const ConfirmDialog({
     super.key,
@@ -12,7 +14,7 @@ class ConfirmDialog extends StatelessWidget {
     this.cancelLabel,
     required this.onCancel,
     required this.onConfirm,
-    this.dangerColor,
+    this.destructive = true,
   });
 
   final String title;
@@ -23,7 +25,7 @@ class ConfirmDialog extends StatelessWidget {
   final String? cancelLabel;
   final VoidCallback onCancel;
   final VoidCallback onConfirm;
-  final Color? dangerColor;
+  final bool destructive;
 
   static const String defaultCancelLabel = 'Cancel';
 
@@ -39,7 +41,7 @@ class ConfirmDialog extends StatelessWidget {
         TextButton(onPressed: onCancel, child: Text(cancel)),
         FilledButton(
           onPressed: onConfirm,
-          style: moshDangerButtonStyle(context, dangerColor),
+          style: destructive ? moshDangerButtonStyle(context) : null,
           child: Text(confirmLabel),
         ),
       ],

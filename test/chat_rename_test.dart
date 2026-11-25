@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/rename_chat_dialog.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -33,8 +32,7 @@ void main() {
     expect(find.byType(RenameChatDialog), findsOneWidget);
     expect(
         tester
-            .widget<IconButton>(
-                find.widgetWithIcon(IconButton, MoshIcons.close))
+            .widget<TextButton>(find.widgetWithText(TextButton, 'Cancel'))
             .onPressed,
         isNull);
     expect(
@@ -48,7 +46,7 @@ void main() {
     expect(find.byType(RenameChatDialog), findsNothing);
   });
 
-  for (final dismissal in ['backdrop', 'Escape', 'close']) {
+  for (final dismissal in ['backdrop', 'Escape', 'Cancel']) {
     testWidgets('$dismissal discards unsaved rename without a native write', (
       tester,
     ) async {
@@ -78,8 +76,8 @@ void main() {
           await tester.tapAt(const Offset(1, 1));
         case 'Escape':
           await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-        case 'close':
-          await tester.tap(find.byTooltip('Cancel'));
+        case 'Cancel':
+          await tester.tap(find.text('Cancel'));
       }
       await tester.pumpAndSettle();
       expect(find.byType(TextField), findsNothing);

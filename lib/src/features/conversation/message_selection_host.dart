@@ -211,18 +211,11 @@ class _DeletionPrompt extends StatelessWidget {
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
+        spacing: 16,
         children: [
           Text(l.messageDeleteExplanation),
-          if (messages.any((m) => m.localOnly))
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(l.messageDeleteLocalOnly),
-            ),
-          if (!everyone)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(l.messageDeleteMixed),
-            ),
+          if (messages.any((m) => m.localOnly)) Text(l.messageDeleteLocalOnly),
+          if (!everyone) Text(l.messageDeleteMixed),
         ],
       ),
       actions: [

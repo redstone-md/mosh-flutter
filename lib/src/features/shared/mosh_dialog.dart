@@ -1,11 +1,15 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 
-/// Ordinary dialog layout; callers own content, actions and their results.
+/// The Dialog card: a surface of the modal level that names one decision in
+/// its [title], says what follows in [content] and ends with its [actions],
+/// the one that goes on last. Callers own content, actions and their results.
+///
+/// Cancel, Escape and a press on the scrim all leave without a change, so
+/// only a dialog without actions of its own has a close button.
 class MoshDialog extends StatelessWidget {
   const MoshDialog({
     super.key,
@@ -15,14 +19,21 @@ class MoshDialog extends StatelessWidget {
     this.actions = const [],
     this.onCancel,
     this.canCancel = true,
+    this.stackOnPhone = false,
   });
 
   final String title;
+
+  /// Names the close button of a dialog without [actions].
   final String closeLabel;
   final Widget? content;
   final List<Widget> actions;
   final VoidCallback? onCancel;
   final bool canCancel;
+
+  /// For answers too long to stand side by side on a phone: there they
+  /// stack at full width, the main one on top.
+  final bool stackOnPhone;
 
   void _cancel(BuildContext context) {
     if (!canCancel) return;
@@ -38,6 +49,7 @@ class MoshDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final touch = MoshControl.touch(theme.platform);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -46,72 +58,83 @@ class MoshDialog extends StatelessWidget {
       child: ModalFocusTrap(
         autofocus: true,
         onEscape: () => _cancel(context),
-        child: AlertDialog(
-          semanticLabel: title,
-          scrollable: true,
-          constraints: const BoxConstraints(minWidth: 280, maxWidth: 420),
-          insetPadding: const EdgeInsets.all(16),
-          backgroundColor: theme.colorScheme.surfaceContainerHigh,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(color: theme.colorScheme.outline),
+        // The theme gives the surface its level: tone, edge, corners, shadow.
+        child: Dialog(
+          constraints: const BoxConstraints(minWidth: 280, maxWidth: 400),
+          insetPadding: EdgeInsets.all(touch ? MoshSpace.s8 : MoshSpace.s4),
+          clipBehavior: Clip.antiAlias,
+          child: Semantics(
+            scopesRoute: true,
+            explicitChildNodes: true,
+            namesRoute: true,
+            label: title,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(MoshSpace.s6),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: MoshSpace.s4,
+                children: [
+                  _header(context),
+                  if (content case final content?)
+                    DefaultTextStyle.merge(
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      child: content,
+                    ),
+                  if (actions.isNotEmpty) _answers(stacked: touch),
+                ],
+              ),
+            ),
           ),
-          titlePadding: const EdgeInsets.fromLTRB(22, 16, 14, 0),
-          titleTextStyle: theme.textTheme.titleMedium?.copyWith(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            height: 1.25,
-          ),
-          title: _header(context),
-          contentPadding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
-          contentTextStyle: theme.textTheme.bodyMedium?.copyWith(
-            fontSize: 13.5,
-            height: 1.5,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          content: content,
-          actionsPadding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
-          actionsOverflowButtonSpacing: 8,
-          actions: actions,
         ),
       ),
     );
   }
 
   Widget _header(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: MoshSpace.s2,
         children: [
-          Expanded(child: Text(title)),
-          const SizedBox(width: 12),
-          IconButton(
-            tooltip: closeLabel,
-            onPressed: canCancel ? () => _cancel(context) : null,
-            icon: const Icon(MoshIcons.close, size: 16),
-            visualDensity: VisualDensity.standard,
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-            padding: EdgeInsets.zero,
-          ),
+          Expanded(
+              child:
+                  Text(title, style: Theme.of(context).textTheme.titleLarge)),
+          if (actions.isEmpty)
+            IconButton(
+              tooltip: closeLabel,
+              onPressed: canCancel ? () => _cancel(context) : null,
+              icon: const Icon(MoshIcons.close),
+            ),
         ],
+      );
+
+  /// The answers at the right, the main one last. Answers that do not fit
+  /// the line stack with the main one on top, like the stacked phone ones.
+  Widget _answers({required bool stacked}) => Padding(
+        padding: const EdgeInsets.only(top: MoshSpace.s2),
+        child: stacked && stackOnPhone
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: MoshSpace.s2,
+                children: actions.reversed.toList(),
+              )
+            : OverflowBar(
+                alignment: MainAxisAlignment.end,
+                spacing: MoshSpace.s2,
+                overflowAlignment: OverflowBarAlignment.end,
+                overflowDirection: VerticalDirection.up,
+                overflowSpacing: MoshSpace.s2,
+                children: actions,
+              ),
       );
 }
 
-/// Destructive actions take whichever ink of the palette reads better on
-/// the fill, so a custom danger colour stays legible on either palette.
-ButtonStyle moshDangerButtonStyle(BuildContext context, [Color? fill]) {
+/// A destructive answer, the only red on a dialog: the error fill with the
+/// ink of its own role.
+ButtonStyle moshDangerButtonStyle(BuildContext context) {
   final colors = MoshColors.of(context);
-  final background = fill ?? colors.error;
-  final luminance = background.computeLuminance();
-  double contrast(Color ink) {
-    final other = ink.computeLuminance();
-    return (math.max(luminance, other) + 0.05) /
-        (math.min(luminance, other) + 0.05);
-  }
-
   return FilledButton.styleFrom(
-    backgroundColor: background,
-    foregroundColor: contrast(colors.onPrimary) >= contrast(colors.onSurface)
-        ? colors.onPrimary
-        : colors.onSurface,
+    backgroundColor: colors.error,
+    foregroundColor: colors.onError,
   );
 }

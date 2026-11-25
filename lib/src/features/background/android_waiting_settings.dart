@@ -156,7 +156,7 @@ class _WaitingSettingsState extends ConsumerState<AndroidWaitingSettings> {
               body: body,
               confirmLabel: title,
               cancelLabel: l.dialogCancel,
-              dangerColor: Theme.of(context).colorScheme.primary,
+              destructive: false,
               onCancel: () => Navigator.of(dialog).pop(false),
               onConfirm: () => Navigator.of(dialog).pop(true),
             ));

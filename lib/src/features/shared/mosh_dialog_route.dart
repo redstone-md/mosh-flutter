@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/mosh_dialog_motion.dart';
 import 'package:mosh/src/features/lock/app_lock_route_observer.dart';
 
@@ -34,6 +35,7 @@ class _MoshDialogRoute<T> extends DialogRoute<T> {
     super.settings,
   }) : super(
           barrierDismissible: true,
+          barrierColor: MoshColors.of(context).scrim,
           traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
         );
 

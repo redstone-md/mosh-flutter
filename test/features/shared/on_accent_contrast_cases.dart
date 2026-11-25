@@ -70,36 +70,35 @@ void main() {
     });
   }
 
-  testWidgets('a dark custom dangerColor flips to the light foreground',
+  testWidgets('a destructive answer is the error fill with its own ink',
       (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: moshThemeData,
-        home: Scaffold(
-          body: Center(
-            child: ConfirmDialog(
-              title: 'Leave chat?',
-              body: 'This will erase the keys. Are you sure?',
-              confirmLabel: 'Leave',
-              cancelLabel: 'Cancel',
-              // A themable dark fill: the dark on-danger ink would vanish.
-              dangerColor: const Color(0xFF7A1E12),
-              onCancel: () {},
-              onConfirm: () {},
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await tester.pumpWidget(_host(ConfirmDialog(
+      title: 'Leave chat?',
+      body: 'This will erase the keys. Are you sure?',
+      confirmLabel: 'Leave',
+      onCancel: () {},
+      onConfirm: () {},
+    )));
 
-    final button = tester.widget<FilledButton>(
-      find.ancestor(
-        of: find.text('Leave'),
-        matching: find.byType(FilledButton),
-      ),
-    );
-    expect(
-        button.style?.foregroundColor?.resolve({}), MoshColors.dark.onSurface);
+    final style = tester.widget<FilledButton>(_answer('Leave')).style!;
+    expect(style.backgroundColor!.resolve({}), MoshColors.dark.error);
+    expect(style.foregroundColor!.resolve({}), MoshColors.dark.onError);
+  });
+
+  testWidgets('a confirmation that destroys nothing has no red on it',
+      (tester) async {
+    await tester.pumpWidget(_host(ConfirmDialog(
+      title: 'Keep waiting in the background?',
+      body: 'Mosh stays connected while the screen is off.',
+      confirmLabel: 'Keep waiting',
+      destructive: false,
+      onCancel: () {},
+      onConfirm: () {},
+    )));
+
+    expect(tester.widget<FilledButton>(_answer('Keep waiting')).style, isNull);
   });
 }
+
+Finder _answer(String label) =>
+    find.ancestor(of: find.text(label), matching: find.byType(FilledButton));

@@ -73,10 +73,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Encryption fingerprint'), findsOneWidget);
     expect(find.text(_fingerprint), findsOneWidget);
-    expect(find.text(fingerprintEmoji(_fingerprint).join()), findsOneWidget);
+    expect(find.text(fingerprintEmoji(_fingerprint).join(' ')), findsOneWidget);
     expect(find.text(_dmHint), findsOneWidget);
 
-    await tester.tap(find.text('Close'));
+    await tester.tap(find.byTooltip('Close').last);
     await tester.pumpAndSettle();
     expect(find.text('Encryption fingerprint'), findsNothing);
   });

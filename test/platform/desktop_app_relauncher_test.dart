@@ -114,7 +114,9 @@ void main() {
           overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
 
       await tester.tap(find.text('Route around the VPN'));
-      await tester.pumpAndSettle();
+      // The button spins until the app is gone: nothing settles.
+      await tester.pump();
+      await tester.pump();
 
       expect(relauncher.events, ['spawn', 'terminate']);
     });

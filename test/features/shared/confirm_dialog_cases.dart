@@ -146,16 +146,6 @@ void main() {
     expect(await result, isFalse);
   });
 
-  // Pins the helper returns `false` when the close-X is tapped.
-  testWidgets('showConfirmDialog returns false on close-X', (tester) async {
-    final result = await _pumpHelper(tester);
-
-    await tester.tap(find.byTooltip('Cancel'));
-    await tester.pumpAndSettle();
-
-    expect(await result, isFalse);
-  });
-
   testWidgets('showConfirmDialog returns false on backdrop tap', (
     tester,
   ) async {
