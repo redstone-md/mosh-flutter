@@ -17,7 +17,7 @@ enum MoshNoticeTone {
   warning,
   error;
 
-  bool get quiet => index < warning.index;
+  bool get quiet => this != warning && this != error;
 
   Color _fill(MoshColors c) => switch (this) {
         warning => c.warningContainer,
@@ -60,7 +60,9 @@ class MoshNotice extends StatelessWidget {
     this.onAction,
     this.busy = false,
     this.inline = false,
-  }) : assert(title != null || detail != null);
+  })  : assert(title != null || detail != null),
+        assert(onClose == null || actionLabel == null,
+            'a notice ends with one control');
 
   final MoshNoticeTone tone;
   final IconData icon;
@@ -145,34 +147,33 @@ class MoshNotice extends StatelessWidget {
     final touch = MoshControl.touch(Theme.of(context).platform);
     // On a toned plate a control takes the plate's ink.
     final ink = tone.quiet ? null : tone._ink(colors);
-    final (Widget control, double edge) = switch ((onClose, actionLabel)) {
-      (final close?, _) => (
-          IconButton(
-            tooltip: AppLocalizations.of(context)!.dialogClose,
-            onPressed: busy ? null : close,
-            color: ink,
-            icon: const Icon(MoshIcons.close),
-          ),
-          touch ? MoshSpace.s1 : MoshSpace.s2,
+    final Widget control;
+    final double edge;
+    if (onClose case final close?) {
+      control = IconButton(
+        tooltip: AppLocalizations.of(context)!.dialogClose,
+        onPressed: busy ? null : close,
+        color: ink,
+        icon: const Icon(MoshIcons.close),
+      );
+      edge = touch ? MoshSpace.s1 : MoshSpace.s2;
+    } else if (actionLabel case final label?) {
+      control = MoshLoading(
+        loading: busy,
+        child: OutlinedButton.icon(
+          onPressed: onAction,
+          style: ink == null
+              ? null
+              : OutlinedButton.styleFrom(
+                  foregroundColor: ink, side: BorderSide(color: ink)),
+          icon: busy ? const MoshSpinner() : null,
+          label: Text(label),
         ),
-      (_, final label?) => (
-          MoshLoading(
-            loading: busy,
-            child: OutlinedButton.icon(
-              onPressed: onAction,
-              style: ink == null
-                  ? null
-                  : OutlinedButton.styleFrom(
-                      foregroundColor: ink, side: BorderSide(color: ink)),
-              icon: busy ? const MoshSpinner() : null,
-              label: Text(label),
-            ),
-          ),
-          MoshSpace.s3,
-        ),
-      _ => (const SizedBox.shrink(), -1),
-    };
-    if (edge < 0) return null;
+      );
+      edge = MoshSpace.s3;
+    } else {
+      return null;
+    }
     final above =
         _pad + _line / 2 - MoshControl.height(Theme.of(context).platform) / 2;
     return Padding(

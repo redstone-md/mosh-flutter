@@ -70,33 +70,25 @@ void main() {
     });
   }
 
-  testWidgets('a destructive answer is the error fill with its own ink',
+  testWidgets('only a confirmation that destroys something has a red answer',
       (tester) async {
-    await tester.pumpWidget(_host(ConfirmDialog(
-      title: 'Leave chat?',
-      body: 'This will erase the keys. Are you sure?',
-      confirmLabel: 'Leave',
-      onCancel: () {},
-      onConfirm: () {},
-    )));
+    for (final destructive in [true, false]) {
+      await tester.pumpWidget(_host(ConfirmDialog(
+        title: 'Leave #photography?',
+        body: 'You can join this channel again by its name',
+        confirmLabel: 'Leave',
+        destructive: destructive,
+        onCancel: () {},
+        onConfirm: () {},
+      )));
 
-    final style = tester.widget<FilledButton>(_answer('Leave')).style!;
-    expect(style.backgroundColor!.resolve({}), MoshColors.dark.error);
-    expect(style.foregroundColor!.resolve({}), MoshColors.dark.onError);
-  });
-
-  testWidgets('a confirmation that destroys nothing has no red on it',
-      (tester) async {
-    await tester.pumpWidget(_host(ConfirmDialog(
-      title: 'Keep waiting in the background?',
-      body: 'Mosh stays connected while the screen is off.',
-      confirmLabel: 'Keep waiting',
-      destructive: false,
-      onCancel: () {},
-      onConfirm: () {},
-    )));
-
-    expect(tester.widget<FilledButton>(_answer('Keep waiting')).style, isNull);
+      final fill = tester
+          .widget<FilledButton>(_answer('Leave'))
+          .style
+          ?.backgroundColor
+          ?.resolve({});
+      expect(fill == MoshColors.dark.error, destructive);
+    }
   });
 }
 

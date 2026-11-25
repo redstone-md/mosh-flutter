@@ -32,18 +32,20 @@ void main() {
     wakelockPlusPlatformInstance = screen = _Screen();
   });
 
-  Future<void> open(WidgetTester tester) => pumpScreen(
-      tester,
-      MediaViewer(
-          descriptor: AttachmentDescriptor(
-              attachmentId: 'clip',
-              contentHash: 'hash',
-              fileName: 'clip.mp4',
-              mime: 'video/mp4',
-              totalSize: BigInt.from(1024)),
-          src: 'http://127.0.0.1:4100/dm/peer/clip',
-          onClose: () {},
-          createPlayer: () => Player(platformPlayer: SystemPlayer())));
+  Future<void> open(WidgetTester tester,
+          {String mime = 'video/mp4'}) =>
+      pumpScreen(
+          tester,
+          MediaViewer(
+              descriptor: AttachmentDescriptor(
+                  attachmentId: 'clip',
+                  contentHash: 'hash',
+                  fileName: 'clip.mp4',
+                  mime: mime,
+                  totalSize: BigInt.from(1024)),
+              src: 'http://127.0.0.1:4100/dm/peer/clip',
+              onClose: () {},
+              createPlayer: () => Player(platformPlayer: SystemPlayer())));
 
   Future<void> close(WidgetTester tester) =>
       pumpScreen(tester, const SizedBox());
@@ -133,6 +135,22 @@ void main() {
 
     expect(system.opened, hasLength(2));
     expect(find.byType(VideoPlayer), findsOneWidget);
+    await close(tester);
+  });
+
+  // Regression: a slider is as tall as it is allowed to be, and the card
+  // of a sound once filled the viewer with it.
+  testWidgets('the player of a sound is as tall as its controls',
+      (tester) async {
+    await open(tester, mime: 'audio/mp4');
+
+    final play =
+        tester.getRect(find.widgetWithIcon(IconButton, MoshIcons.pause));
+    final card = tester.getRect(find
+        .ancestor(of: find.byType(Slider), matching: find.byType(DecoratedBox))
+        .first);
+    expect(card.height, lessThan(play.height * 2));
+
     await close(tester);
   });
 

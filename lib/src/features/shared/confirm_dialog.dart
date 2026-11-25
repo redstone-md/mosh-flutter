@@ -56,6 +56,7 @@ Future<bool> showConfirmDialog({
   required String body,
   required String confirmLabel,
   String? cancelLabel,
+  bool destructive = true,
 }) async {
   final cancel = cancelLabel ?? ConfirmDialog.defaultCancelLabel;
   final result = await showMoshDialog<bool>(
@@ -66,6 +67,7 @@ Future<bool> showConfirmDialog({
       body: body,
       confirmLabel: confirmLabel,
       cancelLabel: cancel,
+      destructive: destructive,
       onCancel: () => Navigator.of(dialogContext).pop(false),
       onConfirm: () => Navigator.of(dialogContext).pop(true),
     ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_menu_theme.dart';
 
 /// The Menu item of the Menu card, and with [selected] the Select option.
 /// Material owns focus, keyboard navigation and dismissal for every row.
@@ -22,12 +23,15 @@ class MoshMenuItem extends StatelessWidget {
 
   /// The rows of a menu as its panel lays them out: a step apart, and one
   /// that cannot be undone under a line of its own.
-  static List<Widget> rows(List<MoshMenuItem> items) => [
+  /// The phone's sheet sets its choices a wider [gap] apart.
+  static List<Widget> rows(List<MoshMenuItem> items,
+          {double gap = MoshSpace.s1}) =>
+      [
         for (final (i, item) in items.indexed) ...[
           if (i > 0 && item.danger)
-            const Divider(height: MoshSpace.s1 * 2 + MoshBorder.thin)
+            Divider(height: gap * 2 + MoshBorder.thin)
           else if (i > 0)
-            const SizedBox(height: MoshSpace.s1),
+            SizedBox(height: gap),
           item,
         ],
       ];
@@ -47,6 +51,12 @@ class MoshMenuItem extends StatelessWidget {
           textStyle: selected == null
               ? WidgetStatePropertyAll(Theme.of(context).textTheme.labelLarge)
               : null,
+          // An action fills the menu, so its tint reaches both edges.
+          minimumSize: selected == null
+              ? WidgetStatePropertyAll(Size(
+                  MoshMenuTheme.width - MoshSpace.s2 * 2,
+                  MoshControl.height(Theme.of(context).platform)))
+              : null,
           padding: selected == null
               ? const WidgetStatePropertyAll(EdgeInsetsDirectional.only(
                   start: MoshSpace.s3, end: MoshSpace.s4))
@@ -61,6 +71,8 @@ class MoshMenuItem extends StatelessWidget {
           iconColor: danger && onPressed != null
               ? WidgetStatePropertyAll(colors.error)
               : null,
+          // A row tints itself with its own ink.
+          overlayColor: danger ? MoshState.layer(colors.error) : null,
           backgroundColor: selected == true
               ? WidgetStatePropertyAll(colors.secondaryContainer)
               : null,

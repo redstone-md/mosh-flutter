@@ -62,14 +62,26 @@ Widget _select(
         List<CallDeviceView> devices,
         CallViewAction action,
         String defaultLabel) =>
-    MoshSelect<String?>(
-        label: label,
-        value: selected,
-        options: [
-          MoshSelectOption(null, defaultLabel),
-          for (final device in devices) MoshSelectOption(device.id, device.name)
-        ],
-        onChanged: call.busy
-            ? null
-            : (id) =>
-                Navigator.of(context).pop(call.command(action, deviceId: id)));
+    Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: MoshSpace.s2,
+        children: [
+          // The select names itself to a screen reader.
+          ExcludeSemantics(
+              child: Text(label,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: MoshColors.of(context).onSurfaceVariant))),
+          MoshSelect<String?>(
+              label: label,
+              value: selected,
+              options: [
+                MoshSelectOption(null, defaultLabel),
+                for (final device in devices)
+                  MoshSelectOption(device.id, device.name)
+              ],
+              onChanged: call.busy
+                  ? null
+                  : (id) => Navigator.of(context)
+                      .pop(call.command(action, deviceId: id))),
+        ]);

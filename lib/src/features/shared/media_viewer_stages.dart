@@ -222,17 +222,21 @@ class _Unavailable extends StatelessWidget {
           Text(title,
               textAlign: TextAlign.center,
               style: text.titleMedium?.copyWith(color: colors.onSurface)),
-          Text(line,
-              textAlign: TextAlign.center,
-              style: text.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
-          Padding(
-            padding: const EdgeInsets.only(top: MoshSpace.s2),
-            child: OutlinedButton.icon(
-              onPressed: onSave,
-              icon: const Icon(MoshIcons.download),
-              label: Text(AppLocalizations.of(context)!.mediaViewerSave),
+          // A file still arriving cannot be saved yet: no way out to offer.
+          if (onSave != null) ...[
+            Text(line,
+                textAlign: TextAlign.center,
+                style:
+                    text.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
+            Padding(
+              padding: const EdgeInsets.only(top: MoshSpace.s2),
+              child: OutlinedButton.icon(
+                onPressed: onSave,
+                icon: const Icon(MoshIcons.download),
+                label: Text(AppLocalizations.of(context)!.mediaViewerSave),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

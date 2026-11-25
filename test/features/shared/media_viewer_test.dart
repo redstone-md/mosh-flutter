@@ -166,13 +166,9 @@ void main() {
                 find.widgetWithIcon(IconButton, MoshIcons.download))
             .onPressed,
         isNull);
-    expect(
-        tester
-            .widget<OutlinedButton>(find.ancestor(
-                of: find.text('Save as…'),
-                matching: find.bySubtype<OutlinedButton>()))
-            .onPressed,
-        isNull);
+    // No way out to offer yet, so none is promised.
+    expect(find.text('No preview for this file'), findsOneWidget);
+    expect(find.text('Save it to open it in another app'), findsNothing);
   });
 
   testWidgets('a file without a preview offers to be saved instead',
@@ -227,6 +223,7 @@ void main() {
     await _pumpViewer(
       tester,
       descriptor: _descriptor(fileName: 'clip.mp4', mime: 'video/mp4'),
+      onSave: () {},
     );
 
     expect(find.text('This video cannot be played here'), findsOneWidget);
@@ -237,6 +234,7 @@ void main() {
     await _pumpViewer(
       tester,
       descriptor: _descriptor(fileName: 'song.mp3', mime: 'audio/mpeg'),
+      onSave: () {},
     );
 
     expect(find.text('This recording cannot be played here'), findsOneWidget);
@@ -267,14 +265,23 @@ void main() {
     );
     expect(find.byType(MediaViewer), findsOneWidget);
 
-    // Tap the top-left corner -- outside the centered stage, on the
-    // backdrop. `barrierDismissible: true` also pops on barrier tap, but
-    // the viewer's own backdrop GestureDetector
-    // is the faithful close path being pinned here.
-    await tester.tapAt(const Offset(1, 1));
+    // Tap the room at the stage's side, beside the media.
+    await tester.tapAt(const Offset(5, 300));
     await tester.pumpAndSettle();
 
     expect(find.byType(MediaViewer), findsNothing);
+  });
+
+  testWidgets('a press on the bar does not close the viewer', (tester) async {
+    await _pumpViewer(
+      tester,
+      descriptor: _descriptor(fileName: 'clip.mp4', mime: 'video/mp4'),
+    );
+
+    await tester.tap(find.text('clip.mp4'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MediaViewer), findsOneWidget);
   });
 
   // Pins that tapping the stage (the media itself) does NOT close the

@@ -134,8 +134,8 @@ class AboutUpdateNotice extends ConsumerWidget {
 
   /// The line of the Update notice card: a mark, what Mosh knows about its
   /// own version and the one thing to do about it, as tall as a control.
-  /// The action takes its own line when a long word and a large text scale
-  /// leave no room, rather than overflowing the card.
+  /// The action ends the line at the card's far edge, and takes a line of
+  /// its own when a long word and a large text scale leave no room.
   Widget _line(
     BuildContext context, {
     required IconData icon,
@@ -149,16 +149,23 @@ class AboutUpdateNotice extends ConsumerWidget {
           BoxConstraints(minHeight: MoshControl.height(theme.platform)),
       child: Align(
         alignment: AlignmentDirectional.centerStart,
-        widthFactor: 1,
         child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           spacing: MoshSpace.s3,
           runSpacing: MoshSpace.s1,
           children: [
-            Icon(icon, size: MoshSpace.s5, color: tint),
-            Text(message,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: MoshColors.of(context).onSurfaceVariant)),
+            Row(
+                mainAxisSize: MainAxisSize.min,
+                spacing: MoshSpace.s3,
+                children: [
+                  Icon(icon, size: MoshSpace.s5, color: tint),
+                  Flexible(
+                    child: Text(message,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                            color: MoshColors.of(context).onSurfaceVariant)),
+                  ),
+                ]),
             if (action != null) action,
           ],
         ),

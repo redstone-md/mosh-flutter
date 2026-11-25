@@ -179,20 +179,23 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       case AttachmentExternalOpenIntent(:final localPath):
         unawaited(_openWithSystemApp(localPath));
       case AttachmentMediaOpenIntent(:final descriptor, :final src):
-        _showMedia(descriptor, src);
+        _showMedia(descriptor, src, own: own);
       case AttachmentNoopOpenIntent():
         break;
     }
   }
 
-  /// Opens the viewer on an attachment, saying who sent it and when.
-  void _showMedia(AttachmentDescriptor descriptor, String src) {
+  /// Opens the viewer on an attachment, saying who sent it and when. Two
+  /// messages may carry one attachment, so [own] picks the pressed one.
+  void _showMedia(AttachmentDescriptor descriptor, String src, {bool? own}) {
     final l = AppLocalizations.of(context)!;
     final message = ref
         .read(conversationSnapshotProvider(_target))
         .value
         ?.messages
-        .where((m) => m.attachment?.attachmentId == descriptor.attachmentId)
+        .where((m) =>
+            m.attachment?.attachmentId == descriptor.attachmentId &&
+            (own == null || m.own == own))
         .firstOrNull;
     final sent = message == null
         ? null
@@ -251,6 +254,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       body: prompt.body,
       confirmLabel: prompt.confirmLabel,
       cancelLabel: l.dialogCancel,
+      destructive: prompt.destructive,
     );
     if (confirmed) await _leave();
   }

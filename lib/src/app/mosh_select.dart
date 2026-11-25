@@ -5,6 +5,7 @@ import 'package:mosh/src/app/mosh_icons.dart';
 
 import 'mosh_dimensions.dart';
 import 'mosh_menu_item.dart';
+import 'mosh_shapes.dart';
 import 'mosh_theme.dart';
 
 @immutable
@@ -135,12 +136,20 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
       builder: (context) => ConstrainedBox(
         constraints:
             BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.75),
-        // The theme draws the handle; under it the title with the way out,
-        // then the choices.
+        // The Sheet card: the handle, the title with the way out, then the
+        // choices, a step wider apart than a menu's.
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-              MoshSpace.s3, 0, MoshSpace.s3, MoshSpace.s6),
+              MoshSpace.s3, MoshSpace.s3, MoshSpace.s3, MoshSpace.s6),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: MoshSpace.s8,
+              height: MoshSpace.s1,
+              margin: const EdgeInsets.only(bottom: MoshSpace.s2),
+              decoration: ShapeDecoration(
+                  color: MoshColors.of(context).outline,
+                  shape: MoshShapes.pill),
+            ),
             Row(children: [
               Expanded(
                   child: Padding(
@@ -160,7 +169,7 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
                     children: MoshMenuItem.rows([
                       for (final option in widget.options)
                         _item(option, () => Navigator.of(context).pop(option)),
-                    ]))),
+                    ], gap: MoshSpace.s2))),
           ]),
         ),
       ),

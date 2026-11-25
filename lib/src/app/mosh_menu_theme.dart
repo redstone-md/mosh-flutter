@@ -6,7 +6,8 @@ import 'mosh_theme.dart' show MoshColors, MoshLevel;
 
 /// Shared surfaces and interaction states for anchored menus and pickers.
 abstract final class MoshMenuTheme {
-  /// The width of a menu of actions; a longer label makes it wider.
+  /// The width of a menu of actions, which its rows fill; a longer label
+  /// makes it wider.
   static const double width = 232;
 
   /// The panel of a menu, a surface of the popup level.
@@ -17,7 +18,6 @@ abstract final class MoshMenuTheme {
           shadowColor: WidgetStatePropertyAll(c.shadow),
           elevation: WidgetStatePropertyAll(MoshLevel.popup.elevation!.dp),
           padding: const WidgetStatePropertyAll(EdgeInsets.all(MoshSpace.s2)),
-          minimumSize: const WidgetStatePropertyAll(Size(width, 0)),
           alignment: AlignmentDirectional.bottomStart,
           shape: WidgetStatePropertyAll(MoshLevel.popup.shape(c)),
         ),
@@ -51,15 +51,13 @@ abstract final class MoshMenuTheme {
 
   /// The phone's sheet: the modal level held by three edges of the screen,
   /// so it has no edge of its own and only its top corners are the modal's.
+  /// The sheet draws its own handle (see MoshSelect).
   static BottomSheetThemeData sheet(MoshColors c) => BottomSheetThemeData(
         backgroundColor: MoshLevel.modal.fill(c),
         surfaceTintColor: Colors.transparent,
         shadowColor: c.shadow,
         modalElevation: MoshLevel.modal.elevation!.dp,
         modalBarrierColor: c.scrim,
-        showDragHandle: true,
-        dragHandleColor: c.outline,
-        dragHandleSize: const Size(MoshSpace.s8, MoshSpace.s1),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
               top: Radius.circular(MoshRadius.extraLarge)),

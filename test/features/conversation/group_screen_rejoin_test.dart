@@ -1,5 +1,5 @@
 // Widget test for the group `needs_rejoin` inline-error, wired into
-// GroupScreen between the CryptoNoticeBanner (GroupNotice) and
+// GroupScreen between the encryption notice (GroupNotice) and
 // ConversationTools. Asserts the inline-error renders with the localized
 // title (with the appended period) + body when `needsRejoin` is true, and
 // does NOT render when false. Mirrors the seed/override idiom of

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/connection_status_panel.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart'
     show kConversationPanelWidth;
@@ -109,8 +110,7 @@ class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
             behavior: HitTestBehavior.opaque,
             onTap: widget.onClose,
             child: ColoredBox(
-              // 34% black scrim.
-              color: Colors.black.withValues(alpha: 0.34),
+              color: MoshColors.of(context).scrim,
               // Inside the backdrop so the scrim still covers the status bar
               // and the cutout, but the panel itself clears them -- as a
               // `Positioned.fill` overlay it has no Scaffold or AppBar to

@@ -58,7 +58,7 @@ class MediaViewer extends StatelessWidget {
   /// Who sent the file and when, the second line of the bar.
   final String? sent;
 
-  /// Invoked by the close button, a press beside the media, or Esc.
+  /// Invoked by the close button and by a press beside the media.
   final VoidCallback onClose;
 
   /// Saves a copy of the file. Null while there is nothing to save yet: a
@@ -137,39 +137,44 @@ class _ViewerBar extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final colors = MoshColors.of(context);
     final text = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(
-          MoshSpace.s5, MoshSpace.s2, MoshSpace.s2, MoshSpace.s2),
-      child: Row(spacing: MoshSpace.s2, children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(fileName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.titleSmall?.copyWith(color: colors.onSurface)),
-              if (sent != null)
-                Text(sent!,
+    // A press on the bar is not a press beside the media.
+    return GestureDetector(
+      onTap: () {},
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(
+            MoshSpace.s5, MoshSpace.s2, MoshSpace.s2, MoshSpace.s2),
+        child: Row(spacing: MoshSpace.s2, children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(fileName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: text.bodySmall
-                        ?.copyWith(color: colors.onSurfaceVariant)),
-            ],
+                    style: text.titleSmall?.copyWith(color: colors.onSurface)),
+                if (sent != null)
+                  Text(sent!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.bodySmall
+                          ?.copyWith(color: colors.onSurfaceVariant)),
+              ],
+            ),
           ),
-        ),
-        IconButton(
-          tooltip: l.mediaViewerSave,
-          onPressed: onSave,
-          icon: const Icon(MoshIcons.download),
-        ),
-        IconButton(
-          tooltip: l.closeViewer,
-          onPressed: onClose,
-          icon: const Icon(MoshIcons.close),
-        ),
-      ]),
+          IconButton(
+            tooltip: l.mediaViewerSave,
+            onPressed: onSave,
+            icon: const Icon(MoshIcons.download),
+          ),
+          IconButton(
+            tooltip: l.closeViewer,
+            onPressed: onClose,
+            icon: const Icon(MoshIcons.close),
+          ),
+        ]),
+      ),
     );
   }
 }
@@ -290,6 +295,20 @@ Future<void> showMediaViewer({
       .read(attachmentSaverProvider);
   final uri = Uri.parse(src);
   final localPath = uri.scheme == 'file' ? uri.toFilePath() : null;
+  // One save dialog at a time, however often the button is pressed.
+  var saving = false;
+  Future<void> save(String path) async {
+    if (saving) return;
+    saving = true;
+    await saveAttachmentAs(
+        saver: saver,
+        toaster: toaster,
+        l: l,
+        localPath: path,
+        fileName: descriptor.fileName);
+    saving = false;
+  }
+
   return showDialog<void>(
     context: context,
     barrierDismissible: true,
@@ -299,14 +318,7 @@ Future<void> showMediaViewer({
       src: src,
       sent: sent,
       onClose: () => Navigator.of(dialogContext).pop(),
-      onSave: localPath == null
-          ? null
-          : () => unawaited(saveAttachmentAs(
-              saver: saver,
-              toaster: toaster,
-              l: l,
-              localPath: localPath,
-              fileName: descriptor.fileName)),
+      onSave: localPath == null ? null : () => unawaited(save(localPath)),
     ),
   );
 }
