@@ -85,6 +85,17 @@ void main() {
         'group');
   });
 
+  test('search finds a chat by what was said in it, in any letter case', () {
+    final entries = [
+      DmRailEntry(dm),
+      ChannelRailEntry(channel),
+      GroupRailEntry(group)
+    ];
+    expect(recentRailEntries(entries, l, query: 'Channel NEWS').single.ref!.id,
+        'general');
+    expect(recentRailEntries(entries, l, query: 'never said'), isEmpty);
+  });
+
   test('untimed content is retained but cannot displace dated activity', () {
     final snapshot = TestSnapshots.dm(sessionId: 'mixed', messages: [
       TestMessages.dm(fromDevice: 'Alice', body: 'undated'),

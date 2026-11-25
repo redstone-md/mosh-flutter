@@ -109,7 +109,8 @@ List<RailEntry> recentRailEntries(
       .where(
         (entry) =>
             (kind == null || entry.ref?.kind == kind) &&
-            entry.searchText(l).toLowerCase().contains(search),
+            (entry.searchText(l).toLowerCase().contains(search) ||
+                (search.isNotEmpty && entry.activity.mentions(search))),
       )
       .toList();
   visible.sort((a, b) {
