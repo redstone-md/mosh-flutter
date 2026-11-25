@@ -32,24 +32,64 @@ ListTileThemeData _listTileTheme(MoshColors c, TextTheme text) =>
       subtitleTextStyle: text.bodySmall,
     );
 
+/// The four levels a surface sits on, lowest first (Surface levels card).
+/// The background is the screen; a panel is a part of it; a popup floats
+/// until its choice is made (menu, toast); a modal stops the screen and
+/// always lies on the [MoshColors.scrim]. A surface takes its tone, edge,
+/// corners and shadow from its level.
+enum MoshLevel {
+  background,
+  panel,
+  popup(MoshRadius.large, MoshElevation.level2),
+  modal(MoshRadius.extraLarge, MoshElevation.level3);
+
+  const MoshLevel([this.radius = MoshRadius.none, this.elevation]);
+
+  final double radius;
+
+  /// Null for the levels that lie in the screen and cast nothing.
+  final MoshElevation? elevation;
+
+  BorderRadius get corners => BorderRadius.all(Radius.circular(radius));
+
+  Color fill(MoshColors c) => switch (this) {
+        background => c.surface,
+        panel => c.surfaceContainerLow,
+        popup || modal => c.surfaceContainerHigh,
+      };
+
+  /// The edge that lifts a floating surface off whatever is under it.
+  BorderSide edge(MoshColors c) =>
+      elevation == null ? BorderSide.none : BorderSide(color: c.outlineVariant);
+
+  /// For a surface Material paints: it casts [elevation] as `dp`.
+  OutlinedBorder shape(MoshColors c) =>
+      RoundedRectangleBorder(borderRadius: corners, side: edge(c));
+
+  /// For a surface painted by hand.
+  BoxDecoration decoration(MoshColors c) => BoxDecoration(
+        color: fill(c),
+        borderRadius: corners,
+        border: elevation == null ? null : Border.fromBorderSide(edge(c)),
+        boxShadow: elevation?.shadows,
+      );
+}
+
 DialogThemeData _dialogTheme(MoshColors c) => DialogThemeData(
-      backgroundColor: c.surfaceContainerHigh,
+      backgroundColor: MoshLevel.modal.fill(c),
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        // Off the radius scale until the dialog component is redrawn (MOSH-125).
-        borderRadius: BorderRadius.circular(14),
-      ),
+      shadowColor: c.shadow,
+      elevation: MoshLevel.modal.elevation!.dp,
+      barrierColor: c.scrim,
+      shape: MoshLevel.modal.shape(c),
     );
 
 PopupMenuThemeData _popupMenuTheme(MoshColors c) => PopupMenuThemeData(
-      color: c.surfaceContainerHigh,
+      color: MoshLevel.popup.fill(c),
       surfaceTintColor: Colors.transparent,
-      shadowColor: const Color(0xFF000000),
-      elevation: 8,
-      shape: RoundedRectangleBorder(
-        borderRadius: MoshShapes.menu,
-        side: BorderSide(color: c.outlineVariant),
-      ),
+      shadowColor: c.shadow,
+      elevation: MoshLevel.popup.elevation!.dp,
+      shape: MoshLevel.popup.shape(c),
     );
 
 /// The back and close buttons Material builds on its own, in the app's icons.

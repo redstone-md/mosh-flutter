@@ -5,15 +5,14 @@ import 'package:flutter/rendering.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
-import 'package:mosh/src/app/mosh_shapes.dart';
-import 'package:mosh/src/features/shared/focus_ring.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors, MoshLevel;
 
 import 'toast_motion.dart';
 import 'toast_pose.dart';
 import 'toaster.dart';
 
-/// The toast surface at a [pose]: the body keeps its natural layout and
+/// The Toast card, a surface of the popup level, at a [pose]: the body keeps its natural layout and
 /// is cut to [ToastPose.height] when the stack folds it behind a shorter
 /// toast. Reports the body's natural height through [onHeight].
 class ToastCard extends StatelessWidget {
@@ -55,15 +54,7 @@ class ToastCard extends StatelessWidget {
       );
     }
     Widget card = DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest,
-        borderRadius: MoshShapes.menu,
-        border: Border.all(color: colors.outlineVariant),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x66000000), blurRadius: 24, offset: Offset(0, 8)),
-        ],
-      ),
+      decoration: MoshLevel.popup.decoration(colors),
       child: Material(
         type: MaterialType.transparency,
         child: Semantics(container: true, child: body),
@@ -94,45 +85,40 @@ class ToastCard extends StatelessWidget {
       ToastKind.success => (MoshIcons.success, colors.success),
       ToastKind.error => (MoshIcons.error, colors.error),
     };
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(14, 6, 6, 6),
-      child: Row(children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Text(
-              entry.message,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: colors.onSurface),
-            ),
-          ),
-        ),
-        const SizedBox(width: 4),
-        Semantics(
-          container: true,
-          button: true,
-          label: l.toastDismiss,
-          excludeSemantics: true,
-          child: InkWell(
-            onTap: onDismiss,
-            borderRadius: MoshShapes.control,
-            child: FocusRing(
-              radius: MoshShapes.control,
-              child: SizedBox.square(
-                dimension: 32,
-                child: Icon(MoshIcons.close,
-                    size: 16, color: colors.onSurfaceMuted),
+    // The mark tells the tone; the text stays the ordinary colour.
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: MoshSpace.s12),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(
+            MoshSpace.s4, MoshSpace.s1, MoshSpace.s1, MoshSpace.s1),
+        child: Row(children: [
+          Icon(icon, size: MoshSpace.s5, color: color),
+          const SizedBox(width: MoshSpace.s3),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: MoshSpace.s2),
+              child: Text(
+                entry.message,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: colors.onSurface),
               ),
             ),
           ),
-        ),
-      ]),
+          const SizedBox(width: MoshSpace.s3),
+          Semantics(
+            container: true,
+            button: true,
+            label: l.toastDismiss,
+            excludeSemantics: true,
+            child: IconButton(
+                onPressed: onDismiss, icon: const Icon(MoshIcons.close)),
+          ),
+        ]),
+      ),
     );
   }
 }

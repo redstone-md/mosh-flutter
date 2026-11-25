@@ -6,6 +6,10 @@ one copy showed the same snackbar in both.
 
 ## Behavior
 
+- **Look.** A toast is a surface of the popup level (`MoshLevel.popup`:
+  `surfaceContainerHigh`, an `outlineVariant` edge, 16px corners, the level 2
+  shadow), at least 48px tall. The mark tells the tone and the text stays the
+  ordinary colour, so a toast never reads as an alarm it is not.
 - **Where.** On desktop the stack hangs centered below the titlebar, clear of
   the composer and the send button. On phones it sits above the composer.
   Toasts are 360px wide at most and never block taps around them.
@@ -30,8 +34,9 @@ one copy showed the same snackbar in both.
 - **Motion.** The values follow transitions.dev's toast and banner-stacking
   recipes and polish rules: 350ms in, 250ms out, 250ms fan out and 350ms
   collapse on `cubic-bezier(0.22, 1, 0.36, 1)`. A toast arrives from 16px
-  toward the edge with a 2px blur at 0.97 scale. Folded toasts step back by
-  12px, 6% scale and 40% opacity with 1–2px blur. Only a repeat overshoots.
+  toward the edge with a 2px blur at 0.97 scale. Folded toasts step back as the
+  Toast card stacks them, each 8px narrower on a side with its edge 8px lower,
+  at 40% opacity with 1–2px blur. Only a repeat overshoots.
   Under reduced motion toasts swap in place without travel or blur.
 
 ## Ownership

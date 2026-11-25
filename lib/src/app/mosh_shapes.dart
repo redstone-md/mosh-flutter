@@ -28,7 +28,6 @@ abstract final class MoshShapes {
   /// A row of the chat list, in every state.
   static const conversationRow =
       BorderRadius.all(Radius.circular(MoshRadius.large));
-  static const menu = BorderRadius.all(Radius.circular(MoshRadius.medium));
 
   /// The corners of a bubble, and the tighter one its sender's side takes
   /// between the neighbours of a run.
