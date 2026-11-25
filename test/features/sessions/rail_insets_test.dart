@@ -27,19 +27,17 @@ void main() {
       final chip = tester.getRect(find.byType(ChoiceChip).first);
       // A chip's tap target pads its painted pill vertically only.
       expect(chip.left, search.left);
-
-      // Audit (MOSH-134): an unlit chip was 2px taller than the lit one.
-      final ink = {
-        for (final chip in find.byType(ChoiceChip).evaluate())
-          tester
-              .getSize(find
-                  .descendant(
-                      of: find.byWidget(chip.widget),
-                      matching: find.byType(Material))
-                  .first)
-              .height
-      };
-      expect(ink, {32.0});
     });
   }
+
+  // MOSH-134: an unlit chip grew by its edge, 2px taller than the lit one,
+  // so lighting a filter moved its neighbours.
+  testWidgets('a filter is as tall unlit as lit', (tester) async {
+    await pumpRail(tester);
+    final heights = {
+      for (final chip in find.byType(ChoiceChip).evaluate())
+        tester.getSize(find.byWidget(chip.widget)).height
+    };
+    expect(heights, hasLength(1));
+  });
 }

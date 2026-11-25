@@ -29,8 +29,9 @@ remain checks on a real device.
   voice clips and shared files.
 - Color world: the theme's warm dark surfaces and off-white text, with the
   saffron primary, channel blue and a muted sand for groups.
-- Signature: conversation type has the same glyph and accent in the list,
-  filters, header and details, independently of runtime security indicators.
+- Signature: conversation type has the same glyph in the list, header and
+  details, independently of runtime security indicators. (Its accent colour
+  and the glyphs in the filters went with MOSH-134.)
 - Defaults corrected: inherited Material pill shapes, separately rounded
   cards inside messages, and identical green avatars for every type.
 - Depth and surfaces: existing dark surface steps and subtle edges; no new
@@ -84,9 +85,9 @@ resting edge, retaining the theme's 8px corners and visible focus border.
 The shortcut is secondary 11px text.
 
 Type filters retain Material single-selection, keyboard focus and hover
-feedback. Their 32px surfaces are borderless when inactive; selection uses
-the existing type tint or a neutral fill for All, plus stronger text. Inactive
-glyphs keep their type hue with reduced saturation. Native targets are 40px
+feedback. Since MOSH-134 they are the Filter chip card: 32px pills that name
+the type in words, with a thin edge when inactive and one `secondaryContainer`
+fill when selected. Native targets are 40px
 on desktop and 48px on mobile. The targets' invisible insets are included in
 the 8px search/filter gap and 12px filter/list gap. Large text can grow the
 controls, and filters remain horizontally scrollable at narrow widths. A 2px
@@ -128,8 +129,9 @@ on the avatar plate picked from the name.
 
 Since MOSH-134 the type has no colour of its own: the open chat is the one
 `secondaryContainer` row for every type, and a lit filter is the same fill.
-The filters name the types in words. Glyphs, localized tooltip/type labels and channel-name prefixes communicate the
-type. Runtime protection indicators continue to read actual snapshots.
+The filters name the types in words. Glyphs, localized tooltip/type labels
+and channel-name prefixes communicate the type. Runtime protection indicators
+continue to read actual snapshots.
 
 ## Initial consistency verification
 

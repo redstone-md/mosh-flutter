@@ -18,9 +18,10 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 import 'package:mosh/src/util/format.dart' show shorten;
 
-/// What the rail knows about a row and the row does not: its unread count,
-/// whether it is the open conversation, whether its menu is open, and the
-/// hook that clears the badge and marks the conversation open.
+/// What the rail knows about a row and the row does not: its unread count
+/// and whether it is the open conversation, both read by [RailEntry.ref],
+/// whether the row's menu is open, and the hook that clears the badge and
+/// marks the conversation open.
 typedef RailRowChrome = ({
   int unreadCount,
   bool active,
@@ -81,7 +82,7 @@ sealed class RailEntry {
         : MaterialLocalizations.of(context).formatShortDate(date);
   }
 
-  /// This row's widget. [chrome] is what the rail computed from [ref]; the
+  /// This row's widget. [chrome] is what the rail knows about the row; the
   /// row decides what to render with it.
   Widget buildRow(BuildContext context, RailRowChrome chrome);
 }
