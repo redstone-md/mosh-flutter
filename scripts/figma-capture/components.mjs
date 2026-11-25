@@ -44,7 +44,7 @@ export const COMPONENTS = [
   component('surfaces', 'Top app bar', ['AppBar', 'ConversationAppBar', 'ConversationHeaderTitle', 'ChatHeaderMenu', 'MobileSearchToggle']),
   component('surfaces', 'Dialog', ['Dialog', 'VpnConsentModal']),
   component('surfaces', 'Menu', ['ChatRowMenu', 'MoshMenuItem', 'MenuItemButton', 'message_context_menu._MessageMenuPanel']),
-  component('surfaces', 'Banner', ['CryptoNoticeBanner', 'ChatErrorBanner', 'OrgAddMissingBanner', 'GroupRejoinNeededError', 'PersistenceWarningBanner', 'persistence_warning_banner._IconPlate', 'AboutUpdateNotice']),
+  component('surfaces', 'Banner', ['MoshNotice', 'FeedBanner', 'ChatErrorBanner', 'OrgAddMissingBanner', 'GroupRejoinNeededError', 'PersistenceWarningBanner', 'AboutUpdateNotice']),
   component('surfaces', 'Inline note', ['SetupPrivacyNote', 'channel_join_step._OpenWarning', 'invite_result._ReadyNote']),
   component('surfaces', 'Toast', ['ToastCard']),
   component('surfaces', 'Settings card', ['SettingsSurface', 'SettingsCardHeader', 'SettingsIcon', 'SettingsFold', 'MoshDisclosure', 'SettingsPageHeader', 'ListTile', 'Card']),
@@ -54,7 +54,7 @@ export const COMPONENTS = [
   component('surfaces', 'Diagnostics rows', ['DiagnosticsGroup', 'ValueRow', 'DiagnosticsEmptyState', 'SummaryCard', 'Metric', 'event_log._EventRow']),
   component('surfaces', 'Wizard step', ['SetupHeading', 'SetupProgress', 'StepMark', 'StartStep', 'device_link_steps._Step']),
   component('surfaces', 'Empty and error state', ['ConversationNotice']),
-  component('surfaces', 'Media viewer', ['MediaViewer', 'media_viewer._MediaCaption', 'media_viewer._ImageStage', 'media_viewer_stages._AudioCard', 'media_viewer_stages._PlaybackPlaceholderCard', 'media_viewer_controls._PlaybackControls', 'MediaTimeLabel']),
+  component('surfaces', 'Media viewer', ['MediaViewer', 'media_viewer._ViewerBar', 'media_viewer._ImageStage', 'media_viewer_stages._AudioCard', 'media_viewer_stages._Unavailable', 'media_viewer_controls._PlaybackControls', 'MediaTimeLabel']),
 
   component('call', 'Call window', ['MainWindowCallFrame']),
   component('call', 'Call card', ['CallModalCard']),

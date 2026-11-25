@@ -135,6 +135,8 @@ Future<void> _viewer(WidgetTester tester, Size size,
     builder: (context) => MediaViewer(
       descriptor: descriptor,
       src: 'file:///tmp/${descriptor.fileName}',
+      sent: 'Maya Chen, Nov 21, 2026 9:38',
+      onSave: () {},
       onClose: () => Navigator.of(context).pop(),
       createPlayer: createPlayer,
     ),

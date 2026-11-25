@@ -136,13 +136,12 @@ void main() {
     await close(tester);
   });
 
-  testWidgets('a video the system cannot play shows its file card',
-      (tester) async {
+  testWidgets('a video the system cannot play says so', (tester) async {
     system.refuses = true;
 
     await open(tester);
 
-    expect(find.byIcon(MoshIcons.playCircle), findsOneWidget);
+    expect(find.text('This video cannot be played here'), findsOneWidget);
     expect(find.byType(VideoPlayer), findsNothing);
     expect(screen.awake, isFalse);
   });

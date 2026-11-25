@@ -42,8 +42,10 @@ class _PlaybackControlsState extends State<_PlaybackControls> {
     final PlayerState(:playing, :position, :duration) = player.state;
     final length = math.max(1, duration.inMilliseconds).toDouble();
     return Row(
+      spacing: MoshSpace.s2,
       children: [
         IconButton(
+          style: moshTonalIconButtonStyle(MoshColors.of(context)),
           icon: Icon(playing ? MoshIcons.pause : MoshIcons.play),
           onPressed: player.playOrPause,
         ),
@@ -93,10 +95,9 @@ class MediaTimeLabel extends StatelessWidget {
       fit: BoxFit.scaleDown,
       child: Text(
         '${_fmt(position)} / ${_fmt(duration)}',
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
-            ?.copyWith(fontFeatures: kLiveNumberFontFeatures),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: MoshColors.of(context).onSurfaceVariant,
+            fontFeatures: kLiveNumberFontFeatures),
         textAlign: TextAlign.center,
       ),
     );

@@ -10,7 +10,7 @@ import 'package:mosh/src/features/conversation/conversation_chrome.dart';
 import 'package:mosh/src/features/conversation/conversation_details_panel.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart'
-    show kChatHeaderHeight, kConversationPanelWidth;
+    show formatClockFull, kChatHeaderHeight, kConversationPanelWidth;
 import 'package:mosh/src/features/conversation/conversation_leave_prompt.dart';
 import 'package:mosh/src/features/conversation/conversation_screen_body.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
@@ -179,10 +179,29 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       case AttachmentExternalOpenIntent(:final localPath):
         unawaited(_openWithSystemApp(localPath));
       case AttachmentMediaOpenIntent(:final descriptor, :final src):
-        showMediaViewer(context: context, descriptor: descriptor, src: src);
+        _showMedia(descriptor, src);
       case AttachmentNoopOpenIntent():
         break;
     }
+  }
+
+  /// Opens the viewer on an attachment, saying who sent it and when.
+  void _showMedia(AttachmentDescriptor descriptor, String src) {
+    final l = AppLocalizations.of(context)!;
+    final message = ref
+        .read(conversationSnapshotProvider(_target))
+        .value
+        ?.messages
+        .where((m) => m.attachment?.attachmentId == descriptor.attachmentId)
+        .firstOrNull;
+    final sent = message == null
+        ? null
+        : [
+            message.own ? l.chatListYou : message.fromDevice,
+            formatClockFull(message.sentAtMs, locale: l.localeName),
+          ].nonNulls.join(', ');
+    showMediaViewer(
+        context: context, descriptor: descriptor, src: src, sent: sent);
   }
 
   Future<void> _openWithSystemApp(String localPath) async {
@@ -366,7 +385,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     if (attachments == null || attachments.isEmpty) return;
     switch (_controller.resolvePendingOpen(attachments)) {
       case ConversationPendingShow(:final descriptor, :final src):
-        showMediaViewer(context: context, descriptor: descriptor, src: src);
+        _showMedia(descriptor, src);
       case ConversationPendingDropped():
       case ConversationPendingNone():
         break;

@@ -4,9 +4,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_theme.dart'
-    show MoshColors, kLiveNumberFontFeatures, moshTonalIconButtonStyle;
+    show
+        MoshColors,
+        MoshLevel,
+        kLiveNumberFontFeatures,
+        moshTonalIconButtonStyle;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart' show ProviderScope;
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:video_player/video_player.dart' show VideoPlayer;
@@ -15,145 +21,101 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/features/shared/attachment_media_src.dart';
+import 'package:mosh/src/features/shared/attachment_save.dart';
 import 'package:mosh/src/features/shared/media_player.dart';
 import 'package:mosh/src/features/shared/system_player.dart';
+import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
 part 'media_viewer_controls.dart';
 part 'media_viewer_stages.dart';
 
-/// Fullscreen in-app media viewer.
+/// The Media viewer card: the whole window on the lowest tone, so nothing
+/// competes with the picture. The file's name and who sent it sit in a bar
+/// at the top with the two things to do: save it and close. A sound gets a
+/// player; what Mosh cannot show says so and offers to save the file.
 ///
-/// Construct directly and pass to `showDialog`, or use the [showMediaViewer]
-/// helper which wires `onClose` to `Navigator.pop`.
-/// - `descriptor` -- the `AttachmentDescriptor` (carries `mime` + `fileName`).
-/// - `src`        -- the media URL.
-/// - `onClose`    -- invoked by the close button, the backdrop tap, or Esc.
+/// Construct directly and pass to `showDialog`, or use [showMediaViewer],
+/// which wires [onClose] to `Navigator.pop` and [onSave] to the system's
+/// save dialog.
 class MediaViewer extends StatelessWidget {
   const MediaViewer({
     super.key,
     required this.descriptor,
     required this.src,
     required this.onClose,
+    this.sent,
+    this.onSave,
     this.createPlayer = createMediaPlayer,
   });
 
-  /// The attachment's metadata. Drives the mime
-  /// branch (`descriptor.mime`) and the
-  /// semantics label + caption (`descriptor.fileName`).
+  /// The attachment's metadata: its mime picks the stage, its file name is
+  /// the title and the semantics label.
   final AttachmentDescriptor descriptor;
 
   final String src;
 
-  /// Invoked when the user closes the viewer (close button, backdrop tap,
-  /// or Esc via [showMediaViewer]).
+  /// Who sent the file and when, the second line of the bar.
+  final String? sent;
+
+  /// Invoked by the close button, a press beside the media, or Esc.
   final VoidCallback onClose;
+
+  /// Saves a copy of the file. Null while there is nothing to save yet: a
+  /// file still arriving.
+  final VoidCallback? onSave;
 
   /// Makes the player of a video or audio attachment; tests pass their own.
   final MediaPlayerFactory createPlayer;
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    // The stage and the image/video cap at max-width 92vw, max-height 82vh.
-    // `MediaQuery` gives the viewport; 0.92/0.82 map
-    // the CSS vw/vh units faithfully.
-    final maxStageWidth = media.size.width * 0.92;
-    final maxStageHeight = media.size.height * 0.82;
-
-    // Fade in: opacity 0 -> 1 over 0.16s ease. A
-    // `TweenAnimationBuilder` keeps the widget stateless (no
-    // `AnimationController` lifecycle to manage).
+    final colors = MoshColors.of(context);
+    final side = MoshControl.touch(Theme.of(context).platform)
+        ? MoshSpace.s3
+        : MoshSpace.s6;
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 160),
-      curve: Curves.ease,
-      builder: (context, opacity, child) {
-        return Opacity(opacity: opacity, child: child);
-      },
+      duration: MoshMotion.effectsDefault.duration,
+      curve: MoshMotion.effectsDefault.curve,
+      builder: (context, opacity, child) =>
+          Opacity(opacity: opacity, child: child),
+      // The dialog route already scopes the modal; the label names it.
       child: Semantics(
-        // The `showDialog` host already scopes the modal route (the `Dialog`
-        // route IS the modal semantics boundary),
-        // so we do NOT set `scopesRoute: true` here: that requires
-        // `explicitChildNodes: true` (framework assertion) AND duplicates
-        // the modal-route scoping the `showDialog` host already provides.
-        // Keeping `container: true, label: fileName` gives the labeled-group
-        // announcement. Mirrors the ConfirmDialog's semantics approach.
         container: true,
         label: descriptor.fileName,
-        // ModalFocusTrap goes inside Semantics so Tab key events are handled
-        // by the trap, while Escape is caught at the ModalRoute level.
         child: ModalFocusTrap(
           child: Dialog(
-            // Fullscreen: no inset padding.
             insetPadding: EdgeInsets.zero,
-            backgroundColor: Colors.transparent,
-            // No default Material elevation/clip on the fullscreen surface.
+            backgroundColor: colors.surfaceContainerLowest,
             elevation: 0,
+            shape: const RoundedRectangleBorder(),
+            // A press beside the media closes the viewer.
             child: GestureDetector(
-              // Tap the backdrop (anywhere outside the stage) closes the
-              // viewer.
               behavior: HitTestBehavior.opaque,
               onTap: onClose,
-              child: Stack(
-                children: [
-                  // A near-opaque dark scrim (rgba(8, 9, 10, 0.92)).
-                  // (A `backdrop-filter: blur(6px)` nicety is deferred:
-                  // Flutter `BackdropFilter` needs the ImageFilter to blur
-                  // what is *behind* the route.)
-                  const Positioned.fill(
-                    child: ColoredBox(color: Color(0xEB08090A)),
+              child: SafeArea(
+                child: Column(children: [
+                  _ViewerBar(
+                    fileName: descriptor.fileName,
+                    sent: sent,
+                    onSave: onSave,
+                    onClose: onClose,
                   ),
-                  // Centered flex column, gap 14px, padding 48px 32px 32px.
-                  // The Column is centered + padded; the close button is
-                  // absolutely positioned over it.
-                  Positioned.fill(
+                  Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.only(
-                        top: 48,
-                        left: 32,
-                        right: 32,
-                        bottom: 32,
-                      ),
-                      // Wrapped in a vertical `SingleChildScrollView` so a
-                      // tall image/video never overflows the viewport: when
-                      // the stage + caption fit (the common case) the
-                      // content stays centered; when they exceed the
-                      // available height the column scrolls instead of
-                      // throwing a layout overflow (Flutter errors on
-                      // overflow, so scroll is the safe behavior).
+                      padding: EdgeInsets.fromLTRB(side, 0, side, MoshSpace.s6),
                       child: Center(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _MediaStage(
-                                descriptor: descriptor,
-                                src: src,
-                                createPlayer: createPlayer,
-                                maxStageWidth: maxStageWidth,
-                                maxStageHeight: maxStageHeight,
-                              ),
-                              const SizedBox(height: 14),
-                              _MediaCaption(
-                                fileName: descriptor.fileName,
-                                maxWidth: media.size.width * 0.80,
-                              ),
-                            ],
-                          ),
+                        child: _MediaStage(
+                          descriptor: descriptor,
+                          src: src,
+                          onSave: onSave,
+                          createPlayer: createPlayer,
                         ),
                       ),
                     ),
                   ),
-                  // The close button: absolute top 16 right 18.
-                  Positioned(
-                    top: 16,
-                    right: 18,
-                    child: _MediaCloseButton(onPressed: onClose),
-                  ),
-                ],
+                ]),
               ),
             ),
           ),
@@ -163,81 +125,127 @@ class MediaViewer extends StatelessWidget {
   }
 }
 
-/// The centered media stage. Tapping inside the stage does NOT close the
-/// viewer (the inner `GestureDetector` swallows the tap). Branches on
-/// `descriptor.mime`: `image/*` -> image, `video/*` -> video placeholder,
-/// `audio/*` -> audio placeholder, else -> file placeholder.
-class _MediaStage extends StatelessWidget {
-  const _MediaStage({
-    required this.descriptor,
-    required this.src,
-    required this.createPlayer,
-    required this.maxStageWidth,
-    required this.maxStageHeight,
+/// The bar at the top of the viewer: the file's name over who sent it, then
+/// save and close.
+class _ViewerBar extends StatelessWidget {
+  const _ViewerBar({
+    required this.fileName,
+    required this.sent,
+    required this.onSave,
+    required this.onClose,
   });
 
-  final AttachmentDescriptor descriptor;
-  final String src;
-  final MediaPlayerFactory createPlayer;
-  final double maxStageWidth;
-  final double maxStageHeight;
+  final String fileName;
+  final String? sent;
+  final VoidCallback? onSave;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      // Swallow taps so the media itself does not close the viewer.
-      onTap: () {},
-      behavior: HitTestBehavior.opaque,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: maxStageWidth,
-          maxHeight: maxStageHeight,
+    final l = AppLocalizations.of(context)!;
+    final colors = MoshColors.of(context);
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+          MoshSpace.s5, MoshSpace.s2, MoshSpace.s2, MoshSpace.s2),
+      child: Row(spacing: MoshSpace.s2, children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(fileName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.titleSmall?.copyWith(color: colors.onSurface)),
+              if (sent != null)
+                Text(sent!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.bodySmall
+                        ?.copyWith(color: colors.onSurfaceVariant)),
+            ],
+          ),
         ),
-        child: switch (attachmentMediaKind(descriptor.mime)) {
-          AttachmentMediaKind.image => _ImageStage(
-              descriptor: descriptor,
-              src: src,
-              maxStageWidth: maxStageWidth,
-              maxStageHeight: maxStageHeight,
-            ),
-          AttachmentMediaKind.video => _PlayingStage(
-              descriptor: descriptor,
-              src: src,
-              createPlayer: createPlayer,
-              builder: _videoPicture,
-            ),
-          AttachmentMediaKind.audio => _PlayingStage(
-              descriptor: descriptor,
-              src: src,
-              createPlayer: createPlayer,
-              builder: (player) =>
-                  _AudioCard(fileName: descriptor.fileName, player: player),
-            ),
-          AttachmentMediaKind.file => _PlaybackPlaceholderCard(
-              fileName: descriptor.fileName,
-              icon: MoshIcons.file,
-            ),
-        },
-      ),
+        IconButton(
+          tooltip: l.mediaViewerSave,
+          onPressed: onSave,
+          icon: const Icon(MoshIcons.download),
+        ),
+        IconButton(
+          tooltip: l.closeViewer,
+          onPressed: onClose,
+          icon: const Icon(MoshIcons.close),
+        ),
+      ]),
     );
   }
 }
 
-/// The image branch (`max-width 92vw; max-height 82vh; object-fit:
-/// contain; border-radius: 8px; background: var(--bg-0)`).
-/// `Image.network` loads a URL `src`.
-class _ImageStage extends StatelessWidget {
-  const _ImageStage({
+/// The media in the middle of the viewer. A press on it does not close the
+/// viewer. Its mime picks what it shows: a picture, a video, a player for a
+/// sound, or the note that there is no preview.
+class _MediaStage extends StatelessWidget {
+  const _MediaStage({
     required this.descriptor,
     required this.src,
-    required this.maxStageWidth,
-    required this.maxStageHeight,
+    required this.onSave,
+    required this.createPlayer,
   });
 
   final AttachmentDescriptor descriptor;
   final String src;
-  final double maxStageWidth;
-  final double maxStageHeight;
+  final VoidCallback? onSave;
+  final MediaPlayerFactory createPlayer;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return GestureDetector(
+      onTap: () {},
+      behavior: HitTestBehavior.opaque,
+      child: switch (attachmentMediaKind(descriptor.mime)) {
+        AttachmentMediaKind.image =>
+          _ImageStage(descriptor: descriptor, src: src),
+        AttachmentMediaKind.video => _PlayingStage(
+            src: src,
+            createPlayer: createPlayer,
+            builder: _videoPicture,
+            unavailable: _Unavailable(
+              icon: MoshIcons.video,
+              title: l.mediaViewerVideoUnavailable,
+              line: l.mediaViewerVideoUnavailableHint,
+              onSave: onSave,
+            ),
+          ),
+        AttachmentMediaKind.audio => _PlayingStage(
+            src: src,
+            createPlayer: createPlayer,
+            builder: (player) => _AudioCard(player: player),
+            unavailable: _Unavailable(
+              icon: MoshIcons.playCircle,
+              title: l.mediaViewerAudioUnavailable,
+              line: l.mediaViewerAudioUnavailableHint,
+              onSave: onSave,
+            ),
+          ),
+        AttachmentMediaKind.file => _Unavailable(
+            icon: MoshIcons.file,
+            title: l.mediaViewerNoPreview,
+            line: l.mediaViewerNoPreviewHint,
+            onSave: onSave,
+          ),
+      },
+    );
+  }
+}
+
+/// A picture, whole inside the stage.
+class _ImageStage extends StatelessWidget {
+  const _ImageStage({required this.descriptor, required this.src});
+
+  final AttachmentDescriptor descriptor;
+  final String src;
 
   /// A downloaded attachment is a `file://` URL (see `localFileSrc`), which
   /// `NetworkImage` cannot fetch: `HttpClient` rejects the scheme and the
@@ -250,102 +258,56 @@ class _ImageStage extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: ColoredBox(
-        color: MoshColors.of(context).surfaceContainerLowest,
+  Widget build(BuildContext context) => ClipRRect(
+        borderRadius:
+            const BorderRadius.all(Radius.circular(MoshRadius.medium)),
         child: Image(
           image: _image,
           fit: BoxFit.contain,
-          width: maxStageWidth,
-          height: maxStageHeight,
           gaplessPlayback: true,
-          // The screen reader label.
           semanticLabel: descriptor.fileName,
-          errorBuilder: (context, error, stackTrace) => SizedBox(
-            width: maxStageWidth,
-            height: maxStageHeight,
-            child: Center(
-              child: Icon(
-                MoshIcons.imageBroken,
-                size: 48,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
+          errorBuilder: (context, error, stackTrace) => Icon(
+            MoshIcons.imageBroken,
+            size: MoshSpace.s12,
+            color: MoshColors.of(context).onSurfaceVariant,
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// The caption
-/// (`max-width:80vw; color:var(--fg-2); font-size:12.5px; text-align:center`).
-class _MediaCaption extends StatelessWidget {
-  const _MediaCaption({
-    required this.fileName,
-    required this.maxWidth,
-  });
-
-  final String fileName;
-  final double maxWidth;
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth),
-      child: Text(
-        fileName,
-        style: TextStyle(
-          fontSize: 12.5,
-          // Muted fg-2.
-          color: MoshColors.of(context).onSurfaceVariant,
-        ),
-        textAlign: TextAlign.center,
-        overflow: TextOverflow.ellipsis,
-        maxLines: 2,
-      ),
-    );
-  }
-}
-
-/// The viewer's close button: the Tonal kind of the Icon button card, a
-/// plate of its own over the media. Its tooltip is its accessible name.
-class _MediaCloseButton extends StatelessWidget {
-  const _MediaCloseButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) => IconButton(
-        tooltip: AppLocalizations.of(context)!.closeViewer,
-        onPressed: onPressed,
-        style: moshTonalIconButtonStyle(MoshColors.of(context)),
-        icon: const Icon(MoshIcons.close),
       );
 }
 
-/// Shows a [MediaViewer] as a fullscreen modal. The caller resolves the
-/// descriptor + src and calls this helper; `onClose` pops the route. The
-/// barrier is dismissible (click-outside + Esc), so both the close button
-/// and the backdrop close the viewer.
-///
-/// `barrierLabel` is the localized `closeViewer` string so the modal scrim
-/// announces itself as a close affordance to assistive tech.
+/// Shows a [MediaViewer] as a fullscreen modal: the close button, a press
+/// beside the media and Esc all pop the route. [sent] says who sent the file
+/// and when. A file that is on this device (a `file://` [src]) can be saved
+/// as a copy; one still arriving cannot yet.
 Future<void> showMediaViewer({
   required BuildContext context,
   required AttachmentDescriptor descriptor,
   required String src,
+  String? sent,
 }) {
+  final l = AppLocalizations.of(context)!;
+  final toaster = context.toaster;
+  final saver = ProviderScope.containerOf(context, listen: false)
+      .read(attachmentSaverProvider);
+  final uri = Uri.parse(src);
+  final localPath = uri.scheme == 'file' ? uri.toFilePath() : null;
   return showDialog<void>(
     context: context,
     barrierDismissible: true,
-    barrierLabel: AppLocalizations.of(context)!.closeViewer,
+    barrierLabel: l.closeViewer,
     builder: (dialogContext) => MediaViewer(
       descriptor: descriptor,
       src: src,
+      sent: sent,
       onClose: () => Navigator.of(dialogContext).pop(),
+      onSave: localPath == null
+          ? null
+          : () => unawaited(saveAttachmentAs(
+              saver: saver,
+              toaster: toaster,
+              l: l,
+              localPath: localPath,
+              fileName: descriptor.fileName)),
     ),
   );
 }
