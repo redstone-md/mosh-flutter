@@ -12,6 +12,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/features/conversation/conversation_helpers.dart'
+    show UnreadBadge;
 import 'package:mosh/src/features/sessions/rail_item.dart' show RailItem;
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart';
@@ -114,9 +116,12 @@ RailItem _row(WidgetTester tester, String title) => tester
     .widgetList<RailItem>(find.byType(RailItem))
     .firstWhere((item) => item.title == title);
 
-/// The unread count [title]'s row renders.
-int _unreadOf(WidgetTester tester, String title) =>
-    _row(tester, title).unreadCount;
+/// The unread count on the badge [title]'s row shows.
+int _unreadOf(WidgetTester tester, String title) => tester
+    .widget<UnreadBadge>(find.descendant(
+        of: find.widgetWithText(RailItem, title),
+        matching: find.byType(UnreadBadge)))
+    .count;
 
 void main() {
   testWidgets('every kind reads its unread count from its own key',

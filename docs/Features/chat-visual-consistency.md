@@ -49,8 +49,8 @@ these tokens instead of choosing their own corner radius.
 
 | Element | Radius | Relationship |
 | --- | ---: | --- |
-| Search, settings, filters, standard buttons | 8px | One shape across states |
-| Conversation rows | 12px | Stable in selected and unselected states |
+| Search, settings, filters, standard buttons | Pill | One shape across states; the Components cards since MOSH-133 and MOSH-134 |
+| Conversation rows | 16px | Stable in selected and unselected states |
 | Message outside corners | 16px | Text/voice use 4px joins on the sender side; file/media retain 16px |
 | Composer control group | 16px | 8px control corner plus 8px inset |
 | Media and file icon surfaces | 8px | 16px message corner minus a uniform 8px inset |
@@ -72,17 +72,16 @@ Avatars and voice play remain circles because they are identity and transport
 controls, rather than rectangular fields. Progress bars retain their small
 end caps. Modal geometry remains owned by the existing modal components.
 
-Search retains the theme's focused and disabled borders. Its resting edge is
-quieter, with the same 8px radius in every state.
+The chat list's search is a pill on its own plate with no resting edge; the
+focus ring takes the edge's place (MOSH-134).
 The composer input stays borderless when disabled as well as when enabled.
 
 ## List controls
 
-The creation row has a 48px minimum height, a 32px plus and a 14px/600 label.
-Its 40px leading slot aligns the plus with the search icon; both labels share
-a 52px leading inset. Search has a 40px minimum height and a quiet
-resting edge, retaining the theme's 8px corners and visible focus border.
-The shortcut is secondary 11px text.
+Since MOSH-134 the controls are drawn from the Chat list card: starting a
+conversation is the primary button, and the search is a pill as tall as a
+control (40px on desktop, 48px on a phone) with the shortcut in a keycap.
+[Chat list layout](chat-list-layout.md) has the current geometry.
 
 Type filters retain Material single-selection, keyboard focus and hover
 feedback. Since MOSH-134 they are the Filter chip card: 32px pills that name
