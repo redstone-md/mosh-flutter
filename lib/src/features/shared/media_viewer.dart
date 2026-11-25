@@ -71,9 +71,6 @@ class MediaViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
-    final side = MoshControl.touch(Theme.of(context).platform)
-        ? MoshSpace.s3
-        : MoshSpace.s6;
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0.0, end: 1.0),
       duration: MoshMotion.effectsDefault.duration,
@@ -103,16 +100,11 @@ class MediaViewer extends StatelessWidget {
                     onClose: onClose,
                   ),
                   Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(side, 0, side, MoshSpace.s6),
-                      child: Center(
-                        child: _MediaStage(
-                          descriptor: descriptor,
-                          src: src,
-                          onSave: onSave,
-                          createPlayer: createPlayer,
-                        ),
-                      ),
+                    child: _MediaStage(
+                      descriptor: descriptor,
+                      src: src,
+                      onSave: onSave,
+                      createPlayer: createPlayer,
                     ),
                   ),
                 ]),
@@ -201,7 +193,10 @@ class _MediaStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return GestureDetector(
+    final side = MoshControl.touch(Theme.of(context).platform)
+        ? MoshSpace.s3
+        : MoshSpace.s6;
+    final media = GestureDetector(
       onTap: () {},
       behavior: HitTestBehavior.opaque,
       child: switch (attachmentMediaKind(descriptor.mime)) {
@@ -236,6 +231,10 @@ class _MediaStage extends StatelessWidget {
             onSave: onSave,
           ),
       },
+    );
+    return Padding(
+      padding: EdgeInsets.fromLTRB(side, 0, side, MoshSpace.s6),
+      child: Center(child: media),
     );
   }
 }

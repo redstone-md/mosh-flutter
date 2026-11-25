@@ -6,7 +6,10 @@ import 'mosh_theme.dart' show MoshColors, MoshLevel;
 
 /// Shared surfaces and interaction states for anchored menus and pickers.
 abstract final class MoshMenuTheme {
-  /// The panel of a menu: the popup level, its rows [gap] apart.
+  /// The width of a menu of actions; a longer label makes it wider.
+  static const double width = 232;
+
+  /// The panel of a menu, a surface of the popup level.
   static MenuThemeData panel(MoshColors c) => MenuThemeData(
         style: MenuStyle(
           backgroundColor: WidgetStatePropertyAll(MoshLevel.popup.fill(c)),
@@ -14,6 +17,7 @@ abstract final class MoshMenuTheme {
           shadowColor: WidgetStatePropertyAll(c.shadow),
           elevation: WidgetStatePropertyAll(MoshLevel.popup.elevation!.dp),
           padding: const WidgetStatePropertyAll(EdgeInsets.all(MoshSpace.s2)),
+          minimumSize: const WidgetStatePropertyAll(Size(width, 0)),
           alignment: AlignmentDirectional.bottomStart,
           shape: WidgetStatePropertyAll(MoshLevel.popup.shape(c)),
         ),

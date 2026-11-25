@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_menu_item.dart';
 import 'package:mosh/src/app/mosh_menu_theme.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
@@ -218,19 +219,23 @@ class _MessageMenuPanel extends StatelessWidget {
         child: SingleChildScrollView(
           child: Padding(
             padding: style.padding!.resolve(states)!,
-            child: IntrinsicWidth(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: MoshMenuItem.rows([
-                  for (final action in actions)
-                    MoshMenuItem(
-                      label: action.label,
-                      icon: action.icon,
-                      danger: action.danger,
-                      onPressed: () => onSelect(action),
-                    ),
-                ]),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                  minWidth: MoshMenuTheme.width - MoshSpace.s2 * 2),
+              child: IntrinsicWidth(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: MoshMenuItem.rows([
+                    for (final action in actions)
+                      MoshMenuItem(
+                        label: action.label,
+                        icon: action.icon,
+                        danger: action.danger,
+                        onPressed: () => onSelect(action),
+                      ),
+                  ]),
+                ),
               ),
             ),
           ),

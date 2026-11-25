@@ -59,7 +59,6 @@ class _ChatHeaderMenuState extends State<ChatHeaderMenu> {
       alignmentOffset: const Offset(0, 6),
       style: MenuStyle(
         alignment: AlignmentDirectional.bottomEnd,
-        minimumSize: const WidgetStatePropertyAll(Size(232, 0)),
         maximumSize: WidgetStatePropertyAll(
             Size(360, MediaQuery.sizeOf(context).height * 0.6)),
       ),

@@ -181,7 +181,12 @@ class _AudioCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsetsDirectional.fromSTEB(
               MoshSpace.s3, MoshSpace.s3, MoshSpace.s5, MoshSpace.s3),
-          child: _PlaybackControls(player: player),
+          // A slider is as tall as it is allowed to be: the column lets
+          // the controls keep their own height.
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [_PlaybackControls(player: player)],
+          ),
         ),
       ),
     );
