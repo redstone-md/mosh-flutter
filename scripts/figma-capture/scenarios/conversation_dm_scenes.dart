@@ -250,8 +250,11 @@ final _dmScenes = <FigmaScene>[
   scene('media-viewer', 'Conversation / Media viewer / Image',
       (tester, size) async {
     await _attachments(tester, size, onDisk: true);
-    await tester.tap(find.byWidgetPredicate(
-        (w) => w is Semantics && w.properties.label == 'Open harbour.jpg'));
+    // The picture in the feed, not its row in the shared files.
+    await tester.tap(find.descendant(
+        of: find.byType(ConversationMessageListView),
+        matching: find.byWidgetPredicate((w) =>
+            w is Semantics && w.properties.label == 'Open harbour.jpg')));
     await _settle(tester);
   }),
   scene('viewer-video', 'Conversation / Media viewer / Video unavailable',
