@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/app/mosh_theme.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/routing/mosh_title_bar.dart';
 
 import 'display_name_form.dart';
@@ -12,21 +11,20 @@ import 'first_run_layout.dart';
 import 'first_run_network_step.dart';
 import 'first_run_profile.dart';
 import 'first_run_provider.dart';
-import 'first_run_sizing.dart';
-import 'first_run_theme.dart';
 import 'first_run_transition.dart';
 
 class FirstRunWizard extends ConsumerStatefulWidget {
   const FirstRunWizard({super.key, required this.profile});
   final FirstRunProfile profile;
 
+  /// Width of a step's column on the desktop.
+  static const double stepWidth = 480;
+
   @override
   ConsumerState<FirstRunWizard> createState() => _FirstRunWizardState();
 }
 
 class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
-  bool _illustrationsCached = false;
-
   @override
   void initState() {
     super.initState();
@@ -36,121 +34,73 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_illustrationsCached) return;
-    _illustrationsCached = true;
-    for (final asset in setupIllustrations.values) {
-      precacheImage(AssetImage(asset), context);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Theme(
-      data: buildSetupTheme(Theme.of(context)),
-      child: Scaffold(
-        backgroundColor: MoshColors.of(context).surfaceContainerLowest,
+  Widget build(BuildContext context) => Scaffold(
         body: SafeArea(
             child: Column(children: [
-          if (!DesktopChromeScope.isPresent(context))
-            const MoshTitleBar.brand(),
+          if (MoshTitleBar.standsAlone(context))
+            const MoshTitleBar.brand(showName: false),
           Expanded(child: LayoutBuilder(builder: _viewport)),
         ])),
-      ));
+      );
 
+  /// The Wizard step card: one column on the background, 480 px wide on the
+  /// desktop and as wide as the screen on a phone.
   Widget _viewport(BuildContext context, BoxConstraints constraints) {
-    final sizing = SetupSizing(constraints.biggest,
-        textScale: MediaQuery.textScalerOf(context).scale(14) / 14);
-    return Padding(
-        padding: EdgeInsets.all(sizing.outerPadding),
-        child: _card(context, sizing, widget.profile.step));
+    final pad = constraints.maxWidth < FirstRunWizard.stepWidth + MoshSpace.s12
+        ? MoshSpace.s4
+        : MoshSpace.s6;
+    return SingleChildScrollView(
+      child: SetupStableLayout(
+        viewportHeight: constraints.maxHeight,
+        layout: (
+          constraints.biggest,
+          MediaQuery.textScalerOf(context),
+          Localizations.localeOf(context)
+        ),
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxWidth: FirstRunWizard.stepWidth + pad * 2),
+          child: Padding(
+            key: const ValueKey('setup-step'),
+            padding: EdgeInsets.all(pad),
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(child: SetupProgress(step: widget.profile.step)),
+                  const SizedBox(height: MoshSpace.s5),
+                  SetupStepTransition(
+                      key: const ValueKey('setup-content'),
+                      step: widget.profile.step,
+                      builder: _step),
+                ]),
+          ),
+        ),
+      ),
+    );
   }
 
-  Widget _card(BuildContext context, SetupSizing sizing, SetupStep step) =>
-      Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(sizing.cardPadding),
-          decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: MoshColors.of(context).primary.withValues(alpha: .3)),
-              gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color.alphaBlend(
-                        MoshColors.of(context).primary.withValues(alpha: .055),
-                        MoshColors.of(context).surfaceContainerLowest),
-                    MoshColors.of(context).surface,
-                    MoshColors.of(context).surfaceContainerLowest
-                  ])),
-          child: LayoutBuilder(
-              builder: (context, constraints) =>
-                  _scrollContent(context, sizing, step, constraints)));
-
-  Widget _scrollContent(BuildContext context, SetupSizing sizing,
-          SetupStep step, BoxConstraints constraints) =>
-      SingleChildScrollView(
-          child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Center(
-                  child: ConstrainedBox(
-                      constraints:
-                          BoxConstraints(maxWidth: sizing.contentMaxWidth),
-                      child: _content(context, sizing, step)))));
-
-  Widget _content(BuildContext context, SetupSizing sizing, SetupStep step) =>
-      Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-                child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 600),
-                    child: SetupProgress(step: step, compact: sizing.compact))),
-            SizedBox(height: sizing.sectionGap),
-            _body(context, sizing, step),
-          ]);
-
-  Widget _body(BuildContext context, SetupSizing sizing, SetupStep step) =>
-      SetupStableLayout(
-          reserve: sizing.transitionReserve,
-          maximumBaseline: sizing.transitionBaselineLimit,
-          layout: (
-            sizing.viewport,
-            sizing.textScale,
-            Localizations.localeOf(context)
-          ),
-          child: SetupStepTransition(
-              key: const ValueKey('setup-content'),
-              step: step,
-              builder: (context, step) =>
-                  Column(mainAxisSize: MainAxisSize.min, children: [
-                    SetupFrame(
-                        step: step,
-                        sizing: sizing,
-                        child: _form(context, sizing, step)),
-                    if (sizing.stacked &&
-                        sizing.showIllustration &&
-                        step == SetupStep.name)
-                      const Padding(
-                          padding: EdgeInsets.only(top: 20),
-                          child: SetupPrivacyNote()),
-                  ])));
-
-  Widget _form(BuildContext context, SetupSizing sizing, SetupStep step) {
+  /// A step: its question, then what answers it.
+  Widget _step(BuildContext context, SetupStep step) {
     final l = AppLocalizations.of(context)!;
     final controller = ref.read(firstRunProfileProvider.notifier);
-    return switch (step) {
-      SetupStep.name => DisplayNameForm(
-          compact: sizing.compact,
-          showAvatar: false,
-          showSaveConfirmation: false,
-          initialName: widget.profile.displayName,
-          actionLabel: l.firstRunContinue,
-          onSave: (name) => controller.saveName(name, advance: true)),
-      SetupStep.device => const FirstRunDeviceStep(),
-      SetupStep.network => const FirstRunNetworkStep(),
-    };
+    return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SetupHeading(step: step),
+          const SizedBox(height: MoshSpace.s5),
+          switch (step) {
+            SetupStep.name => DisplayNameForm(
+                showAvatar: false,
+                showSaveConfirmation: false,
+                note: const SetupPrivacyNote(),
+                initialName: widget.profile.displayName,
+                actionLabel: l.firstRunContinue,
+                onSave: (name) => controller.saveName(name, advance: true)),
+            SetupStep.device => const FirstRunDeviceStep(),
+            SetupStep.network => const FirstRunNetworkStep(),
+          },
+        ]);
   }
 }

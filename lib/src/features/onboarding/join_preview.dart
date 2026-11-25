@@ -93,8 +93,7 @@ class JoinPreview extends StatelessWidget {
                     style: text.titleSmall?.copyWith(
                         color: kind == InviteDetectionKind.unknown
                             ? colors.error
-                            : colors.onSurface,
-                        fontWeight: FontWeight.w600)),
+                            : colors.onSurface)),
                 const SizedBox(height: 4),
                 Text(detail,
                     style: text.bodySmall?.copyWith(

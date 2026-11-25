@@ -1,161 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/event_log.dart';
 import 'package:mosh/src/features/diagnostics/mesh_diagnostics.dart';
 import 'package:mosh/src/features/conversation/dm_state.dart';
+import 'package:mosh/src/features/shared/value_row.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart' show MossLibraryInfo;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/conversation/mesh.dart';
 import 'package:mosh/src/util/format.dart';
 
-/// A bordered, rounded group shell with an uppercase label header, then
-/// the group's children in a column.
-///
-/// Reusable by `SessionDiagnostics`, `NoActiveSession`,
-/// `MeshDiagnostics`, and `EventLog`, so each section is the same shell
-/// + a label + children.
+/// A named group of connection status: its label over a line, then what it
+/// holds. [rows] are its readings, each a [ValueRow]; [children] come before
+/// them (an empty state, the metrics of the network, the event log).
 class DiagnosticsGroup extends StatelessWidget {
   const DiagnosticsGroup({
     super.key,
     required this.label,
-    this.leading,
     this.children = const [],
     this.rows = const [],
   });
 
-  /// The uppercase group-label header text (already localized by the
-  /// caller, e.g. `l.diagConversationDetails`).
+  /// The group's name, already localized by the caller.
   final String label;
-
-  /// An optional widget rendered before the label text (e.g. an icon).
-  final Widget? leading;
-
-  /// The group body (rows, an empty-state, a mesh grid, etc.).
   final List<Widget> children;
   final List<(String, String)> rows;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        border: Border.all(color: theme.dividerColor),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
+  Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _GroupLabel(label: label, leading: leading),
+          Semantics(
+            header: true,
+            child: Text(label,
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge!
+                    .copyWith(color: MoshColors.of(context).onSurfaceMuted)),
+          ),
+          const SizedBox(height: MoshSpace.s2),
+          const Divider(),
+          const SizedBox(height: MoshSpace.s1),
           ...children,
           for (final (label, value) in rows)
-            DiagnosticsRow(label: label, value: value),
+            Padding(
+                padding: const EdgeInsets.only(top: MoshSpace.s1),
+                child: ValueRow(label: label, value: value)),
         ],
-      ),
-    );
-  }
-}
-
-/// The group-label header: uppercase, bold, on a tinted surface with a
-/// bottom line.
-class _GroupLabel extends StatelessWidget {
-  const _GroupLabel({required this.label, this.leading});
-
-  final String label;
-  final Widget? leading;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: MoshColors.of(context).surface,
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (leading != null) ...[
-            leading!,
-            const SizedBox(width: 6),
-          ],
-          Text(
-            label.toUpperCase(),
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-              fontSize: 9.5,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A key/value row: a muted label on the left and a mono, right-aligned
-/// value on the right. Named `DiagnosticsRow` to avoid clashing with
-/// Flutter's `Row` widget.
-///
-/// Each row draws its own bottom divider; the group's
-/// `clipBehavior: Clip.antiAlias` + the label's bottom border keep the
-/// visual seams clean, and the container's rounded clip hides the last
-/// row's trailing line at the bottom edge.
-class DiagnosticsRow extends StatelessWidget {
-  const DiagnosticsRow({super.key, required this.label, required this.value});
-
-  /// The row key. Already localized by the caller.
-  final String label;
-
-  /// The row value. May be data (e.g. a transport-path label) or
-  /// localized copy.
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 5,
-            child: Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontSize: 10.5,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            flex: 7,
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+      );
 }
 
 /// A `Session` group with an empty-state (a bold title + a description
@@ -178,9 +73,8 @@ class NoActiveSession extends StatelessWidget {
   }
 }
 
-/// An empty-state body: a bold title + a description span.
-/// Public so the "Mesh booting" empty-state shares the exact layout with
-/// the no-session empty-state (DRY).
+/// What a group shows while it has no values: what is missing, and when the
+/// values appear.
 class DiagnosticsEmptyState extends StatelessWidget {
   const DiagnosticsEmptyState({
     super.key,
@@ -188,38 +82,22 @@ class DiagnosticsEmptyState extends StatelessWidget {
     required this.description,
   });
 
-  /// The bold title.
   final String title;
-
-  /// The description span.
   final String description;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final style = Theme.of(context).textTheme.bodySmall!;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 13),
+      padding: const EdgeInsets.symmetric(vertical: MoshSpace.s3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            title,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            description,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: 11,
-              height: 1.4,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
+          Text(title, style: style),
+          Text(description,
+              style:
+                  style.copyWith(color: MoshColors.of(context).onSurfaceMuted)),
         ],
       ),
     );
@@ -251,8 +129,10 @@ class ConversationDiagnosticsSections extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           DiagnosticsGroup(label: label, rows: rows),
+          const SizedBox(height: MoshSpace.s6),
           MeshDiagnostics(
               mesh: mesh, libraryInfo: libraryInfo, peerMossId: peerMossId),
+          const SizedBox(height: MoshSpace.s6),
           EventLog(events: events),
         ],
       );

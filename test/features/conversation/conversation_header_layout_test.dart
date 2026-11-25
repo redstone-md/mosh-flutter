@@ -30,7 +30,8 @@ void main() {
       final target = find
           .ancestor(of: find.byIcon(icon), matching: find.byType(IconButton))
           .first;
-      expect(tester.getSize(target), const Size.square(40));
+      // Widget tests run as a phone, whose controls are 48 px.
+      expect(tester.getSize(target), const Size.square(48));
     }
     await tester.tap(find.text('Alice'));
     await tester.pumpAndSettle();
@@ -46,12 +47,14 @@ void main() {
     expect(find.byType(PeerStatusDrawer), findsOneWidget);
   });
 
-  testWidgets('the fingerprint remains a separate action within the identity',
+  testWidgets('the fingerprint is compared from the details, not the bar',
       (tester) async {
     await _pumpHeader(tester);
-    await tester.tap(find.byTooltip('End-to-end encrypted'));
+    await tester.tap(find.text('Alice'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('End-to-end encrypted'));
     await tester.pumpAndSettle();
     expect(find.text('Encryption fingerprint'), findsOneWidget);
-    expect(find.byType(PeerStatusDrawer), findsNothing);
+    expect(find.text('0011223344556677'), findsOneWidget);
   });
 }

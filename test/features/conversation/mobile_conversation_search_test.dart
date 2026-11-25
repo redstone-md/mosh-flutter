@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import '../../support/pump.dart';
 
@@ -43,7 +44,7 @@ void main() {
       expect(tapped, 1);
     });
 
-    testWidgets('open: tooltip = closeMessageSearch, icon tinted primary',
+    testWidgets('open: tooltip = closeMessageSearch, the button on a plate',
         (tester) async {
       await _pump(
         tester,
@@ -58,15 +59,13 @@ void main() {
       // Open -> the dedicated close tooltip.
       expect(find.byTooltip(l.closeMessageSearch), findsOneWidget);
       expect(find.byTooltip(l.chatSearchPlaceholder), findsNothing);
-      // The icon is tinted with colorScheme.primary while open.
-      final icon = tester.widget<Icon>(
-        find.descendant(
-          of: find.byType(MobileSearchToggle),
-          matching: find.byIcon(MoshIcons.search),
-        ),
-      );
-      expect(icon.color,
-          Theme.of(tester.element(find.byType(Scaffold))).colorScheme.primary);
+      // While its panel is open the button is the tonal icon button.
+      final plate = tester.widget<Material>(find
+          .descendant(
+              of: find.byType(MobileSearchToggle),
+              matching: find.byType(Material))
+          .first);
+      expect(plate.color, MoshColors.dark.surfaceContainerHighest);
     });
   });
 

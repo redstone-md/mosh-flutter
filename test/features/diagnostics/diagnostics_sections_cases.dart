@@ -58,7 +58,7 @@ void main() {
         (tester) async {
       await _pump(tester, const NoActiveSession());
       // The group label "Session" is uppercased.
-      expect(find.text('SESSION'), findsOneWidget);
+      expect(find.text('Session'), findsOneWidget);
       // The empty-state title + description.
       expect(find.text('No active session'), findsOneWidget);
       expect(
@@ -76,7 +76,7 @@ void main() {
         (tester) async {
       await _pump(tester, SessionDiagnostics(session: _session()));
 
-      expect(find.text('CONVERSATION DETAILS'), findsOneWidget);
+      expect(find.text('Conversation details'), findsOneWidget);
       expect(find.text('Peer'), findsOneWidget);
       expect(find.text('alice'), findsOneWidget);
       expect(find.text('MLS state'), findsOneWidget);

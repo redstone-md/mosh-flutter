@@ -17,33 +17,13 @@ const double kMessageMetaGap = 8;
 /// avatar.
 const double messageAvatarSize = 32;
 
-bool _isCompactChatHeader(BuildContext context) =>
-    MediaQuery.sizeOf(context).width <= 640;
+/// Height of the bar at the top of a conversation and of the panel beside
+/// it: the Top bar card's 64 px.
+const double kChatHeaderHeight = MoshSpace.s16;
 
-/// Toolbar height for a chat AppBar: 70px desktop, 54 under the 640px
-/// breakpoint.
-double chatHeaderHeight(BuildContext context) =>
-    _isCompactChatHeader(context) ? 54 : 70;
-
-/// Chat title: 16px/600, 15px on a narrow header.
-TextStyle chatTitleStyle(BuildContext context) =>
-    Theme.of(context).textTheme.titleMedium!.copyWith(
-          fontSize: _isCompactChatHeader(context) ? 15 : 16,
-          fontWeight: FontWeight.w600,
-          height: 1.25,
-          letterSpacing: 0,
-          color: MoshColors.of(context).onSurface,
-        );
-
-TextStyle chatSubtitleStyle(BuildContext context) =>
-    Theme.of(context).textTheme.bodySmall!.copyWith(
-          fontSize: _isCompactChatHeader(context) ? 11 : 12,
-          height: 1.2,
-          color: MoshColors.of(context).onSurfaceMuted,
-        );
-
-/// The gap under the title: 4px at every width.
-double chatSubtitleGap(BuildContext context) => 4;
+/// Width of the panel beside a conversation on the desktop: its details and
+/// its connection status.
+const double kConversationPanelWidth = 360;
 
 /// Gap from avatar to body in a message row.
 const double kMessageRowGap = 12;

@@ -166,20 +166,20 @@ final settingsScenes = <FigmaScene>[
   FigmaScene('connection-vpn', 'Settings / Connection / VPN bypass expanded',
       (tester, size) async {
     await mountSettings(tester, size, section: _connection);
-    await tapVisible(tester, find.text(l10n.settingsVpnTitle));
+    await tapVisible(tester, find.text(l10n.settingsVpnSetup));
   }),
   FigmaScene(
       'connection-vpn-menu', 'Settings / Connection / Adapter picker open',
       (tester, size) async {
     await mountSettings(tester, size, section: _connection);
-    await tapVisible(tester, find.text(l10n.settingsVpnTitle));
+    await tapVisible(tester, find.text(l10n.settingsVpnSetup));
     await _openSelect<String>(tester);
   }),
   FigmaScene('connection-vpn-restart',
       'Settings / Connection / VPN bypass saved, restart needed',
       (tester, size) async {
     await mountSettings(tester, size, section: _connection);
-    await tapVisible(tester, find.text(l10n.settingsVpnTitle));
+    await tapVisible(tester, find.text(l10n.settingsVpnSetup));
     await tapVisible(tester, find.byType(MoshSwitchRow).first);
   }),
   FigmaScene('connection-vpn-bound', 'Settings / Connection / VPN bypass on',
@@ -188,21 +188,21 @@ final settingsScenes = <FigmaScene>[
       ..seedVpnConsent(
           const VpnBypassConsent(interface_: 'Ethernet', index: 4));
     await mountSettings(tester, size, section: _connection, bridge: bridge);
-    await tapVisible(tester, find.text(l10n.settingsVpnTitle));
+    await tapVisible(tester, find.text(l10n.settingsVpnSetup));
   }),
   FigmaScene('connection-vpn-no-adapter',
       'Settings / Connection / No adapter to bypass with',
       (tester, size) async {
     final bridge = settingsBridge()..seedInterfaces(const [vpnTunnel]);
     await mountSettings(tester, size, section: _connection, bridge: bridge);
-    await tapVisible(tester, find.text(l10n.settingsVpnTitle));
+    await tapVisible(tester, find.text(l10n.settingsVpnSetup));
   }),
   FigmaScene(
       'connection-vpn-error', 'Settings / Connection / Adapters failed to load',
       (tester, size) async {
     final bridge = settingsBridge()..failAlways(BridgeMethod.listInterfaces);
     await mountSettings(tester, size, section: _connection, bridge: bridge);
-    await tapVisible(tester, find.text(l10n.settingsVpnTitle));
+    await tapVisible(tester, find.text(l10n.settingsVpnSetup));
   }),
   ...androidConnectionScenes,
 

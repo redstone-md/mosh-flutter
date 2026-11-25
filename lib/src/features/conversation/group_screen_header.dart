@@ -14,7 +14,8 @@ import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/features/conversation/conversation_chrome.dart';
 import 'package:mosh/src/features/conversation/conversation_app_bar.dart';
 import 'package:mosh/src/features/conversation/conversation_header_title.dart';
-import 'package:mosh/src/features/fingerprint/fingerprint_lock.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart'
+    show kChatHeaderHeight;
 
 class GroupScreenHeader extends ConsumerStatefulWidget
     implements PreferredSizeWidget {
@@ -29,7 +30,7 @@ class GroupScreenHeader extends ConsumerStatefulWidget
   final ConversationChrome chrome;
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => const Size.fromHeight(kChatHeaderHeight);
 
   @override
   ConsumerState<GroupScreenHeader> createState() => _GroupScreenHeaderState();
@@ -73,10 +74,6 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
         name: group == null ? widget.groupId : group.label ?? l.groupUntitled,
         subtitle: group == null ? '' : _groupSubtitle(group, l),
         onOpenDetails: widget.chrome.onOpenPeerStatus,
-        nameAction: FingerprintLock(
-            fingerprint: group?.creatorFingerprint ?? '',
-            hint: l.groupFingerprintHint,
-            besideName: true),
       ),
       leaveMenuLabel: l.groupLeaveLabel,
       leaveMenuIcon: MoshIcons.leave,

@@ -1,5 +1,16 @@
 # Start menu
 
+> **Layout since MOSH-138.** The menu and its steps are drawn from the Start
+> menu and Wizard step cards (`scripts/figma-design/cards/settings.js`,
+> `wizard.js`). The menu is one column, 472px at most: its heading, then the
+> rows grouped by who can read the conversation, each group a panel with a
+> quiet edge. A row is the Start row card and takes the state layers of any
+> control. A step is Back, a centred question with its lead, and the form on
+> a card. The Mosh mark, the welcome subtitle, the two-column layout, the
+> step illustrations in `assets/start/` and the row's hover lift are gone;
+> what below describes them is the history of the earlier layout. Pages,
+> their kept state and the reveal are unchanged.
+
 IVO-50 redesigns the chat pane shown when no conversation is open: a
 welcome beside four ways to begin, each opening its step in place.
 
@@ -61,16 +72,13 @@ rows still lift on hover and focus, without the chevron moving.
 ## Ownership
 
 `NewSessionPanel` owns the current page; `StartPages` keeps the pages
-mounted and fades between them. `StartMenu` lays out `StartHero` and
+mounted and fades between them. `StartMenu` lays out its heading and
 `StartActionList` (rows are `StartRow`); `StartStep` frames a step. The step widgets
 (`ChatCreateStep`, `GroupCreateStep`, `OnboardJoinStep`, `ChannelJoinStep`)
-keep their bridge calls. Illustrations and their prompts live in
-[`assets/start/`](../../assets/start/README.md).
+keep their bridge calls.
 
 ## Known gaps
 
-- `hero.png` carries transparent margins; `StartHero` pulls the mark left
-  by the art's share of the canvas so it lines up with the title.
 - With the storage warning shown, the pane is taller than the window by
   the banner's height, so it scrolls.
 - A private chat invite is not single-use in the core: until a contact

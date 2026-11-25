@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_menu_item.dart';
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, moshTonalIconButtonStyle;
 
 /// One entry in the mobile kebab menu: an immutable value with a `label`,
 /// an `icon`, an `onSelect` callback, and optional `disabled` + `danger`
@@ -72,8 +74,12 @@ class _ChatHeaderMenuState extends State<ChatHeaderMenu> {
       ],
       builder: (context, controller, _) => IconButton(
         focusNode: _focus,
-        icon: const Icon(MoshIcons.more, size: 20),
+        icon: const Icon(MoshIcons.more),
         tooltip: widget.l.chatMoreActions,
+        // The button that opened what is under the bar stands on a plate.
+        style: controller.isOpen
+            ? moshTonalIconButtonStyle(MoshColors.of(context))
+            : null,
         onPressed: widget.actions.isEmpty
             ? null
             : () => controller.isOpen ? controller.close() : controller.open(),

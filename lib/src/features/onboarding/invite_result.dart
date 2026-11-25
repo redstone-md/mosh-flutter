@@ -144,8 +144,7 @@ class _ReadyNote extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title,
-                    style: text.titleSmall?.copyWith(
-                        color: colors.primary, fontWeight: FontWeight.w600)),
+                    style: text.titleSmall?.copyWith(color: colors.primary)),
                 const SizedBox(height: 4),
                 Text(note,
                     style: text.bodySmall?.copyWith(
@@ -193,12 +192,10 @@ class _LinkField extends StatelessWidget {
               child: SelectableText(
                 uri,
                 maxLines: 2,
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 12.5,
-                  height: 1.5,
-                  color: colors.onSurface,
-                ),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall!
+                    .copyWith(color: colors.onSurface),
               ),
             ),
             const SizedBox(width: 8),

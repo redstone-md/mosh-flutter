@@ -12,7 +12,6 @@ import 'package:mosh/src/rust/device_link/types.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 
 import '../../support/first_run.dart';
-import '../../support/first_run_preview.dart';
 import '../../support/scriptable_device_link.dart';
 
 void main() {
@@ -248,14 +247,4 @@ void main() {
       });
     }
   }
-
-  testWidgets('desktop places the illustration beside the name form',
-      (tester) async {
-    await prepareSetupPreview(tester);
-    await FirstRunHarness(profile: const FirstRunProfile()).pump(tester);
-    final illustration = tester.getRect(setupIllustration);
-    final name = tester.getRect(find.byType(TextFormField));
-    expect(illustration.right, lessThan(name.left));
-    await saveSetupPreview(tester, 'first-run-preview');
-  });
 }

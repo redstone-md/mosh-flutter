@@ -12,8 +12,6 @@
   "firstRunDeviceStep": "Device",
   "firstRunNetworkStep": "Network",
   "firstRunProgress": "Step {step} of {total}",
-  "firstRunWelcome": "Welcome to Mosh",
-  "firstRunWelcomeBody": "Private conversations. In your hands.",
   "firstRunEncryption": "Private messages are end-to-end encrypted",
   "firstRunNameTitle": "Choose your name",
   "firstRunNameBody": "Choose the name people will see when you start a conversation.",
@@ -32,8 +30,6 @@
   "firstRunCancelLink": "Cancel linking and continue independently",
   "firstRunLinkAlreadyApproved": "Linking was already approved. This device is now connected to your existing profile. Continue with this profile.",
   "firstRunDeviceError": "Could not finish the device step. Retry or cancel the pending link.",
-  "firstRunAlmostReady": "Almost ready",
-  "firstRunNetworkIntro": "Mosh discovers peers automatically. Choose how this device connects.",
   "firstRunNetworkTitle": "Choose your connection",
   "firstRunNetworkBody": "Use the system connection, or choose a physical network interface if a VPN interferes with discovery.",
   "firstRunVpnDetected": "Your VPN currently carries the default network route.",
@@ -523,10 +519,6 @@
   "@startTitleAccent": {
     "description": "Second part of the start menu title, after startTitleLead"
   },
-  "startSubtitle": "Private chats and groups are end-to-end encrypted. Public channels are open to anyone who joins.",
-  "@startSubtitle": {
-    "description": "Start menu subtitle; must not promise encryption for public channels"
-  },
   "startGroupEncrypted": "End-to-end encrypted",
   "@startGroupEncrypted": {
     "description": "Start menu: heading over the actions that open end-to-end encrypted conversations."
@@ -786,6 +778,10 @@
   "@channelNoticeTitle": {
     "description": "Title of the public-channel notice"
   },
+  "channelHeaderLine": "Public channel, not encrypted",
+  "@channelHeaderLine": {
+    "description": "Line under a public channel's name in the bar at the top of the conversation and in its details: the one kind of conversation that is not end-to-end encrypted says so"
+  },
   "channelNoticeBody": "End-to-end encryption is disabled for public channels. Anyone who joins this channel can read messages.",
   "@channelNoticeBody": {
     "description": "Body of the public-channel notice"
@@ -873,14 +869,6 @@
   "@peerInviteSent": {
     "description": "Disabled-state label for the Message button in the PeerNickname popover when a DM offer was already sent to this peer this session (React MessageLists.tsx alreadyOffered ? \"Invite sent\" : \"Message\")"
   },
-  "summaryDmKicker": "Private DM",
-  "@summaryDmKicker": {
-    "description": "Kicker label for the diagnostics summary card when a private DM session is active"
-  },
-  "summaryIdleKicker": "Diagnostics idle",
-  "@summaryIdleKicker": {
-    "description": "Kicker label for the diagnostics summary card when no session is active"
-  },
   "summaryNoSessionTitle": "No active session",
   "@summaryNoSessionTitle": {
     "description": "Title of the diagnostics summary card when no session is active"
@@ -936,10 +924,6 @@
   "summaryStateError": "Error",
   "@summaryStateError": {
     "description": "State badge text for the diagnostics summary card when a runtime error is present"
-  },
-  "runtimeError": "Runtime error",
-  "@runtimeError": {
-    "description": "Label of the runtime-error alert shown in the diagnostics drawer"
   },
   "diagConversationDetails": "Conversation details",
   "@diagConversationDetails": {
@@ -1224,10 +1208,6 @@
       }
     }
   },
-  "summaryChannelKicker": "Public channel",
-  "@summaryChannelKicker": {
-    "description": "Kicker label for the diagnostics summary card when a public channel is active"
-  },
   "summaryChannelState": "Broadcast",
   "@summaryChannelState": {
     "description": "State badge text for the diagnostics summary card when a public channel is active (channels are always in the Broadcast state)"
@@ -1235,10 +1215,6 @@
   "summaryChannelDescription": "Plaintext channel traffic is riding over the current Moss mesh.",
   "@summaryChannelDescription": {
     "description": "Description of the diagnostics summary card when a public channel is active"
-  },
-  "summaryGroupKicker": "Private group",
-  "@summaryGroupKicker": {
-    "description": "Kicker label for the diagnostics summary card when a private group is active"
   },
   "summaryGroupFallbackTitle": "Encrypted group",
   "@summaryGroupFallbackTitle": {
@@ -1852,6 +1828,10 @@
   "deviceLinkImportImage": "Choose QR image",
   "deviceLinkPasteLabel": "Paste the link from your trusted device",
   "deviceLinkImport": "Connect",
+  "deviceLinkConfirmationCode": "Confirmation code",
+  "@deviceLinkConfirmationCode": {
+    "description": "Label over the code a new device shows while it is being linked, to be compared on the trusted device"
+  },
   "deviceLinkCodeLabel": "Code from the new device",
   "deviceLinkApprove": "Approve device",
   "deviceLinkDecline": "Cancel link",
@@ -1941,6 +1921,22 @@
   "chatDetailsTitle": "Conversation details",
   "chatDetailsFiles": "Shared files",
   "chatDetailsNoFiles": "No shared files yet",
+  "chatLoadErrorTitle": "This conversation could not be loaded",
+  "@chatLoadErrorTitle": {
+    "description": "Title shown in place of the messages when a conversation failed to load"
+  },
+  "chatDetailsEncryptionLine": "Compare the fingerprint to verify",
+  "@chatDetailsEncryptionLine": {
+    "description": "Line under 'End-to-end encrypted' in a conversation's details; pressing the row opens the fingerprint to compare"
+  },
+  "chatDetailsStatus": "Status",
+  "@chatDetailsStatus": {
+    "description": "Label of the first reading under 'Connection details' in a conversation's details: the state of the conversation in one word"
+  },
+  "chatDetailsOpenStatus": "Open connection status",
+  "@chatDetailsOpenStatus": {
+    "description": "Button under the readings of 'Connection details': opens the full connection status in place of the details"
+  },
   "chatDetailsParticipants": "Participants",
   "chatDetailsDiagnostics": "Connection details",
   "chatDetailsProtection": "Conversation protection",
@@ -2002,6 +1998,10 @@
   "deviceLinkStepApprove": "Confirm code",
   "deviceLinkStepFinish": "Link devices",
   "settingsVpnTitle": "If a VPN gets in the way",
+  "settingsVpnSetup": "Set up VPN bypass",
+  "@settingsVpnSetup": {
+    "description": "Line in the VPN card of Connection settings that opens the bypass switch and the choice of a network adapter"
+  },
   "settingsVpnSummary": "Choose an adapter to route Mosh around a VPN.",
   "bindAdapterAutoRestart": "Mosh restarts after applying or clearing this choice.",
   "bindAdapterManualRestart": "After saving, close Mosh completely and open it again to apply the change.",

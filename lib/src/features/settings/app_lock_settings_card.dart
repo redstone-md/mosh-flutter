@@ -38,7 +38,6 @@ class _AppLockSettingsCardState extends ConsumerState<AppLockSettingsCard> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: SettingsSurface(
-        padding: const EdgeInsets.all(20),
         child: ListenableBuilder(
             listenable: access,
             builder: (context, _) => Column(
@@ -46,9 +45,8 @@ class _AppLockSettingsCardState extends ConsumerState<AppLockSettingsCard> {
                     children: [
                       SettingsCardHeader(
                           icon: MoshIcons.lock,
-                          subtitle: Text(l.appLockDelay),
-                          title: Text(l.appLockTitle,
-                              style: Theme.of(context).textTheme.titleMedium)),
+                          title: l.appLockTitle,
+                          subtitle: l.appLockDelay),
                       const SizedBox(height: 12),
                       MoshSelect<int>(
                           label: l.appLockDelay,

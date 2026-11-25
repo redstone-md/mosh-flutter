@@ -75,21 +75,20 @@ void main() {
         'Yuna');
   });
 
-  testWidgets('advancing on a phone keeps outgoing card geometry stable',
+  testWidgets('advancing on a phone keeps the progress and the field in place',
       (tester) async {
     await _pump(tester, SetupStep.name, size: const Size(390, 844));
-    final card = find
-        .ancestor(
-            of: find.byType(SetupProgress), matching: find.byType(Container))
-        .first;
-    final size = tester.getSize(card);
+    final progress = tester.getRect(find.byType(SetupProgress));
+    final field = tester.getRect(find.byType(TextFormField));
     await tester.tap(find.text('Continue'));
     await tester.pump();
     await tester.pump();
     expect(find.text('Name saved.'), findsNothing);
-    expect(tester.getSize(card), size);
+    expect(tester.getRect(find.byType(SetupProgress)), progress);
     await tester.pump(const Duration(milliseconds: 40));
-    expect(tester.getSize(card), size);
+    expect(tester.getRect(find.byType(SetupProgress)), progress);
+    // The outgoing step only slides aside; it does not jump while it fades.
+    expect(tester.getRect(find.byType(TextFormField)).top, field.top);
     await tester.pumpAndSettle();
   });
 

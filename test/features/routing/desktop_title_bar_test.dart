@@ -4,7 +4,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show moshThemeData;
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/onboarding/first_run_profile.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
@@ -35,7 +37,8 @@ Future<void> _app(WidgetTester tester, DesktopWindowController window,
         physical: size,
         windowController: window);
 
-Future<void> _frame(WidgetTester tester, DesktopWindowController window) async {
+Future<void> _frame(WidgetTester tester, DesktopWindowController window,
+    {MoshColors colors = MoshColors.dark}) async {
   tester.view.physicalSize = const Size(400, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
@@ -44,7 +47,7 @@ Future<void> _frame(WidgetTester tester, DesktopWindowController window) async {
   await pumpScreen(
       tester,
       Theme(
-        data: moshThemeData,
+        data: buildMoshTheme(colors),
         child: DesktopWindowFrame(
             controller: window,
             router: appRouter,
@@ -55,7 +58,58 @@ Future<void> _frame(WidgetTester tester, DesktopWindowController window) async {
 Finder _inBar(Finder matching) =>
     find.descendant(of: find.byType(MoshTitleBar), matching: matching);
 
+/// The plate a window button is drawn on.
+Material _plate(WidgetTester tester, String tooltip) => tester.widget(find
+    .descendant(of: find.byTooltip(tooltip), matching: find.byType(Material))
+    .first);
+
+Color? _glyphColor(WidgetTester tester, String tooltip) => tester
+    .widget<Icon>(find.descendant(
+        of: find.byTooltip(tooltip), matching: find.byType(Icon)))
+    .color;
+
 void main() {
+  for (final (palette, colors) in [
+    ('dark', MoshColors.dark),
+    ('light', MoshColors.light),
+  ]) {
+    testWidgets('$palette: only close turns to the error colour when hovered',
+        (tester) async {
+      final window = await _window(DesktopWindowPlatform());
+      await _frame(tester, window, colors: colors);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+
+      await mouse.moveTo(tester.getCenter(find.byTooltip('Close')));
+      await tester.pump();
+      expect(_plate(tester, 'Close').color, colors.error);
+      expect(_glyphColor(tester, 'Close'), colors.onError);
+
+      await mouse.moveTo(tester.getCenter(find.byTooltip('Minimize')));
+      await tester.pump();
+      expect(_plate(tester, 'Close').color, Colors.transparent);
+      expect(_plate(tester, 'Minimize').color,
+          MoshState.tint(colors.onSurface, MoshState.hover));
+      expect(_glyphColor(tester, 'Minimize'), colors.onSurfaceVariant);
+    });
+  }
+
+  testWidgets('a maximized window offers to restore it', (tester) async {
+    final platform = DesktopWindowPlatform();
+    final window = await _window(platform);
+    await _frame(tester, window);
+    await platform.event('maximize');
+    await tester.pump();
+    expect(find.byTooltip('Maximize'), findsNothing);
+    expect(
+        tester
+            .widget<Icon>(find.descendant(
+                of: find.byTooltip('Restore'), matching: find.byType(Icon)))
+            .icon,
+        MoshIcons.restore);
+  });
+
   testWidgets('older window events preserve the latest queued toggle',
       (tester) async {
     final maximize = Completer<void>();
@@ -281,7 +335,8 @@ void main() {
     final window = await _window(platform);
     await _frame(tester, window);
     final first = platform.calls.lastWhere((c) => c.method == 'maximizeRegion');
-    expect((first.arguments as Map)['left'], 308.0);
+    // Three 48 px buttons at the right of a 400 px window: maximize is second.
+    expect((first.arguments as Map)['left'], 304.0);
     tester.view.devicePixelRatio = 2;
     tester.view.physicalSize = const Size(800, 1600);
     await tester.pump();

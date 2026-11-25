@@ -58,6 +58,7 @@ class _DesktopWindowFrameState extends ConsumerState<DesktopWindowFrame> {
           final hasStatus = chatRoute && !onList && active != null;
           if (!hasStatus) _showStatus = false;
           return _chrome(c,
+              setup: !ready,
               chatRoute: chatRoute && !onList,
               hasStatus: hasStatus,
               onToggleChatList:
@@ -68,7 +69,8 @@ class _DesktopWindowFrameState extends ConsumerState<DesktopWindowFrame> {
   }
 
   Widget _chrome(DesktopWindowController c,
-          {required bool chatRoute,
+          {required bool setup,
+          required bool chatRoute,
           required bool hasStatus,
           VoidCallback? onToggleChatList}) =>
       ListenableBuilder(
@@ -81,12 +83,16 @@ class _DesktopWindowFrameState extends ConsumerState<DesktopWindowFrame> {
                   explicitChildNodes: true,
                   child: MoshTitleBar(
                       integrated: true,
+                      showName: !setup,
                       showChatList: chatRoute,
                       onToggleChatList: onToggleChatList,
                       leading:
                           DesktopCaptionButtons(controller: c, leading: true),
                       trailing:
-                          DesktopCaptionButtons(controller: c, leading: false),
+                          DesktopCaptionButtons.names(c, leading: false).isEmpty
+                              ? null
+                              : DesktopCaptionButtons(
+                                  controller: c, leading: false),
                       dragArea: (child) => _dragArea(c, child),
                       onOpenPeerStatus: hasStatus
                           ? () => setState(() => _showStatus = true)

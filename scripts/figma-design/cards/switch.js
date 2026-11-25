@@ -1,4 +1,4 @@
-// Switch and the settings row that carries one (AsyncSwitchTile).
+// Switch and the settings row that carries one (SettingsToggleCard).
 card('Switch', 'A setting that takes effect at once. On is the saffron track. The row names the setting, explains it in one line and shows a spinner while the change is being saved. The whole row is the press target; a switch on its own gets a 48 px one on the phone.');
 function toggle({ Value, State, Device }) {
   const on = Value === 'On', off = State === 'Disabled';

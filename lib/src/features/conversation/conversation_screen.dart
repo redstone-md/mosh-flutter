@@ -10,7 +10,7 @@ import 'package:mosh/src/features/conversation/conversation_chrome.dart';
 import 'package:mosh/src/features/conversation/conversation_details_panel.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart'
-    show chatHeaderHeight;
+    show kChatHeaderHeight, kConversationPanelWidth;
 import 'package:mosh/src/features/conversation/conversation_leave_prompt.dart';
 import 'package:mosh/src/features/conversation/conversation_screen_body.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
@@ -293,14 +293,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       filter: _filter,
       header: widget.header(context, chrome),
       builder: (context, header) => Scaffold(
-        // The wrapper aligns the header's preferredSize with the toolbar the
-        // ConversationAppBar actually renders (54px under the 640px
-        // breakpoint, 70px above it). The kind headers report kToolbarHeight
-        // (56) while their AppBar draws 54 or 70: Scaffold clamps its slot to
-        // the reported height, so a 70px toolbar was clipped to 56 and a 54px
-        // one left a 2px band of app-bar background above the body.
+        // The header is the selection bar or the kind's own bar, picked by
+        // the selection host: the slot is told the one height both have.
         appBar: PreferredSize(
-          preferredSize: Size.fromHeight(chatHeaderHeight(context)),
+          preferredSize: const Size.fromHeight(kChatHeaderHeight),
           child: header,
         ),
         body: ConversationScreenBody(
@@ -321,9 +317,8 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     if (!_detailsDocked || !_detailsOpen) return chat;
     return Row(children: [
       Expanded(child: chat),
-      const VerticalDivider(width: 1),
       SizedBox(
-        width: 320,
+        width: kConversationPanelWidth,
         child: ConversationDetailsPanel(
           key: const ValueKey('conversation-details-docked'),
           target: _target,

@@ -149,14 +149,9 @@ class _VoiceSettingsSectionState extends ConsumerState<VoiceSettingsSection> {
 
   Widget _testButton(AppLocalizations l) => FilledButton.icon(
         onPressed: _toggleTest,
-        icon: Icon(_ringtone == null ? MoshIcons.speaker : MoshIcons.stop,
-            size: 20),
+        icon: Icon(_ringtone == null ? MoshIcons.speaker : MoshIcons.stop),
         label: Text(_ringtone == null
             ? l.settingsTestRingtone
             : l.settingsStopTestRingtone),
-        style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(44),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        ),
       );
 }

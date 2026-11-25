@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_field.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_spinner.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
+import 'package:mosh/src/features/shared/inline_error.dart';
 
 /// Shared name editor for setup and Settings. Persist before reporting success.
 class DisplayNameForm extends StatefulWidget {
@@ -11,14 +14,13 @@ class DisplayNameForm extends StatefulWidget {
       required this.initialName,
       required this.actionLabel,
       required this.onSave,
-      this.compact = false,
       this.showAvatar = true,
       this.showPlus = false,
-      this.showSaveConfirmation = true});
+      this.showSaveConfirmation = true,
+      this.note});
   final String initialName;
   final String actionLabel;
   final Future<void> Function(String) onSave;
-  final bool compact;
 
   /// The profile editor previews initials; setup leads straight to the field.
   final bool showAvatar;
@@ -26,6 +28,9 @@ class DisplayNameForm extends StatefulWidget {
 
   /// Settings confirms a save; the wizard confirms by moving to the next step.
   final bool showSaveConfirmation;
+
+  /// Stands between the field and the button: what setup says about the name.
+  final Widget? note;
 
   @override
   State<DisplayNameForm> createState() => _DisplayNameFormState();
@@ -67,7 +72,6 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final radius = widget.compact ? 36.0 : 48.0;
     return Form(
         key: _form,
         child: Column(
@@ -79,46 +83,53 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                   child: Avatar(
                       name: _name.text,
                       sign: _name.text.trim().isEmpty ? MoshIcons.person : null,
-                      radius: radius,
+                      radius: MoshSpace.s12,
                       ownPlus: widget.showPlus)),
-              SizedBox(height: widget.compact ? 16 : 28),
+              const SizedBox(height: MoshSpace.s6),
             ],
-            MoshField(
-              enabled: !_busy,
-              label: l.setupDisplayNameLabel,
-              child: TextFormField(
-                  controller: _name,
-                  enabled: !_busy,
-                  maxLength: 64,
-                  textCapitalization: TextCapitalization.words,
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => _save(),
-                  onChanged: (_) => setState(() => _saved = false),
-                  validator: (name) => name == null || name.trim().isEmpty
-                      ? l.firstRunNameRequired
-                      : null,
-                  decoration: InputDecoration(
-                      prefixIcon: const Icon(MoshIcons.person),
-                      counterText: '',
-                      helperText: l.firstRunNameHint,
-                      helperMaxLines: 3,
-                      errorMaxLines: 3)),
+            _field(l),
+            if (widget.note case final note?) ...[
+              const SizedBox(height: MoshSpace.s5),
+              note,
+            ],
+            const SizedBox(height: MoshSpace.s5),
+            MoshLoading(
+              loading: _busy,
+              child: FilledButton.icon(
+                  onPressed: _save,
+                  icon: _busy ? const MoshSpinner() : null,
+                  label: Text(widget.actionLabel)),
             ),
-            SizedBox(height: widget.compact ? 16 : 24),
-            FilledButton(
-                onPressed: _busy ? null : _save,
-                child: Text(_busy ? l.firstRunSaving : widget.actionLabel)),
             if (_error != null || _saved) ...[
-              const SizedBox(height: 12),
-              Semantics(
-                  liveRegion: true,
-                  child: Text(_error ?? l.firstRunNameSaved,
-                      style: _error == null
-                          ? null
-                          : TextStyle(
-                              color: Theme.of(context).colorScheme.error))),
+              const SizedBox(height: MoshSpace.s3),
+              if (_error != null)
+                InlineError(message: _error)
+              else
+                Semantics(liveRegion: true, child: Text(l.firstRunNameSaved)),
             ],
           ],
         ));
   }
+
+  Widget _field(AppLocalizations l) => MoshField(
+        enabled: !_busy,
+        label: l.setupDisplayNameLabel,
+        child: TextFormField(
+            controller: _name,
+            enabled: !_busy,
+            maxLength: 64,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => _save(),
+            onChanged: (_) => setState(() => _saved = false),
+            validator: (name) => name == null || name.trim().isEmpty
+                ? l.firstRunNameRequired
+                : null,
+            decoration: InputDecoration(
+                prefixIcon: const Icon(MoshIcons.person),
+                counterText: '',
+                helperText: l.firstRunNameHint,
+                helperMaxLines: 3,
+                errorMaxLines: 3)),
+      );
 }

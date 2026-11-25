@@ -63,7 +63,7 @@ void main() {
     expect(bridge.countOf(BridgeMethod.listInterfaces), 0);
     expect(bridge.countOf(BridgeMethod.nativeRuntimeStatus), 0);
     expect(bridge.countOf(BridgeMethod.mossLibraryInfo), 0);
-    await _open(tester, 'If a VPN gets in the way');
+    await _open(tester, 'Set up VPN bypass');
     expect(bridge.countOf(BridgeMethod.listInterfaces), 1);
     expect(find.text('VPN bypass'), findsOneWidget);
     expect(bridge.countOf(BridgeMethod.nativeRuntimeStatus), 0);
@@ -74,7 +74,7 @@ void main() {
       (tester) async {
     final bridge = _bridge();
     await _pump(tester, bridge);
-    await _open(tester, 'If a VPN gets in the way');
+    await _open(tester, 'Set up VPN bypass');
     expect(find.textContaining('After saving, close Mosh completely'),
         findsOneWidget);
     await tester.ensureVisible(find.byType(MoshSwitchRow));
@@ -86,8 +86,8 @@ void main() {
             ?.arg<String?>('interfaceName'),
         'Ethernet');
     expect(find.textContaining('Saved. Close Mosh completely'), findsOneWidget);
-    await _open(tester, 'If a VPN gets in the way');
-    await _open(tester, 'If a VPN gets in the way');
+    await _open(tester, 'Set up VPN bypass');
+    await _open(tester, 'Set up VPN bypass');
     expect(find.textContaining('Saved. Close Mosh completely'), findsOneWidget);
     expect(bridge.countOf(BridgeMethod.listInterfaces), 1);
   });
@@ -99,7 +99,7 @@ void main() {
     addTearDown(tester.view.reset);
     final bridge = _bridge();
     await _pump(tester, bridge, textScale: 2);
-    await _open(tester, 'If a VPN gets in the way');
+    await _open(tester, 'Set up VPN bypass');
     await tester.ensureVisible(find.byTooltip('Refresh devices'));
     expect(find.text('VPN bypass'), findsOneWidget);
     expect(tester.takeException(), isNull);

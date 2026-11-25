@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/features/shared/inline_error.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
@@ -67,32 +69,32 @@ class _FirstRunDeviceStepState extends ConsumerState<FirstRunDeviceStep> {
           DevicesSettingsSection(
               joiningOnly: true,
               onCancelled: () => setState(() => _connecting = false)),
-        const SizedBox(height: 20),
+        const SizedBox(height: MoshSpace.s5),
       ] else ...[
         OutlinedButton.icon(
             onPressed: locked ? null : () => setState(() => _connecting = true),
             icon: const Icon(MoshIcons.scan),
             label: Text(l.firstRunConnectDevice)),
-        const SizedBox(height: 12),
+        const SizedBox(height: MoshSpace.s3),
       ],
-      if (connected)
-        FilledButton(
-            onPressed: locked ? null : _continue,
-            child: Text(l.firstRunContinue))
-      else
+      // One primary button moves on. While a link waits for its answer the
+      // way on is to give it up, which is the quiet button.
+      if (pending && !connected)
         OutlinedButton(
             onPressed: locked ? null : _continue,
+            child: Text(l.firstRunCancelLink))
+      else
+        FilledButton(
+            onPressed: locked ? null : _continue,
             child:
-                Text(pending ? l.firstRunCancelLink : l.firstRunFirstDevice)),
-      const SizedBox(height: 12),
-      TextButton(
-          onPressed: locked || pending ? null : () => _back(),
-          child: Text(l.firstRunBack)),
-      if (_error != null)
-        Semantics(
-            liveRegion: true,
-            child: Text(_error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error))),
+                Text(connected ? l.firstRunContinue : l.firstRunFirstDevice)),
+      const SizedBox(height: MoshSpace.s5),
+      Center(
+        child: TextButton(
+            onPressed: locked || pending ? null : () => _back(),
+            child: Text(l.firstRunBack)),
+      ),
+      if (_error != null) InlineError(message: _error),
       if (_notice != null) Semantics(liveRegion: true, child: Text(_notice!)),
     ]);
   }

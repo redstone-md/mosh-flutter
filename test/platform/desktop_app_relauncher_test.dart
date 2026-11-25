@@ -140,7 +140,7 @@ void main() {
               )),
           overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
 
-      await tester.tap(find.text('If a VPN gets in the way'));
+      await tester.tap(find.text('Set up VPN bypass'));
       await tester.pumpAndSettle();
       final toggle = find.byType(MoshSwitchRow);
       await tester.ensureVisible(toggle);

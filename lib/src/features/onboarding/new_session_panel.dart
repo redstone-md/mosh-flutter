@@ -69,21 +69,18 @@ class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
               onPickChannel: () => _go(OnboardStep.channel),
             ),
             StartStep(
-              image: 'assets/start/chat.png',
               title: l.onboardTileChatTitle,
               subtitle: l.onboardChatStepBody,
               onBack: _backToMenu,
               child: ChatCreateStep(onOpened: _openChat),
             ),
             StartStep(
-              image: 'assets/start/group.png',
               title: l.onboardTileGroupTitle,
               subtitle: l.onboardGroupStepBody,
               onBack: _backToMenu,
               child: const GroupCreateStep(),
             ),
             StartStep(
-              image: 'assets/start/join.png',
               title: l.onboardTileJoinTitle,
               subtitle: l.onboardJoinStepBody,
               onBack: _backToMenu,
@@ -91,7 +88,6 @@ class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
               child: const OnboardJoinStep(),
             ),
             StartStep(
-              image: 'assets/start/channel.png',
               title: l.onboardTileChannelTitle,
               subtitle: l.onboardChannelStepLead,
               onBack: _backToMenu,

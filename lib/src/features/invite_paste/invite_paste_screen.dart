@@ -25,7 +25,6 @@ class InvitePasteScreen extends StatelessWidget {
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
             child: StartStep(
-              image: 'assets/start/join.png',
               title: l.onboardTileJoinTitle,
               subtitle: l.onboardJoinStepBody,
               onBack: () => context.go(AppRoutes.chat),

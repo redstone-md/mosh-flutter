@@ -46,16 +46,16 @@ void main() {
     );
 
     for (final text in [
-      'CHANNEL DETAILS',
+      'Channel details',
       '#mosh-dev',
       'Alice workstation',
       'Development discussion',
       '0123456789…TAIL',
-      'MOSS NETWORK',
+      'Moss network',
       'channel-mesh',
       'moss-test-1.2.3',
       '/tmp/mosh-field.log',
-      'MOSS EVENTS',
+      'Moss events',
       'channelJoined',
     ]) {
       expect(find.text(text), findsOneWidget);
@@ -80,7 +80,7 @@ void main() {
     await _pump(tester, GroupDiagnostics(group: group, libraryInfo: _library));
 
     for (final text in [
-      'GROUP DETAILS',
+      'Group details',
       'Research team',
       '3',
       'admin',

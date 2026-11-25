@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/settings/settings_toggle_card.dart';
-import 'package:mosh/src/features/settings/settings_card.dart';
-import 'package:mosh/src/features/shared/async_switch_tile.dart';
 
 import 'crash_reporting.dart';
 
@@ -21,16 +19,14 @@ class CrashReportingToggle extends ConsumerWidget {
       notice: l.settingsCrashReportsNativeWarning,
       detailsTitle: l.settingsCrashReportsDetailsTitle,
       details: l.settingsCrashReportsDetails,
-      toggle: AsyncSwitchTile(
-        secondary: const SettingsIcon(MoshIcons.bug),
-        title: l.settingsCrashReportsTitle,
-        subtitle: reporting.available
-            ? l.settingsCrashReportsSubtitle
-            : l.settingsCrashReportsUnavailable,
-        read: reporting.isEnabled,
-        write: reporting.setEnabled,
-        enabled: reporting.available,
-      ),
+      icon: MoshIcons.bug,
+      title: l.settingsCrashReportsTitle,
+      subtitle: reporting.available
+          ? l.settingsCrashReportsSubtitle
+          : l.settingsCrashReportsUnavailable,
+      read: reporting.isEnabled,
+      write: reporting.setEnabled,
+      enabled: reporting.available,
     );
   }
 }

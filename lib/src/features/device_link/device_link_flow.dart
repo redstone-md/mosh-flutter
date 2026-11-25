@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/shared/toasts/toaster.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/app/mosh_shapes.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/settings/settings_card.dart';
 import 'package:mosh/src/rust/device_link/types.dart';
@@ -37,20 +37,24 @@ class DeviceLinkFlow extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final joining = role == DeviceLinkRole.joining;
     return SettingsCard(
-      icon: joining ? MoshIcons.scan : MoshIcons.link,
+      icon: joining ? MoshIcons.qr : MoshIcons.devices,
       title: joining ? l.deviceLinkConnectThis : l.deviceLinkLinkOther,
       hint: importForm != null
           ? l.deviceLinkJoinHelp
           : deviceLinkPhase(l, snapshot.phase),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        const SizedBox(height: MoshSpace.s1),
         DeviceLinkSteps(role: role, phase: snapshot.phase),
-        const SizedBox(height: 20),
+        const SizedBox(height: MoshSpace.s4),
         ..._content(context, l),
-        const SizedBox(height: 16),
+        const SizedBox(height: MoshSpace.s4),
         if (snapshot.phase != DeviceLinkPhase.delivering)
-          TextButton(
-              onPressed: busy ? null : onCancel,
-              child: Text(l.deviceLinkDecline)),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+                onPressed: busy ? null : onCancel,
+                child: Text(l.deviceLinkDecline)),
+          ),
       ]),
     );
   }
@@ -66,7 +70,7 @@ class DeviceLinkFlow extends StatelessWidget {
               await Clipboard.setData(ClipboardData(text: snapshot.qrUri!));
               toaster.show(l.messageCopied, kind: ToastKind.success);
             },
-            icon: const Icon(MoshIcons.copy, size: 18),
+            icon: const Icon(MoshIcons.copy),
             label: Text(l.deviceLinkCopy),
           ),
           Text(l.deviceLinkExpires,
@@ -77,20 +81,26 @@ class DeviceLinkFlow extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
         ],
-        if (snapshot.confirmationCode != null)
+        if (snapshot.confirmationCode case final code?)
+          // A plate set into the card to hold the code apart.
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(vertical: MoshSpace.s4),
             decoration: BoxDecoration(
-              color: MoshColors.of(context).surfaceContainerLowest,
-              borderRadius: MoshShapes.conversationRow,
-              border: Border.all(color: MoshColors.of(context).outlineVariant),
+              color: MoshColors.of(context).surfaceContainer,
+              borderRadius:
+                  const BorderRadius.all(Radius.circular(MoshRadius.small)),
             ),
-            child: SelectableText(snapshot.confirmationCode!,
-                textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontFamily: 'monospace', letterSpacing: 2)),
+            child: Column(children: [
+              Text(l.deviceLinkConfirmationCode,
+                  style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: MoshSpace.s1),
+              SelectableText(code,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context)
+                      .textTheme
+                      .displaySmall!
+                      .copyWith(fontFeatures: kLiveNumberFontFeatures)),
+            ]),
           ),
         if (snapshot.phase == DeviceLinkPhase.awaitingApproval)
           DeviceLinkApprovalForm(busy: busy, onApprove: onApprove),

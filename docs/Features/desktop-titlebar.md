@@ -11,9 +11,13 @@ name remains in the chat header. Unavailable snapshots say unknown; a pending
 diagnostics refresh disables its refresh button.
 
 At narrow widths the product wordmark and status text yield before controls.
-The logo and buttons remain on one row. The bar has a 44 logical-pixel minimum
-height and grows with text scaling. Caption and diagnostic controls have
-localized tooltips, accessible names and keyboard actions.
+The logo and buttons remain on one row. The bar follows the Window title bar
+card: it lies on the panel level, has a 40 logical-pixel minimum height and
+grows with text scaling. The window buttons are drawn by Mosh from its own
+icons in the theme's colours, 48 by 40 pixels each; close turns to the error
+colour under the pointer and a maximized window offers Restore. Caption and
+diagnostic controls have localized tooltips, accessible names and keyboard
+actions.
 
 ## Native behavior
 

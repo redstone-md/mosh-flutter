@@ -12,8 +12,6 @@
   "firstRunDeviceStep": "Устройство",
   "firstRunNetworkStep": "Сеть",
   "firstRunProgress": "Шаг {step} из {total}",
-  "firstRunWelcome": "Добро пожаловать в Mosh",
-  "firstRunWelcomeBody": "Приватное общение. В ваших руках.",
   "firstRunEncryption": "Личные сообщения защищены сквозным шифрованием",
   "firstRunNameTitle": "Выберите своё имя",
   "firstRunNameBody": "Выберите имя, которое увидят собеседники при создании нового разговора.",
@@ -32,8 +30,6 @@
   "firstRunCancelLink": "Отменить привязку и продолжить отдельно",
   "firstRunLinkAlreadyApproved": "Привязка уже подтверждена. Это устройство подключено к вашему существующему профилю. Продолжите с этим профилем.",
   "firstRunDeviceError": "Не удалось завершить настройку устройства. Повторите попытку или отмените незавершённую привязку.",
-  "firstRunAlmostReady": "Почти готово",
-  "firstRunNetworkIntro": "Mosh находит участников автоматически. Выберите подключение для этого устройства.",
   "firstRunNetworkTitle": "Настройте подключение",
   "firstRunNetworkBody": "Используйте системное подключение или выберите физический сетевой интерфейс, если VPN мешает обнаружению участников.",
   "firstRunVpnDetected": "Сейчас маршрут по умолчанию проходит через VPN.",
@@ -173,7 +169,6 @@
   "startEyebrow": "Добро пожаловать в Mosh",
   "startTitleLead": "Начать",
   "startTitleAccent": "разговор",
-  "startSubtitle": "Приватные чаты и группы защищены сквозным шифрованием. Публичные каналы открыты всем, кто в них вошёл.",
   "startGroupEncrypted": "Сквозное шифрование",
   "startGroupOpen": "Открыто всем",
   "onboardBack": "Назад",
@@ -238,6 +233,7 @@
   "channelLeaveLabel": "Покинуть канал",
   "channelBroadcastBadge": "Трансляция",
   "channelNoticeTitle": "Публичный канал",
+  "channelHeaderLine": "Публичный канал, без шифрования",
   "channelNoticeBody": "Сквозное шифрование выключено для публичных каналов. Любой, кто присоединится к этому каналу, может читать сообщения.",
   "channelEmptyTitle": "В этом канале пока нет сообщений.",
   "channelEmptyBody": "Скажите привет. Любой, кто подписан на этот канал, увидит ваше сообщение.",
@@ -264,14 +260,6 @@
   },
   "peerMessageAction": "Написать",
   "peerInviteSent": "Приглашение отправлено",
-  "summaryDmKicker": "Личный диалог",
-  "@summaryDmKicker": {
-    "description": "Kicker label for the diagnostics summary card when a private DM session is active"
-  },
-  "summaryIdleKicker": "Диагностика неактивна",
-  "@summaryIdleKicker": {
-    "description": "Kicker label for the diagnostics summary card when no session is active"
-  },
   "summaryNoSessionTitle": "Нет активной сессии",
   "@summaryNoSessionTitle": {
     "description": "Title of the diagnostics summary card when no session is active"
@@ -327,10 +315,6 @@
   "summaryStateError": "Ошибка",
   "@summaryStateError": {
     "description": "State badge text for the diagnostics summary card when a runtime error is present"
-  },
-  "runtimeError": "Ошибка среды выполнения",
-  "@runtimeError": {
-    "description": "Label of the runtime-error alert shown in the diagnostics drawer"
   },
   "diagConversationDetails": "Детали диалога",
   "@diagConversationDetails": {
@@ -594,10 +578,6 @@
       }
     }
   },
-  "summaryChannelKicker": "Публичный канал",
-  "@summaryChannelKicker": {
-    "description": "Kicker label for the diagnostics summary card when a public channel is active"
-  },
   "summaryChannelState": "Трансляция",
   "@summaryChannelState": {
     "description": "State badge text for the diagnostics summary card when a public channel is active (channels are always in the Broadcast state)"
@@ -605,10 +585,6 @@
   "summaryChannelDescription": "Трафик открытого канала идёт поверх текущей сети Moss.",
   "@summaryChannelDescription": {
     "description": "Description of the diagnostics summary card when a public channel is active"
-  },
-  "summaryGroupKicker": "Приватная группа",
-  "@summaryGroupKicker": {
-    "description": "Kicker label for the diagnostics summary card when a private group is active"
   },
   "summaryGroupFallbackTitle": "Зашифрованная группа",
   "@summaryGroupFallbackTitle": {
@@ -879,6 +855,7 @@
   "deviceLinkImportImage": "Выбрать картинку с QR",
   "deviceLinkPasteLabel": "Ссылка с доверенного устройства",
   "deviceLinkImport": "Подключиться",
+  "deviceLinkConfirmationCode": "Код подтверждения",
   "deviceLinkCodeLabel": "Код с нового устройства",
   "deviceLinkApprove": "Подтвердить устройство",
   "deviceLinkDecline": "Отменить привязку",
@@ -941,6 +918,10 @@
   "chatDetailsTitle": "Сведения о беседе",
   "chatDetailsFiles": "Общие файлы",
   "chatDetailsNoFiles": "Общих файлов пока нет",
+  "chatLoadErrorTitle": "Не удалось загрузить переписку",
+  "chatDetailsEncryptionLine": "Сравните отпечаток, чтобы проверить",
+  "chatDetailsStatus": "Состояние",
+  "chatDetailsOpenStatus": "Открыть статус подключения",
   "chatDetailsParticipants": "Участники",
   "chatDetailsDiagnostics": "Сведения о соединении",
   "chatDetailsProtection": "Защита беседы",
@@ -969,6 +950,7 @@
   "deviceLinkStepApprove": "Подтвердить код",
   "deviceLinkStepFinish": "Связать устройства",
   "settingsVpnTitle": "Если мешает VPN",
+  "settingsVpnSetup": "Настроить обход VPN",
   "settingsVpnSummary": "Выберите адаптер, чтобы Mosh работал в обход VPN.",
   "bindAdapterAutoRestart": "После применения или отмены выбора Mosh перезапустится.",
   "bindAdapterManualRestart": "После сохранения полностью закройте Mosh и откройте снова, чтобы применить изменение.",

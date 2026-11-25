@@ -7,92 +7,66 @@ const setupStepDuration = Duration(milliseconds: 240);
 const setupStepExitDuration = Duration(milliseconds: 120);
 const setupStepCurve = Cubic(.23, 1, .32, 1);
 
-/// Reserve the first step's natural height without retaining expanded import
-/// panels. A viewport, text-scale or locale change starts a new measurement.
+/// Places the wizard in its viewport: the step it opens with stands in the
+/// middle, and from then on its top stays where it is, so the progress does
+/// not move when a taller or a shorter step takes the place of the first.
+/// A step too tall for the room under that top raises it, and one taller
+/// than the window scrolls.
+///
+/// A change of [layout] (the viewport, the text size, the language) measures
+/// anew.
 class SetupStableLayout extends SingleChildRenderObjectWidget {
   const SetupStableLayout(
       {super.key,
       required this.layout,
-      required this.reserve,
-      required this.maximumBaseline,
+      required this.viewportHeight,
       required super.child});
   final Object layout;
-  final double reserve;
-  final double maximumBaseline;
+  final double viewportHeight;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
-      _StableLayout(layout, reserve, maximumBaseline);
+      _StableLayout(layout, viewportHeight);
 
   @override
   void updateRenderObject(BuildContext context, RenderObject renderObject) =>
-      (renderObject as _StableLayout)
-          .configure(layout, reserve, maximumBaseline);
+      (renderObject as _StableLayout).configure(layout, viewportHeight);
 }
 
-class _StableLayout extends RenderProxyBox {
-  _StableLayout(this._layout, this._reserve, this._maximumBaseline);
+class _StableLayout extends RenderShiftedBox {
+  _StableLayout(this._layout, this._viewportHeight) : super(null);
   Object _layout;
-  double _reserve;
-  double _maximumBaseline;
-  double? _baseline;
+  double _viewportHeight;
+  double? _top;
 
-  void configure(Object value, double reserve, double maximumBaseline) {
-    if ((value, reserve, maximumBaseline) ==
-        (_layout, _reserve, _maximumBaseline)) {
-      return;
-    }
-    _layout = value;
-    _reserve = reserve;
-    _maximumBaseline = maximumBaseline;
-    _baseline = null;
+  void configure(Object layout, double viewportHeight) {
+    if ((layout, viewportHeight) == (_layout, _viewportHeight)) return;
+    _layout = layout;
+    _viewportHeight = viewportHeight;
+    _top = null;
     markNeedsLayout();
   }
 
   @override
   void performLayout() {
-    if (_baseline == null) {
-      child!.layout(constraints, parentUsesSize: true);
-      final natural = child!.size.height;
-      final room = (_maximumBaseline - natural).clamp(0.0, _reserve);
-      _baseline = natural + room;
-    }
-    child!.layout(
-        constraints.copyWith(
-            minHeight:
-                _baseline!.clamp(constraints.minHeight, constraints.maxHeight)),
+    final step = child!;
+    step.layout(BoxConstraints(maxWidth: constraints.maxWidth),
         parentUsesSize: true);
-    size = child!.size;
+    final room =
+        (_viewportHeight - step.size.height).clamp(0.0, double.infinity);
+    // A step that no longer fits under the top it was given (it opened
+    // while still loading, say) pulls the top up just far enough, for good.
+    final top = _top = (_top ?? room / 2).clamp(0.0, room);
+    size = constraints.constrain(Size(constraints.maxWidth,
+        (top + step.size.height).clamp(_viewportHeight, double.infinity)));
+    (step.parentData! as BoxParentData).offset =
+        Offset((size.width - step.size.width) / 2, top);
   }
 }
 
-/// Give the glass artwork a little depth independently of the form's slide.
-class SetupArtworkMotion extends StatelessWidget {
-  const SetupArtworkMotion({super.key, required this.child});
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final motion = context.dependOnInheritedWidgetOfExactType<_ArtworkMotion>();
-    return ScaleTransition(
-        scale: motion != null && !MediaQuery.disableAnimationsOf(context)
-            ? Tween(begin: .97, end: 1.0).animate(motion.opacity)
-            : const AlwaysStoppedAnimation(1.0),
-        child: child);
-  }
-}
-
-class _ArtworkMotion extends InheritedWidget {
-  const _ArtworkMotion({required this.opacity, required super.child});
-  final Animation<double> opacity;
-
-  @override
-  bool updateShouldNotify(_ArtworkMotion oldWidget) =>
-      opacity != oldWidget.opacity;
-}
-
-/// Crossfade one region within the persistent setup frame. Visited panels keep
-/// their state offstage, so returning to a step restores its unfinished input.
+/// Crossfades the step under the progress, which stays as it is. Visited steps
+/// keep their state offstage, so returning to one restores its unfinished
+/// input.
 class SetupStepTransition extends StatefulWidget {
   const SetupStepTransition(
       {super.key, required this.step, required this.builder});
@@ -119,7 +93,7 @@ class _SetupStepTransitionState extends State<SetupStepTransition> {
 
   @override
   Widget build(BuildContext context) =>
-      Stack(alignment: Alignment.center, children: [
+      Stack(alignment: Alignment.topCenter, children: [
         for (final step in [
           ..._visited.where((step) => step != widget.step),
           widget.step
@@ -218,10 +192,8 @@ class _SetupPanelState extends State<_SetupPanel>
                                 ? const AlwaysStoppedAnimation(Offset.zero)
                                 : _position,
                             textDirection: Directionality.of(context),
-                            child: _ArtworkMotion(
-                                opacity: _opacity,
-                                child: TickerMode(
-                                    enabled: widget.active,
-                                    child: widget.child))))))));
+                            child: TickerMode(
+                                enabled: widget.active,
+                                child: widget.child)))))));
   }
 }

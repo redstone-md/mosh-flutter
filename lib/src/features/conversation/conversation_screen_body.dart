@@ -9,6 +9,8 @@ import 'package:mosh/src/features/conversation/conversation_chrome.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
+import 'package:mosh/src/features/conversation/conversation_notice.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart'
     show PeerActions;
 import 'package:mosh/src/features/conversation/conversation_peer_status.dart';
@@ -176,7 +178,13 @@ class ConversationScreenBody extends ConsumerWidget {
           // would flash a spinner on every tick.
           skipLoadingOnReload: true,
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Center(child: Text(error.toString())),
+          error: (error, _) => ConversationNotice(
+              title: l.chatLoadErrorTitle,
+              // Worded from the error's kind where the kind is known.
+              line: ConversationActionError.of(error).describe(l),
+              failed: true,
+              actionLabel: l.sessionsRetry,
+              onAction: controller.refresh),
           data: (snapshot) => _list(snapshot, state, controller, l),
         ),
       );
@@ -198,7 +206,12 @@ class ConversationScreenBody extends ConsumerWidget {
       chrome.filter,
     );
     if (visible.isEmpty) {
-      return ConversationSearchEmpty(filter: chrome.filter, l: l);
+      // There are messages, but the search or the filter hid every one.
+      return ConversationNotice(
+          title: l.chatSearchEmptyTitle,
+          line: chrome.filter == ConversationFilter.attachments
+              ? l.chatAttachmentEmptyBody
+              : l.chatSearchEmptyBody);
     }
     return ConversationMessageListView(
       messages: visible,
@@ -273,23 +286,6 @@ class _ConversationEmpty extends StatelessWidget {
       ConversationKind.channel => (l.channelEmptyTitle, l.channelEmptyBody),
       ConversationKind.group => (l.groupEmptyTitle, l.groupEmptyBody),
     };
-    // Scrolls when large text does not fit a short or narrow pane.
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              body,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
-        ),
-      ),
-    );
+    return ConversationNotice(title: title, line: body);
   }
 }

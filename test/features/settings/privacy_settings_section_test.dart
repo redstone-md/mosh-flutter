@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_spinner.dart';
 import 'package:mosh/src/app/mosh_switch.dart';
+import 'package:mosh/src/features/settings/settings_toggle_card.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/settings/settings_content.dart';
@@ -14,7 +16,21 @@ import '../../support/scriptable_bridge.dart';
 
 final _l = lookupAppLocalizations(const Locale('en'));
 
-Finder _switch(String title) => find.widgetWithText(MoshSwitchRow, title);
+Finder _switch(String title) => find.descendant(
+    of: find.widgetWithText(SettingsToggleCard, title),
+    matching: find.byType(MoshSwitch));
+
+/// The spinner beside the switch of the card titled [title].
+Finder _saving(String title) => find.descendant(
+    of: find.widgetWithText(SettingsToggleCard, title),
+    matching: find.byType(MoshSpinner));
+
+/// Presses the switch in the header of the card titled [title].
+Future<void> _toggle(WidgetTester tester, String title) async {
+  await tester.ensureVisible(_switch(title));
+  await tester.tap(_switch(title));
+  await tester.pumpAndSettle();
+}
 
 Future<void> _tap(WidgetTester tester, String title) async {
   final target = find.text(title).first;
@@ -23,10 +39,10 @@ Future<void> _tap(WidgetTester tester, String title) async {
   await tester.pumpAndSettle();
 }
 
-/// Taps a switch whose write stays pending: the row then spins until the
+/// Taps a switch whose write stays pending: the header then spins until the
 /// write is done, so it never settles; this pumps the tap's frames instead.
 Future<void> _tapPending(WidgetTester tester, String title) async {
-  final target = find.text(title).first;
+  final target = _switch(title);
   await tester.ensureVisible(target);
   await tester.tap(target);
   await tester.pump();
@@ -97,10 +113,10 @@ void main() {
     fixture.bridge.seedCrashReportingSalt('saved-consent');
     await _pump(tester, fixture);
     final crash =
-        tester.widget<MoshSwitchRow>(_switch(_l.settingsCrashReportsTitle));
+        tester.widget<MoshSwitch>(_switch(_l.settingsCrashReportsTitle));
     expect(crash.onChanged, isNull);
     expect(find.text(_l.settingsCrashReportsUnavailable), findsOneWidget);
-    await _tap(tester, _l.settingsReadReceiptsTitle);
+    await _toggle(tester, _l.settingsReadReceiptsTitle);
     expect(await fixture.bridge.readReceiptsEnabled(), isTrue);
     expect(await fixture.bridge.crashReportingSalt(), 'saved-consent');
     expect(fixture.sdkEvents, isEmpty);
@@ -118,7 +134,7 @@ void main() {
       _l.settingsCrashReportsTitle,
       _l.settingsReadReceiptsTitle
     ]) {
-      expect(tester.widget<MoshSwitchRow>(_switch(title)).onChanged, isNull);
+      expect(tester.widget<MoshSwitch>(_switch(title)).onChanged, isNull);
       await tester.tap(_switch(title));
     }
     expect(fixture.bridge.countOf(BridgeMethod.enableCrashReporting), 0);
@@ -129,12 +145,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(
         tester
-            .widget<MoshSwitchRow>(_switch(_l.settingsCrashReportsTitle))
+            .widget<MoshSwitch>(_switch(_l.settingsCrashReportsTitle))
             .onChanged,
         isNotNull);
     expect(
         tester
-            .widget<MoshSwitchRow>(_switch(_l.settingsReadReceiptsTitle))
+            .widget<MoshSwitch>(_switch(_l.settingsReadReceiptsTitle))
             .onChanged,
         isNotNull);
   });
@@ -143,11 +159,9 @@ void main() {
       (tester) async {
     final fixture = PrivacyFixture()..failStart = true;
     await _pump(tester, fixture);
-    await _tap(tester, _l.settingsCrashReportsTitle);
+    await _toggle(tester, _l.settingsCrashReportsTitle);
     expect(
-        tester
-            .widget<MoshSwitchRow>(_switch(_l.settingsCrashReportsTitle))
-            .value,
+        tester.widget<MoshSwitch>(_switch(_l.settingsCrashReportsTitle)).value,
         isFalse);
     expect(await fixture.bridge.crashReportingSalt(), isNull);
     expect(find.textContaining('SDK unavailable'), findsOneWidget);
@@ -171,12 +185,12 @@ void main() {
     expect(find.textContaining('receipts unavailable'), findsOneWidget);
     expect(
         tester
-            .widget<MoshSwitchRow>(_switch(_l.settingsCrashReportsTitle))
+            .widget<MoshSwitch>(_switch(_l.settingsCrashReportsTitle))
             .onChanged,
         isNull);
     expect(
         tester
-            .widget<MoshSwitchRow>(_switch(_l.settingsReadReceiptsTitle))
+            .widget<MoshSwitch>(_switch(_l.settingsReadReceiptsTitle))
             .onChanged,
         isNull);
     expect(find.text(_l.settingsCrashReportsNativeWarning), findsOneWidget);
@@ -195,19 +209,15 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     final crash =
-        tester.widget<MoshSwitchRow>(_switch(_l.settingsCrashReportsTitle));
+        tester.widget<MoshSwitch>(_switch(_l.settingsCrashReportsTitle));
     expect(crash.value, isTrue);
-    expect(crash.saving, isTrue);
+    expect(_saving(_l.settingsCrashReportsTitle), findsOneWidget);
     expect(fixture.bridge.countOf(BridgeMethod.crashReportingSalt), 1);
     expect(fixture.bridge.countOf(BridgeMethod.enableCrashReporting), 1);
     fixture.bridge.release(BridgeMethod.enableCrashReporting);
     await tester.pumpAndSettle();
     expect(fixture.sdkEvents, ['start']);
-    expect(
-        tester
-            .widget<MoshSwitchRow>(_switch(_l.settingsCrashReportsTitle))
-            .saving,
-        isFalse);
+    expect(_saving(_l.settingsCrashReportsTitle), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -215,25 +225,23 @@ void main() {
       (tester) async {
     final fixture = PrivacyFixture();
     await _pump(tester, fixture);
-    await _tap(tester, _l.settingsCrashReportsTitle);
+    await _toggle(tester, _l.settingsCrashReportsTitle);
     expect(await fixture.bridge.crashReportingSalt(), isNotNull);
     expect(fixture.sdkEvents, ['start']);
     fixture.bridge.failNext(BridgeMethod.setReadReceiptsEnabled,
         error: StateError('storage unavailable'));
-    await _tap(tester, _l.settingsReadReceiptsTitle);
+    await _toggle(tester, _l.settingsReadReceiptsTitle);
     expect(
-        tester
-            .widget<MoshSwitchRow>(_switch(_l.settingsReadReceiptsTitle))
-            .value,
+        tester.widget<MoshSwitch>(_switch(_l.settingsReadReceiptsTitle)).value,
         isFalse);
     expect(await fixture.bridge.readReceiptsEnabled(), isFalse);
     expect(find.textContaining('storage unavailable'), findsOneWidget);
     expect(fixture.sdkEvents, ['start']);
-    await _tap(tester, _l.settingsReadReceiptsTitle);
+    await _toggle(tester, _l.settingsReadReceiptsTitle);
     expect(await fixture.bridge.readReceiptsEnabled(), isTrue);
     expect(
         tester
-            .widget<MoshSwitchRow>(_switch(_l.settingsCrashReportsTitle))
+            .widget<MoshSwitch>(_switch(_l.settingsCrashReportsTitle))
             .onChanged,
         isNotNull);
     await _tapPending(tester, _l.settingsCrashReportsTitle);
@@ -241,9 +249,7 @@ void main() {
     await tester.runAsync(() async => await pumpEventQueue());
     await tester.pumpAndSettle();
     expect(
-        tester
-            .widget<MoshSwitchRow>(_switch(_l.settingsCrashReportsTitle))
-            .value,
+        tester.widget<MoshSwitch>(_switch(_l.settingsCrashReportsTitle)).value,
         isFalse);
     expect(fixture.bridge.countOf(BridgeMethod.disableCrashReporting), 1);
     expect(await fixture.bridge.crashReportingSalt(), isNull);
@@ -268,7 +274,7 @@ void main() {
         container: container);
     await _tap(tester, _l.settingsCrashReportsDetailsTitle);
     await _tap(tester, _l.settingsReadReceiptsDetailsTitle);
-    await _tap(tester, _l.settingsReadReceiptsTitle);
+    await _toggle(tester, _l.settingsReadReceiptsTitle);
     final scroller = find.descendant(
         of: find.byType(SettingsContent), matching: find.byType(Scrollable));
     tester.state<ScrollableState>(scroller).position.jumpTo(40);
@@ -279,9 +285,7 @@ void main() {
     expect(find.text(_l.settingsReadReceiptsDetails), findsOneWidget);
     expect(tester.state<ScrollableState>(scroller).position.pixels, 40);
     expect(
-        tester
-            .widget<MoshSwitchRow>(_switch(_l.settingsReadReceiptsTitle))
-            .value,
+        tester.widget<MoshSwitch>(_switch(_l.settingsReadReceiptsTitle)).value,
         isTrue);
     expect(fixture.bridge.countOf(BridgeMethod.setReadReceiptsEnabled), 1);
     expect(tester.takeException(), isNull);
@@ -296,7 +300,7 @@ void main() {
           size: Size(width, 844), locale: const Locale('ru'), textScale: scale);
       await _tap(tester, ru.settingsCrashReportsDetailsTitle);
       await _tap(tester, ru.settingsReadReceiptsDetailsTitle);
-      await _tap(tester, ru.settingsReadReceiptsTitle);
+      await _toggle(tester, ru.settingsReadReceiptsTitle);
       expect(await fixture.bridge.readReceiptsEnabled(), isTrue);
       expect(find.text(ru.settingsCrashReportsNativeWarning), findsOneWidget);
       expect(tester.takeException(), isNull);

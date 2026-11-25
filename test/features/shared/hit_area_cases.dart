@@ -20,7 +20,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
-import 'package:mosh/src/features/fingerprint/fingerprint_lock.dart';
 import 'package:mosh/src/features/org/org_section.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
@@ -106,31 +105,6 @@ void main() {
     final size = tester.getSize(find.byType(AttachmentPicker));
     expect(size.width, greaterThanOrEqualTo(40));
     expect(size.height, greaterThanOrEqualTo(40));
-  });
-
-  testWidgets('the fingerprint lock target reaches past its 15px glyph',
-      (tester) async {
-    await pumpScreen(
-      tester,
-      const Scaffold(
-        body: Center(
-          child: FingerprintLock(
-            fingerprint: '0011223344556677',
-            hint: 'same on both sides',
-          ),
-        ),
-      ),
-    );
-
-    final rect = tester.getRect(find.byType(FingerprintLock));
-    expect(rect.size.width, greaterThanOrEqualTo(40));
-    expect(rect.size.height, greaterThanOrEqualTo(40));
-
-    // 16px right of center: inside the padded target, far outside the old
-    // 15px glyph hit box.
-    await tester.tapAt(rect.center + const Offset(16, 0));
-    await tester.pumpAndSettle();
-    expect(find.text('Encryption fingerprint'), findsOneWidget);
   });
 
   testWidgets('the confirm-dialog close X is at least a 40px target',

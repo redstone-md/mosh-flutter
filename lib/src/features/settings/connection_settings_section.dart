@@ -24,6 +24,7 @@ class ConnectionSettingsSection extends ConsumerWidget {
         icon: MoshIcons.network,
         title: l.settingsVpnTitle,
         summary: l.settingsVpnSummary,
+        label: l.settingsVpnSetup,
         child: BindInterfaceField(
           bridge: ref.watch(bridgeFacadeProvider),
           l: l,

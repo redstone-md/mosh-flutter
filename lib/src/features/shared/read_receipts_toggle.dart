@@ -4,11 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/settings/settings_toggle_card.dart';
-import 'package:mosh/src/features/settings/settings_card.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
-
-import 'async_switch_tile.dart';
 
 /// A switch row bound to the bridge's `readReceiptsEnabled` /
 /// `setReadReceiptsEnabled` mirrors (ADR 0025: 1:1 facade calls, not the
@@ -28,13 +25,11 @@ class ReadReceiptsToggle extends ConsumerWidget {
       key: const PageStorageKey('privacy-read-receipt-details'),
       detailsTitle: l.settingsReadReceiptsDetailsTitle,
       details: l.settingsReadReceiptsDetails,
-      toggle: AsyncSwitchTile(
-        secondary: const SettingsIcon(MoshIcons.doneAll),
-        title: l.settingsReadReceiptsTitle,
-        subtitle: l.settingsReadReceiptsSubtitle,
-        read: facade.readReceiptsEnabled,
-        write: (enabled) => facade.setReadReceiptsEnabled(enabled: enabled),
-      ),
+      icon: MoshIcons.doneAll,
+      title: l.settingsReadReceiptsTitle,
+      subtitle: l.settingsReadReceiptsSubtitle,
+      read: facade.readReceiptsEnabled,
+      write: (enabled) => facade.setReadReceiptsEnabled(enabled: enabled),
     );
   }
 }

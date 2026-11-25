@@ -2,16 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, moshTonalIconButtonStyle;
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 
-/// Header icon button that opens/closes the mobile search panel: a ghost
-/// icon button (rendered only on mobile by the host gating it behind
-/// [isMobileBreakpoint]).
-///
-/// The icon is `MoshIcons.search` at size 20. The tooltip/semantics flip
-/// between [AppLocalizations.chatSearchPlaceholder] (closed) and
-/// [AppLocalizations.closeMessageSearch] (open). The open state tints the
-/// icon with `colorScheme.primary` as the active highlight.
+/// The search button of the Top bar card: opens and closes the search panel
+/// under the bar. While the panel is open the button stands on a plate.
 class MobileSearchToggle extends StatelessWidget {
   const MobileSearchToggle({
     super.key,
@@ -25,21 +21,12 @@ class MobileSearchToggle extends StatelessWidget {
   final AppLocalizations l;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return IconButton(
-      icon: Icon(
-        MoshIcons.search,
-        size: 20,
-        // Tint while the panel is open.
-        color: open ? theme.colorScheme.primary : null,
-      ),
-      // Closed uses the search placeholder (existing key); open uses the
-      // dedicated close label.
-      tooltip: open ? l.closeMessageSearch : l.chatSearchPlaceholder,
-      onPressed: onToggle,
-    );
-  }
+  Widget build(BuildContext context) => IconButton(
+        icon: const Icon(MoshIcons.search),
+        style: open ? moshTonalIconButtonStyle(MoshColors.of(context)) : null,
+        tooltip: open ? l.closeMessageSearch : l.chatSearchPlaceholder,
+        onPressed: onToggle,
+      );
 }
 
 /// Mobile search panel: an autofocusing search `TextField` + a close icon

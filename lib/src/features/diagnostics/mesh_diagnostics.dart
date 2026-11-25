@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart' show MossLibraryInfo;
@@ -116,25 +117,31 @@ class _MetricGrid extends StatelessWidget {
       ],
     ];
     return Padding(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(vertical: MoshSpace.s2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final row in rows)
+          for (final (i, row) in rows.indexed) ...[
+            if (i > 0) const SizedBox(height: MoshSpace.s3),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [for (final metric in row) Expanded(child: metric)],
+              children: [
+                for (final (j, metric) in row.indexed) ...[
+                  if (j > 0) const SizedBox(width: MoshSpace.s4),
+                  Expanded(child: metric),
+                ],
+              ],
             ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// A metric cell: a label + a strong value + a small detail. The label is
-/// muted (onSurfaceVariant), the strong value is onSurface, the small
-/// detail is muted again.
+/// A reading with a note: a small label over its value, and under it what
+/// the value is made of.
 class Metric extends StatelessWidget {
   const Metric({
     super.key,
@@ -154,40 +161,15 @@ class Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurfaceVariant;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: 9.5,
-              color: muted,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            detail,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: 9.5,
-              color: muted,
-            ),
-          ),
-        ],
-      ),
+    final text = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: text.labelSmall),
+        Text(value, style: text.titleSmall),
+        Text(detail, style: text.bodySmall),
+      ],
     );
   }
 }

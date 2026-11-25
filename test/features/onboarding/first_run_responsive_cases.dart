@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/onboarding/first_run_layout.dart';
+import 'package:mosh/src/features/onboarding/first_run_transition.dart';
 import 'package:mosh/src/features/onboarding/first_run_profile.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 
@@ -13,32 +13,28 @@ void main() {
     const Size(1920, 1080),
     const Size(390, 844),
   ]) {
-    for (final step in [SetupStep.name]) {
-      testWidgets('$step has equal outer insets at $size', (tester) async {
-        final harness = FirstRunHarness(
-            profile: FirstRunProfile(displayName: 'Лена', step: step));
-        await harness.pump(tester, size: size);
-        _expectEqualInsets(tester);
-        final frame = tester.getRect(find.byType(SetupFrame));
-        expect(frame.center.dx, closeTo(_card(tester).center.dx, 1));
-        expect(frame.width, lessThanOrEqualTo(1160));
-      });
-    }
+    testWidgets('the name step stands in the middle at $size', (tester) async {
+      final harness =
+          FirstRunHarness(profile: const FirstRunProfile(displayName: 'Лена'));
+      await harness.pump(tester, size: size);
+      final step = tester.getRect(setupStep);
+      final viewport = _viewport(tester);
+      expect(step.center.dx, closeTo(viewport.center.dx, 1));
+      expect(step.center.dy, closeTo(viewport.center.dy, 1));
+      // 480 px of content and the step's own padding on the desktop.
+      expect(step.width, lessThanOrEqualTo(480 + 48));
+    });
   }
 
-  testWidgets('overflow scrolls inside a stationary card', (tester) async {
+  testWidgets('a step taller than the window scrolls', (tester) async {
     final harness =
         FirstRunHarness(profile: const FirstRunProfile(displayName: 'Yuna'));
     await harness.pump(tester, size: const Size(320, 568), scale: 2);
-    _expectEqualInsets(tester);
-    final card = _card(tester);
     final scroll = tester.state<ScrollableState>(find.byType(Scrollable).first);
     expect(scroll.position.maxScrollExtent, greaterThan(0));
+    expect(tester.getRect(setupStep).top, _viewport(tester).top);
     await tester.ensureVisible(find.byType(FilledButton));
     await tester.pumpAndSettle();
-    expect(_card(tester), card);
-    expect(tester.getRect(find.byType(FilledButton)).bottom,
-        lessThanOrEqualTo(card.bottom - 16));
     await tapSetup(tester, 'Continue');
     expect(harness.store.profile!.step, SetupStep.device);
     expect(tester.takeException(), isNull);
@@ -59,36 +55,32 @@ void main() {
         final scroll =
             tester.state<ScrollableState>(find.byType(Scrollable).first);
         expect(scroll.position.maxScrollExtent, closeTo(0, 1));
-        expect(_card(tester).bottom, lessThanOrEqualTo(size.height));
+        expect(
+            tester.getRect(setupStep).bottom, lessThanOrEqualTo(size.height));
         await saveSetupPreview(tester,
             'first-run-${step.name}-${size.width.toInt()}x${size.height.toInt()}');
       });
     }
   }
 
-  testWidgets('card stays centered and illustration follows available height',
+  testWidgets('the step stays in the middle as the window grows',
       (tester) async {
     await prepareSetupPreview(tester);
     final harness = FirstRunHarness(profile: const FirstRunProfile());
     await harness.pump(tester, size: const Size(1280, 680));
-    final smallImage = tester.getSize(setupIllustration);
-    final smallCard = _card(tester);
-    final smallViewport = _viewport(tester);
-    expect(smallCard.center.dy, closeTo(smallViewport.center.dy, 1));
+    final small = tester.getRect(setupStep);
+    expect(small.center.dy, closeTo(_viewport(tester).center.dy, 1));
     await saveSetupPreview(tester, 'first-run-centered-680');
     tester.view.physicalSize = const Size(1280, 1080);
     await tester.pumpAndSettle();
-    final largeCard = _card(tester);
-    expect(largeCard.center.dy, closeTo(_viewport(tester).center.dy, 1));
-    expect(tester.getSize(setupIllustration).height,
-        greaterThan(smallImage.height));
-    expect(largeCard.top, greaterThan(smallCard.top));
-    expect(tester.getSize(find.byType(FilledButton)).height,
-        greaterThanOrEqualTo(48));
+    final large = tester.getRect(setupStep);
+    expect(large.center.dy, closeTo(_viewport(tester).center.dy, 1));
+    expect(large.top, greaterThan(small.top));
+    expect(large.size, small.size);
     await saveSetupPreview(tester, 'first-run-centered-1080');
   });
 
-  testWidgets('resizing to one column preserves the unsaved name',
+  testWidgets('resizing to a phone and back preserves the unsaved name',
       (tester) async {
     await prepareSetupPreview(tester);
     final harness = FirstRunHarness(profile: const FirstRunProfile());
@@ -106,8 +98,6 @@ void main() {
             .controller!
             .text,
         'Лена');
-    expect(tester.getRect(setupIllustration).bottom,
-        lessThan(tester.getRect(find.byType(TextFormField)).top));
     await tester.ensureVisible(find.byType(FilledButton));
     expect(tester.takeException(), isNull);
     await saveSetupPreview(tester, 'first-run-phone');
@@ -140,20 +130,6 @@ void main() {
   });
 }
 
-Rect _card(WidgetTester tester) => tester.getRect(find
-    .ancestor(of: find.byType(SetupProgress), matching: find.byType(Container))
-    .first);
-
-Rect _viewport(WidgetTester tester) => tester.getRect(find
-    .ancestor(
-        of: find.byType(SetupProgress), matching: find.byType(LayoutBuilder))
-    .last);
-
-void _expectEqualInsets(WidgetTester tester) {
-  final card = _card(tester);
-  final viewport = _viewport(tester);
-  final inset = card.left - viewport.left;
-  expect(card.top - viewport.top, closeTo(inset, 1));
-  expect(viewport.right - card.right, closeTo(inset, 1));
-  expect(viewport.bottom - card.bottom, closeTo(inset, 1));
-}
+/// The room the wizard has under the title bar.
+Rect _viewport(WidgetTester tester) =>
+    tester.getRect(find.byType(SetupStableLayout));

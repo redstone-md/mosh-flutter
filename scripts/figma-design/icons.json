@@ -7,7 +7,7 @@
   "play": "play-fill", "pause": "pause-fill", "mic": "microphone", "send": "paper-plane-right", "delete": "trash", "edit": "pencil-simple",
   "file": "file", "image": "image", "organisation": "buildings", "admin": "crown-simple",
   "back": "arrow-left", "more": "dots-three-vertical", "list_toggle": "sidebar-simple", "lock": "lock-simple", "info": "info", "warning": "warning", "success": "check-circle",
-  "history": "clock-counter-clockwise", "link": "link", "link_off": "link-break", "devices": "devices", "video": "video-camera", "minimize": "minus", "maximize": "square",
+  "history": "clock-counter-clockwise", "link": "link", "link_off": "link-break", "devices": "devices", "video": "video-camera", "minimize": "minus", "maximize": "square", "restore": "copy-simple",
   "chevron_right": "caret-right", "update": "arrow-circle-down", "select_all": "selection-all", "leave": "sign-out", "language": "globe", "shield": "shield-check", "bug": "bug",
   "qr": "qr-code", "speaker": "speaker-high",
   "mic_off": "microphone-slash", "video_off": "video-camera-slash", "call_end": "phone-disconnect", "tune": "sliders-horizontal",

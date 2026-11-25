@@ -1,5 +1,18 @@
 # First-run setup
 
+> **Layout since MOSH-138.** Setup is drawn from the Wizard step card
+> (`scripts/figma-design/cards/wizard.js`): one column on the plain
+> background, 480px wide on the desktop and as wide as the screen on a phone,
+> with the progress, the question and why Mosh asks it, the controls, one
+> primary button and Back as the quiet one. The bordered card, the
+> illustrations in `assets/onboarding/`, the two-column frame, the setup
+> theme and `first_run_sizing.dart` are gone. The step the wizard opens with
+> stands in the middle of the window and its top then stays put, so the
+> progress does not move when steps differ in height; a taller step scrolls.
+> The sections below that describe the card, the artwork and their sizes are
+> the history of the earlier layout. Flow, persistence, device linking and
+> network behaviour are unchanged.
+
 Status: implemented. The design interview and local preference format were
 approved on 2026-10-02.
 
@@ -168,10 +181,6 @@ intrinsic measurement. Regression tests
 require all three default steps to fit at 1280×680 and 900×700 in Russian, and
 verify equal insets, content centering, internal scrolling, image resizing,
 name preservation and keyboard access.
-
-The three illustrations are bundled in `assets/onboarding/` with their original
-RGBA transparency. Their generation prompts are recorded in
-[the asset notes](../../assets/onboarding/README.md).
 
 The titlebar, card, progress indicator and responsive frame stay mounted across
 steps. Only the body below progress participates in the
