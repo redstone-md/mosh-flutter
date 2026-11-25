@@ -1469,6 +1469,10 @@
   "@settingsTestRingtone": {
     "description": "Sound settings: plays the call ringtone on the selected speakers"
   },
+  "voiceMessageLoading": "Loading",
+  "@voiceMessageLoading": {
+    "description": "The line under the waveform of a voice message while its audio is still arriving"
+  },
   "voiceMessagePlayLabel": "Play voice message",
   "@voiceMessagePlayLabel": {
     "description": "Tooltip/aria-label for the voice-message card play button (React VoiceMessage.tsx, idle)"

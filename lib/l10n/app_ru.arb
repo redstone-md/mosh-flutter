@@ -748,6 +748,10 @@
   "settingsCameraDeviceHint": "Камера по умолчанию для видеозвонков. Применится со следующего звонка.",
   "settingsDeviceDefault": "Системный по умолчанию",
   "settingsTestRingtone": "Проверить звук",
+  "voiceMessageLoading": "Загрузка",
+  "@voiceMessageLoading": {
+    "description": "The line under the waveform of a voice message while its audio is still arriving"
+  },
   "voiceMessagePlayLabel": "Воспроизвести голосовое сообщение",
   "voiceMessagePauseLabel": "Поставить на паузу"
   ,
