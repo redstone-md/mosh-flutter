@@ -1,6 +1,6 @@
 // Composer: ConversationComposer with its attach button (AttachmentPicker), VoiceComposer,
 // VoiceRecordingDot and the TypingHint above it.
-card('Composer', 'One field for everything a person sends. With nothing typed the far end holds the microphone; the first character turns it into Send. Past the limit the field turns red and counts the characters to cut. A voice recording takes over the whole field: send it as it is, cancel it, or pause to hear it first. A paused recording can be played, sent or thrown away.');
+card('Composer', 'One field for everything a person sends. With nothing typed the far end holds the microphone; the first character turns it into Send. Past the limit the field turns red and counts the characters to cut. A voice recording takes over the whole field: send it as it is, cancel it, or pause to hear it first. A paused recording can be played, continued from the microphone, sent or thrown away.');
 const TEXT = { Empty: ['Write a message', 'onSurfaceMuted'], Draft: ['We have two. Packing them now', 'onSurface'], 'Over the limit': ['Anything else we need?', 'onSurface'], Disabled: ['Write a message', 'onSurface'] };
 /** The send button; a 40 px plate, in a 48 px target on the phone. */
 function send(Device, on) {
@@ -30,6 +30,8 @@ function composer({ State, Device }) {
     add(take, icon('play', 'onSurface'));
     add(add(take, box('wave', { dir: 'H', hk: 6, clip: true }), { fillW: true }), inst('Waveform', { Progress: 'None', Tone: 'Surface' }));
     add(take, text('0:04', 'labelMedium', 'onSurfaceVariant', { name: 'time' }));
+    // The microphone goes on with the recording, as the lock button does in Telegram once paused.
+    add(c, action('mic', Device));
     add(c, send(Device, true));
     return c;
   }
