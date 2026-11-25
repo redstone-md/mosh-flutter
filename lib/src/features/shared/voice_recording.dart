@@ -48,9 +48,8 @@ class VoiceRecording extends ChangeNotifier {
   // piece that cannot be joined falls back to.
   final _VoiceFiles _files = _VoiceFiles();
   _MeterReading _clipReading = _VoiceMeter.zero;
-  // One recorder transition at a time: a pause, a cancel, a send and the
-  // length limit all tear the capture down asynchronously, and a cancel
-  // racing a pause would delete the file the pause is still closing.
+  // One recorder transition at a time: a cancel racing a pause would
+  // delete the file the pause is still closing.
   bool _busy = false;
   bool _disposed = false;
 
@@ -75,9 +74,8 @@ class VoiceRecording extends ChangeNotifier {
   /// Asks for the microphone and starts capturing.
   Future<void> start() => _exclusive(() async {
         if (_phase != VoiceRecordingPhase.idle) return;
-        // Ask at the moment of intent: hasPermission() requests when the
-        // status is undetermined and just reports otherwise. `record`'s
-        // start() never requests on its own, so this call is the only gate.
+        // Ask at the moment of intent: `record`'s start() never requests
+        // the microphone on its own, so hasPermission() is the only gate.
         final allowed = await _recorder.hasPermission();
         if (_disposed) return;
         if (!allowed) return onPermissionDenied();
@@ -110,7 +108,10 @@ class VoiceRecording extends ChangeNotifier {
   Future<VoiceSend?> finish() async {
     VoiceSend? voice;
     await _exclusive(() async {
-      if (_phase == VoiceRecordingPhase.recording) await _close();
+      // A last piece that could not be joined is not sent short of it.
+      if (_phase == VoiceRecordingPhase.recording && !await _close()) {
+        return _set(VoiceRecordingPhase.paused);
+      }
       final path = _files.release();
       if (path == null) return;
       voice = VoiceSend(
@@ -179,18 +180,21 @@ class VoiceRecording extends ChangeNotifier {
     if (elapsed >= maxRecording) unawaited(pause());
   }
 
-  /// Stops the capture and adds its file to [clip]. A piece that cannot be
-  /// joined is told and dropped: what was paused before it stays.
-  Future<void> _close() async {
+  /// Stops the capture and adds its file to [clip]; false when the piece
+  /// could not be joined: it is told and dropped, what was paused stays.
+  Future<bool> _close() async {
     _meter.stop();
     final segment = await _recorder.stop() ?? _files.live;
+    var joined = true;
     try {
       await _files.close(segment, join);
     } catch (error) {
+      joined = false;
       _meter.rewind(_clipReading);
       if (!_disposed) onError(error);
     }
     _clipReading = _meter.reading;
+    return joined;
   }
 
   Future<void> _abort(Object error) async {

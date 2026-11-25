@@ -44,6 +44,24 @@ fn joined_clip_plays_every_segment_in_order() {
     std::fs::remove_file(joined).expect("joined clip is removed");
 }
 
+/// A second pause joins what the first join wrote with the next piece.
+#[test]
+fn a_joined_clip_joins_again_with_the_next_segment() {
+    let (first, second) = (fixture("voice-first.m4a"), fixture("voice-second.m4a"));
+    let (once, twice) = (output("once.m4a"), output("twice.m4a"));
+
+    join_segments(&[&first, &second], &once).expect("segments join");
+    join_segments(&[&once, &first], &twice).expect("a joined clip joins");
+
+    let (first_samples, first_ms) = audio_track(&first);
+    let (second_samples, second_ms) = audio_track(&second);
+    let (samples, ms) = audio_track(&twice);
+    assert_eq!(samples, 2 * first_samples + second_samples);
+    assert!(ms.abs_diff(2 * first_ms + second_ms) <= 2, "{ms} ms");
+    std::fs::remove_file(once).expect("first join is removed");
+    std::fs::remove_file(twice).expect("second join is removed");
+}
+
 #[test]
 fn segments_of_different_formats_are_refused_and_leave_no_clip() {
     let joined = output("mismatch.m4a");

@@ -186,6 +186,31 @@ void main() {
     expect(sent.single.durationMs, 2000);
   });
 
+  testWidgets('Send does not send a recording short of its last piece',
+      (tester) async {
+    VoiceRecorderProbe(tester);
+    final errors = <String>[];
+    final sent = <VoiceSend>[];
+    await pumpVoiceComposer(tester,
+        errors: errors,
+        sent: sent,
+        join: ({required segments, required output}) =>
+            throw StateError('no muxer'));
+    await _record(tester, const Duration(seconds: 2));
+    await _press(tester, 'Pause');
+    await tester.tap(find.byTooltip('Resume'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    await tester.tap(find.byTooltip('Send voice'));
+    await tester.pumpAndSettle();
+
+    expect(errors.single, contains('no muxer'));
+    expect(sent, isEmpty);
+    expect(find.byTooltip('Play'), findsOneWidget);
+    expect(find.text('0:02'), findsOneWidget);
+  });
+
   testWidgets('the longest recording pauses itself', (tester) async {
     final recorder = VoiceRecorderProbe(tester);
     await pumpVoiceComposer(tester);
