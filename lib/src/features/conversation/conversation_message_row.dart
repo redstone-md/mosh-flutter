@@ -158,39 +158,14 @@ class ConversationMessageRow extends StatelessWidget {
     );
   }
 
-  /// A confirmed deletion needs no status line; a pending or refused one does.
-  String? _deletionStatus(DeletionStatus status) => switch (status) {
-        DeletionStatus.pending => l.messageDeletionPending,
-        DeletionStatus.confirmed => null,
-        DeletionStatus.rejected => l.messageDeletionLocalOnly,
-      };
-
-  Widget _deleted(BuildContext context, DeletionMarker deleted) {
-    final text = Theme.of(context).textTheme;
-    final quiet = MoshColors.of(context).onSurfaceMuted;
-    return Padding(
-      padding: MoshShapes.bubbleInset,
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-                deleted.administrator == null
-                    ? l.messageDeleted
-                    : l.messageDeletedByAdmin(deleted.administrator!),
-                style: text.bodyLarge!.copyWith(color: quiet)),
-            if (_deletionStatus(deleted.status) case final status?)
-              Text(status, style: text.labelMedium!.copyWith(color: quiet)),
-          ]),
-    );
-  }
-
   /// What the bubble holds, top to bottom: the sender, a file, a picture or
   /// a voice message, then the text. The time ends the last line of the
   /// text; a file or a voice message alone keeps it in its own last line,
   /// and a picture, like a message with nothing else, keeps a line for it.
   Widget _body(BuildContext context) {
-    if (message.deletion case final deleted?) return _deleted(context, deleted);
+    if (message.deletion case final deleted?) {
+      return _DeletedNote(deleted: deleted, l: l);
+    }
     final compact = isMobileBreakpoint(context);
     final footer = ConversationMessageFooter(message: message, kind: kind);
     final hasFooter = footer.measure(context).height > 0;
@@ -210,6 +185,7 @@ class ConversationMessageRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
+      spacing: MoshSpace.s1,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,7 +223,51 @@ class ConversationMessageRow extends StatelessWidget {
           onDownload: onAttachmentDownload,
           onCancel: onAttachmentCancel,
           onOpen: onAttachmentOpen,
-          messageFooter: footer,
+          // The time keeps the text's inset from the bubble's edge.
+          messageFooter: footer == null
+              ? null
+              : Padding(
+                  padding: EdgeInsetsDirectional.only(
+                      end: MoshShapes.bubbleInset.end),
+                  child: footer),
         ),
       );
+}
+
+/// What stands in the outlined bubble of a deleted message: that it was
+/// deleted and by whom, and, unless the deletion is confirmed, where it
+/// stands.
+class _DeletedNote extends StatelessWidget {
+  const _DeletedNote({required this.deleted, required this.l});
+
+  final DeletionMarker deleted;
+  final AppLocalizations l;
+
+  /// A confirmed deletion needs no status line; a pending or refused one does.
+  String? get _status => switch (deleted.status) {
+        DeletionStatus.pending => l.messageDeletionPending,
+        DeletionStatus.confirmed => null,
+        DeletionStatus.rejected => l.messageDeletionLocalOnly,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final quiet = MoshColors.of(context).onSurfaceMuted;
+    return Padding(
+      padding: MoshShapes.bubbleInset,
+      child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+                deleted.administrator == null
+                    ? l.messageDeleted
+                    : l.messageDeletedByAdmin(deleted.administrator!),
+                style: text.bodyLarge!.copyWith(color: quiet)),
+            if (_status case final status?)
+              Text(status, style: text.labelMedium!.copyWith(color: quiet)),
+          ]),
+    );
+  }
 }

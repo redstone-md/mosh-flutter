@@ -43,8 +43,11 @@ class ConversationNotice extends StatelessWidget {
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
             vertical: quiet ? MoshSpace.s8 : MoshSpace.s12,
-            horizontal:
-                isMobileBreakpoint(context) ? MoshSpace.s3 : MoshSpace.s5),
+            horizontal: quiet
+                ? MoshSpace.s4
+                : isMobileBreakpoint(context)
+                    ? MoshSpace.s3
+                    : MoshSpace.s5),
         child: ConstrainedBox(
           // No wider than the measure, and 32 px clear of each edge.
           constraints: BoxConstraints(

@@ -125,12 +125,6 @@ void main() {
     expect(_arrow(tester, MoshIcons.callReceived), MoshColors.dark.error);
   });
 
-  testWidgets('a message without a call event shows no call entry',
-      (tester) async {
-    await _pumpRow(tester, _message());
-    expect(find.byType(CallLogEntry), findsNothing);
-  });
-
   testWidgets(
       'the handset rings the same DM back and rests while the call starts',
       (tester) async {

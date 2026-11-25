@@ -374,11 +374,13 @@ class _ThumbHalo extends SliderComponentShape {
 }
 
 /// The Checkbox card: a round mark, an [MoshColors.outline] ring until it is
-/// checked and a primary disc with the check after. A screen draws it at
-/// 24 px.
+/// checked and a primary disc with the check after. A screen scales the
+/// 18 px mark to the card's 24 px, which brings the ring to its 2 px.
 CheckboxThemeData _checkboxTheme(MoshColors c) => CheckboxThemeData(
       shape: const CircleBorder(),
-      side: BorderSide(color: c.outline, width: MoshBorder.thick),
+      side: BorderSide(
+          color: c.outline,
+          width: MoshBorder.thick * Checkbox.width / MoshSpace.s6),
       fillColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected) ? c.primary : null),
       checkColor: WidgetStatePropertyAll(c.onPrimary),

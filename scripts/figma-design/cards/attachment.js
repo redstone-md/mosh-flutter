@@ -1,4 +1,4 @@
-// Attachments: the file card (attachment_card._FileCardShell, AttachmentThumb),
+// Attachments: the file card (FileCard),
 // the picture and video card, and the file row of the conversation details
 // (ConversationSharedFile), which is the file card on a surface.
 card('Attachment', 'A file shows its name, its size and, on its plate, the one thing that can be done with it now: download it, stop the transfer, pick it up again or try again; the whole card is the target. A picture and a video show their preview first. The cards have no background of their own; they sit in a bubble, in either of its colours, or in the list of shared files. A long name is cut in the middle, so its start and its extension both show.');

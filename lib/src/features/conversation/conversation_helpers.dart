@@ -120,11 +120,11 @@ DateTime? messageDate(BigInt? sentAtMs) => sentAtMs == null
     ? null
     : DateTime.fromMillisecondsSinceEpoch(sentAtMs.toInt()).toLocal();
 
-/// Locale-aware HH:mm clock for the sender-meta row. Formats the epoch in
-/// the LOCAL timezone via `intl`'s `DateFormat.Hm(locale)` so the
-/// hour/minute follow the device locale. Returns null when the message
+/// Locale-aware HH:mm clock of a message, as its footer shows it. Formats
+/// the epoch in the LOCAL timezone via `intl`'s `DateFormat.Hm(locale)` so
+/// the hour/minute follow the device locale. Returns null when the message
 /// has no `sentAtMs`. `locale` defaults to `'en'` and is fed by the
-/// `AppLocalizations` locale in [ConversationSenderMeta]; callers must
+/// `AppLocalizations` locale; callers must
 /// `initializeDateFormatting()` once in `main()` for non-en locales to
 /// format in-locale rather than fall back to en.
 String? formatClock(BigInt? sentAtMs, {String? locale}) {
@@ -133,8 +133,7 @@ String? formatClock(BigInt? sentAtMs, {String? locale}) {
   return DateFormat.Hm(locale ?? 'en').format(dt);
 }
 
-/// Full locale-aware date-time string for the sender-meta timestamp's
-/// tooltip (the hover tooltip). Renders a full date + time in the LOCAL
+/// Full locale-aware date-time string for the tooltip of a message's time. Renders a full date + time in the LOCAL
 /// timezone via `DateFormat.yMMMd(locale).add_Hm()` -- e.g. "Aug 1, 2026
 /// 2:30 PM" (en). Returns null when the message has no `sentAtMs`.
 /// `locale` defaults to `'en'` and mirrors [formatClock]'s locale

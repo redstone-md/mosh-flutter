@@ -125,13 +125,16 @@ const double kAttachmentPreviewMaxHeight = 260;
 /// Floor for the same box, so panoramas keep a usable open target.
 const double kAttachmentPreviewMinHeight = 120;
 
-/// Height reserved when the miniature does not reveal the media's size.
-const double kAttachmentPreviewFallbackHeight = 200;
+/// Height reserved when the miniature does not reveal the media's size:
+/// the preview of the Media card, 200 px on the desktop and 148 px in the
+/// narrower card of the phone.
+double attachmentPreviewFallbackHeight(double width) =>
+    width < attachmentWidth(compact: false) ? 148 : 200;
 
 /// The preview height is fixed before decoding so miniature, clear preview
 /// and original swap without moving the message list.
 double attachmentPreviewHeight(Size? media, {required double width}) =>
     media == null
-        ? kAttachmentPreviewFallbackHeight
+        ? attachmentPreviewFallbackHeight(width)
         : (width * media.height / media.width)
             .clamp(kAttachmentPreviewMinHeight, kAttachmentPreviewMaxHeight);

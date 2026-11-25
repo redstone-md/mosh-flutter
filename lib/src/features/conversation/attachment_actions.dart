@@ -25,7 +25,7 @@ typedef AttachmentAction = ({
 IconData attachmentGlyph(ConversationAttachment attachment) =>
     !attachment.viewable
         ? MoshIcons.file
-        : attachment.descriptor.mime.startsWith('image/')
+        : attachment.isImage
             ? MoshIcons.image
             : MoshIcons.play;
 

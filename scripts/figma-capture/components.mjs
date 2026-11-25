@@ -34,7 +34,7 @@ export const COMPONENTS = [
   component('rows', 'Sender meta', ['conversation_sender_meta._PeerNickname', 'DeviceFingerprintChip']),
   component('rows', 'Feed divider', ['ConversationDateDivider', 'ConversationUnreadDivider']),
   component('rows', 'Call log entry', ['CallLogEntry']),
-  component('rows', 'Attachment card', ['attachment_card._FileCardShell', 'AttachmentThumb', 'ConversationSharedFile']),
+  component('rows', 'Attachment card', ['FileCard', 'MiddleCutText', 'attachment_card._MediaCard', 'ConversationSharedFile']),
   component('rows', 'Voice message', ['VoiceMessageCard', 'VoiceWaveform', 'VoiceCardTimeLabel']),
   component('rows', 'Composer', ['ConversationComposer', 'AttachmentPicker', 'VoiceComposer', 'VoiceRecordingDot', 'TypingHint']),
   component('rows', 'Search bar', ['ConversationSearchBox', 'ConversationFilterToggle', 'MobileConversationSearch', 'MobileConversationFilterNotice']),
@@ -86,6 +86,6 @@ export const WRAPPERS = [
   'ToastHost', 'VpnConsentOverlay', 'PlusHost', 'voice_call_host._CallHostOverlay',
   'FocusRing', 'MoshLoading', 'PressScale', 'ResumedInk', 'OpticalIcon', 'ContextualIconSwitcher', 'ModalFocusTrap', 'MoshDialogTransition',
   'StartReveal', 'toast_card._Bump', 'SetupStepTransition', 'first_run_transition._SetupPanel',
-  'CopyableMessage', 'SelectableMessageRow', 'MessageContextMenu', 'MessageSelectionHost', 'ChatDropZone', 'AttachmentOpenTarget',
+  'CopyableMessage', 'SelectableMessageRow', 'MessageContextMenu', 'MessageSelectionHost', 'ChatDropZone',
   'CallVideoSurfaceScope', 'CallVideoSurfaceReport', 'mosh_shell._SemanticsPane',
 ];

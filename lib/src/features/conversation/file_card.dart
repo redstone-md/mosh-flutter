@@ -158,20 +158,22 @@ class MiddleCutText extends StatelessWidget {
   }
 
   /// [text] as it shows in [width]: whole, or its longest start that fits
-  /// beside an ellipsis and its end.
+  /// beside an ellipsis and its end. Counted in characters, so an emoji in
+  /// a name is never cut in half.
   String _cut(BuildContext context, double width) {
-    if (text.length <= _kept || _fits(context, text, width)) return text;
-    final end = text.substring(text.length - _kept);
-    var fits = 1, over = text.length - _kept;
-    while (over - fits > 1) {
-      final mid = (fits + over) ~/ 2;
-      if (_fits(context, '${text.substring(0, mid)}…$end', width)) {
-        fits = mid;
+    final name = text.characters;
+    if (name.length <= _kept || _fits(context, text, width)) return text;
+    final end = name.takeLast(_kept);
+    var kept = 1, tooLong = name.length - _kept;
+    while (tooLong - kept > 1) {
+      final mid = (kept + tooLong) ~/ 2;
+      if (_fits(context, '${name.take(mid)}…$end', width)) {
+        kept = mid;
       } else {
-        over = mid;
+        tooLong = mid;
       }
     }
-    return '${text.substring(0, fits)}…$end';
+    return '${name.take(kept)}…$end';
   }
 
   @override

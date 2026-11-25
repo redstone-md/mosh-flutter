@@ -36,8 +36,8 @@ class MessageSelectionBar extends StatelessWidget {
       actions: [
         if (!compact) const MessageSelectionActions(),
         Padding(
-          padding:
-              EdgeInsets.only(right: compact ? MoshSpace.s1 : MoshSpace.s5),
+          padding: EdgeInsetsDirectional.only(
+              start: MoshSpace.s2, end: compact ? MoshSpace.s3 : MoshSpace.s5),
           child: TextButton(
               onPressed: busy ? null : onCancel, child: Text(l.dialogCancel)),
         ),

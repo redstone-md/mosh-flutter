@@ -167,6 +167,7 @@ class _CallBackButtonState extends ConsumerState<_CallBackButton> {
     final bound = ref.watch(conversationCallBindingProvider) != null;
     return IconButton(
       icon: const Icon(MoshIcons.call),
+      iconSize: MoshSpace.s6,
       color: widget.color,
       tooltip: widget.label,
       onPressed: id == null || !bound || _starting ? null : () => _call(id),

@@ -16,8 +16,6 @@ import 'package:mosh/src/features/shared/press_scale.dart';
 import 'conversation_attachment.dart';
 import 'message_tone.dart';
 import 'voice_waveform.dart';
-
-export 'voice_waveform.dart' show VoiceWaveform;
 import 'conversation_state.dart' show ConversationPendingDropped;
 
 import 'package:mosh/src/rust/conversation/attachments.dart';
@@ -192,56 +190,6 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
         : length;
   }
 
-  /// The one round button: play and pause, a spinner, or try again.
-  Widget _button(BuildContext context, MessageTone tone, AppLocalizations l) {
-    final enabled = !_loading &&
-        (_attachment.localPath != null ||
-            !(widget.busy || _attachment.outgoing));
-    final glyph = _failed
-        ? MoshIcons.refresh
-        : _playing
-            ? MoshIcons.pause
-            : MoshIcons.play;
-    return Opacity(
-      opacity: enabled || _loading ? 1 : MoshState.disabledContent,
-      child: PressScale(
-        enabled: enabled,
-        child: Material(
-          color: tone.accent,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            overlayColor: MoshState.layer(tone.onAccent),
-            onTap: enabled ? _toggle : null,
-            child: Tooltip(
-              message: _failed
-                  ? l.attachmentRetry
-                  : _playing
-                      ? widget.pauseLabel
-                      : widget.playLabel,
-              child: SizedBox.square(
-                dimension: MoshControl.height(Theme.of(context).platform),
-                child: Center(
-                  child: _loading
-                      ? SizedBox.square(
-                          dimension: MoshSpace.s5,
-                          child: CircularProgressIndicator(
-                              strokeWidth: MoshBorder.thick,
-                              color: tone.onAccent),
-                        )
-                      : ContextualIconSwitcher(
-                          icon: glyph,
-                          size: MoshSpace.s5,
-                          color: tone.onAccent),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -250,7 +198,25 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
       mainAxisSize: MainAxisSize.min,
       spacing: MoshSpace.s3,
       children: [
-        _button(context, tone, l),
+        _VoiceButton(
+          tone: tone,
+          glyph: _failed
+              ? MoshIcons.refresh
+              : _playing
+                  ? MoshIcons.pause
+                  : MoshIcons.play,
+          label: _failed
+              ? l.attachmentRetry
+              : _playing
+                  ? widget.pauseLabel
+                  : widget.playLabel,
+          loading: _loading,
+          onPressed: !_loading &&
+                  (_attachment.localPath != null ||
+                      !(widget.busy || _attachment.outgoing))
+              ? _toggle
+              : null,
+        ),
         Flexible(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -284,6 +250,64 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The one round button of a voice message: play and pause, try again, or
+/// a spinner while the audio is still arriving. It fades when there is
+/// nothing it can do.
+class _VoiceButton extends StatelessWidget {
+  const _VoiceButton({
+    required this.tone,
+    required this.glyph,
+    required this.label,
+    required this.loading,
+    required this.onPressed,
+  });
+
+  final MessageTone tone;
+  final IconData glyph;
+  final String label;
+  final bool loading;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return Opacity(
+      opacity: enabled || loading ? 1 : MoshState.disabledContent,
+      child: PressScale(
+        enabled: enabled,
+        child: Material(
+          color: tone.accent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            overlayColor: MoshState.layer(tone.onAccent),
+            onTap: onPressed,
+            child: Tooltip(
+              message: label,
+              child: SizedBox.square(
+                dimension: MoshControl.height(Theme.of(context).platform),
+                child: Center(
+                  child: loading
+                      ? SizedBox.square(
+                          dimension: MoshSpace.s5,
+                          child: CircularProgressIndicator(
+                              strokeWidth: MoshBorder.thick,
+                              color: tone.onAccent),
+                        )
+                      : ContextualIconSwitcher(
+                          icon: glyph,
+                          size: MoshSpace.s5,
+                          color: tone.onAccent),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

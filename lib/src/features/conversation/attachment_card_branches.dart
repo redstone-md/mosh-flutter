@@ -41,12 +41,15 @@ class _MediaCard extends StatelessWidget {
             Expanded(
                 child: MiddleCutText(descriptor.fileName,
                     style: text.labelLarge!.copyWith(color: tone.ink))),
-            Text(
+            Flexible(
+                child: Text(
               attachmentDetail(attachment, l, failed: l.attachmentMediaFailed),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: text.labelMedium!.copyWith(
                   color: failed ? tone.error : tone.quiet,
                   fontFeatures: kLiveNumberFontFeatures),
-            ),
+            )),
           ]),
         ),
       ],
@@ -87,7 +90,7 @@ class _MediaCard extends StatelessWidget {
                 if (!failed) _previewImage(attachment, bytes, thumb ?? ''),
                 if (transfer != null)
                   Center(child: _transferControl(context, transfer, l))
-                else if (descriptor.mime.startsWith('video/'))
+                else if (attachment.isVideo)
                   // Decorative: the preview itself is the open target.
                   Center(
                     child: ExcludeSemantics(
@@ -132,22 +135,31 @@ class _MediaCard extends StatelessWidget {
         ),
       );
     }
+    // A control like any other: a keyboard reaches and presses it.
     return Tooltip(
       message: transfer.tooltip,
       child: Semantics(
         label: transfer.label,
         button: true,
-        child: GestureDetector(
-          onTap: transfer.onPressed,
-          child: _onDisc(
-            MoshColors.of(context),
-            SizedBox.square(
-              dimension: MoshSpace.s10,
-              child: CircularProgressIndicator(
-                  value: progress.fraction,
-                  strokeWidth: MoshSpace.s1,
-                  semanticsLabel:
-                      l.attachmentStateDownloading(progress.percent)),
+        child: Material(
+          color: MoshColors.of(context).surface,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            excludeFromSemantics: true,
+            onTap: transfer.onPressed,
+            child: SizedBox.square(
+              dimension: _disc,
+              child: Center(
+                child: SizedBox.square(
+                  dimension: MoshSpace.s10,
+                  child: CircularProgressIndicator(
+                      value: progress.fraction,
+                      strokeWidth: MoshSpace.s1,
+                      semanticsLabel:
+                          l.attachmentStateDownloading(progress.percent)),
+                ),
+              ),
             ),
           ),
         ),
@@ -172,8 +184,7 @@ Widget _previewImage(
   if (attachment.clearPreviewPath case final path?) {
     preview = _localPreview(path, preview, auxiliary: true);
   }
-  if (attachment.descriptor.mime.startsWith('image/') &&
-      attachment.localPath != null) {
+  if (attachment.isImage && attachment.localPath != null) {
     preview = _localPreview(attachment.localPath!, preview);
   }
   return preview;

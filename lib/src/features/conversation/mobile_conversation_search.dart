@@ -140,7 +140,8 @@ class MobileConversationFilterNotice extends StatelessWidget {
       child: Row(
         spacing: MoshSpace.s2,
         children: [
-          Icon(MoshIcons.attach, color: theme.colorScheme.primary),
+          Icon(MoshIcons.attach,
+              size: MoshSpace.s5, color: theme.colorScheme.primary),
           Expanded(
               child: Text(l.chatFilterAttachments,
                   style: theme.textTheme.labelLarge)),

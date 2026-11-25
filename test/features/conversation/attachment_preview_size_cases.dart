@@ -48,8 +48,9 @@ void main() {
         kAttachmentPreviewMaxHeight);
     expect(attachmentPreviewHeight(const Size(100, 1), width: 320),
         kAttachmentPreviewMinHeight);
-    expect(attachmentPreviewHeight(null, width: 320),
-        kAttachmentPreviewFallbackHeight);
+    // With no size to go by, the Media card's own preview: desktop, phone.
+    expect(attachmentPreviewHeight(null, width: 320), 200);
+    expect(attachmentPreviewHeight(null, width: 244), 148);
     expect(attachmentPreviewHeight(const Size(300, 200), width: 240), 160);
   });
 }

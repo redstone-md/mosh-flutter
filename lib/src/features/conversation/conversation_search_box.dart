@@ -5,6 +5,8 @@ import 'package:mosh/src/app/mosh_shapes.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/features/conversation/conversation_helpers.dart'
+    show feedPadding;
 import 'package:mosh/src/features/shared/search_field.dart';
 
 /// The padding of the search under a conversation's header and of the
@@ -12,8 +14,7 @@ import 'package:mosh/src/features/shared/search_field.dart';
 /// sides.
 EdgeInsets conversationToolsPadding({required bool compact}) =>
     EdgeInsets.symmetric(
-        vertical: MoshSpace.s2,
-        horizontal: compact ? MoshSpace.s3 : MoshSpace.s5);
+        vertical: MoshSpace.s2, horizontal: feedPadding(compact: compact).left);
 
 /// The search inside a conversation: the Search field card, fed by the
 /// screen. It owns the controller, so a rebuild of the screen, which a poll
