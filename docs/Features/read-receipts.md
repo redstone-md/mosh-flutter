@@ -1,8 +1,9 @@
 # Read receipts (DM)
 
-Feature doc for the DM read-receipt flow: the two delivery ticks change
-color when the counterpart opens the conversation — proof a human saw it,
-never a third tick (see [[Read receipt]] in root `CONTEXT.md`). Reference:
+Feature doc for the DM read-receipt flow: the two delivery ticks are redrawn
+heavier and in the bubble's darker ink when the counterpart opens the
+conversation (a colour alone is too close on the outgoing bubble; the
+Delivery ticks card, MOSH-135) — proof a human saw it, never a third tick (see [[Read receipt]] in root `CONTEXT.md`). Reference:
 [Private DM](private-dm.md), [Architecture](../Architecture.md).
 
 The app-level switch lives in Settings → Privacy, beside crash reporting.
@@ -23,7 +24,7 @@ sequenceDiagram
     Wire->>Alice: ReadReceipt (decrypt = authenticate)
     Alice->>Alice: message.read = Some(true); event 9 "peer-read"
     Alice->>Alice: snapshot poll carries read:true
-    Note over Alice: two ticks change color
+    Note over Alice: the two ticks turn heavier and darker
 ```
 
 ## The rules

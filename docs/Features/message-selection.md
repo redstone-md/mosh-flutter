@@ -13,9 +13,10 @@ refines its appearance with circular selectors and responsive action placement.
   Copy and a destructive Delete button. An open search row stays usable.
   Screen readers hear count changes through a live region.
 - **Rows.** Every selectable message shows an empty circular selector; selected
-  messages show a filled circle with a checkmark. Circles sit on the right on
-  desktop and on the left at the existing mobile breakpoint of 580 px.
-  Only picked bubbles get a tint from the theme's primary color. Rows report
+  messages show a filled circle with a checkmark. Circles lead the row, on
+  the desktop as on the phone. A picked row carries a `secondaryContainer`
+  band across the feed; the bubble keeps its own colour (the Search and
+  selection card, MOSH-135). Rows report
   their selected state and selectors their checked state to assistive technology.
   A tap anywhere on a row picks or unpicks it. Shift extends the pick from the
   last picked row.
@@ -80,7 +81,7 @@ through the picked-message copy instead.
 
 `conversation_models_test.dart` (group `message_selection_model`) covers the state model.
 `message_selection_mode_test.dart` and `message_drag_selection_test.dart` cover
-the header swap, circles, bubble tint, taps, Shift, Escape, copy,
+the header swap, circles, the band of a picked row, taps, Shift, Escape, copy,
 mobile placement, draft retention, search narrowing,
 mouse and touch drags, and auto-scroll start and stop.
 Shared selection checks reuse `HostedMessageList` with the real list and host;
