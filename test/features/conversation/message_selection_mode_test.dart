@@ -1,8 +1,10 @@
 // Shared message selection behavior and Telegram-style selection controls.
+import '../../support/contrast.dart';
+import 'package:mosh/src/rust/outbound_delivery.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/gestures.dart'
     show PointerDeviceKind, kSecondaryMouseButton;
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -133,6 +135,25 @@ void main() {
     await tester.pumpAndSettle();
     _expectPicked(2);
     expect(messageBand(tester, 'first note'), isNot(unpicked));
+  });
+
+  testWidgets('what sits on the band of a picked row reads on it',
+      (tester) async {
+    await pumpConversation(tester, conversationCases().first, messages: [
+      const TestMessage(body: 'plain note', messageId: 'plain'),
+      const TestMessage.own(
+          body: 'failed note',
+          messageId: 'failed',
+          deliveryStatus: MessageDeliveryStatus.failed,
+          retryable: true),
+    ]);
+    await startMessageSelection(tester, 'failed note');
+    final notice = tester.renderObject<RenderParagraph>(find.descendant(
+        of: find.text('Not sent'), matching: find.byType(RichText)));
+    expect(
+        contrastRatio(
+            notice.text.style!.color!, messageBand(tester, 'failed note')),
+        greaterThanOrEqualTo(4.5));
   });
 
   testWidgets('the last deselection leaves the mode', (tester) async {

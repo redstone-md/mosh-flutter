@@ -30,8 +30,9 @@ class SelectableMessageRow extends StatelessWidget {
   final bool grouped;
   final Widget child;
 
-  /// What the band of a picked row keeps above and below its bubble; two
-  /// picked rows of one run meet.
+  /// Half the gap between the bubbles of a run: what a row keeps above and
+  /// below its bubble, and how far the band of a picked row reaches past
+  /// that, so two picked rows of one run meet.
   static const double _band = MoshSpace.s1 / 2;
 
   @override
@@ -47,11 +48,20 @@ class SelectableMessageRow extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: selecting && id != null ? () => _pick(selection!, id) : null,
-        child: ColoredBox(
-          color: selecting && selected
-              ? MoshColors.of(context).secondaryContainer
-              : Colors.transparent,
-          child: Padding(
+        child: Stack(clipBehavior: Clip.none, children: [
+          // The band reaches 4 px beyond the bubble, over the gaps to its
+          // neighbours, so the rows keep their rhythm when one is picked.
+          Positioned(
+            left: 0,
+            right: 0,
+            top: -_band,
+            bottom: -_band,
+            child: ColoredBox(
+                color: selecting && selected
+                    ? MoshColors.of(context).secondaryContainer
+                    : Colors.transparent),
+          ),
+          Padding(
             padding: EdgeInsets.symmetric(horizontal: side, vertical: _band),
             child: Row(
               spacing: MoshSpace.s2,
@@ -77,7 +87,7 @@ class SelectableMessageRow extends StatelessWidget {
               ],
             ),
           ),
-        ),
+        ]),
       ),
     );
   }

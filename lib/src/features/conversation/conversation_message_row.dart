@@ -14,6 +14,7 @@ import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
 import 'package:mosh/src/features/conversation/message_bubble.dart';
+import 'package:mosh/src/features/conversation/message_selection.dart';
 import 'package:mosh/src/features/conversation/message_tone.dart';
 import 'package:mosh/src/features/conversation/call_log_entry.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
@@ -117,11 +118,23 @@ class ConversationMessageRow extends StatelessWidget {
     );
   }
 
+  /// The ink of what sits straight on the band of a picked row, in place of
+  /// inks made for the feed's background that read too faintly there; null
+  /// while the row is not picked.
+  Color? _onBand(BuildContext context) {
+    final id = message.messageId;
+    final selection = MessageSelectionScope.maybeOf(context)?.selection;
+    return id != null && (selection?.isSelected(id) ?? false)
+        ? MoshColors.of(context).onSecondaryContainer
+        : null;
+  }
+
   /// The bubble, or the call that is a bubble of its own, and under it, on
   /// the same side, the notice of a message that was not sent.
   Widget _bubbleAndFailure(BuildContext context) {
     final failed =
         message.own && message.deliveryStatus == MessageDeliveryStatus.failed;
+    final onBand = _onBand(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
@@ -143,12 +156,13 @@ class ConversationMessageRow extends StatelessWidget {
             grouped: grouped,
             continuesBelow: continuesBelow,
             gone: message.deletion != null,
-            child: _body(context),
+            child: _body(context, onBand),
           ),
         if (failed)
           SelectionContainer.disabled(
             child: FailedMessageRetry(
               deliveryError: message.deliveryError,
+              noticeColor: onBand,
               onRetry:
                   message.canRetry ? () => onRetry(message.messageId!) : null,
               l: l.toFailedMessageRetryL10n(),
@@ -162,9 +176,9 @@ class ConversationMessageRow extends StatelessWidget {
   /// a voice message, then the text. The time ends the last line of the
   /// text; a file or a voice message alone keeps it in its own last line,
   /// and a picture, like a message with nothing else, keeps a line for it.
-  Widget _body(BuildContext context) {
+  Widget _body(BuildContext context, Color? onBand) {
     if (message.deletion case final deleted?) {
-      return _DeletedNote(deleted: deleted, l: l);
+      return _DeletedNote(deleted: deleted, l: l, ink: onBand);
     }
     final compact = isMobileBreakpoint(context);
     final footer = ConversationMessageFooter(message: message, kind: kind);
@@ -238,8 +252,10 @@ class ConversationMessageRow extends StatelessWidget {
 /// deleted and by whom, and, unless the deletion is confirmed, where it
 /// stands.
 class _DeletedNote extends StatelessWidget {
-  const _DeletedNote({required this.deleted, required this.l});
+  const _DeletedNote({required this.deleted, required this.l, this.ink});
 
+  /// The ink on the band of a picked row; the feed's muted one otherwise.
+  final Color? ink;
   final DeletionMarker deleted;
   final AppLocalizations l;
 
@@ -253,7 +269,7 @@ class _DeletedNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final quiet = MoshColors.of(context).onSurfaceMuted;
+    final quiet = ink ?? MoshColors.of(context).onSurfaceMuted;
     return Padding(
       padding: MoshShapes.bubbleInset,
       child: Column(

@@ -20,20 +20,11 @@ typedef AttachmentAction = ({
   VoidCallback? onPressed,
 });
 
-/// The glyph of a file at rest: a picture and anything that plays say so on
-/// the plate.
-IconData attachmentGlyph(ConversationAttachment attachment) =>
-    !attachment.viewable
-        ? MoshIcons.file
-        : attachment.isImage
-            ? MoshIcons.image
-            : MoshIcons.play;
-
 /// What [attachment] offers now, or null when there is nothing to do with
 /// it. An incoming file is downloaded, and its transfer stopped, picked up
 /// again or tried again; a file that is here is opened. Media that can play
 /// before it has arrived opens straight away, which also starts its
-/// download.
+/// download, so its plate shows the download like any other file's.
 AttachmentAction? attachmentAction(
   ConversationAttachment attachment, {
   required bool busy,
@@ -44,14 +35,14 @@ AttachmentAction? attachmentAction(
 }) {
   final file = attachment.descriptor;
   final name = file.fileName;
+  final control = attachment.transferControl(busy: busy);
   final open = (
     opens: true,
-    glyph: attachmentGlyph(attachment),
+    glyph: control == null ? MoshIcons.file : MoshIcons.download,
     tooltip: l.attachmentOpenAria(name),
     label: l.attachmentOpenAria(name),
     onPressed: onOpen,
   );
-  final control = attachment.transferControl(busy: busy);
   if (control == null) return attachment.localPath == null ? null : open;
   if (control.action == AttachmentTransferAction.download &&
       attachment.viewable) {

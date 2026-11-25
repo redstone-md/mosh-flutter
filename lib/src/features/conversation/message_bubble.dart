@@ -51,7 +51,6 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         key: ValueKey('message-bubble-$id'),
         padding: MoshShapes.bubblePadding,
-        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: gone ? null : tone.fill,
           border: gone

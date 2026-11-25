@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show kLiveNumberFontFeatures;
 import 'package:mosh/src/features/conversation/attachment_actions.dart';
@@ -28,7 +29,7 @@ class FileCard extends StatelessWidget {
   final MessageTone tone;
 
   /// What a press does and how the plate shows it; null for a file with
-  /// nothing to do, which shows the glyph of its kind.
+  /// nothing to do, which shows the file glyph.
   final AttachmentAction? action;
 
   /// The time of a message that is this file alone: it ends the card's
@@ -70,7 +71,7 @@ class FileCard extends StatelessWidget {
     final act = action;
     final glyph = SizedBox.square(
       dimension: plate,
-      child: Icon(act?.glyph ?? attachmentGlyph(attachment),
+      child: Icon(act?.glyph ?? MoshIcons.file,
           size: MoshSpace.s5, color: failed ? tone.failGlyph : tone.glyph),
     );
     return Material(

@@ -135,31 +135,27 @@ class _MediaCard extends StatelessWidget {
         ),
       );
     }
-    // A control like any other: a keyboard reaches and presses it.
+    // The ring alone, as the card draws it, and a control like any other:
+    // a keyboard reaches and presses it.
     return Tooltip(
       message: transfer.tooltip,
       child: Semantics(
         label: transfer.label,
         button: true,
         child: Material(
-          color: MoshColors.of(context).surface,
+          type: MaterialType.transparency,
           shape: const CircleBorder(),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             excludeFromSemantics: true,
             onTap: transfer.onPressed,
             child: SizedBox.square(
-              dimension: _disc,
-              child: Center(
-                child: SizedBox.square(
-                  dimension: MoshSpace.s10,
-                  child: CircularProgressIndicator(
-                      value: progress.fraction,
-                      strokeWidth: MoshSpace.s1,
-                      semanticsLabel:
-                          l.attachmentStateDownloading(progress.percent)),
-                ),
-              ),
+              dimension: MoshSpace.s10,
+              child: CircularProgressIndicator(
+                  value: progress.fraction,
+                  strokeWidth: MoshSpace.s1,
+                  semanticsLabel:
+                      l.attachmentStateDownloading(progress.percent)),
             ),
           ),
         ),

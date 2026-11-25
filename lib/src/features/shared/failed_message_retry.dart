@@ -18,7 +18,12 @@ class FailedMessageRetry extends StatelessWidget {
     required this.deliveryError,
     required this.onRetry,
     required this.l,
+    this.noticeColor,
   });
+
+  /// The notice's ink where the error colour reads too faintly, such as on
+  /// the band of a picked row; the error colour when left out.
+  final Color? noticeColor;
 
   /// The failure detail the network reported, trimmed before use.
   final String? deliveryError;
@@ -38,8 +43,8 @@ class FailedMessageRetry extends StatelessWidget {
     final reason = trimmed == null || trimmed.isEmpty ? null : trimmed;
     final notice = Text(
       l.messageFailedToSend,
-      style:
-          theme.textTheme.labelMedium!.copyWith(color: theme.colorScheme.error),
+      style: theme.textTheme.labelMedium!
+          .copyWith(color: noticeColor ?? theme.colorScheme.error),
       overflow: TextOverflow.ellipsis,
       maxLines: 1,
     );

@@ -49,6 +49,10 @@ List<(String, Color, Color)> _onFill(MoshColors c) => [
         c.onSurfaceVariant,
         c.secondaryContainer
       ),
+      // The feed: a failure told on an incoming bubble. On the band of a
+      // picked row the feed's quiet and error inks give way to
+      // onSecondaryContainer, paired above.
+      ('error on incoming', c.error, c.incoming),
       ('error on errorContainer', c.error, c.errorContainer),
       ('warning on warningContainer', c.warning, c.warningContainer),
       ('info on tertiaryContainer', c.info, c.tertiaryContainer),

@@ -140,17 +140,17 @@ void main() {
 
     // No preview: no Image.memory in the tree.
     expect(find.byType(Image), findsNothing);
-    expect(find.byIcon(MoshIcons.image), findsOneWidget);
+    expect(find.byIcon(MoshIcons.download), findsOneWidget);
     // The plate owns the accessible action, so there is exactly one Open
     // announcement; the whole card is the pointer's target.
     expect(find.bySemanticsLabel('Open photo2.png'), findsOneWidget);
     final semanticsHandle = tester.ensureSemantics();
     final thumbSemantics =
-        tester.getSemantics(find.byIcon(MoshIcons.image)).getSemanticsData();
+        tester.getSemantics(find.byIcon(MoshIcons.download)).getSemanticsData();
     expect(thumbSemantics.label, 'Open photo2.png');
     expect(thumbSemantics.hasAction(SemanticsAction.tap), isTrue);
     semanticsHandle.dispose();
-    await tester.tap(find.byIcon(MoshIcons.image));
+    await tester.tap(find.byIcon(MoshIcons.download));
     expect(_openCount, 1);
     expect(_opened, descriptor);
     // The file name still renders.
@@ -204,9 +204,9 @@ void main() {
     );
 
     expect(find.byType(Image), findsNothing);
-    expect(find.byIcon(MoshIcons.play), findsOneWidget);
+    expect(find.byIcon(MoshIcons.download), findsOneWidget);
     expect(find.bySemanticsLabel('Open clip2.mp4'), findsOneWidget);
-    await tester.tap(find.byIcon(MoshIcons.play));
+    await tester.tap(find.byIcon(MoshIcons.download));
     expect(_openCount, 1);
     expect(_opened, descriptor);
   });
@@ -234,9 +234,9 @@ void main() {
 
     // Audio is viewable without a thumbnail, but it is not a media preview.
     expect(find.byType(Image), findsNothing);
-    expect(find.byIcon(MoshIcons.play), findsOneWidget);
+    expect(find.byIcon(MoshIcons.download), findsOneWidget);
     expect(find.bySemanticsLabel('Open song.mp3'), findsOneWidget);
-    await tester.tap(find.byIcon(MoshIcons.play));
+    await tester.tap(find.byIcon(MoshIcons.download));
     expect(_openCount, 1);
     expect(_opened, descriptor);
     expect(find.text('song.mp3'), findsOneWidget);
