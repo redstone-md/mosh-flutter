@@ -60,8 +60,8 @@ drag anchor and a generation that late deletion results compare against.
 `MessageSelectionActions` renders the same actions above or below the list;
 both placements use the host's existing bulk deletion flow through the scope.
 `MessageSelectionComposer` hides the composer with state-preserving visibility.
-`VoiceComposer` observes Flutter's inherited visibility and finalizes capture
-through its existing stop/review flow, without depending on selection state.
+`VoiceComposer` observes Flutter's inherited visibility and pauses a running
+capture the way its pause button does, without depending on selection state.
 `SelectableMessageRow` keeps one widget shape in both modes, so entering the
 mode never remounts rows or their attachment state.
 
@@ -104,6 +104,5 @@ The existing `ConversationMessageRow` and `ConversationScreenBody` retain their
 type and build-method budget exceptions: their complete bubble and screen
 composition stays together. New selection controls stay within the normal
 source budgets.
-The existing `_VoiceComposerState` exceeds the type-size budget: capture,
-finalization and its three control phases remain together under one recorder
-owner. Visibility handling adds no second capture owner.
+`VoiceRecording` is the one owner of the recorder; `VoiceComposer` draws its
+phases. Visibility handling adds no second capture owner.

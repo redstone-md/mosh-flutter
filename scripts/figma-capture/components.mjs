@@ -36,7 +36,7 @@ export const COMPONENTS = [
   component('rows', 'Call log entry', ['CallLogEntry']),
   component('rows', 'Attachment card', ['FileCard', 'MiddleCutText', 'attachment_card._MediaCard', 'ConversationSharedFile']),
   component('rows', 'Voice message', ['VoiceMessageCard', 'VoiceWaveform', 'VoiceCardTimeLabel']),
-  component('rows', 'Composer', ['ConversationComposer', 'AttachmentPicker', 'VoiceComposer', 'VoiceRecordingDot', 'TypingHint']),
+  component('rows', 'Composer', ['ConversationComposer', 'ComposerSendButton', 'AttachmentPicker', 'VoiceComposer', 'voice_composer._RecordedTake', 'VoiceRecordingDot', 'TypingHint']),
   component('rows', 'Search bar', ['ConversationSearchBox', 'ConversationFilterToggle', 'MobileConversationSearch', 'MobileConversationFilterNotice']),
   component('rows', 'Selection bar', ['MessageSelectionBar', 'MessageSelectionActions', 'MessageSelectionComposer', 'Checkbox']),
 
@@ -84,7 +84,7 @@ export const SCREEN_PARTS = [
 // widget of their own would otherwise land on the host. It lands on MoshApp.
 export const WRAPPERS = [
   'ToastHost', 'VpnConsentOverlay', 'PlusHost', 'voice_call_host._CallHostOverlay',
-  'FocusRing', 'MoshLoading', 'PressScale', 'ResumedInk', 'OpticalIcon', 'ContextualIconSwitcher', 'ModalFocusTrap', 'MoshDialogTransition',
+  'FocusRing', 'MoshLoading', 'PressScale', 'ResumedInk', 'ContextualIconSwitcher', 'ModalFocusTrap', 'MoshDialogTransition',
   'StartReveal', 'toast_card._Bump', 'SetupStepTransition', 'first_run_transition._SetupPanel',
   'CopyableMessage', 'SelectableMessageRow', 'MessageContextMenu', 'MessageSelectionHost', 'ChatDropZone',
   'CallVideoSurfaceScope', 'CallVideoSurfaceReport', 'mosh_shell._SemanticsPane',

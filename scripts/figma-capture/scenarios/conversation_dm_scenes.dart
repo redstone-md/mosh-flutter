@@ -70,7 +70,7 @@ final _dmScenes = <FigmaScene>[
   scene('dm-voice-review', 'Conversation / DM / Voice recorded',
       (tester, size) async {
     await _record(tester, size);
-    await tester.tap(find.byTooltip(l10n.voiceStopLabel));
+    await tester.tap(find.byTooltip(l10n.voicePauseLabel));
     await _settle(tester);
   }),
   scene('dm-connecting', 'Conversation / DM / Peer offline',
@@ -103,6 +103,7 @@ final _dmScenes = <FigmaScene>[
           error: Exception('Maya Chen is not reachable right now'));
     await openShell(tester, size, gateway: gateway);
     await tester.enterText(_composerField, 'See you at 6!');
+    await tester.pump();
     await tester.tap(find.byKey(kComposerSendButtonKey));
     await _settle(tester);
   }),

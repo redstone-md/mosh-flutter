@@ -27,6 +27,7 @@ import 'api/private_dm.dart';
 import 'api/private_group.dart';
 import 'api/shared_runtime.dart';
 import 'api/voice_call_ringtone.dart';
+import 'api/voice_clip.dart';
 import 'api/vpn.dart';
 import 'api/wake.dart';
 import 'attachment_runtime.dart';

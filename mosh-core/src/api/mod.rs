@@ -60,6 +60,9 @@ pub mod vpn;
 /// cpal device inside the ringtone start.
 pub mod audio_devices;
 
+/// Facade for joining the pieces of a paused and resumed voice recording.
+pub mod voice_clip;
+
 /// Facade for the CPAL-backed bundled voice-call ringtone.
 pub mod voice_call_ringtone;
 

@@ -15,7 +15,7 @@ import 'package:mosh/src/features/shared/contextual_icon_switcher.dart';
 import 'package:mosh/src/features/shared/press_scale.dart';
 import 'conversation_attachment.dart';
 import 'message_tone.dart';
-import 'voice_waveform.dart';
+import 'package:mosh/src/features/shared/voice_waveform.dart';
 import 'conversation_state.dart' show ConversationPendingDropped;
 
 import 'package:mosh/src/rust/conversation/attachments.dart';

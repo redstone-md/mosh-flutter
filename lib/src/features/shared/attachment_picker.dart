@@ -116,12 +116,9 @@ class AttachmentPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      icon: const Icon(MoshIcons.attach, size: 18),
+      icon: const Icon(MoshIcons.attach),
       tooltip: ariaLabel,
       onPressed: disabled ? null : _pick,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-      visualDensity: VisualDensity.standard,
     );
   }
 }

@@ -1,290 +1,39 @@
-// The VoiceComposer permission flow, driven through the real `record`
-// plugin seam (the `com.llfbandit.record/messages` method channel), the
-// same channel-stubbing pattern the repo already uses for `window_manager`
-// and `desktop_drop`.
+// When the VoiceComposer asks for the microphone, driven through the real
+// `record` plugin seam (VoiceRecorderProbe).
 //
-// What is pinned here:
-//  1. Mounting the composer must NOT probe the mic — the 0.9.1 macOS
-//     crash died in TCC because the probe fired at chat open, before the
-//     plist had a usage string. The mic button renders regardless.
-//  2. A tap with permission granted starts the recording phase.
-//  3. A tap with permission refused surfaces the localized denial label
-//     through onError and keeps the mic button (a later grant can retry).
-//  4. Stopping lands in the review phase; send hands a VoiceSend over.
-//
-// The channel stub answers the recorder's real protocol (`create`,
-// `hasPermission`, `start`, `stop`, `isRecording`, `getAmplitude`,
-// `dispose`), so the plugin's Dart-side framing (semaphore, amplitude
-// timer wiring) runs for real. `getTemporaryDirectory` is stubbed to a
-// real temp dir so the capture writes to a real filesystem path.
-//
-// No `pumpAndSettle` once a recording is live: the composer's elapsed
-// timer is periodic (setState every 200 ms), so settling never ends —
-// the tests pump fixed frames instead.
-import 'dart:io';
-
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+//  1. Mounting the composer must NOT probe the mic: the 0.9.1 macOS crash
+//     died in TCC because the probe fired at chat open, before the plist
+//     had a usage string. The mic button renders regardless.
+//  2. A press with permission refused tells the localized denial through
+//     onError and keeps the mic button (a later grant can retry).
 import 'package:flutter_test/flutter_test.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/features/shared/media_player.dart';
-import 'package:mosh/src/features/shared/voice_composer.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show moshThemeData, MoshColors;
 
-const MethodChannel _recordChannel =
-    MethodChannel('com.llfbandit.record/messages');
-
-/// Answers the `record` plugin's method protocol. [permissionResult] is
-/// what `hasPermission` reports. `stop` returns the path the last `start`
-/// was given, mirroring the real recorder (its stop() reports the file).
-void _stubRecordChannel({
-  required bool Function() permissionResult,
-  List<String>? started,
-}) {
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(_recordChannel, (call) async {
-    switch (call.method) {
-      case 'create':
-      case 'dispose':
-      case 'cancel':
-        return null;
-      case 'hasPermission':
-        return permissionResult();
-      case 'start':
-        final path = (call.arguments as Map)['path'] as String;
-        started?.add(path);
-        return null;
-      case 'stop':
-        return started?.lastOrNull;
-      case 'isRecording':
-        return false;
-      case 'getAmplitude':
-        return {'current': -60.0, 'max': -60.0};
-      case 'isEncoderSupported':
-        return true;
-      default:
-        return null;
-    }
-  });
-  addTearDown(() => TestDefaultBinaryMessengerBinding
-      .instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(_recordChannel, null));
-}
-
-/// Records every method call, for the mount-time probe assertion.
-List<String> _recordCalls() {
-  final calls = <String>[];
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(_recordChannel, (call) async {
-    calls.add(call.method);
-    switch (call.method) {
-      case 'create':
-      case 'dispose':
-      case 'cancel':
-      case 'start':
-      case 'stop':
-        return null;
-      case 'hasPermission':
-        return true;
-      case 'isRecording':
-        return false;
-      case 'getAmplitude':
-        return {'current': -60.0, 'max': -60.0};
-      case 'isEncoderSupported':
-        return true;
-      default:
-        return null;
-    }
-  });
-  addTearDown(() => TestDefaultBinaryMessengerBinding
-      .instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(_recordChannel, null));
-  return calls;
-}
-
-Future<void> _pumpComposer(
-  WidgetTester tester, {
-  required List<String> errors,
-  List<VoiceSend>? sent,
-  MediaPlayerFactory createPlayer = createMediaPlayer,
-}) async {
-  // The capture asks the platform for the app cache dir (the clip dir
-  // fix). Real async IO never resolves inside a widget test's fake async
-  // zone, so the directory is created (and torn down) synchronously; the
-  // stub answers the cache method, with a synchronous create of the
-  // mosh-voice subdir skipped — the composer's own recursive create
-  // handles it in the app.
-  final dir = Directory.systemTemp.createTempSync('mosh-voice-test');
-  addTearDown(() => dir.deleteSync(recursive: true));
-
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          (call) async => switch (call.method) {
-                'getApplicationCacheDirectory' => dir.path,
-                _ => null,
-              });
-  addTearDown(() => TestDefaultBinaryMessengerBinding
-      .instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'), null));
-
-  await tester.pumpWidget(MaterialApp(
-    theme: moshThemeData,
-    home: Scaffold(
-      body: Center(
-        child: VoiceComposer(
-          disabled: false,
-          onSend: sent?.add ?? (_) {},
-          onError: errors.add,
-          recordLabel: 'Record',
-          discardLabel: 'Discard',
-          stopLabel: 'Stop',
-          playLabel: 'Play',
-          sendLabel: 'Send voice',
-          permissionDeniedLabel: 'mic denied',
-          inputDeviceId: () => null,
-          createPlayer: createPlayer,
-        ),
-      ),
-    ),
-  ));
-  await tester.pumpAndSettle();
-}
-
-Finder _micButton() => find.byIcon(MoshIcons.mic);
+import '../../support/voice_recorder.dart';
 
 void main() {
   testWidgets('mount probes nothing; the mic button renders', (tester) async {
-    final calls = _recordCalls();
-    final errors = <String>[];
-    await _pumpComposer(tester, errors: errors);
+    final recorder = VoiceRecorderProbe(tester);
+    await pumpVoiceComposer(tester);
 
-    // create runs at recorder construction; a permission probe
-    // (hasPermission) at MOUNT is the crash class this rework kills.
-    expect(calls, isNot(contains('hasPermission')),
+    expect(recorder.calls, isNot(contains('hasPermission')),
         reason: 'the 0.9.1 macOS TCC crash fired the probe at chat open');
-    expect(_micButton(), findsOneWidget);
-  });
-
-  testWidgets('tap with permission granted starts the recording phase',
-      (tester) async {
-    final started = <String>[];
-    _stubRecordChannel(
-      permissionResult: () => true,
-      started: started,
-    );
-    final errors = <String>[];
-    await _pumpComposer(tester, errors: errors);
-
-    await tester.tap(_micButton());
-    // Fixed frames, not settle: the elapsed timer is periodic.
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(tester.widget<Text>(find.text('0:00')).style!.fontFeatures,
-        contains(FontFeature.tabularFigures()));
-    final dot = tester.widget<Container>(find.descendant(
-        of: find.byType(VoiceRecordingDot), matching: find.byType(Container)));
-    expect((dot.decoration! as BoxDecoration).color, MoshColors.dark.error);
-    expect(started, hasLength(1), reason: 'the capture must really begin');
-    expect(started.single, endsWith('.m4a'));
-    expect(find.byIcon(MoshIcons.stop), findsOneWidget);
-    expect(find.byIcon(MoshIcons.delete), findsOneWidget);
-    expect(errors, isEmpty);
+    expect(find.byTooltip('Record'), findsOneWidget);
   });
 
   testWidgets(
-      'tap with permission refused surfaces the denial and keeps '
+      'a press with permission refused tells the denial and keeps '
       'the mic button', (tester) async {
-    _stubRecordChannel(permissionResult: () => false);
+    final recorder = VoiceRecorderProbe(tester)..allowed = false;
     final errors = <String>[];
-    await _pumpComposer(tester, errors: errors);
+    await pumpVoiceComposer(tester, errors: errors);
 
-    await tester.tap(_micButton());
+    await tester.tap(find.byTooltip('Record'));
     await tester.pumpAndSettle();
 
-    expect(errors, contains('mic denied'),
-        reason: 'the refusal must surface through onError, not vanish');
-    expect(find.byIcon(MoshIcons.stop), findsNothing,
+    expect(errors, ['mic denied']);
+    expect(recorder.started, isEmpty,
         reason: 'no recording may start on a refusal');
-    expect(_micButton(), findsOneWidget,
+    expect(find.byTooltip('Record'), findsOneWidget,
         reason: 'a later grant must be able to retry from the button');
   });
-
-  testWidgets('stop lands in review; send hands over the VoiceSend',
-      (tester) async {
-    final started = <String>[];
-    _stubRecordChannel(
-      permissionResult: () => true,
-      started: started,
-    );
-    final errors = <String>[];
-    final sent = <VoiceSend>[];
-    await _pumpComposer(tester, errors: errors, sent: sent);
-
-    await tester.tap(_micButton());
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(find.byIcon(MoshIcons.stop));
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.pump(const Duration(milliseconds: 50));
-
-    await tester.pumpAndSettle();
-    expect(tester.widget<Text>(find.text('0:00')).style!.fontFeatures,
-        contains(FontFeature.tabularFigures()));
-    // Review phase: play + discard + send icons.
-    expect(find.byIcon(MoshIcons.play), findsOneWidget);
-    expect(find.byIcon(MoshIcons.send), findsOneWidget);
-
-    await tester.tap(find.byIcon(MoshIcons.send));
-    await tester.pumpAndSettle();
-
-    expect(sent, hasLength(1));
-    expect(sent.single.path, started.single,
-        reason: 'the sent clip is the stopped capture file');
-    expect(sent.single.mime, 'audio/mp4');
-    expect(_micButton(), findsOneWidget, reason: 'back to idle after send');
-    expect(errors, isEmpty);
-  });
-
-  // Regression (CodeAnt PR #154): a preview that failed to play was dropped
-  // with its player still allocated.
-  testWidgets('a preview that cannot play lets go of its player',
-      (tester) async {
-    _stubRecordChannel(permissionResult: () => true, started: <String>[]);
-    final playback = _RefusingPlayback();
-    await _pumpComposer(tester,
-        errors: <String>[],
-        createPlayer: () => Player(platformPlayer: playback));
-    await tester.tap(_micButton());
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(find.byIcon(MoshIcons.stop));
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(MoshIcons.play));
-    await tester.pumpAndSettle();
-
-    expect(playback.disposed, isTrue);
-    expect(find.byIcon(MoshIcons.play), findsOneWidget);
-  });
-}
-
-class _RefusingPlayback extends PlatformPlayer {
-  _RefusingPlayback() : super(configuration: const PlayerConfiguration());
-
-  bool disposed = false;
-
-  @override
-  Future<void> open(Playable playable, {bool play = true}) =>
-      throw StateError('no decoder');
-
-  @override
-  Future<void> dispose() {
-    disposed = true;
-    return super.dispose();
-  }
 }

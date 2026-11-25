@@ -1,393 +1,373 @@
-import 'dart:async' show StreamSubscription, Timer, unawaited;
-import 'dart:convert' show base64Encode;
-import 'dart:io' show Directory, File;
+import 'dart:async' show StreamSubscription, unawaited;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, kLiveNumberFontFeatures;
+import 'package:mosh/src/features/shared/composer_send_button.dart';
 import 'package:mosh/src/features/shared/contextual_icon_switcher.dart';
 import 'package:mosh/src/features/shared/media_player.dart';
 import 'package:mosh/src/features/shared/voice_composer_types.dart';
+import 'package:mosh/src/features/shared/voice_recording.dart';
+import 'package:mosh/src/features/shared/voice_waveform.dart';
 import 'package:mosh/src/rust/api/audio_devices.dart' show audioInputDeviceId;
-import 'package:path_provider/path_provider.dart'
-    show getApplicationCacheDirectory;
-import 'package:record/record.dart';
-import 'package:media_kit/media_kit.dart';
+import 'package:mosh/src/rust/api/voice_clip.dart' show joinVoiceSegments;
 
 export 'package:mosh/src/features/shared/voice_composer_types.dart';
 
-enum _Phase { idle, recording, review }
-
-/// The production input pick: mosh-core's audio-devices store. A top
-///-level default (not inline) so the widget stays const-constructible.
-String? _storedInputDeviceId() => audioInputDeviceId();
-
-/// Microphone control for the composer. Stateless from the screen's view:
-/// owns the recorder + the phase + the elapsed timer + the amplitude stream
-/// internally, and hands a ready-to-send [VoiceSend] to `onSend`.
+/// The voice half of the Composer card. At rest it shows [idle], the row
+/// its owner draws around the microphone it is handed. A press on the
+/// microphone turns the whole row into the recording, as Telegram's locked
+/// recording does: the clock, Cancel, pause and send. A paused recording
+/// can be listened to, continued, sent or thrown away.
+///
+/// Stateless from the screen's view: it owns the recording and hands a
+/// ready-to-send [VoiceSend] to [onSend].
 class VoiceComposer extends StatefulWidget {
   const VoiceComposer({
     super.key,
     required this.disabled,
+    required this.labels,
     required this.onSend,
     required this.onError,
-    required this.recordLabel,
-    required this.discardLabel,
-    required this.stopLabel,
-    required this.playLabel,
-    required this.sendLabel,
-    required this.permissionDeniedLabel,
-    this.inputDeviceId = _storedInputDeviceId,
+    required this.idle,
+    this.inputDeviceId = audioInputDeviceId,
     this.createPlayer = createMediaPlayer,
+    this.joinSegments = joinVoiceSegments,
   });
 
+  /// Whether the microphone takes a press.
   final bool disabled;
+  final VoiceComposerLabels labels;
   final void Function(VoiceSend voice) onSend;
   final void Function(String message) onError;
-  final String recordLabel;
-  final String discardLabel;
-  final String stopLabel;
-  final String playLabel;
-  final String sendLabel;
 
-  /// Shown via [onError] when the tap-time permission request is refused.
-  final String permissionDeniedLabel;
+  /// The row shown while nothing is recorded, around the microphone.
+  final Widget Function(BuildContext context, Widget microphone) idle;
 
   /// Reads the stored input-device pick (audio-devices.json) for the
   /// capture config. Injectable so tests (no cdylib) pass a plain getter;
   /// production uses the frb store read. Null return = platform default.
   final String? Function() inputDeviceId;
 
-  /// Makes the review preview's player; tests pass their own.
+  /// Makes the player a paused recording is listened to with; tests pass
+  /// their own.
   final MediaPlayerFactory createPlayer;
+
+  /// Joins a resumed recording into one clip; tests (no cdylib) pass their
+  /// own.
+  final VoiceSegmentJoin joinSegments;
 
   @override
   State<VoiceComposer> createState() => _VoiceComposerState();
 }
 
 class _VoiceComposerState extends State<VoiceComposer> {
-  final AudioRecorder _recorder = AudioRecorder();
-  _Phase _phase = _Phase.idle;
-  Timer? _elapsedTimer;
-  Timer? _autoStopTimer;
-  StreamSubscription<Amplitude>? _amplitudeSub;
-  Duration _elapsed = Duration.zero;
-  final List<int> _peaks = List<int>.filled(waveformBuckets, 0);
-  String? _path;
-  String _mime = '';
-  int _durationMs = 0;
-  // Review-phase preview player. Lazy + nullable: created on the first
-  // _togglePreview, disposed on discard / send / dispose. Null (a test
-  // host without libmpv) -> the play button is a no-op.
-  Player? _previewPlayer;
-  bool _previewPlaying = false;
-  // One recorder teardown at a time: manual stop, the auto-stop timer and
-  // discard all tear the capture down asynchronously; without the guard a
-  // discard racing a stop cancelled the recorder under the stop() call
-  // and deleted the file stop() was still writing.
-  bool _finalizing = false;
-
-  /// setState only while the state is still alive.
-  void _ifMounted(VoidCallback fn) {
-    if (mounted) fn();
-  }
+  late final VoiceRecording _recording = VoiceRecording(
+    inputDeviceId: () => widget.inputDeviceId(),
+    join: ({required segments, required output}) =>
+        widget.joinSegments(segments: segments, output: output),
+    canCapture: () => mounted && Visibility.of(context),
+    onPermissionDenied: () => widget.onError(widget.labels.permissionDenied),
+    onError: (error) => widget.onError(error.toString()),
+  );
+  late final _ClipPlayer _listening =
+      _ClipPlayer(create: () => widget.createPlayer());
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Hidden controls must not leave the microphone capturing unattended.
-    if (!Visibility.of(context)) unawaited(_finishRecording());
+    // Hidden controls leave neither the microphone capturing nor the
+    // recording playing unattended.
+    if (Visibility.of(context)) return;
+    _listening.close();
+    unawaited(_recording.pause());
   }
 
   @override
   void dispose() {
-    _stopTimersAndAmplitude();
-    _disposePreview();
-    _recorder.dispose();
+    _listening.dispose();
+    _recording.dispose();
     super.dispose();
   }
 
-  /// Cancels the elapsed / auto-stop timers and the amplitude stream.
-  void _stopTimersAndAmplitude() {
-    _stopTimers();
-    _amplitudeSub?.cancel();
-    _amplitudeSub = null;
+  /// Lets go of the clip's player before the clip changes.
+  Future<void> _afterListening(Future<void> Function() action) {
+    _listening.close();
+    return action();
   }
 
-  void _stopTimers() {
-    _elapsedTimer?.cancel();
-    _elapsedTimer = null;
-    _autoStopTimer?.cancel();
-    _autoStopTimer = null;
-  }
+  Future<void> _send() => _afterListening(() async {
+        final voice = await _recording.finish();
+        if (voice != null) widget.onSend(voice);
+      });
 
-  /// Toggle the review-phase preview: the first tap creates the player and
-  /// opens the recorded file; later taps toggle play/pause (the playing
-  /// stream drives the icon). Where no player can be made (a test host
-  /// without libmpv) the button is a no-op so the review row still renders.
-  Future<void> _togglePreview() async {
-    final path = _path;
-    if (path == null) return;
-    final player = _previewPlayer;
-    try {
-      if (player == null) {
-        await _openPreview(path);
-      } else {
-        await player.playOrPause();
-      }
-    } catch (_) {
-      _disposePreview();
-    }
-  }
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: Listenable.merge([_recording, _listening]),
+        builder: (context, _) => AnimatedSwitcher(
+          duration: MoshMotion.effectsFast.duration,
+          switchInCurve: MoshMotion.effectsFast.curve,
+          switchOutCurve: MoshMotion.effectsFast.curve,
+          // A fade that hides a clear row from semantics trips the
+          // framework's tree check on the swap: the new row is read at once.
+          transitionBuilder: (row, animation) => FadeTransition(
+            opacity: animation,
+            alwaysIncludeSemantics: true,
+            child: row,
+          ),
+          // The row on its way out is neither pressed nor read aloud.
+          layoutBuilder: (current, previous) => Stack(
+            alignment: Alignment.center,
+            children: [
+              for (final row in previous)
+                IgnorePointer(child: ExcludeSemantics(child: row)),
+              if (current != null) current,
+            ],
+          ),
+          child: KeyedSubtree(
+            key: ValueKey<VoiceRecordingPhase>(_recording.phase),
+            child: switch (_recording.phase) {
+              VoiceRecordingPhase.idle => widget.idle(context, _microphone()),
+              VoiceRecordingPhase.recording => _recordingRow(context),
+              VoiceRecordingPhase.paused => _pausedRow(),
+            },
+          ),
+        ),
+      );
 
-  /// Creates the preview player, wires its playing stream, opens the file.
-  /// Throwing here lets the player go in the caller's catch.
-  Future<void> _openPreview(String path) async {
-    final player = widget.createPlayer();
-    _previewPlayer = player;
-    player.stream.playing.listen((playing) {
-      _ifMounted(() => setState(() => _previewPlaying = playing));
-    });
-    await player.open(Media(path));
-  }
+  Widget _microphone() => IconButton(
+        icon: const Icon(MoshIcons.mic),
+        tooltip: widget.labels.record,
+        onPressed: widget.disabled ? null : _recording.start,
+      );
 
-  void _disposePreview() {
-    _previewPlayer?.dispose();
-    _previewPlayer = null;
-    _previewPlaying = false;
-  }
+  /// Send rests with the microphone: while another send is on its way.
+  VoidCallback? get _sendPressed => widget.disabled ? null : _unlessBusy(_send);
 
-  Future<void> _startRecording() async {
-    if (widget.disabled || _phase != _Phase.idle) return;
-    try {
-      // Ask at the moment of intent: hasPermission() requests when the
-      // status is .notDetermined and just reports otherwise. `record`'s
-      // start() never requests on its own, so this call is the only gate.
-      final allowed = await _recorder.hasPermission();
-      if (!allowed) {
-        widget.onError(widget.permissionDeniedLabel);
-        return;
-      }
-      if (!mounted || !Visibility.of(context)) return;
-      await _capture();
-      _ifMounted(() => setState(() => _phase = _Phase.recording));
-      if (mounted && !Visibility.of(context)) await _finishRecording();
-    } catch (error) {
-      await _abortRecording(error);
-    }
-  }
+  VoidCallback? _unlessBusy(VoidCallback action) =>
+      _recording.busy ? null : action;
 
-  /// Starts the capture: allocates the temp file, resets the meter, wires
-  /// the amplitude / elapsed timers and the auto-stop deadline.
-  ///
-  /// The clip lands in an explicit `mosh-voice/` subdirectory of the app
-  /// cache, created recursively HERE. Two reasons (macOS 0.9.3 field bug):
-  /// `getTemporaryDirectory()` maps to `NSCachesDirectory` + the bundle id
-  /// and path_provider never creates that base, and `record_macos` writes
-  /// via `AVCaptureFileOutput.startRecording(to:)`, which creates no
-  /// parent directory and reports the failure only to an unsurfaced
-  /// delegate — `stop()` still returns the path, so the file's absence
-  /// surfaced later as errno 2 in `sendVoice`'s `readAsBytes()`. The app
-  /// cache base (`getApplicationCacheDirectory`) IS created by the plugin,
-  /// and the explicit recursive create makes the invariant ours: a broken
-  /// directory fails at capture time, visibly, not at send time.
-  Future<void> _capture() async {
-    final cache = await getApplicationCacheDirectory();
-    final dir = Directory('${cache.path}/mosh-voice');
-    // Sync, not `await dir.create()`: the clip dir must exist before the
-    // recorder gets the path, and a sync create is indistinguishable in
-    // production (one mkdir per recording start).
-    dir.createSync(recursive: true);
-    _path =
-        '${dir.path}/mosh-voice-${DateTime.now().millisecondsSinceEpoch}.m4a';
-    _mime = 'audio/mp4';
-    _elapsed = Duration.zero;
-    _durationMs = 0;
-    _peaks.fillRange(0, _peaks.length, 0);
-    // The stored input pick (audio-devices.json); null = platform default.
-    // The label is cosmetic on the platform side, so the id doubles as it.
-    final picked = widget.inputDeviceId();
-    await _recorder.start(
-      RecordConfig(
-        encoder: AudioEncoder.aacLc,
-        device: picked == null ? null : InputDevice(id: picked, label: picked),
-      ),
-      path: _path!,
+  /// The Recording state of the card: the clock, Cancel, pause and send.
+  Widget _recordingRow(BuildContext context) {
+    final labels = widget.labels;
+    return Row(
+      spacing: MoshShapes.composerGap,
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s4),
+            child: Row(
+              spacing: MoshSpace.s2,
+              children: [
+                const VoiceRecordingDot(),
+                Text(
+                  formatVoiceClock(_recording.elapsed.inMilliseconds),
+                  style: Theme.of(context).textTheme.labelLarge!.copyWith(
+                        color: MoshColors.of(context).onSurface,
+                        fontFeatures: kLiveNumberFontFeatures,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: _unlessBusy(_recording.cancel),
+          child: Text(labels.cancel),
+        ),
+        IconButton(
+          icon: const Icon(MoshIcons.pause),
+          tooltip: labels.pause,
+          onPressed: _unlessBusy(_recording.pause),
+        ),
+        ComposerSendButton(label: labels.send, onPressed: _sendPressed),
+      ],
     );
-    _amplitudeSub = _recorder
-        .onAmplitudeChanged(const Duration(milliseconds: 100))
-        .listen(_onAmplitude);
-    _elapsedTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
-      _ifMounted(
-          () => setState(() => _elapsed += const Duration(milliseconds: 200)));
-    });
-    _autoStopTimer = Timer(maxRecording, _finishRecording);
   }
 
-  /// Shared failure path of start/finish: surface the error, tear the
-  /// capture down, drop back to idle. Called with the guard already held
-  /// or straight from _startRecording.
-  Future<void> _abortRecording(Object error) async {
-    widget.onError(error.toString());
-    _stopTimersAndAmplitude();
-    await _cleanupRecorder();
-    _disposePreview();
-    _ifMounted(() => setState(() => _phase = _Phase.idle));
+  /// The Recorded state of the card: the recording to listen to, between
+  /// the ways to throw it away, to go on with it and to send it.
+  Widget _pausedRow() {
+    final labels = widget.labels;
+    return Row(
+      spacing: MoshShapes.composerGap,
+      children: [
+        IconButton(
+          icon: const Icon(MoshIcons.delete),
+          tooltip: labels.discard,
+          onPressed: _unlessBusy(() => _afterListening(_recording.cancel)),
+        ),
+        Expanded(
+          child: _RecordedTake(
+            label: _listening.playing ? labels.pausePlayback : labels.play,
+            playing: _listening.playing,
+            played: _listening.played,
+            peaks: _recording.peaks,
+            durationMs: _recording.elapsed.inMilliseconds,
+            onPressed: _unlessBusy(
+                () => _listening.toggle(_recording.clip, _recording.elapsed)),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(MoshIcons.mic),
+          tooltip: labels.resume,
+          onPressed: widget.disabled || !_recording.canResume
+              ? null
+              : _unlessBusy(() => _afterListening(_recording.resume)),
+        ),
+        ComposerSendButton(label: labels.send, onPressed: _sendPressed),
+      ],
+    );
   }
+}
 
-  void _onAmplitude(Amplitude amplitude) {
-    // Amplitude.current is dBFS (-60..0); map to 0..255 and keep the peak
-    // per bucket as the recording progresses (live downsample).
-    final db = amplitude.current;
-    final normalized = ((db + 60) / 60).clamp(0.0, 1.0);
-    final value = (normalized * 255).round();
-    final bucket = (_elapsed.inMilliseconds *
-            waveformBuckets ~/
-            maxRecording.inMilliseconds)
-        .clamp(0, waveformBuckets - 1);
-    if (value > _peaks[bucket]) {
-      _peaks[bucket] = value;
-    }
-  }
+/// The recording itself, as the card draws a paused one: a capsule that
+/// plays it when pressed, with its waveform and its length.
+class _RecordedTake extends StatelessWidget {
+  const _RecordedTake({
+    required this.label,
+    required this.playing,
+    required this.played,
+    required this.peaks,
+    required this.durationMs,
+    required this.onPressed,
+  });
 
-  Future<void> _finishRecording() async {
-    // The auto-stop timer, the stop button, and a racing discard can all
-    // land here (or in _discard); one of them wins, the rest are no-ops.
-    if (_finalizing || _phase != _Phase.recording) return;
-    _finalizing = true;
-    _stopTimersAndAmplitude();
-    try {
-      final path = await _recorder.stop();
-      _durationMs = _elapsed.inMilliseconds;
-      _path = path;
-      _ifMounted(() => setState(() => _phase = _Phase.review));
-    } catch (error) {
-      await _abortRecording(error);
-    } finally {
-      _finalizing = false;
-    }
-  }
+  final String label;
+  final bool playing;
+  final double played;
+  final Uint8List peaks;
+  final int durationMs;
+  final VoidCallback? onPressed;
 
-  Future<void> _discard() async {
-    if (_finalizing) return;
-    _finalizing = true;
-    try {
-      _stopTimersAndAmplitude();
-      await _cleanupRecorder();
-      _disposePreview();
-      _ifMounted(() => setState(() => _phase = _Phase.idle));
-    } finally {
-      _finalizing = false;
-    }
-  }
-
-  Future<void> _cleanupRecorder() async {
-    try {
-      await _recorder.cancel();
-    } catch (_) {/* best-effort */}
-    if (_path != null) {
-      try {
-        final file = File(_path!);
-        if (await file.exists()) await file.delete();
-      } catch (_) {/* best-effort */}
-    }
-    _path = null;
-  }
-
-  void _send() {
-    final path = _path;
-    if (path == null) return;
-    _disposePreview();
-    widget.onSend(VoiceSend(
-      path: path,
-      mime: _mime,
-      durationMs: _durationMs,
-      peaksBase64: base64Encode(Uint8List.fromList(_peaks)),
-    ));
-    _path = null;
-    _ifMounted(() => setState(() => _phase = _Phase.idle));
-  }
+  /// The bars keep their pitch: a narrow capsule cuts the wave where it
+  /// ends.
+  Widget _wave(MoshColors c) => ClipRect(
+        child: OverflowBox(
+          alignment: AlignmentDirectional.centerStart,
+          minWidth: VoiceWaveform.width,
+          maxWidth: VoiceWaveform.width,
+          child: VoiceWaveform(
+            peaks: peaks,
+            progress: played,
+            played: c.primary,
+            unplayed: c.outline,
+          ),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 180),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeOutCubic,
-      layoutBuilder: (currentChild, previousChildren) => Stack(
-        alignment: Alignment.centerLeft,
-        children: <Widget>[
-          ...previousChildren.map((child) => IgnorePointer(child: child)),
-          if (currentChild != null) currentChild,
-        ],
-      ),
-      child: KeyedSubtree(
-        key: ValueKey<_Phase>(_phase),
-        child: switch (_phase) {
-          _Phase.idle => _buildIdle(),
-          _Phase.recording => _buildRecording(),
-          _Phase.review => _buildReview(),
-        },
+    final c = MoshColors.of(context);
+    final theme = Theme.of(context);
+    return Tooltip(
+      message: label,
+      child: Material(
+        color: c.surfaceContainerHighest,
+        shape: MoshShapes.pill,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          overlayColor: MoshState.layer(c.onSurface),
+          child: Container(
+            height: MoshControl.height(theme.platform),
+            padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s3),
+            child: Row(
+              spacing: MoshSpace.s2,
+              children: [
+                ContextualIconSwitcher(
+                  icon: playing ? MoshIcons.pause : MoshIcons.play,
+                  size: MoshSpace.s5,
+                  color: c.onSurface,
+                ),
+                Expanded(child: _wave(c)),
+                Text(
+                  formatVoiceClock(durationMs),
+                  style: theme.textTheme.labelMedium!.copyWith(
+                    color: c.onSurfaceVariant,
+                    fontFeatures: kLiveNumberFontFeatures,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
+}
 
-  /// The mic button; gated by the composer's `disabled` flag.
-  Widget _buildIdle() => IconButton(
-        icon: const Icon(MoshIcons.mic),
-        tooltip: widget.recordLabel,
-        onPressed: widget.disabled ? null : _startRecording,
-      );
+/// The player a paused recording is listened to with. Made on the first
+/// listen and let go whenever the clip changes hands: a resume, a send, a
+/// cancel, a composer out of sight.
+class _ClipPlayer extends ChangeNotifier {
+  _ClipPlayer({required this.create});
 
-  /// Dot + elapsed timer + discard + stop.
-  Widget _buildRecording() => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const VoiceRecordingDot(),
-          const SizedBox(width: 8),
-          Text(formatVoiceClock(_elapsed.inMilliseconds),
-              style: kVoiceTimerStyle),
-          IconButton(
-            icon: const Icon(MoshIcons.delete),
-            tooltip: widget.discardLabel,
-            onPressed: _discard,
-          ),
-          IconButton(
-            icon: const Icon(MoshIcons.stop),
-            tooltip: widget.stopLabel,
-            onPressed: _finishRecording,
-          ),
-        ],
-      );
+  final MediaPlayerFactory create;
+  Player? _player;
+  final List<StreamSubscription<Object?>> _events = [];
+  bool _disposed = false;
 
-  /// Play + duration + discard + send.
-  Widget _buildReview() => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            // Toggles the preview play state with a centered cross-fade.
-            icon: ContextualIconSwitcher(
-              icon: _previewPlaying ? MoshIcons.pause : MoshIcons.play,
-              size: 24,
-            ),
-            tooltip: widget.playLabel,
-            onPressed: _togglePreview,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            formatVoiceClock(_durationMs),
-            style: kVoiceTimerStyle,
-          ),
-          IconButton(
-            icon: const Icon(MoshIcons.delete),
-            tooltip: widget.discardLabel,
-            onPressed: _discard,
-          ),
-          IconButton(
-            icon: const Icon(MoshIcons.send),
-            tooltip: widget.sendLabel,
-            onPressed: _send,
-          ),
-        ],
-      );
+  bool playing = false;
+
+  /// How much of the clip has played, 0..1.
+  double played = 0;
+
+  /// Plays or pauses [clip], [length] long. Where no player can be made (a
+  /// test host without libmpv) it does nothing.
+  Future<void> toggle(String? clip, Duration length) async {
+    if (clip == null) return;
+    final player = _player;
+    try {
+      if (player != null) return await player.playOrPause();
+    } catch (_) {
+      return close();
+    }
+    final Player opened;
+    try {
+      opened = _player = create();
+    } catch (_) {
+      return;
+    }
+    _events
+      ..add(opened.stream.playing.listen((now) => _set(() => playing = now)))
+      ..add(opened.stream.position.listen((at) => _set(() => played =
+          length == Duration.zero
+              ? 0
+              : (at.inMilliseconds / length.inMilliseconds).clamp(0.0, 1.0))));
+    try {
+      await opened.open(Media(clip));
+    } catch (_) {
+      // Only the player that failed: a newer one may have taken its place.
+      if (_player == opened) close();
+    }
+  }
+
+  void close() {
+    for (final event in _events) {
+      unawaited(event.cancel());
+    }
+    _events.clear();
+    unawaited(_player?.dispose());
+    _player = null;
+    _set(() => playing = false);
+    played = 0;
+  }
+
+  @override
+  void dispose() {
+    close();
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _set(VoidCallback change) {
+    change();
+    if (!_disposed) notifyListeners();
+  }
 }

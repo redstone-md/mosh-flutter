@@ -33,12 +33,8 @@ Future<void> _pumpComposer(WidgetTester tester, MessageSelection selection,
             disabled: false,
             onSend: sent.add,
             onError: errors.add,
-            recordLabel: 'Record',
-            discardLabel: 'Discard',
-            stopLabel: 'Stop',
-            playLabel: 'Play',
-            sendLabel: 'Send voice',
-            permissionDeniedLabel: 'mic denied',
+            labels: testVoiceLabels,
+            idle: (_, microphone) => microphone,
             inputDeviceId: () => null,
           ),
         ),
@@ -71,7 +67,7 @@ Future<void> _hiddenRecording(WidgetTester tester) async {
   expect(recorder.recording, isFalse);
   expect(recorder.count('cancel'), 0);
   expect(sent, isEmpty);
-  expect(find.byTooltip('Stop'), findsNothing);
+  expect(find.byTooltip('Pause'), findsNothing);
   await tester.pump(const Duration(seconds: 2));
   selection.exit();
   await tester.pumpAndSettle();
@@ -97,7 +93,7 @@ Future<void> _desktopRecording(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 50));
   expect(recorder.recording, isTrue);
   expect(recorder.count('stop'), 0);
-  expect(find.byTooltip('Stop'), findsOneWidget);
+  expect(find.byTooltip('Pause'), findsOneWidget);
   tester.view.physicalSize = const Size(390, 844);
   await tester.pump(const Duration(milliseconds: 50));
   await tester.pump(const Duration(milliseconds: 50));

@@ -35,6 +35,7 @@ pub mod secure_storage;
 pub mod shared_node;
 mod signature_verification;
 pub mod stream_transport;
+pub mod voice_clip;
 pub mod vpn_consent;
 
 // Flutter-rewrite bridge facade (ADR 0010)

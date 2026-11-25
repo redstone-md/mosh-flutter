@@ -10,6 +10,8 @@ import 'package:mosh/src/features/shared/attachment_picker.dart'
     show PickedAttachment;
 import 'package:mosh/src/features/shared/voice_composer.dart' show VoiceSend;
 
+import '../../support/voice_recorder.dart';
+
 void main() {
   void noAttach(PickedAttachment _) {}
 
@@ -34,12 +36,7 @@ void main() {
           attachLabel: 'a',
           onAttach: noAttach,
           onAttachmentPickError: (_) {},
-          voiceRecordLabel: 'r',
-          voiceDiscardLabel: 'd',
-          voiceStopLabel: 's',
-          voicePlayLabel: 'pl',
-          voiceSendLabel: 'vs',
-          voicePermissionDeniedLabel: 'denied',
+          voiceLabels: testVoiceLabels,
           onSendVoice: noVoice,
           onVoiceError: (_) {},
         ),

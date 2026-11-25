@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart'
@@ -7,31 +7,30 @@ import 'package:mosh/src/app/mosh_theme.dart'
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart'
     show PasteAttachmentAction, readSystemClipboard;
-import 'package:mosh/src/features/shared/optical_icon.dart';
-import 'package:mosh/src/features/shared/press_scale.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart'
+    show feedPadding;
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show isMobileBreakpoint;
+import 'package:mosh/src/features/shared/composer_send_button.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
 import 'package:mosh/src/rust/api/audio_devices.dart' show audioInputDeviceId;
 import 'package:super_clipboard/super_clipboard.dart' show ClipboardDataReader;
 
-/// Horizontal gap between composer-box children.
-const double kComposerGap = 8;
-
-/// Both the send button and the paperclip are 32x32 squares.
-const double kComposerButtonSize = 32;
-
-/// The send square's key. It holds an icon, not a label, so widget tests
+/// The send button's key. It holds an icon, not a label, so widget tests
 /// address it by key rather than by text.
 const Key kComposerSendButtonKey = Key('composer-send-button');
 
 /// The counter shows once this few characters are left.
 const int kComposerCounterThreshold = 200;
 
-/// The production input pick: mosh-core's audio-devices store. A top-level
-/// default (not inline) so the composer stays const-constructible.
-String? _storedComposerInputDeviceId() => audioInputDeviceId();
-
-/// The shared DM + channel + group composer. Stateless because all state is
-/// transient or owned by the conversation's screen and send controllers.
+/// The Composer card, shared by the DM, the channel and the group: one field
+/// for everything a person sends. With nothing typed the far end holds the
+/// microphone; the first character turns it into Send. Past the limit the
+/// field takes the error colour and counts the characters to cut. A voice
+/// recording takes over the whole field ([VoiceComposer]).
+///
+/// Stateless because all state is transient or owned by the conversation's
+/// screen and send controllers.
 class ConversationComposer extends StatelessWidget {
   const ConversationComposer({
     super.key,
@@ -45,15 +44,10 @@ class ConversationComposer extends StatelessWidget {
     required this.attachLabel,
     required this.onAttach,
     required this.onAttachmentPickError,
-    required this.voiceRecordLabel,
-    required this.voiceDiscardLabel,
-    required this.voiceStopLabel,
-    required this.voicePlayLabel,
-    required this.voiceSendLabel,
-    required this.voicePermissionDeniedLabel,
+    required this.voiceLabels,
     required this.onSendVoice,
     required this.onVoiceError,
-    this.inputDeviceId = _storedComposerInputDeviceId,
+    this.inputDeviceId = audioInputDeviceId,
     this.onTyping,
     this.readClipboard = readSystemClipboard,
   });
@@ -74,14 +68,7 @@ class ConversationComposer extends StatelessWidget {
   final String attachLabel;
   final AttachmentPickedCallback onAttach;
   final AttachmentPickErrorCallback onAttachmentPickError;
-  final String voiceRecordLabel;
-  final String voiceDiscardLabel;
-  final String voiceStopLabel;
-  final String voicePlayLabel;
-  final String voiceSendLabel;
-
-  /// Shown when the mic tap is refused by the permission system.
-  final String voicePermissionDeniedLabel;
+  final VoiceComposerLabels voiceLabels;
   final void Function(VoiceSend voice) onSendVoice;
   final void Function(String message) onVoiceError;
 
@@ -106,165 +93,39 @@ class ConversationComposer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
-    final paste = PasteAttachmentAction(
-      onAttach: onAttach,
-      onAttachmentPickError: onAttachmentPickError,
-      gate: () => !sending && !disabled,
-      readClipboard: readClipboard,
-    );
-    // Composer chrome: bg-1 surface with a hairline top border.
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border(top: BorderSide(color: colors.outlineVariant)),
-      ),
+    final compact = isMobileBreakpoint(context);
+    final side = feedPadding(compact: compact).left;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          side, 0, side, compact ? MoshSpace.s2 : MoshSpace.s4),
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: controller,
         builder: (context, value, _) {
           final remaining = textLimit?.remaining(value.text);
-          final enabled = _sendable(value.text, remaining);
-          // The control group uses 16px corners around 8px control corners.
+          final over = remaining != null && remaining < 0;
           return Container(
-            constraints: const BoxConstraints(minHeight: 54),
             padding: MoshShapes.composerPadding,
             decoration: BoxDecoration(
               color: colors.surfaceContainerHigh,
               borderRadius: MoshShapes.composer,
-              border: Border.all(color: colors.outlineVariant),
             ),
-            child: Row(
-              children: [
-                // The picker is disabled while a send is in flight OR when
-                // the hard `disabled` gate is set.
-                AttachmentPicker(
-                  disabled: sending || disabled,
-                  ariaLabel: attachLabel,
-                  onPick: onAttach,
-                  onError: onAttachmentPickError,
-                ),
-                const SizedBox(width: kComposerGap),
-                // The mic is disabled while a send is in flight OR when the
-                // hard `disabled` gate is set.
-                VoiceComposer(
-                  disabled: sending || disabled,
-                  onSend: onSendVoice,
-                  onError: onVoiceError,
-                  recordLabel: voiceRecordLabel,
-                  discardLabel: voiceDiscardLabel,
-                  stopLabel: voiceStopLabel,
-                  playLabel: voicePlayLabel,
-                  sendLabel: voiceSendLabel,
-                  permissionDeniedLabel: voicePermissionDeniedLabel,
-                  inputDeviceId: inputDeviceId,
-                ),
-                const SizedBox(width: kComposerGap),
-                Expanded(
-                  child: Actions(
-                    // Paste-to-attach: intercept the paste [Intent] so a file
-                    // or image on the clipboard is attached instead of pasted
-                    // as text. No `onPaste` callback exists on Flutter 3.44
-                    // `TextField`, so the ancestor `Actions` override is the
-                    // interception point (the same `Action.overridable`
-                    // pattern EditableTextState uses, editable_text
-                    // .dart:5709). On no image the action defers to
-                    // `callingAction` so the default text paste runs.
-                    actions: <Type, Action<Intent>>{
-                      PasteTextIntent: paste as Action<Intent>,
-                    },
-                    child: TextField(
-                      controller: controller,
-                      enabled: !disabled,
-                      contextMenuBuilder: (context, editable) =>
-                          _contextMenu(editable, paste),
-                      // Finalize IME composition without Flutter's default
-                      // unfocus, keeping the next keyboard submission ready.
-                      onEditingComplete: controller.clearComposing,
-                      // Emit-on-input: every change that leaves a non-empty
-                      // draft asks the runtime to signal typing (it throttles
-                      // repeats on its own cadence). A cleared draft sends
-                      // nothing — the counterpart's hint dies by expiry.
-                      onChanged: (_) {
-                        if (controller.text.trim().isNotEmpty) {
-                          onTyping?.call();
-                        }
-                      },
-                      onSubmitted: (_) {
-                        final text = controller.text;
-                        if (_sendable(text, textLimit?.remaining(text))) {
-                          onSend();
-                        }
-                      },
-                      // A bare field on the box's own background -- no
-                      // border, no fill of its own.
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      decoration: InputDecoration(
-                        hintText: placeholder,
-                        hintStyle: Theme.of(context)
-                            .textTheme
-                            .bodyMedium!
-                            .copyWith(color: colors.onSurfaceMuted),
-                        filled: false,
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        disabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  ),
-                ),
-                if (remaining != null &&
-                    remaining <= kComposerCounterThreshold) ...[
-                  const SizedBox(width: kComposerGap),
-                  Text(
-                    '$remaining',
-                    semanticsLabel: textLimit!.label(remaining),
-                    style: Theme.of(context).textTheme.labelMedium!.copyWith(
-                          fontFeatures: kLiveNumberFontFeatures,
-                          color: remaining < 0
-                              ? colors.error
-                              : colors.onSurfaceMuted,
-                        ),
-                  ),
-                ],
-                const SizedBox(width: kComposerGap),
-                // Moss 32px send button, dropping to bg-3/fg-4 when
-                // disabled. The painted square is 32x32; the theme's M3
-                // padded tap target makes the button's LAYOUT box 40-48px
-                // (density adjusted), so the >=40px tap floor and the
-                // composer row geometry are the framework's, not a
-                // wrapper's (audit 2026-09-21 hit-areas; CodeAnt PR #12).
-                Tooltip(
-                  message: sendLabel,
-                  child: PressScale(
-                    enabled: enabled,
-                    child: FilledButton(
-                      key: kComposerSendButtonKey,
-                      onPressed: enabled ? onSend : null,
-                      style: FilledButton.styleFrom(
-                        fixedSize: const Size.square(kComposerButtonSize),
-                        minimumSize: const Size.square(kComposerButtonSize),
-                        padding: EdgeInsets.zero,
-                        shape: MoshShapes.controlShape,
-                        disabledBackgroundColor: colors.surfaceContainerHighest,
-                        disabledForegroundColor: colors.outline,
-                      ),
-                      child: sending && value.text.trim().isEmpty
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const OpticalIcon(
-                              icon: MoshIcons.send,
-                              size: 16,
-                              offset: Offset(1.0, 0),
-                            ),
-                    ),
-                  ),
-                ),
-              ],
+            // Drawn over the box, so the edge does not move what is in it.
+            foregroundDecoration: over
+                ? BoxDecoration(
+                    borderRadius: MoshShapes.composer,
+                    border: Border.all(color: colors.error),
+                  )
+                : null,
+            child: VoiceComposer(
+              // The mic is off while a send is in flight or the hard
+              // `disabled` gate is set.
+              disabled: sending || disabled,
+              labels: voiceLabels,
+              onSend: onSendVoice,
+              onError: onVoiceError,
+              inputDeviceId: inputDeviceId,
+              idle: (context, microphone) =>
+                  _textRow(context, value.text, remaining, microphone),
             ),
           );
         },
@@ -272,9 +133,118 @@ class ConversationComposer extends StatelessWidget {
     );
   }
 
+  /// The row at rest: attach, the field, the counter near the limit and,
+  /// at the far end, the one place for both ways to send.
+  Widget _textRow(
+      BuildContext context, String text, int? remaining, Widget microphone) {
+    final colors = MoshColors.of(context);
+    final empty = text.trim().isEmpty;
+    return Row(
+      spacing: MoshShapes.composerGap,
+      children: [
+        AttachmentPicker(
+          disabled: sending || disabled,
+          ariaLabel: attachLabel,
+          onPick: onAttach,
+          onError: onAttachmentPickError,
+        ),
+        Expanded(child: _field(context)),
+        if (remaining != null && remaining <= kComposerCounterThreshold)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: MoshSpace.s2),
+            child: Text(
+              '$remaining',
+              semanticsLabel: textLimit!.label(remaining),
+              style: Theme.of(context).textTheme.labelLarge!.copyWith(
+                    fontFeatures: kLiveNumberFontFeatures,
+                    color: remaining < 0 ? colors.error : colors.onSurfaceMuted,
+                  ),
+            ),
+          ),
+        // The microphone while there is nothing to send, Send once there
+        // is, unlit while the text is too long. A send on its way with an
+        // empty draft (a file, a voice message) spins in the same place.
+        if (disabled || (empty && !sending))
+          microphone
+        else
+          ComposerSendButton(
+            key: kComposerSendButtonKey,
+            label: sendLabel,
+            onPressed: _sendable(text, remaining) ? onSend : null,
+            busy: empty,
+          ),
+      ],
+    );
+  }
+
+  Widget _field(BuildContext context) {
+    final colors = MoshColors.of(context);
+    final style = Theme.of(context).textTheme.bodyLarge!;
+    final paste = PasteAttachmentAction(
+      onAttach: onAttach,
+      onAttachmentPickError: onAttachmentPickError,
+      gate: () => !sending && !disabled,
+      readClipboard: readClipboard,
+    );
+    return Actions(
+      // Paste-to-attach: a file or image on the clipboard is attached
+      // instead of pasted as text. Flutter 3.44 `TextField` has no
+      // `onPaste`, so the paste [Intent] is overridden here, as
+      // EditableTextState does with `Action.overridable`; without an image
+      // the action defers to `callingAction` and the text paste runs.
+      actions: <Type, Action<Intent>>{
+        PasteTextIntent: paste as Action<Intent>,
+      },
+      child: TextField(
+        controller: controller,
+        enabled: !disabled,
+        contextMenuBuilder: (context, editable) =>
+            _contextMenu(editable, paste),
+        // Finalize IME composition without Flutter's default unfocus,
+        // keeping the next keyboard submission ready.
+        onEditingComplete: controller.clearComposing,
+        // Emit-on-input: every change that leaves a non-empty draft asks
+        // the runtime to signal typing (it throttles repeats on its own
+        // cadence). A cleared draft sends nothing: the counterpart's hint
+        // dies by expiry.
+        onChanged: (_) {
+          if (controller.text.trim().isNotEmpty) onTyping?.call();
+        },
+        onSubmitted: (_) {
+          final text = controller.text;
+          if (_sendable(text, textLimit?.remaining(text))) onSend();
+        },
+        style: style,
+        decoration: _bareField(
+          hint: placeholder,
+          hintStyle: style.copyWith(
+            color: disabled
+                ? MoshState.tint(colors.onSurface, MoshState.disabledContent)
+                : colors.onSurfaceMuted,
+          ),
+        ),
+      ),
+    );
+  }
+
   bool _sendable(String text, int? remaining) =>
       !disabled && text.trim().isNotEmpty && (remaining ?? 0) >= 0;
 }
+
+/// A field on the composer's own background: no border, no fill of its own.
+InputDecoration _bareField(
+        {required String hint, required TextStyle hintStyle}) =>
+    InputDecoration(
+      hintText: hint,
+      hintStyle: hintStyle,
+      filled: false,
+      border: InputBorder.none,
+      enabledBorder: InputBorder.none,
+      disabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+      isDense: true,
+      contentPadding: EdgeInsets.zero,
+    );
 
 /// The longest text a send accepts and how the counter near it reads.
 class ComposerTextLimit {
