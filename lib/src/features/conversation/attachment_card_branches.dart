@@ -23,8 +23,11 @@ class _MediaCard extends StatelessWidget {
   /// its own under the name.
   final Widget? footer;
 
-  /// The disc a control stands on over a picture.
+  /// The disc the play glyph of a video stands on.
   static const double _disc = MoshSpace.s12;
+
+  /// The widest the line beside the name runs before it is cut.
+  static const double _detailMax = 144;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +43,10 @@ class _MediaCard extends StatelessWidget {
         Expanded(
             child: MiddleCutText(descriptor.fileName,
                 style: text.labelLarge!.copyWith(color: tone.ink))),
-        Flexible(
+        // The name takes what the size leaves; the size gives way only once
+        // it would take more than half of a narrow bubble.
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _detailMax),
           child: Text(
             attachmentDetail(attachment, l, failed: l.attachmentMediaFailed),
             maxLines: 1,
@@ -83,7 +89,7 @@ class _MediaCard extends StatelessWidget {
       button: true,
       child: GestureDetector(
         onTap: onOpen,
-        // A narrower bubble scales the reserved height with the width.
+        // The reserved height follows the width the bubble leaves.
         child: LayoutBuilder(
           builder: (context, constraints) => Container(
             width: double.infinity,
@@ -153,20 +159,28 @@ class _MediaCard extends StatelessWidget {
       child: Semantics(
         label: transfer.label,
         button: true,
+        enabled: transfer.onPressed != null,
+        onTap: transfer.onPressed,
+        // The line beside the name already says how far the file has come.
+        excludeSemantics: true,
         child: Material(
           type: MaterialType.transparency,
-          shape: const CircleBorder(),
-          clipBehavior: Clip.antiAlias,
           child: InkWell(
+            customBorder: const CircleBorder(),
             excludeFromSemantics: true,
             onTap: transfer.onPressed,
+            // The stroke is centred on the indicator's edge, so the
+            // indicator is set in by half of it: a 4 px ring within 40.
             child: SizedBox.square(
               dimension: MoshSpace.s10,
-              child: CircularProgressIndicator(
-                  value: progress.fraction,
-                  strokeWidth: MoshSpace.s1,
-                  semanticsLabel:
-                      l.attachmentStateDownloading(progress.percent)),
+              child: Padding(
+                padding: const EdgeInsets.all(MoshSpace.s1 / 2),
+                child: CircularProgressIndicator(
+                    value: progress.fraction,
+                    strokeWidth: MoshSpace.s1,
+                    semanticsLabel:
+                        l.attachmentStateDownloading(progress.percent)),
+              ),
             ),
           ),
         ),

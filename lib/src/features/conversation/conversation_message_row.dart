@@ -134,6 +134,7 @@ class ConversationMessageRow extends StatelessWidget {
     final failed =
         message.own && message.deliveryStatus == MessageDeliveryStatus.failed;
     final onBand = _onBand(context);
+    final tone = MessageTone.of(context, own: message.own);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
@@ -150,11 +151,11 @@ class ConversationMessageRow extends StatelessWidget {
         else
           MessageBubble(
             id: message.messageId ?? message.body,
-            tone: MessageTone.of(context, own: message.own),
+            tone: tone,
             grouped: grouped,
             continuesBelow: continuesBelow,
             gone: message.deletion != null,
-            child: _body(context, onBand),
+            child: _body(context, tone, onBand),
           ),
         if (failed)
           SelectionContainer.disabled(
@@ -173,7 +174,7 @@ class ConversationMessageRow extends StatelessWidget {
   /// What the bubble holds, top to bottom: the sender, a file, a picture or
   /// a voice message, then the text. The time ends the last line of the
   /// text; an attachment alone places it itself.
-  Widget _body(BuildContext context, Color? onBand) {
+  Widget _body(BuildContext context, MessageTone tone, Color? onBand) {
     if (message.deletion case final deleted?) {
       return _DeletedNote(deleted: deleted, l: l, ink: onBand);
     }
@@ -212,9 +213,7 @@ class ConversationMessageRow extends StatelessWidget {
                   attachment, hasText || !hasFooter ? null : footer),
             if (hasText)
               inset(ConversationMessageText(
-                  body: message.body,
-                  footer: footer,
-                  tone: MessageTone.of(context, own: message.own))),
+                  body: message.body, footer: footer, tone: tone)),
           ],
         ),
         if (!hasText && attachment == null && hasFooter) inset(footer),

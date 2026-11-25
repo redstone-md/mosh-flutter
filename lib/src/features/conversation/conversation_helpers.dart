@@ -133,8 +133,8 @@ String? formatClock(BigInt? sentAtMs, {String? locale}) {
   return DateFormat.Hm(locale ?? 'en').format(dt);
 }
 
-/// Full locale-aware date-time string for the tooltip of a message's time. Renders a full date + time in the LOCAL
-/// timezone via `DateFormat.yMMMd(locale).add_Hm()` -- e.g. "Aug 1, 2026
+/// Full locale-aware date-time string for the tooltip of a message's time.
+/// Renders a full date + time in the LOCAL timezone via `DateFormat.yMMMd(locale).add_Hm()` -- e.g. "Aug 1, 2026
 /// 2:30 PM" (en). Returns null when the message has no `sentAtMs`.
 /// `locale` defaults to `'en'` and mirrors [formatClock]'s locale
 /// handling.

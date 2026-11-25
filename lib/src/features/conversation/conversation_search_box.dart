@@ -156,11 +156,16 @@ class _FilterSegment extends StatelessWidget {
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       iconSize: MoshSpace.s4,
     ).copyWith(overlayColor: MoshState.layer(colors.onSurface));
-    return TextButton.icon(
+    // The card keeps 4 px between the glyph and the label, half of what a
+    // button with an icon does.
+    return TextButton(
       onPressed: onTap,
       style: style,
-      icon: icon == null ? null : Icon(icon),
-      label: Text(label),
+      child:
+          Row(mainAxisSize: MainAxisSize.min, spacing: MoshSpace.s1, children: [
+        if (icon != null) Icon(icon),
+        Text(label),
+      ]),
     );
   }
 }

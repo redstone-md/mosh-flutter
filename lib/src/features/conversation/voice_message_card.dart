@@ -190,22 +190,19 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final tone = MessageTone.of(context, own: widget.own);
+    final (glyph, label) = _failed
+        ? (MoshIcons.refresh, l.attachmentRetry)
+        : _playing
+            ? (MoshIcons.pause, l.voiceMessagePauseLabel)
+            : (MoshIcons.play, l.voiceMessagePlayLabel);
     return Row(
       mainAxisSize: MainAxisSize.min,
       spacing: MoshSpace.s3,
       children: [
         _VoiceButton(
           tone: tone,
-          glyph: _failed
-              ? MoshIcons.refresh
-              : _playing
-                  ? MoshIcons.pause
-                  : MoshIcons.play,
-          label: _failed
-              ? l.attachmentRetry
-              : _playing
-                  ? l.voiceMessagePauseLabel
-                  : l.voiceMessagePlayLabel,
+          glyph: glyph,
+          label: label,
           loading: _loading,
           onPressed: !_loading &&
                   (_attachment.localPath != null ||

@@ -10,6 +10,7 @@
 // focused tests below.
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/app/mosh_icons.dart';
@@ -374,6 +375,18 @@ void main() {
       await tester.tap(find.byTooltip('Cancel download'));
       expect(calls, ['cancel att-photo']);
       expect(_openCount, 0);
+      // The ring is a control for a screen reader and a keyboard too.
+      final handle = tester.ensureSemantics();
+      expect(
+          tester.getSemantics(
+              find.bySemanticsLabel('Cancel download for ridge.jpg').first),
+          isSemantics(isButton: true, hasTapAction: true));
+      handle.dispose();
+      Focus.of(tester.element(find.byType(CircularProgressIndicator)))
+          .requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      expect(calls, ['cancel att-photo', 'cancel att-photo']);
     });
 
     testWidgets('that failed says so and offers to try again', (tester) async {
@@ -412,5 +425,34 @@ void main() {
     expect(shown, endsWith('al-v3.zip'));
     expect(find.bySemanticsLabel(RegExp(RegExp.escape(name))), findsWidgets);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a cut never halves an emoji in a name', (tester) async {
+    final name = '${'🏕️' * 40}.zip';
+    await _pump(
+      tester,
+      AttachmentCard(
+        descriptor: _descriptor(
+            attachmentId: 'att-emoji',
+            fileName: name,
+            mime: 'application/zip',
+            totalSize: 1024),
+        view: _view(attachmentId: 'att-emoji'),
+        own: false,
+        busy: false,
+        onDownload: _onDownload,
+        onCancel: _onCancel,
+        onOpen: _onOpen,
+      ),
+    );
+    final shown = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((text) => text.data!)
+        .firstWhere((data) => data.contains('…'));
+    final parts = shown.split('…');
+    // Whole tents on both sides of the cut: no lone half of a pair.
+    expect(parts.first.replaceAll('🏕️', ''), isEmpty);
+    expect(parts.last, endsWith('.zip'));
+    expect(parts.last.replaceAll('🏕️', ''), '.zip');
   });
 }

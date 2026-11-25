@@ -32,7 +32,7 @@ class SelectableMessageRow extends StatelessWidget {
 
   /// Half the gap between the bubbles of a run: what a row keeps above and
   /// below its bubble, and how far the band of a picked row reaches past
-  /// that, so two picked rows of one run meet.
+  /// that, into the gap to its neighbour.
   static const double _band = MoshSpace.s1 / 2;
 
   @override
@@ -49,18 +49,7 @@ class SelectableMessageRow extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: selecting && id != null ? () => _pick(selection!, id) : null,
         child: Stack(clipBehavior: Clip.none, children: [
-          // The band reaches 4 px beyond the bubble, over the gaps to its
-          // neighbours, so the rows keep their rhythm when one is picked.
-          Positioned(
-            left: 0,
-            right: 0,
-            top: -_band,
-            bottom: -_band,
-            child: ColoredBox(
-                color: selecting && selected
-                    ? MoshColors.of(context).secondaryContainer
-                    : Colors.transparent),
-          ),
+          _bandBehind(context, picked: selecting && selected),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: side, vertical: _band),
             child: Row(
@@ -92,18 +81,42 @@ class SelectableMessageRow extends StatelessWidget {
     );
   }
 
-  /// The Checkbox card's 24 px mark, which picks the row.
-  Widget _selector(BuildContext context, MessageSelection selection, String id,
-          bool selected) =>
-      Transform.scale(
-        scale: MoshSpace.s6 / Checkbox.width,
-        child: Checkbox(
-          key: ValueKey('message-selector-$id'),
-          value: selected,
-          semanticLabel: AppLocalizations.of(context)!.messageSelect,
-          onChanged: selection.busy ? null : (_) => _pick(selection, id),
-        ),
+  /// The band of a picked row. It reaches 4 px beyond the bubble, over the
+  /// gaps to its neighbours, so the rows keep their rhythm when one is
+  /// picked; it is there, unpainted, while the row is not.
+  Widget _bandBehind(BuildContext context, {required bool picked}) =>
+      Positioned(
+        left: 0,
+        right: 0,
+        top: -_band,
+        bottom: -_band,
+        child: ColoredBox(
+            color: picked
+                ? MoshColors.of(context).secondaryContainer
+                : Colors.transparent),
       );
+
+  /// The Checkbox card: a 24 px mark that picks the row, alone on the
+  /// desktop and inside a 48 px target on the phone.
+  Widget _selector(BuildContext context, MessageSelection selection, String id,
+      bool selected) {
+    final touch = MoshControl.touch(Theme.of(context).platform);
+    return Transform.scale(
+      scale: MoshSpace.s6 / Checkbox.width,
+      child: Checkbox(
+        key: ValueKey('message-selector-$id'),
+        value: selected,
+        materialTapTargetSize: touch
+            ? MaterialTapTargetSize.padded
+            : MaterialTapTargetSize.shrinkWrap,
+        visualDensity: touch
+            ? VisualDensity.standard
+            : const VisualDensity(horizontal: -4, vertical: -4),
+        semanticLabel: AppLocalizations.of(context)!.messageSelect,
+        onChanged: selection.busy ? null : (_) => _pick(selection, id),
+      ),
+    );
+  }
 
   void _pick(MessageSelection selection, String id) =>
       HardwareKeyboard.instance.isShiftPressed
