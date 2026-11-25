@@ -117,14 +117,14 @@ void main() {
   ]) {
     for (final active in [false, true]) {
       testWidgets(
-          'a ${active ? 'selected' : 'resting'} row reads at 4.5:1 under the '
-          'pointer on the $palette palette', (tester) async {
+          'a ${active ? 'selected' : 'resting'} row reads at 4.5:1 while '
+          'pressed on the $palette palette', (tester) async {
         await _pumpRail(tester, _row(active: active), colors: colors);
         await tester.pump();
 
-        // The hover layer is the darkest the row's surface gets.
+        // The pressed layer is the strongest a row's surface carries.
         final surface = Color.alphaBlend(
-            MoshState.tint(colors.onSurface, MoshState.hover),
+            MoshState.tint(colors.onSurface, MoshState.pressed),
             Color.alphaBlend(_fill(tester), colors.surfaceContainerLowest));
         for (final text in ['Alice', 'Connected', '8:34 AM']) {
           expect(contrastRatio(_ink(tester, text), surface),
