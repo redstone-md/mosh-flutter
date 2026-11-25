@@ -103,18 +103,19 @@ class ConversationScreenBody extends ConsumerWidget {
           Column(
             children: [
               if (chatError != null)
-                ChatErrorBanner(
+                FeedBanner(ChatErrorBanner(
                   message: chatError.describe(l),
-                ),
+                  onClose: () => controller.showError(null),
+                )),
               if (failedSend != null)
-                ChatErrorBanner(
+                FeedBanner(ChatErrorBanner(
                   message: failedSend.error.describe(l),
                   onRetry: sends.closing ? null : onRetrySend,
-                ),
+                )),
               ConversationBanners(target: target, snapshot: async.value),
               if ((async.value?.deletionSummary?.rejectedCount ?? BigInt.zero) >
                   BigInt.zero)
-                ChatErrorBanner(message: l.messageDeletionRejected),
+                FeedBanner(ChatErrorBanner(message: l.messageDeletionRejected)),
               ConversationSearchRow(chrome: chrome),
               Expanded(
                   child: _messages(

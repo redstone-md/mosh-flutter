@@ -9,14 +9,18 @@ import 'package:mosh/src/features/conversation/conversation_notice_preferences.d
 import 'package:mosh/src/features/conversation/dismissible_conversation_notice.dart';
 import 'package:mosh/src/features/conversation/group_rejoin_needed_error.dart';
 import 'package:mosh/src/features/org/org_add_missing_banner.dart';
-import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart'
+    show feedPadding;
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show isMobileBreakpoint;
+import 'package:mosh/src/features/shared/mosh_notice.dart';
 import 'dm_revocation_banner.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/org_providers.dart' show orgAddPromptProvider;
 import 'package:mosh/src/rust/conversation/recovery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show DmHistorySyncState;
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 class ConversationBanners extends StatelessWidget {
   const ConversationBanners({
@@ -33,7 +37,6 @@ class ConversationBanners extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
     // A local, so the type check below promotes it.
     final loaded = snapshot;
@@ -44,11 +47,10 @@ class ConversationBanners extends StatelessWidget {
                   ? loaded.source.deviceRevocation
                   : null),
           if (loaded is DmConversation && !loaded.revoked)
-            _historyBanner(
-                colors, l, _dmHistoryState(loaded.source.historySync)),
+            _historyBanner(l, _dmHistoryState(loaded.source.historySync)),
         ]),
-      ConversationKind.channel => _channelNotices(colors, l,
-          loaded is ChannelConversation ? loaded.source.historySync : null),
+      ConversationKind.channel => _channelNotices(
+          l, loaded is ChannelConversation ? loaded.source.historySync : null),
       ConversationKind.group => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -57,13 +59,13 @@ class ConversationBanners extends StatelessWidget {
               icon: MoshIcons.lock,
               title: l.groupNoticeTitle,
               body: l.groupNoticeBody,
-              accent: colors.primary,
+              tone: MoshNoticeTone.secure,
             ),
             if (loaded is GroupConversation && loaded.source.needsRejoin)
-              GroupRejoinNeededError(
+              FeedBanner(GroupRejoinNeededError(
                 title: l.orgRejoinNeededTitle,
                 body: l.orgRejoinNeededBody,
-              ),
+              )),
             _OrgAddMissing(groupId: target.id, l: l),
           ],
         ),
@@ -78,9 +80,7 @@ HistorySyncState? _dmHistoryState(DmHistorySyncState? state) => switch (state) {
       null => null,
     };
 
-Widget _channelNotices(
-        MoshColors colors, AppLocalizations l, HistorySync? status) =>
-    Column(
+Widget _channelNotices(AppLocalizations l, HistorySync? status) => Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         DismissibleConversationNotice(
@@ -88,14 +88,13 @@ Widget _channelNotices(
           icon: MoshIcons.tag,
           title: l.channelNoticeTitle,
           body: l.channelNoticeBody,
-          accent: colors.info,
+          tone: MoshNoticeTone.open,
         ),
-        _historyBanner(colors, l, status?.state),
+        _historyBanner(l, status?.state),
       ],
     );
 
-Widget _historyBanner(
-    MoshColors colors, AppLocalizations l, HistorySyncState? state) {
+Widget _historyBanner(AppLocalizations l, HistorySyncState? state) {
   final copy = switch (state) {
     HistorySyncState.waitingForSource => (
         l.dmHistoryWaitingTitle,
@@ -108,12 +107,12 @@ Widget _historyBanner(
     HistorySyncState.complete || null => null,
   };
   if (copy == null) return const SizedBox.shrink();
-  return CryptoNoticeBanner(
+  return FeedBanner(MoshNotice(
+    tone: MoshNoticeTone.open,
     icon: MoshIcons.history,
     title: copy.$1,
-    body: copy.$2,
-    accent: colors.info,
-  );
+    detail: copy.$2,
+  ));
 }
 
 /// Offers an org admin the one tap that adds the org members who are not in
@@ -128,7 +127,7 @@ class _OrgAddMissing extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final prompt = ref.watch(orgAddPromptProvider(groupId));
     if (prompt == null || prompt.count == 0) return const SizedBox.shrink();
-    return OrgAddMissingBanner(
+    return FeedBanner(OrgAddMissingBanner(
       count: prompt.count,
       busy: prompt.busy,
       onAdd: () => ref
@@ -137,6 +136,21 @@ class _OrgAddMissing extends ConsumerWidget {
       missingOne: l.orgMissingOne,
       missingMany: l.orgMissingMany,
       addLabel: l.orgAddMissing,
-    );
+    ));
   }
+}
+
+/// A banner where it stands in a conversation: above the feed, set in as far
+/// as the feed's own content.
+class FeedBanner extends StatelessWidget {
+  const FeedBanner(this.banner, {super.key});
+
+  final Widget banner;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: feedPadding(compact: isMobileBreakpoint(context))
+            .copyWith(top: MoshSpace.s2, bottom: 0),
+        child: banner,
+      );
 }

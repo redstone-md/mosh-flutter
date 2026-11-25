@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/channel_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_banners.dart';
 import 'package:mosh/src/features/conversation/conversation_notice_preferences.dart';
-import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
+import 'package:mosh/src/features/shared/mosh_notice.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import '../../support/message_builders.dart';
 import '../../support/pump.dart';
@@ -70,11 +70,10 @@ void main() {
     // The message body still renders (banner did not displace the list).
     expect(find.text('hi'), findsOneWidget);
     expect(find.byTooltip('Close'), findsOneWidget);
-    final banner =
-        tester.widget<CryptoNoticeBanner>(find.byType(CryptoNoticeBanner));
-    await tester.runAsync(() => banner.onDismiss!());
+    final banner = tester.widget<MoshNotice>(find.byType(MoshNotice));
+    await tester.runAsync(() async => banner.onClose!());
     await tester.pumpAndSettle();
-    expect(find.byType(CryptoNoticeBanner), findsNothing);
+    expect(find.byType(MoshNotice), findsNothing);
     expect(store.read(), {ConversationNoticeKind.publicChannel});
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -86,7 +85,7 @@ void main() {
           TestSnapshots.channel(
               name: otherName, deviceFingerprint: 'fp-me', messages: const [])),
     ]);
-    expect(find.byType(CryptoNoticeBanner), findsNothing);
+    expect(find.byType(MoshNotice), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
   });

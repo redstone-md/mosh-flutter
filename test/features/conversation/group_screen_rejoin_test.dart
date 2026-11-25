@@ -21,14 +21,9 @@ Future<void> _pump(WidgetTester tester, GroupSnapshot snapshot) =>
     ]);
 
 void main() {
-  // The title ARB value ("Group out of sync") has NO trailing period; the
-  // widget appends it. The title + "." + " " + body render as a single
-  // `Text.rich`, so its `toPlainText()` is the concatenation "Group out of
-  // sync. The group is...". `find.text` matches a `Text.rich` by its
-  // span's `toPlainText()`, so we assert on the full string (the bold span
-  // carries the appended period).
-  const expectedInlineError = 'Group out of sync. The group is out of sync. '
-      'Ask an administrator to invite you again.';
+  const title = 'Group out of sync';
+  const body =
+      'The group is out of sync. Ask an administrator to invite you again.';
   testWidgets(
       'needsRejoin=true renders the rejoin-needed inline-error (title + body)',
       (tester) async {
@@ -48,9 +43,8 @@ void main() {
     );
     await _pump(tester, snapshot);
 
-    // The whole inline-error renders as one `Text.rich`; its plain text is
-    // the bold title (with appended period) + space + body.
-    expect(find.text(expectedInlineError), findsOneWidget);
+    expect(find.text(title), findsOneWidget);
+    expect(find.text(body), findsOneWidget);
     // The message body still renders (the banner did not displace the list).
     expect(find.text('hi'), findsOneWidget);
   });
@@ -75,7 +69,7 @@ void main() {
     await _pump(tester, snapshot);
 
     // The inline-error does not render at all when needsRejoin is false.
-    expect(find.text(expectedInlineError), findsNothing);
+    expect(find.text(title), findsNothing);
     // The message body still renders.
     expect(find.text('hi'), findsOneWidget);
   });

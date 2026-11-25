@@ -1,48 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/features/shared/mosh_notice.dart';
 
+/// The Rejoin group kind of the Banner card: the group is out of sync and
+/// only a new invitation puts it right, so the banner offers nothing to do.
 class GroupRejoinNeededError extends StatelessWidget {
   const GroupRejoinNeededError(
       {super.key, required this.title, required this.body});
 
-  /// The bold title line. The trailing period is appended here, NOT in the
-  /// ARB value ("Group out of sync" has no trailing period).
   final String title;
-
-  /// The body paragraph.
   final String body;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final error = theme.colorScheme.error;
-    return Semantics(
-      liveRegion: true,
-      container: true,
-      label: '$title. $body',
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: error.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: error.withValues(alpha: 0.35), width: 1),
-        ),
-        child: Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: '$title.',
-                style: theme.textTheme.labelMedium?.copyWith(color: error),
-              ),
-              const TextSpan(text: ' '),
-              TextSpan(
-                text: body,
-                style: theme.textTheme.bodySmall?.copyWith(color: error),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => MoshNotice(
+        tone: MoshNoticeTone.error,
+        icon: MoshIcons.error,
+        title: title,
+        detail: body,
+      );
 }

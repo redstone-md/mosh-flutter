@@ -53,7 +53,7 @@ class AboutUpdateNotice extends ConsumerWidget {
         case UpdateInstallFailed():
           return _line(context,
               icon: MoshIcons.error,
-              tint: colors.warning,
+              tint: colors.error,
               message: l.settingsAboutUpdateInstallFailed,
               action: _button(
                   l.settingsAboutUpdateRetry,
@@ -124,7 +124,7 @@ class AboutUpdateNotice extends ConsumerWidget {
             message: fraction == null
                 ? l.settingsAboutUpdateDownloadingUnknown
                 : l.settingsAboutUpdateDownloading(percent)),
-        const SizedBox(height: 6),
+        const SizedBox(height: MoshSpace.s2),
         MoshProgressBar(
             fraction: fraction,
             semanticsLabel: l.settingsAboutUpdateDownloading(percent)),
@@ -132,26 +132,39 @@ class AboutUpdateNotice extends ConsumerWidget {
     );
   }
 
-  /// Keeps the geometry of the settings notice rows: a 20px icon and the
-  /// shared icon-to-text gap. The action takes its own line when a long word
-  /// and a large text scale leave no room, rather than overflowing the card.
+  /// The line of the Update notice card: a mark, what Mosh knows about its
+  /// own version and the one thing to do about it, as tall as a control.
+  /// The action takes its own line when a long word and a large text scale
+  /// leave no room, rather than overflowing the card.
   Widget _line(
     BuildContext context, {
     required IconData icon,
     required Color tint,
     required String message,
     Widget? action,
-  }) =>
-      Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: MoshSpace.s3,
-        runSpacing: 4,
-        children: [
-          Icon(icon, size: 20, color: tint),
-          Text(message, style: Theme.of(context).textTheme.bodySmall),
-          if (action != null) action,
-        ],
-      );
+  }) {
+    final theme = Theme.of(context);
+    return ConstrainedBox(
+      constraints:
+          BoxConstraints(minHeight: MoshControl.height(theme.platform)),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        widthFactor: 1,
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: MoshSpace.s3,
+          runSpacing: MoshSpace.s1,
+          children: [
+            Icon(icon, size: MoshSpace.s5, color: tint),
+            Text(message,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: MoshColors.of(context).onSurfaceVariant)),
+            if (action != null) action,
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _button(String label, VoidCallback onPressed) =>
       TextButton(onPressed: onPressed, child: Text(label));

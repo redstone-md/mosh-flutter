@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/features/shared/mosh_notice.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
@@ -123,39 +124,19 @@ class _ReadyNote extends StatelessWidget {
   final String title;
   final String note;
 
+  // The Invite ready kind of the Inline note card, announced when it
+  // takes the form's place.
   @override
-  Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
-    final text = Theme.of(context).textTheme;
-    return Semantics(
-      liveRegion: true,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: colors.secondaryContainer,
-          border: Border.all(color: colors.primary.withValues(alpha: 0.3)),
+  Widget build(BuildContext context) => Semantics(
+        liveRegion: true,
+        child: MoshNotice(
+          inline: true,
+          tone: MoshNoticeTone.success,
+          icon: MoshIcons.success,
+          title: title,
+          detail: note,
         ),
-        child: Row(children: [
-          Icon(MoshIcons.success, size: 32, color: colors.primary),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: text.titleSmall?.copyWith(color: colors.primary)),
-                const SizedBox(height: 4),
-                Text(note,
-                    style: text.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant, height: 1.45)),
-              ],
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
+      );
 }
 
 /// The link in full, selectable, with a copy button inside the field.

@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_notice_preferences.dart';
 import 'package:mosh/src/features/conversation/dismissible_conversation_notice.dart';
+import 'package:mosh/src/features/shared/mosh_notice.dart';
 
 import '../../../support/conversation_cases.dart';
 import '../../../support/message_selection.dart';
@@ -55,7 +56,7 @@ void main() {
                   icon: MoshIcons.language,
                   title: 'Public channel',
                   body: 'Anyone with the link can read it.',
-                  accent: Colors.blue,
+                  tone: MoshNoticeTone.open,
                 )
               : const SizedBox.shrink(),
         ),

@@ -4,6 +4,8 @@ import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 
+import 'package:mosh/src/features/shared/mosh_notice.dart';
+
 import 'first_run_profile.dart';
 
 /// What a step of setup asks and why Mosh asks it: the single heading of the
@@ -41,22 +43,10 @@ class SetupPrivacyNote extends StatelessWidget {
   const SetupPrivacyNote({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
-    return Container(
-      padding: const EdgeInsets.all(MoshSpace.s4),
-      decoration: BoxDecoration(
-          color: colors.surfaceContainerLow,
-          borderRadius:
-              const BorderRadius.all(Radius.circular(MoshRadius.medium)),
-          border: Border.all(color: colors.outlineVariant)),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(MoshIcons.lock, size: MoshSpace.s5, color: colors.primary),
-        const SizedBox(width: MoshSpace.s3),
-        Expanded(
-            child: Text(AppLocalizations.of(context)!.firstRunEncryption,
-                style: Theme.of(context).textTheme.bodyMedium)),
-      ]),
-    );
-  }
+  Widget build(BuildContext context) => MoshNotice(
+        inline: true,
+        tone: MoshNoticeTone.secure,
+        icon: MoshIcons.lock,
+        detail: AppLocalizations.of(context)!.firstRunEncryption,
+      );
 }
