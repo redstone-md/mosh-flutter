@@ -38,56 +38,57 @@ class MoshMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final choice = selected;
     return Semantics(
-      selected: selected,
+      selected: choice,
       child: MenuItemButton(
         onPressed: onPressed,
         clipBehavior: Clip.antiAlias,
         overflowAxis: Axis.vertical,
-        style: ButtonStyle(
-          // An action is set as a label and leaves more room after it than
-          // a choice does after its mark.
-          textStyle: selected == null
-              ? WidgetStatePropertyAll(Theme.of(context).textTheme.labelLarge)
-              : null,
-          // An action fills the menu, so its tint reaches both edges.
-          minimumSize: selected == null
-              ? WidgetStatePropertyAll(Size(
-                  MoshMenuTheme.width - MoshSpace.s2 * 2,
-                  MoshControl.height(Theme.of(context).platform)))
-              : null,
-          padding: selected == null
-              ? const WidgetStatePropertyAll(EdgeInsetsDirectional.only(
-                  start: MoshSpace.s3, end: MoshSpace.s4))
-              : null,
-          foregroundColor: onPressed == null
-              ? null
-              : danger
-                  ? WidgetStatePropertyAll(colors.error)
-                  : selected == true
-                      ? WidgetStatePropertyAll(colors.onSecondaryContainer)
-                      : null,
-          iconColor: danger && onPressed != null
-              ? WidgetStatePropertyAll(colors.error)
-              : null,
-          // A row tints itself with its own ink.
-          overlayColor: danger ? MoshState.layer(colors.error) : null,
-          backgroundColor: selected == true
-              ? WidgetStatePropertyAll(colors.secondaryContainer)
-              : null,
-        ),
+        style: choice == null ? _action(theme) : _choice(theme, choice),
         leadingIcon: icon == null ? null : Icon(icon, size: MoshSpace.s5),
-        trailingIcon: selected == null
+        trailingIcon: choice == null
             ? null
             : SizedBox(
-                width: 20,
-                child: selected!
+                width: MoshSpace.s5,
+                child: choice
                     ? Icon(MoshIcons.check,
-                        size: 20, color: colors.onSecondaryContainer)
+                        size: MoshSpace.s5,
+                        color: theme.colorScheme.onSecondaryContainer)
                     : null),
         child: Text(label),
       ),
     );
   }
+
+  /// The Menu item: set as a label, with more room after it than a choice
+  /// leaves after its mark, and as wide as its menu so its tint reaches both
+  /// edges. One that cannot be undone is in the error colour, tint included.
+  ButtonStyle _action(ThemeData theme) {
+    final ink = danger ? theme.colorScheme.error : null;
+    return ButtonStyle(
+      textStyle: WidgetStatePropertyAll(theme.textTheme.labelLarge),
+      minimumSize: WidgetStatePropertyAll(
+          Size(MoshMenuTheme.rowWidth, MoshControl.height(theme.platform))),
+      padding: const WidgetStatePropertyAll(
+          EdgeInsetsDirectional.only(start: MoshSpace.s3, end: MoshSpace.s4)),
+      foregroundColor:
+          ink == null || onPressed == null ? null : WidgetStatePropertyAll(ink),
+      iconColor:
+          ink == null || onPressed == null ? null : WidgetStatePropertyAll(ink),
+      overlayColor: ink == null ? null : MoshState.layer(ink),
+    );
+  }
+
+  /// The Select option: the theme's row, lit while it is the chosen one.
+  ButtonStyle? _choice(ThemeData theme, bool chosen) => !chosen
+      ? null
+      : ButtonStyle(
+          foregroundColor: onPressed == null
+              ? null
+              : WidgetStatePropertyAll(theme.colorScheme.onSecondaryContainer),
+          backgroundColor:
+              WidgetStatePropertyAll(theme.colorScheme.secondaryContainer),
+        );
 }

@@ -66,6 +66,16 @@ enum MoshLevel {
   OutlinedBorder shape(MoshColors c) =>
       RoundedRectangleBorder(borderRadius: corners, side: edge(c));
 
+  /// A panel drawn as a card inside the background: the panel's tone with a
+  /// quiet edge. Settings cards, the start list, the player of a sound and
+  /// a quiet notice are cards; each brings its own [corners].
+  static ShapeDecoration card(MoshColors c, BorderRadius corners) =>
+      ShapeDecoration(
+        color: panel.fill(c),
+        shape: RoundedRectangleBorder(
+            borderRadius: corners, side: BorderSide(color: c.outlineVariant)),
+      );
+
   /// For a surface painted by hand.
   BoxDecoration decoration(MoshColors c) => BoxDecoration(
         color: fill(c),

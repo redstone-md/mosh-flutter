@@ -172,12 +172,8 @@ class _AudioCard extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 640),
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: MoshLevel.panel.fill(colors),
-          border: Border.all(color: colors.outlineVariant),
-          borderRadius:
-              const BorderRadius.all(Radius.circular(MoshRadius.extraLarge)),
-        ),
+        decoration: MoshLevel.card(colors,
+            const BorderRadius.all(Radius.circular(MoshRadius.extraLarge))),
         child: Padding(
           padding: const EdgeInsetsDirectional.fromSTEB(
               MoshSpace.s3, MoshSpace.s3, MoshSpace.s5, MoshSpace.s3),

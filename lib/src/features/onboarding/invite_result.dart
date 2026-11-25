@@ -127,15 +127,13 @@ class _ReadyNote extends StatelessWidget {
   // The Invite ready kind of the Inline note card, announced when it
   // takes the form's place.
   @override
-  Widget build(BuildContext context) => Semantics(
-        liveRegion: true,
-        child: MoshNotice(
-          inline: true,
-          tone: MoshNoticeTone.success,
-          icon: MoshIcons.success,
-          title: title,
-          detail: note,
-        ),
+  Widget build(BuildContext context) => MoshNotice(
+        inline: true,
+        announced: true,
+        tone: MoshNoticeTone.success,
+        icon: MoshIcons.success,
+        title: title,
+        detail: note,
       );
 }
 

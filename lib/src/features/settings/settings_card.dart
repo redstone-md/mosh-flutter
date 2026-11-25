@@ -55,11 +55,10 @@ class SettingsSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
+    final card = MoshLevel.card(MoshColors.of(context), radius);
     return Material(
-      color: colors.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-          borderRadius: radius, side: BorderSide(color: colors.outlineVariant)),
+      color: card.color,
+      shape: card.shape,
       clipBehavior: Clip.antiAlias,
       child: Padding(padding: EdgeInsets.all(inset(context)), child: child),
     );

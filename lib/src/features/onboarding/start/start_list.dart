@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors, MoshLevel;
 import 'package:mosh/src/features/shared/start_row.dart';
 
 /// One way to start a conversation.
@@ -91,10 +91,8 @@ class _Section extends StatelessWidget {
           ]),
         ),
         Material(
-          color: colors.surfaceContainerLow,
-          shape: RoundedRectangleBorder(
-              borderRadius: StartRow.radius,
-              side: BorderSide(color: colors.outlineVariant)),
+          color: MoshLevel.panel.fill(colors),
+          shape: MoshLevel.card(colors, StartRow.radius).shape,
           clipBehavior: Clip.antiAlias,
           child: Column(children: [
             for (final action in actions)

@@ -19,10 +19,13 @@ enum MoshNoticeTone {
 
   bool get quiet => this != warning && this != error;
 
-  Color _fill(MoshColors c) => switch (this) {
-        warning => c.warningContainer,
-        error => c.errorContainer,
-        _ => MoshLevel.panel.fill(c),
+  /// A quiet notice is a card of the panel level; a toned one is a plate
+  /// of its container colour, without an edge.
+  Decoration _surface(MoshColors c, BorderRadius corners) => switch (this) {
+        warning =>
+          BoxDecoration(color: c.warningContainer, borderRadius: corners),
+        error => BoxDecoration(color: c.errorContainer, borderRadius: corners),
+        _ => MoshLevel.card(c, corners),
       };
 
   Color _mark(MoshColors c) => switch (this) {
@@ -46,8 +49,7 @@ enum MoshNoticeTone {
 /// [inline] note is the same message inside a form, a step tighter in its
 /// corners.
 ///
-/// The text is one semantic node and the control another; an error is
-/// announced when it appears.
+/// The text is one semantic node and the control another.
 class MoshNotice extends StatelessWidget {
   const MoshNotice({
     super.key,
@@ -60,7 +62,9 @@ class MoshNotice extends StatelessWidget {
     this.onAction,
     this.busy = false,
     this.inline = false,
-  })  : assert(title != null || detail != null),
+    bool? announced,
+  })  : announced = announced ?? tone == MoshNoticeTone.error,
+        assert(title != null || detail != null),
         assert(onClose == null || actionLabel == null,
             'a notice ends with one control');
 
@@ -79,6 +83,10 @@ class MoshNotice extends StatelessWidget {
   final bool busy;
   final bool inline;
 
+  /// Whether a screen reader is told when the notice appears. An error
+  /// always is; a note that takes a form's place asks for it.
+  final bool announced;
+
   /// A line of the notice's text, which the mark and the control stand on.
   static const _line = MoshSpace.s5;
   static const _pad = MoshSpace.s4;
@@ -89,14 +97,12 @@ class MoshNotice extends StatelessWidget {
     final tail = _tail(context, colors);
     return Semantics(
       container: true,
-      liveRegion: tone == MoshNoticeTone.error,
+      liveRegion: announced,
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: tone._fill(colors),
-          borderRadius: BorderRadius.all(
-              Radius.circular(inline ? MoshRadius.medium : MoshRadius.large)),
-          border: tone.quiet ? Border.all(color: colors.outlineVariant) : null,
-        ),
+        decoration: tone._surface(
+            colors,
+            BorderRadius.all(Radius.circular(
+                inline ? MoshRadius.medium : MoshRadius.large))),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsetsDirectional.only(
