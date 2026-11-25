@@ -75,6 +75,25 @@ fn segments_of_different_formats_are_refused_and_leave_no_clip() {
     assert!(!joined.exists());
 }
 
+/// Regression: a join that failed before it wrote anything removed whatever
+/// already stood at the output path.
+#[test]
+fn a_failed_join_leaves_a_file_already_at_the_output_alone() {
+    let existing = output("existing.m4a");
+    std::fs::write(&existing, b"kept").expect("existing file");
+
+    let missing = join_segments(&[fixture("absent.m4a")], &existing);
+    let taken = join_segments(&[fixture("voice-first.m4a")], &existing);
+
+    assert!(missing.is_err());
+    assert!(taken.is_err(), "an existing file is never written over");
+    assert_eq!(
+        std::fs::read(&existing).expect("file is still there"),
+        b"kept"
+    );
+    std::fs::remove_file(existing).expect("existing file is removed");
+}
+
 #[test]
 fn a_missing_segment_is_an_error() {
     let joined = output("missing.m4a");

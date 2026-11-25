@@ -1819,9 +1819,9 @@
   "@typingHint": {
     "description": "Typing indicator hint shown under the DM/group message list while the counterpart types; {name} is the display name"
   },
-  "typingHintAnd": "and more are typing",
+  "typingHintAnd": "are typing",
   "@typingHintAnd": {
-    "description": "Tail of the multi-member typing hint in a group, appended after the comma-joined names"
+    "description": "Tail of the multi-member typing hint in a group, appended after the comma-joined names of everyone typing"
   },
   "settingsReadReceiptsTitle": "Read receipts",
   "@settingsReadReceiptsTitle": {

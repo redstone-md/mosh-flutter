@@ -20,7 +20,7 @@ class TypingHint extends StatelessWidget {
 
   /// The display names of everyone typing right now. Empty renders
   /// nothing. One name renders the DM shape and a group's single typer
-  /// the same way; several names join with the localized "and".
+  /// the same way; several names are listed, every one of them typing.
   final List<String> names;
 
   /// The localized `name is typing` shape; defaults to the ARB
@@ -35,7 +35,7 @@ class TypingHint extends StatelessWidget {
     if (label != null) {
       return names.length == 1
           ? label(names.first)
-          : '${names.join(', ')} and others are typing';
+          : '${names.join(', ')} are typing';
     }
     if (l == null) return null;
     return names.length == 1

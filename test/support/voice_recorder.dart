@@ -120,7 +120,10 @@ class VoiceRecorderProbe {
       case 'hasPermission':
         return permission?.future ?? allowed;
       case 'start':
-        if (failStart) throw PlatformException(code: 'record', message: 'busy');
+        if (failStart) {
+          failStart = false;
+          throw PlatformException(code: 'record', message: 'busy');
+        }
         path = (call.arguments as Map)['path'] as String;
         started.add(path!);
         File(path!).writeAsBytesSync([1, 2, 3]);

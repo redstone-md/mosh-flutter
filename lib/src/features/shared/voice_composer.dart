@@ -328,7 +328,12 @@ class _ClipPlayer extends ChangeNotifier {
     } catch (_) {
       return close();
     }
-    final opened = _player = create();
+    final Player opened;
+    try {
+      opened = _player = create();
+    } catch (_) {
+      return;
+    }
     _events
       ..add(opened.stream.playing.listen((now) => _set(() => playing = now)))
       ..add(opened.stream.position.listen((at) => _set(() => played =

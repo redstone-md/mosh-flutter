@@ -3,11 +3,16 @@
 // A send that throws keeps the text in the composer and shows an error
 // banner with a Retry button. Submission clears immediately; completion
 // preserves a newer draft.
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
+import 'package:mosh/src/features/conversation/conversation_controller.dart';
+import 'package:mosh/src/features/shared/voice_composer.dart' show VoiceSend;
 
 import '../../support/conversation_cases.dart';
 import '../../support/scriptable_gateway.dart';
@@ -34,6 +39,31 @@ Future<void> _tapSend(WidgetTester tester) async {
 }
 
 void main() {
+  // Regression (CodeAnt PR #197): every voice message left its clip in the
+  // app cache.
+  testWidgets('a voice clip is gone from the cache once it is sent',
+      (tester) async {
+    final testCase = conversationCases().first;
+    final gateway = ScriptableGateway();
+    await pumpConversation(tester, testCase, gateway: gateway);
+    final dir = Directory.systemTemp.createTempSync('mosh-voice-sent');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final clip = File('${dir.path}/clip.m4a')..writeAsBytesSync([1, 2, 3]);
+    final controller = ProviderScope.containerOf(
+            tester.element(find.byType(ConversationComposer)))
+        .read(conversationControllerProvider(testCase.target).notifier);
+
+    await tester.runAsync(() => controller.sendVoice(VoiceSend(
+        path: clip.path,
+        mime: 'audio/mp4',
+        durationMs: 2000,
+        peaksBase64: '')));
+    await tester.pumpAndSettle();
+
+    expect(gateway.lastCall(GatewayMethod.sendAttachment), isNotNull);
+    expect(clip.existsSync(), isFalse);
+  });
+
   for (final testCase in conversationCases()) {
     final label = testCase.label;
 

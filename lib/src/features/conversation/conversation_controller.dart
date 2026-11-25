@@ -144,10 +144,12 @@ class ConversationController extends Notifier<ConversationControllerState> {
   }
 
   /// Sends a recording as a voice message. The duration and the waveform
-  /// travel with it so the row can render the player.
+  /// travel with it so the row can render the player. The clip's file is
+  /// read once and removed, sent or not: a failed send is not kept.
   Future<void> sendVoice(VoiceSend voice) async {
+    final clip = File(voice.path);
     await _send(() async {
-      final bytes = await File(voice.path).readAsBytes();
+      final bytes = await clip.readAsBytes();
       await ref.read(gatewayProvider).sendAttachment(
             target,
             fileName: _voiceFileName(voice.mime),
@@ -159,6 +161,11 @@ class ConversationController extends Notifier<ConversationControllerState> {
             ),
           );
     });
+    try {
+      await clip.delete();
+    } on FileSystemException {
+      // Already gone, or held by the system: the cache is its to clear.
+    }
   }
 
   /// The shared body of the two file sends: block a second send, run the

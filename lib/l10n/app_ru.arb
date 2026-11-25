@@ -855,7 +855,7 @@
   "lockScreenInsecureDeviceTitle": "Устройство не защищено",
   "lockScreenInsecureDeviceMessage": "Mosh требует блокировку экрана (PIN, графический ключ или биометрию) для защиты переписок. Установите её в Настройки - Безопасность, затем откройте Mosh снова.",
   "typingHint": "{name} печатает",
-  "typingHintAnd": "и другие печатают",
+  "typingHintAnd": "печатают",
   "settingsReadReceiptsTitle": "Отчёты о прочтении",
   "settingsReadReceiptsSubtitle": "Сообщать о прочтении в личных чатах и видеть отчёты собеседников. По умолчанию выключено.",
   "settingsReadReceiptsDetailsTitle": "Как это работает",

@@ -316,7 +316,23 @@ void main() {
     expect(playback.opened, hasLength(1));
   });
 
-  // Regression (CodeAnt PR #154): a preview that failed to play was dropped
+  // Regression (CodeAnt PR #197): without libmpv the player cannot even be
+  // made, and that escaped the press.
+  testWidgets('a recording with no player to play it stays as it is',
+      (tester) async {
+    VoiceRecorderProbe(tester);
+    await pumpVoiceComposer(tester,
+        createPlayer: () => throw StateError('no libmpv'));
+    await _record(tester, const Duration(seconds: 1));
+    await _press(tester, 'Pause');
+
+    await tester.tap(find.byTooltip('Play'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byTooltip('Play'), findsOneWidget);
+  });
+
   // with its player still allocated.
   testWidgets('a recording that cannot be played lets go of its player',
       (tester) async {

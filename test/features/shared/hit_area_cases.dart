@@ -2,9 +2,9 @@
 // stay unchanged (audit 2026-09-21, hit-areas finding).
 //
 // Per control:
-//  - composer send button: the painted plate is the 40px target itself
-//    (pinned here so no wrapper ever re-introduces a layout cost beside
-//    the input);
+//  - composer send button: on the desktop the painted 40px plate is the
+//    target itself; a phone pads it to 48px (pinned here so no wrapper
+//    ever re-introduces a layout cost beside the input);
 //  - paperclip picker: the compact density shrank its hit box to 32px; the
 //    LAYOUT box must be >= 40 (IconButton's hit area IS its layout box);
 //  - fingerprint lock: a 15px glyph with a left-only inset was a ~19x15 tap

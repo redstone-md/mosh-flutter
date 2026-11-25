@@ -20,17 +20,9 @@ type Reader = Mp4Reader<BufReader<File>>;
 ///
 /// Every segment must be AAC at the sample rate and channel layout of the
 /// first: one recorder made them all, so anything else is a bug upstream.
-/// A failed join leaves no file at `output`.
+/// `output` must not exist yet: a file already there is never written over
+/// or removed. A join that fails leaves no file of its own behind.
 pub fn join_segments(segments: &[impl AsRef<Path>], output: &Path) -> Result<(), String> {
-    let joined = write_joined(segments, output);
-    if joined.is_err() {
-        // Best effort: the caller is told about the join, not the cleanup.
-        let _ = std::fs::remove_file(output);
-    }
-    joined
-}
-
-fn write_joined(segments: &[impl AsRef<Path>], output: &Path) -> Result<(), String> {
     let mut opened = Vec::with_capacity(segments.len());
     for path in segments {
         opened.push(Segment::open(path.as_ref())?);
@@ -43,14 +35,23 @@ fn write_joined(segments: &[impl AsRef<Path>], output: &Path) -> Result<(), Stri
     if opened.iter().any(|segment| segment.format != format) {
         return Err("voice segments differ in audio format".into());
     }
-    let file = File::create(output).map_err(|error| format!("create voice clip: {error}"))?;
+    let file = File::create_new(output).map_err(|error| format!("create voice clip: {error}"))?;
+    let joined = write_joined(&mut opened, &format, file);
+    if joined.is_err() {
+        // Best effort: the caller is told about the join, not the cleanup.
+        let _ = std::fs::remove_file(output);
+    }
+    joined
+}
+
+fn write_joined(opened: &mut [Segment], format: &TrackConfig, file: File) -> Result<(), String> {
     let mut writer = Mp4Writer::write_start(BufWriter::new(file), &container(format.timescale))
         .map_err(describe)?;
-    writer.add_track(&format).map_err(describe)?;
+    writer.add_track(format).map_err(describe)?;
     let mut start_time = 0;
     for Segment {
         reader, track_id, ..
-    } in &mut opened
+    } in opened
     {
         for sample_id in 1..=reader.sample_count(*track_id).map_err(describe)? {
             let Some(sample) = reader.read_sample(*track_id, sample_id).map_err(describe)? else {
